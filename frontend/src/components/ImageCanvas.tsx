@@ -37,6 +37,7 @@ export function ImageCanvas({ file }: { file: FileItem }) {
   useEffect(() => {
     currentId.current = file.id;
     setDecoded(false);
+    setPaintedId(null);
     // A cached picture can be complete before React attaches `onLoad`.
     const image = imageRef.current;
     if (image?.complete && image.naturalWidth > 0) {

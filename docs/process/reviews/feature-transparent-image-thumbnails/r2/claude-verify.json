@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "Traced by reading the code. frontend/src/components/ImageCanvas.tsx:21-22 computes poster = has_thumbnail && paintedId !== file.id. paintedId is only ever set at line 31, inside the decode resolution and only when currentId matches. The file.id effect at lines 37-46 resets `decoded` but never clears paintedId. ImageCanvas is rendered without a key (FilePreview.tsx:160), so its state survives a change of file. Sequence A decodes -> B (not decoded yet) -> A: paintedId is still 'A', so poster is null from A's first render back, while the img is at opacity 0 (decoded=false). A's thumbnail is not painted again, which contradicts I8. The existing tests (ImageCanvas.test.tsx:135-171) only go f1 -> f2 and never return to a file that was already decoded."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "Traced by reading the code. backend/app/services/scanner.py:217-227 makes _is_flattened_transparent_picture return False when another row on the same drive points at the same thumbnail_path. The elif chain at scanner.py:514/526 then reaches _is_letterboxed_image_thumbnail. When that returns True, line 536-537 writes gen_fn, which get_thumbnail_generator (thumbnail.py:624-625) returns as generate_image_thumbnail. generate_image_thumbnail (thumbnail.py:483-486) now writes WebP whenever carries_transparency(source) is True. So a transparent picture in a shared, letterboxed slot gets a WebP written into that shared slot. The letterbox branch already rewrote shared slots before this change, but only with JPEG; writing WebP into a shared slot is new, and it goes against the stated purpose of the shared-slot guard and against I11 if the letterbox rewrite counts as part of the migration."
+    }
+  ],
+  "specification_compliance": [
+    "I8 is not met when the canvas returns to a file whose decode already resolved, before any other file's decode has resolved (F1).",
+    "I11 is bypassed through the letterbox branch for transparent sources in shared slots (F2), if that branch counts as part of the migration."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Whether I11's 'the migration' covers the pre-existing letterbox rewrite branch is not stated."
+  ],
+  "regression_risks": [
+    "The letterbox branch in scanner.py now changes thumbnail format through generate_image_thumbnail, which the shared-slot guard does not cover."
+  ],
+  "test_coverage": [
+    "ImageCanvas tests cover f1 -> f2 but not a return to a file that was already decoded (A -> B -> A).",
+    "I saw no test that covers a shared slot that is also letterboxed."
+  ],
+  "not_verified": [
+    "I ran no tests and executed nothing; every result comes from reading the code.",
+    "I did not check whether FilePreview's parents remount it on a change of file (for example with a key higher up the tree), which would hide F1.",
+    "I did not review files.py content-type handling or the Markdown projection paths."
+  ],
+  "confidence": 85
+}

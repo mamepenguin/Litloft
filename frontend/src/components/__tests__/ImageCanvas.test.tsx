@@ -162,6 +162,17 @@ describe("ImageCanvas once the picture has decoded (SPEC-CORE-007)", () => {
     expect(paintedBackgrounds(view.container)).toEqual([]);
   });
 
+  it("SPEC-CORE-007: returning to a file painted earlier paints its thumbnail again", async () => {
+    const view = render(<ImageCanvas file={makeFile()} />);
+    fireEvent.load(screen.getByRole("img"));
+    await settle((p) => p.resolve());
+
+    view.rerender(<ImageCanvas file={makeFile({ id: "f2" })} />);
+    view.rerender(<ImageCanvas file={makeFile()} />);
+
+    expect(canvas().style.backgroundImage).toContain("/api/files/f1/thumbnail");
+  });
+
   it("SPEC-CORE-007: a decode that resolves after the file changed is ignored", async () => {
     const view = render(<ImageCanvas file={makeFile()} />);
     fireEvent.load(screen.getByRole("img"));

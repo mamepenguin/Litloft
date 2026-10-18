@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "ImageCanvas remembers only the last id whose decode resolved (paintedId). If the canvas goes back to that file before any other file's decode has resolved, the thumbnail is not painted again for it.",
+      "impact": "Steps: the viewer opens picture A and A decodes. They step to picture B and leave before B decodes, or B's decode rejects (for example an unsupported format). They step back to A. A's box is then an empty bg-bg-card frame until A's full picture loads, with no thumbnail under it, because the img sits at opacity 0 until onLoad. This happens whenever the component is re-rendered with a new file prop instead of being remounted. The existing file.id effect exists for exactly that case.",
+      "evidence": "frontend/src/components/ImageCanvas.tsx:18,21-22: poster = has_thumbnail && paintedId !== file.id. paintedId is set only in the decode resolution (line 31) and is never cleared when file.id changes (the effect at lines 37-46 resets `decoded` but not paintedId). So for A -> B (not decoded) -> A, paintedId === 'A' when A is shown again, and poster is null from the first render.",
+      "repro": "In ImageCanvas.test.tsx: render f1, fireEvent.load, resolve decode. Rerender f2 and do not resolve its decode (or reject it). Rerender f1 and assert canvas().style.backgroundImage contains /api/files/f1/thumbnail. By reading the code, this assertion fails because the style is undefined. None of the four new SPEC-CORE-007 tests goes back to a file that was already painted. Not run.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I8 says moving ImageCanvas to another file paints that file's thumbnail again until its own picture has decoded. Moving back to an earlier file is such a move, and its thumbnail is not painted.",
+        "invariant_ref": "I8"
+      },
+      "severity": "LOW",
+      "proposed_fix": "Clear paintedId (setPaintedId(null)) in the file.id effect next to setDecoded(false), or key the painted state by the current mount of the file instead of by id. Add a test for the A -> B -> A sequence."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The new shared-slot guard covers only the transparency migration. A transparent picture in a shared stem slot whose JPEG is still letterboxed falls through to the letterbox branch, which runs generate_image_thumbnail and now writes a WebP into the shared slot.",
+      "impact": "Setup: logo.png (RGBA, not 16:9) sits beside logo.jpg, and the shared logo.jpg slot still holds an old 320x180 letterboxed JPEG. The next scan turns the shared slot into a WebP of logo.png. The spec's user-visible claim that such a picture 'keeps its current thumbnail' does not hold on this path. The letterbox rewrite of a shared slot already happened before this change; what this change adds is that the rewrite is now a WebP.",
+      "evidence": "backend/app/services/scanner.py:514-539: when _is_flattened_transparent_picture returns False because of the shared check (scanner.py:217-227), control reaches the `elif _is_letterboxed_image_thumbnail` branch. That branch calls gen_fn = generate_image_thumbnail. Since thumbnail.py's change, generate_image_thumbnail picks WebP for a source that carries transparency.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "I11 is worded about 'the migration' (the JPEG->WebP one), and that migration honours the guard. The letterbox path rewriting a shared slot is mostly pre-existing, but it contradicts what the spec says users will see.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Either apply the same shared-slot skip before the letterbox branch, or accept the case and drop the 'keeps its current thumbnail' sentence for the letterboxed case."
+    }
+  ],
+  "specification_compliance": [
+    "r1 F1/F2 (submodule bump and docs/addons/intelligence.md coming in from the stacked branch) are resolved: develop now contains #457 (a38e56fe1), and f74509e2f merges origin/develop, so the diff against the base no longer contains the addons/intelligence pointer, docs/addons/intelligence.md, or the SPEC-ADDON-024 INDEX row.",
+    "In the scanner the migration runs inside the existing-file branch after the relocate check, so thumbnail_path == expected_thumb and is non-null when _is_flattened_transparent_picture opens it (scanner.py:509-516). The checks run in the order the spec gives: mime/HEIC, JPEG signature, shared slot, then the transparency check (scanner.py:209-228). The source is not opened for a stored WebP.",
+    "The migration uses generate_webp_image_thumbnail with no fallback, through write_thumbnail_atomically. On failure needs_update is not set, and the slot is untouched because the write goes to a sibling temp file (thumbnail.py:597-613).",
+    "The opaque path keeps the exact earlier ffmpeg argv (-q:v 2) through _run_image_ffmpeg. carries_transparency catches Exception, which covers DecompressionBombError.",
+    "_image_media_type sniffs RIFF/WEBP and PNG and otherwise falls back to image/jpeg. An OSError on read gives image/jpeg. ETag and Cache-Control handling is unchanged.",
+    "get_thumbnail_generator returns None for .loft, so the migration never reaches .loft rows. Video, PDF and EPUB are excluded by file_type == 'image'.",
+    "ImageCanvas drops the background only after decode() resolves, ignores stale results through currentId, and keeps the background when decode rejects. Returning to a previously painted file does not paint the thumbnail again (F1)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "A GIF stored in a thumbnail slot (an EPUB cover, if stored raw, or a .loft remote thumbnail) is labelled image/jpeg. That matches I3's 'anything else' rule but is not its real type."
+  ],
+  "regression_risks": [
+    "The first scan after upgrade re-encodes every RGBA/keyed non-JPEG picture inside the scan lock with no cap, and opaque PNGs pay one Pillow header open per scan from then on. The spec accepts this.",
+    "A transparent picture whose WebP migration keeps failing also never gets the letterbox migration, so a letterboxed JPEG stays letterboxed. The spec accepts this, but it is permanent until the WebP write succeeds."
+  ],
+  "test_coverage": [
+    "The backend tests cover the format choice for 9 transparent source kinds, the exact opaque argv, WebP->JPEG fallback, the transparency check raising, content-type sniffing including short and RIFF-non-WebP files, 304 revalidation, migration success/failure/retry, a shared slot, trashed rows, untouched other kinds, and Markdown projection.",
+    "No test covers ImageCanvas going back to a file that already decoded after an intermediate file that did not decode (F1).",
+    "No test covers a transparent picture in a shared slot whose JPEG is letterboxed (F2)."
+  ],
+  "not_verified": [
+    "I did not run any backend or frontend tests. The F1 repro comes from reading the code.",
+    "I did not check whether every production caller of FilePreview/ImageCanvas remounts on a file change. If they all do, F1 cannot be reached.",
+    "I did not inspect commit fcbff35e2 on its own, or confirm with git that the diff against the base no longer carries the submodule.",
+    "I did not check whether ffmpeg's libwebp in the deployed image preserves alpha for every format listed in the spec."
+  ],
+  "confidence": 80,
+  "trajectory": "The fixes since r1 add no branch, state or prediction to the transparent-thumbnail code. The r1 findings were about scope: the stacked SPEC-ADDON-024 work. They were resolved by landing #457 on develop (a38e56fe1) and merging origin/develop into the branch (f74509e2f), with f5070e06f recording the r1 decision. This removes the submodule bump and the intelligence docs edit from the reviewed diff. The design is not being patched round after round; the SPEC-CORE-006/007 code is the same as in r1."
+}
