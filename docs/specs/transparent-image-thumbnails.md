@@ -38,9 +38,12 @@ icons today.
 
 - **Carries transparency**: Pillow opens the source (header only) and either its mode has
   an alpha band (`RGBA`, `LA`, `PA`, `RGBa`, `La`) or its `info` has a `transparency` entry.
-  A source Pillow cannot open does not carry transparency. Measured in the backend image
-  (Pillow 11.2.1): RGBA PNG, palette PNG with tRNS, GIF with a transparent index, WebP with
-  alpha, RGBA TIFF and ICO carry transparency; an RGB PNG does not; AVIF cannot be opened
+  Any exception from opening or reading the header (`OSError`, `ValueError`,
+  `DecompressionBombError` on a very large source, or anything else) means the source does
+  not carry transparency; the check never raises. Measured in the backend image (Pillow
+  11.2.1): RGBA PNG, palette PNG with tRNS, RGB and grayscale PNG with a colour-key tRNS,
+  GIF with a transparent index, WebP with alpha, RGBA TIFF and ICO carry transparency, and
+  ffmpeg keeps alpha 0 for each into the WebP; an RGB PNG does not; AVIF cannot be opened
   and so never does.
 - **Opaque source**: one that does not carry transparency. An RGBA picture whose pixels are
   all fully opaque (a typical screenshot) still carries transparency by this definition.
@@ -85,22 +88,30 @@ included, as the letterbox migration does), a picture whose expected thumbnail e
 regenerated when all of these hold:
 
 1. its mime type is not `image/jpeg` and it is not HEIC (`is_heic_file` false);
-2. its stored thumbnail begins with the JPEG signature (`FF D8 FF`);
-3. the source carries transparency.
+2. its stored thumbnail begins with the JPEG signature (`FF D8 FF`); a stored thumbnail
+   that cannot be read fails this check;
+3. no other row on the drive has the same `thumbnail_path` (slots are keyed by stem, so
+   `logo.png` and `logo.jpg` in one folder share `logo.jpg`; see known-issues). A shared
+   slot is left as it is;
+4. the source carries transparency.
 
 The checks run in that order, so a stored WebP stops at check 2 and its source is not
-opened. This check runs **before** the letterbox check; when it regenerates, the
-letterbox check is skipped for that row in that scan (the new thumbnail is already
-unpadded). A successful regeneration sets `needs_update = True`, as the letterbox
-migration does, so it is counted in `updated` and logged as `Updated file: ...`. A failed
-one leaves the stored JPEG (`write_thumbnail_atomically` renames only on success) and
-`thumbnail_path` unchanged; with the step-3 fallback the stored bytes are then a fresh
-JPEG, and the next scan tries again.
+opened. This check runs **before** the letterbox check; whenever checks 1-4 all pass, the
+letterbox check is skipped for that row in that scan, whether or not the write succeeds.
+
+The migration writes **WebP only**, with no JPEG fallback: on success the WebP is renamed
+into place and `needs_update = True`, as the letterbox migration does, so it is counted
+in `updated` and logged as `Updated file: ...`. On failure nothing is renamed: the stored
+JPEG keeps its bytes and mtime, `thumbnail_path` is unchanged, `needs_update` is not set
+by it, a warning is logged, and the next scan tries again.
 
 **Detail canvas (SPEC-CORE-007).** `ImageCanvas` keeps the thumbnail as a background on
-the span while `decoded` is false. When the full picture fires `onLoad` (or is already
-complete when the effect runs), `decoded` becomes true and the span carries no
-`background-image`. The outer box keeps `bg-bg-card`, so transparent pixels show it.
+the span until the full picture is ready to paint. The `<img>` decodes asynchronously, so
+`load` can fire before the picture is paintable; the background is therefore removed only
+after `img.decode()` resolves, called once the picture has loaded (or is already complete
+when the effect runs). The `<img>` opacity keeps following `onLoad` as today. If
+`decode()` rejects, the background stays. A result that arrives after the viewer has moved
+to another file is ignored. After removal the span carries no `background-image`. The outer box keeps `bg-bg-card`, so transparent pixels show it.
 Switching to another file resets `decoded` to false, so the next file's thumbnail is
 painted again until its own picture decodes.
 
@@ -109,9 +120,11 @@ painted again until its own picture decodes.
 - Pillow cannot open the source: opaque; the JPEG path runs as today.
 - ffmpeg fails to write the WebP: fallback to JPEG (step 3). If the JPEG also fails, the
   generator returns false, exactly as a failed JPEG does today.
-- The migration's regeneration produces JPEG through the fallback: the row keeps a JPEG,
-  and every later scan retries it (one ffmpeg WebP attempt plus one JPEG per scan for that
-  file) and logs the WebP failure at warning level.
+- The migration's WebP write fails: the stored JPEG is left untouched (bytes, mtime,
+  ETag), and every later scan retries it (one ffmpeg run per scan for that file) and logs
+  a warning. Clients do not re-download, and Markdown projections are not recopied.
+- The transparency check or the stored-signature read raises: treated as "not
+  transparent" / "not JPEG"; the upload or scan carries on as today.
 - The thumbnail file is shorter than a signature: served as `image/jpeg`.
 - The full picture never decodes (network failure, unsupported format): the thumbnail stays
   painted under it, as today.
@@ -125,9 +138,10 @@ runs the generator chooses the format afresh from the source at that moment:
 |---|---|
 | New-file registration (per-file, pass 2), upload create/revive | none → JPEG or WebP; any → none on total failure, as today |
 | Scan relocate with old thumbnail missing | any → JPEG or WebP (from the current source) |
-| Scan migration (this spec) | JPEG → WebP only |
-| Letterbox migration | JPEG → JPEG (opaque source), or JPEG → WebP if it regenerates a transparent source whose migration did not run first (cannot happen: the migration runs first) |
+| Scan migration (this spec) | JPEG → WebP only; on failure no change |
+| Letterbox migration | JPEG → JPEG for an opaque source; it does not run on a row whose checks 1-4 passed, so it never handles a transparent source with an unshared JPEG slot |
 | Markdown projection | copies the source's bytes, whatever their format |
+| `fileops.copy_file` | copies the source row's stored bytes, whatever their format; never re-encodes |
 
 Not allowed: the scan never turns a stored WebP into JPEG on its own, even if the source
 at that path has become opaque; a rename/move that carries an existing thumbnail file
@@ -197,6 +211,7 @@ falls back to JPEG; a failed JPEG logs the existing
 - Existing transparent pictures change over as the scans that walk their folders run;
   until then they look as today.
 - Pictures from an opaque source get the same JPEG bytes as today.
+- A transparent picture that shares its stem slot with another file (`logo.png` beside `logo.jpg`) keeps its current thumbnail.
 - `docs/reference/api.md`'s thumbnail row is updated: WebP with alpha for a picture that
   carries transparency, JPEG otherwise, and the `Content-Type` follows the bytes. No
   user-guide change (a rendering fix the viewer does not need instructions for).
@@ -230,6 +245,8 @@ falls back to JPEG; a failed JPEG logs the existing
 - `data/thumbnails/**` — written (same paths).
 - `.claude/rules/backend-conventions.md` — "JPEG throughout" rule.
 - `docs/reference/api.md` — thumbnail endpoint row.
+- `docs/developer-guide/architecture.md` — the `data/thumbnails/` row ("Generated JPEG
+  thumbnails").
 - Tests: `backend/tests/` (thumbnail generator, scanner migration, upload, Markdown
   projection, files router), `frontend/src/components/` tests for `ImageCanvas`.
 - No protected path is edited.
@@ -240,9 +257,11 @@ I1. A picture whose source carries transparency gets a WebP thumbnail whose pixe
 I2. A picture from an opaque source gets a JPEG thumbnail produced by the same ffmpeg command as before this change.
 I3. `GET /api/files/{id}/thumbnail` answers `Content-Type: image/webp` for stored WebP bytes, `image/png` for stored PNG bytes, and `image/jpeg` for anything else including the placeholder, with the same ETag, `Cache-Control: no-cache` and `304` behaviour as before.
 I4. A scan replaces a stored JPEG thumbnail with a WebP only when the picture's source carries transparency; it never rewrites a stored WebP, never opens the source of a picture whose stored thumbnail is WebP, and never touches a video, PDF, EPUB, HEIC, `image/jpeg` or `.loft` thumbnail.
-I5. A transparent picture whose WebP write fails still gets a JPEG thumbnail, and a failed migration leaves the record's `thumbnail_path` unchanged.
+I5. A transparent picture whose WebP write fails at generation still gets a JPEG thumbnail; a failed migration leaves the stored thumbnail's bytes and mtime and the record's `thumbnail_path` unchanged, and does not count the row as updated.
+I10. A source the transparency check cannot open or read, for any reason, never aborts an upload or a scan, and gets the same JPEG thumbnail it would have got before this change.
+I11. The migration never writes a thumbnail slot that another row on the drive also points at.
 I6. After a source picture's thumbnail becomes WebP, a Markdown file whose thumbnail projects that picture serves the same WebP bytes as `image/webp` after the next scan.
-I7. After the full picture in `ImageCanvas` has decoded, the element around it carries no `background-image`; before it has decoded, the thumbnail is painted there when the file has one.
+I7. After the full picture in `ImageCanvas` has loaded and `decode()` has resolved, the element around it carries no `background-image`; before that, the thumbnail is painted there when the file has one.
 I8. Moving `ImageCanvas` to another file paints that file's thumbnail again until its own picture has decoded.
 I9. Thumbnail cache paths and `files.thumbnail_path` values keep their current form (`.jpg` names); no row is added, removed or renamed by this change.
 
@@ -273,5 +292,13 @@ I9. Thumbnail cache paths and `files.thumbnail_path` values keep their current f
 - **Capping migrations per scan.** The letterbox migration set the precedent of migrating
   as scans walk, uncapped; the first-scan cost is accepted (§10).
 - **Stopping retries of a WebP that always fails.** Would need a record of the failure;
-  the file keeps a working JPEG and the cost is one extra ffmpeg run per scan for it.
+  the file keeps its working JPEG untouched and the cost is one extra ffmpeg run per scan.
+- **Migrating a shared stem slot.** Which file owns a shared slot is fixed at registration
+  today; the migration does not change the winner. Such a transparent picture keeps its
+  black JPEG until the stem collision itself is fixed (known-issues).
+- **The stat/sniff/serve race in `_revalidating_image`.** A rename between the sniff and
+  `FileResponse` opening the path already exists for any regeneration; the first-scan
+  migration makes it more frequent but the next request is correct. Not addressed here.
+- **A real-browser check that no `bg-bg-card` frame shows between load and paint.** jsdom
+  cannot show it; it is left to R-5 in a real browser.
 - **A user-guide entry.** The change fixes a rendering; nothing to instruct.
