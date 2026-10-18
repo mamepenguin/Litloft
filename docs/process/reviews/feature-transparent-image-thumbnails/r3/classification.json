@@ -1,0 +1,60 @@
+{
+  "risk": "CRITICAL",
+  "score": 11,
+  "base": 3,
+  "zone_max": "HIGH",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": ".claude/rules/backend-conventions.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/routers/files.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/services/scanner.py",
+      "level": "HIGH"
+    },
+    {
+      "path": "backend/app/services/thumbnail.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/tests/test_transparent_thumbnails.py",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/developer-guide/architecture.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/reference/api.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/transparent-image-thumbnails.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/src/components/ImageCanvas.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/ImageCanvas.test.tsx",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone HIGH (8 points)"
+  ]
+}
