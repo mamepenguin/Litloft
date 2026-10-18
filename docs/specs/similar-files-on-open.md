@@ -42,11 +42,16 @@ core's slot hosts and the knowledge addon are not changed.
    "Similar files (N)". An empty result shows the existing empty text and "(0)".
 4. The viewer may collapse and expand the section. Neither sends a request; loaded results are
    shown again.
-5. A new `fileId` while mounted resets the section to expanded and `loading` and sends one
-   request for the new file.
+5. A new `fileId` or a new `drive` while mounted (the pair is the section's identity) resets
+   the section to expanded and `loading` and sends one request for the new pair.
 6. Each mount starts from step 2. The section keeps nothing across an unmount: collapsing the
    phone sheet or closing the pane and opening it again on the same file shows the ghosts and
-   sends a request again, which the addon's cache answers.
+   sends a request again, which the addon's cache answers. In development React's StrictMode
+   runs the mount effects, their cleanup and the effects again; the first run's answer is
+   discarded as for an unmount, and the section ends `loaded` like a single mount.
+7. Result thumbnails load lazily (`loading="lazy"`): while the Related panel is hidden behind
+   another inspector tab, the browser requests none of them, and it requests them when the
+   panel is shown.
 
 ### 2. Failure cases
 
@@ -54,7 +59,7 @@ core's slot hosts and the knowledge addon are not changed.
   a 404 for a locked drive): kept as today. The section waits 6 s and asks again, then 12 s and
   asks again, and after the third failure shows the unavailable text with a retry button. The
   retry starts the same sequence.
-- **A new `fileId` while a request or a backoff is pending**: the old file's answer is
+- **A new `fileId` or `drive` while a request or a backoff is pending**: the old file's answer is
   discarded when it arrives, and no further request for the old file is sent. Kept as today.
 - **Unmount while a request or a backoff is pending** (the sheet collapses, the pane closes,
   the detail closes): new behaviour. The pending backoff timer is cleared, no further request is
@@ -67,8 +72,12 @@ core's slot hosts and the knowledge addon are not changed.
 ### 3. States
 
 `loading -> loaded`, `loading -> (backoff) -> loading`, `loading -> unavailable`,
-`unavailable -> loading` (retry button), and `-> loading` from any state on a new `fileId`.
-The section is in `loading` from its first render; `idle` is not reached.
+`unavailable -> loading` (retry button), and `-> loading` from any state on a new `fileId` or
+`drive`. The section is in `loading` from its first render.
+
+Not allowed: `idle` shown at all; `loaded -> loading` or `unavailable -> loading` by expanding,
+collapsing or re-rendering with the same `fileId` and `drive` (`unavailable` leaves only through
+the retry button or a new pair); any transition after an unmount.
 
 Independently, expanded/collapsed: expanded on mount and on each new `fileId`, toggled only by
 the viewer. Collapsing while `loading` does not cancel the request, and the answer landing does
@@ -95,12 +104,16 @@ The section sends the drive the slot host gave it and no other.
 
 - One similar-files request per mount of the section: per file detail open with the pane open,
   per pane open, per phone sheet expansion, and per file change while mounted. Before, only an
-  expand sent one.
+  expand sent one. Its result thumbnails are requested only once the panel is shown.
 - Core's own relations in the Related group render without waiting for it.
 - The knowledge addon's "See connections as a graph" link sits after Similar files in the same
   slot (priority 90 against 40). With the section expanded, the link is drawn below the ghosts
   and then the result cards, about three card rows lower in the 384 px rail. The user accepted
   this (2026-10-18).
+- In the layout without the shell (`RelatedStack`, used off the canonical file route, such as a
+  collection), Similar files sits above Exif, the `file-detail-sections` slot and the comments.
+  Starting expanded moves those down by the ghosts' height from the first paint, and up again
+  when fewer than six results come back, on each file. The user accepted this (2026-10-18).
 - `docs/addons/intelligence.md` says the section "searches only when you expand it"; that
   sentence is changed in the core PR that bumps the submodule.
 - `SimilarFilesSection.test.tsx`: almost every test opens the section by clicking the header
@@ -125,7 +138,9 @@ addon logs a failed `find_similar` as it does now.
 - The heading reads "Similar files (N)" once the results are in, as today.
 - A collapse lasts until the file changes or the section unmounts; the next mount is expanded.
 - Re-expanding the phone sheet or reopening the pane shows the ghosts briefly again.
-- On notes, the knowledge graph link moves below the cards (item 7).
+- On notes, the knowledge graph link moves below the cards (item 7). Off the canonical route,
+  Exif, addon sections and comments sit below the cards (item 7).
+- Thumbnails in a hidden Related panel appear when the panel is shown, not before.
 - Texts, card layout, ghost count and column count are unchanged.
 
 ### 10. Non-functional
@@ -134,17 +149,20 @@ addon logs a failed `find_similar` as it does now.
   paint; the first time the addon's code chunk loads, core's `AddonSlot` shows nothing for the
   entry until the chunk arrives (`Suspense fallback={null}`), which is unchanged. The rest of
   the file detail does not wait for the response.
-- At most one request is in flight per mounted section, and at most three are sent
-  automatically per mount and file (the first and two retries).
-- The server cost per mount is one `find_similar`, measured above. The endpoint runs it off the
+- A mounted section acts on at most one request at a time. A request for an old pair is not
+  aborted and may still be open, but its answer is ignored. At most three requests are sent
+  automatically per mount and pair (the first and two retries).
+- The server cost per mount is one `find_similar`, measured above, plus up to six thumbnail
+  requests to core once the panel is shown. The endpoint runs it off the
   event loop (`asyncio.to_thread`) on the read session, so it holds neither the loop nor the
   write lock.
 
 ## Touch points
 
 - `addons/intelligence/frontend/SimilarFilesSection.tsx` (submodule): fetch on mount and on a
-  new `fileId`; start expanded; new: cancel on unmount (clear the backoff timer and ignore late
-  answers); keep the retry, stale-answer and ghost logic.
+  new `fileId` or `drive`; start expanded; new: cancel on unmount (clear the backoff timer and
+  ignore late answers) in a way that survives StrictMode's effect re-run; `loading="lazy"` on
+  the result thumbnails; keep the retry, stale-answer and ghost logic.
 - `addons/intelligence/frontend/SimilarFilesSection.test.tsx` (submodule): rewritten as item 7
   says.
 - `docs/addons/intelligence.md`: the "searches only when you expand it" sentence.
@@ -160,14 +178,16 @@ addon logs a failed `find_similar` as it does now.
 
 ## Invariants
 
-I1. A mount of the section with a file and drive, with no viewer action, sends one similar-files request for that file with that drive's `X-Lit-Drive` before any answer arrives; a further request is sent only by a retry (I6) or a new `fileId`.
-I2. On mount and after every change of `fileId`, the section is expanded and shows its six ghost cards until the answer lands.
+I1. A committed mount of the section with a file and drive, with no viewer action, sends one similar-files request for that file with that drive's `X-Lit-Drive` before any answer arrives; a further request is sent only by a retry (I6) or a new `fileId` or `drive`.
+I2. On mount and after every change of `fileId` or `drive`, the section is expanded and shows its six ghost cards until the answer lands.
 I3. Collapsing and expanding the section, or re-rendering it with the same `fileId` and drive (an inspector tab switch, a parent re-render), sends no request and, once loaded, shows the same results.
 I4. Collapsing the section while its request is pending does not cancel it, and the answer landing does not expand the section again.
-I5. After a change of `fileId`, no answer, retry or unavailable state belonging to the previous file is shown, and no further request for the previous file is sent.
+I5. After a change of `fileId` or `drive`, no answer, retry or unavailable state belonging to the previous pair is shown, and no further request for the previous pair is sent.
 I6. A failing request is asked again 6 s and then 12 s after the failures, and only the third failure shows the unavailable text with a retry button; the retry sends a new request.
-I7. After the section unmounts, no further request is sent for it and an answer that arrives later changes nothing, including when it unmounts during a backoff.
+I7. After the section unmounts, no further request is sent for it and an answer that arrives later changes nothing, including when it unmounts during a backoff; when its effects are run, cleaned up and run again (StrictMode), it still ends `loaded` with the second run's answer.
 I8. Core's own relations in the Related group are on screen while the section's request is pending.
+I9. Every result thumbnail is a lazily loaded image (`loading="lazy"`), so no thumbnail is requested while the Related panel is hidden.
+I10. Expanding, collapsing or re-rendering with the same `fileId` and `drive` never moves the section out of `unavailable`; only the retry button or a new pair does.
 
 ## Checked, no action
 
@@ -182,6 +202,9 @@ I8. Core's own relations in the Related group are on screen while the section's 
   browser cache would add an eviction rule and a stale path.
 - **Keep it collapsed and show only the count.** Offered; the user chose expanded.
 - **Move the knowledge graph link above Similar files.** Offered; the user kept the order.
+- **Collapse the section in the layout without the shell.** Offered; the user chose expanded
+  there too (2026-10-18). It would need the host to tell the addon which layout it is in.
+- **Load result thumbnails eagerly.** Offered; the user chose lazy loading (2026-10-18).
 - **Abort the in-flight HTTP request (`AbortController`) on a file change or unmount.** The
   browser would stop waiting, but the addon's `find_similar` runs to the end in its thread
   either way, so the server cost is the same; the guards in I5 and I7 keep the answer off
