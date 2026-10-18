@@ -206,8 +206,8 @@ addon logs a failed `find_similar` as it does now.
 ## Invariants
 
 I1. A mount of the section with a file and drive, with no viewer action, sends one similar-files request for that file with that drive's `X-Lit-Drive` and its own `AbortSignal` before any answer arrives (two under StrictMode's effect re-run, the first aborted).
-I2. On mount and after every change of `fileId` or `drive`, the section is expanded and shows its six ghost cards, with no count in the heading, while its requests and backoffs are pending, through both backoffs included.
-I3. Collapsing and expanding the section, or re-rendering it with the same `fileId` and `drive` (an inspector tab switch, a parent re-render), sends no request; while mounted, a request is sent only on mount, by a retry (I6), by the retry button, or for a new `fileId` or `drive` and, once loaded, shows the same results.
+I2. On mount and after every change of `fileId` or `drive`, the section is expanded and shows its six ghost cards, with no count in the heading, while its requests and both backoffs are pending.
+I3. Collapsing and expanding the section, or re-rendering it with the same `fileId` and `drive` (an inspector tab switch, a parent re-render), sends no request and, once loaded, shows the same results; while mounted, a request is sent only on mount, by a retry (I6), by the retry button, or for a new `fileId` or `drive`.
 I4. Collapsing the section while its request is pending does not cancel it, and the answer landing does not expand the section again.
 I5. After a change of `fileId` or `drive`, the previous pair's open request is aborted, no answer, retry or unavailable state belonging to it is shown, and no further request for it is sent.
 I6. A failing request is asked again 6 s and then 12 s after the failures, and only the third failure shows the unavailable text with a retry button; the retry sends a new request.
