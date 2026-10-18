@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The diff adds a new file, addons/intelligence/frontend/similarFiles.api.test.ts, which is not in the declared touch-point list (the list names api.ts and SimilarFilesSection.test.tsx only).",
+      "impact": "No user-visible effect. It is a test-only file that pins the new getSimilarFiles shape (the signal is passed to fetch, X-Lit-Drive is sent, the default limit applies, and the limit can be overridden). It is unplanned scope in the touch-point sense only.",
+      "evidence": "addons/intelligence/frontend/similarFiles.api.test.ts:1-60 is new in the submodule diff. The touch points in docs/specs/similar-files-on-open.md (lines ~184-202) list SimilarFilesSection.tsx, api.ts, SimilarFilesSection.test.tsx, docs/addons/intelligence.md and the submodule pointer, and do not mention this file. Grep shows the only non-test caller of getSimilarFiles is SimilarFilesSection.tsx:58, which matches the touch point's statement that the section is the only caller.",
+      "repro": "Compare the file list in the submodule diff (28e15f2..c97eb09) with the spec's Touch points section. similarFiles.api.test.ts is the only path in the diff that the list does not cover, apart from the implicit spec, INDEX and review-record paths.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "It breaks no invariant. It is an additional test supporting the api.ts touch point, so the list is incomplete rather than the code being wrong.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add addons/intelligence/frontend/similarFiles.api.test.ts to the touch-point list in the invariants revision, or accept it as test scope belonging to the api.ts touch point."
+    }
+  ],
+  "specification_compliance": [
+    "The touch points that the diff reaches and that are listed: SimilarFilesSection.tsx, api.ts, SimilarFilesSection.test.tsx, docs/addons/intelligence.md (the 'searches only when you expand it' sentence) and the addons/intelligence submodule pointer.",
+    "The implicit touch points docs/specs/similar-files-on-open.md and docs/specs/INDEX.md are present and not reported.",
+    "None of the read-only core files listed (RightPaneFile, FileDetailFullScreen, FileDetailContent, FileDetailShell, InspectorPane, InspectorShell, RelatedPanel, RelatedStack, MobileInspectorSheet, AddonSlot, the proxy, the endpoint, the knowledge addon entry) appear in the diff.",
+    "The only path in the diff outside the list is addons/intelligence/frontend/similarFiles.api.test.ts."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "getSimilarFiles changed from a positional limit to an options object. Grep found no other caller in the core repository or the addon frontend, so no caller is left on the old shape."
+  ],
+  "test_coverage": [
+    "similarFiles.api.test.ts covers the signal being passed to fetch, the X-Lit-Drive header, the default limit and a limit override.",
+    "SimilarFilesSection.test.tsx has tests labelled for I1-I10."
+  ],
+  "not_verified": [
+    "I could not run git, so I did not confirm that commit 856376df5 alone contains exactly this diff rather than the whole branch against origin/develop. I used the diff as supplied.",
+    "I did not run the test suites.",
+    "I did not check that core's fetchJSON forwards the signal option to fetch. I only saw that the api.test asserts it.",
+    "I did not judge behavioural invariant compliance in depth, because this review's question was touch-point completeness."
+  ],
+  "confidence": 88
+}

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "addons/intelligence/frontend/similarFiles.api.test.ts exists (60 lines). Its header cites SPEC-ADDON-024, the ID of docs/specs/similar-files-on-open.md (line 3, INDEX.md:45). It tests the new `{ limit?, signal? }` shape of getSimilarFiles, so it was written for this change. The touch-point list (docs/specs/similar-files-on-open.md:184-204) names SimilarFilesSection.tsx, api.ts, SimilarFilesSection.test.tsx, docs/addons/intelligence.md and the submodule pointer, and does not name this file. Grep shows the only non-test caller of getSimilarFiles is SimilarFilesSection.tsx:58, which passes `{ signal: controller.signal }`. The file only adds test coverage for the declared api.ts shape and changes no runtime behavior. I could not run git, so I did not confirm from history that the file is new in the diff. That part rests on the reviewer's diff evidence and on the SPEC-ADDON-024 citation."
+    }
+  ],
+  "specification_compliance": [
+    "The api.ts touch point holds as checked: getSimilarFiles at api.ts:342 is called only by SimilarFilesSection.tsx:58, which passes { signal }.",
+    "The test file outside the declared touch points (TP-1) is a test-only addition aimed at the declared api.ts shape."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [],
+  "test_coverage": [
+    "similarFiles.api.test.ts checks three things: the caller's signal reaches fetch, the X-Lit-Drive header is set, the default limit is SIMILAR_FILES_LIMIT, and an explicit limit overrides that default."
+  ],
+  "not_verified": [
+    "I could not run git, so I did not confirm from history that similarFiles.api.test.ts is new in commit 856376df5. I checked the working tree only.",
+    "I did not check invariants I1-I10 against SimilarFilesSection.tsx.",
+    "I did not run the tests."
+  ],
+  "confidence": 85
+}
