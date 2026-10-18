@@ -42,3 +42,4 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-021 | implemented | docs/specs/idf-term-table.md | sha256:e0e13a033f22fdd8ea39013ff1448838f79596b0214ffa4256604ac09e60dd5a |
 | SPEC-ADDON-022 | implemented | docs/specs/vec-partition-by-type.md | sha256:30ce87b0571ed03c78aa9ccbee528588e57fd80f544c25e83cef4c947814cef8 |
 | SPEC-ADDON-023 | implemented | docs/specs/vec-partition-by-type.md | sha256:30ce87b0571ed03c78aa9ccbee528588e57fd80f544c25e83cef4c947814cef8 |
+| SPEC-ADDON-024 | implemented | docs/specs/similar-files-on-open.md | sha256:3ca2bc754db9122108b7e45dcf1af68f1219414612ef8cdbecf6be93c20eaf10 |
