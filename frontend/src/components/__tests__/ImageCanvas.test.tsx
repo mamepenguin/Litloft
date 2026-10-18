@@ -1,6 +1,6 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { fireEvent } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ImageCanvas } from "../ImageCanvas";
 import type { FileItem } from "@/types";
@@ -76,5 +76,110 @@ describe("ImageCanvas", () => {
     const img = screen.getByRole("img");
     expect(img).not.toHaveAttribute("width");
     expect(img).not.toHaveAttribute("height");
+  });
+});
+
+type Pending = { resolve: () => void; reject: (e: Error) => void };
+
+describe("ImageCanvas once the picture has decoded (SPEC-CORE-007)", () => {
+  let pending: Pending[];
+  const original = Object.getOwnPropertyDescriptor(
+    HTMLImageElement.prototype,
+    "decode",
+  );
+
+  beforeEach(() => {
+    pending = [];
+    Object.defineProperty(HTMLImageElement.prototype, "decode", {
+      configurable: true,
+      value: () =>
+        new Promise<void>((resolve, reject) => {
+          pending.push({ resolve, reject });
+        }),
+    });
+  });
+
+  afterEach(() => {
+    if (original) {
+      Object.defineProperty(HTMLImageElement.prototype, "decode", original);
+    } else {
+      delete (HTMLImageElement.prototype as { decode?: unknown }).decode;
+    }
+  });
+
+  const settle = async (each: (p: Pending) => void) => {
+    const batch = pending.splice(0);
+    await act(async () => {
+      batch.forEach(each);
+    });
+  };
+
+  const paintedBackgrounds = (root: HTMLElement) =>
+    [root, ...Array.from(root.querySelectorAll<HTMLElement>("*"))]
+      .map((el) => el.style.backgroundImage)
+      .filter((value) => value !== "" && value !== "none");
+
+  it("SPEC-CORE-007: keeps the thumbnail through load until decode resolves, then drops it", async () => {
+    const view = render(<ImageCanvas file={makeFile()} />);
+
+    fireEvent.load(screen.getByRole("img"));
+    expect(canvas().style.backgroundImage).toContain("/api/files/f1/thumbnail");
+    expect(pending.length).toBeGreaterThan(0);
+
+    await settle((p) => p.resolve());
+
+    expect(paintedBackgrounds(view.container)).toEqual([]);
+    expect(screen.getByRole("img").style.opacity).toBe("1");
+  });
+
+  it("SPEC-CORE-007: a new file paints its own thumbnail again until its picture decodes", async () => {
+    const view = render(<ImageCanvas file={makeFile()} />);
+    fireEvent.load(screen.getByRole("img"));
+    await settle((p) => p.resolve());
+    expect(paintedBackgrounds(view.container)).toEqual([]);
+
+    view.rerender(<ImageCanvas file={makeFile({ id: "f2" })} />);
+
+    expect(canvas().style.backgroundImage).toContain("/api/files/f2/thumbnail");
+
+    fireEvent.load(screen.getByRole("img"));
+    await settle((p) => p.resolve());
+
+    expect(paintedBackgrounds(view.container)).toEqual([]);
+  });
+
+  it("SPEC-CORE-007: a rejected decode keeps the thumbnail; the next file still drops its own", async () => {
+    const view = render(<ImageCanvas file={makeFile()} />);
+    fireEvent.load(screen.getByRole("img"));
+    await settle((p) => p.reject(new Error("EncodingError")));
+
+    expect(canvas().style.backgroundImage).toContain("/api/files/f1/thumbnail");
+
+    view.rerender(<ImageCanvas file={makeFile({ id: "f2" })} />);
+    fireEvent.load(screen.getByRole("img"));
+    await settle((p) => p.resolve());
+
+    expect(paintedBackgrounds(view.container)).toEqual([]);
+  });
+
+  it("SPEC-CORE-007: a decode that resolves after the file changed is ignored", async () => {
+    const view = render(<ImageCanvas file={makeFile()} />);
+    fireEvent.load(screen.getByRole("img"));
+    const stale = pending.splice(0);
+    expect(stale.length).toBeGreaterThan(0);
+
+    view.rerender(<ImageCanvas file={makeFile({ id: "f2" })} />);
+    const current = pending.splice(0);
+    await act(async () => {
+      stale.forEach((p) => p.resolve());
+    });
+
+    expect(canvas().style.backgroundImage).toContain("/api/files/f2/thumbnail");
+
+    pending.push(...current);
+    fireEvent.load(screen.getByRole("img"));
+    await settle((p) => p.resolve());
+
+    expect(paintedBackgrounds(view.container)).toEqual([]);
   });
 });
