@@ -1,4 +1,4 @@
-# Similar files load when the file detail opens
+# Similar files load when the section is shown
 
 SPEC-ID: SPEC-ADDON-024
 
@@ -7,160 +7,195 @@ Approval:
 ## Summary
 
 The intelligence addon's **Similar files** section, drawn by core's `file-relations` slot
-under the file detail's **Related** group, starts its search when it mounts instead of when
-the viewer expands it, and starts expanded. Detection was made user-initiated because one
-request used to take about 10 s on production and starved the page and the server. Since the
-vector tables were partitioned by type (SPEC-ADDON-022/023, deployed 2026-10-17), production
-`GET /similar/{id}?limit=6` measures 0.03-0.3 s, and 1.0-1.5 s for the first request that
-reads a drive's partition from disk, across documents, videos, images and archives on the
-drives `main` and `videos`. So the result can be ready by the time the viewer looks at the
-Related tab. This is for the single viewer of the personal library, who should not have to
-press anything to see similar files.
+in the file detail's **Related** group, starts its search when it mounts instead of when the
+viewer expands it, and starts expanded. Detection was made user-initiated because one request
+used to take about 10 s on production and starved the page and the server. Since the vector
+tables were partitioned by type (SPEC-ADDON-022/023, deployed 2026-10-17), production
+`GET /similar/{id}?limit=6` measures 0.03-0.3 s, 1.0-1.5 s for the first request that reads a
+drive's partition from disk, and 0.00 s for a repeated request (the addon's in-process cache),
+across documents, videos, images and archives on the drives `main` and `videos`. So the result
+can be on screen by the time the viewer looks at the Related tab. This is for the single viewer
+of the personal library, who should not have to press anything to see similar files.
 
-The change lives in the `addons/intelligence` submodule's frontend. The backend, the endpoint
-and core's slot host are not changed.
+The change lives in the `addons/intelligence` submodule's frontend. The backend, the endpoint,
+core's slot hosts and the knowledge addon are not changed.
 
 ## Required items
 
 ### 1. Normal flow
 
-1. The viewer opens a file detail. Core mounts every inspector tab panel at once and only
-   hides the ones not selected (`InspectorShell`), so the Related panel, and the `file-relations`
-   slot inside it, mounts with the detail even while another tab is shown. In the layout
-   without the shell, `RelatedStack` mounts it in the page flow. On a phone the inspector is a
-   sheet whose drawer is mounted only while expanded, so there the section mounts when the
-   viewer expands the sheet.
-2. On mount, `SimilarFilesSection` is expanded and in `loading`, shows its six ghost cards,
-   and sends one `GET /api/addons/intelligence/similar/{fileId}?limit=6` with the `X-Lit-Drive`
-   of the drive it was given.
+1. The section mounts whenever its host draws it:
+   - **Desktop with the inspector pane open**: `InspectorShell` mounts every tab panel and only
+     hides the unselected ones, so the Related panel, and the slot in it, mounts with the file
+     detail even while another tab is selected.
+   - **Desktop with the pane closed** (under 1120 px, or the viewer last closed it on that
+     drive): `FileDetailShell` does not render `InspectorPane`, so the section mounts when the
+     viewer opens the pane.
+   - **Phone**: `MobileInspectorSheet` mounts its drawer only while expanded, so the section
+     mounts when the viewer expands the sheet.
+   - **The layout without the shell**: `RelatedStack` mounts it in the page flow with the
+     detail.
+2. On mount the section is expanded and in `loading`, shows its six ghost cards, and sends one
+   `getSimilarFiles(fileId, drive)` (`GET /api/addons/intelligence/similar/{fileId}?limit=6`
+   with that drive's `X-Lit-Drive`).
 3. The response replaces the ghosts with the result cards and the heading becomes
-   "Similar files (N)". If the response is empty, the existing empty text is shown.
-4. The viewer may collapse and expand the section. Neither sends a request; the results that
-   were loaded are shown again.
-5. Moving to another file (the section receives a new `fileId`) resets it to expanded and
-   `loading` and sends one request for the new file.
+   "Similar files (N)". An empty result shows the existing empty text and "(0)".
+4. The viewer may collapse and expand the section. Neither sends a request; loaded results are
+   shown again.
+5. A new `fileId` while mounted resets the section to expanded and `loading` and sends one
+   request for the new file.
+6. Each mount starts from step 2. The section keeps nothing across an unmount: collapsing the
+   phone sheet or closing the pane and opening it again on the same file shows the ghosts and
+   sends a request again, which the addon's cache answers.
 
 ### 2. Failure cases
 
-- **The request fails or times out** (the addon proxy's 15 s timeout, the addon down, a 5xx):
-  the existing behaviour is kept. The section waits 6 s and asks again, then 12 s and asks
-  again, and after the third failure shows "unavailable" with a retry button. The retry
-  starts the same sequence again.
-- **The viewer moves to another file while a request or a backoff is pending**: the pending
-  answer is discarded when it arrives and no further retry is sent for the old file. The new
-  file's request starts at once.
-- **The section unmounts while pending** (the detail closes, the phone sheet collapses):
-  nothing it receives later is shown, and it sends no further retry.
-- **The source file is not indexed**: the endpoint answers with an empty result, which shows
-  the empty text, as today.
-- **The drive is locked or the file is not in it**: the endpoint answers 404 and the section
-  follows the failure path above, as today.
+- **The request fails or times out** (the addon proxy's 15 s timeout, the addon down, a 5xx,
+  a 404 for a locked drive): kept as today. The section waits 6 s and asks again, then 12 s and
+  asks again, and after the third failure shows the unavailable text with a retry button. The
+  retry starts the same sequence.
+- **A new `fileId` while a request or a backoff is pending**: the old file's answer is
+  discarded when it arrives, and no further request for the old file is sent. Kept as today.
+- **Unmount while a request or a backoff is pending** (the sheet collapses, the pane closes,
+  the detail closes): new behaviour. The pending backoff timer is cleared, no further request is
+  sent, and an answer that arrives later changes no state. Today nothing cancels on unmount and
+  the loop wakes from its backoff and sends the next retry; with the section mounted and
+  unmounted in normal use (the phone sheet, the pane), that would be routine.
+- **The source file is not indexed**: the endpoint answers with an empty result, shown as the
+  empty text.
 
 ### 3. States
 
 `loading -> loaded`, `loading -> (backoff) -> loading`, `loading -> unavailable`,
-`unavailable -> loading` (retry button), and from any state `-> loading` on a new `fileId`.
-`idle` is no longer reached: the section is in `loading` from its first render.
+`unavailable -> loading` (retry button), and `-> loading` from any state on a new `fileId`.
+The section is in `loading` from its first render; `idle` is not reached.
 
 Independently, expanded/collapsed: expanded on mount and on each new `fileId`, toggled only by
-the viewer. Collapsing while `loading` does not cancel the request, and the result landing
-does not expand the section again.
+the viewer. Collapsing while `loading` does not cancel the request, and the answer landing does
+not expand the section again.
 
 ### 4. Data read and written
 
 - Read: the addon's `GET /similar/{file_id}` (search.db through the read session, and the
   addon's in-process similar-files cache, which the request may fill).
-- Written: nothing persistent. Component state only. No localStorage.
+- Written: nothing persistent. Component state only; no localStorage, no module-level cache.
 
 ### 5. External services
 
-None outside the stack. The only call is to the intelligence addon through core's addon
-proxy; its slow, down and wrong cases are the failure cases in item 2.
+None outside the stack. The one call goes to the intelligence addon through core's addon
+proxy; its slow, down and wrong cases are item 2.
 
 ### 6. Authorization
 
-Unchanged. The core addon proxy requires `X-Lit-Drive` for the drive-scoped route and checks
-it against the viewer's accessible drives; the endpoint checks that the source is in that
-drive. The section sends the drive it was given by the slot host and no other.
+Unchanged. The core addon proxy requires `X-Lit-Drive` for the drive-scoped route and checks it
+against the viewer's accessible drives; the endpoint checks that the source is in that drive.
+The section sends the drive the slot host gave it and no other.
 
 ### 7. Effect on existing features
 
-- Every file detail open now sends one similar-files request, where before only an expand did.
-  On a phone, every sheet expansion of a not-yet-loaded file does.
-- The other members of the Related group (core's relations) do not wait for it.
+- One similar-files request per mount of the section: per file detail open with the pane open,
+  per pane open, per phone sheet expansion, and per file change while mounted. Before, only an
+  expand sent one.
+- Core's own relations in the Related group render without waiting for it.
+- The knowledge addon's "See connections as a graph" link sits after Similar files in the same
+  slot (priority 90 against 40). With the section expanded, the link is drawn below the ghosts
+  and then the result cards, about three card rows lower in the 384 px rail. The user accepted
+  this (2026-10-18).
 - `docs/addons/intelligence.md` says the section "searches only when you expand it"; that
-  sentence changes in the same core PR that bumps the submodule.
-- The addon's existing tests that assert "starts collapsed and asks for nothing" and "opening
-  the disclosure is what fetches" describe the behaviour this spec replaces and are rewritten
-  to the new behaviour; the tests for retries, stale answers, ghosts and the heading weight
-  keep their assertions.
+  sentence is changed in the core PR that bumps the submodule.
+- `SimilarFilesSection.test.tsx`: almost every test opens the section by clicking the header
+  first, which now collapses it, so the file is rewritten to the new behaviour. The tests that
+  describe the replaced behaviour ("starts collapsed and asks the backend for nothing",
+  "opening the disclosure is what fetches", "goes back to asking nothing when the file changes
+  under it") are replaced by their opposites. The stale-answer tests ("drops a slow answer...",
+  "drops one that arrives after a backoff, too") keep what they guard, an old file's late
+  answer never shown, but hold a separate deferred promise per file, because the new file now
+  fetches on its own and a shared promise would make them pass or fail for the wrong reason.
+  The retry timing and the heading-weight assertions are unchanged.
 
 ### 8. Error behavior
 
-What the viewer sees is item 2. Nothing new is logged: the frontend logs nothing today and
-the addon logs a failed `find_similar` as it does now.
+What the viewer sees is item 2. Nothing new is logged: the frontend logs nothing today, and the
+addon logs a failed `find_similar` as it does now.
 
 ### 9. User-visible behavior
 
-- Opening a file detail shows **Similar files** expanded in the Related group, with ghosts and
+- Wherever the Related group is on screen, **Similar files** is expanded and shows ghosts and
   then results, without a press.
 - The heading reads "Similar files (N)" once the results are in, as today.
-- Collapsing it lasts only for that file; the next file opens expanded.
+- A collapse lasts until the file changes or the section unmounts; the next mount is expanded.
+- Re-expanding the phone sheet or reopening the pane shows the ghosts briefly again.
+- On notes, the knowledge graph link moves below the cards (item 7).
 - Texts, card layout, ghost count and column count are unchanged.
 
 ### 10. Non-functional
 
-- The request never blocks rendering or input: the section renders its ghosts on the first
-  paint, and the rest of the file detail does not wait for the response.
+- The request never blocks rendering or input. The section draws its ghosts on its own first
+  paint; the first time the addon's code chunk loads, core's `AddonSlot` shows nothing for the
+  entry until the chunk arrives (`Suspense fallback={null}`), which is unchanged. The rest of
+  the file detail does not wait for the response.
 - At most one request is in flight per mounted section, and at most three are sent
-  automatically per file (the first and two retries).
-- The server cost per file open is one `find_similar`, measured above; the endpoint runs it off
-  the event loop (`asyncio.to_thread`) on the read session, so it does not hold the write lock
-  or the loop.
+  automatically per mount and file (the first and two retries).
+- The server cost per mount is one `find_similar`, measured above. The endpoint runs it off the
+  event loop (`asyncio.to_thread`) on the read session, so it holds neither the loop nor the
+  write lock.
 
 ## Touch points
 
 - `addons/intelligence/frontend/SimilarFilesSection.tsx` (submodule): fetch on mount and on a
-  new `fileId`, start expanded, keep the retry, stale-answer and ghost logic.
-- `addons/intelligence/frontend/SimilarFilesSection.test.tsx` (submodule): the two tests on
-  the replaced behaviour are rewritten.
+  new `fileId`; start expanded; new: cancel on unmount (clear the backoff timer and ignore late
+  answers); keep the retry, stale-answer and ghost logic.
+- `addons/intelligence/frontend/SimilarFilesSection.test.tsx` (submodule): rewritten as item 7
+  says.
 - `docs/addons/intelligence.md`: the "searches only when you expand it" sentence.
 - The submodule pointer `addons/intelligence` in core.
-- Read only, not edited: core's `InspectorShell` (all panels mounted), `RelatedPanel`,
-  `RelatedStack`, `MobileInspectorSheet` (drawer mounted only while expanded), the addon proxy
-  and `GET /similar/{file_id}`.
+- Read only, not edited: core's `FileDetailShell` and `InspectorPane` (pane rendered only while
+  open), `InspectorShell` (all panels mounted), `RelatedPanel`, `RelatedStack`,
+  `MobileInspectorSheet` (drawer mounted only while expanded), `AddonSlot`, the addon proxy,
+  `GET /similar/{file_id}`, and the knowledge addon's `knowledge-connections-link` entry.
 - Rules passed through: `.claude/rules/design-decisions.md` (drive-scope context propagation:
-  the frontend attaches `X-Lit-Drive`), `.claude/rules/frontend-conventions.md`, `DESIGN.md`
-  §The Related group (weights unchanged).
+  the frontend attaches `X-Lit-Drive`), `.claude/rules/frontend-conventions.md`, and `DESIGN.md`
+  §The Related tab (addon entries at the section-label weight; unchanged).
 - No protected path is edited.
 
 ## Invariants
 
-I1. When the section mounts with a file and drive, it sends exactly one similar-files request for that file with that drive's `X-Lit-Drive`, without any viewer action.
+I1. A mount of the section with a file and drive, with no viewer action, sends one similar-files request for that file with that drive's `X-Lit-Drive` before any answer arrives; a further request is sent only by a retry (I6) or a new `fileId`.
 I2. On mount and after every change of `fileId`, the section is expanded and shows its six ghost cards until the answer lands.
 I3. Collapsing and expanding the section, or re-rendering it with the same `fileId` and drive (an inspector tab switch, a parent re-render), sends no request and, once loaded, shows the same results.
 I4. Collapsing the section while its request is pending does not cancel it, and the answer landing does not expand the section again.
-I5. After a change of `fileId` or an unmount, no answer, retry or unavailable state belonging to the previous file is shown, and no further request for the previous file is sent.
-I6. A failing request is asked again after 6 s and after 12 s, and only the third failure shows the unavailable text with a retry button; the retry sends a new request.
-I7. Neither the section nor the rest of the file detail waits for the response to render: the ghosts and core's own relations are on screen while the request is pending.
+I5. After a change of `fileId`, no answer, retry or unavailable state belonging to the previous file is shown, and no further request for the previous file is sent.
+I6. A failing request is asked again 6 s and then 12 s after the failures, and only the third failure shows the unavailable text with a retry button; the retry sends a new request.
+I7. After the section unmounts, no further request is sent for it and an answer that arrives later changes nothing, including when it unmounts during a backoff.
+I8. Core's own relations in the Related group are on screen while the section's request is pending.
 
 ## Checked, no action
 
-- **Fetch when the Related tab is shown instead of on open.** Offered to the user, who chose
+- **Fetch when the Related tab is shown instead of on mount.** Offered; the user chose
   file-detail open (2026-10-18). It would need the addon to detect its panel becoming visible
   (core hides panels with `hidden`), and the viewer would see the ghosts on every tab open.
+- **Prefetch while the desktop pane is closed.** Offered; the user chose fetching when the pane
+  opens (2026-10-18). Prefetching would need a fetch outside the slot entry, which core would
+  have to host.
+- **Keep loaded results across a remount (a browser cache).** Offered; the user chose fetching
+  again (2026-10-18). The addon's in-process cache answers a repeat in 0.00 s on production; a
+  browser cache would add an eviction rule and a stale path.
 - **Keep it collapsed and show only the count.** Offered; the user chose expanded.
-- **Abort the in-flight request on a file change (`AbortController`).** The browser would
-  stop waiting, but the addon's `find_similar` runs to the end in its thread either way, so the
-  server cost is the same. The stale-answer guard already keeps the old answer off screen.
-- **Debounce rapid file changes** (stepping through files with the keyboard). Each request is
-  0.03-0.3 s on production and the endpoint runs off the event loop; a debounce would delay
-  every normal open to save little.
-- **Lower the 6 s / 12 s backoff now that requests are fast.** It still covers the proxy
-  timeout on a cold addon start and is not what this change is about.
-- **Cache results in the browser across files.** The addon caches them in-process; a second
-  open of the same file was measured at 0.00 s.
+- **Move the knowledge graph link above Similar files.** Offered; the user kept the order.
+- **Abort the in-flight HTTP request (`AbortController`) on a file change or unmount.** The
+  browser would stop waiting, but the addon's `find_similar` runs to the end in its thread
+  either way, so the server cost is the same; the guards in I5 and I7 keep the answer off
+  screen.
+- **Debounce rapid file changes** (stepping through files with the keyboard). A request is
+  0.03-0.3 s on production and runs off the event loop; a debounce would delay every normal
+  open to save little.
+- **Lower the 6 s / 12 s backoff.** It still covers the proxy timeout on a cold addon start and
+  is not what this change is about.
 - **Backend changes.** None needed: the endpoint is already off-loop, on the read session and
   drive-checked.
-- **`docs/user-guide/`.** `tags-and-relations.md` and `viewers-and-players.md` say Similar
-  files is in the Related group and say nothing about expanding it, so they stay true.
+- **An invariant for the submodule pointer.** `check-traceability` already requires the core to
+  pin the addon commit that cites SPEC-ADDON-024 before the row can be `implemented`.
+- **An invariant for the docs sentence.** It is prose, which the code outranks and review does
+  not grade; the touch point names it so it is not missed.
+- **`docs/user-guide/`.** `tags-and-relations.md` and `viewers-and-players.md` say Similar files
+  is in the Related group and say nothing about expanding it, so they stay true.
