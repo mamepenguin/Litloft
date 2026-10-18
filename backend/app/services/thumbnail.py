@@ -409,15 +409,38 @@ def image_thumbnail_size(
     )
 
 
-def generate_image_thumbnail(image_path: str, output_path: str) -> bool:
-    from app.services.heic import is_heic_file
+# Modes whose pixels carry their own alpha. A palette or colour-key source
+# carries it in `info["transparency"]` instead.
+_ALPHA_MODES = frozenset({"RGBA", "LA", "PA", "RGBa", "La"})
 
-    if is_heic_file(image_path):
-        return _generate_heic_thumbnail(image_path, output_path)
+# `-f webp` because the slot ends in `.jpg` and ffmpeg would otherwise infer
+# JPEG from it; `-quality` because `-q:v 2` means quality 2 to libwebp.
+_WEBP_OUTPUT = ("-f", "webp", "-c:v", "libwebp", "-pix_fmt", "yuva420p", "-quality", "85")
+_JPEG_OUTPUT = ("-q:v", "2")
 
-    output = Path(output_path)
-    output.parent.mkdir(parents=True, exist_ok=True)
 
+def carries_transparency(image_path: str | Path) -> bool:
+    """Whether the source's header declares an alpha band or a transparent key.
+
+    Header only: deciding whether any pixel is actually clear would decode
+    the whole picture. Broad on purpose: Pillow raises a different type for
+    every unreadable file, `DecompressionBombError` is not an `OSError`, and
+    a check that escapes aborts an upload or a scan.
+    """
+    try:
+        from PIL import Image
+
+        with Image.open(image_path) as image:
+            return image.mode in _ALPHA_MODES or "transparency" in image.info
+    except Exception:
+        return False
+
+
+def _run_image_ffmpeg(
+    image_path: str, output_path: str, output_options: tuple[str, ...]
+) -> str | None:
+    """Write one frame of the picture, fitted to the box; the failure, if any."""
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     try:
         result = subprocess.run(
             [
@@ -426,7 +449,7 @@ def generate_image_thumbnail(image_path: str, output_path: str) -> bool:
                 "-frames:v", "1",
                 "-vf",
                 image_scale_filter(),
-                "-q:v", "2",
+                *output_options,
                 "-y",
                 output_path,
             ],
@@ -436,16 +459,36 @@ def generate_image_thumbnail(image_path: str, output_path: str) -> bool:
             check=False,
             timeout=30,
         )
-        if result.returncode != 0:
-            logger.error(
-                "ffmpeg image thumbnail failed for %s: %s", image_path, result.stderr
-            )
-            return False
-
-        return output.exists()
     except subprocess.TimeoutExpired:
-        logger.error("ffmpeg timeout for image %s", image_path)
-        return False
+        return "timed out"
+    if result.returncode != 0:
+        return result.stderr
+    return None if Path(output_path).exists() else "no output written"
+
+
+def generate_webp_image_thumbnail(image_path: str, output_path: str) -> bool:
+    """A WebP with alpha, with no fallback."""
+    error = _run_image_ffmpeg(image_path, output_path, _WEBP_OUTPUT)
+    if error is not None:
+        logger.warning("WebP image thumbnail failed for %s: %s", image_path, error)
+    return error is None
+
+
+def generate_image_thumbnail(image_path: str, output_path: str) -> bool:
+    from app.services.heic import is_heic_file
+
+    if is_heic_file(image_path):
+        return _generate_heic_thumbnail(image_path, output_path)
+
+    if carries_transparency(image_path) and generate_webp_image_thumbnail(
+        image_path, output_path
+    ):
+        return True
+
+    error = _run_image_ffmpeg(image_path, output_path, _JPEG_OUTPUT)
+    if error is not None:
+        logger.error("ffmpeg image thumbnail failed for %s: %s", image_path, error)
+    return error is None
 
 
 def generate_pdf_thumbnail(pdf_path: str, output_path: str) -> bool:

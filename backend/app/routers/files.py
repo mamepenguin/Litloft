@@ -1165,6 +1165,25 @@ def _if_none_match(request: Request, etag: str) -> bool:
     return strip_weak(etag) in {strip_weak(t.strip()) for t in header.split(",")}
 
 
+def _image_media_type(path: Path) -> str:
+    """The type of a thumbnail's bytes.
+
+    Read from the bytes rather than the name: every cache slot ends in
+    `.jpg`, and a slot can hold a WebP with alpha or, for a `.loft`, the
+    remote thumbnail exactly as it was downloaded.
+    """
+    try:
+        with open(path, "rb") as stored:
+            head = stored.read(12)
+    except OSError:
+        head = b""
+    if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
+        return "image/webp"
+    if head[:8] == b"\x89PNG\r\n\x1a\n":
+        return "image/png"
+    return "image/jpeg"
+
+
 def _revalidating_image(request: Request, path: Path) -> Response:
     """A `no-cache` image response that answers its own revalidation.
 
@@ -1185,7 +1204,7 @@ def _revalidating_image(request: Request, path: Path) -> Response:
         raise HTTPException(status_code=404, detail="Thumbnail not found")
     response = FastAPIFileResponse(
         str(path),
-        media_type="image/jpeg",
+        media_type=_image_media_type(path),
         stat_result=stat_result,
         headers={"Cache-Control": "no-cache"},
     )
