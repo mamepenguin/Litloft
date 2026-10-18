@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: r1 HUMAN_REVIEW_REQUIRED -> continue (human: "コンティニュー")
 ran_in_app: yes
 at: 262a16a29e24b8e4a02afeea54710d3f24dadbc4
 by: agent

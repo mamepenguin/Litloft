@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The diff against origin/develop moves the addons/intelligence submodule pointer (28e15f25b..2ab90461e) and so ships changes to SimilarFilesSection.tsx, api.ts (new getSimilarFiles signature), SimilarFilesSection.test.tsx and a new similarFiles.api.test.ts. None of these are in the SPEC-CORE-006/007 touch-point list.",
+      "impact": "Merging this branch ships SPEC-ADDON-024 behaviour as well: Similar files fetches on mount, starts expanded and aborts on unmount, and getSimilarFiles takes a new positional-to-options signature. None of that is covered by the declared invariants or by this review. If #112 lands on develop separately (for example as a squash), the two branches carry the same submodule bump and the same INDEX rows twice, and they can conflict.",
+      "evidence": "The diff header shows `addons/intelligence` going from 28e15f25b7ed to 2ab90461e416. classification.json lists `addons/intelligence` as a MEDIUM zone that was touched. .git/refs/remotes/origin/develop is 0a6ce9515. The HEAD reflog shows feature/transparent-image-thumbnails was checked out from feature/similar-files-on-open at 5df4ef2e4 ('feat: bump intelligence to load similar files on open (#112)'), not from origin/develop. So the eleven feature/similar-files-on-open commits are stacked under this change.",
+      "repro": "Compare .git/refs/remotes/origin/develop (0a6ce9515) with .git/logs/HEAD line 2068: the branch was created at 5df4ef2e4, which is the tip of feature/similar-files-on-open. That branch's own reflog says it was 'Created from origin/develop' at 0a6ce9515, so every one of its commits falls inside origin/develop..HEAD.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No SPEC-CORE-006/007 invariant is broken. The touch-point list is incomplete because the branch is stacked on an unmerged branch, so the scope of the review and of the merge is wider than the spec declares.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Rebase feature/transparent-image-thumbnails onto origin/develop after #112 is merged (or fetch origin/develop if it is already merged), so the diff holds only SPEC-CORE-006/007. Otherwise add the submodule and its files to the touch points and review them under SPEC-ADDON-024."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "docs/addons/intelligence.md is edited (the Similar files sentence now says it searches when the file opens). This file is not in the touch-point list of the transparent-thumbnails spec.",
+      "impact": "The sentence belongs to SPEC-ADDON-024. It is only true together with the submodule bump in F1. If the branches are split and this change merges without the bump, the user guide would describe behaviour the shipped addon does not have.",
+      "evidence": "In the diff, docs/addons/intelligence.md line 625 changes 'It searches only when you expand it' to 'It searches when the file opens, or when you open the inspector...'. docs/specs/similar-files-on-open.md item 7 names this sentence as its own touch point. docs/specs/transparent-image-thumbnails.md Touch points does not list it.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is prose that breaks no SPEC-CORE invariant. It is unplanned scope that comes from the stacked branch (same cause as F1).",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Keep this edit with the SPEC-ADDON-024 change: drop it from this branch by rebasing onto a develop that already contains #112."
+    }
+  ],
+  "specification_compliance": [
+    "Backend touch points (thumbnail.py, files.py, scanner.py), ImageCanvas.tsx and its test, the rules file, api.md and architecture.md are all in the declared touch-point list.",
+    "upload.py and markdown_images.py are unchanged, as the spec planned.",
+    "backend/tests/test_transparent_thumbnails.py is a new file under backend/tests/, so the 'Tests: backend/tests/' touch point covers it.",
+    "docs/specs/similar-files-on-open.md and the SPEC-ADDON-024 INDEX row sit on implicit spec and ledger paths, but they belong to a different spec carried in by the stacked branch (see F1).",
+    "The scanner migration in scanner.py:514-525 runs ahead of the letterbox branch, as the spec specifies."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "SPEC-ADDON-024 frontend behaviour (fetch on mount, abort on unmount, lazy thumbnails) ships through the submodule bump with no SPEC-CORE-006/007 invariant covering it."
+  ],
+  "regression_risks": [
+    "If #112 is squash-merged to develop independently, this branch's duplicate submodule bump and INDEX rows may conflict or reintroduce stale content."
+  ],
+  "test_coverage": [
+    "The intelligence submodule changes have their own tests (SimilarFilesSection.test.tsx, similarFiles.api.test.ts), but nothing in this change's review scope checks them."
+  ],
+  "not_verified": [
+    "I could not run git, so I did not confirm whether #112 has since been merged to the remote develop. The local origin/develop ref may simply be stale.",
+    "I did not inspect the ae39f43ca commit's own file list on its own; I reviewed the branch diff that was supplied.",
+    "I did not run any tests."
+  ],
+  "confidence": 85
+}
