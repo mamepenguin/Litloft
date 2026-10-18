@@ -35,8 +35,13 @@ core's slot hosts and the knowledge addon are not changed.
      mounts when the viewer expands the sheet.
    - **The layout without the shell**: `RelatedStack` mounts it in the page flow with the
      detail.
+   - **The folder view's right pane and the full-screen detail** (`RightPaneFile`,
+     `FileDetailFullScreen`) render `FileDetailContent`, which keys `FileDetailContainer` by
+     `fileId`. There each file change, including arrow-key stepping, is an unmount and a new
+     mount (the I7 path), not a prop change (the I5 path).
 2. On mount the section is expanded and in `loading`, shows its six ghost cards, and sends one
-   `getSimilarFiles(fileId, drive)` (`GET /api/addons/intelligence/similar/{fileId}?limit=6`
+   `getSimilarFiles(fileId, drive, { signal })`, `signal` being the `AbortSignal` of an
+   `AbortController` the section owns for that request (`GET /api/addons/intelligence/similar/{fileId}?limit=6`
    with that drive's `X-Lit-Drive`).
 3. The response replaces the ghosts with the result cards and the heading becomes
    "Similar files (N)". An empty result shows the existing empty text and "(0)".
@@ -65,6 +70,10 @@ core's slot hosts and the knowledge addon are not changed.
   discarded when it arrives, and no further request for the old file is sent, as today. New:
   the old pair's pending HTTP request is aborted (`AbortSignal`), and a pending backoff timer is
   cleared. An abort is not a failure: it starts no backoff and shows nothing.
+- **Telling an abort from a failure**: a request counts as aborted when its own signal is
+  `aborted` at the moment it settles, whatever it resolved or rejected with. An aborted request
+  changes no state. A request whose signal was not aborted is a success or a failure by how it
+  settled.
 - **Unmount while a request or a backoff is pending** (the sheet collapses, the pane closes,
   the detail closes): new behaviour. The pending HTTP request is aborted, the pending backoff
   timer is cleared, no further request is sent, and nothing that settles later changes state. Today nothing cancels on unmount and
@@ -107,7 +116,9 @@ The section sends the drive the slot host gave it and no other.
 ### 7. Effect on existing features
 
 - One similar-files request per mount of the section: per file detail open with the pane open,
-  per pane open, per phone sheet expansion, and per file change while mounted. Before, only an
+  per pane open, per phone sheet expansion, per file change while mounted, and per selection in
+  the folder view's right pane and the full-screen detail, arrow-key stepping included, each
+  aborting the previous one. The user accepted this (2026-10-18). Before, only an
   expand sent one. Its result thumbnails are requested only once the panel is shown.
 - Core's own relations in the Related group render without waiting for it.
 - The knowledge addon's "See connections as a graph" link sits after Similar files in the same
@@ -142,9 +153,10 @@ addon logs a failed `find_similar` as it does now.
 - The heading reads "Similar files (N)" once the results are in, as today.
 - A collapse lasts until the file changes or the section unmounts; the next mount is expanded.
 - Re-expanding the phone sheet or reopening the pane shows the ghosts briefly again.
-- While the intelligence addon is down, starting or hung, every file shows the ghosts in the
-  Related group for about 18 s (three attempts and two backoffs), then the unavailable text and
-  the retry button, without a press. Before, this showed only after expanding. The user
+- While the intelligence addon is down or refusing connections, every file shows the ghosts in
+  the Related group for about 18 s (three fast failures and the 6 s and 12 s backoffs), then the
+  unavailable text and the retry button, without a press. While it is hung, each attempt waits
+  for the proxy's 15 s timeout, so the ghosts last up to about 63 s. Before, this showed only after expanding. The user
   accepted this (2026-10-18).
 - On notes, the knowledge graph link moves below the cards (item 7). Off the canonical route,
   Exif, addon sections and comments sit below the cards (item 7).
@@ -170,16 +182,19 @@ addon logs a failed `find_similar` as it does now.
 ## Touch points
 
 - `addons/intelligence/frontend/SimilarFilesSection.tsx` (submodule): fetch on mount and on a
-  new `fileId` or `drive`; start expanded; new: cancel on unmount (clear the backoff timer and
-  ignore late answers) in a way that survives StrictMode's effect re-run; `loading="lazy"` on
+  new `fileId` or `drive`; start expanded; new: abort the open request on a new pair and on
+  unmount, clear the backoff timer, and ignore anything that settles after an abort in a way that survives StrictMode's effect re-run; `loading="lazy"` on
   the result thumbnails; keep the retry, stale-answer and ghost logic.
 - `addons/intelligence/frontend/api.ts` (submodule): `getSimilarFiles` takes an optional
-  `AbortSignal` and passes it to `fetch`.
+  `AbortSignal` and passes it to `fetch`. Its shape becomes
+  `getSimilarFiles(fileId, drive, { limit?, signal? } = {})`, `limit` defaulting to
+  `SIMILAR_FILES_LIMIT`; the section is its only caller and passes `{ signal }`.
 - `addons/intelligence/frontend/SimilarFilesSection.test.tsx` (submodule): rewritten as item 7
   says.
 - `docs/addons/intelligence.md`: the "searches only when you expand it" sentence.
 - The submodule pointer `addons/intelligence` in core.
-- Read only, not edited: core's `FileDetailShell` and `InspectorPane` (pane rendered only while
+- Read only, not edited: core's `RightPaneFile`, `FileDetailFullScreen` and
+  `FileDetailContent` (keyed by `fileId`), `FileDetailShell` and `InspectorPane` (pane rendered only while
   open), `InspectorShell` (all panels mounted), `RelatedPanel`, `RelatedStack`,
   `MobileInspectorSheet` (drawer mounted only while expanded), `AddonSlot`, the addon proxy,
   `GET /similar/{file_id}`, and the knowledge addon's `knowledge-connections-link` entry.
@@ -190,16 +205,16 @@ addon logs a failed `find_similar` as it does now.
 
 ## Invariants
 
-I1. A mount of the section with a file and drive, with no viewer action, sends one similar-files request for that file with that drive's `X-Lit-Drive` before any answer arrives (two under StrictMode's effect re-run, the first aborted); a further request is sent only by a retry (I6) or a new `fileId` or `drive`.
-I2. On mount and after every change of `fileId` or `drive`, the section is expanded and shows its six ghost cards, with no count in the heading, until a successful answer lands or the third failure shows the unavailable text; the ghosts stay through both backoffs.
-I3. Collapsing and expanding the section, or re-rendering it with the same `fileId` and drive (an inspector tab switch, a parent re-render), sends no request and, once loaded, shows the same results.
+I1. A mount of the section with a file and drive, with no viewer action, sends one similar-files request for that file with that drive's `X-Lit-Drive` and its own `AbortSignal` before any answer arrives (two under StrictMode's effect re-run, the first aborted).
+I2. On mount and after every change of `fileId` or `drive`, the section is expanded and shows its six ghost cards, with no count in the heading, while its requests and backoffs are pending, through both backoffs included.
+I3. Collapsing and expanding the section, or re-rendering it with the same `fileId` and `drive` (an inspector tab switch, a parent re-render), sends no request; while mounted, a request is sent only on mount, by a retry (I6), by the retry button, or for a new `fileId` or `drive` and, once loaded, shows the same results.
 I4. Collapsing the section while its request is pending does not cancel it, and the answer landing does not expand the section again.
 I5. After a change of `fileId` or `drive`, the previous pair's open request is aborted, no answer, retry or unavailable state belonging to it is shown, and no further request for it is sent.
 I6. A failing request is asked again 6 s and then 12 s after the failures, and only the third failure shows the unavailable text with a retry button; the retry sends a new request.
 I7. After the section unmounts, its open request is aborted, no backoff timer is left pending, no further request is sent, and nothing that settles later changes state, including when it unmounts during a backoff; when its effects are run, cleaned up and run again (StrictMode), it still ends `loaded` with the second run's answer.
-I8. An aborted request is not a failure: it starts no backoff, sends no retry and never shows the unavailable text.
+I8. A request whose signal is aborted when it settles changes no state, whatever it settled with: it starts no backoff, sends no retry and never shows the unavailable text.
 I9. Every result thumbnail `<img>` carries `loading="lazy"`.
-I10. Expanding, collapsing or re-rendering with the same `fileId` and `drive` never moves the section out of `unavailable`; only the retry button or a new pair does.
+I10. The section leaves `unavailable` only through the retry button or a new `fileId` or `drive`.
 
 ## Checked, no action
 
