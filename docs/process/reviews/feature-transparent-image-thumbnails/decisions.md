@@ -1,6 +1,6 @@
 # Decisions
 
-decision: r1 HUMAN_REVIEW_REQUIRED -> continue (human: "コンティニュー")
+decision: r1 HUMAN_REVIEW_REQUIRED -> continue (human: "コンティニュー"); r3 claude-read:F1 (bucket B, shared stem slot rewritten as WebP by the letterbox migration) accepted (human: "受け入れる")
 ran_in_app: yes
 at: db3cd213798e2f7ecc1fc90f660e13837a604fb6
 by: agent
