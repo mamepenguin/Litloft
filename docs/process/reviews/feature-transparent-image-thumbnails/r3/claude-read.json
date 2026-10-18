@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "r2 F2 is still open: when a transparent picture shares its stem slot and the slot holds a letterboxed JPEG, the shared-slot guard sends the row on to the letterbox branch, and that branch now writes a WebP into the shared slot.",
+      "impact": "Setup: logo.png (RGBA, not 16:9) sits beside logo.jpg, and their shared slot still holds an old 320x180 letterboxed JPEG. The next scan rewrites the shared slot as a WebP of logo.png, which changes the thumbnail logo.jpg shows. The guard was added to prevent exactly this.",
+      "evidence": "In the r3 diff, scanner.py's existing-file branch is the same as in r2. When _is_flattened_transparent_picture returns False at the `shared is not None` check, the elif chain reaches `_is_letterboxed_image_thumbnail`. That branch's generator is generate_image_thumbnail, which now picks WebP whenever carries_transparency(source) is true. The fix commits db3cd2137 and 1913f8d54 change only ImageCanvas, its test and decisions.md.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "I11 names 'the migration' (JPEG to WebP), and that path honours the guard. The letterbox rewrite of a shared slot existed before this change, but it now changes the slot's format too. No triage decision for r2 F2 is recorded in decisions.md.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Skip the letterbox branch for a shared slot whose source carries transparency, or record that this case is accepted."
+    }
+  ],
+  "specification_compliance": [
+    "r2 F1 (I8) is fixed. ImageCanvas.tsx:40 resets paintedId to null in the file.id effect, so going A -> B -> A paints A's thumbnail again (poster at :21-22).",
+    "The paintedId reset does not cause a frame without a background on a change of file. While the new file renders, paintedId still holds the previous id or null, both differ from the new file.id, so the poster is computed before the effect runs.",
+    "The new test 'returning to a file painted earlier paints its thumbnail again' kills the mutant that removes setPaintedId(null). Without the reset, paintedId stays 'f1' after f1 -> f2 -> f1 and the canvas has no background.",
+    "Commit 1913f8d54 (the commit under review) only changes decisions.md, recording a real-browser R-5 re-run at db3cd2137. It touches no code.",
+    "The backend parts (I1-I6, I9-I11) are unchanged since r2. The r2 reading that they comply still holds, with the shared-slot letterbox caveat in F1."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "A GIF in a thumbnail slot (a .loft remote thumbnail) is still labelled image/jpeg. This follows I3's 'anything else' rule but is not the real type."
+  ],
+  "regression_risks": [
+    "Every mount of ImageCanvas now calls setPaintedId(null) in its effect, which costs one extra state update with no visible effect. This is low risk.",
+    "The first scan after upgrade re-encodes transparent pictures without a cap, as the spec accepts."
+  ],
+  "test_coverage": [
+    "The return-to-earlier-file test covers A -> B -> A when B never decodes. It does not cover B's decode rejecting before the return, but the code path is the same.",
+    "There is still no backend test for a transparent picture in a shared slot that holds a letterboxed JPEG (F1)."
+  ],
+  "not_verified": [
+    "I ran no frontend or backend tests. Every conclusion comes from reading the code.",
+    "I did not read the scanner.py source on disk; for it I relied on the supplied diff.",
+    "I did not check the R-5 screenshots or the logger output recorded in decisions.md.",
+    "I did not check whether a triage outside decisions.md accepted r2 F2."
+  ],
+  "confidence": 85,
+  "trajectory": "r1 -> r2 added no code: the round merged origin/develop to remove the stacked SPEC-ADDON-024 scope. r2 -> r3 (db3cd2137) adds one state reset, setPaintedId(null), to the existing file.id effect, next to the existing setDecoded(false). It adds no new branch, state or prediction. It closes a gap in a state introduced in round one rather than layering a new mechanism on it. 1913f8d54 only records the in-browser re-run. Nothing shows the design being patched round after round."
+}

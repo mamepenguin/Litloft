@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "I traced this through the code and it holds. At backend/app/services/scanner.py:217-227, _is_flattened_transparent_picture returns False when another row on the drive has the same thumbnail_path. When that happens, the elif chain at scanner.py:514 falls through to scanner.py:526, which calls _is_letterboxed_image_thumbnail. That function returns True for a picture whose stored size is not 16:9 and whose stored thumbnail is 320x180 (scanner.py:177-189). The branch then calls write_thumbnail_atomically(gen_fn, ...) on the shared expected_thumb (scanner.py:536-538). gen_fn comes from get_thumbnail_generator, which returns generate_image_thumbnail for images (thumbnail.py:624-625). At thumbnail.py:483-486 that function now writes WebP whenever carries_transparency(source) is true. So a transparent logo.png that shares its slot with logo.jpg, where the slot still holds a letterboxed JPEG, gets a WebP written into the shared slot. That breaks I11. The guard does not cover this path. Before this change the letterbox branch also rewrote shared slots, but with a JPEG. Writing WebP from that path is new in this change."
+    }
+  ],
+  "specification_compliance": [
+    "I11 is broken on the letterbox path. The shared-slot guard covers only the transparency branch and does not cover the letterbox branch that follows it (scanner.py:526-539)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Before this change, the letterbox branch already rewrote a shared stem slot with a JPEG made from whichever row was scanned. That is pre-existing behaviour, and I11 does not explicitly cover it."
+  ],
+  "regression_risks": [
+    "In a shared stem slot, a WebP made from the transparent sibling can replace the thumbnail shown for the JPEG sibling (logo.jpg)."
+  ],
+  "test_coverage": [
+    "I did not check whether any test covers a shared slot combined with a letterboxed stored thumbnail on a transparent source."
+  ],
+  "not_verified": [
+    "I did not run any test or scan; I checked the code only by reading it.",
+    "I did not open the backend tests to look for a shared-slot letterbox case.",
+    "I did not check how write_thumbnail_atomically behaves, or the ETag effects on Markdown projections."
+  ],
+  "confidence": 90
+}

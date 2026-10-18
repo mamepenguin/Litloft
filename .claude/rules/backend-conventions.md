@@ -31,9 +31,13 @@ from app.config import DATA_DIR
 - Video: still letterboxed onto a 320x180 **black** frame. A video card is a
   fixed 16:9 frame so the padding is invisible inside it, and the
   candidate-rejection analysis reads the unpadded region.
-- JPEG throughout. 320 bounds the long edge rather than setting it — a picture
-  smaller than the box keeps its own size. Only the video and PDF frames are a
-  fixed 320x180.
+- JPEG, except a picture whose header declares transparency (an alpha band or
+  a transparent key): that one gets a WebP with alpha, so the surface it is
+  drawn on shows through instead of whatever RGB the file stores under its
+  clear pixels. The slot keeps its `.jpg` name either way, and the thumbnail
+  endpoint labels the response from the bytes. 320 bounds the long edge rather
+  than setting it — a picture smaller than the box keeps its own size. Only
+  the video and PDF frames are a fixed 320x180.
 
 ## Concurrency control patterns
 - ZIP extraction: `asyncio.Semaphore(3)` to cap concurrent extractions.

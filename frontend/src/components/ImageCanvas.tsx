@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { getStreamUrl, getThumbnailUrl } from "@/lib/api";
 import type { FileItem } from "@/types";
@@ -15,15 +15,36 @@ import type { FileItem } from "@/types";
  */
 export function ImageCanvas({ file }: { file: FileItem }) {
   const [decoded, setDecoded] = useState(false);
+  const [paintedId, setPaintedId] = useState<string | null>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
-  const poster = file.has_thumbnail ? getThumbnailUrl(file.id) : null;
+  const currentId = useRef(file.id);
+  const poster =
+    file.has_thumbnail && paintedId !== file.id ? getThumbnailUrl(file.id) : null;
+
+  // `load` can fire before an async-decoded picture is paintable, so the
+  // thumbnail under it is dropped only once `decode()` says it is. Dropped
+  // at all because a transparent picture shows the thumbnail through it.
+  const awaitPaint = useCallback((image: HTMLImageElement, id: string) => {
+    if (typeof image.decode !== "function") return;
+    image.decode().then(
+      () => {
+        if (currentId.current === id) setPaintedId(id);
+      },
+      () => {},
+    );
+  }, []);
 
   useEffect(() => {
+    currentId.current = file.id;
     setDecoded(false);
+    setPaintedId(null);
     // A cached picture can be complete before React attaches `onLoad`.
     const image = imageRef.current;
-    if (image?.complete && image.naturalWidth > 0) setDecoded(true);
-  }, [file.id]);
+    if (image?.complete && image.naturalWidth > 0) {
+      setDecoded(true);
+      awaitPaint(image, file.id);
+    }
+  }, [file.id, awaitPaint]);
 
   return (
     <div
@@ -54,7 +75,10 @@ export function ImageCanvas({ file }: { file: FileItem }) {
           // Off the main thread: a 24MP photo decoded inline stalls the
           // frame the transition is animating in.
           decoding="async"
-          onLoad={() => setDecoded(true)}
+          onLoad={(event) => {
+            setDecoded(true);
+            awaitPaint(event.currentTarget, file.id);
+          }}
           style={{ opacity: decoded ? 1 : 0 }}
           className="max-h-[70vh] w-auto object-contain"
         />
