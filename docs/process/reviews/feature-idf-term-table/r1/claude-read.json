@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The backfill pass, the loop, the request flag and the after-commit/after-rollback hooks live in a new module `app/idf_backfill.py`, which the touch-point list does not name; the list places the backfill in `app/tfidf.py` and the after-commit hook in `app/database.py`.",
+      "impact": "No user-visible defect. A reader who follows the touch-point list to check I2/I6/I7 looks in tfidf.py and database.py and does not find the code there, so the review scope is wider than declared.",
+      "evidence": "addons/intelligence/app/idf_backfill.py:1-408 (new file); indexer.py:30, workers/whisper.py:32 and workers/refine.py:37 import from it; main.py:374 starts `idf_backfill_loop` from it. database.py gains only `check_idf_term_rules` and the migration, not the hook.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "It breaks no invariant. Only the declared touch-point list is wrong about where the code lives.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add `addons/intelligence/app/idf_backfill.py` to the touch points as the home of the backfill pass, the loop and the after-commit hook."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The after-commit and after-rollback hooks are registered on the global `sqlalchemy.orm.Session` class, so they run for every session in the addon process, including core-DB (`_HomevaultSession`) sessions, not only on the writer's search-DB session that the touch point describes.",
+      "impact": "Today the listeners only pop a key from `session.info`, so there is no wrong result. Every commit and rollback of every session in the process now passes through this module, and a later edit to these listeners would affect all of them.",
+      "evidence": "addons/intelligence/app/idf_backfill.py:76-84 `@event.listens_for(Session, \"after_commit\")` / `\"after_rollback\"` with `Session` imported from sqlalchemy.orm; database.py:21,128,1956 create separate sessionmakers for the search DB and the core DB.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "It is harmless in the current code because the key is only set by `mark_idf_terms_stale`. It reaches more sessions than the declared touch point, but no invariant breaks.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Either list the process-wide listener as a touch point or register it on the search sessionmaker (`_SearchSession`) only."
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "`IndexManager` gains a new public method `is_paused()`. The touch point only says the existing pause/resume state is read by the backfill.",
+      "impact": "No defect. It adds an API surface on IndexManager that the touch-point list does not mention.",
+      "evidence": "addons/intelligence/app/indexer.py:248-250 new `is_paused`; read by idf_backfill.py:114 `_queue_paused`.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is an unlisted, additive change. No invariant breaks.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Name `IndexManager.is_paused()` under the indexer.py touch point."
+    },
+    {
+      "id": "TP-4",
+      "origin": "reviewer",
+      "claim": "The test change reaches beyond the listed three rewritten tests plus new SPEC-ADDON-021 tests. The shared `index` fixture of test_z_auto_tag_drive_scope.py is modified for every test in that file. The existing helper `tests/idf_doubles.py` is extended. New non-test helper modules `tests/idf_backfill_api.py` and `tests/idf_term_db.py` are added. test_idf_term_marks.py imports private helpers from `tests/test_refine_fts_reindex.py`.",
+      "impact": "Every other test in test_z_auto_tag_drive_scope.py now runs with `app.database._search_engine`, `_SearchSession` and `dependencies._index_manager` patched. An unrelated test there could change behavior without the reviewers expecting it. A refactor of test_refine_fts_reindex.py's private helpers now breaks the SPEC-ADDON-021 mark tests.",
+      "evidence": "tests/test_z_auto_tag_drive_scope.py:147-151 (fixture `index` patches database engine/session and the index manager); tests/idf_doubles.py adds MarkerTokenizer/ExplodingTokenizer; tests/test_idf_term_marks.py:17-24 imports `_FAILING_TRANSCRIPT_DDL, FILE, _llm, _make_db, _patch_job, _seed_file` from tests.test_refine_fts_reindex.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "These are unlisted test-side reaches. No production invariant is affected.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "List the fixture change, the helper modules and the dependency on test_refine_fts_reindex.py helpers as test touch points."
+    },
+    {
+      "id": "TP-5",
+      "origin": "reviewer",
+      "claim": "`_rebuild` in tfidf.py drops the INFO line \"Rebuilding corpus IDF for TF-IDF keyword extraction (drive=...)\" and removes `_count_document_frequencies` / `_load_child_tokenizer`. The touch points say `_get_corpus_idf` keeps its contract and list no change to the rebuild's logging.",
+      "impact": "The operator no longer sees when a drive's IDF is rebuilt, a log signal they had before this change. Nothing else in the addon referenced the removed helpers (grep finds no caller).",
+      "evidence": "addons/intelligence/app/tfidf.py `_rebuild` (diff hunk at ~728): the logger.info call is deleted; grep for `_count_document_frequencies|_load_child_tokenizer|_tokenizer_process` in addons/intelligence finds no remaining reference.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is an unlisted change to operator-visible logging. No invariant covers it.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Either keep the rebuild INFO line or list its removal under the tfidf.py touch point."
+    }
+  ],
+  "specification_compliance": [
+    "Listed touch points tfidf.py, models.py, database.py, main.py, indexer.py (reconcile finally, handle_files_moved), whisper.py (_remove_whisper_data first statement), refine.py (_apply and rechunk_from_words) and docs/addons/intelligence.md are all reached as declared.",
+    "purge.py and _purge_file are not edited; they rely on the FK cascade, as declared.",
+    "The three listed tests in test_z_auto_tag_drive_scope.py are kept, and each now runs backfill.run_pass() before the build. None is deleted.",
+    "Unlisted reaches: the new module app/idf_backfill.py, the process-wide Session event listeners, IndexManager.is_paused(), test fixture and helper modules, and the removed rebuild INFO log."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The after_commit/after_rollback listeners fire for every SQLAlchemy Session in the process, including the core DB, not only the search DB writers.",
+    "The 'Rebuilding corpus IDF' INFO log line no longer appears."
+  ],
+  "regression_risks": [
+    "Modifying the shared `index` fixture in test_z_auto_tag_drive_scope.py changes the environment of every other test in that file.",
+    "app.idf_backfill is imported at module level by indexer.py, whisper.py and refine.py, and it imports app.tfidf and app.database, which adds a new import edge. I did not run imports to rule out a cycle."
+  ],
+  "test_coverage": [
+    "New tests cover the pass, the loop, the marks, purge and the rule-version check (test_idf_term_backfill.py, test_idf_term_loop.py, test_idf_term_marks.py).",
+    "No test asserts that the Session listeners are harmless on non-search sessions."
+  ],
+  "not_verified": [
+    "Did not run any test or import; circular-import safety of app.idf_backfill was not checked.",
+    "Did not read the addon repository's own rule/process documents (.claude/rules) in full.",
+    "Did not verify the per-invariant correctness of the backfill (I1–I10); scope was limited to unplanned touch points.",
+    "Did not check whether other tests in test_z_auto_tag_drive_scope.py behave differently under the modified fixture."
+  ],
+  "confidence": 78
+}

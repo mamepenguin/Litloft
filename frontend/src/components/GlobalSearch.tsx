@@ -1,93 +1,108 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, ArrowUpLeft, Clock, Search, X } from "lucide-react";
+import { ArrowLeft, Search, X } from "lucide-react";
 import { useShortcuts } from "@/hooks/useShortcuts";
+import { MatchLegend } from "@/components/search/MatchLegend";
+import { useShortcutsContext } from "@/components/ShortcutsProvider";
+import { NESTED_OVERLAY_PRIORITY, OVERLAY_PRIORITY } from "@/lib/shortcuts";
 
 import { useTranslations } from "next-intl";
-import { getDriveFiles } from "@/lib/api";
-import { fetchSemanticHits, isSemanticSearchAvailable } from "@/lib/semanticSearch";
+import { useImeKeyGuard } from "@/lib/ime";
+import { parseSearchQuery } from "@/lib/searchQuery";
+import type { FileKind } from "@/types";
 import {
-  mergeResults,
-  sortMerged,
-  type SemanticHit,
-} from "@/lib/searchMerge";
+  browseFolderHref,
+  browseKeyAction,
+  browseRowHref,
+  launchKeyAction,
+  startsRootBrowse,
+  type BrowseNode,
+} from "@/lib/folderBrowse";
+import { BrowseChip, BrowseRows } from "./search/BrowseRows";
+import { useFolderBrowse } from "./search/useFolderBrowse";
+import { useCurrentDrive, useSetOverrideDrive } from "./CurrentDriveProvider";
+import type { JumpDestination } from "./search/useJumpDestinations";
+import { useFileSearch } from "./search/useFileSearch";
+import { useLauncherRows } from "./search/useLauncherRows";
+import { useRecentAndHistory } from "./search/useRecentAndHistory";
+import { SearchFooter } from "./search/SearchFooter";
+import { SearchResultsList } from "./search/SearchResultsList";
+import { SearchEmptyState, type EmptyItem } from "./search/SearchEmptyState";
 import {
-  readSearchCache,
-  writeSearchCache,
-  type SearchCacheKey,
-} from "@/lib/searchCache";
-import type { FileItemWithMatch } from "@/types";
-import { useCurrentDrive } from "./CurrentDriveProvider";
-import { MergedResultItem } from "./search/MergedResultItem";
+  useActiveSearchScope,
+  useRegisterGlobalSearch,
+} from "./search/GlobalSearchProvider";
+import { ScopeChip, ScopedFooter } from "./search/ScopedSearchParts";
 
-const MAX_HISTORY = 20;
-const POPUP_LIMIT = 8;
-
-function historyKey(drive: string): string {
-  return `search-history:${drive}`;
+function isModified(e: React.KeyboardEvent): boolean {
+  return e.metaKey || e.ctrlKey || e.altKey || e.shiftKey;
 }
 
-function getHistory(drive: string): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(historyKey(drive));
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
 
-function saveHistory(drive: string, history: string[]): void {
-  try {
-    localStorage.setItem(historyKey(drive), JSON.stringify(history));
-  } catch {
-    // jsdom test envs / Safari private mode can throw on localStorage; the
-    // history list is best-effort UX, not a correctness requirement.
-  }
-}
-
-function addToHistory(drive: string, term: string): string[] {
-  const normalized = term.trim();
-  if (!normalized) return getHistory(drive);
-  const prev = getHistory(drive).filter((h) => h !== normalized);
-  const next = [normalized, ...prev].slice(0, MAX_HISTORY);
-  saveHistory(drive, next);
-  return next;
-}
-
-function removeFromHistory(drive: string, term: string): string[] {
-  const next = getHistory(drive).filter((h) => h !== term);
-  saveHistory(drive, next);
-  return next;
+function searchPageHref(drive: string, term: string, type?: FileKind): string {
+  const base = `/drive/${encodeURIComponent(drive)}/search?q=${encodeURIComponent(term)}`;
+  return type ? `${base}&type=${type}` : base;
 }
 
 export function GlobalSearch() {
   const t = useTranslations("search");
   const tsc = useTranslations("shortcuts");
   const tc = useTranslations("common");
+  const tj = useTranslations("pageJump");
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [legendOpen, setLegendOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [merged, setMerged] = useState<FileItemWithMatch[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [history, setHistory] = useState<string[]>([]);
-  const [composing, setComposing] = useState(false);
+  // The scope is read live from whatever screen is mounted, never copied: a
+  // modal left open across a navigation must not keep the previous screen's
+  // destination. Only the viewer's removal belongs to this opening.
+  const registeredScope = useActiveSearchScope();
+  const [scopeRemoved, setScopeRemoved] = useState(false);
+  const scope = scopeRemoved ? null : registeredScope;
+  const scopeType = scope?.type ?? null;
+  const ime = useImeKeyGuard();
   const [selectedIndex, setSelectedIndex] = useState(-1);
-  // Render mobile fullscreen vs. desktop modal based on viewport width.
-  // Prior versions dual-rendered both DOM trees and relied on Tailwind
-  // `sm:*` classes to hide one — but that surfaces both copies in
-  // testing environments without CSS, and forces every consumer of
-  // `getByText` to switch to `getAllByText`. The viewport check stays
-  // simple (resize listener) and SSR-safe (defaults to desktop).
+  /**
+   * The highlight is a promise about where the next Enter lands, and the
+   * list moves underneath it: the second stage reorders by relevance. A
+   * position cannot keep that promise; a file can.
+   */
+  type Highlighted =
+    | { kind: "none" }
+    | { kind: "tail" }
+    | { kind: "jump"; key: string }
+    | { kind: "file"; id: string };
+  const highlightedRef = useRef<Highlighted>({ kind: "none" });
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const mobileInputRef = useRef<HTMLInputElement>(null);
   const desktopInputRef = useRef<HTMLInputElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const drive = useCurrentDrive();
+  const setOverrideDrive = useSetOverrideDrive();
+  const browse = useFolderBrowse(open, drive, !scope);
+  const browsing = browse.path !== null;
+  const { merged, total, loading, semanticPending, reset: resetResults } = useFileSearch({
+    open,
+    drive,
+    query,
+    scopeType,
+    browsing,
+  });
+  const { recentFiles, recentReply, history, record, forget } = useRecentAndHistory(
+    open,
+    drive,
+    scopeType,
+  );
+  const { suggestions, pageJumps, folderJumps, jumps, browseRows } = useLauncherRows(
+    open,
+    scope,
+    drive,
+    query,
+    browse,
+  );
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -98,43 +113,139 @@ export function GlobalSearch() {
     return () => mql.removeEventListener?.("change", apply);
   }, []);
 
+  const focusInput = useCallback(() => {
+    const isMobile = window.matchMedia("(max-width: 639px)").matches;
+    if (isMobile) {
+      mobileInputRef.current?.focus();
+    } else {
+      desktopInputRef.current?.focus();
+    }
+  }, []);
+
   const openSearch = useCallback(() => {
-    setHistory(drive ? getHistory(drive) : []);
+    setScopeRemoved(false);
     setOpen(true);
-    setTimeout(() => {
-      const isMobile = window.matchMedia("(max-width: 639px)").matches;
-      if (isMobile) {
-        mobileInputRef.current?.focus();
-      } else {
-        desktopInputRef.current?.focus();
-      }
-    }, 50);
-  }, [drive]);
+    if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
+    focusTimerRef.current = setTimeout(focusInput, 50);
+  }, [focusInput]);
+
+  useEffect(
+    () => () => {
+      if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
+    },
+    [],
+  );
+
+  useRegisterGlobalSearch(() => {
+    if (!open) openSearch();
+  });
+
+  const { openCheatSheet } = useShortcutsContext();
 
   const closeSearch = useCallback(() => {
     setOpen(false);
+    setLegendOpen(false);
     setQuery("");
-    setMerged([]);
-    setTotal(0);
-  }, []);
+    resetResults();
+  }, [resetResults]);
 
+  /**
+   * Two overlays at once make Escape ambiguous: the reader would press Escape
+   * twice to leave something they opened once.
+   */
+  const openShortcuts = useCallback(() => {
+    closeSearch();
+    openCheatSheet();
+  }, [closeSearch, openCheatSheet]);
+
+  // `editingOnly` is deliberately left unset here. Unset means "fires only
+  // when no editing element has focus", which is what partitions these from
+  // the Knowledge editor's own ctrl+k (insert link, editingOnly: true).
   useShortcuts("global", tsc("global"), [
     {
       key: "ctrl+shift+f",
       label: tsc("search"),
-      handler: () => {
-        if (open) {
-          closeSearch();
-        } else {
-          openSearch();
-        }
-      },
+      handler: openSearch,
+    },
+    {
+      key: "ctrl+k",
+      label: tsc("search"),
+      handler: openSearch,
     },
   ]);
 
+  // Closing needs its own context: opening focuses the search input, which the
+  // provider classifies as "editing", so a closing handler registered above
+  // would never fire; and an addon editor mounted beneath (Knowledge binds
+  // ctrl+k while editing) would otherwise win the chord. `OVERLAY_PRIORITY`
+  // stops a context that enables *after* the modal opened taking the chord back.
+  useShortcuts(
+    "search-modal",
+    tsc("search"),
+    [
+      { key: "escape", label: tc("close"), editingOnly: false, hidden: true, handler: closeSearch },
+      { key: "ctrl+k", label: tc("close"), editingOnly: false, handler: closeSearch },
+      { key: "ctrl+shift+f", label: tc("close"), editingOnly: false, handler: closeSearch },
+    ],
+    open,
+    OVERLAY_PRIORITY,
+  );
+
+  useShortcuts(
+    "search-legend",
+    t("badgeLegend"),
+    [
+      {
+        key: "escape",
+        label: tc("close"),
+        editingOnly: false,
+        hidden: true,
+        handler: () => setLegendOpen(false),
+      },
+    ],
+    open && legendOpen,
+    NESTED_OVERLAY_PRIORITY,
+  );
+
+
+  // It is the *order*, not the array. `paint()` builds a fresh array every
+  // run, including the one where the second stage came back with nothing to
+  // add, so keying on the array would yank the highlight off a list that
+  // never moved.
+  const rowOrder = [...jumps.map((j) => j.key), "", ...merged.map((f) => f.id)].join("\u0000");
   useEffect(() => {
+    const held = highlightedRef.current;
+    if (held.kind === "none") return;
+    if (held.kind === "tail") {
+      setSelectedIndex(jumps.length + merged.length);
+      return;
+    }
+    const next =
+      held.kind === "jump"
+        ? jumps.findIndex((jump) => jump.key === held.key)
+        : merged.findIndex((file) => file.id === held.id);
+    if (next === -1) {
+      highlightedRef.current = { kind: "none" };
+      setSelectedIndex(-1);
+      return;
+    }
+    setSelectedIndex(held.kind === "jump" ? next : jumps.length + next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rowOrder]);
+
+  useEffect(() => {
+    highlightedRef.current = { kind: "none" };
     setSelectedIndex(-1);
-  }, [query, open]);
+  }, [query, open, scopeType, browse.path]);
+
+  // A history reply landing after the reader arrowed onto a result would
+  // otherwise take the highlight off a row that never moved.
+  const queryIsEmpty = query.trim().length === 0;
+  useEffect(() => {
+    if (!queryIsEmpty || browsing) return;
+    highlightedRef.current = { kind: "none" };
+    setSelectedIndex(-1);
+  }, [recentReply, queryIsEmpty]);
 
   useEffect(() => {
     if (selectedIndex < 0) return;
@@ -142,132 +253,86 @@ export function GlobalSearch() {
     el?.scrollIntoView({ block: "nearest" });
   }, [selectedIndex]);
 
-  // Handle Escape to close search (processed by ShortcutsProvider when open)
-  useEffect(() => {
-    if (!open) return;
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        closeSearch();
-      }
-    }
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [open, closeSearch]);
-
-  // Debounced merged search: filename + semantic in parallel.
-  // - Cache lookup is synchronous at the top of the effect so a re-opened
-  //   popup with the same query renders instantly before the debounce.
-  // - AbortController cancels the prior request when the query changes.
-  useEffect(() => {
-    if (!open || !drive || !query.trim()) {
-      setMerged([]);
-      setTotal(0);
-      return;
-    }
-
-    const trimmed = query.trim();
-    const cacheKey: SearchCacheKey = {
-      drive,
-      query: trimmed,
-      type: null,
-      includeSceneClip: false,
-    };
-
-    const cached = readSearchCache(cacheKey);
-    if (cached) {
-      const m = mergeResults({
-        filenameMatches: cached.filenameMatches,
-        semanticHits: cached.semanticHits,
-        filenameTotal: cached.filenameTotal,
-      });
-      const sorted = sortMerged(m.files, "relevance", "desc");
-      setMerged(sorted.slice(0, POPUP_LIMIT));
-      setTotal(m.total);
-    }
-
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    const ctrl = new AbortController();
-
-    debounceRef.current = setTimeout(() => {
-      setLoading(true);
-      const filenameP = getDriveFiles(
-        drive,
-        { search: trimmed, limit: POPUP_LIMIT },
-        { signal: ctrl.signal },
-      );
-      const semanticP = isSemanticSearchAvailable(drive).then((available) => {
-        if (!available || ctrl.signal.aborted) return [] as SemanticHit[];
-        return fetchSemanticHits(trimmed, drive, {
-          limit: POPUP_LIMIT,
-          signal: ctrl.signal,
-        });
-      });
-      Promise.all([filenameP, semanticP])
-        .then(([filenameRes, semanticHits]) => {
-          if (ctrl.signal.aborted) return;
-          const m = mergeResults({
-            filenameMatches: filenameRes.data,
-            semanticHits,
-            filenameTotal: filenameRes.meta.total,
-          });
-          const sorted = sortMerged(m.files, "relevance", "desc");
-          setMerged(sorted.slice(0, POPUP_LIMIT));
-          setTotal(m.total);
-          writeSearchCache(cacheKey, {
-            filenameMatches: filenameRes.data,
-            filenameTotal: filenameRes.meta.total,
-            semanticHits,
-          });
-        })
-        .catch(() => {
-          // Stale-while-revalidate: keep the cached snapshot rendered
-          // when revalidation fails on a transient network blip. Only
-          // wipe state when there was nothing cached to fall back on.
-          if (!ctrl.signal.aborted && !cached) {
-            setMerged([]);
-            setTotal(0);
-          }
-        })
-        .finally(() => {
-          if (!ctrl.signal.aborted) setLoading(false);
-        });
-    }, 300);
-
-    return () => {
-      ctrl.abort();
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [query, open, drive]);
 
   const navigateToSearchPage = useCallback(
     (term: string) => {
       const normalized = term.trim();
       if (!normalized || !drive) return;
-      try {
-        setHistory(addToHistory(drive, normalized));
-      } catch {
-        // see saveHistory comment
-      }
+      record(normalized);
       closeSearch();
-      router.push(
-        `/drive/${encodeURIComponent(drive)}/search?q=${encodeURIComponent(normalized)}`,
-      );
+      router.push(searchPageHref(drive, normalized));
     },
-    [drive, router, closeSearch],
+    [drive, router, closeSearch, record],
   );
 
+  /**
+   * A scope's own page does not read operators, so a filtered scoped search
+   * goes to the core search page, still narrowed to the scope's kind.
+   */
+  const scopedSeeAll = useMemo(() => {
+    if (!scope?.seeAllHref || !drive) return scope;
+    const own = scope.seeAllHref;
+    return {
+      ...scope,
+      seeAllHref: (term: string) =>
+        parseSearchQuery(term).hasOperators ? searchPageHref(drive, term, scope.type) : own(term),
+    };
+  }, [scope, drive]);
+
   function handleSelect(url: string) {
-    try {
-      if (drive) setHistory(addToHistory(drive, query));
-    } catch {
-      // see saveHistory comment
-    }
+    record(query);
     closeSearch();
     router.push(url);
   }
 
+  function enterFolder(path: string) {
+    browse.enter(path);
+    setQuery("");
+  }
+
+  function openBrowseRow(row: BrowseNode | null) {
+    if (!drive || browse.path === null) return;
+    const href = row ? browseRowHref(drive, row) : browseFolderHref(drive, browse.path);
+    closeSearch();
+    router.push(href);
+  }
+
+  function handleBrowseKey(e: React.KeyboardEvent<HTMLInputElement>) {
+    const action = browseKeyAction(e.key, query, selectedIndex, browseRows);
+    if (action.kind === "none") return;
+    // Cmd+← and friends move the caret, and a held Backspace must not climb
+    // one level per repeat.
+    if ((action.kind === "up" || action.kind === "enter") && (isModified(e) || e.repeat)) return;
+    e.preventDefault();
+    if (action.kind === "move") setSelectedIndex(action.index);
+    else if (action.kind === "enter") enterFolder(action.path);
+    else if (action.kind === "up") browse.up();
+    else openBrowseRow(action.row);
+  }
+
+  function openJump(jump: JumpDestination) {
+    if (jump.complete !== undefined) {
+      setQuery(jump.complete);
+      focusInput();
+      return;
+    }
+    closeSearch();
+    if (jump.overrideDrive) setOverrideDrive(jump.overrideDrive);
+    router.push(jump.href);
+  }
+
   function handleSubmit(term: string) {
+    const normalized = term.trim();
+    if (scopedSeeAll?.seeAllHref && normalized) {
+      handleSelect(scopedSeeAll.seeAllHref(normalized));
+      return;
+    }
     navigateToSearchPage(term);
+  }
+
+  function removeScope() {
+    setScopeRemoved(true);
+    focusInput();
   }
 
   function handleHistorySubmit(term: string) {
@@ -277,23 +342,67 @@ export function GlobalSearch() {
 
   function handleRemoveHistory(term: string, e: React.MouseEvent) {
     e.stopPropagation();
-    if (drive) setHistory(removeFromHistory(drive, term));
+    if (!drive) return;
+    const removedIndex = emptyItems.findIndex(
+      (item) => item.kind === "term" && item.term === term,
+    );
+    if (removedIndex >= 0 && selectedIndex >= 0) {
+      if (removedIndex === selectedIndex) setSelectedIndex(-1);
+      else if (removedIndex < selectedIndex) setSelectedIndex(selectedIndex - 1);
+    }
+    forget(term);
   }
 
   function handleFillInput(term: string, e: React.MouseEvent) {
     e.stopPropagation();
     setQuery(term);
-    const isMobile = window.matchMedia("(max-width: 639px)").matches;
-    if (isMobile) {
-      mobileInputRef.current?.focus();
-    } else {
-      desktopInputRef.current?.focus();
-    }
+    focusInput();
   }
 
-  const showHistory = !query.trim() && history.length > 0;
   const hasResults = merged.length > 0;
   const hasQuery = query.trim().length > 0;
+
+  // Files first: the chord's main use is getting back to what you just had
+  // open, which should be one Enter away. A recent term leads to the unscoped
+  // search page, so a scoped modal offers none.
+  const emptyItems: EmptyItem[] = hasQuery
+    ? []
+    : [
+        ...recentFiles.map<EmptyItem>((file) => ({ kind: "file", file })),
+        ...(scope ? [] : history).map<EmptyItem>((term) => ({ kind: "term", term })),
+      ];
+  const showEmptyState = emptyItems.length > 0;
+  const recentFileCount = hasQuery ? 0 : recentFiles.length;
+
+  /**
+   * The recording happens here rather than in an effect on `selectedIndex`:
+   * an effect also runs when the *list* changes, and would re-read the row
+   * at the old position.
+   */
+  function moveHighlight(next: (prev: number) => number) {
+    setSelectedIndex((prev) => {
+      const index = next(prev);
+      if (showEmptyState || index < 0) {
+        highlightedRef.current = { kind: "none" };
+      } else if (index < jumps.length) {
+        highlightedRef.current = { kind: "jump", key: jumps[index].key };
+      } else if (index >= jumps.length + merged.length) {
+        highlightedRef.current = { kind: "tail" };
+      } else {
+        highlightedRef.current = { kind: "file", id: merged[index - jumps.length].id };
+      }
+      return index;
+    });
+  }
+
+  function activateEmptyItem(item: EmptyItem | undefined) {
+    if (!item) return;
+    if (item.kind === "term") {
+      handleHistorySubmit(item.term);
+    } else {
+      handleSelect(`/files/${item.file.id}`);
+    }
+  }
 
   const searchInput = (
     ref: React.RefObject<HTMLInputElement | null>,
@@ -303,27 +412,51 @@ export function GlobalSearch() {
       ref={ref}
       type="text"
       value={query}
-      onChange={(e) => setQuery(e.target.value)}
-      onCompositionStart={() => setComposing(true)}
-      onCompositionEnd={() => setComposing(false)}
+      onChange={(e) => {
+        const next = e.target.value;
+        const composing = (e.nativeEvent as InputEvent).isComposing === true;
+        if (!browsing && !scope && drive && !composing && startsRootBrowse(query, next)) {
+          enterFolder("");
+        } else {
+          setQuery(next);
+        }
+      }}
+      onCompositionEnd={ime.onCompositionEnd}
       onKeyDown={(e) => {
-        if (e.key === "ArrowDown") {
+        if (ime.isImeKeystroke(e)) return;
+        if (browsing) {
+          handleBrowseKey(e);
+          return;
+        }
+        const startAt = launchKeyAction(e.key, selectedIndex, jumps, !!scope || !drive);
+        if (startAt !== null && !isModified(e)) {
           e.preventDefault();
-          const maxIdx = showHistory
-            ? history.length - 1
+          enterFolder(startAt);
+        } else if (e.key === "Backspace" && scope && query === "") {
+          e.preventDefault();
+          removeScope();
+        } else if (e.key === "ArrowDown") {
+          e.preventDefault();
+          const maxIdx = showEmptyState
+            ? emptyItems.length - 1
             : hasResults
-              ? merged.length
-              : -1;
-          if (maxIdx >= 0) setSelectedIndex((prev) => Math.min(maxIdx, prev + 1));
+              ? scope
+                ? jumps.length + merged.length - 1
+                : jumps.length + merged.length
+              : jumps.length - 1;
+          if (maxIdx >= 0) moveHighlight((prev) => Math.min(maxIdx, prev + 1));
         } else if (e.key === "ArrowUp") {
           e.preventDefault();
-          setSelectedIndex((prev) => Math.max(-1, prev - 1));
-        } else if (e.key === "Enter" && !composing) {
-          if (selectedIndex >= 0 && showHistory) {
-            handleHistorySubmit(history[selectedIndex]);
+          moveHighlight((prev) => Math.max(-1, prev - 1));
+        } else if (e.key === "Enter") {
+          if (selectedIndex >= 0 && showEmptyState) {
+            activateEmptyItem(emptyItems[selectedIndex]);
+          } else if (selectedIndex >= 0 && selectedIndex < jumps.length) {
+            openJump(jumps[selectedIndex]);
           } else if (selectedIndex >= 0 && hasResults) {
-            if (selectedIndex < merged.length) {
-              handleSelect(`/files/${merged[selectedIndex].id}`);
+            const fileIndex = selectedIndex - jumps.length;
+            if (fileIndex < merged.length) {
+              handleSelect(`/files/${merged[fileIndex].id}`);
             } else {
               handleSubmit(query);
             }
@@ -342,90 +475,90 @@ export function GlobalSearch() {
     />
   );
 
-  const historyList = (mobile: boolean) => (
-    <div className={mobile ? "" : "max-h-[50vh] overflow-y-auto"}>
-      {history.map((term, idx) => (
-        <button
-          key={term}
-          data-search-item={idx}
-          onClick={() => handleHistorySubmit(term)}
-          className={`flex w-full items-center gap-3 px-4 text-left transition-colors ${
-            mobile
-              ? `py-3 ${selectedIndex === idx ? "bg-bg-elevated" : "active:bg-bg-elevated"}`
-              : `py-2.5 ${selectedIndex === idx ? "bg-bg-elevated" : "hover:bg-bg-elevated"}`
-          }`}
-        >
-          <Clock size={mobile ? 18 : 16} className="flex-shrink-0 text-text-muted" />
-          <span className="min-w-0 flex-1 truncate text-sm text-text-primary">{term}</span>
-          <button
-            onClick={(e) => handleFillInput(term, e)}
-            className={`flex-shrink-0 rounded-lg text-text-muted ${
-              mobile ? "p-1.5 active:bg-bg-elevated" : "p-1 hover:text-text-primary"
-            }`}
-            aria-label={t("fillInput", { term })}
-          >
-            <ArrowUpLeft size={mobile ? 16 : 14} />
-          </button>
-          <button
-            onClick={(e) => handleRemoveHistory(term, e)}
-            className={`flex-shrink-0 rounded-lg text-text-muted ${
-              mobile ? "p-1.5 active:bg-bg-elevated" : "p-1 hover:text-text-primary"
-            }`}
-            aria-label={t("removeHistory", { term })}
-          >
-            <X size={mobile ? 16 : 14} />
-          </button>
-        </button>
-      ))}
-    </div>
-  );
-
   const resultsList = (mobile: boolean) => (
-    <div className={mobile ? "" : "max-h-[50vh] overflow-y-auto"}>
-      {loading && merged.length === 0 ? (
-        <div className={`flex items-center justify-center ${mobile ? "py-12" : "py-8"}`}>
-          <div className={`${mobile ? "h-6 w-6" : "h-5 w-5"} animate-spin rounded-full border-2 border-accent border-t-transparent`} />
-        </div>
-      ) : (
-        <>
-          {merged.length > 0 && (
-            <>
-              {merged.map((file, idx) => (
-                <div key={file.id} data-search-item={idx}>
-                  <MergedResultItem
-                    file={file}
-                    onSelect={handleSelect}
-                    isSelected={selectedIndex === idx}
-                  />
-                </div>
-              ))}
-              <button
-                data-search-item={merged.length}
-                onClick={() => handleSubmit(query)}
-                className={`flex w-full items-center justify-between gap-3 border-t border-bg-border px-4 py-2.5 text-left transition-colors ${selectedIndex === merged.length ? "bg-bg-elevated" : "hover:bg-bg-elevated"}`}
-              >
-                <span className="truncate text-sm font-medium text-accent">
-                  {t("viewAllResults", { total })}
-                </span>
-                <ArrowRight size={16} className="flex-shrink-0 text-accent" />
-              </button>
-            </>
-          )}
-
-          {!loading && !hasResults && (
-            <div className={`text-center text-sm text-text-muted ${mobile ? "py-12" : "py-8"}`}>
-              {t("noResults")}
-            </div>
-          )}
-        </>
-      )}
-    </div>
+    <SearchResultsList
+      mobile={mobile}
+      query={query}
+      scope={scope}
+      suggestions={suggestions}
+      pageJumps={pageJumps}
+      folderJumps={folderJumps}
+      merged={merged}
+      total={total}
+      loading={loading}
+      semanticPending={semanticPending}
+      selectedIndex={selectedIndex}
+      onOpenJump={openJump}
+      onEnterFolder={enterFolder}
+      onSelect={handleSelect}
+      onSubmit={handleSubmit}
+    />
   );
+
+  const browseChip = browse.path !== null && (
+    <BrowseChip
+      label={browse.path || t("driveRoot")}
+      removeLabel={tj("browseLeave")}
+      upLabel={tj("browseUp")}
+      onUp={browse.path === "" ? undefined : browse.up}
+      onRemove={() => {
+        browse.leave();
+        focusInput();
+      }}
+    />
+  );
+
+  const browseList = (mobile: boolean) =>
+    browse.loading ? null : (
+      <BrowseRows
+        rows={browseRows}
+        selectedIndex={selectedIndex}
+        mobile={mobile}
+        emptyText={query.trim() ? tj("browseNoMatch") : tj("browseEmpty")}
+        onOpen={openBrowseRow}
+        onEnterFolder={enterFolder}
+      />
+    );
+
+  const body = (mobile: boolean) =>
+    legendOpen ? (
+      <MatchLegend />
+    ) : !drive ? (
+      <div className={`${mobile ? "py-12" : "py-8"} text-center text-sm text-text-muted`}>
+        {t("goToDrive")}
+      </div>
+    ) : browsing ? (
+      browseList(mobile)
+    ) : showEmptyState ? (
+      <SearchEmptyState
+        items={emptyItems}
+        selectedIndex={selectedIndex}
+        recentFileCount={recentFileCount}
+        mobile={mobile}
+        onOpenFile={(file) => handleSelect(`/files/${file.id}`)}
+        onSubmitTerm={handleHistorySubmit}
+        onFillInput={handleFillInput}
+        onRemoveTerm={handleRemoveHistory}
+      />
+    ) : hasQuery ? (
+      resultsList(mobile)
+    ) : null;
+
+  const footer = (mobile: boolean) =>
+    scope ? (
+      <ScopedFooter scope={scopedSeeAll ?? scope} query={query} mobile={mobile} onSeeAll={handleSelect} />
+    ) : (
+      <SearchFooter
+        semanticPending={semanticPending}
+        legendOpen={legendOpen}
+        onToggleLegend={() => setLegendOpen((v) => !v)}
+        onOpenShortcuts={openShortcuts}
+      />
+    );
 
   const clearQuery = (focusRef?: React.RefObject<HTMLInputElement | null>) => {
     setQuery("");
-    setMerged([]);
-    setTotal(0);
+    resetResults();
     focusRef?.current?.focus();
   };
 
@@ -443,9 +576,7 @@ export function GlobalSearch() {
       {open &&
         isMobileViewport &&
         createPortal(
-          // Mobile: full-screen
           <div className="fixed inset-0 z-50 flex flex-col bg-bg-primary animate-fade-in">
-          {/* Header */}
           <div className="flex items-center gap-2 border-b border-bg-border px-2 py-2">
             <button
               onClick={closeSearch}
@@ -454,6 +585,8 @@ export function GlobalSearch() {
             >
               <ArrowLeft size={20} />
             </button>
+            {scope && <ScopeChip scope={scope} onRemove={removeScope} />}
+            {browseChip}
             <div className="relative flex-1">
               {searchInput(mobileInputRef, true)}
               {query && (
@@ -467,18 +600,11 @@ export function GlobalSearch() {
             </div>
           </div>
 
-            {/* Body */}
             <div className="flex-1 overflow-y-auto">
-              {!drive ? (
-                <div className="py-12 text-center text-sm text-text-muted">
-                  {t("goToDrive")}
-                </div>
-              ) : showHistory ? (
-                historyList(true)
-              ) : hasQuery ? (
-                resultsList(true)
-              ) : null}
+              {body(true)}
             </div>
+
+            {footer(true)}
           </div>,
           document.body
         )}
@@ -486,16 +612,19 @@ export function GlobalSearch() {
       {open &&
         !isMobileViewport &&
         createPortal(
-          // Desktop: centered modal
-          <div className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh]">
+        // `px-4`: between the mobile sheet and `max-w-3xl` binding the panel is
+        // `w-full` against an unpadded container, so without it the card sits
+        // flush against the viewport edge.
+        <div className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-[10vh]">
           <div
             className="fixed inset-0 bg-black/50 animate-fade-in"
             onClick={closeSearch}
           />
-          <div className="relative z-10 w-full max-w-lg rounded-2xl border border-bg-border bg-bg-primary shadow-lg animate-fade-in-scale">
-            {/* Search input */}
+          <div className="relative z-10 w-full max-w-3xl rounded-2xl border border-bg-border bg-bg-primary shadow-lg animate-fade-in-scale">
             <div className="flex items-center gap-3 border-b border-bg-border px-4 py-3">
               <Search size={18} className="flex-shrink-0 text-text-muted" />
+              {scope && <ScopeChip scope={scope} onRemove={removeScope} />}
+              {browseChip}
               {searchInput(desktopInputRef, false)}
               {query && (
                 <button
@@ -510,18 +639,11 @@ export function GlobalSearch() {
               </kbd>
             </div>
 
-            {/* History or Results */}
-            {!drive ? (
-              <div className="py-8 text-center text-sm text-text-muted">
-                {t("goToDrive")}
-              </div>
-            ) : showHistory ? (
-              historyList(false)
-            ) : hasQuery ? (
-              resultsList(false)
-            ) : null}
-            </div>
-          </div>,
+            {body(false)}
+
+            {footer(false)}
+          </div>
+        </div>,
           document.body
         )}
     </>

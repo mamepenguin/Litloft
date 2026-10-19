@@ -1,12 +1,56 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { SortButton } from "../SortButton";
+import { ShortcutsProvider } from "../ShortcutsProvider";
 
 describe("SortButton", () => {
   const onChange = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("closes on Escape and returns focus to the trigger", () => {
+    // Focus is moved **into the menu** before the press. Pressing with
+    // focus already on the trigger asserts nothing about the focus
+    // return: closing the menu does not move focus, so `toHaveFocus`
+    // passes whether or not the handler restores it.
+    render(
+      <ShortcutsProvider>
+        <SortButton sort="created_at" order="desc" onChange={onChange} />
+      </ShortcutsProvider>,
+    );
+    const trigger = screen.getByLabelText("Sort");
+    fireEvent.click(trigger);
+    const row = screen.getAllByRole("menuitemradio")[0];
+    row.focus();
+    expect(row).toHaveFocus();
+
+    fireEvent.keyDown(row, { key: "Escape" });
+
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
+
+  it("closes on Escape even with focus in a text field", () => {
+    // What `editingOnly: false` buys. Nothing traps focus inside these
+    // menus, so Tab walks out of the last row into whatever follows in the
+    // document, and `ShortcutsProvider` treats an INPUT as "editing".
+    render(
+      <ShortcutsProvider>
+        <SortButton sort="created_at" order="desc" onChange={onChange} />
+        <input aria-label="elsewhere" />
+      </ShortcutsProvider>,
+    );
+    fireEvent.click(screen.getByLabelText("Sort"));
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+
+    const field = screen.getByLabelText("elsewhere");
+    field.focus();
+    fireEvent.keyDown(field, { key: "Escape" });
+
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   });
 
   it("renders sort button", () => {

@@ -5,6 +5,8 @@ import type { FileItem } from "@/types";
 
 function makeTrackFile(id: string, type: "audio" | "video" = "audio"): FileItem {
   return {
+    image_width: null,
+    image_height: null,
     id,
     filename: `${id}.mp3`,
     title: `Track ${id}`,
@@ -17,12 +19,14 @@ function makeTrackFile(id: string, type: "audio" | "video" = "audio"): FileItem 
     has_thumbnail: false,
     file_size: 1000,
     duration: 180,
-    likes: 0,
+    liked_at: null,
     is_favorite: false,
     tags: [],
     subtitles: [],
     deleted_at: null,
     missing_since: null,
+    trust_tier: "verified",
+    trust_reviewed_at: null,
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
   };
@@ -51,6 +55,9 @@ describe("CollectionPanel", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // The loop toggle persists to `localStorage["collection-loop"]`, and
+    // "toggles loop state" below turns it off.
+    localStorage.clear();
 
     vi.mocked(getCollection).mockResolvedValue({
       id: "c1",

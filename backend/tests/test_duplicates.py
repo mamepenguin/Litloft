@@ -78,7 +78,6 @@ class TestDuplicatesAPI:
         f1 = _seed_file(db, drive_dir, "keep.mp4", folder="a", file_hash=same_hash)
         f2 = _seed_file(db, drive_dir, "trash.mp4", folder="b", file_hash=same_hash)
 
-        # Soft delete one
         c.delete(f"/api/files/{f2.id}")
 
         res = c.get(f"/api/drives/{TEST_DRIVE}/duplicates")

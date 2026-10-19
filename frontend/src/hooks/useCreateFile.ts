@@ -7,23 +7,12 @@ import { useTranslations } from "next-intl";
 import { createTextFile } from "@/lib/api";
 
 interface UseCreateFileReturn {
-  /**
-   * Create a blank Markdown file. By default the file lands in the
-   * folder the hook was constructed with, but callers can override the
-   * path on a per-call basis (e.g. the tree pane's "new file here"
-   * context menu, where the row's path differs from the URL location).
-   * Pass an empty string to create at the drive root.
-   */
   createFile: (targetPath?: string) => Promise<void>;
   isCreating: boolean;
 }
 
 /**
- * Format a Date as YYYYMMDD-HHMMSS in local time.
- *
- * Used to give freshly-created files a deterministic, human-readable
- * default filename (e.g. ``untitled-20260509-143000.md``). Local time
- * matches what the user sees in the file listing; UTC would be
+ * Local time matches what the user sees in the file listing; UTC would be
  * surprising for someone glancing at the timestamp.
  */
 function formatTimestamp(d: Date): string {
@@ -37,27 +26,12 @@ function formatTimestamp(d: Date): string {
   return `${year}${month}${day}-${hours}${minutes}${seconds}`;
 }
 
-/**
- * Create a blank Markdown file in the current folder and navigate to
- * the editor.
- *
- * Mirrors {@link useCreateFolder} in shape. The hook is intentionally
- * minimal — it does not own a name input dialog. The file is created
- * immediately with a timestamped default name; the user renames it in
- * the editor if they want a different name.
- *
- * Returns ``{ createFile, isCreating }``. ``createFile`` is idempotent
- * while a request is in flight (a second invocation is a no-op until
- * the first resolves).
- */
 export function useCreateFile(drive: string, currentPath: string): UseCreateFileReturn {
   const router = useRouter();
   const t = useTranslations("folder");
   const [isCreating, setIsCreating] = useState(false);
-  // Mirror the state into a ref so a synchronous double-call (rare,
-  // but exercised by the tests via two consecutive invocations inside
-  // the same act() block) sees the latched flag without waiting for
-  // the next React render.
+  // Mirror the state into a ref so a synchronous double-call sees the
+  // latched flag without waiting for the next React render.
   const inFlightRef = useRef(false);
 
   const createFile = useCallback(async (targetPath?: string) => {

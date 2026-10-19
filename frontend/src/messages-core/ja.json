@@ -1,6 +1,7 @@
 {
   "common": {
     "close": "閉じる",
+    "back": "戻る",
     "cancel": "キャンセル",
     "save": "保存",
     "delete": "削除",
@@ -10,14 +11,15 @@
     "change": "変更",
     "refresh": "更新",
     "seeAll": "すべて見る",
+    "seeAllCount": "すべて見る（{count}）",
     "download": "ダウンロード",
     "rename": "名前を変更",
     "move": "移動",
     "play": "再生",
     "pause": "一時停止",
-    "upload": "アップロード",
     "lock": "ロック",
     "items": "{count}件",
+    "driveScope": "{drive} · {detail}",
     "loadContent": "読み込む",
     "fileSizeLarge": "ファイルサイズが大きすぎます ({size})",
     "loadFailed": "読み込みに失敗しました: {error}",
@@ -35,11 +37,21 @@
   },
   "sidebar": {
     "home": "ホーム",
+    "library": "ライブラリ",
+    "views": "ビュー",
+    "sources": "ソース",
     "favorites": "お気に入り",
-    "recentPlay": "最近見た",
+    "liked": "Liked",
+    "recentlyViewed": "最近見た",
     "recentAdded": "最近追加",
     "allFiles": "すべてのファイル",
     "trash": "ゴミ箱",
+    "switchDrive": "ドライブを切り替え（現在: {drive}）",
+    "pins": "ピン",
+    "tags": "タグ",
+    "tagsScoped": "タグ — {folder} 以下",
+    "allTags": "すべてのタグ（{count}）",
+    "allDrives": "ドライブ（{count}）",
     "collections": "コレクション",
     "createCollection": "コレクション作成",
     "collectionNamePlaceholder": "コレクション名...",
@@ -55,21 +67,20 @@
       "byName": "名前順",
       "byCount": "件数順",
       "toggle": "タグの並び順を切り替え"
-    }
+    },
+    "clearTag": "タグ絞り込みを解除",
+    "lock": "ロックする",
+    "administration": "管理"
   },
   "drive": {
-    "title": "ドライブ",
     "empty": "ドライブがありません",
     "emptyDescription": "drives.jsonを設定してドライブを追加してください。",
-    "folders": "フォルダ",
-    "files": "ファイル",
     "pickup": "ピックアップ",
     "recentAdded": "最近追加",
     "favorites": "お気に入り",
-    "popular": "人気",
+    "liked": "Liked",
     "continueWatching": "続きを見る",
-    "recentlyPlayed": "最近見た",
-    "tagline": "ファイルの保存・配信・整理をひとつに",
+    "recentlyViewed": "最近見た",
     "greeting": "おかえりなさい、{name}",
     "fileCount": "{count, plural, other {#件のファイル}}",
     "emptyDrive": "まだファイルがありません",
@@ -89,7 +100,6 @@
     "pin": "ピン留め",
     "unpin": "ピン留め解除",
     "newFolder": "新規フォルダ",
-    "newFile": "新規ノート",
     "createFileFailed": "ファイルの作成に失敗しました",
     "createFileForbidden": "このドライブには書き込めません",
     "open": "開く",
@@ -124,9 +134,10 @@
     "renameFailed": "名前の変更に失敗しました",
     "moveFailed": "移動に失敗しました",
     "deleteFailed": "削除に失敗しました",
-    "noPreview": "プレビューは対応していません",
+    "noPreview": "この形式はブラウザで表示できません",
     "prevFile": "前のファイル",
     "nextFile": "次のファイル",
+    "positionOf": "{position} / {total}",
     "edit": "編集",
     "summaryEdit": "編集",
     "summarySave": "保存",
@@ -140,6 +151,22 @@
     "addToCollection": "コレクションに追加",
     "removeFromHistory": "履歴から削除",
     "openInNewTab": "新しいタブで開く",
+    "copyId": "IDをコピー",
+    "idCopied": "IDをコピーしました",
+    "copyIdTitle": "ファイルID",
+    "copyIdManual": "このブラウザではコピーできませんでした。選択されているIDをコピーしてください。",
+    "pdfPreviousPage": "前のページ",
+    "pdfNextPage": "次のページ",
+    "pdfZoomOut": "縮小",
+    "pdfZoomIn": "拡大",
+    "pdfLoading": "PDFを読み込み中...",
+    "pdfLoadFailed": "PDFを読み込めませんでした。新しいタブで開いてください。",
+    "pdfPageNumber": "ページ番号",
+    "pdfFullscreen": "全画面で表示",
+    "pdfFullscreenViewer": "PDF ビューア",
+    "pdfShortcuts": "PDF ビューア",
+    "pdfOutline": "目次",
+    "pdfGoToPage": "{page}ページ目へ",
     "typeVideo": "動画",
     "typeImage": "画像",
     "typeAudio": "音声",
@@ -151,7 +178,53 @@
     "activeSummaryFallbackOpen": "ノートファイルを開く",
     "relatedFilesTitle": "関連ファイル",
     "relatedFileMissing": "見つからない",
-    "relatedFileSizeBytes": "{size}バイト"
+    "relatedLinksFrom": "このノートからのリンク",
+    "relatedLinksTo": "このノートへのリンク",
+    "relatedDriveRoot": "ドライブ直下",
+    "relatedFileSizeBytes": "{size}バイト",
+    "layoutBeside": "文字起こしを動画の横に表示",
+    "layoutStack": "文字起こしを動画の下に表示",
+    "actionsFor": "{name} の操作",
+    "pdfThumbnails": "ページのサムネイル",
+    "officeExcerpt": "抽出テキストの冒頭",
+    "pdfZoomMode": "表示倍率",
+    "pdfZoomMode_fit-width": "幅に合わせる",
+    "pdfZoomMode_fit-page": "ページ全体",
+    "pdfZoomMode_actual": "実寸",
+    "pdfRenderTooLarge": "この倍率ではページを描画できませんでした。倍率を下げてください。",
+    "epubLoading": "本を読み込み中...",
+    "epubLoadFailed": "本を開けませんでした。ダウンロードして別のアプリで開いてください。",
+    "epubUnsupported": "固定レイアウトの本はまだ表示できません。ダウンロードして別のアプリで開いてください。",
+    "epubReader": "{title}（本）",
+    "epubShortcuts": "EPUB リーダー",
+    "epubNextPage": "次のページ",
+    "epubPreviousPage": "前のページ",
+    "epubPageLeft": "左のページ",
+    "epubPageRight": "右のページ",
+    "epubFullscreen": "全画面で読む",
+    "epubExitFullscreen": "全画面を閉じる",
+    "epubPosition": "読書位置",
+    "epubPagesLeft": "この章あと {count} ページ",
+    "epubTypographyButton": "文字の設定",
+    "epubTypography": "文字の設定",
+    "epubTextSize": "文字サイズ",
+    "epubTextSmaller": "文字を小さく",
+    "epubTextLarger": "文字を大きく",
+    "epubLineSpacing": "行間",
+    "epubMargins": "余白",
+    "epubFont": "書体",
+    "epubOriginal": "オリジナル",
+    "epubMargin_narrow": "狭い",
+    "epubMargin_normal": "標準",
+    "epubMargin_wide": "広い",
+    "epubFont_serif": "明朝",
+    "epubFont_sans": "ゴシック",
+    "epubCloseTypography": "文字の設定を閉じる",
+    "epubContents": "目次",
+    "epubCloseContents": "目次を閉じる",
+    "epubUntitled": "（無題）",
+    "epubTypographyReset": "標準に戻す",
+    "markdownViewMode": "表示"
   },
   "search": {
     "label": "検索",
@@ -173,10 +246,35 @@
     "matchFilename": "ファイル名",
     "matchPath": "パス",
     "matchClipThumbnail": "サムネイル",
+    "matchTranscript": "音声一致",
+    "matchClip": "映像一致",
+    "matchMetadata": "メタデータ",
+    "matchContent": "内容一致",
+    "matchRetrievalKeywords": "キーワード",
+    "matchedPages": "p.{pages}",
+    "matchedSectionNumber": "セクション {section}",
+    "matchFilenameHelp": "ファイルの名前そのものに入力した言葉が入っています。",
+    "matchPathHelp": "そのファイルに至る途中のフォルダ名が、入力した言葉です。",
+    "matchMetadataHelp": "タイトル・説明・タグなど、ファイルについて記録された情報に入っています。",
+    "matchTranscriptHelp": "音声の中で実際に話されています。",
+    "matchClipHelp": "映像のどこかの画が、探している内容に見えます。",
+    "matchClipThumbnailHelp": "サムネイルの画が、探している内容に見えます。",
+    "matchContentHelp": "ファイルの中の文章に入っています。",
+    "matchRetrievalKeywordsHelp": "入力した言葉ではなく、検索が補った関連語に一致しました。",
+    "badgeLegend": "バッジの意味",
     "heading": "検索: \"{query}\"",
     "emptyQuery": "検索ワードを入力してください",
+    "recentFiles": "最近のファイル",
+    "recentSearches": "最近の検索",
     "sceneSearchToggle": "シーン検索",
-    "sceneSearchHint": "動画の中で特定のシーンが映っている箇所を探す"
+    "sceneSearchHint": "動画の中で特定のシーンが映っている箇所を探す",
+    "semanticPending": "意味でも探しています…",
+    "scopeRemove": "{label}の範囲を外す",
+    "scopeSeeAll": "{label}で「{query}」をすべて探す",
+    "hintSelect": "選ぶ",
+    "hintOpen": "開く",
+    "hintRemoveScope": "範囲を外す",
+    "driveRoot": "ドライブ直下"
   },
   "smartFolder": {
     "sectionTitle": "スマートフォルダ",
@@ -214,11 +312,10 @@
     "titleZA": "タイトルZ→A",
     "sizeLargest": "サイズ 大→小",
     "sizeSmallest": "サイズ 小→大",
-    "likesmost": "いいね 多→少",
-    "likesleast": "いいね 少→多",
     "random": "ランダム"
   },
   "selection": {
+    "moreActions": "選択中のその他の操作",
     "selected": "{count}件選択",
     "selectAll": "すべて選択",
     "deselect": "選択解除",
@@ -232,11 +329,20 @@
     "add": "お気に入りに追加",
     "remove": "お気に入り解除",
     "added": "お気に入り済み",
-    "label": "お気に入り"
+    "label": "お気に入り",
+    "addFor": "{name} をお気に入りに追加",
+    "removeFor": "{name} をお気に入りから外す"
+  },
+  "like": {
+    "add": "Like する",
+    "remove": "Like を取り消す",
+    "added": "Liked",
+    "label": "Like"
   },
   "tag": {
     "add": "タグ追加",
     "placeholder": "タグ名...",
+    "frequentTags": "よく使うタグ",
     "maxLength": "タグは30文字以内にしてください",
     "invalidChars": "使用できない文字が含まれています",
     "maxCount": "タグは最大10個までです",
@@ -283,6 +389,10 @@
     "moveUp": "上へ",
     "moveDown": "下へ",
     "empty": "アイテムがありません",
+    "moreActions": "{name} のその他の操作",
+    "emptyTitle": "このコレクションはまだ空です",
+    "emptyDescription": "ドライブから、またはファイルのメニューから追加できます。",
+    "emptyAction": "ドライブを開く",
     "notFound": "コレクションが見つかりません",
     "reorderHint": "並べ替え",
     "confirmDeleteTitle": "コレクションを削除しますか？",
@@ -312,47 +422,88 @@
     "castConnected": "キャスト中",
     "autoplayOn": "自動再生ON",
     "autoplayOff": "自動再生OFF",
+    "autoplay": "自動再生",
+    "pictureInPicture": "ピクチャ・イン・ピクチャ",
+    "systemFullscreen": "iOS のプレイヤーで開く",
+    "subtitleTrack": "字幕トラック",
+    "subtitleTrackOff": "オフ",
+    "browserControls": "ブラウザ標準の操作バー",
+    "useLitloftControls": "Litloft の操作バーに戻す",
     "miniPlayerClose": "ミニプレーヤーを閉じる（再生停止）",
     "miniPlayerRestore": "プレーヤーを元の位置に戻す",
-    "miniPlayerAnnounced": "プレーヤーを画面右下に移動しました"
+    "miniPlayerAnnounced": "プレーヤーを画面右下に移動しました",
+    "play": "再生",
+    "pause": "一時停止",
+    "mute": "ミュート",
+    "unmute": "ミュート解除",
+    "volume": "音量",
+    "speed": "再生速度",
+    "loadFailed": "読み込めませんでした",
+    "buffering": "読み込み中…",
+    "fullscreen": "全画面表示",
+    "exitFullscreen": "全画面表示を終了",
+    "seek": "シーク",
+    "skipBack10": "10秒戻す",
+    "skipForward10": "10秒進む",
+    "adBreak": "広告",
+    "speedBoost": "{rate}x で再生中",
+    "skipSeconds": "{seconds}秒",
+    "settings": "設定",
+    "closeSettings": "設定を閉じる",
+    "normalSpeed": "標準",
+    "captions": "字幕",
+    "chapters": "チャプター",
+    "seekToTime": "{time} へ移動"
   },
   "archive": {
+    "imageViewer": "書庫の画像ビューア",
+    "rootBreadcrumb": "書庫",
     "loadFailed": "アーカイブの読み込みに失敗しました: {error}",
     "fileCount": "{count}ファイル/{size}",
     "downloadArchive": "アーカイブをダウンロード",
     "emptyFolder": "このフォルダは空です",
     "downloadFile": "{name}をダウンロード",
+    "previewUnavailable": "プレビュー不可",
+    "download": "ダウンロード",
+    "textLoadFailedTitle": "このファイルを開けませんでした",
     "slideshowInterval": "スライドショー間隔",
     "seconds": "{sec}秒",
     "prevImage": "前の画像",
     "nextImage": "次の画像",
     "backToList": "一覧に戻る",
-    "splitMode": "見開きモード",
-    "splitModeToggle": "見開きモード切り替え",
     "ltr": "LTR",
     "rtl": "RTL",
     "readingDirection": "読み方向",
-    "sortName": "名前",
-    "sortSize": "サイズ",
-    "sortType": "種類",
-    "sortAsc": "昇順",
-    "sortDesc": "降順",
+    "sortNameAsc": "名前 A→Z",
+    "sortNameDesc": "名前 Z→A",
+    "sortSizeAsc": "サイズ 小→大",
+    "sortSizeDesc": "サイズ 大→小",
+    "sortTypeAsc": "種類 A→Z",
+    "sortTypeDesc": "種類 Z→A",
     "filterAll": "すべて",
     "filterImage": "画像",
     "filterText": "テキスト",
     "filterVideo": "動画",
     "filterAudio": "音声",
-    "filterOther": "その他"
+    "filterOther": "その他",
+    "indexFilterPlaceholder": "パスで絞り込む",
+    "indexFilterLabel": "書庫の中を絞り込む",
+    "indexNoMatch": "一致するものはありません",
+    "indexMoreEntries": "ほか {count} 件",
+    "spreadMode": "見開き",
+    "spreadModeToggle": "見開きで読む／単ページで読む"
   },
   "empty": {
     "noFilesTitle": "ファイルがありません",
-    "noFilesDescription": "このフォルダにはまだファイルがありません。",
+    "noFilesDescription": "ファイルをここにドロップすると追加できます。",
     "noResultsTitle": "一致するファイルが見つかりません",
     "noResultsDescription": "検索条件を変更してください。",
     "needsScanTitle": "スキャンを実行してください",
     "needsScanDescription": "ドライブのファイルを読み込みます。",
     "noFavoritesTitle": "お気に入りのファイルがありません",
     "noFavoritesDescription": "星アイコンをクリックしてお気に入りに追加しましょう。",
+    "noLikedTitle": "Like したファイルがありません",
+    "noLikedDescription": "ファイル詳細で Like を押すと、ここに残ります。",
     "noRecentTitle": "最近見たファイルがありません",
     "noRecentDescription": "ファイルを開くと、ここに表示されます。",
     "noRecentNoProfileTitle": "プロフィールが設定されていません",
@@ -360,7 +511,15 @@
     "noRecentAddedTitle": "最近追加されたファイルがありません",
     "noRecentAddedDescription": "ファイルをアップロードすると、ここに表示されます。",
     "noTrashTitle": "ゴミ箱は空です",
-    "noTrashDescription": "削除されたファイルはここに表示されます。"
+    "noTrashDescription": "削除されたファイルはここに表示されます。",
+    "noTagMatchesTitle": "このフォルダには一致するファイルがありません",
+    "noTagMatchesDescription": "このタグが付いたファイルはここにありません。",
+    "noHomeActivityTitle": "まだ何もありません",
+    "noHomeActivityDescription": "このドライブに追加したファイルや、開いたファイルがここに並びます。",
+    "homeUnavailableTitle": "このドライブを読み込めませんでした",
+    "homeUnavailableDescription": "いま何も取得できませんでした。ドライブが空という意味ではありません。",
+    "addFilesAction": "ファイルを追加",
+    "openLibraryAction": "ライブラリを開く"
   },
   "theme": {
     "system": "システム",
@@ -372,7 +531,8 @@
     "list": "リスト表示",
     "tree": "ツリー",
     "treeOn": "ツリーを表示",
-    "treeOff": "ツリーを隠す"
+    "treeOff": "ツリーを隠す",
+    "label": "表示"
   },
   "tree": {
     "filterAll": "すべて",
@@ -385,22 +545,30 @@
     "loading": "読み込み中...",
     "errorRetry": "再試行",
     "empty": "このフォルダにファイルはありません",
-    "dropToRoot": "ここにドロップしてドライブ直下へ移動"
+    "dropToRoot": "ここにドロップしてドライブ直下へ移動",
+    "paneHeading": "フォルダ",
+    "includeFiles": "ファイルも表示"
   },
   "filter": {
     "placeholder": {
       "tree": "名前で絞り込み...",
+      "treeSearch": "フォルダを探す",
       "folder": "このフォルダで絞り込み..."
     },
     "type": {
       "all": "すべて",
-      "markdown": "Markdown",
       "video": "動画",
       "image": "画像",
+      "audio": "音声",
+      "document": "文書",
+      "archive": "書庫",
+      "other": "その他",
+      "text": "テキスト",
       "pdf": "PDF"
     },
     "empty": {
-      "tree": "該当するファイル・フォルダはありません",
+      "tree": "該当するフォルダはありません",
+      "treeWithFiles": "該当するファイル・フォルダはありません",
       "folder": "このフォルダに該当するファイルはありません"
     },
     "clear": "フィルタを解除",
@@ -416,32 +584,34 @@
     "noSelection": "ツリーからファイルを選択してください"
   },
   "toolbar": {
+    "add": "追加",
     "rescan": "再スキャン",
     "rescanTitle": "ドライブを再スキャン",
     "fileType": "ファイルタイプ",
     "filter": "フィルタ",
-    "all": "すべて",
-    "video": "動画",
-    "image": "画像",
-    "audio": "音声",
-    "document": "文書",
-    "archiveType": "書庫",
-    "other": "その他",
-    "playAll": "全曲再生",
     "home": "ホーム",
     "more": "その他の操作",
-    "reshuffle": "再シャッフル"
+    "reshuffle": "再シャッフル",
+    "searchWholeDrive": "ドライブ全体を検索",
+    "scanStarted": "{drive} を再スキャンしています",
+    "scanDone": "再スキャン完了 — 追加 {added} / 復帰 {recovered} / 見つからない {missing}",
+    "scanDoneNoChange": "再スキャン完了 — 変更はありません",
+    "scanAlreadyRunning": "このドライブは既に再スキャン中です",
+    "scanFailed": "再スキャンに失敗しました",
+    "pinFolder": "このフォルダをピン留め",
+    "unpinFolder": "このフォルダのピン留めを解除"
   },
   "gallery": {
+    "imageGallery": "画像ギャラリー",
     "prevImage": "前の画像",
     "nextImage": "次の画像",
     "slideshowInterval": "スライドショー間隔",
     "seconds": "{sec}秒",
-    "splitMode": "見開きモード",
-    "splitModeToggle": "見開きモード切り替え",
     "ltr": "LTR",
     "rtl": "RTL",
-    "readingDirection": "読み方向"
+    "readingDirection": "読み方向",
+    "spreadMode": "見開き",
+    "spreadModeToggle": "見開きで読む／単ページで読む"
   },
   "unlock": {
     "title": "ロック解除",
@@ -518,7 +688,6 @@
     },
     "sidebarReset": {
       "title": "サイドバーの並び順",
-      "description": "サイドバーのセクション順・アイテム順・タグの並び順をすべて初期状態に戻します。",
       "button": "並び順をリセット",
       "confirmTitle": "並び順をリセット",
       "confirmBody": "サイドバーのカスタマイズした並び順をすべて初期状態に戻します。よろしいですか？",
@@ -588,7 +757,8 @@
         "loadFailed": "アドオン設定の読み込みに失敗しました",
         "saveFailed": "保存に失敗しました",
         "unknown_addon": "存在しないアドオンです"
-      }
+      },
+      "tableLabel": "ドライブごとのアドオン設定"
     },
     "restartBanner": {
       "title": "保留中の変更があります。反映には再起動が必要です",
@@ -596,13 +766,18 @@
       "copyCommand": "docker compose restart backend",
       "copyButton": "コピー",
       "copied": "コピーしました"
+    },
+    "tabsLabel": "設定の種類",
+    "preferences": {
+      "title": "表示と操作"
     }
   },
   "text": {
     "fileSizeLarge": "ファイルサイズが大きすぎます ({size})",
     "loadContent": "読み込む",
     "loading": "読み込み中...",
-    "loadFailed": "読み込みに失敗しました: {error}"
+    "loadFailed": "読み込みに失敗しました: {error}",
+    "tooLargeToDecorate": "行番号と色を付けるには大きすぎるため、そのまま表示しています。"
   },
   "batchRename": {
     "title": "一括名前変更",
@@ -646,7 +821,9 @@
     "confirmMoveToTrash": "「{name}」をゴミ箱に移動しますか？",
     "batchConfirmMoveToTrash": "{count}件のファイルをゴミ箱に移動しますか？",
     "batchPurgeTitle": "完全に削除",
-    "batchPurgeMessage": "{count}件のファイルを完全に削除しますか？この操作は取り消せません。"
+    "batchPurgeMessage": "{count}件のファイルを完全に削除しますか？この操作は取り消せません。",
+    "restoreNamed": "{name} を復元",
+    "purgeNamed": "{name} を完全削除"
   },
   "missing": {
     "title": "見つからないファイル",
@@ -663,11 +840,13 @@
     "description": "ディスク上で見つからなかったファイル。ファイルが戻ってきたら自動的に復帰します。",
     "scanWarning": "{count}件のファイルが見つかりません",
     "scanWarningDescription": "ドライブのマウント状態を確認してください。",
-    "scanRecovered": "{count}件のファイルが復帰しました"
+    "scanRecovered": "{count}件のファイルが復帰しました",
+    "purgeNamed": "{name} を完全削除"
   },
   "admin": {
     "title": "ダッシュボード",
     "settings": "設定",
+    "markdownImages": "Markdown画像",
     "drives": "ドライブ",
     "system": "システム",
     "totalFiles": "ファイル数",
@@ -707,7 +886,55 @@
     "restartTitle": "保留中の変更があります。反映には再起動が必要です",
     "restartCopyCommand": "docker compose restart backend",
     "restartCopyButton": "コピー",
-    "restartCopied": "コピーしました"
+    "restartCopied": "コピーしました",
+    "diskUsage": "{used} / {total} 使用"
+  },
+  "markdownImages": {
+    "title": "Markdown画像の添付化",
+    "back": "ダッシュボードへ戻る",
+    "scope": "分析範囲",
+    "drive": "ドライブ",
+    "folder": "フォルダ",
+    "recursive": "サブフォルダを含める",
+    "analyze": "分析",
+    "analysis": "分析結果",
+    "hosts": "取得を許可するホスト",
+    "noCandidates": "外部HTTPS画像の候補はありません",
+    "selected": "{count}件を選択中",
+    "import": "{count}件を添付化",
+    "cancel": "キャンセル",
+    "progress": "{processed} / {total}件",
+    "samples": "対象と確認が必要なファイル",
+    "recentErrors": "最近のエラー",
+    "loadError": "状態の読み込みに失敗しました",
+    "analyzeError": "分析に失敗しました",
+    "importError": "添付化を開始できませんでした",
+    "cancelError": "キャンセルに失敗しました",
+    "counts": {
+      "total_markdown": "Markdown総数",
+      "local_loft_image": "添付済み画像",
+      "external_https_candidate": "外部HTTPS候補",
+      "no_image": "画像なし",
+      "unsupported_first_image": "未対応の最初の画像",
+      "invalid_loft_reference": "無効な添付参照",
+      "read_error": "読み込みエラー"
+    },
+    "states": {
+      "queued": "開始待ち",
+      "running": "添付化中",
+      "cancelling": "停止処理中",
+      "completed": "完了",
+      "cancelled": "キャンセル済み",
+      "interrupted": "再起動により中断",
+      "failed": "ジョブ失敗"
+    },
+    "jobCounts": {
+      "succeeded": "新規添付",
+      "reused": "再利用",
+      "skipped": "スキップ",
+      "conflicts": "本文競合",
+      "failed": "失敗"
+    }
   },
   "inspector": {
     "title": "プロパティ",
@@ -721,6 +948,12 @@
       "aiSummary": "AI要約",
       "comments": "コメント"
     },
+    "tabs": {
+      "info": "情報",
+      "chapters": "チャプター",
+      "pages": "ページ",
+      "related": "関連"
+    },
     "saveDot": {
       "idle": "保存状態",
       "saving": "保存中",
@@ -732,7 +965,10 @@
       "hint": "クリックして名前を変更",
       "label": "ファイル名",
       "failed": "名前の変更に失敗しました"
-    }
+    },
+    "tablistLabel": "インスペクタのセクション",
+    "collapseSheet": "シートを下げる",
+    "expandSheet": "シートを開く"
   },
   "comments": {
     "title": "コメント",
@@ -761,7 +997,9 @@
     "modeCut": "移動",
     "copied": "コピーしました",
     "moved": "移動しました",
-    "clear": "クリア"
+    "clear": "クリア",
+    "pasteFailed": "{count} 件を貼り付けられませんでした",
+    "pasteRefused": "貼り付けできませんでした"
   },
   "shortcuts": {
     "title": "ショートカット",
@@ -782,6 +1020,10 @@
     "prevImage": "前の画像",
     "nextImage": "次の画像",
     "slideshow": "スライドショー切替",
+    "zoom": "ズーム",
+    "zoomIn": "拡大",
+    "zoomOut": "縮小",
+    "zoomFit": "画面に合わせる",
     "copy": "コピー",
     "cut": "カット",
     "paste": "ペースト",
@@ -789,8 +1031,12 @@
     "search": "検索",
     "prevFile": "前のファイル",
     "nextFile": "次のファイル",
-    "loftPlayer": "動画プレーヤー（LoftRef）",
-    "archiveViewer": "アーカイブビューア"
+    "loftPlayer": "動画プレーヤー",
+    "archiveViewer": "アーカイブビューア",
+    "quickNote": "クイックノート",
+    "folderTree": "フォルダツリー",
+    "folderCards": "フォルダ",
+    "rename": "名前を変更"
   },
   "propertiesPanel": {
     "labels": {
@@ -805,7 +1051,9 @@
     "origin": {
       "webclip": "Webクリップ",
       "detailed_summary": "AI要約",
-      "manual": "手動作成"
+      "manual": "手動作成",
+      "source_capture": "ソースから取り込み",
+      "ask_answer": "Askから保存"
     },
     "sourcesMore": "他{n}件",
     "sourceMissing": "削除済みまたはアクセス不可"
@@ -829,7 +1077,8 @@
         "public": "全公開",
         "protected": "パスワード保護",
         "addons": "有効なアドオン",
-        "addonUnit": " 件"
+        "addonUnit": " 件",
+        "addonsDefault": "既定のまま（すべて有効）"
       },
       "nextSteps": {
         "title": "次の手順",
@@ -917,9 +1166,12 @@
     "addonPolicy": {
       "title": "アドオン設定",
       "description": "ドライブごとにアドオンを有効化できます。あとで変更可能です。",
+      "legendTitle": "アドオンの説明",
       "skipDescription": "今は設定せずに次へ進めます。",
       "skipNote": "今は決めずに進めて構いません。あとで/adminから変更できます。",
-      "noDescription": "（このアドオンの説明はありません）"
+      "noDescription": "（このアドオンの説明はありません）",
+      "loadFailed": "アドオンの一覧を読み込めませんでした。",
+      "retry": "再試行"
     }
   },
   "errors": {
@@ -939,5 +1191,76 @@
     "folderNoSubfolders": "サブフォルダがありません",
     "folderSelectedLabel": "選択中",
     "submitting": "保存中..."
+  },
+  "quickNote": {
+    "title": "クイックノート",
+    "open": "クイックノート",
+    "bodyLabel": "ノート本文",
+    "placeholder": "いま書き留めて、整理はあとで。",
+    "filenamePreview": "保存名",
+    "destination": "保存先",
+    "driveLabel": "ドライブ",
+    "selectDrive": "ドライブを選択",
+    "driveRoot": "ドライブ直下",
+    "noDrives": "保存できるドライブがありません。",
+    "drivesFailed": "ドライブを読み込めませんでした。",
+    "retry": "再試行",
+    "saveAndOpen": "保存して開く",
+    "saving": "保存中...",
+    "saved": "{path} に保存しました",
+    "saveFailed": "ノートを保存できませんでした。",
+    "forbidden": "このドライブは利用できなくなりました。別の保存先を選んでください。",
+    "tooLarge": "ノートが 1 MB の上限を超えています。",
+    "invalidPath": "この保存先は受け付けられませんでした。1行目かフォルダを変えて試してください。",
+    "discardTitle": "このノートを破棄しますか？",
+    "discardMessage": "まだ保存されていないため、復元できません。",
+    "discard": "破棄",
+    "keepEditing": "編集を続ける"
+  },
+  "inlineRename": {
+    "label": "新しい名前",
+    "error": {
+      "empty": "名前を入力してください",
+      "forbiddenChars": "< > : \" / \\ | ? * は使えません",
+      "hidden": "ドットで始まる名前は使えません",
+      "tooLong": "名前が長すぎます（255文字まで）",
+      "conflict": "その名前は既に使われています",
+      "readOnly": "このドライブは読み取り専用です",
+      "notFound": "この項目は既に存在しません",
+      "failed": "名前を変更できませんでした"
+    }
+  },
+  "trustTier": {
+    "stateVerified": "検証済み",
+    "stateUnverified": "未検証",
+    "trust": "出典として信用する",
+    "withdraw": "信用を取り消す",
+    "filterAll": "すべて",
+    "filterVerified": "検証済みのみ",
+    "filterUnreviewed": "未判定のみ",
+    "filterUnreviewedHint": "誰も判定していないもの（移行分を含む）",
+    "filterLabel": "検証状態"
+  },
+  "pageJump": {
+    "section": "移動",
+    "aliases": {
+      "home": "ほーむ,home,start",
+      "library": "フォルダ,library,folders",
+      "favorites": "おきにいり,favorites,favourites,star",
+      "liked": "いいね,like,liked",
+      "recent": "履歴,さいきん,history,recently viewed",
+      "recentAdded": "新着,追加,さいきん,recently added,new",
+      "allFiles": "全て,すべて,全部,all,all files",
+      "trash": "ごみばこ,削除,trash,bin",
+      "missing": "行方不明,missing",
+      "admin": "管理,設定,admin,dashboard,settings"
+    },
+    "folders": "フォルダ",
+    "browseInto": "{name} の中を見る",
+    "browseLeave": "フォルダの閲覧をやめる",
+    "browseEmpty": "このフォルダは空です",
+    "browseNoMatch": "一致する項目はありません",
+    "browseUp": "1 つ上へ",
+    "suggestions": "候補"
   }
 }

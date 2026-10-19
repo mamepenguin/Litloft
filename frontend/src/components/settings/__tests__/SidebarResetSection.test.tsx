@@ -1,15 +1,3 @@
-/**
- * Phase 4: /settings の「サイドバーの並び順をリセット」結合テスト
- *
- * spec 2026-05-18-sidebar-reorder §5.3 / hako c3CcYY_a8nRwD5lG-zeOi。
- * - sidebar:order:* と sidebar:sort:* のみ削除
- * - sidebar:section:*:collapsed（別機能 = 折りたたみ状態）は温存
- * - ConfirmDialog 確認後にのみ削除、キャンセルでは何も消えない
- *
- * 実 ConfirmDialog を描画する流儀は ProfileSection.test.tsx に倣う
- * (next-intl は src/test/setup.ts でグローバル mock、en 文言が解決される)。
- */
-
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 
@@ -28,13 +16,12 @@ function seed() {
     window.localStorage.setItem(k, v);
   }
   window.localStorage.setItem(PRESERVED_KEY, "1");
-  // an unrelated key must also survive
   window.localStorage.setItem("NEXT_LOCALE", "en");
 }
 
 function openDialogAndConfirm() {
-  // Trigger button and the dialog confirm button share the label
-  // "Reset order"; the dialog one is rendered last in the DOM.
+  // The trigger and the dialog's confirm button share the label; the dialog
+  // one is rendered last.
   fireEvent.click(screen.getAllByRole("button", { name: "Reset order" })[0]);
   const buttons = screen.getAllByRole("button", { name: "Reset order" });
   fireEvent.click(buttons[buttons.length - 1]);

@@ -148,3 +148,130 @@ class TestNeighborsEdgeCases:
         data = res.json()
         assert data["prev_id"] == files_a[0].id
         assert data["next_id"] == files_a[2].id
+
+
+class TestNeighborsPosition:
+    """`position` / `total` back the `n / N` readout in the image viewer."""
+
+    def test_position_runs_from_one_to_total(self, client):
+        c, db, drive_dir, _ = client
+        files = _seed_files(db, drive_dir, count=3)
+        # created_at desc → [2, 1, 0]
+        expected = {files[2].id: 1, files[1].id: 2, files[0].id: 3}
+
+        for file_id, position in expected.items():
+            data = c.get(f"/api/files/{file_id}/neighbors").json()
+            assert data["position"] == position
+            assert data["total"] == 3
+
+    @pytest.mark.parametrize(
+        "order,positions",
+        [
+            ("asc", [1, 2, 3, 4, 5]),
+            ("desc", [5, 4, 3, 2, 1]),
+        ],
+    )
+    def test_reversing_the_order_reverses_the_position(
+        self, client, order, positions
+    ):
+        c, db, drive_dir, _ = client
+        files = _seed_files(db, drive_dir, count=5)
+
+        actual = [
+            c.get(
+                f"/api/files/{f.id}/neighbors?sort=title&order={order}"
+            ).json()["position"]
+            for f in files
+        ]
+        assert actual == positions
+
+    def test_a_lone_file_is_one_of_one(self, client):
+        c, db, drive_dir, _ = client
+        files = _seed_files(db, drive_dir, count=1)
+
+        data = c.get(f"/api/files/{files[0].id}/neighbors").json()
+        assert data["position"] == 1
+        assert data["total"] == 1
+
+    def test_total_counts_only_the_files_own_folder(self, client):
+        c, db, drive_dir, _ = client
+        files_a = _seed_files(db, drive_dir, folder="folderA", count=3)
+        _seed_files(db, drive_dir, folder="folderB", count=4)
+
+        data = c.get(f"/api/files/{files_a[0].id}/neighbors").json()
+        assert data["total"] == 3
+
+    def test_total_excludes_trashed_files(self, client):
+        c, db, drive_dir, _ = client
+        files = _seed_files(db, drive_dir, count=3)
+
+        from datetime import UTC, datetime
+
+        files[0].deleted_at = datetime.now(UTC)
+        db.commit()
+
+        data = c.get(f"/api/files/{files[2].id}/neighbors").json()
+        assert data["total"] == 2
+
+    def test_an_unliked_file_has_neither_a_place_nor_a_count(self, client):
+        c, db, drive_dir, _ = client
+        files = _seed_files(db, drive_dir, count=3)
+
+        data = c.get(
+            f"/api/files/{files[0].id}/neighbors?sort=liked_at&order=desc"
+        ).json()
+        # Nothing was liked, so there is no like-ordering to have a place
+        # in — and no reason to report the size of a sequence this file is
+        # not part of.
+        assert data["position"] is None
+        assert data["total"] is None
+
+    def test_the_count_matches_what_the_arrows_can_reach(self, client):
+        """The readout and the arrows count one population, not two.
+
+        Under ``sort=liked_at`` a never-liked row drops out of every
+        keyset comparison on its own, so it is unreachable by prev/next.
+        """
+        c, db, drive_dir, _ = client
+        files = _seed_files(db, drive_dir, count=3)
+
+        from datetime import UTC, datetime
+
+        liked = files[1]
+        liked.liked_at = datetime.now(UTC)
+        db.commit()
+
+        data = c.get(
+            f"/api/files/{liked.id}/neighbors?sort=liked_at&order=desc"
+        ).json()
+        assert data["position"] == 1
+        assert data["total"] == 1
+        assert data["prev_id"] is None
+        assert data["next_id"] is None
+
+    def test_two_liked_files_of_five_walk_a_sequence_of_two(self, client):
+        """The non-degenerate case: the arrows really do move, twice."""
+        c, db, drive_dir, _ = client
+        files = _seed_files(db, drive_dir, count=5)
+
+        from datetime import UTC, datetime, timedelta
+
+        now = datetime.now(UTC)
+        files[1].liked_at = now - timedelta(days=1)
+        files[3].liked_at = now
+        db.commit()
+
+        newer = c.get(
+            f"/api/files/{files[3].id}/neighbors?sort=liked_at&order=desc"
+        ).json()
+        older = c.get(
+            f"/api/files/{files[1].id}/neighbors?sort=liked_at&order=desc"
+        ).json()
+
+        assert (newer["position"], newer["total"]) == (1, 2)
+        assert (older["position"], older["total"]) == (2, 2)
+        # And the arrow the count promises actually reaches the other one.
+        assert newer["next_id"] == files[1].id
+        assert older["prev_id"] == files[3].id
+        assert newer["prev_id"] is None
+        assert older["next_id"] is None

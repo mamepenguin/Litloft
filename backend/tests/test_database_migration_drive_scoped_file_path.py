@@ -1,23 +1,10 @@
 """Regression + migration test: ``files.file_path`` UNIQUE must be
 drive-scoped, not global.
 
-Root cause: ``File.file_path`` carried a single-column ``unique=True``
-(models.py) plus ``file_path VARCHAR NOT NULL UNIQUE`` in the legacy raw
-CREATE TABLE statements (database.py). The scanner stores a
-*drive-relative* path with no drive prefix (``"README.md"``), so two
-different drives could never both hold a root ``README.md`` — the second
-registration died with an IntegrityError surfaced to the user as 409.
-
-Every other drive-partitioned table (Tag / EmptyFolder / PinnedFolder /
-Collection) already uses a composite ``UniqueConstraint("drive", ...)``.
-``files`` should match: ``UniqueConstraint("drive", "file_path")``.
-
 SQLite note: an inline single-column ``UNIQUE`` creates an implicit
 ``sqlite_autoindex_files_*`` that cannot be ``DROP INDEX``-ed, so the
-existing-DB migration must rebuild the table (the established Phase 3/4
-pattern in database.py). Existing rows are data-safe: the old global
-UNIQUE physically guaranteed no cross-drive duplicates, so every row
-trivially satisfies ``(drive, file_path)`` already.
+existing-DB migration must rebuild the table. Existing rows are data-safe: the
+old global UNIQUE physically guaranteed no cross-drive duplicates.
 """
 import pytest
 from sqlalchemy import create_engine, event, inspect, text
@@ -26,6 +13,8 @@ from sqlalchemy.orm import sessionmaker
 
 from app.database import Base, _migrate
 from app.models import File
+
+pytestmark = pytest.mark.usefixtures("private_data_dir")
 
 
 def _enable_fk(engine):
@@ -51,9 +40,6 @@ def _has_composite_unique(engine):
         sorted(u["column_names"]) == ["drive", "file_path"]
         for u in inspector.get_unique_constraints("files")
     )
-
-
-# --- Fresh-install schema (Base.metadata.create_all path) ------------------
 
 
 def test_fresh_db_allows_same_relative_path_across_drives(tmp_path):
@@ -94,9 +80,6 @@ def test_fresh_db_has_composite_not_global_unique(tmp_path):
     engine = _fresh_engine(tmp_path, "shape.db")
     Base.metadata.create_all(bind=engine)
     assert _has_composite_unique(engine)
-
-
-# --- Existing-DB migration (raw _migrate path) -----------------------------
 
 
 def _legacy_files_ddl_global_unique() -> str:
@@ -143,9 +126,7 @@ def test_legacy_global_unique_migrated_to_composite(tmp_path):
 
     _migrate(engine)
 
-    # Composite unique now present.
     assert _has_composite_unique(engine)
-    # Original row preserved with all data intact.
     with engine.connect() as conn:
         rows = list(conn.execute(text(
             "SELECT id, drive, file_path, file_size FROM files"
@@ -163,7 +144,19 @@ def test_legacy_global_unique_migrated_to_composite(tmp_path):
 
 
 def test_legacy_migration_preserves_later_columns(tmp_path):
-    """All columns added by later ALTER phases survive the rebuild."""
+    """All columns added by later ALTER phases survive the rebuild.
+
+    The hash-format sentinel is created first so that phase is a no-op. It
+    runs *before* the rebuild and nulls every ``file_hash`` on a database
+    that has not had it, which is correct and is not what this test is
+    about — without the sentinel, ``file_hash`` arrives here already NULL
+    and the rebuild's copy cannot be observed at all.
+    """
+    import app.config as config
+
+    config.DATA_DIR.mkdir(parents=True, exist_ok=True)
+    (config.DATA_DIR / "hash_format_v2_done").touch()
+
     engine = _fresh_engine(tmp_path, "cols.db")
     with engine.begin() as conn:
         conn.execute(text(_legacy_files_ddl_global_unique()))
@@ -194,16 +187,62 @@ def test_migration_is_idempotent(tmp_path):
     assert _has_composite_unique(engine)
 
 
+#: Every secondary index on ``files``, declared rather than read back from a
+#: run. Three things build this set, not one: ``models.py``'s
+#: ``__table_args__`` on a fresh install, the rebuild's own ``CREATE INDEX``
+#: list on an upgrade, and the ``CREATE INDEX IF NOT EXISTS`` statements in
+#: the later phases, which are unconditional and so run on both. An index
+#: missing from whichever of them applies is invisible until a query on a
+#: large library is slow. Naming the columns as well as the index catches the
+#: other half: an index keeping its name while covering the wrong column does
+#: nothing for the view it was created for.
+FILES_INDEXES = {
+    "idx_files_deleted_at": ["deleted_at"],
+    "idx_files_drive_folder_path": ["drive", "folder_path"],
+    "idx_files_drive_md_id": ["drive", "md_id"],
+    "idx_files_file_hash": ["file_hash"],
+    "idx_files_file_type": ["file_type"],
+    "idx_files_is_favorite": ["is_favorite"],
+    "idx_files_liked_at": ["liked_at"],
+    "idx_files_missing_since": ["missing_since"],
+    "idx_files_title": ["title"],
+    "idx_files_trust_tier": ["trust_tier"],
+}
+
+
+def _index_map(engine) -> dict[str, list[str]]:
+    return {
+        i["name"]: list(i["column_names"])
+        for i in inspect(engine).get_indexes("files")
+    }
+
+
 def test_migration_keeps_file_indexes(tmp_path):
-    """Table rebuild must recreate the secondary indexes."""
+    """An upgraded database ends with the declared index set, not a subset."""
     engine = _fresh_engine(tmp_path, "idx.db")
     with engine.begin() as conn:
         conn.execute(text(_legacy_files_ddl_global_unique()))
     _migrate(engine)
-    inspector = inspect(engine)
-    names = {i["name"] for i in inspector.get_indexes("files")}
-    assert "idx_files_drive_folder_path" in names
-    assert "idx_files_drive_md_id" in names
+
+    assert _index_map(engine) == FILES_INDEXES
+
+
+def test_a_fresh_install_ends_with_the_same_indexes(tmp_path):
+    """The same declared set, reached by a different route.
+
+    A fresh database gets most of this set from ``models.py`` and an upgraded
+    one from the rebuild's hardcoded list; the two paths overlap rather than
+    partition, because the later phases' ``CREATE INDEX IF NOT EXISTS``
+    statements are unconditional and supply some of it on both. Checking each
+    route against the same declared set is what makes a divergence fail —
+    reading one and asserting the other matches would go green if both lost
+    the same index.
+    """
+    engine = _fresh_engine(tmp_path, "fresh_idx.db")
+    Base.metadata.create_all(bind=engine)
+    _migrate(engine)
+
+    assert _index_map(engine) == FILES_INDEXES
 
 
 def test_migration_does_not_cascade_delete_child_rows(tmp_path):
@@ -214,7 +253,6 @@ def test_migration_does_not_cascade_delete_child_rows(tmp_path):
     file_tags / comments / file_relations / file_exif — wiping the user's
     tags, comments, relations and EXIF. The rebuild must turn FK
     enforcement OFF for the swap and preserve ids so child rows survive.
-    Without this test a regression silently destroys user data on upgrade.
     """
     from app.models import (
         Comment,
@@ -282,14 +320,30 @@ def test_migration_does_not_cascade_delete_child_rows(tmp_path):
         assert conn.execute(
             text("SELECT COUNT(*) FROM file_exif")
         ).scalar() == 1
-        # Referential integrity must hold after the swap.
         orphans = conn.execute(
             text("PRAGMA foreign_key_check")
         ).fetchall()
     assert orphans == []
 
+    # The rebuild turned foreign keys off on a raw connection and has to turn
+    # them back on before handing it to the pool. The engine's connect
+    # listener runs once per *new* DBAPI connection, so a pooled one that
+    # comes back out never passes through it again — and this is the branch
+    # every successful upgrade takes, not the one that runs on a crash.
+    with engine.connect() as conn:
+        assert conn.exec_driver_sql("PRAGMA foreign_keys").scalar() == 1
 
-# --- resolve_db_path_conflict must be drive-scoped -------------------------
+    # Asserted as a cascade rather than only as a pragma: what the setting is
+    # for is that deleting a file still takes its children with it.
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM files WHERE id = 'faaaaaaaaaaa'"))
+    with engine.connect() as conn:
+        assert conn.execute(
+            text("SELECT COUNT(*) FROM comments")
+        ).scalar() == 0
+        assert conn.execute(
+            text("SELECT COUNT(*) FROM file_tags")
+        ).scalar() == 0
 
 
 def test_resolve_db_path_conflict_ignores_other_drive(tmp_path):

@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "claude-read-1",
+      "origin": "reviewer",
+      "claim": "The diff adds backend/tests/test_sidecar_match.py, a core test tagged SPEC-ADDON-002. The touch-point list does not name it: it gives backend/tests/ only 'batch-rename tests and the inventory test over backend/app (I7)', and its merge order puts the SPEC-ADDON tests in the addon PRs.",
+      "impact": "A core test now cites SPEC-ADDON-002, so core traceability can treat SPEC-ADDON-002 as covered by the matcher's unit tests alone, before any Media Import call site uses the matcher. PROJECT.md says a SPEC-ADDON row cited only by addon tests stays approved. A reader could move the row to implemented, or count the invariant as tested, when only the helper is tested.",
+      "evidence": "backend/tests/test_sidecar_match.py:1 docstring 'SPEC-ADDON-002: the NFC-literal sibling matcher Media Import lists directories with'; test names test_spec_addon_002_*. Touch points list: 'backend/tests/ — batch-rename tests and the inventory test over backend/app (I7)'. Merge order step 1 says Core PR 1 'Carries the SPEC-CORE-003 tests', and step 2 says each addon PR 'carries its own SPEC-ADDON tests'. backend/tests/test_listing_call_inventory.py:1 also cites SPEC-ADDON-002.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant breaks. The core does own the matcher it ships, and testing it in the core is reasonable. This is a place the change reaches that the touch-point list did not plan, and it affects how the SPEC-ADDON-002 ledger row is traced.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add backend/tests/test_sidecar_match.py to the touch-point list, or tag it with SPEC-CORE-003 (the core helper), so SPEC-ADDON-002 stays traced to the Media Import tests."
+    }
+  ],
+  "specification_compliance": [
+    "Every changed code file is in the touch-point list: backend/app/services/fileops.py (_fold_name, _validate_no_duplicates, the flush in batch_rename) and backend/app/services/sidecar_match.py.",
+    "The changed docs are all listed (docs/user-guide/upload-and-fileops.md, docs/process/PROJECT.md, docs/developer-guide/known-issues.md) or implicit (docs/specs/*, INDEX.md, docs/process/reviews/*).",
+    "backend/tests/test_batch_rename_clash.py and backend/tests/test_listing_call_inventory.py fall under the listed backend/tests/ entry.",
+    "backend/tests/test_sidecar_match.py is the only place outside the list (see finding claude-read-1).",
+    "The addon files and submodule pointers are absent from this diff, which matches the merge order (Core PR 1 first).",
+    "batch_rename has one caller, backend/app/routers/files.py:471, and it is unchanged. The new per-file flush reaches only that endpoint.",
+    "_update_file_after_rename (thumbnail moves) is now followed by a flush inside the try block, but its code is unchanged."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "A flush failure after _update_file_after_rename has moved a video thumbnail triggers _rollback_fs_renames. That rolls back the file renames, but the thumbnail moves may not be undone. The rollback path predates this change; the flush only makes that path reachable earlier in the loop."
+  ],
+  "regression_risks": [
+    "The per-file db.flush() in batch_rename now raises on a UNIQUE conflict at the conflicting file instead of at commit. The rollback path is the same, but it runs with fewer completed renames."
+  ],
+  "test_coverage": [
+    "test_batch_rename_clash.py covers the NFD-named sibling, a swap, renumbering up, a cross-folder batch file, and renumbering down with reversed primary-key order.",
+    "No test covers a rename to a case or normalization variant of the file's own name (I9), or a batch spanning two folders that both pass the check.",
+    "test_listing_call_inventory.py covers I7 for backend/app.",
+    "test_sidecar_match.py covers the matcher contract."
+  ],
+  "not_verified": [
+    "Whether the commit c8591d498 alone touches only docs; I reviewed the provided diff against the base.",
+    "Whether check-traceability would actually mark SPEC-ADDON-002 as implemented from the core test citation.",
+    "The thumbnail rollback behavior on a flush failure.",
+    "The tests were not run."
+  ],
+  "confidence": 78
+}

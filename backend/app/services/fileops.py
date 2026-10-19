@@ -14,12 +14,28 @@ from sqlalchemy.orm import Session
 import app.config as config
 from app.models import EmptyFolder, File, active_file_filter
 from app.nanoid import generate_nanoid
+from app.services.atomic_write import generating_file
 from app.services.heic import cleanup_heic_cache
+from app.services.markdown_images import project_markdown_thumbnail
+from app.services.tagops import cleanup_orphan_tags
 
 logger = logging.getLogger(__name__)
 
 FORBIDDEN_CHARS = set('<>:"/\\|?*\x00')
 MAX_FILENAME_LENGTH = 255
+
+
+def _is_markdown_file(file: File) -> bool:
+    return file.mime_type == "text/markdown" or file.filename.lower().endswith(".md")
+
+
+def _read_markdown_for_projection(path: Path) -> str | None:
+    try:
+        if path.stat().st_size > 1_000_000:
+            return None
+        return path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return None
 
 
 def resolve_drive_path(drive_name: str) -> Path:
@@ -65,9 +81,23 @@ def validate_within_drive(target: Path, drive_path: Path) -> Path:
 
 
 def _filename_to_title(filename: str) -> str:
-    name = Path(filename).stem
-    name = name.replace("_", " ").replace("-", " ")
-    return name.title()
+    """Derive a display title from a filename, keeping the author's spelling.
+
+    Only the underscore is treated as a separator: it stands in for a space the
+    filesystem made awkward to type. A hyphen is a character someone chose, and
+    is frequently load-bearing (`MacBook-Neo-review`, a Japanese compound), so
+    it survives.
+
+    Beyond raising the first letter, nothing recases the words. `str.title()`
+    uppercases the letter after every non-alphabetic character and lowercases
+    the rest of each word, which turns `charon's` into `Charon'S` and
+    `MacBook` into `Macbook`.
+    """
+    stem = Path(filename).stem
+    name = stem.replace("_", " ").strip()
+    if not name:
+        return stem
+    return name[0].upper() + name[1:]
 
 
 def _move_thumbnail(file: File, new_thumb_rel: str) -> None:
@@ -91,7 +121,12 @@ def _cleanup_empty_parents(directory: Path, stop_at: Path) -> None:
             break
 
 
-def remove_empty_folder_if_has_files(db: Session, drive: str, folder_path: str) -> None:
+def path_thumbnail_rel(drive: str, folder_path: str, stem: str) -> str:
+    """The thumbnail cache slot a file at this path owns."""
+    return f"{drive}/{folder_path}/{stem}.jpg" if folder_path else f"{drive}/{stem}.jpg"
+
+
+def untrack_empty_folder(db: Session, drive: str, folder_path: str) -> None:
     existing = (
         db.query(EmptyFolder)
         .filter(EmptyFolder.drive == drive, EmptyFolder.path == folder_path)
@@ -125,34 +160,21 @@ def _ensure_empty_folder_tracked(db: Session, drive: str, folder_path: str) -> N
         db.add(EmptyFolder(drive=drive, path=folder_path))
 
 
-def resolve_db_path_conflict(db: Session, new_rel: str, drive: str) -> None:
+def resolve_db_path_conflict(db: Session, new_rel: str, drive: str) -> str | None:
     """Free the UNIQUE ``file_path`` slot at ``new_rel`` *within* ``drive``
     before a create / move / rename / upload writes that path.
 
-    ``file_path`` carries a per-drive UNIQUE constraint
-    (``UniqueConstraint("drive", "file_path")``), so a stale DB record in
-    the *same drive* holding ``new_rel`` causes an IntegrityError at
-    flush/commit time — *after* the filesystem operation has already
-    happened — leaving FS and DB inconsistent (the "file disappears"
-    symptom). A record at the same relative path in a *different* drive is
-    irrelevant and must be left untouched (a drive is a security boundary;
-    two drives legitimately each hold e.g. a root ``README.md``).
-
-    Callers MUST have already verified the physical destination does not
-    exist on disk, so any record found here truly has no live FS copy.
+    Otherwise a stale row would raise IntegrityError *after* the filesystem
+    operation, leaving FS and DB inconsistent. Callers MUST have verified the
+    destination does not exist on disk.
 
     Per record state:
-      • Active (no deleted_at / no missing_since)
-            → 409. A live record claims the path; refuse so the user can
-              rescan (→ Missing) then purge it deliberately.
-      • Trashed (deleted_at set), FS copy gone
-            → purge the ghost. The user already expressed delete intent and
-              nothing physical remains; keeping a fake-path record would only
-              create an invisible, unpurgeable entry.
-      • Missing (missing_since set)
-            → retire the ghost's file_path to a placeholder. The record is
-              preserved (watch-history / tags / comments survive) and stays
-              visible in the Missing view for the user to purge later.
+      • Active → 409; the user must rescan and purge it deliberately.
+      • Trashed → purge the ghost.
+      • Missing → retire its file_path to a placeholder, keeping the row
+        (watch history, tags, comments). Its id is returned because it still
+        names the thumbnail cache slot of the freed path; the caller clears
+        that pointer only after writing the slot.
     """
     conflict = (
         db.query(File)
@@ -160,7 +182,7 @@ def resolve_db_path_conflict(db: Session, new_rel: str, drive: str) -> None:
         .first()
     )
     if conflict is None:
-        return
+        return None
     if conflict.missing_since is None and conflict.deleted_at is None:
         raise HTTPException(
             status_code=409,
@@ -168,9 +190,29 @@ def resolve_db_path_conflict(db: Session, new_rel: str, drive: str) -> None:
         )
     if conflict.deleted_at is not None:
         db.delete(conflict)
-    else:
-        conflict.file_path = f"__missing_{conflict.id}_{new_rel}"
+        db.flush()
+        cleanup_orphan_tags(db, drive)
+        return None
+    conflict.file_path = f"__missing_{conflict.id}_{new_rel}"
     db.flush()
+    return conflict.id
+
+
+def _rename_thumbnail_owner(
+    db: Session, owner: File, thumb_rel: str, retired_id: str | None
+) -> None:
+    """Point ``owner`` at the JPEG just written, and stop a record retired out
+    of that path from naming it. Its own commit, because the JPEG is a cache: a
+    database error here must not take back a file that has already arrived."""
+    try:
+        owner.thumbnail_path = thumb_rel
+        retired = db.get(File, retired_id) if retired_id is not None else None
+        if retired is not None and retired.thumbnail_path == thumb_rel:
+            retired.thumbnail_path = None
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.warning("Wrote %s but could not record who owns it", thumb_rel)
 
 
 def _resolve_copy_filename(target_dir: Path, original_filename: str) -> str:
@@ -221,69 +263,114 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
     new_id = generate_nanoid()
     new_rel = f"{target_folder}/{new_filename}" if target_folder else new_filename
 
+    new_thumb_rel = path_thumbnail_rel(dst_drive, target_folder, Path(new_filename).stem)
+    new_thumb = config.THUMBNAILS_DIR / new_thumb_rel
+    # Markdown thumbnails are projections owned by the note ID, so they are
+    # regenerated from the copy's own content instead of taking this slot.
+    old_thumb = (
+        config.THUMBNAILS_DIR / source.thumbnail_path
+        if source.thumbnail_path and not _is_markdown_file(source)
+        else None
+    )
+    # Only video thumbnails follow a move, so an image moved out of a folder
+    # still points at the thumbnail it left there, and copying it back names one
+    # file on both sides — which `copy2` refuses. `samefile` rather than a path
+    # comparison, because the drive is read through a mount that folds case and
+    # Unicode normalisation. The copy takes no pointer in that case: the slot
+    # belongs to the row already naming it, and two rows sharing one JPEG means
+    # purging either blanks the other.
+    fills_thumbnail_slot = (
+        old_thumb is not None
+        and old_thumb.exists()
+        and not (new_thumb.exists() and old_thumb.samefile(new_thumb))
+    )
+
     # Free the UNIQUE file_path slot if a stale ghost holds it. Done BEFORE
     # creating the FS file so an active 409 conflict doesn't leave an orphan
     # file on disk. (_resolve_copy_filename only avoids FS collisions; a DB
     # ghost with no FS copy would otherwise pass that check and then blow up
     # at db.commit with an IntegrityError.)
-    resolve_db_path_conflict(db, new_rel, dst_drive)
+    retired_id = resolve_db_path_conflict(db, new_rel, dst_drive)
 
     # Atomic copy: create exclusive target then copy content to prevent TOCTOU race
+    projected_thumb: Path | None = None
     try:
         fd = os.open(str(new_full), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
         os.close(fd)
     except FileExistsError:
         raise HTTPException(status_code=409, detail="Target file already exists")
-    shutil.copy2(str(old_full), str(new_full))
-
-    new_file = File(
-        id=new_id,
-        filename=new_filename,
-        title=_filename_to_title(new_filename),
-        description=source.description,
-        drive=dst_drive,
-        folder_path=target_folder,
-        file_path=new_rel,
-        file_size=source.file_size,
-        file_type=source.file_type,
-        mime_type=source.mime_type,
-        duration=source.duration,
-        likes=0,
-        is_favorite=False,
-    )
-
-    # Copy thumbnail if it exists
-    if source.thumbnail_path:
-        old_thumb = config.THUMBNAILS_DIR / source.thumbnail_path
-        if old_thumb.exists():
-            new_stem = Path(new_filename).stem
-            new_thumb_rel = (
-                f"{dst_drive}/{target_folder}/{new_stem}.jpg"
-                if target_folder
-                else f"{dst_drive}/{new_stem}.jpg"
-            )
-            new_thumb = config.THUMBNAILS_DIR / new_thumb_rel
-            new_thumb.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(str(old_thumb), str(new_thumb))
-            new_file.thumbnail_path = new_thumb_rel
-
-
-    # If the DB write fails, delete the freshly copied FS file so we don't
-    # leave an orphan with no DB record.
+    # Everything from the exclusive create to the commit owns the file that
+    # create just made: whatever fails in between, the destination goes back
+    # to not existing. A copy left behind with no row would be indexed as a
+    # second real file by the next scan.
     try:
-        db.add(new_file)
-        remove_empty_folder_if_has_files(db, dst_drive, target_folder)
-        db.commit()
-    except Exception as exc:
-        db.rollback()
+        shutil.copy2(str(old_full), str(new_full))
+
+        new_file = File(
+            id=new_id,
+            filename=new_filename,
+            title=_filename_to_title(new_filename),
+            description=source.description,
+            drive=dst_drive,
+            folder_path=target_folder,
+            file_path=new_rel,
+            file_size=source.file_size,
+            file_type=source.file_type,
+            mime_type=source.mime_type,
+            duration=source.duration,
+            image_width=source.image_width,
+            image_height=source.image_height,
+            is_favorite=False,
+            liked_at=None,
+        )
+
+        try:
+            db.add(new_file)
+            if _is_markdown_file(new_file):
+                content = _read_markdown_for_projection(new_full)
+                if content is not None:
+                    project_markdown_thumbnail(db, new_file, content)
+                    if new_file.thumbnail_path:
+                        projected_thumb = (
+                            config.THUMBNAILS_DIR / new_file.thumbnail_path
+                        )
+            untrack_empty_folder(db, dst_drive, target_folder)
+            db.commit()
+        except Exception as exc:
+            db.rollback()
+            raise HTTPException(
+                status_code=500,
+                detail=f"Copy failed (DB error, filesystem reversed): {exc}",
+            ) from exc
+    except Exception:
         try:
             new_full.unlink()
-        except Exception:
+        except OSError:
             pass
-        raise HTTPException(
-            status_code=500,
-            detail=f"Copy failed (DB error, filesystem reversed): {exc}",
-        ) from exc
+        # A note's projection is keyed by the row id the rollback takes away, so
+        # nothing could reclaim it afterwards.
+        if projected_thumb is not None:
+            try:
+                projected_thumb.unlink()
+                _cleanup_empty_parents(projected_thumb.parent, config.THUMBNAILS_DIR)
+            except OSError:
+                pass
+        raise
+
+    # A thumbnail is a cache the scanner can rebuild, so it is filled after the
+    # row is durable and never inside the handler that reverses the filesystem:
+    # a copy that arrived must not be undone because its picture did not. Which
+    # row names the JPEG is decided here too, from the write that happened —
+    # naming it beforehand hands the picture to whoever the write then missed.
+    if fills_thumbnail_slot:
+        try:
+            with generating_file(new_thumb) as staged_thumb:
+                shutil.copy2(str(old_thumb), str(staged_thumb))
+        except OSError:
+            logger.warning("Copied %s but could not fill %s", new_rel, new_thumb_rel)
+        else:
+            _rename_thumbnail_owner(db, new_file, new_thumb_rel, retired_id)
+
     db.refresh(new_file)
     return new_file
 
@@ -296,7 +383,7 @@ def rename_file(db: Session, file_id: str, new_filename: str) -> File:
     new_filename = validate_filename(new_filename)
     drive_path = resolve_drive_path(file.drive)
 
-    # Phase D: capture pre-rename filename BEFORE mutation so we can
+    # Capture pre-rename filename BEFORE mutation so we can
     # compute the old/new wiki-link stems after the rename commits.
     old_filename = file.filename
     old_drive = file.drive
@@ -311,14 +398,10 @@ def rename_file(db: Session, file_id: str, new_filename: str) -> File:
     if not old_full.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
 
-    # Free the UNIQUE file_path slot if a stale ghost holds it (same
-    # behaviour as move_file). Raises 409 for a genuine active conflict.
     resolve_db_path_conflict(db, new_rel, file.drive)
 
     old_full.rename(new_full)
 
-    # Mirror move_file's atomicity guard: if any DB op fails after the FS
-    # rename, reverse the rename so FS and DB stay in sync.
     try:
         if file.file_type == "video" and file.thumbnail_path:
             new_stem = Path(new_filename).stem
@@ -345,10 +428,8 @@ def rename_file(db: Session, file_id: str, new_filename: str) -> File:
             detail=f"Rename failed (DB error, filesystem reversed): {exc}",
         ) from exc
 
-    # Phase D (spec 2026-05-12 §3.7): when a ``.md`` is renamed,
-    # rewrite ``[[old_stem]]`` references inside other ``.md`` files in
-    # the same drive. Best-effort: a rewrite failure must NOT roll back
-    # the user-visible rename (FS + DB row are already durable).
+    # Best-effort: a rewrite failure must NOT roll back the user-visible rename
+    # (FS + DB row are already durable).
     if old_filename.lower().endswith(".md") and new_filename.lower().endswith(".md"):
         old_stem = Path(old_filename).stem
         new_stem = Path(new_filename).stem
@@ -372,11 +453,8 @@ def rename_file(db: Session, file_id: str, new_filename: str) -> File:
 
 
 def move_file(db: Session, file_id: str, target_drive: str | None, target_folder: str) -> File:
-    # Phase D note: move_file preserves ``file.filename`` (only the
-    # ``folder_path`` / ``drive`` change). A pure move therefore never
-    # changes the wiki-link basename, so no rewrite hook is needed here.
-    # Cross-drive moves are out of scope for rewrite anyway — drive is a
-    # security boundary (see ``.claude/rules/design-decisions.md``).
+    # A pure move preserves ``file.filename``, so the wiki-link basename never
+    # changes and no rewrite hook is needed here.
     file = db.query(File).filter(File.id == file_id).first()
     if not file:
         raise HTTPException(status_code=404, detail="File not found")
@@ -398,19 +476,11 @@ def move_file(db: Session, file_id: str, target_drive: str | None, target_folder
     if not old_full.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
 
-    # Free the UNIQUE file_path slot if a stale ghost record holds it
-    # (shared with rename_file / copy_file / upload for consistent
-    # behaviour). Raises 409 only for a genuinely active conflict.
     resolve_db_path_conflict(db, new_rel, dst_drive)
 
     new_full.parent.mkdir(parents=True, exist_ok=True)
     shutil.move(str(old_full), str(new_full))
 
-    # Wrap all post-FS-move operations in a try/except so that if the DB
-    # commit fails for any reason the filesystem move is reversed, keeping
-    # the two stores in sync.  Without this guard, a DB error after
-    # shutil.move leaves the file at the destination on disk but still
-    # pointing to the source path in the DB (i.e. the file "disappears").
     try:
         if file.file_type == "video" and file.thumbnail_path:
             new_thumb_rel = (
@@ -426,12 +496,15 @@ def move_file(db: Session, file_id: str, target_drive: str | None, target_folder
         file.drive = dst_drive
         file.folder_path = target_folder
         file.file_path = new_rel
-        remove_empty_folder_if_has_files(db, dst_drive, target_folder)
+        if _is_markdown_file(file):
+            content = _read_markdown_for_projection(new_full)
+            if content is not None:
+                project_markdown_thumbnail(db, file, content)
+        untrack_empty_folder(db, dst_drive, target_folder)
         db.flush()
         _ensure_empty_folder_tracked(db, old_drive, old_folder)
         db.commit()
     except Exception as exc:
-        # Reverse the filesystem move so neither store is corrupted.
         db.rollback()
         try:
             shutil.move(str(new_full), str(old_full))
@@ -469,12 +542,7 @@ def _update_pinned_folders(
 def _update_folder_paths(
     db: Session, drive: str, old_path: str, new_path: str
 ) -> list[str]:
-    """Move all file/empty-folder/pin records under ``old_path`` to ``new_path``.
-
-    Returns the list of File ids whose path changed, so callers can emit a
-    ``files.moved`` event for downstream addons (Intelligence indexed_files
-    snapshot keeps a stale absolute path otherwise).
-    """
+    """Move all file/empty-folder/pin records under ``old_path`` to ``new_path``."""
     old_prefix = old_path + "/"
     old_len = len(old_path)
 
@@ -494,7 +562,6 @@ def _update_folder_paths(
         ).fetchall()
     ]
 
-    # Update file records
     db.execute(
         text("""
             UPDATE files
@@ -512,7 +579,6 @@ def _update_folder_paths(
         },
     )
 
-    # Update thumbnails
     files_in_folder = (
         db.query(File)
         .filter(
@@ -535,7 +601,6 @@ def _update_folder_paths(
                 old_thumb.rename(new_thumb)
             f.thumbnail_path = new_thumb_rel
 
-    # Update EmptyFolder records
     db.execute(
         text("""
             UPDATE empty_folders
@@ -552,7 +617,6 @@ def _update_folder_paths(
         },
     )
 
-    # Update PinnedFolder records
     _update_pinned_folders(db, drive, old_path, old_prefix, new_path, old_len)
 
     return affected_ids
@@ -566,11 +630,9 @@ def move_folder(drive: str, path: str, target_path: str, db: Session) -> dict:
 
     folder_name = Path(path).name
 
-    # Self-reference loop detection
     if target_path == path or target_path.startswith(path + "/"):
         raise HTTPException(status_code=400, detail="Cannot move folder into itself")
 
-    # Compute new path
     new_path = f"{target_path}/{folder_name}" if target_path else folder_name
     if new_path == path:
         raise HTTPException(status_code=400, detail="Folder is already in this location")
@@ -588,13 +650,11 @@ def move_folder(drive: str, path: str, target_path: str, db: Session) -> dict:
     if new_full.exists():
         raise HTTPException(status_code=409, detail="Target folder already exists")
 
-    # Ensure target parent exists
     new_full.parent.mkdir(parents=True, exist_ok=True)
 
     # Filesystem move first
     old_full.rename(new_full)
 
-    # Update all DB records
     affected_ids = _update_folder_paths(db, drive, path, new_path)
 
     db.commit()
@@ -608,7 +668,10 @@ def move_folder(drive: str, path: str, target_path: str, db: Session) -> dict:
         "name": folder_name,
         "path": new_path,
         "file_count": file_count,
-        "thumbnail_file_id": None,
+        # No `kind_counts`: the schema default (`{}`) stands. Classifying
+        # kinds needs the listing endpoint's roll-up, and this response is
+        # discarded by every caller — the UI refetches the folder row.
+        # `file_count` here is direct children only, for the same reason.
         "file_ids": affected_ids,
     }
 
@@ -634,6 +697,7 @@ def physical_delete(db: Session, file: File) -> None:
     folder_path = file.folder_path
     db.delete(file)
     db.flush()
+    cleanup_orphan_tags(db, drive)
     _ensure_empty_folder_tracked(db, drive, folder_path)
 
 
@@ -673,7 +737,7 @@ def restore_file(db: Session, file_id: str) -> File:
     # prevents a future bug or out-of-band DB edit from leaving the file
     # invisible after restore.
     file.missing_since = None
-    remove_empty_folder_if_has_files(db, file.drive, file.folder_path)
+    untrack_empty_folder(db, file.drive, file.folder_path)
     db.commit()
     db.refresh(file)
     return file
@@ -779,7 +843,7 @@ def create_folder(drive: str, parent_path: str, name: str, db: Session) -> dict:
     db.add(ef)
     db.commit()
 
-    return {"name": name, "path": folder_path, "file_count": 0, "thumbnail_file_id": None}
+    return {"name": name, "path": folder_path, "file_count": 0, "kind_counts": {}}
 
 
 def rename_folder(drive: str, path: str, new_name: str, db: Session) -> dict:
@@ -818,7 +882,10 @@ def rename_folder(drive: str, path: str, new_name: str, db: Session) -> dict:
         "name": new_name,
         "path": new_path,
         "file_count": file_count,
-        "thumbnail_file_id": None,
+        # No `kind_counts`: the schema default (`{}`) stands. Classifying
+        # kinds needs the listing endpoint's roll-up, and this response is
+        # discarded by every caller — the UI refetches the folder row.
+        # `file_count` here is direct children only, for the same reason.
         "file_ids": affected_ids,
     }
 
@@ -912,6 +979,10 @@ def _compute_new_filename(file: File, mode: str, index: int, **kwargs) -> str:
     return new_stem + ext
 
 
+def _fold_name(name: str) -> str:
+    return unicodedata.normalize("NFC", name).lower()
+
+
 def _validate_no_duplicates(rename_plan: list[tuple[File, str]], drive_path: Path) -> None:
     new_names = [name for _, name in rename_plan]
     seen: set[str] = set()
@@ -923,28 +994,30 @@ def _validate_no_duplicates(rename_plan: list[tuple[File, str]], drive_path: Pat
             )
         seen.add(lower)
 
-    ids_in_batch = {f.id for f, _ in rename_plan}
+    # Replays the renames in the order batch_rename runs them, so a name freed
+    # by an earlier rename may be taken by a later one, and nothing is ever
+    # renamed onto a file that is still there.
+    held_by_folder: dict[str, set[str]] = {}
     for file, new_name in rename_plan:
-        if new_name == file.filename:
+        folder_key = unicodedata.normalize("NFC", file.folder_path or "")
+        if folder_key not in held_by_folder:
+            folder_dir = drive_path / file.folder_path if file.folder_path else drive_path
+            held_by_folder[folder_key] = (
+                {_fold_name(p.name) for p in folder_dir.iterdir() if p.is_file()}
+                if folder_dir.exists()
+                else set()
+            )
+        held = held_by_folder[folder_key]
+        old, new = _fold_name(file.filename), _fold_name(new_name)
+        if new == old:
             continue
-        folder_dir = drive_path / file.folder_path if file.folder_path else drive_path
-        siblings = (
-            (folder_dir / p.name)
-            for p in folder_dir.iterdir()
-            if p.is_file()
-        ) if folder_dir.exists() else iter([])
-        for sibling_path in siblings:
-            sibling_name = sibling_path.name
-            if sibling_name.lower() == new_name.lower():
-                is_self = any(
-                    f.filename == sibling_name and f.id in ids_in_batch
-                    for f, _ in rename_plan
-                )
-                if not is_self:
-                    raise HTTPException(
-                        status_code=409,
-                        detail=f"File already exists: {new_name}",
-                    )
+        if new in held:
+            raise HTTPException(
+                status_code=409,
+                detail=f"File already exists: {new_name}",
+            )
+        held.discard(old)
+        held.add(new)
 
 
 def _rollback_fs_renames(completed: list[tuple[Path, Path]]) -> None:
@@ -1005,6 +1078,9 @@ def batch_rename(
             completed_fs.append((new_full, old_full))
 
             _update_file_after_rename(file, new_name, new_rel, drive_path)
+            # The (drive, file_path) UNIQUE check has to see the rows change in
+            # the same order the files moved, not in primary-key order.
+            db.flush()
             results.append({"id": file.id, "old_name": old_name, "new_name": new_name})
 
         db.commit()

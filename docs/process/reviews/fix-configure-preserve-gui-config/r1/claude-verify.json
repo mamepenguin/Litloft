@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1-unplanned-submodule-bump",
+      "status": "confirmed",
+      "note": "r1/classification.json:18-19 lists addons/intelligence (MEDIUM) among zones_touched for head 076d601ee (r1/head.txt:1). The spec's Touch points (docs/specs/configure-keeps-gui-config.md:151-172) do not name addons/intelligence or a submodule bump. The checked-out addon carries the described changes: addons/intelligence/app/digit_separator.py:5 `_SEPARATORS = frozenset(\".,:：\")`, admin.py defines/uses _frozen_subconfig_summary, and tests/test_admin_whisper_model_summary.py exists. The addon's HEAD is the branch feature/whisper-local-model-display (.git/modules/addons/intelligence/HEAD), which has nothing to do with configure.py. Grep for SPEC-ADDON-01[56] under docs/ returns no files. CLAUDE.md:72-79 treats the gitlink as tracked. I could not read the exact old/new SHAs because I have no git commands, but the zone classification together with the addon contents supports the claim."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2-unplanned-new-test-file",
+      "status": "confirmed",
+      "note": "tests/test_configure_keeps_gui_config.py exists and holds the SPEC-CORE-004/005 acceptance tests (12 SPEC-CORE-00[45] references; no other file under tests/ has any). r1/classification.json:62 lists it as touched. tests/test_configure.py, tests/test_configure_presentation.py and tests/fixtures/configure/ are absent from zones_touched, and only tests/configure_scenarios.py (line 58) appears there, which matches the claim that the named test files did not change. The spec's Touch points (configure-keeps-gui-config.md:158-162) do not name the new file. §10 (line 149) also says 'no new file', though in the context of configure.py's non-functional constraints."
+    }
+  ],
+  "specification_compliance": [
+    "The Touch points in docs/specs/configure-keeps-gui-config.md:151-172 do not cover two zones listed in r1/classification.json: the addons/intelligence gitlink and tests/test_configure_keeps_gui_config.py."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The addons/intelligence pointer bump brings in addon behaviour (digit separators now include ':' and the fullwidth colon, plus an admin whisper model summary) that has no spec or ledger entry in this repository."
+  ],
+  "regression_risks": [
+    "The submodule bump changes intelligence search tokenization (the ':' separators) as a side effect of a configure.py fix. If the addon commit is not merged upstream, a fresh clone could pin an unmerged addon commit."
+  ],
+  "test_coverage": [
+    "The acceptance tests for SPEC-CORE-004/005 are in the new tests/test_configure_keeps_gui_config.py and not in the test files the spec names."
+  ],
+  "not_verified": [
+    "Exact gitlink SHAs ba498037 -> fe978f81 at commit 076d601ee (no git access; inferred from classification.json and the checked-out addon contents)",
+    "Whether fe978f81 is merged into the addon's main branch upstream",
+    "The diff contents of configure.py against invariants I1-I11"
+  ],
+  "confidence": 85
+}

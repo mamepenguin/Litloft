@@ -1,10 +1,5 @@
 "use client";
 
-// WelcomeStep: localized intro screen that sits between LanguageStep and
-// DriveStep. Shows a greeting, a short pitch, and a preview of the five
-// upcoming setup items. The Stepper is hidden on this step (handled by
-// the parent SetupWizard).
-
 import { useTranslations } from "next-intl";
 
 interface Props {

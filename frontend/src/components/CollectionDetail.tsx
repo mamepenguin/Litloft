@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Play, Trash2 } from "lucide-react";
+import { ArrowLeft, ListPlus, Play, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import {
@@ -13,10 +13,15 @@ import {
   updateCollection,
 } from "@/lib/api";
 import { Breadcrumb } from "@/components/Breadcrumb";
+import { Button } from "@/components/Button";
+import { ActionMenuItem } from "@/components/ActionMenuItem";
+import { EmptyState } from "@/components/EmptyState";
+import { OverflowMenu } from "@/components/OverflowMenu";
+import { PageFrame } from "@/components/PageFrame";
+import { PageHeader } from "@/components/PageHeader";
 import { CollectionItemsPane } from "@/components/CollectionItemsPane";
 import { FileGrid } from "@/components/FileGrid";
 import { FileList } from "@/components/FileList";
-import { TreeToggle } from "@/components/TreeToggle";
 import { ViewToggle } from "@/components/ViewToggle";
 import { useSetOverrideDrive } from "@/components/CurrentDriveProvider";
 import { TwoPaneLayout } from "@/components/folder/TwoPaneLayout";
@@ -24,6 +29,7 @@ import { useToast } from "@/components/ToastProvider";
 import { useCollectionViewMode } from "@/hooks/useCollectionViewMode";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
 import { FileNavigationOverrideProvider } from "@/lib/fileNavigationOverride";
+import { useImeKeyGuard } from "@/lib/ime";
 import type { CollectionDetail as CollectionDetailType } from "@/types";
 
 interface CollectionDetailProps {
@@ -31,23 +37,11 @@ interface CollectionDetailProps {
   collectionId: string;
 }
 
-/**
- * Collection detail page (folder-like view).
- *
- * Spec ``docs/superpowers/specs/2026-05-12-playlist-to-collection.md`` §6.3
- * + PR-A / PR-B redo: a Collection behaves as a "virtual folder" rather
- * than a playback queue.
- *
- * Re-uses the existing ``<TwoPaneLayout>`` shell so the top-left
- * ``<TreeToggle>`` continues to control a single "show/hide left pane"
- * concept. The left pane content is swapped from ``FolderTreePane`` to
- * ``CollectionItemsPane`` — same shell, different sidebar — instead of
- * inventing a parallel two-pane primitive inside the main column.
- */
 export function CollectionDetail({ drive, collectionId }: CollectionDetailProps) {
   const router = useRouter();
   const t = useTranslations("collection");
   const tCommon = useTranslations("common");
+  const ime = useImeKeyGuard();
   const toast = useToast();
   const setOverrideDrive = useSetOverrideDrive();
   const { selectFile } = useSelectedFile();
@@ -211,7 +205,7 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
 
   if (notFound || !detail) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-12">
+      <div className="mx-auto w-full min-w-0 max-w-4xl px-4 py-12">
         <button
           type="button"
           onClick={() => router.push(`/drive/${encodeURIComponent(drive)}`)}
@@ -245,109 +239,132 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
       }
       leftPaneAriaLabel={t("itemListLabel")}
     >
-      <div className="mx-auto w-full max-w-6xl px-4 py-6">
-        <div className="mb-4 flex items-center gap-2">
-          <TreeToggle drive={drive} />
-          <Breadcrumb driveName={drive} trailingSegment={detail.name} />
-        </div>
-
-        <header className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0 flex-1">
-            {editingName ? (
-              <input
-                autoFocus
-                value={nameDraft}
-                onChange={(e) => setNameDraft(e.target.value)}
-                onBlur={handleSaveName}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleSaveName();
-                  if (e.key === "Escape") {
+      {/* No `px-4` here: PageHeader carries its own, and an outer one would
+          indent the header past everything under it. */}
+      <PageFrame
+        width="wide"
+        header={
+          <PageHeader
+            breadcrumb={<Breadcrumb driveName={drive} driveIsAncestor />}
+            title={
+              editingName ? (
+                <input
+                  autoFocus
+                  value={nameDraft}
+                  onChange={(e) => setNameDraft(e.target.value)}
+                  onBlur={handleSaveName}
+                  onCompositionEnd={ime.onCompositionEnd}
+                  onKeyDown={(e) => {
+                    if (ime.isImeKeystroke(e)) return;
+                    if (e.key === "Enter") handleSaveName();
+                    if (e.key === "Escape") {
+                      setNameDraft(detail.name);
+                      setEditingName(false);
+                    }
+                  }}
+                  // Inside the <h1>, but an <input> does not inherit type, so
+                  // the heading size is repeated here and only here.
+                  className="w-full rounded-2xl bg-bg-card px-3 py-1 text-2xl font-bold text-text-primary outline-none focus:ring-2 focus:ring-focus-ring"
+                />
+              ) : (
+                // A <button>, not an <h1>: PageHeader supplies the heading, and
+                // nesting one inside it would be invalid.
+                <button
+                  type="button"
+                  onClick={() => {
                     setNameDraft(detail.name);
-                    setEditingName(false);
-                  }
-                }}
-                className="w-full rounded-2xl bg-bg-card px-3 py-2 text-2xl font-semibold text-text-primary outline-none focus:ring-2 focus:ring-focus-ring"
-              />
-            ) : (
-              <h1
-                className="cursor-text rounded-2xl px-3 py-2 -ml-3 text-2xl font-semibold text-text-primary hover:bg-bg-elevated"
-                onClick={() => {
-                  setNameDraft(detail.name);
-                  setEditingName(true);
-                }}
-              >
-                {detail.name}
-              </h1>
-            )}
-
-            {editingDescription ? (
-              <textarea
-                autoFocus
-                value={descriptionDraft}
-                onChange={(e) => setDescriptionDraft(e.target.value)}
-                onBlur={handleSaveDescription}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                    e.preventDefault();
-                    handleSaveDescription();
-                  }
-                  if (e.key === "Escape") {
-                    setDescriptionDraft(detail.description ?? "");
-                    setEditingDescription(false);
-                  }
-                }}
-                placeholder={t("descriptionPlaceholder")}
-                rows={3}
-                className="mt-2 w-full rounded-2xl bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-ring"
-              />
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  setDescriptionDraft(detail.description ?? "");
-                  setEditingDescription(true);
-                }}
-                className="mt-1 block w-full cursor-text rounded-2xl px-3 py-1 -ml-3 text-left text-sm text-text-muted hover:bg-bg-elevated"
-              >
-                {detail.description ?? (
-                  <span className="text-text-muted/50">
-                    {t("descriptionPlaceholder")}
-                  </span>
+                    setEditingName(true);
+                  }}
+                  className="-ml-2 block max-w-full cursor-text truncate rounded-2xl px-2 py-0.5 text-left hover:bg-bg-elevated"
+                >
+                  {detail.name}
+                </button>
+              )
+            }
+            scope={
+              <>
+                {editingDescription ? (
+                  <textarea
+                    autoFocus
+                    value={descriptionDraft}
+                    onChange={(e) => setDescriptionDraft(e.target.value)}
+                    onBlur={handleSaveDescription}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                        e.preventDefault();
+                        handleSaveDescription();
+                      }
+                      if (e.key === "Escape") {
+                        setDescriptionDraft(detail.description ?? "");
+                        setEditingDescription(false);
+                      }
+                    }}
+                    placeholder={t("descriptionPlaceholder")}
+                    rows={3}
+                    className="w-full rounded-2xl bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-ring"
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDescriptionDraft(detail.description ?? "");
+                      setEditingDescription(true);
+                    }}
+                    className="-ml-2 block w-full cursor-text rounded-2xl px-2 py-0.5 text-left hover:bg-bg-elevated"
+                  >
+                    {detail.description ?? (
+                      <span className="text-text-muted/50">
+                        {t("descriptionPlaceholder")}
+                      </span>
+                    )}
+                  </button>
                 )}
-              </button>
-            )}
+                <div className="mt-1 text-xs text-text-muted">
+                  {t("itemCount", { count: items.length })}
+                </div>
+              </>
+            }
+            actions={
+              <>
+                {hasMedia && (
+                  <Button variant="primary" onClick={handlePlay}>
+                    <Play size={16} />
+                    {t("play")}
+                  </Button>
+                )}
+                {/* Behind `…`: an icon-only Trash beside the screen's primary
+                    action put a destructive control one mis-aimed tap from
+                    Play. */}
+                <OverflowMenu label={t("moreActions", { name: detail.name })}>
+                  {(close) => (
+                    <ActionMenuItem
+                      icon={Trash2}
+                      danger
+                      label={t("deleteCollection")}
+                      onClick={() => {
+                        close();
+                        setDeletingCollection(true);
+                      }}
+                    />
+                  )}
+                </OverflowMenu>
+              </>
+            }
+          />
+        }
+      >
 
-            <div className="mt-2 px-3 text-xs text-text-muted">
-              {t("itemCount", { count: items.length })}
-            </div>
-          </div>
-
-          <div className="flex flex-shrink-0 items-center gap-2">
-            {hasMedia && (
-              <button
-                type="button"
-                onClick={handlePlay}
-                className="inline-flex items-center gap-2 rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
-              >
-                <Play size={16} />
-                {t("play")}
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => setDeletingCollection(true)}
-              className="rounded-2xl p-2 text-text-muted hover:bg-bg-elevated hover:text-danger"
-              aria-label={t("deleteCollection")}
-            >
-              <Trash2 size={16} />
-            </button>
-          </div>
-        </header>
-
+        <div className="px-4 pb-6">
         {items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-3 py-16 text-sm text-text-muted">
-            <p>{t("empty")}</p>
-          </div>
+          <EmptyState
+            icon={ListPlus}
+            title={t("emptyTitle")}
+            description={t("emptyDescription")}
+            primaryAction={{
+              label: t("emptyAction"),
+              href: `/drive/${encodeURIComponent(drive)}`,
+            }}
+          />
         ) : (
           <>
             <div className="mb-4 flex items-center justify-end">
@@ -358,11 +375,12 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
               {viewMode === "grid" ? (
                 <FileGrid files={files} onRefresh={load} />
               ) : (
-                <FileList files={files} onRefresh={load} />
+                <FileList files={files} onRefresh={load} showOrdinals />
               )}
             </FileNavigationOverrideProvider>
           </>
         )}
+        </div>
 
         {deletingCollection && (
           <div
@@ -398,7 +416,7 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
             </div>
           </div>
         )}
-      </div>
+      </PageFrame>
     </TwoPaneLayout>
   );
 }

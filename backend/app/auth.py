@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import jwt
-from fastapi import Cookie, HTTPException, Request
+from fastapi import HTTPException, Request
 
 import app.config as config
 
@@ -142,6 +142,17 @@ def decode_jwt(token: str) -> list[str]:
 
 
 def get_unlocked_groups(request: Request) -> list[str]:
+    # A Bearer credential is an explicit choice by non-browser clients
+    # (mobile apps, the MCP server) and takes priority over the cookie. It
+    # does not fall back to the cookie on failure — a broken/expired API
+    # token must surface as "locked", not silently degrade to whatever
+    # browser session cookie happens to be attached.
+    auth_header = request.headers.get("Authorization")
+    if auth_header:
+        scheme, _, param = auth_header.partition(" ")
+        if scheme.lower() == "bearer" and param:
+            return decode_jwt(param)
+
     token = request.cookies.get(COOKIE_NAME)
     if not token:
         return []
@@ -254,19 +265,29 @@ def nickname_to_viewer_id(nickname: str) -> str:
     return hashlib.sha256(nickname.strip().encode("utf-8")).hexdigest()[:16]
 
 
-def get_viewer_id(lit_viewer: str | None = Cookie(default=None)) -> str | None:
-    if not lit_viewer or not lit_viewer.strip():
+def _nickname_from_raw(raw: str | None) -> str | None:
+    if not raw or not raw.strip():
         return None
-    trimmed = lit_viewer.strip()
-    if len(trimmed) > 50:
-        return None
-    return nickname_to_viewer_id(trimmed)
-
-
-def get_nickname(lit_viewer: str | None = Cookie(default=None)) -> str | None:
-    if not lit_viewer or not lit_viewer.strip():
-        return None
-    trimmed = lit_viewer.strip()
+    trimmed = raw.strip()
     if len(trimmed) > 50:
         return None
     return trimmed
+
+
+def _viewer_id_from_nickname(raw: str | None) -> str | None:
+    nickname = _nickname_from_raw(raw)
+    if nickname is None:
+        return None
+    return nickname_to_viewer_id(nickname)
+
+
+def _viewer_nickname_from_request(request: Request) -> str | None:
+    return request.cookies.get("lit_viewer") or request.headers.get("X-Lit-Viewer")
+
+
+def get_viewer_id(request: Request) -> str | None:
+    return _viewer_id_from_nickname(_viewer_nickname_from_request(request))
+
+
+def get_nickname(request: Request) -> str | None:
+    return _nickname_from_raw(_viewer_nickname_from_request(request))

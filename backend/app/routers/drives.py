@@ -1,17 +1,19 @@
 import unicodedata
+import logging
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, or_
+from sqlalchemy import case, func, or_
 from sqlalchemy.orm import Session
 
 import app.config as config
 from app.auth import check_drive_access, filter_drives, get_unlocked_groups
 from app.database import get_db
-from app.models import EmptyFolder, File, PinnedFolder, Tag, WatchHistory, active_file_filter, file_tags
+from app.models import TRUST_UNVERIFIED, EmptyFolder, File, PinnedFolder, Tag, WatchHistory, active_file_filter, file_tags
 from app.routers.progress import get_viewer_id
 from app.services import event_hooks
 from app.schemas import (
+    FolderCountResponse,
     DriveResponse,
     DriveSummaryResponse,
     DuplicateGroup,
@@ -35,11 +37,36 @@ from app.schemas import (
     file_to_response,
 )
 from app.services import fileops
+from app.services.file_versions import record_version
 from app.services.filetype import classify
+from app.services.markdown_relations import sync_markdown_file_relations
+from app.services.atomic_write import replace_file_contents
 from app.services.safepath import resolve_safe_path
 from app.services.scanner import scan_drive
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/drives", tags=["drives"])
+
+
+def _record_created_file_version(
+    db: Session, file: File, content: bytes
+) -> None:
+    try:
+        with db.begin_nested():
+            record_version(
+                db,
+                file_id=file.id,
+                body=content,
+                kind="explicit",
+                viewer_id=None,
+                nickname=None,
+            )
+    except Exception:
+        logger.exception(
+            "Could not record file version: file_id=%s drive=%s",
+            file.id,
+            file.drive,
+        )
 
 
 def _escape_like(value: str) -> str:
@@ -60,40 +87,168 @@ def _validate_folder_path(path: str) -> str:
     return path
 
 
-# Kind taxonomy used by Topic 2-C type filter chips (Markdown / Video / Image / PDF)
-# and Topic 9 dominant_kind for the layered viewMode fallback.
-TreeKind = Literal["markdown", "video", "image", "pdf"]
+# The one vocabulary for "what kind of file is this", shared by the
+# listing's ``?type=`` and the tree's ``?type_filter=``.
+#
+# It is ``File.file_type`` with two refinements nested under
+# ``document``: text and PDF are documents, and asking for documents
+# returns them.
+#
+# ``subtitle`` is accepted because it is a real ``file_type``, but the
+# scanner never registers subtitle files as rows and no UI offers it, so
+# selecting it returns nothing.
+FileKind = Literal[
+    "video",
+    "image",
+    "audio",
+    "document",
+    "archive",
+    "other",
+    "text",
+    "pdf",
+    "subtitle",
+]
+
+# `markdown` was this vocabulary's name for `text`. Saved URLs, stored
+# filters and older API clients still send it, so the query parameters take
+# it and `_normalize_kind` answers it as `text`; no response carries it.
+FileKindParam = FileKind | Literal["markdown"]
+
+# Retained name for the tree query parameter, which predates the merge.
+TreeKind = FileKindParam
 
 
-def _classify_kind(file_type: str | None, mime_type: str | None) -> str:
-    """Map a File row's (file_type, mime_type) to the user-facing kind taxonomy."""
-    if mime_type == "text/markdown":
-        return "markdown"
-    if mime_type == "application/pdf":
-        return "pdf"
-    if file_type == "video":
-        return "video"
-    if file_type == "image":
-        return "image"
-    if file_type == "audio":
-        return "audio"
-    if file_type == "document":
-        return "document"
+def _normalize_kind(kind: FileKindParam | None) -> FileKind | None:
+    return "text" if kind == "markdown" else kind
+
+
+# The extensions that name a kind when the mime does not. `classify()`
+# always records a mime today, but rows written before it did — or by
+# anything that skipped it — carry NULL, and those are precisely the
+# rows the two old filters disagreed about: the client sifted on the
+# filename and kept them, the server sifted on the mime and dropped them.
+#
+# `text` is not `text/plain`: in the runtime image `mimetypes` gives `.c`,
+# `.h` and `.pl` that mime too, so plain text is recognised by `.txt` alone.
+_KIND_MIMES: dict[str, tuple[str, ...]] = {
+    "text": ("text/markdown",),
+    "pdf": ("application/pdf",),
+}
+_KIND_SUFFIXES: dict[str, tuple[str, ...]] = {
+    "text": (".md", ".markdown", ".txt"),
+    "pdf": (".pdf",),
+}
+
+
+# The `file_type` values that are a kind under their own name. The rest
+# of `FileKind` is either nested under `document` (text, pdf, handled
+# by mime below) or has no label anywhere in the UI (`subtitle`, which
+# `filter.type.*` does not offer and so is folded into `other`).
+_FLAT_FOLDER_KINDS = frozenset({"video", "image", "audio", "document", "archive"})
+
+
+def _kind_by_suffix(filename: str | None) -> str | None:
+    """The nested kind a filename names, or `None`.
+
+    Split out because the folder roll-up cannot pass a filename: it
+    groups, and a filename would make every row its own group. It groups
+    on this answer instead (`_suffix_kind_case`), so both callers share
+    one precedence rather than two that agreed once.
+    """
+    if not filename:
+        return None
+    lowered = filename.lower()
+    for kind, suffixes in _KIND_SUFFIXES.items():
+        if lowered.endswith(suffixes):
+            return kind
+    return None
+
+
+def _suffix_kind_case():
+    """`_kind_by_suffix` as a SQL expression, for grouping."""
+    return case(
+        *[
+            (File.filename.ilike(f"%{suffix}"), kind)
+            for kind, suffixes in _KIND_SUFFIXES.items()
+            for suffix in suffixes
+        ],
+        else_=None,
+    )
+
+
+def _classify_kind_parts(
+    file_type: str | None,
+    mime_type: str | None,
+    suffix_kind: str | None,
+) -> str:
+    """The precedence, over parts a grouped query can carry."""
+    for kind, mimes in _KIND_MIMES.items():
+        if mime_type in mimes:
+            return kind
+    if suffix_kind is not None:
+        return suffix_kind
+    if file_type in _FLAT_FOLDER_KINDS:
+        return file_type
     return "other"
 
 
-def _apply_kind_filter(query, kind: TreeKind | None):
+def _classify_kind(
+    file_type: str | None,
+    mime_type: str | None,
+    filename: str | None = None,
+) -> str:
+    """Map a File row to the kind vocabulary the UI names files by.
+
+    **Must agree with `_apply_kind_filter`**: the folder card's
+    "40 items · Archive" and the Filter menu's *Archive* must return the
+    same rows. Text and PDF are recognised by mime, or by extension for rows
+    with no recorded mime. `subtitle` is counted as `other` on purpose: no
+    UI names that kind.
+    """
+    return _classify_kind_parts(file_type, mime_type, _kind_by_suffix(filename))
+
+
+def _apply_kind_filter(query, kind: FileKind | None):
+    """Narrow ``query`` to one kind of the shared vocabulary.
+
+    The single classifier. Both ``?type=`` on the listing and
+    ``?type_filter=`` on the tree route through here, so the two
+    surfaces cannot drift apart — a second implementation that agreed on
+    the day it was written is what produced the drift being removed.
+    """
     if kind is None:
         return query
-    if kind == "markdown":
-        return query.filter(File.mime_type == "text/markdown")
-    if kind == "pdf":
-        return query.filter(File.mime_type == "application/pdf")
-    if kind == "video":
-        return query.filter(File.file_type == "video")
-    if kind == "image":
-        return query.filter(File.file_type == "image")
-    return query
+    return query.filter(_kind_predicate(kind))
+
+
+def _apply_kinds_filter(query, kinds: list[FileKind]):
+    """Narrow ``query`` to any of several kinds, through the same predicate."""
+    if not kinds:
+        return query
+    return query.filter(or_(*(_kind_predicate(kind) for kind in kinds)))
+
+
+def _kind_predicate(kind: FileKind):
+    mimes = _KIND_MIMES.get(kind)
+    if mimes is None:
+        # The six flat kinds are `file_type` itself.
+        return File.file_type == kind
+
+    # A nested kind: recognised by mime, or by extension for rows whose
+    # mime was never recorded.
+    #
+    # Note what is *not* required — that the row also be
+    # ``file_type == "document"``. The nesting ("document returns
+    # text and PDF too") holds because ``classify()`` files both
+    # under document, not because this query enforces it. Adding the
+    # predicate would undo the extension fallback for exactly the rows
+    # it exists for: one whose mime was never recorded may well have
+    # been given the wrong ``file_type`` by the same writer.
+    suffixes = _KIND_SUFFIXES[kind]
+    return or_(
+        File.mime_type.in_(mimes),
+        *(func.lower(File.filename).like(f"%{suffix}") for suffix in suffixes),
+    )
 
 
 _to_response = file_to_response
@@ -102,28 +257,24 @@ _to_response = file_to_response
 def _list_folder_tree_flat(
     db: Session,
     drive_name: str,
-    type_filter: "TreeKind | None",
+    type_filter: FileKind | None,
+    include_files: bool,
 ) -> list[FolderTreeNode]:
-    """Return the entire drive tree (folders + files) as a flat list.
+    """Return the entire drive tree as a flat list, for the tree filter.
 
-    Used by the tree filter (spec 2026-05-09) which must evaluate matches
-    against the whole drive, not just the root level. Folders are emitted
-    irrespective of ``type_filter`` so the filter can fall back to
-    name-only matching on folders. Files honor ``type_filter`` exactly
-    like the lazy-load path. Soft-deleted / missing files are excluded
-    via ``active_file_filter()``.
-
-    Caps the response at ``_FLAT_TREE_MAX_ENTRIES`` so a runaway drive
-    cannot blow up the frontend.
+    Folders are emitted irrespective of ``type_filter``; files honor it.
+    Capped at ``_FLAT_TREE_MAX_ENTRIES``.
     """
-    file_query = db.query(File).filter(
-        File.drive == drive_name,
-        active_file_filter(),
-    )
-    file_query = _apply_kind_filter(file_query, type_filter)
-    files = file_query.order_by(File.folder_path.asc(), File.filename.asc()).limit(
-        _FLAT_TREE_MAX_ENTRIES,
-    ).all()
+    files: list[File] = []
+    if include_files:
+        file_query = db.query(File).filter(
+            File.drive == drive_name,
+            active_file_filter(),
+        )
+        file_query = _apply_kind_filter(file_query, type_filter)
+        files = file_query.order_by(File.folder_path.asc(), File.filename.asc()).limit(
+            _FLAT_TREE_MAX_ENTRIES,
+        ).all()
 
     # Collect every folder path that contains visible content.
     folder_paths: set[str] = set()
@@ -183,11 +334,8 @@ def list_drives(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     drives = filter_drives(config.load_drives(), unlocked_groups)
-    # Single grouped query for all drives (no N+1); active-only counts
-    # (active_file_filter excludes trash/missing per design-decisions.md).
-    # counts is computed for every drive but only attached to the
-    # access-filtered visible drives, so a locked drive's count never
-    # leaves the server (spec 2026-05-19-root-home-enrichment §2.1).
+    # Counted for every drive but attached only to visible ones, so a locked
+    # drive's count never leaves the server.
     counts = dict(
         db.query(File.drive, func.count(File.id))
         .filter(active_file_filter())
@@ -290,41 +438,20 @@ def list_folders(
         if folder_full_path not in folders:
             folders[folder_full_path] = 0
 
-    # Collect thumbnail file IDs for each folder
-    thumbnail_map: dict[str, str] = {}
-    if folders:
-        thumb_query = db.query(File.id, File.folder_path, File.filename).filter(
-            File.drive == drive_name,
-            active_file_filter(),
-            File.file_type.in_(["video", "image"]),
-        )
-        if path:
-            thumb_query = thumb_query.filter(
-                File.folder_path.like(_escape_like(path) + "/%", escape="\\")
-            )
-        else:
-            thumb_query = thumb_query.filter(File.folder_path != "")
-
-        thumb_query = thumb_query.order_by(File.filename.asc())
-
-        for file_id, file_folder_path, _ in thumb_query.all():
-            for folder_path in folders:
-                if folder_path in thumbnail_map:
-                    continue
-                if file_folder_path == folder_path or file_folder_path.startswith(folder_path + "/"):
-                    thumbnail_map[folder_path] = file_id
-            # Early exit if all folders have thumbnails
-            if len(thumbnail_map) == len(folders):
-                break
-
-    # Compute dominant_kind per top-level folder (recursive).
-    # Topic 9: ".md 過半 → two-pane / video/image 過半 → grid" の判定材料。
+    # Per-kind totals for each top-level folder, recursive.
+    #
+    # Two consumers, one scan: `dominant_kind` (which view mode a folder
+    # opens in) is the argmax of these counts, and the folder card shows
+    # the largest few of them beside the total.
+    kind_counts: dict[str, dict[str, int]] = {}
     dominant_kind_map: dict[str, str | None] = {fp: None for fp in folders}
     if folders:
+        suffix_kind = _suffix_kind_case()
         kind_query = db.query(
             File.folder_path,
             File.file_type,
             File.mime_type,
+            suffix_kind,
             func.count(File.id),
         ).filter(
             File.drive == drive_name,
@@ -336,22 +463,34 @@ def list_folders(
             )
         else:
             kind_query = kind_query.filter(File.folder_path != "")
-        kind_query = kind_query.group_by(File.folder_path, File.file_type, File.mime_type)
+        kind_query = kind_query.group_by(
+            File.folder_path, File.file_type, File.mime_type, suffix_kind
+        )
 
-        # Rows describe per-(folder_path, kind) totals. Roll up into the top-level
-        # folder (depth-1 segment under `path`) so each row hits one bucket in O(1).
-        kind_counts: dict[str, dict[str, int]] = {}
-        for fp, ft, mt, count in kind_query.all():
-            remainder = fp[len(path) + 1:] if path else fp
+        def _roll_up(folder_path: str, kind: str, count: int) -> None:
+            remainder = (
+                folder_path[len(path) + 1:] if path else folder_path
+            )
             if not remainder:
-                continue
+                return
             top_segment = remainder.split("/")[0]
             top = f"{path}/{top_segment}" if path else top_segment
             if top not in folders:
-                continue
-            kind = _classify_kind(ft, mt)
+                return
             bucket = kind_counts.setdefault(top, {})
             bucket[kind] = bucket.get(kind, 0) + count
+
+        # Rows describe per-(folder_path, kind) totals. Roll up into the top-level
+        # folder (depth-1 segment under `path`) so each row hits one bucket in O(1).
+        #
+        # Grouped, so a drive of 100k files is a few hundred rows rather
+        # than 100k. `_classify_kind` needs the filename for the rows
+        # whose mime was never recorded — the ones `?type=text` finds
+        # by extension — and a filename would make every row its own
+        # group, so the group key carries what the filename decides
+        # (`_suffix_kind_case`) instead of the filename itself.
+        for fp, ft, mt, sk, count in kind_query.all():
+            _roll_up(fp, _classify_kind_parts(ft, mt, sk), count)
 
         for top, counts in kind_counts.items():
             dominant_kind_map[top] = max(counts.items(), key=lambda kv: kv[1])[0]
@@ -361,7 +500,7 @@ def list_folders(
             name=fp.split("/")[-1],
             path=fp,
             file_count=count,
-            thumbnail_file_id=thumbnail_map.get(fp),
+            kind_counts=kind_counts.get(fp, {}),
             dominant_kind=dominant_kind_map.get(fp),
         )
         for fp, count in sorted(folders.items())
@@ -380,41 +519,42 @@ def list_folder_tree(
     type_filter: TreeKind | None = None,
     depth: int = Query(1, ge=1, le=1),
     flat: bool = False,
+    include_files: bool = False,
 ):
-    """Lazy-expandable folder tree for the 2-pane left tree (spec topic 10).
+    """Lazy-expandable folder tree for the 2-pane left tree.
 
     Default mode (``flat=false``): returns one level (depth=1) of children
     under ``root``:
 
     - subfolders (always shown so the user can navigate even when filtered)
-    - files at depth 1 whose ``mime_type`` / ``file_type`` matches ``type_filter``
+    - with ``include_files``, files at depth 1 whose ``mime_type`` /
+      ``file_type`` matches ``type_filter``
 
-    Folders carry ``file_count`` (recursive count after filter) and
-    ``has_children`` (any subfolder OR file_count > 0) so the tree can
-    decide whether to render an expand caret.
+    Folders carry ``file_count`` (recursive, after filter) and
+    ``has_children``. ``has_children`` follows ``include_files`` (with files
+    hidden, a folder holding only files is a leaf); ``file_count`` does not.
 
-    Flat mode (``flat=true``, spec 2026-05-09 tree filter): returns the
-    *entire* drive tree as a single flat list of folder + file nodes
-    bypassing the depth cap. Used by the tree filter to evaluate matches
-    deeper than the root level. Capped at ``_FLAT_TREE_MAX_ENTRIES`` (50k)
-    entries; larger drives are out of scope for this phase. Access control
-    filters (``active_file_filter``, drive permission) still apply.
+    Flat mode (``flat=true``): the entire drive tree as one flat list, for
+    the tree filter. Capped at ``_FLAT_TREE_MAX_ENTRIES``.
     """
     _validate_drive(drive_name, unlocked_groups)
     if root:
         root = _validate_folder_path(root)
+    type_filter = _normalize_kind(type_filter)
 
     if flat:
-        return _list_folder_tree_flat(db, drive_name, type_filter)
+        return _list_folder_tree_flat(db, drive_name, type_filter, include_files)
 
     # Files at depth 1 directly under root
-    file_query = db.query(File).filter(
-        File.drive == drive_name,
-        active_file_filter(),
-        File.folder_path == root,
-    )
-    file_query = _apply_kind_filter(file_query, type_filter)
-    direct_files = file_query.order_by(File.filename.asc()).all()
+    direct_files: list[File] = []
+    if include_files:
+        file_query = db.query(File).filter(
+            File.drive == drive_name,
+            active_file_filter(),
+            File.folder_path == root,
+        )
+        file_query = _apply_kind_filter(file_query, type_filter)
+        direct_files = file_query.order_by(File.filename.asc()).all()
 
     # Subfolder enumeration: collect distinct first-segment names under root.
     # Folder visibility is independent of type_filter (Topic 2-A).
@@ -492,7 +632,7 @@ def list_folder_tree(
             name=name,
             path=full_path,
             file_count=file_count,
-            has_children=has_subfolder or file_count > 0,
+            has_children=has_subfolder or (include_files and file_count > 0),
         ))
 
     file_nodes = [
@@ -517,15 +657,25 @@ def list_drive_files(
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
     path: str | None = None,
+    recursive: bool = False,
     search: str | None = Query(None, max_length=200),
     favorite: bool | None = None,
-    tag: str | None = None,
-    type: str | None = None,
-    sort: str = Query("created_at", pattern="^(created_at|title|file_size|likes|random)$"),
+    liked: bool | None = None,
+    tag: list[str] | None = Query(None),
+    type: list[FileKindParam] | None = Query(None),
+    trust: str | None = Query(None, pattern="^(verified|unverified|unreviewed)$"),
+    sort: str = Query(
+        "created_at", pattern="^(created_at|title|file_size|liked_at|updated_at|random)$"
+    ),
     order: str = Query("desc", pattern="^(asc|desc)$"),
     page: int = Query(1, ge=1),
     limit: int = Query(30, ge=1, le=500),
 ):
+    """List a drive's active files.
+
+    `path` is an exact `folder_path` match by default — direct children only.
+    `recursive=True` widens it to the folder's whole subtree.
+    """
     _validate_drive(drive_name, unlocked_groups)
     if path is not None and path:
         path = _validate_folder_path(path)
@@ -533,26 +683,45 @@ def list_drive_files(
     query = db.query(File).filter(File.drive == drive_name, active_file_filter())
 
     if path is not None:
-        query = query.filter(File.folder_path == path)
+        if recursive:
+            # An empty prefix with recursive applies no folder predicate: a
+            # recursive search from the root is the whole drive. (A LIKE
+            # '/%' would match nothing — folder_path is drive-relative with
+            # no leading separator.)
+            if path:
+                query = query.filter(or_(
+                    File.folder_path == path,
+                    File.folder_path.like(_escape_like(path) + "/%", escape="\\"),
+                ))
+        else:
+            query = query.filter(File.folder_path == path)
     normalized_search: str | None = None
     if search:
         normalized_search = unicodedata.normalize("NFC", search)
         escaped_search = _escape_like(normalized_search)
         pattern = f"%{escaped_search}%"
-        # spec 2026-05-02-search-path-match: match both title and folder_path.
-        # Catches use cases where folder-name classification is useful (e.g.
-        # searching "kyoto" under travel/kyoto/...). Per-card badge routing
-        # is handled by _classify_match_source below.
+        # Match folder_path too, so "kyoto" finds files under travel/kyoto/.
         query = query.filter(or_(
             File.title.ilike(pattern, escape="\\"),
             File.folder_path.ilike(pattern, escape="\\"),
         ))
     if favorite is not None:
         query = query.filter(File.is_favorite == favorite)
-    if tag:
-        query = query.filter(File.tags.any(func.lower(Tag.name) == tag.lower()))
-    if type:
-        query = query.filter(File.file_type == type)
+    if liked is not None:
+        query = query.filter(
+            File.liked_at.is_not(None) if liked else File.liked_at.is_(None)
+        )
+    for name in tag or []:
+        if name:
+            query = query.filter(File.tags.any(func.lower(Tag.name) == name.lower()))
+    query = _apply_kinds_filter(query, [_normalize_kind(kind) for kind in type or []])
+    if trust == "unreviewed":
+        # Not a tier: the review queue is "nobody has ruled on this", which
+        # spans both tiers. Bulk-migrated rows are verified but unjudged, and
+        # they are exactly what this filter exists to surface.
+        query = query.filter(File.trust_reviewed_at.is_(None))
+    elif trust:
+        query = query.filter(File.trust_tier == trust)
 
     total = query.count()
 
@@ -578,6 +747,38 @@ def list_drive_files(
     )
 
 
+@router.get("/{drive_name}/files/by-path", response_model=FileResponse)
+def get_drive_file_by_path(
+    drive_name: str,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    path: str = Query(..., min_length=1, max_length=4096),
+):
+    """Resolve one active file by its exact drive-relative path."""
+    _validate_drive(drive_name, unlocked_groups)
+
+    import unicodedata
+    from pathlib import Path as _Path
+
+    resolved = resolve_safe_path(drive_name, path.strip())
+    drive_root = _Path(config.get_drive_path(drive_name)).resolve()
+    normalized_rel = unicodedata.normalize(
+        "NFC", str(resolved.relative_to(drive_root))
+    )
+    file = (
+        db.query(File)
+        .filter(
+            File.drive == drive_name,
+            File.file_path == normalized_rel,
+            active_file_filter(),
+        )
+        .first()
+    )
+    if file is None:
+        raise HTTPException(status_code=404, detail="File not found")
+    return _to_response(file)
+
+
 def _classify_match_source(file_obj, normalized_search: str | None) -> str | None:
     if not normalized_search:
         return None
@@ -599,10 +800,17 @@ def list_drive_tags(
     drive_name: str,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    folder_path: str | None = None,
+    path: str | None = None,
+    type: FileKindParam | None = None,
 ):
     _validate_drive(drive_name, unlocked_groups)
+    if folder_path:
+        folder_path = _validate_folder_path(folder_path)
+    if path:
+        path = _validate_folder_path(path)
 
-    results = (
+    query = (
         db.query(Tag.name, func.count(file_tags.c.file_id).label("count"))
         .outerjoin(file_tags)
         .outerjoin(File, File.id == file_tags.c.file_id)
@@ -610,11 +818,41 @@ def list_drive_tags(
             Tag.drive == drive_name,
             (file_tags.c.file_id.is_(None)) | active_file_filter(),
         )
-        .group_by(Tag.id)
-        .order_by(Tag.name)
-        .all()
     )
+    kind = _normalize_kind(type)
+    if kind is not None:
+        # A kind asks about files, so a tag no file of that kind carries is
+        # not part of the answer.
+        query = _apply_kind_filter(query.filter(file_tags.c.file_id.isnot(None)), kind)
+    if folder_path:
+        query = query.filter(
+            (file_tags.c.file_id.is_(None))
+            | (File.folder_path == folder_path)
+            | (File.folder_path.like(_escape_like(folder_path) + "/%", escape="\\"))
+        )
+
+    if path is not None:
+        query = query.filter(file_tags.c.file_id.isnot(None), File.folder_path == path)
+
+    results = query.group_by(Tag.id).order_by(Tag.name).all()
     return [TagResponse(name=name, count=count) for name, count in results]
+
+
+@router.get("/{drive_name}/folder-counts", response_model=list[FolderCountResponse])
+def list_folder_counts(
+    drive_name: str,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    type: FileKindParam | None = None,
+):
+    """Active files per exact ``folder_path``, optionally of one kind."""
+    _validate_drive(drive_name, unlocked_groups)
+    query = db.query(File.folder_path, func.count(File.id)).filter(
+        File.drive == drive_name, active_file_filter()
+    )
+    query = _apply_kind_filter(query, _normalize_kind(type))
+    rows = query.group_by(File.folder_path).order_by(File.folder_path).all()
+    return [FolderCountResponse(path=path, count=count) for path, count in rows]
 
 
 @router.post("/{drive_name}/folders", response_model=FolderResponse)
@@ -626,8 +864,6 @@ async def create_folder(
 ):
     _validate_drive(drive_name, unlocked_groups)
     result = fileops.create_folder(drive_name, body.path, body.name, db)
-    # Notify subscribers (tree pane, right pane, addons) that the drive's
-    # folder topology changed. Spec 2026-05-09-tree-and-pane-refresh-sync.
     await event_hooks.emit(
         "folders.created", {"drive": drive_name, "path": result["path"]}
     )
@@ -636,6 +872,17 @@ async def create_folder(
 
 _TEXT_CREATE_MAX_BYTES = 1 * 1024 * 1024  # 1 MB
 _SUFFIX_MAX_ATTEMPTS = 99
+
+
+def _sync_created_markdown_relations(db: Session, file: File, content: str) -> None:
+    if not fileops._is_markdown_file(file):
+        return
+    try:
+        sync_markdown_file_relations(db, file.id, file.drive, content, file.folder_path)
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.exception("create_text_file: link sync failed for %s", file.id)
 
 
 @router.post("/{drive_name}/files", response_model=FileResponse)
@@ -651,12 +898,12 @@ async def create_text_file(
     editors and content creators (e.g., quick notes from the FolderToolbar
     "New File" button or the Cmd+N shortcut).
 
-    Phase 4 of the Vault-Core merger removed the extension allowlist —
-    any extension is creatable. Name conflicts with active or trashed
+    Any extension is creatable. Name conflicts with active or trashed
     files are auto-resolved by appending `` (n)`` before the extension.
-    Conflicts with a *missing* row at the same path are still treated as
-    UPSERT recovery (the existing row's content is replaced) and return
-    200.
+    With ``conflict_mode=error``, any collision returns 409 instead.
+    In the default rename mode, conflicts with a *missing* row at the same
+    path are still treated as UPSERT recovery (the existing row's content is
+    replaced) and return 200.
 
     Responses:
     - 201 on new file creation (incl. suffix-numbered fallback)
@@ -691,6 +938,15 @@ async def create_text_file(
         "NFC", str(resolved.relative_to(drive_root))
     )
 
+    if body.conflict_mode == "error":
+        path_row = (
+            db.query(File)
+            .filter(File.drive == drive_name, File.file_path == normalized_rel)
+            .first()
+        )
+        if path_row is not None or resolved.exists():
+            raise HTTPException(status_code=409, detail="Path already exists")
+
     # Missing-state precedence: if a row exists with missing_since set,
     # reuse it (UPSERT) rather than falling through to suffix numbering.
     existing_missing = (
@@ -714,19 +970,7 @@ async def create_text_file(
         filename = resolved.name
         file_type, mime_type = classify(filename)
 
-        tmp_fd, tmp_name = _tempfile.mkstemp(
-            prefix=f".{resolved.name}.", suffix=".tmp", dir=str(resolved.parent)
-        )
-        try:
-            with _os.fdopen(tmp_fd, "wb") as f:
-                f.write(content_bytes)
-            _os.replace(tmp_name, resolved)
-        except Exception:
-            try:
-                _os.unlink(tmp_name)
-            except OSError:
-                pass
-            raise
+        replace_file_contents(resolved, content_bytes)
 
         nfc_name = unicodedata.normalize("NFC", resolved.name)
         parent_rel = str(_Path(normalized_rel).parent)
@@ -735,13 +979,22 @@ async def create_text_file(
             else unicodedata.normalize("NFC", parent_rel)
         )
         existing_missing.missing_since = None
+        # New bytes took over this path, so an earlier verification was
+        # about content that no longer exists. Keeping it would let
+        # arbitrary new material inherit a person's vouch and ground Ask
+        # answers under it. Same reasoning as clearing chapters_probed_at:
+        # derived state does not survive a content swap.
+        existing_missing.trust_tier = TRUST_UNVERIFIED
+        existing_missing.trust_reviewed_at = None
         existing_missing.file_size = len(content_bytes)
         existing_missing.file_type = file_type
         existing_missing.mime_type = mime_type
         existing_missing.filename = nfc_name
         existing_missing.folder_path = folder_path
+        _record_created_file_version(db, existing_missing, content_bytes)
         db.commit()
         db.refresh(existing_missing)
+        _sync_created_markdown_relations(db, existing_missing, body.content)
         # Recovered-from-missing reuses the existing row; emit
         # files.recovered (mirroring scanner / upload paths) rather than
         # files.created so subscribers can distinguish if needed. Both
@@ -774,6 +1027,8 @@ async def create_text_file(
                 continue
 
         if _row_taken(candidate_rel):
+            if body.conflict_mode == "error":
+                raise HTTPException(status_code=409, detail="Path already exists")
             continue
 
         candidate_resolved.parent.mkdir(parents=True, exist_ok=True)
@@ -784,6 +1039,8 @@ async def create_text_file(
                 0o644,
             )
         except FileExistsError:
+            if body.conflict_mode == "error":
+                raise HTTPException(status_code=409, detail="Path already exists")
             continue
         try:
             with _os.fdopen(fd, "wb") as f:
@@ -818,6 +1075,8 @@ async def create_text_file(
         )
         db.add(new_file)
         try:
+            db.flush()
+            _record_created_file_version(db, new_file, content_bytes)
             db.commit()
         except IntegrityError:
             db.rollback()
@@ -826,12 +1085,16 @@ async def create_text_file(
             except OSError:
                 pass
             new_file = None
+            if body.conflict_mode == "error":
+                raise HTTPException(status_code=409, detail="Path already exists")
             continue
         db.refresh(new_file)
         break
 
     if new_file is None:
         raise HTTPException(status_code=409, detail="Too many naming conflicts")
+
+    _sync_created_markdown_relations(db, new_file, body.content)
 
     await event_hooks.emit("files.created", {"file_ids": [new_file.id]})
 
@@ -854,9 +1117,7 @@ async def rename_folder(
     file_ids = result.get("file_ids") or []
     if file_ids:
         await event_hooks.emit("files.moved", {"file_ids": file_ids})
-    # Always emit folders.moved so empty-folder renames are observable
-    # too (file_ids is empty in that case and the files.moved emit is
-    # skipped). Spec 2026-05-09-tree-and-pane-refresh-sync.
+    # Emitted unconditionally: renaming an empty folder moves no files.
     await event_hooks.emit(
         "folders.moved",
         {"drive": drive_name, "old_path": body.path, "new_path": result["path"]},
@@ -980,6 +1241,7 @@ def get_watch_history(
     viewer_id: Annotated[str | None, Depends(get_viewer_id)],
     limit: int = Query(20, ge=1, le=50),
     filter: str = Query("unfinished", pattern=r"^(unfinished|all)$"),
+    type: FileKindParam | None = None,
 ):
     _validate_drive(drive_name, unlocked_groups)
 
@@ -1000,6 +1262,13 @@ def get_watch_history(
         query = query.filter(
             WatchHistory.playback_position < WatchHistory.duration * 0.9,
         )
+
+    # Same classifier as the listing and the tree. The Recent view used
+    # to sift these rows in the browser on ``file_type`` alone, which
+    # answered "no such files" for text and PDF — values the column
+    # never holds. Narrowing here also means ``limit`` counts matching
+    # rows rather than being spent on rows about to be discarded.
+    query = _apply_kind_filter(query, _normalize_kind(type))
 
     records = (
         query
@@ -1136,7 +1405,10 @@ async def empty_trash(
     _validate_drive(drive_name, unlocked_groups)
     purged_ids = fileops.purge_all_trash(db, drive_name)
     if purged_ids:
-        await event_hooks.emit("files.purged", {"file_ids": purged_ids})
+        # The rows are gone, so the drive cannot be looked up afterwards.
+        await event_hooks.emit(
+            "files.purged", {"file_ids": purged_ids}, drives=[drive_name]
+        )
     return {"purged": len(purged_ids)}
 
 
@@ -1185,5 +1457,7 @@ async def purge_all_missing_endpoint(
     _validate_drive(drive_name, unlocked_groups)
     purged_ids = fileops.purge_all_missing(db, drive_name)
     if purged_ids:
-        await event_hooks.emit("files.purged", {"file_ids": purged_ids})
+        await event_hooks.emit(
+            "files.purged", {"file_ids": purged_ids}, drives=[drive_name]
+        )
     return {"purged": len(purged_ids)}

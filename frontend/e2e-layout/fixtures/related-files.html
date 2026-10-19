@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!--
+      Without this, a context that sets `isMobile` lays the page out at
+      Chromium's mobile default instead of the viewport the spec asked for.
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>related files — layout fixture</title>
+    <!--
+      No <style> of its own: every declaration measured here has to come
+      out of the app's own stylesheet.
+    -->
+    <link rel="stylesheet" href="./globals.built.css" />
+  </head>
+  <body>
+    <script type="application/json" id="fixture-markup">
+      {
+        "thumbnail": {
+          "tag": "a",
+          "class": "flex gap-2.5 rounded-xl px-2.5 py-2 transition-colors hover:bg-bg-elevated items-center",
+          "attrs": {
+            "href": "*"
+          },
+          "children": [
+            {
+              "tag": "span",
+              "class": "relative h-8 w-14 shrink-0 overflow-hidden rounded-lg bg-bg-elevated",
+              "children": [
+                {
+                  "tag": "img",
+                  "class": "h-full w-full object-cover",
+                  "attrs": {
+                    "alt": "",
+                    "loading": "lazy",
+                    "src": "*"
+                  }
+                }
+              ]
+            },
+            {
+              "tag": "span",
+              "class": "flex min-w-0 flex-1 flex-col",
+              "children": [
+                {
+                  "tag": "span",
+                  "class": "line-clamp-2 text-sm leading-[1.45] wrap-anywhere text-text-primary",
+                  "attrs": {
+                    "data-related-title": "true"
+                  },
+                  "children": []
+                },
+                {
+                  "tag": "span",
+                  "class": "mt-px flex min-w-0 items-center gap-1.5 text-xs text-text-muted",
+                  "children": [
+                    {
+                      "tag": "span",
+                      "class": "truncate",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "video": {
+          "tag": "a",
+          "class": "flex gap-2.5 rounded-xl px-2.5 py-2 transition-colors hover:bg-bg-elevated items-center",
+          "attrs": {
+            "href": "*"
+          },
+          "children": [
+            {
+              "tag": "span",
+              "class": "relative h-8 w-14 shrink-0 overflow-hidden rounded-lg bg-bg-elevated",
+              "children": [
+                {
+                  "tag": "img",
+                  "class": "h-full w-full object-cover",
+                  "attrs": {
+                    "alt": "",
+                    "loading": "lazy",
+                    "src": "*"
+                  }
+                },
+                {
+                  "tag": "span",
+                  "class": "absolute right-0.5 bottom-0.5 rounded-lg bg-black/70 px-1 text-[9px] leading-tight font-medium text-white",
+                  "attrs": {
+                    "data-related-duration": "true"
+                  },
+                  "children": []
+                }
+              ]
+            },
+            {
+              "tag": "span",
+              "class": "flex min-w-0 flex-1 flex-col",
+              "children": [
+                {
+                  "tag": "span",
+                  "class": "line-clamp-2 text-sm leading-[1.45] wrap-anywhere text-text-primary",
+                  "attrs": {
+                    "data-related-title": "true"
+                  },
+                  "children": []
+                },
+                {
+                  "tag": "span",
+                  "class": "mt-px flex min-w-0 items-center gap-1.5 text-xs text-text-muted",
+                  "children": [
+                    {
+                      "tag": "span",
+                      "class": "truncate",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "icon": {
+          "tag": "a",
+          "class": "flex gap-2.5 rounded-xl px-2.5 py-2 transition-colors hover:bg-bg-elevated items-start",
+          "attrs": {
+            "href": "*"
+          },
+          "children": [
+            {
+              "tag": "span",
+              "class": "mt-0.5 shrink-0 text-text-muted",
+              "children": [
+                {
+                  "tag": "svg",
+                  "class": "lucide lucide-file-text",
+                  "attrs": {
+                    "width": "16",
+                    "height": "16"
+                  }
+                }
+              ]
+            },
+            {
+              "tag": "span",
+              "class": "flex min-w-0 flex-1 flex-col",
+              "children": [
+                {
+                  "tag": "span",
+                  "class": "line-clamp-2 text-sm leading-[1.45] wrap-anywhere text-text-primary",
+                  "attrs": {
+                    "data-related-title": "true"
+                  },
+                  "children": []
+                },
+                {
+                  "tag": "span",
+                  "class": "mt-px flex min-w-0 items-center gap-1.5 text-xs text-text-muted",
+                  "children": [
+                    {
+                      "tag": "span",
+                      "class": "truncate",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "missing": {
+          "tag": "a",
+          "class": "flex gap-2.5 rounded-xl px-2.5 py-2 transition-colors hover:bg-bg-elevated items-start opacity-60",
+          "attrs": {
+            "href": "*"
+          },
+          "children": [
+            {
+              "tag": "span",
+              "class": "mt-0.5 shrink-0 text-text-muted",
+              "children": [
+                {
+                  "tag": "svg",
+                  "class": "lucide lucide-file-text",
+                  "attrs": {
+                    "width": "16",
+                    "height": "16"
+                  }
+                }
+              ]
+            },
+            {
+              "tag": "span",
+              "class": "flex min-w-0 flex-1 flex-col",
+              "children": [
+                {
+                  "tag": "span",
+                  "class": "line-clamp-2 text-sm leading-[1.45] wrap-anywhere text-text-primary",
+                  "attrs": {
+                    "data-related-title": "true"
+                  },
+                  "children": []
+                },
+                {
+                  "tag": "span",
+                  "class": "mt-px flex min-w-0 items-center gap-1.5 text-xs text-text-muted",
+                  "children": [
+                    {
+                      "tag": "span",
+                      "class": "truncate",
+                      "children": []
+                    },
+                    {
+                      "tag": "span",
+                      "class": "shrink-0 rounded-lg bg-bg-elevated px-1.5 py-0.5 text-[10px] font-medium uppercase",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    </script>
+
+    <div id="frame"></div>
+
+    <script>
+      // A 1x1 transparent GIF: a data URI needs no network, which lets
+      // this page run off file://.
+      const PIXEL =
+        "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+
+      const SHAPES = JSON.parse(
+        document.getElementById("fixture-markup").textContent,
+      );
+
+      const NS = "http://www.w3.org/2000/svg";
+
+      const build = (spec, text) => {
+        const el =
+          spec.tag === "svg" || spec.tag === "path"
+            ? document.createElementNS(NS, spec.tag)
+            : document.createElement(spec.tag);
+        el.setAttribute("class", spec.class);
+        if (spec.tag === "img") el.src = PIXEL;
+        if (spec.tag === "a") el.href = "#";
+        for (const [name, value] of Object.entries(spec.attrs ?? {})) {
+          if (value !== "*") el.setAttribute(name, value);
+        }
+        for (const child of spec.children ?? []) el.append(build(child, text));
+        return el;
+      };
+
+      const buildTile = (shape, name, folder) => {
+        const spec = SHAPES[shape];
+        if (!spec) throw new Error(`no such tile shape: ${shape}`);
+        const tile = build(spec);
+        tile.querySelector("[data-related-title]").textContent = name;
+        tile.querySelector("span.truncate").textContent = folder;
+        const duration = tile.querySelector("[data-related-duration]");
+        if (duration) duration.textContent = "32:15";
+        if (shape === "missing") {
+          tile.querySelector("span.truncate").nextElementSibling.textContent = "missing";
+        }
+        tile.dataset.shape = shape;
+        return tile;
+      };
+
+      window.buildRelated = ({ width, count, shapes, forceColumns, name, folder }) => {
+        const frame = document.getElementById("frame");
+        frame.style.width = `${width}px`;
+        frame.replaceChildren();
+
+        const host = document.createElement("div");
+        host.className = "related-files-host";
+        const grid = document.createElement("div");
+        grid.className = "related-files-grid grid gap-x-2 gap-y-0.5";
+        // `forceColumns` overrides the stylesheet's answer; it exists only
+        // to lay out what a rejected threshold would have produced.
+        if (forceColumns) {
+          grid.style.gridTemplateColumns = `repeat(${forceColumns}, minmax(0, 1fr))`;
+        }
+
+        for (let i = 0; i < count; i++) {
+          grid.append(buildTile(shapes?.[i] ?? "thumbnail", name, folder));
+        }
+
+        host.append(grid);
+        frame.append(host);
+      };
+
+      const box = (el) => {
+        const r = el.getBoundingClientRect();
+        return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height };
+      };
+
+      window.measureRelated = () => {
+        const grid = document.querySelector(".related-files-grid");
+        const tiles = [...grid.children];
+        const tops = new Set(tiles.map((t) => Math.round(t.getBoundingClientRect().top)));
+
+        return {
+          gridWidth: grid.getBoundingClientRect().width,
+          rows: tops.size,
+          columns: Math.round(tiles.length / tops.size),
+          tiles: tiles.map((tile) => {
+            const title = tile.querySelector("[data-related-title]");
+            const lineHeight = parseFloat(getComputedStyle(title).lineHeight);
+            const thumb = tile.querySelector(".relative");
+            const duration = tile.querySelector("[data-related-duration]");
+            return {
+              shape: tile.dataset.shape,
+              tile: box(tile),
+              title: box(title),
+              titleLines: Math.round(title.getBoundingClientRect().height / lineHeight),
+              titleClipped: title.scrollHeight > title.clientHeight + 1,
+              thumb: thumb ? box(thumb) : null,
+              duration: duration ? box(duration) : null,
+            };
+          }),
+        };
+      };
+    </script>
+  </body>
+</html>

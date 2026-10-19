@@ -208,7 +208,6 @@ export function CollectionPanel({
 
   return (
     <>
-      {/* Expose handleEnded for parent to call */}
       <CollectionEndedHandler onEnded={handleEnded} />
 
       <div className={`${
@@ -217,7 +216,6 @@ export function CollectionPanel({
           : "mt-0 w-full md:w-[360px] md:flex-shrink-0"
       }`}>
         <div className="rounded-2xl border border-bg-border bg-bg-card p-4">
-          {/* Header */}
           <div className="mb-3 flex items-center justify-between">
             <div className="min-w-0 flex-1">
               <div className="truncate text-base font-semibold text-text-primary">
@@ -249,7 +247,6 @@ export function CollectionPanel({
             </div>
           </div>
 
-          {/* Track list */}
           {!collapsed && (
             isVideoLayout ? (
               <VideoTrackList
@@ -280,7 +277,6 @@ export function CollectionPanel({
   );
 }
 
-// Invisible component to expose onEnded callback to parent via ref pattern
 function CollectionEndedHandler({ onEnded }: { onEnded: () => void }) {
   useEffect(() => {
     (window as unknown as Record<string, unknown>).__collectionOnEnded = onEnded;
@@ -295,7 +291,6 @@ export function getCollectionOnEnded(): (() => void) | undefined {
   return (window as unknown as Record<string, unknown>).__collectionOnEnded as (() => void) | undefined;
 }
 
-// Video layout: horizontal scroll thumbnail cards
 function VideoTrackList({
   tracks,
   currentFileId,
@@ -379,7 +374,6 @@ function VideoTrackList({
   );
 }
 
-// Audio layout: vertical list
 function AudioTrackList({
   tracks,
   currentFileId,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { ArrowRight, FileText, Loader2, Pencil, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useShortcuts } from "@/hooks/useShortcuts";
@@ -12,6 +12,7 @@ import {
   type PrefixSuffixAction,
   type RenamePreviewFile,
 } from "@/lib/renamePreview";
+import { Button } from "@/components/Button";
 
 type RenameMode = "template" | "regex" | "prefix_suffix";
 
@@ -42,10 +43,13 @@ export function BatchRenameDialog({
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // `editingOnly: false` is load-bearing: the dialog focuses its own
+  // field, and the provider counts a focused input as "editing", where
+  // the flag's default means the shortcut never fires.
   useShortcuts(
     "batch-rename-dialog",
     "Dialog",
-    [{ key: "escape", label: "Cancel", handler: onCancel, hidden: true }],
+    [{ key: "escape", label: "Cancel", editingOnly: false, handler: onCancel, hidden: true }],
     open,
   );
 
@@ -107,7 +111,6 @@ export function BatchRenameDialog({
       />
 
       <div className="relative mx-0 flex w-full max-w-2xl flex-col rounded-t-2xl bg-bg-card shadow-lg ring-1 ring-bg-border animate-fade-in-scale sm:mx-4 sm:rounded-2xl max-h-[90vh]">
-        {/* Header */}
         <div className="flex items-center justify-between border-b border-bg-border px-5 py-4">
           <div className="flex items-center gap-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15">
@@ -131,9 +134,7 @@ export function BatchRenameDialog({
           </button>
         </div>
 
-        {/* Body */}
         <div className="flex-1 overflow-y-auto px-5 py-4">
-          {/* Mode selector - segmented control */}
           <div className="flex gap-1 rounded-xl bg-bg-elevated p-1 ring-1 ring-bg-border">
             {modes.map((m) => (
               <button
@@ -150,7 +151,6 @@ export function BatchRenameDialog({
             ))}
           </div>
 
-          {/* Fields */}
           <div className="mt-5 rounded-xl bg-bg-elevated p-4 ring-1 ring-bg-border">
             {mode === "template" && (
               <TemplateFields
@@ -184,11 +184,9 @@ export function BatchRenameDialog({
             )}
           </div>
 
-          {/* Preview */}
           <PreviewList preview={preview} t={t} changedCount={changedCount} />
         </div>
 
-        {/* Footer */}
         <div className="flex items-center justify-between border-t border-bg-border px-5 py-4">
           {error ? (
             <p className="text-sm text-danger">{error}</p>
@@ -208,15 +206,16 @@ export function BatchRenameDialog({
             >
               {tc("cancel")}
             </button>
-            <button
+            <Button
+              variant="primary"
+              size="lg"
               type="button"
               onClick={handleSubmit}
               disabled={changedCount === 0 || submitting || !!regexError}
-              className="flex items-center gap-2 rounded-2xl bg-accent px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-30 disabled:pointer-events-none"
             >
               {submitting && <Loader2 size={14} className="animate-spin" />}
               {t("execute")}
-            </button>
+            </Button>
           </div>
         </div>
       </div>

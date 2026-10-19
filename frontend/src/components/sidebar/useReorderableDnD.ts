@@ -5,21 +5,13 @@ import { useCallback, useRef, useState } from "react";
 import { reorder } from "./orderMerge";
 
 /**
- * Generic native-HTML5-DnD reordering primitive for a single ordered list.
- *
- * Design constraints (hako c3CcYY_a8nRwD5lG-zeOi / IDvBzhsmV1HR1maUwHzhX):
- *
  * - No DnD library. Native `draggable` + dataTransfer only.
  * - **Never reflows the row list.** The hook only reports which row the drop
  *   indicator belongs to (`dropTarget`). The consumer renders that indicator
- *   as an `absolute` overlay so the dragged row stays under the pointer — the
- *   FolderTreePane 34px-shift bug must not recur.
+ *   as an `absolute` overlay so the dragged row stays under the pointer.
  * - Cross-list drops are rejected purely by a per-`kind` MIME type, so the
  *   guard works during `dragover` without reading dataTransfer data (which
  *   browsers forbid until `drop`).
- *
- * Fixed (non-reorderable) zones simply do not spread `getRowProps`, so they
- * can never become a drop target.
  */
 
 export interface DropTarget {
@@ -30,9 +22,7 @@ export interface DropTarget {
 interface UseReorderableDnDParams {
   /** Stable namespace; becomes part of the MIME type so lists do not mix. */
   kind: string;
-  /** Current order of stable IDs (already merged/resolved). */
   ids: readonly string[];
-  /** Called with the next order when a valid drop completes. */
   onReorder: (next: string[]) => void;
 }
 
@@ -71,7 +61,6 @@ export function useReorderableDnD({ kind, ids, onReorder }: UseReorderableDnDPar
   const getRowProps = useCallback(
     (id: string) => ({
       onDragOver: (e: React.DragEvent) => {
-        // Only react to a drag that originated from the same list/kind.
         if (!e.dataTransfer.types.includes(mime)) return;
         const dragged = draggingRef.current;
         if (dragged === null || dragged === id) {

@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "r1 F1 is addressed. globals.css:1278-1282 now places `.justified-grid > .justified-grid-cell { transition-property: none; }` inside `@layer base`. globals.css:1 is `@import \"tailwindcss\"`, which fixes the layer order as theme, base, components, utilities. ArchiveEntryCard's `transition-colors` (ArchiveEntryCard.tsx:116) is in `utilities`, so it now beats this rule. The unlayered `[data-flip=\"invert\"]` and `[data-flip=\"play\"]` rules at globals.css:1286-1296 also still beat it, so the FLIP fade and zoom keep working.",
+    "r1 F3 is addressed. frontend/src/hooks/__tests__/useJustifiedHold.test.tsx is the planned jsdom test of the hold hook's branching, as listed in the touch points.",
+    "Moving the rule leaves held cells' behaviour unchanged: JustifiedFileCell.tsx:74 carries no transition utility (only relative, opacity-40, opacity-50 and select-none), so for FileGrid cells the base-layer `none` is still the property in effect. Archive cells are never held, because ArchiveEntryGrid does not call useJustifiedHold, and `transition-colors` does not include `visibility`.",
+    "archiveJustifiedCells.test.tsx:212-216 reads the first `.justified-grid > .justified-grid-cell {` block, which is still the layout rule at globals.css:1239. Inside @layer, the moved rule is indented and comes later in the file, so it does not shadow that match."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Inherited from r1 and unchanged in this commit: useJustifiedFlip now plays a fade for released cells on the `before.width !== width` path, which previously never animated. The I5 e2e case 'an append after the grid resized with no commit' pins this path."
+  ],
+  "regression_risks": [
+    "The base-layer `transition-property: none` now yields to any Tailwind transition utility on a justified cell. If someone later adds `transition` or `transition-all` to JustifiedFileCell, `visibility` would transition again. Without reduced motion, a newly held cell would then stay painted for the utility's duration (visible→hidden flips at the end), which would break I1/I8's 'before the next paint'. No test pins that JustifiedFileCell has no such utility, apart from the class lists in the fixture parity test.",
+    "The hook order in FileGrid (flip before hold) is still enforced only by a comment. This is unchanged from r1."
+  ],
+  "test_coverage": [
+    "New e2e-layout case (justified-grid.spec.ts:411-419) checks that the archive openable cell's computed transition-property contains background-color. It would fail if the rule were moved back out of the layer, so it kills a revert of the F1 fix. It does not appear in the generated `registered` list, and it is not a generated case, so the 'every generated case was registered' test is unaffected.",
+    "useJustifiedHold.test.tsx mutation reasoning: dropping `moreMayFollow` from the signature, or from applyHold, is killed by the I6 test. Dropping `--jg-ratio` from cellSignature is killed by the I8 ratio test: the guard would return early and leave [d,e] where [c,d,e] is expected. Dropping the `cells[0].offsetTop !== lastTop` guard is killed by the I7 test. Removing the focus move is killed by the I2 test. Removing the `if (target)` skip, or the held-skip in the backwards walk, is killed by the 'skips earlier cells' test (b is expected, not c or d).",
+    "The I9 jsdom test survives deleting the signature guard altogether, because recomputing gives the same held set. The guard is a cost optimisation that the spec explicitly does not make an invariant, so this is acceptable.",
+    "Nothing kills deleting the base-layer `transition-property: none` rule. Under reduced motion, its only effect is a 0.01ms `visibility` transition, which is not observable within a frame. The rule therefore has no test that would fail without it."
+  ],
+  "not_verified": [
+    "I did not run vitest, the e2e-components suite, or the e2e-layout suite, so I did not confirm that the new jsdom and layout tests pass.",
+    "I did not confirm that globals.built.css (the e2e-layout fixture's stylesheet) is rebuilt from the current globals.css and includes the `transition-colors` utility used by the archiveOpenable shape.",
+    "I did not inspect the docs-only commits cf1dcd17d and 1fce81d6d beyond the fact that they are listed as docs records.",
+    "I did not check other suites that mock IntersectionObserver or useScrollContainer for compatibility with the non-null root."
+  ],
+  "confidence": 82,
+  "trajectory": "The r2 fix round (5f7e3e9a; cf1dcd17 and 1fce81d6 are docs-only) adds no branch, state or prediction to the runtime code. It moves one existing CSS rule into `@layer base`, which narrows that rule's reach rather than adding a condition. It also adds tests: a jsdom suite for useJustifiedHold's existing branches and one e2e-layout assertion. r1 had no earlier fix round to compare against. Nothing suggests the design is being patched: no new guard, no new marker attribute and no new special case was introduced in response to r1."
+}

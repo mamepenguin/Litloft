@@ -1,26 +1,3 @@
-/**
- * Tests for `usePolicy(drive, addon, feature)` — the frontend mirror of the
- * backend `is_addon_feature_enabled` helper.
- *
- * Spec: docs/superpowers/specs/2026-05-10-markdown-document-layout.md § 4 D4.
- *
- * Contract:
- *   - Fetches GET /api/drives/{drive}/addon-policies on first mount per drive
- *   - Returns { enabled: boolean, isLoading: boolean }
- *   - Reads addons[addon].features[feature] when present
- *   - Falls back to addons[addon].default when the feature is not listed
- *   - Falls back to true when the addon key itself is absent (graceful
- *     degradation — never block UI on a missing config)
- *   - Module-level cache de-dupes concurrent calls and keeps a 30s TTL
- *   - On fetch failure, returns enabled=true (fail-open, matching the
- *     backend `policy_client` 30s-TTL fail-open contract from
- *     `.claude/rules/design-decisions.md`)
- *
- * NOTE: implementation file (`frontend/src/hooks/usePolicy.ts`) does not exist
- * yet — this test file should fail at import time (RED state). Phase 4
- * implementation will turn it green.
- */
-
 import { renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -59,10 +36,8 @@ describe("usePolicy", () => {
       usePolicy("work", "knowledge", "editor"),
     );
 
-    // Initial render: cache is cold so we are loading.
     expect(result.current.isLoading).toBe(true);
-    // While loading, default to enabled (fail-open) so the editor mounts and
-    // doesn't flash a "disabled" UI before the policy lookup completes.
+    // Enabled while loading, so the editor does not flash a disabled UI.
     expect(result.current.enabled).toBe(true);
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
@@ -89,7 +64,6 @@ describe("usePolicy", () => {
   });
 
   it("returns enabled=false when bool shorthand sets default=false", async () => {
-    // drives.json: addons.knowledge: false  =>  { default: false, features: {} }
     fetchSpy.mockResolvedValueOnce(
       jsonResponse({
         addons: { knowledge: { default: false, features: {} } },
@@ -118,7 +92,6 @@ describe("usePolicy", () => {
     );
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-    // editor is unlisted -> fall back to default (true).
     expect(result.current.enabled).toBe(true);
   });
 
@@ -156,8 +129,6 @@ describe("usePolicy", () => {
   });
 
   it("dedupes concurrent calls for the same drive", async () => {
-    // Both renderHook calls happen before the first fetch resolves, so the
-    // hook must coalesce them into a single in-flight request.
     let resolveFetch: (value: Response) => void = () => {};
     const pending = new Promise<Response>((resolve) => {
       resolveFetch = resolve;
@@ -167,7 +138,6 @@ describe("usePolicy", () => {
     const a = renderHook(() => usePolicy("work", "knowledge", "editor"));
     const b = renderHook(() => usePolicy("work", "knowledge", "scanner"));
 
-    // Two consumers, but we expect a single network call.
     expect(fetchSpy).toHaveBeenCalledTimes(1);
 
     resolveFetch(
@@ -201,7 +171,6 @@ describe("usePolicy", () => {
     expect(first.result.current.enabled).toBe(false);
     first.unmount();
 
-    // Second mount — cache is warm, no extra fetch.
     const second = renderHook(() => usePolicy("work", "knowledge", "editor"));
     expect(second.result.current.isLoading).toBe(false);
     expect(second.result.current.enabled).toBe(false);
@@ -252,8 +221,7 @@ describe("usePolicy", () => {
 
     await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
     const [, init] = fetchSpy.mock.calls[0];
-    // same-origin sends cookies for same-origin requests (relative URL),
-    // and is safer than `include` if the path ever crosses origins later.
+    // Not `include`: safer if the path ever crosses origins.
     expect(init?.credentials).toBe("same-origin");
   });
 });

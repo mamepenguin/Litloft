@@ -1,6 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import { act } from "react";
 import { FileContextMenu } from "../FileContextMenu";
+import { ShortcutsProvider } from "../ShortcutsProvider";
 import type { FileItem } from "@/types";
 
 vi.mock("@/lib/api", () => ({
@@ -44,9 +46,25 @@ vi.mock("../ClipboardProvider", () => ({
   }),
 }));
 
+const copyTextMock = vi.fn<(text: string) => Promise<boolean>>();
+vi.mock("@/lib/copyText", () => ({
+  copyText: (text: string) => copyTextMock(text),
+}));
+
+const toastSuccessMock = vi.fn();
+vi.mock("../ToastProvider", () => ({
+  useToast: () => ({
+    success: toastSuccessMock,
+    error: vi.fn(),
+    info: vi.fn(),
+  }),
+}));
+
 import { renameFile, moveFile, deleteFile } from "@/lib/api";
 
 const file: FileItem = {
+  image_width: null,
+  image_height: null,
   id: "abc123def456",
   filename: "movie.mp4",
   title: "Movie",
@@ -59,12 +77,14 @@ const file: FileItem = {
   has_thumbnail: true,
   file_size: 1048576,
   duration: 125.5,
-  likes: 0,
+  liked_at: null,
   is_favorite: false,
   tags: [],
   subtitles: [],
   deleted_at: null,
   missing_since: null,
+  trust_tier: "verified",
+  trust_reviewed_at: null,
   created_at: "2026-03-20T10:00:00",
   updated_at: "2026-03-20T10:00:00",
 };
@@ -117,15 +137,20 @@ describe("FileContextMenu", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("renders all default menu items", () => {
+  it("renders the default menu items in a fixed order", () => {
     render(<FileContextMenu {...makeProps()} />);
-    expect(screen.getByText("Download")).toBeInTheDocument();
-    expect(screen.getByText("Add to collection")).toBeInTheDocument();
-    expect(screen.getByText("Copy")).toBeInTheDocument();
-    expect(screen.getByText("Cut")).toBeInTheDocument();
-    expect(screen.getByText("Rename")).toBeInTheDocument();
-    expect(screen.getByText("Move")).toBeInTheDocument();
-    expect(screen.getByText("Move to Trash")).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("menuitem").map((item) => item.textContent),
+    ).toEqual([
+      "Download",
+      "Add to collection",
+      "Copy",
+      "Cut",
+      "Copy ID",
+      "Rename",
+      "Move",
+      "Move to Trash",
+    ]);
   });
 
   it("does not render Remove from history when onRemoveFromHistory is undefined", () => {
@@ -204,7 +229,6 @@ describe("FileContextMenu", () => {
   });
 
   it("calls onUpdate after successful rename via RenameDialog", async () => {
-    // Re-mock RenameDialog to expose onRename callback
     const RenameDialogModule = await import("../RenameDialog");
     const renameSpy = vi
       .spyOn(RenameDialogModule, "RenameDialog")
@@ -307,6 +331,85 @@ describe("FileContextMenu", () => {
     fireEvent.click(screen.getByText("Cut"));
     await waitFor(() => {
       expect(cutMock).toHaveBeenCalled();
+    });
+  });
+
+  describe("Copy ID", () => {
+    it("copies the file id and confirms with a toast", async () => {
+      copyTextMock.mockResolvedValue(true);
+      const onClose = vi.fn();
+      render(<FileContextMenu {...makeProps({ onClose })} />);
+      fireEvent.click(screen.getByText("Copy ID"));
+      await waitFor(() => {
+        expect(toastSuccessMock).toHaveBeenCalledWith("ID copied");
+      });
+      expect(copyTextMock).toHaveBeenCalledWith("abc123def456");
+      expect(onClose).toHaveBeenCalled();
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(copyMock).not.toHaveBeenCalled();
+      expect(cutMock).not.toHaveBeenCalled();
+    });
+
+    it("shows the id selected in a dialog when the browser will not copy", async () => {
+      copyTextMock.mockResolvedValue(false);
+      render(<FileContextMenu {...makeProps()} />);
+      fireEvent.click(screen.getByText("Copy ID"));
+      const input = (await screen.findByRole("textbox")) as HTMLInputElement;
+      expect(input.value).toBe("abc123def456");
+      expect(input.readOnly).toBe(true);
+      await waitFor(() => {
+        expect([input.selectionStart, input.selectionEnd]).toEqual([0, 12]);
+      });
+      expect(document.activeElement).toBe(input);
+      expect(toastSuccessMock).not.toHaveBeenCalled();
+      expect(copyMock).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["the Close button", (dialog: HTMLElement) => within(dialog).getByText("Close")],
+      ["the X button", (dialog: HTMLElement) => within(dialog).getByLabelText("Close")],
+      ["the backdrop", (dialog: HTMLElement) => dialog.previousElementSibling as HTMLElement],
+    ])("closes the dialog from %s", async (_name, target) => {
+      copyTextMock.mockResolvedValue(false);
+      render(<FileContextMenu {...makeProps()} />);
+      fireEvent.click(screen.getByText("Copy ID"));
+      const dialog = await screen.findByRole("dialog");
+
+      fireEvent.click(target(dialog));
+
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+
+    it("closes the dialog on Escape", async () => {
+      copyTextMock.mockResolvedValue(false);
+      render(
+        <ShortcutsProvider>
+          <FileContextMenu {...makeProps()} />
+        </ShortcutsProvider>,
+      );
+      fireEvent.click(screen.getByText("Copy ID"));
+      await screen.findByRole("dialog");
+      // The dialog registers its shortcut in an effect that commits after
+      // the dialog is in the DOM.
+      await act(async () => {});
+
+      fireEvent.keyDown(screen.getByRole("textbox"), { key: "Escape" });
+
+      await waitFor(() => {
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      });
+    });
+
+    it("stays enabled for a missing file", () => {
+      render(
+        <FileContextMenu
+          {...makeProps({
+            target: { ...file, missing_since: "2026-09-01T00:00:00" },
+          })}
+        />,
+      );
+      expect(screen.getByRole("menuitem", { name: "Copy ID" })).toBeEnabled();
+      expect(screen.getByRole("menuitem", { name: "Copy" })).toBeDisabled();
     });
   });
 });

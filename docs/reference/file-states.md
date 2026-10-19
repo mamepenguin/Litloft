@@ -1,105 +1,103 @@
 # File states
 
-Litloft uses a three-state model for files, encoded in two columns:
+Every file row is in one of three states, stored in two mutually exclusive columns:
 
 | State | `deleted_at` | `missing_since` | Auto-purge | Default queries |
 |---|---|---|---|---|
 | Active | NULL | NULL | — | included |
-| Missing | NULL | set | Never | excluded |
-| Trash | set | NULL | After 30 days | excluded |
+| Missing | NULL | set | never | excluded |
+| Trash | set | NULL | after 30 days | excluded |
 
-The two columns are mutually exclusive. Always go through `app.models.active_file_filter()` for "show me usable files" queries; never write `deleted_at.is_(None)` directly.
+The database keeps data that cannot be rebuilt from the filesystem (watch history, comments, tags, version history, transcripts, embeddings), so a file that disappears from disk is marked Missing rather than deleted.
+
+In backend code, select usable files with `app.models.active_file_filter()`; do not test `deleted_at.is_(None)` directly.
 
 ## Active
 
-The default state. The file is on disk and the DB row is current. Visible everywhere.
+The file is on disk and the row is current.
 
 ## Missing
 
-The scanner found that the file disappeared from disk:
+The scanner did not find the file at its recorded path.
 
-- Set: on the **first** scan pass that does not find the file at its recorded path. There is no grace period or tolerance window — a single pass that misses the file flips it to Missing (the mount-failure and move-detection rules below are the only things that hold it back).
-- Cleared: scanner sees the file again at the same path, **or** an upload to the same path revives it (no INSERT — that would violate the `(drive, file_path)` uniqueness), **or** the file is detected as moved (see below).
+- Set on the first scan pass that does not find the file. There is no grace period; only the mount check and move detection below hold it back. Trashed rows are never marked Missing.
+- Cleared when a scan finds the file at the same path again, an upload or a new text file lands on that path (the existing row is reused), or the file is detected as moved.
 - Effects:
-  - GET / mutating endpoints: `404 Not Found`.
-  - Stream: `410 Gone`.
-  - Thumbnail: still served (kept on disk).
-  - Event: `files.missing` on entry, `files.recovered` on exit.
+  - `GET /api/files/{id}` and every write endpoint: `404`.
+  - `GET /api/files/{id}/stream`, `/render`, `/preview-text`: `410 Gone`.
+  - `GET /api/files/{id}/thumbnail`: still served. If the thumbnail file is gone too, a placeholder image is returned.
+  - Events: `files.missing` on entry, `files.recovered` on exit.
+- Listed at `GET /api/drives/{drive}/missing`.
 
-Missing files are kept indefinitely. Use `purge_all_missing` (batch size 200) to clean up.
+Missing files are never purged automatically. Remove them with `DELETE /api/files/{id}/purge`, `POST /api/files/batch/purge`, or `POST /api/drives/{drive}/missing/purge-all`. Purge-all commits every 200 files and emits one `files.purged` with every id at the end; if it fails partway, the files already committed stay purged and no event is sent.
 
-### Mount-failure protection
+### Unmounted drives
 
-If `drive_path.exists() == False`, the scanner returns early so a missing mount does not flip every file in the drive into Missing. Restoring the mount on the next pass quietly resumes normal operation. This is a drive-root check only: if the mount is present but a subtree is unreadable, files under it still flip to Missing on that pass.
+If a drive's root path does not exist, the scan of that drive stops before marking anything, so an unmounted drive does not turn every file Missing. This checks only the drive root: files under an unreadable subfolder of a mounted drive are still marked Missing.
 
 ### Move detection
 
-A file that disappears from path A and reappears at path B **within the same scan pass** is treated as a move, not as Missing + new:
+A file that disappears from one path and appears at another in the same scan pass is treated as a move:
 
-- Match key: `(file_hash, file_size)`. The disappeared record and the new path must be an **unambiguous single-candidate** pair — if two or more records share the same `(file_hash, file_size)` on either the old or the new side, none of them match and they fall back to Missing + new.
-- On a match the existing DB row follows the file: `file_path`, `folder_path`, filename, thumbnail are updated in place and `missing_since` is cleared. All linked data (watch history, comments, tags, relations, transcripts, embeddings) stays attached because the row is the same row.
-- Event: `files.moved` (not `files.missing` followed by a fresh insert).
-- Markdown special case: when an out-of-band rename changes a `.md` basename, `[[old-stem]]` wiki-links in other `.md` files in the same drive are rewritten.
+- Matched by `(file_hash, file_size)`. Only rows that were Active before the pass and have a stored hash can match. When two or more files share the same key, on either the old or the new side, none of them match; they become Missing and new rows.
+- The existing row is updated in place (path, folder, filename, title, type, thumbnail), so all linked data stays attached.
+- Event: `files.moved`. Browsers receive `drive.structure_changed`.
+- When a `.md` file's name changes, `[[old-name]]` wiki links in other `.md` files on the same drive are rewritten.
 
 ### When the scanner runs
 
-- **Backend startup** — a full scan of every drive (`scan_all_drives`).
-- **Manual trigger** — `POST /api/drives/{drive}/scan`.
-- **Incremental** — uploads and file operations register/relocate single rows directly without a full pass.
+- At backend startup: every drive, one after another. If `drives.json` is missing or invalid, the scan is skipped.
+- Manually: `POST /api/drives/{drive}/scan`.
 
-There is **no periodic auto-scan**. A file deleted out-of-band on disk stays Active in the DB until the next startup or a manual rescan. Scans are serialised by a single global lock: only one drive scans at a time across the whole app, and a concurrent `POST .../scan` returns `409 Scan already in progress`.
+There is no periodic scan. Uploads and file operations update their own rows directly, but a file deleted on disk outside Litloft stays Active until the next startup or manual scan.
+
+Scans share one lock with other maintenance jobs (such as the Markdown image import), so only one runs at a time. `POST .../scan` returns `409 Scan already in progress` while the lock is held.
 
 ## Trash
 
-User-initiated soft delete:
+A viewer deletes a file.
 
-- Set: `deleted_at = NOW`. `missing_since` is cleared if it was set (you cannot trash a file that is already missing — Litloft does not let you delete what is not there).
-- Cleared: explicit restore (`POST /api/files/{id}/restore`), which clears **both** `deleted_at` and `missing_since` as a defensive safety net.
+- Set only on an Active file. Trashing a Missing file returns `404`; purge it instead.
+- Cleared by `POST /api/files/{id}/restore` or `POST /api/files/batch/restore`, which clear both `deleted_at` and `missing_since`. If the file is no longer on disk, restore returns `404 File no longer exists on disk`.
 - Effects:
-  - The file on disk is **not moved**. Trash is purely a database flag.
-  - Default queries exclude the row.
-  - Playlists keep their references, rendered as muted.
-  - Event: `files.deleted` on entry, `files.restored` on exit.
+  - The file on disk is not moved or changed.
+  - Playlists keep the entry and show it as unavailable. Adding a trashed or Missing file to a playlist returns `404`.
+  - Events: `files.deleted` (payload includes `"type": "soft_delete"`) on entry, `files.restored` on exit.
+- Listed at `GET /api/drives/{drive}/trash`.
 
 ### Auto-purge
 
-A background task runs at backend startup and every 24 hours:
+Runs at backend startup and then every 24 hours. The 30-day period is fixed; there is no setting for it.
 
-- Selects rows with `deleted_at < NOW - 30 days`.
-- Deletes the on-disk file.
-- Deletes the DB row (cascade removes relations, comments, watch history).
-- Cleans empty parent directories.
-- Emits `files.purged` (one event per batch of 200).
+- Takes trashed files older than 30 days and deletes each one on its own: the file on disk, its thumbnail, any HEIC conversion, and the row. Deleting the row also deletes its relations, comments, watch history and version history.
+- A file that cannot be deleted is skipped and retried on the next run.
+- Removes empty folders left behind, up to the drive root.
+- Emits one `files.purged` with every id purged in that run.
 
-Manual purge via the admin UI fires the same event for the affected files.
+Manual purge (`DELETE /api/files/{id}/purge`, `POST /api/files/batch/purge`, `POST /api/drives/{drive}/trash/empty`) emits `files.purged` for the purged files. Purging cannot be undone.
 
-## Why three states?
+## Version history
 
-Most file-management apps treat the database as a cache of the filesystem and either delete rows when files disappear or never delete them at all. Litloft instead:
+Text and Markdown files keep an edit history, written on every content save.
 
-- Treats the DB as an **independent source of truth** for things that cannot be regenerated from the filesystem (watch history, comments, tags, transcripts, embeddings).
-- Distinguishes "user explicitly removed this" (Trash) from "we expected this and it is gone" (Missing) so addons can react differently.
-- Preserves the unique `path` constraint by reviving missing rows on re-upload rather than inserting duplicates.
+- It survives Trash and Missing: a restored or recovered file comes back with its full history.
+- `GET /api/files/{id}/versions` and the related routes return `404` while the file is in Trash or Missing.
+- Purging a file deletes its history for good.
+- A file moved outside Litloft keeps its history, because move detection reuses the row.
+- Up to 200 versions per file. Only automatic versions are removed to make room; explicitly saved ones are kept. Automatic saves by the same viewer within 5 minutes are combined into one version.
+- If recording a version fails, the content is still saved, so a change can exist with no version for it.
 
-## Addon implications
+## For addons
 
-Addons subscribe to lifecycle events and decide:
+- `files.missing`: keep your data; the file may come back.
+- `files.recovered`: clear any missing markers.
+- `files.moved`: the `file_id` is unchanged and the path has changed. Keep data keyed by `file_id`; refresh any cached path.
+- `files.deleted`: the file is in Trash and may be restored. Do not delete your data.
+- `files.purged`: delete your data; the file will not come back.
 
-- `files.missing` — keep your data; the file might come back. Mark as missing to gray it out in your UI.
-- `files.recovered` — clear your missing markers.
-- `files.moved` — the file's `file_id` is unchanged but its path changed. Keep all data attached to the `file_id`; do not treat it as a delete + add.
-- `files.purged` — drop your data; the file will not come back.
-
-Addons should not delete on `files.deleted` (Trash) — the file might be restored. Wait for `files.purged`. Note that an out-of-band move emits `files.moved`, **not** `files.missing` followed by a fresh insert, so addons that key off `file_id` need no special handling; addons that cache paths must refresh them on `files.moved`.
-
-## Operational notes
-
-- The 30-day trash retention is fixed in code today.
-- Hard delete (`DELETE /api/files/{id}?purge=true`) is irreversible.
-- Restoring a missing file via re-upload preserves all linked data because the row is the same row.
-- The `restore_file()` helper clears both flags so a half-trashed-half-missing edge case never sticks around.
+`files.*` payloads carry `file_ids` only, with no `drive`. The core applies each listener's per-drive policy per id, so an event can arrive with some ids removed. See [configuration: event-hooks.json](configuration.md#event-hooksjson).
 
 ## See also
 
-- [Trash and missing files](../user-guide/trash-and-missing.md) — the user-facing view.
-- [WebSocket events](websocket-events.md) — for the lifecycle event names and payloads.
+- [Trash and missing files](../user-guide/trash-and-missing.md): what viewers see.
+- [WebSocket events](websocket-events.md): event names and payloads.

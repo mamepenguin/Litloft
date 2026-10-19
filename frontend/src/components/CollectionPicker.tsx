@@ -5,7 +5,9 @@ import { Library, Plus, X } from "lucide-react";
 
 import { useTranslations } from "next-intl";
 import { addCollectionItems, createCollection, getCollections } from "@/lib/api";
+import { useImeKeyGuard } from "@/lib/ime";
 import type { CollectionSummary } from "@/types";
+import { Button } from "@/components/Button";
 
 interface CollectionPickerProps {
   open: boolean;
@@ -17,6 +19,7 @@ interface CollectionPickerProps {
 export function CollectionPicker({ open, drive, fileIds, onClose }: CollectionPickerProps) {
   const t = useTranslations("collection");
   const tc = useTranslations("common");
+  const ime = useImeKeyGuard();
   const [collections, setCollections] = useState<CollectionSummary[]>([]);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
@@ -97,20 +100,23 @@ export function CollectionPicker({ open, drive, fileIds, onClose }: CollectionPi
               autoFocus
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
+              onCompositionEnd={ime.onCompositionEnd}
               onKeyDown={(e) => {
+                if (ime.isImeKeystroke(e)) return;
                 if (e.key === "Enter") handleCreateAndAdd();
                 if (e.key === "Escape") { setCreating(false); setNewName(""); }
               }}
               placeholder={t("newCollectionPlaceholder")}
               className="min-w-0 flex-1 rounded-2xl bg-bg-card px-2 py-1.5 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-ring"
             />
-            <button
+            <Button
+              variant="primary"
+              size="sm"
               onClick={handleCreateAndAdd}
               disabled={adding || !newName.trim()}
-              className="rounded-2xl bg-accent px-3 py-1.5 text-sm text-white hover:bg-accent-hover disabled:opacity-50"
             >
               {tc("create")}
-            </button>
+            </Button>
           </div>
         ) : (
           <button

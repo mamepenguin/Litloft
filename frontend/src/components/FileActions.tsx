@@ -2,50 +2,111 @@
 
 import { useCallback, useRef, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Download, Move, Pencil, SquarePen, Trash2 } from "lucide-react";
 
 import { useTranslations } from "next-intl";
 import {
   deleteFile,
-  getDownloadUrl,
   moveFile,
   renameFile,
 } from "@/lib/api";
+import { copyText } from "@/lib/copyText";
+import {
+  ANCHORED_VERTICAL,
+  useAnchoredDirection,
+} from "@/hooks/useAnchoredDirection";
+import { useFileMenuItems } from "@/hooks/useFileMenuItems";
+import { useShortcuts } from "@/hooks/useShortcuts";
+import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 import type { FileItem } from "@/types";
+import { ActionMenuItem } from "./ActionMenuItem";
+import { DismissScrim } from "./DismissScrim";
+import { useDialogPortalTarget } from "./DialogPortal";
+import { AddonSlot } from "./AddonSlot";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { CopyIdDialog } from "./CopyIdDialog";
 import { RenameDialog } from "./RenameDialog";
 import { MoveDialog } from "./MoveDialog";
+import { CollectionPicker } from "./CollectionPicker";
+import { useToast } from "./ToastProvider";
+
+/**
+ * The gap is part of the room the menu needs, so it belongs inside the
+ * comparison: without it a menu whose height lands in the last 4px of the
+ * space below is kept downward and its final pixels sit past the edge.
+ */
+export const MENU_GAP_PX = ANCHORED_VERTICAL[1].px;
 
 interface FileActionsProps {
   file: FileItem;
   onUpdate?: () => void;
   onDelete?: () => void;
   onEdit?: () => void;
+  /**
+   * The opt-in that renders the `file-actions-menu` slot at all: an entry
+   * cannot do anything useful without knowing which file it is acting on.
+   */
+  addonProps?: Record<string, unknown>;
 }
 
-export function FileActions({ file, onUpdate, onDelete, onEdit }: FileActionsProps) {
+export function FileActions({
+  file,
+  onUpdate,
+  onDelete,
+  onEdit,
+  addonProps,
+}: FileActionsProps) {
   const t = useTranslations("file");
-  const tc = useTranslations("common");
   const tt = useTranslations("trash");
   const [menuOpen, setMenuOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [collectionPickerOpen, setCollectionPickerOpen] = useState(false);
+  const [addonDialogOpen, setAddonDialogOpen] = useState(false);
+  const [copyIdOpen, setCopyIdOpen] = useState(false);
+  const toast = useToast();
+  const dialogHost = useDialogPortalTarget();
   const [error, setError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-
-  const anyDialogOpen = renameOpen || moveOpen || deleteOpen;
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuBoxRef = useRef<HTMLDivElement>(null);
+  const { openUp, side } = useAnchoredDirection({
+    triggerRef: menuRef,
+    panelRef: menuBoxRef,
+    open: menuOpen,
+    gapPx: MENU_GAP_PX,
+  });
 
   useEffect(() => {
-    if (!menuOpen || anyDialogOpen) return;
-    function handleClick(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [menuOpen, anyDialogOpen]);
+    // Set by an addon in another repository. Clearing it here means a caller
+    // that forgets `onDialogOpenChange(false)` cannot strand `anyDialogOpen`
+    // at true and leave the menu unclosable.
+    if (!menuOpen) setAddonDialogOpen(false);
+  }, [menuOpen]);
+
+  const anyDialogOpen =
+    renameOpen || moveOpen || deleteOpen || addonDialogOpen;
+
+  // On the stack, not on `document`: the menu can open a dialog, and two
+  // listeners would answer one press.
+  useShortcuts(
+    "file-actions-menu",
+    "Dialog",
+    [
+      {
+        key: "escape",
+        label: "Close",
+        editingOnly: false,
+        hidden: true,
+        handler: () => {
+          setMenuOpen(false);
+          triggerRef.current?.focus();
+        },
+      },
+    ],
+    menuOpen && !anyDialogOpen,
+    OVERLAY_PRIORITY,
+  );
 
   useEffect(() => {
     if (error) {
@@ -53,11 +114,6 @@ export function FileActions({ file, onUpdate, onDelete, onEdit }: FileActionsPro
       return () => clearTimeout(timer);
     }
   }, [error]);
-
-  const handleDownload = useCallback(() => {
-    setMenuOpen(false);
-    window.open(getDownloadUrl(file.id), "_blank");
-  }, [file.id]);
 
   const handleRename = useCallback(
     async (newName: string) => {
@@ -95,57 +151,113 @@ export function FileActions({ file, onUpdate, onDelete, onEdit }: FileActionsPro
     }
   }, [file.id, onDelete, t]);
 
-  const menuItems = [
-    ...(onEdit ? [{
-      icon: SquarePen,
-      label: t("edit"),
-      onClick: () => {
-        setMenuOpen(false);
-        onEdit();
-      },
-    }] : []),
-    {
-      icon: Download,
-      label: tc("download"),
-      onClick: handleDownload,
+  const handleCopyId = useCallback(async () => {
+    if (await copyText(file.id)) {
+      toast.success(t("idCopied"));
+    } else {
+      setCopyIdOpen(true);
+    }
+  }, [file.id, toast, t]);
+
+  // Each handler closes the menu first: the dialogs portal out of this
+  // subtree, and leaving it open would stack a menu over them.
+  const menuItems = useFileMenuItems(file, {
+    onEdit: onEdit
+      ? () => {
+          setMenuOpen(false);
+          onEdit();
+        }
+      : undefined,
+    onAddToCollection: () => {
+      setMenuOpen(false);
+      setCollectionPickerOpen(true);
     },
-    {
-      icon: Pencil,
-      label: tc("rename"),
-      onClick: () => {
-        setMenuOpen(false);
-        setRenameOpen(true);
-      },
+    onCopyId: () => {
+      setMenuOpen(false);
+      void handleCopyId();
     },
-    {
-      icon: Move,
-      label: tc("move"),
-      onClick: () => {
-        setMenuOpen(false);
-        setMoveOpen(true);
-      },
+    onRename: () => {
+      setMenuOpen(false);
+      setRenameOpen(true);
     },
-    {
-      icon: Trash2,
-      label: tt("moveToTrash"),
-      onClick: () => {
-        setMenuOpen(false);
-        setDeleteOpen(true);
-      },
-      danger: true,
+    onMove: () => {
+      setMenuOpen(false);
+      setMoveOpen(true);
     },
-  ];
+    onTrash: () => {
+      setMenuOpen(false);
+      setDeleteOpen(true);
+    },
+  });
+
+  const menu = (
+    <div
+      ref={menuBoxRef}
+      role="menu"
+      className={`absolute z-30 w-40 overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-lg ${
+        ANCHORED_VERTICAL[1][openUp ? "up" : "down"]
+      } ${side === "left" ? "left-0" : "right-0"}`}
+    >
+      {menuItems.map((item) => (
+        <ActionMenuItem
+          key={item.label}
+          icon={item.icon}
+          label={item.label}
+          onClick={item.onClick}
+          disabled={item.disabled}
+          danger={item.danger}
+        />
+      ))}
+      {addonProps && (
+        /* `empty:hidden` carries the separator: an entry that claims this
+           slot may still render nothing for a given file.
+
+           An entry here must NOT close the menu when it opens a
+           dialog: closing unmounts this subtree, taking the dialog
+           with it. Entries report it through `onDialogOpenChange` and
+           call `onRequestClose` only once the dialog is dismissed. */
+        <div
+          role="none"
+          className="mt-1 border-t border-bg-border pt-1 empty:hidden"
+        >
+          <AddonSlot
+            id="file-actions-menu"
+            layout="stack"
+            props={{
+              ...addonProps,
+              onRequestClose: () => {
+                setAddonDialogOpen(false);
+                setMenuOpen(false);
+                // The entry that had focus is about to unmount with
+                // the menu; without this, focus lands on <body>.
+                triggerRef.current?.focus();
+              },
+              onDialogOpenChange: setAddonDialogOpen,
+            }}
+          />
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <>
       <div ref={menuRef} className="relative">
         <button
+          ref={triggerRef}
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             setMenuOpen((prev) => !prev);
           }}
-          className="rounded-lg p-1.5 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+          // The touch floor on the control, because the row's rule cannot
+          // reach it: `.file-action-row-touch > *` grows the *direct child*,
+          // and this button sits inside the `.relative` wrapper the menu
+          // needs. `p-1.5` has no `display`, so `h-11 w-11` alone would leave
+          // the glyph against the left padding edge.
+          className="inline-flex items-center justify-center rounded-lg p-1.5 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary pointer-coarse:h-11 pointer-coarse:w-11"
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
           aria-label={t("actions")}
         >
           <svg
@@ -161,36 +273,34 @@ export function FileActions({ file, onUpdate, onDelete, onEdit }: FileActionsPro
         </button>
 
         {menuOpen && (
-          <div className="absolute right-0 top-full z-30 mt-1 w-40 overflow-hidden rounded-lg border border-bg-border bg-bg-card shadow-lg">
-            {menuItems.map((item) => (
-              <button
-                key={item.label}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  item.onClick();
-                }}
-                className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
-                  item.danger
-                    ? "text-danger hover:bg-accent/10"
-                    : "text-text-muted hover:bg-bg-elevated hover:text-text-primary"
-                }`}
-              >
-                <item.icon size={14} />
-                {item.label}
-              </button>
-            ))}
-          </div>
+          <DismissScrim
+            onDismiss={() => setMenuOpen(false)}
+            // Disabled while a dialog raised from this menu is up: the dialog
+            // portals out of this subtree, and the scrim counts any press
+            // outside the menu as a dismissal.
+            disabled={anyDialogOpen}
+            className="fixed inset-0 z-30"
+          >
+            {menu}
+          </DismissScrim>
         )}
 
         {error && (
-          <div className="absolute right-0 top-full z-30 mt-1 whitespace-nowrap rounded-2xl bg-danger px-3 py-1.5 text-xs text-white">
+          <div
+            /* This box does not wrap, so its width is whatever the message
+               is: on a trigger near its column's left edge a `right-0` toast
+               crosses exactly the edge the side decision exists to keep the
+               menu inside. */
+            className={`absolute z-30 whitespace-nowrap rounded-2xl bg-danger px-3 py-1.5 text-xs text-white ${
+              ANCHORED_VERTICAL[1][openUp ? "up" : "down"]
+            } ${side === "left" ? "left-0" : "right-0"}`}
+          >
             {error}
           </div>
         )}
       </div>
 
-      {renameOpen &&
+      {renameOpen && dialogHost &&
         createPortal(
           <RenameDialog
             open={renameOpen}
@@ -198,10 +308,10 @@ export function FileActions({ file, onUpdate, onDelete, onEdit }: FileActionsPro
             onRename={handleRename}
             onCancel={() => setRenameOpen(false)}
           />,
-          document.body
+          dialogHost
         )}
 
-      {moveOpen &&
+      {moveOpen && dialogHost &&
         createPortal(
           <MoveDialog
             open={moveOpen}
@@ -210,10 +320,33 @@ export function FileActions({ file, onUpdate, onDelete, onEdit }: FileActionsPro
             onMove={handleMove}
             onCancel={() => setMoveOpen(false)}
           />,
-          document.body
+          dialogHost
         )}
 
-      {deleteOpen &&
+      {/* Opened from inside the mobile Bottom Sheet, a dialog rendered in
+          place is buried by the sheet it was opened from. */}
+      {collectionPickerOpen && dialogHost &&
+        createPortal(
+          <CollectionPicker
+            open={collectionPickerOpen}
+            drive={file.drive}
+            fileIds={[file.id]}
+            onClose={() => setCollectionPickerOpen(false)}
+          />,
+          dialogHost
+        )}
+
+      {copyIdOpen && dialogHost &&
+        createPortal(
+          <CopyIdDialog
+            open={copyIdOpen}
+            fileId={file.id}
+            onClose={() => setCopyIdOpen(false)}
+          />,
+          dialogHost
+        )}
+
+      {deleteOpen && dialogHost &&
         createPortal(
           <ConfirmDialog
             open={deleteOpen}
@@ -224,7 +357,7 @@ export function FileActions({ file, onUpdate, onDelete, onEdit }: FileActionsPro
             onCancel={() => setDeleteOpen(false)}
             note={tt("autoDelete")}
           />,
-          document.body
+          dialogHost
         )}
     </>
   );

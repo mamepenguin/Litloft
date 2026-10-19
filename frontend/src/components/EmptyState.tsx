@@ -1,9 +1,38 @@
 "use client";
 
-import { Clock, File, FilePlus, Search, RefreshCw, Star, Trash2 } from "lucide-react";
+import { AlertTriangle, File, FilePlus, History, Home, Search, RefreshCw, Star, Tag, ThumbsUp, Trash2 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
+import Link from "next/link";
 
-type EmptyVariant = "no-files" | "no-results" | "needs-scan" | "no-favorites" | "no-recent" | "no-recent-profile" | "no-recent-added" | "no-trash";
+import { Button, buttonClass } from "./Button";
+
+/**
+ * Exported so a test can draw every one of them.
+ *
+ * A union type cannot be enumerated at runtime, which is why three of these
+ * were covered and seven were not — and why a key renamed here but not in the
+ * catalogue reached `develop` with the suite green. The array is the single
+ * source: `EmptyVariant` is derived from it, so a variant cannot be added to
+ * one and missed by the other.
+ */
+export const EMPTY_VARIANTS = [
+  "no-files",
+  "no-results",
+  "needs-scan",
+  "no-favorites",
+  "no-liked",
+  "no-recent",
+  "no-recent-profile",
+  "no-recent-added",
+  "no-tag-matches",
+  "no-trash",
+  "no-home-activity",
+  "home-unavailable",
+] as const;
+
+export type EmptyVariant = (typeof EMPTY_VARIANTS)[number];
 
 const variantConfig: Record<
   EmptyVariant,
@@ -29,13 +58,18 @@ const variantConfig: Record<
     titleKey: "noFavoritesTitle",
     descriptionKey: "noFavoritesDescription",
   },
+  "no-liked": {
+    icon: ThumbsUp,
+    titleKey: "noLikedTitle",
+    descriptionKey: "noLikedDescription",
+  },
   "no-recent": {
-    icon: Clock,
+    icon: History,
     titleKey: "noRecentTitle",
     descriptionKey: "noRecentDescription",
   },
   "no-recent-profile": {
-    icon: Clock,
+    icon: History,
     titleKey: "noRecentNoProfileTitle",
     descriptionKey: "noRecentNoProfileDescription",
   },
@@ -44,35 +78,157 @@ const variantConfig: Record<
     titleKey: "noRecentAddedTitle",
     descriptionKey: "noRecentAddedDescription",
   },
+  "no-tag-matches": {
+    icon: Tag,
+    titleKey: "noTagMatchesTitle",
+    descriptionKey: "noTagMatchesDescription",
+  },
   "no-trash": {
     icon: Trash2,
     titleKey: "noTrashTitle",
     descriptionKey: "noTrashDescription",
   },
+  "no-home-activity": {
+    icon: Home,
+    titleKey: "noHomeActivityTitle",
+    descriptionKey: "noHomeActivityDescription",
+  },
+  // Not an empty state, and it shares this component on purpose: the two
+  // are alternatives in the same place, and a screen that draws one of
+  // them from a different recipe drifts from the other.
+  "home-unavailable": {
+    icon: AlertTriangle,
+    titleKey: "homeUnavailableTitle",
+    descriptionKey: "homeUnavailableDescription",
+  },
 };
 
-export function EmptyState({
-  variant,
-  action,
-}: {
+/**
+ * Something to do, or somewhere to go.
+ *
+ * The two are not interchangeable: a destination rendered as a `<button>`
+ * cannot be middle-clicked, copied, or opened in a new tab.
+ */
+export type EmptyStateAction =
+  | { label: string; onClick: () => void; href?: never; newTab?: never; download?: never }
+  /**
+   * A destination. `newTab` and `download` are what separate a route from
+   * a file: a route belongs to the router and gets `next/link`, and the
+   * file endpoints must not, because `<Link>` prefetches an internal href
+   * on sight — which for `/api/files/{id}/stream` means fetching the file
+   * body when the empty state scrolls into view.
+   */
+  | {
+      label: string;
+      href: string;
+      onClick?: never;
+      newTab?: boolean;
+      download?: boolean;
+    };
+
+interface BaseProps {
+  /**
+   * The one accent-filled button, when the empty state has something to
+   * offer. Singular by type: DESIGN.md §2.2 allows one accent fill per
+   * screen.
+   */
+  primaryAction?: EmptyStateAction;
+  /** Outlined buttons beside it. Rendered after the primary one. */
+  secondaryActions?: readonly EmptyStateAction[];
+}
+
+/** Core screens name a variant and get core's own copy. */
+interface VariantProps extends BaseProps {
   variant: EmptyVariant;
-  action?: { label: string; onClick: () => void };
-}) {
+  icon?: never;
+  title?: never;
+  description?: never;
+}
+
+/**
+ * Addons pass their own strings.
+ *
+ * An addon cannot use a `variant`: its copy lives in its own catalogue
+ * (`.claude/rules/frontend-conventions.md` — "addon translation keys must only
+ * live in that addon's `frontend/messages/`"), and adding a variant per addon
+ * would put the addon's vocabulary into core, which
+ * `.claude/rules/internal-api-policy.md` R2 exists to prevent. Nothing here
+ * names an addon or a feature; it takes a title and an icon.
+ */
+interface DirectProps extends BaseProps {
+  variant?: never;
+  icon: LucideIcon;
+  title: ReactNode;
+  description?: ReactNode;
+}
+
+export type EmptyStateProps = VariantProps | DirectProps;
+
+function renderAction(action: EmptyStateAction, variant: "primary" | "secondary") {
+  if (action.href === undefined) {
+    return (
+      <Button key={action.label} variant={variant} onClick={action.onClick}>
+        {action.label}
+      </Button>
+    );
+  }
+  const className = buttonClass({ variant });
+  // A file, not a route: a bare anchor, so nothing prefetches it, and
+  // `rel` because `target="_blank"` without it hands the opened page a
+  // `window.opener`.
+  return action.newTab || action.download ? (
+    <a
+      key={action.label}
+      href={action.href}
+      className={className}
+      {...(action.newTab ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+      {...(action.download ? { download: true } : {})}
+    >
+      {action.label}
+    </a>
+  ) : (
+    <Link key={action.label} href={action.href} className={className}>
+      {action.label}
+    </Link>
+  );
+}
+
+export function EmptyState(props: EmptyStateProps) {
   const t = useTranslations("empty");
-  const { icon: Icon, titleKey, descriptionKey } = variantConfig[variant];
+  const { primaryAction, secondaryActions } = props;
+
+  let Icon: LucideIcon;
+  let title: ReactNode;
+  let description: ReactNode;
+
+  if (props.variant !== undefined) {
+    const config = variantConfig[props.variant];
+    Icon = config.icon;
+    title = t(config.titleKey);
+    description = t(config.descriptionKey);
+  } else {
+    Icon = props.icon;
+    title = props.title;
+    description = props.description;
+  }
 
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
-      <Icon size={48} className="mb-4 text-text-muted" />
-      <h2 className="text-lg font-semibold text-text-primary">{t(titleKey)}</h2>
-      <p className="mt-1 text-sm text-text-muted">{t(descriptionKey)}</p>
-      {action && (
-        <button
-          onClick={action.onClick}
-          className="mt-4 rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
-        >
-          {action.label}
-        </button>
+      {/* Explicit, unlike `PageTabs`, and for the same reason as `PageHeader`:
+          the icon sits outside the `<h2>`, so no accessible-name assertion can
+          reach it and `aria-hidden` is the only thing that governs whether it
+          is announced. `PageTabs` can leave this to lucide-react because its
+          icon is inside the link, where the link's name is the real check. */}
+      <Icon size={48} className="mb-4 text-text-muted" aria-hidden="true" />
+      <h2 className="text-lg font-semibold text-text-primary">{title}</h2>
+      {description !== undefined && description !== null && (
+        <p className="mt-1 max-w-prose text-sm text-text-muted">{description}</p>
+      )}
+      {(primaryAction || (secondaryActions && secondaryActions.length > 0)) && (
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+          {primaryAction && renderAction(primaryAction, "primary")}
+          {secondaryActions?.map((action) => renderAction(action, "secondary"))}
+        </div>
       )}
     </div>
   );

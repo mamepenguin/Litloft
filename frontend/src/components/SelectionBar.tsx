@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState, type ComponentType } from "react";
 import {
   Check,
   ClipboardCopy,
   ListMusic,
+  MoreHorizontal,
   Move,
   Pencil,
   RotateCcw,
@@ -16,11 +17,31 @@ import {
 import { useTranslations } from "next-intl";
 
 import { batchDelete, batchGetFiles, batchMove, batchPurge, batchRestore, batchTag } from "@/lib/api";
+import { useImeKeyGuard } from "@/lib/ime";
+import { ActionMenuItem } from "./ActionMenuItem";
 import { BatchRenameDialog } from "./BatchRenameDialog";
+import { Button } from "./Button";
 import { useClipboard } from "./ClipboardProvider";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { DismissScrim } from "./DismissScrim";
 import { MoveDialog } from "./MoveDialog";
 import { CollectionPicker } from "./CollectionPicker";
+
+export interface BulkAction {
+  id: string;
+  icon: ComponentType<{ size?: number }>;
+  label: string;
+  displayLabel?: string;
+  onClick: () => void;
+  danger?: boolean;
+  startsGroup?: boolean;
+  /**
+   * Named rather than counted: the two that stay are not adjacent — the
+   * list's order serves the desktop grouping, which a "first two" rule
+   * would have to break.
+   */
+  keepOnBar?: boolean;
+}
 
 interface SelectionBarProps {
   count: number;
@@ -32,6 +53,17 @@ interface SelectionBarProps {
   onSelectAll: () => void;
   onClear: () => void;
   onComplete: () => void;
+}
+
+export function groupSurvivesNarrow(
+  actions: ReadonlyArray<Pick<BulkAction, "startsGroup" | "keepOnBar">>,
+  index: number,
+): boolean {
+  for (let i = index; i < actions.length; i++) {
+    if (i > index && actions[i].startsGroup) break;
+    if (actions[i].keepOnBar) return true;
+  }
+  return false;
 }
 
 export function SelectionBar({
@@ -50,6 +82,7 @@ export function SelectionBar({
   const tc = useTranslations("common");
   const tcb = useTranslations("clipboard");
   const tt = useTranslations("trash");
+  const ime = useImeKeyGuard();
   const clipboard = useClipboard();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
@@ -59,6 +92,8 @@ export function SelectionBar({
   const [tagging, setTagging] = useState(false);
   const [collectionPickerOpen, setCollectionPickerOpen] = useState(false);
   const [purgeOpen, setPurgeOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLButtonElement>(null);
 
   if (count === 0) return null;
 
@@ -142,19 +177,133 @@ export function SelectionBar({
     onComplete();
   }
 
+  const actions: BulkAction[] = isTrashView
+    ? [
+        {
+          id: "restore",
+          icon: RotateCcw,
+          label: tt("restore"),
+          onClick: handleBatchRestore,
+          keepOnBar: true,
+        },
+        {
+          id: "purge",
+          icon: Trash2,
+          label: tt("purge"),
+          onClick: () => setPurgeOpen(true),
+          danger: true,
+          startsGroup: true,
+          keepOnBar: true,
+        },
+      ]
+    : [
+        {
+          id: "tag",
+          icon: Tag,
+          label: t("tagging"),
+          displayLabel: t("tag"),
+          onClick: () => setTagging(true),
+          keepOnBar: true,
+        },
+        {
+          id: "rename",
+          icon: Pencil,
+          label: t("rename"),
+          onClick: handleOpenRename,
+        },
+        {
+          id: "collection",
+          icon: ListMusic,
+          label: tf("addToCollection"),
+          displayLabel: t("collection"),
+          onClick: () => setCollectionPickerOpen(true),
+          startsGroup: true,
+        },
+        {
+          id: "copy",
+          icon: ClipboardCopy,
+          label: tcb("copy"),
+          onClick: () => {
+            clipboard.copy(ids, drive, currentPath ?? "");
+            onClear();
+          },
+        },
+        {
+          id: "cut",
+          icon: Scissors,
+          label: tcb("cut"),
+          onClick: () => {
+            clipboard.cut(ids, drive, currentPath ?? "");
+            onClear();
+          },
+        },
+        {
+          id: "move",
+          icon: Move,
+          label: tc("move"),
+          onClick: () => setMoveOpen(true),
+          keepOnBar: true,
+        },
+        {
+          id: "trash",
+          icon: Trash2,
+          label: tt("moveToTrash"),
+          onClick: () => setDeleteOpen(true),
+          danger: true,
+          startsGroup: true,
+        },
+      ];
+
+  const inOverflow = actions.filter((a) => !a.keepOnBar);
+
+  const closeMore = () => {
+    setMoreOpen(false);
+    // The row that was focused unmounts with the menu; without this, focus
+    // lands on <body>.
+    moreRef.current?.focus();
+  };
+
+  const overflowMenu =
+    moreOpen && inOverflow.length > 0 ? (
+      <DismissScrim
+        onDismiss={closeMore}
+        className="fixed inset-0 z-20 sm:hidden"
+      >
+        {/* `right-3` pins it to the card's right edge rather than to the
+            trigger: following the trigger means computing a position again,
+            which is what put this menu inside the clipping card. */}
+        <div
+          role="menu"
+          className="absolute bottom-full right-3 z-30 mb-2 min-w-[200px] rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:hidden"
+        >
+          {inOverflow.map((action) => (
+            <ActionMenuItem
+              key={action.id}
+              icon={action.icon}
+              label={action.label}
+              danger={action.danger}
+              onClick={() => {
+                closeMore();
+                action.onClick();
+              }}
+            />
+          ))}
+        </div>
+      </DismissScrim>
+    ) : null;
+
   return (
     <>
       <div
         className="fixed bottom-0 left-0 right-0 z-50 animate-slide-up-bar"
-        // PWA safe-area: viewport-fit=cover (layout.tsx) means the
-        // viewport extends under the iOS home indicator. Without
-        // this padding the bulk-action bar would tuck partially
-        // under the home-bar and become unreachable.
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
-        <div className="mx-auto max-w-3xl px-3 pb-3 sm:pb-4">
+        {/* `relative` here, one level *outside* the card. The card is
+            `overflow-hidden` for its rounded corners, and an `absolute` box
+            does not escape an ancestor's clip the way a `fixed` one does. */}
+        <div className="relative mx-auto max-w-3xl px-3 pb-3 sm:pb-4">
+          {overflowMenu}
           <div className="overflow-hidden rounded-2xl bg-bg-card shadow-lg ring-1 ring-bg-border">
-            {/* Header row: count + select all + close */}
             <div className="flex items-center gap-3 border-b border-bg-border px-4 py-2.5">
               <div className="flex items-center gap-2">
                 <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-accent/15 px-2 text-xs font-semibold tabular-nums text-accent">
@@ -184,110 +333,65 @@ export function SelectionBar({
               </button>
             </div>
 
-            {/* Actions row */}
-            <div className="scrollbar-hide flex items-center gap-1 overflow-x-auto px-2 py-2">
-              {isTrashView ? (
-                <>
-                  <ActionButton
-                    icon={<RotateCcw size={15} />}
-                    label={tt("restore")}
-                    onClick={handleBatchRestore}
-                  />
-                  <ActionDivider />
-                  <ActionButton
-                    icon={<Trash2 size={15} />}
-                    label={tt("purge")}
-                    onClick={() => setPurgeOpen(true)}
-                    variant="danger"
-                  />
-                </>
-              ) : (
-                <>
-                  {/* Edit group */}
-                  {tagging ? (
-                    <div className="flex items-center gap-1.5 rounded-2xl bg-bg-elevated px-2 py-1">
+            <div className="flex items-center gap-1 px-2 py-2">
+              {actions.map((action, index) => {
+                if (action.id === "tag" && tagging) {
+                  return (
+                    <div
+                      key={action.id}
+                      className="flex items-center gap-1.5 rounded-2xl bg-bg-elevated px-2 py-1"
+                    >
                       <Tag size={14} className="shrink-0 text-text-muted" />
                       <input
                         type="text"
                         autoFocus
                         value={tagInput}
                         onChange={(e) => setTagInput(e.target.value)}
+                        onCompositionEnd={ime.onCompositionEnd}
                         onKeyDown={(e) => {
+                          if (ime.isImeKeystroke(e)) return;
                           if (e.key === "Enter") handleBatchTag();
                           if (e.key === "Escape") setTagging(false);
                         }}
                         placeholder="tag1, tag2..."
                         className="w-24 bg-transparent text-sm text-text-primary placeholder:text-text-muted/60 outline-none sm:w-36"
                       />
-                      <button
-                        onClick={handleBatchTag}
-                        className="shrink-0 rounded-2xl bg-accent px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-accent-hover"
-                      >
+                      {/* Not an accent fill. This bar floats over a folder,
+                          whose Add button already holds the screen's one. */}
+                      <Button variant="secondary" size="sm" onClick={handleBatchTag}>
                         {tc("apply")}
-                      </button>
-                      <button
+                      </Button>
+                      <Button
+                        iconOnly
+                        variant="ghost"
+                        aria-label={tc("cancel")}
                         onClick={() => setTagging(false)}
-                        className="shrink-0 rounded-lg p-0.5 text-text-muted hover:text-text-primary"
                       >
                         <X size={14} />
-                      </button>
+                      </Button>
                     </div>
-                  ) : (
-                    <ActionButton
-                      icon={<Tag size={15} />}
-                      label={t("tagging")}
-                      displayLabel={t("tag")}
-                      onClick={() => setTagging(true)}
-                    />
-                  )}
+                  );
+                }
+                return (
+                  <ActionButton
+                    key={action.id}
+                    action={action}
+                    keepDividerNarrow={groupSurvivesNarrow(actions, index)}
+                  />
+                );
+              })}
 
-                  <ActionButton
-                    icon={<Pencil size={15} />}
-                    label={t("rename")}
-                    onClick={handleOpenRename}
-                  />
-
-                  <ActionDivider />
-
-                  {/* Organize group */}
-                  <ActionButton
-                    icon={<ListMusic size={15} />}
-                    label={tf("addToCollection")}
-                    displayLabel={t("collection")}
-                    onClick={() => setCollectionPickerOpen(true)}
-                  />
-                  <ActionButton
-                    icon={<ClipboardCopy size={15} />}
-                    label={tcb("copy")}
-                    onClick={() => {
-                      clipboard.copy(ids, drive, currentPath ?? "");
-                      onClear();
-                    }}
-                  />
-                  <ActionButton
-                    icon={<Scissors size={15} />}
-                    label={tcb("cut")}
-                    onClick={() => {
-                      clipboard.cut(ids, drive, currentPath ?? "");
-                      onClear();
-                    }}
-                  />
-                  <ActionButton
-                    icon={<Move size={15} />}
-                    label={tc("move")}
-                    onClick={() => setMoveOpen(true)}
-                  />
-
-                  <ActionDivider />
-
-                  {/* Destructive */}
-                  <ActionButton
-                    icon={<Trash2 size={15} />}
-                    label={tt("moveToTrash")}
-                    onClick={() => setDeleteOpen(true)}
-                    variant="danger"
-                  />
-                </>
+              {inOverflow.length > 0 && (
+                <button
+                  ref={moreRef}
+                  onClick={() => setMoreOpen((o) => !o)}
+                  aria-haspopup="menu"
+                  aria-expanded={moreOpen}
+                  aria-label={t("moreActions")}
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary sm:hidden"
+                >
+                  <MoreHorizontal size={16} />
+                </button>
               )}
             </div>
           </div>
@@ -338,36 +442,45 @@ export function SelectionBar({
   );
 }
 
+function visibility(action: BulkAction) {
+  return action.keepOnBar
+    ? { className: "", "data-bar": "always" as const }
+    : { className: "hidden sm:flex", "data-bar": "wide" as const };
+}
+
 function ActionButton({
-  icon,
-  label,
-  displayLabel,
-  onClick,
-  variant = "default",
+  action,
+  keepDividerNarrow,
 }: {
-  icon: React.ReactNode;
-  label: string;
-  displayLabel?: string;
-  onClick: () => void;
-  variant?: "default" | "danger";
+  action: BulkAction;
+  keepDividerNarrow: boolean;
 }) {
-  const colorClass =
-    variant === "danger"
-      ? "text-danger hover:bg-accent/10 active:bg-accent/15"
-      : "text-text-muted hover:bg-bg-elevated hover:text-text-primary active:bg-bg-elevated";
+  const Icon = action.icon;
+  const { className, "data-bar": bar } = visibility(action);
+  const colorClass = action.danger
+    ? "text-danger hover:bg-accent/10 active:bg-accent/15"
+    : "text-text-muted hover:bg-bg-elevated hover:text-text-primary active:bg-bg-elevated";
 
   return (
-    <button
-      onClick={onClick}
-      className={`flex shrink-0 items-center gap-1.5 rounded-2xl px-3 py-2 text-sm transition-colors ${colorClass}`}
-      aria-label={label}
-    >
-      {icon}
-      <span className="hidden sm:inline">{displayLabel ?? label}</span>
-    </button>
+    <>
+      {action.startsGroup && (
+        <ActionDivider className={keepDividerNarrow ? "" : "hidden sm:block"} />
+      )}
+      <button
+        data-bar={bar}
+        onClick={action.onClick}
+        // `min-h-11` rather than a hit-area overhang: these sit shoulder to
+        // shoulder, and adjacent pseudo-elements overlap, the later one winning.
+        className={`flex shrink-0 items-center gap-1.5 rounded-2xl px-3 py-2 text-sm transition-colors pointer-coarse:min-h-11 ${colorClass} ${className}`}
+        aria-label={action.label}
+      >
+        <Icon size={15} />
+        <span>{action.displayLabel ?? action.label}</span>
+      </button>
+    </>
   );
 }
 
-function ActionDivider() {
-  return <div className="mx-0.5 h-5 w-px shrink-0 bg-bg-border" />;
+function ActionDivider({ className = "" }: { className?: string }) {
+  return <div className={`mx-0.5 h-5 w-px shrink-0 bg-bg-border ${className}`} />;
 }

@@ -1,24 +1,20 @@
 #!/usr/bin/env python3
 """Litloft interactive setup — bootstrap-only.
 
-Generates the *physical wiring* needed to bring the containers up:
-docker-compose.override.yml (host mounts / addon services / env),
-.env (port / generated secrets / optional API key), an empty
-``drives.json`` (footgun guard — see below), event-hooks.json, and (when
-intelligence is enabled) a verbatim copy of search-config.yml.example.
-
 It deliberately does NOT ask for drive display names, access groups,
 passwords, per-drive addon policy, or AI feature modes. Those are logical
 settings owned by the first-run wizard at ``/setup`` and the running-app
 editor at ``/admin/settings``.
 
-drives.json and passwords.json are always written as an empty ``[]``. The
-single-file bind-mounts ``./drives.json:/app/drives.json`` and
+drives.json and passwords.json are written as an empty ``[]`` when absent.
+The single-file bind-mounts ``./drives.json:/app/drives.json`` and
 ``./passwords.json:/app/passwords.json`` mean an absent host file makes
 Docker create a *directory* there, which the backend cannot read or
 write. Writing ``[]`` keeps each a real, writable file; the backend seeds
 logical drive entries from the mount directories on startup, and the
-wizard / admin settings own passwords from then on. An empty
+wizard / admin settings own their contents from then on. An existing
+passwords.json is never overwritten; once ``data/setup_completed`` exists,
+neither is an existing drives.json or search-config.yml. An empty
 ``passwords.json`` is semantically identical to "no passwords" (every
 drive public, graceful degradation). The override.yml mounts
 passwords.json **read-write** (``:ro`` is incompatible with GUI writes).
@@ -29,8 +25,6 @@ must run on first launch (it now owns logical configuration).
 
 import json, os, re, shutil, subprocess, sys
 from pathlib import Path
-
-# ── Colors ────────────────────────────────────────────────────────────────────
 
 _tty = sys.stdout.isatty()
 GREEN  = '\033[0;32m' if _tty else ''
@@ -43,8 +37,6 @@ def heading(text): print(f"\n{BOLD}{BLUE}━━  {text}{RESET}\n")
 def ok(msg):       print(f"  {GREEN}✓{RESET}  {msg}")
 def warn(msg):     print(f"  {YELLOW}!{RESET}  {msg}")
 def info(msg):     print(f"  {BLUE}→{RESET}  {msg}")
-
-# ── Prompt helpers ────────────────────────────────────────────────────────────
 
 def ask(prompt, default=''):
     disp = f"  {prompt} [{BOLD}{default}{RESET}]: " if default != '' else f"  {prompt}: "
@@ -77,6 +69,37 @@ def check_overwrite(path):
     if path.exists():
         return ask_yn(f"{YELLOW}{path.name}{RESET} already exists. Overwrite?", 'n')
     return True
+
+
+def kept_without_asking(path: Path, protected: bool) -> bool:
+    """An existing file whose contents belong to /setup and /admin/settings.
+
+    Only the bind-mount footgun guard needs configure.py to write these, and
+    an absent file is all that guard covers.
+    """
+    return protected and path.exists()
+
+def addon_declares_secret_env(base: Path, addon_name: str, var: str) -> bool:
+    """Does this addon's manifest ask core to send `var` as X-Webhook-Secret?
+
+    Emitting the variable when the manifest does not declare `secret_env`
+    is the one combination that breaks: the addon starts rejecting, core
+    keeps sending unauthenticated requests, and every webhook 403s with no
+    other symptom. Asking the manifest makes the two halves impossible to
+    get out of step — including against a submodule pinned to an older
+    commit, where the declaration is simply absent and no secret is
+    written.
+    """
+    manifest_path = base / 'addons' / addon_name / 'manifest.json'
+    if not manifest_path.exists():
+        return False
+    try:
+        manifest = json.loads(manifest_path.read_text())
+    except Exception:
+        return False
+    hooks = manifest.get('event_hooks') or []
+    return bool(hooks) and all(h.get('secret_env') == var for h in hooks)
+
 
 def generate_event_hooks(base: Path, enabled_addons: list) -> bool:
     """Build event-hooks.json from the event_hooks field in each enabled addon's manifest.
@@ -119,8 +142,7 @@ def ensure_submodules_initialized(base: Path) -> None:
     empty directories. If configure.py then writes a single-file bind-mount
     (e.g. `./addons/intelligence/search-config.yml:/app/search-config.yml`)
     whose source does not exist on the host, Docker silently creates the
-    bind-mount source as a *directory* — the single-file bind-mount footgun
-    documented in design-decisions.md. Initializing here keeps the happy
+    bind-mount source as a *directory*. Initializing here keeps the happy
     path working when the clone was incomplete.
     """
     addon_dirs = ['addons/intelligence', 'addons/knowledge',
@@ -173,23 +195,25 @@ def write_env_key(key, value, env_path):
     with env_path.open('a') as f:
         f.write(f'{key}={value}\n')
 
-# ── Read existing physical config (mounts / port only) ────────────────────────
-
 class ExistingConfig:
     """Minimal reuse of the previous *physical* wiring.
 
-    Only host_path + slug per drive and the port are reused. Logical
-    settings (names / groups / passwords / AI) are no longer owned here, so
-    they are not read back.
+    Per drive, only slug + host_path; beyond that the port, the generated
+    secrets and which addon services and keys are already wired. Logical
+    settings (drive names / groups / passwords / addon policy) are no longer
+    owned here, so they are not read back.
     """
 
     def __init__(self, base: Path):
         self.drives: list[dict] = []   # slug, host_path
         self.port = '3000'
+        self.has_override = False
         self.has_intelligence = False
         self.has_knowledge = False
         self.knowledge_webhook_secret = ''
+        self.search_webhook_secret = ''
         self.core_internal_secret = ''
+        self.setup_token = ''
         self._load(base)
 
     def _load(self, base: Path):
@@ -227,6 +251,7 @@ class ExistingConfig:
                 'host_path': host_by_slug.get(slug, ''),
             })
 
+        self.has_override = dc_f.exists()
         if dc_f.exists():
             try:
                 dc_text = dc_f.read_text()
@@ -243,17 +268,41 @@ class ExistingConfig:
                     self.port = line.split('=', 1)[1].strip()
                 elif line.startswith('KNOWLEDGE_WEBHOOK_SECRET='):
                     self.knowledge_webhook_secret = line.split('=', 1)[1].strip()
+                elif line.startswith('SEARCH_WEBHOOK_SECRET='):
+                    self.search_webhook_secret = line.split('=', 1)[1].strip()
                 elif line.startswith('CORE_INTERNAL_SECRET='):
                     self.core_internal_secret = line.split('=', 1)[1].strip()
+                elif line.startswith('LITLOFT_SETUP_TOKEN='):
+                    self.setup_token = line.split('=', 1)[1].strip()
                 elif line.startswith('LLM_API_KEY=') and line.split('=', 1)[1].strip():
                     self.has_llm_api_key = True
 
-# ── Main ──────────────────────────────────────────────────────────────────────
+def bundled_addons(base: Path) -> list[str]:
+    """Checked-out addons that load inside the backend: installed whenever present."""
+    root = base / 'addons'
+    if not root.is_dir():
+        return []
+    return sorted(
+        d.name for d in root.iterdir()
+        if d.is_dir() and (d / 'backend').is_dir() and any(d.iterdir())
+    )
+
 
 def main():
     base = Path(__file__).parent
     ensure_submodules_initialized(base)
     ex = ExistingConfig(base)
+    setup_completed = (base / 'data' / 'setup_completed').exists()
+
+    drives_file    = base / 'drives.json'
+    passwords_file = base / 'passwords.json'
+    sc_file        = base / 'addons/intelligence/search-config.yml'
+    # Before setup, re-running configure.py to reset drives.json is how the
+    # documented first-run flow reseeds changed mounts. No flow resets
+    # passwords.json, so it is kept in every state.
+    keep_drives    = kept_without_asking(drives_file, setup_completed)
+    keep_passwords = kept_without_asking(passwords_file, True)
+    keep_sc        = kept_without_asking(sc_file, setup_completed)
 
     if ex.drives:
         info(f"Existing wiring loaded ({len(ex.drives)} drive mount(s))")
@@ -263,8 +312,6 @@ def main():
     print("Drive names, passwords and AI features are configured later in")
     print("the browser at /setup.")
     print("Press Enter to accept defaults shown in [brackets].")
-
-    # ── Step 1: Drive mounts ──────────────────────────────────────────────────
 
     heading("Step 1: Drive mounts")
     print("  Each drive is a host directory mounted into the container.")
@@ -293,22 +340,23 @@ def main():
 
         drives.append({'host_path': host, 'slug': slug})
 
-    # ── Step 2: Port ──────────────────────────────────────────────────────────
-
     heading("Step 2: Port")
     port = ask("Port", ex.port)
     if not port.isdigit():
         port = '3000'
 
-    # ── Step 3: Intelligence Addon ────────────────────────────────────────────
+    # Gates the config writes /setup makes before a password exists.
+    setup_token = ex.setup_token or gen_secret()[:32]
 
     has_intelligence = False
     llm_api_key      = ''
+    search_webhook_secret = ''
     if (base / 'addons/intelligence').exists():
-        heading("Step 3: Intelligence Addon (Semantic Search + AI)")
+        heading("Step 3: Recommended foundation — Intelligence (semantic search + AI)")
         print("  Enables the intelligence service. AI features themselves are")
         print("  configured later in the browser (all off by default).")
-        has_intelligence = ask_yn("Enable intelligence addon?", 'y' if ex.has_intelligence else 'n')
+        intelligence_default = 'y' if ex.has_intelligence or not ex.has_override else 'n'
+        has_intelligence = ask_yn("Enable intelligence addon?", intelligence_default)
         if has_intelligence:
             print()
             if ex.has_llm_api_key:
@@ -323,39 +371,57 @@ def main():
                 print("  or to configure it later by editing .env.")
                 llm_api_key = ask("  LLM_API_KEY (optional, Enter to skip)", '')
 
-    # ── Step 4: Knowledge Addon ───────────────────────────────────────────────
+            # Only when the addon's manifest declares secret_env. Emitting it
+            # otherwise would gate the addon while core still sent
+            # unauthenticated requests, and every webhook would 403.
+            if addon_declares_secret_env(base, 'intelligence', 'SEARCH_WEBHOOK_SECRET'):
+                search_webhook_secret = ex.search_webhook_secret or gen_secret()
 
     has_knowledge            = False
     knowledge_webhook_secret = ''
     core_internal_secret     = ''
 
     if (base / 'addons/knowledge').exists():
-        heading("Step 4: Knowledge Addon (Markdown Vault)")
+        heading("Step 4: Optional service — Knowledge (Markdown vault)")
         if ask_yn("Enable knowledge addon?", 'y' if ex.has_knowledge else 'n'):
             has_knowledge = True
-            if ex.knowledge_webhook_secret and ex.core_internal_secret:
+            if ex.knowledge_webhook_secret:
                 knowledge_webhook_secret = ex.knowledge_webhook_secret
-                core_internal_secret     = ex.core_internal_secret
                 ok("Reusing existing secrets")
             else:
                 knowledge_webhook_secret = gen_secret()
-                core_internal_secret     = gen_secret()
                 ok("Generated secrets")
 
-    # ── Summary ───────────────────────────────────────────────────────────────
+    if has_intelligence or has_knowledge:
+        core_internal_secret = ex.core_internal_secret or gen_secret()
+
+    bundled = bundled_addons(base)
+    if bundled:
+        heading("Bundled addons")
+        print("  Installed whenever checked out. Choose which drives show each one at /setup,")
+        print("  or later at /admin/settings.")
+        for name in bundled:
+            print(f"    - {name}")
 
     heading("Summary")
     print("  Files to generate:")
     print("    docker-compose.override.yml")
-    print("    drives.json     (empty — drives are named at /setup)")
-    print("    passwords.json  (empty — passwords are set at /setup)")
+    if keep_drives:           print("    drives.json     (kept — edited in /admin/settings)")
+    else:                     print("    drives.json     (empty — drives are named at /setup)")
+    if keep_passwords:        print("    passwords.json  (kept — edited in /admin/settings)")
+    else:                     print("    passwords.json  (empty — passwords are set at /setup)")
     if port != '3000':        print(f"    .env  (LITLOFT_PORT={port})")
-    if has_intelligence:      print("    addons/intelligence/search-config.yml")
+    if has_intelligence and keep_sc:
+        print("    addons/intelligence/search-config.yml  (kept)")
+    elif has_intelligence:    print("    addons/intelligence/search-config.yml")
     if has_intelligence or has_knowledge: print("    event-hooks.json")
     if has_knowledge:         print("    .env  (secrets)")
     if llm_api_key:           print("    .env  (LLM_API_KEY)")
     elif has_intelligence and not ex.has_llm_api_key:
         print("    .env  (LLM_API_KEY: not set — AI features will be unavailable)")
+    if bundled and not has_intelligence and not has_knowledge:
+        print("  No addon services. Choose which drives show the bundled addons at /setup,")
+        print("  or later at /admin/settings.")
     print()
     print("  Drive mounts:")
     for d in drives:
@@ -366,14 +432,10 @@ def main():
         print("\nAborted.")
         return
 
-    # ── Generate event-hooks.json ─────────────────────────────────────────────
-
     enabled_addons = (['intelligence'] if has_intelligence else []) + \
                      (['knowledge']    if has_knowledge    else [])
     if generate_event_hooks(base, enabled_addons):
         ok("event-hooks.json")
-
-    # ── Generate docker-compose.override.yml ──────────────────────────────────
 
     dc_file = base / 'docker-compose.override.yml'
     if check_overwrite(dc_file):
@@ -393,18 +455,21 @@ def main():
         lines.append("      - ./passwords.json:/app/passwords.json")
         if (base / 'event-hooks.json').exists():
             lines.append("      - ./event-hooks.json:/app/event-hooks.json:ro")
-        _cs_cfg = base / 'addons/cloud-sync/sync-config.json'
-        if _cs_cfg.exists():
-            lines.append("      - ./addons/cloud-sync/sync-config.json:/app/addons/cloud-sync/sync-config.json:ro")
 
-        backend_env = []
+        backend_env = ["- LITLOFT_SETUP_TOKEN=${LITLOFT_SETUP_TOKEN:-}"]
         if has_intelligence: backend_env.append("- INTELLIGENCE_SERVICE_URL=http://intelligence:8100")
+        # Core builds X-Webhook-Secret in *this* container, from its own
+        # environment — passing the value only to the addon would leave core
+        # sending unauthenticated requests to a service now rejecting them.
+        if search_webhook_secret:
+            backend_env.append("- SEARCH_WEBHOOK_SECRET=${SEARCH_WEBHOOK_SECRET:-}")
         if has_knowledge:
             backend_env += [
                 "- KNOWLEDGE_SERVICE_URL=http://knowledge:8200",
                 "- KNOWLEDGE_WEBHOOK_SECRET=${KNOWLEDGE_WEBHOOK_SECRET:-}",
-                "- CORE_INTERNAL_SECRET=${CORE_INTERNAL_SECRET:-}",
             ]
+        if core_internal_secret:
+            backend_env.append("- CORE_INTERNAL_SECRET=${CORE_INTERNAL_SECRET:-}")
         if backend_env:
             lines.append("    environment:")
             lines.extend(f"      {e}" for e in backend_env)
@@ -419,10 +484,27 @@ def main():
                 "    expose:", '      - "8100"', "    volumes:",
                 "      - ./addons/intelligence/search-config.yml:/app/search-config.yml:ro",
                 "      - ./data/addons/intelligence:/intelligence-data",
-                "      - ./data/data.db:/data/litloft.db:ro",
-                "      - ./data/thumbnails:/data/thumbnails:ro",
+                "      # Mount the data DIRECTORY, never the DB file on its own.",
+                "      # SQLite runs the core DB in WAL mode, so a reader needs",
+                "      # data.db-wal and data.db-shm alongside data.db — and those",
+                "      # two are deleted on a clean shutdown and recreated on the",
+                "      # next write. Bind-mounting them by path makes Docker create",
+                "      # a DIRECTORY wherever the file is missing at `up` time, and",
+                "      # the backend then dies with 'unable to open database file'",
+                "      # because a directory sits where its WAL belongs. A directory",
+                "      # mount always resolves and picks up the sidecars as they",
+                "      # come and go. Read-only: the addon must never write here.",
+                "      - ./data:/data:ro",
+                "      # ...but the directory also holds the core's JWT signing key,",
+                "      # and an addon that can read it can mint a token for any",
+                "      # drive group (or __admin__) and call core write APIs. Mask",
+                "      # it with /dev/null, which always exists on the host, so the",
+                "      # addon sees an empty file and no directory is ever created.",
+                "      - /dev/null:/data/.jwt_secret:ro",
                 *[f"      - {d['host_path']}:/drives/{d['slug']}:ro" for d in drives],
                 "    environment:", f"      - DRIVE_MOUNTS={mounts}",
+                "      # The DB keeps its host filename under the directory mount.",
+                "      - HOMEVAULT_DB_PATH=/data/data.db",
                 "      - HOMEVAULT_INTERNAL_URL=http://backend:8000",
                 "      - LLM_API_KEY=${LLM_API_KEY:-}",
                 "      - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY:-}",
@@ -431,8 +513,23 @@ def main():
                 "      - ASSEMBLYAI_API_KEY=${ASSEMBLYAI_API_KEY:-}",
                 "      - GEMINI_API_KEY=${GEMINI_API_KEY:-}",
                 "      - CORE_INTERNAL_SECRET=${CORE_INTERNAL_SECRET:-}",
+                *(["      - SEARCH_WEBHOOK_SECRET=${SEARCH_WEBHOOK_SECRET:-}"]
+                  if search_webhook_secret else []),
                 "    depends_on:", "      backend:", "        condition: service_healthy",
                 "    restart: unless-stopped",
+                '    # A wedged event loop leaves the process alive, memory flat and CPU',
+                '    # at zero, so only an HTTP probe can tell healthy from hung. /health',
+                '    # is served by the same loop every other endpoint uses.',
+                '    #',
+                '    # Note this reports, it does not repair: Docker never restarts a',
+                '    # merely unhealthy container. `docker compose ps` shows the state and',
+                '    # the addon logs a full thread dump when the loop stalls.',
+                '    healthcheck:',
+                '      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen(\'http://127.0.0.1:8100/health\', timeout=5)"]',
+                '      interval: 30s',
+                '      timeout: 10s',
+                '      retries: 3',
+                '      start_period: 60s',
             ]
 
         if has_knowledge:
@@ -450,20 +547,18 @@ def main():
         dc_file.write_text('\n'.join(lines) + '\n')
         ok("docker-compose.override.yml")
 
-    # ── Generate drives.json (always empty []) ────────────────────────────────
-    #
     # Footgun guard: the single-file bind-mount needs a real file on the
     # host, otherwise Docker mounts a directory the backend cannot use.
     # Logical drive entries are seeded by the backend on startup and then
     # owned by /setup + /admin/settings.
 
-    drives_file = base / 'drives.json'
-    if check_overwrite(drives_file):
+    if keep_drives:
+        ok("drives.json  (kept — edited in /admin/settings)")
+        info("Added, removed or renamed a mount? Change that drive under Drives in /admin/settings.")
+    elif check_overwrite(drives_file):
         drives_file.write_text('[]\n')
         ok("drives.json  (empty — named at /setup)")
 
-    # ── Generate passwords.json (always empty []) ─────────────────────────────
-    #
     # Same footgun guard as drives.json: the single-file bind-mount needs a
     # real host file, otherwise Docker mounts a directory the backend
     # cannot read or write. An empty [] is semantically identical to "no
@@ -471,20 +566,20 @@ def main():
     # (all drives public, graceful degradation). Passwords are configured
     # later at /setup + /admin/settings.
 
-    passwords_file = base / 'passwords.json'
-    if check_overwrite(passwords_file):
+    if keep_passwords:
+        ok("passwords.json  (kept — edited in /admin/settings)")
+    elif check_overwrite(passwords_file):
         passwords_file.write_text('[]\n')
         ok("passwords.json  (empty — set at /setup)")
 
-    # ── Generate search-config.yml (verbatim copy of the example) ─────────────
-    #
     # AI features are configured in the browser. We only guarantee the file
     # exists (an absent bind-mount target would become a directory).
 
     if has_intelligence:
-        sc_file  = base / 'addons/intelligence/search-config.yml'
         ex_file  = base / 'addons/intelligence/search-config.yml.example'
-        if check_overwrite(sc_file):
+        if keep_sc:
+            ok("addons/intelligence/search-config.yml  (kept)")
+        elif check_overwrite(sc_file):
             if not ex_file.exists():
                 # Belt-and-suspenders: the override.yml mount has already
                 # been written for this run, so silently skipping would
@@ -497,30 +592,34 @@ def main():
             sc_file.write_text(ex_file.read_text())
             ok("addons/intelligence/search-config.yml")
 
-    # ── Update .env ───────────────────────────────────────────────────────────
-
     env_file = base / '.env'
     wrote_env = False
+    write_env_key('LITLOFT_SETUP_TOKEN', setup_token, env_file); wrote_env = True
     if port != '3000':       write_env_key('LITLOFT_PORT', port, env_file);                          wrote_env = True
-    if has_knowledge:
-        if knowledge_webhook_secret: write_env_key('KNOWLEDGE_WEBHOOK_SECRET', knowledge_webhook_secret, env_file); wrote_env = True
-        if core_internal_secret:     write_env_key('CORE_INTERNAL_SECRET', core_internal_secret, env_file);        wrote_env = True
+    if has_intelligence and search_webhook_secret:
+        write_env_key('SEARCH_WEBHOOK_SECRET', search_webhook_secret, env_file); wrote_env = True
+    if has_knowledge and knowledge_webhook_secret:
+        write_env_key('KNOWLEDGE_WEBHOOK_SECRET', knowledge_webhook_secret, env_file); wrote_env = True
+    if core_internal_secret:
+        write_env_key('CORE_INTERNAL_SECRET', core_internal_secret, env_file); wrote_env = True
     if llm_api_key:
         write_env_key('LLM_API_KEY', llm_api_key, env_file)
         wrote_env = True
     if wrote_env:
         ok(".env")
 
-    # ── Done ──────────────────────────────────────────────────────────────────
-
     print(f"\n{BOLD}{GREEN}All files generated.{RESET}")
 
     url = f"http://localhost:{port}"
+    # The wizard is only reachable while the sentinel is absent, so an install
+    # that has already been through it is sent to the app instead.
+    first_run = not setup_completed
+    open_url = f"{url}/setup?token={setup_token}" if first_run else url
 
     if not shutil.which('docker'):
         print("\n  docker command not found. Start manually:")
         print("    docker compose up -d --build")
-        print(f"  Then open: {BOLD}{url}{RESET}")
+        print(f"  Then open: {BOLD}{open_url}{RESET}")
         if has_intelligence and not llm_api_key and not ex.has_llm_api_key:
             print()
             info("AI features require LLM_API_KEY in .env before starting.")
@@ -542,18 +641,18 @@ def main():
         print()
         if result.returncode == 0:
             print(f"{BOLD}{GREEN}Litloft is running!{RESET}")
-            print(f"\n  {BOLD}{BLUE}→  {url}{RESET}")
+            print(f"\n  {BOLD}{BLUE}→  {open_url}{RESET}")
             print("\n  The /setup wizard will run on first launch.")
             print("  Use it to name drives, set passwords, and enable AI features.")
         else:
             warn("docker compose up failed. Check the output above.")
             print()
             info("To retry:  docker compose up -d --build")
-            info(f"Then open: {url}")
+            info(f"Then open: {open_url}")
     else:
         print()
         info("When ready, run:  docker compose up -d --build")
-        info(f"Then open:        {url}")
+        info(f"Then open:        {open_url}")
 
     print()
 

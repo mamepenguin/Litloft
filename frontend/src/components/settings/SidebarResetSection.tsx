@@ -5,15 +5,13 @@ import { RotateCcw } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { PreferenceRow } from "./PreferenceRow";
 
 /**
  * Resets the user-customised sidebar ordering (section order, item order, and
  * tag sort mode) back to defaults. Only the `sidebar:order:*` and
  * `sidebar:sort:*` localStorage keys are removed; `sidebar:section:*:collapsed`
  * (a separate collapse-state feature) is intentionally preserved.
- *
- * Global personal preferences are consolidated under /settings
- * (hako CNX6n2jJDWKUBYM1ldBFV); spec §5.3 calls for a minimal v1 entry.
  */
 
 const RESET_PREFIXES = ["sidebar:order:", "sidebar:sort:"] as const;
@@ -51,38 +49,23 @@ export function SidebarResetSection() {
   };
 
   return (
-    <section
-      aria-labelledby="settings-sidebar-reset-title"
-      className="rounded-xl border border-bg-border bg-bg-card p-6"
-    >
-      <h2
-        id="settings-sidebar-reset-title"
-        className="mb-4 text-base font-semibold text-text-primary"
+    <PreferenceRow id="settings-sidebar-reset" label={t("title")}>
+      <button
+        type="button"
+        onClick={() => {
+          setDone(false);
+          setConfirming(true);
+        }}
+        className="flex items-center gap-2 rounded-2xl border border-bg-border bg-bg-card px-4 py-2 text-sm text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
       >
-        {t("title")}
-      </h2>
-      <p className="mb-4 text-sm text-text-muted">{t("description")}</p>
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => {
-            setDone(false);
-            setConfirming(true);
-          }}
-          className="flex items-center gap-2 rounded-2xl border border-bg-border bg-bg-card px-4 py-2 text-sm text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
-        >
-          <RotateCcw size={16} aria-hidden="true" />
-          <span>{t("button")}</span>
-        </button>
-        {done && (
-          <span
-            role="status"
-            className="text-sm text-text-muted"
-          >
-            {t("done")}
-          </span>
-        )}
-      </div>
+        <RotateCcw size={16} aria-hidden="true" />
+        <span>{t("button")}</span>
+      </button>
+      {done && (
+        <span role="status" className="text-sm text-text-muted">
+          {t("done")}
+        </span>
+      )}
 
       <ConfirmDialog
         open={confirming}
@@ -92,6 +75,6 @@ export function SidebarResetSection() {
         onConfirm={handleConfirm}
         onCancel={() => setConfirming(false)}
       />
-    </section>
+    </PreferenceRow>
   );
 }

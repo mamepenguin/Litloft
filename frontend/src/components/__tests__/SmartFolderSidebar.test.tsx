@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterAll } from "vitest";
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import type { SmartFolder } from "@/types/smartFolder";
 import { SidebarSmartFoldersSection } from "../sidebar/SidebarSmartFoldersSection";
 

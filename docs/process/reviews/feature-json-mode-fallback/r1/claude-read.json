@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "CR-1",
+      "origin": "reviewer",
+      "claim": "The diff adds a module-level constant `_JSON_OBJECT_FORMAT` in addons/intelligence/app/llm.py at module scope. That place is not in the touch-point list, which names only `_generate_result`, `generate_json_result` and the per-instance state. The constant was also inserted between the existing comment block and `_RESPONSE_FORMAT_SUSPECT_FAILURES`, the constant that comment describes.",
+      "impact": "There is no runtime effect, because the constant is only compared with `==` at llm.py:577. A reader now sees the comment about 'Failures that came from a 400 ... A 404 is excluded' sitting directly above `_JSON_OBJECT_FORMAT`. They could take it as documenting the JSON-mode constant, or move or edit the wrong definition when changing the vision suspect-failure set.",
+      "evidence": "addons/intelligence/app/llm.py:349-355 is the comment describing the vision suspect-failure set. llm.py:356 is `_JSON_OBJECT_FORMAT = {\"type\": \"json_object\"}`, and llm.py:358 is `_RESPONSE_FORMAT_SUSPECT_FAILURES = frozenset(...)`. The constant is used only at llm.py:577. `generate_json_result` still passes a literal `{\"type\": \"json_object\"}` at llm.py:1227.",
+      "repro": "not_reproduced. This is a static reading: the hunk `@@ -353,6 +353,8 @@` puts the new line after the comment and before its original target.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant is broken, and behavior is unchanged. The issue is an unlisted touch point at module scope, plus a comment that now reads as attached to the wrong definition.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Move `_JSON_OBJECT_FORMAT` above the comment block, or next to the `LLMClient` class, so the comment again sits directly on `_RESPONSE_FORMAT_SUSPECT_FAILURES`."
+    }
+  ],
+  "specification_compliance": [
+    "Core repository: the diff reaches the submodule pointer (addons/intelligence), docs/addons/intelligence.md, docs/specs/INDEX.md and docs/specs/json-mode-fallback.md. The pointer bump and intelligence.md are listed touch points. INDEX.md and the spec file are implicit touch points. .gitmodules is unchanged, so no branch pin was added.",
+    "Submodule llm.py: the changes inside `LLMClient.__init__` (the `_json_mode_rejected` flag next to `_extras_rejected`), `_generate_result` (lines 576-668) and `generate_json_result` (line 1242) are within the listed touch points.",
+    "The single place outside the list is the module-level `_JSON_OBJECT_FORMAT` constant at llm.py:356 (CR-1).",
+    "`OllamaLLMClient` (llm.py:1383) is a separate class with its own `generate_json_result` (llm.py:1990), and the diff does not touch it. `_vision_chat`, `generate_video_scene_json`, `chat_with_tools` and `generate_stream` are not changed either.",
+    "tests/test_llm.py is a listed touch point. The only additions outside the new test class are the `copy` and `json` imports."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "`generate_json_result` reads `self._json_mode_rejected` after its request returns (llm.py:1242). Suppose a concurrent call latches the client while this call's request still carried `response_format` and comes back empty. The empty-body retry is then skipped, even though the spec says it still fires for requests that carried `response_format`. This applies only to concurrent first calls."
+  ],
+  "regression_risks": [
+    "A 400 that has nothing to do with JSON mode, on any openai_compatible provider, now costs one extra request before the permanent-error warning.",
+    "On a JSON-capable provider, one 400 that is cleared by dropping the field disables JSON mode for the whole profile until routing reloads. The spec accepts this risk."
+  ],
+  "test_coverage": [
+    "TestJsonModeFallback covers I1 through I10 through all three public entry points, including the reasoning='disabled' three-request case, retry_attempts=0, 503-then-200 latching, failures on the resend, empty and malformed resends, the other response_format type, vision and tool paths after the latch, a fresh client, and the log levels.",
+    "No test covers the concurrent-latch interaction with the empty-body retry."
+  ],
+  "not_verified": [
+    "I did not run the test suite and could not run any commands.",
+    "I did not check that the submodule commit 49a6643d8 matches the working-tree files I read; I assumed the checked-out submodule is at that commit.",
+    "I did not check whether commit 2eac2d8ef alone contains only the pointer bump, as opposed to the whole branch diff shown."
+  ],
+  "confidence": 82
+}

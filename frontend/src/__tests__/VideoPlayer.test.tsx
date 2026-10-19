@@ -1,13 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { MEDIA_CLOCK_ACTIVE_MS, MEDIA_CLOCK_IDLE_MS } from "@/lib/mediaClock";
 
-// Mock profile context
 const mockProfile = { nickname: null as string | null, setNickname: vi.fn(), clearNickname: vi.fn() };
 vi.mock("@/components/ProfileProvider", () => ({
   useProfile: () => mockProfile,
 }));
 
-// Mock API
 const mockGetWatchProgress = vi.fn();
 const mockSaveWatchProgress = vi.fn();
 const mockDeleteWatchProgress = vi.fn();
@@ -18,7 +17,6 @@ vi.mock("@/lib/api", () => ({
   deleteWatchProgress: (...args: unknown[]) => mockDeleteWatchProgress(...args),
 }));
 
-// Mock recentlyPlayed
 const mockGetSavedProgress = vi.fn().mockReturnValue(0);
 const mockSaveProgress = vi.fn();
 const mockClearProgress = vi.fn();
@@ -53,7 +51,6 @@ describe("VideoPlayer", () => {
     render(<VideoPlayer videoId="abc123" />);
     const video = document.querySelector("video")!;
 
-    // Simulate loadedmetadata
     Object.defineProperty(video, "duration", { value: 300, writable: true });
     fireEvent.loadedMetadata(video);
 
@@ -77,54 +74,114 @@ describe("VideoPlayer", () => {
     expect(mockGetSavedProgress).not.toHaveBeenCalled();
   });
 
-  it("saves progress to server on timeupdate when profile is set", () => {
-    mockProfile.nickname = "Alice";
-    render(<VideoPlayer videoId="abc123" />);
-    const video = document.querySelector("video")!;
+  describe("periodic saving", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
 
-    Object.defineProperty(video, "currentTime", { value: 10, writable: true, configurable: true });
-    Object.defineProperty(video, "duration", { value: 300, writable: true });
-    fireEvent.timeUpdate(video);
+    afterEach(() => {
+      vi.useRealTimers();
+    });
 
-    expect(mockSaveWatchProgress).toHaveBeenCalledWith("abc123", 10, 300);
-    expect(mockSaveProgress).not.toHaveBeenCalled();
+    async function renderAndSettleResume(currentTime: number) {
+      render(<VideoPlayer videoId="abc123" />);
+      const video = document.querySelector("video")!;
+      Object.defineProperty(video, "duration", {
+        value: 300,
+        writable: true,
+        configurable: true,
+      });
+      Object.defineProperty(video, "currentTime", {
+        value: currentTime,
+        writable: true,
+        configurable: true,
+      });
+      // jsdom reports a media element as paused forever, which would
+      // leave the clock on its idle heartbeat.
+      Object.defineProperty(video, "paused", {
+        value: false,
+        configurable: true,
+      });
+
+      // The clock subscribed while the element still looked paused, so the
+      // first tick is on the idle interval. Saving waits for the resume read
+      // to settle.
+      act(() => {
+        vi.advanceTimersByTime(MEDIA_CLOCK_IDLE_MS);
+      });
+      await act(async () => {});
+    }
+
+    it("saves progress to the server on the clock when a profile is set", async () => {
+      mockProfile.nickname = "Alice";
+      await renderAndSettleResume(10);
+
+      act(() => {
+        vi.advanceTimersByTime(MEDIA_CLOCK_ACTIVE_MS);
+      });
+
+      expect(mockSaveWatchProgress).toHaveBeenCalledWith("abc123", 10, 300);
+      expect(mockSaveProgress).not.toHaveBeenCalled();
+    });
+
+    it("saves progress to localStorage on the clock when no profile", async () => {
+      mockProfile.nickname = null;
+      await renderAndSettleResume(10);
+
+      act(() => {
+        vi.advanceTimersByTime(MEDIA_CLOCK_ACTIVE_MS);
+      });
+
+      expect(mockSaveProgress).toHaveBeenCalledWith("abc123", 10, 300);
+      expect(mockSaveWatchProgress).not.toHaveBeenCalled();
+    });
   });
 
-  it("saves progress to localStorage on timeupdate when no profile", () => {
-    mockProfile.nickname = null;
-    render(<VideoPlayer videoId="abc123" />);
-    const video = document.querySelector("video")!;
-
-    Object.defineProperty(video, "currentTime", { value: 10, writable: true, configurable: true });
-    Object.defineProperty(video, "duration", { value: 300, writable: true });
-    fireEvent.timeUpdate(video);
-
-    expect(mockSaveProgress).toHaveBeenCalledWith("abc123", 10);
-    expect(mockSaveWatchProgress).not.toHaveBeenCalled();
-  });
-
-  it("deletes server progress on ended when profile is set", () => {
+  // Reaching the end records a completed history record rather than deleting
+  // it: the continue-watching query filters it out via its own 90% gate.
+  it("records the final position on ended when profile is set", () => {
     mockProfile.nickname = "Alice";
     const onEnded = vi.fn();
     render(<VideoPlayer videoId="abc123" onEnded={onEnded} />);
     const video = document.querySelector("video")!;
+    Object.defineProperty(video, "duration", { value: 300, configurable: true });
+    Object.defineProperty(video, "currentTime", { value: 300, configurable: true });
 
     fireEvent.ended(video);
 
-    expect(mockDeleteWatchProgress).toHaveBeenCalledWith("abc123");
+    expect(mockSaveWatchProgress).toHaveBeenCalledWith("abc123", 300, 300);
+    expect(mockDeleteWatchProgress).not.toHaveBeenCalled();
     expect(mockClearProgress).not.toHaveBeenCalled();
     expect(onEnded).toHaveBeenCalled();
   });
 
-  it("clears localStorage progress on ended when no profile", () => {
+  it("records the final position on ended when no profile", () => {
     mockProfile.nickname = null;
     const onEnded = vi.fn();
     render(<VideoPlayer videoId="abc123" onEnded={onEnded} />);
     const video = document.querySelector("video")!;
+    Object.defineProperty(video, "duration", { value: 300, configurable: true });
+    Object.defineProperty(video, "currentTime", { value: 300, configurable: true });
 
     fireEvent.ended(video);
 
-    expect(mockClearProgress).toHaveBeenCalledWith("abc123");
+    expect(mockSaveProgress).toHaveBeenCalledWith("abc123", 300, 300);
+    expect(mockClearProgress).not.toHaveBeenCalled();
+    expect(mockDeleteWatchProgress).not.toHaveBeenCalled();
+    expect(onEnded).toHaveBeenCalled();
+  });
+
+  it("does not write a completion record when duration is unknown", () => {
+    mockProfile.nickname = "Alice";
+    const onEnded = vi.fn();
+    render(<VideoPlayer videoId="abc123" onEnded={onEnded} />);
+    const video = document.querySelector("video")!;
+    Object.defineProperty(video, "duration", { value: NaN, configurable: true });
+    Object.defineProperty(video, "currentTime", { value: 42, configurable: true });
+
+    fireEvent.ended(video);
+
+    expect(mockSaveWatchProgress).not.toHaveBeenCalled();
     expect(mockDeleteWatchProgress).not.toHaveBeenCalled();
     expect(onEnded).toHaveBeenCalled();
   });

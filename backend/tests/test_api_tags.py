@@ -6,9 +6,9 @@ from tests.conftest import TEST_DRIVE
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 
-def _seed_file(db, drive_dir, suffix=""):
-    folder = drive_dir / "旅行"
-    folder.mkdir(exist_ok=True)
+def _seed_file(db, drive_dir, suffix="", folder_path="旅行"):
+    folder = drive_dir / folder_path
+    folder.mkdir(parents=True, exist_ok=True)
     fname = f"test{suffix}.mp4"
     shutil.copy(FIXTURES_DIR / "long_video.mp4", folder / fname)
 
@@ -18,8 +18,8 @@ def _seed_file(db, drive_dir, suffix=""):
         filename=fname,
         title=f"Test Video{suffix}",
         drive=TEST_DRIVE,
-        folder_path="旅行",
-        file_path=f"旅行/{fname}",
+        folder_path=folder_path,
+        file_path=f"{folder_path}/{fname}",
         file_size=folder.joinpath(fname).stat().st_size,
         file_type="video",
         mime_type="video/mp4",
@@ -60,6 +60,77 @@ class TestListTags:
         tags = {t["name"]: t["count"] for t in res.json()}
         assert tags["night"] == 2
         assert tags["tokyo"] == 1
+
+
+class TestListTagsFolderScope:
+    def test_folder_path_rejects_traversal(self, client):
+        c, db, drive_dir, data_dir = client
+        res = c.get(f"/api/drives/{TEST_DRIVE}/tags?folder_path=../etc")
+        assert res.status_code == 400
+
+    def test_folder_path_rejects_leading_slash(self, client):
+        c, db, drive_dir, data_dir = client
+        res = c.get(f"/api/drives/{TEST_DRIVE}/tags?folder_path=/etc")
+        assert res.status_code == 400
+
+    def test_folder_path_not_specified_returns_all(self, client):
+        c, db, drive_dir, data_dir = client
+        f1 = _seed_file(db, drive_dir, "1", folder_path="recipes")
+        f2 = _seed_file(db, drive_dir, "2", folder_path="dev")
+        c.put(f"/api/files/{f1.id}/tags", json={"tags": ["炒め物"]})
+        c.put(f"/api/files/{f2.id}/tags", json={"tags": ["Flutter"]})
+        res = c.get(f"/api/drives/{TEST_DRIVE}/tags")
+        names = [t["name"] for t in res.json()]
+        assert "炒め物" in names
+        assert "Flutter" in names
+
+    def test_folder_path_filters_to_subtree(self, client):
+        c, db, drive_dir, data_dir = client
+        f1 = _seed_file(db, drive_dir, "1", folder_path="recipes")
+        f2 = _seed_file(db, drive_dir, "2", folder_path="dev")
+        c.put(f"/api/files/{f1.id}/tags", json={"tags": ["炒め物"]})
+        c.put(f"/api/files/{f2.id}/tags", json={"tags": ["Flutter"]})
+        res = c.get(f"/api/drives/{TEST_DRIVE}/tags?folder_path=recipes")
+        names = [t["name"] for t in res.json()]
+        assert "炒め物" in names
+        assert "Flutter" not in names
+
+    def test_folder_path_includes_nested_subfolder(self, client):
+        c, db, drive_dir, data_dir = client
+        f1 = _seed_file(db, drive_dir, "1", folder_path="recipes/soup")
+        c.put(f"/api/files/{f1.id}/tags", json={"tags": ["煮物"]})
+        res = c.get(f"/api/drives/{TEST_DRIVE}/tags?folder_path=recipes")
+        names = [t["name"] for t in res.json()]
+        assert "煮物" in names
+
+    def test_folder_path_prefix_boundary_not_confused(self, client):
+        c, db, drive_dir, data_dir = client
+        f1 = _seed_file(db, drive_dir, "1", folder_path="recipes2")
+        c.put(f"/api/files/{f1.id}/tags", json={"tags": ["別物"]})
+        res = c.get(f"/api/drives/{TEST_DRIVE}/tags?folder_path=recipes")
+        names = [t["name"] for t in res.json()]
+        assert "別物" not in names
+
+    def test_folder_path_underscore_not_treated_as_wildcard(self, client):
+        c, db, drive_dir, data_dir = client
+        f1 = _seed_file(db, drive_dir, "1", folder_path="2024_photos")
+        f2 = _seed_file(db, drive_dir, "2", folder_path="2024Xphotos")
+        c.put(f"/api/files/{f1.id}/tags", json={"tags": ["target"]})
+        c.put(f"/api/files/{f2.id}/tags", json={"tags": ["decoy"]})
+        res = c.get(f"/api/drives/{TEST_DRIVE}/tags?folder_path=2024_photos")
+        names = [t["name"] for t in res.json()]
+        assert "target" in names
+        assert "decoy" not in names
+
+    def test_folder_path_keeps_unused_tags(self, client):
+        c, db, drive_dir, data_dir = client
+        from app.models import Tag
+
+        db.add(Tag(name="unused", drive=TEST_DRIVE))
+        db.commit()
+        res = c.get(f"/api/drives/{TEST_DRIVE}/tags?folder_path=recipes")
+        names = [t["name"] for t in res.json()]
+        assert "unused" in names
 
 
 class TestUpdateFileTags:
@@ -185,3 +256,118 @@ class TestTagFilter:
         res = c.get(f"/api/drives/{TEST_DRIVE}/files")
         assert "tags" in res.json()["data"][0]
         assert res.json()["data"][0]["tags"] == ["night"]
+
+
+class TestFolderScopedTagCountAgreement:
+    """For the same folder and the same tag, the count shown in the sidebar
+    (`list_drive_tags?folder_path=`) and the number of results in the
+    listing (`list_drive_files?path=&recursive=true&tag=`) must agree.
+
+    Fixture note: `list_drive_files` matches tags case-insensitively
+    (`func.lower(Tag.name) == tag.lower()`) while `list_drive_tags` groups
+    by `Tag.id`, so two tags differing only in case would make the sidebar
+    count smaller. Use a single-case tag here.
+    """
+
+    def _seed_tagged(self, db, drive_dir):
+        """Seed a subtree where the tag predicate genuinely narrows.
+
+        Every folder in the subtree also holds an untagged file and a
+        differently-tagged one, so an implementation that ignored `tag`
+        under `recursive=true` would return more rows than the sidebar
+        count and break the agreement these tests assert.
+        """
+        from app.models import Tag
+
+        # (folder_path, tag name or None), one file each.
+        layout = [
+            ("recipes", "soup"),
+            ("recipes", "stew"),           # same folder, different tag
+            ("recipes", None),             # same folder, untagged
+            ("recipes/winter", "soup"),
+            ("recipes/winter", None),      # descendant, untagged
+            ("recipes/winter/2026", "soup"),
+            ("dev", "soup"),               # tagged, outside the subtree
+            ("", "soup"),                  # tagged, drive root level
+        ]
+        tags = {
+            name: Tag(name=name, drive=TEST_DRIVE) for name in ("soup", "stew")
+        }
+        db.add_all(tags.values())
+        db.commit()
+        for i, (folder, tag_name) in enumerate(layout):
+            f = _seed_file(db, drive_dir, suffix=f"-{i}", folder_path=folder or ".")
+            f.folder_path = folder
+            f.file_path = f"{folder}/{f.filename}" if folder else f.filename
+            if tag_name:
+                f.tags.append(tags[tag_name])
+        db.commit()
+
+    def test_sidebar_count_matches_listing_total_in_a_folder(self, client):
+        c, db, drive_dir, data_dir = client
+        self._seed_tagged(db, drive_dir)
+
+        tags = c.get(f"/api/drives/{TEST_DRIVE}/tags?folder_path=recipes").json()
+        sidebar_count = next(t["count"] for t in tags if t["name"] == "soup")
+
+        listing = c.get(
+            f"/api/drives/{TEST_DRIVE}/files?path=recipes&recursive=true&tag=soup"
+        ).json()
+
+        assert sidebar_count == listing["meta"]["total"] == 3
+
+    def test_sidebar_count_matches_listing_total_at_the_drive_root(self, client):
+        # No folder_path / no path: both sides describe the whole drive.
+        c, db, drive_dir, data_dir = client
+        self._seed_tagged(db, drive_dir)
+
+        tags = c.get(f"/api/drives/{TEST_DRIVE}/tags").json()
+        sidebar_count = next(t["count"] for t in tags if t["name"] == "soup")
+
+        listing = c.get(f"/api/drives/{TEST_DRIVE}/files?tag=soup").json()
+
+        assert sidebar_count == listing["meta"]["total"] == 5
+
+    def test_agreement_holds_for_a_leaf_folder(self, client):
+        c, db, drive_dir, data_dir = client
+        self._seed_tagged(db, drive_dir)
+
+        tags = c.get(
+            f"/api/drives/{TEST_DRIVE}/tags?folder_path=recipes/winter"
+        ).json()
+        sidebar_count = next(t["count"] for t in tags if t["name"] == "soup")
+
+        listing = c.get(
+            f"/api/drives/{TEST_DRIVE}/files?path=recipes/winter&recursive=true&tag=soup"
+        ).json()
+
+        assert sidebar_count == listing["meta"]["total"] == 2
+
+    def test_the_tag_predicate_is_load_bearing_in_these_fixtures(self, client):
+        """Without this, the agreement tests above could pass on a
+        recursive query that ignored `tag` entirely."""
+        c, db, drive_dir, data_dir = client
+        self._seed_tagged(db, drive_dir)
+
+        untagged = c.get(
+            f"/api/drives/{TEST_DRIVE}/files?path=recipes&recursive=true"
+        ).json()
+        assert untagged["meta"]["total"] == 6  # 3 tagged soup + stew + 2 untagged
+
+        other = c.get(
+            f"/api/drives/{TEST_DRIVE}/files?path=recipes&recursive=true&tag=stew"
+        ).json()
+        assert other["meta"]["total"] == 1
+
+    def test_agreement_holds_for_a_second_tag(self, client):
+        c, db, drive_dir, data_dir = client
+        self._seed_tagged(db, drive_dir)
+
+        tags = c.get(f"/api/drives/{TEST_DRIVE}/tags?folder_path=recipes").json()
+        sidebar_count = next(t["count"] for t in tags if t["name"] == "stew")
+
+        listing = c.get(
+            f"/api/drives/{TEST_DRIVE}/files?path=recipes&recursive=true&tag=stew"
+        ).json()
+
+        assert sidebar_count == listing["meta"]["total"] == 1

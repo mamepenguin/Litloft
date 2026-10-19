@@ -1,7 +1,6 @@
 "use client";
 
-// PasswordsSection: lists masked passwords (server returns "***"), lets the
-// admin add new entries. The masked value is never sent back — when adding
+// The masked value the server returns is never sent back — when adding
 // or editing, the input starts blank and the user must enter a fresh value.
 
 import { useCallback, useEffect, useState } from "react";
@@ -14,6 +13,7 @@ import {
   getPasswords,
   type PasswordEntry,
 } from "@/lib/adminConfig";
+import { Button } from "@/components/Button";
 
 interface ModalState {
   draft: { password: string; groups: string };
@@ -34,8 +34,7 @@ function describeError(
       if (!message.startsWith("errors.")) {
         return {
           message,
-          field:
-            typeof detail === "object" ? detail?.field : undefined,
+          field: typeof detail === "object" ? detail?.field : undefined,
         };
       }
     }
@@ -135,40 +134,42 @@ export function PasswordsSection(): React.ReactElement {
 
   return (
     <section className="rounded-xl border border-bg-border bg-bg-card p-6">
-      <div className="mb-6 flex items-start justify-between">
-        <div>
+      <div className="mb-6 flex items-start justify-between gap-3">
+        <div className="min-w-0">
           <h2 className="text-lg font-semibold text-text-primary">
             {t("title")}
           </h2>
           <p className="mt-1 text-sm text-text-muted">{t("description")}</p>
         </div>
         {!isPublic && (
-          <button
-            type="button"
-            onClick={openAdd}
-            className="rounded-2xl bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-hover"
-          >
-            {t("addButton")}
-          </button>
+          <div className="flex-shrink-0">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={openAdd}
+              className="whitespace-nowrap"
+            >
+              {t("addButton")}
+            </Button>
+          </div>
         )}
       </div>
 
-      {loadError && (
-        <p className="mb-3 text-xs text-danger">{loadError}</p>
-      )}
+      {loadError && <p className="mb-3 text-xs text-danger">{loadError}</p>}
 
       {entries === null ? (
         <p className="text-xs text-text-muted">…</p>
       ) : isPublic ? (
         <div className="rounded-2xl bg-bg-elevated p-4">
           <p className="mb-3 text-sm text-text-primary">{t("publicMode")}</p>
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={openAdd}
-            className="rounded-2xl bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-hover"
+            className="whitespace-nowrap"
           >
             {t("enableProtection")}
-          </button>
+          </Button>
         </div>
       ) : (
         <ul className="divide-y divide-bg-border">
@@ -260,9 +261,7 @@ function PasswordModal({
             />
           </label>
         </div>
-        {error && (
-          <p className="mt-3 text-xs text-danger">{error.message}</p>
-        )}
+        {error && <p className="mt-3 text-xs text-danger">{error.message}</p>}
         <div className="mt-4 flex justify-end gap-2">
           <button
             type="button"
@@ -271,13 +270,9 @@ function PasswordModal({
           >
             {t("cancelButton")}
           </button>
-          <button
-            type="button"
-            onClick={onSave}
-            className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
-          >
+          <Button variant="primary" onClick={onSave}>
             {t("saveButton")}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

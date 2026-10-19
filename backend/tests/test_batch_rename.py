@@ -307,11 +307,9 @@ class TestTransactionRollback:
         })
         assert res.status_code == 404
 
-        # Verify first file was rolled back on filesystem
         assert (drive_dir / "旅行" / "first.mp4").exists()
         assert not (drive_dir / "旅行" / "renamed_1.mp4").exists()
 
-        # Verify DB was not modified
         from app.models import File
         f = db.query(File).filter(File.id == files[0].id).first()
         db.refresh(f)

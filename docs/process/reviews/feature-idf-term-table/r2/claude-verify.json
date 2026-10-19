@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2-1",
+      "status": "confirmed",
+      "note": "I traced the window in the code and it exists. run_idf_backfill_pass (idf_backfill.py:340-343) checks stop only in _wait_while_paused before each batch. _run_batch then calls _read_docs (:278), which reads up to 200 transcripts with no stop check. tokenizer.term_sets then creates tfidf.TokenizerChild() (:215). That constructor starts the spawned process (tfidf.py:606-615), and only after that does it call _set_child (:216). The loop's cancel handler (idf_backfill.py:403-408) sets stop, calls _terminate_current_child once and waits up to 5 s for the pass. _terminate_current_child (:200-204) reads _current_child once and does nothing if it is None. So if cancellation lands while _read_docs runs, or before _set_child, nothing terminates the child at cancel time. TokenizerChild.term_sets (tfidf.py:617-630) then blocks in conn.poll for up to 300 s and never checks stop. One correction to the claim: the child is not 'never terminated'. When term_sets returns, by finishing or after the 300 s timeout, the pass's finally calls tokenizer.close() (:344-345), which terminates the child. So the child outlives the loop's cancellation and the 5 s wait in the lifespan, and is ended only when the pass's thread finishes. The process is daemon=True, so multiprocessing's exit handler would also end it at a normal interpreter exit, but the default-executor thread blocks shutdown until the pass ends. In practice: shutdown is delayed by up to 300 s, or, if the parent is killed instead, the child runs until its tokenization finishes. This conflicts with I6 ('no tokenizer child outlives the addon's shutdown', measured at the lifespan's cancel). The existing tests (test_idf_term_loop.py:260-308) cancel only after the child has reached term_sets (they wait for the 'entered' marker), so they do not cover this window. This is a timing argument; I could not run the code to reproduce it."
+    }
+  ],
+  "specification_compliance": [
+    "I6 (no tokenizer child outlives shutdown): a child spawned between the loop's cancellation and _set_child is not terminated by the cancel handler; it is terminated only when the pass thread finishes (idf_backfill.py:344-345), up to 300 s later."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The spec does not say how long addon shutdown may block on an in-flight backfill pass; with the race in R2-1, the executor thread can delay process exit by up to _IDF_BACKFILL_CHILD_TIMEOUT_SECONDS."
+  ],
+  "regression_risks": [
+    "Slow addon shutdown (up to 300 s) when it is cancelled during _read_docs or child spawn."
+  ],
+  "test_coverage": [
+    "test_spec_addon_021_cancelling_the_loop_terminates_its_child and ..._mid_pass_starts_no_later_batch cancel only after the child has signalled 'entered', so the pre-spawn window is untested."
+  ],
+  "not_verified": [
+    "I did not run any tests or reproduce the race dynamically; the argument rests on reading the code only.",
+    "I did not confirm how uvicorn/asyncio.run handle the default executor at shutdown in this deployment (container stop timeout, SIGKILL behavior).",
+    "I did not check the other touch points (whisper.py, refine.py, purge.py, database.py migration) against invariants I1-I10."
+  ],
+  "confidence": 85
+}

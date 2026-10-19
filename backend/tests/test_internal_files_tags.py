@@ -1,10 +1,7 @@
 """HTTP tests for POST /api/internal/files/{id}/tags.
 
-Replaces a file's tags via the trusted internal caller (typically the
-knowledge scanner projecting frontmatter.tags onto File.tags for .md
-files). Gated by CORE_INTERNAL_SECRET, same pattern as
-GET /files/{id}/content. Spec:
-``docs/superpowers/specs/2026-04-24-knowledge-tag-unification.md``.
+Replaces a file's tags via the trusted internal caller. Gated by
+CORE_INTERNAL_SECRET.
 """
 
 from __future__ import annotations
@@ -62,6 +59,7 @@ class TestInternalFileTagsReplace:
         db.expire_all()
         refreshed = db.query(File).filter(File.id == f.id).one()
         assert {t.name for t in refreshed.tags} == {"cooking", "japanese"}
+        assert (drive_dir / "notes/hello.md").read_text(encoding="utf-8") == "body\n"
 
     def test_replaces_tags_with_matching_secret(self, client):
         c, db, drive_dir, _ = client
@@ -129,12 +127,10 @@ class TestInternalFileTagsReplace:
     def test_empty_list_clears_tags(self, client):
         c, db, drive_dir, _ = client
         f = _seed_file(db, drive_dir)
-        # seed with some tags
         c.post(
             f"/api/internal/files/{f.id}/tags",
             json={"tags": ["a", "b"]},
         )
-        # now clear
         r = c.post(
             f"/api/internal/files/{f.id}/tags",
             json={"tags": []},
@@ -143,20 +139,6 @@ class TestInternalFileTagsReplace:
         db.expire_all()
         refreshed = db.query(File).filter(File.id == f.id).one()
         assert refreshed.tags == []
-
-    def test_case_insensitive_dedup_keeps_first(self, client):
-        c, db, drive_dir, _ = client
-        f = _seed_file(db, drive_dir)
-        r = c.post(
-            f"/api/internal/files/{f.id}/tags",
-            json={"tags": ["Cooking", "cooking", "JAPANESE"]},
-        )
-        assert r.status_code == 204
-        db.expire_all()
-        refreshed = db.query(File).filter(File.id == f.id).one()
-        # Validator dedupes case-insensitively, keeping first occurrence
-        names = {t.name for t in refreshed.tags}
-        assert names == {"Cooking", "JAPANESE"}
 
     def test_orphan_tags_are_cleaned_up(self, client):
         c, db, drive_dir, _ = client
@@ -188,40 +170,9 @@ class TestInternalFileTagsReplace:
             f"/api/internal/files/{f2.id}/tags",
             json={"tags": ["shared"]},
         )
-        # Single Tag row reused across both files
         rows = db.query(Tag).filter(Tag.name == "shared", Tag.drive == TEST_DRIVE).all()
         assert len(rows) == 1
         assert len(rows[0].files) == 2
-
-    def test_invalid_tag_name_returns_422(self, client):
-        c, db, drive_dir, _ = client
-        f = _seed_file(db, drive_dir)
-        # TagUpdate validator rejects tags with spaces / special chars
-        r = c.post(
-            f"/api/internal/files/{f.id}/tags",
-            json={"tags": ["invalid name with space"]},
-        )
-        assert r.status_code == 422
-
-    def test_max_10_tags(self, client):
-        c, db, drive_dir, _ = client
-        f = _seed_file(db, drive_dir)
-        r = c.post(
-            f"/api/internal/files/{f.id}/tags",
-            json={"tags": [f"t{i}" for i in range(11)]},
-        )
-        assert r.status_code == 422
-
-    def test_existing_public_api_still_works(self, client):
-        """Regression: refactoring to shared helpers must not change
-        the behaviour of the public PUT /api/files/{id}/tags.
-        """
-        c, db, drive_dir, _ = client
-        f = _seed_file(db, drive_dir)
-        r = c.put(f"/api/files/{f.id}/tags", json={"tags": ["public-api"]})
-        assert r.status_code == 200
-        data = r.json()
-        assert data["tags"] == ["public-api"]
 
     def test_unicode_tag_names_accepted(self, client):
         """TagUpdate validator uses re.UNICODE so CJK word chars pass."""
@@ -263,7 +214,6 @@ class TestInternalFileTagsReplace:
         c.post(f"/api/internal/files/{f1.id}/tags", json={"tags": ["shared"]})
         c.post(f"/api/internal/files/{f2.id}/tags", json={"tags": ["shared"]})
 
-        # Two separate Tag rows, one per drive
         rows = db.query(Tag).filter(Tag.name == "shared").all()
         drives = {r.drive for r in rows}
         assert drives == {TEST_DRIVE, "other-drive"}

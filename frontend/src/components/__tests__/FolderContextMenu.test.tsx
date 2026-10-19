@@ -28,7 +28,7 @@ const folder: Folder = {
   name: "Travel Photos",
   path: "Travel Photos",
   file_count: 12,
-  thumbnail_file_id: null,
+  kind_counts: {},
   dominant_kind: null,
 };
 
@@ -152,9 +152,6 @@ describe("FolderContextMenu", () => {
         <FolderContextMenu {...makeProps({ onCreateFolderHere })} />,
       );
       fireEvent.click(screen.getByText("New folder here"));
-      // The component opens a NameInputDialog; we don't assert internals,
-      // only that the click is wired (the dialog itself is unit-tested
-      // separately).
       await waitFor(() => {
         expect(
           screen.getByText(/New folder|newFolderTitle|新規フォルダ/),

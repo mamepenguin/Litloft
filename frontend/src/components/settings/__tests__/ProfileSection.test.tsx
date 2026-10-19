@@ -72,7 +72,6 @@ describe("ProfileSection", () => {
       const cancel = screen.getByRole("button", { name: "Cancel" });
       expect(cancel).toBeInTheDocument();
       fireEvent.click(cancel);
-      // Returned to display mode: nickname visible, switch button back, no input
       expect(screen.getByText("Bob")).toBeInTheDocument();
       expect(
         screen.getByRole("button", { name: "Switch to a different name" }),
@@ -87,14 +86,12 @@ describe("ProfileSection", () => {
       const input = screen.getByPlaceholderText("Enter your name") as HTMLInputElement;
       fireEvent.change(input, { target: { value: "Carol" } });
       fireEvent.click(screen.getByRole("button", { name: "Save" }));
-      // Dialog should be open; setNickname not yet called
       expect(setNicknameMock).not.toHaveBeenCalled();
       expect(
         screen.getByText(
           /Switch profile from "Bob" to "Carol"/,
         ),
       ).toBeInTheDocument();
-      // Confirm
       fireEvent.click(screen.getByRole("button", { name: "Switch" }));
       expect(setNicknameMock).toHaveBeenCalledWith("Carol");
     });
@@ -104,7 +101,6 @@ describe("ProfileSection", () => {
       fireEvent.click(screen.getByRole("button", { name: "Switch to a different name" }));
       // Input is prefilled with current nickname (Bob)
       fireEvent.click(screen.getByRole("button", { name: "Save" }));
-      // No confirmation needed; saves directly
       expect(setNicknameMock).toHaveBeenCalledWith("Bob");
       expect(
         screen.queryByText(/Switch profile from "Bob"/),
@@ -114,13 +110,11 @@ describe("ProfileSection", () => {
     it("opens confirm dialog and calls clearNickname on confirm", () => {
       render(<ProfileSection />);
       fireEvent.click(screen.getByRole("button", { name: "Clear profile" }));
-      // ConfirmDialog should now be visible — it has the message text
       expect(
         screen.getByText(
           "Clearing your profile will disconnect watch history from this device. Are you sure?",
         ),
       ).toBeInTheDocument();
-      // Click the confirm button (label = "Clear profile" in the dialog)
       const confirmButtons = screen.getAllByRole("button", {
         name: "Clear profile",
       });

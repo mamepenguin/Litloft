@@ -10,6 +10,8 @@ import {
 
 function makeFile(overrides: Partial<FileItem>): FileItem {
   return {
+    image_width: null,
+    image_height: null,
     id: "f1",
     filename: "f1.mp4",
     title: "f1",
@@ -22,12 +24,14 @@ function makeFile(overrides: Partial<FileItem>): FileItem {
     has_thumbnail: true,
     file_size: 1000,
     duration: 60,
-    likes: 0,
+    liked_at: null,
     is_favorite: false,
     tags: [],
     subtitles: [],
     deleted_at: null,
     missing_since: null,
+    trust_tier: "verified",
+    trust_reviewed_at: null,
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
     ...overrides,
@@ -105,12 +109,58 @@ describe("buildMatchMeta", () => {
       }),
     );
     expect(meta.matched_pages).toEqual([2, 5]);
+    expect(meta.matched_sections).toBeUndefined();
+  });
+
+  it("collects matched sections in order, each with the first title it carries, and no pages", () => {
+    const meta = buildMatchMeta(
+      makeHit({
+        match_types: ["text_content"],
+        segments: [
+          {
+            time_range: null,
+            matches: [
+              { type: "text_content", score: 0.9, page: null, section: 3, section_title: null },
+              { type: "text_content", score: 0.8, page: null, section: 3, section_title: "Chapter Two" },
+              { type: "text_content_keyword", score: 0.7, page: null, section: 1, section_title: "Prologue" },
+              { type: "text_content", score: 0.6, page: null, section: 3, section_title: "Later" },
+              { type: "text_content", score: 0.5, page: null, section: 8, section_title: null },
+            ],
+          },
+        ],
+      }),
+    );
+    expect(meta.matched_sections).toEqual([
+      { section: 1, title: "Prologue" },
+      { section: 3, title: "Chapter Two" },
+      { section: 8, title: null },
+    ]);
+    expect(meta.matched_pages).toBeUndefined();
+  });
+
+  it("keeps each content excerpt paired with its page and score", () => {
+    const meta = buildMatchMeta(
+      makeHit({
+        match_types: ["text_content"],
+        segments: [
+          {
+            time_range: null,
+            matches: [
+              { type: "text_content", score: 0.8, page: 7, text: "page seven" },
+              { type: "text_content", score: 0.6, page: 2, text: "page two" },
+            ],
+          },
+        ],
+      }),
+    );
+
+    expect(meta.content_matches).toEqual([
+      { score: 0.8, page: 7, text: "page seven" },
+      { score: 0.6, page: 2, text: "page two" },
+    ]);
   });
 
   it("collects clip_thumbnail score (no timestamp)", () => {
-    // Spec 2026-05-02-thumbnail-clip-default-shallow-search.md:
-    // representative-frame CLIP carries no time_range — surface as a
-    // score-only field distinct from the time-ranged ``clip`` array.
     const meta = buildMatchMeta(
       makeHit({
         match_types: ["clip_thumbnail"],
@@ -145,9 +195,8 @@ describe("buildMatchMeta", () => {
   });
 
   it("falls back to a placeholder transcript entry when match_types declares audio but no segment has a usable time_range", () => {
-    // Without the fallback the badge row would be empty even though
-    // intelligence reported a transcript hit. Using time_range=[-1,-1]
-    // surfaces the badge while the timestamp-pill renderer skips it.
+    // time_range=[-1,-1] surfaces the badge while the timestamp-pill renderer
+    // skips it.
     const meta = buildMatchMeta(
       makeHit({
         match_types: ["transcript"],
@@ -208,9 +257,6 @@ describe("buildMatchMeta", () => {
   });
 
   it("collects retrieval_keywords hits as chip-only with matched list", () => {
-    // SIRA-style LLM expansion. The backend emits MatchInfo with text
-    // = matched keyword string but no time_range / page; the UI shows
-    // a chip and lists the matched expansions.
     const meta = buildMatchMeta(
       makeHit({
         match_types: ["retrieval_keywords"],
@@ -227,15 +273,11 @@ describe("buildMatchMeta", () => {
     );
     expect(meta.retrieval_keywords?.score).toBe(0.6);
     expect(meta.retrieval_keywords?.matched).toEqual(["退職", "古典文学"]);
-    // Crucially: no transcript / clip jumps are synthesised.
     expect(meta.transcript).toBeUndefined();
     expect(meta.clip).toBeUndefined();
   });
 
   it("falls back to a chip-only retrieval_keywords badge when MatchInfo is missing", () => {
-    // Defensive: legacy backend that declares the channel in match_types
-    // but doesn't emit a per-segment MatchInfo entry still surfaces the
-    // chip via the top-level fallback path.
     const meta = buildMatchMeta(
       makeHit({
         match_types: ["retrieval_keywords"],
@@ -282,8 +324,6 @@ describe("computeHybridScore", () => {
   });
 
   it("adds path match with low weight (0.3)", () => {
-    // spec 2026-05-02-search-path-match: path-only hits use a lower weight
-    // (0.3) than filename×2.0 / metadata×1.0 to suppress noise.
     const score = computeHybridScore({ path: { score: 1 } });
     expect(score).toBeCloseTo(0.3);
   });
@@ -305,9 +345,6 @@ describe("computeHybridScore", () => {
   });
 
   it("stacks retrieval_keywords with body hits", () => {
-    // The user's design point: same file from text-embedding AND
-    // retrieval_keywords gets a boost from both channels. (Body hits
-    // dominate; the LLM expansion piles on.)
     const score = computeHybridScore({
       content: { score: 0.5 },
       retrieval_keywords: { score: 0.5 },
@@ -392,8 +429,6 @@ describe("mergeResults", () => {
   });
 
   it("sets match_meta.path when filename API reports match_source=path", () => {
-    // spec 2026-05-02-search-path-match: files where backend returns
-    // match_source="path" are classified with the path badge, not filename.
     const f = makeFile({ id: "p1", match_source: "path" });
     const { files } = mergeResults({
       filenameMatches: [f],

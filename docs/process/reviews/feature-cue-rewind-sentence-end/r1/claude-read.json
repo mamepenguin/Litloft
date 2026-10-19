@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [],
+  "specification_compliance": [
+    "Every place the change against origin/develop reaches is on the touch-point list or is implicit. The touch-point list is complete, so this review raises no findings.",
+    "addons/intelligence submodule pointer d88ac77 -> 29e26b8: listed ('the core bumps the addons/intelligence pointer').",
+    "addons/intelligence/app/subtitle_builder.py:372-391: all edits are inside build_cues, in the word loop. The limit branch gets the post-flush tail test, which is listed. The non-limit elif is refactored from hard_boundary/soft_boundary into the at_boundary closure. That is also inside build_cues, and it computes the same expression (same min_duration, ends_hard, gap, ends_soft and current_width * 0.75 terms), so spec step 5 and I8 still hold. flush_with_rewind (304-334), emit (288-302), _safe_break_between, CueConfig and digit_separator are not modified, as the list says.",
+    "addons/intelligence/tests/test_cue_rewind_sentence_end.py: a new test file that cites SPEC-ADDON-017, which is listed. It monkeypatches subtitle_builder._get_ja_tokenizer. This only reads the module and does not change it.",
+    "docs/specs/cue-rewind-sentence-end.md, docs/specs/INDEX.md and docs/process/reviews/feature-cue-rewind-sentence-end/ (invariants.md, decisions.md, r1/): implicit touch points.",
+    "The reviewed commit 22f0f70fe ('docs: record R-5') is a review-record commit under docs/process/reviews/feature-cue-rewind-sentence-end/. Its decisions.md describes a runtime experiment (docker cp into a running container, then a restore). No file in the repository outside the review topic reflects it."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The tail duration at subtitle_builder.py:388 uses cue_start. emit (line 302) resets cue_start to current[0].timestamp_start, so it matches the spec's 'tail's first timestamp_start'. If flush_with_rewind ever left current unchanged without emitting, cue_start would be the original cue start. That cannot happen today, because flush_with_rewind always emits when current is non-empty."
+  ],
+  "regression_risks": [
+    "The non-limit path was rewritten as a closure rather than left textually untouched. It is semantically identical by reading, and I9 (existing tests unchanged) would catch a divergence.",
+    "decisions.md records that new tail cues overlap the next cue in 217 cases, because the word rows overlap. This is existing behavior at sentence ends and is outside the touch-point question."
+  ],
+  "test_coverage": [
+    "The new tests cover I1-I5 and I7 for en, ja without janome and ja with a stub janome, plus a 40-seed property test for I6. These are outside the scope of the touch-point question and I did not judge them further."
+  ],
+  "not_verified": [
+    "I could not run git, so I did not check the actual file list of commit 22f0f70fe on its own. I inferred it from the commit message and the review topic contents.",
+    "I did not run the test suite or the existing build_cues tests (I9).",
+    "I did not inspect the addon repository's history between d88ac77 and 29e26b8 beyond the diff shown, for example for intermediate commits that touch other files."
+  ],
+  "confidence": 85
+}

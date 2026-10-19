@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The diff changes `addons/intelligence/app/llm.py` (a JSON-mode fallback that latches per client and drops `response_format` after a 400) and adds about 520 lines to `tests/test_llm.py`, but neither file is a touch point of SPEC-ADDON-012/013/014 or 009/010/011, and the SPEC-ADDON-008 that the tests cite has no spec anywhere under docs/.",
+      "impact": "Every JSON caller of LLMClient (refine, summaries, keywords, Ask, anything that uses generate_json / generate_json_result / generate(response_format=json_object)) now behaves differently against providers that answer 400. Once one 400 is followed by an answer without the field, `_json_mode_rejected` latches for the life of the client. From then on, JSON mode is never sent to that provider again, and the empty-body retry in the JSON path is skipped. This behavior was reviewed against no declared invariant, so a regression in it would not be traced to any approved spec.",
+      "evidence": "addons/intelligence/app/llm.py:356 (`_JSON_OBJECT_FORMAT`), :468 (latch), :577-582, :608-614 (latching), :650-668 (400 resend without response_format, not charged to retry_attempts), :1242 (empty-body retry suppressed once latched). Grep for `SPEC-ADDON-008` under docs/ returns no files; the only matches are app/llm.py and tests/test_llm.py, where test comments cite 'SPEC-ADDON-008 (I1..I10)', which no document defines. docs/specs/INDEX.md in the diff lists 009-014 but not 008. The touch points of both specs in the diff name neither llm.py nor test_llm.py.",
+      "repro": "Read the touch-point list of docs/specs/whisper-langdetect-vad-aligner-sentences.md and of docs/specs/whisper-langdetect-refine-digits.md, then the diff: the llm.py hunk and the test_llm.py hunk appear in neither. Running Grep with the pattern `SPEC-ADDON-008` on the docs/ path returns no matches.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "C",
+        "reason": "An unspecified behavior change to the shared LLM client rides on a branch whose specs do not cover it. Its tests cite invariants (I1-I10) of a spec that does not exist, so no approved document is what they are checked against. No declared invariant of 012-014 is broken, so this is not A. The planning gap is that the change has no spec at all.",
+        "invariant_ref": null
+      },
+      "severity": "HIGH",
+      "proposed_fix": "Either write and approve the SPEC-ADDON-008 spec (with llm.py and tests/test_llm.py as its touch points) and add it to INDEX.md, or move the llm.py and test_llm.py changes to their own branch. Separately, the comment block at llm.py:349-355 describes `_RESPONSE_FORMAT_SUSPECT_FAILURES` but now sits above `_JSON_OBJECT_FORMAT`; move the constant above the comment."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The diff reaches whisper.py outside 012's touch points: `_ensure_loaded`, `_transcribe_file` and `_index_loft_vtt` now read `settings.transcription.whisper_local` (011), and `_build_chunks_from_words._is_break` now ignores digit separators (010).",
+      "impact": "Batch size, thresholds, initial_prompt and the `.loft` caption segment durations now come from the merged tree. Chunk boundaries at a `.` or `,` between digits change for every provider and language. Neither is covered by the 012-014 invariants. Both are covered by SPEC-ADDON-011 I5 and SPEC-ADDON-010 I8 in the other spec in the same diff.",
+      "evidence": "addons/intelligence/app/workers/whisper.py hunks at _ensure_loaded (batch_size), _transcribe_file (whisper_config), _index_loft_vtt (whisper_config), and _build_chunks_from_words (`_is_break(i, gap)` using is_digit_separator). The 012 touch point lists only `_detect_language`, `_decode_detection_sample` and the detection constants.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "These places are outside the declared touch-point list but inside the touch points of SPEC-ADDON-009/010/011 (docs/specs/whisper-langdetect-refine-digits.md), which is approved and reviewed under the same topic. The list is incomplete for this diff, not the design.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "The diff changes subtitle_builder.py outside `_balance_two_lines`: `_safe_break_between` gains a `before` parameter, and `build_cues` stops treating a digit separator as hard or soft punctuation or as a safe break (010).",
+      "impact": "Cue boundaries (not only line layout) change for every language at a `.` or `,` between digits. 014 item 7 says 'cue boundaries and timing are unchanged', which holds only relative to 010. The 012-014 invariants do not cover this; SPEC-ADDON-010 I9 does.",
+      "evidence": "addons/intelligence/app/subtitle_builder.py: `_safe_break_between(prev, nxt, before=None)` with the is_digit_separator check; build_cues `punctuation = ... not is_digit_separator(...)` and the two rewind loops passing `current[cand - 2]`.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Outside the 012-014 touch-point list but inside SPEC-ADDON-010's touch points (the punctuation-end and safe-break tests in build_cues).",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "F4",
+      "origin": "reviewer",
+      "claim": "The diff edits `app/prompts/refine/system.jinja2`, `search-config.yml.example` and `docs/addons/intelligence.md`, none of which is in the 012-014 touch-point list.",
+      "impact": "Every refine request now carries the Numbers line (010). The example config and the docs no longer show `transcription.whisper_local.model` (011). These are 010/011 changes covered by that spec's invariants I6 and I5, not by 012-014.",
+      "evidence": "diff hunks for addons/intelligence/app/prompts/refine/system.jinja2, addons/intelligence/search-config.yml.example (removed `model:` line), and docs/addons/intelligence.md (refine digits sentence, removed `model:` line).",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Each of these is a listed touch point of SPEC-ADDON-009/010/011 in the same diff, so the 012-014 list is incomplete for this diff without anything being unplanned.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "F5",
+      "origin": "reviewer",
+      "claim": "The 014 touch point says `_balance_two_lines` 'may reuse `app/digit_separator.py`', but the diff creates that module (for 010's `is_digit_separator`) and adds a new public function to it, `splits_number`, which is 014 step 3's 'inside a number' rule.",
+      "impact": "`splits_number` is new shared logic in a module, not reuse, and the tests in test_subtitle_line_split_numbers.py reach it only through `_balance_two_lines`. No direct test pins `splits_number` itself. A later caller of the helper would rely on behavior checked only indirectly.",
+      "evidence": "addons/intelligence/app/digit_separator.py (new file; `splits_number` at the bottom). It is used by subtitle_builder.py `_balance_two_lines` and `_number_edge`.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Touched in a way the list words as reuse only; no invariant is broken.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "The touch-point list for 012-014 covers whisper.py `_detect_language` / `_decode_detection_sample` / constants, aligner.py `align_segment`, subtitle_builder.py `_balance_two_lines` and tests. The diff also reaches llm.py and test_llm.py (no spec at all, F1), whisper.py 011/010 sites (F2), build_cues / _safe_break_between (F3), the refine prompt, the example config and the addon docs (F4), and creates digit_separator.py with new `splits_number` (F5).",
+    "Everything except llm.py / test_llm.py is accounted for by the touch points of SPEC-ADDON-009/010/011 in docs/specs/whisper-langdetect-refine-digits.md, which is in the same diff and approved per INDEX.md.",
+    "The spec files, INDEX.md and the review records are implicit touch points and are not reported."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "LLMClient latches `_json_mode_rejected` after one 400 followed by a successful resend without response_format, and never sends json_object mode on that client again (llm.py:608-614).",
+    "Once latched, the empty-body retry in the JSON path is skipped (llm.py:1242).",
+    "A 400 to a json_object request is resent once without the field and not counted against retry_attempts (llm.py:650-668)."
+  ],
+  "regression_risks": [
+    "The llm.py fallback affects every JSON LLM caller (refine, summaries, Ask, keywords) for providers that 400. A transient 400 on a json_object request followed by a success latches the client off JSON mode for its lifetime, which may lower JSON compliance on providers that do support it.",
+    "The 010 digit-separator rule in `_build_chunks_from_words` and `build_cues` changes chunk and cue boundaries for every provider, outside the 012-014 invariants."
+  ],
+  "test_coverage": [
+    "tests/test_llm.py adds TestJsonModeFallback, labelled with invariants of a SPEC-ADDON-008 that no document defines.",
+    "tests/test_whisper_language_detection.py covers 012 I1-I4 through the `_speech_seconds` seam and a fake model, in both sequential and batched paths.",
+    "tests/test_refine_aligner_sentences.py covers 013 I5/I6.",
+    "tests/test_subtitle_line_split_numbers.py covers 014 I7-I9 with and without a fake janome; `splits_number` is not tested directly."
+  ],
+  "not_verified": [
+    "Did not run any test or mutation; read-only review.",
+    "Did not check whether the llm.py change is planned in some other branch's spec or decisions file outside docs/specs and docs/process/reviews.",
+    "Did not read `generate_json_result` around llm.py:1230-1260 in full to see how the latch interacts with the json parse path.",
+    "Did not inspect the addon repository's own history to confirm which commits in c614a26..d9f5b23 belong to which spec."
+  ],
+  "confidence": 80
+}

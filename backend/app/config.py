@@ -39,7 +39,7 @@ def _restart_pending_flag() -> Path:
     return DATA_DIR / "restart_pending"
 
 
-def _setup_completed_sentinel() -> Path:
+def setup_completed_sentinel() -> Path:
     """Path to the setup-completed sentinel (re-evaluated each call)."""
     return DATA_DIR / "setup_completed"
 
@@ -47,14 +47,23 @@ def _setup_completed_sentinel() -> Path:
 def _auto_seeded_marker() -> Path:
     """Path to the auto-seed marker (re-evaluated each call).
 
-    Touched by ``drive_seed.seed_drives_from_mounts`` once it populates
-    drives.json. Its presence means "this install's non-empty drives.json
-    was produced by our own startup seed, not by a pre-GUI configure.py", so
-    the setup-sentinel migration must not mistake the seeded file for a
-    legacy user's hand-config. Never removed (a permanent fact about the
-    install). Same thin-flag convention as setup_completed / restart_pending.
+    Its presence means "this install's non-empty drives.json was produced by
+    our own startup seed, not by a pre-GUI configure.py". Never removed.
     """
     return DATA_DIR / "auto_seeded"
+
+
+def _titles_recased_marker() -> Path:
+    """Path to the title-backfill marker (re-evaluated each call).
+
+    Touched once the startup migration has rewritten titles that `str.title()`
+    had mangled. The rewrite only replaces a title still identical to what the
+    old formatter would produce, so a title the user typed is never touched —
+    but that guard cannot tell a user who later types exactly the old shape
+    from a leftover, which is why this runs once rather than every boot. Never
+    removed.
+    """
+    return DATA_DIR / "titles_recased"
 
 _drives_cache: list[dict] | None = None
 
@@ -112,9 +121,8 @@ def get_drive_addon_policy(drive_name: str, addon_name: str) -> dict:
         { "name": "...", "addons": { "<addon>": { "<feature>": bool, ... } } }
 
     Returns empty dict if no policy is configured (= all features enabled).
-    A bool value (e.g. ``"intelligence": false``) is normalised to a dict
-    where the implicit feature ``enabled`` carries that value, and any
-    feature lookup falls back to it.
+    A bool value (e.g. ``"intelligence": false``) is normalised to
+    ``{"_all": <value>}``, which every feature lookup falls back to.
     """
     for drive in load_drives():
         if drive["name"] == drive_name:

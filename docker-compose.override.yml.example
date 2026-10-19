@@ -28,6 +28,25 @@ services:
       # the same atomic writer used for drives.json. Do not add ":ro".
       # - ./passwords.json:/app/passwords.json
 
+    # ── Addon wiring (only when you run an addon) ───────────────────────
+    # These belong to the **backend**, not the addon. Core resolves the
+    # addon's URL and builds the X-Webhook-Secret header in this container,
+    # from these variables.
+    #
+    # SEARCH_WEBHOOK_SECRET has to be on BOTH sides or neither. Set it here
+    # and not on the addon and nothing happens (the addon's gate stays a
+    # no-op); set it on the addon and not here and core sends no header
+    # while the addon rejects everything — all seven webhooks 403 and
+    # indexing stops with no other symptom.
+    #
+    # It also only does anything when the addon's manifest declares
+    # "secret_env": "SEARCH_WEBHOOK_SECRET" for its listeners, which is
+    # what makes core attach the header at all.
+    #
+    # environment:
+    #   - INTELLIGENCE_SERVICE_URL=http://intelligence:8100
+    #   - SEARCH_WEBHOOK_SECRET=${SEARCH_WEBHOOK_SECRET:-}
+
   # ── Port (optional) ─────────────────────────────────────────────────────
   # Default port is 3000.
   # The easiest way to change it is to add LITLOFT_PORT=8080 to a .env file.
@@ -50,9 +69,54 @@ services:
   # compatible) because their job records depend on a synchronous policy
   # lookup at enqueue time.
   #
-  # Uncomment this block if you run the intelligence addon:
+  # PREFER `configure.py`. It generates this whole block for you, with the
+  # drive mounts and DRIVE_MOUNTS filled in from the drives you selected.
+  # Hand-writing it is the fallback, and the two must not drift.
+  #
+  # `docker-compose.yml` does not define an `intelligence` service, so this
+  # is a full service definition, not an override of an existing one. Every
+  # key below is load-bearing:
+  #
+  #   volumes      the addon indexes the drives through its own read-only
+  #                mounts, and reads the core DB and thumbnails read-only
+  #   DRIVE_MOUNTS maps drive slug to container path. WITHOUT IT THE ADDON
+  #                INDEXES NOTHING, and it fails quietly rather than loudly
+  #   CORE_INTERNAL_SECRET  must match the core's value, or the addon
+  #                cannot read file content or promote chapters
+  #
+  # Mount every drive you want indexed, using the same slug in the path and
+  # in DRIVE_MOUNTS. The example below assumes two drives, `movies` and
+  # `photos` — replace them with yours.
+  #
   # intelligence:
+  #   build: ./addons/intelligence
+  #   expose:
+  #     - "8100"
+  #   volumes:
+  #     - ./addons/intelligence/search-config.yml:/app/search-config.yml:ro
+  #     - ./data/addons/intelligence:/intelligence-data
+  #     # Mount the data DIRECTORY, never the DB file on its own. SQLite runs
+  #     # the core DB in WAL mode, so a reader needs data.db-wal and
+  #     # data.db-shm alongside data.db — and those two are deleted on a clean
+  #     # shutdown and recreated on the next write. Bind-mounting them by path
+  #     # makes Docker create a DIRECTORY wherever the file is missing at `up`
+  #     # time, and the backend then dies with "unable to open database file"
+  #     # because a directory sits where its WAL belongs. A directory mount
+  #     # always resolves and picks up the sidecars as they come and go.
+  #     # Read-only: the addon must never write to the core's data.
+  #     - ./data:/data:ro
+  #     # ...but that directory also holds the core's JWT signing key, and an
+  #     # addon that can read it can mint a token for any drive group (or
+  #     # __admin__) and call core write APIs. Mask it with /dev/null, which
+  #     # always exists on the host, so the addon sees an empty file and no
+  #     # directory is ever created in its place.
+  #     - /dev/null:/data/.jwt_secret:ro
+  #     - /srv/movies:/drives/movies:ro
+  #     - /srv/photos:/drives/photos:ro
   #   environment:
+  #     - DRIVE_MOUNTS=movies=/drives/movies,photos=/drives/photos
+  #     # The DB keeps its host filename under the directory mount.
+  #     - HOMEVAULT_DB_PATH=/data/data.db
   #     # Lets the addon notify the core of restart-pending events
   #     # (Phase 2D: settings GUI for transcription provider).
   #     - HOMEVAULT_INTERNAL_URL=http://backend:8000
@@ -64,6 +128,25 @@ services:
   #     - OPENAI_API_KEY=${OPENAI_API_KEY:-}
   #     - ASSEMBLYAI_API_KEY=${ASSEMBLYAI_API_KEY:-}
   #     - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+  #     - CORE_INTERNAL_SECRET=${CORE_INTERNAL_SECRET:-}
+  #     # Authenticates core's webhooks to the addon. The backend needs the
+  #     # same line (see the backend environment block above) — core builds
+  #     # the header there. On one side only, every webhook 403s.
+  #     - SEARCH_WEBHOOK_SECRET=${SEARCH_WEBHOOK_SECRET:-}
   #   depends_on:
   #     backend:
   #       condition: service_healthy
+  #   restart: unless-stopped
+  #   # A wedged event loop leaves the process alive, memory flat and CPU
+  #   # at zero, so only an HTTP probe can tell healthy from hung. /health
+  #   # is served by the same loop every other endpoint uses.
+  #   #
+  #   # Note this reports, it does not repair: Docker never restarts a
+  #   # merely unhealthy container. `docker compose ps` shows the state and
+  #   # the addon logs a full thread dump when the loop stalls.
+  #   healthcheck:
+  #     test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8100/health', timeout=5)"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 60s

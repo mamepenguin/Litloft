@@ -20,7 +20,7 @@
 
 | ID | 貼る場所 | 撮影シーン |
 |---|---|---|
-| UG-01 | `user-guide/file-browsing.md` の冒頭「ドライブホーム画面の構成」セクション | ドライブのトップページ。フォルダグリッド・ファイルグリッド・カルーセル（Continue watching / Recently added / Favourites）・パンくず、すべてが 1 画面に収まった俯瞰ショット。各領域に番号付き吹き出しで注釈を入れる。 |
+| UG-01 | `user-guide/file-browsing.md` の「Home」セクション（`images/user-guide/drive-home-overview.png` を差し替え） | ドライブの Home。サイドバー（Home / Library / Views / 自分のセクション）と、見出し「Home」と右端の Add、Continue Watching・Recently Viewed・Recently Added などの行が見える俯瞰ショット。フォルダカードは出ない（フォルダは Library）。各領域に番号付き吹き出しで注釈を入れる。 |
 | UG-02 | `user-guide/viewers-and-players.md` の「Video」セクション | 動画プレイヤー再生中の画面。シークバー上にスプライトプレビューがホバー表示され、字幕ピッカーが開いていて、autoplay トグルが見える状態。 |
 | UG-03 | `user-guide/viewers-and-players.md` の「Image」セクション | 画像ビューアの見開きモード。RTL トグルが ON で、2 枚並びの画像が表示されている状態。 |
 | UG-04 | `user-guide/viewers-and-players.md` の「Markdown」セクション | Markdown ビュー。上部に frontmatter のチップ（tags / title / description）が表示され、本文中に Mermaid 図が描画されている状態。 |
@@ -66,7 +66,7 @@
 |---|---|---|
 | DEV-01 | `developer-guide/architecture.md` の「全体構成」セクション（既存 ASCII アートを置換） | ブラウザ → Custom Server (:3000) → Backend (:8000) の経路図に、アドオン群を外側に衛星状に配置したトポロジ図。WebSocket 経路は別色で示す。 |
 | DEV-02 | `developer-guide/architecture.md` の「ファイル状態」セクション（既存 ASCII アートを置換） | ファイル状態の有限状態機械図。REF-01 と類似だが開発者向けに `deleted_at` / `missing_since` カラムの値も併記。 |
-| DEV-03 | `developer-guide/addon-dev.md` の「Slot System」セクション | スロット注入の概念図。1 ページに複数スロット（`search-modes` / `file-detail-sections` / `dashboard-widgets` / `folder-actions`）が並び、それぞれを別のアドオンが埋めている様子をカラーで色分けして示す。 |
+| DEV-03 | `developer-guide/addon-dev.md` の「Slot System」セクション | スロット注入の概念図。1 ページに複数スロット（`search-modes` / `file-detail-sections` / `dashboard-widgets` / `folder-actions-menu`）が並び、それぞれを別のアドオンが埋めている様子をカラーで色分けして示す。 |
 
 ## Reused
 

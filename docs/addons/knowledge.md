@@ -1,30 +1,39 @@
 # knowledge addon
 
-The `knowledge` addon turns Litloft into a personal notes vault and web-clip archive. It is Obsidian-flavoured: notes are plain `.md` files with YAML frontmatter, organised under a *Vault* root within a drive.
+The `knowledge` addon adds Markdown notes to Litloft: an editor, version history, web clipping, a capture basket for quotes, and a graph of how notes and files connect. Notes are ordinary `.md` files with YAML frontmatter, stored anywhere in a drive, so other editors such as Obsidian can open them too. Each drive is its own collection of notes; nothing links across drives.
 
 ## What it provides
 
-- **Vaults** — dedicated subtrees of a drive that hold Markdown notes. Multiple Vaults per drive; one is *active* at a time.
-- **Web clipping** — paste a URL or a piece of HTML; the addon fetches, sanitises, converts to Markdown, and saves.
-- **Frontmatter sync** — when an external editor (Obsidian, vim, etc.) edits a note, the scanner reconciles `tags`, `source_file_ids`, and other recognised keys with the addon's database.
-- **File active summary** — a sidebar widget showing related notes / clips for the currently open core file.
-- **Vault-scoped search** — keyword search over note bodies.
-- **Distill** (early preview) — summarise notes through the configured LLM.
+- **Notes** in the sidebar lists and searches the drive's Markdown and text files. See [Notes](../user-guide/notes.md).
+- A Markdown editor with live preview, autosave, `[[wiki links]]`, and image upload by drag and drop or paste.
+- A version history where you browse and restore earlier versions of a note.
+- A capture basket that collects quotes and timestamps from anywhere in Litloft so you can add them to a note.
+- Web clipping, which saves a web page as a Markdown note.
+- **Create note**, which starts a note that cites the file you are looking at.
+- A file can show a note chosen as its summary note.
+- A connections graph of how notes and files refer to each other.
+- **New note** and **Clip web page** in the **Add** menu on Home and in Library folders.
 
-> **Image needed:** screenshot of a Vault note alongside its file detail page with the Active Summary widget.
+Clipping, committing the capture basket, and **Create note** need a [profile](../user-guide/profile-preferences.md). Without one, they fail.
 
 ## Installation
 
-The addon runs as an independent service on port 8200. The recommended path is to answer **yes** when `configure.py` prompts to enable the knowledge addon — it writes the service block into `docker-compose.override.yml` and generates `KNOWLEDGE_WEBHOOK_SECRET` / `CORE_INTERNAL_SECRET` into `.env` for you. Then:
+The addon runs as its own container on port 8200. Answer yes when `configure.py` asks to enable the knowledge addon. It writes the service into `docker-compose.override.yml`, writes `KNOWLEDGE_WEBHOOK_SECRET` and `CORE_INTERNAL_SECRET` into `.env`, and builds `event-hooks.json`. Then:
 
 ```bash
 docker compose up -d --build
 ```
 
-For a manual install (no `configure.py`), add a service block like this to `docker-compose.override.yml` and set the two secrets in `.env` (`openssl rand -hex 32`):
+Without `configure.py`, add this to `docker-compose.override.yml` and set both secrets in `.env` (generate each with `openssl rand -hex 32`):
 
 ```yaml
 services:
+  backend:
+    environment:
+      - KNOWLEDGE_SERVICE_URL=http://knowledge:8200
+      - KNOWLEDGE_WEBHOOK_SECRET=${KNOWLEDGE_WEBHOOK_SECRET:-}
+      - CORE_INTERNAL_SECRET=${CORE_INTERNAL_SECRET:-}
+
   knowledge:
     build: ./addons/knowledge
     expose:
@@ -33,7 +42,6 @@ services:
       - HOMEVAULT_INTERNAL_URL=http://backend:8000
       - KNOWLEDGE_WEBHOOK_SECRET=${KNOWLEDGE_WEBHOOK_SECRET:-}
       - CORE_INTERNAL_SECRET=${CORE_INTERNAL_SECRET:-}
-      - NOTE_SCANNER_INTERVAL_SECONDS=3600
     volumes:
       - ./data/addons/knowledge:/knowledge-data
     depends_on:
@@ -42,126 +50,150 @@ services:
     restart: unless-stopped
 ```
 
-The knowledge addon does not bind-mount drive directories — it reaches the Vault files indirectly, by reading file content through the [Internal API](../developer-guide/addon-dev.md#internal-api-policy) on the Docker network.
+- `KNOWLEDGE_SERVICE_URL` on the backend is how the backend finds the addon. Without it, the addon's routes answer `404`.
+- Set both secrets on both containers.
+- The addon hears about missing, recovered and purged files through `event-hooks.json`, mounted into the backend at `/app/event-hooks.json`. `configure.py` builds that file from the addons' `manifest.json` files; see [File events](overview.md#file-events).
+
+The addon does not mount your drives. It reads and writes notes through the backend.
 
 ## Configuration
 
-| Env var | Default | What it does |
+Environment variables of the `knowledge` container:
+
+| Variable | Default | Meaning |
 |---|---|---|
-| `KNOWLEDGE_DATA_DIR` | `/knowledge-data` | Directory for the addon's SQLite DB and intermediate state. |
-| `HOMEVAULT_INTERNAL_URL` | `http://backend:8000` | Core API endpoint on the Docker network. |
-| `KNOWLEDGE_USER_AGENT` | (browser-like) | Override for the web-clip fetcher. |
-| `KNOWLEDGE_WEBHOOK_SECRET` | *required* | HMAC for lifecycle webhooks (`files.missing` etc.). |
-| `CORE_INTERNAL_SECRET` | *required* | Shared secret for `/api/internal/files/<id>/content` calls. |
-| `NOTE_SCANNER_INTERVAL_SECONDS` | `3600` | Cadence for the frontmatter reconciler. |
+| `KNOWLEDGE_DATA_DIR` | `/knowledge-data` | Where the addon keeps its database, `knowledge.db`. |
+| `HOMEVAULT_INTERNAL_URL` | `http://backend:8000` | The backend's address on the Docker network. |
+| `KNOWLEDGE_USER_AGENT` | a desktop Chrome user agent | User agent for fetching web pages to clip. |
+| `KNOWLEDGE_WEBHOOK_SECRET` | *(empty)* | Shared secret the backend sends in the `X-Webhook-Secret` header on file events. The addon rejects a call with the wrong value (`403`). Also required by the intelligence addon to clear a summary note. |
+| `CORE_INTERNAL_SECRET` | *(empty)* | Shared secret for the addon's calls to the backend's internal API. Web clipping fails without it; see [Clips are unverified](#clips-are-unverified). |
+| `NOTE_SCANNER_INTERVAL_SECONDS` | `3600` | How often to check for notes edited outside Litloft. |
 
-## Data model
+With a secret empty, that check is skipped. Set both on a real installation.
 
-The addon manages two on-disk surfaces:
+## Notes and frontmatter
 
-- **Vault notes** — `.md` files in a directory tree under one of the core's drives. The user owns the layout.
-- **Addon SQLite** at `${KNOWLEDGE_DATA_DIR}/knowledge.db` — Vault registry, `note_origins` (the canonical store mapping note → source clip), `note_origin_sources`.
-
-The Vault root is registered in the addon's DB with a path inside the drive.
-
-### Frontmatter convention
-
-A typical note looks like:
+A clipped note looks like this:
 
 ```markdown
 ---
-title: "Why we picked SQLite"
+id: "20260412081400"
 url: https://example.com/sqlite-vs-postgres
-origin: web-clip
+origin: webclip
 created: 2026-04-12T08:14:00Z
 tags: [database, decisions]
-source_file_ids: [file_abc123def456]
+source_file_ids: [file_abc123]
 ---
 
 # Why we picked SQLite
 
-…body…
+…
 ```
 
-- `title` — display title; falls back to the H1 if absent.
-- `url`, `origin` — set by the web-clip pipeline.
-- `created` — ISO timestamp.
-- `tags` — list; the core projects them to `File.tags` when the file is in core's tag mirror as well.
-- `source_file_ids` — list of `file_id`s this note references. The web-clip pipeline can attach these so a clip stays associated with the originating media file.
+- `id`: a stable identifier. Litloft adds one when a note is saved or scanned without it. Do not change it.
+- `url`, `origin`: where the note came from, for example `webclip` or `source_capture`.
+- `tags`: the note's tags. For Markdown files the frontmatter is where tags live, and Litloft's tag list follows it. See [Tags on Markdown files](../user-guide/tags-and-relations.md#tags-on-markdown-files).
+- `source_file_ids`: the Litloft files the note cites. These appear in the connections graph and make the note show up on those files.
 
-The frontmatter parser is implemented twice — in core (`backend/app/services/frontmatter.py`) and in this addon (`addons/knowledge/app/services/frontmatter.py`) — because they live in different containers and cannot share code. Drift is caught in PR review.
+A note's title is its filename. Rename the file to rename the note.
+
+## The editor
+
+A Markdown file on a drive with the editor turned on opens in the editor on its file page. A `.txt` file opens for reading only.
+
+The editor has three views: **Edit**, **Split** (editor and preview side by side, not offered on narrow screens), and **Preview**. In **Edit**, live preview styles the text as you type: headings, bold, links, lists, task checkboxes and code blocks. The Markdown characters are hidden except on the line the cursor is on. Frontmatter is shown as YAML in **Edit** and as a properties card in **Preview**.
+
+The formatting toolbar never wraps. Controls that do not fit move into the **More formatting and versions** menu at its end, which also holds **Keep this version** and **Version history**.
+
+- Your changes are saved two seconds after you stop typing. There is no save button.
+- If the file changed somewhere else, for example in Obsidian or on another device, the editor says so and lets you reload the saved copy or keep yours.
+- Drop or paste a file into the editor to upload it into the note's folder. An image is inserted as `![name](loft://<file_id>)`; other files as a link.
+- Type `[[` to pick another note in the drive for a wiki link. A link to a note that does not exist offers to create it.
+
+Images linked as `loft://<file_id>` keep working when the image is moved or renamed. The first such image in a note becomes its thumbnail. Two or more images on consecutive lines are shown side by side in one row; put a blank line between them to stack them.
+
+Images linked by an `https://` address are loaded from that site each time. An admin can copy them into the library from `/admin/markdown-images`.
+
+The editor's keys are listed in [Keyboard shortcuts](../user-guide/keyboard-shortcuts.md#markdown-editor-knowledge-addon).
+
+## Version history
+
+Litloft keeps a version every time a `.md` or `.txt` file is written, whoever wrote it, and when the file is created. The knowledge addon adds the **Version history** panel at the bottom of the editor. You can also open it from **Version history** in the editor toolbar menu or in the file's `...` menu.
+
+- Versions are listed newest first, 50 per page. Each shows the time, whether it is a **Kept version** or **Autosaved**, who saved it if they have a profile, and how many lines were added and removed.
+- Select a version to see what changed in it. **Read-only preview** shows its full text as raw Markdown.
+- **Restore this version** saves the old text as a new version, so a restore can itself be undone. Unsaved edits are kept as a version first.
+- `Cmd/Ctrl+S`, or **Keep this version**, marks the current text as a kept version.
+- Autosaves by the same person within five minutes of each other are merged into one version.
+- A file keeps at most 200 versions. When there are more, the oldest autosaved versions are removed. Kept versions are never removed.
+
+The history is stored by Litloft itself, so the versions are still there if the addon is removed.
+
+## Capture basket
+
+The capture basket collects pieces of other files to add to a note. Look for the capture button on:
+
+- a search result (its snippet);
+- the video or audio player (the current time);
+- a document or PDF (the selected text, or the current page);
+- a transcript line or an Ask citation, with the [intelligence addon](intelligence.md).
+
+The basket is in the header on every page. It holds up to 100 items per drive and is kept in the browser tab until you save it; closing the tab loses it. In the basket you can reorder items, add a comment to each, and remove items.
+
+Saving adds the items to a note under a `## Captures` heading. Each item has a link back to the source, opening at the right time or page, the quote, and your comment. The source files are added to the note's `source_file_ids`.
+
+- **Append to {filename}** adds to your usual note. By default this is `Captures/Inbox.md`. You can instead choose a daily note named `YYYY-MM-DD.md`, and a different folder. This setting is kept per drive in the browser.
+- **Other save methods** offers **New note** or **Existing note**.
 
 ## Web clipping
 
-`POST /api/addons/knowledge/clip` accepts:
+Clip a web page from **Web clip** at the bottom of the Notes page, from **Clip web page** in the **Add** menu, or with the bookmarklet offered on the Notes page.
 
-- `{ "url": "https://..." }` — fetch via httpx, run through readability-lxml + trafilatura for content extraction, sanitise with bleach, convert to Markdown via markdownify.
-- `{ "html": "..." }` — same pipeline starting from raw HTML (e.g. browser-side selection).
-- `{ "text": "..." }` — store as a plain note.
+Litloft creates the note at once and fetches the page in the background. It keeps the article, removes scripts and page furniture, converts it to Markdown, and renames the note after the article's title. If you edit the note before the fetch finishes, your edit is kept and the fetched text is discarded.
 
-Output:
+- If a URL was clipped before, Litloft asks: **Open existing**, **Create new** or **Cancel**. A URL whose earlier clips all failed is clipped again without asking.
+- A clip from the **Add** menu saves into the folder the menu was opened in. When it is ready, a notice says **Clipped: {title}**, or **A web page could not be clipped**.
+- If Litloft cannot fetch a page, for example one behind a login, you can paste the page's HTML instead. Nothing is fetched then.
 
-- A new `.md` file in the active Vault, with frontmatter (`url`, `origin: web-clip`, `created`, optional `source_file_ids`).
-- The `note_origins` row links the file back to the URL.
+### Clips are unverified
 
-### SSRF safety
+Every clip is saved as an **unverified** source. It can be searched at once, but Ask does not use it as evidence until you press **Trust as a source** on its file page. See [Trusted sources](../user-guide/file-browsing.md#trusted-sources-and-the-review-queue).
 
-The fetcher refuses:
+Because of this, `CORE_INTERNAL_SECRET` must be set on both containers. Without it, the clip cannot be marked unverified, so clipping fails (`502`) rather than saving the page as a trusted source. The empty placeholder note is left in the folder.
 
-- `file://` URLs.
-- Non-HTTP(S) schemes.
-- Hostnames resolving to localhost / link-local / RFC 1918 private ranges.
-- Ports outside an allowlist (80, 443, common public-API ports).
+### Pages that are refused
 
-So a malicious clip URL cannot make Litloft fetch from inside its own Docker network.
+To keep a clip URL from reaching inside your network, Litloft refuses:
 
-## Active Summary
+- anything other than `http` and `https`;
+- the Docker service names `backend`, `frontend`, `knowledge`, `intelligence`, `postgres`, `redis` and `localhost`;
+- addresses that are private, loopback, link-local, multicast, reserved, unspecified or in `100.64.0.0/10`, and names that resolve to them or do not resolve;
+- responses that are not HTML;
+- redirects from `https` to `http`, and more than five redirects. Every redirect is checked again.
 
-The "summary note" panel is what the user sees in Litloft's file detail page when knowledge is enabled.
+## Create note and summary note
 
-- It shows clips and notes whose `source_file_ids` include the current file ID.
-- Sourced from the addon's `note_origin_sources` table, kept in sync via lifecycle webhooks (`files.missing` / `files.recovered` / `files.purged`).
-- A button toggles between *current* and *all-time* (so you can see notes for files that have since gone missing).
+**Create note** in any file's `...` menu creates a note whose frontmatter already cites that file, and opens it.
 
-The active-summary pointer used to live in core (`file_active_summaries`) but was migrated into the knowledge addon as part of the [Internal API policy](../developer-guide/addon-dev.md#internal-api-policy) cleanup — it does not satisfy R1 (first-class core entity) and would have leaked from a single addon into the core API surface.
+A file's **Summary note** section shows the note chosen as the summary of that file, with **Edit in Knowledge**. With the [intelligence addon](intelligence.md), **Save as file** on an AI detailed summary saves it as a note and makes it that file's summary note.
 
-## Note scanner
+## Connections graph
 
-A periodic background job (default every hour, `NOTE_SCANNER_INTERVAL_SECONDS`):
+The graph shows the drive's notes and files as points and their connections as lines. It is at `/drive/{drive}/addons/knowledge/connections`. Open it from **Note & file connections** on the Notes page, or from **See connections as a graph** in the **Related** tab of a Markdown or text file.
 
-1. Walks each Vault root.
-2. Diffs the `.md` files on disk vs the addon DB.
-3. For new/changed files, parses the frontmatter and re-projects:
-   - `tags` → calls `POST /api/internal/files/<id>/tags` on the core (gated by `CORE_INTERNAL_SECRET`).
-   - `source_file_ids` → updates `note_origin_sources`.
+- A line is a [file relation](../user-guide/tags-and-relations.md#file-relations), or a note citing a file in `source_file_ids`.
+- Colour points by file type, tag or folder, or use one colour.
+- **Center on this** focuses on one file to a chosen depth. **Reset to full view** or `Escape` shows the whole drive again. Opening the graph from a file centres it on that file; a file with no connections shows the whole drive and says so.
+- Notes with no connections are listed separately.
+- With more than 200 points, the page suggests centring on a file. If the drive has more than 5,000 relations, the page says the graph is incomplete.
 
-This is how external editing (Obsidian, vim) stays in sync.
+## Notes edited outside Litloft
 
-## Lifecycle webhooks
-
-The core forwards file lifecycle events to the addon at `/api/addons/knowledge/webhook/...`:
-
-- `files.missing` — for any note origin pointing at this file, append a *missing* marker.
-- `files.recovered` — clear the marker.
-- `files.purged` — remove the row from `note_origin_sources` (so the Active Summary panel does not display dangling references).
-
-The webhook payload is signed with HMAC-SHA256 using `KNOWLEDGE_WEBHOOK_SECRET`. Without this header, the addon refuses the request — without the secret, any process inside the Docker network could forge events and delete data.
-
-## API surface
-
-For automation and addon-to-addon scripting:
-
-- `GET /api/addons/knowledge/vaults` — list Vaults.
-- `POST /api/addons/knowledge/vaults` — create.
-- `PATCH /api/addons/knowledge/vaults/<id>/activate` — set active.
-- `POST /api/addons/knowledge/clip` — web clip from URL / HTML / text.
-- `GET /api/addons/knowledge/notes/search?q=...` — keyword search.
-- `POST /api/addons/knowledge/notes/<id>/distill` — summarise via LLM (preview).
-- `POST /api/addons/knowledge/tags/resync` — rebuild the tag projection (admin-only).
+If you edit notes with another program, Litloft picks up the changes to `tags` and `source_file_ids` within an hour, and once when the addon starts. `NOTE_SCANNER_INTERVAL_SECONDS` sets the interval. Changes made in Litloft's editor apply at once.
 
 ## Per-drive policy
 
-Configure per drive in `drives.json`:
+In `drives.json`, or in **Addon policy** at `/admin/settings`:
 
 ```json
 {
@@ -172,20 +204,53 @@ Configure per drive in `drives.json`:
 }
 ```
 
-A drive opts out simply by setting `"knowledge": false`. Disabling on a drive triggers a `purge_drive` against the addon's records for that drive (skipped if the policy lookup fails, to avoid accidental wipes).
+`"knowledge": false` turns the addon off for the drive. Two features can be set on their own:
 
-## Observability
+| Feature | Effect when `false` |
+|---|---|
+| `editor` | No editor on note pages, no **Create note** in the file's `...` menu, and no **New note** in the **Add** menu. |
+| `index` | File events for the drive are not sent to the addon. |
 
-- `docker compose logs -f knowledge` — service logs.
-- The active vault and last scan time are visible in the addon's status page.
-- `GET /api/addons/knowledge/health` returns DB health + last scan timestamp.
+**Clip web page** has no feature of its own: it is shown wherever the addon is on, even when `editor` is off. **New note** on the Notes page is also shown whatever `editor` says, because it uses [Quick Note](../user-guide/quick-note.md).
 
-## Future direction
+Turning the addon off for a drive hides it there. Nothing the addon stored is deleted, and the notes stay on the drive.
 
-The `distill` endpoint is an early step toward LLM-driven note summarisation; expect more curation features (related-note suggestions, tag clustering) over time. The addon already has the data model to support a lightweight personal wiki — what is missing is UI for the bidirectional links beyond `loft://` references.
+## API
+
+The addon's routes are reached through the backend at `/api/addons/knowledge/...`. All except `resync-tags` need the `X-Lit-Drive` header, which the web app sends. Routes marked *profile* answer `401` without a profile.
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /clips?url=` | Your earlier clips of a URL in this drive. *profile* |
+| `POST /clips` | Clip a URL. Answers `202` and finishes in the background; the result arrives as the WebSocket event `knowledge.clip.ready` or `knowledge.clip.failed`. *profile* |
+| `POST /clips/pasted` | Clip pasted HTML. Answers `201` when done. *profile* |
+| `POST /captures/commit` | Save capture basket items into a note. *profile* |
+| `POST /notes` | Create a note with a given folder, filename and content. *profile* |
+| `POST /note-from-file` | Create a note citing a file. *profile* |
+| `POST /distill` | Save a summary as a note and make it the file's summary note. *profile* |
+| `GET /notes/by_source_file/<id>` | Notes that cite a file. |
+| `POST /note-openings` | The first lines of the given notes, for lists. |
+| `GET /search?q=` | Search the text of the drive's notes. |
+| `GET /connections-graph` | The drive's connections graph. |
+| `POST /resync-tags/<file_id>` | Copy a note's frontmatter tags into Litloft's tag list. |
+| `POST /file_active_summary`, `GET` / `DELETE /file_active_summary/<file_id>` | A file's summary note. |
+| `GET /file_active_summary/<file_id>/note` | The summary note to show on a file page. |
+
+Version history is part of Litloft itself: `GET /api/files/<id>/versions?limit=&offset=`, `GET /api/files/<id>/versions/<version_id>`, and `GET /api/files/<id>/versions/<version_id>/diff`.
+
+## Troubleshooting
+
+| Symptom | Likely cause |
+|---|---|
+| Every clip fails, leaving an empty note behind | The secret is missing on the backend or the addon. Set it on both and restart. |
+| Clipping or **Create note** fails at once | No profile is set. |
+| Notes, clips and the graph are missing | `KNOWLEDGE_SERVICE_URL` is not set on the backend, or the addon is off for this drive. |
+| Tags edited in another program do not appear | Wait for the next check (hourly by default), or save the note once in Litloft. |
+
+`docker compose logs -f knowledge` shows the addon's log, including each check for outside edits. `http://knowledge:8200/health` on the Docker network answers `{"status": "ok"}` when the addon is running.
 
 ## See also
 
-- [Addon overview](overview.md)
-- [Tags and relations](../user-guide/tags-and-relations.md) for the core/knowledge tag-store split.
-- [Internal API policy](../developer-guide/addon-dev.md#internal-api-policy).
+- [Notes](../user-guide/notes.md) for the Notes page.
+- [Quick Note](../user-guide/quick-note.md), Litloft's own note panel in the header.
+- [Addon overview](overview.md) for per-drive policy.

@@ -1,14 +1,4 @@
-"""SQLAlchemy-level tests for Step A new tables.
-
-Covers:
-- `file_relations` table: UNIQUE (file_id_a, file_id_b, kind), CHECK (a != b),
-  FK cascade from files on both sides.
-- `file_active_summaries` table: PK=file_id (one-to-one upsert semantics),
-  FK cascade from files on both `file_id` and `summary_file_id`.
-- Migration / metadata idempotency (Base.metadata.create_all run twice is no-op).
-
-These tests MUST fail on current HEAD because the models do not yet exist.
-"""
+"""SQLAlchemy-level tests for the ``file_relations`` table."""
 
 from __future__ import annotations
 
@@ -68,7 +58,6 @@ def _mk_file(db, *, filename: str, path: str, drive: str = "drv-A") -> File:
 class TestMigrationIdempotent:
     def test_create_all_twice_is_noop(self, session):
         _, engine = session
-        # Running create_all again must not raise and must leave tables intact.
         Base.metadata.create_all(bind=engine)
         Base.metadata.create_all(bind=engine)
 
@@ -80,9 +69,6 @@ class TestMigrationIdempotent:
                 )
             }
         assert "file_relations" in tables
-        # file_active_summaries was moved to the knowledge addon; the
-        # core schema no longer creates it (spec
-        # 2026-04-30-file-active-summary-to-knowledge).
         assert "file_active_summaries" not in tables
 
 
@@ -179,8 +165,3 @@ class TestFileRelationsConstraints:
         assert (
             db.query(FileRelation).filter(FileRelation.id == rel_id).first() is None
         )
-
-
-# FileActiveSummary tests removed: spec
-# 2026-04-30-file-active-summary-to-knowledge moved the table to the
-# knowledge addon. See addons/knowledge/tests/test_active_summary.py.

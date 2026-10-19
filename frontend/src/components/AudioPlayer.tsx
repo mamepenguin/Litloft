@@ -1,77 +1,91 @@
 "use client";
 
-import { useRef, useCallback, useEffect } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import type { FileItem } from "@/types";
 import { FileTypeIcon } from "./FileTypeIcon";
-import { getStreamUrl, getThumbnailUrl, saveWatchProgress, getWatchProgress, deleteWatchProgress } from "@/lib/api";
-import { formatFileSize } from "@/lib/format";
-import { getSavedProgress, saveProgress, clearProgress } from "@/lib/recentlyPlayed";
+import { getStreamUrl, getThumbnailUrl } from "@/lib/api";
 import { useAutoplayPreference } from "@/lib/autoplay";
 import { setupMediaSession } from "@/lib/mediaSession";
-import { useProfile } from "./ProfileProvider";
+import {
+  createNativeVideoController,
+  type MediaController,
+} from "@/lib/mediaController";
+import { usePlaybackProgress } from "@/lib/playbackProgress";
 import { CastButton } from "./CastButton";
 import { AutoplayToggle } from "./AutoplayToggle";
+import { AudioTransport } from "./player/AudioTransport";
+import { useShellMedia } from "@/hooks/useShellMedia";
+import { isNativeShell } from "@/lib/nativeBridge";
 
-const SAVE_INTERVAL = 5;
-const RESUME_THRESHOLD = 3;
-
-export function AudioPlayer({ file, onEnded, autoPlay }: { file: FileItem; onEnded?: () => void; autoPlay?: boolean }) {
+export function AudioPlayer({ file, onEnded, autoPlay, onMediaController }: { file: FileItem; onEnded?: () => void; autoPlay?: boolean; onMediaController?: (mc: MediaController | null) => void }) {
   const t = useTranslations("player");
-  const { nickname } = useProfile();
-  const hasProfile = nickname !== null;
   const [preferAutoplay] = useAutoplayPreference();
   const audioRef = useRef<HTMLAudioElement>(null);
-  const lastSavedRef = useRef(0);
+  const [elementMc, setElementMc] = useState<MediaController | null>(null);
 
-  const handleLoadedMetadata = useCallback(async () => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    if (hasProfile) {
-      try {
-        const progress = await getWatchProgress(file.id);
-        if (progress.position > RESUME_THRESHOLD && progress.position < audio.duration - RESUME_THRESHOLD) {
-          audio.currentTime = progress.position;
-        }
-      } catch {
-        // Fire-and-forget
-      }
-    } else {
-      const saved = getSavedProgress(file.id);
-      if (saved > RESUME_THRESHOLD && saved < audio.duration - RESUME_THRESHOLD) {
-        audio.currentTime = saved;
-      }
-    }
-  }, [file.id, hasProfile]);
-
-  const handleTimeUpdate = useCallback(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    const current = audio.currentTime;
-    if (Math.abs(current - lastSavedRef.current) >= SAVE_INTERVAL) {
-      lastSavedRef.current = current;
-      if (hasProfile) {
-        saveWatchProgress(file.id, current, audio.duration).catch(() => {});
-      } else {
-        saveProgress(file.id, current);
-      }
-    }
-  }, [file.id, hasProfile]);
-
-  const handleEnded = useCallback(() => {
-    if (hasProfile) {
-      deleteWatchProgress(file.id).catch(() => {});
-    } else {
-      clearProgress(file.id);
-    }
-    onEnded?.();
-  }, [file.id, onEnded, hasProfile]);
+  // The shell plays it natively, so no element is rendered and none of the
+  // element wiring below runs.
+  const native = isNativeShell();
+  // The handler needs the controller this call produces, so it arrives through
+  // a ref rather than the two being defined in a circle.
+  const endedRef = useRef<(() => void) | undefined>(undefined);
+  const readyRef = useRef<(() => Promise<void>) | undefined>(undefined);
+  const shell = useShellMedia({
+    id: file.id,
+    kind: "audio",
+    title: file.title || file.filename,
+    artist: file.folder_path || file.drive,
+  }, {
+    autoPlay: autoPlay || preferAutoplay,
+    onEnded: () => endedRef.current?.(),
+    onReady: () => readyRef.current?.() ?? Promise.resolve(),
+  });
+  const mc = native ? shell.mc : elementMc;
 
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
+    // HTMLAudioElement extends HTMLMediaElement just like
+    // HTMLVideoElement, so the native controller's currentTime / play /
+    // pause / muted shape is identical. requestFullscreen on audio is a
+    // no-op in browsers, which is acceptable: F is a video-only
+    // affordance and the shortcuts intentionally don't gate on type.
+    const controller = createNativeVideoController(
+      audio as unknown as HTMLVideoElement,
+    );
+    setElementMc(controller);
+    return () => setElementMc(null);
+  }, [file.id]);
+
+  useEffect(() => {
+    onMediaController?.(mc);
+    return () => onMediaController?.(null);
+  }, [mc, onMediaController]);
+
+  const { notifyEnded, notifyReady } = usePlaybackProgress({
+    mc,
+    fileId: file.id,
+  });
+
+  const handleLoadedMetadata = useCallback(() => {
+    void notifyReady();
+  }, [notifyReady]);
+
+  // Records the final position rather than deleting the row.
+  const handleEnded = useCallback(() => {
+    notifyEnded();
+    onEnded?.();
+  }, [notifyEnded, onEnded]);
+  endedRef.current = handleEnded;
+  readyRef.current = notifyReady;
+
+  // In the shell the lock screen is the shell's, and two owners would fight
+  // over it.
+  useEffect(() => {
+    if (!mc || native) return;
     return setupMediaSession(
-      audio,
+      mc,
       {
         title: file.title || file.filename,
         artist: file.folder_path || file.drive,
@@ -79,28 +93,34 @@ export function AudioPlayer({ file, onEnded, autoPlay }: { file: FileItem; onEnd
       },
       { onNextTrack: onEnded },
     );
-  }, [file.id, file.title, file.filename, file.folder_path, file.drive, onEnded]);
+  }, [mc, native, file.id, file.title, file.filename, file.folder_path, file.drive, onEnded]);
 
   return (
     <div className="flex w-full flex-col items-center justify-center rounded-xl bg-bg-card py-12">
       <FileTypeIcon fileType="audio" size={64} className="mb-4 text-text-muted" />
-      <p className="mb-1 text-sm text-text-primary">{file.filename}</p>
-      <p className="mb-6 text-xs text-text-muted">{formatFileSize(file.file_size)}</p>
-      <audio
-        ref={audioRef}
-        src={getStreamUrl(file.id)}
-        controls
-        autoPlay={autoPlay || preferAutoplay}
-        preload="metadata"
-        className="w-full max-w-md"
-        onLoadedMetadata={handleLoadedMetadata}
-        onTimeUpdate={handleTimeUpdate}
-        onEnded={handleEnded}
-      >
-        {t("audioNotSupported")}
-      </audio>
+      {/* The filename and nothing under it: the length is on the
+          transport bar of the `<audio controls>` right below, and the
+          size on a `.loft` reference is the pointer's. */}
+      <p className="mb-6 text-sm text-text-primary">{file.filename}</p>
+      {native ? (
+        <AudioTransport mc={mc} failed={shell.failed} waiting={shell.waiting} />
+      ) : (
+        <audio
+          ref={audioRef}
+          src={getStreamUrl(file.id)}
+          controls
+          autoPlay={autoPlay || preferAutoplay}
+          preload="metadata"
+          className="w-full max-w-md"
+          onLoadedMetadata={handleLoadedMetadata}
+          onEnded={handleEnded}
+        >
+          {t("audioNotSupported")}
+        </audio>
+      )}
       <div className="mt-3 flex items-center gap-3">
-        <CastButton mediaRef={audioRef} />
+        {/* AirPlay is the shell's own, through AVPlayer. */}
+        {!native && <CastButton mediaRef={audioRef} />}
         <AutoplayToggle />
       </div>
     </div>

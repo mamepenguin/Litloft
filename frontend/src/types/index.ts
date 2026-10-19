@@ -1,5 +1,14 @@
 export type FileType = "video" | "image" | "audio" | "document" | "archive" | "subtitle" | "other";
 
+export type TrustTier = "verified" | "unverified";
+
+/**
+ * Listing filter. `unreviewed` is deliberately not a tier: it selects
+ * files nobody has ruled on, which spans both tiers because the migrated
+ * backlog is verified but unjudged.
+ */
+export type TrustFilter = TrustTier | "unreviewed";
+
 export interface SubtitleInfo {
   index: number;
   language: string;
@@ -20,21 +29,49 @@ export interface FileItem {
   has_thumbnail: boolean;
   file_size: number;
   duration: number | null;
-  likes: number;
+  /**
+   * Pixel dimensions of the source image, for laying a listing out at the
+   * real aspect ratio. Null for everything that is not an image — including
+   * video, whose thumbnail is letterboxed to 320x180 so the true ratio has
+   * nowhere to show.
+   */
+  image_width: number | null;
+  image_height: number | null;
+  liked_at: string | null;
   is_favorite: boolean;
   tags: string[];
   subtitles: SubtitleInfo[];
   deleted_at: string | null;
   missing_since: string | null;
+  /**
+   * Whether the viewer has vouched for this file as a source. Unverified
+   * files stay searchable but stop grounding Ask answers.
+   *
+   * Read together with `trust_reviewed_at`: the two encode four states, and
+   * `verified` with a null stamp means "bulk-migrated or declared by an
+   * addon at ingest", not "a person approved this".
+   */
+  trust_tier: TrustTier;
+  trust_reviewed_at: string | null;
+  /**
+   * Client-only marker set by the search-merge placeholder builder when
+   * core's bulk hydrate failed and the real tier is unknown. Never sent
+   * by the API. A trust filter drops these rather than letting an
+   * unknown pass as verified.
+   */
+  trust_unknown?: true;
   created_at: string;
   updated_at: string;
   /**
    * Set only on the backend search path. Indicates whether the query matched
-   * the title, folder_path, or both. `searchMerge.ts` routes this to the
-   * filename vs path badge. `null` on non-search paths.
-   * Spec `2026-05-02-search-path-match.md`.
+   * the title, folder_path, or both. `null` on non-search paths.
    */
   match_source?: "filename" | "path" | "both" | null;
+  /**
+   * Answered inline by the detail endpoint; absent on list endpoints,
+   * which return the plain file shape.
+   */
+  has_chapters?: boolean;
 }
 
 export interface PaginationMeta {
@@ -66,29 +103,50 @@ export interface AuthStatus {
   unlocked_groups: string[];
   has_protected_drives: boolean;
   // True iff the viewer can see every protected drive (the same
-  // admin definition the /admin gate uses). Gates the sidebar
-  // dashboard link.
+  // admin definition the /admin gate uses).
   is_admin: boolean;
 }
 
 export type FolderKind =
-  | "markdown"
+  | "text"
   | "video"
   | "image"
   | "pdf"
   | "audio"
   | "document"
+  | "archive"
   | "other";
 
 export interface Folder {
   name: string;
   path: string;
   file_count: number;
-  thumbnail_file_id: string | null;
+  /**
+   * A kind the folder holds none of is absent rather than zero, and the
+   * values partition `file_count`. Empty for a folder with no files, and
+   * empty in the folder-mutation responses, which do not compute it.
+   */
+  kind_counts: Record<string, number>;
   dominant_kind: FolderKind | null;
 }
 
-export type TreeTypeFilter = "markdown" | "video" | "image" | "pdf";
+/**
+ * The one vocabulary for "what kind of file is this", mirroring
+ * `FileKind` in `backend/app/routers/drives.py`.
+ *
+ * The classifier lives in the backend and only there — a second
+ * implementation that agreed the day it was written is what put the
+ * same file on opposite sides of the listing and the tree.
+ */
+export type FileKind =
+  | "video"
+  | "image"
+  | "audio"
+  | "document"
+  | "archive"
+  | "other"
+  | "text"
+  | "pdf";
 
 export type FolderTreeNode =
   | {
@@ -112,6 +170,12 @@ export interface Tag {
   count: number;
 }
 
+export interface FolderCount {
+  /** Drive-relative; `""` is the drive root. */
+  path: string;
+  count: number;
+}
+
 export interface PinnedFolder {
   path: string;
 }
@@ -119,6 +183,15 @@ export interface PinnedFolder {
 export interface Neighbors {
   prev_id: string | null;
   next_id: string | null;
+  /**
+   * 1-origin place of the file in the sequence `prev_id` / `next_id`
+   * walk, out of `total`. The two count exactly the rows the arrows can
+   * reach, so the readout cannot promise a file the buttons cannot get
+   * to. Both are null when the sort key cannot order this file (an
+   * unliked file under `sort=liked_at`) — it is not in the sequence.
+   */
+  position: number | null;
+  total: number | null;
 }
 
 export interface CollectionSummary {
@@ -169,24 +242,30 @@ export type SortField =
   | "created_at"
   | "title"
   | "file_size"
-  | "likes"
+  // Only the Liked view selects this. It is deliberately absent from
+  // SortButton's options: inside an ordinary folder most rows have no
+  // value at all.
+  | "liked_at"
   | "random"
   | "relevance";
+/**
+ * What the drive listing accepts from a caller that sets its own order.
+ * `updated_at` is not a `SortField`: no Sort button, stored preference,
+ * URL or neighbours request may carry it.
+ */
+export type ListingSortField = SortField | "updated_at";
 export type SortOrder = "asc" | "desc";
 
-/**
- * Per-file match metadata in the unified search results list.
- *
- * Phase 3 (`2026-05-02-search-results-unification-phase3.md`) folds
- * filename match and semantic results into one list; each card carries
- * the engines that hit alongside the FileItem. Engines are independent
- * — multiple may be set for a single file ("filename + transcript +
- * clip" is a stronger result than any one alone).
- */
 export interface MatchTimestamp {
   time_range: [number, number];
   score: number;
   text?: string;
+}
+
+export interface MatchContent {
+  score: number;
+  text?: string;
+  page?: number;
 }
 
 export interface MatchMeta {
@@ -196,9 +275,6 @@ export interface MatchMeta {
    * Folder-path substring match from the filename engine. Carried as a
    * separate channel so the card can label "パス" distinctly from
    * "ファイル名" — both can be set when the query hits both fields.
-   * Hybrid score weight is intentionally low (0.3) to keep noise from
-   * broad-folder matches like "/Music/" out of the top ranks. Spec
-   * `2026-05-02-search-path-match.md`.
    */
   path?: { score: number };
   /**
@@ -212,8 +288,7 @@ export interface MatchMeta {
   /**
    * Representative-frame CLIP match (one per file, no timestamp).
    * Distinct from ``clip`` so the UI can label "video about X"
-   * (thumbnail) vs. "scene with X" (scene CLIP) separately. Spec
-   * `2026-05-02-thumbnail-clip-default-shallow-search.md`.
+   * (thumbnail) vs. "scene with X" (scene CLIP) separately.
    */
   clip_thumbnail?: { score: number };
   /** Metadata embedding hit (filename + title + description + tags). */
@@ -223,18 +298,25 @@ export interface MatchMeta {
    * and text_content_keyword (FTS5) hits.
    */
   content?: { score: number };
+  /** Body excerpts, retaining the page association of each document hit. */
+  content_matches?: MatchContent[];
   /**
    * SIRA-style LLM-expanded retrieval keywords hit (fts_retrieval_keywords).
    * Chip-only badge: the keyword expansion does NOT point at a body
    * location, so the result item shows the chip but jumps using
    * whichever other channel produced a real timestamp / page.
-   * ``matched`` holds the expanded keyword string(s) for future UI use
-   * (Phase 2.5+ tooltip / inline display). Spec
-   * docs/superpowers/specs/2026-05-14-sira-retrieval-keywords.md.
    */
   retrieval_keywords?: { score: number; matched?: string[] };
   /** Page references for paginated documents (PDF). */
   matched_pages?: number[];
+  /** Book sections (EPUB), in order. */
+  matched_sections?: MatchedSection[];
+}
+
+export interface MatchedSection {
+  /** 1-based, the number `?section=` takes. */
+  section: number;
+  title: string | null;
 }
 
 export interface FileItemWithMatch extends FileItem {
@@ -315,9 +397,6 @@ export interface UploadCompleteData {
 
 export interface DashboardDriveInfo {
   name: string;
-  total_bytes: number;
-  used_bytes: number;
-  free_bytes: number;
   file_count: number;
   file_types: Record<string, number>;
   last_scanned_at: string | null;
@@ -325,7 +404,17 @@ export interface DashboardDriveInfo {
   readonly: boolean;
 }
 
+/** One mounted filesystem, and the drives that share it. */
+export interface DashboardFilesystemInfo {
+  mount_label: string;
+  total_bytes: number;
+  used_bytes: number;
+  free_bytes: number;
+  drives: string[];
+}
+
 export interface DashboardSystemInfo {
+  filesystems: DashboardFilesystemInfo[];
   db_size_bytes: number;
   thumbnail_cache_bytes: number;
   converted_cache_bytes: number;

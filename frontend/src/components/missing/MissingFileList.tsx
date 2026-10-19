@@ -7,9 +7,11 @@ import { useTranslations } from "next-intl";
 
 import type { FileItem } from "@/types";
 import { getThumbnailUrl } from "@/lib/api";
-import { formatDuration, formatFileSize } from "@/lib/format";
+import { formatDuration } from "@/lib/format";
+import { hasKnownLength, primaryMetaText } from "@/lib/primaryMeta";
 import { FileTypeIcon } from "@/components/FileTypeIcon";
 import { ContextMenu, type MenuItem } from "@/components/ContextMenu";
+import { Button } from "@/components/Button";
 
 interface MissingFileListProps {
   files: FileItem[];
@@ -48,13 +50,14 @@ export function MissingFileList({
       <div className="flex flex-col gap-2.5 sm:gap-2">
         {files.map((file) => {
           const hasThumbnail = file.has_thumbnail || file.file_type === "video" || file.file_type === "image";
-          const hasDuration = (file.file_type === "video" || file.file_type === "audio") && file.duration != null;
+          const hasDuration = hasKnownLength(file);
+          const primaryText = primaryMetaText(file);
           const fileSelected = isSelected?.(file.id);
 
           return (
             <div
               key={file.id}
-              className={`group flex items-center gap-3 rounded-lg bg-bg-card p-2.5 sm:p-2 transition-colors hover:bg-bg-elevated ${
+              className={`group/missing-item flex items-center gap-3 rounded-lg bg-bg-card p-2.5 sm:p-2 transition-colors hover:bg-bg-elevated pointer-coarse:min-h-11 ${
                 selectable ? "cursor-pointer select-none" : ""
               } ${fileSelected ? "ring-2 ring-accent" : ""}`}
               onClick={selectable
@@ -117,9 +120,11 @@ export function MissingFileList({
                   <h3 className="min-w-0 flex-1 truncate text-sm font-semibold text-text-muted">
                     {file.title}
                   </h3>
-                  <span className="hidden flex-shrink-0 text-xs tabular-nums text-text-muted sm:inline">
-                    {formatFileSize(file.file_size)}
-                  </span>
+                  {primaryText !== null && (
+                    <span className="hidden flex-shrink-0 text-xs tabular-nums text-text-muted sm:inline">
+                      {primaryText}
+                    </span>
+                  )}
                 </div>
                 <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-text-muted">
                   <span className="rounded-lg bg-warm-silver/20 px-1.5 py-0.5 text-[10px] font-medium text-warm-silver">
@@ -131,19 +136,22 @@ export function MissingFileList({
                       <span className="tabular-nums">{formatRelativeDate(file.missing_since)}</span>
                     </>
                   )}
-                  <span className="flex-shrink-0 sm:hidden">{formatFileSize(file.file_size)}</span>
+                  {primaryText !== null && (
+                    <span className="flex-shrink-0 sm:hidden">{primaryText}</span>
+                  )}
                 </div>
               </div>
 
               {!selectable && (
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
+                <div className="flex flex-shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover/missing-item:opacity-100 group-focus-within/missing-item:opacity-100 pointer-coarse:opacity-100">
+                  <Button
+                    variant="danger"
+                    iconOnly
                     onClick={(e) => { e.stopPropagation(); onPurge(file.id); }}
-                    className="rounded-2xl p-1.5 text-text-muted transition-colors hover:bg-danger/10 hover:text-danger"
-                    aria-label={tm("purge")}
+                    aria-label={tm("purgeNamed", { name: file.title })}
                   >
                     <Trash2 size={14} />
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { FolderContent } from "../FolderContent";
 import type { FileItem, Folder } from "@/types";
 import { createRef } from "react";
@@ -20,9 +20,36 @@ vi.mock("@/components/FileList", () => ({
   ),
 }));
 
+/**
+ * Draws the actions too: a stub that swallowed them would make every
+ * assertion about them pass whether or not this component passes any.
+ */
 vi.mock("@/components/EmptyState", () => ({
-  EmptyState: ({ variant }: { variant: string }) => (
-    <div data-testid={`empty-${variant}`}>Empty</div>
+  EmptyState: ({
+    variant,
+    title,
+    primaryAction,
+    secondaryActions,
+  }: {
+    variant?: string;
+    title?: React.ReactNode;
+    primaryAction?: { label: string; onClick?: () => void; href?: string };
+    secondaryActions?: readonly { label: string; onClick?: () => void; href?: string }[];
+  }) => (
+    <div data-testid={`empty-${variant ?? "custom"}`}>
+      {title}
+      {[primaryAction, ...(secondaryActions ?? [])].map((action) =>
+        !action ? null : action.href !== undefined ? (
+          <a key={action.label} href={action.href}>
+            {action.label}
+          </a>
+        ) : (
+          <button key={action.label} type="button" onClick={action.onClick}>
+            {action.label}
+          </button>
+        ),
+      )}
+    </div>
   ),
 }));
 
@@ -32,7 +59,19 @@ vi.mock("@/components/FolderCard", () => ({
   ),
 }));
 
+/**
+ * `FolderListRow` is deliberately not stubbed: a stub that reads only
+ * `folder.name` cannot tell a row handed the drop target, the rename and the
+ * menu from one handed nothing.
+ */
+vi.mock("@/components/FolderContextMenu", () => ({
+  FolderContextMenu: ({ open, target }: { open: boolean; target: Folder | null }) =>
+    open ? <div data-testid="folder-menu">{target?.name}</div> : null,
+}));
+
 const mockFile = (id: string): FileItem => ({
+  image_width: null,
+  image_height: null,
   id,
   filename: `${id}.mp4`,
   title: id,
@@ -45,12 +84,14 @@ const mockFile = (id: string): FileItem => ({
   has_thumbnail: false,
   file_size: 1000,
   duration: 60,
-  likes: 0,
+  liked_at: null,
   is_favorite: false,
   tags: [],
   subtitles: [],
   deleted_at: null,
   missing_since: null,
+  trust_tier: "verified",
+  trust_reviewed_at: null,
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
 });
@@ -59,7 +100,7 @@ const mockFolder = (name: string): Folder => ({
   name,
   path: name,
   file_count: 5,
-  thumbnail_file_id: null,
+  kind_counts: {},
   dominant_kind: null,
 });
 
@@ -73,15 +114,16 @@ const defaultProps = {
   isRecent: false,
   hasProfile: true,
   isFavorites: false,
+  isLiked: false,
   isRecentAdded: false,
   selectable: false,
   sortQuery: "",
   pinnedPaths: new Set<string>(),
   sentinelRef: createRef<HTMLDivElement>(),
-  dragState: { isDragging: false, dragType: null, draggedFileIds: [], draggedFolderPath: null, dropTargetPath: null },
+  dragState: { isDragging: false, dragType: null, draggedFileIds: [], draggedFileIdSet: new Set<string>(), draggedFolderPath: null, dropTargetPath: null },
   isDropTarget: () => false,
   getDropTargetProps: () => ({}),
-  isSelected: () => false,
+  selectedIds: new Set<string>(),
   onSelect: vi.fn(),
   onMetaSelect: vi.fn(),
   onShiftSelect: vi.fn(),
@@ -106,6 +148,55 @@ describe("FolderContent", () => {
     render(<FolderContent {...defaultProps} viewMode="list" />);
     expect(screen.getByTestId("file-list")).toBeInTheDocument();
     expect(screen.queryByTestId("file-grid")).not.toBeInTheDocument();
+  });
+
+  describe("folders follow the view mode", () => {
+    const withFolders = {
+      ...defaultProps,
+      folders: [mockFolder("travel"), mockFolder("work")],
+    };
+
+    it("draws folders as cards in grid mode", () => {
+      render(<FolderContent {...withFolders} viewMode="grid" />);
+      expect(screen.getAllByTestId("folder-card")).toHaveLength(2);
+      expect(screen.queryAllByRole("link", { name: /travel/ })).toHaveLength(0);
+    });
+
+    it("draws folders as rows in list mode", () => {
+      render(<FolderContent {...withFolders} viewMode="list" />);
+      expect(screen.getAllByRole("link", { name: /travel/ })).toHaveLength(1);
+      expect(screen.queryAllByTestId("folder-card")).toHaveLength(0);
+    });
+
+    it("hands the row the same menu, drop target and rename the card gets", async () => {
+      const { container } = render(<FolderContent {...withFolders} viewMode="list" />);
+      const row = screen.getByText("travel").closest("div.group") as HTMLElement;
+      expect(row).not.toBeNull();
+
+      fireEvent.click(
+        within(row).getByRole("button", { name: /Actions for travel/i }),
+      );
+      expect(await screen.findByTestId("folder-menu")).toHaveTextContent("travel");
+
+      fireEvent.contextMenu(row);
+      expect(screen.getByTestId("folder-menu")).toBeInTheDocument();
+
+      expect(row).toHaveAttribute("draggable", "true");
+      expect(container.querySelector("[data-rename-focus]")).not.toBeNull();
+    });
+
+    it("drops the card grid's column template in list mode", () => {
+      const { container: grid } = render(
+        <FolderContent {...withFolders} viewMode="grid" />,
+      );
+      const gridBox = grid.querySelector("[style*='grid-template-columns']");
+      expect(gridBox).not.toBeNull();
+
+      const { container: list } = render(
+        <FolderContent {...withFolders} viewMode="list" />,
+      );
+      expect(list.querySelector("[style*='grid-template-columns']")).toBeNull();
+    });
   });
 
   it("shows loading spinner when loading", () => {
@@ -139,6 +230,67 @@ describe("FolderContent", () => {
     expect(screen.getByTestId("empty-no-recent-added")).toBeInTheDocument();
   });
 
+  it("offers Add files and nothing else when the folder is empty", () => {
+    render(
+      <FolderContent {...defaultProps} files={[]} folders={[]} onAddFiles={() => undefined} />,
+    );
+    const empty = screen.getByTestId("empty-no-files");
+    expect(within(empty).getAllByRole("button").map((b) => b.textContent)).toEqual(["Add files"]);
+  });
+
+  it("offers no New note button in an empty folder", () => {
+    render(
+      <FolderContent {...defaultProps} files={[]} folders={[]} onAddFiles={() => undefined} />,
+    );
+    const empty = screen.getByTestId("empty-no-files");
+    expect(within(empty).queryByRole("button", { name: /new note/i })).toBeNull();
+  });
+
+  it("offers nothing where there is no folder to put files in", () => {
+    render(<FolderContent {...defaultProps} files={[]} folders={[]} />);
+    const empty = screen.getByTestId("empty-no-files");
+    expect(within(empty).queryByRole("button")).toBeNull();
+  });
+
+  it("shows a tag-specific empty state with a way to widen to the drive", () => {
+    render(
+      <FolderContent
+        {...defaultProps}
+        files={[]}
+        folders={[]}
+        widenTagScope={{ tagName: "soup", href: "/drive/main?tag=soup" }}
+      />,
+    );
+    expect(screen.getByTestId("empty-no-tag-matches")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Search the whole drive" }),
+    ).toHaveAttribute("href", "/drive/main?tag=soup");
+  });
+
+  it("keeps the generic empty state when there is no tag scope to widen", () => {
+    render(<FolderContent {...defaultProps} files={[]} folders={[]} widenTagScope={null} />);
+    expect(screen.getByTestId("empty-no-files")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Search the whole drive" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders nothing in search mode, even with a tag scope present", () => {
+    const { container } = render(
+      <FolderContent
+        {...defaultProps}
+        files={[]}
+        folders={[]}
+        isSearch={true}
+        widenTagScope={{ tagName: "soup", href: "/drive/main?tag=soup" }}
+      />,
+    );
+    expect(container.querySelector("[data-testid^='empty-']")).toBeNull();
+    expect(
+      screen.queryByRole("link", { name: "Search the whole drive" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("renders folder cards when folders exist", () => {
     render(
       <FolderContent
@@ -153,13 +305,27 @@ describe("FolderContent", () => {
   });
 
   it("hides sentinel when isRecent", () => {
-    const { container } = render(
-      <FolderContent {...defaultProps} isRecent={true} />
+    const attached = createRef<HTMLDivElement>();
+    const { container: withSentinel, unmount } = render(
+      <FolderContent {...defaultProps} sentinelRef={attached} isRecent={false} />,
     );
-    // sentinel ref div should not be rendered for recent view
-    // The sentinel is inside a conditional that checks !isRecent
-    const sentinels = container.querySelectorAll("[class*='py-4']");
-    // Check no sentinel with loadingMore spinner
+    expect(attached.current).toBeInstanceOf(HTMLElement);
+    expect(withSentinel.querySelectorAll("[class*='py-4']")).toHaveLength(1);
+    unmount();
+
+    // `loadingMore` on: it is the only state that draws the spinner.
+    const detached = createRef<HTMLDivElement>();
+    const { container } = render(
+      <FolderContent
+        {...defaultProps}
+        sentinelRef={detached}
+        isRecent={true}
+        loadingMore={true}
+      />,
+    );
+
+    expect(detached.current).toBeNull();
+    expect(container.querySelectorAll("[class*='py-4']")).toHaveLength(0);
     expect(container.querySelector(".animate-spin")).not.toBeInTheDocument();
   });
 
@@ -172,13 +338,6 @@ describe("FolderContent", () => {
   });
 });
 
-/**
- * Phase 4 — right-pane filter tests.
- * Spec: docs/superpowers/specs/2026-05-09-folder-filter-and-tree-filter.md §2.
- *
- * RED phase — these assertions exercise the FilterField wiring that ships
- * with phase 4.4.
- */
 describe("FolderContent right-pane filter (Phase 4)", () => {
   const mdFile: FileItem = {
     ...mockFile("doc"),
@@ -240,27 +399,27 @@ describe("FolderContent right-pane filter (Phase 4)", () => {
     });
   });
 
-  it("type filter narrows the file list", async () => {
+  it("offers no kind filter of its own — the toolbar's is the one that is right", async () => {
     render(
       <FolderContent
         {...defaultProps}
         files={[mdFile, videoFile, imgFile]}
       />,
     );
-    // Open the type dropdown and pick "Image".
-    const trigger = screen.getByRole("button", {
-      name: /filter by type|filter\.openTypeFilter|型でフィルタ/i,
-    });
-    fireEvent.click(trigger);
-    const imageOption = await screen.findByRole("menuitem", { name: /image|画像/i });
-    fireEvent.click(imageOption);
 
-    await waitFor(() => {
-      expect(screen.getByTestId("file-grid")).toHaveTextContent("1 files");
-    });
+    expect(
+      screen.queryByRole("button", {
+        name: /filter by type|filter\.openTypeFilter|型でフィルタ/i,
+      }),
+    ).toBeNull();
+    expect(
+      screen.getByPlaceholderText(
+        /filter in this folder|filter\.placeholder\.folder|このフォルダで絞り込み/i,
+      ),
+    ).toBeInTheDocument();
   });
 
-  it("text + type combined are AND'd", async () => {
+  it("narrows on text alone", async () => {
     render(
       <FolderContent
         {...defaultProps}
@@ -272,21 +431,13 @@ describe("FolderContent right-pane filter (Phase 4)", () => {
       />,
     );
 
-    const trigger = screen.getByRole("button", {
-      name: /filter by type|filter\.openTypeFilter|型でフィルタ/i,
-    });
-    fireEvent.click(trigger);
-    const mdOption = await screen.findByRole("menuitem", { name: /markdown/i });
-    fireEvent.click(mdOption);
-
     const input = screen.getByPlaceholderText(
       /filter in this folder|filter\.placeholder\.folder|このフォルダで絞り込み/i,
     );
     fireEvent.change(input, { target: { value: "spec" } });
 
     await waitFor(() => {
-      // Only the markdown file with "spec" in the name remains.
-      expect(screen.getByTestId("file-grid")).toHaveTextContent("1 files");
+      expect(screen.getByTestId("file-grid")).toHaveTextContent("2 files");
     });
   });
 
@@ -353,7 +504,6 @@ describe("FolderContent right-pane filter (Phase 4)", () => {
     fireEvent.change(input, { target: { value: "zzz" } });
 
     await waitFor(() => {
-      // Folder card still renders even when file list is empty.
       expect(screen.getByTestId("folder-card")).toBeInTheDocument();
     });
   });

@@ -5,28 +5,32 @@ import { useRouter } from "next/navigation";
 import { ChevronDown, Pencil, RefreshCw, Star, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-import type { FileType } from "@/types";
+import type { FileKind } from "@/types";
+import {
+  ANCHORED_ORIGIN,
+  ANCHORED_VERTICAL,
+  useAnchoredDirection,
+} from "@/hooks/useAnchoredDirection";
 import { useSmartFolders } from "@/hooks/useSmartFolders";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { DismissScrim } from "./DismissScrim";
+import { useShortcuts } from "@/hooks/useShortcuts";
+import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 import { SmartFolderSaveDialog } from "./SmartFolderSaveDialog";
 
 interface SmartFolderSaveButtonProps {
   drive: string;
   query: string;
-  typeFilter?: FileType | null;
+  /**
+   * Smart folders accept only four kinds
+   * (`_SMART_FOLDER_FILE_TYPES`: video / image / audio / document), so
+   * saving one narrowed to any other kind fails with the existing
+   * "could not save" error.
+   */
+  typeFilter?: FileKind | null;
   smartFolderId: string | null;
 }
 
-/**
- * Renders next to the search results heading. Two visual modes:
- *
- *  - "save": no smart_folder_id in URL → "★ Save" button. Clicking opens
- *    the name dialog. After save, replaces the URL with smart_folder_id.
- *  - "saved": smart_folder_id matches an existing SF → "★ Saved: {name}"
- *    chip with a dropdown for "Update / Rename / Delete".
- *
- * Drive-scoped: always operates on the current drive.
- */
 export function SmartFolderSaveButton({
   drive,
   query,
@@ -51,6 +55,15 @@ export function SmartFolderSaveButton({
   const [updateConfirmOpen, setUpdateConfirmOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
+  const menuWrapperRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const { openUp, side } = useAnchoredDirection({
+    triggerRef: menuWrapperRef,
+    panelRef: menuRef,
+    open: menuOpen,
+    gapPx: ANCHORED_VERTICAL[1].px,
+  });
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -59,22 +72,32 @@ export function SmartFolderSaveButton({
     return () => clearTimeout(timer);
   }, [error]);
 
-  const menuRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!menuOpen) return;
-    function handleClick(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    }
-    const timer = setTimeout(() => {
-      document.addEventListener("mousedown", handleClick);
-    }, 0);
-    return () => {
-      clearTimeout(timer);
-      document.removeEventListener("mousedown", handleClick);
-    };
-  }, [menuOpen]);
+  // On the shortcut stack, not on `document`: a listener does not know
+  // what is stacked above it.
+  //
+  // `editingOnly: false` because nothing traps focus inside this menu, so
+  // Tab walks out of the last row into whatever follows in the document.
+  // The provider counts a focused field as "editing", and the default
+  // fires only when nothing is — which would leave Escape inert exactly
+  // there, with the menu still up.
+  useShortcuts(
+    "smart-folder-menu",
+    "Dialog",
+    [
+      {
+        key: "escape",
+        label: "Close",
+        editingOnly: false,
+        hidden: true,
+        handler: () => {
+          setMenuOpen(false);
+          menuTriggerRef.current?.focus();
+        },
+      },
+    ],
+    menuOpen,
+    OVERLAY_PRIORITY,
+  );
 
   const buildSearchUrl = useCallback(
     (id: string | null) => {
@@ -141,7 +164,6 @@ export function SmartFolderSaveButton({
     }
   }, [current, remove, router, buildSearchUrl, t]);
 
-  // Don't show the button at all if the search query is empty (defensive).
   if (!query.trim()) return null;
 
   const inSavedMode = !!current;
@@ -149,8 +171,9 @@ export function SmartFolderSaveButton({
   return (
     <>
       {inSavedMode ? (
-        <div ref={menuRef} className="relative flex-shrink-0">
+        <div ref={menuWrapperRef} className="relative flex-shrink-0">
           <button
+            ref={menuTriggerRef}
             type="button"
             onClick={() => setMenuOpen((v) => !v)}
             className="flex items-center gap-1.5 rounded-2xl bg-bg-elevated px-3 py-1.5 text-sm font-medium text-text-primary ring-1 ring-bg-border transition-colors hover:bg-bg-card"
@@ -164,44 +187,54 @@ export function SmartFolderSaveButton({
             <ChevronDown size={14} className="text-text-muted" />
           </button>
           {menuOpen && (
-            <div
-              role="menu"
-              className="absolute right-0 z-40 mt-1 w-44 overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-lg animate-fade-in-scale"
+            <DismissScrim
+              onDismiss={() => setMenuOpen(false)}
+              className="fixed inset-0 z-30"
             >
-              <button
-                type="button"
-                onClick={() => {
-                  setMenuOpen(false);
-                  setUpdateConfirmOpen(true);
-                }}
-                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+              <div
+                ref={menuRef}
+                role="menu"
+                className={`absolute z-40 w-44 overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-lg animate-fade-in-scale ${
+                  ANCHORED_VERTICAL[1][openUp ? "up" : "down"]
+                } ${side === "left" ? "left-0" : "right-0"} ${
+                  ANCHORED_ORIGIN[`${openUp ? "up" : "down"}-${side}`]
+                }`}
               >
-                <RefreshCw size={14} />
-                {t("update")}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setMenuOpen(false);
-                  setRenameOpen(true);
-                }}
-                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
-              >
-                <Pencil size={14} />
-                {t("rename")}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setMenuOpen(false);
-                  setDeleteConfirmOpen(true);
-                }}
-                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-danger transition-colors hover:bg-accent/10"
-              >
-                <Trash2 size={14} />
-                {t("delete")}
-              </button>
-            </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setUpdateConfirmOpen(true);
+                  }}
+                  className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+                >
+                  <RefreshCw size={14} />
+                  {t("update")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setRenameOpen(true);
+                  }}
+                  className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+                >
+                  <Pencil size={14} />
+                  {t("rename")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setDeleteConfirmOpen(true);
+                  }}
+                  className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-danger transition-colors hover:bg-accent/10"
+                >
+                  <Trash2 size={14} />
+                  {t("delete")}
+                </button>
+              </div>
+            </DismissScrim>
           )}
         </div>
       ) : (

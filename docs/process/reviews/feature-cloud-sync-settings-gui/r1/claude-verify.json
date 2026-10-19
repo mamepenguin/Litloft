@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "addons/cloud-sync/backend/requirements.txt:2-3 holds the comment about legacy zone names (Asia/Calcutta) and an unpinned `tzdata`. The only other line is line 1, `croniter>=2.0,<4.0`. The Dockerfile copies each addon's backend/ to addons/<name> (backend/Dockerfile:10-14) and then pip-installs addons/*/requirements.txt (backend/Dockerfile:21-23), so tzdata ends up in the backend image. The spec says otherwise at docs/specs/cloud-sync-settings-gui.md:371-372: 'No new dependency: `zoneinfo` and `croniter` are already available in the backend image'. The touch-point list (spec line 374 onward) does not name requirements.txt. invariants.md has no revision that mentions requirements or tzdata. I could not run git, so I did not see the diff that adds the line. The comment refers to browser-reported zones, which is this feature's time-zone selection, so the line is consistent with having been added by this change."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "addons/cloud-sync/backend/settings.py exists. It defines `class BodyCheck` (line 53), `BodyCheck.to_config` (line 61) and `check_body` (line 73). service.py:28 imports it with `from .settings import ConfigError, check_body`. The spec's touch points put 'the PUT body validation that collects every error' in `backend/schemas.py` and do not name settings.py, and no revision in invariants.md adds it. I could not confirm through git that the file is new in this commit."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "All three files exist: addons/cloud-sync/frontend/settingsApi.ts, settingsDraft.ts and scheduleForm.ts. The settings component imports them from outside its own directory: CloudSyncSettingsContainer.tsx:5-6 imports `fetchConfig`/`saveConfig` from ../settingsApi and `toBody`/`toDraft` from ../settingsDraft, and ScheduleFields.tsx:2 imports from ../scheduleForm. They sit beside the CloudSyncSettings/ component directory, not inside it. The touch points name only the section component, slots.ts, api.ts, CloudSyncWidget.tsx, SyncDriveCard.tsx, the messages files and tests. I did not check through git that api.ts changes only `SyncStatusResponse.timezone`."
+    }
+  ],
+  "specification_compliance": [
+    "The spec's non-functional item (docs/specs/cloud-sync-settings-gui.md:371) says the change adds no new dependency, but addons/cloud-sync/backend/requirements.txt adds `tzdata`.",
+    "The touch-point list does not name backend/settings.py, frontend/settingsApi.ts, frontend/settingsDraft.ts, frontend/scheduleForm.ts or backend/requirements.txt."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Because `tzdata` is unpinned, the zone database in the image depends on build time. Which zones validate could therefore differ between builds."
+  ],
+  "regression_risks": [
+    "The Dockerfile installs every addons/*/requirements.txt, so adding tzdata changes the contents of the backend image."
+  ],
+  "test_coverage": [
+    "I did not assess test coverage. This verification was limited to the three touch-point findings."
+  ],
+  "not_verified": [
+    "I could not run git diff, so I did not confirm that tzdata, settings.py, settingsApi.ts, settingsDraft.ts and scheduleForm.ts were introduced by commit 230fc0b rather than earlier.",
+    "Whether the slim image's zoneinfo lacks the legacy zone names without the tzdata package.",
+    "The declared invariants I1-I10. They were not part of the findings to verify."
+  ],
+  "confidence": 85
+}

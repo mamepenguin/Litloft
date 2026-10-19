@@ -1,11 +1,12 @@
 "use client";
 
-import { ChevronRight, Download, Folder } from "lucide-react";
+import { ChevronRight, Folder } from "lucide-react";
 
 import { useTranslations } from "next-intl";
 import { getArchiveEntryUrl } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
 import { FileTypeIcon } from "../FileTypeIcon";
+import { buttonClass } from "../Button";
 import type { ArchiveEntry, FileType } from "@/types";
 
 interface ArchiveFileListingProps {
@@ -14,7 +15,38 @@ interface ArchiveFileListingProps {
   handleDirClick: (entry: ArchiveEntry) => void;
   handleFileClick: (entry: ArchiveEntry) => void;
   isClickable: (entry: ArchiveEntry) => boolean;
-  children?: React.ReactNode;
+}
+
+const ROW_CLASS =
+  "flex w-full items-center gap-3 border-b border-bg-border px-4 py-2.5 text-left " +
+  "pointer-coarse:min-h-11";
+
+/**
+ * Different elements rather than one element with a flag, because a dead-end
+ * row holds a download link: nesting an `<a>` inside a `<button>` is invalid
+ * HTML, and browsers recover from it by hoisting the link out of the button.
+ */
+function RowBox({
+  clickable,
+  onClick,
+  children,
+}: {
+  clickable: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  if (!clickable) {
+    return <div className={ROW_CLASS}>{children}</div>;
+  }
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`${ROW_CLASS} cursor-pointer transition-colors hover:bg-bg-elevated`}
+    >
+      {children}
+    </button>
+  );
 }
 
 export function ArchiveFileListing({
@@ -23,7 +55,6 @@ export function ArchiveFileListing({
   handleDirClick,
   handleFileClick,
   isClickable,
-  children,
 }: ArchiveFileListingProps) {
   const t = useTranslations("archive");
 
@@ -40,21 +71,15 @@ export function ArchiveFileListing({
                 const clickable = isClickable(entry);
                 return (
                   <li key={entry.path}>
-                    <button
-                      type="button"
+                    <RowBox
+                      clickable={clickable}
                       onClick={() => {
                         if (entry.is_dir) {
                           handleDirClick(entry);
-                        } else if (clickable) {
+                        } else {
                           handleFileClick(entry);
                         }
                       }}
-                      disabled={!clickable}
-                      className={`flex w-full items-center gap-3 border-b border-bg-border px-4 py-2.5 text-left transition-colors ${
-                        clickable
-                          ? "hover:bg-bg-elevated cursor-pointer"
-                          : "opacity-60 cursor-default"
-                      }`}
                     >
                       {entry.is_dir ? (
                         <Folder
@@ -83,16 +108,23 @@ export function ArchiveFileListing({
                         </span>
                       )}
 
-                      {!entry.is_dir && (
-                        <a
-                          href={getArchiveEntryUrl(fileId, entry.path)}
-                          download={entry.filename}
-                          onClick={(e) => e.stopPropagation()}
-                          className="shrink-0 rounded-lg p-1 text-text-muted transition-colors hover:bg-bg-card hover:text-text-primary"
-                          aria-label={t("downloadFile", { name: entry.filename })}
-                        >
-                          <Download size={14} />
-                        </a>
+                      {!entry.is_dir && !clickable && (
+                        <>
+                          <span className="shrink-0 text-xs text-text-muted">
+                            {t("previewUnavailable")}
+                          </span>
+                          <a
+                            href={getArchiveEntryUrl(fileId, entry.path)}
+                            download={entry.filename}
+                            // Named per row: "Download" repeated in a screen
+                            // reader's links list says nothing about which row
+                            // is about to be acted on.
+                            aria-label={t("downloadFile", { name: entry.filename })}
+                            className={`${buttonClass({ variant: "secondary", size: "sm" })} shrink-0`}
+                          >
+                            {t("download")}
+                          </a>
+                        </>
                       )}
 
                       {entry.is_dir && (
@@ -101,15 +133,13 @@ export function ArchiveFileListing({
                           className="shrink-0 text-text-muted"
                         />
                       )}
-                    </button>
+                    </RowBox>
                   </li>
                 );
               })}
             </ul>
           )}
       </div>
-
-      {children}
     </div>
   );
 }

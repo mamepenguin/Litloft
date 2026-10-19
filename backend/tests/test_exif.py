@@ -16,10 +16,6 @@ from app.services.exif import (
 )
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
 def _make_plain_jpeg(path: Path) -> Path:
     """Create a plain JPEG with no EXIF tags."""
     img = Image.new("RGB", (100, 100), color=(128, 128, 128))
@@ -64,10 +60,6 @@ def _make_jpeg_with_exif_piexif(path: Path, **fields) -> Path:
     img.save(str(path), "JPEG", exif=exif_bytes)
     return path
 
-
-# ---------------------------------------------------------------------------
-# Unit tests for extract_exif()
-# ---------------------------------------------------------------------------
 
 class TestExtractExif:
     def test_returns_none_for_no_exif(self, tmp_path):
@@ -128,10 +120,6 @@ class TestExtractExif:
         assert result is None
 
 
-# ---------------------------------------------------------------------------
-# Unit tests for helper functions
-# ---------------------------------------------------------------------------
-
 class TestHelpers:
     def test_to_float_rational(self):
         class Rational:
@@ -167,10 +155,6 @@ class TestHelpers:
         result = _gps_decimal([(139, 1), (39, 1), (0, 1)], "W")
         assert result == pytest.approx(-139.65, abs=0.01)
 
-
-# ---------------------------------------------------------------------------
-# Endpoint tests (use DB only, no real image files needed)
-# ---------------------------------------------------------------------------
 
 class TestExifEndpoint:
     def test_returns_exif_for_image(self, client):

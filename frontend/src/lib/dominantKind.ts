@@ -1,24 +1,12 @@
+import { isTextKind } from "@/lib/textKind";
 import type { FileItem, FolderKind } from "@/types";
 
 /**
- * Approximate the parent-folder dominant_kind from a sample of files.
+ * Uses the same classification rules as
+ * `backend/app/routers/drives.py:_classify_kind`.
  *
- * The backend computes this recursively for each Folder record (Phase 1
- * commit 0f09611), but the listing endpoint only carries dominant_kind
- * for child folders, not for the folder currently being viewed. As a
- * v1 stand-in we derive it from the loaded files using the same
- * classification rules as `backend/app/routers/drives.py:_classify_kind`:
- *
- *   mime "text/markdown"    → markdown
- *   mime "application/pdf"  → pdf
- *   file_type "video"       → video
- *   file_type "image"       → image
- *   file_type "audio"       → audio
- *   file_type "document"    → document
- *   else                    → other
- *
- * Returns the most common kind, or null when there are no files. Ties
- * are broken deterministically by the order of the input list.
+ * A plurality is not enough: `viewModeForKind` answers for every kind there
+ * is, so a plurality here would make the global view preference unreachable.
  */
 export function deriveDominantKind(files: FileItem[]): FolderKind | null {
   if (files.length === 0) return null;
@@ -35,11 +23,11 @@ export function deriveDominantKind(files: FileItem[]): FolderKind | null {
       bestCount = count;
     }
   }
-  return bestKind;
+  return bestCount > files.length / 2 ? bestKind : null;
 }
 
 function classify(file: FileItem): FolderKind {
-  if (file.mime_type === "text/markdown") return "markdown";
+  if (isTextKind(file.mime_type, file.filename)) return "text";
   if (file.mime_type === "application/pdf") return "pdf";
   switch (file.file_type) {
     case "video":

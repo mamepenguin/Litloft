@@ -97,7 +97,6 @@ describe("ToastProvider", () => {
   });
 
   it("returns a no-op API when no provider is mounted (defensive)", () => {
-    // Render the trigger outside any provider — clicking must not throw.
     expect(() => {
       render(<Trigger kind="error" message="silenced" />);
       fireEvent.click(screen.getByText("fire"));

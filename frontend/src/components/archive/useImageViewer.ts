@@ -5,19 +5,18 @@ import { useTranslations } from "next-intl";
 
 import { getArchiveEntryUrl } from "@/lib/api";
 import { useShortcuts } from "@/hooks/useShortcuts";
+import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 import type { ArchiveEntry } from "@/types";
+import {
+  useAutoHidingChrome,
+  type AutoHidingChrome,
+} from "@/hooks/useAutoHidingChrome";
+import { useSpreadPaging } from "@/hooks/useSpreadPaging";
+import { useSpreadFits } from "@/hooks/useSpreadFits";
+import { useNeighbourOrientation } from "@/hooks/useNeighbourOrientation";
+import { readSpreadMode, writeSpreadMode } from "@/lib/spreadPreference";
+import type { Orientation, SpreadFace } from "@/lib/spreadPaging";
 import type { ArchiveViewMode } from "./archiveUtils";
-
-function readLocalBool(key: string, def: boolean): boolean {
-  try {
-    const val = localStorage.getItem(key);
-    if (val === "true") return true;
-    if (val === "false") return false;
-    return def;
-  } catch {
-    return def;
-  }
-}
 
 function readLocalString<T extends string>(key: string, def: T): T {
   try {
@@ -37,10 +36,18 @@ interface ImageViewerResult {
   slideshowInterval: number;
   setSlideshowInterval: React.Dispatch<React.SetStateAction<number>>;
   showControls: boolean;
-  setShowControls: React.Dispatch<React.SetStateAction<boolean>>;
+  showChrome: () => void;
+  setChromeHeld: React.Dispatch<React.SetStateAction<boolean>>;
+  face: SpreadFace;
+  faceLabel: string;
+  subPageLabel: "A" | "B" | null;
+  canGoPrev: boolean;
+  canGoNext: boolean;
+  rememberOrientation: (index: number, orientation: Orientation) => void;
   handleImageAreaClick: () => void;
-  splitMode: boolean;
-  setSplitMode: React.Dispatch<React.SetStateAction<boolean>>;
+  chromeProps: AutoHidingChrome["chromeProps"];
+  spreadMode: boolean;
+  setSpreadMode: React.Dispatch<React.SetStateAction<boolean>>;
   readingDirection: "ltr" | "rtl";
   setReadingDirection: React.Dispatch<React.SetStateAction<"ltr" | "rtl">>;
   isCurrentLandscape: boolean;
@@ -54,35 +61,34 @@ export function useImageViewer(
   viewMode: ArchiveViewMode,
   imageEntries: ArchiveEntry[],
   fileId: string,
-  onClose: () => void
+  onClose: () => void,
 ): ImageViewerResult {
   const [imageIndex, setImageIndex] = useState(0);
   const [imageLoading, setImageLoading] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [slideshowInterval, setSlideshowInterval] = useState(5);
-  const [showControls, setShowControls] = useState(true);
-  const hideTimerRef = useRef<number | null>(null);
+  const [chromeHeld, setChromeHeld] = useState(false);
+  const chrome = useAutoHidingChrome({
+    enabled: viewMode === "image",
+    held: chromeHeld,
+  });
 
-  const [splitMode, setSplitMode] = useState(() =>
-    readLocalBool("image-viewer:split-mode", false)
-  );
+  const [spreadMode, setSpreadMode] = useState(() => readSpreadMode());
   const [readingDirection, setReadingDirection] = useState<"ltr" | "rtl">(() =>
-    readLocalString("image-viewer:reading-direction", "ltr")
+    readLocalString("image-viewer:reading-direction", "ltr"),
   );
   const [isCurrentLandscape, setIsCurrentLandscape] = useState(false);
   const [showRightHalf, setShowRightHalf] = useState(false);
 
   const readingDirectionRef = useRef(readingDirection);
 
-  // Persist splitMode to localStorage
   useEffect(() => {
     try {
-      localStorage.setItem("image-viewer:split-mode", String(splitMode));
+      writeSpreadMode(spreadMode);
     } catch {}
     setShowRightHalf(readingDirectionRef.current === "rtl");
-  }, [splitMode]);
+  }, [spreadMode]);
 
-  // Persist readingDirection to localStorage
   useEffect(() => {
     try {
       localStorage.setItem("image-viewer:reading-direction", readingDirection);
@@ -91,55 +97,81 @@ export function useImageViewer(
     setShowRightHalf(readingDirection === "rtl");
   }, [readingDirection]);
 
-  // Navigation with split mode awareness
-  const navigateNext = useCallback(() => {
-    const inActiveSplit = splitMode && isCurrentLandscape;
-    const isOnFirstSubPage =
-      readingDirection === "ltr" ? !showRightHalf : showRightHalf;
+  const canPair = useSpreadFits();
 
-    if (inActiveSplit && isOnFirstSubPage) {
-      setShowRightHalf(readingDirection === "ltr");
-    } else if (imageIndex < imageEntries.length - 1) {
-      setShowRightHalf(readingDirection === "rtl");
-      setImageIndex((prev) => prev + 1);
+  /**
+   * A zip entry has no stored dimensions, so the next page's shape has to be
+   * fetched. Exactly one is: a reader flipping through a long book must not
+   * pull the book down behind them.
+   */
+  const nextEntry = imageEntries[imageIndex + 1];
+  const nextOrientation = useNeighbourOrientation(
+    spreadMode && canPair && nextEntry
+      ? getArchiveEntryUrl(fileId, nextEntry.path)
+      : null,
+  );
+  /**
+   * A two-entry lookup — this page and the prefetched next — cannot answer
+   * about a page *behind* the reader, and turning back has to: `pageBack`
+   * asks whether the previous index pairs.
+   */
+  const [orientations, setOrientations] = useState<Record<number, Orientation>>(
+    {},
+  );
+
+  useEffect(() => {
+    setOrientations({});
+  }, [imageEntries]);
+
+  const rememberOrientation = useCallback((i: number, o: Orientation) => {
+    setOrientations((prev) => (prev[i] === o ? prev : { ...prev, [i]: o }));
+  }, []);
+
+  useEffect(() => {
+    if (nextOrientation !== "unknown") {
+      rememberOrientation(imageIndex + 1, nextOrientation);
     }
-  }, [
-    splitMode,
-    isCurrentLandscape,
+  }, [imageIndex, nextOrientation, rememberOrientation]);
+
+  const orientationAt = useCallback(
+    (i: number): Orientation => {
+      const measured = orientations[i];
+      if (measured) return measured;
+      // Not "portrait". `isCurrentLandscape` reads `false` before the page
+      // has loaded, and collapsing the answer in the direction that *pairs*
+      // is how a spread gets drawn and then taken away mid-load.
+      if (i === imageIndex && isCurrentLandscape) return "landscape";
+      if (i === imageIndex + 1) return nextOrientation;
+      return "unknown";
+    },
+    [orientations, imageIndex, isCurrentLandscape, nextOrientation],
+  );
+
+  const paging = useSpreadPaging({
+    index: imageIndex,
+    setIndex: setImageIndex,
+    count: imageEntries.length,
+    spreadMode,
     readingDirection,
     showRightHalf,
-    imageIndex,
-    imageEntries.length,
-  ]);
+    orientationAt,
+    canPair,
+    setShowRightHalf,
+  });
+  const { navigatePrev, navigateNext } = paging;
 
-  const navigatePrev = useCallback(() => {
-    const inActiveSplit = splitMode && isCurrentLandscape;
-    const isOnFirstSubPage =
-      readingDirection === "ltr" ? !showRightHalf : showRightHalf;
-
-    if (inActiveSplit && !isOnFirstSubPage) {
-      setShowRightHalf(readingDirection === "rtl");
-    } else if (imageIndex > 0) {
-      setShowRightHalf(splitMode && readingDirection === "ltr");
-      setImageIndex((prev) => prev - 1);
-    }
-  }, [splitMode, isCurrentLandscape, readingDirection, showRightHalf, imageIndex]);
-
-  // Wrap onClose to also reset image viewer state
   const closeViewer = useCallback(() => {
     setPlaying(false);
-    setShowControls(true);
+    chrome.show();
     onClose();
-  }, [onClose]);
+  }, [chrome, onClose]);
 
-  // Set loading state when image changes
   useEffect(() => {
     if (viewMode === "image") {
       setImageLoading(true);
     }
   }, [viewMode, imageIndex]);
 
-  // Image viewer: prefetch
   useEffect(() => {
     if (viewMode !== "image" || imageEntries.length === 0) return;
 
@@ -156,22 +188,35 @@ export function useImageViewer(
     });
   }, [viewMode, imageIndex, imageEntries, fileId]);
 
-  // Image viewer: slideshow timer
   useEffect(() => {
     if (!playing || viewMode !== "image" || imageEntries.length <= 1) return;
 
     const timer = window.setTimeout(() => {
-      setImageIndex((prev) =>
-        prev >= imageEntries.length - 1 ? 0 : prev + 1
-      );
+      if (paging.canGoNext) {
+        paging.navigateNext();
+      } else {
+        setImageIndex(0);
+        setShowRightHalf(readingDirection === "rtl");
+      }
     }, slideshowInterval * 1000);
 
     return () => window.clearTimeout(timer);
-  }, [playing, imageIndex, slideshowInterval, imageEntries.length, viewMode]);
+  }, [
+    playing,
+    imageIndex,
+    slideshowInterval,
+    imageEntries.length,
+    viewMode,
+    // The two values it uses, not the object that holds them:
+    // `useSpreadPaging` returns a fresh literal every render, so depending
+    // on it would tear down and rearm the timer on each one.
+    paging.canGoNext,
+    paging.navigateNext,
+    readingDirection,
+  ]);
 
   const tsc = useTranslations("shortcuts");
 
-  // バグ2: RTLモードでキーボードの左右を方向に応じて切り替えるためref経由でアクセス
   const navigatePrevRef = useRef<() => void>(() => {});
   const navigateNextRef = useRef<() => void>(() => {});
   navigatePrevRef.current = navigatePrev;
@@ -206,39 +251,11 @@ export function useImageViewer(
         },
       },
     ],
-    viewMode === "image"
+    viewMode === "image",
+    // A viewer covers the page: nothing under it may take a key.
+    OVERLAY_PRIORITY,
+    true,
   );
-
-  // Auto-hide controls during slideshow
-  useEffect(() => {
-    if (hideTimerRef.current) {
-      window.clearTimeout(hideTimerRef.current);
-      hideTimerRef.current = null;
-    }
-    if (playing && viewMode === "image") {
-      hideTimerRef.current = window.setTimeout(
-        () => setShowControls(false),
-        3000
-      );
-    }
-    return () => {
-      if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
-    };
-  }, [playing, imageIndex, viewMode]);
-
-  const handleImageAreaClick = useCallback(() => {
-    setShowControls((prev) => !prev);
-    if (hideTimerRef.current) {
-      window.clearTimeout(hideTimerRef.current);
-      hideTimerRef.current = null;
-    }
-    if (playing) {
-      hideTimerRef.current = window.setTimeout(
-        () => setShowControls(false),
-        3000
-      );
-    }
-  }, [playing]);
 
   return {
     imageIndex,
@@ -249,11 +266,13 @@ export function useImageViewer(
     setPlaying,
     slideshowInterval,
     setSlideshowInterval,
-    showControls,
-    setShowControls,
-    handleImageAreaClick,
-    splitMode,
-    setSplitMode,
+    showControls: chrome.visible,
+    showChrome: chrome.show,
+    setChromeHeld,
+    handleImageAreaClick: chrome.toggle,
+    chromeProps: chrome.chromeProps,
+    spreadMode,
+    setSpreadMode,
     readingDirection,
     setReadingDirection,
     isCurrentLandscape,
@@ -261,5 +280,11 @@ export function useImageViewer(
     showRightHalf,
     navigatePrev,
     navigateNext,
+    face: paging.face,
+    faceLabel: paging.faceLabel,
+    subPageLabel: paging.subPageLabel,
+    canGoPrev: paging.canGoPrev,
+    canGoNext: paging.canGoNext,
+    rememberOrientation,
   };
 }

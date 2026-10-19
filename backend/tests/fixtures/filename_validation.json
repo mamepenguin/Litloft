@@ -1,0 +1,154 @@
+{
+  "_comment": [
+    "Shared contract for filename validation, read by two suites that cannot",
+    "import each other: backend/tests/test_filename_validation_parity.py drives",
+    "app.services.fileops.validate_filename, and",
+    "frontend/src/lib/__tests__/filenameValidation.parity.test.ts drives",
+    "validateFilename in frontend/src/lib/filename.ts.",
+    "",
+    "The frontend rejects locally so the inline rename editor can refuse a name",
+    "without a round-trip; the backend stays authoritative. Two independent",
+    "implementations of one rule drift silently, so both read this table and one",
+    "of the two suites fails the moment they disagree.",
+    "",
+    "`repeat` (optional) multiplies `name` that many times, so long inputs stay",
+    "readable here. Control characters are escaped, so edit this file with a",
+    "tool that preserves \\u form."
+  ],
+  "cases": [
+    {
+      "name": "video.mp4",
+      "valid": true,
+      "why": "ordinary file"
+    },
+    {
+      "name": "My Folder",
+      "valid": true,
+      "why": "folder name with a space"
+    },
+    {
+      "name": "archive.tar.gz",
+      "valid": true,
+      "why": "double extension"
+    },
+    {
+      "name": "  padded.txt  ",
+      "valid": true,
+      "why": "surrounding whitespace is stripped, not rejected"
+    },
+    {
+      "name": "\u65e5\u672c\u8a9e\u30d5\u30a1\u30a4\u30eb.txt",
+      "valid": true,
+      "why": "non-ascii"
+    },
+    {
+      "name": "trailing.",
+      "valid": true,
+      "why": "a trailing dot is not a hidden file"
+    },
+    {
+      "name": "budget (final) v2.xlsx",
+      "valid": true,
+      "why": "parentheses are not forbidden"
+    },
+    {
+      "name": "",
+      "valid": false,
+      "why": "empty"
+    },
+    {
+      "name": "   ",
+      "valid": false,
+      "why": "whitespace only"
+    },
+    {
+      "name": "a<b.txt",
+      "valid": false,
+      "why": "forbidden <"
+    },
+    {
+      "name": "a>b.txt",
+      "valid": false,
+      "why": "forbidden >"
+    },
+    {
+      "name": "a:b.txt",
+      "valid": false,
+      "why": "forbidden :"
+    },
+    {
+      "name": "a\"b.txt",
+      "valid": false,
+      "why": "forbidden double quote"
+    },
+    {
+      "name": "a/b.txt",
+      "valid": false,
+      "why": "forbidden / - a rename must not move the file"
+    },
+    {
+      "name": "a\\b.txt",
+      "valid": false,
+      "why": "forbidden backslash"
+    },
+    {
+      "name": "a|b.txt",
+      "valid": false,
+      "why": "forbidden |"
+    },
+    {
+      "name": "a?b.txt",
+      "valid": false,
+      "why": "forbidden ?"
+    },
+    {
+      "name": "a*b.txt",
+      "valid": false,
+      "why": "forbidden *"
+    },
+    {
+      "name": "a\u0000b.txt",
+      "valid": false,
+      "why": "forbidden NUL"
+    },
+    {
+      "name": ".hidden",
+      "valid": false,
+      "why": "hidden file"
+    },
+    {
+      "name": ".",
+      "valid": false,
+      "why": "current directory"
+    },
+    {
+      "name": "..",
+      "valid": false,
+      "why": "parent directory"
+    },
+    {
+      "name": "a",
+      "repeat": 255,
+      "valid": true,
+      "why": "exactly at the 255 cap"
+    },
+    {
+      "name": "a",
+      "repeat": 256,
+      "valid": false,
+      "why": "one past the cap"
+    },
+    {
+      "name": "e\u0301",
+      "repeat": 200,
+      "valid": true,
+      "why": "400 code points decomposed, 200 composed - NFC runs before the length check"
+    },
+    {
+      "name": "\ud83d\ude00",
+      "repeat": 200,
+      "valid": true,
+      "why": "200 code points; counting UTF-16 units instead would wrongly reject it"
+    }
+  ]
+}

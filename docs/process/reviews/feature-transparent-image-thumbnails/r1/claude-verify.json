@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "Reproduced. .git/refs/remotes/origin/develop = 0a6ce9515. In .git/logs/HEAD:2055-2068, feature/similar-files-on-open starts at 0a6ce9515, gets 12 commits up to 5df4ef2e4 'feat: bump intelligence to load similar files on open (#112)', and feature/transparent-image-thumbnails is checked out from 5df4ef2e4 at line 2068. The finding says eleven commits; I count twelve from f4574452c to 5df4ef2e4. The number is off by one but the substance holds. In .git/modules/addons/intelligence/logs/HEAD:734-739 the submodule goes 28e15f25b -> 2ab90461e via the similar-files-on-open work. r1/classification.json lists addons/intelligence and docs/specs/similar-files-on-open.md in zones_touched. The transparent-thumbnails spec mentions intelligence only at docs/specs/transparent-image-thumbnails.md:181 (CLIP note) and gives no submodule touch point. So the diff against origin/develop carries unrelated, unmerged stacked work. I did not open the submodule's file-level diff, so I did not confirm the individual files named (SimilarFilesSection.tsx, api.ts, tests)."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "Reproduced. docs/addons/intelligence.md:625 now reads 'It searches when the file opens, or when you open the inspector...'. docs/specs/similar-files-on-open.md:132 and :194 name the old 'searches only when you expand it' sentence as that spec's touch point. The commit came in through the stacked commits e845afad4/b2dccf34a (.git/logs/HEAD:2063-2064), which are not on origin/develop (0a6ce9515). docs/specs/transparent-image-thumbnails.md does not list docs/addons/intelligence.md."
+    }
+  ],
+  "specification_compliance": [
+    "Both findings describe scope contamination: the base origin/develop (0a6ce9515) is behind the branch's real fork point 5df4ef2e4, so the reviewed diff carries the unmerged feature/similar-files-on-open work as well."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "If feature/similar-files-on-open (#112) is not merged into develop first, merging this branch lands the submodule bump and its docs change as part of the transparent-thumbnails change."
+  ],
+  "test_coverage": [
+    "Not assessed; the verification covered branch ancestry and touch-point scope only."
+  ],
+  "not_verified": [
+    "File-level contents of the addons/intelligence submodule diff 28e15f25b..2ab90461e (SimilarFilesSection.tsx, api.ts, test files)",
+    "Whether PR #112 has since been merged upstream on the remote beyond the local origin/develop ref",
+    "The transparent-thumbnail invariants I1-I11 against the code"
+  ],
+  "confidence": 88
+}

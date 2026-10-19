@@ -5,28 +5,31 @@ import { useTranslations } from "next-intl";
 import { useCallback } from "react";
 
 import { FolderBrowser } from "@/components/FolderBrowser";
-import type { FileType } from "@/types";
+import type { FileKind } from "@/types";
+import { parseSearchQuery } from "@/lib/searchQuery";
 
-const VALID_TYPES: ReadonlyArray<FileType> = [
+// `subtitle` is not here for the reason it is not in the toolbar: nothing
+// registers a row for it. If this list falls behind the toolbar, the chip is
+// selectable, the URL carries the value, and the reload quietly widens the
+// listing back to All.
+export const VALID_TYPES: ReadonlyArray<FileKind> = [
   "video",
   "image",
   "audio",
   "document",
+  "text",
+  "pdf",
   "archive",
   "other",
 ];
 
-function parseTypeFilter(raw: string | null): FileType | null {
+function parseTypeFilter(raw: string | null): FileKind | null {
   if (!raw) return null;
-  return (VALID_TYPES as readonly string[]).includes(raw) ? (raw as FileType) : null;
+  const kind = raw === "markdown" ? "text" : raw;
+  return (VALID_TYPES as readonly string[]).includes(kind) ? (kind as FileKind) : null;
 }
 
 /**
- * Scene-search toggle. When checked, semantic search unions in
- * scene-frame CLIP embeddings (`embedding_type="clip"`) alongside the
- * default representative-frame route (`embedding_type="clip_thumbnail"`).
- * Spec `2026-05-02-thumbnail-clip-default-shallow-search.md`.
- *
  * Off by default — most "videos about X" queries get noise from
  * incidental phone/object appearances when scene CLIP is on. Users who
  * specifically want "find a moment with X" can opt in.
@@ -68,12 +71,10 @@ export default function SearchPage() {
   const typeFilter = parseTypeFilter(searchParams.get("type"));
   const smartFolderId = searchParams.get("smart_folder_id");
   const includeSceneClip = searchParams.get("include_scene_clip") === "true";
+  const filtered = parseSearchQuery(q).hasOperators;
 
   const handleToggle = useCallback(
     (next: boolean) => {
-      // Push a fresh URLSearchParams so we don't accidentally drop
-      // unrelated params (e.g. type, smart_folder_id) and so the
-      // browser back button restores the previous toggle state.
       const nextParams = new URLSearchParams(searchParams.toString());
       if (next) {
         nextParams.set("include_scene_clip", "true");
@@ -89,9 +90,11 @@ export default function SearchPage() {
 
   return (
     <>
-      <div className="px-4 pt-3 pb-1 flex items-center">
-        <SceneSearchToggle active={includeSceneClip} onToggle={handleToggle} />
-      </div>
+      {!filtered && (
+        <div className="px-4 pt-3 pb-1 flex items-center">
+          <SceneSearchToggle active={includeSceneClip} onToggle={handleToggle} />
+        </div>
+      )}
       <FolderBrowser
         driveName={driveName}
         searchQuery={q}

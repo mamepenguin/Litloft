@@ -3,18 +3,12 @@
 import { useEffect, useState } from "react";
 
 /**
- * Drive-scoped addon policy lookup hook.
- *
- * Frontend mirror of the backend `is_addon_feature_enabled` helper. Fetches
- * `/api/drives/{drive}/addon-policies` once per drive and caches the result at
- * module level with a 30s TTL (matching the backend `policy_client` cadence).
- *
+ * Frontend mirror of the backend `is_addon_feature_enabled` helper.
  * Resolution order, identical to backend:
  *   addons[addon].features[feature]  ??  addons[addon].default  ??  true
  *
  * Fail-open: while loading, on fetch error, or on non-2xx, returns
- * `enabled=true` so a policy outage never blackholes the UI. Spec:
- * docs/superpowers/specs/2026-05-10-markdown-document-layout.md § 4 D4.
+ * `enabled=true` so a policy outage never blackholes the UI.
  */
 
 export interface PolicyState {
@@ -32,7 +26,6 @@ interface PolicyResponse {
 }
 
 interface CacheEntry {
-  // Either a resolved snapshot or a still-pending fetch promise — never both.
   data: PolicyResponse | null;
   fetchedAt: number;
   inFlight: Promise<PolicyResponse | null> | null;

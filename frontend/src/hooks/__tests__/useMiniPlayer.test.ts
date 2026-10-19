@@ -11,6 +11,7 @@ describe("shouldShowMini", () => {
     fullscreen: false,
     osPip: false,
     desktop: true,
+    shell: false,
   };
 
   it("returns true when player is off-screen and playing on desktop", () => {
@@ -36,9 +37,12 @@ describe("shouldShowMini", () => {
   it("returns false on mobile regardless of other state", () => {
     expect(shouldShowMini({ ...base, desktop: false })).toBe(false);
   });
-});
 
-// ---------- Hook integration ----------
+  /** The shell has picture in picture, which outlives the app itself. */
+  it("returns false inside the iOS shell", () => {
+    expect(shouldShowMini({ ...base, shell: true })).toBe(false);
+  });
+});
 
 interface IOInstance {
   cb: IntersectionObserverCallback;
@@ -134,6 +138,12 @@ function makeMc(paused: boolean): MediaController {
     getCurrentTime: vi.fn().mockReturnValue(0),
     getDuration: vi.fn().mockReturnValue(100),
     isPaused: vi.fn().mockReturnValue(paused),
+    isMuted: vi.fn().mockReturnValue(false),
+    getVolume: vi.fn().mockReturnValue(1),
+    setVolume: vi.fn(),
+    getPlaybackRate: vi.fn().mockReturnValue(1),
+    setPlaybackRate: vi.fn(),
+    getBufferedFraction: vi.fn().mockReturnValue(0),
   };
 }
 
@@ -188,6 +198,24 @@ describe("useMiniPlayer", () => {
     expect(result.current.hook.isMini).toBe(false);
   });
 
+  it("does not become mini inside the iOS shell", () => {
+    const shellWindow = window as typeof window & { webkit?: unknown; __litloftShell?: unknown };
+    shellWindow.webkit = { messageHandlers: { litloft: { postMessage: vi.fn() } } };
+    shellWindow.__litloftShell = { version: 2 };
+    try {
+      const mc = makeMc(false);
+      const { result } = renderWithRef(mc);
+      fireIntersect(false);
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+      expect(result.current.hook.isMini).toBe(false);
+    } finally {
+      delete shellWindow.webkit;
+      delete shellWindow.__litloftShell;
+    }
+  });
+
   it("does not become mini on mobile", () => {
     installMatchMediaMock(false);
     const mc = makeMc(false);
@@ -225,13 +253,10 @@ describe("useMiniPlayer", () => {
     expect(mc.pause).toHaveBeenCalled();
   });
 
-  // ---------- root option (PR-1, B1) ----------
-
   it("creates IntersectionObserver with viewport root when no root option is provided", () => {
     const mc = makeMc(false);
     renderWithRef(mc);
     const inst = ioInstances[ioInstances.length - 1];
-    // Default = viewport (root undefined or null in init dict).
     expect(inst.options?.root ?? null).toBeNull();
   });
 

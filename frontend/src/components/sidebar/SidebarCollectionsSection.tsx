@@ -1,14 +1,17 @@
 import type React from "react";
 import { type RefObject, useCallback, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, Library, Pencil, Plus, Trash2 } from "lucide-react";
+import { Library, Pencil, Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import type { CollectionSummary } from "@/types";
+import { ContextMenu, type MenuItem } from "@/components/ContextMenu";
 import { addCollectionItems, getCollections } from "@/lib/api";
+import { useImeKeyGuard } from "@/lib/ime";
 import { useSidebarSectionCollapsed } from "./useSidebarSectionCollapsed";
 import { useSidebarItemOrder } from "./useSidebarItemOrder";
 import { useReorderableDnD } from "./useReorderableDnD";
 import { ItemDragHandle } from "./ItemDragHandle";
+import { SidebarSectionHeading } from "./SidebarSectionHeading";
 
 interface SidebarCollectionsSectionProps {
   currentDrive: string | null;
@@ -57,12 +60,11 @@ export function SidebarCollectionsSection({
   dragHandle,
 }: SidebarCollectionsSectionProps) {
   const t = useTranslations("sidebar");
+  const ime = useImeKeyGuard();
   const { collapsed, toggle, expand } = useSidebarSectionCollapsed("collections");
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
   const dragCounterRef = useRef<Map<string, number>>(new Map());
 
-  // Stable id list (c.id). Memoised so the reorder hooks keep a steady
-  // reference and do not churn `order` identity on every render.
   const currentIds = useMemo(
     () => collectionList.map((c) => c.id),
     [collectionList],
@@ -83,6 +85,38 @@ export function SidebarCollectionsSection({
     ids: order,
     onReorder: setOrder,
   });
+
+  // Rebuilt whenever the target changes, because every entry closes over
+  // the collection it acts on. `ContextMenu` runs the handler in a
+  // `requestAnimationFrame` after closing, so `renamingId` is set on a
+  // tree that no longer holds the menu.
+  const contextMenuItems = useMemo<MenuItem[]>(() => {
+    const target = collectionList.find((c) => c.id === contextMenu?.id);
+    if (!target) return [];
+    return [
+      {
+        icon: Pencil,
+        label: t("renameCollection"),
+        onClick: () => {
+          setRenamingId(target.id);
+          setRenameValue(target.name);
+        },
+      },
+      {
+        icon: Trash2,
+        label: t("deleteCollection"),
+        danger: true,
+        onClick: () => handleDeleteCollection(target.id),
+      },
+    ];
+  }, [
+    collectionList,
+    contextMenu,
+    handleDeleteCollection,
+    setRenameValue,
+    setRenamingId,
+    t,
+  ]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     if (!e.dataTransfer.types.includes("application/x-file-ids")) return;
@@ -132,34 +166,27 @@ export function SidebarCollectionsSection({
     [currentDrive, setCollectionList],
   );
 
-  const Chevron = collapsed ? ChevronRight : ChevronDown;
-
   return (
     <>
-      <div className="group relative mb-1 mt-4 flex items-center justify-between pr-3">
-        {dragHandle}
-        <button
-          type="button"
-          onClick={toggle}
-          aria-expanded={!collapsed}
-          aria-label={collapsed ? t("sectionExpand") : t("sectionCollapse")}
-          className="flex flex-1 items-center gap-1.5 rounded-lg px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted transition-colors hover:text-text-primary"
-        >
-          <Chevron size={12} />
-          <span>{t("collections")}</span>
-        </button>
-        <button
-          onClick={() => {
-            expand();
-            setCreatingCollection(true);
-            setNewCollectionName("");
-          }}
-          className="text-text-muted hover:text-text-primary"
-          aria-label={t("createCollection")}
-        >
-          <Plus size={14} />
-        </button>
-      </div>
+      <SidebarSectionHeading
+        label={t("collections")}
+        collapsed={collapsed}
+        onToggle={toggle}
+        dragHandle={dragHandle}
+        actions={
+          <button
+            onClick={() => {
+              expand();
+              setCreatingCollection(true);
+              setNewCollectionName("");
+            }}
+            className="text-text-muted hover:text-text-primary"
+            aria-label={t("createCollection")}
+          >
+            <Plus size={14} />
+          </button>
+        }
+      />
 
       {!collapsed && creatingCollection && (
         <div className="px-3">
@@ -168,7 +195,9 @@ export function SidebarCollectionsSection({
             type="text"
             value={newCollectionName}
             onChange={(e) => setNewCollectionName(e.target.value)}
+            onCompositionEnd={ime.onCompositionEnd}
             onKeyDown={(e) => {
+              if (ime.isImeKeystroke(e)) return;
               if (e.key === "Enter") handleCreateCollection();
               if (e.key === "Escape") {
                 setCreatingCollection(false);
@@ -200,7 +229,6 @@ export function SidebarCollectionsSection({
               }}
             />
           )}
-          {/* grip only on real collection rows, not the rename input */}
           {!isRenaming && (
             <ItemDragHandle {...itemDnd.getHandleProps(c.id)} />
           )}
@@ -211,7 +239,9 @@ export function SidebarCollectionsSection({
                 type="text"
                 value={renameValue}
                 onChange={(e) => setRenameValue(e.target.value)}
+                onCompositionEnd={ime.onCompositionEnd}
                 onKeyDown={(e) => {
+                  if (ime.isImeKeystroke(e)) return;
                   if (e.key === "Enter") handleRenameCollection();
                   if (e.key === "Escape") {
                     setRenamingId(null);
@@ -245,34 +275,18 @@ export function SidebarCollectionsSection({
             </button>
           )}
 
-          {contextMenu?.id === c.id && (
-            <div
-              className="fixed z-50 min-w-[140px] rounded-lg border border-bg-border bg-bg-primary py-1 shadow-lg"
-              style={{ left: contextMenu.x, top: contextMenu.y }}
-            >
-              <button
-                onClick={() => {
-                  setRenamingId(c.id);
-                  setRenameValue(c.name);
-                  setContextMenu(null);
-                }}
-                className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-text-muted hover:bg-bg-elevated hover:text-text-primary"
-              >
-                <Pencil size={14} />
-                {t("renameCollection")}
-              </button>
-              <button
-                onClick={() => handleDeleteCollection(c.id)}
-                className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-danger hover:bg-accent/10"
-              >
-                <Trash2 size={14} />
-                {t("deleteCollection")}
-              </button>
-            </div>
-          )}
         </div>
         );
       })}
+
+      {contextMenu && (
+        <ContextMenu
+          open
+          position={{ x: contextMenu.x, y: contextMenu.y }}
+          items={contextMenuItems}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
     </>
   );
 }

@@ -1,14 +1,12 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { batchMove, moveFile, moveFolder } from "@/lib/api";
 
 /**
- * Read the dragged payload from the DataTransfer object as a fallback
- * for cross-pane drops. Two panes mounting their own `useDragAndDrop`
- * instance can't see each other's internal refs; the MIMEs that the
- * source pane wrote during `dragstart` are the only thing both ends
- * agree on.
+ * Two panes mounting their own `useDragAndDrop` instance can't see each
+ * other's internal refs; the MIMEs that the source pane wrote during
+ * `dragstart` are the only thing both ends agree on.
  */
 function readDataTransfer(dt: DataTransfer): {
   ids: string[];
@@ -34,6 +32,11 @@ export interface DragState {
   isDragging: boolean;
   dragType: "file" | "folder" | null;
   draggedFileIds: string[];
+  /**
+   * Testing membership against the array would hand every memoized card a
+   * prop whose identity changes on drag start, defeating the memo.
+   */
+  draggedFileIdSet: ReadonlySet<string>;
   draggedFolderPath: string | null;
   dropTargetPath: string | null;
 }
@@ -42,17 +45,30 @@ export interface UseDragAndDropOptions {
   drive: string;
   selectedIds: Set<string>;
   onComplete: () => void;
+  /**
+   * Fired synchronously, before the move request is issued. The timing is
+   * load-bearing: the browser fires `dragend` right after `drop`, so anything
+   * listening for the end of the drag has already run by the time an awaited
+   * move resolves.
+   */
+  onDropTarget?: (targetPath: string) => void;
 }
 
 const INITIAL_STATE: DragState = {
   isDragging: false,
   dragType: null,
   draggedFileIds: [],
+  draggedFileIdSet: new Set<string>(),
   draggedFolderPath: null,
   dropTargetPath: null,
 };
 
-export function useDragAndDrop({ drive, selectedIds, onComplete }: UseDragAndDropOptions) {
+export function useDragAndDrop({
+  drive,
+  selectedIds,
+  onComplete,
+  onDropTarget,
+}: UseDragAndDropOptions) {
   const [dragState, setDragState] = useState<DragState>(INITIAL_STATE);
 
   const dragCounterRef = useRef<Map<string, number>>(new Map());
@@ -75,6 +91,7 @@ export function useDragAndDrop({ drive, selectedIds, onComplete }: UseDragAndDro
         isDragging: true,
         dragType: "file",
         draggedFileIds: ids,
+        draggedFileIdSet: new Set(ids),
         draggedFolderPath: null,
         dropTargetPath: null,
       });
@@ -94,6 +111,7 @@ export function useDragAndDrop({ drive, selectedIds, onComplete }: UseDragAndDro
         isDragging: true,
         dragType: "folder",
         draggedFileIds: [],
+        draggedFileIdSet: new Set<string>(),
         draggedFolderPath: folderPath,
         dropTargetPath: null,
       });
@@ -149,11 +167,8 @@ export function useDragAndDrop({ drive, selectedIds, onComplete }: UseDragAndDro
       e.preventDefault();
       e.stopPropagation();
       dragCounterRef.current.clear();
+      onDropTarget?.(targetPath);
 
-      // Prefer internal refs (set by handleDragStart on this same hook
-      // instance). When empty — the typical cross-pane case — fall back
-      // to the DataTransfer payload that any source pane sets during
-      // dragstart.
       let folderPath = draggedFolderRef.current;
       let ids = draggedIdsRef.current;
       let parseError = false;
@@ -169,14 +184,11 @@ export function useDragAndDrop({ drive, selectedIds, onComplete }: UseDragAndDro
       window.dispatchEvent(new Event("loft-internal-drag-end"));
       setDragState(INITIAL_STATE);
 
-      if (parseError) return; // malformed payload — bail without API call
+      if (parseError) return;
 
       try {
         if (folderPath !== null) {
-          // Guard: same-location or self-reference (mirrors backend validation so
-          // we don't swallow a 400 silently). The backend computes:
-          //   new_path = targetPath ? `${targetPath}/${name}` : name
-          // and rejects if new_path === folderPath or targetPath is a descendant.
+          // Mirrors backend validation so we don't swallow a 400 silently.
           if (targetPath === folderPath || targetPath.startsWith(folderPath + "/")) return;
           const folderName = folderPath.split("/").pop() ?? folderPath;
           const computedNew = targetPath ? `${targetPath}/${folderName}` : folderName;
@@ -187,21 +199,33 @@ export function useDragAndDrop({ drive, selectedIds, onComplete }: UseDragAndDro
         } else if (ids.length > 1) {
           await batchMove(ids, targetPath);
         } else {
-          return; // nothing to move
+          return;
         }
         onComplete();
-        // Notify ALL panes (source + target) that a move completed so each
-        // can refresh its own file list. The target pane's onComplete already
-        // ran above; the source pane relies on this event because the drop
-        // fires on the TARGET, not the source, so the source's onComplete is
-        // never called directly.
+        // The drop fires on the TARGET, not the source, so the source's
+        // onComplete is never called directly.
         window.dispatchEvent(new Event("loft-move-complete"));
       } catch {
         // Backend returns 403 for readonly drives, 400/404 for invalid paths
       }
     },
-    [drive, onComplete],
+    [drive, onComplete, onDropTarget],
   );
+
+  // A virtualized row that scrolls out of the window during a drag
+  // unmounts, and a detached node dispatches `dragend` to itself and to
+  // nobody else, so the drag state sticks at `isDragging`. Listening on
+  // `window` does not help for the same reason.
+  //
+  // What is reliable: a native drag suppresses mouse events for its
+  // entire duration, and they resume once it ends. So the first
+  // `pointermove` after a drag started is proof the drag is over.
+  useEffect(() => {
+    if (!dragState.isDragging) return;
+    const handlePointerMove = () => handleDragEnd();
+    window.addEventListener("pointermove", handlePointerMove);
+    return () => window.removeEventListener("pointermove", handlePointerMove);
+  }, [dragState.isDragging, handleDragEnd]);
 
   const getDropTargetProps = useCallback(
     (targetPath: string) => ({

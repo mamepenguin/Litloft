@@ -4,7 +4,7 @@ A file-based media library.
 
 Litloft is a self-hosted library app that runs on your home LAN. It gives you a single web interface to manage and share your videos, documents, images, web videos, and Markdown notes.
 
-I originally started building it as a simple video server, but it has evolved to focus heavily on knowledge aggregation and search. By indexing your files in multiple ways, Litloft turns a scattered collection of media into a truly useful, searchable resource.
+Beyond playback, it indexes the contents of your files in several ways, so a scattered collection of media becomes something you can search.
 
 **[Landing page](https://mamepenguin.github.io/Litloft/)** ·
 **[Documentation](docs/README.md)** ·
@@ -25,47 +25,47 @@ Personal project. I built this primarily for my own use. Issues and PRs are welc
 
 ---
 
-## Why I Built Litloft
+## Why I built Litloft
 
-There are plenty of great media servers for playback, and excellent note-taking apps for writing. Litloft targets the space in between.
+There are plenty of good media servers for playback and good note-taking apps for writing. Litloft sits between the two.
 
 I wanted a single local library to handle lecture recordings, stream archives, PDFs, self-scanned books, personal notes, and all those URLs I bookmarked to "watch later."
 
-I wanted an environment where I could watch a video, search its subtitles, jot down notes, and link them to other documents. When looking back, I wanted to jump straight to the right information—whether starting from a video, a note, or a search query.
+I wanted an environment where I could watch a video, search its subtitles, jot down notes, and link them to other documents. Later, I wanted to get straight back to the right information, whether I started from a video, a note, or a search query.
 
-## Media Server
+## Media server
 
-At its core, Litloft is a fast, browser-based media server for your LAN.
+Litloft is, first of all, a fast, browser-based media server for your LAN.
 
-Point it at a folder, and you can open files directly from your phone, tablet, or PC browser. It supports video resume playback, but also handles images, PDFs, and Markdown files in the same view. You can set access rules per drive, so you don't have to mix family videos with your personal research materials.
+Point it at a folder, and you can open files directly from your phone, tablet, or PC browser. Videos resume where you left off, and images, PDFs, and Markdown files open in the same view. You can set access rules per drive, so you don't have to mix family videos with your personal research materials.
 
-Everything is built on top of a solid, everyday library experience: fast browsing, thumbnails, streaming, history tracking, and tagging.
+The rest of Litloft builds on the everyday library features: fast browsing, thumbnails, streaming, history tracking, and tagging.
 
-## Search & Summarize (Intelligence)
+## Search & summarize (Intelligence)
 
 Litloft indexes the contents of your files so you can pull them up anytime.
 
-By automatically transcribing audio and indexing subtitles/text, you can search for the exact scene where a specific word was spoken. Even with just a vague keyword, you can jump right to the relevant document or video timestamp.
+It transcribes audio automatically and indexes subtitles and text, so you can search for the scene where a specific word was spoken. Even a vague keyword is enough to jump to the relevant document or video timestamp.
 
-If you connect an LLM, you can also use features like automatic summaries, tag suggestions, and Ask (Q&A). However, AI-generated answers aren't the final destination here. I designed these features to act as practical stepping stones—helping you find the exact file and timestamp so you can check the source yourself.
+If you connect an LLM, you also get automatic summaries, tag suggestions, and Ask (Q&A). I designed these to lead you to the file and timestamp an answer came from, so you can check the source yourself.
 
-## Media Import
+## Media import
 
 You can pull external videos (like YouTube) straight into your local library.
 
-Simply paste a URL, or subscribe to channels and playlists to automatically fetch new videos. Litloft grabs the titles, thumbnails, and available subtitles. This means external videos become fully searchable and summarizable, just like your local files.
+Paste a URL, or subscribe to channels and playlists to fetch new videos automatically. Litloft saves the titles, thumbnails, and any available subtitles, so external videos can be searched and summarized just like your local files.
 
-Instead of letting "Watch Later" links pile up as dead bookmarks, they become an active, searchable part of your archive alongside your own recordings and notes.
+Links you saved to "Watch Later" end up in a searchable archive next to your own recordings and notes.
 
-## Linking Files and Notes (Knowledge)
+## Linking files and notes (Knowledge)
 
-Litloft allows you to write Markdown notes linked directly to your media files.
+You can write Markdown notes linked directly to your media files.
 
 Because notes are saved in ordinary folders, you can edit them in the browser or use your favorite external Markdown editor. You can link a note to a specific timestamp in a video, or connect notes to each other to give your files context.
 
-Rather than just being a standalone notepad, it acts as a space to organize your library—explaining why a video is important, or which document backs up a specific claim.
+Notes are where you organize the library: why a video matters, or which document backs up a specific claim.
 
-## What You Can Use It For
+## What you can use it for
 
 - A private media server for videos, books, scans, and personal files.
 - A searchable archive for lectures, streams, talks, podcasts, and clips.
@@ -73,9 +73,9 @@ Rather than just being a standalone notepad, it acts as a space to organize your
 - A place to archive YouTube channels/playlists without losing subtitles or context.
 - A local knowledge workspace where notes and summaries live right next to the source files.
 
-## Quick Start
+## Quick start
 
-**Requirements:** Git, Docker, Python 3.
+Requirements: Git, Docker, Python 3.
 
 ```bash
 git clone --recurse-submodules https://github.com/mamepenguin/Litloft
@@ -84,11 +84,11 @@ python3 configure.py
 docker compose up -d --build
 ```
 
-Open `http://localhost:3000`.
+Open the address `configure.py` prints. On the first run it is `http://localhost:3000/setup?token=…`, which starts the setup wizard.
 
-From another device on the same LAN, open `http://<host-ip>:3000`.
+From another device on the same LAN, use `http://<host-ip>:3000`.
 
-`configure.py` generates your local Docker configuration, drive mounts, ports, and optional add-on services. On the first launch, a setup wizard will guide you through naming drives, access control, and add-on policies.
+`configure.py` generates your local Docker configuration: drive mounts, port, and optional add-on services. It prints the address of the setup wizard, where you name drives and set access control and add-on policies. See [Installation](docs/getting-started/installation.md) for details, including HTTPS for Safari on iPhone and iPad.
 
 To update:
 
@@ -97,7 +97,7 @@ git pull --recurse-submodules
 docker compose up -d --build
 ```
 
-## Feature Sweep
+## Feature sweep
 
 Media: Video streaming, audio playback, Range requests, resume playback, subtitle display, thumbnail previews, image viewer, spread view, Markdown viewer, Mermaid rendering, syntax highlighting, PDF viewer, ZIP/archive browsing.
 

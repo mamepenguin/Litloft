@@ -1,6 +1,7 @@
 {
   "common": {
     "close": "Close",
+    "back": "Back",
     "cancel": "Cancel",
     "save": "Save",
     "delete": "Delete",
@@ -10,14 +11,15 @@
     "change": "Change",
     "refresh": "Refresh",
     "seeAll": "See all",
+    "seeAllCount": "See all ({count})",
     "download": "Download",
     "rename": "Rename",
     "move": "Move",
     "play": "Play",
     "pause": "Pause",
-    "upload": "Upload",
     "lock": "Lock",
     "items": "{count} items",
+    "driveScope": "{drive} · {detail}",
     "loadContent": "Load",
     "fileSizeLarge": "File is large ({size})",
     "loadFailed": "Failed to load: {error}",
@@ -35,11 +37,21 @@
   },
   "sidebar": {
     "home": "Home",
+    "library": "Library",
+    "views": "Views",
+    "sources": "Sources",
     "favorites": "Favorites",
-    "recentPlay": "Recently Viewed",
+    "liked": "Liked",
+    "recentlyViewed": "Recently Viewed",
     "recentAdded": "Recently Added",
     "allFiles": "All Files",
     "trash": "Trash",
+    "switchDrive": "Switch drive (currently {drive})",
+    "pins": "Pins",
+    "tags": "Tags",
+    "tagsScoped": "Tags — under {folder}",
+    "allTags": "All tags ({count})",
+    "allDrives": "Drives ({count})",
     "collections": "Collections",
     "createCollection": "Create collection",
     "collectionNamePlaceholder": "Collection name...",
@@ -55,21 +67,20 @@
       "byName": "By name",
       "byCount": "By count",
       "toggle": "Toggle tag sort order"
-    }
+    },
+    "clearTag": "Clear tag filter",
+    "lock": "Lock",
+    "administration": "Administration"
   },
   "drive": {
-    "title": "Drives",
     "empty": "No drives found",
     "emptyDescription": "Configure drives.json to add drives.",
-    "folders": "Folders",
-    "files": "Files",
     "pickup": "Pickup",
     "recentAdded": "Recently Added",
     "favorites": "Favorites",
-    "popular": "Popular",
+    "liked": "Liked",
     "continueWatching": "Continue Watching",
-    "recentlyPlayed": "Recently Viewed",
-    "tagline": "Store, stream, and organize your files in one place",
+    "recentlyViewed": "Recently Viewed",
     "greeting": "Welcome back, {name}",
     "fileCount": "{count, plural, one {# file} other {# files}}",
     "emptyDrive": "No files yet",
@@ -89,7 +100,6 @@
     "pin": "Pin",
     "unpin": "Unpin",
     "newFolder": "New Folder",
-    "newFile": "New Note",
     "createFileFailed": "Failed to create file",
     "createFileForbidden": "This drive is not writable",
     "open": "Open",
@@ -124,9 +134,10 @@
     "renameFailed": "Failed to rename",
     "moveFailed": "Failed to move",
     "deleteFailed": "Failed to delete",
-    "noPreview": "Preview not available",
+    "noPreview": "This kind of file cannot be shown in a browser",
     "prevFile": "Previous file",
     "nextFile": "Next file",
+    "positionOf": "{position} / {total}",
     "edit": "Edit",
     "summaryEdit": "Edit",
     "summarySave": "Save",
@@ -140,6 +151,22 @@
     "addToCollection": "Add to collection",
     "removeFromHistory": "Remove from history",
     "openInNewTab": "Open in new tab",
+    "copyId": "Copy ID",
+    "idCopied": "ID copied",
+    "copyIdTitle": "File ID",
+    "copyIdManual": "This browser would not copy it. Copy the selected ID yourself.",
+    "pdfPreviousPage": "Previous page",
+    "pdfNextPage": "Next page",
+    "pdfZoomOut": "Zoom out",
+    "pdfZoomIn": "Zoom in",
+    "pdfLoading": "Loading PDF...",
+    "pdfLoadFailed": "Could not load this PDF. Open it in a new tab instead.",
+    "pdfPageNumber": "Page number",
+    "pdfFullscreen": "Full screen",
+    "pdfFullscreenViewer": "PDF viewer",
+    "pdfShortcuts": "PDF viewer",
+    "pdfOutline": "Contents",
+    "pdfGoToPage": "Go to page {page}",
     "typeVideo": "Video",
     "typeImage": "Image",
     "typeAudio": "Audio",
@@ -151,7 +178,53 @@
     "activeSummaryFallbackOpen": "Open note file",
     "relatedFilesTitle": "Related files",
     "relatedFileMissing": "missing",
-    "relatedFileSizeBytes": "{size} bytes"
+    "relatedLinksFrom": "Links from this file",
+    "relatedLinksTo": "Links to this file",
+    "relatedDriveRoot": "Drive root",
+    "relatedFileSizeBytes": "{size} bytes",
+    "layoutBeside": "Move transcript beside the player",
+    "layoutStack": "Move transcript below the player",
+    "actionsFor": "Actions for {name}",
+    "pdfThumbnails": "Page thumbnails",
+    "officeExcerpt": "Extracted text, first lines",
+    "pdfZoomMode": "Zoom mode",
+    "pdfZoomMode_fit-width": "Fit width",
+    "pdfZoomMode_fit-page": "Whole page",
+    "pdfZoomMode_actual": "Actual size",
+    "pdfRenderTooLarge": "The page could not be drawn at this zoom. Try a smaller one.",
+    "epubLoading": "Loading the book...",
+    "epubLoadFailed": "This book could not be opened. Download it and open it in another app.",
+    "epubUnsupported": "Fixed-layout books cannot be shown yet. Download it and open it in another app.",
+    "epubReader": "{title} (book)",
+    "epubShortcuts": "EPUB reader",
+    "epubNextPage": "Next page",
+    "epubPreviousPage": "Previous page",
+    "epubPageLeft": "Page to the left",
+    "epubPageRight": "Page to the right",
+    "epubFullscreen": "Read full screen",
+    "epubExitFullscreen": "Exit full screen",
+    "epubPosition": "Reading position",
+    "epubPagesLeft": "{count, plural, one {# page} other {# pages}} left in chapter",
+    "epubTypographyButton": "Text settings",
+    "epubTypography": "Text settings",
+    "epubTextSize": "Text size",
+    "epubTextSmaller": "Smaller text",
+    "epubTextLarger": "Larger text",
+    "epubLineSpacing": "Line spacing",
+    "epubMargins": "Margins",
+    "epubFont": "Font",
+    "epubOriginal": "Original",
+    "epubMargin_narrow": "Narrow",
+    "epubMargin_normal": "Normal",
+    "epubMargin_wide": "Wide",
+    "epubFont_serif": "Serif",
+    "epubFont_sans": "Sans-serif",
+    "epubCloseTypography": "Close text settings",
+    "epubContents": "Contents",
+    "epubCloseContents": "Close contents",
+    "epubUntitled": "Untitled",
+    "epubTypographyReset": "Reset",
+    "markdownViewMode": "View"
   },
   "search": {
     "label": "Search",
@@ -173,10 +246,35 @@
     "matchFilename": "Filename",
     "matchPath": "Path",
     "matchClipThumbnail": "Thumbnail",
+    "matchTranscript": "Transcript",
+    "matchClip": "Visual",
+    "matchMetadata": "Metadata",
+    "matchContent": "Content",
+    "matchRetrievalKeywords": "Keyword",
+    "matchedPages": "p.{pages}",
+    "matchedSectionNumber": "Section {section}",
+    "matchFilenameHelp": "The file's own name contains what you typed.",
+    "matchPathHelp": "A folder on the way to the file is named after what you typed.",
+    "matchMetadataHelp": "Something recorded about the file — its title, description or tags — contains it.",
+    "matchTranscriptHelp": "Someone says it out loud in the audio.",
+    "matchClipHelp": "A picture somewhere in the video looks like what you asked for.",
+    "matchClipThumbnailHelp": "The thumbnail looks like what you asked for.",
+    "matchContentHelp": "The text inside the file contains it.",
+    "matchRetrievalKeywordsHelp": "A related word the search added for you matched — not one you typed.",
+    "badgeLegend": "What the badges mean",
     "heading": "Search: \"{query}\"",
     "emptyQuery": "Enter a search query",
+    "recentFiles": "Recent files",
+    "recentSearches": "Recent searches",
     "sceneSearchToggle": "Scene search",
-    "sceneSearchHint": "Find specific moments inside videos"
+    "sceneSearchHint": "Find specific moments inside videos",
+    "semanticPending": "Also searching by meaning…",
+    "scopeRemove": "Remove the {label} scope",
+    "scopeSeeAll": "See all {label} matching “{query}”",
+    "hintSelect": "Select",
+    "hintOpen": "Open",
+    "hintRemoveScope": "Remove scope",
+    "driveRoot": "Drive root"
   },
   "smartFolder": {
     "sectionTitle": "Smart Folders",
@@ -214,11 +312,10 @@
     "titleZA": "Title Z→A",
     "sizeLargest": "Size largest",
     "sizeSmallest": "Size smallest",
-    "likesmost": "Most liked",
-    "likesleast": "Least liked",
     "random": "Random"
   },
   "selection": {
+    "moreActions": "More actions for the selection",
     "selected": "{count} selected",
     "selectAll": "Select all",
     "deselect": "Deselect",
@@ -232,11 +329,20 @@
     "add": "Add to favorites",
     "remove": "Remove from favorites",
     "added": "Favorited",
-    "label": "Favorites"
+    "label": "Favorites",
+    "addFor": "Add {name} to favorites",
+    "removeFor": "Remove {name} from favorites"
+  },
+  "like": {
+    "add": "Mark as liked",
+    "remove": "Remove from liked",
+    "added": "Liked",
+    "label": "Like"
   },
   "tag": {
     "add": "Add tag",
     "placeholder": "Tag name...",
+    "frequentTags": "Frequently used tags",
     "maxLength": "Tag must be 30 characters or less",
     "invalidChars": "Contains invalid characters",
     "maxCount": "Maximum 10 tags allowed",
@@ -283,6 +389,10 @@
     "moveUp": "Move up",
     "moveDown": "Move down",
     "empty": "No items",
+    "moreActions": "More actions for {name}",
+    "emptyTitle": "Nothing in this collection yet",
+    "emptyDescription": "Add files to it from the drive, or from any file's menu.",
+    "emptyAction": "Browse the drive",
     "notFound": "Collection not found",
     "reorderHint": "Reorder",
     "confirmDeleteTitle": "Delete collection?",
@@ -312,47 +422,88 @@
     "castConnected": "Casting",
     "autoplayOn": "Autoplay ON",
     "autoplayOff": "Autoplay OFF",
+    "autoplay": "Autoplay",
+    "pictureInPicture": "Picture-in-Picture",
+    "systemFullscreen": "Open in the iOS player",
+    "subtitleTrack": "Subtitle track",
+    "subtitleTrackOff": "Off",
+    "browserControls": "Browser controls",
+    "useLitloftControls": "Use Litloft controls",
     "miniPlayerClose": "Close mini player (stops playback)",
     "miniPlayerRestore": "Return player to original position",
-    "miniPlayerAnnounced": "Player moved to bottom-right corner"
+    "miniPlayerAnnounced": "Player moved to bottom-right corner",
+    "play": "Play",
+    "pause": "Pause",
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "volume": "Volume",
+    "speed": "Playback speed",
+    "loadFailed": "Could not load this file",
+    "buffering": "Loading…",
+    "fullscreen": "Full screen",
+    "exitFullscreen": "Exit full screen",
+    "seek": "Seek",
+    "skipBack10": "Back 10 seconds",
+    "skipForward10": "Forward 10 seconds",
+    "adBreak": "Ad",
+    "speedBoost": "Playing at {rate}x",
+    "skipSeconds": "{seconds}s",
+    "settings": "Settings",
+    "closeSettings": "Close settings",
+    "normalSpeed": "Normal",
+    "captions": "Subtitles",
+    "chapters": "Chapters",
+    "seekToTime": "Jump to {time}"
   },
   "archive": {
+    "imageViewer": "Archive image viewer",
+    "rootBreadcrumb": "Archive",
     "loadFailed": "Failed to load archive: {error}",
     "fileCount": "{count} files / {size}",
     "downloadArchive": "Download archive",
     "emptyFolder": "This folder is empty",
     "downloadFile": "Download {name}",
+    "previewUnavailable": "No preview",
+    "download": "Download",
+    "textLoadFailedTitle": "This file could not be opened",
     "slideshowInterval": "Slideshow interval",
     "seconds": "{sec}s",
     "prevImage": "Previous image",
     "nextImage": "Next image",
     "backToList": "Back to list",
-    "splitMode": "Spread mode",
-    "splitModeToggle": "Toggle spread mode",
     "ltr": "LTR",
     "rtl": "RTL",
     "readingDirection": "Reading direction",
-    "sortName": "Name",
-    "sortSize": "Size",
-    "sortType": "Type",
-    "sortAsc": "Ascending",
-    "sortDesc": "Descending",
+    "sortNameAsc": "Name A→Z",
+    "sortNameDesc": "Name Z→A",
+    "sortSizeAsc": "Size smallest",
+    "sortSizeDesc": "Size largest",
+    "sortTypeAsc": "Type A→Z",
+    "sortTypeDesc": "Type Z→A",
     "filterAll": "All",
     "filterImage": "Image",
     "filterText": "Text",
     "filterVideo": "Video",
     "filterAudio": "Audio",
-    "filterOther": "Other"
+    "filterOther": "Other",
+    "indexFilterPlaceholder": "Filter by path",
+    "indexFilterLabel": "Filter the archive's contents",
+    "indexNoMatch": "Nothing matches",
+    "indexMoreEntries": "{count} more",
+    "spreadMode": "Spread",
+    "spreadModeToggle": "Read as spread / Read single pages"
   },
   "empty": {
     "noFilesTitle": "No files",
-    "noFilesDescription": "This folder has no files yet.",
+    "noFilesDescription": "Drop files here to add them.",
     "noResultsTitle": "No matching files found",
     "noResultsDescription": "Try changing your search criteria.",
     "needsScanTitle": "Scan required",
     "needsScanDescription": "Scan the drive to load files.",
     "noFavoritesTitle": "No favorite files",
     "noFavoritesDescription": "Click the star icon to add favorites.",
+    "noLikedTitle": "No liked files",
+    "noLikedDescription": "Press the thumb on a file page and it stays here.",
     "noRecentTitle": "No recently viewed files",
     "noRecentDescription": "Files you open will appear here.",
     "noRecentNoProfileTitle": "No profile set",
@@ -360,7 +511,15 @@
     "noRecentAddedTitle": "No recently added files",
     "noRecentAddedDescription": "Uploaded files will appear here.",
     "noTrashTitle": "Trash is empty",
-    "noTrashDescription": "Deleted files will appear here."
+    "noTrashDescription": "Deleted files will appear here.",
+    "noTagMatchesTitle": "No matches in this folder",
+    "noTagMatchesDescription": "Nothing here carries this tag.",
+    "noHomeActivityTitle": "Nothing here yet",
+    "noHomeActivityDescription": "Files you add to this drive, and the ones you open, show up here.",
+    "homeUnavailableTitle": "Couldn't load this drive",
+    "homeUnavailableDescription": "Nothing could be fetched just now. This does not mean the drive is empty.",
+    "addFilesAction": "Add files",
+    "openLibraryAction": "Open Library"
   },
   "theme": {
     "system": "System",
@@ -372,7 +531,8 @@
     "list": "List view",
     "tree": "Tree",
     "treeOn": "Show tree",
-    "treeOff": "Hide tree"
+    "treeOff": "Hide tree",
+    "label": "View"
   },
   "tree": {
     "filterAll": "All",
@@ -385,22 +545,30 @@
     "loading": "Loading...",
     "errorRetry": "Retry",
     "empty": "No files in this folder",
-    "dropToRoot": "Drop here to move to drive root"
+    "dropToRoot": "Drop here to move to drive root",
+    "paneHeading": "Folders",
+    "includeFiles": "Show files too"
   },
   "filter": {
     "placeholder": {
       "tree": "Filter by name...",
+      "treeSearch": "Find a folder",
       "folder": "Filter in this folder..."
     },
     "type": {
       "all": "All",
-      "markdown": "Markdown",
       "video": "Video",
       "image": "Image",
+      "audio": "Audio",
+      "document": "Document",
+      "archive": "Archive",
+      "other": "Other",
+      "text": "Text",
       "pdf": "PDF"
     },
     "empty": {
-      "tree": "No matching files or folders",
+      "tree": "No matching folders",
+      "treeWithFiles": "No matching files or folders",
       "folder": "No matching files in this folder"
     },
     "clear": "Clear filters",
@@ -416,32 +584,34 @@
     "noSelection": "Select a file from the tree"
   },
   "toolbar": {
+    "add": "Add",
     "rescan": "Rescan",
     "rescanTitle": "Rescan drive",
     "fileType": "File type",
     "filter": "Filter",
-    "all": "All",
-    "video": "Video",
-    "image": "Image",
-    "audio": "Audio",
-    "document": "Document",
-    "archiveType": "Archive",
-    "other": "Other",
-    "playAll": "Play all",
     "home": "Home",
     "more": "More actions",
-    "reshuffle": "Reshuffle"
+    "reshuffle": "Reshuffle",
+    "searchWholeDrive": "Search the whole drive",
+    "scanStarted": "Rescanning {drive}",
+    "scanDone": "Rescan finished — {added} added, {recovered} recovered, {missing} missing",
+    "scanDoneNoChange": "Rescan finished — nothing changed",
+    "scanAlreadyRunning": "This drive is already being rescanned",
+    "scanFailed": "Rescan failed",
+    "pinFolder": "Pin this folder",
+    "unpinFolder": "Unpin this folder"
   },
   "gallery": {
+    "imageGallery": "Image gallery",
     "prevImage": "Previous image",
     "nextImage": "Next image",
     "slideshowInterval": "Slideshow interval",
     "seconds": "{sec}s",
-    "splitMode": "Spread mode",
-    "splitModeToggle": "Toggle spread mode",
     "ltr": "LTR",
     "rtl": "RTL",
-    "readingDirection": "Reading direction"
+    "readingDirection": "Reading direction",
+    "spreadMode": "Spread",
+    "spreadModeToggle": "Read as spread / Read single pages"
   },
   "unlock": {
     "title": "Unlock",
@@ -518,7 +688,6 @@
     },
     "sidebarReset": {
       "title": "Sidebar order",
-      "description": "Reset the sidebar section order, item order, and tag sort to defaults.",
       "button": "Reset order",
       "confirmTitle": "Reset order",
       "confirmBody": "This resets all your customised sidebar ordering to defaults. Continue?",
@@ -588,7 +757,8 @@
         "loadFailed": "Failed to load addon policy",
         "saveFailed": "Failed to save",
         "unknown_addon": "Addon does not exist in manifest"
-      }
+      },
+      "tableLabel": "Addon policy by drive"
     },
     "restartBanner": {
       "title": "Pending changes — restart required",
@@ -596,13 +766,18 @@
       "copyCommand": "docker compose restart backend",
       "copyButton": "Copy",
       "copied": "Copied"
+    },
+    "tabsLabel": "Settings sections",
+    "preferences": {
+      "title": "Display and behaviour"
     }
   },
   "text": {
     "fileSizeLarge": "File is large ({size})",
     "loadContent": "Load",
     "loading": "Loading...",
-    "loadFailed": "Failed to load: {error}"
+    "loadFailed": "Failed to load: {error}",
+    "tooLargeToDecorate": "Too large for line numbers and colour — shown as plain text."
   },
   "batchRename": {
     "title": "Batch Rename",
@@ -646,7 +821,9 @@
     "confirmMoveToTrash": "Move \"{name}\" to trash?",
     "batchConfirmMoveToTrash": "Move {count} files to trash?",
     "batchPurgeTitle": "Permanently Delete",
-    "batchPurgeMessage": "Permanently delete {count} files? This action cannot be undone."
+    "batchPurgeMessage": "Permanently delete {count} files? This action cannot be undone.",
+    "restoreNamed": "Restore {name}",
+    "purgeNamed": "Permanently delete {name}"
   },
   "missing": {
     "title": "Missing Files",
@@ -663,11 +840,13 @@
     "description": "Files that were not found on disk. They will be automatically recovered if they come back.",
     "scanWarning": "{count} files are missing",
     "scanWarningDescription": "Please verify the drive's mount state.",
-    "scanRecovered": "{count} files recovered"
+    "scanRecovered": "{count} files recovered",
+    "purgeNamed": "Permanently delete {name}"
   },
   "admin": {
     "title": "Dashboard",
     "settings": "Settings",
+    "markdownImages": "Markdown images",
     "drives": "Drives",
     "system": "System",
     "totalFiles": "Total Files",
@@ -707,7 +886,55 @@
     "restartTitle": "Pending changes — restart required",
     "restartCopyCommand": "docker compose restart backend",
     "restartCopyButton": "Copy",
-    "restartCopied": "Copied"
+    "restartCopied": "Copied",
+    "diskUsage": "{used} of {total} used"
+  },
+  "markdownImages": {
+    "title": "Attach Markdown Images",
+    "back": "Back to dashboard",
+    "scope": "Analysis scope",
+    "drive": "Drive",
+    "folder": "Folder",
+    "recursive": "Include subfolders",
+    "analyze": "Analyze",
+    "analysis": "Analysis results",
+    "hosts": "Hosts allowed for download",
+    "noCandidates": "No external HTTPS image candidates",
+    "selected": "{count} selected",
+    "import": "Attach {count}",
+    "cancel": "Cancel",
+    "progress": "{processed} of {total}",
+    "samples": "Candidates and files needing attention",
+    "recentErrors": "Recent errors",
+    "loadError": "Could not load import status",
+    "analyzeError": "Analysis failed",
+    "importError": "Could not start the import",
+    "cancelError": "Could not cancel the import",
+    "counts": {
+      "total_markdown": "Markdown files",
+      "local_loft_image": "Already attached",
+      "external_https_candidate": "External HTTPS candidates",
+      "no_image": "No image",
+      "unsupported_first_image": "Unsupported first image",
+      "invalid_loft_reference": "Invalid attachment reference",
+      "read_error": "Read errors"
+    },
+    "states": {
+      "queued": "Queued",
+      "running": "Attaching images",
+      "cancelling": "Stopping",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "interrupted": "Interrupted by restart",
+      "failed": "Job failed"
+    },
+    "jobCounts": {
+      "succeeded": "New attachments",
+      "reused": "Reused",
+      "skipped": "Skipped",
+      "conflicts": "Content conflicts",
+      "failed": "Failed"
+    }
   },
   "inspector": {
     "title": "Properties",
@@ -721,6 +948,12 @@
       "aiSummary": "AI summary",
       "comments": "Comments"
     },
+    "tabs": {
+      "info": "Info",
+      "chapters": "Chapters",
+      "pages": "Pages",
+      "related": "Related"
+    },
     "saveDot": {
       "idle": "Save state",
       "saving": "Saving",
@@ -732,7 +965,10 @@
       "hint": "Click to rename",
       "label": "Filename",
       "failed": "Rename failed"
-    }
+    },
+    "tablistLabel": "Inspector sections",
+    "collapseSheet": "Collapse the sheet",
+    "expandSheet": "Open the sheet"
   },
   "comments": {
     "title": "Comments",
@@ -761,7 +997,9 @@
     "modeCut": "Move",
     "copied": "Copied",
     "moved": "Moved",
-    "clear": "Clear"
+    "clear": "Clear",
+    "pasteFailed": "{count, plural, one {# file could not be pasted} other {# files could not be pasted}}",
+    "pasteRefused": "The paste did not go through"
   },
   "shortcuts": {
     "title": "Keyboard Shortcuts",
@@ -782,6 +1020,10 @@
     "prevImage": "Previous image",
     "nextImage": "Next image",
     "slideshow": "Toggle slideshow",
+    "zoom": "Zoom",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "zoomFit": "Fit to screen",
     "copy": "Copy",
     "cut": "Cut",
     "paste": "Paste",
@@ -789,8 +1031,12 @@
     "search": "Search",
     "prevFile": "Previous file",
     "nextFile": "Next file",
-    "loftPlayer": "Video Player (LoftRef)",
-    "archiveViewer": "Archive Viewer"
+    "loftPlayer": "Video Player",
+    "archiveViewer": "Archive Viewer",
+    "quickNote": "Quick note",
+    "folderTree": "Folder tree",
+    "folderCards": "Folders",
+    "rename": "Rename"
   },
   "propertiesPanel": {
     "labels": {
@@ -805,7 +1051,9 @@
     "origin": {
       "webclip": "Web clip",
       "detailed_summary": "AI summary",
-      "manual": "Manual"
+      "manual": "Manual",
+      "source_capture": "Captured from a source",
+      "ask_answer": "Saved from Ask"
     },
     "sourcesMore": "{n} more",
     "sourceMissing": "Deleted or inaccessible"
@@ -829,7 +1077,8 @@
         "public": "Public",
         "protected": "Password protected",
         "addons": "Enabled addons",
-        "addonUnit": " addon(s)"
+        "addonUnit": " addon(s)",
+        "addonsDefault": "Left at their defaults (all on)"
       },
       "nextSteps": {
         "title": "Next steps",
@@ -917,9 +1166,12 @@
     "addonPolicy": {
       "title": "Addon policy",
       "description": "Enable per-drive addons. You can change this later.",
+      "legendTitle": "What these addons are",
       "skipDescription": "You can skip and configure later.",
       "skipNote": "You can skip this step and decide later from /admin.",
-      "noDescription": "(No description for this addon)"
+      "noDescription": "(No description for this addon)",
+      "loadFailed": "Could not load the addon list.",
+      "retry": "Retry"
     }
   },
   "errors": {
@@ -939,5 +1191,76 @@
     "folderNoSubfolders": "No subfolders",
     "folderSelectedLabel": "Selected",
     "submitting": "Saving..."
+  },
+  "quickNote": {
+    "title": "Quick note",
+    "open": "Quick note",
+    "bodyLabel": "Note text",
+    "placeholder": "Write it down now, file it later.",
+    "filenamePreview": "Saves as",
+    "destination": "Destination",
+    "driveLabel": "Drive",
+    "selectDrive": "Select a drive",
+    "driveRoot": "Drive root",
+    "noDrives": "There is no drive you can save to.",
+    "drivesFailed": "Could not load drives.",
+    "retry": "Retry",
+    "saveAndOpen": "Save and open",
+    "saving": "Saving...",
+    "saved": "Saved to {path}",
+    "saveFailed": "Could not save the note.",
+    "forbidden": "That drive is no longer available. Choose another destination.",
+    "tooLarge": "The note is over the 1 MB limit.",
+    "invalidPath": "That destination was rejected. Change the first line or the folder and try again.",
+    "discardTitle": "Discard this note?",
+    "discardMessage": "It has not been saved and cannot be recovered.",
+    "discard": "Discard",
+    "keepEditing": "Keep editing"
+  },
+  "inlineRename": {
+    "label": "New name",
+    "error": {
+      "empty": "Enter a name",
+      "forbiddenChars": "Can't use < > : \" / \\ | ? *",
+      "hidden": "Names can't start with a dot",
+      "tooLong": "Name is too long (255 characters max)",
+      "conflict": "That name is already taken",
+      "readOnly": "This drive is read-only",
+      "notFound": "That item no longer exists",
+      "failed": "Rename failed"
+    }
+  },
+  "trustTier": {
+    "stateVerified": "Verified",
+    "stateUnverified": "Unverified",
+    "trust": "Trust as a source",
+    "withdraw": "Withdraw trust",
+    "filterAll": "All",
+    "filterVerified": "Verified only",
+    "filterUnreviewed": "Unjudged only",
+    "filterUnreviewedHint": "Nobody has ruled on these, migrated files included",
+    "filterLabel": "Verification"
+  },
+  "pageJump": {
+    "section": "Go to",
+    "aliases": {
+      "home": "start",
+      "library": "folders",
+      "favorites": "favourites,star,starred",
+      "liked": "like,thumbs up",
+      "recent": "history,recently viewed,viewed",
+      "recentAdded": "new,recently added,added",
+      "allFiles": "all,everything",
+      "trash": "bin,deleted,recycle",
+      "missing": "lost,missing",
+      "admin": "admin,settings,administration"
+    },
+    "folders": "Folders",
+    "browseInto": "Browse {name}",
+    "browseLeave": "Stop browsing",
+    "browseEmpty": "This folder is empty",
+    "browseNoMatch": "Nothing here matches",
+    "browseUp": "Up one level",
+    "suggestions": "Suggestions"
   }
 }

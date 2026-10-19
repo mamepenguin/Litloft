@@ -63,25 +63,6 @@ class TestNicknameToViewerId:
         assert all(c in "0123456789abcdef" for c in vid)
 
 
-class TestGetViewerId:
-    def test_none_cookie(self):
-        from app.routers.progress import get_viewer_id
-        assert get_viewer_id(None) is None
-
-    def test_empty_string(self):
-        from app.routers.progress import get_viewer_id
-        assert get_viewer_id("") is None
-
-    def test_whitespace_only(self):
-        from app.routers.progress import get_viewer_id
-        assert get_viewer_id("   ") is None
-
-    def test_valid_nickname(self):
-        from app.routers.progress import get_viewer_id, nickname_to_viewer_id
-        result = get_viewer_id("alice")
-        assert result == nickname_to_viewer_id("alice")
-
-
 class TestUpdateProgress:
     def test_save_position(self, client):
         c, db, drive_dir, data_dir = client
@@ -164,8 +145,7 @@ class TestUpdateProgress:
     def test_view_only_records_last_played(self, client):
         # Empty body POST = "page-opened" record for non-media files. Must
         # insert a WatchHistory row with playback_position=0/duration=0 and
-        # last_played_at = now so personal_history's Stage B can surface
-        # the file. Spec: 2026-04-26-intelligence-ask-personal-history-query.md.
+        # last_played_at = now.
         c, db, drive_dir, data_dir = client
         file = _seed_file(
             db, drive_dir, filename="note.md", file_type="text",
@@ -358,7 +338,6 @@ class TestDeleteProgress:
         )
         assert res.status_code == 204
 
-        # Verify it's gone
         res = c.get(
             f"/api/files/{file.id}/progress",
             cookies={"lit_viewer": "alice"},
@@ -400,18 +379,15 @@ class TestCascadeDelete:
             cookies={"lit_viewer": "alice"},
         )
 
-        # Verify progress was saved
         res = c.get(
             f"/api/files/{file_id}/progress",
             cookies={"lit_viewer": "alice"},
         )
         assert res.json()["position"] == 50.0
 
-        # Delete the file via API
         res = c.delete(f"/api/files/{file_id}")
         assert res.status_code == 200
 
-        # File no longer exists, so progress endpoint should 404
         res = c.get(
             f"/api/files/{file_id}/progress",
             cookies={"lit_viewer": "alice"},
@@ -565,7 +541,6 @@ class TestWatchHistoryList:
         file_obj.drive = "other-drive"
         db.commit()
 
-        # Watch history for TEST_DRIVE should not include the file
         res = c.get(
             f"/api/drives/{TEST_DRIVE}/watch-history",
             cookies={"lit_viewer": "alice"},
@@ -585,6 +560,95 @@ class TestWatchHistoryList:
             cookies={"lit_viewer": "bob"},
         )
         assert len(res.json()["data"]) == 0
+
+
+class TestCompletionIsPreserved:
+    """The end of playback writes the final position instead of deleting the
+    row: the record survives, and it still does not come back as unfinished
+    work.
+    """
+
+    def test_completed_record_is_retained(self, client):
+        c, db, drive_dir, data_dir = client
+        file = _seed_file(db, drive_dir, filename="video1.mp4")
+        c.post(
+            f"/api/files/{file.id}/progress",
+            json={"position": 120.0, "duration": 120.0},
+            cookies={"lit_viewer": "alice"},
+        )
+        res = c.get(
+            f"/api/files/{file.id}/progress",
+            cookies={"lit_viewer": "alice"},
+        )
+        assert res.json() == {"position": 120.0, "duration": 120.0}
+
+    def test_completed_record_stays_out_of_continue_watching(self, client):
+        c, db, drive_dir, data_dir = client
+        file = _seed_file(db, drive_dir, filename="video1.mp4")
+        c.post(
+            f"/api/files/{file.id}/progress",
+            json={"position": 120.0, "duration": 120.0},
+            cookies={"lit_viewer": "alice"},
+        )
+        res = c.get(
+            f"/api/drives/{TEST_DRIVE}/watch-history",
+            cookies={"lit_viewer": "alice"},
+        )
+        assert res.json()["data"] == []
+
+    def test_completed_record_is_visible_under_filter_all(self, client):
+        # The point of keeping the row: "watched to the end" has to stay
+        # distinguishable from "never opened".
+        c, db, drive_dir, data_dir = client
+        file = _seed_file(db, drive_dir, filename="video1.mp4")
+        c.post(
+            f"/api/files/{file.id}/progress",
+            json={"position": 120.0, "duration": 120.0},
+            cookies={"lit_viewer": "alice"},
+        )
+        res = c.get(
+            f"/api/drives/{TEST_DRIVE}/watch-history?filter=all",
+            cookies={"lit_viewer": "alice"},
+        )
+        data = res.json()["data"]
+        assert [row["id"] for row in data] == [file.id]
+
+    def test_view_only_record_is_not_continue_watching(self, client):
+        # A 0/0 row means "the detail page was opened", never "partially
+        # watched". The gate already filters it (0 < 0 is false); this
+        # pins that down so a future rewrite of the filter cannot
+        # silently start advertising unopened files as in progress.
+        c, db, drive_dir, data_dir = client
+        file = _seed_file(db, drive_dir, filename="video1.mp4")
+        c.post(
+            f"/api/files/{file.id}/progress",
+            json={},
+            cookies={"lit_viewer": "alice"},
+        )
+        res = c.get(
+            f"/api/drives/{TEST_DRIVE}/watch-history",
+            cookies={"lit_viewer": "alice"},
+        )
+        assert res.json()["data"] == []
+
+    def test_explicit_delete_still_removes_the_record(self, client):
+        # The only caller of the delete path is the user's own "remove from history".
+        c, db, drive_dir, data_dir = client
+        file = _seed_file(db, drive_dir, filename="video1.mp4")
+        c.post(
+            f"/api/files/{file.id}/progress",
+            json={"position": 120.0, "duration": 120.0},
+            cookies={"lit_viewer": "alice"},
+        )
+        assert c.delete(
+            f"/api/files/{file.id}/progress",
+            cookies={"lit_viewer": "alice"},
+        ).status_code == 204
+        res = c.get(
+            f"/api/drives/{TEST_DRIVE}/watch-history?filter=all",
+            cookies={"lit_viewer": "alice"},
+        )
+        assert res.json()["data"] == []
 
 
 class TestAccessControl:

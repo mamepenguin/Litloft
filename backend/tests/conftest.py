@@ -1,6 +1,7 @@
 import os
 import json
 import shutil
+import subprocess
 import tempfile
 from pathlib import Path
 
@@ -22,6 +23,25 @@ from app.main import app
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 TEST_DRIVE = "test-drive"
+
+
+@pytest.fixture()
+def private_data_dir(tmp_path, monkeypatch):
+    """Point ``config.DATA_DIR`` at the test's own directory.
+
+    ``_migrate`` writes the hash-format sentinel into ``DATA_DIR``, and
+    ``_backfill_mangled_titles`` writes the titles marker, both before doing
+    the work they gate. A test that calls either without this touches the
+    process-wide ``DATA_DIR`` — ``./data`` in a checkout, which the dev stack
+    bind-mounts — and the sentinel it leaves there suppresses the real
+    migration on that machine.
+
+    The ``client`` fixture redirects ``DATA_DIR`` itself; tests that drive
+    ``_migrate`` directly do not use it, which is why this exists separately.
+    """
+    import app.config as config
+
+    monkeypatch.setattr(config, "DATA_DIR", tmp_path / "data")
 
 
 @pytest.fixture()
@@ -150,3 +170,47 @@ def sample_video():
 @pytest.fixture()
 def short_video():
     return FIXTURES_DIR / "short_video.mp4"
+
+
+@pytest.fixture()
+def chaptered_mkv(short_video, tmp_path):
+    metadata = tmp_path / "chapters.ffmeta"
+    metadata.write_text(
+        ";FFMETADATA1\n"
+        "[CHAPTER]\n"
+        "TIMEBASE=1/1000\n"
+        "START=0\n"
+        "END=1000\n"
+        "title=Opening\n"
+        "[CHAPTER]\n"
+        "TIMEBASE=1/1000\n"
+        "START=1000\n"
+        "END=2000\n"
+        "title=Closing\n"
+    )
+    output = tmp_path / "chaptered.mkv"
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-y",
+            "-v",
+            "error",
+            "-i",
+            str(short_video),
+            "-f",
+            "ffmetadata",
+            "-i",
+            str(metadata),
+            "-map",
+            "0",
+            "-map_metadata",
+            "1",
+            "-map_chapters",
+            "1",
+            "-c",
+            "copy",
+            str(output),
+        ],
+        check=True,
+    )
+    return output

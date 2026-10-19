@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getStreamUrl } from "@/lib/api";
 import type { MediaController } from "@/lib/mediaController";
+import type { MediaSessionMetadataInput } from "@/lib/mediaSession";
 import GenericLinkCard from "./GenericLinkCard";
 import { getLoftPlayer } from "./playerRegistry";
 
@@ -14,14 +15,21 @@ interface LoftContent {
 export interface LoftPlayerProps {
   fileId: string;
   onMediaController?: (mc: MediaController | null) => void;
-  /** Forwarded to the resolved embed component (citation jump). */
   initialTime?: number;
+  durationHint?: number | null;
+  onEnded?: () => void;
+  mediaSessionMetadata?: MediaSessionMetadataInput;
+  posterUrl?: string;
 }
 
 export default function LoftPlayer({
   fileId,
   onMediaController,
   initialTime,
+  durationHint,
+  onEnded,
+  mediaSessionMetadata,
+  posterUrl,
 }: LoftPlayerProps) {
   const [content, setContent] = useState<LoftContent | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -43,9 +51,11 @@ export default function LoftPlayer({
 
   if (!content) {
     return (
-      <div className="flex w-full items-center justify-center rounded-xl bg-bg-card py-16">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
-      </div>
+      <div
+        data-testid="loft-loading"
+        className="aspect-video w-full rounded-xl bg-bg-card bg-cover bg-center"
+        style={posterUrl ? { backgroundImage: `url("${posterUrl}")` } : undefined}
+      />
     );
   }
 
@@ -60,6 +70,10 @@ export default function LoftPlayer({
       url={content.url}
       onMediaController={onMediaController}
       initialTime={initialTime}
+      durationHint={durationHint}
+      onEnded={onEnded}
+      mediaSessionMetadata={mediaSessionMetadata}
+      posterUrl={posterUrl}
     />
   );
 }

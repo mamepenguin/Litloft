@@ -1,15 +1,6 @@
 "use client";
 
 /**
- * Inspector pane open/closed store (drive-scoped).
- *
- * Spec: `docs/superpowers/specs/2026-05-10-markdown-document-layout.md` §D3.
- *
- * Persisted per-drive via `localStorage["inspector-open:{drive}"]` (mirrors
- * the `tree:enabled:{drive}` convention). When the persisted value is
- * missing or corrupt, the open state is derived from the viewport width:
- * `>= 1280px` → open, otherwise closed.
- *
  * Reads bypass any module cache so that test setup which calls
  * `localStorage.clear()` between cases is honored without an explicit
  * reset hook. Writes broadcast to all subscribers within the same tab
@@ -17,7 +8,15 @@
  */
 
 const STORAGE_PREFIX = "inspector-open:";
-const VIEWPORT_OPEN_THRESHOLD = 1280;
+
+export function inspectorOpenStorageKey(drive: string): string {
+  return `${STORAGE_PREFIX}${drive}`;
+}
+/**
+ * Not the 960px in `globals.css`, which is about the host's width, not the
+ * viewport. Do not raise it: above it, transcript and chapters start hidden.
+ */
+const VIEWPORT_OPEN_THRESHOLD = 1120;
 
 type Listener = () => void;
 
@@ -67,13 +66,10 @@ export const inspectorOpenStore = {
     };
   },
   /**
-   * Notify subscribers that the viewport has changed.
-   *
-   * The default open/closed state derives from `window.innerWidth >=
-   * 1280px`. When the user resizes the window across that threshold
-   * without ever interacting with the inspector (no localStorage entry),
-   * subscribers using {@link useSyncExternalStore} need a chance to
-   * re-read the snapshot. Call this from the layout's `resize` handler.
+   * When the user resizes the window across the threshold without ever
+   * interacting with the inspector (no localStorage entry), subscribers
+   * need a chance to re-read the snapshot. Call this from the layout's
+   * `resize` handler.
    */
   notifyViewportChange(): void {
     emit();

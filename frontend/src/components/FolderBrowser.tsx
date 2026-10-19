@@ -2,25 +2,26 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ClipboardPaste, X } from "lucide-react";
+import { ClipboardPaste, FolderTree, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useShortcuts } from "@/hooks/useShortcuts";
 
-import type { FileItem, FileType, SortField, SortOrder, ViewMode } from "@/types";
+import type { FileItem, FileKind, SortField, SortOrder, TrustFilter, ViewMode } from "@/types";
 import { Breadcrumb } from "@/components/Breadcrumb";
-import { TreeToggle } from "@/components/TreeToggle";
+import { PageFrame } from "@/components/PageFrame";
+import { PageHeader } from "@/components/PageHeader";
 import { UploadZone } from "@/components/UploadZone";
 import { SelectionBar } from "@/components/SelectionBar";
 import { SmartFolderSaveButton } from "@/components/SmartFolderSaveButton";
 import { AddonSlot } from "@/components/AddonSlot";
 import { EmptyState } from "@/components/EmptyState";
-import { ViewToggle } from "@/components/ViewToggle";
+import { useFilePicker } from "@/components/useFilePicker";
 import { useClipboard } from "@/components/ClipboardProvider";
 import { useSelection } from "@/hooks/useSelection";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { useFolderSort, useFolderViewMode } from "@/hooks/useFolderViewMode";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
-import { useTreeEnabled } from "@/hooks/useTreeEnabled";
+import { useTreeVisible } from "@/hooks/useTreeVisible";
 import { buildListSnapshotKey, clearListSnapshot, loadListSnapshot, saveListSnapshot } from "@/lib/listSnapshot";
 import { useScrollContainer } from "@/lib/scrollContainer";
 import { deriveDominantKind } from "@/lib/dominantKind";
@@ -34,24 +35,26 @@ import { useIsInternalDragging } from "@/hooks/useIsInternalDragging";
 import { useTreeRefresh } from "@/components/TreeRefreshContext";
 import { FolderToolbar } from "@/components/folder/FolderToolbar";
 import { FolderContent } from "@/components/folder/FolderContent";
+import { buildWidenTagScope } from "@/components/folder/WidenTagScopeLink";
+import { Button } from "@/components/Button";
+import { parseSearchQuery } from "@/lib/searchQuery";
+
+/**
+ * How long scrolling must be idle before the list snapshot is
+ * re-persisted. Long enough that a continuous scroll writes once at the
+ * end instead of once per frame, short enough that a quick flick
+ * followed by a click still records where the user stopped.
+ */
+const SNAPSHOT_SAVE_DEBOUNCE_MS = 150;
 
 interface FolderBrowserProps {
   driveName: string;
   folderPath?: string;
   view?: string | null;
   tagFilter?: string | null;
-  /** When set (non-empty), the browser renders search-mode UI. */
   searchQuery?: string;
-  /** Optional pre-set type filter (used by SearchPage from URL). */
-  typeFilter?: FileType | null;
-  /** When set, the active search came from a saved Smart Folder. */
+  typeFilter?: FileKind | null;
   smartFolderId?: string | null;
-  /**
-   * Search-only flag. When `true`, semantic search includes scene-frame
-   * CLIP embeddings alongside the default representative-frame route.
-   * Driven by the scene-search toggle on `SearchPage`. Spec
-   * `2026-05-02-thumbnail-clip-default-shallow-search.md`.
-   */
   includeSceneClip?: boolean;
 }
 
@@ -66,30 +69,32 @@ export function FolderBrowser({
   includeSceneClip,
 }: FolderBrowserProps) {
   const isSearch = !!(searchQuery && searchQuery.trim());
-  // Load the snapshot exactly once via useState's lazy initializer. We pass
-  // the same reference down to useFolderFiles so that both its filter tuple
-  // and the hydrated items originate from a single parse of sessionStorage.
   const [initialSnapshot] = useState(() => {
     const snap = loadListSnapshot(buildListSnapshotKey({ driveName, folderPath, view, tagFilter }));
     return snap?.filters.sort === "random" ? null : snap;
   });
 
-  // Search mode defaults to relevance (hybrid score on the merged
-  // filename + semantic list); folder/view browsing keeps created_at.
   const [localSort, setLocalSort] = useState<SortField>(
     initialSnapshot?.filters.sort ?? (isSearch ? "relevance" : "created_at"),
   );
   const [localOrder, setLocalOrder] = useState<SortOrder>(initialSnapshot?.filters.order ?? "desc");
-  const [typeFilter, setTypeFilter] = useState<FileType | null>(
+  const [typeFilter, setTypeFilter] = useState<FileKind | null>(
     typeFilterProp ?? initialSnapshot?.filters.typeFilter ?? null,
   );
+  // Not persisted into the list snapshot: the review queue is a deliberate,
+  // short-lived mode, not a browsing preference to restore on return.
+  const [trustFilter, setTrustFilter] = useState<TrustFilter | null>(null);
+  // Search mixes filename matches with semantic hits, and the semantic source
+  // ranks and truncates before the client ever sees the rows — post-filtering
+  // that would silently under-report.
+  const trustFilterAvailable = !isSearch;
+  useEffect(() => {
+    if (!trustFilterAvailable && trustFilter) setTrustFilter(null);
+  }, [trustFilterAvailable, trustFilter]);
   const [selectable, setSelectable] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
 
-  // Propagate right-pane mutations to the tree pane as an explicit
-  // out-of-band refresh (complements the WS-based refresh already in
-  // FolderTreePane.useWebSocketRefresh).
   const refreshTree = useTreeRefresh();
   const prevRefreshKeyRef = useRef(refreshKey);
   useEffect(() => {
@@ -108,58 +113,60 @@ export function FolderBrowser({
     return () => window.removeEventListener("loft-move-complete", handler);
   }, [refresh]);
 
-  // True while any pane has an internal (move) drag in progress — used
-  // to gate drop targets for cross-pane drag-and-drop.
   const isInternalDragging = useIsInternalDragging();
 
   const isFavorites = view === "favorites";
   const isRecentAdded = view === "recent-added";
-  const isPopular = view === "popular";
+  const isLiked = view === "liked";
   const isAll = view === "all";
-  const isSpecialView = isFavorites || view === "recent" || isRecentAdded || isPopular || isAll;
-  // True for "real" folder browsing (drive root or a sub folder, no tag).
-  // The flat virtual views (favorites/recent/etc.), search, and tag
-  // filters use the global default for view mode rather than the
-  // per-folder override, since they don't render a single folder.
-  const isFolderContext = !isSpecialView && !isSearch && !tagFilter;
+  // Strict: `!folderPath` is also true for a cross-folder view, which has no
+  // location at all.
+  const isLibraryRoot = folderPath === "";
+  const isSpecialView = isFavorites || view === "recent" || isRecentAdded || isLiked || isAll;
+  const isLocation = !isSpecialView && !isSearch && folderPath !== undefined;
+  const isFolderAnchored = isLocation && folderPath !== "";
 
-  // Per-folder sort preference (localStorage folderPrefs:{drive}).
-  // Active only in isFolderContext; search/special views use localSort/localOrder.
+  // A different question from `isFolderAnchored`, which asks for a folder
+  // *path* — a non-empty key. Per-folder sort, view mode and pinning need that
+  // key and the root has none: the root is writable and deliberately not pinnable.
+  const isWriteDestination =
+    isLocation && (folderPath !== "" || !tagFilter);
+
+  const widenTagScope = isFolderAnchored
+    ? buildWidenTagScope(driveName, tagFilter)
+    : null;
+
   const folderSort = useFolderSort({ drive: driveName, folderPath: folderPath ?? "" });
-  const sort = isFolderContext ? folderSort.sort : localSort;
-  const order = isFolderContext ? folderSort.order : localOrder;
+  const sort = isFolderAnchored ? folderSort.sort : localSort;
+  const order = isFolderAnchored ? folderSort.order : localOrder;
 
   const {
     files, folders, total, loading, loadingMore, hasMore, pagesLoaded, sentinelRef,
-    reset, setFiles, setPaginatedTotal, setFolders, isRecent, hasProfile,
+    reset, setFiles, setPaginatedTotal, isRecent, hasProfile,
     snapshotKey, hydratedScrollY,
-  } = useFolderFiles({ driveName, folderPath, view, tagFilter, typeFilter, sort, order, refreshKey, searchQuery, includeSceneClip, initialSnapshot });
+  } = useFolderFiles({ driveName, folderPath, view, tagFilter, typeFilter, trustFilter, sort, order, refreshKey, searchQuery, includeSceneClip, initialSnapshot });
 
-  // Topic 9 layered fallback (grid|list only — tree visibility is now a
-  // separate axis, hako w4zVT8-dyYwshLNiJ5REY). We approximate the
-  // parent folder's dominant_kind from loaded files because the listing
-  // endpoint only carries it for child folders (Phase 1 surface).
+  // Approximate the parent folder's dominant_kind from loaded files because the
+  // listing endpoint only carries it for child folders.
   const dominantKind = useMemo(() => deriveDominantKind(files), [files]);
   const folderViewMode = useFolderViewMode({
     drive: driveName,
     folderPath: folderPath ?? "",
     dominantKind,
   });
-  // Clamp snapshot-restored viewMode to grid|list. Snapshots may carry
-  // legacy "two-pane" strings from prior sessions; defensively coerce
-  // to grid since the type is no longer valid.
+  // Snapshots may carry legacy "two-pane" strings from prior sessions.
   const snapshotMode = initialSnapshot?.filters.viewMode;
   const [globalViewMode, setGlobalViewMode] = useState<ViewMode>(
     snapshotMode === "grid" || snapshotMode === "list" ? snapshotMode : "grid",
   );
-  const viewMode: ViewMode = isFolderContext ? folderViewMode.viewMode : globalViewMode;
-  const { enabled: treeEnabled } = useTreeEnabled(driveName);
+  const viewMode: ViewMode = isFolderAnchored ? folderViewMode.viewMode : globalViewMode;
+  // The effective state: this asks what is on screen, and below `md` a
+  // stored "on" is suppressed. Reading the stored key here would hide the
+  // toolbar for a pane that is not there.
+  const { visible: treeVisible } = useTreeVisible(driveName);
   const { fileId: selectedFileId } = useSelectedFile();
   const scrollContainerRef = useScrollContainer();
-  // While the user is reading a file in the tree's right pane, the
-  // FolderToolbar's folder-targeted actions (upload, new folder, sort, ...)
-  // are noise — hide on every viewport.
-  const hideToolbar = treeEnabled && selectedFileId !== null && selectedFileId.length > 0;
+  const hideToolbar = treeVisible && selectedFileId !== null && selectedFileId.length > 0;
 
   const didRestoreScrollRef = useRef(false);
   useLayoutEffect(() => {
@@ -180,14 +187,29 @@ export function FolderBrowser({
   }, [hydratedScrollY, scrollContainerRef]);
 
   const isInitialSnapshotSaveRef = useRef(true);
+  const flushSnapshotRef = useRef<(() => void) | null>(null);
+  // Last scroll offset observed while this component's DOM was still
+  // mounted. `save` persists THIS, never a fresh DOM read: the scroll
+  // container belongs to TwoPaneLayout and outlives us, so by the time
+  // the unmount flush runs the container has collapsed and `scrollTop` reads 0.
+  const lastScrollYRef = useRef(0);
   useEffect(() => {
     const container = scrollContainerRef?.current ?? null;
-    let frame: number | null = null;
+    let timer: ReturnType<typeof setTimeout> | null = null;
 
-    const getScrollY = () => (container ? container.scrollTop : window.scrollY);
+    const rememberScrollY = () => {
+      lastScrollYRef.current = container ? container.scrollTop : window.scrollY;
+    };
+    // Mount and every dependency change: the DOM is alive here, and the
+    // restore layout effect has already run, so this picks up a
+    // hydrated offset even when the user has not scrolled yet.
+    rememberScrollY();
 
     const save = () => {
-      frame = null;
+      if (timer != null) {
+        clearTimeout(timer);
+        timer = null;
+      }
       if (isRecent) return;
       // Don't persist search results into the folder/view snapshot —
       // snapshotKey doesn't include searchQuery, so saving here would
@@ -195,9 +217,13 @@ export function FolderBrowser({
       if (isSearch) return;
       if (sort === "random") return;
       if (files.length === 0) return;
+      // A trust-filtered listing is a subset. Saving it under the ordinary
+      // key would rehydrate those rows as the complete folder on return —
+      // and keep them if revalidation then fails.
+      if (trustFilter) return;
       saveListSnapshot({
         key: snapshotKey,
-        scrollY: getScrollY(),
+        scrollY: lastScrollYRef.current,
         pagesLoaded,
         items: files,
         total,
@@ -207,8 +233,15 @@ export function FolderBrowser({
     };
 
     const scheduleSave = () => {
-      if (frame != null) return;
-      frame = requestAnimationFrame(save);
+      rememberScrollY();
+      if (timer != null) clearTimeout(timer);
+      timer = setTimeout(save, SNAPSHOT_SAVE_DEBOUNCE_MS);
+    };
+
+    // `pagehide` still has a live DOM, so refresh before writing.
+    const saveNow = () => {
+      rememberScrollY();
+      save();
     };
 
     // Skip the very first effect pass so we don't overwrite a freshly loaded
@@ -219,24 +252,39 @@ export function FolderBrowser({
       scheduleSave();
     }
 
+    flushSnapshotRef.current = save;
+
     const scrollTarget: EventTarget = container ?? window;
     scrollTarget.addEventListener("scroll", scheduleSave, { passive: true } as AddEventListenerOptions);
-    // pagehide fires at the last moment the page is alive; skip the rAF so
-    // the synchronous write still lands before the document is torn down.
-    window.addEventListener("pagehide", save);
+    // pagehide fires at the last moment the page is alive; skip the debounce
+    // so the synchronous write still lands before the document is torn down.
+    window.addEventListener("pagehide", saveNow);
     return () => {
       scrollTarget.removeEventListener("scroll", scheduleSave);
-      window.removeEventListener("pagehide", save);
-      if (frame != null) cancelAnimationFrame(frame);
+      window.removeEventListener("pagehide", saveNow);
+      // Dropping a pending write is safe here but not on unmount: this
+      // cleanup runs on every dependency change, and the next effect
+      // pass immediately re-schedules. Unmount has no next pass, so it
+      // is handled separately below.
+      if (timer != null) clearTimeout(timer);
     };
-  }, [files, folders, total, pagesLoaded, sort, order, typeFilter, viewMode, isRecent, isSearch, snapshotKey, scrollContainerRef]);
+  }, [files, folders, total, pagesLoaded, sort, order, typeFilter, trustFilter, viewMode, isRecent, isSearch, snapshotKey, scrollContainerRef]);
+
+  // Flush a pending snapshot write on unmount. `pagehide` covers a real
+  // page teardown, but an in-app navigation unmounts this component
+  // without firing it, and the debounce means a write is usually still
+  // pending — dropping it would lose the scroll position the user is
+  // about to come back to.
+  useEffect(() => () => { flushSnapshotRef.current?.(); }, []);
 
   const handleReshuffle = useCallback(() => {
     reset();
     clearListSnapshot();
   }, [reset]);
 
+  const tSidebar = useTranslations("sidebar");
   const tSearch = useTranslations("search");
+  const tFilter = useTranslations("filter");
   const tCommon = useTranslations("common");
   const { pinnedPaths, handleTogglePin } = usePinnedFolders(driveName);
   const selection = useSelection();
@@ -245,25 +293,24 @@ export function FolderBrowser({
   const tsc = useTranslations("shortcuts");
   const { scanning, handleScan } = useDriveScan(driveName, refresh);
   const createFolder = useCreateFolder(driveName, folderPath, refresh);
-  // Phase 4: Cmd+N / "New File" only meaningful in a real folder
-  // context. Special views (favorites, search, tag) have no concrete
-  // target folder; we pass undefined to FolderToolbar and disable the
-  // shortcut below so neither path can fire.
   const { createFile } = useCreateFile(driveName, folderPath ?? "");
+  const filePicker = useFilePicker();
   const [pasting, setPasting] = useState(false);
 
   const handlePaste = useCallback(async () => {
+    // The guard is here rather than on each way in, because a screen with
+    // nowhere to write is not a screen where pasting should fail — it is
+    // one where nothing happens at all, and every caller has to agree.
+    if (!isWriteDestination) return;
     if (!clipboard.clipboard || pasting) return;
     setPasting(true);
     try {
       await clipboard.paste(driveName, folderPath ?? "");
       refresh();
-    } catch {
-      // error handled silently
     } finally {
       setPasting(false);
     }
-  }, [clipboard, driveName, folderPath, pasting, refresh]);
+  }, [clipboard, driveName, folderPath, isWriteDestination, pasting, refresh]);
 
   useShortcuts("file-browser", tsc("fileBrowser"), [
     {
@@ -298,9 +345,7 @@ export function FolderBrowser({
       key: "ctrl+n",
       label: tsc("newFile"),
       handler: () => {
-        // Special views (favorites, search, tag filter) don't have a
-        // concrete folder target — Cmd+N is a no-op there.
-        if (!isFolderContext) return;
+        if (!isWriteDestination) return;
         createFile();
       },
     },
@@ -321,9 +366,7 @@ export function FolderBrowser({
   const folderRouter = useRouter();
 
   // URL sync for search mode: typeFilter / sort / order changes update the URL
-  // via replace (no history pollution per filter tweak). Default sort
-  // for search is "relevance" (hybrid score) so omit it from the URL
-  // to keep the canonical search URL clean.
+  // via replace (no history pollution per filter tweak).
   useEffect(() => {
     if (!isSearch || !searchQuery) return;
     const params = new URLSearchParams();
@@ -338,10 +381,10 @@ export function FolderBrowser({
 
   const handleViewChange = useCallback(
     (mode: ViewMode) => {
-      if (isFolderContext) folderViewMode.setViewMode(mode);
+      if (isFolderAnchored) folderViewMode.setViewMode(mode);
       else setGlobalViewMode(mode);
     },
-    [isFolderContext, folderViewMode],
+    [isFolderAnchored, folderViewMode],
   );
 
   const handleSemanticSelect = useCallback(
@@ -371,24 +414,47 @@ export function FolderBrowser({
     [isFavorites, isRecent, setFiles, setPaginatedTotal],
   );
 
-  const effectiveSort = isRecentAdded ? "created_at" : isPopular ? "likes" : sort;
-  const effectiveOrder = isRecentAdded || isPopular ? "desc" : order;
+  const effectiveSort = isRecentAdded ? "created_at" : isLiked ? "liked_at" : sort;
+  const effectiveOrder = isRecentAdded || isLiked ? "desc" : order;
+  /**
+   * Handed to the file links as `nav=folder`. The detail pane cannot work
+   * this out for itself: `/files/{id}` redirects to the file's own
+   * folder and drops `view` / `q` / `tag` / `smart_folder_id`, and
+   * `typeFilter` / `trustFilter` were never in the URL at all.
+   */
+  const listingIsPlainFolder =
+    // Not `isFolderAnchored`: that asks for a folder *path*, and the
+    // drive root has none while still being a folder.
+    folderPath !== undefined &&
+    !isSpecialView &&
+    !isSearch &&
+    !tagFilter &&
+    !typeFilter &&
+    !trustFilter &&
+    effectiveSort !== "random";
+
   const sortQuery = effectiveSort === "random"
     ? ""
-    : `?sort=${effectiveSort}&order=${effectiveOrder}`;
+    : `?sort=${effectiveSort}&order=${effectiveOrder}` +
+      (listingIsPlainFolder ? "&nav=folder" : "");
 
   const hasPlayableFiles = files.some(
     (f) => f.file_type === "audio" || f.file_type === "video"
   );
 
+  // Depend on the individual callbacks, not on `selection` itself:
+  // `useSelection` returns a fresh object literal every render, so
+  // `[selection]` would defeat `FileCard`'s memo.
+  const { toggle: toggleSelection, selectRange } = selection;
+
   const handleMetaSelect = useCallback((id: string) => {
     setSelectable(true);
-    selection.toggle(id);
-  }, [selection]);
+    toggleSelection(id);
+  }, [toggleSelection]);
 
   const handleShiftSelect = useCallback((id: string) => {
-    selection.selectRange(files.map((f) => f.id), id);
-  }, [selection, files]);
+    selectRange(files.map((f) => f.id), id);
+  }, [selectRange, files]);
 
   const handlePlayAll = useCallback(() => {
     const firstPlayable = files.find(
@@ -404,62 +470,110 @@ export function FolderBrowser({
     folderRouter.push(`/files/${firstPlayable.id}?${params.toString()}`);
   }, [files, sort, effectiveSort, effectiveOrder, folderRouter]);
 
-  // Search mode renders a virtual folder view: skip the UploadZone
-  // wrapper (you can't drop files into search results) and the
-  // clipboard paste banner (paste targets a folder path).
-  const inner = (
-    <div className="flex min-w-0 w-full flex-1 flex-col">
-      {/* Outermost header row — Y-aligned with the file preview's
-          PaneShell header (px-4 py-3) so TreeToggle sits at the same
-          height regardless of folder/file/search mode. The breadcrumb
-          / search title share this row; TreeToggle is leftmost. */}
-      {isSearch ? (
-        <header className="flex flex-wrap items-start gap-2 px-4 py-2">
-          <TreeToggle drive={driveName} />
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-2xl font-bold text-text-primary">
-              {tSearch("heading", { query: searchQuery ?? "" })}
-            </h1>
-            {!loading && (
-              <p className="mt-1 text-sm text-text-muted">
-                {tCommon("items", { count: total })}
-              </p>
-            )}
-          </div>
-          <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
-            <SmartFolderSaveButton
-              drive={driveName}
-              query={searchQuery ?? ""}
-              typeFilter={typeFilter}
-              smartFolderId={smartFolderId ?? null}
-            />
-            <AddonSlot
-              id="search-modes"
-              layout="stack"
-              props={{
-                context: "page",
-                query: searchQuery ?? "",
-                drive: driveName,
-                filter: typeFilter ?? "all",
-                onSelect: handleSemanticSelect,
-              }}
-            />
-          </div>
-        </header>
-      ) : (
-        <div className="flex items-center gap-2 px-4 py-2">
-          <TreeToggle drive={driveName} />
-          <Breadcrumb
-            driveName={driveName}
-            folderPath={folderPath}
-            getDropTargetProps={(dragState.isDragging || isInternalDragging) ? getDropTargetProps : undefined}
-            isDropTarget={(dragState.isDragging || isInternalDragging) ? isDropTarget : undefined}
-          />
-        </div>
-      )}
+  // `!loading` is not enough to adopt a `total`: `reset()` lives in an effect,
+  // so on the render where the subject changes the hook still reports
+  // `loading: false` and the *previous* subject's `total`. A subject becomes
+  // trustworthy at mount or once a fetch for it has been seen to start.
+  const countedSubject = [
+    driveName,
+    folderPath ?? "",
+    view ?? "",
+    tagFilter ?? "",
+    typeFilter ?? "",
+    searchQuery ?? "",
+    // NUL, because it cannot occur in a path, a tag or a query.
+  ].join("\u0000");
 
+  // Deliberately absent: `sort` and `order`. They reset the listing, but they
+  // reorder the same set, so the count is still true and hiding it would be a
+  // flicker with nothing behind it.
+  const [trusted, setTrusted] = useState<string | null>(countedSubject);
+  if (trusted !== null && trusted !== countedSubject) setTrusted(null);
+  if (trusted === null && loading) setTrusted(countedSubject);
+
+  const [settled, setSettled] = useState<{ subject: string; total: number } | null>(
+    null,
+  );
+  if (
+    !loading &&
+    trusted === countedSubject &&
+    (settled === null || settled.subject !== countedSubject || settled.total !== total)
+  ) {
+    setSettled({ subject: countedSubject, total });
+  }
+  const settledTotal =
+    settled !== null && settled.subject === countedSubject ? settled.total : null;
+
+  const dragInFlight = dragState.isDragging || isInternalDragging;
+
+  const countLabel =
+    settledTotal === null ? null : tCommon("items", { count: settledTotal });
+
+  const inner = (
+    <PageFrame
+      width="full"
+      header={
+        <PageHeader
+          // No trail at the Library root: the row would put its title lower
+          // than Home's and every other destination's.
+          breadcrumb={
+            isSearch || isLibraryRoot ? undefined : (
+              <Breadcrumb
+                driveName={driveName}
+                folderPath={folderPath}
+                getDropTargetProps={dragInFlight ? getDropTargetProps : undefined}
+                isDropTarget={dragInFlight ? isDropTarget : undefined}
+              />
+            )
+          }
+          titleIcon={isLibraryRoot && !isSearch ? FolderTree : undefined}
+          // Search names its subject in a heading because there is no path
+          // to name it, and the Library root because it has no trail. A folder
+          // is named by its trail, so it passes neither.
+          title={
+            isSearch
+              ? tSearch("heading", { query: searchQuery ?? "" })
+              : isLibraryRoot
+                ? tSidebar("library")
+                : undefined
+          }
+          // `settledTotal`, not `total`: a refetch sets `total` to 0 and
+          // `loading` to true together, so neither raw value can be shown.
+          scope={
+            isLibraryRoot && !isSearch
+              ? countLabel === null
+                ? driveName
+                : tCommon("driveScope", { drive: driveName, detail: countLabel })
+              : (countLabel ?? undefined)
+          }
+          actions={
+            isSearch ? (
+              <>
+                <SmartFolderSaveButton
+                  drive={driveName}
+                  query={searchQuery ?? ""}
+                  typeFilter={typeFilter}
+                  smartFolderId={smartFolderId ?? null}
+                />
+                {!parseSearchQuery(searchQuery ?? "").hasOperators && <AddonSlot
+                  id="search-modes"
+                  layout="stack"
+                  props={{
+                    query: searchQuery ?? "",
+                    drive: driveName,
+                    filter: typeFilter ?? "all",
+                    onSelect: handleSemanticSelect,
+                  }}
+                />}
+              </>
+            ) : undefined
+          }
+        />
+      }
+    >
       {!hideToolbar && <FolderToolbar
         isSpecialView={isSpecialView}
+        isWriteDestination={isWriteDestination}
         isSearch={isSearch}
         tagFilter={tagFilter}
         hasPlayableFiles={hasPlayableFiles}
@@ -467,6 +581,7 @@ export function FolderBrowser({
         order={order}
         typeFilter={typeFilter}
         total={total}
+        folderCount={folders.length}
         selectable={selectable}
         scanning={scanning}
         creatingFolder={createFolder.creatingFolder}
@@ -475,12 +590,15 @@ export function FolderBrowser({
         fileIds={files.map((f) => f.id)}
         drive={driveName}
         folderPath={folderPath}
-        viewMode={isFolderContext ? viewMode : undefined}
+        viewMode={isFolderAnchored ? viewMode : undefined}
+        widenTagScope={widenTagScope}
         onSortChange={(s, o) => {
-          if (isFolderContext) folderSort.setSort(s, o);
+          if (isFolderAnchored) folderSort.setSort(s, o);
           else { setLocalSort(s); setLocalOrder(o); }
         }}
         onTypeFilterChange={setTypeFilter}
+        trustFilter={trustFilter}
+        onTrustFilterChange={trustFilterAvailable ? setTrustFilter : undefined}
         onViewChange={handleViewChange}
         onToggleSelectable={() => {
           setSelectable((s) => {
@@ -494,12 +612,13 @@ export function FolderBrowser({
         onSetNewFolderName={createFolder.setNewFolderName}
         onSetFolderError={createFolder.setFolderError}
         onCreateFolder={createFolder.handleCreateFolder}
-        onCreateFile={isFolderContext ? createFile : undefined}
         onReshuffle={handleReshuffle}
+        isPinned={isFolderAnchored ? pinnedPaths.has(folderPath!) : undefined}
+        onTogglePin={isFolderAnchored ? handleTogglePin : undefined}
       />}
 
       <div className="px-4 pb-6 pt-1 sm:pb-8 sm:pt-4">
-      {!isSearch && clipboard.clipboard && (
+      {isWriteDestination && clipboard.clipboard && (
         <div className="mb-3 flex items-center gap-3 rounded-lg bg-accent/10 px-4 py-2.5 ring-1 ring-accent/20">
           <ClipboardPaste size={18} className="flex-shrink-0 text-accent" />
           <span className="flex-1 text-sm text-text-primary">
@@ -508,13 +627,14 @@ export function FolderBrowser({
               mode: clipboard.clipboard.mode === "copy" ? tcb("modeCopy") : tcb("modeCut"),
             })}
           </span>
-          <button
+          <Button
+            variant="primary"
+            size="sm"
             onClick={handlePaste}
             disabled={pasting}
-            className="rounded-2xl bg-accent px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
           >
             {tcb("pasteHere")}
-          </button>
+          </Button>
           <button
             onClick={clipboard.clear}
             className="rounded-lg p-1.5 text-text-muted transition-colors hover:text-text-primary"
@@ -525,24 +645,42 @@ export function FolderBrowser({
         </div>
       )}
 
-      {/* Phase 3 unified results: filename-match and semantic hits live
-          in the same FolderContent list (sourced via useFolderFiles +
-          searchMerge). The search-modes slot now contributes header
-          chips (e.g. Find handoff) only — no full-width section. */}
       {isSearch && !loading && files.length === 0 && (
-        <EmptyState variant="no-results" />
+        <EmptyState
+          variant="no-results"
+          // No primary: the way out of a search that found nothing is a
+          // different search, and this page cannot write it for you.
+          secondaryActions={
+            typeFilter || trustFilter
+              ? [
+                  {
+                    label: tFilter("clear"),
+                    onClick: () => {
+                      setTypeFilter(null);
+                      setTrustFilter(null);
+                    },
+                  },
+                ]
+              : undefined
+          }
+        />
       )}
 
+      {filePicker.input}
       <FolderContent
         files={files}
         folders={folders}
         driveName={driveName}
+        widenTagScope={widenTagScope}
+        onAddFiles={isWriteDestination ? filePicker.open : undefined}
         viewMode={viewMode}
         loading={loading}
         loadingMore={loadingMore}
+        hasMore={hasMore}
         isRecent={isRecent}
         hasProfile={hasProfile}
         isFavorites={isFavorites}
+        isLiked={isLiked}
         isRecentAdded={isRecentAdded}
         isSearch={isSearch}
         selectable={selectable}
@@ -552,7 +690,7 @@ export function FolderBrowser({
         dragState={dragState}
         isDropTarget={isDropTarget}
         getDropTargetProps={getDropTargetProps}
-        isSelected={selection.isSelected}
+        selectedIds={selection.selectedIds}
         onSelect={selection.toggle}
         onMetaSelect={handleMetaSelect}
         onShiftSelect={handleShiftSelect}
@@ -582,7 +720,7 @@ export function FolderBrowser({
         />
       )}
       </div>
-    </div>
+    </PageFrame>
   );
 
   if (isSearch) return inner;

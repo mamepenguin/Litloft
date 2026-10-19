@@ -1,16 +1,7 @@
 /**
- * Classification of `/drive/{name}` routes that intentionally hide the
- * folder tree.
- *
  * The drive's folder tree implies "the file lives at this path in the
- * folder hierarchy". Virtual views (`?view=favorites`, search, smart
- * folders, …) and recovery views (`?view=trash | missing`) deliberately
- * cut across that hierarchy, so surfacing the tree would mislead the
- * user. The TwoPaneLayout wrapper is skipped and the TreeToggle button
- * is hidden on these routes.
- *
- * Sources of truth for view names: `app/drive/[name]/page.tsx`
- * (routing) and `FolderBrowser.tsx` (rendering).
+ * folder hierarchy". Virtual views and recovery views deliberately cut
+ * across that hierarchy, so surfacing the tree would mislead the user.
  */
 
 const CROSS_FOLDER_VIEWS = new Set([
@@ -18,7 +9,7 @@ const CROSS_FOLDER_VIEWS = new Set([
   "favorites",
   "recent",
   "recent-added",
-  "popular",
+  "liked",
 ]);
 
 const STANDALONE_VIEWS = new Set(["trash", "missing"]);
@@ -32,12 +23,27 @@ export function isStandaloneView(view: string | null): boolean {
 }
 
 /**
- * Matches `/drive/{name}/search` and any sub paths under it. Smart
- * folders share this route — they are persisted searches resurfaced via
- * `?smart_folder_id=...` query, not a dedicated `/smart/` path. If a
- * future redesign splits smart folders onto their own route, this
- * helper (and the layout / TreeToggle checks that consume it) must be
- * updated together.
+ * `?view=library` is an alias for the bare drive URL, rewritten rather than
+ * branched on: `view` is part of the list snapshot key, the listing reset key
+ * and the counted subject, so leaving the alias spelled differently would file
+ * one screen under two of each.
+ *
+ * Every reader of `?view=` goes through this, not only the route layer — the
+ * sidebar reads the same query to decide which row is lit.
+ */
+export function normaliseDriveView(view: string | null): string | null {
+  return view === "library" ? null : view;
+}
+
+/** The two addresses of a drive's root. */
+export function driveHref(drive: string, kind: "home" | "library"): string {
+  const base = `/drive/${encodeURIComponent(drive)}`;
+  return kind === "home" ? `${base}?view=home` : base;
+}
+
+/**
+ * Smart folders share this route — they are persisted searches resurfaced
+ * via `?smart_folder_id=...` query, not a dedicated `/smart/` path.
  */
 export function isDriveSearchPath(pathname: string): boolean {
   return /^\/drive\/[^/]+\/search(\/|$)/.test(pathname);
@@ -47,28 +53,14 @@ export function isDriveAddonPath(pathname: string): boolean {
   return /^\/drive\/[^/]+\/addons\//.test(pathname);
 }
 
-/**
- * Matches the collection detail route ``/drive/{name}/collections/{id}``.
- *
- * The detail page owns its own two-pane wrapper (so the left aside can
- * surface the collection's ordered item list instead of the folder
- * tree), so ``DriveLayout`` bypasses its default ``<TwoPaneLayout>`` for
- * this route — same pattern as addon routes. Spec
- * ``2026-05-12-playlist-to-collection.md`` PR-B redo.
- */
 export function isDriveCollectionPath(pathname: string): boolean {
   return /^\/drive\/[^/]+\/collections\/[^/]+\/?$/.test(pathname);
 }
 
 /**
- * True when the current route is a cross-folder / search / smart-folder
- * view where the folder tree should not be available. Both the
- * TwoPaneLayout wrapper and the TreeToggle button consult this.
- *
  * Recovery views (trash / missing) and addon routes also hide the
  * tree but are handled separately because they own their own page
- * layout — pass `{ includeStandalone: true }` to fold them into a
- * single check.
+ * layout.
  */
 export function routeHidesTree({
   pathname,
@@ -86,4 +78,21 @@ export function routeHidesTree({
     if (isDriveAddonPath(pathname)) return true;
   }
   return false;
+}
+
+export function collectionHref(collection: { drive: string; id: string }): string {
+  return `/drive/${encodeURIComponent(collection.drive)}/collections/${encodeURIComponent(collection.id)}`;
+}
+
+export function smartFolderHref(folder: {
+  drive: string;
+  id: string;
+  query: string;
+  file_type: string | null;
+}): string {
+  const params = new URLSearchParams();
+  params.set("q", folder.query);
+  if (folder.file_type) params.set("type", folder.file_type);
+  params.set("smart_folder_id", folder.id);
+  return `/drive/${encodeURIComponent(folder.drive)}/search?${params.toString()}`;
 }

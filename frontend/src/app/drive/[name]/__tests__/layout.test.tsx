@@ -3,6 +3,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { treeEnabledStore } from "@/lib/treeEnabledStore";
 
+// jsdom has no `matchMedia`. `TwoPaneLayout` asks it whether the tree and
+// the content fit side by side; this layout's assertions are all about
+// wiring rather than width, so it always answers yes.
+Object.defineProperty(window, "matchMedia", {
+  writable: true,
+  value: (query: string) => ({
+    matches: true,
+    media: query,
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => true,
+  }),
+});
+
 let mockPathname = "/drive/work";
 let mockSearchParams = new URLSearchParams();
 let mockParams: Record<string, string | string[]> = { name: "work" };
@@ -45,11 +62,9 @@ afterEach(() => {
 
 describe("DriveLayout", () => {
   it("keeps children mounted with tree hidden when tree is disabled", () => {
-    // Tree toggle is now a CSS-driven show/hide so children (FolderBrowser /
-    // DriveHome / search) survive the toggle without re-mounting. The
-    // `<aside>` wrapper is always mounted but aria-hidden, and the
-    // `FolderTreePane` is lazy-mounted on first enable so we don't pay
-    // for its tree fetch while the user has the tree closed.
+    // Tree toggle is a CSS-driven show/hide so children survive the toggle
+    // without re-mounting, and `FolderTreePane` is lazy-mounted on first
+    // enable so its tree fetch is not paid while the tree is closed.
     render(
       <DriveLayout>
         <div data-testid="page">drive home</div>
@@ -85,6 +100,33 @@ describe("DriveLayout", () => {
       <DriveLayout>
         <div data-testid="page">sub folder</div>
       </DriveLayout>,
+    );
+    expect(screen.getByTestId("tree-pane")).toBeInTheDocument();
+  });
+
+  // Home moved off the bare drive URL onto a `?view=`, and the pane is
+  // decided here rather than by the toggle button that reads `routeHidesTree`.
+  it("wraps children in TwoPaneLayout on the drive home", () => {
+    treeEnabledStore.set("work", true);
+    mockSearchParams = new URLSearchParams("view=home");
+    render(
+      <DriveLayout>
+        <div data-testid="page">home</div>
+      </DriveLayout>,
+    );
+    expect(screen.getByTestId("tree-pane")).toBeInTheDocument();
+  });
+
+  it("mounts RightPaneFile inside the pane on the drive home", () => {
+    treeEnabledStore.set("work", true);
+    mockSearchParams = new URLSearchParams("view=home&file=abc123");
+    render(
+      <DriveLayout>
+        <div data-testid="page">home</div>
+      </DriveLayout>,
+    );
+    expect(screen.getByTestId("right-pane")).toHaveTextContent(
+      "file:abc123/drive:work",
     );
     expect(screen.getByTestId("tree-pane")).toBeInTheDocument();
   });
@@ -152,7 +194,7 @@ describe("DriveLayout", () => {
   it.each([
     ["favorites"],
     ["recent-added"],
-    ["popular"],
+    ["liked"],
     ["all"],
     ["recent"],
   ])("does NOT wrap on the %s cross-folder view", (view) => {

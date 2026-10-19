@@ -1,101 +1,112 @@
-# Settings GUI
+# Settings
 
-`/admin/settings` is the canonical place to edit Litloft's logical configuration once the running stack exists. `configure.py` only wires the containers (mounts, port, addons); the backend then seeds one drive entry per mounted directory, and from that point on this page (and the `/setup` wizard on first run) own drive names, access groups, passwords, and addon policy. It is a thin wrapper over `drives.json` and `passwords.json` with validation and atomic writes — what you save here is identical to what you would write by hand, just safer.
+**Settings** at `/admin/settings` edits drives, passwords and the addon policy after first-run setup. It writes `drives.json` and `passwords.json` for you. Open it from **Settings** on the admin dashboard.
 
-> **Image needed:** screenshot of the settings page showing the three sections (Drives, Passwords, AddonPolicy).
+Only administrators can open it: viewers who unlocked the admin password, or a password covering every protected drive. When no password exists, everyone is an administrator.
 
-## Authorisation
+When the intelligence addon is installed, the page has two tabs, **System** and **Intelligence**. This page covers **System**. The intelligence settings are described in the [intelligence addon guide](../addons/intelligence.md).
 
-The page is reachable only by a master viewer. The middleware in `frontend/src/app/admin/layout.tsx` checks the JWT and redirects unauthorised viewers.
+## Drives
 
-## Section: Drives
+Lists each drive with its name, container path and group. **Add drive** and **Edit** open a form with:
 
-Lists every drive in `drives.json`. Per row:
+- **Name**: shown in the sidebar and used in the URL. Must be unique.
+- **Path**: the path inside the backend container, for example `/app/drives/movies`. It must be an absolute path to a directory that exists in the container.
+- **Group** (optional): the access group. A drive with a group is hidden until someone unlocks a password for that group. Add a matching password under [Passwords](#passwords), or nobody can open the drive.
 
-- **Name** — the URL slug. Renaming changes the URL; existing watch history etc. are not orphaned because they reference `file_id`, not the drive name. Pinned folders, however, are keyed by drive name and lose their pin on rename.
-- **Path** — container path. Changes are validated: the path must exist inside the backend container and not be the root `/`. Mismatch → inline error.
-- **Access group** — optional protection label. Adding or changing this requires a matching `passwords.json` entry to keep someone able to unlock the drive.
-- **Addon policy** — opens an inline matrix of toggles for each enabled addon (see *AddonPolicy* below). For addons with sub-feature flags, an expandable row lists each flag.
+Settings cannot mount a new host directory. To add one:
 
-Add a drive with the `+` button. Validation runs before save; on success the file is written atomically (`.tmp` + rename) and a `data/restart_pending` flag is set. The dashboard banner reminds you to restart.
+1. Re-run `python3 configure.py`, raise the drive count, enter the new path, and let it overwrite `docker-compose.override.yml`. (Or add `- /host/path:/app/drives/<slug>` under the backend's `volumes:` yourself.)
+2. Run `docker compose up -d --build`.
+3. Press **Add drive** and enter `/app/drives/<slug>` as the path. The re-run keeps `drives.json`, so a drive whose mount you removed or renamed stays listed until you change or remove it here.
 
-A drive's content directory is a host mount, which the GUI cannot create (the backend cannot edit `docker-compose.override.yml` or restart itself). To expose a **new** host directory, add a mount line to `docker-compose.override.yml` (`- /host/path:/app/drives/<slug>`) and run `docker compose up -d --build`; the backend seeds the new directory as a drive on the next start, after which you rename and protect it here.
+**How to add a new drive** on the page repeats these steps.
 
-Delete a drive with the trash icon. The DB rows for files in that drive **stay** until you purge them — Litloft does not auto-delete on drive removal so you can recover from a misclick. To clean them up afterwards, use `purge_all_missing` once the scanner has flagged the orphans as missing.
+Renaming a drive is not a move. Files are stored under the drive's name, so after a rename the drive is scanned as new, and tags, comments and watch history stay with the old name.
 
-## Section: Passwords
+**Delete** removes the drive from `drives.json` after you press **Confirm delete**. Files on disk are not touched. Litloft keeps its records of the drive's files; adding the drive back under the same name brings them back.
 
-Lists every entry in `passwords.json`, with passwords masked as `***` (the server never sends actual values back to the client).
+Drive changes take effect after a backend restart.
 
-Per row:
+## Passwords
 
-- **Password** — only editable on row creation; existing rows are read-only on this field.
-- **Groups** — the `access_group` names this password unlocks.
-- **Delete** — removes the entry.
+Lists each password as `***` with the groups it unlocks. Password values are never sent back to the browser, so an existing password cannot be viewed or edited: add a new one and delete the old one.
 
-Adding a password is a separate workflow: enter the password value, choose groups, save. The backend writes to `passwords.json` atomically.
+- **Add password**: enter the **Password** and **Groups (comma-separated)**. Each group must be a drive's group, or `__admin__`.
+- **Delete** removes the entry at once.
 
-The setup wizard enforces that at least one password covers every group; the settings GUI emits a warning if you delete the last admin-grade password but allows the operation (so you can rotate by adding the new one first, then removing the old).
+`__admin__` makes a password an admin password: it opens the admin pages without unlocking any drive. The wizard adds it to the password you create there. Only a viewer who unlocked an admin password can add another one.
 
-## Section: AddonPolicy
+When the list is empty, the section shows **Public mode (no passwords.json)** and **Enable password protection**. On such an install everyone is an administrator, so the first admin password cannot be added here. Add it to `passwords.json` by hand (see [Direct file editing](#direct-file-editing)) and restart the backend.
 
-A matrix of `drives × addons`. Each cell:
+A new or deleted password applies from the next unlock. Viewers who already unlocked stay unlocked until their unlock expires; to sign everyone out, see [Signing out every device](admin-dashboard.md#signing-out-every-device).
 
-- A simple `bool` for addons without sub-features.
-- An expandable row of `feature: bool` toggles for addons that declare them.
+## Addon policy
 
-Saving writes the policy into the corresponding drive's `addons` field in `drives.json`. The intelligence addon, for example, exposes `transcription_cloud` and `rag` flags — useful when you want a *Private* drive to opt out of cloud transcription and Ask while keeping local indexing.
+A table of drives against addons. Each switch turns an addon **On** or **Off** for one drive and saves at once. When an addon declares finer switches, for example the intelligence addon's `transcription_cloud`, `chapter_suggestions` and `llm_cloud` (**Allow sending to cloud LLMs**), they appear as extra rows under the drive while the addon is on for it. What each one does is explained under the table.
 
-Unspecified keys are *graceful-degradation*: the addon's default applies. To force a feature off explicitly, toggle it visibly to off.
+A switch that was never saved counts as on. How a disabled addon behaves is described in the [addon overview](../addons/overview.md#per-drive-policy).
 
-## Validation
+## Cloud Sync
 
-The settings GUI rejects:
+When the cloud-sync addon is installed, a **Cloud Sync** section sets its schedule, time zone, deletion limit and mappings. Its **Save** applies at once and needs no restart. See the [cloud-sync addon](../addons/cloud-sync.md#settings) page.
 
-- Drive names with `/` or `\`.
-- Drive paths that do not exist in the container.
-- Drive paths set to `/` or other system roots.
-- `passwords.json` entries with an empty password or an empty groups array.
-- Addon policy referencing addons that are not currently installed.
+## Restarting
 
-Errors are shown inline on the relevant field with a descriptive message; the *Save* button stays disabled until the form is valid.
+Every save in the Drives, Passwords and Addon policy sections shows **Pending changes — restart required** at the top of the admin pages, with a **Copy** button for the command:
 
-## What changes need a restart
+```bash
+docker compose restart backend
+```
 
-The UI labels each kind of change with a small *Requires restart* badge:
+The banner clears when the backend starts again. An addon policy change already applies to the backend when it is saved.
 
-- Adding / removing / renaming drives (scanner enumerates drives on boot).
-- Changing addon installation state.
+## What is rejected
 
-These set `data/restart_pending`. After `docker compose restart backend` the flag clears automatically.
+A save fails with a message when:
 
-Changes that do **not** need a restart:
-
-- Adding / removing passwords (the JWT issuer reads `passwords.json` on each unlock).
-- Editing addon policy (most addons reload policy on the next event with a 30-second TTL on the cache).
+- a drive has no name or no path, two drives share a name, or the path is not an absolute path to a directory in the container;
+- a password is empty or already used, or has no groups;
+- a group is neither a drive's group nor `__admin__`;
+- the addon policy names a drive or an addon that does not exist.
 
 ## Direct file editing
 
-You can edit `drives.json` and `passwords.json` by hand if you prefer. The conventions are identical:
+You can edit `drives.json` and `passwords.json` by hand while the stack is stopped, then start it again.
 
-- Atomic write — write to a temp file then `mv` over the target. Litloft does this for you when using the GUI; do it yourself when scripting.
-- Backup — keep the previous version when scripting (Litloft writes a `.bak` automatically).
-- Validation — mistakes cause backend startup to fail; check `docker compose logs backend`.
+```json
+// drives.json
+[
+  { "name": "movies", "path": "/app/drives/movies", "access_group": "family" }
+]
+```
 
-After hand edits, restart the backend.
+```json
+// passwords.json
+[
+  { "password": "change-me", "groups": ["family", "__admin__"] }
+]
+```
 
-## API endpoints
+Keep both files present; write `[]` rather than deleting one. Each save from the GUI leaves the previous version next to the file as `drives.json.bak` or `passwords.json.bak`. If the backend misbehaves after a hand edit, check `docker compose logs backend`.
 
-For automation:
+## API
 
-- `GET /api/admin/config/drives` — read drives.json
-- `PUT /api/admin/config/drives` — replace drives.json with validation
-- `GET /api/admin/config/passwords` — read masked entries
-- `PUT /api/admin/config/passwords` — replace passwords.json
-- `POST /api/admin/config/passwords/append` — add one entry
-- `DELETE /api/admin/config/passwords/{index}` — remove by index
-- `PUT /api/admin/config/addon-policy` — update per-drive addon policy
-- `GET /api/admin/config/setup-status` — `{ completed, drives }`. Unauthenticated, because the first-run wizard needs it before any password exists. `drives` (the seeded `name`/`path`/`access_group` list) is returned **only while setup is incomplete**; once `data/setup_completed` exists it is always `[]`, so drive names and container paths are never disclosed to unauthenticated peers after first run.
-- `GET /api/admin/config/restart-status` — `data/restart_pending` flag
+The page uses these endpoints, under `/api/admin/config`:
 
-All except `setup-status` and `complete-setup` require admin authentication. Those two are intentionally open so the unauthenticated first-run wizard can function; `setup-status` stops returning the drive list the moment setup completes.
+| Method and path | Purpose |
+|---|---|
+| `GET /drives` | Read `drives.json`. |
+| `PUT /drives` | Replace `drives.json`. |
+| `GET /passwords` | Read `passwords.json`, with every password masked. |
+| `PUT /passwords` | Replace `passwords.json`. |
+| `POST /passwords/append` | Add one entry. |
+| `DELETE /passwords/{index}` | Remove the entry at that position. |
+| `GET /addon-policy` | Read each drive's addon policy. |
+| `PUT /addon-policy` | Replace the addon policy of the drives named. |
+| `GET /restart-status` | Whether a restart is pending. |
+| `GET /setup-status` | `{completed, drives}`. No login needed. `drives` is filled only before setup is finished. |
+| `POST /setup-token/verify` | Check a setup token. `404` once setup is finished. |
+| `POST /complete-setup` | Mark setup as finished. `409` if it already is. |
+
+The `GET` endpoints other than `setup-status` need an administrator. Before setup is finished, the writes need the setup token in the `X-Litloft-Setup-Token` header instead; afterwards they need an administrator. See [HTTP API](../reference/api.md).

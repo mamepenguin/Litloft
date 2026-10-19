@@ -9,6 +9,8 @@ import {
   type ReactNode,
 } from "react";
 
+import { readStored, writeStored } from "@/lib/safeStorage";
+
 type Theme = "system" | "light" | "dark";
 type Resolved = "light" | "dark";
 
@@ -36,7 +38,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY) as Theme | null;
+    const stored = readStored(STORAGE_KEY) as Theme | null;
     const initial = stored === "light" || stored === "dark" || stored === "system"
       ? stored
       : "system";
@@ -55,7 +57,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const setTheme = useCallback((next: Theme) => {
     setThemeState(next);
-    localStorage.setItem(STORAGE_KEY, next);
+    writeStored(STORAGE_KEY, next);
     applyTheme(resolveTheme(next));
   }, []);
 

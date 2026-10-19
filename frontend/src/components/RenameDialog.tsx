@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { Pencil, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useShortcuts } from "@/hooks/useShortcuts";
+import { selectStem } from "@/lib/filename";
+import { Button } from "@/components/Button";
 
 interface RenameDialogProps {
   open: boolean;
@@ -27,16 +29,19 @@ export function RenameDialog({
     if (open) {
       setName(currentName);
       setTimeout(() => {
-        inputRef.current?.focus();
-        inputRef.current?.select();
+        const el = inputRef.current;
+        if (el) selectStem(el);
       }, 0);
     }
   }, [open, currentName]);
 
+  // `editingOnly: false` is load-bearing: the dialog focuses its own
+  // field, and the provider counts a focused input as "editing", where
+  // the flag's default ("only when nothing is being edited") means the
   useShortcuts(
     "rename-dialog",
     "Dialog",
-    [{ key: "escape", label: "Cancel", handler: onCancel, hidden: true }],
+    [{ key: "escape", label: "Cancel", editingOnly: false, handler: onCancel, hidden: true }],
     open,
   );
 
@@ -87,13 +92,14 @@ export function RenameDialog({
             >
               {tc("cancel")}
             </button>
-            <button
+            <Button
+              variant="primary"
+              size="md"
               type="submit"
               disabled={!name.trim() || name.trim() === currentName}
-              className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-40"
             >
               {tc("change")}
-            </button>
+            </Button>
           </div>
         </form>
       </div>

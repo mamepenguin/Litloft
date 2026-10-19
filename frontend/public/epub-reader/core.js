@@ -1,0 +1,182 @@
+const SWIPE_MIN_PX = 40;
+const EDGE_RATIO = 0.25;
+
+export const isValidOpen = (d) =>
+  d.bytes instanceof ArrayBuffer &&
+  (d.fraction === null || (typeof d.fraction === "number" && Number.isFinite(d.fraction))) &&
+  (d.section === null || Number.isInteger(d.section)) &&
+  (d.theme === "light" || d.theme === "dark");
+
+const HEX = /^#[0-9a-fA-F]{6}$/;
+const isHex = (value) => typeof value === "string" && HEX.test(value);
+
+// Colours end up inside CSS injected into the book, so nothing but a plain
+// 6-digit hex gets through.
+export const readColors = (colors) =>
+  colors !== null &&
+  typeof colors === "object" &&
+  !Array.isArray(colors) &&
+  isHex(colors.bg) &&
+  isHex(colors.fg) &&
+  isHex(colors.link)
+    ? { bg: colors.bg, fg: colors.fg, link: colors.link }
+    : null;
+
+// foliate reports a page's start as (page - 1) / textPages but places a
+// fractional anchor at round(anchor * (textPages - 1)), so the anchor is
+// rescaled to land on the page the fraction was taken from.
+export const restoreAnchor = (inSection, pages) => {
+  const textPages = pages - 2;
+  if (!(textPages > 1)) return 0;
+  // A fraction taken in a narrower layout can round past the last text page
+  // onto the blank pad after it.
+  const page = Math.min(Math.round(inSection * textPages), textPages - 1);
+  return page / (textPages - 1);
+};
+
+const FORWARDED = {
+  inline: new Set(["f"]),
+  fullscreen: new Set(["f", "Escape"]),
+};
+
+export const keyAction = (key, { shift, fullscreen }) => {
+  if (key === "PageDown" || (key === " " && !shift)) return { turn: "next" };
+  if (key === "PageUp" || (key === " " && shift)) return { turn: "prev" };
+  // Shift+arrow extends a text selection.
+  if (key === "ArrowLeft" && !shift) return { turn: "left" };
+  if (key === "ArrowRight" && !shift) return { turn: "right" };
+  if (FORWARDED[fullscreen ? "fullscreen" : "inline"].has(key)) return { forward: key };
+  return null;
+};
+
+// A finger moving left reveals what lies to the right, in either direction
+// of reading.
+export const swipeAction = (dx, dy) => {
+  if (Math.abs(dx) < SWIPE_MIN_PX || Math.abs(dx) <= Math.abs(dy)) return null;
+  return dx < 0 ? "right" : "left";
+};
+
+export const edgeAction = (x, width) => {
+  if (x < width * EDGE_RATIO) return "left";
+  if (x > width * (1 - EDGE_RATIO)) return "right";
+  return null;
+};
+
+export const isHttpUrl = (href) => {
+  try {
+    const url = new URL(href);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+};
+
+export const TOC_LABEL_MAX = 200;
+export const TOC_MAX = 1000;
+
+export const isValidTocIndex = (index, hrefs) =>
+  Number.isInteger(index) && index >= 0 && index < hrefs.length && hrefs[index] !== null;
+
+export const isValidSeek = (d) =>
+  typeof d.fraction === "number" &&
+  Number.isFinite(d.fraction) &&
+  d.fraction >= 0 &&
+  d.fraction <= 1 &&
+  Number.isInteger(d.id) &&
+  d.id >= 0;
+
+// Pre-order and unfiltered, so that an entry's position is the id foliate
+// gives the same item when it reports where the reader is.
+export const flattenToc = (toc, resolveIndex, sectionFractions) => {
+  const entries = [];
+  const hrefs = [];
+  const visit = (item, depth) => {
+    if (entries.length >= TOC_MAX) return;
+    const href = typeof item?.href === "string" ? item.href : null;
+    let index = null;
+    try {
+      index = href === null ? null : resolveIndex(href);
+    } catch {
+      index = null;
+    }
+    const raw = Number.isInteger(index) ? sectionFractions[index] ?? null : null;
+    const fraction = typeof raw === "number" && Number.isFinite(raw) ? raw : null;
+    entries.push({
+      label: String(item?.label ?? "").trim().slice(0, TOC_LABEL_MAX),
+      depth,
+      fraction,
+    });
+    // Selectable means the same on both sides: no target, no href.
+    hrefs.push(fraction === null ? null : href);
+    if (Array.isArray(item?.subitems)) for (const sub of item.subitems) visit(sub, depth + 1);
+  };
+  if (Array.isArray(toc)) for (const item of toc) visit(item, 0);
+  return { entries, hrefs };
+};
+
+export const FONT_PERCENT_MIN = 80;
+export const FONT_PERCENT_MAX = 200;
+export const FONT_PERCENT_STEP = 5;
+export const LINE_HEIGHTS = ["original", "1.6", "1.9"];
+export const MARGINS = ["narrow", "normal", "wide"];
+export const FONT_FAMILIES = ["original", "serif", "sans"];
+export const TYPOGRAPHY_DEFAULTS = {
+  fontPercent: 100,
+  lineHeight: "original",
+  margin: "normal",
+  fontFamily: "original",
+};
+
+// Field by field, so one bad field does not throw away the others; anything
+// unreadable is the book's own setting.
+export const readTypography = (value) => {
+  const v = value && typeof value === "object" ? value : {};
+  const size = v.fontPercent;
+  return {
+    fontPercent:
+      Number.isInteger(size) &&
+      size >= FONT_PERCENT_MIN &&
+      size <= FONT_PERCENT_MAX &&
+      size % FONT_PERCENT_STEP === 0
+        ? size
+        : TYPOGRAPHY_DEFAULTS.fontPercent,
+    lineHeight: LINE_HEIGHTS.includes(v.lineHeight) ? v.lineHeight : TYPOGRAPHY_DEFAULTS.lineHeight,
+    margin: MARGINS.includes(v.margin) ? v.margin : TYPOGRAPHY_DEFAULTS.margin,
+    fontFamily: FONT_FAMILIES.includes(v.fontFamily) ? v.fontFamily : TYPOGRAPHY_DEFAULTS.fontFamily,
+  };
+};
+
+const FONT_STACKS = {
+  // Latin face first: an English book gets a Latin face and a Japanese book
+  // falls through to the CJK one for its own characters.
+  serif:
+    'Georgia, "Times New Roman", "Hiragino Mincho ProN", "Yu Mincho", YuMincho, "Noto Serif CJK JP", "Noto Serif JP", serif',
+  sans:
+    '-apple-system, "Helvetica Neue", Helvetica, Arial, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", YuGothic, "Noto Sans CJK JP", "Noto Sans JP", sans-serif',
+};
+
+// Code keeps its face, and so does everything inside it (a highlighter's
+// spans); ruby text keeps the book's.
+const TEXT = ":is(body, body *):not(code, pre, kbd, samp, rt, code *, pre *, kbd *, samp *)";
+
+const GAPS = { narrow: "3%", normal: "6%", wide: "10%" };
+
+export const gapFor = (margin) => GAPS[margin] ?? GAPS.normal;
+
+// The book's own root size is read once per section document, before this
+// attribute is set, and kept on the document; the rule then scales that, so
+// a step never compounds on the one before it.
+export const OWN_ROOT_ATTR = "data-litloft-own-root";
+export const OWN_ROOT_VAR = "--litloft-own-root";
+
+export const typographyCss = (t) => {
+  const rules = [];
+  if (t.fontPercent !== 100)
+    rules.push(
+      `html[${OWN_ROOT_ATTR}] { font-size: calc(var(${OWN_ROOT_VAR}) * ${t.fontPercent / 100}) !important; }`,
+    );
+  if (t.lineHeight !== "original") rules.push(`${TEXT} { line-height: ${t.lineHeight} !important; }`);
+  if (t.fontFamily !== "original")
+    rules.push(`${TEXT} { font-family: ${FONT_STACKS[t.fontFamily]} !important; }`);
+  return rules.join("\n");
+};

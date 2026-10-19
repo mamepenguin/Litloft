@@ -5,6 +5,18 @@ export interface RecentEntry {
   fileId: string;
   timestamp: number;
   progress?: number;
+  /**
+   * Without it a stored position cannot be told apart from a finished
+   * one. Optional because entries written before this field existed have
+   * no duration — those degrade to "in progress".
+   */
+  duration?: number;
+}
+
+export interface SavedPlayback {
+  position: number;
+  /** 0 when unknown — callers must treat that as "not completed". */
+  duration: number;
 }
 
 export function getRecentlyPlayed(): RecentEntry[] {
@@ -34,9 +46,12 @@ function saveEntries(entries: RecentEntry[]): void {
 }
 
 export function addRecentlyPlayed(fileId: string): void {
-  const entries = getRecentlyPlayed().filter((e) => e.fileId !== fileId);
-  entries.unshift({ fileId, timestamp: Date.now() });
-  saveEntries(entries);
+  const all = getRecentlyPlayed();
+  const previous = all.find((e) => e.fileId === fileId);
+  saveEntries([
+    { ...previous, fileId, timestamp: Date.now() },
+    ...all.filter((e) => e.fileId !== fileId),
+  ]);
 }
 
 export function getRecentFileIds(): string[] {
@@ -48,16 +63,51 @@ export function getSavedProgress(fileId: string): number {
   return entry?.progress ?? 0;
 }
 
-export function saveProgress(fileId: string, time: number): void {
+export function getSavedPlayback(fileId: string): SavedPlayback {
+  const entry = getRecentlyPlayed().find((e) => e.fileId === fileId);
+  return {
+    position: entry?.progress ?? 0,
+    duration: entry?.duration ?? 0,
+  };
+}
+
+export function saveProgress(
+  fileId: string,
+  time: number,
+  duration?: number,
+): void {
+  // NaN / Infinity reach here from media elements that have not probed
+  // their length yet. Storing one would survive JSON round-trips as
+  // null and read back as "duration 0", which is the same as unknown —
+  // so drop it here and keep whatever was already recorded.
+  const usable =
+    duration != null && Number.isFinite(duration) && duration > 0
+      ? duration
+      : null;
   const entries = getRecentlyPlayed().map((e) =>
-    e.fileId === fileId ? { ...e, progress: time } : e,
+    e.fileId === fileId
+      ? {
+          ...e,
+          progress: time,
+          // Omitting the argument leaves whatever duration is already
+          // stored, so a caller that only knows the position cannot
+          // erase the length recorded by one that did.
+          ...(usable != null ? { duration: usable } : {}),
+        }
+      : e,
   );
   saveEntries(entries);
 }
 
+/**
+ * Reaching the end of a video is NOT this: completion is a state we
+ * keep, and the players record the final position instead. Only an
+ * explicit user action — removing an item from recent history — belongs
+ * here.
+ */
 export function clearProgress(fileId: string): void {
   const entries = getRecentlyPlayed().map((e) =>
-    e.fileId === fileId ? { ...e, progress: undefined } : e,
+    e.fileId === fileId ? { ...e, progress: undefined, duration: undefined } : e,
   );
   saveEntries(entries);
 }

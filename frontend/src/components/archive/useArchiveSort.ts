@@ -3,8 +3,8 @@
 import { useState } from "react";
 import type { ArchiveEntry, FileType } from "@/types";
 
-type ArchiveSortKey = "name" | "size" | "type";
-type ArchiveSortOrder = "asc" | "desc";
+export type ArchiveSortKey = "name" | "size" | "type";
+export type ArchiveSortOrder = "asc" | "desc";
 
 interface UseArchiveSortResult {
   sort: ArchiveSortKey;

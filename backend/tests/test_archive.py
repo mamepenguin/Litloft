@@ -91,11 +91,9 @@ def _build_sjis_zip_bytes() -> bytes:
     file_data = b"test content"
     file_compressed = deflate(file_data)
 
-    # Build local headers
     local1 = local_header(dir_name, b"", b"", is_dir=True)
     local2 = local_header(file_name, file_data, file_compressed)
 
-    # Build central directory
     cd1 = central_dir(dir_name, b"", b"", 0, is_dir=True)
     cd2 = central_dir(file_name, file_data, file_compressed, len(local1))
 
@@ -210,12 +208,10 @@ class TestArchiveList:
         assert "total_size" in body
         assert body["total_entries"] >= 3  # hello.txt, images/photo.png, data.bin
 
-        # Verify entry structure
         entry_paths = [e["path"] for e in body["entries"]]
         assert "hello.txt" in entry_paths
         assert "images/photo.png" in entry_paths
 
-        # Check an entry has all expected fields
         txt_entry = next(e for e in body["entries"] if e["path"] == "hello.txt")
         assert txt_entry["filename"] == "hello.txt"
         assert txt_entry["file_size"] > 0
@@ -224,7 +220,6 @@ class TestArchiveList:
         assert txt_entry["file_type"] == "document"
         assert "text/plain" in txt_entry["mime_type"]
 
-        # Check directory entry
         dir_entry = next(
             (e for e in body["entries"] if e["path"] == "images/"), None
         )
@@ -232,9 +227,51 @@ class TestArchiveList:
             assert dir_entry["is_dir"] is True
             assert dir_entry["filename"] == "images"
 
-        # Entries should be sorted by path
         paths = [e["path"] for e in body["entries"]]
         assert paths == sorted(paths)
+
+    def test_archive_list_hides_macos_packaging(self, client):
+        """The Finder's sidecar tree is packaging, not content.
+
+        Compressing on macOS adds a `__MACOSX/` AppleDouble for every file and
+        a `.DS_Store` per directory. Sorted by path they land at the top of the
+        listing, so they are the first thing a reader sees in almost every ZIP
+        made on a Mac.
+        """
+        c, db, drive_dir, data_dir = client
+        zip_path = drive_dir / "mac.zip"
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr("__MACOSX/", "")
+            zf.writestr("__MACOSX/._hello.txt", b"\x00\x05\x16\x07")
+            zf.writestr("__MACOSX/notes/._draft.txt", b"\x00\x05\x16\x07")
+            zf.writestr(".DS_Store", b"\x00\x00\x00\x01Bud1")
+            zf.writestr("notes/.DS_Store", b"\x00\x00\x00\x01Bud1")
+            zf.writestr("hello.txt", "Hello, World!")
+            zf.writestr("notes/draft.txt", "draft")
+        zip_path.write_bytes(buf.getvalue())
+        file = _seed_zip_raw(db, zip_path)
+
+        res = c.get(f"/api/files/{file.id}/archive")
+        assert res.status_code == 200
+
+        paths = [e["path"] for e in res.json()["entries"]]
+        assert paths == ["hello.txt", "notes/draft.txt"]
+
+    def test_archive_list_keeps_a_name_that_merely_contains_the_marker(self, client):
+        """Only the tree macOS actually writes is dropped, not lookalike names."""
+        c, db, drive_dir, data_dir = client
+        zip_path = drive_dir / "lookalike.zip"
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr("docs/__MACOSX_notes.txt", "kept")
+            zf.writestr("__MACOSX_backup/report.txt", "kept")
+        zip_path.write_bytes(buf.getvalue())
+        file = _seed_zip_raw(db, zip_path)
+
+        res = c.get(f"/api/files/{file.id}/archive")
+        paths = [e["path"] for e in res.json()["entries"]]
+        assert paths == ["__MACOSX_backup/report.txt", "docs/__MACOSX_notes.txt"]
 
     def test_archive_list_sjis(self, client):
         """Shift_JIS encoded filenames should be decoded correctly."""
@@ -249,7 +286,6 @@ class TestArchiveList:
         paths = [e["path"] for e in body["entries"]]
         filenames = [e["filename"] for e in body["entries"]]
 
-        # Verify Japanese characters are properly decoded
         assert any("画像" in p for p in paths), f"Expected '画像' in paths: {paths}"
         assert any("写真" in f for f in filenames), f"Expected '写真' in filenames: {filenames}"
 

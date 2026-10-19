@@ -1,27 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import {
-  ClipboardCopy,
-  Download,
-  ExternalLink,
-  ListMusic,
-  Move,
-  Pencil,
-  Scissors,
-  Trash2,
-  X,
-} from "lucide-react";
 import { useTranslations } from "next-intl";
 
-import { deleteFile, getDownloadUrl, moveFile, renameFile } from "@/lib/api";
+import { deleteFile, moveFile, renameFile } from "@/lib/api";
+import { copyText } from "@/lib/copyText";
+import { useFileMenuItems } from "@/hooks/useFileMenuItems";
 import type { FileItem } from "@/types";
-import { useClipboard } from "./ClipboardProvider";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { ContextMenu, type MenuItem } from "./ContextMenu";
+import { ContextMenu } from "./ContextMenu";
+import { CopyIdDialog } from "./CopyIdDialog";
 import { MoveDialog } from "./MoveDialog";
 import { CollectionPicker } from "./CollectionPicker";
 import { RenameDialog } from "./RenameDialog";
+import { useToast } from "./ToastProvider";
 
 interface FileContextMenuProps {
   open: boolean;
@@ -30,13 +22,8 @@ interface FileContextMenuProps {
   onClose: () => void;
   onUpdate?: () => void;
   onRemoveFromHistory?: () => Promise<void>;
-  /**
-   * Tree-pane opt-in. When provided the menu shows "Open in new tab"
-   * and dispatches the callback (typically `window.open('/files/{id}',
-   * '_blank')`). The right pane omits this since it already lives on
-   * the file's own page.
-   */
   onOpenInNewTab?: () => void;
+  onStartInlineRename?: () => void;
 }
 
 export function FileContextMenu({
@@ -47,16 +34,16 @@ export function FileContextMenu({
   onUpdate,
   onRemoveFromHistory,
   onOpenInNewTab,
+  onStartInlineRename,
 }: FileContextMenuProps) {
-  const tc = useTranslations("common");
-  const tcb = useTranslations("clipboard");
   const tt = useTranslations("trash");
   const tf = useTranslations("file");
-  const clipboard = useClipboard();
+  const toast = useToast();
   const [renameOpen, setRenameOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [collectionPickerOpen, setCollectionPickerOpen] = useState(false);
+  const [copyIdOpen, setCopyIdOpen] = useState(false);
 
   useEffect(() => {
     if (!target) {
@@ -64,6 +51,7 @@ export function FileContextMenu({
       setMoveOpen(false);
       setDeleteOpen(false);
       setCollectionPickerOpen(false);
+      setCopyIdOpen(false);
     }
   }, [target]);
 
@@ -106,6 +94,15 @@ export function FileContextMenu({
     }
   }, [target, onUpdate]);
 
+  const handleCopyId = useCallback(async () => {
+    if (!target) return;
+    if (await copyText(target.id)) {
+      toast.success(tf("idCopied"));
+    } else {
+      setCopyIdOpen(true);
+    }
+  }, [target, toast, tf]);
+
   const handleRemoveFromHistory = useCallback(async () => {
     if (!onRemoveFromHistory) return;
     try {
@@ -117,67 +114,24 @@ export function FileContextMenu({
     }
   }, [onRemoveFromHistory, onClose]);
 
-  if (!target) return null;
-
-  const items: MenuItem[] = [];
-  if (onOpenInNewTab) {
-    items.push({
-      icon: ExternalLink,
-      label: tf("openInNewTab"),
-      onClick: onOpenInNewTab,
-    });
-  }
-  items.push(
-    {
-      icon: Download,
-      label: tc("download"),
-      onClick: () => {
-        window.open(getDownloadUrl(target.id), "_blank");
-      },
+  const items = useFileMenuItems(target, {
+    onOpenInNewTab,
+    onAddToCollection: () => setCollectionPickerOpen(true),
+    onCopyId: () => {
+      void handleCopyId();
     },
-    {
-      icon: ListMusic,
-      label: tf("addToCollection"),
-      onClick: () => setCollectionPickerOpen(true),
-    },
-    {
-      icon: ClipboardCopy,
-      label: tcb("copy"),
-      onClick: () => clipboard.copy([target.id], target.drive, target.folder_path),
-    },
-    {
-      icon: Scissors,
-      label: tcb("cut"),
-      onClick: () => clipboard.cut([target.id], target.drive, target.folder_path),
-    },
-    {
-      icon: Pencil,
-      label: tc("rename"),
-      onClick: () => setRenameOpen(true),
-    },
-    {
-      icon: Move,
-      label: tc("move"),
-      onClick: () => setMoveOpen(true),
-    },
-  );
-
-  if (onRemoveFromHistory) {
-    items.push({
-      icon: X,
-      label: tf("removeFromHistory"),
-      onClick: () => {
-        void handleRemoveFromHistory();
-      },
-    });
-  }
-
-  items.push({
-    icon: Trash2,
-    label: tt("moveToTrash"),
-    onClick: () => setDeleteOpen(true),
-    danger: true,
+    onStartInlineRename,
+    onRename: () => setRenameOpen(true),
+    onMove: () => setMoveOpen(true),
+    onRemoveFromHistory: onRemoveFromHistory
+      ? () => {
+          void handleRemoveFromHistory();
+        }
+      : undefined,
+    onTrash: () => setDeleteOpen(true),
   });
+
+  if (!target) return null;
 
   return (
     <>
@@ -205,6 +159,11 @@ export function FileContextMenu({
         drive={target.drive}
         fileIds={[target.id]}
         onClose={() => setCollectionPickerOpen(false)}
+      />
+      <CopyIdDialog
+        open={copyIdOpen}
+        fileId={target.id}
+        onClose={() => setCopyIdOpen(false)}
       />
       <ConfirmDialog
         open={deleteOpen}

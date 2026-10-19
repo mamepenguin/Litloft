@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { Folder } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { RENAME_FOCUS_ATTR } from "@/hooks/useInlineRename";
 import type { Folder as FolderType } from "@/types";
+import { folderKindBreakdown } from "@/lib/folderKindBreakdown";
+import { InlineNameEditor } from "./InlineNameEditor";
+import { useFolderLink } from "@/hooks/useFolderLink";
 
 interface FolderCardProps {
   folder: FolderType;
@@ -16,6 +20,12 @@ interface FolderCardProps {
   onTouchStart?: (e: React.TouchEvent) => void;
   onTouchEnd?: (e: React.TouchEvent) => void;
   onTouchMove?: (e: React.TouchEvent) => void;
+  isEditing?: boolean;
+  /** Rejecting with an `Error` shows its message inside the card. */
+  onRenameCommit?: (next: string) => Promise<void>;
+  onRenameCancel?: (error?: string) => void;
+  onCardFocus?: () => void;
+  onCardBlur?: () => void;
 }
 
 export function FolderCard({
@@ -31,48 +41,87 @@ export function FolderCard({
   onTouchStart,
   onTouchEnd,
   onTouchMove,
+  isEditing,
+  onRenameCommit,
+  onRenameCancel,
+  onCardFocus,
+  onCardBlur,
 }: FolderCardProps) {
   const t = useTranslations("folder");
+  const tFilter = useTranslations("filter");
+  // While the name is being edited the card stops being a drag source: a
+  // text selection inside a `draggable` ancestor is swallowed by the drag
+  // system, so the field would be impossible to select in.
+  const dragEnabled = draggable && !isEditing;
+  const editing = isEditing && onRenameCommit && onRenameCancel;
+
+  const icon = (
+    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-bg-elevated">
+      <Folder size={20} className="text-text-muted" />
+    </div>
+  );
+
+  const breakdown = folderKindBreakdown(folder.kind_counts);
+  const meta = [
+    t("items", { count: folder.file_count }),
+    ...(breakdown.length === 1
+      ? [tFilter(`type.${breakdown[0].kind}`)]
+      : breakdown.map((s) => `${tFilter(`type.${s.kind}`)} ${s.count}`)),
+  ].join(" · ");
+
+  const folderLink = useFolderLink();
+  const folderHref = `/drive/${encodeURIComponent(driveName)}/${folder.path.split("/").map(encodeURIComponent).join("/")}`;
+
   return (
     <div
       className={`group relative flex items-center gap-3 rounded-2xl bg-bg-card p-4 shadow-card transition-colors duration-200 hover:bg-bg-elevated${
         isDropTarget ? " ring-2 ring-accent bg-bg-elevated" : ""
-      }${isDragging ? " opacity-40" : ""}${draggable ? " select-none" : ""}`}
-      draggable={draggable}
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
+      }${isDragging ? " opacity-40" : ""}${dragEnabled ? " select-none" : ""}`}
+      draggable={dragEnabled}
+      onDragStart={dragEnabled ? onDragStart : undefined}
+      onDragEnd={dragEnabled ? onDragEnd : undefined}
       onContextMenu={onContextMenu}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
       onTouchMove={onTouchMove}
+      onFocus={onCardFocus}
+      onBlur={onCardBlur}
       {...dropTargetProps}
     >
-      <Link
-        href={`/drive/${encodeURIComponent(driveName)}/${folder.path.split("/").map(encodeURIComponent).join("/")}`}
-        className="flex min-w-0 flex-1 items-center gap-3"
-        draggable="false"
-      >
-        {folder.thumbnail_file_id ? (
-          <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-xl">
-            <img
-              src={`/api/files/${folder.thumbnail_file_id}/thumbnail`}
-              alt={folder.name}
-              className="h-full w-full object-cover"
-              loading="lazy"
+      {editing ? (
+        // No <Link> around the field: a text input inside an anchor
+        // navigates away the moment it is clicked.
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+          <div className="flex min-w-0 items-center gap-3">
+            {icon}
+            <InlineNameEditor
+              initialName={folder.name}
+              onCommit={onRenameCommit}
+              onCancel={onRenameCancel}
             />
           </div>
-        ) : (
-          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-bg-elevated">
-            <Folder size={24} className="text-text-muted" />
-          </div>
-        )}
-        <div className="min-w-0">
-          <h3 className="truncate font-semibold text-text-primary">
-            {folder.name}
-          </h3>
-          <p className="text-sm text-text-muted">{t("items", { count: folder.file_count })}</p>
+          <p className="truncate text-sm text-text-muted">{meta}</p>
         </div>
-      </Link>
+      ) : (
+        <Link
+          href={folderHref}
+          {...folderLink(folderHref)}
+          className="flex min-w-0 flex-1 flex-col gap-1.5"
+          draggable="false"
+          {...{ [RENAME_FOCUS_ATTR]: folder.path }}
+        >
+          <div className="flex min-w-0 items-center gap-3">
+            {icon}
+            {/* Not a heading: an `<h3>` on every title makes the drive
+                root's outline read as section names with file and folder
+                names spliced between them at the same depth. */}
+            <span className="min-w-0 truncate font-semibold text-text-primary">
+              {folder.name}
+            </span>
+          </div>
+          <p className="truncate text-sm text-text-muted">{meta}</p>
+        </Link>
+      )}
     </div>
   );
 }

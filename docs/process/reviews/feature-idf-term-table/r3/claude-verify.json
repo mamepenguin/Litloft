@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "I1: _build_corpus_idf (tfidf.py:658-678) gets both the document frequencies and the document count from one statement over idf_doc_terms joined to active files of the drive. drop_corpus_idf (tfidf.py:757-767) bumps a per-drive epoch, and _rebuild (tfidf.py:729-743) caches its result only when the epoch is unchanged, so a build that was in flight while a batch was written does not get cached. _run_batch calls drop_corpus_idf after each batch that wrote rows (idf_backfill.py:312-313).",
+    "I2: mark_idf_terms_stale (idf_backfill.py:59-73) clears the flag and bumps the generation in the caller's session. The after_commit and after_rollback listeners (idf_backfill.py:76-84) send the request only on commit. _remove_whisper_data marks the file first (whisper.py:1566), refine _apply marks it inside the window transaction (refine.py:808), rechunk marks it (refine.py:386), and handle_files_moved marks only when the filename changes (indexer.py:1251-1252).",
+    "I3: _read_docs reads the generation and the inputs in one read session (idf_backfill.py:136-159). _write re-checks the generation and the active flag in the write transaction, and skips the file on a mismatch (idf_backfill.py:162-191). A skip sets result.changed, and the loop then requests another pass (idf_backfill.py:417-418).",
+    "I4: The aggregate SQL filters f.active = 1 AND f.drive = :drive. A file with an empty term set has no rows, so it is left out of COUNT(DISTINCT file_id) (tfidf.py:647-655).",
+    "I5: idf_doc_terms.file_id has ondelete=CASCADE (models.py:137-141), and PRAGMA foreign_keys=ON is set on connect (database.py:85). purge_drive goes through _purge_file (purge.py:59-61).",
+    "I6: TokenizerChild uses the spawn context (tfidf.py:607). The timeout is 300 s (idf_backfill.py:27). On a timeout the child is closed and terminated (idf_backfill.py:240-242). On shutdown the code sets stop, terminates the registered child, and _register_child guards the spawn race (idf_backfill.py:200-218, 421-426). _wait_while_paused is checked before each batch and before each single-file retry.",
+    "I7: The loop runs a first pass right away (idf_backfill.py:394-402). reconcile sends the request in a finally and does not wait for the pass (indexer.py:511-512). New rows default to idf_terms_indexed=0 (models.py:94-96).",
+    "I8: check_idf_term_rules resets the flags and upserts the version in one session, returns early when the version matches, and swallows a failure without committing (database.py:1025-1047).",
+    "I9: The backfill writes only idf_doc_terms and idf_terms_indexed. The migration adds only the columns and the index (database.py:994-1019).",
+    "I10: A per-file write failure is caught and the loop continues (idf_backfill.py:258-264). A tokenize failure holds the file at its generation without writing (idf_backfill.py:280-290). A pass that raises schedules a retry (idf_backfill.py:410-413)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The cached per-drive IDF is not dropped on deactivation, reactivation, purge, or a cross-drive move that keeps the filename. Only the backfill write calls drop_corpus_idf. In those cases _get_corpus_idf serves the previous counts until the TTL expires. The pre-change cache had the same TTL-bounded staleness.",
+    "A file held after a tokenizer failure (_held) stays flagged false until its generation changes or the process restarts. This is by design, and it is logged."
+  ],
+  "regression_risks": [
+    "index_manager.start() runs before check_idf_term_rules (main.py:369-376). Any reconcile or writer that marks files in that window is harmless, because the rule check only clears flags.",
+    "The after_commit listener is registered globally on Session. Any session that commits with the info key set sends a request, which is cheap and intended."
+  ],
+  "test_coverage": [
+    "I did not read the test files; the rewrites of test_z_auto_tag_drive_scope.py and the new SPEC-ADDON-021 tests were not inspected."
+  ],
+  "not_verified": [
+    "No tests were run. I could not execute anything, so the behavior was established by reading the code only.",
+    "The rewritten tests in test_z_auto_tag_drive_scope.py and the new SPEC-ADDON-021 tests were not read.",
+    "I did not check that _persist_transcript and _index_loft_vtt commit the marked session together with the new transcript rows. I only saw the call sites at whisper.py:1422 and whisper.py:1798.",
+    "The rest of _purge_file (after indexer.py:2271) was not read. I did not confirm that the IndexedFile row deletion goes through SQL, which the cascade relies on.",
+    "I did not verify that the docs/addons/intelligence.md sentence was added."
+  ],
+  "confidence": 78
+}

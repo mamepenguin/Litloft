@@ -24,9 +24,14 @@ vi.mock("@/lib/api", () => ({
 }));
 
 import { FileCard } from "../components/FileCard";
+import { FileGrid } from "../components/FileGrid";
+import { CarouselSection } from "../components/CarouselSection";
+import { ContinueWatchingSection } from "../components/ContinueWatchingSection";
 import type { FileItem } from "@/types";
 
 const makeFile = (overrides: Partial<FileItem> = {}): FileItem => ({
+  image_width: null,
+  image_height: null,
   id: "file1",
   filename: "test.mp4",
   title: "Test Video",
@@ -39,18 +44,31 @@ const makeFile = (overrides: Partial<FileItem> = {}): FileItem => ({
   has_thumbnail: false,
   file_size: 1024000,
   duration: 120,
-  likes: 0,
+  liked_at: null,
   is_favorite: false,
   tags: [],
   subtitles: [],
   deleted_at: null,
   missing_since: null,
+  trust_tier: "verified",
+  trust_reviewed_at: null,
   created_at: "2026-01-01T00:00:00",
   updated_at: "2026-01-01T00:00:00",
   ...overrides,
 });
 
 describe("FileCard", () => {
+  it("keeps the title as the card's accessible name", () => {
+    // What a screen reader navigates a listing by is the link's name, so
+    // that is what is asserted rather than the text being present
+    // somewhere on the card.
+    render(<FileCard file={makeFile()} />);
+    expect(
+      screen.getByRole("link", { name: /Test Video/ }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("heading")).toBeNull();
+  });
+
   it("renders file title", () => {
     render(<FileCard file={makeFile()} />);
     expect(screen.getByText("Test Video")).toBeInTheDocument();
@@ -103,5 +121,103 @@ describe("FileCard", () => {
       />
     );
     expect(container.querySelector(".bg-accent")).toBeNull();
+  });
+});
+
+describe("what a card says first", () => {
+  const meta = (container: HTMLElement) =>
+    container.querySelector(".mt-1")?.textContent ?? "";
+
+  it("leaves the size off a video — the badge already says the length", () => {
+    // A `.loft` reference file's row carries the pointer's size.
+    const { container } = render(
+      <FileCard file={makeFile({ file_type: "video", duration: 1140, file_size: 83 })} />,
+    );
+    expect(meta(container)).not.toContain("83 B");
+    expect(screen.getByText("19:00")).toBeInTheDocument();
+  });
+
+  it("leaves it off audio too", () => {
+    const { container } = render(
+      <FileCard file={makeFile({ file_type: "audio", duration: 200, file_size: 83 })} />,
+    );
+    expect(meta(container)).not.toContain("83 B");
+  });
+
+  it("keeps the date when nothing else survives", () => {
+    // A video whose length was never probed draws no badge either, so
+    // the row must not come out empty.
+    const { container } = render(
+      <FileCard file={makeFile({ file_type: "video", duration: null })} />,
+    );
+    expect(screen.queryByText(/^\d+:\d\d$/)).toBeNull();
+    expect(meta(container).trim()).not.toBe("");
+  });
+
+  it("leads an image with its dimensions, not its size", () => {
+    const { container } = render(
+      <FileCard
+        file={makeFile({
+          file_type: "image",
+          mime_type: "image/png",
+          image_width: 1920,
+          image_height: 1080,
+          file_size: 83,
+        })}
+      />,
+    );
+    expect(meta(container)).toContain("1920 × 1080");
+    expect(meta(container)).not.toContain("83 B");
+  });
+
+  it("gives an unprobed image the date alone", () => {
+    const { container } = render(
+      <FileCard file={makeFile({ file_type: "image", mime_type: "image/png", file_size: 83 })} />,
+    );
+    expect(meta(container)).not.toContain("83 B");
+    expect(meta(container)).not.toContain("×");
+    expect(meta(container).trim()).not.toBe("");
+  });
+
+  it("still leads a document with its size", () => {
+    const { container } = render(
+      <FileCard file={makeFile({ file_type: "document", file_size: 83 })} />,
+    );
+    expect(meta(container)).toContain("83 B");
+  });
+});
+
+describe("every host draws the same card", () => {
+  const video = makeFile({ file_type: "video", duration: 1140, file_size: 83 });
+
+  const noSizeButDated = (container: HTMLElement) => {
+    const meta = container.querySelector(".mt-1")?.textContent ?? "";
+    expect(meta).not.toContain("83 B");
+    expect(meta.trim()).not.toBe("");
+  };
+
+  it("FileGrid", () => {
+    const { container } = render(<FileGrid files={[video]} />);
+    noSizeButDated(container);
+    expect(screen.getByText("19:00")).toBeInTheDocument();
+  });
+
+  it("CarouselSection", () => {
+    const { container } = render(
+      <CarouselSection title="Recently added" files={[video]} loading={false} />,
+    );
+    noSizeButDated(container);
+    expect(screen.getByText("19:00")).toBeInTheDocument();
+  });
+
+  it("ContinueWatchingSection", () => {
+    const { container } = render(
+      <ContinueWatchingSection
+        items={[{ ...video, watch_progress: { position: 30, duration: 1140 } }]}
+        loading={false}
+      />,
+    );
+    noSizeButDated(container);
+    expect(screen.getByText("19:00")).toBeInTheDocument();
   });
 });

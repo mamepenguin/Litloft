@@ -1,10 +1,7 @@
 """Tests for app.services.provider_registry.
 
-The abstract registry surface (registration / detection / fallback)
-remains in core as a contract any addon (first-party Media Import,
-third-party importers) can build against. The tests here only exercise
-that contract; the official YouTube/Vimeo/SoundCloud registrations
-moved to ``addons/media_import``.
+The registry surface (registration / detection / fallback) is a contract any
+addon can build against; these tests exercise only that contract.
 """
 
 from __future__ import annotations
@@ -81,11 +78,5 @@ def test_metadata_extractor_optional_and_round_trips():
 
 
 def test_register_core_providers_is_no_longer_exported():
-    """Sanity check that the symbol the test file used to import is gone.
-
-    Phase 1 hands official provider registration to the Media Import
-    addon (spec ``2026-05-01-media-import-addon-phase-1.md``); core's
-    provider_registry must no longer expose a ``register_core_providers``
-    function.
-    """
+    """Official provider registration belongs to the Media Import addon."""
     assert not hasattr(provider_registry, "register_core_providers")

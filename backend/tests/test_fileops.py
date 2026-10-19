@@ -82,6 +82,99 @@ class TestMoveFile:
         assert res.status_code == 400
 
 
+    def test_a_move_onto_a_missing_note_keeps_its_picture(self, client):
+        """The retirement is shared by copy, move and rename. A note's
+        thumbnail is keyed by its row id, so the arriving file takes the path
+        and not the slot: clearing the pointer strands the JPEG."""
+        from datetime import UTC, datetime
+
+        import app.config as config
+        from app.models import File
+
+        c, db, drive_dir, data_dir = client
+        source = _seed(db, drive_dir, "a.mp4", folder="one")
+        (drive_dir / "dest").mkdir(exist_ok=True)
+        ghost = File(
+            filename="a.mp4",
+            title="Gone",
+            drive=TEST_DRIVE,
+            folder_path="dest",
+            file_path="dest/a.mp4",
+            file_size=1,
+            file_type="document",
+            mime_type="text/markdown",
+            missing_since=datetime.now(UTC),
+        )
+        db.add(ghost)
+        db.commit()
+        ghost_id = ghost.id
+
+        projection_rel = f"{TEST_DRIVE}/.markdown/{ghost_id}-abcdefghijkl.jpg"
+        projection = config.THUMBNAILS_DIR / projection_rel
+        projection.parent.mkdir(parents=True, exist_ok=True)
+        projection.write_bytes(b"\xff\xd8\xff\xe0ghost-projection")
+        ghost.thumbnail_path = projection_rel
+        db.commit()
+
+        res = c.put(
+            f"/api/files/{source.id}/move", json={"target_folder_path": "dest"}
+        )
+        assert res.status_code == 200
+
+        db.expire_all()
+        assert db.get(File, ghost_id).thumbnail_path == projection_rel
+        assert projection.exists()
+
+
+
+    def test_a_move_that_writes_no_thumbnail_leaves_the_ghost_its_own(self, client):
+        """Only video thumbnails follow a move, so moving anything else takes no
+        cache slot and the retired record keeps the picture the purge reaches
+        through."""
+        from datetime import UTC, datetime
+
+        import app.config as config
+        from app.models import File
+
+        c, db, drive_dir, data_dir = client
+        source = _seed(db, drive_dir, "a.png", folder="one")
+        source.file_type = "image"
+        source.mime_type = "image/png"
+        db.commit()
+        (drive_dir / "dest").mkdir(exist_ok=True)
+
+        ghost_thumb_rel = f"{TEST_DRIVE}/dest/a.jpg"
+        ghost_thumb = config.THUMBNAILS_DIR / ghost_thumb_rel
+        ghost_thumb.parent.mkdir(parents=True, exist_ok=True)
+        ghost_thumb.write_bytes(b"\xff\xd8\xff\xe0GHOST-PICTURE")
+        ghost = File(
+            filename="a.png",
+            title="Gone",
+            drive=TEST_DRIVE,
+            folder_path="dest",
+            file_path="dest/a.png",
+            file_size=1,
+            file_type="image",
+            mime_type="image/png",
+            thumbnail_path=ghost_thumb_rel,
+            missing_since=datetime.now(UTC),
+        )
+        db.add(ghost)
+        db.commit()
+        ghost_id = ghost.id
+
+        assert (
+            c.put(
+                f"/api/files/{source.id}/move", json={"target_folder_path": "dest"}
+            ).status_code
+            == 200
+        )
+
+        db.expire_all()
+        assert db.get(File, ghost_id).thumbnail_path == ghost_thumb_rel
+        assert ghost_thumb.exists()
+
+
 class TestDeleteFile:
     def test_delete(self, client):
         c, db, drive_dir, data_dir = client
@@ -137,7 +230,6 @@ class TestFolderRename:
         )
         assert res.status_code == 200
         assert (drive_dir / "旅行2024").is_dir()
-        # Verify file paths updated
         file_res = c.get(f"/api/files/{file.id}")
         assert file_res.json()["folder_path"] == "旅行2024"
 
@@ -174,7 +266,6 @@ class TestFolderMove:
         assert res.status_code == 200
         assert res.json()["path"] == "アーカイブ/旅行"
         assert (drive_dir / "アーカイブ" / "旅行" / "test.mp4").exists()
-        # Verify file paths updated
         file_res = c.get(f"/api/files/{file.id}")
         assert file_res.json()["folder_path"] == "アーカイブ/旅行"
 
@@ -202,7 +293,6 @@ class TestFolderMove:
     def test_move_updates_pinned_folders(self, client):
         c, db, drive_dir, data_dir = client
         _seed(db, drive_dir)
-        # Pin the folder
         c.post(f"/api/drives/{TEST_DRIVE}/pins", json={"path": "旅行"})
         (drive_dir / "dest").mkdir()
         res = c.put(
@@ -210,7 +300,6 @@ class TestFolderMove:
             json={"path": "旅行", "target_path": "dest"},
         )
         assert res.status_code == 200
-        # Verify pin updated
         pins_res = c.get(f"/api/drives/{TEST_DRIVE}/pins")
         pin_paths = [p["path"] for p in pins_res.json()]
         assert "dest/旅行" in pin_paths

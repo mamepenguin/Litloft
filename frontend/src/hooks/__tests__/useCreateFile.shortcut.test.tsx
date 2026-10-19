@@ -1,20 +1,3 @@
-/**
- * Integration test for the Cmd+N shortcut wiring contract.
- *
- * FolderBrowser is too heavy to mount in a unit test (it pulls in the
- * full clipboard, drag-and-drop, scan, and snapshot stack). Instead we
- * exercise the contract that FolderBrowser must implement:
- *
- *   useCreateFile(drive, currentPath) + useShortcuts(..., enabled)
- *
- * - In a folder context (enabled = true), Cmd+N triggers
- *   `createTextFile`.
- * - In a special view (enabled = false), Cmd+N is a no-op.
- *
- * If FolderBrowser later gains a focused unit test, these assertions
- * can be folded in there. They live at the hook layer so they stay
- * green even as FolderBrowser is restructured.
- */
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { render, fireEvent } from "@testing-library/react";
 
@@ -60,8 +43,6 @@ beforeEach(() => {
   document.body.innerHTML = "";
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-05-09T14:30:00Z"));
-  // The hook resolves with whatever the API returns; we don't care
-  // about the exact shape here, just that the call happened.
   mockedCreate.mockResolvedValue({
     id: "abc",
     filename: "untitled.md",

@@ -94,10 +94,10 @@ describe("api", () => {
 
     it("includes root, type_filter, depth", async () => {
       mockFetch.mockResolvedValueOnce(jsonResponse([]));
-      await getFolderTree("main", { root: "photos", type_filter: "markdown", depth: 1 });
+      await getFolderTree("main", { root: "photos", type_filter: "text", depth: 1 });
       const url = mockFetch.mock.calls[0][0] as string;
       expect(url).toContain("root=photos");
-      expect(url).toContain("type_filter=markdown");
+      expect(url).toContain("type_filter=text");
       expect(url).toContain("depth=1");
     });
 
@@ -116,9 +116,59 @@ describe("api", () => {
       const url = mockFetch.mock.calls[0][0] as string;
       expect(url).not.toContain("type_filter");
     });
+
+    /**
+     * Everything above this layer mocks `@/lib/api`, so this is the only
+     * place the wire is looked at.
+     */
+    it("sends include_files when the tree is asked for files", async () => {
+      mockFetch.mockResolvedValueOnce(jsonResponse([]));
+      await getFolderTree("main", { root: "", include_files: true });
+      const url = mockFetch.mock.calls[0][0] as string;
+      expect(url).toContain("include_files=true");
+    });
+
+    it("sends it in flat mode too, which is what the tree filter searches", async () => {
+      mockFetch.mockResolvedValueOnce(jsonResponse([]));
+      await getFolderTree("main", { flat: true, include_files: true });
+      const url = mockFetch.mock.calls[0][0] as string;
+      expect(url).toContain("flat=true");
+      expect(url).toContain("include_files=true");
+    });
+
+    it("says nothing when it wants folders, because that is the endpoint's default", async () => {
+      mockFetch.mockResolvedValueOnce(jsonResponse([]));
+      await getFolderTree("main", { include_files: false });
+      const url = mockFetch.mock.calls[0][0] as string;
+      expect(url).not.toContain("include_files");
+    });
   });
 
   describe("getDriveFiles", () => {
+    // `toContain("path=")` below is satisfied by any value. The Library
+    // root's entire request is that the value be *empty*, so it is read
+    // back parsed rather than matched as a substring.
+    it("serialises an empty path as an empty value, not as a missing one", async () => {
+      mockFetch.mockResolvedValueOnce(jsonResponse({ data: [], meta: { total: 0, page: 1, limit: 30 } }));
+      await getDriveFiles("main", { path: "" });
+      const url = new URL(mockFetch.mock.calls[0][0] as string, "http://x");
+      expect(url.searchParams.get("path")).toBe("");
+    });
+
+    it("asks the listing for updated_at order", async () => {
+      mockFetch.mockResolvedValueOnce(jsonResponse({ data: [], meta: { total: 0, page: 1, limit: 30 } }));
+      await getDriveFiles("main", { type: "document", sort: "updated_at", order: "desc" });
+      const url = new URL(mockFetch.mock.calls[0][0] as string, "http://x");
+      expect(url.searchParams.get("sort")).toBe("updated_at");
+    });
+
+    it("omits path entirely when none is given", async () => {
+      mockFetch.mockResolvedValueOnce(jsonResponse({ data: [], meta: { total: 0, page: 1, limit: 30 } }));
+      await getDriveFiles("main", {});
+      const url = new URL(mockFetch.mock.calls[0][0] as string, "http://x");
+      expect(url.searchParams.has("path")).toBe(false);
+    });
+
     it("builds query params correctly", async () => {
       mockFetch.mockResolvedValueOnce(jsonResponse({ data: [], meta: { total: 0, page: 1, limit: 30 } }));
       await getDriveFiles("main", { path: "", sort: "title", order: "asc", page: 2, limit: 30 });
@@ -127,6 +177,25 @@ describe("api", () => {
       expect(url).toContain("sort=title");
       expect(url).toContain("order=asc");
       expect(url).toContain("page=2");
+    });
+
+    // Typing the param without serialising it compiles cleanly and silently
+    // drops it.
+    it("sends recursive=true when requested", async () => {
+      mockFetch.mockResolvedValueOnce(jsonResponse({ data: [], meta: { total: 0, page: 1, limit: 30 } }));
+      await getDriveFiles("main", { path: "recipes", tag: "soup", recursive: true });
+      const url = mockFetch.mock.calls[0][0] as string;
+      expect(url).toContain("recursive=true");
+    });
+
+    it("omits recursive when false or absent", async () => {
+      mockFetch.mockResolvedValueOnce(jsonResponse({ data: [], meta: { total: 0, page: 1, limit: 30 } }));
+      await getDriveFiles("main", { path: "recipes", recursive: false });
+      expect(mockFetch.mock.calls[0][0] as string).not.toContain("recursive");
+
+      mockFetch.mockResolvedValueOnce(jsonResponse({ data: [], meta: { total: 0, page: 1, limit: 30 } }));
+      await getDriveFiles("main", { path: "recipes" });
+      expect(mockFetch.mock.calls[1][0] as string).not.toContain("recursive");
     });
   });
 
@@ -155,7 +224,7 @@ describe("api", () => {
 
   describe("likeFile", () => {
     it("sends POST", async () => {
-      mockFetch.mockResolvedValueOnce(jsonResponse({ id: "f1", likes: 1 }));
+      mockFetch.mockResolvedValueOnce(jsonResponse({ id: "f1", liked_at: "2026-09-01T00:00:00Z" }));
       await likeFile("f1");
       expect(mockFetch).toHaveBeenCalledWith(
         "/api/files/f1/like",

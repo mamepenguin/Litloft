@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-1",
+      "status": "confirmed",
+      "note": "Checked against the code. The comment at addons/intelligence/app/llm.py:349-355 is about the vision suspect-failure set, and line 356 is `_JSON_OBJECT_FORMAT = {\"type\": \"json_object\"}`, which sits between that comment and `_RESPONSE_FORMAT_SUSPECT_FAILURES` at line 358. The comment now reads as if it describes the new constant. A grep for `_JSON_OBJECT_FORMAT` finds it only at line 356 (where it is defined) and line 577 (`json_mode = response_format == _JSON_OBJECT_FORMAT` in `_generate_result`). `generate_json_result` at line 1227 still passes the literal `{\"type\": \"json_object\"}`, as do lines 1147, 1959 and 2009. Module scope is not one of the listed touch points. This is a style/scope issue only. The equality check at line 577 behaves the same as a literal would."
+    }
+  ],
+  "specification_compliance": [
+    "I2/I9: the latch is set at llm.py:608-609 before the response is classified, so the empty-body retry guard at llm.py:1242 (`not self._json_mode_rejected`) blocks a second request after the resend that latched.",
+    "I5: the response_format resend at llm.py:650-668 needs `json_mode` (exactly json_object) and `response_format` to still be in extra_kwargs, so a request without response_format, or with another type, does not take this path."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Because `_JSON_OBJECT_FORMAT` sits between the vision suspect-failure comment and the set it describes, a later edit could misattribute the comment."
+  ],
+  "test_coverage": [
+    "Not checked: addons/intelligence/tests/test_llm.py was not read for this verification."
+  ],
+  "not_verified": [
+    "Whether `_JSON_OBJECT_FORMAT` is absent on origin/develop. I could not run git diff, so 'added by the diff' is inferred from the constant's only use being the new latch logic.",
+    "Test file contents and whether the tests pass.",
+    "Changes to docs/addons/intelligence.md.",
+    "The full invariant set I1-I10 beyond the spot checks of I2, I5 and I9."
+  ],
+  "confidence": 85
+}

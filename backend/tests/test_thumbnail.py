@@ -1,13 +1,73 @@
+import stat
+from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 import pytest
+from PIL import Image, ImageDraw
+
+from app.services import thumbnail as thumbnail_service
 
 from app.services.thumbnail import (
+    generate_image_thumbnail,
+    generate_pdf_thumbnail,
     generate_thumbnail,
+    get_media_chapters,
     get_video_duration,
     has_video_stream,
+    probe_stream_kinds,
     _calculate_seek_time,
 )
+
+
+class TestGetMediaChapters:
+    """Extraction only. The shared rules are ``normalise_chapters``'s."""
+
+    def test_reads_chapters_from_real_mkv(self, chaptered_mkv):
+        assert get_media_chapters(str(chaptered_mkv)) == [
+            {"start_time": "0.000000", "end_time": "1.000000", "title": "Opening"},
+            {"start_time": "1.000000", "end_time": "2.000000", "title": "Closing"},
+        ]
+
+    @patch("app.services.thumbnail.subprocess.run")
+    def test_lifts_the_title_out_of_tags_without_judging_it(self, mock_run):
+        # Where each part lives is ffprobe-shape knowledge and belongs
+        # here; whether a blank title earns a row is not, because both
+        # producers have to answer that the same way.
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout='{"chapters": ['
+            '{"start_time": "0", "end_time": "5", "tags": {"title": "One"}},'
+            '{"start_time": "5", "end_time": "8", "tags": {"title": "  "}},'
+            '{"start_time": "8", "tags": {}}'
+            "]}",
+        )
+
+        assert get_media_chapters("/media/example.mkv") == [
+            {"start_time": "0", "end_time": "5", "title": "One"},
+            {"start_time": "5", "end_time": "8", "title": "  "},
+            {"start_time": "8", "end_time": None, "title": None},
+        ]
+        assert mock_run.call_args.args[0] == [
+            "ffprobe",
+            "-v",
+            "quiet",
+            "-show_chapters",
+            "-print_format",
+            "json",
+            "/media/example.mkv",
+        ]
+
+    @patch("app.services.thumbnail.subprocess.run")
+    def test_failure_returns_none(self, mock_run):
+        mock_run.return_value = MagicMock(returncode=1, stderr="probe error")
+        assert get_media_chapters("/media/broken.mkv") is None
+
+    @patch("app.services.thumbnail.subprocess.run")
+    def test_timeout_returns_none(self, mock_run):
+        import subprocess
+
+        mock_run.side_effect = subprocess.TimeoutExpired("ffprobe", 30)
+        assert get_media_chapters("/media/slow.mkv") is None
 
 
 class TestCalculateSeekTime:
@@ -51,13 +111,11 @@ class TestThumbnailFilterCommand:
     def test_uses_thumbnail_filter(self, mock_duration, mock_run, tmp_path):
         """Primary method should use thumbnail=300 in the -vf filter."""
         output = str(tmp_path / "thumb.jpg")
-        # Simulate success: create output file
         (tmp_path / "thumb.jpg").touch()
         mock_run.return_value = MagicMock(returncode=0)
 
         generate_thumbnail("/fake/video.mp4", output)
 
-        # First call should be the thumbnail filter approach
         first_call_args = mock_run.call_args_list[0][0][0]
         vf_index = first_call_args.index("-vf")
         vf_value = first_call_args[vf_index + 1]
@@ -114,7 +172,6 @@ class TestThumbnailFilterCommand:
 
         assert result is True
         assert mock_run.call_count == 2
-        # Second call should NOT have thumbnail filter
         second_call_args = mock_run.call_args_list[1][0][0]
         vf_index = second_call_args.index("-vf")
         vf_value = second_call_args[vf_index + 1]
@@ -145,6 +202,143 @@ class TestThumbnailFilterCommand:
         vf_value = second_call_args[vf_index + 1]
         assert "scale=320:180" in vf_value
         assert "pad=320:180" in vf_value
+
+
+class TestUniformFrameAvoidance:
+    def test_noisy_solid_background_with_central_logo_is_rejected(self, tmp_path):
+        candidate = tmp_path / "logo.png"
+        image = Image.new("RGB", (320, 180))
+        image.putdata(
+            [
+                ((x + y) % 13, (x * 3 + y) % 13, (x + y * 5) % 13)
+                for y in range(180)
+                for x in range(320)
+            ]
+        )
+        ImageDraw.Draw(image).rectangle((120, 65, 200, 115), fill=(240, 240, 240))
+        image.save(candidate)
+
+        ratio = thumbnail_service._dominant_color_ratio(candidate)
+
+        assert ratio is not None
+        assert ratio >= thumbnail_service.DOMINANT_COLOR_THRESHOLD
+
+    def test_multicolor_frame_is_accepted(self, tmp_path):
+        candidate = tmp_path / "multicolor.png"
+        image = Image.new("RGB", (320, 180))
+        draw = ImageDraw.Draw(image)
+        draw.rectangle((0, 0, 159, 89), fill=(220, 30, 30))
+        draw.rectangle((160, 0, 319, 89), fill=(30, 220, 30))
+        draw.rectangle((0, 90, 159, 179), fill=(30, 30, 220))
+        draw.rectangle((160, 90, 319, 179), fill=(220, 220, 30))
+        image.save(candidate)
+
+        ratio = thumbnail_service._dominant_color_ratio(candidate)
+
+        assert ratio is not None
+        assert ratio < thumbnail_service.DOMINANT_COLOR_THRESHOLD
+
+    def test_exactly_half_nearly_one_color_is_rejected(self, tmp_path):
+        candidate = tmp_path / "half.png"
+        image = Image.new("RGB", (320, 180), (230, 30, 30))
+        ImageDraw.Draw(image).rectangle((160, 0, 319, 179), fill=(30, 30, 230))
+        image.save(candidate)
+
+        assert thumbnail_service._dominant_color_ratio(candidate) == pytest.approx(0.5)
+
+    @patch("app.services.thumbnail._finalize_video_thumbnail", return_value=True)
+    @patch(
+        "app.services.thumbnail._dominant_color_ratio",
+        side_effect=[0.5, 0.3],
+    )
+    @patch("app.services.thumbnail._run_ffmpeg_thumbnail", return_value=True)
+    @patch("app.services.thumbnail.get_video_duration", return_value=30.0)
+    def test_retries_later_until_candidate_is_not_uniform(
+        self,
+        mock_duration,
+        mock_run,
+        mock_ratio,
+        mock_finalize,
+        tmp_path,
+    ):
+        output = str(tmp_path / "thumb.jpg")
+
+        assert generate_thumbnail("/fake/video.mp4", output) is True
+
+        assert mock_run.call_count == 2
+        assert [call.args[2] for call in mock_run.call_args_list] == ["3.0", "8.0"]
+        for call in mock_run.call_args_list:
+            vf_filter = call.args[3]
+            assert "thumbnail=300" in vf_filter
+            assert "pad=320:180" not in vf_filter
+        assert mock_ratio.call_count == 2
+        mock_finalize.assert_called_once()
+
+    def test_unknown_duration_still_has_a_bounded_search(self):
+        assert thumbnail_service._candidate_seek_times(None, 0.0) == [
+            0.0,
+            10.0,
+            20.0,
+            30.0,
+            40.0,
+            50.0,
+        ]
+
+    @patch("app.services.thumbnail._finalize_video_thumbnail", return_value=True)
+    @patch(
+        "app.services.thumbnail._dominant_color_ratio",
+        side_effect=[0.9, 0.6, 0.8],
+    )
+    @patch("app.services.thumbnail._run_ffmpeg_thumbnail", return_value=True)
+    @patch("app.services.thumbnail.get_video_duration", return_value=3.0)
+    def test_all_uniform_candidates_keep_the_least_uniform_one(
+        self,
+        mock_duration,
+        mock_run,
+        mock_ratio,
+        mock_finalize,
+        tmp_path,
+    ):
+        output = str(tmp_path / "thumb.jpg")
+
+        assert generate_thumbnail("/fake/video.mp4", output) is True
+
+        assert mock_run.call_count == 3
+        least_uniform_path = mock_ratio.call_args_list[1].args[0]
+        assert mock_finalize.call_args.args == (least_uniform_path, output)
+
+    @patch("app.services.thumbnail._finalize_video_thumbnail", return_value=True)
+    @patch("app.services.thumbnail._dominant_color_ratio", return_value=None)
+    @patch("app.services.thumbnail._run_ffmpeg_thumbnail", return_value=True)
+    @patch("app.services.thumbnail.get_video_duration", return_value=30.0)
+    def test_analysis_failure_accepts_the_first_candidate(
+        self,
+        mock_duration,
+        mock_run,
+        mock_ratio,
+        mock_finalize,
+        tmp_path,
+    ):
+        output = str(tmp_path / "thumb.jpg")
+
+        assert generate_thumbnail("/fake/video.mp4", output) is True
+
+        assert mock_run.call_count == 1
+        mock_finalize.assert_called_once()
+
+    def test_final_padding_does_not_affect_candidate_analysis(self, tmp_path):
+        candidate = tmp_path / "portrait.png"
+        output = tmp_path / "thumb.jpg"
+        image = Image.new("RGB", (80, 180), (220, 30, 30))
+        ImageDraw.Draw(image).rectangle((0, 90, 79, 179), fill=(30, 30, 220))
+        image.save(candidate)
+
+        ratio = thumbnail_service._dominant_color_ratio(candidate)
+        assert ratio == pytest.approx(0.5)
+        assert thumbnail_service._finalize_video_thumbnail(candidate, str(output))
+
+        with Image.open(output) as thumbnail:
+            assert thumbnail.size == (320, 180)
 
 
 class TestGetVideoDuration:
@@ -218,3 +412,346 @@ class TestGenerateThumbnail:
         result = generate_thumbnail(str(sample_video), output)
         assert result is True
         assert (tmp_path / "a" / "b" / "thumb.jpg").exists()
+
+
+class TestNonUtf8SubprocessOutput:
+    """ffmpeg/ffprobe can echo raw bytes from a file's legacy-encoded (e.g.
+    Shift_JIS) metadata, which ``subprocess.run(text=True)`` would raise on
+    from inside ``subprocess.run`` itself, past every ``except`` clause.
+    """
+
+    @patch("app.services.thumbnail.subprocess.run")
+    def test_get_video_duration_passes_errors_replace(self, mock_run):
+        mock_run.return_value = MagicMock(
+            returncode=0, stdout='{"format": {"duration": "1.0"}}'
+        )
+        get_video_duration("/media/x.mp4")
+        assert mock_run.call_args.kwargs["errors"] == "replace"
+
+    @patch("app.services.thumbnail.subprocess.run")
+    def test_get_media_chapters_passes_errors_replace(self, mock_run):
+        mock_run.return_value = MagicMock(returncode=0, stdout='{"chapters": []}')
+        get_media_chapters("/media/x.mkv")
+        assert mock_run.call_args.kwargs["errors"] == "replace"
+
+    @patch("app.services.thumbnail.subprocess.run")
+    def test_probe_stream_kinds_passes_errors_replace(self, mock_run):
+        mock_run.return_value = MagicMock(
+            returncode=0, stdout='{"format": {}, "streams": []}'
+        )
+        probe_stream_kinds("/media/x.mp4")
+        assert mock_run.call_args.kwargs["errors"] == "replace"
+
+    @patch("app.services.thumbnail.subprocess.run")
+    @patch("app.services.thumbnail.get_video_duration", return_value=30.0)
+    def test_run_ffmpeg_thumbnail_passes_errors_replace(
+        self, mock_duration, mock_run, tmp_path
+    ):
+        output = str(tmp_path / "thumb.jpg")
+        (tmp_path / "thumb.jpg").touch()
+        mock_run.return_value = MagicMock(returncode=0)
+
+        generate_thumbnail("/fake/video.mp4", output)
+
+        assert mock_run.call_args_list[0].kwargs["errors"] == "replace"
+
+    @patch("app.services.thumbnail.subprocess.run")
+    def test_generate_image_thumbnail_passes_errors_replace(self, mock_run, tmp_path):
+        output = str(tmp_path / "thumb.jpg")
+        (tmp_path / "thumb.jpg").touch()
+        mock_run.return_value = MagicMock(returncode=0)
+
+        generate_image_thumbnail("/fake/image.jpg", output)
+
+        assert mock_run.call_args.kwargs["errors"] == "replace"
+
+
+class TestPictureThumbnailBox:
+    """A picture keeps its own shape; a frame keeps its frame.
+
+    The box is square and the picture is fitted inside it, so a portrait
+    reaches 320 on the tall edge instead of being letterboxed into a
+    landscape frame. Video and PDF are deliberately not part of that.
+    """
+
+    # Half of these are shapes whose fitted edge lands on a half, where ffmpeg,
+    # Python's `round` and `Image.thumbnail` each round differently.
+    SHAPES = [
+        # (source, expected thumbnail)
+        ((768, 1024), (240, 320)),
+        ((1920, 1080), (320, 180)),
+        ((1000, 1000), (320, 320)),
+        ((3000, 1000), (320, 107)),
+        ((1600, 900), (320, 180)),
+        ((301, 640), (151, 320)),
+        ((303, 384), (253, 320)),
+        ((308, 512), (193, 320)),
+        ((640, 361), (320, 181)),
+        ((640, 193), (320, 97)),
+        ((65, 640), (33, 320)),
+        ((66, 768), (28, 320)),
+        # `scale` reads a computed 0 as "keep the input edge", so the
+        # output stops being proportional. The prediction has to say what
+        # the generator does, not what the geometry would.
+        ((4000, 6), (320, 6)),
+    ]
+
+    def test_the_filter_pads_nothing(self):
+        vf = thumbnail_service.image_scale_filter()
+        assert "pad=" not in vf
+        # The box is taken against the source on each edge, which is what
+        # keeps a small picture at its own size.
+        assert "min(320,iw)" in vf
+        assert "min(320,ih)" in vf
+
+    @pytest.mark.parametrize("source,expected", SHAPES)
+    def test_ffmpeg_produces_the_size_the_arithmetic_predicts(
+        self, source, expected, tmp_path
+    ):
+        """The parity pair: two implementations of one box.
+
+        ``image_thumbnail_size`` is arithmetic in Python and the filter is
+        resolved by ffmpeg.
+        """
+        path = tmp_path / "photo.jpg"
+        Image.new("RGB", source, (200, 80, 40)).save(path)
+        output = tmp_path / "thumb.jpg"
+
+        assert generate_image_thumbnail(str(path), str(output)) is True
+        with Image.open(output) as thumbnail:
+            assert thumbnail.size == expected
+        assert thumbnail_service.image_thumbnail_size(*source) == expected
+
+    @pytest.mark.parametrize("source,expected", SHAPES)
+    def test_the_heic_path_answers_the_same_size_as_ffmpeg(
+        self, source, expected, tmp_path
+    ):
+        """The parity pair the box needs and the arithmetic does not give.
+
+        Two libraries, one box: `image_thumbnail_size` agreeing with ffmpeg
+        says nothing about Pillow.
+        """
+        pytest.importorskip("pillow_heif")
+        import pillow_heif
+
+        pillow_heif.register_heif_opener()
+        path = tmp_path / "photo.heic"
+        Image.new("RGB", source, (200, 80, 40)).save(path, format="HEIF")
+        output = tmp_path / "thumb.jpg"
+
+        assert generate_image_thumbnail(str(path), str(output)) is True
+        with Image.open(output) as thumbnail:
+            assert thumbnail.size == expected
+
+    @pytest.mark.parametrize(
+        "source,expected",
+        [
+            ((0, 100), None),
+            ((100, 0), None),
+            ((-1, 100), None),
+        ],
+    )
+    def test_a_source_with_no_area_has_no_predicted_size(self, source, expected):
+        # The migration asks this of stored dimensions, which a broken
+        # header can make nonsense. `None` is what makes it leave the file
+        # alone rather than divide by it.
+        assert thumbnail_service.image_thumbnail_size(*source) is expected
+
+    def test_a_picture_smaller_than_the_box_is_not_grown_into_it(self, tmp_path):
+        path = tmp_path / "icon.png"
+        Image.new("RGB", (64, 64), (10, 10, 10)).save(path)
+        output = tmp_path / "thumb.jpg"
+
+        assert generate_image_thumbnail(str(path), str(output)) is True
+        with Image.open(output) as thumbnail:
+            assert thumbnail.size == (64, 64)
+
+    def test_a_video_frame_still_gets_its_letterbox(self, tmp_path):
+        # Not an oversight and not collateral: a video card is a fixed
+        # 16:9 frame, the padding is invisible inside it, and the
+        # candidate-rejection analysis upstream reads the unpadded frame.
+        candidate = tmp_path / "frame.png"
+        Image.new("RGB", (80, 180), (220, 30, 30)).save(candidate)
+        output = tmp_path / "thumb.jpg"
+
+        assert thumbnail_service._finalize_video_thumbnail(candidate, str(output))
+        with Image.open(output) as thumbnail:
+            assert thumbnail.size == (320, 180)
+        assert "pad=320:180" in thumbnail_service.SCALE_FILTER
+
+    def test_a_page_still_gets_its_white_frame(self, tmp_path):
+        pytest.importorskip("fitz")
+        import fitz
+
+        pdf = tmp_path / "doc.pdf"
+        document = fitz.open()
+        page = document.new_page(width=595, height=842)  # A4 portrait
+        # Inked, not blank. On a blank page every pixel is white and the
+        # assertion below cannot tell the frame from the paper.
+        page.draw_rect(fitz.Rect(40, 40, 555, 802), color=(0, 0, 0), fill=(0, 0, 0))
+        document.save(str(pdf))
+        document.close()
+        output = tmp_path / "thumb.jpg"
+
+        assert generate_pdf_thumbnail(str(pdf), str(output)) is True
+        with Image.open(output) as thumbnail:
+            assert thumbnail.size == (320, 180)
+            # White at the edge and ink in the middle: the frame is there
+            # and the page is inside it, rather than the page filling the
+            # frame. A portrait page cropped to 16:9 would be all ink.
+            assert thumbnail.getpixel((2, 90)) == (255, 255, 255)
+            centre = thumbnail.getpixel((160, 90))
+            assert max(centre) < 40, centre
+
+
+class TestAtomicThumbnailWrite:
+    """A rename gives the destination the temporary file's inode; a rewrite
+    of any kind keeps the one it had. That difference is observable without
+    racing anything.
+    """
+
+    def _seed(self, tmp_path):
+        source = tmp_path / "photo.jpg"
+        Image.new("RGB", (768, 1024), (20, 90, 160)).save(source)
+        destination = tmp_path / "thumb.jpg"
+        Image.new("RGB", (320, 180), (0, 0, 0)).save(destination)
+        return source, destination
+
+    def test_the_new_bytes_arrive_by_rename(self, tmp_path):
+        source, destination = self._seed(tmp_path)
+        before = destination.stat().st_ino
+
+        assert thumbnail_service.write_thumbnail_atomically(
+            generate_image_thumbnail, str(source), str(destination)
+        )
+
+        assert destination.stat().st_ino != before, (
+            "the destination kept its inode, so it was written in place "
+            "rather than replaced"
+        )
+        with Image.open(destination) as thumbnail:
+            assert thumbnail.size == (240, 320)
+
+    def test_the_generator_is_never_handed_the_destination(self, tmp_path):
+        source, destination = self._seed(tmp_path)
+        handed = []
+
+        def record(src, dst):
+            handed.append(dst)
+            Image.new("RGB", (10, 10), (1, 2, 3)).save(dst)
+            return True
+
+        assert thumbnail_service.write_thumbnail_atomically(
+            record, str(source), str(destination)
+        )
+        assert handed == [handed[0]]
+        assert handed[0] != str(destination)
+        assert Path(handed[0]).parent == destination.parent
+
+    def test_a_replaced_thumbnail_keeps_the_mode_its_neighbours_have(self, tmp_path):
+        # `mkstemp` opens at 0600 and `replace` carries the mode across.
+        # Every other thumbnail in the directory is whatever the generator
+        # creates under the process umask, and `data/` is a bind mount, so
+        # a divergence here is a host user losing read access to part of
+        # it.
+        source, destination = self._seed(tmp_path)
+        direct = tmp_path / "direct.jpg"
+        assert generate_image_thumbnail(str(source), str(direct))
+        expected = stat.S_IMODE(direct.stat().st_mode)
+
+        assert thumbnail_service.write_thumbnail_atomically(
+            generate_image_thumbnail, str(source), str(destination)
+        )
+        assert stat.S_IMODE(destination.stat().st_mode) == expected
+
+    def test_a_generator_that_fails_leaves_the_old_bytes_and_no_litter(self, tmp_path):
+        source, destination = self._seed(tmp_path)
+        served = destination.read_bytes()
+
+        assert (
+            thumbnail_service.write_thumbnail_atomically(
+                lambda src, dst: False, str(source), str(destination)
+            )
+            is False
+        )
+        assert destination.read_bytes() == served
+        assert sorted(p.name for p in tmp_path.iterdir()) == [
+            "photo.jpg",
+            "thumb.jpg",
+        ]
+
+
+class TestEveryThumbnailWriteGoesThroughTheAtomicOne:
+    """Every invocation of a thumbnail generator anywhere under `backend/app`,
+    including one reached through a variable that `get_thumbnail_generator`
+    was assigned to under any name, goes through the atomic write.
+    """
+
+    #: `thumbnail.py` is where the generators live and where the helper
+    #: calls one. Scanning it would report its own definitions.
+    EXEMPT = {"services/thumbnail.py"}
+
+    NAMED_GENERATORS = {
+        "generate_image_thumbnail",
+        "generate_thumbnail",
+        "generate_pdf_thumbnail",
+        "_generate_heic_thumbnail",
+    }
+
+    def _direct_calls(self, path):
+        import ast
+
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        # Anything `get_thumbnail_generator(...)` was bound to, whatever
+        # the local variable is called.
+        bound = set()
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Assign):
+                continue
+            value = node.value
+            if (
+                isinstance(value, ast.Call)
+                and isinstance(value.func, ast.Name)
+                and value.func.id == "get_thumbnail_generator"
+            ):
+                bound.update(
+                    t.id for t in node.targets if isinstance(t, ast.Name)
+                )
+        callable_names = self.NAMED_GENERATORS | bound
+
+        hits = []
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id in callable_names
+            ):
+                hits.append(f"{path.name}:{node.lineno} {node.func.id}(...)")
+        return hits
+
+    def test_no_generator_is_handed_its_destination_directly(self):
+        app_dir = Path(thumbnail_service.__file__).resolve().parents[1]
+        direct = []
+        scanned = 0
+        for path in sorted(app_dir.rglob("*.py")):
+            if str(path.relative_to(app_dir)).replace("\\", "/") in self.EXEMPT:
+                continue
+            scanned += 1
+            direct.extend(self._direct_calls(path))
+
+        # The scan finding nothing because it scanned nothing is the way
+        # this test would go quiet.
+        assert scanned > 20, scanned
+        assert direct == []
+
+    def test_the_scan_can_see_a_direct_call(self, tmp_path):
+        # Without this the assertion above proves only that the walk found
+        # no `Call` nodes at all.
+        sample = tmp_path / "sample.py"
+        sample.write_text(
+            "def f(src, dst):\n"
+            "    gen = get_thumbnail_generator('image', 'image/jpeg')\n"
+            "    return gen(src, dst)\n",
+            encoding="utf-8",
+        )
+        assert self._direct_calls(sample) == ["sample.py:3 gen(...)"]

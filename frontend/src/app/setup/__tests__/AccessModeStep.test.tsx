@@ -1,11 +1,3 @@
-// AccessModeStep test (RED phase)
-//
-// Choices:
-// - Two radio options: "公開" (public) and "パスワード保護" (protected).
-// - When "公開" is chosen, onNext is called with mode='public' (parent decides
-//   to skip PasswordStep).
-// - Component is uncontrolled-with-callbacks: receives `value` + `onChange`.
-
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 

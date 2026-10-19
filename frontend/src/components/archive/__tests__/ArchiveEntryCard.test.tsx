@@ -35,7 +35,6 @@ function makeEntry(
   };
 }
 
-// Track the most-recent observer instance so we can fire visibility manually.
 class MockIntersectionObserver {
   callback: IntersectionObserverCallback;
   observed: Element[] = [];
@@ -79,9 +78,7 @@ describe("ArchiveEntryCard", () => {
       />
     );
 
-    // Filename should be visible somewhere on the card
     expect(screen.getByText("photo.jpg")).toBeInTheDocument();
-    // Top-level element exists
     expect(container.firstChild).not.toBeNull();
   });
 
@@ -111,18 +108,14 @@ describe("ArchiveEntryCard", () => {
       />
     );
 
-    // Folder name shown
     expect(screen.getByText("photos")).toBeInTheDocument();
-    // Folder icon (lucide-react Folder renders as an svg with the class
-    // "lucide-folder"). We check for some svg presence at minimum.
     const svgs = container.querySelectorAll("svg");
     expect(svgs.length).toBeGreaterThan(0);
-    // FileTypeIcon should NOT be used for directories
     expect(screen.queryByTestId("icon-other")).not.toBeInTheDocument();
     expect(screen.queryByTestId("icon-document")).not.toBeInTheDocument();
   });
 
-  it("disables the card when isClickable=false", () => {
+  it("gives a dead-end cell a download, and stops being a control", () => {
     const entry = makeEntry("locked.bin", { file_type: "other" });
     const onClick = vi.fn();
     render(
@@ -134,11 +127,33 @@ describe("ArchiveEntryCard", () => {
       />
     );
 
-    const button = screen.getByRole("button");
-    expect(button).toBeDisabled();
+    expect(screen.queryByRole("button")).toBeNull();
+    const link = screen.getByRole("link", { name: "Download locked.bin" });
+    expect(link.getAttribute("download")).toBe("locked.bin");
+    expect(document.querySelectorAll(".opacity-60").length).toBe(0);
+    // `p-2` on a 16px glyph is 32, under the floor for a finger.
+    expect(link.className).toContain("pointer-coarse:h-11");
+    expect(link.className).toContain("pointer-coarse:w-11");
+    expect(link.hasAttribute("title")).toBe(false);
+    // A corner icon says there is a download, not why it is all there is.
+    expect(screen.getByText(/No preview/)).toBeInTheDocument();
 
-    fireEvent.click(button);
+    fireEvent.click(screen.getByText("locked.bin"));
     expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it("does not put a download on a cell that opens", () => {
+    render(
+      <ArchiveEntryCard
+        entry={makeEntry("photo.jpg", { file_type: "image" })}
+        fileId="file-1"
+        onClick={vi.fn()}
+        isClickable
+      />
+    );
+    expect(screen.queryByRole("link")).toBeNull();
+    expect(screen.getByRole("button")).toBeInTheDocument();
+    expect(screen.queryByText(/No preview/)).toBeNull();
   });
 
   it("calls onClick when the card is clicked and clickable", () => {
@@ -156,5 +171,44 @@ describe("ArchiveEntryCard", () => {
     const button = screen.getByRole("button");
     fireEvent.click(button);
     expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("omits an image's filename when told the level does not need it", () => {
+    render(
+      <ArchiveEntryCard
+        entry={makeEntry("p01_007.jpg", { file_type: "image", mime_type: "image/jpeg" })}
+        fileId="a1"
+        onClick={vi.fn()}
+        isClickable
+        showFilename={false}
+      />,
+    );
+    expect(screen.queryByText("p01_007.jpg")).toBeNull();
+  });
+
+  it("still names a non-image entry, which has no picture to go by", () => {
+    render(
+      <ArchiveEntryCard
+        entry={makeEntry("credits.txt", { file_type: "document", mime_type: "text/plain" })}
+        fileId="a1"
+        onClick={vi.fn()}
+        isClickable
+        showFilename={false}
+      />,
+    );
+    expect(screen.getByText("credits.txt")).toBeInTheDocument();
+  });
+
+  it("still names a folder", () => {
+    render(
+      <ArchiveEntryCard
+        entry={makeEntry("chapter-2/")}
+        fileId="a1"
+        onClick={vi.fn()}
+        isClickable
+        showFilename={false}
+      />,
+    );
+    expect(screen.getByText("chapter-2")).toBeInTheDocument();
   });
 });

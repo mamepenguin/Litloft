@@ -1,86 +1,223 @@
 # Keyboard shortcuts and gestures
 
-Single-character shortcuts only fire when no input is focused.
+Press `?` on any page to see the shortcuts that work there. Single-key shortcuts do nothing while you are typing in a field.
 
 ![Shortcut cheat sheet modal opened over the current page](../images/user-guide/shortcut-cheatsheet-modal.png)
+
+`Cmd/Ctrl` means **Cmd** on a Mac and **Ctrl** on Windows and Linux. On a Mac the Control key does not work in its place.
 
 ## Global
 
 | Key | Action |
 |---|---|
-| `?` | Open the shortcut cheat sheet for the current page |
-| `Esc` | Close the topmost modal / dialog |
+| `?` | Show the shortcuts for this page |
+| `Esc` | Close the topmost dialog |
+| `Cmd/Ctrl+K` | Open search (press again to close) |
+| `Cmd/Ctrl+Shift+F` | Open search (same as `Cmd/Ctrl+K`) |
+| `N` | Open [Quick Note](quick-note.md) |
 
-## File browsing
+The search window also has a **Keyboard Shortcuts** button along its bottom edge. See [search](search.md#the-search-modal).
 
-These fire on `/drive/<name>` and `/drive/<name>/<path>` pages. They are disabled in special views without a folder context (favourites, search results, tag views).
+### In the search window
 
 | Key | Action |
 |---|---|
-| `Cmd+N` / `Ctrl+N` | Create an empty `untitled-{timestamp}.md` in the current folder and open it in the editor (see [Browsing files → Creating a new file](file-browsing.md#creating-a-new-file)) |
+| `→` | On a folder row, browse into the folder |
+| `/` | In an empty field, browse from the drive root (typed directly, not through an input method) |
+| `←` or `Backspace` | While browsing, with the field empty: go up one level (from the drive root, stop browsing) |
+| `Enter` | While browsing, open the picked row, or the folder you are in when no row is picked |
+
+### Quick Note panel
+
+| Key | Action |
+|---|---|
+| `Cmd/Ctrl+Enter` | Save the note |
+| `Esc` | Close the panel (asks first if there is unsaved text) |
+
+## File browsing
+
+In the Library and in folders, not on Home.
+
+| Key | Action |
+|---|---|
+| `Cmd/Ctrl+C` | Copy the selected files |
+| `Cmd/Ctrl+X` | Cut the selected files |
+| `Cmd/Ctrl+V` | Paste into the current folder |
+| `Cmd/Ctrl+N` | Create a new Markdown file in the current folder (see [Creating a new file](file-browsing.md#creating-a-new-file)) |
+
+Copy and cut need a selection. Paste and `Cmd/Ctrl+N` need a folder, so they do nothing in search results, in views like **Favourites** or **All Files**, or under a tag at the drive root.
+
+## Renaming
+
+| Key | Action |
+|---|---|
+| `F2` | Rename the focused folder card, or the focused folder or file in the folder tree |
+
+`Enter` saves and `Esc` cancels. A file card in the grid is renamed from its right-click menu instead.
 
 ## Video and audio player
+
+Also works for YouTube videos imported with the media_import addon.
 
 | Key | Action |
 |---|---|
 | `Space` | Play / pause |
-| `←` | Seek −5 s |
-| `→` | Seek +5 s |
-| `/` | Toggle fullscreen |
+| `←` | Back 10 s |
+| `→` | Forward 10 s |
+| `↑` | Forward 60 s |
+| `↓` | Back 60 s |
+| `M` | Mute / unmute |
+| `F` | Full screen |
 
-OS media keys (play/pause, next, previous) are wired through the Media Session API.
+Media keys on your keyboard and the lock screen also control playback.
 
-## File navigation (non-media files)
+## File navigation
 
 | Key | Action |
 |---|---|
-| `←` | Previous file in the current folder |
-| `→` | Next file in the current folder |
+| `←` | Previous file in the folder |
+| `→` | Next file in the folder |
 
-These bindings are not active on video / audio pages — there `←` and `→` are seek controls.
+On video and audio pages the arrows seek instead. On PDF and EPUB pages they turn pages; use the previous / next buttons to change file.
 
-## Image viewer and archive page-turner
+## PDF viewer
+
+| Key | Action |
+|---|---|
+| `PageUp` / `←` | Previous page |
+| `PageDown` / `→` | Next page |
+| `Enter` | Go to the page number you typed |
+| `Esc` | Cancel the page number you typed |
+| `f` | Open full screen |
+
+In full screen:
+
+| Key | Action |
+|---|---|
+| `←` / `→` | Previous / next page (follows the reading direction) |
+| `PageUp` / `PageDown` | Previous / next page |
+| `=` / `-` | Zoom in / out |
+| `0` | Back to the whole page |
+| `f` / `Esc` | Close |
+
+Touch gestures are the same as in the image viewer below. A mouse selects text and never turns the page.
+
+## EPUB reader
+
+| Key | Action |
+|---|---|
+| `←` / `→` | Page to the left / right (follows the book's reading direction) |
+| `PageUp` / `PageDown` | Previous / next page |
+| `Space` / `Shift+Space` | Next / previous page |
+| `f` | Open full screen |
+
+In full screen:
+
+| Key | Action |
+|---|---|
+| `←` / `→` | Page to the left / right (follows the book's reading direction) |
+| `PageUp` / `PageDown` | Previous / next page |
+| `f` / `Esc` | Close |
+
+In the contents list:
+
+| Key | Action |
+|---|---|
+| `↑` / `↓` | Previous / next entry |
+| `Home` / `End` | First / last entry |
+| `Enter` / `Space` | Go to the entry |
+| `Esc` | Close the list |
+
+## Image gallery and archive page-turner
+
+While a full-screen viewer (image, archive, PDF or EPUB) is open, only its own keys work. Search and Quick Note wait until you close it.
+
+| Key | Action |
+|---|---|
+| `←` / `→` | Previous / next page (follows the reading direction) |
+| `Space` | Start / stop the slideshow |
+| `=` / `-` | Zoom in / out |
+| `0` | Back to the whole picture |
+| `Esc` | Close the viewer |
+
+With **Spread** on, a key turns what is on screen: half of a wide page, or two tall pages at once.
 
 | Gesture | Action |
 |---|---|
-| Swipe right / left | Previous / next page (50 px threshold) |
-| Tap left edge / right edge | Same as swipe; reading-direction-aware |
-| Tap centre | Toggle the controls overlay |
-| Pinch | Zoom |
-| Two-finger drag | Pan when zoomed |
+| Swipe right / left | Next / previous page |
+| Tap left edge / right edge | Previous / next page |
+| Tap centre | Show / hide the controls |
+| Pinch, or Ctrl/⌘ + scroll | Zoom, up to 4x |
+| Drag or scroll while zoomed | Move around the picture |
 
-In RTL (right-to-left) mode the swipe direction is mirrored.
+While zoomed, swipes and edge taps do not turn the page. In right-to-left mode the arrow keys and edge taps are mirrored; a swipe to the right is always next.
 
-## Modals
+## File detail
 
-Modal-specific shortcuts can be discovered with `?` while the modal is open. Common ones:
+| Key | Action |
+|---|---|
+| `Cmd/Ctrl+\` | Show / hide the inspector |
+
+Works on every file page, even while you are editing a note. On a phone, use the toggle in the page row instead.
+
+### Markdown editor (Knowledge addon)
+
+While editing a note:
+
+| Key | Action |
+|---|---|
+| `Cmd/Ctrl+S` | Keep this version (see [version history](../addons/knowledge.md)) |
+| `Cmd/Ctrl+B` | Bold |
+| `Cmd/Ctrl+I` | Italic |
+| `Cmd/Ctrl+K` | Insert link |
+| `Cmd/Ctrl+E` | Inline code |
+| `Cmd/Ctrl+Shift+K` | Code block |
+| `Cmd/Ctrl+Shift+\` | Switch between Edit, Split and Preview |
+
+Notes save automatically. `Cmd/Ctrl+S` marks the current text as a version to keep. In the editor `Cmd/Ctrl+K` inserts a link instead of opening search.
+
+### Connections graph (Knowledge addon)
+
+| Key | Action |
+|---|---|
+| `+` or `=` / `-` | Zoom in / out |
+
+## Dialogs
 
 | Key | Action |
 |---|---|
 | `Esc` | Cancel / close |
-| `Enter` | Confirm primary action |
-| `Tab` / `Shift+Tab` | Move focus |
+| `Enter` | Confirm |
+| `Tab` / `Shift+Tab` | Move between fields and buttons |
 
-## Custom registration
-
-Pages register shortcuts via the `useShortcuts()` hook (`frontend/src/hooks/useShortcuts.ts`). Addons may register their own; check the `?` cheat sheet on each page to discover what is available in the current context.
-
-## Mouse shortcuts
+## Mouse and touch in folders
 
 | Action | Result |
 |---|---|
-| Right-click on a file or folder | Context menu (rename, move, copy, delete, pin, etc.) |
+| Right-click a file or folder | Menu (rename, move, copy, delete, pin, and more) |
 | Long-press (touch) | Same as right-click |
-| Click + Shift on a file | Range selection in the grid |
-| Click + ⌘ / Ctrl on a file | Toggle individual selection |
+| `Shift`+click a file | Select a range |
+| `Cmd/Ctrl`+click a file | Add or remove it from the selection |
+| Drag a file onto a folder | Move it there |
+| Hold a drag over a closed folder in the tree | Open it, so you can drop inside |
 
-## Player-specific gestures (video)
+## Video player gestures
+
+**Touch**
 
 | Gesture | Action |
 |---|---|
-| Hover scrubber | Show sprite preview thumbnails |
-| Double-tap | Toggle fullscreen on touch devices |
+| Tap | Show / hide the controls |
+| Double-tap the left or right half | Back / forward 10 s |
+| Keep tapping the same side | Skip further (20 s, 30 s …) |
+| Press and hold | Play at 2x until you let go |
+| Swipe up or down, or pinch | Enter / leave full screen |
 
-## Discoverability
+**Mouse**
 
-If a key chord is not listed here, press `?` on the page in question. The cheat sheet is generated from the active hook registrations, so it always reflects what is actually wired.
+| Gesture | Action |
+|---|---|
+| Click | Play / pause |
+| Double-click | Full screen |
+
+With a mouse there is no tap-to-skip or 2x hold. Dragging on the progress bar always seeks.

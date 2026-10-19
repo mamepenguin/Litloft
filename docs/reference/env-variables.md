@@ -1,8 +1,8 @@
 # Environment variables
 
-Every environment variable Litloft and its addons read, with defaults and recommended values.
+Every environment variable the core and its addons read, with its default and what it does.
 
-Set them in `.env` (Compose reads this automatically) and inject them into containers in `docker-compose.override.yml`:
+Put values in `.env` (Compose reads it automatically) and pass them to containers in `docker-compose.override.yml`:
 
 ```yaml
 services:
@@ -12,134 +12,254 @@ services:
       - CORE_INTERNAL_SECRET=${CORE_INTERNAL_SECRET}
 ```
 
-Generate strong secrets with `openssl rand -hex 32`.
+A variable only reaches the containers whose `environment` lists it. Compose sets variables when a container starts, so every change needs `docker compose up -d`. Generate secrets with `openssl rand -hex 32`.
 
 ---
 
-## Core / backend
+## Core (backend)
 
 ### `DRIVES_CONFIG`
-- **Default**: `./drives.json` (relative to the working dir, which is `/app` in the container)
-- **What it does**: Path the backend reads to load drive definitions.
-- **When to set**: Multi-instance setups that share a config directory; otherwise leave default.
+- **Default**: `./drives.json`. The base `docker-compose.yml` sets `/app/drives.json`.
+- Path of `drives.json`, read at startup and rewritten by `/setup` and `/admin/settings`.
 
 ### `PASSWORDS_CONFIG`
-- **Default**: `./passwords.json`
-- **What it does**: Path the backend reads on unlock.
-- **When to set**: Same as above.
+- **Default**: `./passwords.json`. The base `docker-compose.yml` sets `/app/passwords.json`.
+- Path of `passwords.json`, read on unlock and rewritten by `/setup` and `/admin/settings`.
+
+### `DRIVES_MOUNT_ROOT`
+- **Default**: `/app/drives`
+- Directory scanned when `drives.json` is `[]`: each subdirectory becomes a drive entry `{"name": "<dir>", "path": "<root>/<dir>"}`. `configure.py` mounts drives under `/app/drives/`, so set this only if you mount them elsewhere.
 
 ### `DATA_DIR`
-- **Default**: `./data`
-- **What it does**: Where the SQLite DB, thumbnails, uploads, addon DBs, sentinels, and the auto-generated JWT secret live.
-- **When to set**: Custom mount points; otherwise leave default.
+- **Default**: `./data`. The base `docker-compose.yml` sets `/app/data`.
+- Holds the SQLite database (`data.db`), thumbnails, converted files, upload chunks, addon data directories, the marker files and the generated JWT secret.
 
 ### `JWT_SECRET`
-- **Default**: auto-generated and persisted to `${DATA_DIR}/.jwt_secret`
-- **What it does**: Signs viewer JWTs. Setting this overrides the auto-generated value.
-- **When to set**: To rotate (invalidates every issued token), or to share an identity across multiple instances.
-- **How**: `openssl rand -hex 32`. Restart the backend for the new secret to take effect.
+- **Default**: generated on first boot and saved to `${DATA_DIR}/.jwt_secret` (mode `0600`).
+- Signs viewer tokens. When set, it is used instead of the saved file, which is left untouched. Changing it signs out every viewer.
+
+### `LITLOFT_SETUP_TOKEN`
+- **Default**: a new token each time the backend starts while `${DATA_DIR}/setup_completed` is absent, printed in the backend log. It is never written to disk.
+- Required (as the `X-Litloft-Setup-Token` header) by every config write `/setup` makes, until setup is complete. `configure.py` writes it to `.env` and puts it in the URL it prints.
+- Without it, restarting the backend during setup replaces the token; read the log again.
+- Once `setup_completed` exists it is not used, and `POST /api/admin/config/setup-token/verify` returns `404`.
 
 ### `CORE_INTERNAL_SECRET`
-- **Default**: empty (warned at startup)
-- **What it does**: HMAC for `/api/internal/*` write endpoints — `POST /files/<id>/tags`, `GET /files/<id>/content`, etc.
-- **Without it**: Docker-network neighbours can call those endpoints freely. Acceptable in single-tenant home setups; risky if you run untrusted addons.
-- **When to set**: Always in production setups; required when the knowledge addon is enabled.
-- **How**: `openssl rand -hex 32`. Same value must be set on every addon that talks to internal endpoints.
+- **Default**: empty
+- Shared secret for `/api/internal/*`, sent by addons as `X-Internal-Secret`.
+- Unset: the backend logs a warning at startup, and every internal endpoint accepts requests without it, except `PUT /api/internal/files/{id}/chapters`, which returns `503`.
+- Set, but to a different value on the addon: `403`.
+- Set the same value on the backend and on every addon that calls the core. `configure.py` generates it whenever the intelligence or knowledge addon is enabled.
 
 ### `CORE_INTERNAL_CONTENT_MAX_BYTES`
 - **Default**: `10485760` (10 MiB)
-- **What it does**: Hard cap on the body returned from `GET /api/internal/files/<id>/content`.
-- **When to set**: Raise for large Markdown / TXT corpora the knowledge addon may need to ingest. Lower for stricter resource control.
+- Largest body `GET /api/internal/files/{id}/content` returns. That endpoint serves only `text/markdown` and `text/plain` files.
 
 ### `EVENT_HOOKS_PATH`
 - **Default**: `/app/event-hooks.json`
-- **What it does**: Path to the webhook configuration.
-- **When to set**: Co-locate with `DATA_DIR` if you keep hooks under it.
+- Path of the webhook configuration. When the file does not exist, no webhooks are sent.
 
-### `LITLOFT_PORT`
-- **Default**: `3000`
-- **What it does**: Public host port. Read from `.env` and used in the base `docker-compose.yml` `ports:` mapping.
-- **When to set**: Avoiding port conflicts.
+### `INTELLIGENCE_SERVICE_URL`
+- **Default**: `http://intelligence:8100`
+- Where the core proxies `/api/addons/intelligence/*`. When unset, the addon is hidden from `/setup` and `/admin/settings`. `configure.py` sets it when you enable intelligence.
+
+### `KNOWLEDGE_SERVICE_URL`
+- **Default**: `http://knowledge:8200`
+- The same for the knowledge addon.
+
+### `SEARCH_WEBHOOK_SECRET`
+- **Default**: empty
+- Sent as `X-Webhook-Secret` on webhooks to intelligence, because the intelligence listeners in `event-hooks.json` name it in `secret_env`. Set it here and on the intelligence container, or on neither. See the [intelligence entry](#search_webhook_secret-1).
+
+### `KNOWLEDGE_WEBHOOK_SECRET`
+- **Default**: empty
+- Sent as `X-Webhook-Secret` on webhooks to knowledge. Set it here and on the knowledge container, or on neither. `configure.py` sets both when you enable knowledge.
 
 ### `LITLOFT_MAX_UPLOAD_SIZE_GB`
 - **Default**: `50`
-- **What it does**: Per-file upload size cap. Accepts decimals (e.g. `0.5`, `100`). Uploads are chunked, so this is a sanity cap rather than a memory/request limit.
-- **When to set**: Hosting very large media (raw camera footage, long 4K) or restricting uploads on small disks. Also ensure both `DATA_DIR` (temp chunks) and the target drive have ~1.1× the file size free; the backend pre-checks and returns 507 otherwise.
+- Largest file a single upload may be. Decimals are accepted.
+- A value that is not a positive number stops the backend from starting.
+- An upload is also refused with `507` unless `DATA_DIR` and the target drive each have 1.1 times the file size free.
 
 ---
 
-## intelligence addon
+## Frontend
+
+A normal deployment needs none of these. The `/api/*` rewrite always targets `http://backend:8000`.
+
+### `BACKEND_URL`
+- **Default**: `http://backend:8000`
+- Upstream for the `/api/ws` WebSocket, which `frontend/server.js` proxies directly. It does not change the `/api/*` rewrite.
+
+### `PORT`
+- **Default**: `3000`
+- Port the frontend server listens on inside the container. To change the host port, use `LITLOFT_PORT`.
+
+### `HOSTNAME`
+- **Default**: `0.0.0.0`
+- Address the frontend server binds to.
+
+### `NEXT_PUBLIC_INLINE_KNOWLEDGE_EDITOR`
+- **Default**: `true`
+- Opens the Knowledge editor inside the file detail pane. `false` or `0` opens it on `/addons/knowledge?edit={id}` instead.
+- Read at build time: changing it needs `docker compose up -d --build`.
+
+---
+
+## Compose
+
+### `LITLOFT_PORT`
+- **Default**: `3000`
+- Host port published by the base `docker-compose.yml` (`"${LITLOFT_PORT:-3000}:3000"`). Setting it in `.env` is enough to change the port. The application never reads it.
+
+---
+
+## Intelligence addon
 
 ### `LLM_API_KEY`
 - **Default**: empty
-- **What it does**: API key for the LLM provider configured in `search-config.yml.llm.provider`.
-- **When to set**: Any non-`disabled` non-`ollama` provider needs this. For ollama, any non-empty string works (ollama ignores the key but the SDK requires one).
+- API key for the LLM. Without `llm.profiles` it is the key of the single profile and overrides `llm.api_key` in the yaml. With profiles, a profile reads it only when its `api_key_env` is `LLM_API_KEY`. Not needed for ollama or other local providers.
 
-### `OPENAI_API_KEY`
+### `LLM_API_KEY_<NAME>`
+- **Default**: unset
+- A key for one [LLM profile](../addons/intelligence.md#llm-profiles-and-routing), named by that profile's `api_key_env` (for example `LLM_API_KEY_CLAUDE`). `<NAME>` is upper-case letters, digits and `_`. No other variable can be named as a profile's key. Pass it to the `intelligence` service in `docker-compose.override.yml`; adding one needs a container restart.
+
+### `DRIVE_MOUNTS`
 - **Default**: empty
-- **What it does**: API key for OpenAI Whisper API when `transcription.provider: openai_compatible` and `base_url` points at OpenAI. Also used by some OpenAI SDK code paths.
+- Comma-separated `name=/path` pairs mapping each drive to its read-only mount in the addon container, e.g. `movies=/drives/movies,photos=/drives/photos`. A drive with no entry is not indexed.
+- The key must be the drive's `name` in `drives.json`. `configure.py` writes the mount directory name as the key, so after renaming a drive in `/setup` or `/admin/settings`, change the key to match.
 
-### `DEEPGRAM_API_KEY`
-- **Default**: empty
-- **What it does**: API key for Deepgram (`transcription.provider: deepgram`).
+### `HOMEVAULT_DB_PATH`
+- **Default**: `/data/litloft.db`
+- The core's SQLite database, opened read-only. With the recommended `./data:/data:ro` mount, set `/data/data.db` (`configure.py` does). See [read-only mounts for addons](../admin-guide/docker-compose.md#read-only-mounts-for-addons).
 
-### `ELEVENLABS_API_KEY`
-- **Default**: empty
-- **What it does**: API key for ElevenLabs Scribe (`transcription.provider: elevenlabs_scribe`).
-
-### `ASSEMBLYAI_API_KEY`
-- **Default**: empty
-- **What it does**: API key for AssemblyAI (`transcription.provider: assemblyai`). Universal-2 is the default model; `nano` is available for cost-sensitive workloads. Supports diarisation (`speaker_labels`), word-level timestamps, language auto-detection, and `word_boost` (the addon maps `transcription.hotwords` to it). 5 GB upload cap per file.
-
-### `GEMINI_API_KEY`
-- **Default**: empty
-- **What it does**: API key for Google Gemini (`transcription.provider: gemini`). Uses the File API to upload audio/video, then `generate_content` with `gemini-2.5-flash` (default) or `gemini-2.5-pro` for transcription. 2 GB upload cap. **Limitations**: word-level timestamps are synthetic (uniform split of segment text), and diarisation is not supported. Pick another provider when either matters.
-
-### `CORE_INTERNAL_SECRET`
-- **Default**: empty
-- **What it does**: Same as in core; the addon sends this header on internal calls. Mismatched values cause `401`.
-
----
-
-## knowledge addon
-
-### `KNOWLEDGE_DATA_DIR`
-- **Default**: `/knowledge-data`
-- **What it does**: Where the addon stores its SQLite DB and intermediate state.
+### `HOMEVAULT_THUMBNAILS_DIR`
+- **Default**: `/data/thumbnails`
+- The core's thumbnails, used for video frame search. The default matches the `./data:/data:ro` mount.
 
 ### `HOMEVAULT_INTERNAL_URL`
 - **Default**: `http://backend:8000`
-- **What it does**: The Docker-network URL of the core. Used by the addon to call the internal API.
+- Base URL of the core, used for restart notices and chapter approval.
 
-### `KNOWLEDGE_USER_AGENT`
-- **Default**: a browser-like UA string
-- **What it does**: Override for the web-clip fetcher (some sites refuse non-browser UAs).
-- **When to set**: When clipping a site that rate-limits or refuses the default UA.
+### `HOMEVAULT_INTERNAL_API_URL`
+- **Default**: `http://backend:8000/api/internal`
+- Base URL of the core's Internal API, used for policy lookups, access filtering, file details and watch history. Note the `/api/internal` suffix: this is not the same value as `HOMEVAULT_INTERNAL_URL`.
 
-### `KNOWLEDGE_WEBHOOK_SECRET`
-- **Default**: *required*; refuses to start without it
-- **What it does**: HMAC-SHA256 secret for lifecycle webhooks (`files.missing`, `files.recovered`, `files.purged`).
-- **How to set**: Match the value the core uses (driven by `event-hooks.json` `secret_env`). `openssl rand -hex 32`.
+### `INTELLIGENCE_DATA_DIR`
+- **Default**: `/intelligence-data`
+- The addon's own data: the search database, downloaded models, and the override files the settings GUI writes. `configure.py` mounts `./data/addons/intelligence` here.
+
+### `SEARCH_CONFIG_PATH`
+- **Default**: `/app/search-config.yml`
+- Path of `search-config.yml`.
+
+### `ALLOWED_BASE_DIRS`
+- **Default**: `/drives/`
+- Comma-separated directory prefixes the addon may read media from. Anything outside them is refused.
+
+### `OPENAI_API_KEY`
+- **Default**: empty
+- Key for the `openai_compatible` transcription provider. Not used for the LLM; that is `LLM_API_KEY`.
+
+### `DEEPGRAM_API_KEY`
+- **Default**: empty
+- Key for `transcription.provider: deepgram`.
+
+### `ELEVENLABS_API_KEY`
+- **Default**: empty
+- Key for `transcription.provider: elevenlabs_scribe`.
+
+### `ASSEMBLYAI_API_KEY`
+- **Default**: empty
+- Key for `transcription.provider: assemblyai`.
+
+### `GEMINI_API_KEY`
+- **Default**: empty
+- Key for `transcription.provider: gemini`.
+
+### `TRANSCRIPTION_MAX_INPUT_MEMORY_BYTES`
+- **Default**: `67108864` (64 MiB)
+- Larger inputs are converted to audio on disk and sent to the transcription provider in chunks. Raise it on a host with memory to spare; lower it if transcription runs out of memory.
 
 ### `CORE_INTERNAL_SECRET`
-- Same as elsewhere. Required for the knowledge note scanner to read content from password-protected drives.
+- **Default**: empty
+- Same value as on the core. Required to approve AI chapter suggestions: the addon returns `503` when it is unset here, and the core returns `403` when it differs.
 
-### `NOTE_SCANNER_INTERVAL_SECONDS`
-- **Default**: `3600` (1 hour)
-- **What it does**: Cadence at which the addon walks Vault directories to reconcile frontmatter with its DB.
-- **When to set**: Lower for snappier external-edit pickup; raise to reduce DB churn on huge Vaults.
+### `SEARCH_WEBHOOK_SECRET`
+- **Default**: empty
+- Checked on the addon's webhooks (`scan.complete`, `files.deleted`, `files.restored`, `files.missing`, `files.recovered`, `files.moved`, `files.purged`). Unset, the addon accepts webhooks without it.
+- Set it on the backend and here, or on neither. The backend sends the header from its own environment. Set only here, every webhook gets `403` and indexing stops without any other sign. Set only on the backend, nothing is checked.
+- `configure.py` generates it and sets both sides when you enable intelligence.
+
+### `KNOWLEDGE_SERVICE_URL`
+- **Default**: `http://knowledge:8200`
+- Used to clear the knowledge addon's link to an AI summary.
+
+### `KNOWLEDGE_WEBHOOK_SECRET`
+- **Default**: empty
+- Sent to the knowledge addon on that same call. Must match the knowledge container's value when that one is set. `configure.py` does not pass it to intelligence.
+
+### `INTELLIGENCE_WRITE_LOCK_TIMEOUT`
+- **Default**: `300` (seconds)
+- How long a writer waits for the search database lock before failing with `WriteLockTimeout`. A wait this long means something is holding the lock by mistake; raising the value hides that.
+
+### `INTELLIGENCE_WATCHDOG_INTERVAL`
+- **Default**: `10` (seconds)
+- How often the watchdog checks that the addon's event loop is still running.
+
+### `INTELLIGENCE_WATCHDOG_THRESHOLD`
+- **Default**: `120` (seconds)
+- How long the event loop may stall before the addon logs an error with every thread's stack. It logs once per stall and never restarts anything; recover with `docker compose restart intelligence`.
+
+### `INTELLIGENCE_SEARCH_DB_PATH`
+- **Default**: empty (`${INTELLIGENCE_DATA_DIR}/search.db` is used)
+- Points the addon at an existing search database. Used by the evaluation harness; leave it unset in a deployment.
+
+### `SQLITE_VEC_PATH`
+- **Default**: `/usr/local/lib/sqlite-vec/vec0`
+- The sqlite-vec extension loaded into the search database. The image installs it at the default path.
 
 ---
 
-## Quick checklist for a production install
+## Knowledge addon
 
-| Variable | Recommended | Reason |
+### `KNOWLEDGE_DATA_DIR`
+- **Default**: `/knowledge-data`
+- Where the addon keeps its database (`knowledge.db`).
+
+### `HOMEVAULT_INTERNAL_URL`
+- **Default**: `http://backend:8000`
+- Base URL of the core.
+
+### `KNOWLEDGE_USER_AGENT`
+- **Default**: a Chrome user-agent string
+- User-Agent the web clipper sends. Change it for a site that refuses the default.
+
+### `KNOWLEDGE_WEBHOOK_SECRET`
+- **Default**: empty
+- Checked on the addon's webhooks (`files.missing`, `files.recovered`, `files.purged`). Unset, the addon accepts them without it. Set the same value on the backend.
+
+### `CORE_INTERNAL_SECRET`
+- **Default**: empty
+- Same value as on the core, sent on every call to the core's Internal API. Needed once the core has it set; with a different value, the core refuses the addon's Internal API calls with `403`.
+
+### `NOTE_SCANNER_INTERVAL_SECONDS`
+- **Default**: `3600`
+- How often the addon rescans vault folders to match frontmatter with its database. It also scans once at startup.
+
+---
+
+## Recommended for a production install
+
+| Variable | Set on | Why |
 |---|---|---|
-| `JWT_SECRET` | strong random | Stable across restarts, rotatable on demand |
-| `CORE_INTERNAL_SECRET` | strong random | Mandatory if knowledge / intelligence addons are running |
-| `KNOWLEDGE_WEBHOOK_SECRET` | strong random | Mandatory if knowledge addon is enabled |
-| `LLM_API_KEY` | provider-issued | Required for any LLM features (auto-tags, summaries, RAG) |
-| `LITLOFT_PORT` | desired port | Avoid 3000 conflicts |
+| `JWT_SECRET` | backend | Stable across restarts; change it to sign everyone out |
+| `CORE_INTERNAL_SECRET` | backend and every addon | Unset, the Internal API accepts anyone on the Docker network; needed for AI chapter approval |
+| `SEARCH_WEBHOOK_SECRET` | backend and intelligence | Unset, intelligence webhooks are not checked |
+| `KNOWLEDGE_WEBHOOK_SECRET` | backend and knowledge | Unset, knowledge webhooks are not checked |
+| `LLM_API_KEY` | intelligence | Needed for cloud LLM providers |
+| `LLM_API_KEY_<NAME>` | intelligence | A key for one LLM profile, when profiles use different services |
+| `LITLOFT_PORT` | `.env` only | When port 3000 is taken |
 
 `.env` template:
 
@@ -147,12 +267,11 @@ Generate strong secrets with `openssl rand -hex 32`.
 # Core
 JWT_SECRET=...
 CORE_INTERNAL_SECRET=...
-
-# Frontend port
 LITLOFT_PORT=3000
 
 # Intelligence
 LLM_API_KEY=...
+SEARCH_WEBHOOK_SECRET=...
 OPENAI_API_KEY=
 DEEPGRAM_API_KEY=
 ELEVENLABS_API_KEY=
@@ -163,4 +282,4 @@ GEMINI_API_KEY=
 KNOWLEDGE_WEBHOOK_SECRET=...
 ```
 
-`.env` is `.gitignored`; never check it in.
+`.env` is in `.gitignore`; never commit it.

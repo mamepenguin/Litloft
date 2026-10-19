@@ -56,7 +56,6 @@ def _parse_subtitle_filename(video_stem: str, subtitle_path: Path) -> str | None
 
     if sub_stem.startswith(video_stem + "."):
         lang_part = sub_stem[len(video_stem) + 1:]
-        # Validate: should be a short language code (2-3 chars, alpha)
         if re.match(r"^[a-zA-Z]{2,3}$", lang_part):
             return lang_part.lower()
 
@@ -96,7 +95,6 @@ def detect_subtitles(video_file_path: str, drive_path: Path) -> list[dict]:
     except OSError:
         return []
 
-    # Sort: default (empty lang) first, then alphabetically by language
     subtitles.sort(key=lambda s: (s["language"] != "", s["language"]))
     return subtitles
 
@@ -110,7 +108,6 @@ def convert_srt_to_vtt(srt_content: str) -> str:
     while i < len(lines):
         line = lines[i].strip()
 
-        # Skip sequence numbers (pure digits)
         if re.match(r"^\d+$", line):
             i += 1
             continue
@@ -121,7 +118,6 @@ def convert_srt_to_vtt(srt_content: str) -> str:
             i += 1
             continue
 
-        # Empty lines and text lines pass through
         vtt_lines.append(lines[i].rstrip())
         i += 1
 

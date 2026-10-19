@@ -1,13 +1,17 @@
 """Migration test: legacy ``playlists`` / ``playlist_items`` tables are
 copied into the new ``collections`` / ``collection_items`` tables with
-NULL ``description``, then the legacy tables are dropped. Verifies the
-Phase 1 spec (2026-05-12-playlist-to-collection) backend migration.
+NULL ``description``, then the legacy tables are dropped.
 """
+
+
+import pytest
 
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker
 
 from app.database import Base, _migrate
+
+pytestmark = pytest.mark.usefixtures("private_data_dir")
 
 
 def _enable_fk(engine):

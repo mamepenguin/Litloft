@@ -1,21 +1,3 @@
-/**
- * MediaController abstracts away the differences between a native
- * `<video>`/`<audio>` element and an embedded YouTube IFrame Player.
- *
- * Why: LoftRef files render YouTube via the IFrame Player API (rather
- * than a native HTMLMediaElement). VideoPlayer keyboard shortcuts and
- * the intelligence addon's citation jump used to bind directly to
- * `HTMLVideoElement`. By talking to a `MediaController` instead, the
- * same shortcut/jump code paths work for both backends.
- *
- * Trade-off: the YouTube IFrame Player exposes mute/play state via
- * imperative getters (no `paused` / `muted` properties), so we route
- * everything through method calls. The native controller wraps the
- * existing DOM mutations (currentTime, muted, requestFullscreen) — DOM
- * mutation is unavoidable here because the browser API is mutation-
- * shaped, but no application-level state is mutated in place.
- */
-
 export interface MediaController {
   seek(seconds: number): void;
   play(): void;
@@ -26,16 +8,39 @@ export interface MediaController {
   getCurrentTime(): number;
   getDuration(): number;
   isPaused(): boolean;
+  isMuted(): boolean;
+  /** Volume on a 0-1 scale, whatever the backend reports natively. */
+  getVolume(): number;
+  setVolume(v: number): void;
+  getPlaybackRate(): number;
+  setPlaybackRate(r: number): void;
+  getBufferedFraction(): number;
+  /**
+   * True when the backend is playing something other than the
+   * requested media (a YouTube ad break), so position/duration readings
+   * belong to the interruption rather than the file, and any
+   * click-capturing overlay must let events through to the player.
+   * Treat an absent implementation as "never interrupted".
+   */
+  isInterrupted?(): boolean;
+  /** Treat an absent implementation as `"unavailable"`. */
+  getCaptions?(): CaptionsState;
+  setCaptions?(enabled: boolean): void;
 }
 
 /**
- * Minimal subset of the YouTube IFrame Player API we depend on. Kept
- * here (rather than as a global type) so the controller stays
- * testable with a plain object stub and so the rest of the codebase
- * doesn't need to know about the YT namespace.
- *
- * Reference: https://developers.google.com/youtube/iframe_api_reference
+ * `"off"` means the backend could show captions if asked. It does not
+ * promise this particular video has any.
  */
+export type CaptionsState = "on" | "off" | "unavailable";
+
+/**
+ * The player restores captions somewhere in the time it takes to settle
+ * on a new position, and exactly when depends on how long it buffers.
+ */
+const CAPTION_REASSERT_INTERVAL_MS = 250;
+const CAPTION_REASSERT_ATTEMPTS = 8;
+
 export interface YouTubePlayerLike {
   seekTo(seconds: number, allowSeekAhead: boolean): void;
   playVideo(): void;
@@ -50,6 +55,30 @@ export interface YouTubePlayerLike {
    *   -1 unstarted, 0 ended, 1 playing, 2 paused, 3 buffering, 5 cued
    */
   getPlayerState(): number;
+  /** 0-100, unlike HTMLMediaElement.volume which is 0-1. */
+  getVolume(): number;
+  setVolume(volume: number): void;
+  getPlaybackRate(): number;
+  setPlaybackRate(rate: number): void;
+  getVideoLoadedFraction(): number;
+  /**
+   * Undocumented — these are not in the IFrame API reference. Optional so
+   * a stub or a future API change simply leaves captions unavailable
+   * rather than throwing.
+   */
+  loadModule?(name: string): void;
+  unloadModule?(name: string): void;
+  getOption?(module: string, option: string): unknown;
+  setOption?(module: string, option: string, value: unknown): void;
+}
+
+export interface YouTubeControllerOptions {
+  /**
+   * Injected rather than implemented here: the YouTube IFrame API exposes
+   * no ad state, so every detection strategy is a heuristic owned by the
+   * embed that has the surrounding context.
+   */
+  isInterrupted?: () => boolean;
 }
 
 const YT_STATE_PLAYING = 1;
@@ -67,9 +96,25 @@ function clampSeek(seconds: number, duration: number): number {
   return seconds;
 }
 
+function clampFraction(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  if (value < 0) return 0;
+  if (value > 1) return 1;
+  return value;
+}
+
+/**
+ * A 0 or negative rate is not "slow motion" — it either throws or
+ * silently wedges the player.
+ */
+function isUsableRate(rate: number): boolean {
+  return Number.isFinite(rate) && rate > 0;
+}
+
 export function createNativeVideoController(
   video: HTMLVideoElement,
 ): MediaController {
+  let selectedCaptionTrack = 0;
   return {
     seek(seconds) {
       video.currentTime = clampSeek(seconds, video.duration);
@@ -106,16 +151,155 @@ export function createNativeVideoController(
     isPaused() {
       return video.paused;
     },
+    isMuted() {
+      return video.muted;
+    },
+    getVolume() {
+      return video.volume;
+    },
+    setVolume(v) {
+      if (!Number.isFinite(v)) return;
+      video.volume = clampFraction(v);
+    },
+    getPlaybackRate() {
+      return video.playbackRate;
+    },
+    setPlaybackRate(r) {
+      if (!isUsableRate(r)) return;
+      video.playbackRate = r;
+    },
+    getBufferedFraction() {
+      const { buffered, duration } = video;
+      if (!Number.isFinite(duration) || duration <= 0) return 0;
+      if (buffered.length === 0) return 0;
+      // Read the END of the LAST range rather than summing every
+      // range: a video that was seeked backwards leaves earlier ranges
+      // behind, and summing them would claim more contiguous buffer
+      // than exists.
+      return clampFraction(buffered.end(buffered.length - 1) / duration);
+    },
+    getCaptions() {
+      const { textTracks } = video;
+      if (textTracks.length === 0) return "unavailable";
+      for (let index = 0; index < textTracks.length; index += 1) {
+        if (textTracks[index]?.mode === "showing") return "on";
+      }
+      return "off";
+    },
+    setCaptions(enabled) {
+      const { textTracks } = video;
+      for (let index = 0; index < textTracks.length; index += 1) {
+        if (textTracks[index]?.mode === "showing") {
+          selectedCaptionTrack = index;
+          break;
+        }
+      }
+      for (let index = 0; index < textTracks.length; index += 1) {
+        const track = textTracks[index];
+        if (!track) continue;
+        track.mode =
+          enabled && index === selectedCaptionTrack ? "showing" : "disabled";
+      }
+    },
   };
 }
 
 export function createYouTubeController(
   player: YouTubePlayerLike,
   container: HTMLElement,
+  opts: YouTubeControllerOptions = {},
 ): MediaController {
+  const { isInterrupted } = opts;
+
+  // Tracked here because the IFrame API has no getter for it. The
+  // nearest thing, getOption("captions", "tracklist"), returns nothing
+  // until the module has been loaded at least once.
+  //
+  // So the toggle is offered for every YouTube video, and on one with no
+  // caption track pressing it does nothing visible. Hiding it instead
+  // would mean flashing captions on every video just to find out.
+  let captionsOn = false;
+  let captionReassertTimer: ReturnType<typeof setInterval> | null = null;
+
+  /**
+   * Two calls because they do different things: blanking the track is
+   * what actually sticks, while unloading the module is what takes effect
+   * immediately.
+   */
+  function hideCaptions(): boolean {
+    let acted = false;
+    try {
+      player.setOption?.("captions", "track", {});
+      acted = true;
+    } catch {
+      // Fall through; the unload below may still work.
+    }
+    try {
+      player.unloadModule?.("captions");
+      acted = true;
+    } catch {
+      // Both undocumented calls refused.
+    }
+    return acted;
+  }
+
+  /**
+   * Loading the module is not enough on its own: having been turned off
+   * by blanking the track, that blank is still in place, so a track has
+   * to be chosen again. The tracklist is only readable once the module is
+   * loaded, which is why this order.
+   */
+  function showCaptions(): boolean {
+    try {
+      player.loadModule?.("captions");
+    } catch {
+      return false;
+    }
+    try {
+      const tracks = player.getOption?.("captions", "tracklist");
+      if (Array.isArray(tracks) && tracks.length > 0) {
+        player.setOption?.("captions", "track", tracks[0]);
+      }
+    } catch {
+      // Best effort: the module is loaded either way, and the player
+      // picks a default track in most cases.
+    }
+    return true;
+  }
+
+  function stopReasserting() {
+    if (captionReassertTimer === null) return;
+    clearInterval(captionReassertTimer);
+    captionReassertTimer = null;
+  }
+
+  /**
+   * A seek makes the player restore captions by itself, and a single
+   * call — before or just after seekTo — lands at one arbitrary point in
+   * a window whose length depends on buffering.
+   */
+  function reassertCaptionsOff() {
+    if (captionsOn) return;
+    hideCaptions();
+    stopReasserting();
+    let attempts = 0;
+    captionReassertTimer = setInterval(() => {
+      if (captionsOn) {
+        stopReasserting();
+        return;
+      }
+      hideCaptions();
+      if (++attempts >= CAPTION_REASSERT_ATTEMPTS) stopReasserting();
+    }, CAPTION_REASSERT_INTERVAL_MS);
+  }
+
   return {
+    // The key is absent when no detector was injected, matching the
+    // optional-method contract.
+    ...(isInterrupted ? { isInterrupted: () => isInterrupted() } : {}),
     seek(seconds) {
       player.seekTo(clampSeek(seconds, player.getDuration()), true);
+      reassertCaptionsOff();
     },
     play() {
       player.playVideo();
@@ -124,9 +308,6 @@ export function createYouTubeController(
       player.pauseVideo();
     },
     togglePlay() {
-      // 1 = playing → pause; everything else (paused/ended/cued/
-      // buffering/unstarted) → play. Matches user expectation that
-      // Space at end of video restarts playback.
       if (player.getPlayerState() === YT_STATE_PLAYING) {
         player.pauseVideo();
       } else {
@@ -154,33 +335,51 @@ export function createYouTubeController(
       return player.getDuration();
     },
     isPaused() {
-      // BUFFERING (3) happens transiently during a seek: the user is
-      // not pausing, the player is just catching up. Report it as
-      // "still playing" so observers (e.g. the floating mini-player)
-      // don't flicker out on every scrub. PAUSED (2), ENDED (0),
-      // CUED (5), UNSTARTED (-1) remain paused.
+      // BUFFERING happens transiently during a seek. Report it as
+      // "still playing" so observers don't flicker out on every scrub.
       const state = player.getPlayerState();
       return state !== YT_STATE_PLAYING && state !== YT_STATE_BUFFERING;
+    },
+    isMuted() {
+      return player.isMuted();
+    },
+    getVolume() {
+      const raw = player.getVolume();
+      return Number.isFinite(raw) ? clampFraction(raw / 100) : 0;
+    },
+    setVolume(v) {
+      if (!Number.isFinite(v)) return;
+      player.setVolume(clampFraction(v) * 100);
+    },
+    getPlaybackRate() {
+      const raw = player.getPlaybackRate();
+      return isUsableRate(raw) ? raw : 1;
+    },
+    setPlaybackRate(r) {
+      if (!isUsableRate(r)) return;
+      player.setPlaybackRate(r);
+    },
+    getBufferedFraction() {
+      return clampFraction(player.getVideoLoadedFraction());
+    },
+    getCaptions() {
+      if (typeof player.loadModule !== "function") return "unavailable";
+      if (typeof player.unloadModule !== "function") return "unavailable";
+      return captionsOn ? "on" : "off";
+    },
+    setCaptions(enabled) {
+      const acted = enabled ? showCaptions() : hideCaptions();
+      if (!acted) return;
+      captionsOn = enabled;
+      if (enabled) stopReasserting();
+      else reassertCaptionsOff();
     },
   };
 }
 
 /**
- * Shared keyboard handler for video-style media controllers. Used by
- * VideoPlayer (native HTMLVideoElement) and LoftPlayer (YouTube
- * IFrame Player) so both surface the same shortcut behaviour.
- *
- * Bindings:
- *   ←/→  ±10s
- *   ↑/↓  ±60s (note: ↑ = forward, ↓ = back, mirroring the existing
- *               native VideoPlayer convention rather than YouTube's
- *               volume mapping which we suppress via `disablekb=1`)
- *   Space toggle play
- *   M     toggle mute
- *   F     toggle fullscreen
- *
- * Returns true if the event was handled (caller may use this to
- * preventDefault even though the handler itself already does).
+ * ↑ = forward, ↓ = back, rather than YouTube's volume mapping, which is
+ * suppressed via `disablekb=1`.
  */
 export function handleMediaShortcut(
   e: KeyboardEvent,

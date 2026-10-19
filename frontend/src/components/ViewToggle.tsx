@@ -1,73 +1,40 @@
 "use client";
 
 import { Grid3X3, List } from "lucide-react";
-import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { ViewMode } from "@/types";
-
-const STORAGE_KEY = "video-share-view-mode";
-const VALID_MODES: ViewMode[] = ["grid", "list"];
-
-function isViewMode(value: unknown): value is ViewMode {
-  return typeof value === "string" && (VALID_MODES as string[]).includes(value);
-}
+import { useViewModeState } from "@/components/viewMode";
 
 interface ViewToggleProps {
-  /**
-   * When provided, ViewToggle is controlled: it reflects this mode and does
-   * not read/write the global localStorage key itself. The controller (e.g.
-   * `useFolderViewMode`) owns persistence. When omitted, ViewToggle is
-   * uncontrolled and persists to the global default key.
-   */
   mode?: ViewMode;
   onChange: (mode: ViewMode) => void;
 }
 
-/**
- * Grid/list view toggle.
- *
- * Phase 3 redesign (Topic 1 補正, hako w4zVT8-dyYwshLNiJ5REY): the
- * tree-pane visibility lives in a separate `<TreeToggle>` button, no
- * longer mixed in here.
- */
 export function ViewToggle({ mode: controlledMode, onChange }: ViewToggleProps) {
   const t = useTranslations("view");
-  const isControlled = controlledMode !== undefined;
-  const [uncontrolledMode, setUncontrolledMode] = useState<ViewMode>("grid");
-  const mode = isControlled ? controlledMode : uncontrolledMode;
+  const { mode, select } = useViewModeState(controlledMode, onChange);
 
-  useEffect(() => {
-    if (isControlled) return;
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (!isViewMode(saved)) return;
-    setUncontrolledMode(saved);
-    onChange(saved);
-  }, [isControlled, onChange]);
-
-  function toggle(newMode: ViewMode) {
-    if (!isControlled) {
-      setUncontrolledMode(newMode);
-      localStorage.setItem(STORAGE_KEY, newMode);
-    }
-    onChange(newMode);
-  }
-
+  // Selection is carried by a **border**, not by a surface: `--bg-card` is
+  // `#ffffff` in the light theme and so is `--bg-primary`, which makes a
+  // card-coloured selection literally invisible wherever this sits on the page.
   const buttonClass = (active: boolean) =>
-    `rounded-lg p-2 transition-colors ${
-      active ? "bg-accent text-white" : "text-text-muted hover:text-text-primary"
+    `rounded-lg border p-2 transition-colors ${
+      active
+        ? "border-accent text-text-primary"
+        : "border-transparent text-text-muted hover:text-text-primary"
     }`;
 
   return (
     <div className="flex gap-1">
       <button
-        onClick={() => toggle("grid")}
+        onClick={() => select("grid")}
         className={buttonClass(mode === "grid")}
         aria-label={t("grid")}
       >
         <Grid3X3 size={18} />
       </button>
       <button
-        onClick={() => toggle("list")}
+        onClick={() => select("list")}
         className={buttonClass(mode === "list")}
         aria-label={t("list")}
       >

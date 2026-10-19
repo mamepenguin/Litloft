@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MarkdownFileViewer, MarkdownPreview } from "@/components/MarkdownPreview";
 import { NextIntlClientProvider } from "next-intl";
 
@@ -12,6 +12,30 @@ function renderWithIntl(ui: React.ReactElement) {
 }
 
 describe("MarkdownPreview", () => {
+  it("publishes selected text with the nearest Markdown heading", () => {
+    const onDocumentCaptureController = vi.fn();
+    renderWithIntl(
+      <MarkdownPreview
+        source={"# Guide\n\n## Install\n\nRun the installer."}
+        onDocumentCaptureController={onDocumentCaptureController}
+      />,
+    );
+    const text = screen.getByText("Run the installer.").firstChild as Text;
+    const range = document.createRange();
+    range.selectNodeContents(text);
+    const selection = window.getSelection()!;
+    selection.removeAllRanges();
+    selection.addRange(range);
+    fireEvent(document, new Event("selectionchange"));
+
+    const controller = onDocumentCaptureController.mock.calls.at(-1)?.[0];
+    expect(controller?.getSnapshot()).toMatchObject({
+      kind: "selection",
+      quote: "Run the installer.",
+      locator: { label: "Install" },
+    });
+  });
+
   it("renders basic markdown to HTML", () => {
     renderWithIntl(<MarkdownPreview source={"# Hello\n\nWorld"} />);
     expect(screen.getByRole("heading", { name: "Hello" })).toBeInTheDocument();
@@ -48,14 +72,12 @@ describe("MarkdownPreview", () => {
     expect(document.querySelector("iframe")).toBeNull();
   });
 
-  it("strips onerror handler from img tags", () => {
+  it("renders an event handler in raw HTML as inert text, not as an element", () => {
     renderWithIntl(
-      <MarkdownPreview source='![alt](https://example.com/x.jpg "title")' />,
+      <MarkdownPreview source='<img src="https://example.com/x.jpg" onerror="alert(1)">' />,
     );
-    // markdown-it renders image as <img> — our sanitizer should pass safe img
-    const img = document.querySelector("img");
-    expect(img).not.toBeNull();
-    expect(img?.getAttribute("onerror")).toBeNull();
+    expect(document.querySelector("img")).toBeNull();
+    expect(screen.getByText(/onerror="alert\(1\)"/)).toBeInTheDocument();
   });
 
   describe("loft:// image embedding", () => {
@@ -112,9 +134,23 @@ describe("MarkdownPreview", () => {
     expect(screen.getByText(/const x = 1;/)).toBeInTheDocument();
   });
 
+  it("marks a highlighted quote that crosses syntax-highlighting tokens", () => {
+    const { container } = renderWithIntl(
+      <MarkdownPreview
+        source={"```js\nconst answer = 42;\n```"}
+        highlight="const answer = 42"
+      />,
+    );
+    const marks = Array.from(
+      container.querySelectorAll("mark.ask-citation-highlight"),
+    );
+    expect(marks).toHaveLength(3);
+    expect(marks.every((m) => m.textContent !== "")).toBe(true);
+    expect(marks.map((m) => m.textContent).join("")).toBe("const answer = 42");
+  });
+
   it("displays frontmatter metadata when present via the Properties Panel", () => {
     // Unknown keys fall through to plain text rendering (label = raw key).
-    // Recognised keys get typed renderers; see PropertiesPanel.test.tsx.
     const md = `---
 source_url: https://example.com
 author: Tarou
@@ -130,7 +166,6 @@ author: Tarou
 
   it("hides frontmatter section when empty", () => {
     renderWithIntl(<MarkdownPreview source="just content\n" />);
-    // No <dl> rendered for empty frontmatter
     expect(document.querySelector("dl")).toBeNull();
   });
 
@@ -151,11 +186,8 @@ text`;
   });
 
   it("forwards onTagsSaved to the Properties Panel in standalone mode", () => {
-    // Smoke test: the prop is piped through MarkdownPreview →
-    // PropertiesPanel → EditableTagChips.onSaveSuccess. Rendering the
-    // component tree without errors is enough for this layer; the
-    // actual save-callback wiring is exercised in
-    // EditableTagChips.test.tsx.
+    // Smoke test: rendering the component tree without errors is enough for
+    // this layer.
     const md = `---
 tags: [a]
 ---
@@ -168,19 +200,15 @@ body`;
           mime_type: "text/markdown",
           filename: "n.md",
           drive: "d",
+          folder_path: "notes",
         }}
         onTagsSaved={() => {}}
       />,
     );
-    // The editable chip group renders an Add button.
     expect(screen.getByRole("button", { name: /Add tag/ })).toBeInTheDocument();
   });
 
   it("applies text-base typography to the chrome body for 16px reading", () => {
-    // Phase 1 typography upgrade: the chrome body now renders at
-    // ``text-base`` (16px) with leading-relaxed (1.625) so long-form
-    // summary prose matches the mockup design (DESIGN.md §3.2). The
-    // old ``text-sm`` rendered at 14px and felt cramped.
     const { container } = renderWithIntl(
       <MarkdownPreview source={"# Hello\n\nWorld"} />,
     );
@@ -218,9 +246,8 @@ describe("MarkdownFileViewer", () => {
       if (href.includes("/tags")) {
         return Promise.resolve(makeResp("[]", "application/json"));
       }
-      // Phase C (spec 2026-05-12 §3.8): MarkdownFileViewer now also
-      // fetches wiki-link resolutions. Serve an empty map so it
-      // doesn't count toward the stream-call total.
+      // Serve an empty wiki-link resolution map so it doesn't count toward
+      // the stream-call total.
       if (href.includes("/wiki-resolutions")) {
         return Promise.resolve(
           makeResp(JSON.stringify({ resolutions: {} }), "application/json"),
@@ -233,18 +260,14 @@ describe("MarkdownFileViewer", () => {
   }
 
   it("refetches source when externalReloadKey changes", async () => {
-    // Regression guard for the bilateral chip-sync wiring: bumping the
-    // parent's reload key must refetch the .md so the Properties
-    // Panel's frontmatter display matches the post-save disk state.
-    // Without this, editing the outer File.tags chip row on the file
-    // detail page leaves the inner frontmatter chips stale until the
-    // user navigates away.
+    // Without the refetch, editing the outer File.tags chip row leaves the
+    // inner frontmatter chips stale until the user navigates away.
     const getStreamCalls = routeByUrl();
 
     const { rerender } = renderWithIntl(
       <MarkdownFileViewer
         fileId="fMd000000001"
-        editable={{ mime_type: "text/markdown", filename: "n.md", drive: "d" }}
+        editable={{ mime_type: "text/markdown", filename: "n.md", drive: "d", folder_path: "notes" }}
         externalReloadKey={0}
       />,
     );
@@ -257,7 +280,7 @@ describe("MarkdownFileViewer", () => {
       >
         <MarkdownFileViewer
           fileId="fMd000000001"
-          editable={{ mime_type: "text/markdown", filename: "n.md", drive: "d" }}
+          editable={{ mime_type: "text/markdown", filename: "n.md", drive: "d", folder_path: "notes" }}
           externalReloadKey={1}
         />
       </NextIntlClientProvider>,
@@ -273,8 +296,6 @@ describe("MarkdownFileViewer", () => {
     );
     await waitFor(() => expect(getStreamCalls()).toBe(1));
 
-    // Re-render with the same key + identical props: useEffect deps
-    // unchanged, so no second request.
     rerender(
       <NextIntlClientProvider
         locale="en"
@@ -283,7 +304,6 @@ describe("MarkdownFileViewer", () => {
         <MarkdownFileViewer fileId="f1" externalReloadKey={5} />
       </NextIntlClientProvider>,
     );
-    // Give any potential effect a tick.
     await new Promise((r) => setTimeout(r, 20));
     expect(getStreamCalls()).toBe(1);
   });

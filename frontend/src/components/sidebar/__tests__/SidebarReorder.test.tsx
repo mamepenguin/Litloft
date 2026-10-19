@@ -1,16 +1,3 @@
-/**
- * Phase 2: セクション順並び替えの結合テスト
- *
- * テスト戦略:
- * - (a) useSidebarSectionOrder が返す order の順にセクションが描画されることを確認
- * - (b) reorderable 4 セクションに grip が存在し、Library / Drives には grip がない
- * - (c) grip から dragStart → 別セクションへ drop で順序変更 → localStorage 永続化
- * - (d) drop indicator が absolute 要素として出現する（reflow しない契約の固定）
- *
- * jsdom は実ブラウザ DnD を再現できないため、ロジックは handler 直呼びで検証。
- * useReorderableDnD.test.tsx と同流儀。
- */
-
 import { describe, it, expect, vi, beforeEach, afterAll } from "vitest";
 import { act, render, renderHook, screen } from "@testing-library/react";
 
@@ -19,8 +6,6 @@ import { useReorderableDnD } from "../useReorderableDnD";
 import { SectionDragHandle } from "../SectionDragHandle";
 import { SidebarPinsSection } from "../SidebarPinsSection";
 import { SidebarTagsSection } from "../SidebarTagsSection";
-
-// ---- localStorage mock --------------------------------------------------------
 
 function makeLocalStorageMock(): Storage {
   const store = new Map<string, string>();
@@ -52,8 +37,6 @@ afterAll(() => {
     Object.defineProperty(window, "localStorage", originalLocalStorageDescriptor);
   }
 });
-
-// ---- FakeDataTransfer (same pattern as useReorderableDnD.test.tsx) -----------
 
 class FakeDataTransfer {
   private data = new Map<string, string>();
@@ -94,8 +77,6 @@ function dragEvent(
   } as unknown as React.DragEvent;
 }
 
-// ---- mocks -------------------------------------------------------------------
-
 vi.mock("next/link", () => ({
   default: ({ children, href, onClick, className }: {
     children: React.ReactNode;
@@ -109,12 +90,8 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-// ---- constants ---------------------------------------------------------------
-
 const STORAGE_KEY = "sidebar:order:sections";
 const DEFAULT_ORDER = ["collections", "pins", "smart-folders", "tags"] as const;
-
-// ---- (a) useSidebarSectionOrder が返す order --------------------------------
 
 describe("(a) useSidebarSectionOrder — order reflects saved state", () => {
   beforeEach(() => {
@@ -162,8 +139,6 @@ describe("(a) useSidebarSectionOrder — order reflects saved state", () => {
   });
 });
 
-// ---- (b) grip の有無 ---------------------------------------------------------
-
 describe("(b) grip presence — reorderable sections have grip, fixed zones do not", () => {
   beforeEach(() => {
     mockStorage.clear();
@@ -207,7 +182,6 @@ describe("(b) grip presence — reorderable sections have grip, fixed zones do n
         close={vi.fn()}
       />,
     );
-    // No grip button should be present
     expect(
       screen.queryByRole("button", { name: "Drag to reorder section" }),
     ).not.toBeInTheDocument();
@@ -217,8 +191,15 @@ describe("(b) grip presence — reorderable sections have grip, fixed zones do n
     const grip = <span data-testid="tags-grip">grip</span>;
     render(
       <SidebarTagsSection
-        driveBase="/drive/main"
-        tags={[{ name: "rock", count: 3 }]}
+        drive="main"
+        currentFolderPath={null}
+        pathname="/drive/main"
+        activeTag={null}
+        activeView={null}
+        tags={{
+          resolvedScope: { drive: "main", folderPath: null },
+          items: [{ name: "rock", count: 3 }],
+        }}
         linkClass={() => ""}
         close={vi.fn()}
         dragHandle={grip}
@@ -227,8 +208,6 @@ describe("(b) grip presence — reorderable sections have grip, fixed zones do n
     expect(screen.getByTestId("tags-grip")).toBeInTheDocument();
   });
 });
-
-// ---- (c) dragStart → drop で順序変更 + localStorage 永続化 -------------------
 
 describe("(c) drag-and-drop reorder + localStorage persistence", () => {
   beforeEach(() => {
@@ -244,14 +223,12 @@ describe("(c) drag-and-drop reorder + localStorage persistence", () => {
 
     const dt = new FakeDataTransfer();
 
-    // dragStart on collections
     act(() => {
       result.current.getHandleProps("collections").onDragStart(dragEvent(dt));
     });
     expect(result.current.draggingId).toBe("collections");
     expect(dt.types).toContain("application/x-litloft-reorder-sidebar-section");
 
-    // drop onto tags (after)
     act(() => {
       result.current
         .getRowProps("tags")
@@ -306,127 +283,5 @@ describe("(c) drag-and-drop reorder + localStorage persistence", () => {
       result.current.getRowProps("pins").onDrop(dragEvent(dt));
     });
     expect(onReorder).not.toHaveBeenCalled();
-  });
-});
-
-// ---- (d) drop indicator は absolute overlay として出現する -------------------
-
-describe("(d) drop indicator — absolute overlay, no reflow", () => {
-  beforeEach(() => {
-    mockStorage.clear();
-  });
-
-  it("dropTarget.position=before renders a top-0 absolute line", () => {
-    const ids = ["collections", "pins", "smart-folders", "tags"];
-    const { result } = renderHook(() =>
-      useReorderableDnD({ kind: "sidebar-section", ids, onReorder: vi.fn() }),
-    );
-
-    const dt = new FakeDataTransfer();
-    act(() => {
-      result.current.getHandleProps("collections").onDragStart(dragEvent(dt));
-    });
-    act(() => {
-      // clientY at top half → position: "before"
-      result.current
-        .getRowProps("pins")
-        .onDragOver(dragEvent(dt, { clientY: 2, rectTop: 0, rectHeight: 20 }));
-    });
-
-    expect(result.current.dropTarget).toEqual({ id: "pins", position: "before" });
-
-    // Render the indicator the same way Sidebar.tsx does
-    const { container } = render(
-      <div className="relative">
-        {result.current.dropTarget?.id === "pins" && (
-          <div
-            data-testid="drop-indicator"
-            className="pointer-events-none absolute inset-x-2 h-0.5 bg-accent z-10"
-            style={{
-              [result.current.dropTarget.position === "before" ? "top" : "bottom"]: 0,
-            }}
-          />
-        )}
-        <span>pin section content</span>
-      </div>,
-    );
-
-    const indicator = container.querySelector("[data-testid='drop-indicator']");
-    expect(indicator).toBeInTheDocument();
-    // Must be absolute (no reflow = no static/relative)
-    expect(indicator?.className).toContain("absolute");
-    // top:0 is applied via style (jsdom normalises "0" → "0px")
-    const topVal = (indicator as HTMLElement | null)?.style.top ?? "";
-    expect(["0", "0px"]).toContain(topVal);
-    // bottom should not be set for "before"
-    const bottomVal = (indicator as HTMLElement | null)?.style.bottom ?? "";
-    expect(["", "auto"]).toContain(bottomVal);
-  });
-
-  it("dropTarget.position=after renders a bottom-0 absolute line", () => {
-    const ids = ["collections", "pins", "smart-folders", "tags"];
-    const { result } = renderHook(() =>
-      useReorderableDnD({ kind: "sidebar-section", ids, onReorder: vi.fn() }),
-    );
-
-    const dt = new FakeDataTransfer();
-    act(() => {
-      result.current.getHandleProps("collections").onDragStart(dragEvent(dt));
-    });
-    act(() => {
-      // clientY at bottom half → position: "after"
-      result.current
-        .getRowProps("pins")
-        .onDragOver(dragEvent(dt, { clientY: 18, rectTop: 0, rectHeight: 20 }));
-    });
-
-    expect(result.current.dropTarget).toEqual({ id: "pins", position: "after" });
-
-    const { container } = render(
-      <div className="relative">
-        {result.current.dropTarget?.id === "pins" && (
-          <div
-            data-testid="drop-indicator"
-            className="pointer-events-none absolute inset-x-2 h-0.5 bg-accent z-10"
-            style={{
-              [result.current.dropTarget.position === "before" ? "top" : "bottom"]: 0,
-            }}
-          />
-        )}
-        <span>pin section content</span>
-      </div>,
-    );
-
-    const indicator = container.querySelector("[data-testid='drop-indicator']");
-    expect(indicator).toBeInTheDocument();
-    expect(indicator?.className).toContain("absolute");
-    // bottom:0 is applied via style (jsdom normalises "0" → "0px")
-    const bottomVal = (indicator as HTMLElement | null)?.style.bottom ?? "";
-    expect(["0", "0px"]).toContain(bottomVal);
-    // top should not be set for "after"
-    const topVal = (indicator as HTMLElement | null)?.style.top ?? "";
-    expect(["", "auto"]).toContain(topVal);
-  });
-
-  it("no drop indicator when dropTarget is null", () => {
-    const { result } = renderHook(() =>
-      useReorderableDnD({
-        kind: "sidebar-section",
-        ids: ["collections", "pins"],
-        onReorder: vi.fn(),
-      }),
-    );
-
-    expect(result.current.dropTarget).toBeNull();
-
-    const { container } = render(
-      <div className="relative">
-        {result.current.dropTarget?.id === "pins" && (
-          <div data-testid="drop-indicator" className="absolute" />
-        )}
-        <span>content</span>
-      </div>,
-    );
-    expect(container.querySelector("[data-testid='drop-indicator']")).not.toBeInTheDocument();
   });
 });

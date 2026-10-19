@@ -2,14 +2,13 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import type { SmartFolder } from "@/types/smartFolder";
 import { SmartFolderSaveButton } from "../SmartFolderSaveButton";
+import { ShortcutsProvider } from "../ShortcutsProvider";
 
-// Mock router
 const routerReplace = vi.fn();
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: routerReplace }),
 }));
 
-// Mock hook so we can drive its return shape directly.
 const createMock = vi.fn();
 const updateMock = vi.fn();
 const removeMock = vi.fn();
@@ -26,7 +25,6 @@ vi.mock("@/hooks/useSmartFolders", () => ({
   }),
 }));
 
-// Stub heavy dialog components so we can interrogate them by testid.
 vi.mock("../SmartFolderSaveDialog", () => ({
   SmartFolderSaveDialog: ({
     open,
@@ -190,6 +188,61 @@ describe("SmartFolderSaveButton", () => {
     expect(screen.getByText("Update")).toBeInTheDocument();
     expect(screen.getByText("Rename")).toBeInTheDocument();
     expect(screen.getByText("Delete")).toBeInTheDocument();
+  });
+
+  it("closes its menu on Escape and returns focus to the trigger", () => {
+    // Focus is moved **into the menu** before the press. Pressing with
+    // focus already on the trigger asserts nothing about the focus
+    // return: closing the menu does not move focus, so `toHaveFocus`
+    // passes whether or not the handler restores it.
+    mockSmartFolders = [SAMPLE];
+    render(
+      <ShortcutsProvider>
+        <SmartFolderSaveButton
+          drive="main"
+          query="foo"
+          typeFilter="video"
+          smartFolderId="sf1"
+        />
+      </ShortcutsProvider>,
+    );
+    const trigger = screen.getByText(/Saved: My Folder/).closest("button")!;
+    fireEvent.click(trigger);
+    const row = screen.getByText("Update").closest("button")!;
+    row.focus();
+    expect(row).toHaveFocus();
+
+    fireEvent.keyDown(row, { key: "Escape" });
+
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
+
+  it("closes on Escape even with focus in a text field", () => {
+    // What `editingOnly: false` buys. Nothing traps focus inside these
+    // menus, so Tab walks out of the last row into whatever follows in the
+    // document, and `ShortcutsProvider` treats an INPUT as "editing".
+    mockSmartFolders = [SAMPLE];
+    render(
+      <ShortcutsProvider>
+        <SmartFolderSaveButton
+          drive="main"
+          query="foo"
+          typeFilter="video"
+          smartFolderId="sf1"
+        />
+        <input aria-label="elsewhere" />
+      </ShortcutsProvider>,
+    );
+    fireEvent.click(screen.getByText(/Saved: My Folder/));
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+
+    const field = screen.getByLabelText("elsewhere");
+    field.focus();
+    fireEvent.keyDown(field, { key: "Escape" });
+
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   });
 
   it("calls update with current query when 'update' is confirmed", async () => {

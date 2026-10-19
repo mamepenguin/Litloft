@@ -57,8 +57,7 @@ def _to_summary(collection: Collection) -> CollectionSummaryResponse:
 def _to_detail(collection: Collection) -> CollectionDetailResponse:
     # Items for trashed (deleted_at) or missing (missing_since) files are
     # intentionally kept in the response so the UI can grey them out and
-    # the user can still see the collection history. Frontend reads
-    # ``deleted_at`` / ``missing_since`` on each file to adjust rendering.
+    # the user can still see the collection history.
     return CollectionDetailResponse(
         id=collection.id,
         name=collection.name,
@@ -75,9 +74,6 @@ def _to_detail(collection: Collection) -> CollectionDetailResponse:
         created_at=collection.created_at,
         updated_at=collection.updated_at,
     )
-
-
-# === Collection CRUD ===
 
 
 @router.get(
@@ -195,9 +191,6 @@ def delete_collection(
     collection = _get_collection_or_404(db, collection_id, drive_name)
     db.delete(collection)
     db.commit()
-
-
-# === Collection Items ===
 
 
 @router.post(

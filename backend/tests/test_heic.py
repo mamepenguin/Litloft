@@ -90,7 +90,6 @@ class TestConvertHeicToJpeg:
 
         pillow_heif.register_heif_opener()
 
-        # Create a small test image and save as HEIC
         source_path = tmp_path / "test.heic"
         img = Image.new("RGB", (100, 100), color=(255, 0, 0))
         img.save(str(source_path), format="HEIF", quality=80)
@@ -112,7 +111,6 @@ class TestConvertHeicToJpeg:
         cache_dir = tmp_path / "converted"
         cache_dir.mkdir(parents=True, exist_ok=True)
 
-        # Create a file that is not a valid HEIC
         bad_file = tmp_path / "bad.heic"
         bad_file.write_bytes(b"not a heic file")
 

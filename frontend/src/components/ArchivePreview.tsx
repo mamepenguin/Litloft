@@ -1,14 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { useTranslations } from "next-intl";
 import { getArchiveContents } from "@/lib/api";
+import {
+  ArchiveContentsStore,
+  type ArchiveController,
+} from "@/lib/archiveController";
 import { isTextPreviewable } from "./TextPreview";
 import type { ArchiveContents, ArchiveEntry } from "@/types";
 import type { ArchiveViewMode } from "./archive/archiveUtils";
-import { MAX_TEXT_AUTO_LOAD } from "./archive/archiveUtils";
+import {
+  defaultArchiveViewMode,
+  MAX_TEXT_AUTO_LOAD,
+} from "./archive/archiveUtils";
+import { canOpenArchiveEntry, getDirname } from "./archive/archiveUtils";
 import { useArchiveNavigation } from "./archive/useArchiveNavigation";
 import { useArchiveSort } from "./archive/useArchiveSort";
 import { useArchiveViewMode } from "./archive/useArchiveViewMode";
@@ -20,7 +28,13 @@ import { ArchiveFileListing } from "./archive/ArchiveFileListing";
 import { ArchiveEntryGrid } from "./archive/ArchiveEntryGrid";
 import { ArchiveToolbar } from "./archive/ArchiveToolbar";
 
-export function ArchivePreview({ fileId }: { fileId: string }) {
+export function ArchivePreview({
+  fileId,
+  onArchiveController,
+}: {
+  fileId: string;
+  onArchiveController?: (controller: ArchiveController | null) => void;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentPath = searchParams.get("archivePath") || "";
@@ -30,17 +44,28 @@ export function ArchivePreview({ fileId }: { fileId: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // "listing" | "image" | "text" — controls which viewer overlay is active
   const [viewerMode, setViewerMode] = useState<ArchiveViewMode>("listing");
   const [viewingEntry, setViewingEntry] = useState<ArchiveEntry | null>(null);
 
-  const { viewMode, setViewMode } = useArchiveViewMode();
-  const { sort, order, typeFilter, setSort, setOrder, setTypeFilter, applySortFilter } = useArchiveSort();
+  const {
+    sort,
+    order,
+    typeFilter,
+    setSort,
+    setOrder,
+    setTypeFilter,
+    applySortFilter,
+  } = useArchiveSort();
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
+    // The index is published from this state and the panel subscribes
+    // rather than remounting, so leaving the old archive in place shows
+    // zip A's contents beside zip B's spinner — and pressing a row then
+    // writes A's path into B's URL.
+    setArchive(null);
 
     getArchiveContents(fileId)
       .then((data) => {
@@ -52,7 +77,7 @@ export function ArchivePreview({ fileId }: { fileId: string }) {
       .catch((err) => {
         if (!cancelled) {
           setError(
-            err instanceof Error ? err.message : "Failed to load archive"
+            err instanceof Error ? err.message : "Failed to load archive",
           );
           setLoading(false);
         }
@@ -69,9 +94,17 @@ export function ArchivePreview({ fileId }: { fileId: string }) {
     currentEntries,
     imageEntries,
     breadcrumbs,
+    navigateArchive,
     handleDirClick,
     handleBreadcrumbClick,
   } = useArchiveNavigation(archive, currentPath, searchParamsString, router);
+
+  // Derived from the level, not from what the filter left of it: narrowing to
+  // images would otherwise flip the layout under the reader's hand.
+  const { viewMode, setViewMode } = useArchiveViewMode(
+    fileId,
+    defaultArchiveViewMode(currentEntries),
+  );
 
   const closeViewer = useCallback(() => {
     setViewerMode("listing");
@@ -82,7 +115,7 @@ export function ArchivePreview({ fileId }: { fileId: string }) {
     viewerMode,
     imageEntries,
     fileId,
-    closeViewer
+    closeViewer,
   );
 
   const textViewer = useTextViewer(viewerMode, viewingEntry, fileId);
@@ -93,7 +126,7 @@ export function ArchivePreview({ fileId }: { fileId: string }) {
     setViewerMode("listing");
     setViewingEntry(null);
     imageViewer.setPlaying(false);
-    imageViewer.setShowControls(true);
+    imageViewer.showChrome();
     textViewer.setTextContent(null);
     textViewer.setTextError(null);
     textViewer.setTextConfirmed(false);
@@ -103,7 +136,7 @@ export function ArchivePreview({ fileId }: { fileId: string }) {
     setViewerMode("listing");
     setViewingEntry(null);
     imageViewer.setPlaying(false);
-    imageViewer.setShowControls(true);
+    imageViewer.showChrome();
   }, [currentPath]);
 
   const handleFileClick = useCallback(
@@ -113,9 +146,9 @@ export function ArchivePreview({ fileId }: { fileId: string }) {
         imageViewer.setImageIndex(idx >= 0 ? idx : 0);
         setViewingEntry(entry);
         setViewerMode("image");
-        imageViewer.setShowControls(true);
+        imageViewer.showChrome();
         imageViewer.setPlaying(false);
-      } else if (isTextPreviewable(entry.mime_type)) {
+      } else if (isTextPreviewable(entry.mime_type, entry.filename)) {
         setViewingEntry(entry);
         setViewerMode("text");
         textViewer.setTextContent(null);
@@ -123,15 +156,104 @@ export function ArchivePreview({ fileId }: { fileId: string }) {
         textViewer.setTextConfirmed(entry.file_size <= MAX_TEXT_AUTO_LOAD);
       }
     },
-    [imageEntries, imageViewer, textViewer]
+    [imageEntries, imageViewer, textViewer],
   );
 
-  const isClickable = (entry: ArchiveEntry): boolean => {
-    if (entry.is_dir) return true;
-    if (entry.file_type === "image") return true;
-    if (isTextPreviewable(entry.mime_type)) return true;
-    return false;
-  };
+  // The inspector's index reaches into levels the canvas is not on, so
+  // opening one of its leaves is two steps: move the level, then open.
+  // `handleFileClick` reads `imageEntries`, which is the *current*
+  // level — called before the move lands it would open the wrong page,
+  // or none.
+  /**
+   * `from` is the load-bearing half. `setPendingOpen` is a default-lane
+   * update and `router.push` is a transition, so React commits this
+   * state *before* the level changes and flushes effects in between.
+   */
+  const [pendingOpen, setPendingOpen] = useState<{
+    path: string;
+    from: string;
+  } | null>(null);
+
+  // Any other way of moving cancels a request the index made. Guessing
+  // from `currentPath` cannot: a reader who leaves and comes back
+  // leaves it exactly where it was.
+  const cancelPendingOpen = useCallback(() => setPendingOpen(null), []);
+
+  const openBreadcrumb = useCallback(
+    (path: string) => {
+      cancelPendingOpen();
+      handleBreadcrumbClick(path);
+    },
+    [cancelPendingOpen, handleBreadcrumbClick],
+  );
+
+  const openDir = useCallback(
+    (entry: ArchiveEntry) => {
+      cancelPendingOpen();
+      handleDirClick(entry);
+    },
+    [cancelPendingOpen, handleDirClick],
+  );
+
+  const openFromIndex = useCallback(
+    (entry: ArchiveEntry) => {
+      // Whatever else happens, a new press replaces an old one. Without
+      // this a deep press followed by a same-level press opens the
+      // second and then the first, when its navigation lands.
+      setPendingOpen(null);
+      if (entry.is_dir) {
+        handleDirClick(entry);
+        return;
+      }
+      const parent = getDirname(entry.path);
+      if (parent === currentPath) {
+        handleFileClick(entry);
+        return;
+      }
+      setPendingOpen({ path: entry.path, from: currentPath });
+      navigateArchive(parent);
+    },
+    [currentPath, handleDirClick, handleFileClick, navigateArchive],
+  );
+
+  useEffect(() => {
+    if (!pendingOpen) return;
+    const entry = currentEntries.find((e) => e.path === pendingOpen.path);
+    if (entry) {
+      setPendingOpen(null);
+      handleFileClick(entry);
+      return;
+    }
+    // A landing anywhere other than the level the request was issued from or
+    // the one it is headed for means the reader went somewhere else, and
+    // waiting on would open a page they never asked for.
+    //
+    // This cannot see the reader going somewhere else and *back*. That case
+    // is dropped at its source instead: every control that starts a
+    // different move clears the request.
+    const target = getDirname(pendingOpen.path);
+    if (currentPath !== pendingOpen.from && currentPath !== target) {
+      setPendingOpen(null);
+    }
+  }, [pendingOpen, currentEntries, currentPath, handleFileClick]);
+
+  const archiveStore = useMemo(() => new ArchiveContentsStore(), []);
+
+  // In effects, not during render: `set` notifies its subscribers
+  // synchronously, and the subscriber is a component in the inspector's
+  // subtree.
+  useEffect(() => {
+    archiveStore.setOpener(openFromIndex);
+  }, [archiveStore, openFromIndex]);
+
+  useEffect(() => {
+    archiveStore.set({ entries: archive?.entries ?? [], currentPath });
+  }, [archiveStore, archive, currentPath]);
+
+  useEffect(() => {
+    onArchiveController?.(archiveStore);
+    return () => onArchiveController?.(null);
+  }, [onArchiveController, archiveStore]);
 
   if (loading) {
     return (
@@ -165,13 +287,20 @@ export function ArchivePreview({ fileId }: { fileId: string }) {
         slideshowInterval={imageViewer.slideshowInterval}
         setSlideshowInterval={imageViewer.setSlideshowInterval}
         showControls={imageViewer.showControls}
+        chromeProps={imageViewer.chromeProps}
+        onIntervalOpenChange={imageViewer.setChromeHeld}
+        face={imageViewer.face}
+        faceLabel={imageViewer.faceLabel}
+        subPageLabel={imageViewer.subPageLabel}
+        canGoPrev={imageViewer.canGoPrev}
+        canGoNext={imageViewer.canGoNext}
+        rememberOrientation={imageViewer.rememberOrientation}
         handleImageAreaClick={imageViewer.handleImageAreaClick}
         closeViewer={closeViewerFull}
-        splitMode={imageViewer.splitMode}
-        setSplitMode={imageViewer.setSplitMode}
+        spreadMode={imageViewer.spreadMode}
+        setSpreadMode={imageViewer.setSpreadMode}
         readingDirection={imageViewer.readingDirection}
         setReadingDirection={imageViewer.setReadingDirection}
-        isCurrentLandscape={imageViewer.isCurrentLandscape}
         setIsCurrentLandscape={imageViewer.setIsCurrentLandscape}
         showRightHalf={imageViewer.showRightHalf}
         navigatePrev={imageViewer.navigatePrev}
@@ -183,12 +312,15 @@ export function ArchivePreview({ fileId }: { fileId: string }) {
   const displayEntries = applySortFilter(currentEntries);
 
   return (
-    <div className="w-full">
+    // `h-full`: the canvas reserves a floor on the wrapper above and
+    // stretches this box into it, so the listing gets the height rather
+    // than leaving it empty underneath.
+    <div className="flex h-full w-full flex-col">
       <ArchiveToolbar
         fileId={fileId}
         archive={archive}
         breadcrumbs={breadcrumbs}
-        handleBreadcrumbClick={handleBreadcrumbClick}
+        handleBreadcrumbClick={openBreadcrumb}
         sort={sort}
         order={order}
         typeFilter={typeFilter}
@@ -203,30 +335,33 @@ export function ArchivePreview({ fileId }: { fileId: string }) {
         <ArchiveEntryGrid
           entries={displayEntries}
           fileId={fileId}
-          handleDirClick={handleDirClick}
+          handleDirClick={openDir}
           handleFileClick={handleFileClick}
-          isClickable={isClickable}
+          isClickable={canOpenArchiveEntry}
         />
       ) : (
         <ArchiveFileListing
           entries={displayEntries}
           fileId={fileId}
-          handleDirClick={handleDirClick}
+          handleDirClick={openDir}
           handleFileClick={handleFileClick}
-          isClickable={isClickable}
-        >
-          {viewerMode === "text" && viewingEntry && (
-            <ArchiveTextViewer
-              viewingEntry={viewingEntry}
-              textConfirmed={textViewer.textConfirmed}
-              textLoading={textViewer.textLoading}
-              textError={textViewer.textError}
-              textContent={textViewer.textContent}
-              setTextConfirmed={textViewer.setTextConfirmed}
-              closeViewer={closeViewerFull}
-            />
-          )}
-        </ArchiveFileListing>
+          isClickable={canOpenArchiveEntry}
+        />
+      )}
+
+      {/* Outside the branch, because `viewerMode === "text"` means the same
+          thing in both layouts. */}
+      {viewerMode === "text" && viewingEntry && (
+        <ArchiveTextViewer
+          viewingEntry={viewingEntry}
+          fileId={fileId}
+          textConfirmed={textViewer.textConfirmed}
+          textLoading={textViewer.textLoading}
+          textError={textViewer.textError}
+          textContent={textViewer.textContent}
+          setTextConfirmed={textViewer.setTextConfirmed}
+          closeViewer={closeViewerFull}
+        />
       )}
     </div>
   );

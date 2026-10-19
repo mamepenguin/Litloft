@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type RefObject } from "react";
+import { SearchX } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { useContextMenu } from "@/hooks/useContextMenu";
@@ -12,9 +13,45 @@ import { FileGrid } from "@/components/FileGrid";
 import { FileList } from "@/components/FileList";
 import { EmptyState } from "@/components/EmptyState";
 import { FolderCard } from "@/components/FolderCard";
+import { FolderListRow } from "@/components/FolderListRow";
 import { FolderContextMenu } from "@/components/FolderContextMenu";
 
+import { cardGridTemplate, useCardColumns } from "@/lib/cardGrid";
+
 import { FilterField } from "./FilterField";
+import { useFolderCardRename } from "./useFolderCardRename";
+import { type WidenTagScope } from "./WidenTagScopeLink";
+
+/**
+ * Both branches are written out with literal class strings because
+ * `card-grid.test.ts` builds its population by reading them out of the
+ * source. A single element with a conditional `className` still renders a
+ * grid but is invisible to that scan.
+ */
+function FolderShelf({
+  list,
+  gridRef,
+  columns,
+  children,
+}: {
+  list: boolean;
+  gridRef: (node: HTMLElement | null) => void;
+  columns: number;
+  children: React.ReactNode;
+}) {
+  if (list) {
+    return <div className="mb-6">{children}</div>;
+  }
+  return (
+    <div
+      ref={gridRef}
+      className="mb-6 grid gap-3"
+      style={{ gridTemplateColumns: cardGridTemplate(columns) }}
+    >
+      {children}
+    </div>
+  );
+}
 
 interface FolderContentProps {
   files: FileItemWithMatch[];
@@ -23,9 +60,11 @@ interface FolderContentProps {
   viewMode: ViewMode;
   loading: boolean;
   loadingMore: boolean;
+  hasMore?: boolean;
   isRecent: boolean;
   hasProfile: boolean;
   isFavorites: boolean;
+  isLiked: boolean;
   isRecentAdded: boolean;
   isSearch?: boolean;
   selectable: boolean;
@@ -35,7 +74,7 @@ interface FolderContentProps {
   dragState: DragState;
   isDropTarget: (path: string) => boolean;
   getDropTargetProps: (path: string) => Record<string, (e: React.DragEvent) => void>;
-  isSelected: (id: string) => boolean;
+  selectedIds: ReadonlySet<string>;
   onSelect: (id: string) => void;
   onMetaSelect: (id: string) => void;
   onShiftSelect: (id: string) => void;
@@ -47,67 +86,99 @@ interface FolderContentProps {
   selectedCount: number;
   isDropDisabled: (path: string) => boolean;
   onFolderDragStart: (e: React.DragEvent, folderPath: string) => void;
+  widenTagScope?: WidenTagScope | null;
+  onAddFiles?: () => void;
 }
 
 export function FolderContent({
-  files, folders, driveName, viewMode, loading, loadingMore,
-  isRecent, hasProfile, isFavorites, isRecentAdded, isSearch, selectable, sortQuery,
+  files, folders, driveName, viewMode, loading, loadingMore, hasMore = false,
+  isRecent, hasProfile, isFavorites, isLiked, isRecentAdded, isSearch, selectable, sortQuery,
   pinnedPaths, sentinelRef, dragState, isDropTarget, getDropTargetProps,
-  isSelected, onSelect, onMetaSelect, onShiftSelect, onTogglePin, onFavoriteToggle, onRefresh,
+  selectedIds, onSelect, onMetaSelect, onShiftSelect, onTogglePin, onFavoriteToggle, onRefresh,
   onDragStart, onDragEnd, selectedCount, isDropDisabled, onFolderDragStart,
+  widenTagScope, onAddFiles,
 }: FolderContentProps) {
-  // Show folder-card drop targets for both local drags and cross-pane
-  // drags originating from the tree pane.
   const isInternalDragging = useIsInternalDragging();
   const tFilter = useTranslations("filter");
+  const tToolbar = useTranslations("toolbar");
+  const tEmpty = useTranslations("empty");
   const [menuTarget, setMenuTarget] = useState<Folder | null>(null);
+  const { ref: folderGridRef, columns } = useCardColumns();
   const { menuState: folderMenuState, close: closeFolderMenu, handlers: folderMenuHandlers } = useContextMenu();
   const filter = useFolderFilter<FileItemWithMatch>(files, folders);
   const filteredFiles = filter.files;
   const filteredFolders = filter.folders;
   const isFilterEmpty =
     filter.isActive && filteredFiles.length === 0 && filteredFolders.length === 0;
+
+  // The name box narrows the rows without touching the URL, and it is
+  // not visible to `FolderBrowser` above — so the "this is the whole
+  // folder" marker it set is withdrawn here while the box has something
+  // in it.
+  const rowSortQuery = filter.isActive
+    ? sortQuery.replace(/([?&])nav=folder&?/, (_m, lead: string) =>
+        lead === "?" ? "?" : "&",
+      ).replace(/[?&]$/, "")
+    : sortQuery;
+
+  const rename = useFolderCardRename(driveName, onRefresh);
+
   return (
     <>
+      {rename.error && (
+        <div
+          role="alert"
+          className="mb-3 rounded-lg bg-danger px-3 py-1.5 text-xs text-white"
+        >
+          {rename.error}
+        </div>
+      )}
       <div className="mb-6">
         <FilterField
           text={filter.text}
           onTextChange={filter.setText}
           placeholder={tFilter("placeholder.folder")}
-          typeFilter={filter.typeFilter}
-          onTypeFilterChange={filter.setTypeFilter}
         />
       </div>
 
       {filteredFolders.length > 0 && (
-        <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <FolderShelf
+          list={viewMode === "list"}
+          gridRef={folderGridRef}
+          columns={columns}
+        >
           {filteredFolders.map((folder) => {
             const disabled = isDropDisabled(folder.path);
-            return (
-              <FolderCard
-                key={folder.path}
-                folder={folder}
-                driveName={driveName}
-                isDropTarget={(dragState.isDragging || isInternalDragging) && !disabled && isDropTarget(folder.path)}
-                dropTargetProps={(dragState.isDragging || isInternalDragging) && !disabled ? getDropTargetProps(folder.path) : undefined}
-                draggable={!!onRefresh}
-                isDragging={dragState.draggedFolderPath === folder.path}
-                onDragStart={(e) => onFolderDragStart(e, folder.path)}
-                onDragEnd={onDragEnd}
-                onContextMenu={(e) => {
-                  setMenuTarget(folder);
-                  folderMenuHandlers.onContextMenu(e);
-                }}
-                onTouchStart={(e) => {
-                  setMenuTarget(folder);
-                  folderMenuHandlers.onTouchStart(e);
-                }}
-                onTouchEnd={folderMenuHandlers.onTouchEnd}
-                onTouchMove={folderMenuHandlers.onTouchMove}
-              />
+            const dragging = dragState.isDragging || isInternalDragging;
+            const folderProps = {
+              folder,
+              driveName,
+              isDropTarget: dragging && !disabled && isDropTarget(folder.path),
+              dropTargetProps:
+                dragging && !disabled ? getDropTargetProps(folder.path) : undefined,
+              draggable: !!onRefresh,
+              isDragging: dragState.draggedFolderPath === folder.path,
+              onDragStart: (e: React.DragEvent) => onFolderDragStart(e, folder.path),
+              onDragEnd,
+              ...rename.cardProps(folder),
+              onContextMenu: (e: React.MouseEvent) => {
+                setMenuTarget(folder);
+                folderMenuHandlers.onContextMenu(e);
+              },
+              onTouchStart: (e: React.TouchEvent) => {
+                setMenuTarget(folder);
+                folderMenuHandlers.onTouchStart(e);
+              },
+              onTouchEnd: folderMenuHandlers.onTouchEnd,
+              onTouchMove: folderMenuHandlers.onTouchMove,
+            };
+            return viewMode === "list" ? (
+              <FolderListRow key={folder.path} {...folderProps} />
+            ) : (
+              <FolderCard key={folder.path} {...folderProps} />
             );
           })}
-        </div>
+        </FolderShelf>
       )}
 
       <FolderContextMenu
@@ -119,6 +190,9 @@ export function FolderContent({
         onTogglePin={menuTarget ? () => onTogglePin(menuTarget.path) : undefined}
         onUpdate={onRefresh}
         onClose={closeFolderMenu}
+        onStartInlineRename={
+          menuTarget ? () => rename.start(menuTarget.path) : undefined
+        }
       />
 
       {loading ? (
@@ -126,46 +200,58 @@ export function FolderContent({
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
         </div>
       ) : isFilterEmpty ? (
-        <div className="flex flex-col items-center justify-center gap-3 py-12 text-sm text-text-muted">
-          <p>{tFilter("empty.folder")}</p>
-          <button
-            type="button"
-            onClick={filter.clear}
-            className="rounded-2xl border border-bg-border bg-bg-card px-4 py-2 text-sm text-text-primary transition-colors hover:bg-bg-elevated"
-          >
-            {tFilter("clear")}
-          </button>
-        </div>
+        <EmptyState
+          icon={SearchX}
+          title={tFilter("empty.folder")}
+          secondaryActions={[{ label: tFilter("clear"), onClick: filter.clear }]}
+        />
       ) : files.length === 0 && folders.length === 0 ? (
-        // In search mode the FolderContent represents only the
-        // filename/metadata-text match axis. The intelligence
-        // semantic-search section above is a separate result axis,
-        // so showing an empty state here would contradict it when
-        // semantic matches exist. Render nothing instead — the page
-        // header already conveys the search context, and the
-        // semantic section communicates its own emptiness.
+        // In search mode the semantic-search section is a separate result
+        // axis, so showing an empty state here would contradict it when
+        // semantic matches exist.
         isSearch ? null : isFavorites ? (
           <EmptyState variant="no-favorites" />
+        ) : isLiked ? (
+          <EmptyState variant="no-liked" />
         ) : isRecent ? (
           <EmptyState variant={hasProfile ? "no-recent" : "no-recent-profile"} />
         ) : isRecentAdded ? (
           <EmptyState variant="no-recent-added" />
+        ) : widenTagScope ? (
+          <EmptyState
+            variant="no-tag-matches"
+            // Secondary: the folder toolbar's `Add` is the screen's one
+            // accent fill and it is on screen here too.
+            secondaryActions={[
+              {
+                label: tToolbar("searchWholeDrive"),
+                href: widenTagScope.href,
+              },
+            ]}
+          />
         ) : (
-          <EmptyState variant="no-files" />
+          <EmptyState
+            variant="no-files"
+            secondaryActions={
+              onAddFiles ? [{ label: tEmpty("addFilesAction"), onClick: onAddFiles }] : []
+            }
+          />
         )
       ) : viewMode === "grid" ? (
         <FileGrid
           files={filteredFiles}
+          // A filter shows every match; holding its last line would hide some.
+          moreMayFollow={hasMore && !filter.isActive}
           onFavoriteToggle={onFavoriteToggle}
           onRefresh={onRefresh}
           selectable={selectable}
-          isSelected={isSelected}
+          selectedIds={selectedIds}
           onSelect={onSelect}
           onMetaSelect={onMetaSelect}
           onShiftSelect={onShiftSelect}
-          sortQuery={sortQuery}
+          sortQuery={rowSortQuery}
           draggable={!selectable || selectedCount > 0}
-          draggedFileIds={dragState.draggedFileIds}
+          draggedIds={dragState.draggedFileIdSet}
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}
         />
@@ -175,13 +261,13 @@ export function FolderContent({
           onFavoriteToggle={onFavoriteToggle}
           onRefresh={onRefresh}
           selectable={selectable}
-          isSelected={isSelected}
+          selectedIds={selectedIds}
           onSelect={onSelect}
           onMetaSelect={onMetaSelect}
           onShiftSelect={onShiftSelect}
-          sortQuery={sortQuery}
+          sortQuery={rowSortQuery}
           draggable={!selectable || selectedCount > 0}
-          draggedFileIds={dragState.draggedFileIds}
+          draggedIds={dragState.draggedFileIdSet}
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}
         />

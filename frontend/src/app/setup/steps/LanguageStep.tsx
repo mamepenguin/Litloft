@@ -1,9 +1,5 @@
 "use client";
 
-// LanguageStep: language-agnostic intro screen. Renders the brand mark
-// and a tiny neutral subtitle only. Two large language buttons drive the
-// locale selection and a small arrow advances to the Welcome step.
-
 import { useTranslations } from "next-intl";
 
 import type { Locale } from "@/i18n/config";
@@ -62,7 +58,7 @@ export function LanguageStep({
             onClick={onNext}
             disabled={!value}
             aria-label={t("next")}
-            className="rounded-2xl bg-accent px-5 py-2.5 text-base font-medium text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-2xl bg-accent px-5 py-2.5 text-base font-medium text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-sand disabled:text-warm-silver"
           >
             →
           </button>

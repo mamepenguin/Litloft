@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2-1",
+      "status": "confirmed",
+      "note": "addons/cloud-sync/backend/requirements.txt:3 is `tzdata>=2024.1`, which sets a lower bound only. Line 1, `croniter>=2.0,<4.0`, has an upper bound. docs/process/reviews/feature-cloud-sync-settings-gui/decisions.md:3 records the human decision as 'pin tzdata', and commit 2a4d3f500's subject calls it 'the pinned tzdata'. With no upper bound or exact version, pip installs the newest tzdata at each image build, so the zone database can still change between rebuilds. This is the drift that r1 (claude-read r1 regression risk: 'The unpinned tzdata changes with each image rebuild') asked to remove. I read the working-tree file. Git status showed no modifications under addons/cloud-sync, so I take that file to match the commit."
+    }
+  ],
+  "specification_compliance": [
+    "The r2 decision ('pin tzdata') is only partly met: a lower bound was added, but the version is not bounded above or fixed (addons/cloud-sync/backend/requirements.txt:3)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "A future tzdata release installed at rebuild could change which zone names is_valid_timezone accepts. That would affect I2 (a stored zone becoming invalid) and I9 (a stored zone preserved on save)."
+  ],
+  "test_coverage": [
+    "No test asserts the installed tzdata version or that the pin holds. Legacy-alias acceptance is covered by test_settings_apply.py:80 (SPEC-ADDON-006), but only against whatever tzdata is installed."
+  ],
+  "not_verified": [
+    "I could not run git, so I did not confirm that the submodule working tree is checked out at the gitlink recorded in commit 2a4d3f500.",
+    "Whether any tzdata release at or above 2024.1 has actually removed or changed a zone name that the tests or stored configs rely on.",
+    "The 422-on-drift part of the fix commit; no finding asked me to verify it."
+  ],
+  "confidence": 90
+}

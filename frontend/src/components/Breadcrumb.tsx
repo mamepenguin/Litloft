@@ -1,6 +1,29 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { ChevronRight, Home } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useFolderLink } from "@/hooks/useFolderLink";
+import { foldTrail } from "@/lib/trail";
+
+/**
+ * Every segment of a trail must be able to narrow. A segment's own minimum
+ * size is otherwise its label's full length — `truncate` on the label inside
+ * makes the label narrowable and says nothing about the box holding it.
+ */
+export const TRAIL_SEGMENT = "min-w-0";
+
+/**
+ * The ancestors narrow first — a shrink factor this large spends the row's
+ * deficit on them almost entirely before the last segment, which names where
+ * the reader is, gives any of its own.
+ *
+ * They stop at a floor rather than at zero: a link narrowed to nothing has no
+ * hit area, and narrowing is meant to cost legibility, not reach. The floor
+ * holds the chevron, the padding and a few characters. Both are exported
+ * because the archive's trail is built from buttons and cannot use this
+ * component.
+ */
+export const TRAIL_ANCESTOR = "min-w-12 shrink-[999]";
 
 interface BreadcrumbProps {
   driveName: string;
@@ -8,14 +31,22 @@ interface BreadcrumbProps {
   getDropTargetProps?: (targetPath: string) => Record<string, (e: React.DragEvent) => void>;
   isDropTarget?: (targetPath: string) => boolean;
   /**
-   * Optional non-navigable trailing label rendered as the last
-   * breadcrumb segment. Used by virtual-folder hosts (e.g. the
-   * collection detail page) to surface a name that lives outside
-   * the folder hierarchy without abusing ``folderPath``'s ``/``
-   * splitting. When set, the drive name becomes a Link (since this
-   * trailing label is the actual current location).
+   * A node is rendered as given, so the caller owns its truncation and
+   * styling; a string gets the leaf styling the folder segments use.
    */
-  trailingSegment?: string;
+  trailingSegment?: ReactNode;
+  /**
+   * The page names its own location in a heading, so the trail stops at the
+   * drive and the drive becomes a Link rather than the leaf.
+   */
+  driveIsAncestor?: boolean;
+}
+
+interface TrailItem {
+  /** Drive-relative, and the drop target's path. The drive's own is "". */
+  path: string;
+  label: string;
+  href: string;
 }
 
 export function Breadcrumb({
@@ -24,70 +55,103 @@ export function Breadcrumb({
   getDropTargetProps,
   isDropTarget,
   trailingSegment,
+  driveIsAncestor,
 }: BreadcrumbProps) {
   const t = useTranslations("toolbar");
+  const folderLink = useFolderLink();
   const segments = folderPath ? folderPath.split("/").filter(Boolean) : [];
-  // When a trailing virtual segment is provided, the drive itself is no
-  // longer the leaf — render it as a Link, the same way it behaves when
-  // ``folderPath`` carries real segments.
-  const driveIsLeaf = segments.length === 0 && !trailingSegment;
+  const driveHref = `/drive/${encodeURIComponent(driveName)}`;
+
+  const items: TrailItem[] = [
+    { path: "", label: driveName, href: driveHref },
+    ...segments.map((segment, i) => ({
+      path: segments.slice(0, i + 1).join("/"),
+      label: segment,
+      href: `${driveHref}/${segments
+        .slice(0, i + 1)
+        .map(encodeURIComponent)
+        .join("/")}`,
+    })),
+  ];
+
+  // Where the caller draws its own leaf, or names the location in a heading,
+  // every item here is an ancestor.
+  const leafIndex = trailingSegment || driveIsAncestor ? -1 : items.length - 1;
+  const { before, folded, after } = foldTrail(items, trailingSegment ? 1 : 2);
+  // The marker stands where the folded items were, so it leads to the
+  // deepest of them.
+  const behindMarker = folded[folded.length - 1];
+
+  const segment = (entry: TrailItem, index: number) => {
+    const isLeaf = index === leafIndex;
+    return (
+      <span
+        key={entry.path}
+        className={`flex items-center gap-1 ${isLeaf ? TRAIL_SEGMENT : TRAIL_ANCESTOR}`}
+      >
+        <ChevronRight size={14} className="flex-shrink-0" />
+        {isLeaf ? (
+          <span className="truncate font-medium text-text-primary">{entry.label}</span>
+        ) : (
+          <Link
+            href={entry.href}
+            className={`truncate rounded-lg px-1 transition-colors hover:text-text-primary${
+              isDropTarget?.(entry.path) ? " ring-2 ring-accent bg-accent/10 text-accent" : ""
+            }`}
+            {...folderLink(entry.href)}
+            {...getDropTargetProps?.(entry.path)}
+          >
+            {entry.label}
+          </Link>
+        )}
+      </span>
+    );
+  };
 
   return (
-    <nav className="flex min-w-0 flex-1 items-center gap-1 text-sm text-text-muted overflow-x-auto">
-      <Link
-        href="/"
-        className="flex-shrink-0 hover:text-text-primary"
-        aria-label={t("home")}
-      >
+    <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto text-sm text-text-muted">
+      <Link href="/" className="flex-shrink-0 hover:text-text-primary" aria-label={t("home")}>
         <Home size={16} />
       </Link>
 
-      <ChevronRight size={14} className="flex-shrink-0" />
-      {driveIsLeaf ? (
-        <span className="font-medium text-text-primary truncate">{driveName}</span>
-      ) : (
-        <Link
-          href={`/drive/${encodeURIComponent(driveName)}`}
-          className={`hover:text-text-primary truncate rounded-lg px-1 transition-colors${
-            isDropTarget?.("") ? " ring-2 ring-accent bg-accent/10 text-accent" : ""
-          }`}
-          {...getDropTargetProps?.("")}
-        >
-          {driveName}
-        </Link>
+      {before.map(segment)}
+
+      {behindMarker && (
+        <span className="flex flex-shrink-0 items-center gap-1">
+          <ChevronRight size={14} className="flex-shrink-0" />
+          {/* No drop target: where a drop onto the marker would land is not
+              something the row lets the reader predict. */}
+          <Link
+            href={behindMarker.href}
+            aria-label={behindMarker.label}
+            title={folded.map((f) => f.label).join(" / ")}
+            className="min-w-7 flex-shrink-0 rounded-lg px-1 text-center transition-colors hover:text-text-primary"
+            {...folderLink(behindMarker.href)}
+          >
+            …
+          </Link>
+        </span>
       )}
 
-      {segments.map((segment, i) => {
-        const path = segments.slice(0, i + 1).join("/");
-        const encodedPath = segments.slice(0, i + 1).map(encodeURIComponent).join("/");
-        const isLast = i === segments.length - 1 && !trailingSegment;
-        return (
-          <span key={path} className="flex items-center gap-1">
-            <ChevronRight size={14} className="flex-shrink-0" />
-            {isLast ? (
-              <span className="font-medium text-text-primary truncate">{segment}</span>
-            ) : (
-              <Link
-                href={`/drive/${encodeURIComponent(driveName)}/${encodedPath}`}
-                className={`hover:text-text-primary truncate rounded-lg px-1 transition-colors${
-                  isDropTarget?.(path) ? " ring-2 ring-accent bg-accent/10 text-accent" : ""
-                }`}
-                {...getDropTargetProps?.(path)}
-              >
-                {segment}
-              </Link>
-            )}
-          </span>
-        );
-      })}
+      {after.map((entry, i) => segment(entry, before.length + folded.length + i))}
 
       {trailingSegment && (
-        <span className="flex items-center gap-1">
+        <>
           <ChevronRight size={14} className="flex-shrink-0" />
-          <span className="font-medium text-text-primary truncate">
-            {trailingSegment}
-          </span>
-        </span>
+          {typeof trailingSegment === "string" ? (
+            // `title` because this is the one segment that is routinely
+            // too long for the row; without it a truncated filename cannot
+            // be read at all.
+            <span
+              className="truncate font-medium text-text-primary"
+              title={trailingSegment}
+            >
+              {trailingSegment}
+            </span>
+          ) : (
+            trailingSegment
+          )}
+        </>
       )}
     </nav>
   );

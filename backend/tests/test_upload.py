@@ -1,5 +1,14 @@
 import io
+import subprocess
+from datetime import UTC, datetime
 from pathlib import Path
+
+import pytest
+from fastapi import HTTPException
+
+from app.models import File
+from app.services import scanner as scanner_module
+from app.services import upload as upload_service
 
 from tests.conftest import TEST_DRIVE
 
@@ -11,7 +20,6 @@ class TestUploadFlow:
         c, db, drive_dir, data_dir = client
         test_data = b"x" * 1000
 
-        # Init
         res = c.post(f"/api/drives/{TEST_DRIVE}/upload/init", json={
             "filename": "uploaded.bin",
             "file_size": len(test_data),
@@ -23,7 +31,6 @@ class TestUploadFlow:
         upload_id = body["upload_id"]
         assert body["total_chunks"] == 1
 
-        # Chunk
         res = c.post(
             f"/api/drives/{TEST_DRIVE}/upload/{upload_id}/chunk",
             data={"chunk_index": "0"},
@@ -32,7 +39,6 @@ class TestUploadFlow:
         assert res.status_code == 200
         assert res.json()["received_chunks"] == 1
 
-        # Complete
         res = c.post(f"/api/drives/{TEST_DRIVE}/upload/{upload_id}/complete")
         assert res.status_code == 200
         assert res.json()["filename"] == "uploaded.bin"
@@ -112,7 +118,6 @@ class TestUploadFlow:
         res = c.delete(f"/api/drives/{TEST_DRIVE}/upload/{upload_id}")
         assert res.status_code == 200
 
-        # Session gone
         res = c.post(f"/api/drives/{TEST_DRIVE}/upload/{upload_id}/complete")
         assert res.status_code == 404
 
@@ -205,7 +210,6 @@ class TestUploadFlow:
             "chunk_size": 1024,
         })
         assert res.status_code == 400
-        # Limit should be reflected in the message, not the hardcoded "2GB"
         assert "GB" in res.json()["detail"]
         assert "max" in res.json()["detail"].lower()
 
@@ -240,3 +244,189 @@ class TestUploadFlow:
             "chunk_size": 10,
         })
         assert res.status_code == 400
+
+
+class TestUploadThumbnailIsNotWrittenInPlace:
+    """The destination can be a thumbnail the endpoint is serving.
+
+    A file that goes missing keeps its thumbnail on disk and the endpoint
+    keeps serving it; an upload to the same path revives that record. So
+    finalising an upload can land on a live thumbnail, and writing the
+    generator's output straight there hands a reader a truncated JPEG.
+    """
+
+    def _upload(self, c, name, payload):
+        res = c.post(
+            f"/api/drives/{TEST_DRIVE}/upload/init",
+            json={
+                "filename": name,
+                "file_size": len(payload),
+                "folder_path": "",
+                "chunk_size": len(payload),
+            },
+        )
+        assert res.status_code == 200
+        upload_id = res.json()["upload_id"]
+        c.post(
+            f"/api/drives/{TEST_DRIVE}/upload/{upload_id}/chunk",
+            data={"chunk_index": "0"},
+            files={"chunk": ("chunk", io.BytesIO(payload), "image/jpeg")},
+        )
+        return c.post(f"/api/drives/{TEST_DRIVE}/upload/{upload_id}/complete")
+
+    def test_the_generator_is_handed_a_temporary_path(self, client, monkeypatch):
+        from PIL import Image
+
+        from app.services import upload as upload_service
+
+        c, db, drive_dir, data_dir = client
+        buffer = io.BytesIO()
+        Image.new("RGB", (768, 1024), (30, 90, 160)).save(buffer, format="JPEG")
+        payload = buffer.getvalue()
+
+        handed = []
+
+        def record(source, destination):
+            handed.append(destination)
+            Image.new("RGB", (240, 320), (1, 2, 3)).save(destination)
+            return True
+
+        monkeypatch.setattr(
+            upload_service, "get_thumbnail_generator", lambda *_: record
+        )
+        res = self._upload(c, "photo.jpg", payload)
+        assert res.status_code == 200
+
+        assert len(handed) == 1
+        expected = data_dir / "thumbnails" / TEST_DRIVE / "photo.jpg"
+        assert handed[0] != str(expected)
+        assert Path(handed[0]).parent == expected.parent
+        assert expected.exists()
+
+
+class TestAssemblyIsAtomic:
+    """Assembly that dies must not leave a truncated file in the user's drive.
+
+    The next scan would register it as a real file of that size.
+    """
+
+    def test_a_failed_assembly_leaves_the_drive_untouched(
+        self, client, monkeypatch
+    ):
+        http, db, drive_dir, _ = client
+        session = upload_service.init_upload(
+            TEST_DRIVE, "clip.bin", 8, "", 8,
+        )
+        upload_service.receive_chunk(session.upload_id, 0, b"abcdefgh")
+
+        def explode(src, dst, length=0):
+            raise OSError("no space left on device")
+
+        monkeypatch.setattr(upload_service.shutil, "copyfileobj", explode)
+
+        with pytest.raises(OSError):
+            upload_service.complete_upload(session.upload_id, db)
+
+        assert list(drive_dir.iterdir()) == []
+
+    def test_a_size_mismatch_refuses_before_anything_is_published(
+        self, client
+    ):
+        http, db, drive_dir, _ = client
+        session = upload_service.init_upload(
+            TEST_DRIVE, "short.bin", 16, "", 16,
+        )
+        upload_service.receive_chunk(session.upload_id, 0, b"only-8!!")
+
+        with pytest.raises(HTTPException) as exc:
+            upload_service.complete_upload(session.upload_id, db)
+
+        assert exc.value.status_code == 400
+        assert "size mismatch" in exc.value.detail
+        assert list(drive_dir.iterdir()) == []
+
+    def test_a_file_already_at_the_target_survives_a_failed_upload(
+        self, client, monkeypatch
+    ):
+        """A *failed* upload must not destroy what it finds at the destination."""
+        http, db, drive_dir, _ = client
+        session = upload_service.init_upload(
+            TEST_DRIVE, "taken.bin", 8, "", 8,
+        )
+        upload_service.receive_chunk(session.upload_id, 0, b"abcdefgh")
+        squatter = drive_dir / "taken.bin"
+        squatter.write_bytes(b"someone else's file")
+
+        def explode(src, dst, length=0):
+            raise OSError("no space left on device")
+
+        monkeypatch.setattr(upload_service.shutil, "copyfileobj", explode)
+        with pytest.raises(OSError):
+            upload_service.complete_upload(session.upload_id, db)
+
+        assert squatter.read_bytes() == b"someone else's file"
+
+    def test_a_successful_upload_still_lands_with_its_full_contents(
+        self, client
+    ):
+        http, db, drive_dir, _ = client
+        body = b"x" * 4096
+        session = upload_service.init_upload(
+            TEST_DRIVE, "whole.bin", len(body), "", 1024,
+        )
+        for index in range(4):
+            upload_service.receive_chunk(
+                session.upload_id, index, body[index * 1024:(index + 1) * 1024]
+            )
+
+        record, _recovered = upload_service.complete_upload(session.upload_id, db)
+
+        assert (drive_dir / "whole.bin").read_bytes() == body
+        assert record.file_size == len(body)
+        assert list((drive_dir).glob(".*")) == []
+
+
+class TestAudioOnlyMp4Upload:
+    @pytest.mark.parametrize("over_missing_video_row", [False, True], ids=["new", "revive"])
+    def test_lands_as_audio_and_stays_audio_after_a_scan(
+        self, client, tmp_path, over_missing_video_row
+    ):
+        http, db, drive_dir, _ = client
+        source = tmp_path / "source.mp4"
+        result = subprocess.run(
+            [
+                "ffmpeg", "-y", "-v", "quiet",
+                "-f", "lavfi", "-i", "sine=frequency=440:duration=1",
+                "-c:a", "aac", str(source),
+            ],
+            check=False,
+        )
+        assert result.returncode == 0, "ffmpeg fixture generation failed"
+        body = source.read_bytes()
+
+        missing_id = None
+        if over_missing_video_row:
+            missing = File(
+                filename="talk.mp4", title="talk", drive=TEST_DRIVE,
+                folder_path="", file_path="talk.mp4", file_size=len(body),
+                file_type="video", mime_type="video/mp4",
+                missing_since=datetime.now(UTC),
+            )
+            db.add(missing)
+            db.commit()
+            missing_id = missing.id
+
+        session = upload_service.init_upload(
+            TEST_DRIVE, "talk.mp4", len(body), "", len(body),
+        )
+        upload_service.receive_chunk(session.upload_id, 0, body)
+        record, _ = upload_service.complete_upload(session.upload_id, db)
+        if missing_id is not None:
+            assert record.id == missing_id
+        assert (record.file_type, record.mime_type) == ("audio", "audio/mp4")
+
+        scanner_module._scan_and_register(db, TEST_DRIVE)
+        db.commit()
+        db.expire_all()
+        row = db.query(File).filter(File.filename == "talk.mp4").one()
+        assert (row.file_type, row.mime_type) == ("audio", "audio/mp4")

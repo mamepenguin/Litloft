@@ -1,37 +1,4 @@
-"""Admin config GUI endpoints.
-
-Spec: docs/superpowers/specs/2026-04-30-config-gui.md
-
-These endpoints power the first-run wizard (``/setup``) and the admin
-settings screen (``/admin/settings``). They wrap edits to:
-
-- ``drives.json``       — drive list, paths, access groups
-- ``passwords.json``    — password → groups mapping (write-only; GETs mask)
-- ``drives.json.addons`` — per-drive addon policy (lives inside drives.json)
-
-Auth model:
-  GET endpoints require admin (``auth.require_admin``: viewer must hold
-  every protected access_group).
-
-  Two endpoints are unconditionally public so the first-run wizard works
-  before any admin viewer exists:
-
-  - ``GET  /setup-status``     — read the sentinel for redirect logic
-  - ``POST /complete-setup``   — wizard finalisation
-
-  Write endpoints (PUT /drives, PUT /passwords, POST /passwords/append,
-  DELETE /passwords/{index}, PUT /addon-policy) use ``_admin_or_first_run``
-  which is a bypass: when the ``setup_completed`` sentinel is absent, anyone
-  on the LAN can write config. The bypass closes the moment the wizard
-  touches the sentinel; ``require_admin`` semantics resume immediately.
-  This is intentional — the wizard's first PUT establishes drive
-  ``access_group``s, after which a strict ``require_admin`` would lock the
-  user out before the second PUT can supply a password.
-
-All writes go through :func:`app.services.config_writer.atomic_write_json`
-which guarantees the existing config remains valid if the write fails
-mid-flight, and creates a single-generation ``.bak``.
-"""
+"""Admin config GUI endpoints."""
 from __future__ import annotations
 
 import json
@@ -44,21 +11,15 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Request
 
 import app.auth as auth
 import app.config as config
+import app.setup_token as setup_token
 from app.services import addon_registry
 from app.services.config_writer import atomic_write_json
 
 logger = logging.getLogger(__name__)
 
-# Public router (no auth gate). The two wizard endpoints live here so the
-# first-run flow can run before any admin viewer exists. All other
-# endpoints get the admin gate applied per-route below.
 router = APIRouter(prefix="/api/admin/config", tags=["admin-config"])
 
 MASKED_PASSWORD = "***"
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 
 def _read_drives_from_disk() -> list[dict[str, Any]]:
@@ -102,15 +63,7 @@ def _validation_error(code: str, message: str, *, field: str | None = None) -> H
 
 
 def _validate_drives_payload(payload: Any) -> list[dict[str, Any]]:
-    """Validate a drives.json payload. Raises HTTPException(422) on failure.
-
-    Rules (spec, Y mode — every error surfaced):
-      1. Must be a JSON array of objects.
-      2. Each entry needs ``name`` and ``path`` (non-empty strings).
-      3. ``name`` values must be unique across the list.
-      4. ``path`` must be absolute.
-      5. ``path`` must point at an existing directory inside the container.
-    """
+    """Validate a drives.json payload. Raises HTTPException(422) on failure."""
     if not isinstance(payload, list):
         raise _validation_error("json_syntax", "drives must be a JSON array")
 
@@ -148,25 +101,31 @@ def _validate_drives_payload(payload: Any) -> list[dict[str, Any]]:
     return payload
 
 
-def _validate_passwords_payload(
-    payload: Any,
-    drives_for_groups: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
-    """Validate passwords.json payload. Raises HTTPException(422) on failure.
+def _known_groups(drives_for_groups: list[dict[str, Any]]) -> set[str]:
+    """The group names a password entry may name.
 
-    Rules:
-      6. Each entry must have ``password`` (non-empty, non-masked) + ``groups``.
-      7. Every referenced group must exist as ``access_group`` in drives.json.
-      8. Password values must be unique.
+    Every drive's ``access_group``, plus the admin sentinel, which names no
+    drive: it is what makes a password grant ``/admin``. Who may write one is
+    a separate question, answered by ``_require_admin_to_grant_admin``.
     """
-    if not isinstance(payload, list):
-        raise _validation_error("json_syntax", "passwords must be a JSON array")
-
-    known_groups = {
+    groups = {
         d.get("access_group")
         for d in drives_for_groups
         if d.get("access_group")
     }
+    groups.add(auth.ADMIN_SENTINEL_GROUP)
+    return groups
+
+
+def _validate_passwords_payload(
+    payload: Any,
+    drives_for_groups: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Validate passwords.json payload. Raises HTTPException(422) on failure."""
+    if not isinstance(payload, list):
+        raise _validation_error("json_syntax", "passwords must be a JSON array")
+
+    known_groups = _known_groups(drives_for_groups)
 
     seen_passwords: set[str] = set()
     for entry in payload:
@@ -178,8 +137,6 @@ def _validate_passwords_payload(
             raise _validation_error("missing_field", "password is required", field="password")
 
         if pw == MASKED_PASSWORD:
-            # Refuse the round-tripped masked value — the GUI must send a
-            # real password for any new/edited entry.
             raise _validation_error(
                 "masked_password",
                 "*** is not a valid password value (the form must send the real password)",
@@ -193,11 +150,6 @@ def _validate_passwords_payload(
         for g in groups:
             if not isinstance(g, str) or not g:
                 raise _validation_error("missing_field", "group must be a non-empty string", field="groups")
-            # Always reject unknown groups. If no drive declares an
-            # access_group, ``known_groups`` is empty, so any non-empty
-            # ``groups`` entry is by definition invalid (no drive uses any
-            # group). The previous ``if known_groups and ...`` short-circuit
-            # silently accepted invalid groups in that scenario.
             if g not in known_groups:
                 raise _validation_error(
                     "unknown_group",
@@ -222,13 +174,9 @@ def _validate_addon_policy_payload(
 ) -> dict[str, dict[str, Any]]:
     """Validate addon-policy payload: ``{drive_name: {addon_name: bool|dict}}``.
 
-    Rules:
-      9. Every addon name must match an installed addon in
-         :mod:`addon_registry`.
-      10. Every top-level drive name must match an entry in drives.json.
-         Without this guard the merge loop in ``put_addon_policy`` silently
-         drops policy for drives that don't exist on disk, and the admin
-         gets ``{"ok": true}`` despite their change being a no-op.
+    Every top-level drive name must match an entry in drives.json: without
+    that, the merge loop in ``put_addon_policy`` silently drops policy for
+    drives that don't exist on disk.
     """
     if not isinstance(payload, dict):
         raise _validation_error("json_syntax", "addon-policy must be a JSON object")
@@ -270,13 +218,8 @@ def _validate_addon_policy_payload(
     return payload
 
 
-# ---------------------------------------------------------------------------
-# First-run admin bypass
-# ---------------------------------------------------------------------------
-
-
 def _admin_or_first_run(request: Request) -> None:
-    """Allow unauthenticated writes while first-run setup is incomplete.
+    """Admin once setup is complete; the setup token until then.
 
     The wizard sequences three writes — PUT /drives, PUT /passwords,
     POST /complete-setup — and the first one establishes drive
@@ -285,36 +228,34 @@ def _admin_or_first_run(request: Request) -> None:
     the second write. The user is then locked out: drives.json now
     requires admin, but no password exists yet to unlock.
 
-    To avoid the brick, we exempt config writes from the admin gate while
-    the ``setup_completed`` sentinel is absent. The bypass closes the
-    instant the wizard touches the sentinel; ``require_admin`` semantics
-    resume immediately.
-
-    This means: a clean install where the sentinel doesn't exist allows
-    anyone on the LAN to write config until the wizard completes. This is
-    intentional and documented in the spec — the first-run window must be
-    short. GETs remain admin-gated since the wizard doesn't need to read
-    config to do first-run setup.
+    So the admin gate cannot apply during first run. The setup token stands in
+    for it, which is what keeps the window from being open to the whole LAN.
+    GETs remain admin-gated.
     """
-    sentinel = config.DATA_DIR / "setup_completed"
+    sentinel = config.setup_completed_sentinel()
     if not sentinel.exists():
-        return  # first-run: anyone can write
+        _require_setup_token(request)
+        return
     auth.require_admin(request)
 
 
-# ---------------------------------------------------------------------------
-# Public endpoints (no auth — needed by first-run wizard)
-# ---------------------------------------------------------------------------
+def _require_setup_token(request: Request) -> None:
+    if setup_token.matches(request.headers.get(setup_token.HEADER)):
+        return
+    raise HTTPException(
+        status_code=403,
+        detail={
+            "code": "setup_token_invalid",
+            "message": (
+                "This request needs the setup token. It is printed in the "
+                "backend log, and configure.py puts it in the URL it shows."
+            ),
+        },
+    )
 
 
 def _setup_status_drives() -> list[dict[str, Any]]:
-    """Project the on-disk drives into the minimal shape /setup needs.
-
-    Only ``name`` / ``path`` (and ``access_group`` when present) are
-    surfaced — the wizard does not need addon policy here. A seeded stub
-    has no ``access_group``, so the key is omitted (not nulled) so the
-    DriveStep can treat "no group" cleanly.
-    """
+    """Project the on-disk drives into the minimal shape /setup needs."""
     drives: list[dict[str, Any]] = []
     for entry in _read_drives_from_disk():
         if not isinstance(entry, dict):
@@ -335,24 +276,17 @@ def _setup_status_drives() -> list[dict[str, Any]]:
 def get_setup_status() -> dict[str, Any]:
     """Return first-run setup state plus the seeded drive list.
 
-    No auth so the frontend can (a) decide whether to redirect anonymous
-    visitors to ``/setup`` before any password entry exists, and (b)
-    render the detected drives in the DriveStep without going through the
-    admin-gated ``GET /drives`` (the first-run bypass does not cover that
-    route — spec §3.3, M1).
-
-    ``completed`` is kept unconditionally for backward compatibility
-    (``SetupRedirector`` and others read it). ``drives`` is an additive
-    field; it is ``[]`` when drives.json is empty or unreadable.
+    No auth so the frontend can decide whether to redirect anonymous visitors
+    to ``/setup`` before any password entry exists, and render the detected
+    drives without going through the admin-gated ``GET /drives``.
     """
-    sentinel = config.DATA_DIR / "setup_completed"
+    sentinel = config.setup_completed_sentinel()
     completed = sentinel.exists()
     # Expose the detected drive list ONLY during first-run. This endpoint
     # is unauthenticated; once setup is complete the DriveStep never reads
     # it again, so returning drive names / container paths / access groups
     # post-completion is pure information disclosure to any unauthenticated
-    # network peer and contradicts the "hide protected drive existence"
-    # rule in .claude/rules/design-decisions.md.
+    # network peer.
     drives: list[dict[str, Any]] = []
     if not completed:
         try:
@@ -365,7 +299,31 @@ def get_setup_status() -> dict[str, Any]:
     return {"completed": completed, "drives": drives}
 
 
-@router.post("/complete-setup")
+@router.post("/setup-token/verify")
+def post_verify_setup_token(payload: Any = Body(...)) -> dict[str, bool]:
+    """Answer whether a token would be accepted, before the wizard writes.
+
+    Separate from ``setup-status`` on purpose: that endpoint is unauthenticated
+    and its answer must stay the same for every caller.
+    """
+    # Answering at all would mint a token on an install that finished setup
+    # long ago, and log that setup is unfinished.
+    if (config.setup_completed_sentinel()).exists():
+        raise HTTPException(status_code=404, detail={"code": "setup_completed"})
+    if not isinstance(payload, dict):
+        raise _validation_error("json_syntax", "body must be an object")
+    token = payload.get("token")
+    if not isinstance(token, str):
+        raise _validation_error("missing_field", "token is required", field="token")
+    if not setup_token.matches(token):
+        raise HTTPException(
+            status_code=403,
+            detail={"code": "setup_token_invalid", "message": "Invalid token"},
+        )
+    return {"ok": True}
+
+
+@router.post("/complete-setup", dependencies=[Depends(_admin_or_first_run)])
 def post_complete_setup() -> dict[str, bool]:
     """Mark first-run setup complete by touching the sentinel.
 
@@ -373,7 +331,7 @@ def post_complete_setup() -> dict[str, bool]:
     silently overwrite admin's intentional state changes. The frontend
     should send users to ``/admin/settings`` in that case.
     """
-    sentinel = config.DATA_DIR / "setup_completed"
+    sentinel = config.setup_completed_sentinel()
     if sentinel.exists():
         raise HTTPException(status_code=409, detail={"code": "already_completed"})
     sentinel.parent.mkdir(parents=True, exist_ok=True)
@@ -422,9 +380,54 @@ def get_passwords() -> list[dict[str, Any]]:
     ]
 
 
+def _grants_admin(entries: Any) -> bool:
+    """Whether a payload would leave an entry carrying the admin sentinel."""
+    if isinstance(entries, dict):
+        entries = [entries]
+    if not isinstance(entries, list):
+        return False
+    return any(
+        isinstance(e, dict)
+        and isinstance(e.get("groups"), list)
+        and auth.ADMIN_SENTINEL_GROUP in e["groups"]
+        for e in entries
+    )
+
+
+def _require_admin_to_grant_admin(request: Request, payload: Any) -> None:
+    """Writing a password that grants ``/admin`` needs the sentinel already.
+
+    Not "needs admin": ``require_admin`` passes for everyone on an install
+    where no drive is protected and no admin password exists, and it also
+    passes for a viewer holding every declared group. Only holding the sentinel
+    is tested, which is the narrower rule — a viewer admin by either of the
+    other two routes is refused.
+
+    The wizard is exempt: while the sentinel file is absent the setup token has
+    already answered for the caller.
+    """
+    if not _grants_admin(payload):
+        return
+    if not config.setup_completed_sentinel().exists():
+        return
+    if auth.ADMIN_SENTINEL_GROUP in auth.get_unlocked_groups(request):
+        return
+    raise HTTPException(
+        status_code=403,
+        detail={
+            "code": "admin_grant_forbidden",
+            "message": (
+                "Only a viewer holding the admin password may write another "
+                "one. Unlock with it first, or re-run /setup."
+            ),
+        },
+    )
+
+
 @router.put("/passwords", dependencies=[Depends(_admin_or_first_run)])
-def put_passwords(payload: Any = Body(...)) -> dict[str, Any]:
+def put_passwords(request: Request, payload: Any = Body(...)) -> dict[str, Any]:
     """Atomically rewrite passwords.json after validation."""
+    _require_admin_to_grant_admin(request, payload)
     drives = _read_drives_from_disk()
     validated = _validate_passwords_payload(payload, drives)
     try:
@@ -446,9 +449,7 @@ def _validate_password_entry(
 ) -> dict[str, Any]:
     """Validate a single new password entry for /append.
 
-    Applies the same per-entry rules as :func:`_validate_passwords_payload`
-    (rule 6 unknown_group, rule 7 duplicate_password, masked rejection)
-    but checks duplicates against the *existing* on-disk list — the caller
+    Duplicates are checked against the *existing* on-disk list — the caller
     is appending one entry, not rewriting the whole list.
     """
     if not isinstance(entry, dict):
@@ -469,20 +470,13 @@ def _validate_password_entry(
     if not isinstance(groups, list) or not groups:
         raise _validation_error("missing_field", "groups is required", field="groups")
 
-    known_groups = {
-        d.get("access_group")
-        for d in drives_for_groups
-        if d.get("access_group")
-    }
+    known_groups = _known_groups(drives_for_groups)
 
     for g in groups:
         if not isinstance(g, str) or not g:
             raise _validation_error(
                 "missing_field", "group must be a non-empty string", field="groups"
             )
-        # Always reject unknown groups (see _validate_passwords_payload for
-        # rationale — empty ``known_groups`` means no drive uses any group,
-        # so any non-empty ``groups`` entry is invalid).
         if g not in known_groups:
             raise _validation_error(
                 "unknown_group",
@@ -502,18 +496,20 @@ def _validate_password_entry(
 
 
 @router.post("/passwords/append", dependencies=[Depends(_admin_or_first_run)])
-def post_passwords_append(payload: Any = Body(...)) -> dict[str, Any]:
+def post_passwords_append(
+    request: Request, payload: Any = Body(...)
+) -> dict[str, Any]:
     """Append a single new password entry without touching existing entries.
 
     Used by the admin settings GUI for incremental edits — the GET masks
     real password values, so a full PUT round-trip cannot preserve the
     untouched entries. POST /append takes only the new entry.
     """
+    _require_admin_to_grant_admin(request, payload)
     drives = _read_drives_from_disk()
     existing = _read_passwords_from_disk()
     validated_entry = _validate_password_entry(payload, drives, existing)
 
-    # Immutable rebuild: do not mutate the on-disk list in place.
     updated = [*existing, validated_entry]
 
     try:
@@ -547,7 +543,6 @@ def delete_password(index: int) -> dict[str, Any]:
             },
         )
 
-    # Immutable rebuild: build a new list excluding the removed index.
     updated = [entry for i, entry in enumerate(existing) if i != index]
 
     try:
@@ -579,16 +574,10 @@ def get_addon_policy() -> dict[str, dict[str, Any]]:
 
 @router.put("/addon-policy", dependencies=[Depends(_admin_or_first_run)])
 def put_addon_policy(payload: Any = Body(...)) -> dict[str, Any]:
-    """Merge new addon policy into drives.json without losing other fields.
-
-    Each drive entry's ``addons`` key is replaced wholesale with the
-    submitted policy for that drive (omitted drives keep their existing
-    ``addons``). All non-addon fields are preserved.
-    """
+    """Merge new addon policy into drives.json without losing other fields."""
     drives = _read_drives_from_disk()
     validated = _validate_addon_policy_payload(payload, drives)
 
-    # Immutable rebuild: do not mutate items from the on-disk list in place.
     updated = []
     for drive in drives:
         name = drive.get("name") if isinstance(drive, dict) else None
@@ -611,11 +600,7 @@ def put_addon_policy(payload: Any = Body(...)) -> dict[str, Any]:
 
 @router.get("/restart-status", dependencies=[Depends(auth.require_admin)])
 def get_restart_status() -> dict[str, Any]:
-    """Whether a backend restart is required for pending config changes.
-
-    The flag is touched by every successful PUT in this router and cleared
-    on the next backend startup (lifespan in ``main.py``).
-    """
+    """Whether a backend restart is required for pending config changes."""
     flag = config.DATA_DIR / "restart_pending"
     pending = flag.exists()
     if not pending:

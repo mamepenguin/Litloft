@@ -38,7 +38,6 @@ describe("useCreateFile — target path override", () => {
       folder_path: "Other/Place",
     } as unknown as Awaited<ReturnType<typeof createTextFile>>);
 
-    // Hook constructed with currentPath = "Notes" but creating into "Other/Place"
     const { result } = renderHook(() => useCreateFile("main", "Notes"));
 
     await act(async () => {

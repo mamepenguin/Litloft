@@ -6,25 +6,29 @@ import { useTranslations } from "next-intl";
 import {
   Database,
   File,
-  Film,
   HardDrive,
   Image,
   Loader2,
-  Music,
-  FileText,
   Archive,
   Server,
   Settings,
   Trash2,
   Clock,
+  ImageDown,
 } from "lucide-react";
 
 import { getDashboard } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
+import { driveTypeCounts } from "@/lib/driveTypeBreakdown";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { DuplicatesSection } from "@/components/DuplicatesSection";
 import { AddonSlot } from "@/components/AddonSlot";
-import type { DashboardDriveInfo, DashboardResponse, DashboardSystemInfo } from "@/types";
+import type {
+  DashboardDriveInfo,
+  DashboardResponse,
+  DashboardSystemInfo,
+} from "@/types";
+import { PageHeader } from "@/components/PageHeader";
 
 function formatUptime(
   seconds: number,
@@ -37,7 +41,8 @@ function formatUptime(
   const parts: string[] = [];
   if (days > 0) parts.push(t("days", { count: days }));
   if (hours > 0) parts.push(t("hours", { count: hours }));
-  if (minutes > 0 || parts.length === 0) parts.push(t("minutes", { count: minutes }));
+  if (minutes > 0 || parts.length === 0)
+    parts.push(t("minutes", { count: minutes }));
   return parts.join(" ");
 }
 
@@ -46,15 +51,6 @@ function usageColorClass(percent: number): string {
   if (percent >= 70) return "bg-accent-amber";
   return "bg-accent-teal";
 }
-
-const FILE_TYPE_ICONS: Record<string, typeof Film> = {
-  video: Film,
-  image: Image,
-  audio: Music,
-  document: FileText,
-  archive: Archive,
-  other: File,
-};
 
 function DriveCardSkeleton() {
   return (
@@ -84,7 +80,13 @@ function SystemCardSkeleton() {
   );
 }
 
-function UsageBar({ usedBytes, totalBytes }: { usedBytes: number; totalBytes: number }) {
+function UsageBar({
+  usedBytes,
+  totalBytes,
+}: {
+  usedBytes: number;
+  totalBytes: number;
+}) {
   const percent = totalBytes > 0 ? (usedBytes / totalBytes) * 100 : 0;
 
   return (
@@ -97,35 +99,31 @@ function UsageBar({ usedBytes, totalBytes }: { usedBytes: number; totalBytes: nu
       </div>
       <div className="mt-1 flex justify-between text-xs text-text-muted">
         <span>{percent.toFixed(1)}%</span>
-        <span>{formatFileSize(usedBytes)} / {formatFileSize(totalBytes)}</span>
+        <span>
+          {formatFileSize(usedBytes)} / {formatFileSize(totalBytes)}
+        </span>
       </div>
     </div>
   );
 }
 
-function FileTypeBadges({ fileTypes }: { fileTypes: Record<string, number> }) {
-  const entries = useMemo(
-    () => Object.entries(fileTypes).filter(([, count]) => count > 0),
-    [fileTypes],
-  );
-
-  if (entries.length === 0) return null;
+function FileTypeBreakdown({
+  fileTypes,
+}: {
+  fileTypes: Record<string, number>;
+}) {
+  const t = useTranslations("filter.type");
+  const entries = useMemo(() => driveTypeCounts(fileTypes), [fileTypes]);
 
   return (
-    <div className="flex flex-wrap gap-2">
-      {entries.map(([type, count]) => {
-        const Icon = FILE_TYPE_ICONS[type] ?? File;
-        return (
-          <span
-            key={type}
-            className="inline-flex items-center gap-1 rounded-lg bg-bg-elevated px-2 py-0.5 text-xs text-text-muted"
-          >
-            <Icon size={12} />
-            {count}
-          </span>
-        );
-      })}
-    </div>
+    <p className="text-xs text-text-muted">
+      {entries.map(({ type, count }, i) => (
+        <span key={type} className={count === 0 ? "text-text-muted/50" : ""}>
+          {i > 0 && " · "}
+          {t(type)} {count.toLocaleString()}
+        </span>
+      ))}
+    </p>
   );
 }
 
@@ -135,8 +133,10 @@ function DriveCard({ drive }: { drive: DashboardDriveInfo }) {
   return (
     <div className="rounded-xl border border-bg-border bg-bg-card p-5">
       <div className="mb-3 flex items-center gap-2">
-        <HardDrive size={18} className="text-accent" />
-        <h3 className="text-sm font-semibold text-text-primary">{drive.name}</h3>
+        <HardDrive size={18} className="text-text-muted" />
+        <h3 className="text-sm font-semibold text-text-primary">
+          {drive.name}
+        </h3>
         {drive.readonly && (
           <span className="rounded-lg bg-bg-elevated px-1.5 py-0.5 text-[10px] font-medium text-text-muted">
             {t("readonly")}
@@ -144,14 +144,16 @@ function DriveCard({ drive }: { drive: DashboardDriveInfo }) {
         )}
       </div>
 
-      <UsageBar usedBytes={drive.used_bytes} totalBytes={drive.total_bytes} />
-
+      {/* No usage bar. It measured the filesystem the drive sits on,
+          not the drive, so every drive on one disk drew the same bar and
+          an empty one read as half full. The real figure is per
+          filesystem, in the system section below. */}
       <div className="mt-3 text-xs text-text-muted">
         {t("files", { count: drive.file_count })}
       </div>
 
       <div className="mt-2">
-        <FileTypeBadges fileTypes={drive.file_types} />
+        <FileTypeBreakdown fileTypes={drive.file_types} />
       </div>
 
       <div className="mt-3 text-xs text-text-muted">
@@ -161,7 +163,10 @@ function DriveCard({ drive }: { drive: DashboardDriveInfo }) {
             {t("scanning")}
           </span>
         ) : drive.last_scanned_at ? (
-          <span>{t("lastScanned")}: {new Date(drive.last_scanned_at).toLocaleString()}</span>
+          <span>
+            {t("lastScanned")}:{" "}
+            {new Date(drive.last_scanned_at).toLocaleString()}
+          </span>
         ) : (
           <span>{t("neverScanned")}</span>
         )}
@@ -196,19 +201,78 @@ function SystemCard({ system }: { system: DashboardSystemInfo }) {
   return (
     <div className="rounded-xl border border-bg-border bg-bg-card p-5">
       <div className="mb-4 flex items-center gap-2">
-        <Server size={18} className="text-accent" />
-        <h3 className="text-sm font-semibold text-text-primary">{t("system")}</h3>
+        <Server size={18} className="text-text-muted" />
+        <h3 className="text-sm font-semibold text-text-primary">
+          {t("system")}
+        </h3>
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <StatItem icon={File} label={t("totalFiles")} value={system.total_files.toLocaleString()} />
-        <StatItem icon={Trash2} label={t("trashCount")} value={system.trash_count.toLocaleString()} />
-        <StatItem icon={Database} label={t("dbSize")} value={formatFileSize(system.db_size_bytes)} />
-        <StatItem icon={Image} label={t("thumbnailCache")} value={formatFileSize(system.thumbnail_cache_bytes)} />
-        <StatItem icon={HardDrive} label={t("convertedCache")} value={formatFileSize(system.converted_cache_bytes)} />
-        <StatItem icon={Archive} label={t("uploadTemp")} value={formatFileSize(system.upload_temp_bytes)} />
-        <StatItem icon={Clock} label={t("uptime")} value={formatUptime(system.uptime_seconds, t)} />
+        <StatItem
+          icon={File}
+          label={t("totalFiles")}
+          value={system.total_files.toLocaleString()}
+        />
+        <StatItem
+          icon={Trash2}
+          label={t("trashCount")}
+          value={system.trash_count.toLocaleString()}
+        />
+        <StatItem
+          icon={Database}
+          label={t("dbSize")}
+          value={formatFileSize(system.db_size_bytes)}
+        />
+        <StatItem
+          icon={Image}
+          label={t("thumbnailCache")}
+          value={formatFileSize(system.thumbnail_cache_bytes)}
+        />
+        <StatItem
+          icon={HardDrive}
+          label={t("convertedCache")}
+          value={formatFileSize(system.converted_cache_bytes)}
+        />
+        <StatItem
+          icon={Archive}
+          label={t("uploadTemp")}
+          value={formatFileSize(system.upload_temp_bytes)}
+        />
+        <StatItem
+          icon={Clock}
+          label={t("uptime")}
+          value={formatUptime(system.uptime_seconds, t)}
+        />
       </div>
+
+      {system.filesystems.length > 0 && (
+        <div className="mt-4 space-y-3 border-t border-bg-border pt-4">
+          {system.filesystems.map((fs) => (
+            <div key={fs.mount_label}>
+              <div className="flex items-baseline justify-between gap-2 text-xs">
+                <span
+                  className="truncate text-text-primary"
+                  title={fs.mount_label}
+                >
+                  {fs.drives.join(", ")}
+                </span>
+                <span className="flex-shrink-0 text-text-muted">
+                  {t("diskUsage", {
+                    used: formatFileSize(fs.used_bytes),
+                    total: formatFileSize(fs.total_bytes),
+                  })}
+                </span>
+              </div>
+              <div className="mt-1">
+                <UsageBar
+                  usedBytes={fs.used_bytes}
+                  totalBytes={fs.total_bytes}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -250,59 +314,77 @@ export default function AdminDashboardPage() {
 
   if (forbidden) {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
-        <h1 className="mb-2 text-xl font-bold text-text-primary">
-          {t("title")}
-        </h1>
-        <p className="text-sm text-text-muted">
-          {t("forbidden")}
-        </p>
+      <div className="mx-auto w-full min-w-0 max-w-2xl py-8">
+        <PageHeader title={t("title")} scope={t("forbidden")} />
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
-      <div className="mb-6 flex items-center justify-between gap-3">
-        <h1 className="text-xl font-bold text-text-primary">{t("title")}</h1>
-        <Link
-          href="/admin/settings"
-          className="flex items-center gap-2 rounded-2xl px-3 py-2 text-sm text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
-        >
-          <Settings size={16} />
-          {t("settings")}
-        </Link>
+    <div className="mx-auto w-full min-w-0 max-w-5xl py-2">
+      <PageHeader
+        title={t("title")}
+        actions={
+          <>
+            <Link
+              href="/admin/markdown-images"
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+            >
+              <ImageDown size={16} />
+              {t("markdownImages")}
+            </Link>
+            <Link
+              href="/admin/settings"
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+            >
+              <Settings size={16} />
+              {t("settings")}
+            </Link>
+          </>
+        }
+      />
+
+      {/* `PageHeader` brings `px-4`; everything below it matches rather
+          than nesting inside a second one. */}
+      <div className="px-4 pb-4">
+        {error && (
+          <div className="mb-4 rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">
+            {error}
+          </div>
+        )}
+
+        {/* `empty:hidden` keeps the margin from being the only thing on
+          screen when nothing is wrong. */}
+        <div className="mb-8 space-y-3 empty:hidden">
+          <AddonSlot id="dashboard-alerts" layout="stack" />
+        </div>
+
+        <section className="mb-8">
+          <h2 className="mb-3 text-sm font-semibold text-text-muted">
+            {t("drives")}
+          </h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {data
+              ? data.drives.map((drive) => (
+                  <DriveCard key={drive.name} drive={drive} />
+                ))
+              : [1, 2, 3].map((i) => <DriveCardSkeleton key={i} />)}
+          </div>
+        </section>
+
+        <section className="mb-8">
+          <h2 className="mb-3 text-sm font-semibold text-text-muted">
+            {t("system")}
+          </h2>
+          {data ? <SystemCard system={data.system} /> : <SystemCardSkeleton />}
+        </section>
+
+        <section className="mb-8">
+          <AddonSlot id="dashboard-widgets" layout="stack" />
+        </section>
+
+        <DuplicatesSection />
       </div>
-
-      {error && (
-        <div className="mb-4 rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">
-          {error}
-        </div>
-      )}
-
-      <section className="mb-8">
-        <h2 className="mb-3 text-sm font-semibold uppercase text-text-muted">
-          {t("drives")}
-        </h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {data
-            ? data.drives.map((drive) => <DriveCard key={drive.name} drive={drive} />)
-            : [1, 2, 3].map((i) => <DriveCardSkeleton key={i} />)}
-        </div>
-      </section>
-
-      <section className="mb-8">
-        <h2 className="mb-3 text-sm font-semibold uppercase text-text-muted">
-          {t("system")}
-        </h2>
-        {data ? <SystemCard system={data.system} /> : <SystemCardSkeleton />}
-      </section>
-
-      <section className="mb-8">
-        <AddonSlot id="dashboard-widgets" layout="stack" />
-      </section>
-
-      <DuplicatesSection />
     </div>
   );
 }

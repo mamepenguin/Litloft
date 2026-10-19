@@ -22,7 +22,7 @@ _VALID_SCOPES = {"drive", "global", "both"}
 def _validate_scope(name: str, meta: dict[str, Any]) -> bool:
     """Return True if meta declares a valid scope, log and return False otherwise."""
     scope = meta.get("scope")
-    if scope not in _VALID_SCOPES:
+    if not isinstance(scope, str) or scope not in _VALID_SCOPES:
         logger.error(
             "Addon %r skipped: missing or invalid 'scope' field (got %r, expected one of %s)",
             name,
@@ -31,6 +31,40 @@ def _validate_scope(name: str, meta: dict[str, Any]) -> bool:
         )
         return False
     return True
+
+
+_VALID_PLACEMENTS = {"primary", "sources", "utility"}
+
+
+def _navigation_error(nav: Any) -> str | None:
+    if not isinstance(nav, dict):
+        return "not an object"
+    placement = nav.get("placement")
+    # Checked as a string first: a list or object is unhashable, and `in` on a set raises.
+    if not isinstance(placement, str) or placement not in _VALID_PLACEMENTS:
+        return f"placement must be one of {sorted(_VALID_PLACEMENTS)}"
+    label = nav.get("label")
+    if not isinstance(label, str) or not label.strip():
+        return "label must be a non-empty string"
+    priority = nav.get("priority")
+    # bool is an int subclass, and True would sort as 1.
+    if not isinstance(priority, int) or isinstance(priority, bool):
+        return "priority must be an integer"
+    for key in ("i18n_key", "icon"):
+        if key in nav and not isinstance(nav[key], str):
+            return f"{key} must be a string"
+    return None
+
+
+def _without_invalid_navigation(name: str, meta: dict[str, Any]) -> dict[str, Any]:
+    """Drop an invalid ``navigation`` block; the addon itself stays registered."""
+    if "navigation" not in meta:
+        return meta
+    error = _navigation_error(meta["navigation"])
+    if error is None:
+        return meta
+    logger.warning("Addon %r navigation ignored: %s", name, error)
+    return {k: v for k, v in meta.items() if k != "navigation"}
 
 # Candidate directories to scan for addon manifests.
 # - Docker: /app/addons (backend Dockerfile places manifests alongside addon code)
@@ -69,7 +103,7 @@ def load_external_manifests() -> None:
             raw.setdefault("type", "external_service")
             if not _validate_scope(addon_name, raw):
                 continue
-            _registry[addon_name] = raw
+            _registry[addon_name] = _without_invalid_navigation(addon_name, raw)
             logger.info(
                 "External addon manifest loaded: %s (%s)", addon_name, manifest_path
             )
@@ -82,10 +116,13 @@ def register_in_process(name: str, meta: dict[str, Any]) -> bool:
 
     Returns True if registered, False if skipped due to invalid metadata.
     """
+    if not isinstance(meta, dict):
+        logger.error("Addon %r skipped: ADDON_META must be a dict (got %r)", name, meta)
+        return False
     meta_copy = {**meta, "type": meta.get("type", "in_process")}
     if not _validate_scope(name, meta_copy):
         return False
-    _registry[name] = meta_copy
+    _registry[name] = _without_invalid_navigation(name, meta_copy)
     return True
 
 

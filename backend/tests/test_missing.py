@@ -1,13 +1,4 @@
-"""Tests for the missing-files feature (Phase 1: scanner behavior).
-
-Covers:
-- Scan marks vanished files as missing instead of physically deleting them
-- Scan recovers missing files when they reappear on disk
-- Thumbnails are preserved for missing files
-- Trashed files are not touched by missing detection
-- Drive unmount (drive dir missing) does not mark files as missing
-- Missing files are excluded from active_file_filter-based queries
-"""
+"""Tests for the missing-files feature (Phase 1: scanner behavior)."""
 import shutil
 from datetime import UTC, datetime
 from pathlib import Path
@@ -55,7 +46,6 @@ class TestScanMarksMissing:
         # Simulate user deleting the file outside the app
         target.unlink()
 
-        # Run scanner in the same DB session
         result = _scan_and_register(db, TEST_DRIVE)
 
         db.expire_all()
@@ -71,7 +61,6 @@ class TestScanMarksMissing:
         file, target = _seed_on_disk_and_db(db, drive_dir, "already.mp4")
         target.unlink()
 
-        # First scan: marks as missing
         _scan_and_register(db, TEST_DRIVE)
         db.expire_all()
         first_timestamp = (
@@ -92,7 +81,6 @@ class TestScanMarksMissing:
         c, db, drive_dir, data_dir = client
         file, target = _seed_on_disk_and_db(db, drive_dir, "thumb.mp4")
 
-        # Create a thumbnail file on disk and record its path
         thumb_rel = f"{TEST_DRIVE}/thumb.jpg"
         thumb_full = data_dir / "thumbnails" / thumb_rel
         thumb_full.parent.mkdir(parents=True, exist_ok=True)
@@ -103,13 +91,11 @@ class TestScanMarksMissing:
         target.unlink()
         _scan_and_register(db, TEST_DRIVE)
 
-        # Thumbnail should remain on disk
         assert thumb_full.exists(), "Thumbnail must survive missing marking"
 
     def test_scan_skips_trashed_files(self, client):
         c, db, drive_dir, _ = client
         file, target = _seed_on_disk_and_db(db, drive_dir, "trashed.mp4")
-        # Soft-delete: file stays on disk, deleted_at set
         file.deleted_at = datetime.now(UTC)
         db.commit()
         # Now remove the disk file (simulating user deleting manually)
@@ -120,7 +106,6 @@ class TestScanMarksMissing:
         db.expire_all()
         record = db.query(File).filter(File.id == file.id).first()
         assert record is not None
-        # Must remain trashed, not marked as missing
         assert record.deleted_at is not None
         assert record.missing_since is None
 
@@ -135,7 +120,6 @@ class TestScanRecovery:
         db.expire_all()
         assert db.query(File).filter(File.id == file.id).first().missing_since is not None
 
-        # File reappears
         shutil.copy(FIXTURES_DIR / "short_video.mp4", target)
         result = _scan_and_register(db, TEST_DRIVE)
 
@@ -174,11 +158,9 @@ class TestActiveFileFilter:
         _scan_and_register(db, TEST_DRIVE)
 
         db.expire_all()
-        # Active query should exclude missing file
         active = db.query(File).filter(active_file_filter()).all()
         assert file.id not in [f.id for f in active]
 
-        # Drive listing API should also exclude missing files
         res = c.get(f"/api/drives/{TEST_DRIVE}/files")
         assert res.status_code == 200
         ids = [f["id"] for f in res.json()["data"]]
@@ -234,10 +216,8 @@ class TestMissingListAPI:
 
     def test_trash_and_missing_are_separate(self, client):
         c, db, drive_dir, _ = client
-        # Trashed file
         trashed_file, _ = _seed_on_disk_and_db(db, drive_dir, "in_trash.mp4")
         c.delete(f"/api/files/{trashed_file.id}")
-        # Missing file
         missing_file = _make_missing_file(client, "gone.mp4")
 
         trash_res = c.get(f"/api/drives/{TEST_DRIVE}/trash")
@@ -305,7 +285,6 @@ class TestMissingAccessControl:
         """Missing files keep their thumbnails to support the recovery UX."""
         c, db, drive_dir, data_dir = client
         file, target = _seed_on_disk_and_db(db, drive_dir, "thumb_missing.mp4")
-        # Create thumbnail
         thumb_rel = f"{TEST_DRIVE}/thumb_missing.jpg"
         thumb_full = data_dir / "thumbnails" / thumb_rel
         thumb_full.parent.mkdir(parents=True, exist_ok=True)
@@ -391,10 +370,8 @@ class TestPurgeAllBatching:
 class TestDriveSummary:
     def test_summary_counts(self, client):
         c, db, drive_dir, _ = client
-        # 2 missing
         _make_missing_file(client, "m1.mp4")
         _make_missing_file(client, "m2.mp4")
-        # 1 trashed
         trashed, _ = _seed_on_disk_and_db(db, drive_dir, "t1.mp4")
         c.delete(f"/api/files/{trashed.id}")
 

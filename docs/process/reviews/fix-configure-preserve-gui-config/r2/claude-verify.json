@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2-unplanned-new-test-file-still-open",
+      "status": "confirmed",
+      "note": "tests/test_configure_keeps_gui_config.py exists, and r2/classification.json:57-59 lists it in zones_touched. In docs/specs/configure-keeps-gui-config.md:158-162, the Touch points name only tests/test_configure.py, tests/test_configure_presentation.py, tests/configure_scenarios.py and tests/fixtures/configure/, so the new file is still undeclared. In r2/classification.json:8-60, tests/configure_scenarios.py is the only declared test path among the touched zones; tests/test_configure.py and tests/test_configure_presentation.py are absent. r1/triage.md:56-67 recorded the same issue as bucket B, LOW, open, and the spec at HEAD still has no such entry. The finding is a documentation and plan mismatch with no runtime effect."
+    }
+  ],
+  "specification_compliance": [
+    "The Touch points in docs/specs/configure-keeps-gui-config.md:151-172 still omit tests/test_configure_keeps_gui_config.py, which this branch adds and in which the acceptance tests live."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [],
+  "test_coverage": [
+    "The acceptance tests for I1-I11 are in tests/test_configure_keeps_gui_config.py, which the spec does not name."
+  ],
+  "not_verified": [
+    "Did not run git diff. Whether tests/fixtures/configure/ is unchanged was inferred from r2/classification.json zones_touched, which may not list unzoned paths.",
+    "Did not run the test suite or configure.py.",
+    "Did not re-check invariants I1-I11 against configure.py, because they are outside this finding."
+  ],
+  "confidence": 90
+}

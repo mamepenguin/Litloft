@@ -135,7 +135,6 @@ describe("computeNewFilenames", () => {
         "prefix_suffix",
         { action: "add_suffix", value: "_bak" }
       );
-      // .gitignore has no extension (dot at index 0)
       expect(result[0].newName).toBe(".gitignore_bak");
     });
   });

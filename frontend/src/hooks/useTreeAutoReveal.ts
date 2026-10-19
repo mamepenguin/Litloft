@@ -6,20 +6,14 @@ import { useEffect, useRef } from "react";
 import type { FlatTreeRow } from "@/components/folder/FolderTreeRow";
 
 interface UseTreeAutoRevealArgs {
-  /** Flat list backing the virtualizer (same array indices). */
   flatList: FlatTreeRow[];
-  /** The virtualizer instance — used for `scrollToIndex`. */
   virtualizer: Pick<
     Virtualizer<HTMLDivElement, Element>,
     "scrollToIndex"
   >;
-  /** The tree's scrollable container — used to read viewport metrics. */
   scrollElement: HTMLDivElement | null;
-  /** Currently selected folder path, or null when a file is open. */
   selectedPath: string | null | undefined;
-  /** Currently selected file id, or null when no file is open. */
   selectedFileId: string | null | undefined;
-  /** Fixed row height assumed by the virtualizer. */
   rowHeight: number;
 }
 
@@ -53,26 +47,14 @@ function findRowIndex(
 }
 
 /**
- * Auto-scroll the folder tree so the currently selected row is visible
- * after the user navigates from outside the tree (clicking a file in
- * the right pane, hitting a `?file=` link, …).
- *
- * Design constraints (see the brainstorm thread):
- *
- * - **Off-screen only.** Only scroll when the row is fully out of the
- *   viewport; if it's partially visible we leave the user's scroll
- *   position alone.
- * - **Smooth.** Use `behavior: "smooth"` and `align: "center"` so the
- *   reveal reads as a deliberate jump, not a snap.
  * - **No re-fire on echo.** A clicked tree row updates the URL, which
  *   re-flows back into `selectedPath`/`selectedFileId`. Tracking the
  *   last revealed selection key prevents the hook from chasing its
- *   own tail (and from re-scrolling on unrelated re-renders).
- * - **No ancestor expansion.** The tree is the user's hand-built map
- *   after the initial mount (`useInitialReveal`, hako
- *   `1m4EhzyjWms6nUimi_0sO`). If the target row isn't in `flatList`
- *   because an ancestor is collapsed, we wait — the moment the user
- *   expands and the row appears, the effect runs again and reveals it.
+ *   own tail.
+ * - **No ancestor expansion.** The tree is the user's hand-built map.
+ *   If the target row isn't in `flatList` because an ancestor is
+ *   collapsed, we wait — the moment the user expands and the row
+ *   appears, the effect runs again and reveals it.
  */
 export function useTreeAutoReveal({
   flatList,

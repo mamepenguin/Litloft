@@ -1,7 +1,35 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { act, render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import { dismissByPressingOutside } from "@/__tests__/helpers/dismissScrim";
+import {
+  Ancestors,
+  type AncestorSpec,
+} from "@/__tests__/helpers/ancestorChain";
+import { deleteFile } from "@/lib/api";
 import { FileActions } from "../FileActions";
+import { ShortcutsProvider } from "../ShortcutsProvider";
 import type { FileItem } from "@/types";
+
+const clipboardSpies = vi.hoisted(() => ({ copy: vi.fn(), cut: vi.fn() }));
+
+vi.mock("@/components/ClipboardProvider", () => ({
+  useClipboard: () => ({
+    clipboard: null,
+    copy: clipboardSpies.copy,
+    cut: clipboardSpies.cut,
+    paste: vi.fn(),
+    clear: vi.fn(),
+    isCut: () => false,
+  }),
+}));
+
+const copyTextMock = vi.hoisted(() => vi.fn<(text: string) => Promise<boolean>>());
+vi.mock("@/lib/copyText", () => ({ copyText: copyTextMock }));
+
+const toastSuccessMock = vi.hoisted(() => vi.fn());
+vi.mock("../ToastProvider", () => ({
+  useToast: () => ({ success: toastSuccessMock, error: vi.fn(), info: vi.fn() }),
+}));
 
 vi.mock("@/lib/api", () => ({
   deleteFile: vi.fn().mockResolvedValue(undefined),
@@ -42,7 +70,48 @@ vi.mock("../MoveDialog", () => ({
     ) : null,
 }));
 
+vi.mock("../CollectionPicker", () => ({
+  CollectionPicker: ({ open }: { open: boolean }) =>
+    open ? <div data-testid="collection-picker" /> : null,
+}));
+
+const slotCalls = vi.hoisted(() => ({
+  props: [] as Record<string, unknown>[],
+  empty: false,
+}));
+
+vi.mock("../AddonSlot", () => ({
+  AddonSlot: ({ id, props }: { id: string; props?: Record<string, unknown> }) => {
+    slotCalls.props.push({ id, ...props });
+    if (slotCalls.empty) return null;
+    return (
+      <div data-testid={`addon-slot-${id}`}>
+        <button
+          data-testid="addon-open"
+          onClick={() => (props?.onDialogOpenChange as (o: boolean) => void)?.(true)}
+        >
+          open
+        </button>
+        <button
+          data-testid="addon-dialog-close"
+          onClick={() => (props?.onDialogOpenChange as (o: boolean) => void)?.(false)}
+        >
+          dialog close
+        </button>
+        <button
+          data-testid="addon-close"
+          onClick={() => (props?.onRequestClose as () => void)?.()}
+        >
+          close
+        </button>
+      </div>
+    );
+  },
+}));
+
 const mockFile: FileItem = {
+  image_width: null,
+  image_height: null,
   id: "file-1",
   filename: "test.mp4",
   title: "Test",
@@ -55,15 +124,21 @@ const mockFile: FileItem = {
   has_thumbnail: false,
   file_size: 1000,
   duration: 60,
-  likes: 0,
+  liked_at: null,
   is_favorite: false,
   tags: [],
   subtitles: [],
   deleted_at: null,
   missing_since: null,
+  trust_tier: "verified",
+  trust_reviewed_at: null,
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
 };
+
+function renderWithStack(ui: React.ReactElement) {
+  return render(<ShortcutsProvider>{ui}</ShortcutsProvider>);
+}
 
 describe("FileActions", () => {
   beforeEach(() => {
@@ -71,12 +146,59 @@ describe("FileActions", () => {
   });
 
   it("renders menu button", () => {
-    render(<FileActions file={mockFile} />);
+    renderWithStack(<FileActions file={mockFile} />);
     expect(screen.getByLabelText("File actions")).toBeInTheDocument();
   });
 
+  it("carries the touch floor on the button, not on its wrapper", () => {
+    // The row's rule is `.file-action-row-touch > *`, and this button is not
+    // a direct child of the row — the menu needs a `.relative` wrapper.
+    renderWithStack(<FileActions file={mockFile} />);
+    const button = screen.getByLabelText("File actions");
+    const tokens = button.className.split(/\s+/);
+    expect(tokens).toContain("pointer-coarse:h-11");
+    expect(tokens).toContain("pointer-coarse:w-11");
+    // `p-1.5` carries no `display`, so the size classes alone leave the glyph
+    // against the left padding edge.
+    expect(tokens).toContain("inline-flex");
+    expect(tokens).toContain("items-center");
+    expect(tokens).toContain("justify-center");
+  });
+
+  it("exposes the menu to assistive tech", () => {
+    renderWithStack(<FileActions file={mockFile} />);
+    const trigger = screen.getByLabelText("File actions");
+    expect(trigger).toHaveAttribute("aria-haspopup", "menu");
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(trigger);
+
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("menuitem").map((item) => item.textContent),
+    ).toEqual([
+      "Download",
+      "Add to collection",
+      "Copy",
+      "Cut",
+      "Copy ID",
+      "Rename",
+      "Move",
+      "Move to Trash",
+    ]);
+  });
+
+  it("offers add-to-collection, like the card and list menus do", () => {
+    renderWithStack(<FileActions file={mockFile} />);
+    fireEvent.click(screen.getByLabelText("File actions"));
+    expect(
+      screen.getByRole("menuitem", { name: /add to collection/i }),
+    ).toBeInTheDocument();
+  });
+
   it("opens menu on click", () => {
-    render(<FileActions file={mockFile} />);
+    renderWithStack(<FileActions file={mockFile} />);
     fireEvent.click(screen.getByLabelText("File actions"));
     expect(screen.getByText("Download")).toBeInTheDocument();
     expect(screen.getByText("Rename")).toBeInTheDocument();
@@ -85,29 +207,42 @@ describe("FileActions", () => {
   });
 
   it("opens rename dialog", () => {
-    render(<FileActions file={mockFile} />);
+    renderWithStack(<FileActions file={mockFile} />);
     fireEvent.click(screen.getByLabelText("File actions"));
     fireEvent.click(screen.getByText("Rename"));
     expect(screen.getByTestId("rename-dialog")).toBeInTheDocument();
   });
 
   it("opens move dialog", () => {
-    render(<FileActions file={mockFile} />);
+    renderWithStack(<FileActions file={mockFile} />);
     fireEvent.click(screen.getByLabelText("File actions"));
     fireEvent.click(screen.getByText("Move"));
     expect(screen.getByTestId("move-dialog")).toBeInTheDocument();
   });
 
   it("opens delete confirmation dialog", () => {
-    render(<FileActions file={mockFile} />);
+    renderWithStack(<FileActions file={mockFile} />);
     fireEvent.click(screen.getByLabelText("File actions"));
     fireEvent.click(screen.getByText("Move to Trash"));
     expect(screen.getByTestId("confirm-dialog")).toBeInTheDocument();
   });
 
+  it.each([
+    ["Rename", "rename-dialog"],
+    ["Move", "move-dialog"],
+    ["Move to Trash", "confirm-dialog"],
+    ["Add to collection", "collection-picker"],
+  ])("closes the menu when %s opens its dialog", (item, dialog) => {
+    renderWithStack(<FileActions file={mockFile} />);
+    fireEvent.click(screen.getByLabelText("File actions"));
+    fireEvent.click(screen.getByText(item));
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(screen.getByTestId(dialog)).toBeInTheDocument();
+  });
+
   it("calls onDelete after successful deletion", async () => {
     const onDelete = vi.fn();
-    render(<FileActions file={mockFile} onDelete={onDelete} />);
+    renderWithStack(<FileActions file={mockFile} onDelete={onDelete} />);
     fireEvent.click(screen.getByLabelText("File actions"));
     fireEvent.click(screen.getByText("Move to Trash"));
     fireEvent.click(screen.getByText("Confirm"));
@@ -119,7 +254,7 @@ describe("FileActions", () => {
 
   it("calls onUpdate after successful rename", async () => {
     const onUpdate = vi.fn();
-    render(<FileActions file={mockFile} onUpdate={onUpdate} />);
+    renderWithStack(<FileActions file={mockFile} onUpdate={onUpdate} />);
     fireEvent.click(screen.getByLabelText("File actions"));
     fireEvent.click(screen.getByText("Rename"));
     fireEvent.click(screen.getByText("Rename"));
@@ -127,5 +262,698 @@ describe("FileActions", () => {
     await waitFor(() => {
       expect(onUpdate).toHaveBeenCalled();
     });
+  });
+});
+
+/**
+ * Stated in full rather than as the one field a case is about: a partial
+ * stub leaves the rest `undefined`, which makes every comparison against
+ * them `false`.
+ */
+function stubVisualViewport(
+  box: Partial<{
+    offsetLeft: number;
+    offsetTop: number;
+    width: number;
+    height: number;
+  }>,
+) {
+  const target = new EventTarget();
+  vi.stubGlobal("visualViewport", {
+    offsetLeft: 0,
+    offsetTop: 0,
+    width: window.innerWidth,
+    height: window.innerHeight,
+    ...box,
+    addEventListener: target.addEventListener.bind(target),
+    removeEventListener: target.removeEventListener.bind(target),
+    dispatchEvent: target.dispatchEvent.bind(target),
+  });
+  return target;
+}
+
+/** The width the menu's `w-40` draws at. */
+const MENU_WIDTH = 160;
+
+/**
+ * The trigger rect carries all four edges: `spaceBelow` is arithmetic on
+ * `bottom`, and a rect that omits it makes every comparison `NaN > x`,
+ * i.e. `false`.
+ */
+function mountWithBoxes(
+  trigger: { top: number; bottom: number; left: number; right: number },
+  menuHeight: number,
+  menuWidth: number = MENU_WIDTH,
+) {
+  const state = { menuHeight, menuWidth, menuReads: 0 };
+  const original = Element.prototype.getBoundingClientRect;
+  vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(
+    function (this: Element) {
+      if ((this as HTMLElement).classList.contains("relative")) {
+        return { ...trigger } as DOMRect;
+      }
+      if (this.getAttribute("role") === "menu") {
+        state.menuReads += 1;
+        return {
+          height: state.menuHeight,
+          width: state.menuWidth,
+        } as DOMRect;
+      }
+      const box = this.getAttribute("data-box");
+      if (box) return JSON.parse(box) as DOMRect;
+      return original.call(this);
+    },
+  );
+  return state;
+}
+
+describe("FileActions menu alignment", () => {
+  function mountAtColumnEdge(triggerRight: number) {
+    return mountWithBoxes(
+      { top: 100, bottom: 128, left: triggerRight - 28, right: triggerRight },
+      200,
+    );
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("opens leftward when the trigger has room to its left", async () => {
+    mountAtColumnEdge(300);
+    renderWithStack(<FileActions file={mockFile} />);
+    fireEvent.click(screen.getByLabelText("File actions"));
+
+    // By role, not by `.absolute.top-full`: that class list is the answer
+    // the vertical decision produced, so locating by it makes a horizontal
+    // case fail with "expected undefined" whenever the vertical one moves —
+    // and the error toast wears the same two classes.
+    const menu = screen.getByRole("menu");
+    expect(menu.className).toContain("right-0");
+    expect(menu.className).not.toContain("left-0");
+  });
+
+  it("flips rightward when the menu would spill past the column edge", async () => {
+    // Trigger 150px from a column that starts at 0: a 160px menu hung to the
+    // left would start at -10.
+    mountAtColumnEdge(150);
+    renderWithStack(<FileActions file={mockFile} />);
+    fireEvent.click(screen.getByLabelText("File actions"));
+
+    expect(screen.getByRole("menu").className).toContain("left-0");
+  });
+});
+
+describe("FileActions menu direction", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function openAndRead(): string {
+    fireEvent.click(screen.getByLabelText("File actions"));
+    return screen.getByRole("menu").className;
+  }
+
+  function at(top: number, bottom: number, menuHeight: number) {
+    mountWithBoxes({ top, bottom, left: 300, right: 328 }, menuHeight);
+    renderWithStack(<FileActions file={mockFile} />);
+    return openAndRead();
+  }
+
+  it("opens downward when the menu fits below the trigger", () => {
+    // window.innerHeight is 768 in jsdom: 640px of room under the trigger,
+    // and less above it. (fits below, less room above)
+    const className = at(100, 128, 200);
+    expect(className.includes("top-full")).toBe(true);
+    expect(className.includes("bottom-full")).toBe(false);
+  });
+
+  it("stays downward when the menu fits below and there is more room above", () => {
+    // (fits below, more room above) — 140px under the trigger for a 50px
+    // menu plus its 4px gap, against 600px over it.
+    const className = at(600, 628, 50);
+    expect(className.includes("top-full")).toBe(true);
+    expect(className.includes("bottom-full")).toBe(false);
+  });
+
+  it("opens upward from the resting strip, where nothing fits below", () => {
+    // (does not fit below, more room above) — the 56px strip on the
+    // viewport floor: 20px of room under it.
+    const className = at(712, 748, 200);
+    expect(className.includes("bottom-full")).toBe(true);
+    expect(className.includes("top-full")).toBe(false);
+  });
+
+  it("stays downward when neither side has room", () => {
+    // (does not fit below, less room above) — taller than the viewport, so
+    // flipping trades 730px of room for 10px.
+    const className = at(10, 38, 900);
+    expect(className.includes("top-full")).toBe(true);
+    expect(className.includes("bottom-full")).toBe(false);
+  });
+
+  // The two sides of the `mt-1` / `mb-1` boundary: 200px of room below the
+  // trigger and 540px above it in both cases, so `menuHeight + 4 > 200` is
+  // the entire difference between them.
+  it("flips when the box fits below but the gap it needs does not", () => {
+    expect(at(540, 568, 198).includes("bottom-full")).toBe(true);
+  });
+
+  it("stays downward when the box and its gap both fit", () => {
+    expect(at(540, 568, 194).includes("top-full")).toBe(true);
+  });
+});
+
+describe("FileActions menu direction, as the menu's own height moves", () => {
+  let fireResize: (() => void) | undefined;
+  let observed: Element[] = [];
+  let disconnected = 0;
+
+  beforeEach(() => {
+    fireResize = undefined;
+    observed = [];
+    disconnected = 0;
+    class ResizeObserverMock {
+      constructor(callback: () => void) {
+        fireResize = callback;
+      }
+      observe(target: Element) {
+        observed.push(target);
+      }
+      unobserve() {}
+      disconnect() {
+        disconnected += 1;
+      }
+    }
+    vi.stubGlobal("ResizeObserver", ResizeObserverMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("re-decides when the addon slot lands and makes the menu taller", () => {
+    // 300px under the trigger. The core rows are 150px and fit; one addon
+    // entry takes the menu to 450px, which does not.
+    const state = mountWithBoxes(
+      { top: 440, bottom: 468, left: 300, right: 328 },
+      150,
+    );
+    renderWithStack(
+      <FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />,
+    );
+    fireEvent.click(screen.getByLabelText("File actions"));
+    expect(screen.getByRole("menu").className).toContain("top-full");
+
+    expect(observed).toEqual([screen.getByRole("menu")]);
+
+    state.menuHeight = 450;
+    act(() => fireResize!());
+
+    expect(screen.getByRole("menu").className).toContain("bottom-full");
+    expect(screen.getByRole("menu").className).not.toContain("top-full");
+  });
+
+  it("stops observing when the menu closes", () => {
+    mountWithBoxes({ top: 440, bottom: 468, left: 300, right: 328 }, 150);
+    renderWithStack(<FileActions file={mockFile} />);
+
+    fireEvent.click(screen.getByLabelText("File actions"));
+    expect(observed).toHaveLength(1);
+    expect(disconnected).toBe(0);
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(disconnected).toBe(1);
+
+    fireEvent.click(screen.getByLabelText("File actions"));
+    expect(observed).toHaveLength(2);
+    expect(observed[1]).toBe(screen.getByRole("menu"));
+  });
+
+  it("derives the direction once per React-visible change, not once per flip", () => {
+    // The count is the stub's, not a browser's: a real `ResizeObserver`
+    // queues a notification when `observe()` is called.
+    const state = mountWithBoxes(
+      { top: 440, bottom: 468, left: 300, right: 328 },
+      150,
+    );
+    state.menuReads = 0;
+    renderWithStack(
+      <FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />,
+    );
+    fireEvent.click(screen.getByLabelText("File actions"));
+    expect(state.menuReads).toBe(1);
+
+    state.menuHeight = 450;
+    act(() => fireResize!());
+
+    expect(screen.getByRole("menu").className).toContain("bottom-full");
+    expect(state.menuReads).toBe(2);
+  });
+});
+
+
+describe("FileActions menu direction, against the frame that clips it", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  const TRIGGER = { top: 440, bottom: 468, left: 300, right: 328 };
+  const MENU_HEIGHT = 100;
+  // `right` is the jsdom window's width, so the shared scroller is
+  // full-bleed and only its vertical edges differ from the window's.
+  const SCROLLER = { top: 300, bottom: 500, left: 0, right: 1024 };
+
+  function openUnder(
+    chain: AncestorSpec[],
+    trigger = TRIGGER,
+    menuHeight = MENU_HEIGHT,
+  ) {
+    mountWithBoxes(trigger, menuHeight);
+    renderWithStack(
+      <Ancestors chain={chain}>
+        <FileActions file={mockFile} />
+      </Ancestors>,
+    );
+    fireEvent.click(screen.getByLabelText("File actions"));
+    return screen.getByRole("menu").className;
+  }
+
+  const framedByScroller = (className: string) => {
+    expect(className.includes("bottom-full")).toBe(true);
+    expect(className.includes("top-full")).toBe(false);
+  };
+  const framedByWindow = (className: string) => {
+    expect(className.includes("top-full")).toBe(true);
+    expect(className.includes("bottom-full")).toBe(false);
+  };
+
+  it("flips where the scroller ends, not where the window does", () => {
+    framedByScroller(openUnder([{ clips: true, box: SCROLLER }]));
+  });
+
+  it("measures the room above from the scroller's top, not the window's", () => {
+    // 140px above the trigger inside a scroller running 300-668, against
+    // 440px above it in the window, and 200px below either way. Neither
+    // side fits a 300px menu, so the answer turns entirely on which of the
+    // two the space above is compared with: from the scroller it is the
+    // smaller side and the menu stays down.
+    framedByWindow(
+      openUnder(
+        [{ clips: true, box: { top: 300, bottom: 668, left: 0, right: 1024 } }],
+        TRIGGER,
+        300,
+      ),
+    );
+  });
+
+  it("flips sideways at the scroller's left edge, not the window's", () => {
+    // A scroller starting 200px in. The trigger's right edge is at 300, so
+    // a 160px menu hung leftward starts at 140 — inside the window and 60px
+    // outside the box it is drawn in.
+    const className = openUnder(
+      [{ clips: true, box: { top: 0, bottom: 768, left: 200, right: 1024 } }],
+      { top: 100, bottom: 128, left: 272, right: 300 },
+    );
+    expect(className.includes("left-0")).toBe(true);
+    expect(className.includes("right-0")).toBe(false);
+  });
+
+  it("ignores a scroller above a fixed subtree, which it does not clip", () => {
+    // The resting strip is `fixed bottom-0`: laid out against the viewport,
+    // so an `overflow` box anywhere above it clips nothing.
+    framedByWindow(
+      openUnder([{ clips: true, box: SCROLLER }, { position: "fixed" }]),
+    );
+  });
+
+  it("ignores a static scroller between an absolute subtree and its containing block", () => {
+    // Past an `absolute` box the containing block is the nearest positioned
+    // ancestor, so a static `overflow` box in between is not in the chain.
+    // There is no positioned ancestor here at all, so the frame falls
+    // through to the window.
+    framedByWindow(
+      openUnder([{ clips: true, box: SCROLLER }, { position: "absolute" }]),
+    );
+  });
+
+  it("uses a relative scroller above an absolute subtree", () => {
+    // `relative`: the containing block of the `absolute` box below it, and
+    // a scrollport, so it clips.
+    framedByScroller(
+      openUnder([
+        { clips: true, position: "relative", box: SCROLLER },
+        { position: "absolute" },
+      ]),
+    );
+  });
+
+  it("uses a sticky scroller above an absolute subtree", () => {
+    // `sticky` establishes a containing block for out-of-flow descendants
+    // exactly as `relative` does.
+    framedByScroller(
+      openUnder([
+        { clips: true, position: "sticky", box: SCROLLER },
+        { position: "absolute" },
+      ]),
+    );
+  });
+
+  it("uses an absolute scroller above an absolute subtree", () => {
+    // A second `absolute` box: the containing block of the first, and a
+    // scrollport of its own.
+    framedByScroller(
+      openUnder([
+        { clips: true, position: "absolute", box: SCROLLER },
+        { position: "absolute" },
+      ]),
+    );
+  });
+
+  it("uses a fixed scroller above an absolute subtree", () => {
+    // `fixed` is both — the containing block of the `absolute` below it and
+    // the point the walk stops at. The clip is read first, so a fixed
+    // scrollport frames the menu; only a fixed ancestor that is *not* a
+    // scrollport ends the walk at the window.
+    framedByScroller(
+      openUnder([
+        { clips: true, position: "fixed", box: SCROLLER },
+        { position: "absolute" },
+      ]),
+    );
+  });
+
+  it("resumes clipping above the containing block of an absolute subtree", () => {
+    // The detour ends where it started from: `relative` is itself in flow,
+    // so above it the chain is ordinary DOM parentage again and a static
+    // scroller clips as usual.
+    framedByScroller(
+      openUnder([
+        { clips: true, box: SCROLLER },
+        { position: "relative" },
+        { position: "absolute" },
+      ]),
+    );
+  });
+
+  it("measures the window against what is visible, not the layout viewport", () => {
+    // No clipping ancestor, so the frame is the window — and on a phone an
+    // on-screen keyboard shrinks what is visible without moving
+    // `window.innerHeight`. 440px below the trigger by the layout viewport,
+    // 72px by the visual one, for a 100px menu.
+    stubVisualViewport({ height: 400 });
+    mountWithBoxes({ top: 300, bottom: 328, left: 300, right: 328 }, 100);
+    renderWithStack(<FileActions file={mockFile} />);
+    fireEvent.click(screen.getByLabelText("File actions"));
+
+    const className = screen.getByRole("menu").className;
+    expect(className.includes("bottom-full")).toBe(true);
+    expect(className.includes("top-full")).toBe(false);
+  });
+});
+
+describe("FileActions error toast", () => {
+  /**
+   * The toast is raised after the menu has closed, so neither direction
+   * flag may be cleared on close, or the message lands in the corner the
+   * menu was not allowed to use.
+   */
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.mocked(deleteFile).mockResolvedValue(undefined);
+  });
+
+  async function raiseToast(
+    trigger: { top: number; bottom: number; left: number; right: number },
+  ) {
+    mountWithBoxes(trigger, 200);
+    vi.mocked(deleteFile).mockRejectedValue(new Error("nope"));
+    renderWithStack(<FileActions file={mockFile} />);
+
+    fireEvent.click(screen.getByLabelText("File actions"));
+    // Reads the menu's own answer first, so a toast asserted to match it
+    // cannot pass by both being wrong in the same way.
+    const menuClassName = screen.getByRole("menu").className;
+
+    fireEvent.click(screen.getByText("Move to Trash"));
+    fireEvent.click(screen.getByText("Confirm"));
+    const toast = await screen.findByText("Failed to delete");
+    return { menuClassName, toastClassName: toast.className };
+  }
+
+  it("hangs from the corner the menu used, on the resting strip", async () => {
+    // Trigger 150px from the column's left edge on the viewport floor: the
+    // menu goes up and to the right, and this box is `whitespace-nowrap`
+    // and wider than the menu, so both flips matter to it.
+    const { menuClassName, toastClassName } = await raiseToast({
+      top: 712,
+      bottom: 748,
+      left: 122,
+      right: 150,
+    });
+
+    expect(menuClassName).toContain("bottom-full");
+    expect(menuClassName).toContain("left-0");
+    expect(toastClassName).toContain("bottom-full");
+    expect(toastClassName).not.toContain("top-full");
+    expect(toastClassName).toContain("left-0");
+    expect(toastClassName).not.toContain("right-0");
+  });
+
+  it("hangs below and to the right where the menu did", async () => {
+    const { menuClassName, toastClassName } = await raiseToast({
+      top: 100,
+      bottom: 128,
+      left: 300,
+      right: 328,
+    });
+
+    expect(menuClassName).toContain("top-full");
+    expect(menuClassName).toContain("right-0");
+    expect(toastClassName).toContain("top-full");
+    expect(toastClassName).not.toContain("bottom-full");
+    expect(toastClassName).toContain("right-0");
+    expect(toastClassName).not.toContain("left-0");
+  });
+});
+
+describe("FileActions file-actions-menu slot", () => {
+  beforeEach(() => {
+    slotCalls.props = [];
+    slotCalls.empty = false;
+  });
+
+  function openMenu() {
+    fireEvent.click(screen.getByLabelText("File actions"));
+  }
+
+  it("renders no slot without addonProps", () => {
+    renderWithStack(<FileActions file={mockFile} />);
+    openMenu();
+
+    expect(
+      screen.queryByTestId("addon-slot-file-actions-menu"),
+    ).not.toBeInTheDocument();
+    expect(slotCalls.props).toHaveLength(0);
+  });
+
+  it("forwards addonProps plus the two callbacks", () => {
+    renderWithStack(
+      <FileActions file={mockFile} addonProps={{ fileId: mockFile.id, drive: "main" }} />,
+    );
+    openMenu();
+
+    expect(screen.getByTestId("addon-slot-file-actions-menu")).toBeInTheDocument();
+
+    const passed = slotCalls.props.at(-1)!;
+    expect(passed.fileId).toBe(mockFile.id);
+    expect(passed.drive).toBe("main");
+    expect(typeof passed.onRequestClose).toBe("function");
+    expect(typeof passed.onDialogOpenChange).toBe("function");
+  });
+
+  it("keeps the menu open on an outside press while an addon dialog is open", () => {
+    renderWithStack(<FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />);
+    openMenu();
+
+    fireEvent.click(screen.getByTestId("addon-open"));
+    dismissByPressingOutside();
+
+    expect(screen.getByText("Download")).toBeInTheDocument();
+    expect(screen.getByTestId("addon-slot-file-actions-menu")).toBeInTheDocument();
+  });
+
+  it("closes on an outside click while no addon dialog is open", () => {
+    renderWithStack(<FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />);
+    openMenu();
+
+    dismissByPressingOutside();
+
+    expect(screen.queryByText("Download")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("addon-slot-file-actions-menu"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("closes when an addon calls onRequestClose", () => {
+    renderWithStack(<FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />);
+    openMenu();
+
+    fireEvent.click(screen.getByTestId("addon-close"));
+
+    expect(screen.queryByText("Download")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("addon-slot-file-actions-menu"),
+    ).not.toBeInTheDocument();
+    // The entry holding focus unmounts with the menu, so the host has to
+    // put focus back or it falls to <body>.
+    expect(screen.getByLabelText("File actions")).toHaveFocus();
+  });
+
+  it("leaves no dangling separator when the slot renders nothing", () => {
+    // The separator rides on the wrapper so `empty:hidden` takes it away too — assert the
+    // wrapper really is childless, which is what `:empty` keys off.
+    slotCalls.empty = true;
+    const { container } = renderWithStack(
+      <FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />,
+    );
+    openMenu();
+
+    const wrapper = container.querySelector('[class*="empty:hidden"]');
+    expect(wrapper).not.toBeNull();
+    expect(wrapper!.childElementCount).toBe(0);
+  });
+
+  it("recovers when an addon closes the menu without clearing its dialog flag", () => {
+    renderWithStack(<FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />);
+    openMenu();
+
+    fireEvent.click(screen.getByTestId("addon-open"));
+    fireEvent.click(screen.getByTestId("addon-close"));
+    expect(screen.queryByText("Download")).not.toBeInTheDocument();
+
+    openMenu();
+    dismissByPressingOutside();
+
+    expect(screen.queryByText("Download")).not.toBeInTheDocument();
+  });
+
+  it("resumes dismissing the menu once an addon reports its dialog closed", () => {
+    renderWithStack(<FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />);
+    openMenu();
+
+    fireEvent.click(screen.getByTestId("addon-open"));
+    dismissByPressingOutside();
+    expect(screen.getByText("Download")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("addon-dialog-close"));
+    dismissByPressingOutside();
+
+    expect(screen.queryByText("Download")).not.toBeInTheDocument();
+  });
+
+  it("closes on Escape and returns focus to the trigger", () => {
+    renderWithStack(<FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />);
+    openMenu();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(screen.queryByText("Download")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("File actions")).toHaveFocus();
+  });
+
+  it("leaves Escape to the addon while its dialog is open", () => {
+    renderWithStack(<FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />);
+    openMenu();
+
+    fireEvent.click(screen.getByTestId("addon-open"));
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(screen.getByText("Download")).toBeInTheDocument();
+  });
+});
+
+describe("FileActions Copy ID", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("copies the file id, closes the menu and confirms with a toast", async () => {
+    copyTextMock.mockResolvedValue(true);
+    renderWithStack(<FileActions file={mockFile} />);
+    fireEvent.click(screen.getByLabelText("File actions"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Copy ID" }));
+
+    await waitFor(() => {
+      expect(toastSuccessMock).toHaveBeenCalledWith("ID copied");
+    });
+    expect(copyTextMock).toHaveBeenCalledWith("file-1");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(clipboardSpies.copy).not.toHaveBeenCalled();
+    expect(clipboardSpies.cut).not.toHaveBeenCalled();
+  });
+
+  it("shows the id selected in a dialog when the browser will not copy", async () => {
+    copyTextMock.mockResolvedValue(false);
+    renderWithStack(<FileActions file={mockFile} />);
+    fireEvent.click(screen.getByLabelText("File actions"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Copy ID" }));
+
+    const dialog = await screen.findByRole("dialog");
+    const input = screen.getByRole("textbox") as HTMLInputElement;
+    expect(dialog).toContainElement(input);
+    expect(input.value).toBe("file-1");
+    expect(document.activeElement).toBe(input);
+    expect([input.selectionStart, input.selectionEnd]).toEqual([0, 6]);
+    expect(toastSuccessMock).not.toHaveBeenCalled();
+    expect(clipboardSpies.copy).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["the Close button", (dialog: HTMLElement) => within(dialog).getByText("Close")],
+    ["the X button", (dialog: HTMLElement) => within(dialog).getByLabelText("Close")],
+    ["the backdrop", (dialog: HTMLElement) => dialog.previousElementSibling as HTMLElement],
+  ])("closes the dialog from %s", async (_name, target) => {
+    copyTextMock.mockResolvedValue(false);
+    renderWithStack(<FileActions file={mockFile} />);
+    fireEvent.click(screen.getByLabelText("File actions"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Copy ID" }));
+    const dialog = await screen.findByRole("dialog");
+
+    fireEvent.click(target(dialog));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("closes the dialog on Escape", async () => {
+    copyTextMock.mockResolvedValue(false);
+    renderWithStack(<FileActions file={mockFile} />);
+    fireEvent.click(screen.getByLabelText("File actions"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Copy ID" }));
+    await screen.findByRole("dialog");
+    // The dialog registers its shortcut in an effect that commits after
+    // the dialog is in the DOM.
+    await act(async () => {});
+
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Escape" });
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+  });
+
+  it("stays enabled for a missing file", () => {
+    renderWithStack(
+      <FileActions
+        file={{ ...mockFile, missing_since: "2026-09-01T00:00:00Z" }}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText("File actions"));
+    expect(screen.getByRole("menuitem", { name: "Copy ID" })).toBeEnabled();
+    expect(screen.getByRole("menuitem", { name: "Copy" })).toBeDisabled();
   });
 });

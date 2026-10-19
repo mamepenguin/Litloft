@@ -1,72 +1,46 @@
-# Collections and favourites
+# Collections, favorites and likes
 
-Two lightweight ways to keep things you want to revisit.
+## Favorites and likes
 
-## Favourites
+Both mark a file, and each has its own list in the sidebar and on the drive's Home.
 
-Each file has an `is_favorite` flag, toggled by the star on its viewer page or in the file grid.
+- **Favorite** (star) means *open this again*. Press the star on a file's page, or hover over a card in the grid. Taking files off again is expected.
+- **Like** (thumb) means *this was good*. Press it on a file's page. **Liked** lists files in the order you liked them; pressing it again clears the mark, and liking it later puts the file back at the top.
 
-- Favourites are **per drive**, not per viewer. If you share a Litloft installation, favouriting affects what everyone sees in the *Favourites* carousel on the drive home page.
-- Favourites do not affect search ranking by default.
-- A `likes` counter is also stored per file. The frontend exposes a like button alongside the favourite star; multiple likes from the same viewer are counted only once on the cookie level.
-
-If you want viewer-private favourites, that is a feature request — currently the model is shared.
+Both belong to the drive, not to you: everyone who uses the drive sees the same favorites and likes. Neither changes search results.
 
 ## Collections
 
-A **collection** is an ordered list of files within a single drive.
+A collection is an ordered list of files from one drive.
 
 ![Collection editor with a row being reordered by drag and drop](../images/user-guide/playlist-reorder-drag.png)
 
-- Create a collection from the drive sidebar or from the file viewer (*Add to collection*).
-- Collections are **drive-scoped**: a file belongs to exactly one drive, and a collection can only contain files from its own drive.
-- A file can appear in multiple collections.
-- The order is editable: drag-and-drop within the collection editor.
+- Create one with **Create collection** in the sidebar, or with **Add to collection** on a file's page.
+- A file can be in several collections, but only in collections of its own drive.
+- Drag rows to reorder them. The list view numbers the rows from 01.
+- A collection chooses grid or list the same way a folder does ([file browsing](file-browsing.md#file-grid-and-list-modes)), and remembers what you choose.
+- To delete a collection, open `…` beside **Play** and choose **Delete collection**. The files themselves are not deleted.
 
-### What collections do
+### Playing a collection
 
-- The video and audio players honour the collection order: when one file ends and **autoplay** is on, the player advances to the next item.
-- Theatre mode shows the collection queue alongside the player.
-- A collection surface is available on the drive home page when at least one collection exists.
+When one file ends and **Autoplay** is on, the player moves to the next item in the collection. The queue appears beside the player on the file page, including in theatre mode.
 
-### Missing or deleted files in collections
+### Missing or trashed files
 
-If a file in your collection later goes **missing** (off-disk) or **trashed**:
-
-- The item remains in the collection (it is not silently removed).
-- The frontend renders it with a muted style and disables play.
-- Restoring or recovering the file makes the collection item playable again.
-
-Adding a missing or trashed file to a new collection is rejected (`active_file_filter()` excludes them at the API level).
+A file that goes missing or is moved to the trash stays in the collection, greyed out and not playable. Restoring it makes it playable again. You cannot add a missing or trashed file to a collection.
 
 ### Sharing a collection
 
-There is no built-in public sharing. Within a Litloft instance, every viewer who has access to the drive sees the same collections. To export, you can fetch the collection's items via the API:
-
-```
-GET /api/drives/<drive>/collections
-GET /api/drives/<drive>/collections/<id>
-```
-
-…and reconstruct it elsewhere (filenames, file_ids, etc.).
-
-### Common patterns
-
-- **Watch later** — a single global *Later* collection where you stash anything you spot.
-- **Channels** — one collection per recurring source (a podcast feed, a video creator's videos).
-- **Topical** — *Cooking shows*, *Travel vlogs*; complements tag filters when the boundary is fuzzy.
+Everyone who can open the drive sees the same collections. There is no public sharing link. To export one, read it through the [API](../reference/api.md).
 
 ## Pinned folders
 
-A folder you pin is kept on the drive home page even if it has had no recent activity. Pins are per-drive and shared (same model as favourites).
-
-- Right-click a folder → **Pin**.
-- Click the pin icon on a pinned folder card to unpin.
+Right-click a folder and choose **Pin**, or use `…` → **Pin this folder** inside it. The folder appears under **Pins** in the sidebar. **Unpin** removes it. Pins are shared by everyone who uses the drive.
 
 ## Smart folders
 
-A *Smart Folder* is a saved search rather than a curated list. See [search](search.md#saving-as-a-smart-folder).
+A Smart Folder is a saved search rather than a list you build. See [search](search.md#saving-as-a-smart-folder).
 
 ## Continue watching
 
-Not user-curated, but a sibling concept: the *Continue watching* row on the drive home page lists files you have started but not finished. Backed by `WatchHistory` rows where `playback_position / duration` is between 1% and 90%. See [comments and watch history](comments-history.md).
+The **Continue watching** row on Home lists media you started and stopped before 90%. It needs a [profile](profile-preferences.md). See [comments and watch history](comments-history.md).

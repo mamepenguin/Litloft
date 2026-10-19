@@ -1,4 +1,9 @@
 -r requirements.txt
 pytest==8.4.*
 pytest-cov==6.2.*
+# Pinned exactly, not left to pytest-cov's range. `should_fail_under` — the
+# function that decides whether the CI floor refuses — lives in coverage.py,
+# so an unpinned version means the verdict is unpinned. Two images built three
+# days apart from this same file already resolved 7.15.4 and 7.16.0.
+coverage==7.16.0
 httpx==0.28.*

@@ -1,22 +1,7 @@
 """Markdown link extraction and resolution.
 
-Spec: ``docs/superpowers/specs/2026-05-12-markdown-link-three-forms.md``
-§3.3–3.5 (Phase B), §3.7 (Phase D).
-
-This service is the single source of truth for parsing the 3 link forms
-inside ``.md`` bodies:
-
-* ``loft://<file_id>`` — direct id reference (extracted only).
-* ``[[<text>]]`` — wiki-link target (extracted *and* resolved against
-  drive-local ``.md`` files).
-
-The resolver runs entirely inside the same drive (security boundary,
-``.claude/rules/design-decisions.md``). It is **pure read** against the
-ORM session — callers commit on their own boundary.
-
-Phase D additionally exposes :func:`rewrite_basename_in_drive`, used by
-the rename / scanner-move hooks to keep ``[[old_basename]]`` references
-in other ``.md`` files in sync when a ``.md`` is renamed.
+The resolver runs entirely inside the same drive (security boundary). It is
+**pure read** against the ORM session — callers commit on their own boundary.
 """
 from __future__ import annotations
 
@@ -25,28 +10,25 @@ import logging
 import os
 import re
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from typing import Iterable, Literal
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 import app.config as config
-from app.models import File, active_file_filter
+from app.services.atomic_write import replace_file_contents
+from app.models import File, FileRelation, active_file_filter
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Regex
-# ---------------------------------------------------------------------------
-#
 # Wiki link: the target portion stops at ``]``, ``[``, ``|`` or ``#`` so
 # that ``[[X|disp]]`` and ``[[X#head]]`` capture only ``X``. ``[`` is
 # excluded so ``[[outer[[inner]]]]`` resolves to the inner pair only,
 # matching Obsidian's "innermost wins" semantics.
 _WIKI_LINK_RE = re.compile(r"\[\[([^\]\[\|#]+?)(?:#[^\]\|]+)?(?:\|[^\]]+)?\]\]")
 
-# loft://<id> where id is exactly 12 of the file-id alphabet. Query /
-# fragment is consumed but not captured.
 _LOFT_LINK_RE = re.compile(r"loft://([A-Za-z0-9_-]{12})(?:[?#][^\s\)\"']*)?")
 
 _ID_RE = re.compile(r"^\d{12,17}$")
@@ -56,11 +38,6 @@ _ID_RE = re.compile(r"^\d{12,17}$")
 # captured as a wiki-link.
 _ESCAPED_OPEN = "\x00LB\x00"
 _ESCAPED_CLOSE = "\x00RB\x00"
-
-
-# ---------------------------------------------------------------------------
-# Dataclasses
-# ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -86,11 +63,6 @@ class ResolveDiagnostic:
     candidates: list[str] = field(default_factory=list)
 
 
-# ---------------------------------------------------------------------------
-# Extractor
-# ---------------------------------------------------------------------------
-
-
 def extract_links(content: str) -> ExtractedLinks:
     """Walk ``content`` and return all loft/wiki link tokens.
 
@@ -106,9 +78,100 @@ def extract_links(content: str) -> ExtractedLinks:
     return ExtractedLinks(loft_ids=loft_ids, wiki_targets=wiki_targets)
 
 
-# ---------------------------------------------------------------------------
-# Resolver
-# ---------------------------------------------------------------------------
+MARKDOWN_ORIGIN = "markdown"
+INTERNAL_ORIGIN = "internal"
+
+
+def direct_reference_ids(content: str, file_id: str) -> set[str]:
+    """File ids named by ``loft://`` links and frontmatter ``source_file_ids``."""
+    ids = set(extract_links(content).loft_ids)
+    try:
+        from app.services.frontmatter import parse as parse_frontmatter
+
+        raw_ids = parse_frontmatter(content).metadata.get("source_file_ids")
+        if isinstance(raw_ids, list):
+            ids |= {item for item in raw_ids if isinstance(item, str) and item}
+    except Exception:
+        pass
+    return ids - {file_id}
+
+
+def sync_markdown_file_relations(
+    db: Session,
+    file_id: str,
+    drive: str,
+    content: str,
+    self_dir: str,
+) -> list[ResolveDiagnostic]:
+    extracted = extract_links(content)
+    wiki_ids, diagnostics = resolve_wiki_targets(
+        db, drive, self_dir, extracted.wiki_targets
+    )
+
+    requested_ids = direct_reference_ids(content, file_id)
+    valid_direct_ids: set[str] = set()
+    if requested_ids:
+        rows = (
+            db.query(File.id)
+            .filter(
+                File.id.in_(requested_ids),
+                File.drive == drive,
+                active_file_filter(),
+            )
+            .all()
+        )
+        valid_direct_ids = {row.id for row in rows}
+
+    target_ids = (valid_direct_ids | wiki_ids) - {file_id}
+    touching = (
+        db.query(FileRelation)
+        .filter(
+            or_(
+                FileRelation.file_id_a == file_id,
+                FileRelation.file_id_b == file_id,
+            ),
+            FileRelation.kind == "related",
+        )
+        .all()
+    )
+    own = {
+        relation.file_id_b: relation
+        for relation in touching
+        if relation.origin == MARKDOWN_ORIGIN and relation.file_id_a == file_id
+    }
+    # A row with no origin predates origins, so nothing says who wrote it. It
+    # is reconciled the way every row was then: kept only as this note's link.
+    for relation in touching:
+        if relation.origin is not None:
+            continue
+        if (
+            relation.file_id_a == file_id
+            and relation.file_id_b in target_ids
+            and relation.file_id_b not in own
+        ):
+            relation.origin = MARKDOWN_ORIGIN
+            own[relation.file_id_b] = relation
+        else:
+            db.delete(relation)
+    held_by_others = {
+        relation.file_id_b
+        for relation in touching
+        if relation.file_id_a == file_id and relation.origin not in (None, MARKDOWN_ORIGIN)
+    }
+    for target_id in target_ids - set(own) - held_by_others:
+        db.add(
+            FileRelation(
+                file_id_a=file_id,
+                file_id_b=target_id,
+                kind="related",
+                origin=MARKDOWN_ORIGIN,
+                created_at=datetime.now(UTC),
+            )
+        )
+    for target_id, relation in own.items():
+        if target_id not in target_ids:
+            db.delete(relation)
+    return diagnostics
 
 
 def _normalize_drive_path(self_dir: str, raw: str) -> str | None:
@@ -168,9 +231,7 @@ def _lookup_by_file_path(
 def _md_predicate():
     """Filter: ``.md`` files only (mime ``text/markdown`` OR ``.md`` name).
 
-    Mirrors :func:`app.routers.files._is_markdown_file` to keep both
-    sides aligned with ``.claude/rules/design-decisions.md`` — older
-    rows may still carry ``text/plain`` for ``.md``.
+    Older rows may still carry ``text/plain`` for ``.md``.
     """
     from sqlalchemy import or_, func as sa_func
 
@@ -209,11 +270,7 @@ def _resolve_relative(
 def _resolve_path(
     db: Session, drive: str, self_dir: str, target: str
 ) -> File | None:
-    """Rule 3: target contains ``/`` — try relative first, then absolute.
-
-    Per spec §3.3 the relative form wins when both shapes resolve to a
-    live file.
-    """
+    """Rule 3: target contains ``/`` — try relative first, then absolute."""
     relative = _normalize_drive_path(self_dir, target)
     if relative is not None:
         hit = _lookup_by_file_path(db, drive, relative)
@@ -226,12 +283,7 @@ def _resolve_path(
 
 
 def _basename_candidates(db: Session, drive: str, target: str) -> list[File]:
-    """Rule 4: basename match (``Path(filename).stem``).
-
-    Done in Python because the stem comparison is case-sensitive and
-    SQLite cannot index the substring efficiently. The drive scope
-    keeps the working set bounded.
-    """
+    """Rule 4: ``target`` is a ``.md`` file's basename, anywhere in the drive."""
     expected = f"{target}.md"
     rows = (
         db.query(File)
@@ -272,12 +324,7 @@ def _alias_candidates(db: Session, drive: str, target: str) -> list[File]:
 def _classify_hits(
     target: str, hits: list[File]
 ) -> tuple[str | None, ResolveDiagnostic | None]:
-    """Convert a per-rule hit list into either an id or an ambiguous diag.
-
-    * 0 hits → ``(None, None)`` (caller falls through to the next rule).
-    * 1 hit  → ``(file_id, None)``.
-    * 2+ hits → ``(None, ResolveDiagnostic(kind='ambiguous', ...))``.
-    """
+    """Convert a per-rule hit list into either an id or an ambiguous diag."""
     if not hits:
         return None, None
     if len(hits) == 1:
@@ -299,40 +346,34 @@ def _resolve_single_target(
     The precedence stops at the first rule that matches at least one
     file (or signals ambiguity). 0-hit rules fall through.
     """
-    # Rule 1: numeric id
     if _ID_RE.match(target):
         hit = _resolve_numeric_id(db, drive, target)
         if hit is not None:
             return hit.id, None
         return None, ResolveDiagnostic(target=target, kind="unresolved")
 
-    # Rule 2: explicit relative
     if target.startswith("./") or target.startswith("../"):
         hit = _resolve_relative(db, drive, self_dir, target)
         if hit is not None:
             return hit.id, None
         return None, ResolveDiagnostic(target=target, kind="unresolved")
 
-    # Rule 3: path with ``/`` (but not rule 2)
     if "/" in target:
         hit = _resolve_path(db, drive, self_dir, target)
         if hit is not None:
             return hit.id, None
         return None, ResolveDiagnostic(target=target, kind="unresolved")
 
-    # Rule 4: basename match
     basename_hits = _basename_candidates(db, drive, target)
     resolved_id, diag = _classify_hits(target, basename_hits)
     if resolved_id is not None or diag is not None:
         return resolved_id, diag
 
-    # Rule 5: alias match
     alias_hits = _alias_candidates(db, drive, target)
     resolved_id, diag = _classify_hits(target, alias_hits)
     if resolved_id is not None or diag is not None:
         return resolved_id, diag
 
-    # Rule 6: unresolved
     return None, ResolveDiagnostic(target=target, kind="unresolved")
 
 
@@ -344,18 +385,8 @@ def resolve_wiki_targets(
 ) -> tuple[set[str], list[ResolveDiagnostic]]:
     """Resolve a batch of wiki targets in one call.
 
-    Precedence (spec §3.3, strict — first rule with hits stops the
-    chain; ambiguity is intra-rule only):
-
-    1. ``^\\d{12,17}$`` → ``File.md_id`` exact match.
-    2. ``./`` / ``../`` prefix → relative-from-``self_dir``.
-    3. Contains ``/`` → relative-from-``self_dir``, then absolute-from-root.
-    4. ``Path(filename).stem`` match across the drive (case-sensitive).
-    5. ``File.md_aliases`` (JSON list) contains the target.
-
-    Returns ``(resolved_ids, diagnostics)``. ``resolved_ids`` dedupes
-    automatically (set). Diagnostics preserve first-seen target order
-    for stable UI rendering and exclude duplicate targets.
+    Diagnostics preserve first-seen target order for stable UI rendering and
+    exclude duplicate targets.
     """
     resolved: set[str] = set()
     diagnostics: list[ResolveDiagnostic] = []
@@ -372,21 +403,9 @@ def resolve_wiki_targets(
     return resolved, diagnostics
 
 
-# ---------------------------------------------------------------------------
-# Rewrite (Phase D)
-# ---------------------------------------------------------------------------
-
-
 @dataclass(frozen=True)
 class RewriteResult:
-    """Counters returned by :func:`rewrite_basename_in_drive`.
-
-    * ``files_scanned`` — number of active ``.md`` files considered (i.e.
-      the drive-scoped working set after the active filter).
-    * ``files_changed`` — subset of scanned files whose body was rewritten.
-    * ``occurrences`` — total number of ``[[old]]`` / ``[[old|...]]`` /
-      ``[[old#...]]`` tokens replaced across all changed files.
-    """
+    """Counters returned by :func:`rewrite_basename_in_drive`."""
 
     files_scanned: int
     files_changed: int
@@ -395,11 +414,6 @@ class RewriteResult:
 
 def _rewrite_body(body: str, old: str, new: str) -> tuple[str, int]:
     """Apply escape-aware ``[[old…]] → [[new…]]`` rewrite to a body.
-
-    Returns ``(new_body, occurrences)``. Pure / immutable — never mutates
-    the input string.
-
-    Discipline:
 
     * ``\\[`` / ``\\]`` (CommonMark escapes) are masked with sentinels so
       they cannot be captured as wiki-link delimiters.
@@ -427,8 +441,6 @@ def _rewrite_body(body: str, old: str, new: str) -> tuple[str, int]:
 
     rewritten = pattern.sub(_replace, masked)
     if occurrences == 0:
-        # Fast path: no changes, return the original body so the caller
-        # can detect "no rewrite needed" without comparing strings.
         return body, 0
 
     final = rewritten.replace(_ESCAPED_OPEN, "\\[").replace(_ESCAPED_CLOSE, "\\]")
@@ -467,8 +479,6 @@ def _split_frontmatter_prefix(content: str) -> tuple[str, str]:
             break
     if close_idx is None:
         return "", content
-    # Reconstruct the prefix verbatim: BOM (if any) + opening delim +
-    # raw YAML lines + closing delim line. No re-serialization.
     prefix_lines = [_FM_DELIM] + lines[: close_idx + 1]
     raw_prefix = "\n".join(prefix_lines) + "\n"
     body = "\n".join(lines[close_idx + 1:])
@@ -511,20 +521,8 @@ def _write_atomically(target: Path, content: str) -> int:
 
     Returns the new on-disk size in bytes. Raises on failure; callers
     isolate via try / except so one bad file cannot abort the batch.
-    The tmp sibling is removed on any exception so failed rewrites
-    don't leak ``.tmp`` artefacts into the user's drive.
     """
-    target.parent.mkdir(parents=True, exist_ok=True)
-    tmp = target.with_suffix(target.suffix + ".tmp")
-    try:
-        tmp.write_text(content, encoding="utf-8")
-        tmp.replace(target)
-    except Exception:
-        try:
-            tmp.unlink(missing_ok=True)
-        except OSError:
-            pass
-        raise
+    replace_file_contents(target, content.encode("utf-8"))
     return target.stat().st_size
 
 
@@ -538,14 +536,8 @@ def rewrite_basename_in_drive(
 ) -> RewriteResult:
     """Rewrite ``[[old_basename]]`` references across a drive's ``.md``.
 
-    Spec §3.7 (Rename rewrite). For every active ``.md`` file in
-    ``drive`` other than ``exclude_file_id``, parse the frontmatter to
-    isolate the body, rewrite ``[[old_basename]]`` / ``[[old_basename|x]]`` /
-    ``[[old_basename#h]]`` to ``[[new_basename…]]`` in the body only,
-    then write the file back atomically.
-
     Frontmatter (including ``aliases:`` entries that happen to match
-    ``old_basename``) is preserved verbatim — spec §7.6.
+    ``old_basename``) is preserved verbatim.
 
     No-op when ``old_basename == new_basename`` (returns zero counters).
 
@@ -631,11 +623,7 @@ def resolve_wiki_targets_with_map(
     self_dir: str,
     targets: Iterable[str],
 ) -> tuple[dict[str, str], list[ResolveDiagnostic]]:
-    """Variant returning ``target → file_id`` so callers can map back.
-
-    Used by ``GET /api/files/{id}/wiki-resolutions`` to populate the
-    renderer's lookup table. Same precedence; same diagnostics list.
-    """
+    """Variant returning ``target → file_id`` so callers can map back."""
     target_to_id: dict[str, str] = {}
     diagnostics: list[ResolveDiagnostic] = []
     seen: set[str] = set()

@@ -1,20 +1,3 @@
-/**
- * Phase 3: セクション内アイテム並び替えの結合テスト
- *
- * 対象: Pins / Collections / Smart Folders の各アイテム。Tags / Drives は対象外。
- *
- * テスト戦略 (Phase2 / useReorderableDnD.test.tsx 流儀):
- * - (a) 各セクションが useSidebarItemOrder の order でアイテム描画
- * - (b) 各アイテムに grip がある
- * - (c) アイテム drop で順序変更 + drive-scoped key に永続化
- * - (d) drive を切り替えると別 drive の順序が混ざらない
- * - (e) cross-section: 別 kind の MIME は reorder されない
- * - (f) Collections: application/x-file-ids ドロップが従来通り addCollectionItems を呼ぶ
- * - (g) drop indicator が absolute 要素
- *
- * jsdom は実ブラウザ DnD を再現できないため handler 直呼びで検証。
- */
-
 import { describe, it, expect, vi, beforeEach, afterAll } from "vitest";
 import { act, render, renderHook, screen, fireEvent, waitFor } from "@testing-library/react";
 import { createRef } from "react";
@@ -61,7 +44,7 @@ afterAll(() => {
   }
 });
 
-// ---- FakeDataTransfer (same pattern as useReorderableDnD.test.tsx) -----------
+// ---- FakeDataTransfer ---------------------------------------------------------
 
 class FakeDataTransfer {
   private data = new Map<string, string>();
@@ -190,8 +173,6 @@ const collectionsProps = (collectionList: CollectionSummary[]) => ({
   handleCollectionClick: vi.fn(),
 });
 
-// ---- (a) order でアイテム描画 ------------------------------------------------
-
 describe("(a) sections render items in useSidebarItemOrder order", () => {
   beforeEach(() => {
     mockStorage.clear();
@@ -231,7 +212,6 @@ describe("(a) sections render items in useSidebarItemOrder order", () => {
     const labels = buttons
       .map((b) => b.textContent ?? "")
       .filter((tx) => tx.includes("Rock") || tx.includes("Jazz"));
-    // Jazz (c2) must come before Rock (c1)
     expect(labels[0]).toContain("Jazz");
     expect(labels[1]).toContain("Rock");
   });
@@ -249,8 +229,6 @@ describe("(a) sections render items in useSidebarItemOrder order", () => {
     expect(allText.indexOf("Videos")).toBeLessThan(allText.indexOf("Recent"));
   });
 });
-
-// ---- (b) 各アイテムに grip がある --------------------------------------------
 
 describe("(b) each item has a drag grip", () => {
   beforeEach(() => {
@@ -301,7 +279,6 @@ describe("(b) each item has a drag grip", () => {
         renameValue="Rock Edit"
       />,
     );
-    // c1 is in rename mode → only c2 keeps a grip
     expect(
       screen.getAllByRole("button", { name: "Drag to reorder" }),
     ).toHaveLength(1);
@@ -315,8 +292,6 @@ describe("(b) each item has a drag grip", () => {
     ).toHaveLength(2);
   });
 });
-
-// ---- (c) drop で順序変更 + drive-scoped 永続化 -------------------------------
 
 describe("(c) drop reorders and persists to a drive-scoped key", () => {
   beforeEach(() => {
@@ -368,8 +343,6 @@ describe("(c) drop reorders and persists to a drive-scoped key", () => {
   });
 });
 
-// ---- (d) drive 分離 ----------------------------------------------------------
-
 describe("(d) per-drive isolation — orders never mix across drives", () => {
   beforeEach(() => {
     mockStorage.clear();
@@ -384,7 +357,7 @@ describe("(d) per-drive isolation — orders never mix across drives", () => {
     );
     expect(result.current.order).toEqual(["b", "a"]);
     rerender({ drive: "photos" });
-    expect(result.current.order).toEqual(["a", "b"]); // photos: untouched default
+    expect(result.current.order).toEqual(["a", "b"]);
   });
 
   it("Pins component reflects the drive-scoped key for the active drive", () => {
@@ -392,7 +365,6 @@ describe("(d) per-drive isolation — orders never mix across drives", () => {
       "sidebar:order:pins:work",
       JSON.stringify(["b/two", "a/one"]),
     );
-    // Rendering for a *different* drive must NOT pick up work's order.
     render(
       <SidebarPinsSection
         driveBase="/drive/photos"
@@ -403,12 +375,10 @@ describe("(d) per-drive isolation — orders never mix across drives", () => {
       />,
     );
     const links = screen.getAllByRole("link");
-    expect(links[0]).toHaveTextContent("one"); // default server order
+    expect(links[0]).toHaveTextContent("one");
     expect(links[1]).toHaveTextContent("two");
   });
 });
-
-// ---- (e) cross-section: per-kind MIME ----------------------------------------
 
 describe("(e) cross-section drops are rejected by per-kind MIME", () => {
   it("a pins-kind drag is ignored by a collections-kind row", () => {
@@ -420,7 +390,6 @@ describe("(e) cross-section drops are rejected by per-kind MIME", () => {
         onReorder,
       }),
     );
-    // Drag payload carries the *pins* MIME, not collections.
     const foreign = new FakeDataTransfer();
     foreign.setData("application/x-litloft-reorder-sidebar-item-pins", "p1");
 
@@ -453,8 +422,6 @@ describe("(e) cross-section drops are rejected by per-kind MIME", () => {
   });
 });
 
-// ---- (f) Collections file-ids drop は従来通り --------------------------------
-
 describe("(f) Collections file-ids drop still calls addCollectionItems", () => {
   beforeEach(() => {
     mockStorage.clear();
@@ -472,8 +439,8 @@ describe("(f) Collections file-ids drop still calls addCollectionItems", () => {
       />,
     );
 
-    // The collection item button (not the row wrapper) carries the
-    // file-ids handlers. Fire a native-style drop with the file-ids MIME.
+    // The collection item button, not the row wrapper, carries the file-ids
+    // handlers.
     const rockBtn = screen.getByText("Rock").closest("button") as HTMLElement;
 
     const fileIdsDT = {
@@ -508,12 +475,9 @@ describe("(f) Collections file-ids drop still calls addCollectionItems", () => {
     };
     fireEvent.drop(rockBtn, { dataTransfer: reorderDT });
 
-    // file-ids handler early-returns on a non-file-ids MIME.
     expect(addCollectionItemsMock).not.toHaveBeenCalled();
   });
 });
-
-// ---- (g) drop indicator は absolute 要素 -------------------------------------
 
 describe("(g) drop indicator — absolute overlay, no reflow", () => {
   it("Pins drop indicator renders as an absolute element", () => {
@@ -566,7 +530,6 @@ describe("(g) drop indicator — absolute overlay, no reflow", () => {
         close={vi.fn()}
       />,
     );
-    // No drag in progress → no indicator yet.
     expect(document.querySelector(".bg-accent.absolute")).not.toBeInTheDocument();
   });
 });

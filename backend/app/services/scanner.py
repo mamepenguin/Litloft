@@ -9,10 +9,18 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 import app.config as config
+from app.services.atomic_write import replace_file_contents
 from app.database import SessionLocal
 from app.models import EmptyFolder, File, FileExif, active_file_filter
+from app.services.chapters import probe_file_chapters
 from app.services.exif import extract_exif
-from app.services.filetype import classify, is_hidden, refine_classification_with_probe
+from app.services.filetype import (
+    classify,
+    is_hidden,
+    is_probeable_media,
+    probe_outcomes,
+    refine_classification_with_probe,
+)
 from app.services.frontmatter import compose as compose_frontmatter
 from app.services.frontmatter import (
     ensure_id,
@@ -20,19 +28,89 @@ from app.services.frontmatter import (
     parse as parse_frontmatter,
 )
 from app.services.hash import compute_file_hash
+from app.services.image_dimensions import read_image_dimensions
+from app.services.markdown_images import project_markdown_thumbnail
+from app.services.maintenance import (
+    MaintenanceBusyError,
+    _lock as _scan_lock,
+    maintenance_operation,
+)
 from app.services.subtitle import is_subtitle_file
-from app.services.thumbnail import get_thumbnail_generator, get_video_duration
+from app.services.heic import is_heic_file
+from app.services.thumbnail import (
+    carries_transparency,
+    generate_webp_image_thumbnail,
+    get_thumbnail_generator,
+    get_video_duration,
+    image_thumbnail_size,
+    write_thumbnail_atomically,
+)
 from app.services import event_hooks
-from app.services.fileops import _cleanup_empty_parents, _filename_to_title
+from app.services.fileops import (
+    _cleanup_empty_parents,
+    _filename_to_title,
+    path_thumbnail_rel,
+)
 from app.services.ws import broadcast_from_thread
 
 _MD_READ_MAX_BYTES = 1 * 1024 * 1024
 
 logger = logging.getLogger(__name__)
 
-_scan_lock = asyncio.Lock()
 _last_scanned_at: dict[str, datetime] = {}
 _scanning_drives: set[str] = set()
+
+
+def _refresh_file_identity(
+    file_record: File,
+    item: Path,
+    *,
+    detect_content_change: bool,
+) -> bool:
+    """Refresh the bounded hash/size and clear the probe stamp on change.
+
+    Returns whether the record was modified.
+    """
+    known_hash = file_record.file_hash
+    if known_hash is not None and not detect_content_change:
+        return False
+
+    try:
+        current_size = item.stat().st_size
+    except OSError:
+        current_size = file_record.file_size
+
+    # Size decides whether the hash is worth reading. ``compute_file_hash``
+    # reads 512KB per call, so hashing every video on every sweep costs
+    # gigabytes of reads on a library-sized drive, while the stat above is
+    # already paid for. The gap this leaves — an edit that lands on the
+    # exact same byte count — is not something a re-encode or a re-download
+    # produces, and covering it would mean re-reading the whole library on
+    # every scan forever.
+    if known_hash is not None and current_size == file_record.file_size:
+        return False
+
+    current_hash = compute_file_hash(item)
+    if current_hash is None:
+        return False
+
+    # Restated rather than inferred from the gate above. The gate already
+    # implies the content moved by the time we reach here, so this reads as
+    # redundant — but leaving it out makes stamp handling depend on a
+    # condition three branches away, and widening the gate later would
+    # silently start discarding probe results. Both values are in hand.
+    content_changed = known_hash is not None and (
+        current_hash != known_hash or current_size != file_record.file_size
+    )
+
+    file_record.file_hash = current_hash
+    file_record.file_size = current_size
+
+    # Filling in a hash we never had is a backfill, not a content change:
+    # it must not invalidate a probe stamp that is still true.
+    if content_changed:
+        file_record.chapters_probed_at = None
+    return True
 
 
 def get_scan_status(drive_name: str) -> dict:
@@ -46,6 +124,26 @@ PROGRESS_BATCH_SIZE = 50
 PROGRESS_INTERVAL = 1.0  # seconds
 
 
+def _unchanged_probe_result(
+    file_record: File | None, item: Path, file_type: str, mime_type: str
+) -> tuple[str, str] | None:
+    """The stored classification, when probing again could not change it.
+
+    Size is the content-change signal, as in ``_refresh_file_identity``.
+    """
+    if file_record is None or file_record.file_size is None:
+        return None
+    stored = (file_record.file_type, file_record.mime_type)
+    if stored not in probe_outcomes(file_type, mime_type):
+        return None
+    try:
+        if item.stat().st_size != file_record.file_size:
+            return None
+    except OSError:
+        return None
+    return stored
+
+
 def _get_folder_path(file_path: Path, base_dir: Path) -> str:
     relative = file_path.relative_to(base_dir)
     parent = str(relative.parent)
@@ -55,11 +153,79 @@ def _get_folder_path(file_path: Path, base_dir: Path) -> str:
 
 
 def _expected_thumbnail_path(drive_name: str, folder_path: str, nfc_stem: str) -> str:
-    return (
-        f"{drive_name}/{folder_path}/{nfc_stem}.jpg"
-        if folder_path
-        else f"{drive_name}/{nfc_stem}.jpg"
+    return path_thumbnail_rel(drive_name, folder_path, nfc_stem)
+
+
+# The size a picture thumbnail had while it was letterboxed onto a frame.
+# Only one shape ever came out of that, whatever the picture was.
+_LETTERBOXED_SIZE = (320, 180)
+
+
+def _is_letterboxed_image_thumbnail(file_record: File) -> bool:
+    """Whether this picture's stored thumbnail predates the unpadded box.
+
+    Asked of the stored dimensions first, which costs nothing: a picture
+    whose thumbnail *should* be 320x180 today is one that was 16:9 all
+    along, and its old thumbnail is the same bytes as its new one. Only
+    where the two answers differ is the file on disk opened, and JPEG
+    keeps its size in the header, so that read stops after a few bytes.
+
+    A picture with no stored dimensions is left alone. There is nothing
+    to compare against, and the scan backfills the dimensions in the same
+    pass, so it becomes answerable on the next one.
+    """
+    if file_record.image_width is None or file_record.image_height is None:
+        return False
+    expected = image_thumbnail_size(file_record.image_width, file_record.image_height)
+    if expected is None or expected == _LETTERBOXED_SIZE:
+        return False
+    if not file_record.thumbnail_path:
+        return False
+    stored = config.THUMBNAILS_DIR / file_record.thumbnail_path
+    try:
+        from PIL import Image
+
+        with Image.open(stored) as thumbnail:
+            return thumbnail.size == _LETTERBOXED_SIZE
+    except (OSError, ValueError):
+        return False
+
+
+_JPEG_SIGNATURE = b"\xff\xd8\xff"
+
+
+def _is_flattened_transparent_picture(
+    db: Session, file_record: File, item_path: Path
+) -> bool:
+    """Whether this picture's stored thumbnail is a JPEG that lost its alpha.
+
+    Cheapest test first, so a picture already moved to WebP stops at the
+    stored thumbnail's first bytes and its source is never opened.
+
+    A slot another row also points at is left alone: slots are keyed by
+    stem, so `logo.png` beside `logo.jpg` share one, and writing it would
+    change which of the two files the thumbnail shows.
+    """
+    if file_record.mime_type == "image/jpeg" or is_heic_file(str(item_path)):
+        return False
+    try:
+        with open(config.THUMBNAILS_DIR / file_record.thumbnail_path, "rb") as stored:
+            if stored.read(len(_JPEG_SIGNATURE)) != _JPEG_SIGNATURE:
+                return False
+    except OSError:
+        return False
+    shared = (
+        db.query(File.id)
+        .filter(
+            File.drive == file_record.drive,
+            File.thumbnail_path == file_record.thumbnail_path,
+            File.id != file_record.id,
+        )
+        .first()
     )
+    if shared is not None:
+        return False
+    return carries_transparency(item_path)
 
 
 def _relocate_thumbnail(
@@ -86,7 +252,9 @@ def _relocate_thumbnail(
             return
 
     gen_fn = get_thumbnail_generator(file_type, file_record.mime_type)
-    if gen_fn and gen_fn(str(item_path), str(new_thumb_full)):
+    if gen_fn and write_thumbnail_atomically(
+        gen_fn, str(item_path), str(new_thumb_full)
+    ):
         file_record.thumbnail_path = new_thumb_rel
     else:
         file_record.thumbnail_path = None
@@ -102,15 +270,8 @@ def _ensure_md_id_for_new_file(
 
     No-op when the file is not markdown, has no frontmatter, or is too
     large to safely parse. When the frontmatter has no ``id:``, generate
-    one and write the file back atomically. Same collision rule as
-    ``put_file_content._inject_md_id`` (spec §3.1).
+    one and write the file back atomically.
 
-    Aliases projection (spec §3.6 — Phase B): when frontmatter has a
-    valid ``aliases:`` list, store the sanitized JSON form on
-    ``File.md_aliases`` so the wiki-link resolver can match alias-form
-    targets at first-scan time.
-
-    Called from both ``register_single_file`` and ``_scan_and_register``.
     Failures (read errors, malformed YAML, write errors) are swallowed so
     a hostile file cannot break scan / upload registration.
     """
@@ -149,16 +310,13 @@ def _ensure_md_id_for_new_file(
 
         new_content = compose_frontmatter(new_meta, parsed.body)
         try:
-            tmp = file_path.with_suffix(file_path.suffix + ".tmp")
-            tmp.write_text(new_content, encoding="utf-8")
-            tmp.replace(file_path)
+            replace_file_contents(file_path, new_content.encode("utf-8"))
             file_record.file_size = file_path.stat().st_size
         except OSError:
             return
 
     file_record.md_id = new_id
 
-    # Phase B: aliases projection. Best-effort — never raise.
     try:
         aliases = extract_valid_aliases(parsed.metadata)
         file_record.md_aliases = json.dumps(aliases) if aliases else None
@@ -195,7 +353,7 @@ def register_single_file(db: Session, drive_name: str, file_path: Path) -> str:
     nfc_stem = Path(nfc_name).stem
 
     duration = None
-    if file_type in ("video", "audio"):
+    if is_probeable_media(file_type, mime_type):
         duration = get_video_duration(str(file_path))
 
     thumbnail_rel = None
@@ -203,7 +361,9 @@ def register_single_file(db: Session, drive_name: str, file_path: Path) -> str:
     if gen_fn is not None:
         thumbnail_rel = _expected_thumbnail_path(drive_name, folder_path, nfc_stem)
         thumbnail_full = config.THUMBNAILS_DIR / thumbnail_rel
-        if not gen_fn(str(file_path), str(thumbnail_full)):
+        if not write_thumbnail_atomically(
+            gen_fn, str(file_path), str(thumbnail_full)
+        ):
             thumbnail_rel = None
 
     file_hash = compute_file_hash(file_path)
@@ -233,9 +393,23 @@ def register_single_file(db: Session, drive_name: str, file_path: Path) -> str:
     db.add(file_record)
     db.flush()
 
+    probe_file_chapters(db, file_record, file_path)
+
     _ensure_md_id_for_new_file(db, file_record, file_path)
 
+    if mime_type == "text/markdown" or nfc_name.lower().endswith(".md"):
+        try:
+            if file_path.stat().st_size <= _MD_READ_MAX_BYTES:
+                project_markdown_thumbnail(
+                    db, file_record, file_path.read_text(encoding="utf-8")
+                )
+        except (OSError, UnicodeDecodeError):
+            pass
+
     if file_type == "image":
+        dimensions = read_image_dimensions(file_path)
+        if dimensions is not None:
+            file_record.image_width, file_record.image_height = dimensions
         exif = extract_exif(file_path)
         if exif is not None:
             db.add(FileExif(file_id=file_record.id, **exif))
@@ -281,7 +455,15 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
         found_paths.add(relative_path)
         folder_path = unicodedata.normalize("NFC", _get_folder_path(item, drive_path))
         file_type, mime_type = classify(item.name)
-        file_type, mime_type = refine_classification_with_probe(item, file_type, mime_type)
+        stored = _unchanged_probe_result(
+            existing.get(relative_path), item, file_type, mime_type
+        )
+        if stored is not None:
+            file_type, mime_type = stored
+        else:
+            file_type, mime_type = refine_classification_with_probe(
+                item, file_type, mime_type
+            )
 
         nfc_name = unicodedata.normalize("NFC", item.name)
         nfc_stem = Path(nfc_name).stem
@@ -308,19 +490,62 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
                 file_record.mime_type = mime_type
                 needs_update = True
 
-            if file_record.file_hash is None:
-                file_hash = compute_file_hash(item)
-                if file_hash is not None:
-                    file_record.file_hash = file_hash
-                    needs_update = True
+            if _refresh_file_identity(
+                file_record,
+                item,
+                detect_content_change=is_probeable_media(file_type, mime_type),
+            ):
+                needs_update = True
 
-            if get_thumbnail_generator(file_type, mime_type) is not None:
+            if (
+                file_record.deleted_at is None
+                and probe_file_chapters(db, file_record, item)
+            ):
+                needs_update = True
+
+            gen_fn = get_thumbnail_generator(file_type, mime_type)
+            if gen_fn is not None:
                 expected_thumb = _expected_thumbnail_path(drive_name, folder_path, nfc_stem)
                 if file_record.thumbnail_path != expected_thumb or not (
                     config.THUMBNAILS_DIR / expected_thumb
                 ).exists():
                     _relocate_thumbnail(file_record, expected_thumb, file_type, item)
                     needs_update = True
+                elif file_type == "image" and _is_flattened_transparent_picture(
+                    db, file_record, item
+                ):
+                    # WebP only: a JPEG fallback would rewrite the stored
+                    # JPEG on every scan, churning its ETag and every
+                    # Markdown projection copied from it.
+                    if write_thumbnail_atomically(
+                        generate_webp_image_thumbnail,
+                        str(item),
+                        str(config.THUMBNAILS_DIR / expected_thumb),
+                    ):
+                        needs_update = True
+                elif file_type == "image" and _is_letterboxed_image_thumbnail(
+                    file_record
+                ):
+                    # Replaced as the drive is walked rather than all at
+                    # once, so a library of a hundred thousand pictures
+                    # pays for it over the scans it already runs. Both
+                    # shapes draw correctly in the meantime — a card
+                    # crops to 16:9 either way, and a justified cell is
+                    # already the picture's own ratio — so a half-migrated
+                    # drive is not a broken one.
+                    if write_thumbnail_atomically(
+                        gen_fn, str(item), str(config.THUMBNAILS_DIR / expected_thumb)
+                    ):
+                        needs_update = True
+
+            # Backfilling only rows that still lack a width keeps this to a
+            # single pass over a drive scanned before the columns existed.
+            # Non-images never enter the branch, so nothing that has no
+            # dimensions to read is opened.
+            if file_type == "image" and file_record.image_width is None:
+                dimensions = read_image_dimensions(item)
+                if dimensions is not None:
+                    file_record.image_width, file_record.image_height = dimensions
 
             if file_type == "image" and db.get(FileExif, file_record.id) is None:
                 exif = extract_exif(item)
@@ -363,7 +588,6 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
             }, drive=drive_name)
             last_progress_time = now
 
-    # Determine missing candidates (paths that exist in DB but not on FS).
     unseen_paths = set(existing.keys()) - found_paths
     missing_candidates = [
         existing[rp]
@@ -443,10 +667,16 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
             candidate.mime_type = mime_type
             candidate.missing_since = None
 
+            if (
+                candidate.deleted_at is None
+                and probe_file_chapters(db, candidate, item)
+            ):
+                updated += 1
+
             if get_thumbnail_generator(file_type, mime_type) is not None:
                 new_thumb_rel = _expected_thumbnail_path(drive_name, folder_path, nfc_stem)
                 _relocate_thumbnail(candidate, new_thumb_rel, file_type, item)
-            else:
+            elif mime_type != "text/markdown" and not nfc_name.lower().endswith(".md"):
                 candidate.thumbnail_path = None
 
             moved_ids.append(candidate.id)
@@ -457,7 +687,7 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
                 old_path, relative_path, drive_name, candidate.id,
             )
 
-            # Phase D (spec 2026-05-12 §3.7): when an out-of-band rename
+            # When an out-of-band rename
             # changes a ``.md`` basename, rewrite ``[[old_stem]]``
             # references in other ``.md`` files in the same drive.
             # Trigger only when both the source and destination are
@@ -484,9 +714,8 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
                         )
             continue
 
-        # Genuine new file — INSERT.
         duration = None
-        if file_type in ("video", "audio"):
+        if is_probeable_media(file_type, mime_type):
             duration = get_video_duration(str(item))
 
         thumbnail_rel = None
@@ -494,7 +723,7 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
         if gen_fn is not None:
             thumbnail_rel = _expected_thumbnail_path(drive_name, folder_path, nfc_stem)
             thumbnail_full = config.THUMBNAILS_DIR / thumbnail_rel
-            if not gen_fn(str(item), str(thumbnail_full)):
+            if not write_thumbnail_atomically(gen_fn, str(item), str(thumbnail_full)):
                 thumbnail_rel = None
 
         if file_size is None:
@@ -520,9 +749,14 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
         db.add(file_record)
         db.flush()
 
+        probe_file_chapters(db, file_record, item)
+
         _ensure_md_id_for_new_file(db, file_record, item)
 
         if file_type == "image":
+            dimensions = read_image_dimensions(item)
+            if dimensions is not None:
+                file_record.image_width, file_record.image_height = dimensions
             exif = extract_exif(item)
             if exif is not None:
                 db.add(FileExif(file_id=file_record.id, **exif))
@@ -530,7 +764,6 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
         added += 1
         logger.info("Added file: %s (drive: %s, type: %s)", relative_path, drive_name, file_type)
 
-    # Mark genuinely missing files (excluding those promoted to moved).
     missing_count = 0
     if unseen_paths:
         newly_missing_ids = [
@@ -559,7 +792,36 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
     if moved_ids:
         event_hooks.emit_sync("files.moved", {"file_ids": moved_ids})
 
-    # Sync empty folders: detect filesystem dirs with no files and track them
+    # Markdown thumbnails are a body projection, so reconcile them after the
+    # regular pass has generated all referenced image thumbnails. This pass is
+    # local-only: project_markdown_thumbnail never fetches external URLs.
+    markdown_rows = (
+        db.query(File)
+        .filter(File.drive == drive_name, active_file_filter())
+        .all()
+    )
+    for markdown_file in markdown_rows:
+        if (
+            markdown_file.mime_type != "text/markdown"
+            and not markdown_file.filename.lower().endswith(".md")
+        ):
+            continue
+        markdown_path = drive_path / markdown_file.file_path
+        try:
+            if markdown_path.stat().st_size > _MD_READ_MAX_BYTES:
+                continue
+            content = markdown_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        try:
+            if project_markdown_thumbnail(db, markdown_file, content):
+                updated += 1
+        except Exception:
+            logger.exception(
+                "scanner: markdown thumbnail projection failed for %s",
+                markdown_file.file_path,
+            )
+
     folders_with_files = {
         f.folder_path
         for f in db.query(File.folder_path).filter(
@@ -628,33 +890,33 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
 
 
 async def scan_drive(drive_name: str) -> dict[str, int]:
-    if _scan_lock.locked():
-        raise RuntimeError("Scan already in progress")
-
-    async with _scan_lock:
-        _scanning_drives.add(drive_name)
-        logger.info("Starting file scan for drive '%s'", drive_name)
-        loop = asyncio.get_running_loop()
-        db = SessionLocal()
-        try:
-            result = await loop.run_in_executor(None, _scan_and_register, db, drive_name)
-            _last_scanned_at[drive_name] = datetime.now(UTC)
-            logger.info(
-                "Scan complete for drive '%s': added=%d, missing=%d, recovered=%d, moved=%d, total=%d",
-                drive_name,
-                result["added"],
-                result.get("missing", 0),
-                result.get("recovered", 0),
-                result.get("moved", 0),
-                result["total"],
-            )
-            return result
-        except Exception:
-            db.rollback()
-            raise
-        finally:
-            _scanning_drives.discard(drive_name)
-            db.close()
+    try:
+        async with maintenance_operation(f"scan:{drive_name}"):
+            _scanning_drives.add(drive_name)
+            logger.info("Starting file scan for drive '%s'", drive_name)
+            loop = asyncio.get_running_loop()
+            db = SessionLocal()
+            try:
+                result = await loop.run_in_executor(None, _scan_and_register, db, drive_name)
+                _last_scanned_at[drive_name] = datetime.now(UTC)
+                logger.info(
+                    "Scan complete for drive '%s': added=%d, missing=%d, recovered=%d, moved=%d, total=%d",
+                    drive_name,
+                    result["added"],
+                    result.get("missing", 0),
+                    result.get("recovered", 0),
+                    result.get("moved", 0),
+                    result["total"],
+                )
+                return result
+            except Exception:
+                db.rollback()
+                raise
+            finally:
+                _scanning_drives.discard(drive_name)
+                db.close()
+    except MaintenanceBusyError as exc:
+        raise RuntimeError("Maintenance operation already in progress") from exc
 
 
 async def scan_all_drives() -> dict[str, dict[str, int]]:
@@ -667,5 +929,16 @@ async def scan_all_drives() -> dict[str, dict[str, int]]:
         # scan rather than crashing the lifespan.
         return results
     for drive_name in drive_names:
-        results[drive_name] = await scan_drive(drive_name)
+        try:
+            results[drive_name] = await scan_drive(drive_name)
+        except Exception:
+            # One drive's unexpected failure (e.g. a subprocess choking on
+            # a file's content) must not silently strand every drive after
+            # it — without this, the whole task dies and is only visible
+            # as an easy-to-miss "Task exception was never retrieved"
+            # asyncio warning, and the failed drive never gets a retry.
+            logger.exception(
+                "Startup scan failed for drive '%s'; continuing with remaining drives",
+                drive_name,
+            )
     return results

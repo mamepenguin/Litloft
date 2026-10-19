@@ -1,7 +1,7 @@
-import type { ArchiveEntry } from "@/types";
+import { isTextPreviewable } from "@/components/TextPreview";
+import type { ArchiveEntry, ViewMode } from "@/types";
 
-export const INTERVAL_OPTIONS = [3, 5, 10] as const;
-export const MAX_TEXT_AUTO_LOAD = 1024 * 1024; // 1MB
+export const MAX_TEXT_AUTO_LOAD = 1024 * 1024;
 
 export type ArchiveViewMode = "listing" | "image" | "text";
 
@@ -12,13 +12,11 @@ export function getDirname(path: string): string {
 
 export function getEntriesInDir(
   entries: ArchiveEntry[],
-  dirPath: string
+  dirPath: string,
 ): ArchiveEntry[] {
   return entries.filter((entry) => {
     if (dirPath === "") {
-      // Root: entries with no slash in path, or direct children
       if (entry.is_dir) {
-        // Directory at root: path like "dirname/" — no slash before the trailing one
         const withoutTrailing = entry.path.endsWith("/")
           ? entry.path.slice(0, -1)
           : entry.path;
@@ -31,7 +29,6 @@ export function getEntriesInDir(
     const rest = entry.path.slice(prefix.length);
     if (entry.is_dir) {
       const cleaned = rest.endsWith("/") ? rest.slice(0, -1) : rest;
-      // Skip the directory entry that represents the current directory itself
       if (cleaned === "") return false;
       return !cleaned.includes("/");
     }
@@ -41,10 +38,9 @@ export function getEntriesInDir(
 
 export function inferDirectories(
   entries: ArchiveEntry[],
-  currentPath: string
+  currentPath: string,
 ): ArchiveEntry[] {
   // Some ZIPs don't have explicit directory entries.
-  // Infer directories from file paths.
   const prefix = currentPath ? `${currentPath}/` : "";
   const dirNames = new Set<string>();
 
@@ -60,11 +56,10 @@ export function inferDirectories(
     }
   }
 
-  // Filter out dirs that already exist as explicit entries (compare full paths)
   const existingDirPaths = new Set(
     entries
       .filter((e) => e.is_dir)
-      .map((e) => (e.path.endsWith("/") ? e.path.slice(0, -1) : e.path))
+      .map((e) => (e.path.endsWith("/") ? e.path.slice(0, -1) : e.path)),
   );
 
   const inferred: ArchiveEntry[] = [];
@@ -84,4 +79,20 @@ export function inferDirectories(
   }
 
   return inferred;
+}
+
+/**
+ * Directories are left out of the count because they never carry a thumbnail;
+ * a level holding only folders would otherwise be a grid of folder icons.
+ */
+export function defaultArchiveViewMode(entries: ArchiveEntry[]): ViewMode {
+  const files = entries.filter((entry) => !entry.is_dir);
+  const images = files.filter((entry) => entry.file_type === "image");
+  return images.length * 2 > files.length ? "grid" : "list";
+}
+
+export function canOpenArchiveEntry(entry: ArchiveEntry): boolean {
+  if (entry.is_dir) return true;
+  if (entry.file_type === "image") return true;
+  return isTextPreviewable(entry.mime_type, entry.filename);
 }

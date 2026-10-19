@@ -18,7 +18,6 @@ vi.mock("next/navigation", () => ({
 
 beforeEach(() => {
   refreshMock.mockClear();
-  // Reset cookie state
   document.cookie = "NEXT_LOCALE=; path=/; max-age=0";
 });
 

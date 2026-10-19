@@ -1,0 +1,373 @@
+import { z } from "zod";
+import { runTool } from "./runTool.js";
+import { textResult, writeAnnotations, type LitloftTool } from "./types.js";
+
+// All writes mirror the public /api/* surface the Litloft frontend itself
+// uses — no bypass of existing validation or drive access control.
+// Deliberately NOT included in this tool set:
+//
+// - purge (physical delete): irreversible.
+
+// MCP tool args are JSON, so file content travels as base64 rather than a
+// multipart stream. Capped well below the backend's own MAX_UPLOAD_SIZE
+// (which is meant for videos) — this path is for small notes/documents an
+// agent creates or fetches, not bulk media import. Always sent as exactly
+// one chunk (chunk_size == the file's own size), which sidesteps the
+// multi-chunk loop entirely since every upload through this tool fits
+// under the cap by construction.
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10 MB
+
+function requireViewer(client: { viewer?: string }): string | null {
+  if (!client.viewer) {
+    return "LITLOFT_VIEWER is required for this tool.";
+  }
+  return null;
+}
+const renameFile: LitloftTool = {
+  name: "rename_file",
+  description: "Rename a file (change its filename, not its folder).",
+  inputSchema: { file_id: z.string(), new_filename: z.string() },
+  annotations: writeAnnotations({ destructive: true, idempotent: true }),
+  handler: (args, client) =>
+    runTool(async () =>
+      textResult(
+        await client.request(
+          "PUT",
+          `/api/files/${encodeURIComponent(args.file_id as string)}/rename`,
+          { json: { new_filename: args.new_filename } }
+        )
+      )
+    ),
+};
+
+const moveFile: LitloftTool = {
+  name: "move_file",
+  description: "Move a file to a different folder path, optionally to a different drive.",
+  inputSchema: {
+    file_id: z.string(),
+    target_folder_path: z.string(),
+    target_drive: z.string().optional(),
+  },
+  annotations: writeAnnotations({ destructive: true, idempotent: true }),
+  handler: (args, client) =>
+    runTool(async () => {
+      const { file_id, ...body } = args as { file_id: string } & Record<string, unknown>;
+      return textResult(
+        await client.request("PUT", `/api/files/${encodeURIComponent(file_id)}/move`, {
+          json: body,
+        })
+      );
+    }),
+};
+
+const trashFile: LitloftTool = {
+  name: "trash_file",
+  description:
+    "Move a file to trash (soft delete). Recoverable for 30 days via restore_file; this does not permanently delete anything.",
+  inputSchema: { file_id: z.string() },
+  annotations: writeAnnotations({ destructive: true, idempotent: true }),
+  handler: (args, client) =>
+    runTool(async () =>
+      textResult(
+        await client.request(
+          "DELETE",
+          `/api/files/${encodeURIComponent(args.file_id as string)}`
+        )
+      )
+    ),
+};
+
+const restoreFile: LitloftTool = {
+  name: "restore_file",
+  description: "Restore a file out of trash.",
+  inputSchema: { file_id: z.string() },
+  annotations: writeAnnotations({ destructive: false, idempotent: true }),
+  handler: (args, client) =>
+    runTool(async () =>
+      textResult(
+        await client.request(
+          "POST",
+          `/api/files/${encodeURIComponent(args.file_id as string)}/restore`
+        )
+      )
+    ),
+};
+
+const updateTags: LitloftTool = {
+  name: "update_tags",
+  description:
+    "Replace the full tag list on a file (max 10 tags). This overwrites existing tags rather than appending to them.",
+  inputSchema: { file_id: z.string(), tags: z.array(z.string()).max(10) },
+  annotations: writeAnnotations({ destructive: true, idempotent: true }),
+  handler: (args, client) =>
+    runTool(async () =>
+      textResult(
+        await client.request(
+          "PUT",
+          `/api/files/${encodeURIComponent(args.file_id as string)}/tags`,
+          { json: { tags: args.tags } }
+        )
+      )
+    ),
+};
+
+const updateFileContent: LitloftTool = {
+  name: "update_file_content",
+  description:
+    "Overwrite a text/markdown file's content. `content` is plain text, not base64 (unlike upload_file's content_base64). Requires the current ETag (from get_file_content) as an optimistic-lock guard; a 412 conflict means the file changed since you last read it, so call get_file_content again before retrying.",
+  inputSchema: { file_id: z.string(), content: z.string(), etag: z.string() },
+  annotations: writeAnnotations({ destructive: true, idempotent: true }),
+  handler: (args, client) =>
+    runTool(async () => {
+      const res = await client.requestRaw(
+        "PUT",
+        `/api/files/${encodeURIComponent(args.file_id as string)}/content`,
+        {
+          body: args.content as string,
+          headers: {
+            "If-Match": args.etag as string,
+            "Content-Type": "text/plain",
+          },
+        }
+      );
+      return textResult({ etag: res.headers.get("ETag") });
+    }),
+};
+
+const createPlaylist: LitloftTool = {
+  name: "create_playlist",
+  description: "Create a new playlist (collection) within a drive.",
+  inputSchema: {
+    drive: z.string(),
+    name: z.string(),
+    description: z.string().optional(),
+  },
+  annotations: writeAnnotations({ destructive: false, idempotent: false }),
+  handler: (args, client) =>
+    runTool(async () => {
+      const { drive, ...body } = args as { drive: string } & Record<string, unknown>;
+      return textResult(
+        await client.request(
+          "POST",
+          `/api/drives/${encodeURIComponent(drive)}/collections`,
+          { json: body }
+        )
+      );
+    }),
+};
+
+const addToPlaylist: LitloftTool = {
+  name: "add_to_playlist",
+  description:
+    "Add one or more files to an existing playlist (collection). Files must belong to the same drive as the playlist.",
+  inputSchema: {
+    drive: z.string(),
+    collection_id: z.string(),
+    file_ids: z.array(z.string()),
+  },
+  annotations: writeAnnotations({ destructive: false, idempotent: false }),
+  handler: (args, client) =>
+    runTool(async () => {
+      const { drive, collection_id, file_ids } = args as {
+        drive: string;
+        collection_id: string;
+        file_ids: string[];
+      };
+      return textResult(
+        await client.request(
+          "POST",
+          `/api/drives/${encodeURIComponent(drive)}/collections/${encodeURIComponent(collection_id)}/items`,
+          { json: { file_ids } }
+        )
+      );
+    }),
+};
+
+const uploadFile: LitloftTool = {
+  name: "upload_file",
+  description:
+    "Upload a new small file (note, document, image) to a drive, capped at 10MB decoded — not for large video files. Pass exactly one of: `content` (plain UTF-8 text — for notes/markdown/text files) or `content_base64` (base64-encoded bytes — required for binary files such as images; plain text is NOT accepted here, only in `content`).",
+  inputSchema: {
+    drive: z.string(),
+    filename: z.string(),
+    content: z
+      .string()
+      .optional()
+      .describe(
+        "Plain UTF-8 text content, for text/markdown files. Mutually exclusive with content_base64; pass exactly one."
+      ),
+    content_base64: z
+      .string()
+      .optional()
+      .describe(
+        "Base64-encoded file content, required for binary files (e.g. images). Mutually exclusive with content; pass exactly one."
+      ),
+    folder_path: z
+      .string()
+      .optional()
+      .describe("Destination folder path within the drive; omit for the drive root"),
+  },
+  annotations: writeAnnotations({ destructive: false, idempotent: false }),
+  handler: (args, client) =>
+    runTool(async () => {
+      const drive = args.drive as string;
+      const filename = args.filename as string;
+      const folderPath = (args.folder_path as string | undefined) ?? "";
+      const content = args.content as string | undefined;
+      const contentBase64 = args.content_base64 as string | undefined;
+
+      if (content !== undefined && contentBase64 !== undefined) {
+        return textResult({
+          error: "Pass exactly one of content or content_base64, not both.",
+        });
+      }
+      if (content === undefined && contentBase64 === undefined) {
+        return textResult({
+          error: "One of content (plain text) or content_base64 (base64) is required.",
+        });
+      }
+      const bytes =
+        content !== undefined
+          ? Buffer.from(content, "utf-8")
+          : Buffer.from(contentBase64 as string, "base64");
+
+      if (bytes.length === 0) {
+        return textResult({
+          error:
+            content !== undefined
+              ? "content is empty."
+              : "Decoded content is empty (check that content_base64 is valid base64).",
+        });
+      }
+      if (bytes.length > MAX_UPLOAD_BYTES) {
+        return textResult({
+          error: `Decoded content is ${bytes.length} bytes, which exceeds the ${MAX_UPLOAD_BYTES}-byte limit for this tool.`,
+        });
+      }
+
+      const init = await client.request<{ upload_id: string }>(
+        "POST",
+        `/api/drives/${encodeURIComponent(drive)}/upload/init`,
+        {
+          json: {
+            filename,
+            file_size: bytes.length,
+            folder_path: folderPath,
+            chunk_size: bytes.length,
+          },
+        }
+      );
+
+      const form = new FormData();
+      form.append("chunk_index", "0");
+      form.append("chunk", new Blob([bytes]), filename);
+      await client.requestMultipart(
+        "POST",
+        `/api/drives/${encodeURIComponent(drive)}/upload/${encodeURIComponent(init.upload_id)}/chunk`,
+        form
+      );
+
+      return textResult(
+        await client.request(
+          "POST",
+          `/api/drives/${encodeURIComponent(drive)}/upload/${encodeURIComponent(init.upload_id)}/complete`
+        )
+      );
+    }),
+};
+
+const addComment: LitloftTool = {
+  name: "add_comment",
+  description:
+    "Post a comment on a file. Requires LITLOFT_VIEWER so the comment has a profile nickname.",
+  inputSchema: { file_id: z.string(), body: z.string().min(1).max(1000) },
+  annotations: writeAnnotations({ destructive: false, idempotent: false }),
+  handler: (args, client) =>
+    runTool(async () => {
+      const error = requireViewer(client);
+      if (error) {
+        return textResult({ error });
+      }
+      return textResult(
+        await client.request(
+          "POST",
+          `/api/files/${encodeURIComponent(args.file_id as string)}/comments`,
+          { json: { body: args.body } }
+        )
+      );
+    }),
+};
+
+const clipUrl: LitloftTool = {
+  name: "clip_url",
+  description:
+    "Create a Knowledge web clip from a URL in a drive. Requires LITLOFT_VIEWER.",
+  inputSchema: {
+    drive: z.string(),
+    url: z.string().url(),
+    subfolder: z.string().optional(),
+    title: z.string().optional(),
+  },
+  annotations: writeAnnotations({
+    destructive: false,
+    idempotent: false,
+    openWorld: true,
+  }),
+  handler: (args, client) =>
+    runTool(async () => {
+      const error = requireViewer(client);
+      if (error) {
+        return textResult({ error });
+      }
+      const { drive, ...body } = args as { drive: string } & Record<string, unknown>;
+      return textResult(
+        await client.request("POST", "/api/addons/knowledge/clips", {
+          headers: { "X-Lit-Drive": drive },
+          json: body,
+        })
+      );
+    }),
+};
+
+const clipPasted: LitloftTool = {
+  name: "clip_pasted",
+  description:
+    "Create a Knowledge clip from pasted HTML. Requires LITLOFT_VIEWER.",
+  inputSchema: {
+    drive: z.string(),
+    url: z.string().url(),
+    html: z.string().min(1),
+    subfolder: z.string().optional(),
+    title: z.string().optional(),
+  },
+  annotations: writeAnnotations({ destructive: false, idempotent: false }),
+  handler: (args, client) =>
+    runTool(async () => {
+      const error = requireViewer(client);
+      if (error) {
+        return textResult({ error });
+      }
+      const { drive, ...body } = args as { drive: string } & Record<string, unknown>;
+      return textResult(
+        await client.request("POST", "/api/addons/knowledge/clips/pasted", {
+          headers: { "X-Lit-Drive": drive },
+          json: body,
+        })
+      );
+    }),
+};
+
+export const writeTools: LitloftTool[] = [
+  renameFile,
+  moveFile,
+  trashFile,
+  restoreFile,
+  updateTags,
+  updateFileContent,
+  createPlaylist,
+  addToPlaylist,
+  uploadFile,
+  addComment,
+  clipUrl,
+  clipPasted,
+];

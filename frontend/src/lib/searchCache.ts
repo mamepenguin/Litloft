@@ -1,10 +1,10 @@
-import type { FileItem, FileType } from "@/types";
+import type { FileItem, FileKind } from "@/types";
 import type { SemanticHit } from "./searchMerge";
 
 export interface SearchCacheKey {
   drive: string;
   query: string;
-  type: FileType | null;
+  type: FileKind | null;
   includeSceneClip: boolean;
 }
 

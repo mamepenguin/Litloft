@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "Reproduced. At the reviewed tree, addons/intelligence/app/digit_separator.py:5 is `_SEPARATORS = frozenset(\".,:：\")`, and it is used at lines 19, 37 and 45. The addon reflogs (main checkout .git/modules/addons/intelligence/logs/HEAD:690-698) show that feature/digit-colon-times branched from ba49803, then got commits 1611551 ('test: acceptance tests for SPEC-ADDON-015') and e102ecb ('fix: treat a colon between digits as part of the number'). Addon main then fast-forwarded ba49803 -> 1f33822. feature/whisper-local-model-display was created from 1f33822 and reached fe978f8 through the two SPEC-ADDON-016 commits. So the pointer range ba49803..fe978f8 carries the colon change. docs/specs/INDEX.md:33-34 goes from SPEC-ADDON-014 to SPEC-ADDON-016. Grep finds SPEC-ADDON-015 only in addons/intelligence/tests/test_digit_separator_breaks.py and test_subtitle_line_split_numbers.py, with no spec in docs/. The spec's touch points (docs/specs/whisper-local-model-display.md:85-) do not name it. One step is inferred: that 1f33822 contains e102ecb. It follows from the fe978f8 tree having the colon and from the only fe978f8-side commits being SPEC-ADDON-016 work; I could not walk the commit graph."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2",
+      "status": "confirmed",
+      "note": "Reproduced. At the reviewed tree, addons/intelligence/search-config.yml.example:384-393 has no '# Default: openai/whisper-small' line. Sibling worktrees on other branches (video_share-epub-controls/addons/intelligence/search-config.yml.example:386, wt-review-intel/search-config.yml.example:386) still have '# Default: openai/whisper-small (244M, ~500MB int8 RAM)' at the same spot, so this branch's addon bump removed it. The spec says 'Docs: none' (whisper-local-model-display.md:99) and does not list the example config as a touch point. The removed comment was stale: app/config.py:34 sets the default to openai/whisper-large-v3-turbo, matching the example's value at line 393. The edit is therefore correct in content but outside the declared touch points."
+    }
+  ],
+  "specification_compliance": [
+    "The working tree reflects the reviewed commit, and the addon checkout is at fe978f8 (worktree module logs/HEAD).",
+    "The scope of the addon pointer bump goes beyond the SPEC-ADDON-016 touch points: it also carries the SPEC-ADDON-015 colon change and an edit to the example-config comment."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Digit separators now include ':' and '：', which changes chunk, cue and subtitle-line breaks for time-like text such as 12:30. No approved spec in the core INDEX covers this (SPEC-ADDON-015 is missing)."
+  ],
+  "regression_risks": [
+    "Merging this branch ships the SPEC-ADDON-015 transcript-splitting behaviour without a spec or INDEX row in the core, so it skips the spec gate."
+  ],
+  "test_coverage": [
+    "The SPEC-ADDON-015 tests exist in the addon (tests/test_digit_separator_breaks.py, tests/test_subtitle_line_split_numbers.py). I did not run them."
+  ],
+  "not_verified": [
+    "I could not run git, so I did not read the actual diff or verify commit ancestry (1f33822 containing e102ecb). Ancestry was inferred from the reflogs.",
+    "That the core develop's addon pointer is exactly ba49803 is taken from the reflog's timing and the reviewer's claim, not from reading the develop tree.",
+    "I did not run any tests.",
+    "I did not check invariants I1-I6 beyond what these findings needed."
+  ],
+  "confidence": 85
+}

@@ -1,23 +1,9 @@
-/**
- * Phase 4: Tags ソートモード切替の結合テスト
- *
- * Tags はアイテム手動 D&D せず name/count ソート切替 (hako c3CcYY_a8nRwD5lG-zeOi)。
- * セクション grip (Phase2) は維持されることも固定する。
- *
- * テスト戦略 (Phase2/3 / useReorderableDnD.test.tsx 流儀):
- * - (1) default で count 降順に描画
- * - (2) トグルクリックで name 昇順 + sidebar:sort:tags:{drive} に永続化
- * - (3) 別 drive で独立
- * - (4) セクション grip (dragHandle) は依然描画される = Phase2 非破壊
- */
-
 import { describe, it, expect, vi, beforeEach, afterAll } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 
 import { SidebarTagsSection } from "../SidebarTagsSection";
+import type { ScopedTags } from "../useSidebarData";
 import type { Tag as TagType } from "@/types";
-
-// ---- localStorage mock --------------------------------------------------------
 
 function makeLocalStorageMock(): Storage {
   const store = new Map<string, string>();
@@ -50,8 +36,6 @@ afterAll(() => {
   }
 });
 
-// ---- mocks -------------------------------------------------------------------
-
 vi.mock("next/link", () => ({
   default: ({ children, href, onClick, className }: {
     children: React.ReactNode;
@@ -65,13 +49,16 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-// ---- helpers -----------------------------------------------------------------
-
-const tags: TagType[] = [
+const tagItems: TagType[] = [
   { name: "alpha", count: 1 },
   { name: "beta", count: 9 },
   { name: "gamma", count: 5 },
 ];
+
+/** Tags whose resolved scope matches the drive/folder they render under. */
+function inScope(drive: string, items: TagType[] = tagItems): ScopedTags {
+  return { resolvedScope: { drive, folderPath: null }, items };
+}
 
 function tagOrderInDom(): string[] {
   return screen
@@ -83,8 +70,6 @@ function tagOrderInDom(): string[] {
 
 const SORT_KEY = "sidebar:sort:tags:main";
 
-// ---- tests -------------------------------------------------------------------
-
 describe("SidebarTagsSection — sort mode toggle", () => {
   beforeEach(() => {
     mockStorage.clear();
@@ -93,9 +78,12 @@ describe("SidebarTagsSection — sort mode toggle", () => {
   it("(1) defaults to count (descending) order", () => {
     render(
       <SidebarTagsSection
-        driveBase="/drive/main"
         drive="main"
-        tags={tags}
+        currentFolderPath={null}
+        pathname="/drive/main"
+        activeTag={null}
+        activeView={null}
+        tags={inScope("main")}
         linkClass={() => ""}
         close={vi.fn()}
       />,
@@ -107,9 +95,12 @@ describe("SidebarTagsSection — sort mode toggle", () => {
   it("(2) clicking the toggle switches to name order and persists", () => {
     render(
       <SidebarTagsSection
-        driveBase="/drive/main"
         drive="main"
-        tags={tags}
+        currentFolderPath={null}
+        pathname="/drive/main"
+        activeTag={null}
+        activeView={null}
+        tags={inScope("main")}
         linkClass={() => ""}
         close={vi.fn()}
       />,
@@ -126,46 +117,51 @@ describe("SidebarTagsSection — sort mode toggle", () => {
     mockStorage.setItem(SORT_KEY, "name");
     render(
       <SidebarTagsSection
-        driveBase="/drive/main"
         drive="main"
-        tags={tags}
+        currentFolderPath={null}
+        pathname="/drive/main"
+        activeTag={null}
+        activeView={null}
+        tags={inScope("main")}
         linkClass={() => ""}
         close={vi.fn()}
       />,
     );
-    // starts in name mode (persisted)
     expect(tagOrderInDom()).toEqual(["alpha", "beta", "gamma"]);
 
     const toggle = screen.getByRole("button", { name: "Toggle tag sort order" });
     fireEvent.click(toggle);
 
-    // back to count desc, key removed (default mode is not persisted)
     expect(tagOrderInDom()).toEqual(["beta", "gamma", "alpha"]);
     expect(mockStorage.getItem(SORT_KEY)).toBeNull();
   });
 
   it("(3) sort mode is isolated per drive", () => {
     mockStorage.setItem("sidebar:sort:tags:work", "name");
-    // Rendering for drive 'photos' must NOT pick up work's name mode.
     render(
       <SidebarTagsSection
-        driveBase="/drive/photos"
         drive="photos"
-        tags={tags}
+        currentFolderPath={null}
+        pathname="/drive/photos"
+        activeTag={null}
+        activeView={null}
+        tags={inScope("photos")}
         linkClass={() => ""}
         close={vi.fn()}
       />,
     );
-    // photos has no saved mode → default count desc
     expect(tagOrderInDom()).toEqual(["beta", "gamma", "alpha"]);
   });
 
   it("(4) the section drag handle (Phase 2) is still rendered", () => {
     render(
       <SidebarTagsSection
-        driveBase="/drive/main"
         drive="main"
-        tags={tags}
+        currentFolderPath={null}
+        pathname="/drive/main"
+        activeTag={null}
+        activeView={null}
+        tags={inScope("main")}
         linkClass={() => ""}
         close={vi.fn()}
         dragHandle={<span data-testid="section-grip">grip</span>}
@@ -177,18 +173,37 @@ describe("SidebarTagsSection — sort mode toggle", () => {
   it("(4b) tag items themselves have NO grip (no manual reorder)", () => {
     render(
       <SidebarTagsSection
-        driveBase="/drive/main"
         drive="main"
-        tags={tags}
+        currentFolderPath={null}
+        pathname="/drive/main"
+        activeTag={null}
+        activeView={null}
+        tags={inScope("main")}
         linkClass={() => ""}
         close={vi.fn()}
       />,
     );
-    // The only reorder-related affordance is the sort toggle, never an
-    // item-level "Drag to reorder" grip.
     expect(
       screen.queryByRole("button", { name: "Drag to reorder" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("targets the drive root when the resolved scope carries no folder", () => {
+    render(
+      <SidebarTagsSection
+        drive="main"
+        currentFolderPath={null}
+        pathname="/drive/main"
+        activeTag={null}
+        activeView={null}
+        tags={inScope("main")}
+        linkClass={() => ""}
+        close={vi.fn()}
+      />,
+    );
+    for (const link of screen.getAllByRole("link")) {
+      expect(link.getAttribute("href")).toMatch(/^\/drive\/main\?tag=/);
+    }
   });
 
   it("does not mutate the input tags array (sortTags is immutable)", () => {
@@ -199,9 +214,12 @@ describe("SidebarTagsSection — sort mode toggle", () => {
     const snapshot = [...input];
     render(
       <SidebarTagsSection
-        driveBase="/drive/main"
         drive="main"
-        tags={input}
+        currentFolderPath={null}
+        pathname="/drive/main"
+        activeTag={null}
+        activeView={null}
+        tags={inScope("main", input)}
         linkClass={() => ""}
         close={vi.fn()}
       />,

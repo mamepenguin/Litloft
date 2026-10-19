@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1-TP-1",
+      "status": "confirmed",
+      "note": "Reproduced by reading the code. refine.py:318 imports _build_chunks_from_words from app.workers.whisper, refine.py:353 calls it, refine.py:378 deletes the Embedding rows and refine.py:380 deletes the TranscriptChunk rows for the file, then refine.py:386 re-inserts them. whisper.py:1375 defines _persist_transcript, which calls _build_chunks_from_words at whisper.py:1398. subtitle_builder.py:575-577 (build_vtt) renders through build_cues. Every direct caller of is_digit_separator/splits_number (subtitle_builder.py:247, 355, 480, 502, 510, 526, 531 and whisper.py:634) sits inside a function the touch-point list names. The touch-point list does leave out refine.py and _persist_transcript. The spec body does cover the behaviour, though: docs/specs/digit-colon-times.md:71-72 says chunks written by a transcription or refine run may end at different words, and :99 says chunk boundaries of refined text move. So the gap is in the touch-point list only, not in the spec. digit_separator.py:5 already contains ':' and '：' in _SEPARATORS, so these transitive paths do get the new behaviour."
+    }
+  ],
+  "specification_compliance": [
+    "digit_separator.py:5 adds ':' and '：' to _SEPARATORS. The digit set stays 0-9, as the spec states for full-width digits.",
+    "Spec §4 and §9 (digit-colon-times.md:71-72, :99) already cover the refine re-chunk path that R1-TP-1 says is missing from the touch points."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Refine re-chunking (refine.py:353-386) deletes and rewrites chunks and their embeddings, so after this change a refined file's chunk boundaries can differ around colon times. The spec documents and accepts this."
+  ],
+  "test_coverage": [
+    "Not examined: the verification scope was limited to R1-TP-1."
+  ],
+  "not_verified": [
+    "Did not check whether the test oracles in test_digit_separator_breaks.py and test_subtitle_line_split_numbers.py learn ':' and '：'.",
+    "Did not check whether the addon submodule pointer at commit 936030940 matches the working tree I read.",
+    "Did not run any tests; only Read/Grep/Glob were available."
+  ],
+  "confidence": 88
+}

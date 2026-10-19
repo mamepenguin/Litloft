@@ -58,14 +58,12 @@ def test_restart_pending_blocks_when_secret_mismatch(
     the matching ``X-Internal-Secret`` header."""
     monkeypatch.setenv("CORE_INTERNAL_SECRET", "topsecret")
     c, _, _, _ = client
-    # Wrong secret
     resp = c.post(
         "/api/internal/restart-pending",
         json={"source": "intelligence"},
         headers={"X-Internal-Secret": "wrong"},
     )
     assert resp.status_code == 403
-    # Correct secret
     resp_ok = c.post(
         "/api/internal/restart-pending",
         json={"source": "intelligence"},

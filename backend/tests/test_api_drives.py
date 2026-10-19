@@ -1,3 +1,4 @@
+import pytest
 import shutil
 from pathlib import Path
 
@@ -61,8 +62,6 @@ class TestListDrives:
         assert drives[0]["name"] == TEST_DRIVE
 
     def test_drives_includes_file_count(self, client):
-        # spec 2026-05-19-root-home-enrichment §3.1: list_drives returns a
-        # per-drive active file_count via a single grouped query.
         c, db, drive_dir, data_dir = client
         _seed(db, drive_dir)  # 2 active files (旅行/v.mp4, 料理/v.mp4)
         res = c.get("/api/drives")
@@ -78,8 +77,6 @@ class TestListDrives:
         assert res.json()[0]["file_count"] == 0
 
     def test_file_count_excludes_trash_and_missing(self, client):
-        # spec §3.1: counts must go through active_file_filter()
-        # (design-decisions.md "File state": trash/missing excluded).
         from datetime import datetime, timezone
 
         from app.models import File
@@ -116,13 +113,53 @@ class TestListDrives:
         db.commit()
         res = c.get("/api/drives")
         assert res.status_code == 200
-        # Only the 2 active files count; trash + missing excluded.
         assert res.json()[0]["file_count"] == 2
 
     def test_invalid_drive(self, client):
         c, db, drive_dir, data_dir = client
         res = c.get("/api/drives/nonexistent/files")
         assert res.status_code == 404
+
+
+class TestFileByPath:
+    def test_returns_active_file_by_exact_normalized_relative_path(self, client):
+        from app.models import File
+
+        c, db, drive_dir, _ = client
+        folder = drive_dir / "Captures"
+        folder.mkdir()
+        (folder / "Inbox.md").write_text("# Inbox\n")
+        row = File(
+            filename="Inbox.md",
+            title="Inbox",
+            drive=TEST_DRIVE,
+            folder_path="Captures",
+            file_path="Captures/Inbox.md",
+            file_size=8,
+            file_type="document",
+            mime_type="text/markdown",
+        )
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+
+        response = c.get(
+            f"/api/drives/{TEST_DRIVE}/files/by-path",
+            params={"path": "Captures/Inbox.md"},
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.json()["id"] == row.id
+
+    def test_returns_404_for_missing_exact_path(self, client):
+        c, _, _, _ = client
+
+        response = c.get(
+            f"/api/drives/{TEST_DRIVE}/files/by-path",
+            params={"path": "Captures/Inbox.md"},
+        )
+
+        assert response.status_code == 404
 
 
 class TestListFolders:
@@ -155,86 +192,104 @@ class TestListFolders:
         assert res.status_code == 200
         assert res.json() == []
 
-    def test_thumbnail_file_id_with_video(self, client):
-        """Folder with video files returns thumbnail_file_id (first by filename)."""
-        c, db, drive_dir, data_dir = client
-        _seed(db, drive_dir)
-        res = c.get(f"/api/drives/{TEST_DRIVE}/folders")
-        assert res.status_code == 200
-        folders = res.json()
-        for f in folders:
-            assert f["thumbnail_file_id"] is not None
-
-    def test_thumbnail_file_id_selects_first_by_filename(self, client):
-        """thumbnail_file_id picks the first image/video file by filename ASC."""
+    def test_kind_counts_breaks_the_total_down_by_kind(self, client):
+        """The folder card's breakdown, and `dominant_kind`'s own input."""
         from app.models import File
 
         c, db, drive_dir, data_dir = client
-        d = drive_dir / "gallery"
+        d = drive_dir / "mixed"
         d.mkdir()
-        shutil.copy(FIXTURES_DIR / "short_video.mp4", d / "b_second.mp4")
-        shutil.copy(FIXTURES_DIR / "short_video.mp4", d / "a_first.mp4")
-        size = d.joinpath("a_first.mp4").stat().st_size
-        file_a = File(
-            filename="a_first.mp4",
-            title="A",
-            drive=TEST_DRIVE,
-            folder_path="gallery",
-            file_path="gallery/a_first.mp4",
-            file_size=size,
-            file_type="video",
-            mime_type="video/mp4",
-        )
-        file_b = File(
-            filename="b_second.mp4",
-            title="B",
-            drive=TEST_DRIVE,
-            folder_path="gallery",
-            file_path="gallery/b_second.mp4",
-            file_size=size,
-            file_type="video",
-            mime_type="video/mp4",
-        )
-        db.add(file_b)
-        db.add(file_a)
+        rows = [
+            ("a.mp4", "video", "video/mp4"),
+            ("b.mp4", "video", "video/mp4"),
+            ("c.mp4", "video", "video/mp4"),
+            ("d.txt", "document", "text/plain"),
+            ("e.png", "image", "image/png"),
+        ]
+        for name, ft, mt in rows:
+            (d / name).write_text("x")
+            db.add(
+                File(
+                    filename=name,
+                    title=name,
+                    drive=TEST_DRIVE,
+                    folder_path="mixed",
+                    file_path=f"mixed/{name}",
+                    file_size=1,
+                    file_type=ft,
+                    mime_type=mt,
+                )
+            )
         db.commit()
-        db.refresh(file_a)
 
-        res = c.get(f"/api/drives/{TEST_DRIVE}/folders")
-        folders = res.json()
+        folders = c.get(f"/api/drives/{TEST_DRIVE}/folders").json()
         assert len(folders) == 1
-        assert folders[0]["thumbnail_file_id"] == file_a.id
+        assert folders[0]["kind_counts"] == {"video": 3, "text": 1, "image": 1}
+        # The breakdown is a partition of the total, which is what lets a
+        # renderer show the largest few and leave the rest to subtraction.
+        assert sum(folders[0]["kind_counts"].values()) == folders[0]["file_count"]
+        assert folders[0]["dominant_kind"] == "video"
 
-    def test_thumbnail_file_id_null_for_non_media_files(self, client):
-        """Folder with only non-image/non-video files returns null thumbnail."""
+    def test_kind_counts_rolls_subfolders_up(self, client):
+        """Recursive, exactly like `file_count` beside it."""
         from app.models import File
 
         c, db, drive_dir, data_dir = client
-        d = drive_dir / "docs"
-        d.mkdir()
-        (d / "readme.txt").write_text("hello")
+        d = drive_dir / "parent" / "child"
+        d.mkdir(parents=True)
+        (d / "clip.mp4").write_text("x")
         db.add(
             File(
-                filename="readme.txt",
-                title="Readme",
+                filename="clip.mp4",
+                title="Clip",
                 drive=TEST_DRIVE,
-                folder_path="docs",
-                file_path="docs/readme.txt",
-                file_size=5,
-                file_type="document",
-                mime_type="text/plain",
+                folder_path="parent/child",
+                file_path="parent/child/clip.mp4",
+                file_size=1,
+                file_type="video",
+                mime_type="video/mp4",
             )
         )
         db.commit()
 
-        res = c.get(f"/api/drives/{TEST_DRIVE}/folders")
-        folders = res.json()
+        folders = c.get(f"/api/drives/{TEST_DRIVE}/folders").json()
         assert len(folders) == 1
-        assert folders[0]["name"] == "docs"
-        assert folders[0]["thumbnail_file_id"] is None
+        assert folders[0]["name"] == "parent"
+        assert folders[0]["kind_counts"] == {"video": 1}
+        assert folders[0]["file_count"] == 1
 
-    def test_thumbnail_file_id_null_for_empty_folder(self, client):
-        """Empty folder returns null thumbnail."""
+    def test_kind_counts_uses_the_refined_kinds_not_file_type(self, client):
+        """Markdown and PDF are their own kinds, not `document`.
+
+        `_classify_kind` is the vocabulary here — the same one the type
+        filter offers — so a folder of notes reports `text`, not the
+        `document` its `file_type` column holds.
+        """
+        from app.models import File
+
+        c, db, drive_dir, data_dir = client
+        d = drive_dir / "notes"
+        d.mkdir()
+        for name, mt in (("a.md", "text/markdown"), ("b.pdf", "application/pdf")):
+            (d / name).write_text("x")
+            db.add(
+                File(
+                    filename=name,
+                    title=name,
+                    drive=TEST_DRIVE,
+                    folder_path="notes",
+                    file_path=f"notes/{name}",
+                    file_size=1,
+                    file_type="document",
+                    mime_type=mt,
+                )
+            )
+        db.commit()
+
+        folders = c.get(f"/api/drives/{TEST_DRIVE}/folders").json()
+        assert folders[0]["kind_counts"] == {"text": 1, "pdf": 1}
+
+    def test_kind_counts_empty_for_a_folder_with_no_files(self, client):
         from app.models import EmptyFolder
 
         c, db, drive_dir, data_dir = client
@@ -242,40 +297,22 @@ class TestListFolders:
         db.add(EmptyFolder(drive=TEST_DRIVE, path="empty"))
         db.commit()
 
-        res = c.get(f"/api/drives/{TEST_DRIVE}/folders")
-        folders = res.json()
+        folders = c.get(f"/api/drives/{TEST_DRIVE}/folders").json()
         assert len(folders) == 1
         assert folders[0]["name"] == "empty"
-        assert folders[0]["thumbnail_file_id"] is None
+        assert folders[0]["kind_counts"] == {}
+        assert folders[0]["file_count"] == 0
 
-    def test_thumbnail_from_subfolder(self, client):
-        """Parent folder uses image/video from subfolder as thumbnail."""
-        from app.models import File
-
+    def test_no_thumbnail_file_id(self, client):
+        """`thumbnail_file_id` is absent, not null: a renderer reading
+        `undefined` looks exactly like one reading `null`.
+        """
         c, db, drive_dir, data_dir = client
-        d = drive_dir / "parent" / "child"
-        d.mkdir(parents=True)
-        shutil.copy(FIXTURES_DIR / "short_video.mp4", d / "clip.mp4")
-        size = d.joinpath("clip.mp4").stat().st_size
-        child_file = File(
-            filename="clip.mp4",
-            title="Clip",
-            drive=TEST_DRIVE,
-            folder_path="parent/child",
-            file_path="parent/child/clip.mp4",
-            file_size=size,
-            file_type="video",
-            mime_type="video/mp4",
-        )
-        db.add(child_file)
-        db.commit()
-        db.refresh(child_file)
-
-        res = c.get(f"/api/drives/{TEST_DRIVE}/folders")
-        folders = res.json()
-        assert len(folders) == 1
-        assert folders[0]["name"] == "parent"
-        assert folders[0]["thumbnail_file_id"] == child_file.id
+        _seed(db, drive_dir)
+        folders = c.get(f"/api/drives/{TEST_DRIVE}/folders").json()
+        assert folders, "no folders to check"
+        for f in folders:
+            assert "thumbnail_file_id" not in f
 
 
 class TestListDriveFiles:
@@ -319,9 +356,6 @@ class TestListDriveFiles:
         assert len(res.json()["data"]) == 0
 
     def test_search_matches_folder_path_only(self, client):
-        # spec 2026-05-02-search-path-match: "旅行" は folder_path のみに含まれ
-        # title "V" には含まれない。filename match SQL の WHERE が title OR
-        # folder_path に拡張されたことで初めてヒットする。
         c, db, drive_dir, data_dir = client
         _seed(db, drive_dir)
         res = c.get(f"/api/drives/{TEST_DRIVE}/files?search=旅行")
@@ -332,7 +366,6 @@ class TestListDriveFiles:
         assert body[0]["match_source"] == "path"
 
     def test_search_match_source_filename(self, client):
-        # title "V" にヒットし folder_path には無いケース。
         c, db, drive_dir, data_dir = client
         _seed(db, drive_dir)
         res = c.get(f"/api/drives/{TEST_DRIVE}/files?search=V")
@@ -341,7 +374,6 @@ class TestListDriveFiles:
             assert item["match_source"] == "filename"
 
     def test_search_match_source_both(self, client):
-        # title と folder_path の両方にクエリ語が含まれる場合は "both"。
         from app.models import File
         c, db, drive_dir, data_dir = client
         _seed(db, drive_dir)
@@ -373,7 +405,6 @@ class TestListDriveFiles:
             assert item["match_source"] is None
 
     def test_search_escapes_like_special_chars(self, client):
-        # "%" / "_" がリテラル扱いされ、無関係なファイルがヒットしないこと。
         from app.models import File
         c, db, drive_dir, data_dir = client
         _seed(db, drive_dir)
@@ -413,3 +444,321 @@ class TestListDriveFiles:
         assert body["meta"]["limit"] == 1
         assert len(body["data"]) == 1
         assert body["meta"]["total"] == 2
+
+
+def _seed_subtree(db, drive_dir, folders):
+    """Seed one video per folder_path in `folders` (including "" for root)."""
+    from app.models import File
+
+    for folder in folders:
+        d = drive_dir / folder if folder else drive_dir
+        d.mkdir(parents=True, exist_ok=True)
+        shutil.copy(FIXTURES_DIR / "short_video.mp4", d / "v.mp4")
+        db.add(
+            File(
+                filename="v.mp4",
+                title=f"V in {folder or '<root>'}",
+                drive=TEST_DRIVE,
+                folder_path=folder,
+                file_path=f"{folder}/v.mp4" if folder else "v.mp4",
+                file_size=d.joinpath("v.mp4").stat().st_size,
+                file_type="video",
+                mime_type="video/mp4",
+            )
+        )
+    db.commit()
+
+
+class TestListDriveFilesRecursive:
+    """`recursive=True` widens `path` from an exact folder match to a subtree match."""
+
+    def test_recursive_matches_folder_and_descendants(self, client):
+        c, db, drive_dir, data_dir = client
+        _seed_subtree(db, drive_dir, ["recipes", "recipes/soup", "recipes/soup/miso", "dev"])
+        res = c.get(f"/api/drives/{TEST_DRIVE}/files?path=recipes&recursive=true")
+        assert res.status_code == 200
+        body = res.json()
+        paths = {item["folder_path"] for item in body["data"]}
+        assert paths == {"recipes", "recipes/soup", "recipes/soup/miso"}
+        assert body["meta"]["total"] == 3
+
+    def test_default_is_direct_children_only(self, client):
+        c, db, drive_dir, data_dir = client
+        _seed_subtree(db, drive_dir, ["recipes", "recipes/soup", "dev"])
+        res = c.get(f"/api/drives/{TEST_DRIVE}/files?path=recipes")
+        assert res.status_code == 200
+        body = res.json()
+        assert {item["folder_path"] for item in body["data"]} == {"recipes"}
+        assert body["meta"]["total"] == 1
+
+    def test_recursive_false_is_direct_children_only(self, client):
+        c, db, drive_dir, data_dir = client
+        _seed_subtree(db, drive_dir, ["recipes", "recipes/soup"])
+        res = c.get(f"/api/drives/{TEST_DRIVE}/files?path=recipes&recursive=false")
+        assert res.status_code == 200
+        assert {item["folder_path"] for item in res.json()["data"]} == {"recipes"}
+
+    def test_empty_path_non_recursive_returns_root_level_only(self, client):
+        c, db, drive_dir, data_dir = client
+        _seed_subtree(db, drive_dir, ["", "recipes", "recipes/soup"])
+        res = c.get(f"/api/drives/{TEST_DRIVE}/files?path=")
+        assert res.status_code == 200
+        body = res.json()
+        assert {item["folder_path"] for item in body["data"]} == {""}
+        assert body["meta"]["total"] == 1
+
+    def test_empty_path_recursive_returns_whole_drive(self, client):
+        c, db, drive_dir, data_dir = client
+        _seed_subtree(db, drive_dir, ["", "recipes", "recipes/soup"])
+        res = c.get(f"/api/drives/{TEST_DRIVE}/files?path=&recursive=true")
+        assert res.status_code == 200
+        assert res.json()["meta"]["total"] == 3
+
+    def test_recursive_escapes_like_underscore(self, client):
+        c, db, drive_dir, data_dir = client
+        _seed_subtree(db, drive_dir, ["my_docs", "my_docs/sub", "myXdocs", "myXdocs/sub"])
+        res = c.get(f"/api/drives/{TEST_DRIVE}/files?path=my_docs&recursive=true")
+        assert res.status_code == 200
+        body = res.json()
+        assert {item["folder_path"] for item in body["data"]} == {"my_docs", "my_docs/sub"}
+        assert body["meta"]["total"] == 2
+
+    def test_recursive_escapes_like_percent(self, client):
+        c, db, drive_dir, data_dir = client
+        _seed_subtree(db, drive_dir, ["100%", "100%/sub", "100off", "100off/sub"])
+        res = c.get(f"/api/drives/{TEST_DRIVE}/files?path=100%25&recursive=true")
+        assert res.status_code == 200
+        body = res.json()
+        assert {item["folder_path"] for item in body["data"]} == {"100%", "100%/sub"}
+
+    def test_recursive_prefix_boundary_not_confused(self, client):
+        c, db, drive_dir, data_dir = client
+        _seed_subtree(db, drive_dir, ["rec", "recipes"])
+        res = c.get(f"/api/drives/{TEST_DRIVE}/files?path=rec&recursive=true")
+        assert res.status_code == 200
+        assert {item["folder_path"] for item in res.json()["data"]} == {"rec"}
+
+    def test_recursive_rejects_traversal(self, client):
+        c, db, drive_dir, data_dir = client
+        res = c.get(f"/api/drives/{TEST_DRIVE}/files?path=recipes/../dev&recursive=true")
+        assert res.status_code == 400
+
+    def test_recursive_rejects_leading_slash(self, client):
+        c, db, drive_dir, data_dir = client
+        res = c.get(f"/api/drives/{TEST_DRIVE}/files?path=/recipes&recursive=true")
+        assert res.status_code == 400
+
+    def test_recursive_with_tag_scopes_to_subtree(self, client):
+        """The subtree and the tag must *both* narrow.
+
+        The fixture puts untagged and differently-tagged files inside the
+        subtree as well as a tagged file outside it.
+        """
+        from app.models import File, Tag
+
+        c, db, drive_dir, data_dir = client
+        _seed_subtree(db, drive_dir, ["recipes", "recipes/nested", "dev"])
+
+        wanted = Tag(name="soup", drive=TEST_DRIVE)
+        other = Tag(name="stew", drive=TEST_DRIVE)
+        db.add_all([wanted, other])
+        db.commit()
+
+        # One extra file per folder so each can carry a different tag state.
+        extras = {}
+        for folder in ["recipes", "recipes/nested"]:
+            d = drive_dir / folder
+            (d / "extra.mp4").write_bytes(b"x")
+            f = File(
+                filename="extra.mp4",
+                title=f"Extra in {folder}",
+                drive=TEST_DRIVE,
+                folder_path=folder,
+                file_path=f"{folder}/extra.mp4",
+                file_size=1,
+                file_type="video",
+                mime_type="video/mp4",
+            )
+            db.add(f)
+            extras[folder] = f
+        db.commit()
+
+        by_folder = {
+            f.folder_path: f
+            for f in db.query(File)
+            .filter(File.drive == TEST_DRIVE, File.filename == "v.mp4")
+            .all()
+        }
+        by_folder["recipes"].tags.append(wanted)         # in subtree, wanted
+        by_folder["recipes/nested"].tags.append(wanted)  # in subtree, wanted
+        by_folder["dev"].tags.append(wanted)             # tagged but OUTSIDE
+        extras["recipes"].tags.append(other)             # in subtree, other tag
+        # extras["recipes/nested"] stays untagged, in subtree
+        db.commit()
+
+        res = c.get(f"/api/drives/{TEST_DRIVE}/files?path=recipes&recursive=true&tag=soup")
+        assert res.status_code == 200
+        body = res.json()
+        assert {item["title"] for item in body["data"]} == {
+            "V in recipes",
+            "V in recipes/nested",
+        }
+        assert body["meta"]["total"] == 2
+
+    def test_recursive_tag_predicate_is_not_ignored(self, client):
+        """Guard: with recursive=true, dropping the tag filter must matter."""
+        from app.models import File, Tag
+
+        c, db, drive_dir, data_dir = client
+        _seed_subtree(db, drive_dir, ["recipes", "recipes/nested"])
+        tag = Tag(name="soup", drive=TEST_DRIVE)
+        db.add(tag)
+        db.commit()
+        only = (
+            db.query(File)
+            .filter(File.drive == TEST_DRIVE, File.folder_path == "recipes/nested")
+            .one()
+        )
+        only.tags.append(tag)
+        db.commit()
+
+        untagged = c.get(f"/api/drives/{TEST_DRIVE}/files?path=recipes&recursive=true")
+        tagged = c.get(f"/api/drives/{TEST_DRIVE}/files?path=recipes&recursive=true&tag=soup")
+        assert untagged.json()["meta"]["total"] == 2
+        assert tagged.json()["meta"]["total"] == 1
+        assert tagged.json()["data"][0]["folder_path"] == "recipes/nested"
+
+
+class TestRepeatedTags:
+    @pytest.fixture
+    def tagged(self, client):
+        from app.models import File, Tag
+
+        c, db, drive_dir, _ = client
+        trip = Tag(name="Trip", drive=TEST_DRIVE)
+        year = Tag(name="2024", drive=TEST_DRIVE)
+        db.add_all([trip, year])
+        for name, tags in [("both", [trip, year]), ("trip", [trip]), ("year", [year]), ("none", [])]:
+            (drive_dir / f"{name}.mp4").write_bytes(b"x")
+            f = File(
+                filename=f"{name}.mp4",
+                title=name,
+                drive=TEST_DRIVE,
+                folder_path="",
+                file_path=f"{name}.mp4",
+                file_size=1,
+                file_type="video",
+                mime_type="video/mp4",
+            )
+            f.tags.extend(tags)
+            db.add(f)
+        db.commit()
+        return c
+
+    @pytest.mark.parametrize(
+        ("query", "expected"),
+        [
+            ("tag=Trip", {"both", "trip"}),
+            ("tag=Trip&tag=2024", {"both"}),
+            ("tag=trip&tag=2024", {"both"}),
+            ("tag=Trip&tag=nowhere", set()),
+            ("tag=Trip&tag=", {"both", "trip"}),
+        ],
+    )
+    def test_every_tag_must_be_on_the_file(self, tagged, query, expected):
+        res = tagged.get(f"/api/drives/{TEST_DRIVE}/files?limit=100&{query}")
+        assert res.status_code == 200, res.text
+        body = res.json()
+        assert {item["title"] for item in body["data"]} == expected
+        assert body["meta"]["total"] == len(expected)
+
+
+class TestKindVocabularyParity:
+    """The card's label and the Filter menu's option are one vocabulary.
+
+    A folder card that says "40 items · Archive" is read beside a Filter
+    menu offering *Archive*, and the two are expected to name the same
+    forty rows. They are two functions — `_classify_kind` buckets a row,
+    `_apply_kind_filter` selects rows of a bucket — so nothing but this
+    holds them together.
+
+    Both sides run: each row is classified, then fetched back through
+    `?type=<that kind>`.
+    """
+
+    # (filename, file_type, mime_type, expected kind)
+    ROWS = [
+        ("clip.mp4", "video", "video/mp4", "video"),
+        ("shot.png", "image", "image/png", "image"),
+        ("song.mp3", "audio", "audio/mpeg", "audio"),
+        ("memo.txt", "document", "text/plain", "text"),
+        ("paper.pdf", "document", "application/pdf", "pdf"),
+        ("note.md", "document", "text/markdown", "text"),
+        ("backup.zip", "archive", "application/zip", "archive"),
+        # The rows the extension fallback exists for: written by
+        # something that did not record a real mime, so the column holds
+        # the octet-stream default. The listing finds these by filename,
+        # so the card has to count them the same way.
+        ("legacy.md", "document", "application/octet-stream", "text"),
+        ("legacy.pdf", "document", "application/octet-stream", "pdf"),
+    ]
+
+    @pytest.mark.parametrize("filename,file_type,mime_type,expected", ROWS)
+    def test_each_row_is_counted_as_the_kind_that_selects_it(
+        self, client, filename, file_type, mime_type, expected
+    ):
+        from app.models import File
+        from app.routers.drives import _classify_kind
+
+        c, db, drive_dir, data_dir = client
+        d = drive_dir / "one"
+        d.mkdir(exist_ok=True)
+        (d / filename).write_text("x")
+        db.add(
+            File(
+                filename=filename,
+                title=filename,
+                drive=TEST_DRIVE,
+                folder_path="one",
+                file_path=f"one/{filename}",
+                file_size=1,
+                file_type=file_type,
+                mime_type=mime_type,
+            )
+        )
+        db.commit()
+
+        assert _classify_kind(file_type, mime_type, filename) == expected
+
+        # The other side, through the API: the filter for that kind
+        # returns this row.
+        res = c.get(f"/api/drives/{TEST_DRIVE}/files?type={expected}&recursive=true")
+        assert res.status_code == 200
+        assert [f["filename"] for f in res.json()["data"]] == [filename]
+
+        # And the folder card counts it under the same name.
+        folders = c.get(f"/api/drives/{TEST_DRIVE}/folders").json()
+        assert folders[0]["kind_counts"] == {expected: 1}
+
+    def test_the_vocabulary_is_the_filter_menu_s_own(self, client):
+        """Every kind the classifier can emit is one `?type=` accepts.
+
+        The other direction is deliberately not asserted: `?type=subtitle`
+        exists and nothing classifies into it, because no surface offers
+        the filter or a word for the kind.
+        """
+        from app.routers.drives import _FLAT_FOLDER_KINDS, _KIND_MIMES, FileKind
+        from typing import get_args
+
+        emitted = set(_FLAT_FOLDER_KINDS) | set(_KIND_MIMES) | {"other"}
+        assert emitted <= set(get_args(FileKind))
+        assert emitted == {
+            "video",
+            "image",
+            "audio",
+            "document",
+            "archive",
+            "text",
+            "pdf",
+            "other",
+        }

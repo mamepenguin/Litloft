@@ -57,13 +57,10 @@ class TestSoftDelete:
         res = c.delete(f"/api/files/{file.id}")
         assert res.status_code == 200
 
-        # File still on disk
         assert (drive_dir / "旅行" / "test.mp4").exists()
 
-        # File not accessible via normal API
         assert c.get(f"/api/files/{file.id}").status_code == 404
 
-        # DB record has deleted_at set
         db.expire_all()
         record = db.query(File).filter(File.id == file.id).first()
         assert record is not None
@@ -175,7 +172,6 @@ class TestRestore:
         assert res.status_code == 200
         assert res.json()["deleted_at"] is None
 
-        # File accessible again
         assert c.get(f"/api/files/{file.id}").status_code == 200
 
     def test_restore_missing_disk_file(self, client):
@@ -183,7 +179,6 @@ class TestRestore:
         file = _seed(db, drive_dir)
         c.delete(f"/api/files/{file.id}")
 
-        # Remove file from disk
         (drive_dir / "旅行" / "test.mp4").unlink()
 
         res = c.post(f"/api/files/{file.id}/restore")
@@ -213,10 +208,8 @@ class TestPurge:
         res = c.delete(f"/api/files/{file_id}/purge")
         assert res.status_code == 200
 
-        # File removed from disk
         assert not (drive_dir / "旅行" / "test.mp4").exists()
 
-        # DB record gone
         db.expire_all()
         assert db.query(File).filter(File.id == file_id).first() is None
 
@@ -245,11 +238,9 @@ class TestEmptyTrash:
         assert res.status_code == 200
         assert res.json()["purged"] == 2
 
-        # Files removed from disk
         assert not (drive_dir / "旅行" / "a.mp4").exists()
         assert not (drive_dir / "旅行" / "b.mp4").exists()
 
-        # Trash is empty
         res = c.get(f"/api/drives/{TEST_DRIVE}/trash")
         assert res.json()["data"] == []
 
@@ -273,7 +264,6 @@ class TestBatchRestorePurge:
         assert res.status_code == 200
         assert res.json()["restored"] == 2
 
-        # Both accessible again
         assert c.get(f"/api/files/{f1.id}").status_code == 200
         assert c.get(f"/api/files/{f2.id}").status_code == 200
 
@@ -288,7 +278,6 @@ class TestBatchRestorePurge:
         assert res.status_code == 200
         assert res.json()["purged"] == 2
 
-        # Files gone from disk
         assert not (drive_dir / "旅行" / "a.mp4").exists()
         assert not (drive_dir / "旅行" / "b.mp4").exists()
 
@@ -320,11 +309,9 @@ class TestScannerSkipsTrashed:
         # Remove file from disk (simulating user deletion outside app)
         (drive_dir / "旅行" / "test.mp4").unlink()
 
-        # Trigger scan
         res = c.post(f"/api/drives/{TEST_DRIVE}/scan")
         assert res.status_code == 200
 
-        # Soft-deleted record should still exist in DB (not removed by scan)
         db.expire_all()
         record = db.query(File).filter(File.id == file.id).first()
         assert record is not None
@@ -343,7 +330,6 @@ class TestAutoPurge:
         record.deleted_at = datetime.now(UTC) - timedelta(days=31)
         db.commit()
 
-        # Run purge logic directly
         from app.main import TRASH_RETENTION_DAYS
         from app.services.fileops import physical_delete
 
@@ -358,7 +344,6 @@ class TestAutoPurge:
             physical_delete(db, f)
         db.commit()
 
-        # File gone from disk and DB
         assert not (drive_dir / "旅行" / "test.mp4").exists()
         db.expire_all()
         assert db.query(File).filter(File.id == file.id).first() is None
@@ -389,14 +374,12 @@ class TestDeleteFolderSoftDeletes:
         res = c.delete(f"/api/drives/{TEST_DRIVE}/folders?path=photos")
         assert res.status_code == 200
 
-        # All files have deleted_at set
         db.expire_all()
         for fid in [f1.id, f2.id, f3.id]:
             record = db.query(File).filter(File.id == fid).first()
             assert record is not None
             assert record.deleted_at is not None
 
-        # Files still exist on filesystem
         assert (drive_dir / "photos" / "a.mp4").exists()
         assert (drive_dir / "photos" / "b.mp4").exists()
         assert (drive_dir / "photos" / "c.mp4").exists()
@@ -417,10 +400,8 @@ class TestDeleteFolderSoftDeletes:
 
     def test_delete_folder_empty_folder_entries_cleaned(self, client):
         c, db, drive_dir, _ = client
-        # Create folder on FS
         (drive_dir / "myfolder").mkdir(exist_ok=True)
 
-        # Add EmptyFolder entry
         entry = EmptyFolder(drive=TEST_DRIVE, path="myfolder")
         db.add(entry)
         db.commit()
@@ -447,7 +428,6 @@ class TestDeleteFolderSoftDeletes:
         db.commit()
         db.expire_all()
 
-        # Record the trashed file's deleted_at before folder delete
         r2_before = db.query(File).filter(File.id == f2.id).first()
         original_ts = r2_before.deleted_at
 
@@ -455,11 +435,9 @@ class TestDeleteFolderSoftDeletes:
         assert res.status_code == 200
 
         db.expire_all()
-        # Active file should now be soft-deleted
         r1 = db.query(File).filter(File.id == f1.id).first()
         assert r1.deleted_at is not None
 
-        # Already-trashed file should keep its original deleted_at
         r2 = db.query(File).filter(File.id == f2.id).first()
         assert r2.deleted_at is not None
         # The original deleted_at should be preserved (not updated to now)
@@ -472,7 +450,6 @@ class TestDeleteFolderSoftDeletes:
 
         c.delete(f"/api/drives/{TEST_DRIVE}/folders?path=restoreable")
 
-        # Restore each file
         for fid in [f1.id, f2.id]:
             res = c.post(f"/api/files/{fid}/restore")
             assert res.status_code == 200
@@ -486,16 +463,13 @@ class TestDeleteFolderSoftDeletes:
         c, db, drive_dir, _ = client
         f1 = _seed(db, drive_dir, "old.mp4", "cleanup")
 
-        # Soft-delete via folder delete
         c.delete(f"/api/drives/{TEST_DRIVE}/folders?path=cleanup")
 
-        # Set deleted_at to 31 days ago
         db.expire_all()
         record = db.query(File).filter(File.id == f1.id).first()
         record.deleted_at = datetime.now(UTC) - timedelta(days=31)
         db.commit()
 
-        # Run purge logic
         from app.main import TRASH_RETENTION_DAYS
         from app.services.fileops import physical_delete
 
@@ -514,17 +488,13 @@ class TestDeleteFolderSoftDeletes:
             physical_delete(db, f)
         db.commit()
 
-        # Clean up empty folders
         from app.main import _cleanup_empty_folders_after_purge
 
         _cleanup_empty_folders_after_purge(folders_to_check)
 
-        # File gone from disk
         assert not (drive_dir / "cleanup" / "old.mp4").exists()
-        # Folder also removed (was empty after purge)
         assert not (drive_dir / "cleanup").exists()
 
-        # DB record gone
         db.expire_all()
         assert db.query(File).filter(File.id == f1.id).first() is None
 
@@ -534,18 +504,14 @@ class TestTagListExcludesTrashed:
         c, db, drive_dir, _ = client
         file = _seed(db, drive_dir)
 
-        # Add tag
         c.put(f"/api/files/{file.id}/tags", json={"tags": ["travel"]})
 
-        # Verify tag has count 1
         res = c.get(f"/api/drives/{TEST_DRIVE}/tags")
         tags = {t["name"]: t["count"] for t in res.json()}
         assert tags.get("travel") == 1
 
-        # Soft delete
         c.delete(f"/api/files/{file.id}")
 
-        # Tag count should be 0
         res = c.get(f"/api/drives/{TEST_DRIVE}/tags")
         tags = {t["name"]: t["count"] for t in res.json()}
         assert tags.get("travel", 0) == 0

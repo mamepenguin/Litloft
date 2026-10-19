@@ -29,7 +29,13 @@ function Wrapper({ children }: { children: ReactNode }) {
   );
 }
 
-function dispatchKey(key: string) {
+async function dispatchKey(key: string) {
+  // The handler reaches the document through the shortcut stack, and the
+  // state a test waits for lands a render before the context closing over
+  // it does: push -> setStack -> the provider's stackRef sync are two
+  // further rounds. Drain them first, or the key falls into the gap and
+  // finds no handler at all.
+  await act(async () => {});
   act(() => {
     document.dispatchEvent(
       new KeyboardEvent("keydown", { key, bubbles: true }),
@@ -37,7 +43,12 @@ function dispatchKey(key: string) {
   });
 }
 
-const sampleNeighbors: Neighbors = { prev_id: "prev1", next_id: "next1" };
+const sampleNeighbors: Neighbors = {
+  prev_id: "prev1",
+  next_id: "next1",
+  position: 2,
+  total: 3,
+};
 
 describe("useFileNav", () => {
   beforeEach(() => {
@@ -83,7 +94,7 @@ describe("useFileNav", () => {
       { wrapper: Wrapper },
     );
     await waitFor(() => expect(result.current.prevId).toBe("prev1"));
-    dispatchKey("ArrowLeft");
+    await dispatchKey("ArrowLeft");
     expect(onNavigate).toHaveBeenCalledWith("prev1");
   });
 
@@ -100,7 +111,7 @@ describe("useFileNav", () => {
       { wrapper: Wrapper },
     );
     await waitFor(() => expect(result.current.nextId).toBe("next1"));
-    dispatchKey("ArrowRight");
+    await dispatchKey("ArrowRight");
     expect(onNavigate).toHaveBeenCalledWith("next1");
   });
 
@@ -116,10 +127,9 @@ describe("useFileNav", () => {
         }),
       { wrapper: Wrapper },
     );
-    // enabled=false also gates the fetch — neighbors should not be requested.
     await Promise.resolve();
     expect(api.getFileNeighbors).not.toHaveBeenCalled();
-    dispatchKey("ArrowLeft");
+    await dispatchKey("ArrowLeft");
     expect(onNavigate).not.toHaveBeenCalled();
   });
 
@@ -136,7 +146,7 @@ describe("useFileNav", () => {
       { wrapper: Wrapper },
     );
     await waitFor(() => expect(result.current.prevId).toBe("prev1"));
-    dispatchKey("ArrowLeft");
+    await dispatchKey("ArrowLeft");
     expect(onNavigate).not.toHaveBeenCalled();
   });
 
@@ -153,7 +163,7 @@ describe("useFileNav", () => {
       { wrapper: Wrapper },
     );
     await waitFor(() => expect(result.current.nextId).toBe("next1"));
-    dispatchKey("ArrowRight");
+    await dispatchKey("ArrowRight");
     expect(onNavigate).not.toHaveBeenCalled();
   });
 
@@ -171,8 +181,70 @@ describe("useFileNav", () => {
       { wrapper: Wrapper },
     );
     await waitFor(() => expect(result.current.prevId).toBe("prev1"));
-    dispatchKey("ArrowLeft");
+    await dispatchKey("ArrowLeft");
     expect(onNavigate).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["PDF", "application/pdf"],
+    ["EPUB", "application/epub+zip"],
+  ])("does not bind arrow keys for %s files", async (_, mimeType) => {
+    const onNavigate = vi.fn();
+    const { result } = renderHook(
+      () =>
+        useFileNav({
+          fileId: "current",
+          fileType: "document",
+          mimeType,
+          enabled: true,
+          onNavigate,
+        }),
+      { wrapper: Wrapper },
+    );
+    await waitFor(() => expect(result.current.prevId).toBe("prev1"));
+    await dispatchKey("ArrowLeft");
+    await dispatchKey("ArrowRight");
+    expect(onNavigate).not.toHaveBeenCalled();
+  });
+
+  it.each(["application/pdf", "application/epub+zip"])(
+    "still navigates from the buttons on %s pages",
+    async (mimeType) => {
+      const onNavigate = vi.fn();
+      const { result } = renderHook(
+        () =>
+          useFileNav({
+            fileId: "current",
+            fileType: "document",
+            mimeType,
+            enabled: true,
+            onNavigate,
+          }),
+        { wrapper: Wrapper },
+      );
+      await waitFor(() => expect(result.current.prevId).toBe("prev1"));
+      act(() => result.current.navigatePrev());
+      act(() => result.current.navigateNext());
+      expect(onNavigate.mock.calls).toEqual([["prev1"], ["next1"]]);
+    },
+  );
+
+  it("binds arrow keys for image files", async () => {
+    const onNavigate = vi.fn();
+    const { result } = renderHook(
+      () =>
+        useFileNav({
+          fileId: "current",
+          fileType: "image",
+          mimeType: "image/jpeg",
+          enabled: true,
+          onNavigate,
+        }),
+      { wrapper: Wrapper },
+    );
+    await waitFor(() => expect(result.current.nextId).toBe("next1"));
+    await dispatchKey("ArrowRight");
+    expect(onNavigate).toHaveBeenCalledWith("next1");
   });
 
   it("does not call onNavigate when neighbor id is null", async () => {
@@ -194,12 +266,11 @@ describe("useFileNav", () => {
     await waitFor(() =>
       expect(api.getFileNeighbors).toHaveBeenCalled(),
     );
-    // Wait an extra microtask to let the promise resolve and state update.
     await waitFor(() =>
       expect(api.getFileNeighbors).toHaveBeenCalledTimes(1),
     );
-    dispatchKey("ArrowLeft");
-    dispatchKey("ArrowRight");
+    await dispatchKey("ArrowLeft");
+    await dispatchKey("ArrowRight");
     expect(onNavigate).not.toHaveBeenCalled();
   });
 
@@ -264,5 +335,101 @@ describe("useFileNav", () => {
       expect(result.current.prevId).toBe("prev1"),
     );
     expect(result.current.nextId).toBe("next1");
+  });
+
+  it("returns the place in the folder and its size", async () => {
+    const onNavigate = vi.fn();
+    const { result } = renderHook(
+      () =>
+        useFileNav({
+          fileId: "current",
+          fileType: "image",
+          enabled: true,
+          onNavigate,
+        }),
+      { wrapper: Wrapper },
+    );
+    await waitFor(() => expect(result.current.position).toBe(2));
+    expect(result.current.total).toBe(3);
+  });
+
+  it("reports no place when the ordering cannot rank the file", async () => {
+    vi.mocked(api.getFileNeighbors).mockResolvedValue({
+      prev_id: null,
+      next_id: null,
+      position: null,
+      total: null,
+    });
+    const onNavigate = vi.fn();
+    const { result } = renderHook(
+      () =>
+        useFileNav({
+          fileId: "unliked",
+          sort: "liked_at",
+          fileType: "image",
+          enabled: true,
+          onNavigate,
+        }),
+      { wrapper: Wrapper },
+    );
+    await waitFor(() =>
+      expect(api.getFileNeighbors).toHaveBeenCalledWith(
+        "unliked",
+        "liked_at",
+        undefined,
+      ),
+    );
+    expect(result.current.position).toBeNull();
+    expect(result.current.total).toBeNull();
+  });
+
+  it("withholds the count for a listing the arrows do not match", async () => {
+    // The endpoint answers with a real position and total either way —
+    // it only knows about the folder. Whether that number is *true of
+    // what the reader is looking at* is the caller's question, and the
+    // arrows keep working regardless.
+    const onNavigate = vi.fn();
+    const { result } = renderHook(
+      () =>
+        useFileNav({
+          fileId: "current",
+          fileType: "image",
+          enabled: true,
+          countable: false,
+          onNavigate,
+        }),
+      { wrapper: Wrapper },
+    );
+    await waitFor(() => expect(result.current.nextId).toBe("next1"));
+    expect(result.current.position).toBeNull();
+    expect(result.current.total).toBeNull();
+    expect(result.current.prevId).toBe("prev1");
+  });
+
+  it("hands out the same navigation the arrow keys run", async () => {
+    // One path into "go to the next file". Two would be how one of them
+    // ends up bypassing `navigationGuard` and losing an unsaved edit.
+    const onNavigate = vi.fn();
+    const { result } = renderHook(
+      () =>
+        useFileNav({
+          fileId: "current",
+          fileType: "image",
+          enabled: true,
+          onNavigate,
+        }),
+      { wrapper: Wrapper },
+    );
+    await waitFor(() => expect(result.current.nextId).toBe("next1"));
+
+    act(() => result.current.navigateNext());
+    expect(onNavigate).toHaveBeenCalledWith("next1");
+
+    await dispatchKey("ArrowRight");
+    expect(onNavigate).toHaveBeenCalledTimes(2);
+    expect(onNavigate).toHaveBeenLastCalledWith("next1");
+
+    act(() => result.current.navigatePrev());
+    expect(onNavigate).toHaveBeenLastCalledWith("prev1");
   });
 });

@@ -1,3 +1,14 @@
+"use client";
+
+/**
+ * Position reporting rides the shared playback clock rather than DOM
+ * events: `timeupdate` does not exist for every backend, and polling per
+ * feature is what the clock exists to stop.
+ */
+
+import type { MediaController } from "./mediaController";
+import { getMediaClockSnapshot, subscribeMediaClock } from "./mediaClock";
+
 export interface MediaSessionMetadataInput {
   title: string;
   artist?: string;
@@ -13,7 +24,7 @@ export interface MediaSessionHandlers {
 const SEEK_OFFSET = 10;
 
 export function setupMediaSession(
-  media: HTMLMediaElement,
+  mc: MediaController,
   metadata: MediaSessionMetadataInput,
   handlers: MediaSessionHandlers = {},
 ): () => void {
@@ -40,23 +51,22 @@ export function setupMediaSession(
   };
 
   register("play", () => {
-    media.play().catch(() => {});
+    mc.play();
   });
   register("pause", () => {
-    media.pause();
+    mc.pause();
   });
+  // Clamping is the controller's job — it is the only thing that knows
+  // what the backend will accept.
   register("seekbackward", (details) => {
-    const offset = details.seekOffset ?? SEEK_OFFSET;
-    media.currentTime = Math.max(0, media.currentTime - offset);
+    mc.seek(mc.getCurrentTime() - (details.seekOffset ?? SEEK_OFFSET));
   });
   register("seekforward", (details) => {
-    const offset = details.seekOffset ?? SEEK_OFFSET;
-    const limit = Number.isFinite(media.duration) ? media.duration : media.currentTime + offset;
-    media.currentTime = Math.min(limit, media.currentTime + offset);
+    mc.seek(mc.getCurrentTime() + (details.seekOffset ?? SEEK_OFFSET));
   });
   register("seekto", (details) => {
     if (details.seekTime == null) return;
-    media.currentTime = details.seekTime;
+    mc.seek(details.seekTime);
   });
   if (handlers.onNextTrack) {
     const next = handlers.onNextTrack;
@@ -67,15 +77,39 @@ export function setupMediaSession(
     register("previoustrack", () => prev());
   }
 
-  const updateState = () => {
-    ms.playbackState = media.paused || media.ended ? "paused" : "playing";
+  /**
+   * `setPositionState` throws on anything it considers incoherent — a
+   * non-finite duration, a position past the end, a non-positive rate —
+   * so every field is checked first and the call is still wrapped.
+   */
+  const updatePosition = () => {
+    const { currentTime, duration, interrupted } = getMediaClockSnapshot(mc);
+    // During an ad the clock belongs to the ad, not the file.
+    if (interrupted) return;
+    if (typeof ms.setPositionState !== "function") return;
+    if (!Number.isFinite(duration) || duration <= 0) return;
+    const rate = mc.getPlaybackRate();
+    try {
+      ms.setPositionState({
+        duration,
+        position: Math.min(Math.max(currentTime, 0), duration),
+        playbackRate: Number.isFinite(rate) && rate > 0 ? rate : 1,
+      });
+    } catch {
+      // Browsers disagree about what they will accept here.
+    }
   };
-  media.addEventListener("play", updateState);
-  media.addEventListener("pause", updateState);
-  media.addEventListener("ended", updateState);
-  updateState();
+
+  const sync = () => {
+    ms.playbackState = getMediaClockSnapshot(mc).paused ? "paused" : "playing";
+    updatePosition();
+  };
+
+  const unsubscribe = subscribeMediaClock(mc, sync);
+  sync();
 
   return () => {
+    unsubscribe();
     for (const action of registered) {
       try {
         ms.setActionHandler(action, null);
@@ -83,9 +117,6 @@ export function setupMediaSession(
         // ignore
       }
     }
-    media.removeEventListener("play", updateState);
-    media.removeEventListener("pause", updateState);
-    media.removeEventListener("ended", updateState);
     ms.metadata = null;
     ms.playbackState = "none";
   };

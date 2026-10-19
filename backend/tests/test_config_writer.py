@@ -67,7 +67,6 @@ def test_falls_back_to_in_place_write_when_replace_returns_ebusy(
 
     assert calls["replace"] == 1
     assert json.loads(target.read_text()) == [{"name": "new", "path": "/b"}]
-    # .tmp must be cleaned up after fallback
     assert not (tmp_path / "drives.json.tmp").exists()
     # .bak preserved as recovery point
     bak = tmp_path / "drives.json.bak"
@@ -89,7 +88,6 @@ def test_non_ebusy_oserror_is_not_swallowed(tmp_path, isolated_data_dir, monkeyp
         atomic_write_json(target, [{"name": "new", "path": "/b"}])
 
     assert exc_info.value.errno == errno.EACCES
-    # Original file untouched, .tmp cleaned up
     assert json.loads(target.read_text()) == [{"name": "old", "path": "/a"}]
     assert not (tmp_path / "drives.json.tmp").exists()
 

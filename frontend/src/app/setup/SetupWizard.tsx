@@ -1,13 +1,5 @@
 "use client";
 
-// SetupWizard: drives the first-run flow. Owns the cross-step state
-// (locale, drive draft, access mode, master password, addon policy)
-// and orchestrates the final submit.
-//
-// Step order: Language -> Welcome -> Drive -> AccessMode -> [Password] -> AddonPolicy -> Complete
-// Password is skipped when access mode is "public".
-// Stepper is shown for Drive..Complete only (Language/Welcome are intro screens).
-
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { NextIntlClientProvider, useTranslations } from "next-intl";
 
@@ -15,6 +7,7 @@ import enMessages from "@/messages/en.json";
 import jaMessages from "@/messages/ja.json";
 import { defaultLocale } from "@/i18n/config";
 
+import { UnlockStep } from "./steps/UnlockStep";
 import { LanguageStep } from "./steps/LanguageStep";
 import { WelcomeStep } from "./steps/WelcomeStep";
 import { DriveStep, type DriveDraft } from "./steps/DriveStep";
@@ -31,9 +24,22 @@ import { CompleteStep } from "./steps/CompleteStep";
 import { SetupShell } from "./components/SetupShell";
 import { Stepper } from "./components/Stepper";
 import type { Locale } from "@/i18n/config";
-import type { AddonPolicy } from "@/lib/adminConfig";
+import { unlock } from "@/lib/api";
+import {
+  getAddonsStatus,
+  isAddonOn,
+  putAddonPolicy,
+  putDrives,
+  putPasswords,
+  type AddonPolicy,
+  type AddonStatusEntry,
+} from "@/lib/adminConfig";
+
+// Mirrors `auth.ADMIN_SENTINEL_GROUP`: a password carrying it grants /admin.
+const ADMIN_SENTINEL_GROUP = "__admin__";
 
 type StepId =
+  | "unlock"
   | "language"
   | "welcome"
   | "drive"
@@ -43,6 +49,7 @@ type StepId =
   | "complete";
 
 const ORDER_PROTECTED: StepId[] = [
+  "unlock",
   "language",
   "welcome",
   "drive",
@@ -53,6 +60,7 @@ const ORDER_PROTECTED: StepId[] = [
 ];
 
 const ORDER_PUBLIC: StepId[] = [
+  "unlock",
   "language",
   "welcome",
   "drive",
@@ -61,9 +69,7 @@ const ORDER_PUBLIC: StepId[] = [
   "complete",
 ];
 
-// Steps that appear in the visual Stepper. Language and Welcome are
-// intentionally excluded because they are pre-progress screens.
-const STEPPER_PROTECTED: Exclude<StepId, "language" | "welcome">[] = [
+const STEPPER_PROTECTED: Exclude<StepId, "unlock" | "language" | "welcome">[] = [
   "drive",
   "accessMode",
   "password",
@@ -71,27 +77,12 @@ const STEPPER_PROTECTED: Exclude<StepId, "language" | "welcome">[] = [
   "complete",
 ];
 
-const STEPPER_PUBLIC: Exclude<StepId, "language" | "welcome">[] = [
+const STEPPER_PUBLIC: Exclude<StepId, "unlock" | "language" | "welcome">[] = [
   "drive",
   "accessMode",
   "addonPolicy",
   "complete",
 ];
-
-function readToggle(
-  policy: AddonPolicy,
-  drive: string,
-  addon: string,
-): boolean {
-  const driveEntry = policy[drive];
-  if (!driveEntry) return false;
-  const value = driveEntry[addon];
-  if (typeof value === "boolean") return value;
-  if (typeof value === "object" && value !== null) {
-    return Object.values(value).some(Boolean);
-  }
-  return false;
-}
 
 function SetupWizardInner({
   locale,
@@ -102,10 +93,13 @@ function SetupWizardInner({
 }): React.ReactElement {
   const tStepper = useTranslations("setup.stepper");
   const [internalStepIndex, setInternalStepIndex] = useState(0);
+  const [setupToken, setSetupToken] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return new URLSearchParams(window.location.search).get("token") ?? "";
+  });
   // The backend seeds drives.json from the container mounts on startup,
-  // so /setup begins with N detected stubs. We initialise the draft list
-  // from GET /api/admin/config/setup-status (unauthenticated, covers the
-  // first-run read path that GET /drives does not — spec §3.3, M1).
+  // so /setup begins with N detected stubs, read from the unauthenticated
+  // setup-status endpoint that covers the first-run path GET /drives does not.
   const [drives, setDrives] = useState<DriveDraft[]>([]);
 
   useEffect(() => {
@@ -144,7 +138,57 @@ function SetupWizardInner({
     password: "",
     groups: [],
   });
-  const [addonPolicy, setAddonPolicy] = useState<AddonPolicy>({});
+  // Keyed by drive path: the name is still editable when the switches are pressed.
+  const [addonChoices, setAddonChoices] = useState<AddonPolicy>({});
+  const [addons, setAddons] = useState<AddonStatusEntry[]>([]);
+  const [addonsFailed, setAddonsFailed] = useState(false);
+
+  const loadAddons = useCallback((isCancelled: () => boolean) => {
+    getAddonsStatus()
+      .then((list) => {
+        if (!isCancelled()) setAddons(list);
+      })
+      .catch(() => {
+        if (!isCancelled()) setAddonsFailed(true);
+      });
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadAddons(() => cancelled);
+    return () => {
+      cancelled = true;
+    };
+  }, [loadAddons]);
+
+  const retryAddons = useCallback(() => {
+    setAddonsFailed(false);
+    loadAddons(() => false);
+  }, [loadAddons]);
+
+  const addonPolicy = useMemo<AddonPolicy>(
+    () =>
+      Object.fromEntries(
+        drives
+          .filter((d) => addonChoices[d.path] !== undefined)
+          .map((d) => [d.name, addonChoices[d.path]]),
+      ),
+    [addonChoices, drives],
+  );
+
+  const setAddonPolicy = useCallback(
+    (next: AddonPolicy) => {
+      setAddonChoices((prev) => ({
+        ...prev,
+        ...Object.fromEntries(
+          drives
+            .filter((d) => next[d.name] !== undefined)
+            .map((d) => [d.path, next[d.name]]),
+        ),
+      }));
+    },
+    [drives],
+  );
 
   const order = useMemo(
     () => (accessMode === "protected" ? ORDER_PROTECTED : ORDER_PUBLIC),
@@ -178,8 +222,6 @@ function SetupWizardInner({
     return Array.from(set);
   }, [drives]);
 
-  // Sync the master password's groups with the detected drive groups so
-  // the UI can pre-check them without further user action.
   const passwordValue = useMemo<PasswordDraft>(() => {
     if (password.groups.length === 0 && groupsForPassword.length > 0) {
       return { ...password, groups: groupsForPassword };
@@ -187,25 +229,22 @@ function SetupWizardInner({
     return password;
   }, [groupsForPassword, password]);
 
-  // Drive list to ship to the backend on final submit.
   const drivesForSubmit = useMemo(() => drives, [drives]);
 
-  // Summary values for the Complete step.
   const driveCount = useMemo(
     () => drivesForSubmit.filter((d) => d.name.trim().length > 0).length,
     [drivesForSubmit],
   );
   const addonOnCount = useMemo(() => {
+    if (addonsFailed) return null;
     let count = 0;
     for (const drv of drivesForSubmit) {
-      const entry = addonPolicy[drv.name];
-      if (!entry) continue;
-      for (const addonName of Object.keys(entry)) {
-        if (readToggle(addonPolicy, drv.name, addonName)) count += 1;
+      for (const addon of addons) {
+        if (isAddonOn(addonPolicy, drv.name, addon.name)) count += 1;
       }
     }
     return count;
-  }, [addonPolicy, drivesForSubmit]);
+  }, [addonPolicy, addons, addonsFailed, drivesForSubmit]);
 
   const summary = useMemo(
     () => ({
@@ -220,47 +259,44 @@ function SetupWizardInner({
     // Re-PUT drives to make sure the on-disk state matches the wizard
     // state even if the user changed something between DriveStep
     // validation and here.
-    await fetch("/api/admin/config/drives", {
-      method: "PUT",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(drivesForSubmit),
-    });
+    //
+    // Each config write throws on a rejection, so the wizard stops rather
+    // than reporting a setup it did not perform.
+    await putDrives(drivesForSubmit, setupToken);
 
     if (accessMode === "protected" && password.password) {
       // Append the __admin__ sentinel so this password grants admin access
       // even after JWT expiry (user re-unlocks with this password → admin restored).
-      const groupsWithAdmin = passwordValue.groups.includes("__admin__")
+      const groupsWithAdmin = passwordValue.groups.includes(ADMIN_SENTINEL_GROUP)
         ? passwordValue.groups
-        : [...passwordValue.groups, "__admin__"];
-      await fetch("/api/admin/config/passwords", {
-        method: "PUT",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify([
-          { password: password.password, groups: groupsWithAdmin },
-        ]),
-      });
+        : [...passwordValue.groups, ADMIN_SENTINEL_GROUP];
+      await putPasswords(
+        [{ password: password.password, groups: groupsWithAdmin }],
+        setupToken,
+      );
     }
 
-    await fetch("/api/admin/config/addon-policy", {
-      method: "PUT",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(addonPolicy),
-    });
+    await putAddonPolicy(addonPolicy, setupToken);
 
-    // Auto-unlock with the setup password so the wizard completer arrives
-    // at /admin as an admin without having to unlock manually.
     if (accessMode === "protected" && password.password) {
-      await fetch("/api/auth/unlock", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: password.password, remember: false }),
-      });
+      // The session this grants is a convenience: the password is already
+      // on disk, and a viewer who lands on /unlock instead can still reach
+      // /admin. Failing the wizard here would leave setup unfinished over
+      // something the user can redo in one step.
+      try {
+        await unlock(password.password, false);
+      } catch {
+        // fall through to complete-setup
+      }
     }
-  }, [accessMode, addonPolicy, drivesForSubmit, password, passwordValue.groups]);
+  }, [
+    accessMode,
+    addonPolicy,
+    drivesForSubmit,
+    password,
+    passwordValue.groups,
+    setupToken,
+  ]);
 
   const stepperSteps = useMemo(
     () =>
@@ -272,15 +308,17 @@ function SetupWizardInner({
   );
 
   const stepperIndex = useMemo(() => {
-    if (current === "language" || current === "welcome") return -1;
+    if (current === "unlock" || current === "language" || current === "welcome") {
+      return -1;
+    }
     const idx = stepperOrder.indexOf(
-      current as Exclude<StepId, "language" | "welcome">,
+      current as Exclude<StepId, "unlock" | "language" | "welcome">,
     );
     return idx >= 0 ? idx : 0;
   }, [current, stepperOrder]);
 
   const showStepper = stepperIndex >= 0;
-  const showHeaderSubtitle = current !== "language";
+  const showHeaderSubtitle = current !== "unlock" && current !== "language";
 
   return (
     <SetupShell showHeaderSubtitle={showHeaderSubtitle}>
@@ -288,6 +326,13 @@ function SetupWizardInner({
         <div className="mt-2">
           <Stepper steps={stepperSteps} currentIndex={stepperIndex} />
         </div>
+      )}
+      {current === "unlock" && (
+        <UnlockStep
+          value={setupToken}
+          onChange={setSetupToken}
+          onUnlocked={goNext}
+        />
       )}
       {current === "language" && (
         <LanguageStep
@@ -335,6 +380,9 @@ function SetupWizardInner({
         <div className="mt-6 rounded-2xl border border-bg-border bg-bg-card p-6 sm:p-8">
           <AddonPolicyStep
             drives={drivesForSubmit}
+            addons={addons}
+            loadFailed={addonsFailed}
+            onRetry={retryAddons}
             value={addonPolicy}
             onChange={setAddonPolicy}
             onNext={goNext}
@@ -345,6 +393,7 @@ function SetupWizardInner({
       {current === "complete" && (
         <div className="mt-6 rounded-2xl border border-bg-border bg-bg-card p-6 sm:p-8">
           <CompleteStep
+            setupToken={setupToken}
             onBack={goBack}
             onBeforeSubmit={handleBeforeSubmit}
             summary={summary}
@@ -357,14 +406,10 @@ function SetupWizardInner({
 
 const MESSAGES_BY_LOCALE = { en: enMessages, ja: jaMessages } as const;
 
-// Outer wrapper: owns the wizard locale and supplies a client-side
-// NextIntlClientProvider for the subtree. The app's root provider binds
-// its messages at request time from the NEXT_LOCALE cookie, so a
-// LanguageStep selection could not change the language of later steps
-// within the same SPA session without this nested provider. Selecting a
-// language here swaps the provider's messages and re-renders every step
-// immediately (no full reload — SPA navigation policy), and the cookie
-// is still written so the post-complete redirect to /admin keeps it.
+// The app's root provider binds its messages at request time from the
+// NEXT_LOCALE cookie, so a LanguageStep selection could not change the
+// language of later steps within the same SPA session without this nested
+// provider.
 export function SetupWizard(): React.ReactElement {
   const [locale, setLocaleState] = useState<Locale>(defaultLocale);
 

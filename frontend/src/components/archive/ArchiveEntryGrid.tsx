@@ -21,6 +21,12 @@ export function ArchiveEntryGrid({
 }: ArchiveEntryGridProps) {
   const t = useTranslations("archive");
 
+  // Folders are judged separately: they keep their names either way, so
+  // they must not be what makes the images look mixed.
+  const images = entries.filter((e) => !e.is_dir && e.file_type === "image");
+  const showImageFilenames =
+    images.length < 2 || images.length !== entries.filter((e) => !e.is_dir).length;
+
   if (entries.length === 0) {
     return (
       <div className="py-12 text-center text-sm text-text-muted">
@@ -29,23 +35,30 @@ export function ArchiveEntryGrid({
     );
   }
 
+  // Not breakpoint columns: those follow the window, and this grid renders
+  // beside the inspector.
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-      {entries.map((entry) => (
-        <ArchiveEntryCard
-          key={entry.path}
-          entry={entry}
-          fileId={fileId}
-          isClickable={isClickable(entry)}
-          onClick={() => {
-            if (entry.is_dir) {
-              handleDirClick(entry);
-            } else {
-              handleFileClick(entry);
-            }
-          }}
-        />
-      ))}
+    <div className="justified-grid-host">
+      <div className="justified-grid">
+        {entries.map((entry) => (
+          <ArchiveEntryCard
+            key={entry.path}
+            entry={entry}
+            fileId={fileId}
+            isClickable={isClickable(entry)}
+            showFilename={showImageFilenames}
+            onClick={() => {
+              if (entry.is_dir) {
+                handleDirClick(entry);
+              } else {
+                handleFileClick(entry);
+              }
+            }}
+          />
+        ))}
+        {/* Keeps the last line from stretching. */}
+        <div className="justified-grid-tail" aria-hidden />
+      </div>
     </div>
   );
 }

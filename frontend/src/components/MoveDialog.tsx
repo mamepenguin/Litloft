@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { getFolders } from "@/lib/api";
 import type { Folder as FolderType } from "@/types";
+import { Button } from "@/components/Button";
 
 interface MoveDialogProps {
   open: boolean;
@@ -40,7 +41,7 @@ export function MoveDialog({
       try {
         const result = await getFolders(drive, path || undefined);
         setFolders(result);
-      } catch (err) {
+      } catch {
         setError(t("moveFolderLoadFailed"));
         setFolders([]);
       } finally {
@@ -115,7 +116,6 @@ export function MoveDialog({
           </button>
         </div>
 
-        {/* Breadcrumb */}
         <div className="mb-3 flex items-center gap-1 text-xs text-text-muted">
           <button
             onClick={() => {
@@ -143,9 +143,7 @@ export function MoveDialog({
           })}
         </div>
 
-        {/* Folder list */}
         <div className="mb-4 max-h-64 min-h-[120px] overflow-y-auto rounded-lg border border-bg-border bg-bg-elevated">
-          {/* Root / parent option */}
           {browsePath && (
             <button
               onClick={handleNavigateUp}
@@ -155,7 +153,6 @@ export function MoveDialog({
             </button>
           )}
 
-          {/* Current directory selection */}
           <button
             onClick={handleSelectRoot}
             className={`flex w-full items-center gap-2 border-b border-bg-border px-3 py-2 text-left text-sm transition-colors ${
@@ -212,7 +209,6 @@ export function MoveDialog({
           )}
         </div>
 
-        {/* Actions */}
         <div className="flex items-center justify-between">
           <span className="truncate text-xs text-text-muted">
             {t("moveTarget", { path: selectedPath || t("moveRoot") })}
@@ -224,13 +220,14 @@ export function MoveDialog({
             >
               {tc("cancel")}
             </button>
-            <button
+            <Button
+              variant="primary"
+              size="md"
               onClick={handleConfirm}
               disabled={isCurrentPath}
-              className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-40"
             >
               {t("moveHere")}
-            </button>
+            </Button>
           </div>
         </div>
       </div>

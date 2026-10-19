@@ -1,35 +1,23 @@
 # Monitoring and troubleshooting
 
-Day-to-day operational checks for a running Litloft stack. For recovering from data loss see [backup and restore](backup-restore.md); for version changes and rollback see [upgrading](../getting-started/upgrading.md).
+Day-to-day checks for a running Litloft. For recovering data, see [backup and restore](backup-restore.md). For upgrades and rollback, see [upgrading](../getting-started/upgrading.md).
 
 ## Health check
 
-The backend exposes a liveness probe:
-
 ```bash
-# Inside the Docker network / on the host (backend is not externally exposed)
 docker compose exec backend curl -fsS http://localhost:8000/api/health
-# → {"status":"ok"}
+# {"status":"ok"}
 ```
 
-It is also reachable through the frontend proxy at `http://<host>:<port>/api/health`.
+The same check is reachable through the frontend at `http://<host>:<port>/api/health`.
 
-Docker polls this endpoint automatically. The healthcheck is defined in the base `docker-compose.yml`:
-
-| Setting | Value |
-|---|---|
-| Interval | 30s |
-| Timeout | 10s |
-| Retries | 3 |
-| Start period | 10s |
-
-After 3 consecutive failures the backend container is marked `unhealthy`. The frontend uses `depends_on: condition: service_healthy`, so it does not start serving until the backend is healthy.
+Docker runs it every 30 seconds (timeout 10 s, 3 retries, 10 s start period). After three failures in a row the backend is marked `unhealthy`. The frontend does not start until the backend is healthy.
 
 ## Logs
 
 ```bash
-docker compose logs -f backend       # follow backend
-docker compose logs -f frontend      # follow frontend
+docker compose logs -f backend
+docker compose logs -f frontend
 docker compose logs --tail=100 backend
 docker compose logs -f               # everything
 ```
@@ -37,72 +25,69 @@ docker compose logs -f               # everything
 Useful filters:
 
 ```bash
-docker compose logs backend | grep -i scan       # scan progress / completion
-docker compose logs backend | grep -i drive      # drive config issues
-docker compose logs backend | grep -i thumbnail  # thumbnail / ffmpeg errors
+docker compose logs backend | grep -i scan
+docker compose logs backend | grep -i drive
+docker compose logs backend | grep -i thumbnail
 ```
 
 ## Container status
 
 ```bash
-docker compose ps                    # service state + health
-docker compose top                   # processes per service
+docker compose ps
 docker inspect --format='{{json .State.Health}}' "$(docker compose ps -q backend)"
 ```
 
-Use the **service names** (`backend`, `frontend`) with `docker compose`, not raw container names — the container name depends on the Compose project directory and is not stable.
+Use service names (`backend`, `frontend`) with `docker compose`. Container names depend on the project directory.
 
 ## Admin dashboard
 
-`http://<host>:<port>/admin` shows per-drive file counts, disk usage, trash and missing counts, scan status, and system metrics. See [admin dashboard](admin-dashboard.md).
+`/admin` shows file counts, scan state, disk usage and cache sizes. See [admin dashboard](admin-dashboard.md).
 
 ## Common issues
 
-### Scan stuck or `409 Scan already in progress`
+### `409 Scan already in progress`
 
-Scans are serialised by a single global lock — only one drive scans at a time across the whole app, and there is no periodic auto-scan (scans run at backend startup and on manual `POST /api/drives/{drive}/scan`). A `409` means a scan is already running.
+Only one scan runs at a time across all drives. Scans run when the backend starts and when someone presses **Rescan**; there is no scheduled scan. A `409` means another scan is running.
 
 ```bash
-docker compose logs backend | grep -i scan   # confirm a scan is active
-docker compose restart backend               # releases the lock if it is genuinely stuck
+docker compose logs backend | grep -i scan   # is a scan running?
+docker compose restart backend               # if it is really stuck
 ```
 
 ### Drives not showing
 
-1. Validate `drives.json` syntax:
+1. Check that `drives.json` is valid JSON:
    ```bash
    python3 -c "import json; json.load(open('drives.json'))"
    ```
-2. Verify the drive directories are mounted into the **backend** container in `docker-compose.override.yml` (never edit `docker-compose.yml`).
-3. Check logs: `docker compose logs backend | grep -i drive`.
-4. `drives.json` changes only take effect after a restart: `docker compose restart backend`.
+2. Check that each drive's directory is mounted into the backend service in `docker-compose.override.yml`.
+3. Check the logs: `docker compose logs backend | grep -i drive`.
+4. Restart after changing `drives.json`: `docker compose restart backend`.
 
-### Protected drives not visible after `/unlock`
+### Protected drive not visible after unlocking
 
-1. Confirm `passwords.json` group names match the `access_group` values in `drives.json`.
-2. Ensure the backend has `passwords.json` mounted **read-write** (`./passwords.json:/app/passwords.json` in the override file — never `:ro`, which breaks GUI writes). `configure.py` adds this mount automatically.
-3. Ensure browser cookies are enabled — the JWT is the `access_token` cookie (DevTools → Application → Cookies).
-4. Restart the backend to reload config.
+1. Check that the password's groups in `passwords.json` match the drive's `access_group` in `drives.json`.
+2. Check that `passwords.json` is mounted read-write (`./passwords.json:/app/passwords.json`, without `:ro`).
+3. Check that the browser accepts cookies. The unlock is stored in the `access_token` cookie.
 
-A locked protected drive is intentionally returned as `404` (not `403`) so its existence stays hidden — this is expected behaviour, not a bug.
+A locked drive answers `404`, not `403`, so that its existence stays hidden. This is expected.
 
-### Thumbnails not displaying
+### Thumbnails not showing
 
-1. Check `data/thumbnails/` exists and is writable by the container.
-2. ffmpeg errors: `docker compose logs backend | grep -i thumbnail`.
-3. HEIC images use Pillow (`pillow-heif`), not ffmpeg — a black HEIC thumbnail usually means the Pillow path failed.
+1. Check that `data/thumbnails/` exists and the backend can write to it.
+2. Look for ffmpeg errors: `docker compose logs backend | grep -i thumbnail`.
+3. HEIC thumbnails are made with Pillow, not ffmpeg. A black HEIC thumbnail means that step failed.
 
-### Upload failures
+### Uploads
 
-- Stale/abandoned chunked uploads are cleaned automatically on backend startup.
-- On a same-path collision the new file is auto-suffixed; a *missing*-state file at the same path is revived in place.
+Unfinished uploads are removed when the backend starts.
 
-### Database checks
+### Database
 
-The SQLite DB is `data/data.db`.
+The database is `data/data.db`.
 
 ```bash
-# Quick row count from inside the container
+# Count file records
 docker compose exec backend python -c "
 from app.database import SessionLocal
 from app.models import File
@@ -110,37 +95,39 @@ db = SessionLocal()
 print('Total file rows:', db.query(File).count())
 db.close()
 "
-
-# Consistent on-disk snapshot (preferred over copying the live file)
-docker compose exec backend sqlite3 /app/data/data.db ".backup /app/data/data.db.bak"
 ```
 
-### WebSocket connection failures
+To take a consistent copy while it runs, see [backup and restore](backup-restore.md#quick-local-backup).
 
-WebSocket is proxied by the Next.js custom server (`frontend/server.js`) — the backend is never exposed directly.
+### Live updates stop
 
-- Browser DevTools → Network → WS to inspect the connection.
+Live updates use a WebSocket at `/api/ws`, passed through the frontend.
+
+- In the browser's developer tools, check the WS connection under Network.
 - `docker compose logs frontend | grep -i ws`.
-- The client reconnects with exponential backoff and refetches state on reconnect; there is no event replay.
 
 ### Changing the port
 
-Set `LITLOFT_PORT` in `.env`, or override the `ports` mapping in `docker-compose.override.yml`. **Do not edit `docker-compose.yml`.**
+Set `LITLOFT_PORT` in `.env`, or change the `ports` mapping in `docker-compose.override.yml`. Do not edit `docker-compose.yml`.
 
-### Missing files after a NAS / mount outage
+### Files marked missing after a NAS or mount outage
 
-If a whole drive root is unreachable the scanner short-circuits (`drive_path.exists() == False`) and does **not** flip every file to Missing. Restoring the mount and rescanning resumes normally. Do not run missing-purge while a mount is offline. Note the protection is drive-root only: if the mount is present but a subtree is unreadable, files under it will flip to Missing on that pass — re-running the scan after the subtree returns recovers them (a moved/returned file with unchanged content is matched by `(file_hash, file_size)` and restored in place).
+If a drive's whole directory is unreachable, the scan skips it and nothing is marked missing. Restore the mount and rescan.
+
+If the mount is there but a folder inside it cannot be read, files under that folder are marked missing. Rescan once the folder is back and they return with their data.
+
+Do not clear missing files while a mount is offline. See [Trash and missing files](../user-guide/trash-and-missing.md).
 
 ## Scheduled maintenance
 
-Automatic, in-app:
+Litloft does this on its own:
 
-- **Trash auto-purge** — soft-deleted files older than 30 days are purged at startup and every 24 h.
-- **Upload cleanup** — abandoned chunked uploads are removed at startup.
+- Trash: files trashed more than 30 days ago are deleted at startup and every 24 hours.
+- Uploads: unfinished uploads are removed at startup.
 
-Manual host hygiene:
+On the host:
 
 ```bash
-docker image prune -f     # reclaim space from old images after upgrades
+docker image prune -f     # remove old images after upgrades
 du -sh data/ data/thumbnails/
 ```

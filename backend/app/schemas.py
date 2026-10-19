@@ -1,9 +1,12 @@
 import math
 import re
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
+
+from app.models import TRUST_TIERS
+from app.services.chapters import ChapterRow, normalise_chapters
 
 
 class _UtcDateTimeMixin:
@@ -38,7 +41,11 @@ class FileResponse(_UtcDateTimeMixin, BaseModel):
     has_thumbnail: bool
     file_size: int
     duration: float | None
-    likes: int
+    # Populated for images only. Videos stay null: their thumbnails are
+    # letterboxed to 320x180, so a listing has no true ratio to lay out.
+    image_width: int | None = None
+    image_height: int | None = None
+    liked_at: datetime | None
     is_favorite: bool
     tags: list[str]
     subtitles: list[SubtitleInfo] = []
@@ -46,13 +53,57 @@ class FileResponse(_UtcDateTimeMixin, BaseModel):
     updated_at: datetime
     deleted_at: datetime | None = None
     missing_since: datetime | None = None
-    # Set only by /api/drives/{name}/files when ``search`` matches: tells
-    # the frontend whether the hit came from the title (filename engine),
-    # the folder_path, or both — drives the per-card "ファイル名 / パス"
-    # badge mix. Spec ``2026-05-02-search-path-match.md``.
+    # 'verified' plus a NULL reviewed stamp means the row was bulk-migrated
+    # or declared by an addon at ingest, not judged by a person; the UI
+    # tells those apart to offer a review queue.
+    trust_tier: str = "verified"
+    trust_reviewed_at: datetime | None = None
+    # Set only by /api/drives/{name}/files when ``search`` matches: whether
+    # the hit came from the title, the folder_path, or both.
     match_source: str | None = None
 
     model_config = {"from_attributes": True}
+
+
+class FileDetailResponse(FileResponse):
+    has_chapters: bool
+
+
+class FileVersionItemResponse(_UtcDateTimeMixin, BaseModel):
+    id: int
+    created_at: datetime
+    nickname: str | None
+    kind: Literal["auto", "explicit"]
+    size_bytes: int
+    lines_added: int
+    lines_removed: int
+
+    model_config = {"from_attributes": True}
+
+
+class FileVersionsResponse(BaseModel):
+    versions: list[FileVersionItemResponse]
+    total: int
+    limit: int
+    offset: int
+
+
+class FileVersionBodyResponse(BaseModel):
+    id: int
+    content: str
+    etag: str
+
+
+class FileVersionDiffLineResponse(BaseModel):
+    kind: Literal["add", "del", "context"]
+    text: str
+
+
+class FileVersionDiffResponse(BaseModel):
+    id: int
+    lines: list[FileVersionDiffLineResponse]
+    lines_added: int
+    lines_removed: int
 
 
 class FileUpdate(BaseModel):
@@ -116,6 +167,13 @@ class PaginatedResponse(BaseModel):
 class NeighborsResponse(BaseModel):
     prev_id: str | None
     next_id: str | None
+    # 1-origin place of this file in the sequence the arrows walk, out of
+    # ``total``. Both are null together when the sort key cannot order
+    # this file (an unliked file under ``sort=liked_at``): it is not in
+    # the sequence, so it has neither a place in it nor a reason to
+    # report its size.
+    position: int | None = None
+    total: int | None = None
 
 
 class DriveResponse(BaseModel):
@@ -135,8 +193,7 @@ class AddonPolicy(BaseModel):
 
     ``default`` is the bool shorthand (or the implicit-True default when a
     feature dict is provided). ``features`` is the per-feature override map
-    (empty when only the bool shorthand is configured). See
-    spec ``2026-05-10-markdown-document-layout`` §4 D4.
+    (empty when only the bool shorthand is configured).
     """
 
     default: bool
@@ -146,24 +203,38 @@ class AddonPolicy(BaseModel):
 class DriveAddonPoliciesResponse(BaseModel):
     """``GET /api/drives/{drive}/addon-policies`` response envelope.
 
-    Generic dictionary keyed by addon name (Internal API Policy R2 spirit:
-    no addon name leaks into the path/parameters; the response is a generic
-    map). Empty dict when the drive has no ``addons`` configured.
+    Empty dict when the drive has no ``addons`` configured.
     """
 
     addons: dict[str, AddonPolicy]
 
 
 FolderKind = Literal[
-    "markdown", "video", "image", "pdf", "audio", "document", "other"
+    "text", "video", "image", "pdf", "audio", "document", "archive", "other"
 ]
+"""The vocabulary a folder's contents are described in.
+
+`FileKind` minus `subtitle`, which no surface offers a word for and
+`_classify_kind` folds into `other`. `archive` is here because the folder
+card names it: the Filter menu offers *Archive*, so a folder of zips
+saying "40 items · Other" beside a filter that returns those forty would
+be two names for one thing.
+"""
 
 
 class FolderResponse(BaseModel):
     name: str
     path: str
     file_count: int
-    thumbnail_file_id: str | None
+    kind_counts: dict[str, int] = {}
+    """How many active files of each kind the folder holds, recursively.
+
+    Keys are ``FolderKind`` values; a kind the folder holds none of is
+    absent rather than zero. The counts sum to ``file_count``, so a
+    renderer can show the largest few and leave the rest to subtraction.
+
+    Empty for a folder with no files (an ``EmptyFolder`` row).
+    """
     dominant_kind: FolderKind | None = None
 
 
@@ -182,6 +253,11 @@ class FolderTreeNode(BaseModel):
 
 class TagResponse(BaseModel):
     name: str
+    count: int
+
+
+class FolderCountResponse(BaseModel):
+    path: str
     count: int
 
 
@@ -229,6 +305,7 @@ class FolderCreateRequest(BaseModel):
 class TextFileCreateRequest(BaseModel):
     path: str
     content: str = ""
+    conflict_mode: Literal["rename", "error"] = "rename"
 
 
 class FolderRenameRequest(BaseModel):
@@ -397,10 +474,7 @@ class ProgressUpdateRequest(BaseModel):
     # Both fields Optional so the same endpoint serves two use cases:
     # media playback (position+duration required) and "page-opened"
     # view records for non-media files (both omitted, only
-    # last_played_at advances). Mixing — sending only one — is rejected
-    # to keep WatchHistory rows consistent. See spec
-    # ``2026-04-26-intelligence-ask-personal-history-query.md`` §4.2
-    # Stage B for why text/image/PDF files must also surface here.
+    # last_played_at advances).
     position: float | None = None
     duration: float | None = None
 
@@ -431,8 +505,7 @@ class ProgressUpdateRequest(BaseModel):
         # All-or-nothing: sending only one of {position, duration}
         # leaves the WatchHistory row in an undefined state (e.g. a
         # position with no duration cannot be checked against the
-        # 90% completion gate in drives.py:570). Reject early so the
-        # endpoint contract stays explicit.
+        # 90% completion gate).
         if (self.position is None) != (self.duration is None):
             raise ValueError(
                 "position and duration must be sent together or both omitted"
@@ -466,9 +539,15 @@ class WatchHistoryItemResponse(_UtcDateTimeMixin, BaseModel):
     has_thumbnail: bool
     file_size: int
     duration: float | None
-    likes: int
+    # Mirrors FileResponse: the frontend's WatchHistoryItem extends
+    # FileItem, so a field dropped here would make that type lie.
+    image_width: int | None = None
+    image_height: int | None = None
+    liked_at: datetime | None
     is_favorite: bool
     tags: list[str]
+    trust_tier: str = "verified"
+    trust_reviewed_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
     watch_progress: WatchProgressInfo
@@ -588,16 +667,29 @@ class CollectionDetailResponse(_UtcDateTimeMixin, BaseModel):
 
 class DashboardDriveInfo(BaseModel):
     name: str
-    total_bytes: int
-    used_bytes: int
-    free_bytes: int
     file_count: int
     file_types: dict[str, int]
     last_scanned_at: datetime | None = None
     is_scanning: bool
 
 
+class DashboardFilesystemInfo(BaseModel):
+    """One mounted filesystem, and the drives that live on it.
+
+    Reported per filesystem rather than per drive because that is what
+    the number measures: drives sharing a disk would otherwise all show
+    the same bar.
+    """
+
+    mount_label: str
+    total_bytes: int
+    used_bytes: int
+    free_bytes: int
+    drives: list[str]
+
+
 class DashboardSystemInfo(BaseModel):
+    filesystems: list[DashboardFilesystemInfo] = []
     db_size_bytes: int
     thumbnail_cache_bytes: int
     converted_cache_bytes: int
@@ -693,12 +785,14 @@ class RelatedFileSummary(_UtcDateTimeMixin, BaseModel):
     id: str
     drive: str
     filename: str
+    title: str
     folder_path: str
     file_type: str
     mime_type: str
     thumbnail_url: str
     has_thumbnail: bool
     file_size: int
+    duration: float | None = None
     missing_since: datetime | None = None
     created_at: datetime
     updated_at: datetime
@@ -707,6 +801,8 @@ class RelatedFileSummary(_UtcDateTimeMixin, BaseModel):
 class FileRelationItem(_UtcDateTimeMixin, BaseModel):
     relation_id: int
     kind: str
+    direction: Literal["outgoing", "incoming"]
+    origin: str | None = None
     created_at: datetime
     created_by: str | None = None
     file: RelatedFileSummary
@@ -714,6 +810,74 @@ class FileRelationItem(_UtcDateTimeMixin, BaseModel):
 
 class FileRelationsResponse(BaseModel):
     relations: list[FileRelationItem]
+
+
+class FileChapterResponse(BaseModel):
+    start_time: float
+    end_time: float | None
+    title: str
+    ordering: int
+
+    model_config = {"from_attributes": True}
+
+
+class FileChaptersResponse(BaseModel):
+    chapters: list[FileChapterResponse]
+    source: Literal["extracted", "curated"] | None
+
+
+class ChapterPromotionItem(BaseModel):
+    """Untrusted chapter value supplied across the addon boundary.
+
+    Values intentionally stay loose here so the shared chapter normaliser can
+    apply the same drop/null rules used by ffprobe and yt-dlp. Core-owned
+    ``source`` and ``ordering`` are absent and extra fields are forbidden.
+    """
+
+    start_time: Any = None
+    end_time: Any = None
+    title: Any = None
+
+    model_config = {"extra": "forbid"}
+
+
+class ChapterPromotionRequest(BaseModel):
+    chapters: list[ChapterPromotionItem]
+
+    model_config = {"extra": "forbid"}
+
+    def normalised_chapters(self) -> list[ChapterRow]:
+        return normalise_chapters(
+            chapter.model_dump() for chapter in self.chapters
+        )
+
+    @model_validator(mode="after")
+    def _require_usable_chapter(self):
+        if not self.normalised_chapters():
+            raise ValueError("At least one valid chapter is required")
+        return self
+
+
+class TrustTierUpdate(BaseModel):
+    """Set a file's trust tier.
+
+    Symmetric on purpose: promotion and demotion travel the same path, so
+    reversibility is visible in the API shape rather than being a second
+    endpoint.
+    """
+
+    tier: str
+
+    model_config = {"extra": "forbid"}
+
+    @field_validator("tier")
+    @classmethod
+    def validate_tier(cls, v: str) -> str:
+        if v not in TRUST_TIERS:
+            raise ValueError(
+                f"tier must be one of {', '.join(TRUST_TIERS)}"
+            )
+        return v
 
 
 _SMART_FOLDER_FILE_TYPES = {"video", "image", "audio", "document"}
@@ -864,7 +1028,9 @@ def file_to_response(
         has_thumbnail=file.thumbnail_path is not None,
         file_size=file.file_size,
         duration=file.duration,
-        likes=file.likes,
+        image_width=file.image_width,
+        image_height=file.image_height,
+        liked_at=file.liked_at,
         is_favorite=file.is_favorite,
         tags=[tag.name for tag in file.tags],
         subtitles=subtitles or [],
@@ -872,5 +1038,7 @@ def file_to_response(
         updated_at=file.updated_at,
         deleted_at=file.deleted_at,
         missing_since=file.missing_since,
+        trust_tier=file.trust_tier,
+        trust_reviewed_at=file.trust_reviewed_at,
         match_source=match_source,
     )

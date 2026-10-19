@@ -11,19 +11,26 @@ import {
   type ReactNode,
 } from "react";
 
-import { normalizeKey, type ShortcutContextDef } from "@/lib/shortcuts";
+import { useImeKeyGuard } from "@/lib/ime";
+import {
+  normalizeKey,
+  orderContexts,
+  type ShortcutContextDef,
+} from "@/lib/shortcuts";
 import { ShortcutCheatSheet } from "./ShortcutCheatSheet";
 
 interface ShortcutsContextValue {
   push(ctx: ShortcutContextDef): void;
   pop(id: string): void;
   stack: ShortcutContextDef[];
+  openCheatSheet(): void;
 }
 
 export const ShortcutsContext = createContext<ShortcutsContextValue>({
   push: () => {},
   pop: () => {},
   stack: [],
+  openCheatSheet: () => {},
 });
 
 export function useShortcutsContext(): ShortcutsContextValue {
@@ -33,9 +40,8 @@ export function useShortcutsContext(): ShortcutsContextValue {
 export function ShortcutsProvider({ children }: { children: ReactNode }): ReactElement {
   const [stack, setStack] = useState<ShortcutContextDef[]>([]);
   const [cheatSheetOpen, setCheatSheetOpen] = useState(false);
+  const openCheatSheet = useCallback(() => setCheatSheetOpen(true), []);
 
-  // Keep a ref to the latest stack so the keydown handler always sees it
-  // without needing to be re-registered on every stack change.
   const stackRef = useRef<ShortcutContextDef[]>(stack);
   useEffect(() => {
     stackRef.current = stack;
@@ -43,8 +49,7 @@ export function ShortcutsProvider({ children }: { children: ReactNode }): ReactE
 
   const push = useCallback((ctx: ShortcutContextDef) => {
     setStack((prev) => {
-      // Remove any existing entry with the same id before pushing so that
-      // re-registrations from StrictMode double-mount don't duplicate entries.
+      // Re-registrations from StrictMode double-mount must not duplicate entries.
       const filtered = prev.filter((c) => c.id !== ctx.id);
       return [...filtered, ctx];
     });
@@ -54,42 +59,46 @@ export function ShortcutsProvider({ children }: { children: ReactNode }): ReactE
     setStack((prev) => prev.filter((c) => c.id !== id));
   }, []);
 
+  const { onCompositionEnd, isImeKeystroke } = useImeKeyGuard();
+  useEffect(() => {
+    document.addEventListener("compositionend", onCompositionEnd, true);
+    return () =>
+      document.removeEventListener("compositionend", onCompositionEnd, true);
+  }, [onCompositionEnd]);
+
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      const target = e.target as HTMLElement | null;
+      if (isImeKeystroke(e)) return;
+      const target = e.target instanceof HTMLElement ? e.target : null;
       const tag = target?.tagName;
       const isEditing =
         tag === "INPUT" ||
         tag === "TEXTAREA" ||
         tag === "SELECT" ||
-        target?.isContentEditable === true;
+        target?.isContentEditable === true ||
+        Boolean(target?.closest('[contenteditable="true"]'));
 
       const normalized = normalizeKey(e);
 
-      // Escape always closes the cheat sheet regardless of focus
       if (normalized === "escape" && cheatSheetOpen) {
         e.preventDefault();
         setCheatSheetOpen(false);
         return;
       }
 
-      // Toggle cheat sheet with '?' (suppressed while editing so users can type)
       if (normalized === "?" && !isEditing) {
         e.preventDefault();
         setCheatSheetOpen((prev) => !prev);
         return;
       }
 
-      // If cheat sheet is open, ignore other shortcuts
       if (cheatSheetOpen) return;
 
-      // Walk the stack top-to-bottom and pick the first shortcut whose
-      // editingOnly flag matches the current focus state. Partitioning by
-      // focus lets the same key bind to different handlers in editor vs
-      // non-editor contexts without needing to toggle layers manually.
-      const currentStack = stackRef.current;
-      for (let i = currentStack.length - 1; i >= 0; i--) {
-        const ctx = currentStack[i];
+      // Partitioning by focus lets the same key bind to different handlers
+      // in editor vs non-editor contexts.
+      const ordered = orderContexts(stackRef.current);
+      for (let i = 0; i < ordered.length; i++) {
+        const ctx = ordered[i];
         const match = ctx.shortcuts.find((s) => {
           if (s.key !== normalized) return false;
           // editingOnly === false: fires regardless of focus state.
@@ -108,10 +117,10 @@ export function ShortcutsProvider({ children }: { children: ReactNode }): ReactE
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [cheatSheetOpen]);
+  }, [cheatSheetOpen, isImeKeystroke]);
 
   return (
-    <ShortcutsContext.Provider value={{ push, pop, stack }}>
+    <ShortcutsContext.Provider value={{ push, pop, stack, openCheatSheet }}>
       {children}
       <ShortcutCheatSheet
         open={cheatSheetOpen}

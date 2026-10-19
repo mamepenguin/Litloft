@@ -1,15 +1,7 @@
-// DrivesSection test (RED phase)
-//
-// Choices for ambiguous parts:
-// - DrivesSection fetches GET /api/admin/config/drives on mount (no props required).
-// - Submit posts to PUT /api/admin/config/drives with the entire updated array.
-// - Add/Edit modal exposes name/path/group inputs.
-// - Errors render inline with the validation message in 日本語.
-// - Delete confirmation uses a button labeled /削除|delete/i then a confirm button.
-
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
+import { accentFills } from "@/__tests__/helpers/accentFills";
 import { DrivesSection } from "@/app/admin/settings/DrivesSection";
 
 const mockFetch = vi.fn();
@@ -34,6 +26,25 @@ const initialDrives = [
   { name: "main", path: "/data/main", access_group: "default" },
   { name: "private", path: "/data/private", access_group: "secret" },
 ];
+
+describe("DrivesSection accent budget", () => {
+  /**
+   * The page's one fill belongs to the thing it is for, which is saving a
+   * setting — not to "add a row", which is how you get to the form that
+   * saves one.
+   */
+  it("spends nothing until the modal that saves something is open", async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse(initialDrives));
+    const { container } = render(<DrivesSection />);
+    await waitFor(() => {
+      expect(screen.getByText("main")).toBeInTheDocument();
+    });
+    expect(accentFills(container)).toEqual([]);
+
+    fireEvent.click(screen.getByRole("button", { name: /add/i }));
+    expect(accentFills(container)).toHaveLength(1);
+  });
+});
 
 describe("DrivesSection", () => {
   it("loads drives from API on mount and shows the list", async () => {
@@ -149,7 +160,6 @@ describe("DrivesSection", () => {
       expect(screen.getByText("main")).toBeInTheDocument();
     });
 
-    // Open edit for "main"
     const editButtons = screen.getAllByRole("button", { name: /編集|edit/i });
     fireEvent.click(editButtons[0]);
 
@@ -178,7 +188,6 @@ describe("DrivesSection", () => {
     const deleteButtons = screen.getAllByRole("button", { name: /削除|delete/i });
     fireEvent.click(deleteButtons[0]);
 
-    // Confirmation prompt
     const confirmButton = await screen.findByRole("button", {
       name: /確認|confirm|ok/i,
     });
@@ -203,9 +212,6 @@ describe("DrivesSection", () => {
       expect(screen.getByText("main")).toBeInTheDocument();
     });
 
-    // A <details> disclosure (resolved i18n strings, not key paths) that
-    // tells the admin a new drive needs a docker-compose.override.yml
-    // mount + rebuild — consistent with the /setup DriveStep wording.
     expect(
       screen.getByText(/docker-compose\.override\.yml/i),
     ).toBeInTheDocument();

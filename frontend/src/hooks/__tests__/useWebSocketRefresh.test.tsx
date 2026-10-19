@@ -6,24 +6,26 @@ import { WebSocketContext } from "@/components/WebSocketProvider";
 import { useWebSocketRefresh } from "../useWebSocketRefresh";
 import type { WebSocketEvent } from "@/types";
 
-// Test harness: a controllable WS context provider plus a probe
-// component that calls the hook and counts callback invocations.
 function Harness({
   events,
   onMatch,
   initialEvent,
   setEvent,
+  drive,
+  connected = true,
 }: {
   events: string[];
   onMatch: () => void;
   initialEvent: WebSocketEvent | null;
   setEvent: (setter: (next: WebSocketEvent | null) => void) => void;
+  drive?: string;
+  connected?: boolean;
 }) {
   const [lastEvent, setLastEvent] = useState<WebSocketEvent | null>(initialEvent);
   setEvent((next) => setLastEvent(next));
   return (
-    <WebSocketContext.Provider value={{ lastEvent, connected: true }}>
-      <Probe events={events} onMatch={onMatch} />
+    <WebSocketContext.Provider value={{ lastEvent, connected }}>
+      <Probe events={events} onMatch={onMatch} drive={drive} />
     </WebSocketContext.Provider>
   );
 }
@@ -31,11 +33,13 @@ function Harness({
 function Probe({
   events,
   onMatch,
+  drive,
 }: {
   events: string[];
   onMatch: () => void;
+  drive?: string;
 }): ReactNode {
-  useWebSocketRefresh(events, onMatch);
+  useWebSocketRefresh(events, onMatch, drive);
   return null;
 }
 
@@ -143,11 +147,126 @@ describe("useWebSocketRefresh", () => {
       />,
     );
     await act(async () => {
-      // Two events back-to-back inside the same tick should yield one call.
       setter({ event: "files.moved", data: { file_ids: ["a"] } });
       setter({ event: "files.moved", data: { file_ids: ["b"] } });
       await flushMicrotasks();
     });
     expect(onMatch).toHaveBeenCalledTimes(1);
+  });
+
+  describe("drive scoping", () => {
+    function fire(
+      drive: string | undefined,
+      payloadDrive: unknown,
+      onMatch: () => void,
+    ) {
+      let setter: (next: WebSocketEvent | null) => void = () => {};
+      render(
+        <Harness
+          events={["drive.structure_changed"]}
+          onMatch={onMatch}
+          initialEvent={null}
+          drive={drive}
+          setEvent={(s) => {
+            setter = s;
+          }}
+        />,
+      );
+      act(() => {
+        setter({
+          event: "drive.structure_changed",
+          data: payloadDrive === undefined ? {} : { drive: payloadDrive },
+        });
+      });
+      return setter;
+    }
+
+    it("fires for an event on the subscribed drive", async () => {
+      const onMatch = vi.fn();
+      fire("photos", "photos", onMatch);
+      await flushMicrotasks();
+      expect(onMatch).toHaveBeenCalledTimes(1);
+    });
+
+    it("ignores an event for a different drive", async () => {
+      const onMatch = vi.fn();
+      fire("photos", "movies", onMatch);
+      await flushMicrotasks();
+      expect(onMatch).not.toHaveBeenCalled();
+    });
+
+    it("fires when the payload carries no drive", async () => {
+      const onMatch = vi.fn();
+      fire("photos", undefined, onMatch);
+      await flushMicrotasks();
+      expect(onMatch).toHaveBeenCalledTimes(1);
+    });
+
+    it("fires for every drive when no drive is given", async () => {
+      const onMatch = vi.fn();
+      fire(undefined, "movies", onMatch);
+      await flushMicrotasks();
+      expect(onMatch).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("reconnect catch-up", () => {
+    function Reconnectable({ onMatch }: { onMatch: () => void }) {
+      const [connected, setConnected] = useState(true);
+      (globalThis as Record<string, unknown>).__setConnected = setConnected;
+      return (
+        <WebSocketContext.Provider value={{ lastEvent: null, connected }}>
+          <Probe events={["drive.structure_changed"]} onMatch={onMatch} />
+        </WebSocketContext.Provider>
+      );
+    }
+
+    function setConnected(next: boolean) {
+      act(() => {
+        (
+          globalThis as unknown as {
+            __setConnected: (v: boolean) => void;
+          }
+        ).__setConnected(next);
+      });
+    }
+
+    it("does not fire on the first connection", async () => {
+      const onMatch = vi.fn();
+      render(<Reconnectable onMatch={onMatch} />);
+      await flushMicrotasks();
+      expect(onMatch).not.toHaveBeenCalled();
+    });
+
+    it("fires once after a drop and reconnect", async () => {
+      const onMatch = vi.fn();
+      render(<Reconnectable onMatch={onMatch} />);
+      await flushMicrotasks();
+
+      setConnected(false);
+      await flushMicrotasks();
+      expect(onMatch).not.toHaveBeenCalled();
+
+      setConnected(true);
+      await flushMicrotasks();
+      expect(onMatch).toHaveBeenCalledTimes(1);
+    });
+
+    it("fires again on a second reconnect", async () => {
+      const onMatch = vi.fn();
+      render(<Reconnectable onMatch={onMatch} />);
+      await flushMicrotasks();
+
+      setConnected(false);
+      await flushMicrotasks();
+      setConnected(true);
+      await flushMicrotasks();
+      setConnected(false);
+      await flushMicrotasks();
+      setConnected(true);
+      await flushMicrotasks();
+
+      expect(onMatch).toHaveBeenCalledTimes(2);
+    });
   });
 });

@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The diff modifies the existing test `addons/intelligence/tests/test_refine_job_model.py`, which is not in the touch-point list: that list names only new tests citing SPEC-ADDON-019.",
+      "impact": "No user-facing impact. A reader of the touch points does not learn that `_run_refine_job` now needs `fts_transcripts`/`fts_transcripts_word` in any DB it runs against. An existing refine test fixture had to be changed for that reason, and any other fixture without those tables would now fail with 'no such table'. Production is unaffected because `app/database.py:1196` and `:1226` create both tables at init.",
+      "evidence": "`addons/intelligence/tests/test_refine_job_model.py:16` now imports `text`. Lines 29-33 create the two FTS5 tables so that the new `_reindex_keywords` call (`refine.py`, per-window write block) does not raise. The test is not new and does not cite SPEC-ADDON-019.",
+      "repro": "Mutation: revert lines 29-33 of test_refine_job_model.py. `_reindex_keywords` then runs `DELETE FROM fts_transcripts` against a DB that lacks the table. The write block raises, the chunk text stays 'hello world' and the assertion at line 81 fails. Inferred by reading; not run.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant is broken. The touch-point list is incomplete because it omits an existing test fixture that the new dependency on the keyword tables forced to change.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add `addons/intelligence/tests/test_refine_job_model.py` (its fixture now creates the keyword tables) to the touch points in the invariants revision file."
+    }
+  ],
+  "specification_compliance": [
+    "refine.py: `_reindex_keywords` is added and called in the per-window write block, and in the rechunk write block when new_ids is non-empty. Both places are listed.",
+    "database.py: `upsert_fts_transcripts` is only called and is not changed. This matches the touch points.",
+    "New test file `tests/test_refine_fts_reindex.py` cites SPEC-ADDON-019. Listed.",
+    "The `addons/intelligence` submodule pointer bump is listed.",
+    "docs/addons/intelligence.md: only the Transcript refine sentence on keyword search changed, plus one added sentence in the same paragraph about earlier-refined files. This stays within the listed section.",
+    "docs/specs/refine-fts-reindex.md and docs/specs/INDEX.md are implicit touch points."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "`_run_refine_job` now requires the `fts_transcripts` and `fts_transcripts_word` tables to exist in the search DB. The spec does not state this as a precondition; production init creates both."
+  ],
+  "regression_risks": [
+    "Any other test or tool that runs `_run_refine_job` against a minimal schema without the FTS tables now fails inside the write block. A grep found only test_refine_job_model.py and the new test file calling it."
+  ],
+  "test_coverage": [
+    "The new tests cover I1, I2, I3, the I4-like no-rechunk path, I5, I6, I7 and I8 (failure in the rechunk write block).",
+    "test_refine_job_model.py was adjusted only to create the tables. It asserts nothing about the keyword rows."
+  ],
+  "not_verified": [
+    "Did not run any tests; the mutation results are inferred by reading.",
+    "Did not inspect the addon commit history beyond the shown diff to confirm no other files changed in the submodule.",
+    "Did not check the invariants revision file `docs/process/reviews/feature-refine-fts-reindex/invariants.md` contents directly."
+  ],
+  "confidence": 85
+}

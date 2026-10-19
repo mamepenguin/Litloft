@@ -14,6 +14,7 @@ import {
 
 import { batchDelete, getDrives, getDuplicates, getThumbnailUrl } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
+import { primaryMetaLine } from "@/lib/primaryMeta";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import type { Drive, DuplicateGroup, DuplicatesResponse, FileItem } from "@/types";
 
@@ -87,6 +88,7 @@ function FileRow({
   onToggle: () => void;
 }) {
   const t = useTranslations("admin");
+  const metaLine = primaryMetaLine(file);
 
   return (
     <label
@@ -119,7 +121,7 @@ function FileRow({
               {file.folder_path || "/"}
             </span>
           </span>
-          <span>{formatFileSize(file.file_size)}</span>
+          {metaLine !== null && <span>{metaLine}</span>}
         </div>
       </div>
       {isKept && (
@@ -298,7 +300,7 @@ export function DuplicatesSection() {
   return (
     <section className="mb-8">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold uppercase text-text-muted">
+        <h2 className="text-sm font-semibold text-text-muted">
           {t("duplicates")}
         </h2>
         <DriveSelector

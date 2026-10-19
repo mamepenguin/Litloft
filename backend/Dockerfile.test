@@ -2,9 +2,32 @@ FROM python:3.12-slim
 RUN apt-get update && apt-get install -y ffmpeg libheif-dev curl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 RUN mkdir -p /app/data
-COPY requirements-dev.txt requirements.txt ./
+
+# Built from the repository root so the tests can reach `configure.py` and the
+# compose template, which live above `backend/`.
+#
+# `.dockerignore` keeps the context small; without it the daemon is handed
+# the whole media library.
+COPY backend/requirements-dev.txt backend/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements-dev.txt
-COPY app/ ./app/
-COPY tests/ ./tests/
-COPY pytest.ini ./
-CMD ["pytest", "-v", "--tb=short", "--cov=app", "--cov-report=term-missing"]
+COPY backend/app/ ./app/
+COPY backend/tests/ ./tests/
+COPY backend/pytest.ini ./
+
+# The recording script the classifier fixture is regenerated with. It runs
+# against a revision's `filetype.py`, so it has to be reachable from inside
+# the image the comparison is made in.
+COPY backend/scripts/ ./scripts/
+
+# Repo-root files under test. `_repo/` mirrors their real layout so a test
+# can point `configure.py` at a tree shaped like the project.
+COPY configure.py ./_repo/configure.py
+COPY docker-compose.override.yml.example ./_repo/docker-compose.override.yml.example
+COPY docker-compose.yml ./_repo/docker-compose.yml
+COPY setup-addons.sh ./_repo/setup-addons.sh
+
+# No coverage flags here, and no floor. A command passed to `docker run`
+# *replaces* this CMD, so anything put here is absent from every partial run —
+# which is why measurement is configured where it cannot be displaced, and why
+# the floor is added by the CI step, where a run is known to be complete.
+CMD ["pytest", "-v", "--tb=short"]

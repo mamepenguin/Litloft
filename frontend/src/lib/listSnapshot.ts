@@ -1,6 +1,6 @@
 "use client";
 
-import type { FileItem, FileType, Folder, SortField, SortOrder, ViewMode } from "@/types";
+import type { FileItem, FileKind, Folder, SortField, SortOrder, ViewMode } from "@/types";
 
 const STORAGE_KEY = "hv_list_snapshot";
 const TTL_MS = 2 * 60 * 60 * 1000;
@@ -8,7 +8,7 @@ const TTL_MS = 2 * 60 * 60 * 1000;
 export interface ListSnapshotFilters {
   sort: SortField;
   order: SortOrder;
-  typeFilter: FileType | null;
+  typeFilter: FileKind | null;
   viewMode: ViewMode;
 }
 
@@ -39,10 +39,17 @@ export function buildListSnapshotKey(parts: ListSnapshotKeyParts): string {
   ].join("|");
 }
 
-const SORT_FIELDS: readonly SortField[] = ["created_at", "title", "file_size", "likes", "random"];
+// Deliberately narrower than ``lib/sortField``: a snapshot is never taken
+// in search mode, so ``relevance`` must not validate here.
+const SORT_FIELDS: readonly SortField[] = ["created_at", "title", "file_size", "random"];
 const SORT_ORDERS: readonly SortOrder[] = ["asc", "desc"];
 const VIEW_MODES: readonly ViewMode[] = ["grid", "list"];
-const FILE_TYPES: readonly FileType[] = ["video", "image", "audio", "document", "archive", "subtitle", "other"];
+// A snapshot is restored into the toolbar's filter, so what it may
+// carry is exactly what the toolbar can hold. `subtitle` is not one of
+// them: it is a `file_type` no listing offers.
+const FILE_KINDS: readonly FileKind[] = [
+  "video", "image", "audio", "document", "archive", "other", "text", "pdf",
+];
 
 function isValidSnapshot(value: unknown): value is ListSnapshot {
   if (!value || typeof value !== "object") return false;
@@ -59,7 +66,7 @@ function isValidSnapshot(value: unknown): value is ListSnapshot {
   if (!SORT_FIELDS.includes(filters.sort as SortField)) return false;
   if (!SORT_ORDERS.includes(filters.order as SortOrder)) return false;
   if (!VIEW_MODES.includes(filters.viewMode as ViewMode)) return false;
-  if (filters.typeFilter !== null && !FILE_TYPES.includes(filters.typeFilter as FileType)) return false;
+  if (filters.typeFilter !== null && !FILE_KINDS.includes(filters.typeFilter as FileKind)) return false;
   return true;
 }
 
@@ -70,7 +77,6 @@ export function loadListSnapshot(key: string): ListSnapshot | null {
     if (!raw) return null;
     const parsed: unknown = JSON.parse(raw);
     if (!isValidSnapshot(parsed)) {
-      // Unknown or stale shape (e.g. schema change, manual edit) — evict.
       window.sessionStorage.removeItem(STORAGE_KEY);
       return null;
     }

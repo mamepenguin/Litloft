@@ -47,7 +47,6 @@ vi.mock("@/lib/format", () => ({
 }));
 
 const expandSection = () => {
-  // Section is collapsed by default; click the header button to expand.
   fireEvent.click(screen.getByRole("button", { name: /Comments/ }));
 };
 
@@ -150,6 +149,31 @@ describe("CommentSection", () => {
     fireEvent.change(textarea, { target: { value: "Hello" } });
     fireEvent.click(screen.getByLabelText("Post"));
 
+    await waitFor(() => {
+      expect(mockCreateComment).toHaveBeenCalledWith("file-1", "Hello");
+    });
+  });
+
+  it("posts on Cmd+Enter and not on a bare Enter", async () => {
+    mockGetComments.mockResolvedValue({ comments: [], total: 0 });
+    mockCreateComment.mockResolvedValue({
+      id: "new-1",
+      nickname: "Alice",
+      body: "Hello",
+      is_mine: true,
+      created_at: "2026-04-03T13:00:00Z",
+      updated_at: "2026-04-03T13:00:00Z",
+    });
+
+    render(<CommentSection fileId="file-1" />);
+    expandSection();
+    const textarea = await screen.findByPlaceholderText("Write a comment...");
+    fireEvent.change(textarea, { target: { value: "Hello" } });
+
+    fireEvent.keyDown(textarea, { key: "Enter" });
+    expect(mockCreateComment).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(textarea, { key: "Enter", metaKey: true });
     await waitFor(() => {
       expect(mockCreateComment).toHaveBeenCalledWith("file-1", "Hello");
     });

@@ -1,14 +1,3 @@
-// DriveStep test (Phase 2: detected-drives redesign).
-//
-// spec 2026-05-19-gui-first-setup-cli-bootstrap §3.3 / plan Phase 2.
-//
-// The DriveStep no longer asks the user to type a host path. The backend
-// seeds drives.json from the container mount directories, so by the time
-// /setup loads there are N stub drives. DriveStep renders that detected
-// list: the display name and access group are editable, the path is
-// read-only. When zero drives are detected it shows mount guidance and
-// disables Next.
-
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
@@ -66,7 +55,6 @@ describe("DriveStep (detected drives)", () => {
     const mediaPath = screen.getByText("/app/drives/media");
     expect(mediaPath).toBeInTheDocument();
     expect(mediaPath.tagName).not.toBe("INPUT");
-    // No textbox should carry the path as an editable value.
     const pathTextbox = screen.queryByDisplayValue("/app/drives/media");
     expect(pathTextbox === null || pathTextbox.tagName !== "INPUT").toBe(true);
   });

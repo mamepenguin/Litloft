@@ -1,28 +1,4 @@
-"""Integration tests for frontmatter ``aliases:`` → ``File.md_aliases`` projection.
-
-Spec: docs/superpowers/specs/2026-05-12-markdown-link-three-forms.md
-§3.6 and Phase B.
-
-For ``.md`` files, ``PUT /api/files/{id}/content`` must:
-
-1. Parse the frontmatter ``aliases:`` list.
-2. Validate each entry (string, length <= 100, non-empty after strip).
-3. Project the cleaned list (JSON-encoded) into ``File.md_aliases``.
-4. Cap the list at 20 entries.
-5. Same isolation pattern as the Phase A ``md_id`` projection: a
-   projection failure must not roll back the content write.
-
-Storage shape (resolved spec ambiguity): a JSON-encoded list of
-strings (``json.dumps(["alpha", "beta"])`` → ``'["alpha", "beta"]'``)
-because the column is ``Text`` (per spec §3.6).
-
-For non-list / empty / invalid input, ``md_aliases`` is set to ``NULL``
-(resolved spec ambiguity: NULL is "no aliases" — both an empty list
-and absence of the key serialise the same way; NULL is the canonical
-"missing" form).
-
-These tests RED until Phase B implementation lands.
-"""
+"""Integration tests for frontmatter ``aliases:`` → ``File.md_aliases`` projection."""
 from __future__ import annotations
 
 import hashlib
@@ -127,8 +103,6 @@ class TestAliasesProjectionHappyPath:
         assert "YearRecap" in loaded
 
     def test_control_chars_and_bidi_stripped(self, client):
-        # RTL override + zero-width spaces are removed; surviving visible
-        # characters form the canonical alias.
         api, session, drive_dir, _ = client
         file = _seed_md(session, drive_dir, "n.md", "initial\n")
         # YAML double-quoted scalar so we can embed \u escapes literally.
@@ -153,7 +127,6 @@ class TestAliasesProjectionHappyPath:
 
 class TestAliasesProjectionDegenerateInput:
     def test_empty_list_becomes_null(self, client):
-        # Empty ``aliases: []`` projects to NULL (canonical "no aliases").
         api, session, drive_dir, _ = client
         file = _seed_md(session, drive_dir, "n.md", "initial\n")
         new_content = "---\naliases: []\n---\n\nbody\n"
@@ -186,9 +159,6 @@ class TestAliasesProjectionDegenerateInput:
         assert refreshed.md_aliases is None
 
     def test_non_list_aliases_becomes_null(self, client):
-        # ``aliases: "alpha"`` (a bare string, not a list) → invalid →
-        # NULL.  The frontmatter is still accepted; only the projection
-        # is rejected silently.
         api, session, drive_dir, _ = client
         file = _seed_md(session, drive_dir, "n.md", "initial\n")
         new_content = "---\naliases: alpha\n---\n\nbody\n"
@@ -205,8 +175,6 @@ class TestAliasesProjectionDegenerateInput:
         assert refreshed.md_aliases is None
 
     def test_non_string_elements_filtered_out(self, client):
-        # YAML allows mixed types in a list.  Non-string entries are
-        # dropped silently.
         api, session, drive_dir, _ = client
         file = _seed_md(session, drive_dir, "n.md", "initial\n")
         new_content = (
@@ -229,7 +197,6 @@ class TestAliasesProjectionDegenerateInput:
 
 class TestAliasesProjectionLimits:
     def test_caps_at_20_entries(self, client):
-        # The cap is 20 entries; everything beyond is dropped.
         api, session, drive_dir, _ = client
         file = _seed_md(session, drive_dir, "n.md", "initial\n")
         aliases = "\n".join(f"  - a{i:02d}" for i in range(30))
@@ -246,7 +213,6 @@ class TestAliasesProjectionLimits:
         refreshed = _refresh(session, file.id)
         loaded = json.loads(refreshed.md_aliases)
         assert len(loaded) == 20
-        # First 20 survive in order.
         assert loaded == [f"a{i:02d}" for i in range(20)]
 
     def test_drops_entries_longer_than_100_chars(self, client):
@@ -294,8 +260,6 @@ class TestAliasesProjectionLimits:
 
 class TestAliasesProjectionRewrite:
     def test_subsequent_write_replaces_aliases(self, client):
-        # Editing the frontmatter to a smaller list must overwrite,
-        # not merge.
         api, session, drive_dir, _ = client
         file = _seed_md(session, drive_dir, "n.md", "initial\n")
 
@@ -361,7 +325,6 @@ class TestAliasesProjectionRewrite:
 
 class TestAliasesProjectionNonMd:
     def test_txt_file_md_aliases_remains_null(self, client):
-        # Non-markdown files: ``md_aliases`` is always NULL.
         api, session, drive_dir, _ = client
         txt_path = drive_dir / "plain.txt"
         txt_path.write_text("initial\n")
@@ -410,7 +373,6 @@ class TestMdAliasesColumn:
         db_session.add(f)
         db_session.commit()
         db_session.refresh(f)
-        # NULL is the default for new rows.
         assert f.md_aliases is None
 
     def test_column_accepts_json_string(self, db_session):

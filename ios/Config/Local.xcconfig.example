@@ -1,0 +1,5 @@
+// Copy to Local.xcconfig and fill in. Not tracked by git.
+// The team id is on your Apple Developer account; the bundle id has to be
+// one that account owns, or signing for a device fails.
+LITLOFT_BUNDLE_ID = com.yourname.Litloft
+LITLOFT_DEVELOPMENT_TEAM = ABCDE12345

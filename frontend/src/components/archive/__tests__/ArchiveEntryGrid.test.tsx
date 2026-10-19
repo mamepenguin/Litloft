@@ -71,9 +71,6 @@ describe("ArchiveEntryGrid", () => {
       />
     );
 
-    // Global next-intl mock resolves "archive.emptyFolder" to the en.json
-    // entry; if not present it falls back to the namespace.key literal.
-    // Match either form.
     const empty =
       screen.queryByText(/empty folder/i) ??
       screen.queryByText("archive.emptyFolder") ??
@@ -101,7 +98,6 @@ describe("ArchiveEntryGrid", () => {
     expect(screen.getByText("photos")).toBeInTheDocument();
     expect(screen.getByText("a.jpg")).toBeInTheDocument();
     expect(screen.getByText("b.txt")).toBeInTheDocument();
-    // Each entry becomes a clickable card button
     const buttons = screen.getAllByRole("button");
     expect(buttons.length).toBe(entries.length);
   });
@@ -150,5 +146,85 @@ describe("ArchiveEntryGrid", () => {
     expect(handleFileClick).toHaveBeenCalledTimes(1);
     expect(handleFileClick).toHaveBeenCalledWith(file);
     expect(handleDirClick).not.toHaveBeenCalled();
+  });
+
+  describe("page names", () => {
+    const pages = (n: number, ext = "jpg") =>
+      Array.from({ length: n }, (_, i) =>
+        makeEntry(`p01_${String(i).padStart(3, "0")}.${ext}`, {
+          file_type: "image",
+          mime_type: "image/jpeg",
+        }),
+      );
+
+    it("drops the filename when the level is all images", () => {
+      render(
+        <ArchiveEntryGrid
+          entries={pages(6)}
+          fileId="a1"
+          handleDirClick={vi.fn()}
+          handleFileClick={vi.fn()}
+          isClickable={() => true}
+        />,
+      );
+      expect(screen.queryByText("p01_000.jpg")).toBeNull();
+      expect(screen.queryByText("p01_005.jpg")).toBeNull();
+    });
+
+    it("keeps the filename once the level is mixed", () => {
+      render(
+        <ArchiveEntryGrid
+          entries={[
+            ...pages(5),
+            makeEntry("credits.txt", { file_type: "document", mime_type: "text/plain" }),
+          ]}
+          fileId="a1"
+          handleDirClick={vi.fn()}
+          handleFileClick={vi.fn()}
+          isClickable={() => true}
+        />,
+      );
+      expect(screen.getByText("p01_000.jpg")).toBeInTheDocument();
+      expect(screen.getByText("credits.txt")).toBeInTheDocument();
+    });
+
+    it("keeps folder names, which are the only handle a folder has", () => {
+      render(
+        <ArchiveEntryGrid
+          entries={[...pages(5), makeEntry("chapter-2/")]}
+          fileId="a1"
+          handleDirClick={vi.fn()}
+          handleFileClick={vi.fn()}
+          isClickable={() => true}
+        />,
+      );
+      expect(screen.getByText("chapter-2")).toBeInTheDocument();
+    });
+
+    it("does not let a folder make the images look mixed", () => {
+      render(
+        <ArchiveEntryGrid
+          entries={[...pages(5), makeEntry("chapter-2/")]}
+          fileId="a1"
+          handleDirClick={vi.fn()}
+          handleFileClick={vi.fn()}
+          isClickable={() => true}
+        />,
+      );
+      expect(screen.queryByText("p01_000.jpg")).toBeNull();
+    });
+
+    it("keeps a single image's name", () => {
+      render(
+        <ArchiveEntryGrid
+          entries={pages(1)}
+          fileId="a1"
+          handleDirClick={vi.fn()}
+          handleFileClick={vi.fn()}
+          isClickable={() => true}
+        />,
+      );
+      expect(screen.getByText("p01_000.jpg")).toBeInTheDocument();
+    });
   });
 });

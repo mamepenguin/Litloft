@@ -1,8 +1,3 @@
-// Helpers for /api/admin/config/* endpoints used by the admin settings UI
-// and the first-run wizard. Validation errors come back as 422 with a
-// `{detail: {code, field?, message?}}` body — the helpers normalize that
-// shape so callers can pattern-match on `code`.
-
 export interface DriveEntry {
   name: string;
   path: string;
@@ -19,6 +14,28 @@ export type AddonPolicy = Record<
   string,
   Record<string, boolean | Record<string, boolean>>
 >;
+
+/**
+ * The backend's reading of a stored policy (`config.is_addon_feature_enabled`):
+ * anything not stored is on. An addon counts as on when its `index` feature is.
+ */
+export function isAddonFeatureOn(
+  policy: AddonPolicy,
+  drive: string,
+  addon: string,
+  feature: string,
+): boolean {
+  const value = policy[drive]?.[addon];
+  if (typeof value === "boolean") return value;
+  if (typeof value === "object" && value !== null && feature in value) {
+    return Boolean(value[feature]);
+  }
+  return true;
+}
+
+export function isAddonOn(policy: AddonPolicy, drive: string, addon: string): boolean {
+  return isAddonFeatureOn(policy, drive, addon, "index");
+}
 
 export interface RestartStatus {
   pending: boolean;
@@ -83,6 +100,13 @@ async function parseError(res: Response): Promise<AdminConfigError> {
   return new AdminConfigError(res.status, detail);
 }
 
+export const SETUP_TOKEN_HEADER = "X-Litloft-Setup-Token";
+
+/** The token is only ever sent by the first-run wizard. */
+function setupTokenHeader(token?: string): Record<string, string> {
+  return token ? { [SETUP_TOKEN_HEADER]: token } : {};
+}
+
 async function requestJson<T>(
   url: string,
   init?: RequestInit,
@@ -101,16 +125,37 @@ async function requestJson<T>(
   return (await res.json()) as T;
 }
 
+/** Thrown when the install has already been through setup. */
+export class SetupAlreadyCompletedError extends Error {}
+
+export async function verifySetupToken(token: string): Promise<void> {
+  try {
+    await requestJson<unknown>("/api/admin/config/setup-token/verify", {
+      method: "POST",
+      body: JSON.stringify({ token }),
+    });
+  } catch (err) {
+    if (err instanceof AdminConfigError && err.code === "setup_completed") {
+      throw new SetupAlreadyCompletedError();
+    }
+    throw err;
+  }
+}
+
 export async function getDrives(): Promise<DriveEntry[]> {
   return requestJson<DriveEntry[]>("/api/admin/config/drives", {
     method: "GET",
   });
 }
 
-export async function putDrives(drives: DriveEntry[]): Promise<void> {
+export async function putDrives(
+  drives: DriveEntry[],
+  setupToken?: string,
+): Promise<void> {
   await requestJson<unknown>("/api/admin/config/drives", {
     method: "PUT",
     body: JSON.stringify(drives),
+    headers: setupTokenHeader(setupToken),
   });
 }
 
@@ -120,10 +165,14 @@ export async function getPasswords(): Promise<PasswordEntry[]> {
   });
 }
 
-export async function putPasswords(entries: PasswordEntry[]): Promise<void> {
+export async function putPasswords(
+  entries: PasswordEntry[],
+  setupToken?: string,
+): Promise<void> {
   await requestJson<unknown>("/api/admin/config/passwords", {
     method: "PUT",
     body: JSON.stringify(entries),
+    headers: setupTokenHeader(setupToken),
   });
 }
 
@@ -146,10 +195,14 @@ export async function getAddonPolicy(): Promise<AddonPolicy> {
   });
 }
 
-export async function putAddonPolicy(policy: AddonPolicy): Promise<void> {
+export async function putAddonPolicy(
+  policy: AddonPolicy,
+  setupToken?: string,
+): Promise<void> {
   await requestJson<unknown>("/api/admin/config/addon-policy", {
     method: "PUT",
     body: JSON.stringify(policy),
+    headers: setupTokenHeader(setupToken),
   });
 }
 
@@ -165,9 +218,10 @@ export async function getSetupStatus(): Promise<SetupStatus> {
   });
 }
 
-export async function postCompleteSetup(): Promise<void> {
+export async function postCompleteSetup(setupToken?: string): Promise<void> {
   await requestJson<unknown>("/api/admin/config/complete-setup", {
     method: "POST",
+    headers: setupTokenHeader(setupToken),
   });
 }
 

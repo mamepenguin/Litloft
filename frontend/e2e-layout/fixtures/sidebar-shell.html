@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>sidebar shell — layout fixture</title>
+    <!--
+      No <style> of its own: every declaration measured here has to come
+      out of the app's own stylesheet.
+    -->
+    <link rel="stylesheet" href="./globals.built.css" />
+  </head>
+  <body>
+    <!--
+      The URL hash is the state: `inline-open`, `overlay-open` or `closed`.
+    -->
+    <script type="application/json" id="fixture-markup">
+      {
+        "inlineMinWidth": 1200,
+        "asideOpen": "fixed top-0 left-0 z-40 h-dvh w-60 flex-shrink-0 border-r border-bg-border bg-bg-sidebar transition-transform duration-150 ease-out translate-x-0",
+        "asideClosed": "fixed top-0 left-0 z-40 h-dvh w-60 flex-shrink-0 border-r border-bg-border bg-bg-sidebar transition-transform duration-150 ease-out -translate-x-full",
+        "scrim": "fixed inset-0 z-30 bg-black/50",
+        "contentInlineOpen": "flex min-h-dvh min-w-0 flex-col transition-[padding] duration-150 ease-out min-[1200px]:pl-60",
+        "content": "flex min-h-dvh min-w-0 flex-col transition-[padding] duration-150 ease-out",
+        "main": "flex min-w-0 flex-1 flex-col"
+      }
+    </script>
+
+    <script>
+      const SPEC = JSON.parse(
+        document.getElementById("fixture-markup").textContent,
+      );
+      const state = location.hash.slice(1) || "inline-open";
+      const open = state !== "closed";
+
+      if (state === "overlay-open") {
+        const scrim = document.createElement("div");
+        scrim.id = "scrim";
+        scrim.className = SPEC.scrim;
+        document.body.append(scrim);
+      }
+
+      const aside = document.createElement("aside");
+      aside.id = "aside";
+      aside.className = open ? SPEC.asideOpen : SPEC.asideClosed;
+      aside.textContent = "sidebar";
+      document.body.append(aside);
+
+      const content = document.createElement("div");
+      content.id = "content";
+      content.className = state === "inline-open" ? SPEC.contentInlineOpen : SPEC.content;
+      const main = document.createElement("main");
+      main.className = SPEC.main;
+      const first = document.createElement("p");
+      first.id = "first";
+      first.textContent = "content";
+      main.append(first);
+      content.append(main);
+      document.body.append(content);
+      document.body.dataset.ready = "1";
+    </script>
+  </body>
+</html>

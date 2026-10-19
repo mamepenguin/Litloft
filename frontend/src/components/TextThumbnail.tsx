@@ -2,18 +2,48 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { FileItem } from "@/types";
+import { getPreviewTextUrl } from "@/lib/api";
+import { OFFICE_MIMES } from "@/lib/officeFiles";
 
-const OFFICE_MIMES = new Set([
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-]);
 
-function stripPreviewText(raw: string): string {
-  return raw
-    .replace(/^---[\s\S]*?---\n?/, "")
+
+/**
+ * A web clip's frontmatter is `---`, `id:`, `url:`, `origin:`,
+ * `created:`, `---` — about 80 bytes plus the source URL, so its size
+ * is really the URL's.
+ * A kilobyte covers a ~950-character URL, and the card draws three
+ * lines whatever it is handed, so the extra bytes cost nothing.
+ */
+const PREVIEW_WINDOW_BYTES = 1024;
+
+/**
+ * What comes off are the things every clipped note has in common —
+ * frontmatter, the hero image, the source URL on its own line — because
+ * a shape that is identical on every card is not a shape. Prose that
+ * merely contains a link keeps its words.
+ */
+export function stripPreviewText(raw: string): string {
+  const closed = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/.test(raw);
+  // Opened but never closed inside the window: everything fetched is
+  // frontmatter. Showing the fragment would put `id:` and `url:` on the
+  // card, so show nothing and let the title stand alone. The `key:
+  // value` test is what separates that from a note that simply opens on
+  // a horizontal rule — which is rare, but would otherwise go blank.
+  const truncatedFrontmatter =
+    !closed && /^---\r?\n[ \t]*[A-Za-z][\w-]*:[ \t]/.test(raw);
+  const body = closed
+    ? raw.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "")
+    : truncatedFrontmatter
+      ? ""
+      : raw;
+
+  return body
     .replace(/<[^>]+>/g, "")
     .replace(/^#+ /gm, "")
+    .replace(/^[ \t]*!\[[^\]]*\]\([^)]*\)[ \t]*$/gm, "")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    // A line that is nothing but a URL — the clipper's source line.
+    .replace(/^[ \t]*<?https?:\/\/\S+>?[ \t]*$/gm, "")
     .replace(/\*\*([^*]+)\*\*/g, "$1")
     .replace(/\*([^*]+)\*/g, "$1")
     .replace(/\n{3,}/g, "\n\n")
@@ -38,9 +68,9 @@ export function TextThumbnail({ file }: { file: FileItem }) {
 
           const isOffice = OFFICE_MIMES.has(file.mime_type ?? "");
           const fetchPromise = isOffice
-            ? fetch(`/api/files/${file.id}/preview-text`)
+            ? fetch(getPreviewTextUrl(file.id))
             : fetch(`/api/files/${file.id}/stream`, {
-                headers: { Range: "bytes=0-399" },
+                headers: { Range: `bytes=0-${PREVIEW_WINDOW_BYTES - 1}` },
               });
 
           fetchPromise
@@ -67,7 +97,11 @@ export function TextThumbnail({ file }: { file: FileItem }) {
   }, [file.id, file.mime_type]);
 
   return (
-    <div ref={containerRef} className="h-full w-full relative overflow-hidden bg-bg-elevated">
+    <div
+      ref={containerRef}
+      data-testid="text-thumbnail"
+      className="h-full w-full relative overflow-hidden bg-bg-elevated"
+    >
       <div className="p-3 h-full">
         <p className="text-[13px] font-bold leading-tight text-text-primary select-none line-clamp-3">
           {file.title}

@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!--
+      Without this, a context that sets `isMobile` lays the page out at
+      Chromium's mobile default instead of the viewport the spec asked for.
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>mobile inspector sheet — layout fixture</title>
+    <!--
+      No <style> of its own: every declaration measured here has to come
+      out of the app's own stylesheet.
+    -->
+    <link rel="stylesheet" href="./globals.built.css" />
+  </head>
+  <body>
+    <!--
+      `visibleHeight` is the drawer less vaul's published
+      `--snap-point-height`, rather than a snap value repeated here.
+    -->
+    <script type="application/json" id="fixture-markup">
+      {
+        "drawer": "fixed bottom-0 left-0 right-0 z-[25] flex flex-col outline-none",
+        "surface": "h-full flex flex-col rounded-t-2xl border-t border-bg-border bg-bg-card",
+        "visible": "flex min-h-0 shrink-0 flex-col",
+        "visibleHeight": "calc(100% - var(--snap-point-height, 0px))",
+        "handle": "mx-auto mt-3 h-1 w-12 shrink-0 rounded-full bg-bg-border",
+        "scroller": "min-h-0 flex-1 overflow-auto overscroll-contain",
+        "scrollerPaddingBottom": "calc(env(safe-area-inset-bottom, 0px) + 16px)",
+        "columnRoot": "flex flex-col",
+        "columnHeader": "px-4 pt-4 pb-3",
+        "columnStrip": "flex gap-1 overflow-x-auto border-b border-bg-border px-2 pointer-coarse:min-h-11 sticky top-0 z-10 bg-bg-card shadow-[0_-1px_0_var(--color-bg-card)]",
+        "columnPanel": "space-y-4 p-4",
+        "panelRoot": "flex h-full min-h-0 flex-col",
+        "panelHeader": "shrink-0 px-4 pt-4 pb-3",
+        "panelStrip": "flex gap-1 overflow-x-auto border-b border-bg-border px-2 pointer-coarse:min-h-11 shrink-0",
+        "panelPanel": "min-h-0 flex-1 space-y-4 overflow-auto p-4",
+        "tab": "whitespace-nowrap border-b-2 px-3 py-2 text-xs font-medium transition-colors pointer-coarse:min-h-11 border-transparent text-text-muted hover:text-text-primary",
+        "drawerVh": 0.9,
+        "pageRoot": "flex h-full w-full flex-col",
+        "chrome": "flex h-12 shrink-0 items-center gap-2 border-b border-bg-border bg-bg-card px-3",
+        "canvas": "flex min-w-0 min-h-0 flex-1 flex-col overflow-auto",
+        "mediaHost": "media-detail-host w-full p-4 [&>*+*]:mt-4",
+        "player": "media-detail-player",
+        "playerBleed": "-mx-4 -mt-4 bg-black md:mx-0 md:mt-0",
+        "framedShimPaddingTop": "56.25%",
+        "peekHeight": "calc(56px + env(safe-area-inset-bottom, 0px))"
+      }
+    </script>
+
+    <div id="page"></div>
+    <div id="frame"></div>
+
+    <script>
+      const SPEC = JSON.parse(
+        document.getElementById("fixture-markup").textContent,
+      );
+
+      /** vaul's `useSnapPoints` arithmetic, reproduced. */
+      const snapPointHeight = (snap) => window.innerHeight * (1 - snap);
+
+      /**
+       * `bound`: `visible-box` is what ships; `cap-50vh` is a hand-written
+       * `max-height` of the snap on the scroller; `none` lets the scroller
+       * fill the drawer.
+       */
+      window.buildSheet = ({
+        snap,
+        mode,
+        bound,
+        headerPx,
+        bodyPx,
+        drawerPx,
+      }) => {
+        const frame = document.getElementById("frame");
+        frame.replaceChildren();
+
+        const offset = snapPointHeight(snap);
+        const drawer = document.createElement("div");
+        drawer.className = SPEC.drawer;
+        drawer.dataset.testid = "mobile-inspector-sheet";
+        // `drawerPx` draws the drawer at a *different* viewport's height,
+        // which is what a CSS viewport unit does on a phone showing its
+        // URL bar.
+        drawer.style.height = `${drawerPx ?? SPEC.drawerVh * window.innerHeight}px`;
+        drawer.style.setProperty("--snap-point-height", `${offset}px`);
+        drawer.style.transform = `translate3d(0, ${offset}px, 0)`;
+
+        const scroller = document.createElement("div");
+        scroller.className = SPEC.scroller;
+        scroller.dataset.testid = "mobile-inspector-content";
+        scroller.style.paddingBottom = SPEC.scrollerPaddingBottom;
+
+        const handle = document.createElement("div");
+        handle.className = SPEC.handle;
+        handle.dataset.testid = "mobile-inspector-handle";
+
+        const surface = document.createElement("div");
+        surface.className = SPEC.surface;
+        surface.dataset.testid = "mobile-inspector-surface";
+        drawer.append(surface);
+
+        if (bound === "visible-box") {
+          const visible = document.createElement("div");
+          visible.className = SPEC.visible;
+          visible.dataset.testid = "mobile-inspector-visible";
+          visible.style.height = SPEC.visibleHeight;
+          visible.append(handle, scroller);
+          surface.append(visible);
+        } else {
+          if (bound === "cap-50vh") {
+            scroller.style.maxHeight = snap === 0.9 ? "90vh" : "50vh";
+          }
+          surface.append(handle, scroller);
+        }
+
+        const column = mode === "column";
+        const root = document.createElement("div");
+        root.className = column ? SPEC.columnRoot : SPEC.panelRoot;
+        root.dataset.testid = "inspector-shell";
+
+        const header = document.createElement("div");
+        header.className = column ? SPEC.columnHeader : SPEC.panelHeader;
+        header.dataset.testid = "inspector-header";
+        header.style.height = `${headerPx}px`;
+
+        const strip = document.createElement("div");
+        strip.className = column ? SPEC.columnStrip : SPEC.panelStrip;
+        strip.dataset.testid = "inspector-tabs";
+        strip.setAttribute("role", "tablist");
+        for (const label of ["Info", "Transcript"]) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.setAttribute("role", "tab");
+          button.className = SPEC.tab;
+          button.textContent = label;
+          strip.append(button);
+        }
+
+        const panel = document.createElement("div");
+        panel.className = column ? SPEC.columnPanel : SPEC.panelPanel;
+        panel.dataset.testid = "inspector-panel";
+
+        const body = document.createElement("div");
+        body.style.height = `${bodyPx}px`;
+        // Positioned, standing in for tab content that is (an addon
+        // section with a `relative` wrapper, a popover anchor).
+        body.style.position = "relative";
+        body.style.background = "var(--color-bg-card, #fff)";
+        const end = document.createElement("div");
+        end.dataset.testid = "inspector-end";
+        // A height of its own, so "its bottom is on screen" is not
+        // satisfied by a zero-height marker under rounding.
+        end.style.height = "24px";
+        end.textContent = "the end of the tab";
+        panel.append(body, end);
+
+        root.append(header, strip, panel);
+        scroller.append(root);
+        frame.append(drawer);
+      };
+
+      /**
+       * `data-sheet-snap` on the shell root is the mobile test the
+       * stylesheet makes; without it the player is in flow and scrolls
+       * away. A framed player's height is measured, not declared: it gets
+       * the ratio shim and the stylesheet's width cap.
+       */
+      window.buildPage = ({ playerPx, framed, bodyPx }) => {
+        const host = document.getElementById("page");
+        host.replaceChildren();
+        host.style.height = "100vh";
+
+        const shell = document.createElement("div");
+        shell.className = SPEC.pageRoot;
+        shell.dataset.testid = "file-detail-shell";
+        shell.dataset.sheetSnap = "expanded";
+
+        const chrome = document.createElement("div");
+        chrome.className = SPEC.chrome;
+        chrome.dataset.testid = "file-detail-chrome";
+
+        const canvas = document.createElement("main");
+        canvas.className = SPEC.canvas;
+        canvas.dataset.testid = "file-detail-canvas";
+        canvas.style.paddingBottom = SPEC.peekHeight;
+
+        const mediaHost = document.createElement("div");
+        mediaHost.className = SPEC.mediaHost;
+        mediaHost.dataset.testid = "media-detail-host";
+
+        const player = document.createElement("div");
+        player.className = SPEC.player;
+        player.dataset.testid = "media-detail-player";
+        const frame = document.createElement("div");
+        frame.style.background = "#000";
+        // The negative top margin is drawn so the player starts at the
+        // scrollport's edge because the stylesheet cancels it, not because
+        // there is no margin.
+        frame.className = SPEC.playerBleed;
+        if (framed) {
+          player.dataset.framed = "true";
+          frame.style.paddingTop = SPEC.framedShimPaddingTop;
+        } else {
+          frame.style.height = `${playerPx}px`;
+        }
+        player.append(frame);
+
+        const below = document.createElement("div");
+        below.dataset.testid = "media-detail-below";
+        below.style.height = `${bodyPx}px`;
+        // Empty at zero, or the text gives the box a line's height.
+        below.textContent = bodyPx
+          ? "the description, the comments, the summaries"
+          : "";
+
+        mediaHost.append(player, below);
+        canvas.append(mediaHost);
+        shell.append(chrome, canvas);
+        host.append(shell);
+
+        // `--rail-avail` is the scroll container's visible height, which
+        // caps a framed player's width. Set after the append, because there
+        // is nothing to measure before it.
+        mediaHost.style.setProperty("--rail-avail", `${canvas.clientHeight}px`);
+      };
+
+      window.scrollCanvas = (to) => {
+        const canvas = document.querySelector(
+          "[data-testid='file-detail-canvas']",
+        );
+        if (canvas) canvas.scrollTop = to;
+      };
+
+      /**
+       * `verticallyScrollable` names the elements with more content than
+       * box in the block axis. The tab strip is a scroll container too —
+       * `overflow-x: auto` computes `overflow-y` to `auto` — so a count of
+       * scroll containers would not separate the two forms.
+       */
+      window.measureSheet = (scrollTo) => {
+        const drawer = document.querySelector(
+          "[data-testid='mobile-inspector-sheet']",
+        );
+        const surface = drawer.querySelector(
+          "[data-testid='mobile-inspector-surface']",
+        );
+        const scroller = drawer.querySelector(
+          "[data-testid='mobile-inspector-content']",
+        );
+        const visible = drawer.querySelector(
+          "[data-testid='mobile-inspector-visible']",
+        );
+        const strip = drawer.querySelector("[data-testid='inspector-tabs']");
+        const header = drawer.querySelector("[data-testid='inspector-header']");
+        const end = drawer.querySelector("[data-testid='inspector-end']");
+        const player = document.querySelector(
+          "[data-testid='media-detail-player']",
+        );
+        const canvas = document.querySelector(
+          "[data-testid='file-detail-canvas']",
+        );
+        const below = document.querySelector(
+          "[data-testid='media-detail-below']",
+        );
+
+        if (scrollTo !== undefined) scroller.scrollTop = scrollTo;
+
+        const rect = (el) => {
+          const box = el.getBoundingClientRect();
+          return { top: box.top, bottom: box.bottom, height: box.height };
+        };
+
+        const scrollerBox = scroller.getBoundingClientRect();
+        const verticallyScrollable = [...drawer.querySelectorAll("*")]
+          .filter((el) => {
+            const overflowY = getComputedStyle(el).overflowY;
+            if (overflowY !== "auto" && overflowY !== "scroll") return false;
+            return el.scrollHeight > el.clientHeight + 1;
+          })
+          .map((el) => el.dataset.testid ?? el.tagName.toLowerCase());
+
+        return {
+          viewportHeight: window.innerHeight,
+          snapPointHeight: Number.parseFloat(
+            getComputedStyle(drawer).getPropertyValue("--snap-point-height"),
+          ),
+          drawer: rect(drawer),
+          surfaceBorderTop: Number.parseFloat(
+            getComputedStyle(surface).borderTopWidth,
+          ),
+          visible: visible ? rect(visible) : null,
+          scroller: rect(scroller),
+          strip: rect(strip),
+          header: rect(header),
+          end: rect(end),
+          player: player ? rect(player) : null,
+          playerPosition: player ? getComputedStyle(player).position : null,
+          canvasClientHeight: canvas ? canvas.clientHeight : null,
+          canvasTop: canvas ? canvas.getBoundingClientRect().top : null,
+          belowHeight: below ? below.getBoundingClientRect().height : null,
+          // Relative to the box that scrolls: an absolute viewport
+          // coordinate would also be satisfied by a page that never
+          // scrolled.
+          stripTopInScroller: strip.getBoundingClientRect().top - scrollerBox.top,
+          headerTopInScroller:
+            header.getBoundingClientRect().top - scrollerBox.top,
+          stripPosition: getComputedStyle(strip).position,
+          bodyPosition: getComputedStyle(
+            drawer.querySelector("[data-testid='inspector-panel'] > div"),
+          ).position,
+          // A strip pinned to the right place and painted under the tab
+          // body is not on screen either, and no rectangle says so.
+          stripHit: (() => {
+            const box = strip.getBoundingClientRect();
+            const el = document.elementFromPoint(
+              box.left + box.width / 2,
+              box.top + box.height / 2,
+            );
+            if (!el) return null;
+            const owner = el.closest("[data-testid]");
+            return owner ? owner.dataset.testid : el.tagName.toLowerCase();
+          })(),
+          stripBackground: getComputedStyle(strip).backgroundColor,
+          scrollTop: scroller.scrollTop,
+          maxScroll: scroller.scrollHeight - scroller.clientHeight,
+          verticallyScrollable,
+        };
+      };
+    </script>
+  </body>
+</html>

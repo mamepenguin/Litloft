@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { ShortcutContextDef, ShortcutDef } from "@/lib/shortcuts";
+import {
+  formatShortcutPart,
+  orderContexts,
+  type ShortcutContextDef,
+  type ShortcutDef,
+} from "@/lib/shortcuts";
 
 interface ShortcutCheatSheetProps {
   open: boolean;
@@ -11,25 +15,8 @@ interface ShortcutCheatSheetProps {
   onClose: () => void;
 }
 
-const isMac =
-  typeof navigator !== "undefined" &&
-  /Mac|iPhone|iPad|iPod/.test(navigator.platform);
-
-function formatKeyPart(p: string): string {
-  if (p === "ctrl")      return isMac ? "⌘" : "Ctrl";
-  if (p === "shift")     return isMac ? "⇧" : "Shift";
-  if (p === "alt")       return isMac ? "⌥" : "Alt";
-  if (p === "space")     return "Space";
-  if (p === "escape")    return "Esc";
-  if (p === "arrowleft")  return "←";
-  if (p === "arrowright") return "→";
-  if (p === "arrowup")    return "↑";
-  if (p === "arrowdown")  return "↓";
-  return p.toUpperCase();
-}
-
 function KbdKey({ value }: { value: string }) {
-  const parts = value.split("+").map(formatKeyPart);
+  const parts = value.split("+").map(formatShortcutPart);
   return (
     <span className="flex items-center gap-0.5">
       {parts.map((part, i) => (
@@ -60,54 +47,36 @@ function ShortcutList({ shortcuts }: { shortcuts: ShortcutDef[] }) {
   );
 }
 
+/**
+ * The sheet binds no key of its own. `ShortcutsProvider` answers Escape
+ * for it before it consults the stack at all.
+ */
 export function ShortcutCheatSheet({ open, stack, onClose }: ShortcutCheatSheetProps) {
   const t = useTranslations("shortcuts");
 
-  // Close on Escape is handled by ShortcutsProvider, but also handle it here
-  // as a safety net in case the provider's listener order differs.
-  useEffect(() => {
-    if (!open) return;
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onClose();
-      }
-    }
-    document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
-  }, [open, onClose]);
-
   if (!open) return null;
 
-  // Show every non-global layer (top of stack first), then global at the
-  // bottom. Walking the full stack lets a mid-stack context (e.g. an addon
-  // root that also has an editor pushed on top) keep its shortcuts visible.
-  const globalCtx = stack.find((c) => c.id === "global");
-  const sections: ShortcutContextDef[] = [];
-  for (let i = stack.length - 1; i >= 0; i--) {
-    const ctx = stack[i];
-    if (ctx.id === "global") continue;
-    sections.push(ctx);
-  }
+  const reachable = orderContexts(stack);
+  const globalCtx = reachable.find((c) => c.id === "global");
+  const sections: ShortcutContextDef[] = reachable.filter(
+    (ctx) => ctx.id !== "global",
+  );
   if (globalCtx) sections.push(globalCtx);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center">
-      {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
         onClick={onClose}
         aria-hidden
       />
 
-      {/* Panel */}
       <div
         className="relative z-10 mx-4 w-full max-w-sm rounded-2xl bg-bg-card p-6 shadow-lg animate-fade-in-scale"
         role="dialog"
         aria-modal
         aria-label={t("title")}
       >
-        {/* Header */}
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-base font-semibold text-text-primary">{t("title")}</h2>
           <button
@@ -129,7 +98,7 @@ export function ShortcutCheatSheet({ open, stack, onClose }: ShortcutCheatSheetP
               return (
                 <section key={ctx.id}>
                   {ctx.label && (
-                    <h3 className="mb-2 text-xs font-medium uppercase text-text-muted">
+                    <h3 className="mb-2 text-xs font-medium text-text-muted">
                       {ctx.label}
                     </h3>
                   )}

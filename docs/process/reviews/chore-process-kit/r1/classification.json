@@ -1,0 +1,300 @@
+{
+  "risk": "CRITICAL",
+  "score": 16,
+  "base": 3,
+  "zone_max": "CRITICAL",
+  "modifiers": [
+    "persistence",
+    "concurrency",
+    "schema"
+  ],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": ".claude/agents/acceptance-test-writer.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": ".claude/agents/r5-runner.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": ".claude/agents/spec-design-reviewer.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": ".claude/commands/review.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": ".claude/commands/spec.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": ".claude/rules/comments.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": ".claude/rules/process.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": ".claude/rules/review-workflow.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": ".claude/rules/tests.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": ".githooks/pre-push",
+      "level": "CRITICAL"
+    },
+    {
+      "path": ".github/workflows/process.yml",
+      "level": "CRITICAL"
+    },
+    {
+      "path": ".jev-lint.yaml",
+      "level": "MEDIUM"
+    },
+    {
+      "path": ".process-kit.lock",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "CLAUDE.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "deploy/pre-push",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "docs/README.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/developer-guide/contributing.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/developer-guide/known-issues.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/developer-guide/testing.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/process/EXCEPTIONS.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/process/PROJECT.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/process/escalation.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/process/limitations.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/process/principles.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/process/prohibited.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/process/review.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/process/risk-and-human-review.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/process/spec-and-design.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/process/testing-and-comments.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/process/workflow.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/TEMPLATE.md",
+      "level": "LOW"
+    },
+    {
+      "path": "process/gates.conf",
+      "level": "CRITICAL"
+    },
+    {
+      "path": "process/process.conf",
+      "level": "CRITICAL"
+    },
+    {
+      "path": "process/protected-paths.conf",
+      "level": "CRITICAL"
+    },
+    {
+      "path": "process/reviewers.conf",
+      "level": "CRITICAL"
+    },
+    {
+      "path": "process/risk-zones.conf",
+      "level": "CRITICAL"
+    },
+    {
+      "path": "process/secret-allowlist.txt",
+      "level": "CRITICAL"
+    },
+    {
+      "path": "scripts/process-gates/frontend.sh",
+      "level": "CRITICAL"
+    },
+    {
+      "path": "scripts/process/check-traceability.sh",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "scripts/process/ci-report.sh",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "scripts/process/classify-risk.sh",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "scripts/process/merge-reviews.sh",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "scripts/process/precheck.sh",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "scripts/process/prompts/read.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "scripts/process/prompts/verify.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "scripts/process/render-triage.sh",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "scripts/process/review-result.schema.json",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "scripts/process/review.sh",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "scripts/process/secret-scan.sh",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "scripts/process/validate-artifact.sh",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [
+    ".claude/agents/acceptance-test-writer.md",
+    ".claude/agents/r5-runner.md",
+    ".claude/agents/spec-design-reviewer.md",
+    ".claude/commands/review.md",
+    ".claude/commands/spec.md",
+    ".claude/rules/process.md",
+    ".githooks/pre-push",
+    ".github/workflows/process.yml",
+    ".process-kit.lock",
+    "docs/process/escalation.md",
+    "docs/process/limitations.md",
+    "docs/process/principles.md",
+    "docs/process/prohibited.md",
+    "docs/process/review.md",
+    "docs/process/risk-and-human-review.md",
+    "docs/process/spec-and-design.md",
+    "docs/process/testing-and-comments.md",
+    "docs/process/workflow.md",
+    "process/gates.conf",
+    "process/process.conf",
+    "process/protected-paths.conf",
+    "process/reviewers.conf",
+    "process/risk-zones.conf",
+    "process/secret-allowlist.txt",
+    "scripts/process-gates/frontend.sh",
+    "scripts/process/check-traceability.sh",
+    "scripts/process/ci-report.sh",
+    "scripts/process/classify-risk.sh",
+    "scripts/process/merge-reviews.sh",
+    "scripts/process/precheck.sh",
+    "scripts/process/prompts/read.md",
+    "scripts/process/prompts/verify.md",
+    "scripts/process/render-triage.sh",
+    "scripts/process/review-result.schema.json",
+    "scripts/process/review.sh",
+    "scripts/process/secret-scan.sh",
+    "scripts/process/validate-artifact.sh"
+  ],
+  "docs_only": false,
+  "reasons": [
+    "highest zone CRITICAL (10 points)",
+    "modifiers: persistence concurrency schema",
+    "protected path changed: .claude/agents/acceptance-test-writer.md",
+    "protected path changed: .claude/agents/r5-runner.md",
+    "protected path changed: .claude/agents/spec-design-reviewer.md",
+    "protected path changed: .claude/commands/review.md",
+    "protected path changed: .claude/commands/spec.md",
+    "protected path changed: .claude/rules/process.md",
+    "protected path changed: .githooks/pre-push",
+    "protected path changed: .github/workflows/process.yml",
+    "protected path changed: .process-kit.lock",
+    "protected path changed: docs/process/escalation.md",
+    "protected path changed: docs/process/limitations.md",
+    "protected path changed: docs/process/principles.md",
+    "protected path changed: docs/process/prohibited.md",
+    "protected path changed: docs/process/review.md",
+    "protected path changed: docs/process/risk-and-human-review.md",
+    "protected path changed: docs/process/spec-and-design.md",
+    "protected path changed: docs/process/testing-and-comments.md",
+    "protected path changed: docs/process/workflow.md",
+    "protected path changed: process/gates.conf",
+    "protected path changed: process/process.conf",
+    "protected path changed: process/protected-paths.conf",
+    "protected path changed: process/reviewers.conf",
+    "protected path changed: process/risk-zones.conf",
+    "protected path changed: process/secret-allowlist.txt",
+    "protected path changed: scripts/process-gates/frontend.sh",
+    "protected path changed: scripts/process/check-traceability.sh",
+    "protected path changed: scripts/process/ci-report.sh",
+    "protected path changed: scripts/process/classify-risk.sh",
+    "protected path changed: scripts/process/merge-reviews.sh",
+    "protected path changed: scripts/process/precheck.sh",
+    "protected path changed: scripts/process/prompts/read.md",
+    "protected path changed: scripts/process/prompts/verify.md",
+    "protected path changed: scripts/process/render-triage.sh",
+    "protected path changed: scripts/process/review-result.schema.json",
+    "protected path changed: scripts/process/review.sh",
+    "protected path changed: scripts/process/secret-scan.sh",
+    "protected path changed: scripts/process/validate-artifact.sh"
+  ]
+}

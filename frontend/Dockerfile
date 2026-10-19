@@ -1,10 +1,18 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
-COPY frontend/package.json frontend/pnpm-lock.yaml ./
+COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
+COPY frontend/patches/ ./patches/
 RUN corepack enable && pnpm install --frozen-lockfile
 COPY frontend/ .
 COPY addon[s]/ /tmp/_all_addons/
-RUN find src/addons -maxdepth 1 -type l -delete 2>/dev/null; \
+# `COPY frontend/ .` brings the host's gitignored `src/addons/` along with
+# everything else, and whatever it holds points at absolute paths on the host
+# that do not exist here. Discard it outright rather than pruning by shape:
+# `setup-addons.sh` builds a directory of per-file symlinks, an older checkout
+# has a directory symlink, and a stale entry of either shape is a dangling
+# link the build would carry into the image. The copy below is the only thing
+# that should decide what `src/addons` contains.
+RUN rm -rf src/addons; \
     for addon_dir in /tmp/_all_addons/*/; do \
       [ -d "$addon_dir/frontend" ] || continue; \
       name="$(basename "$addon_dir")"; \
@@ -28,6 +36,7 @@ COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 RUN mv server.js server-next.js
 COPY --from=builder /app/server.js ./server.js
+COPY --from=builder /app/server-routes.js ./server-routes.js
 COPY --from=deps /deps/node_modules/http-proxy ./node_modules/http-proxy
 COPY --from=deps /deps/node_modules/eventemitter3 ./node_modules/eventemitter3
 COPY --from=deps /deps/node_modules/requires-port ./node_modules/requires-port

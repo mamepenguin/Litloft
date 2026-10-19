@@ -1,10 +1,6 @@
 "use client";
 
-// DrivesSection: lists drives.json entries, lets the admin add / edit /
-// delete entries via a modal. Submits the full array via PUT, surfaces
-// 422 validation errors inline.
-
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 
 import {
@@ -13,6 +9,7 @@ import {
   putDrives,
   type DriveEntry,
 } from "@/lib/adminConfig";
+import { Button } from "@/components/Button";
 
 interface ModalState {
   mode: "add" | "edit";
@@ -41,8 +38,7 @@ function describeError(
       if (!message.startsWith("errors.")) {
         return {
           message,
-          field:
-            typeof detail === "object" ? detail?.field : undefined,
+          field: typeof detail === "object" ? detail?.field : undefined,
         };
       }
     }
@@ -144,33 +140,34 @@ export function DrivesSection(): React.ReactElement {
     }
   }, [confirm, drives, t]);
 
-  const updateDraft = useCallback(
-    (patch: Partial<DriveEntry>) => {
-      setModal((prev) =>
-        prev ? { ...prev, draft: { ...prev.draft, ...patch } } : prev,
-      );
-    },
-    [],
-  );
-
-  const sortedDrives = useMemo(() => drives, [drives]);
+  const updateDraft = useCallback((patch: Partial<DriveEntry>) => {
+    setModal((prev) =>
+      prev ? { ...prev, draft: { ...prev.draft, ...patch } } : prev,
+    );
+  }, []);
 
   return (
     <section className="rounded-xl border border-bg-border bg-bg-card p-6">
-      <div className="mb-6 flex items-start justify-between">
-        <div>
+      {/* The prose gives, the button does not. Without `min-w-0` on the
+          left and `flex-shrink-0` on the right, a long heading squeezes the
+          button until its label breaks over two lines. */}
+      <div className="mb-6 flex items-start justify-between gap-3">
+        <div className="min-w-0">
           <h2 className="text-lg font-semibold text-text-primary">
             {t("title")}
           </h2>
           <p className="mt-1 text-sm text-text-muted">{t("description")}</p>
         </div>
-        <button
-          type="button"
-          onClick={openAdd}
-          className="rounded-2xl bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-hover"
-        >
-          {t("addButton")}
-        </button>
+        <div className="flex-shrink-0">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={openAdd}
+            className="whitespace-nowrap"
+          >
+            {t("addButton")}
+          </Button>
+        </div>
       </div>
 
       <details className="mb-4 rounded-xl bg-bg-elevated p-4 text-sm">
@@ -185,12 +182,10 @@ export function DrivesSection(): React.ReactElement {
         </div>
       </details>
 
-      {loadError && (
-        <p className="mb-3 text-xs text-danger">{loadError}</p>
-      )}
+      {loadError && <p className="mb-3 text-xs text-danger">{loadError}</p>}
 
       <ul className="divide-y divide-bg-border">
-        {sortedDrives.map((drive, index) => (
+        {drives.map((drive, index) => (
           <li
             key={`${drive.name}-${index}`}
             className="flex items-center justify-between gap-2 py-3"
@@ -314,9 +309,7 @@ function DriveModal({
             />
           </label>
         </div>
-        {error && (
-          <p className="mt-3 text-xs text-danger">{error.message}</p>
-        )}
+        {error && <p className="mt-3 text-xs text-danger">{error.message}</p>}
         <div className="mt-4 flex justify-end gap-2">
           <button
             type="button"
@@ -325,13 +318,9 @@ function DriveModal({
           >
             {t("cancelButton")}
           </button>
-          <button
-            type="button"
-            onClick={onSave}
-            className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
-          >
+          <Button variant="primary" onClick={onSave}>
             {t("saveButton")}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -366,9 +355,7 @@ function ConfirmDeleteDialog({
         <p className="text-sm text-text-muted">
           {t("deleteConfirmBody", { name })}
         </p>
-        {error && (
-          <p className="mt-3 text-xs text-danger">{error.message}</p>
-        )}
+        {error && <p className="mt-3 text-xs text-danger">{error.message}</p>}
         <div className="mt-4 flex justify-end gap-2">
           <button
             type="button"
@@ -377,13 +364,9 @@ function ConfirmDeleteDialog({
           >
             {t("cancelButton")}
           </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
-          >
+          <Button variant="primary" onClick={onConfirm}>
             {t("confirmButton")}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

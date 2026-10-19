@@ -1,15 +1,4 @@
-"""Smart Folder API tests (Phase 1).
-
-Endpoints under /api/drives/{drive}/smart-folders:
-- GET    list (drive-scoped, no viewer_id filter)
-- POST   create (returns 201, persists viewer_id from cookie if present)
-- PATCH  update (partial)
-- DELETE delete
-
-Drive boundary rules:
-- A locked drive returns 404 (existence is hidden, never 403).
-- A SF created in drive A is invisible / not editable via drive B's URL.
-"""
+"""Smart Folder API tests (Phase 1)."""
 
 from __future__ import annotations
 
@@ -112,9 +101,7 @@ class TestCreateSmartFolder:
         assert res.status_code == 201
 
         # Inspect the row directly: viewer_id is not in the response
-        # but must be stored. nickname_to_viewer_id("alice") is the
-        # SHA-256 truncated to 16 chars; we don't reproduce that here,
-        # we just assert non-NULL.
+        # but must be stored.
         from app.models import SmartFolder
 
         sf = db.query(SmartFolder).filter_by(id=res.json()["id"]).one()
@@ -270,7 +257,6 @@ class TestUpdateSmartFolder:
         assert res.status_code == 200
         body = res.json()
         assert body["name"] == "renamed"
-        # Other fields preserved
         assert body["query"] == "q"
         assert body["file_type"] == "video"
         assert body["sort_by"] == "created_at"
@@ -312,25 +298,21 @@ class TestAccessControl:
         """A locked drive must hide existence: 404, not 403."""
         c, _db, _, _ = protected_client
 
-        # GET list
         res = c.get(f"/api/drives/{TEST_DRIVE}/smart-folders")
         assert res.status_code == 404
 
-        # POST create
         res = c.post(
             f"/api/drives/{TEST_DRIVE}/smart-folders",
             json={"name": "x", "query": "y"},
         )
         assert res.status_code == 404
 
-        # PATCH update
         res = c.patch(
             f"/api/drives/{TEST_DRIVE}/smart-folders/anyid",
             json={"name": "z"},
         )
         assert res.status_code == 404
 
-        # DELETE
         res = c.delete(f"/api/drives/{TEST_DRIVE}/smart-folders/anyid")
         assert res.status_code == 404
 
@@ -344,19 +326,16 @@ class TestAccessControl:
         ).json()
         sf_id = created["id"]
 
-        # GET via wrong drive: SF won't appear in list
         res_b = c.get(f"/api/drives/{SECOND_DRIVE}/smart-folders")
         assert res_b.status_code == 200
         assert all(sf["id"] != sf_id for sf in res_b.json())
 
-        # PATCH via wrong drive: 404
         res = c.patch(
             f"/api/drives/{SECOND_DRIVE}/smart-folders/{sf_id}",
             json={"name": "hijack"},
         )
         assert res.status_code == 404
 
-        # DELETE via wrong drive: 404
         res = c.delete(
             f"/api/drives/{SECOND_DRIVE}/smart-folders/{sf_id}"
         )

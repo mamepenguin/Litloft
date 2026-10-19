@@ -11,10 +11,20 @@ import {
 } from "lucide-react";
 
 import { useTranslations } from "next-intl";
-import { useImageAreaGestures } from "@/hooks/useImageAreaGestures";
+import { useViewerZoom } from "@/hooks/useViewerZoom";
+import { useViewerZoomShortcuts } from "@/hooks/useViewerZoomShortcuts";
+import { useInertBackdrop } from "@/hooks/useInertBackdrop";
 import { useShortcuts } from "@/hooks/useShortcuts";
+import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
+import { useAutoHidingChrome } from "@/hooks/useAutoHidingChrome";
+import { useSpreadPaging } from "@/hooks/useSpreadPaging";
+import { useSpreadFits } from "@/hooks/useSpreadFits";
+import { readSpreadMode, writeSpreadMode } from "@/lib/spreadPreference";
+import type { Orientation } from "@/lib/spreadPaging";
+import { SlideshowIntervalMenu } from "@/components/gallery/SlideshowIntervalMenu";
 import { getDriveFiles, getStreamUrl } from "@/lib/api";
 import type { FileItem, SortField, SortOrder } from "@/types";
+import { useShellImmersive } from "@/lib/shellImmersive";
 
 interface ImageGalleryProps {
   open: boolean;
@@ -22,19 +32,6 @@ interface ImageGalleryProps {
   sort?: string;
   order?: string;
   onClose: (currentFileId: string | null) => void;
-}
-
-const INTERVAL_OPTIONS = [3, 5, 10] as const;
-
-function readLocalBool(key: string, def: boolean): boolean {
-  try {
-    const val = localStorage.getItem(key);
-    if (val === "true") return true;
-    if (val === "false") return false;
-    return def;
-  } catch {
-    return def;
-  }
 }
 
 function readLocalString<T extends string>(key: string, def: T): T {
@@ -61,30 +58,26 @@ export function ImageGallery({
 
   const [playing, setPlaying] = useState(false);
   const [slideshowInterval, setSlideshowInterval] = useState(5);
-  const [showControls, setShowControls] = useState(true);
+  const [intervalOpen, setIntervalOpen] = useState(false);
+  const chrome = useAutoHidingChrome({ enabled: open, held: intervalOpen });
+  const showControls = chrome.visible;
 
-  const [splitMode, setSplitMode] = useState(() =>
-    readLocalBool("image-viewer:split-mode", false)
-  );
+  const [spreadMode, setSpreadMode] = useState(() => readSpreadMode());
   const [readingDirection, setReadingDirection] = useState<"ltr" | "rtl">(() =>
-    readLocalString("image-viewer:reading-direction", "ltr")
+    readLocalString("image-viewer:reading-direction", "ltr"),
   );
   const [isCurrentLandscape, setIsCurrentLandscape] = useState(false);
   const [showRightHalf, setShowRightHalf] = useState(false);
 
-  const hideTimerRef = useRef<number | null>(null);
-
   const readingDirectionRef = useRef(readingDirection);
 
-  // Persist splitMode to localStorage
   useEffect(() => {
     try {
-      localStorage.setItem("image-viewer:split-mode", String(splitMode));
+      writeSpreadMode(spreadMode);
     } catch {}
     setShowRightHalf(readingDirectionRef.current === "rtl");
-  }, [splitMode]);
+  }, [spreadMode]);
 
-  // Persist readingDirection to localStorage
   useEffect(() => {
     try {
       localStorage.setItem("image-viewer:reading-direction", readingDirection);
@@ -101,7 +94,6 @@ export function ImageGallery({
     }
   }, [open, file]);
 
-  // Load all images in the same folder (only when gallery opens)
   useEffect(() => {
     if (!open) return;
 
@@ -163,59 +155,54 @@ export function ImageGallery({
 
   const currentImage = images[currentIndex] ?? file;
 
-  const activeSplit = splitMode && isCurrentLandscape;
-  const isFirstSubPage =
-    readingDirection === "ltr" ? !showRightHalf : showRightHalf;
-  const subPageLabel = activeSplit ? (isFirstSubPage ? "A" : "B") : null;
+  const canPair = useSpreadFits();
 
-  // Navigation with split mode awareness
-  const navigateNext = useCallback(() => {
-    const inActiveSplit = splitMode && isCurrentLandscape;
-    const isOnFirstSubPage =
-      readingDirection === "ltr" ? !showRightHalf : showRightHalf;
+  /**
+   * The gallery reads shapes off the listing rather than fetching them.
+   * The current page falls back to what the loaded `<img>` reported, for a
+   * file scanned before those columns existed.
+   */
+  const orientationAt = useCallback(
+    (i: number): Orientation => {
+      const item = images[i];
+      if (!item) return "unknown";
+      if (item.image_width != null && item.image_height != null) {
+        return item.image_width > item.image_height ? "landscape" : "portrait";
+      }
+      if (i === currentIndex) {
+        return isCurrentLandscape ? "landscape" : "unknown";
+      }
+      return "unknown";
+    },
+    [images, currentIndex, isCurrentLandscape],
+  );
 
-    if (inActiveSplit && isOnFirstSubPage) {
-      setShowRightHalf(readingDirection === "ltr");
-    } else if (currentIndex < images.length - 1) {
-      // Immediately set the first sub-page of the next image (old image retains its position).
-      setShowRightHalf(readingDirection === "rtl");
-      setCurrentIndex((prev) => prev + 1);
-    }
-  }, [
-    splitMode,
-    isCurrentLandscape,
+  const {
+    face,
+    faceLabel,
+    activeSplit,
+    subPageLabel,
+    canGoPrev,
+    canGoNext,
+    navigatePrev,
+    navigateNext,
+  } = useSpreadPaging({
+    index: currentIndex,
+    setIndex: setCurrentIndex,
+    count: images.length,
+    spreadMode,
     readingDirection,
     showRightHalf,
-    currentIndex,
-    images.length,
-  ]);
+    orientationAt,
+    canPair,
+    setShowRightHalf,
+  });
 
-  const navigatePrev = useCallback(() => {
-    const inActiveSplit = splitMode && isCurrentLandscape;
-    const isOnFirstSubPage =
-      readingDirection === "ltr" ? !showRightHalf : showRightHalf;
-
-    if (inActiveSplit && !isOnFirstSubPage) {
-      setShowRightHalf(readingDirection === "rtl");
-    } else if (currentIndex > 0) {
-      // Immediately set the last sub-page (B) of the previous image: LTR=right(true), RTL=left(false).
-      setShowRightHalf(splitMode && readingDirection === "ltr");
-      setCurrentIndex((prev) => prev - 1);
-    }
-  }, [splitMode, isCurrentLandscape, readingDirection, showRightHalf, currentIndex]);
-
-  const canGoPrev =
-    currentIndex > 0 || (activeSplit && !isFirstSubPage);
-  const canGoNext =
-    currentIndex < images.length - 1 || (activeSplit && isFirstSubPage);
-
-  // Close handler: notify parent of the current image
   const handleClose = useCallback(() => {
     const currentId = images[currentIndex]?.id ?? null;
     onClose(currentId);
   }, [images, currentIndex, onClose]);
 
-  // Prefetch adjacent images
   useEffect(() => {
     if (images.length === 0) return;
 
@@ -232,18 +219,30 @@ export function ImageGallery({
     });
   }, [currentIndex, images]);
 
-  // Slideshow timer
   useEffect(() => {
     if (!playing || images.length <= 1) return;
 
     const timer = window.setTimeout(() => {
-      setCurrentIndex((prev) =>
-        prev >= images.length - 1 ? 0 : prev + 1
-      );
+      // A face at a time, not an index at a time: two pages showing side
+      // by side are one thing to look at, and a split page is two.
+      if (canGoNext) {
+        navigateNext();
+      } else {
+        setCurrentIndex(0);
+        setShowRightHalf(readingDirection === "rtl");
+      }
     }, slideshowInterval * 1000);
 
     return () => window.clearTimeout(timer);
-  }, [playing, currentIndex, slideshowInterval, images.length]);
+  }, [
+    playing,
+    currentIndex,
+    slideshowInterval,
+    images.length,
+    canGoNext,
+    navigateNext,
+    readingDirection,
+  ]);
 
   const t_sc = useTranslations("shortcuts");
 
@@ -289,51 +288,26 @@ export function ImageGallery({
       },
     ],
     open,
+    // A viewer covers the page: nothing under it may take a key.
+    OVERLAY_PRIORITY,
+    true,
   );
 
-  // Auto-hide controls during slideshow
-  useEffect(() => {
-    if (hideTimerRef.current) {
-      window.clearTimeout(hideTimerRef.current);
-      hideTimerRef.current = null;
-    }
-    if (playing) {
-      hideTimerRef.current = window.setTimeout(
-        () => setShowControls(false),
-        3000
-      );
-    }
-    return () => {
-      if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
-    };
-  }, [playing, currentIndex]);
-
-  function handleImageAreaClick() {
-    setShowControls((prev) => !prev);
-    if (hideTimerRef.current) {
-      window.clearTimeout(hideTimerRef.current);
-      hideTimerRef.current = null;
-    }
-    if (playing) {
-      hideTimerRef.current = window.setTimeout(
-        () => setShowControls(false),
-        3000
-      );
-    }
-  }
-
-  const gestureHandlers = useImageAreaGestures({
+  const zoom = useViewerZoom({
+    resetKey: `${open}:${face.kind}:${currentIndex}:${showRightHalf}`,
     readingDirection,
     navigatePrev,
     navigateNext,
-    toggleControls: handleImageAreaClick,
+    toggleControls: chrome.toggle,
   });
+  useViewerZoomShortcuts(zoom, open);
 
-  // Reset state on close
+  useShellImmersive(open);
+  const backdropRef = useInertBackdrop<HTMLDivElement>(open);
+
   useEffect(() => {
     if (!open) {
       setPlaying(false);
-      setShowControls(true);
       setImages([]);
       setCurrentIndex(0);
       setLoading(true);
@@ -343,11 +317,16 @@ export function ImageGallery({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-black">
-      {/* Header */}
+    <div
+      ref={backdropRef}
+      role="dialog"
+      aria-modal
+      aria-label={`${t("imageGallery")}: ${currentImage.title}`}
+      className="fixed inset-0 z-[60] flex flex-col bg-black"
+    >
       <div
-        className="absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent px-4 py-3 transition-opacity duration-300"
-        style={{ opacity: showControls ? 1 : 0, pointerEvents: showControls ? "auto" : "none" }}
+        className="absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] transition-opacity duration-300"
+        {...chrome.chromeProps}
       >
         <span className="max-w-[40%] truncate text-sm text-white/80">
           {currentImage.title}
@@ -355,7 +334,7 @@ export function ImageGallery({
 
         {images.length > 0 && (
           <span className="text-sm text-white/60">
-            {currentIndex + 1} / {images.length}
+            {faceLabel} / {images.length}
             {subPageLabel !== null ? ` ${subPageLabel}` : ""}
           </span>
         )}
@@ -363,18 +342,15 @@ export function ImageGallery({
         <div className="flex items-center gap-2">
           {images.length > 1 && (
             <>
-              <select
+              <SlideshowIntervalMenu
                 value={slideshowInterval}
-                onChange={(e) => setSlideshowInterval(Number(e.target.value))}
-                className="rounded-lg bg-white/10 px-2 py-1 text-sm text-white outline-none"
-                aria-label={t("slideshowInterval")}
-              >
-                {INTERVAL_OPTIONS.map((sec) => (
-                  <option key={sec} value={sec}>
-                    {t("seconds", { sec })}
-                  </option>
-                ))}
-              </select>
+                onChange={setSlideshowInterval}
+                frameRef={backdropRef}
+                label={t("slideshowInterval")}
+                closeLabel={tc("close")}
+                formatSeconds={(sec) => t("seconds", { sec })}
+                onOpenChange={setIntervalOpen}
+              />
               <button
                 onClick={() => setPlaying((p) => !p)}
                 className="rounded-full p-1.5 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
@@ -384,7 +360,7 @@ export function ImageGallery({
               </button>
             </>
           )}
-          {splitMode && (
+          {spreadMode && (
             <button
               onClick={() =>
                 setReadingDirection((d) => (d === "ltr" ? "rtl" : "ltr"))
@@ -396,9 +372,9 @@ export function ImageGallery({
             </button>
           )}
           <button
-            onClick={() => setSplitMode((m) => !m)}
-            className={`rounded-full p-1.5 transition-colors hover:bg-white/10 ${splitMode ? "text-white" : "text-white/60 hover:text-white"}`}
-            aria-label={t("splitModeToggle")}
+            onClick={() => setSpreadMode((m) => !m)}
+            className={`rounded-full p-1.5 transition-colors hover:bg-white/10 ${spreadMode ? "text-white" : "text-white/60 hover:text-white"}`}
+            aria-label={t("spreadModeToggle")}
           >
             <BookOpen size={18} />
           </button>
@@ -412,10 +388,10 @@ export function ImageGallery({
         </div>
       </div>
 
-      {/* Main image area */}
       <div
-        className="flex flex-1 cursor-pointer items-center overflow-hidden touch-none"
-        {...gestureHandlers}
+        ref={zoom.frameRef}
+        className={`flex flex-1 items-center overflow-hidden touch-none ${zoom.zoomed ? "cursor-grab" : "cursor-pointer"}`}
+        {...zoom.frameHandlers}
       >
         {loading ? (
           <div className="flex w-full items-center justify-center">
@@ -427,34 +403,68 @@ export function ImageGallery({
               <div className="absolute h-8 w-8 animate-spin rounded-full border-2 border-white border-t-transparent" />
             )}
             <div
-              className="flex h-full items-center justify-center"
-              style={{
-                width: activeSplit ? "200%" : "100%",
-                flexShrink: activeSplit ? 0 : undefined,
-                transform:
-                  activeSplit && showRightHalf
-                    ? "translateX(-50%)"
-                    : undefined,
-              }}
+              ref={zoom.contentRef}
+              className="flex h-full w-full items-center"
+              style={zoom.contentStyle}
             >
-              <img
-                src={getStreamUrl(currentImage.id)}
-                alt={currentImage.title}
-                className="max-h-full max-w-full select-none object-contain"
-                onLoad={(e) => {
-                  setImageLoading(false);
-                  const img = e.currentTarget;
-                  setIsCurrentLandscape(img.naturalWidth > img.naturalHeight);
+              <div
+                data-face={face.kind}
+                className="flex h-full items-center justify-center"
+                style={{
+                  // Splitting draws one page at twice the frame's width and
+                  // slides it; pairing draws two inside one frame's width.
+                  // Same word, opposite arithmetic.
+                  width: activeSplit ? "200%" : "100%",
+                  flexShrink: activeSplit ? 0 : undefined,
+                  transform:
+                    activeSplit && showRightHalf
+                      ? "translateX(-50%)"
+                      : undefined,
+                  // Right-to-left reading puts the first page of a pair on
+                  // the right. Done with `flex-direction`, so the two
+                  // `<img>` elements stay in reading order in the DOM.
+                  flexDirection:
+                    face.kind === "pair" && readingDirection === "rtl"
+                      ? "row-reverse"
+                      : "row",
                 }}
-                onLoadStart={() => setImageLoading(true)}
-                draggable={false}
-              />
+              >
+                {face.indices.map((i, slot) => {
+                  const item = images[i];
+                  if (!item) return null;
+                  return (
+                    <img
+                      key={item.id}
+                      src={getStreamUrl(item.id)}
+                      alt={item.title}
+                      className="max-h-full select-none object-contain"
+                      style={{
+                        maxWidth: face.kind === "pair" ? "50%" : "100%",
+                      }}
+                      onLoad={(e) => {
+                        setImageLoading(false);
+                        // Only the page the position is named by decides
+                        // whether this face is a split one; the second page
+                        // of a pair reporting its shape here would flip the
+                        // face out from under itself.
+                        if (slot === 0 && i === currentIndex) {
+                          const img = e.currentTarget;
+                          setIsCurrentLandscape(
+                            img.naturalWidth > img.naturalHeight,
+                          );
+                        }
+                      }}
+                      onLoadStart={() => setImageLoading(true)}
+                      draggable={false}
+                    />
+                  );
+                })}
+              </div>
             </div>
           </>
         )}
       </div>
 
-      {/* Navigation buttons */}
       {showControls &&
         !loading &&
         (readingDirection === "ltr" ? canGoPrev : canGoNext) && (

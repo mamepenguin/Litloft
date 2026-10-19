@@ -1,0 +1,509 @@
+# One rule governs every step in this file: the step's exit code is the verdict.
+#
+# No test command is piped into `tee`, a formatter, or a summariser; no step
+# carries `continue-on-error`; no run of vitest passes `--reporter=json`.
+# The corollary for whoever edits this next: if you need to see more output,
+# make the command itself louder. Do not wrap it.
+
+name: CI
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: frontend (vitest ${{ matrix.shard }}/4)
+    runs-on: ubuntu-latest
+    env:
+      SHARDS: 4
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The pinned addon commits, not their branch tips, so the job tests
+          # the pairing a fresh clone would get.
+          submodules: recursive
+
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      # Without it vitest collects no addon test at all and the suite is green
+      # for the wrong reason.
+      - name: Link addons into backend/ and frontend/
+        run: ./setup-addons.sh
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: frontend
+
+      - name: Merge addon translations
+        run: node scripts/merge-addon-messages.mjs
+        working-directory: frontend
+
+      # `vitest run` spelled out rather than `pnpm test`, so what CI measures
+      # does not depend on argument forwarding through a package script.
+      # `pnpm test` stays the plain run: the four addon repositories call it
+      # against core's `develop` tip, and they should not inherit core's
+      # thresholds in their own CI.
+      #
+      # Sharded because the runner, not the suite, is the cost: the same 6,900
+      # cases take ~40s on a developer machine and ~350s here, and this job was
+      # the critical path for the whole workflow.
+      #
+      # `--retry=1` does not hide a failure — the build still goes red when a
+      # test fails twice. What it buys is the label: vitest reports a test that
+      # passed on its retry as flaky, which is the one thing the history could
+      # not distinguish (every failed run to date sits at attempt 1, so nobody
+      # ever learned whether a red was a catch or a coin flip).
+      #
+      # The thresholds are zeroed here and applied once in `frontend-coverage`.
+      # They live in `vitest.config.ts` and are checked at the end of every
+      # `--coverage` run, so a shard would measure the quarter of the tree it
+      # touched against the whole tree's floor and fail at ~42%.
+      - name: Test
+        run: >-
+          pnpm exec vitest run --coverage --retry=1
+          --reporter=blob --reporter=default
+          --shard=${{ matrix.shard }}/${{ env.SHARDS }}
+          --coverage.thresholds.statements=0
+          --coverage.thresholds.branches=0
+          --coverage.thresholds.functions=0
+          --coverage.thresholds.lines=0
+        working-directory: frontend
+
+      # `include-hidden-files` because the directory starts with a dot, which
+      # upload-artifact@v4 excludes by default, and `if-no-files-found: error`
+      # because without it the step warns and goes green on nothing — leaving
+      # the merge job to fail on an absent directory instead.
+      - name: Keep this shard's blob report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: vitest-blob-${{ matrix.shard }}
+          path: frontend/.vitest-reports/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+
+  # Coverage is the reason this is a job and not a step: a shard covers only
+  # the files its own quarter of the suite touched, so a threshold applied per
+  # shard would measure a quarter of the tree against a whole tree's floor.
+  # The blobs are merged first, and the floor and the denominator are checked
+  # once, against the same numbers a single run produces.
+  frontend-coverage:
+    name: frontend (coverage floor and denominator)
+    needs: frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Link addons into backend/ and frontend/
+        run: ./setup-addons.sh
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: frontend
+
+      - name: Collect every shard's blob report
+        uses: actions/download-artifact@v4
+        with:
+          pattern: vitest-blob-*
+          merge-multiple: true
+          path: frontend/.vitest-reports
+
+      # Counted before merging: `--merge-reports` on an absent or short
+      # directory reports a directory error, not "a shard is missing".
+      - name: Check every shard reported
+        shell: bash
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          n=$(ls .vitest-reports/*.json 2>/dev/null | wc -l)
+          if [ "$n" -ne 4 ]; then
+            echo "::error::expected 4 blob reports, found $n"
+            ls -la .vitest-reports/ 2>&1 || true
+            exit 1
+          fi
+
+      - name: Merge the shards and apply the floor
+        run: pnpm exec vitest --merge-reports --coverage
+        working-directory: frontend
+
+      # `!cancelled()` because the run that most needs this line is the one
+      # where the merge went red: a step with no `if:` is skipped when the step
+      # before it fails. Not `always()`: a cancelled run has nothing to diagnose.
+      - name: Check the coverage denominator
+        if: ${{ !cancelled() }}
+        run: node scripts/check-coverage-denominator.mjs
+        working-directory: frontend
+
+  # Neither reads a test result, so neither is worth repeating per shard.
+  frontend-static:
+    name: frontend (tsc / eslint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Link addons into backend/ and frontend/
+        run: ./setup-addons.sh
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: frontend
+
+      - name: Merge addon translations
+        run: node scripts/merge-addon-messages.mjs
+        working-directory: frontend
+
+      # Walk addons/*/ rather than addons/*/frontend, because an uninitialised
+      # submodule leaves an empty directory that the narrower glob would step
+      # straight over — skipping the very case this step exists to catch.
+      - name: Fail if any addon's tests were not collected
+        shell: bash
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          addons=(../addons/*/)
+          if [ ${#addons[@]} -eq 0 ]; then
+            echo "::error::no addons are checked out at all"
+            exit 1
+          fi
+          collected="$(pnpm exec vitest list --filesOnly)"
+          status=0
+          for dir in "${addons[@]}"; do
+            name="$(basename "$dir")"
+            if [ -z "$(ls -A "$dir")" ]; then
+              echo "::error::addons/$name is empty — its submodule did not check out"
+              status=1
+              continue
+            fi
+            [ -d "$dir/frontend" ] || continue
+            # Match what vitest's default include picks up, .spec included —
+            # an addon testing only in .spec files would otherwise read as
+            # having no tests and be skipped.
+            if [ -z "$(find "$dir/frontend" \( -name '*.test.*' -o -name '*.spec.*' \) -print -quit)" ]; then
+              continue
+            fi
+            if ! printf '%s\n' "$collected" | grep -q "^src/addons/$name/"; then
+              echo "::error::vitest collected no tests from addons/$name (setup-addons.sh built no link tree)"
+              status=1
+            fi
+          done
+          exit $status
+
+      - name: Type-check
+        run: pnpm exec tsc --noEmit
+        working-directory: frontend
+
+      - name: Lint
+        run: pnpm lint
+        working-directory: frontend
+
+  frontend-shuffled:
+    # The same suite, run in a random order. It answers a question the job
+    # above cannot: does any test depend on another test having run?
+    #
+    # Vitest prints the seed it picked ("Running tests with seed …"). To
+    # reproduce a failure exactly, pass that seed back:
+    #   pnpm exec vitest run --sequence.shuffle --sequence.seed=<seed>
+    #
+    # No collection guard here, unlike the job above: if the symlinks or the
+    # submodules failed, that job fails loudly and blocks the merge first.
+    # This one would only be redundantly empty.
+    name: frontend (shuffled order)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Link addons into backend/ and frontend/
+        run: ./setup-addons.sh
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: frontend
+
+      - name: Merge addon translations
+        run: node scripts/merge-addon-messages.mjs
+        working-directory: frontend
+
+      # `--retry=1` for the same reason as the sharded job: a test that passes
+      # on its retry is reported flaky rather than read as a find. Three of
+      # this job's failures were unique to it, and one of those three failed
+      # in the unshuffled job too — so the history cannot say whether this job
+      # has ever caught order coupling. The label settles it going forward.
+      - name: Test in a random order
+        run: pnpm exec vitest run --sequence.shuffle --retry=1
+        working-directory: frontend
+
+  frontend-layout:
+    # Deliberately not the specs under `frontend/e2e/`: those need a live stack
+    # on localhost:3000 and a seeded library, and skip themselves when no drive
+    # answers, so in CI they would report green having run almost nothing.
+    #
+    # No submodules and no setup-addons.sh: the fixture links a sheet
+    # compiled from src/app/globals.css, and its `@source "../addons"` names
+    # the gitignored link tree, which Tailwind skips silently when absent.
+    # No addon writes a rule the justified grid reads.
+    name: frontend (layout invariants and components in a browser)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: frontend
+
+      # Keyed on the lockfile because that is what pins @playwright/test,
+      # and a browser build only matches the version that downloaded it.
+      - name: Cache the Chromium build
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+
+      # Chromium alone. The invariants here are flex geometry, resolved
+      # transitions and pointer-event dispatch, not rendering differences
+      # between engines.
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+        working-directory: frontend
+
+      - name: Test the layout invariants
+        run: pnpm test:e2e:layout
+        working-directory: frontend
+
+      - name: Test the components in a browser
+        run: pnpm test:e2e:components
+        working-directory: frontend
+
+      # The EPUB reader's defences are a sanitizer and a CSP that each engine
+      # enforces on its own, so this suite runs in WebKit as well.
+      - name: Install WebKit
+        run: pnpm exec playwright install --with-deps webkit
+        working-directory: frontend
+
+      - name: Test the EPUB reader in Chromium and WebKit
+        run: pnpm test:e2e:epub
+        working-directory: frontend
+
+  mcp-server:
+    name: mcp-server (vitest / tsc)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: mcp-server/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: mcp-server/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: mcp-server
+
+      - name: Test
+        run: pnpm exec vitest run --coverage
+        working-directory: mcp-server
+
+      # `!cancelled()` because the run that most needs this line is the one
+      # where the thresholds refused: a step with no `if:` is skipped when the
+      # step before it fails.
+      - name: Check the coverage denominator
+        if: ${{ !cancelled() }}
+        run: node scripts/check-coverage-population.mjs
+        working-directory: mcp-server
+
+      - name: Type-check
+        run: pnpm exec tsc -p tsconfig.json --noEmit
+        working-directory: mcp-server
+
+  backend:
+    name: backend (pytest in the test image)
+    runs-on: ubuntu-latest
+    steps:
+      # No submodules: backend/Dockerfile.test copies backend/ and the repo-root
+      # bootstrap files, and nothing under addons/.
+      - uses: actions/checkout@v4
+
+      # Context is the repository root so the image can reach configure.py and
+      # the compose files, which sit above backend/.
+      - name: Build the test image
+        run: docker build -f backend/Dockerfile.test -t litloft-test .
+
+      # `pytest.ini` turns measurement on; the floor is added only here,
+      # because a floor is a claim about a complete run and `addopts` reaches
+      # partial ones too.
+      #
+      # `PYTEST_ADDOPTS` rather than a command after the image name: a command
+      # there *replaces* the CMD and the container never starts. But a
+      # misspelled variable name is silent — the suite passes and nothing is
+      # gated — so the same variable also carries `--cov-report=json`. If it
+      # does not take effect the report is not written either, and the step
+      # below fails on the missing file instead of succeeding for the wrong
+      # reason.
+      # 82.78 is CI's measured total truncated. A developer's macOS run covers
+      # slightly less of `app/` over the same denominator, so no floor is
+      # applied outside CI.
+      - name: Test
+        shell: bash
+        env:
+          COV_FLOOR: "82.78"
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/cov"
+          docker run --rm -v "$RUNNER_TEMP/cov:/out" \
+            -e PYTEST_ADDOPTS="--cov-fail-under=$COV_FLOOR --cov-report=json:/out/cov.json" \
+            litloft-test
+
+      # The floor is a lower bound, and a lower bound cannot see the
+      # denominator shrink — the percentage goes *up*. So the population is
+      # compared too, as a set, against an independent walk of this checkout.
+      - name: Verify the floor was applied, over the right population
+        shell: bash
+        env:
+          COV_FLOOR: "82.78"
+        run: |
+          set -euo pipefail
+          python3 backend/scripts/check-coverage-population.py "$RUNNER_TEMP/cov/cov.json" "$COV_FLOOR"
+
+  bootstrap:
+    name: bootstrap (configure.py)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # configure.py is stdlib-only and is deliberately not in the backend test
+      # image, so these run on a bare interpreter. The tests build their own
+      # addon trees in tmp_path, so no submodule checkout is needed.
+      - name: Install pytest
+        run: pip install pytest
+
+      - name: Test
+        run: python -m pytest tests -v
+
+  addon-backends:
+    # Only the addons that compile against core. cloud-sync and media_import run
+    # in the core process and their test images COPY backend/app/, so a core
+    # change can break them and core has to find out. intelligence and knowledge
+    # ship their own `app` package in their own container and import nothing
+    # from here; their repositories test them. The split follows the direction
+    # of the dependency, not a blanket "addon tests belong to the addon" rule.
+    name: addon backend (${{ matrix.addon }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        addon: [cloud-sync, media_import]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # Context is the repository root: the addon and the core `app` package it
+      # imports have to land in one tree.
+      - name: Build the test image
+        run: docker build -f addons/${{ matrix.addon }}/Dockerfile.test -t addon-test .
+
+      - name: Test
+        run: docker run --rm addon-test
+
+  images:
+    # For the frontend that is `next build`, covered by neither vitest nor tsc,
+    # and impossible to run against a development checkout — Turbopack fails to
+    # resolve the dynamic `@/addons/<name>/Page` import through the symlinked
+    # files in frontend/src/addons. frontend/Dockerfile discards that directory
+    # and copies the addon trees in as real files first, so building the image
+    # is the only honest rehearsal.
+    #
+    # The backend earns a build by the same argument, even though its test image
+    # shares the requirements files: backend/Dockerfile has production-only
+    # steps of its own — the addon copy loop and the addons/__init__.py it
+    # creates — and nothing else would notice them breaking.
+    name: production images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build the frontend image
+        run: docker build -f frontend/Dockerfile -t litloft-frontend .
+
+      - name: Build the backend image
+        run: docker build -f backend/Dockerfile -t litloft-backend .

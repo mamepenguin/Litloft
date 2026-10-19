@@ -1,28 +1,4 @@
-"""Unit tests for ``app.services.markdown_relations.resolve_wiki_targets``.
-
-Spec: docs/superpowers/specs/2026-05-12-markdown-link-three-forms.md §3.3.
-
-Resolver precedence (first matching rule wins per target):
-
-1. ``X`` matches ``^\\d{12,17}$`` → look up ``File.md_id == X`` in drive.
-2. ``X`` starts with ``./`` or ``../`` → relative-path resolve against
-   ``self_dir`` (basename with optional ``.md`` extension).
-3. ``X`` contains ``/`` (but not rule 2) → try relative-from-self_dir
-   first, then absolute-from-drive-root.
-4. Basename match: ``Path(filename).stem == X`` among the drive's
-   active ``.md`` files (case-sensitive).
-5. Alias match: ``X`` is in ``File.md_aliases`` (JSON-encoded list)
-   among active ``.md`` files.
-6. 0 hits → ``ResolveDiagnostic(kind='unresolved')``.
-7. 2+ hits in steps 4/5 → ``ResolveDiagnostic(kind='ambiguous',
-   candidates=[paths])``.
-
-All resolution is **drive-scoped** (security boundary) and applies
-``active_file_filter`` (trashed / missing files are not resolution
-targets).
-
-RED at the moment because the module does not exist yet.
-"""
+"""Unit tests for ``app.services.markdown_relations.resolve_wiki_targets``."""
 from __future__ import annotations
 
 import json
@@ -32,7 +8,6 @@ import pytest
 
 from app.models import File
 
-# Module under test — does not exist yet.
 from app.services.markdown_relations import (
     ResolveDiagnostic,
     resolve_wiki_targets,
@@ -78,10 +53,6 @@ def _seed_md(
     db.refresh(f)
     return f
 
-
-# ---------------------------------------------------------------------------
-# Rule 1: numeric id → File.md_id lookup
-# ---------------------------------------------------------------------------
 
 class TestResolveNumericId:
     def test_14_digit_id_resolves_to_file_with_matching_md_id(self, db_session):
@@ -141,14 +112,8 @@ class TestResolveNumericId:
         assert resolved == {target.id}
 
 
-# ---------------------------------------------------------------------------
-# Rule 2: ``./`` and ``../`` relative paths
-# ---------------------------------------------------------------------------
-
 class TestResolveRelativePath:
     def test_dot_slash_resolves_sibling(self, db_session):
-        # ``self_dir = notes/2026`` and target ``./sibling`` should
-        # resolve to ``notes/2026/sibling.md``.
         target = _seed_md(db_session, TEST_DRIVE, "notes/2026/sibling.md")
         resolved, _ = resolve_wiki_targets(
             db_session, TEST_DRIVE, "notes/2026", ["./sibling"]
@@ -156,8 +121,6 @@ class TestResolveRelativePath:
         assert resolved == {target.id}
 
     def test_dotdot_slash_resolves_parent(self, db_session):
-        # ``self_dir = notes/2026`` and target ``../neighbor`` should
-        # resolve to ``notes/neighbor.md``.
         target = _seed_md(db_session, TEST_DRIVE, "notes/neighbor.md")
         resolved, _ = resolve_wiki_targets(
             db_session, TEST_DRIVE, "notes/2026", ["../neighbor"]
@@ -165,7 +128,6 @@ class TestResolveRelativePath:
         assert resolved == {target.id}
 
     def test_dot_slash_with_extension_explicit(self, db_session):
-        # ``./sibling.md`` (with extension) should also resolve.
         target = _seed_md(db_session, TEST_DRIVE, "notes/sibling.md")
         resolved, _ = resolve_wiki_targets(
             db_session, TEST_DRIVE, "notes", ["./sibling.md"]
@@ -173,8 +135,6 @@ class TestResolveRelativePath:
         assert resolved == {target.id}
 
     def test_relative_target_not_found_is_unresolved(self, db_session):
-        # ``./missing`` with no matching file → unresolved.
-        # Rule 2 does NOT fall through to basename / alias.
         resolved, diagnostics = resolve_wiki_targets(
             db_session, TEST_DRIVE, "notes", ["./missing"]
         )
@@ -182,10 +142,6 @@ class TestResolveRelativePath:
         assert len(diagnostics) == 1
         assert diagnostics[0].kind == "unresolved"
 
-
-# ---------------------------------------------------------------------------
-# Rule 3: targets containing ``/`` (but not rule 2)
-# ---------------------------------------------------------------------------
 
 class TestResolveSlashPath:
     def test_relative_first_then_absolute(self, db_session):
@@ -202,7 +158,6 @@ class TestResolveSlashPath:
         assert resolved == {relative_target.id}
 
     def test_absolute_fallback_when_relative_misses(self, db_session):
-        # Only the absolute form exists → use it.
         target = _seed_md(db_session, TEST_DRIVE, "foo/note.md")
         resolved, _ = resolve_wiki_targets(
             db_session, TEST_DRIVE, "a", ["foo/note"]
@@ -219,10 +174,6 @@ class TestResolveSlashPath:
         assert diagnostics[0].kind == "unresolved"
 
 
-# ---------------------------------------------------------------------------
-# Rule 4: basename match
-# ---------------------------------------------------------------------------
-
 class TestResolveBasename:
     def test_basename_unique_match(self, db_session):
         target = _seed_md(db_session, TEST_DRIVE, "notes/year-recap.md")
@@ -233,28 +184,20 @@ class TestResolveBasename:
         assert diagnostics == []
 
     def test_basename_case_sensitive(self, db_session):
-        # Spec §3.3 note: basename comparison is case-sensitive
-        # (Linux-Docker convention).
         _seed_md(db_session, TEST_DRIVE, "Year-Recap.md")
         resolved, diagnostics = resolve_wiki_targets(
             db_session, TEST_DRIVE, "", ["year-recap"]
         )
         assert resolved == set()
-        # ``year-recap`` (lowercase) does not match ``Year-Recap``.
         assert diagnostics[0].kind == "unresolved"
 
     def test_unicode_basename(self, db_session):
-        # CJK / non-ASCII basenames work the same way.
         target = _seed_md(db_session, TEST_DRIVE, "年次振り返り.md")
         resolved, _ = resolve_wiki_targets(
             db_session, TEST_DRIVE, "", ["年次振り返り"]
         )
         assert resolved == {target.id}
 
-
-# ---------------------------------------------------------------------------
-# Rule 5: alias match
-# ---------------------------------------------------------------------------
 
 class TestResolveAlias:
     def test_alias_resolves_when_no_basename_match(self, db_session):
@@ -284,21 +227,14 @@ class TestResolveAlias:
         _alias_match = _seed_md(
             db_session, TEST_DRIVE, "other.md", md_aliases=["shared"]
         )
-        # Spec §3.3 — strict precedence: rule 4 is evaluated first and
-        # stops on >=1 hit. A 1-basename + 1-alias collision is NOT
-        # cross-rule ambiguity; rule 4 wins with the basename match.
-        # (Earlier test draft asserted ambiguous; corrected per the
-        # Phase B prompt's spec re-reading.)
+        # Strict precedence: rule 4 is evaluated first and stops on >=1 hit.
+        # A 1-basename + 1-alias collision is NOT cross-rule ambiguity.
         resolved, diagnostics = resolve_wiki_targets(
             db_session, TEST_DRIVE, "", ["shared"]
         )
         assert resolved == {basename_match.id}
         assert diagnostics == []
 
-
-# ---------------------------------------------------------------------------
-# Rule 6: unresolved
-# ---------------------------------------------------------------------------
 
 class TestResolveUnresolved:
     def test_no_match_anywhere(self, db_session):
@@ -310,14 +246,8 @@ class TestResolveUnresolved:
         assert len(diagnostics) == 1
         assert diagnostics[0].target == "does-not-exist"
         assert diagnostics[0].kind == "unresolved"
-        # ``candidates`` for unresolved is empty (only populated for
-        # ambiguous).
         assert diagnostics[0].candidates == []
 
-
-# ---------------------------------------------------------------------------
-# Rule 7: ambiguous
-# ---------------------------------------------------------------------------
 
 class TestResolveAmbiguous:
     def test_two_basenames_collide(self, db_session):
@@ -338,9 +268,6 @@ class TestResolveAmbiguous:
     def test_two_aliases_collide(self, db_session):
         # Within rule 5: two different files both list the same alias.
         # Rule 4 returns 0 hits → rule 5 evaluates → 2 hits → ambiguous.
-        # (This replaces the previous "basename + alias = ambiguous"
-        # test, which contradicted the spec's strict precedence; see
-        # ``test_basename_wins_over_alias_when_both_match``.)
         _seed_md(db_session, TEST_DRIVE, "alpha.md", md_aliases=["thing"])
         _seed_md(db_session, TEST_DRIVE, "beta.md", md_aliases=["thing"])
         resolved, diagnostics = resolve_wiki_targets(
@@ -353,14 +280,8 @@ class TestResolveAmbiguous:
         assert "beta.md" in candidates
 
 
-# ---------------------------------------------------------------------------
-# Drive boundary + active filter
-# ---------------------------------------------------------------------------
-
 class TestResolveDriveBoundary:
     def test_cross_drive_target_is_unresolved(self, db_session):
-        # The .md exists on a different drive (security boundary —
-        # cross-drive resolution forbidden).
         _seed_md(db_session, SECOND_DRIVE, "year-recap.md")
         resolved, diagnostics = resolve_wiki_targets(
             db_session, TEST_DRIVE, "", ["year-recap"]
@@ -395,7 +316,6 @@ class TestResolveDriveBoundary:
         assert diagnostics[0].kind == "unresolved"
 
     def test_trashed_md_id_target_is_unresolved(self, db_session):
-        # Rule 1 also applies the active filter.
         _seed_md(
             db_session,
             TEST_DRIVE,
@@ -409,10 +329,6 @@ class TestResolveDriveBoundary:
         assert resolved == set()
         assert diagnostics[0].kind == "unresolved"
 
-
-# ---------------------------------------------------------------------------
-# Multiple targets in one call
-# ---------------------------------------------------------------------------
 
 class TestResolveMultipleTargets:
     def test_mixed_resolved_and_unresolved(self, db_session):
@@ -449,10 +365,6 @@ class TestResolveMultipleTargets:
         )
         assert resolved == {target.id}
 
-
-# ---------------------------------------------------------------------------
-# ResolveDiagnostic dataclass contract
-# ---------------------------------------------------------------------------
 
 class TestResolveDiagnosticDataclass:
     def test_diagnostic_fields(self, db_session):

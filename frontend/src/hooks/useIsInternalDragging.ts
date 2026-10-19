@@ -4,11 +4,6 @@ import { useEffect, useState } from "react";
 import { flushSync } from "react-dom";
 
 /**
- * Returns `true` while any `useDragAndDrop` instance in the page has an
- * internal (move-file / move-folder) drag in progress. Used by the tree
- * pane and the right pane to show drop targets even when the drag
- * originated from the sibling pane.
- *
  * `flushSync` is used for the start listener so that the tree pane's
  * drop-target props are committed synchronously before the first `dragenter`
  * event fires on a tree row. Without it, React 18's auto-batching defers

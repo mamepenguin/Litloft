@@ -1,0 +1,651 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!--
+      Without this, a context that sets `isMobile` lays the page out at
+      Chromium's mobile default instead of the viewport the spec asked for.
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>list row furniture — layout fixture</title>
+    <!--
+      No <style> of its own: every declaration measured here has to come
+      out of the app's own stylesheet.
+    -->
+    <link rel="stylesheet" href="./globals.built.css" />
+  </head>
+  <body>
+    <!--
+      `separated` has no component behind it: star and overflow as direct
+      children of the row with the row's own gap between them, the star at
+      its fine-pointer box, and the row keeping its trailing padding.
+
+      `text` is the leaf's text content, not markup.
+    -->
+    <script type="application/json" id="fixture-markup">
+      {
+        "file": {
+          "tag": "div",
+          "class": "group flex items-center gap-3 bg-bg-card p-2.5 sm:p-2 pointer-coarse:pr-0 border-b border-bg-border last:border-b-0 transition-colors hover:bg-bg-elevated",
+          "children": [
+            {
+              "tag": "a",
+              "class": "flex flex-1 items-center gap-3 min-w-0",
+              "attrs": {
+                "href": "*"
+              },
+              "children": [
+                {
+                  "tag": "div",
+                  "class": "relative h-14 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-bg-elevated sm:h-14 sm:w-24",
+                  "attrs": { "data-file-thumb": "" },
+                  "children": [
+                    {
+                      "tag": "img",
+                      "class": "h-full w-full object-cover",
+                      "attrs": {
+                        "alt": "Title",
+                        "loading": "lazy",
+                        "src": "*"
+                      }
+                    },
+                    {
+                      "tag": "span",
+                      "class": "absolute bottom-0.5 right-0.5 rounded-lg bg-black/70 px-1 py-0.5 text-[10px] text-white",
+                      "children": [],
+                      "text": "1:00"
+                    }
+                  ]
+                },
+                {
+                  "tag": "div",
+                  "class": "min-w-0 max-w-list-row flex-1",
+                  "children": [
+                    {
+                      "tag": "div",
+                      "class": "flex items-center gap-2",
+                      "children": [
+                        {
+                          "tag": "span",
+                          "class": "min-w-0 flex-1 truncate text-sm font-semibold text-text-primary",
+                          "children": [],
+                          "text": "Title"
+                        },
+                        {
+                          "tag": "span",
+                          "class": "hidden flex-shrink-0 text-xs tabular-nums text-text-muted sm:inline",
+                          "children": [],
+                          "text": "09/01"
+                        }
+                      ]
+                    },
+                    {
+                      "tag": "div",
+                      "class": "mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-text-muted",
+                      "children": [
+                        {
+                          "tag": "span",
+                          "class": "flex-shrink-0",
+                          "children": [],
+                          "text": "Video"
+                        },
+                        {
+                          "tag": "span",
+                          "class": "flex-shrink-0 sm:hidden",
+                          "children": [],
+                          "text": "09/01"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "tag": "div",
+              "class": "flex flex-shrink-0 items-center gap-3 pointer-coarse:gap-0 pointer-coarse:-ml-3",
+              "children": [
+                {
+                  "tag": "button",
+                  "class": "flex items-center gap-1.5 transition-colors rounded-lg p-1.5 justify-center pointer-coarse:h-11 pointer-coarse:w-11 text-text-muted/50 hover:text-accent-teal",
+                  "attrs": {
+                    "aria-label": "*"
+                  },
+                  "children": [
+                    {
+                      "tag": "svg",
+                      "class": "lucide lucide-star",
+                      "attrs": {
+                        "width": "16",
+                        "height": "16"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "tag": "button",
+                  "class": "flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg text-text-muted opacity-0 transition-opacity hover:bg-bg-elevated hover:text-text-primary focus-visible:opacity-100 group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100 pointer-coarse:h-11 pointer-coarse:w-11",
+                  "attrs": {
+                    "type": "button",
+                    "aria-label": "*"
+                  },
+                  "children": [
+                    {
+                      "tag": "svg",
+                      "class": "lucide lucide-ellipsis-vertical",
+                      "attrs": {
+                        "width": "16",
+                        "height": "16"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "fileNoStar": {
+          "tag": "div",
+          "class": "group flex items-center gap-3 bg-bg-card p-2.5 sm:p-2 pointer-coarse:pr-0 border-b border-bg-border last:border-b-0 transition-colors hover:bg-bg-elevated",
+          "children": [
+            {
+              "tag": "a",
+              "class": "flex flex-1 items-center gap-3 min-w-0",
+              "attrs": {
+                "href": "*"
+              },
+              "children": [
+                {
+                  "tag": "div",
+                  "class": "relative h-14 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-bg-elevated sm:h-14 sm:w-24",
+                  "attrs": { "data-file-thumb": "" },
+                  "children": [
+                    {
+                      "tag": "img",
+                      "class": "h-full w-full object-cover",
+                      "attrs": {
+                        "alt": "Title",
+                        "loading": "lazy",
+                        "src": "*"
+                      }
+                    },
+                    {
+                      "tag": "span",
+                      "class": "absolute bottom-0.5 right-0.5 rounded-lg bg-black/70 px-1 py-0.5 text-[10px] text-white",
+                      "children": [],
+                      "text": "1:00"
+                    }
+                  ]
+                },
+                {
+                  "tag": "div",
+                  "class": "min-w-0 max-w-list-row flex-1",
+                  "children": [
+                    {
+                      "tag": "div",
+                      "class": "flex items-center gap-2",
+                      "children": [
+                        {
+                          "tag": "span",
+                          "class": "min-w-0 flex-1 truncate text-sm font-semibold text-text-primary",
+                          "children": [],
+                          "text": "Title"
+                        },
+                        {
+                          "tag": "span",
+                          "class": "hidden flex-shrink-0 text-xs tabular-nums text-text-muted sm:inline",
+                          "children": [],
+                          "text": "09/01"
+                        }
+                      ]
+                    },
+                    {
+                      "tag": "div",
+                      "class": "mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-text-muted",
+                      "children": [
+                        {
+                          "tag": "span",
+                          "class": "flex-shrink-0",
+                          "children": [],
+                          "text": "Video"
+                        },
+                        {
+                          "tag": "span",
+                          "class": "flex-shrink-0 sm:hidden",
+                          "children": [],
+                          "text": "09/01"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "tag": "div",
+              "class": "flex flex-shrink-0 items-center gap-3 pointer-coarse:gap-0 pointer-coarse:-ml-3",
+              "children": [
+                {
+                  "tag": "button",
+                  "class": "flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg text-text-muted opacity-0 transition-opacity hover:bg-bg-elevated hover:text-text-primary focus-visible:opacity-100 group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100 pointer-coarse:h-11 pointer-coarse:w-11",
+                  "attrs": {
+                    "type": "button",
+                    "aria-label": "*"
+                  },
+                  "children": [
+                    {
+                      "tag": "svg",
+                      "class": "lucide lucide-ellipsis-vertical",
+                      "attrs": {
+                        "width": "16",
+                        "height": "16"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "selectable": {
+          "tag": "div",
+          "class": "group flex items-center gap-3 bg-bg-card p-2.5 sm:p-2 pointer-coarse:pr-0 border-b border-bg-border last:border-b-0 transition-colors hover:bg-bg-elevated cursor-pointer select-none",
+          "children": [
+            {
+              "tag": "div",
+              "class": "flex flex-1 cursor-pointer items-center gap-3 min-w-0",
+              "children": [
+                {
+                  "tag": "div",
+                  "class": "flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-lg border-2 transition-colors pointer-events-none border-text-muted/50",
+                  "attrs": {
+                    "aria-hidden": "true"
+                  },
+                  "children": []
+                },
+                {
+                  "tag": "div",
+                  "class": "flex flex-1 items-center gap-3 min-w-0",
+                  "children": [
+                    {
+                      "tag": "div",
+                      "class": "relative h-14 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-bg-elevated sm:h-14 sm:w-24",
+                      "attrs": { "data-file-thumb": "" },
+                      "children": [
+                        {
+                          "tag": "img",
+                          "class": "h-full w-full object-cover",
+                          "attrs": {
+                            "alt": "Title",
+                            "loading": "lazy",
+                            "src": "*"
+                          }
+                        },
+                        {
+                          "tag": "span",
+                          "class": "absolute bottom-0.5 right-0.5 rounded-lg bg-black/70 px-1 py-0.5 text-[10px] text-white",
+                          "children": [],
+                          "text": "1:00"
+                        }
+                      ]
+                    },
+                    {
+                      "tag": "div",
+                      "class": "min-w-0 max-w-list-row flex-1",
+                      "children": [
+                        {
+                          "tag": "div",
+                          "class": "flex items-center gap-2",
+                          "children": [
+                            {
+                              "tag": "span",
+                              "class": "min-w-0 flex-1 truncate text-sm font-semibold text-text-primary",
+                              "children": [],
+                              "text": "Title"
+                            },
+                            {
+                              "tag": "span",
+                              "class": "hidden flex-shrink-0 text-xs tabular-nums text-text-muted sm:inline",
+                              "children": [],
+                              "text": "09/01"
+                            }
+                          ]
+                        },
+                        {
+                          "tag": "div",
+                          "class": "mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-text-muted",
+                          "children": [
+                            {
+                              "tag": "span",
+                              "class": "flex-shrink-0",
+                              "children": [],
+                              "text": "Video"
+                            },
+                            {
+                              "tag": "span",
+                              "class": "flex-shrink-0 sm:hidden",
+                              "children": [],
+                              "text": "09/01"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "tag": "div",
+              "class": "flex flex-shrink-0 items-center gap-3 pointer-coarse:gap-0 pointer-coarse:-ml-3",
+              "children": [
+                {
+                  "tag": "button",
+                  "class": "flex items-center gap-1.5 transition-colors rounded-lg p-1.5 justify-center pointer-coarse:h-11 pointer-coarse:w-11 text-text-muted/50 hover:text-accent-teal",
+                  "attrs": {
+                    "aria-label": "*"
+                  },
+                  "children": [
+                    {
+                      "tag": "svg",
+                      "class": "lucide lucide-star",
+                      "attrs": {
+                        "width": "16",
+                        "height": "16"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "folder": {
+          "tag": "div",
+          "class": "group flex items-center gap-3 border-b border-bg-border bg-bg-card p-2.5 transition-colors last:border-b-0 hover:bg-bg-elevated sm:p-2 pointer-coarse:py-0 pointer-coarse:pr-0",
+          "children": [
+            {
+              "tag": "a",
+              "class": "flex min-w-0 flex-1 items-center gap-3",
+              "attrs": {
+                "href": "*",
+                "draggable": "false",
+                "data-rename-focus": "*"
+              },
+              "children": [
+                {
+                  "tag": "div",
+                  "class": "flex w-24 flex-shrink-0 justify-center",
+                  "children": [
+                    {
+                      "tag": "svg",
+                      "class": "lucide lucide-folder text-text-muted",
+                      "attrs": {
+                        "width": "18",
+                        "height": "18"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "tag": "div",
+                  "class": "flex min-w-0 max-w-list-row flex-1 items-center gap-2",
+                  "children": [
+                    {
+                      "tag": "span",
+                      "class": "min-w-0 flex-1 truncate text-sm font-semibold text-text-primary",
+                      "children": [],
+                      "text": "Folder"
+                    },
+                    {
+                      "tag": "span",
+                      "class": "flex-shrink-0 text-xs tabular-nums text-text-muted",
+                      "children": [],
+                      "text": "3 items"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "tag": "div",
+              "class": "flex flex-shrink-0 items-center gap-3 pointer-coarse:gap-0 pointer-coarse:-ml-3",
+              "children": [
+                {
+                  "tag": "button",
+                  "class": "flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg text-text-muted opacity-0 transition-opacity hover:bg-bg-elevated hover:text-text-primary focus-visible:opacity-100 group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100 pointer-coarse:h-11 pointer-coarse:w-11",
+                  "attrs": {
+                    "type": "button",
+                    "aria-label": "*"
+                  },
+                  "children": [
+                    {
+                      "tag": "svg",
+                      "class": "lucide lucide-ellipsis-vertical",
+                      "attrs": {
+                        "width": "16",
+                        "height": "16"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "separated": {
+          "tag": "div",
+          "class": "group flex items-center gap-3 bg-bg-card p-2.5 sm:p-2 border-b border-bg-border last:border-b-0 transition-colors hover:bg-bg-elevated",
+          "children": [
+            {
+              "tag": "a",
+              "class": "flex flex-1 items-center gap-3 min-w-0",
+              "attrs": {
+                "href": "*"
+              },
+              "children": [
+                {
+                  "tag": "div",
+                  "class": "relative h-14 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-bg-elevated sm:h-14 sm:w-24",
+                  "attrs": { "data-file-thumb": "" },
+                  "children": [
+                    {
+                      "tag": "img",
+                      "class": "h-full w-full object-cover",
+                      "attrs": {
+                        "alt": "Title",
+                        "loading": "lazy",
+                        "src": "*"
+                      }
+                    },
+                    {
+                      "tag": "span",
+                      "class": "absolute bottom-0.5 right-0.5 rounded-lg bg-black/70 px-1 py-0.5 text-[10px] text-white",
+                      "children": [],
+                      "text": "1:00"
+                    }
+                  ]
+                },
+                {
+                  "tag": "div",
+                  "class": "min-w-0 max-w-list-row flex-1",
+                  "children": [
+                    {
+                      "tag": "div",
+                      "class": "flex items-center gap-2",
+                      "children": [
+                        {
+                          "tag": "span",
+                          "class": "min-w-0 flex-1 truncate text-sm font-semibold text-text-primary",
+                          "children": [],
+                          "text": "Title"
+                        },
+                        {
+                          "tag": "span",
+                          "class": "hidden flex-shrink-0 text-xs tabular-nums text-text-muted sm:inline",
+                          "children": [],
+                          "text": "09/01"
+                        }
+                      ]
+                    },
+                    {
+                      "tag": "div",
+                      "class": "mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-text-muted",
+                      "children": [
+                        {
+                          "tag": "span",
+                          "class": "flex-shrink-0",
+                          "children": [],
+                          "text": "Video"
+                        },
+                        {
+                          "tag": "span",
+                          "class": "flex-shrink-0 sm:hidden",
+                          "children": [],
+                          "text": "09/01"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "tag": "button",
+              "class": "flex items-center gap-1.5 transition-colors rounded-lg p-1.5 text-text-muted/50 hover:text-accent-teal",
+              "attrs": {
+                "aria-label": "*"
+              },
+              "children": [
+                {
+                  "tag": "svg",
+                  "class": "lucide lucide-star",
+                  "attrs": {
+                    "width": "16",
+                    "height": "16"
+                  }
+                }
+              ]
+            },
+            {
+              "tag": "button",
+              "class": "flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg text-text-muted opacity-0 transition-opacity hover:bg-bg-elevated hover:text-text-primary focus-visible:opacity-100 group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100 pointer-coarse:h-11 pointer-coarse:w-11",
+              "attrs": {
+                "type": "button",
+                "aria-label": "*"
+              },
+              "children": [
+                {
+                  "tag": "svg",
+                  "class": "lucide lucide-ellipsis-vertical",
+                  "attrs": {
+                    "width": "16",
+                    "height": "16"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }    </script>
+
+    <div id="frame"></div>
+
+    <script>
+      // A 1x1 transparent GIF: a data URI needs no network, which lets
+      // this page run off file://.
+      const PIXEL =
+        "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+
+      const SHAPES = JSON.parse(
+        document.getElementById("fixture-markup").textContent,
+      );
+
+      const NS = "http://www.w3.org/2000/svg";
+
+      const build = (spec) => {
+        const el =
+          spec.tag === "svg"
+            ? document.createElementNS(NS, spec.tag)
+            : document.createElement(spec.tag);
+        el.setAttribute("class", spec.class);
+        if (spec.tag === "img") el.src = PIXEL;
+        if (spec.tag === "a") el.href = "#";
+        for (const [name, value] of Object.entries(spec.attrs ?? {})) {
+          // `"*"` is "present, value not pinned". The attribute still has
+          // to exist: the measurement finds controls by `button[aria-label]`.
+          el.setAttribute(name, value === "*" ? name : value);
+        }
+        if (spec.text !== undefined) el.textContent = spec.text;
+        for (const child of spec.children ?? []) el.append(build(child));
+        return el;
+      };
+
+      const buildRow = (shape, name) => {
+        const spec = SHAPES[shape];
+        if (!spec) throw new Error(`no such row shape: ${shape}`);
+        const row = build(spec);
+        row.querySelector("span.truncate").textContent = name;
+        row.dataset.shape = shape;
+        return row;
+      };
+
+      /** `flex flex-col` is `FileList`'s own wrapper. */
+      window.buildListColumn = ({ width, shapes, name }) => {
+        const frame = document.getElementById("frame");
+        frame.style.width = `${width}px`;
+        frame.replaceChildren();
+
+        const column = document.createElement("div");
+        column.className = "flex flex-col";
+        for (const shape of shapes) column.append(buildRow(shape, name));
+        frame.append(column);
+      };
+
+      const box = (el) => {
+        if (!el) return null;
+        const r = el.getBoundingClientRect();
+        return {
+          top: r.top,
+          bottom: r.bottom,
+          left: r.left,
+          right: r.right,
+          width: r.width,
+          height: r.height,
+        };
+      };
+
+      /**
+       * Controls are found by `aria-label` rather than by position among
+       * the row's children, which differs between the shapes.
+       */
+      window.measureRows = () => {
+        const rows = [...document.querySelectorAll("#frame [data-shape]")];
+        return {
+          viewport: { width: window.innerWidth, height: window.innerHeight },
+          coarse: window.matchMedia("(pointer: coarse)").matches,
+          rows: rows.map((row) => {
+            const controls = [...row.querySelectorAll("button[aria-label]")];
+            return {
+              shape: row.dataset.shape,
+              row: box(row),
+              // By position rather than by tag: an `<a>`, or the
+              // selection-mode `<div>` that owns the checkbox.
+              link: box(row.firstElementChild),
+              thumb: box(row.querySelector(".w-24")),
+              name: box(row.querySelector("span.truncate")),
+              nameTruncated: (() => {
+                const el = row.querySelector("span.truncate");
+                return el.scrollWidth > el.clientWidth;
+              })(),
+              controls: controls.map((c) => ({
+                label: c.getAttribute("aria-label"),
+                box: box(c),
+              })),
+            };
+          }),
+        };
+      };
+    </script>
+  </body>
+</html>

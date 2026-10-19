@@ -7,18 +7,16 @@ interface InspectorPaneProps {
 }
 
 /**
- * Open/expanded Inspector column for the Markdown DocumentLayout.
- *
- * The internal "INSPECTOR" header + close button were removed in the
- * 2026-05-11 chrome consolidation: the layout's unified top chrome
- * already exposes the inspector toggle, so a duplicate label inside
- * the pane only ate vertical space.
+ * It is not told which form it is in, and must not be: this element is what holds
+ * the tab panels, so re-rendering it on a resize would put a
+ * transcript's scroll position and its clock subscription at the mercy
+ * of a window drag.
  */
 export function InspectorPane({ children }: InspectorPaneProps): ReactElement {
   return (
     <aside
       data-testid="inspector-pane"
-      className="flex h-full w-[300px] flex-col overflow-auto border-l border-bg-border bg-bg-card"
+      className="inspector-pane flex h-full w-96 flex-col overflow-auto border-l border-bg-border bg-bg-card"
     >
       <div className="flex-1 overflow-auto">{children}</div>
     </aside>

@@ -50,6 +50,8 @@ function makeFile(
   filename = `${id}.dat`,
 ): FileItem {
   return {
+    image_width: null,
+    image_height: null,
     id,
     filename,
     title: id,
@@ -62,12 +64,14 @@ function makeFile(
     has_thumbnail: false,
     file_size: 100,
     duration: null,
-    likes: 0,
+    liked_at: null,
     is_favorite: false,
     tags: [],
     subtitles: [],
     deleted_at: null,
     missing_since: null,
+    trust_tier: "verified",
+    trust_reviewed_at: null,
     created_at: "",
     updated_at: "",
   };
@@ -88,7 +92,7 @@ describe("dominantCollectionKind", () => {
       makeItem(makeFile("b", "document", "text/markdown", "b.md"), 1, 2),
       makeItem(makeFile("c", "video", "video/mp4"), 2, 3),
     ];
-    expect(dominantCollectionKind(items)).toBe("markdown");
+    expect(dominantCollectionKind(items)).toBe("text");
   });
 
   it("returns null when no kind exceeds half (tie / mixed)", () => {
@@ -105,7 +109,7 @@ describe("dominantCollectionKind", () => {
       makeItem(makeFile("b", "document", "application/octet-stream", "notes2.md"), 1, 2),
       makeItem(makeFile("c", "video", "video/mp4"), 2, 3),
     ];
-    expect(dominantCollectionKind(items)).toBe("markdown");
+    expect(dominantCollectionKind(items)).toBe("text");
   });
 
   it("classifies PDFs separately from generic documents", () => {
@@ -127,27 +131,59 @@ describe("resolveCollectionViewMode", () => {
       resolveCollectionViewMode({
         drive: "main",
         collectionId: "c1",
-        dominantKind: "markdown",
+        dominantKind: "text",
       }),
     ).toBe("list");
   });
 
-  it("auto-detects list for markdown-heavy collections", () => {
+  it("auto-detects list for note-heavy collections", () => {
     expect(
       resolveCollectionViewMode({
         drive: "main",
         collectionId: "c1",
-        dominantKind: "markdown",
+        dominantKind: "text",
       }),
     ).toBe("list");
   });
 
-  it("auto-detects grid for video/image/audio", () => {
+  it("auto-detects grid for the kinds whose cards show a picture", () => {
+    for (const dominantKind of ["video", "image", "pdf", "document"] as const) {
+      expect(
+        resolveCollectionViewMode({ drive: "main", collectionId: "c1", dominantKind }),
+      ).toBe("grid");
+    }
+  });
+
+  it("opens an album as a list, not fifty identical glyphs", () => {
     expect(
       resolveCollectionViewMode({
         drive: "main",
         collectionId: "c1",
-        dominantKind: "video",
+        dominantKind: "audio",
+      }),
+    ).toBe("list");
+  });
+
+  it("opens a collection of unclassified files as a list too", () => {
+    expect(
+      resolveCollectionViewMode({
+        drive: "main",
+        collectionId: "c1",
+        dominantKind: "other",
+      }),
+    ).toBe("list");
+  });
+
+  it("lets a stored choice beat the table", () => {
+    mockStorage.setItem(
+      "collectionPrefs:main",
+      JSON.stringify({ c1: { viewMode: "grid" } }),
+    );
+    expect(
+      resolveCollectionViewMode({
+        drive: "main",
+        collectionId: "c1",
+        dominantKind: "audio",
       }),
     ).toBe("grid");
   });
@@ -188,20 +224,55 @@ describe("useCollectionViewMode", () => {
     ).toEqual({ c1: { viewMode: "list" } });
   });
 
-  it("re-resolves when dominantKind shifts", () => {
-    const videoItems = [makeItem(makeFile("a", "video", "video/mp4"))];
-    const markdownItems = [
-      makeItem(makeFile("b", "document", "text/markdown", "b.md")),
-      makeItem(makeFile("c", "document", "text/markdown", "c.md"), 1, 2),
+  it("resolves on the first items it is given, not on an empty mount", () => {
+    const audioItems = [
+      makeItem(makeFile("a", "audio", "audio/mpeg")),
+      makeItem(makeFile("b", "audio", "audio/mpeg"), 1, 2),
     ];
     const { result, rerender } = renderHook(
       ({ items }) =>
         useCollectionViewMode({ drive: "main", collectionId: "c1", items }),
-      { initialProps: { items: videoItems } },
+      { initialProps: { items: [] as typeof audioItems } },
     );
-    expect(result.current.viewMode).toBe("grid");
-    rerender({ items: markdownItems });
+    rerender({ items: audioItems });
     expect(result.current.viewMode).toBe("list");
+  });
+
+  it("does not restyle a listing the reader is already reading", () => {
+    const audioItems = [
+      makeItem(makeFile("a", "audio", "audio/mpeg")),
+      makeItem(makeFile("b", "audio", "audio/mpeg"), 1, 2),
+    ];
+    const videoHeavy = [
+      ...audioItems,
+      makeItem(makeFile("c", "video", "video/mp4"), 2, 3),
+      makeItem(makeFile("d", "video", "video/mp4"), 3, 4),
+      makeItem(makeFile("e", "video", "video/mp4"), 4, 5),
+    ];
+    const { result, rerender } = renderHook(
+      ({ items }) =>
+        useCollectionViewMode({ drive: "main", collectionId: "c1", items }),
+      { initialProps: { items: audioItems } },
+    );
+    expect(result.current.viewMode).toBe("list");
+    rerender({ items: videoHeavy });
+    expect(result.current.viewMode).toBe("list");
+  });
+
+  it("starts over on a different collection", () => {
+    const audioItems = [
+      makeItem(makeFile("a", "audio", "audio/mpeg")),
+      makeItem(makeFile("b", "audio", "audio/mpeg"), 1, 2),
+    ];
+    const videoItems = [makeItem(makeFile("c", "video", "video/mp4"))];
+    const { result, rerender } = renderHook(
+      ({ collectionId, items }) =>
+        useCollectionViewMode({ drive: "main", collectionId, items }),
+      { initialProps: { collectionId: "c1", items: audioItems } },
+    );
+    expect(result.current.viewMode).toBe("list");
+    rerender({ collectionId: "c2", items: videoItems });
+    expect(result.current.viewMode).toBe("grid");
   });
 
   it("keeps the per-collection override even when items shift", () => {

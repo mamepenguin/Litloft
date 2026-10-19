@@ -9,6 +9,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    LargeBinary,
     String,
     Table,
     Text,
@@ -47,6 +48,14 @@ class Tag(Base):
     )
 
 
+TRUST_VERIFIED = "verified"
+TRUST_UNVERIFIED = "unverified"
+
+#: A source the viewer has vouched for ranks with primary sources; anything
+#: scavenged from outside starts unverified.
+TRUST_TIERS = (TRUST_VERIFIED, TRUST_UNVERIFIED)
+
+
 class File(Base):
     __tablename__ = "files"
 
@@ -62,7 +71,18 @@ class File(Base):
     mime_type: Mapped[str] = mapped_column(String, nullable=False, default="application/octet-stream")
     thumbnail_path: Mapped[str | None] = mapped_column(String, nullable=True)
     duration: Mapped[float | None] = mapped_column(Float, nullable=True)
-    likes: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    # Pixel dimensions of the source image. Videos are left NULL on
+    # purpose: their thumbnails are letterboxed to 320x180, so a listing
+    # can only ever lay them out at 16:9 and the true ratio has no
+    # consumer. The ``image_`` prefix says which files carry a value.
+    image_width: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    image_height: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    chapters_probed_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True, default=None
+    )
+    liked_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True, default=None
+    )
     is_favorite: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(UTC)
@@ -85,6 +105,12 @@ class File(Base):
     md_aliases: Mapped[str | None] = mapped_column(
         Text, nullable=True, default=None
     )
+    trust_tier: Mapped[str] = mapped_column(
+        String(16), nullable=False, default=TRUST_VERIFIED, server_default=TRUST_VERIFIED
+    )
+    trust_reviewed_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True, default=None
+    )
 
     tags: Mapped[list[Tag]] = relationship(
         "Tag", secondary=file_tags, back_populates="files", lazy="selectin"
@@ -93,17 +119,18 @@ class File(Base):
     __table_args__ = (
         # A drive is a security boundary; ``file_path`` is stored
         # drive-relative (no drive prefix), so uniqueness is per-drive,
-        # never global. Mirrors Tag / EmptyFolder / PinnedFolder /
-        # Collection which are all UniqueConstraint("drive", ...).
+        # never global.
         UniqueConstraint("drive", "file_path", name="uq_files_drive_file_path"),
         Index("idx_files_drive_folder_path", "drive", "folder_path"),
         Index("idx_files_title", "title"),
         Index("idx_files_is_favorite", "is_favorite"),
+        Index("idx_files_liked_at", "liked_at"),
         Index("idx_files_file_type", "file_type"),
         Index("idx_files_deleted_at", "deleted_at"),
         Index("idx_files_missing_since", "missing_since"),
         Index("idx_files_file_hash", "file_hash"),
         Index("idx_files_drive_md_id", "drive", "md_id"),
+        Index("idx_files_trust_tier", "trust_tier"),
     )
 
 
@@ -203,6 +230,30 @@ class Comment(Base):
     )
 
 
+class FileVersion(Base):
+    __tablename__ = "file_versions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    file_id: Mapped[str] = mapped_column(
+        String(12), ForeignKey("files.id", ondelete="CASCADE"), nullable=False
+    )
+    viewer_id: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    nickname: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    kind: Mapped[str] = mapped_column(String(8), nullable=False)
+    content_z: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    lines_added: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    lines_removed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    etag: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=lambda: datetime.now(UTC)
+    )
+
+    __table_args__ = (
+        Index("idx_file_versions_file_id", "file_id"),
+    )
+
+
 class CollectionItem(Base):
     __tablename__ = "collection_items"
 
@@ -265,6 +316,10 @@ class FileRelation(Base):
         DateTime, default=lambda: datetime.now(UTC)
     )
     created_by: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    # "markdown": file_id_a's Markdown link sync wrote the row. "internal": the
+    # Internal API did. NULL: written before origins were recorded. Direction
+    # alone does not say who wrote a row.
+    origin: Mapped[str | None] = mapped_column(String(16), nullable=True)
 
     __table_args__ = (
         UniqueConstraint(
@@ -273,6 +328,24 @@ class FileRelation(Base):
         CheckConstraint("file_id_a != file_id_b", name="ck_file_relations_not_self"),
         Index("idx_file_relations_a", "file_id_a", "kind"),
         Index("idx_file_relations_b", "file_id_b", "kind"),
+    )
+
+
+class FileChapter(Base):
+    __tablename__ = "file_chapters"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    file_id: Mapped[str] = mapped_column(
+        String(12), ForeignKey("files.id", ondelete="CASCADE"), nullable=False
+    )
+    start_time: Mapped[float] = mapped_column(Float, nullable=False)
+    end_time: Mapped[float | None] = mapped_column(Float, nullable=True)
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    ordering: Mapped[int] = mapped_column(Integer, nullable=False)
+    source: Mapped[str] = mapped_column(String, nullable=False)
+
+    __table_args__ = (
+        Index("idx_file_chapters_file", "file_id", "ordering"),
     )
 
 
@@ -299,3 +372,4 @@ def active_file_filter():
     soft-deleted (trash) and missing files should be excluded.
     """
     return and_(File.deleted_at.is_(None), File.missing_since.is_(None))
+

@@ -1,11 +1,5 @@
 "use client";
 
-// AccessModeStep: choose between public (no auth) and protected
-// (per-drive password). The two options render as full-bleed cards with
-// description, recommended use case, and benefits — but the actual radio
-// input is preserved as an sr-only element so screen readers and tests
-// can address it via its label.
-
 import { useTranslations } from "next-intl";
 
 export type AccessMode = "public" | "protected";

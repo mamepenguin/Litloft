@@ -4,63 +4,44 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 
 import { getFileNeighbors } from "@/lib/api";
+import { playerKind } from "@/lib/playerKind";
 import type { FileItem, Neighbors } from "@/types";
 import { useShortcuts } from "./useShortcuts";
+
+/**
+ * Readers whose arrows belong to their pages, the way a player's belong to
+ * seeking. The on-screen previous / next buttons still work for them.
+ */
+const PAGED_MIMES: ReadonlySet<string> = new Set([
+  "application/pdf",
+  "application/epub+zip",
+]);
 
 interface UseFileNavOpts {
   fileId: string | null;
   sort?: string;
   order?: string;
-  /**
-   * The current file's ``file_type`` and ``mime_type``. Used to decide
-   * whether ArrowLeft/ArrowRight should drive prev/next file
-   * navigation: video/audio players and the .loft (YouTube/Vimeo)
-   * iframe own those keys for seek/scrub. The hook fetches neighbors
-   * regardless so the host can render disabled prev/next buttons,
-   * but the keyboard shortcut layer is gated.
-   */
   fileType?: FileItem["file_type"] | null;
   mimeType?: string | null;
-  /**
-   * Caller-supplied gate. When ``false`` the hook does not fetch
-   * neighbors and does not register the keyboard shortcuts (e.g. the
-   * collection-mode host disables it because navigation is owned by
-   * CollectionPanel instead).
-   */
   enabled?: boolean;
-  /**
-   * Invoked when the user presses ArrowLeft / ArrowRight. Hosts wire
-   * this to ``selectFile(id)`` (2-pane) or
-   * ``router.replace(/files/{id})`` (fullscreen). Both call sites
-   * funnel through ``navigationGuard`` (PR-5), so the dirty-editor
-   * confirm dialog fires before navigation happens — this hook does
-   * not need its own guard.
-   */
+  countable?: boolean;
   onNavigate: (nextFileId: string) => void;
 }
 
 interface UseFileNavResult {
   prevId: string | null;
   nextId: string | null;
+  /**
+   * Both come straight from `/neighbors`, which counts them over exactly
+   * the rows `prevId` / `nextId` can reach — so a visible `n / N` and the
+   * buttons beside it cannot disagree.
+   */
+  position: number | null;
+  total: number | null;
+  navigatePrev: () => void;
+  navigateNext: () => void;
 }
 
-const LOFT_MIME = "application/vnd.litloft.loft+json";
-
-/**
- * File navigation hook for hosts that show a single file at a time
- * and want ArrowLeft/ArrowRight to walk to the prev/next sibling
- * file in the current sort order.
- *
- * Replaces the inline arrow-key handler that the legacy
- * ``/files/[id]/page.tsx`` carried, so both the 2-pane right pane
- * (RightPaneFile) and the collection-exception fullscreen route
- * (FileDetailFullScreen) can share a single implementation.
- *
- * Hosts pass ``onNavigate`` to decide what "navigate" means in their
- * URL model — e.g. ``selectFile(id)`` in 2-pane vs.
- * ``router.replace(/files/{id})`` in fullscreen — so the hook stays
- * surface-agnostic.
- */
 export function useFileNav({
   fileId,
   sort,
@@ -68,6 +49,7 @@ export function useFileNav({
   fileType,
   mimeType,
   enabled = true,
+  countable = true,
   onNavigate,
 }: UseFileNavOpts): UseFileNavResult {
   const tsc = useTranslations("shortcuts");
@@ -92,14 +74,11 @@ export function useFileNav({
     };
   }, [fileId, sort, order, enabled]);
 
-  // Mirror the legacy gate: video / audio / .loft own ArrowLeft / Right
-  // for seek; only non-media files claim them for prev/next navigation.
   const shortcutsEnabled =
     enabled &&
     !!neighbors &&
-    fileType !== "video" &&
-    fileType !== "audio" &&
-    mimeType !== LOFT_MIME;
+    playerKind({ mime_type: mimeType, file_type: fileType }) === null &&
+    !PAGED_MIMES.has(mimeType ?? "");
 
   const navigatePrev = useCallback(() => {
     if (neighbors?.prev_id) onNavigate(neighbors.prev_id);
@@ -122,5 +101,13 @@ export function useFileNav({
   return {
     prevId: neighbors?.prev_id ?? null,
     nextId: neighbors?.next_id ?? null,
+    position: countable ? (neighbors?.position ?? null) : null,
+    total: countable ? (neighbors?.total ?? null) : null,
+    // Handed out so a visible button and the arrow key run the same
+    // code. Two call paths into "go to the next file" is how one of
+    // them ends up skipping `navigationGuard` and losing an unsaved
+    // edit.
+    navigatePrev,
+    navigateNext,
   };
 }

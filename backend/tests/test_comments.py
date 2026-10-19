@@ -62,48 +62,6 @@ def _clear_rate_limits():
     _comment_timestamps.clear()
 
 
-class TestSharedViewerIdUtilities:
-    """Verify that viewer_id utilities moved to auth.py work correctly."""
-
-    def test_nickname_to_viewer_id_from_auth(self):
-        from app.auth import nickname_to_viewer_id
-        vid = nickname_to_viewer_id("alice")
-        assert len(vid) == 16
-        assert all(c in "0123456789abcdef" for c in vid)
-
-    def test_get_viewer_id_from_auth(self):
-        from app.auth import get_viewer_id
-        assert get_viewer_id(None) is None
-        assert get_viewer_id("") is None
-        assert get_viewer_id("   ") is None
-
-    def test_get_viewer_id_valid(self):
-        from app.auth import get_viewer_id, nickname_to_viewer_id
-        result = get_viewer_id("alice")
-        assert result == nickname_to_viewer_id("alice")
-
-    def test_get_nickname_from_auth(self):
-        from app.auth import get_nickname
-        assert get_nickname(None) is None
-        assert get_nickname("") is None
-        assert get_nickname("   ") is None
-        assert get_nickname("alice") == "alice"
-
-    def test_get_nickname_strips_whitespace(self):
-        from app.auth import get_nickname
-        assert get_nickname("  alice  ") == "alice"
-
-    def test_get_nickname_too_long(self):
-        from app.auth import get_nickname
-        assert get_nickname("x" * 51) is None
-
-    def test_backward_compat_progress_imports(self):
-        """Ensure progress.py still exports these for backward compatibility."""
-        from app.routers.progress import nickname_to_viewer_id, get_viewer_id
-        assert nickname_to_viewer_id("test") is not None
-        assert get_viewer_id(None) is None
-
-
 class TestCreateComment:
     def test_create_with_profile(self, client):
         c, db, drive_dir, data_dir = client
@@ -249,7 +207,6 @@ class TestListComments:
     def test_is_mine_anonymous_always_false(self, client):
         c, db, drive_dir, data_dir = client
         file = _seed_file(db, drive_dir)
-        # Seed anonymous comment directly (API requires profile)
         _seed_anonymous_comment(db, file.id, "Anon comment")
         # Even without viewer, anonymous comments are not "mine"
         res = c.get(f"/api/files/{file.id}/comments")
@@ -316,7 +273,6 @@ class TestUpdateComment:
     def test_update_anonymous_comment_403(self, client):
         c, db, drive_dir, data_dir = client
         file = _seed_file(db, drive_dir)
-        # Seed anonymous comment directly (API requires profile)
         comment = _seed_anonymous_comment(db, file.id, "Anonymous")
 
         # Even without viewer cookie, cannot edit anonymous comment
@@ -329,7 +285,6 @@ class TestUpdateComment:
     def test_update_anonymous_comment_with_viewer_403(self, client):
         c, db, drive_dir, data_dir = client
         file = _seed_file(db, drive_dir)
-        # Seed anonymous comment directly (API requires profile)
         comment = _seed_anonymous_comment(db, file.id, "Anonymous")
 
         res = c.put(
@@ -404,7 +359,6 @@ class TestDeleteComment:
         )
         assert res.status_code == 204
 
-        # Verify it's gone
         res = c.get(
             f"/api/files/{file.id}/comments",
             cookies={"lit_viewer": "alice"},
@@ -431,7 +385,6 @@ class TestDeleteComment:
     def test_delete_anonymous_comment_403(self, client):
         c, db, drive_dir, data_dir = client
         file = _seed_file(db, drive_dir)
-        # Seed anonymous comment directly (API requires profile)
         comment = _seed_anonymous_comment(db, file.id, "Anonymous")
 
         res = c.delete(
@@ -442,7 +395,6 @@ class TestDeleteComment:
     def test_delete_anonymous_comment_with_viewer_403(self, client):
         c, db, drive_dir, data_dir = client
         file = _seed_file(db, drive_dir)
-        # Seed anonymous comment directly (API requires profile)
         comment = _seed_anonymous_comment(db, file.id, "Anonymous")
 
         res = c.delete(
@@ -479,11 +431,9 @@ class TestCascadeDelete:
             cookies={"lit_viewer": "bob"},
         )
 
-        # Verify comments exist
         res = c.get(f"/api/files/{file_id}/comments")
         assert res.json()["total"] == 2
 
-        # Delete the file (soft delete)
         res = c.delete(f"/api/files/{file_id}")
         assert res.status_code == 200
 

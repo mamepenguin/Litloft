@@ -45,3 +45,19 @@ next-env.d.ts
 
 # generated: merged translation files (built by scripts/merge-addon-messages.mjs)
 /src/messages/
+
+# generated: the compiled stylesheet the layout fixture links
+# (built by e2e-layout/build-fixture-css.ts)
+/e2e-layout/fixtures/globals.built.css
+
+# The component fixture's bundle (built by e2e-components/build-bundle.ts)
+/e2e-components/.build/
+
+# The EPUB preview page (built by e2e-epub/build-preview.ts)
+/e2e-epub/.build-preview/
+
+# vitest blob reports (sharded runs)
+.vitest-reports/
+
+# foliate-js, copied from node_modules by scripts/copy-foliate.mjs
+/public/epub-reader/vendor/

@@ -1,0 +1,24 @@
+{
+  "risk": "CRITICAL",
+  "score": 11,
+  "base": 1,
+  "zone_max": "CRITICAL",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "backend/Dockerfile",
+      "level": "CRITICAL"
+    },
+    {
+      "path": "tests/test_backend_dockerfile.py",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone CRITICAL (10 points)"
+  ]
+}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 
 import type { ArchiveContents, ArchiveEntry } from "@/types";
@@ -21,20 +22,19 @@ export function useArchiveNavigation(
   searchParamsString: string,
   router: AppRouterInstance
 ): ArchiveNavigationResult {
-  // Compute entries for current directory
+  const t = useTranslations("archive");
+
   const currentEntries = archive
     ? [
         ...getEntriesInDir(archive.entries, currentPath),
         ...inferDirectories(archive.entries, currentPath),
       ].sort((a, b) => {
-        // Directories first, then alphabetical
         if (a.is_dir && !b.is_dir) return -1;
         if (!a.is_dir && b.is_dir) return 1;
         return a.filename.localeCompare(b.filename);
       })
     : [];
 
-  // Get image entries in current directory for the image viewer
   const imageEntries = useMemo(
     () =>
       archive
@@ -50,17 +50,15 @@ export function useArchiveNavigation(
     [archive, currentPath]
   );
 
-  // Breadcrumb segments
   const pathSegments = currentPath ? currentPath.split("/") : [];
   const breadcrumbs = [
-    { label: "Archive", path: "" },
+    { label: t("rootBreadcrumb"), path: "" },
     ...pathSegments.map((seg, i) => ({
       label: seg,
       path: pathSegments.slice(0, i + 1).join("/"),
     })),
   ];
 
-  // Navigate within archive by updating URL (adds to browser history)
   const navigateArchive = useCallback(
     (path: string) => {
       const params = new URLSearchParams(searchParamsString);
@@ -75,7 +73,6 @@ export function useArchiveNavigation(
     [router, searchParamsString]
   );
 
-  // Navigation handlers
   const handleDirClick = useCallback(
     (entry: ArchiveEntry) => {
       const dirPath = entry.path.endsWith("/")

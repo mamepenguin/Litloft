@@ -11,6 +11,7 @@ import {
   updateCollection,
 } from "@/lib/api";
 import { useToast } from "@/components/ToastProvider";
+import { collectionHref } from "@/lib/driveViews";
 import type { CollectionSummary } from "@/types";
 
 interface UseCollectionManagementParams {
@@ -53,12 +54,9 @@ export function useCollectionManagement({
     }
   }, [renamingId]);
 
-  useEffect(() => {
-    if (!contextMenu) return;
-    function handleClick() { setContextMenu(null); }
-    window.addEventListener("click", handleClick);
-    return () => window.removeEventListener("click", handleClick);
-  }, [contextMenu]);
+  // No listener here. The menu is `ContextMenu`, which goes through
+  // `DismissScrim`: an outside press closes it and the click that press
+  // produces is swallowed.
 
   const handleCreateCollection = useCallback(async () => {
     if (!currentDrive || !newCollectionName.trim()) {
@@ -106,16 +104,10 @@ export function useCollectionManagement({
     setContextMenu(null);
   }, [currentDrive, setCollectionList, toast, t]);
 
-  // Sidebar click opens the collection's "virtual folder" detail page.
-  // The Play action (jump into the fullscreen playback queue) lives on
-  // that page, gated on whether the collection actually has media.
-  // Spec 2026-05-12-playlist-to-collection §6.3 + PR-A follow-up.
   const handleCollectionClick = useCallback((c: CollectionSummary) => {
     setOverrideDrive(c.drive);
     close();
-    router.push(
-      `/drive/${encodeURIComponent(c.drive)}/collections/${encodeURIComponent(c.id)}`,
-    );
+    router.push(collectionHref(c));
   }, [close, router, setOverrideDrive]);
 
   return {

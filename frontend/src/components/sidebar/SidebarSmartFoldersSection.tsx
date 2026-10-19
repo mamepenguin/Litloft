@@ -3,18 +3,20 @@
 import type React from "react";
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, ChevronRight, Pencil, Search, Trash2 } from "lucide-react";
+import { Pencil, Search, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ContextMenu, type MenuItem } from "@/components/ContextMenu";
 import { SmartFolderSaveDialog } from "@/components/SmartFolderSaveDialog";
 import { useSmartFolders } from "@/hooks/useSmartFolders";
+import { smartFolderHref } from "@/lib/driveViews";
 import type { SmartFolder } from "@/types/smartFolder";
 import { useSidebarSectionCollapsed } from "./useSidebarSectionCollapsed";
 import { useSidebarItemOrder } from "./useSidebarItemOrder";
 import { useReorderableDnD } from "./useReorderableDnD";
 import { ItemDragHandle } from "./ItemDragHandle";
+import { SidebarSectionHeading } from "./SidebarSectionHeading";
 
 interface SidebarSmartFoldersSectionProps {
   drive: string;
@@ -34,14 +36,11 @@ export function SidebarSmartFoldersSection({
   dragHandle,
 }: SidebarSmartFoldersSectionProps) {
   const t = useTranslations("smartFolder");
-  const tSidebar = useTranslations("sidebar");
   const router = useRouter();
   const { collapsed, toggle } = useSidebarSectionCollapsed("smart-folders");
 
   const { smartFolders, update, remove } = useSmartFolders(drive);
 
-  // Stable id list (sf.id). Memoised so the reorder hooks keep a steady
-  // reference and do not churn `order` identity on every render.
   const currentIds = useMemo(() => smartFolders.map((sf) => sf.id), [smartFolders]);
   const { order, setOrder } = useSidebarItemOrder("smart-folders", drive, currentIds);
   const itemDnd = useReorderableDnD({
@@ -57,11 +56,7 @@ export function SidebarSmartFoldersSection({
 
   const handleClick = useCallback(
     (sf: SmartFolder) => {
-      const params = new URLSearchParams();
-      params.set("q", sf.query);
-      if (sf.file_type) params.set("type", sf.file_type);
-      params.set("smart_folder_id", sf.id);
-      router.push(`/drive/${encodeURIComponent(drive)}/search?${params.toString()}`);
+      router.push(smartFolderHref({ ...sf, drive }));
       close();
     },
     [drive, router, close],
@@ -99,10 +94,8 @@ export function SidebarSmartFoldersSection({
     }
   }, [deleting, remove, t]);
 
-  // Hide the entire section when there are no entries for the current drive.
   if (smartFolders.length === 0) return null;
 
-  const Chevron = collapsed ? ChevronRight : ChevronDown;
   const menuTarget = contextMenu
     ? smartFolders.find((sf) => sf.id === contextMenu.id) ?? null
     : null;
@@ -125,21 +118,12 @@ export function SidebarSmartFoldersSection({
 
   return (
     <>
-      <div className="group relative">
-        {dragHandle}
-        <button
-          type="button"
-          onClick={toggle}
-          aria-expanded={!collapsed}
-          aria-label={
-            collapsed ? tSidebar("sectionExpand") : tSidebar("sectionCollapse")
-          }
-          className="mb-1 mt-4 flex w-full items-center gap-1.5 rounded-lg px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted transition-colors hover:text-text-primary"
-        >
-          <Chevron size={12} />
-          <span>{t("sectionTitle")}</span>
-        </button>
-      </div>
+      <SidebarSectionHeading
+        label={t("sectionTitle")}
+        collapsed={collapsed}
+        onToggle={toggle}
+        dragHandle={dragHandle}
+      />
       {!collapsed &&
         order.map((id) => {
           const sf = smartFolders.find((s) => s.id === id);

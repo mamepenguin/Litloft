@@ -1,8 +1,28 @@
 @import "tailwindcss";
 
+/* Tailwind finds its own sources by walking out from this file, and it
+   skips paths a .gitignore excludes and symlinks. `src/addons/*` is caught
+   by both, so every utility class that appears ONLY in an addon generated
+   no CSS at all here. Naming the directory explicitly overrides both
+   exclusions. */
+@source "../addons";
+
+/* The scanner does not know a test from a component:
+   `line-clamp-display.test.ts` writes every display utility as data, so
+   Tailwind generated a rule for each one. */
+@source not "../__tests__/line-clamp-display.test.ts";
+
+/* The needle list in `e2e-layout/build-fixture-css.ts` asserts that the
+   compiled sheet contains a rule by holding that class in a string, so the
+   scanner reads the candidate out of the assertion itself and the
+   assertion cannot fail.
+
+   (No brace-and-selector spellings in this comment: `mediaDetailTheaterCss`
+   counts braces to check a rule is at the top level, and it counts the
+   ones in prose too.) */
+@source not "../../e2e-layout/build-fixture-css.ts";
+
 /* ===== Pinterest Design System ===== */
-/* Warm white canvas · Coral Red (#d63031) · Plum Black (#211922) */
-/* Dark variant: warm plum dark (#1a0e10) · Bright Coral (#e85d5e) */
 
 :root,
 [data-theme="light"] {
@@ -18,7 +38,10 @@
   --accent-cta: #d63031;
   --accent-teal: #103c25;
   --accent-amber: #78350f;
-  /* Pinterest-specific tokens */
+  /* The player's progress indicator sits on the picture, not on a themed
+     surface, so dark mode takes white rather than the coral accent. */
+  --player-indicator: var(--accent);
+  --player-indicator-track: rgba(112, 112, 112, 0.85);
   --sand: #e5e5e0;
   --sand-hover: #d5d5d0;
   --warm-light: #e0e0d9;
@@ -30,15 +53,13 @@
   --highlight-bg: #fff8c5;
   --kbd-shadow: inset 0 -1px 0 #b8c0c8;
   --shadow-card: 0 1px 2px rgba(33, 25, 34, 0.04), 0 1px 3px rgba(33, 25, 34, 0.04);
-  /* Chart-only categorical scale (NOT brand colors — see DESIGN.md §2.4).
-     Warm/earthy-anchored so it sits with coral+olive identity, tuned for
-     6-way distinguishability as solid small fills on the white canvas. */
-  --graph-cat-1: #d63031; /* coral  */
-  --graph-cat-2: #1f7a5a; /* green  */
-  --graph-cat-3: #c2740a; /* ochre  */
-  --graph-cat-4: #8e4585; /* plum   */
-  --graph-cat-5: #7c7a45; /* olive  */
-  --graph-cat-6: #3f6fa3; /* dusty blue */
+  /* Chart-only categorical scale (NOT brand colors). */
+  --graph-cat-1: #d63031;
+  --graph-cat-2: #1f7a5a;
+  --graph-cat-3: #c2740a;
+  --graph-cat-4: #8e4585;
+  --graph-cat-5: #7c7a45;
+  --graph-cat-6: #3f6fa3;
   color-scheme: light;
 }
 
@@ -55,6 +76,7 @@
   --accent-cta: #e85d5e;
   --accent-teal: #4caf80;
   --accent-amber: #f4c674;
+  --player-indicator: #ffffff;
   --sand: #3d2023;
   --sand-hover: #4a2a2e;
   --warm-light: #3d2023;
@@ -66,13 +88,12 @@
   --highlight-bg: rgba(244, 198, 116, 0.55);
   --kbd-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.2);
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.25);
-  /* Chart-only categorical scale — lifted for the warm plum dark canvas. */
-  --graph-cat-1: #e85d5e; /* coral  */
-  --graph-cat-2: #4caf80; /* green  */
-  --graph-cat-3: #f0a847; /* honey  */
-  --graph-cat-4: #c98bc0; /* orchid */
-  --graph-cat-5: #bdb869; /* olive  */
-  --graph-cat-6: #7fa6d4; /* dusty blue */
+  --graph-cat-1: #e85d5e;
+  --graph-cat-2: #4caf80;
+  --graph-cat-3: #f0a847;
+  --graph-cat-4: #c98bc0;
+  --graph-cat-5: #bdb869;
+  --graph-cat-6: #7fa6d4;
   color-scheme: dark;
 }
 
@@ -89,6 +110,8 @@
   --color-accent-cta: var(--accent-cta);
   --color-accent-teal: var(--accent-teal);
   --color-accent-amber: var(--accent-amber);
+  --color-player-indicator: var(--player-indicator);
+  --color-player-indicator-track: var(--player-indicator-track);
   --color-sand: var(--sand);
   --color-sand-hover: var(--sand-hover);
   --color-warm-light: var(--warm-light);
@@ -96,6 +119,7 @@
   --color-dark-surface: var(--dark-surface);
   --color-focus-ring: var(--focus-ring);
   --color-danger: var(--danger);
+  --color-highlight-bg: var(--highlight-bg);
   --color-graph-cat-1: var(--graph-cat-1);
   --color-graph-cat-2: var(--graph-cat-2);
   --color-graph-cat-3: var(--graph-cat-3);
@@ -103,11 +127,23 @@
   --color-graph-cat-5: var(--graph-cat-5);
   --color-graph-cat-6: var(--graph-cat-6);
   --shadow-card: var(--shadow-card);
-  /* Pin Sans font stack: system-ui with broad CJK fallbacks */
+  /* Named rather than written as `max-w-[60rem]` at each call site because
+     another 60rem answers a different question ("can a rail sit beside the
+     player"), and two unrelated rules wearing the same number get merged by
+     the next reader. */
+  --container-list-row: 60rem;
+  --container-wide: 72rem;
+  --container-reading: 48rem;
   --font-sans: -apple-system, system-ui, "Segoe UI", Roboto, "Oxygen-Sans",
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", Ubuntu, Cantarell,
     "Fira Sans", "Droid Sans", "Helvetica Neue", Helvetica,
     "ヒラギノ角ゴ Pro W3", メイリオ, Meiryo, "ＭＳ Ｐゴシック", Arial, sans-serif;
+}
+
+/* On body this does nothing: only the root element's value reaches the
+   viewport, and iOS rubber-bands the viewport with the sticky header in it. */
+html {
+  overscroll-behavior: none;
 }
 
 body {
@@ -117,25 +153,19 @@ body {
   line-height: 1.6;
   text-rendering: optimizeLegibility;
   touch-action: manipulation;
-  overscroll-behavior: contain;
   -webkit-touch-callout: none;
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* ===== ja Typography (jp-ui-contracts: base + saas profile) ===== */
-
-/* Core ja line-breaking rules */
 html:lang(ja) {
   line-break: strict;
   word-break: normal;
   overflow-wrap: anywhere;
   font-kerning: auto;
   font-feature-settings: normal;
-  /* Progressive enhancement: auto-space between CJK and Latin */
   text-autospace: normal;
 }
 
-/* Paragraph / list / definition items */
 p,
 li,
 dd {
@@ -144,7 +174,6 @@ dd {
   overflow-wrap: anywhere;
 }
 
-/* Heading line-break and kerning */
 :lang(ja) h1,
 :lang(ja) h2,
 :lang(ja) h3,
@@ -155,12 +184,10 @@ dd {
   font-kerning: auto;
 }
 
-/* ja heading line-height scale */
 :lang(ja) h1 { line-height: 1.35; }
 :lang(ja) h2 { line-height: 1.4; }
 :lang(ja) h3 { line-height: 1.45; }
 
-/* Form elements: separate density from body text */
 :lang(ja) label,
 :lang(ja) input,
 :lang(ja) textarea,
@@ -206,6 +233,16 @@ dd {
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes slide-down-bar {
+  from { opacity: 0; transform: translateY(-100%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(100%); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
 @keyframes pop {
   0% { transform: scale(1); }
   50% { transform: scale(1.25); }
@@ -224,8 +261,16 @@ dd {
   animation: slide-up 250ms ease-out both;
 }
 
+@utility animate-slide-down-bar {
+  animation: slide-down-bar 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 @utility animate-slide-up-bar {
   animation: slide-up-bar 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@utility animate-slide-in-right {
+  animation: slide-in-right 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @utility animate-pop {
@@ -234,12 +279,6 @@ dd {
 
 /* ===== Markdown Preview Styles ===== */
 
-/* Reading typography — candidate A per docs/citation-ui-mockup.html §3.
-   16px base (inherited from html), line-height 1.625, heading scale
-   1.75em / 1.35em / 1.15em / 1.03em with phrase-wrapping-friendly
-   margins. Applied to MarkdownPreview (FilePreview .md, Ask answers,
-   knowledge preview) AND the detailed-summary segment wrappers so the
-   reading surface is consistent across all long-form markdown. */
 .markdown-body {
   color: var(--text-primary);
   line-height: 1.625;
@@ -319,8 +358,6 @@ dd {
   margin-bottom: 0.35em;
 }
 
-/* blockquote — accent left bar + soft elevated fill, rounded-xl at
-   the trailing edges per DESIGN.md card radius. */
 .markdown-body blockquote {
   border-left: 3px solid var(--accent);
   margin: 1em 0;
@@ -370,12 +407,13 @@ dd {
 
 .markdown-body a:hover { color: var(--accent-hover); }
 
-/* Table — "quiet reading table" per H3 variant (docs/citation-ui-mockup.html §4.5).
-   border-collapse: separate so individual cells can carry their own
-   border-left accent (weak tier) without colliding with neighbour cell
-   borders. No zebra stripes; no cell side-borders; thead has no fill —
-   the bottom rule + font-weight carries the header role. Matches the
-   "divider + weight only" editorial table aesthetic. */
+.markdown-body .markdown-table-scroll {
+  overflow-x: auto;
+  margin: 1em 0;
+}
+
+/* border-collapse: separate so individual cells can carry their own
+   border-left accent without colliding with neighbour cell borders. */
 .markdown-body table {
   border-collapse: separate;
   border-spacing: 0;
@@ -383,6 +421,8 @@ dd {
   margin: 1em 0;
   font-size: 0.95em;
 }
+
+.markdown-body .markdown-table-scroll > table { margin: 0; }
 
 .markdown-body th,
 .markdown-body td {
@@ -415,6 +455,33 @@ dd {
   opacity: 0.5;
 }
 
+.markdown-body .markdown-image-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.markdown-body .markdown-image-group img,
+.markdown-body .markdown-image-group .loft-image-link {
+  height: 200px;
+  width: auto;
+  max-width: 100%;
+  flex: 0 0 auto;
+}
+
+.markdown-body .markdown-image-group .loft-image-link img {
+  height: 100%;
+  width: auto;
+}
+
+@media (max-width: 767px) {
+  .markdown-body .markdown-image-group img,
+  .markdown-body .markdown-image-group .loft-image-link {
+    height: 120px;
+  }
+}
+
 .markdown-body hr {
   border: none;
   border-top: 1px solid var(--bg-border);
@@ -435,12 +502,17 @@ dd {
 }
 
 /* Reset the UA-default yellow on ``<mark>`` so Tailwind utilities
-   (e.g. ``bg-accent-teal/20``) apply cleanly wherever a mark is used
-   outside MarkdownPreview. ``.markdown-body mark`` below wins via
-   specificity inside the Markdown pipeline. */
-mark {
-  background-color: transparent;
-  color: inherit;
+   (e.g. ``bg-highlight-bg``) apply wherever a mark is used outside
+   MarkdownPreview.
+
+   **The layer is load-bearing.** Tailwind v4 emits its utilities into
+   ``@layer utilities``, and unlayered rules beat layered ones whatever
+   their specificity. */
+@layer base {
+  mark {
+    background-color: transparent;
+    color: inherit;
+  }
 }
 
 .markdown-body mark {
@@ -460,42 +532,17 @@ mark {
   font-weight: 600;
 }
 
-/* Segment-level MarkdownPreview variant used by the detailed-summary
-   citation-anchored view. Each ``data-citation-section-path`` wrapper
-   renders one segment (paragraph / bullet body / table row) through
-   MarkdownPreview. The only difference from a normal MarkdownPreview
-   render is that we strip the first/last-child outer margins so each
-   segment stacks tightly next to the citation marker — otherwise the
-   inherited ``.markdown-body`` rules add phantom top/bottom gutters
-   that would break the segment-aligned layout. Typography (color,
-   line-height, headings, code, quotes, tables, etc.) stays identical
-   to the rest of the app. */
 .markdown-segment > *:first-child { margin-top: 0; }
 .markdown-segment > *:last-child { margin-bottom: 0; }
 
 .markdown-body > :first-child { margin-top: 0; }
 .markdown-body > :last-child { margin-bottom: 0; }
 
-/* =====================================================================
-   Citation segment host (docs/citation-ui-mockup.html §4 `.segment`).
-
-   Each paragraph / bullet / table-row that carries a citation marker is
-   wrapped with ``data-citation-section-path``. The host paints a quiet
-   sand tint on hover (Verify ON only) and a stronger tint when the
-   accordion is expanded. A 12px border-radius keeps the tint rounded
-   off against the surrounding prose.
-
-   scroll-margin-top anchors the segment at ~20vh so expanding pins the
-   clicked line to the top of the viewport instead of the very edge. */
 [data-citation-section-path] {
   scroll-margin-top: 20vh;
   transition: background-color 120ms ease;
 }
 
-/* Hover / expanded tint — applied only when Verify is ON. The global
-   data-citation-verify attribute is hoisted onto the ``[data-citation-host]``
-   wrapper that surrounds the whole summary so a single DOM attribute
-   gates every segment below it without per-segment duplication. */
 [data-citation-host="on"]
   [data-citation-section-path]:not(tr):not(:focus-visible):hover {
   background: color-mix(in srgb, var(--sand) 55%, transparent);
@@ -506,8 +553,7 @@ mark {
 }
 
 /* Table rows can't carry the tint themselves because a cell's border
-   paints over the row background; we tint the cells instead, matching
-   the mockup rule ``tr.segment[aria-expanded="true"] > td``. */
+   paints over the row background; we tint the cells instead. */
 [data-citation-host="on"]
   tr[data-citation-section-path]:hover > td {
   background: color-mix(in srgb, var(--sand) 40%, transparent);
@@ -517,15 +563,6 @@ mark {
   background: color-mix(in srgb, var(--sand) 55%, transparent);
 }
 
-/* Paragraph / bullet segments breathe with -8px horizontal negative
-   margin + 8px horizontal padding so the hover / expanded tint
-   extends a hair past the text box. A symmetric 4px vertical padding
-   lets the tint have a small halo above/below the text even when
-   collapsed; because every segment (citation-bearing or not) sits
-   inside the same wrapper, the 4px applies uniformly and doesn't
-   shift the text baseline relative to neighbouring non-citation
-   content. Table rows skip this entirely — the cell padding already
-   carries the inset. */
 [data-citation-section-path]:not(tr):not(td):not(th) {
   border-radius: 12px;
 }
@@ -542,7 +579,6 @@ div[data-citation-section-path]:not(tr) {
   outline-offset: 2px;
 }
 
-/* Task lists */
 .markdown-body .task-list-item {
   list-style: none;
   margin-left: -1.25em;
@@ -558,7 +594,6 @@ div[data-citation-section-path]:not(tr) {
   cursor: default;
 }
 
-/* Code blocks with syntax highlighting */
 .markdown-body .code-block {
   background: var(--bg-elevated);
   border: 1px solid var(--bg-border);
@@ -577,7 +612,6 @@ div[data-citation-section-path]:not(tr) {
   font-family: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
 }
 
-/* highlight.js token colors — light */
 .hljs-comment, .hljs-quote { color: #6a737d; font-style: italic; }
 .hljs-keyword, .hljs-selector-tag, .hljs-deletion { color: #d73a49; }
 .hljs-string, .hljs-attr, .hljs-addition { color: #032f62; }
@@ -590,7 +624,6 @@ div[data-citation-section-path]:not(tr) {
 .hljs-emphasis { font-style: italic; }
 .hljs-strong { font-weight: 700; }
 
-/* highlight.js token colors — dark */
 [data-theme="dark"] .hljs-comment,
 [data-theme="dark"] .hljs-quote { color: #8b949e; }
 [data-theme="dark"] .hljs-keyword,
@@ -611,7 +644,6 @@ div[data-citation-section-path]:not(tr) {
 [data-theme="dark"] .hljs-attribute { color: #79c0ff; }
 [data-theme="dark"] .hljs-meta { color: #e3b341; }
 
-/* Mermaid diagrams */
 .mermaid-diagram {
   margin-bottom: 1em;
   overflow-x: auto;
@@ -633,23 +665,19 @@ div[data-citation-section-path]:not(tr) {
   margin-bottom: 1em;
 }
 
-/* Mobile adjustments — keep the reading-A heading scale, only trim
-   table font-size to avoid horizontal overflow on narrow viewports. */
 @media (max-width: 767px) {
   .markdown-body table { font-size: 0.93em; }
+}
+
+/* Subtracts the header's min-height from Header.tsx. Leaving out the safe-area
+   inset makes the PWA document taller than the screen. */
+@utility h-below-header {
+  height: calc(100dvh - 3.5rem - env(safe-area-inset-top, 0px));
 }
 
 @utility break-anywhere {
   word-break: normal;
   overflow-wrap: anywhere;
-}
-
-@utility scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-  &::-webkit-scrollbar {
-    display: none;
-  }
 }
 
 @utility scrollbar-hover {
@@ -681,9 +709,6 @@ div[data-citation-section-path]:not(tr) {
   }
 }
 
-/* Ask citation jump — temporary highlight applied by useHighlightPassage
-   when the user clicks a citation card. Uses the existing --highlight-bg
-   token so the colour adapts to light/dark theme automatically. */
 .ask-citation-highlight {
   background-color: var(--highlight-bg);
   color: inherit;
@@ -692,12 +717,86 @@ div[data-citation-section-path]:not(tr) {
   box-shadow: 0 0 0 1px var(--highlight-bg);
 }
 
-/* Wiki-link rendering — spec 2026-05-12 §3.8 / DESIGN.md §2.3.
-   Three visual states applied by MarkdownPreview's wiki_link inline rule.
-   - resolved   → canonical accent red (matches all other in-app links)
-   - unresolved → muted text colour + dashed underline (affordance for
-     "this might become a link if you create it")
-   - ambiguous  → warning amber (multiple matches; user must disambiguate) */
+/* A passage that crosses an element boundary is several <mark>s. The
+   attribute raises the specificity over `.markdown-body mark`, which
+   otherwise supplies the padding inside a rendered note. */
+.ask-citation-highlight[data-citation-seam="start"] {
+  padding-right: 0;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.ask-citation-highlight[data-citation-seam="mid"] {
+  padding-left: 0;
+  padding-right: 0;
+  border-radius: 0;
+}
+
+.ask-citation-highlight[data-citation-seam="end"] {
+  padding-left: 0;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+/* Horizontal padding moves every character after it, which in a monospace
+   block means the highlighted line no longer lines up with its
+   neighbours. */
+pre mark.ask-citation-highlight {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* The code viewer's line numbers.
+
+   Generated content, because the <pre>'s text is read by the citation search
+   (a TreeWalker over its text nodes) and by the capture basket
+   (Selection.toString()). A number written as a text node would land in a
+   saved quote and in the haystack a search result is matched against.
+
+   `--code-gutter` is the number column: four digits and the gap to the
+   code. Four is every file the viewer numbers, because it stops numbering
+   above MAX_DECORATED_LINES and that is 5000. The block's padding pushes
+   the text off the column and the negative margin below pulls each number
+   back into it, so a line that wraps continues under the code rather than
+   under its own number. */
+.code-view {
+  --code-gutter: 5ch;
+  counter-reset: code-line;
+  /* One inset on all four sides, with the number column added to the left.
+     The number is as far from the card's edge as the text is from the other
+     three; a wider inset would push a four-digit gutter well past the width
+     this block had before it was numbered. */
+  padding: 0.5rem;
+  padding-left: calc(0.5rem + var(--code-gutter));
+}
+
+.code-line {
+  display: inline;
+  counter-increment: code-line;
+}
+
+.code-line::before {
+  content: counter(code-line);
+  display: inline-block;
+  width: var(--code-gutter);
+  margin-left: calc(-1 * var(--code-gutter));
+  /* Preflight makes this border-box, so the padding comes out of the width
+     rather than adding to it: 5ch less 0.75ch leaves 4.25ch. Four and a
+     quarter rather than four, because `ch` is the browser's rounded advance
+     of `0` and four real digits measure a hundredth of a pixel wider. */
+  padding-right: 0.75ch;
+  /* `pre-wrap` is inherited from the block, and a number that wraps inside
+     its own box makes the line two rows tall. */
+  white-space: nowrap;
+  text-align: right;
+  color: var(--text-muted);
+  opacity: 0.6;
+  /* Browsers have disagreed about whether generated content joins the
+     selection; nothing above should depend on the answer. */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 .wiki-link {
   text-decoration: none;
   border-bottom: 1px solid transparent;
@@ -722,4 +821,554 @@ div[data-citation-section-path]:not(tr) {
   border-bottom: 1px dashed
     color-mix(in srgb, var(--accent-amber) 60%, transparent);
   cursor: help;
+}
+
+/* ------------------------------------------------------------------
+   Media file detail: player column with an optional companion rail.
+
+   The companion must not be mounted twice — it fetches, subscribes to
+   the playback clock and holds scroll state — so the grid moves it
+   rather than the markup duplicating it.
+
+   Not a container query: `container-type` establishes a containment
+   context, and on iOS Safari one wrapped around a <video> or a
+   cross-origin iframe renders the whole subtree rotated and spinning.
+   ------------------------------------------------------------------ */
+/* The one height budget the companion gets, so the box below the player
+   and the rail beside it cannot end up with two different answers. */
+.media-detail-host {
+  --companion-box-h: calc(var(--rail-avail, 100dvh) * 0.6);
+}
+
+.reading-measure {
+  max-width: 860px;
+}
+
+.media-detail-grid {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "player"
+    "companion"
+    "rest";
+}
+
+.media-detail-player {
+  grid-area: player;
+}
+
+/* The occupant under the player gets a row, **and only when it is
+   there.** A named row is laid out whether or not anything occupies it,
+   and `gap` is drawn on **both** sides of it.
+
+   A sibling of the player rather than a box around it: sticky travels
+   only inside its own containing block, and a wrapper whose height is
+   the player's own leaves it none.
+
+   The condition has to be the occupant's own class, un-negated:
+   `:has(.media-detail-player)` and `:not(:has(…))` are both conditions
+   that read as conditional and are not. */
+.media-detail-grid:has(> .media-detail-player-aside:not(:empty)) {
+  grid-template-areas:
+    "player"
+    "player-aside"
+    "companion"
+    "rest";
+}
+
+.media-detail-player-aside {
+  grid-area: player-aside;
+}
+
+/* Expressed as a width cap rather than `max-height`, because the `.loft`
+   iframe builds its aspect ratio from a `padding-top: 56.25%` shim, and
+   padding is not collapsed by `max-height`. Only for a player whose
+   height IS a function of its width; the host sets `data-framed` for
+   those. */
+.media-detail-player[data-framed="true"] {
+  /* `width` before the auto margins, and not optional: an auto inline
+     margin turns off a grid item's default `stretch`, and a <video> with
+     no metadata yet reports the CSS default 300x150. */
+  width: 100%;
+  max-width: calc(var(--player-avail, 100dvh) * 16 / 9);
+  margin-inline: auto;
+}
+.media-detail-companion { grid-area: companion; }
+.media-detail-rest { grid-area: rest; }
+
+/* The host bounds the companion in BOTH forms, not just the rail: the
+   occupant cannot know which form it is in and must not be the one
+   holding the height. */
+.media-detail-companion-inner {
+  display: flex;
+  flex-direction: column;
+  max-height: var(--companion-box-h);
+  overflow: hidden;
+}
+
+/* Lead — **must not shrink**. This container has `max-height` rather
+   than `height`, so the fill's `flex-basis: 0%` falls back to content,
+   and the lead's share of that shortfall collapses it to a sliver. The
+   cap is what bounds the lead, not shrinking. */
+.media-detail-companion-lead {
+  flex: 0 0 auto;
+  min-height: 0;
+  max-height: 12rem;
+}
+
+/* Fill — whatever the slot machinery puts here has to take the
+   remaining height and hand it on, or the occupant lays itself out at
+   full length and this box silently clips it. */
+.media-detail-companion-fill {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0%;
+  min-height: 0;
+}
+
+.media-detail-companion-fill > * {
+  flex: 1 1 0%;
+  min-height: 0;
+}
+
+/* Hidden until the rules below turn it on. Those carry an extra
+   attribute selector, so they win on specificity rather than on source
+   order. */
+.media-detail-layout-toggle {
+  display: none;
+}
+
+/* The rail needs BOTH a wide enough host and the viewer having asked
+   for it; either saying no leaves the stacked layout.
+
+   Threshold 60rem = 552px player + 384px rail + 24px gap. */
+[data-media-layout="beside"] [data-media-width="wide"] .media-detail-grid {
+  grid-template-columns: minmax(0, 1fr) 24rem;
+  grid-template-areas:
+    "player   companion"
+    "rest     companion";
+}
+
+/* Written out rather than inherited: `grid-template-areas` is one value,
+   so the variant above replaces the whole template and a row added only
+   to the base is lost here. */
+[data-media-layout="beside"]
+  [data-media-width="wide"]
+  .media-detail-grid:has(> .media-detail-player-aside:not(:empty)) {
+  grid-template-areas:
+    "player       companion"
+    "player-aside companion"
+    "rest         companion";
+}
+
+[data-media-width="wide"] .media-detail-layout-toggle {
+  display: inline-flex;
+}
+
+/* --rail-avail is the scroll container's visible height, measured by
+   the host. It cannot be computed in CSS: a self-scrolling pane carries
+   its own chrome as well as the app header. */
+[data-media-layout="beside"]
+  [data-media-width="wide"]
+  .media-detail-companion-inner {
+  position: sticky;
+  top: calc(var(--rail-top, 0px) + 1rem);
+  max-height: calc(var(--rail-avail, 100dvh) - 2rem);
+}
+
+/* Bounded by the measured rail as well as by the absolute value,
+   because the lead does not shrink: on a short window 22rem could be
+   most of the region, and nothing else would give it back. */
+[data-media-layout="beside"]
+  [data-media-width="wide"]
+  .media-detail-companion-lead {
+  max-height: min(22rem, calc(var(--rail-avail, 100dvh) * 0.4));
+}
+
+/* ------------------------------------------------------------------
+   The companion, below the player, on the shell.
+
+   A time-ordered transcript must not be set in two text columns, so the
+   width that is left over goes to the index instead of to a second
+   column of text. The box is bounded and scrolls inside itself: letting
+   it run to full length puts the page in motion every time playback
+   crosses a cue.
+   ------------------------------------------------------------------ */
+.media-detail-below {
+  display: flex;
+  gap: 1.5rem;
+  align-items: stretch;
+  max-height: var(--companion-box-h);
+  /* Belt and braces: an occupant that ignores `fillHeight` would
+     otherwise run past the box unnoticed. */
+  overflow: hidden;
+}
+
+/* Hidden, not removed. The occupants of this box are what report
+   whether they have anything for the file, so a box the layout dropped
+   would drop the reporters with it and freeze the answer at its first
+   guess. */
+.media-detail-below[data-occupied="false"] {
+  display: none;
+}
+
+/* The body has to claim its measure as its flex base, not merely as a
+   cap: free space is shared from the bases, so a body based at 0 hands
+   the surplus to the index. 22rem is a ceiling of its own: past it a
+   column of timestamps and short titles starts competing with what it
+   indexes. */
+.media-detail-below-index {
+  flex: 1 1 12.5rem;
+  min-width: 12.5rem;
+  max-width: 22rem;
+  min-height: 0;
+}
+
+.media-detail-below-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 68ch;
+  min-width: 0;
+  min-height: 0;
+  max-width: 68ch;
+}
+
+.media-detail-below-body > * {
+  flex: 1 1 0%;
+  min-height: 0;
+}
+
+/* ------------------------------------------------------------------
+   The inspector, when the row cannot hold it beside the canvas.
+
+   It keeps its width and covers the canvas instead of narrowing it:
+   below 320px Japanese wraps at 12–14 characters a line. Doing it in CSS
+   from an attribute means the pane is never re-rendered when the form
+   changes, which is load-bearing: a transcript's scroll position and
+   clock subscription would not survive a window drag otherwise.
+   ------------------------------------------------------------------ */
+[data-inspector-fit="overlay"] .inspector-pane {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  /* Below everything that has to stay reachable over it: the mini player
+     and the upload progress at 40, the sidebar's backdrop at 30. */
+  z-index: 20;
+}
+
+/* ------------------------------------------------------------------
+   The action row in the Bottom Sheet's resting strip.
+
+   Grown here rather than by a class on each control, because three of
+   the four are not the row's to style. Grown rather than overhung: the
+   controls sit 2px apart on one line, so overhung 44px hit areas would
+   overlap and the later sibling would win the hit test for its
+   neighbour's edge.
+   ------------------------------------------------------------------ */
+@media (pointer: coarse) {
+  .file-action-row-touch > * {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+}
+
+/* ------------------------------------------------------------------
+   The player on a phone: stuck to the top of the canvas.
+
+   **On the wrapper, not on the frame inside it.** A sticky box travels
+   only within its own containing block, and the frame's parent is
+   usually no taller than the frame.
+
+   Nothing is re-parented: a portal moves children by `appendChild`,
+   which reloads any <iframe> in the subtree, and a remounted <video>
+   restarts at zero.
+   ------------------------------------------------------------------ */
+[data-sheet-snap] .media-detail-player {
+  position: sticky;
+  top: 0;
+  /* Above the canvas that scrolls under it, below the resting strip and
+     the sheet. */
+  z-index: 10;
+}
+
+/* A book already fills the room it measures for itself, so nothing scrolls
+   under it; and a stuck box would report its stuck position as where the
+   book starts. */
+[data-sheet-snap] .media-detail-player:has([data-epub-reader]) {
+  position: static;
+}
+
+/* While a frame is pinned for pseudo-fullscreen, the box stops being sticky
+   so that the frame is a plain fixed box in the root stacking context.
+   Out-ranking the chrome from inside the sticky context is not enough: iOS
+   WebKit paints the chrome over a pinned frame that holds a cross-origin
+   iframe whatever z-index the box carries. */
+:root[data-player-fullscreen] [data-sheet-snap] .media-detail-player {
+  position: static;
+}
+
+/* The tier the pinned frame needs, on the frame rather than on the box: the
+   box may not carry a stacking context, and the frame's own `z-50` loses to
+   the chrome buttons, which are `z-50` and come later. */
+:root[data-player-fullscreen] [data-sheet-snap] [data-pseudo-fullscreen] {
+  z-index: 60;
+}
+
+/* Holds the pinned frame's slot open so the page under it does not move.
+   Keyed on `.fixed` as well as the marks: the players switch their pin
+   classes a commit apart from the hook's marks, and the slot has to open
+   and close in the same layout as the frame leaves and rejoins the flow.
+   A generated box rather than the wrapper's own padding: reduced motion
+   gives every property a transition, and a box that comes and goes has
+   nothing to transition from. The percentage resolves against the same
+   width the 16:9 frame had. */
+div:has(> .fixed[data-pseudo-fullscreen])::before,
+div:has(> .fixed[data-fullscreen-moving])::before {
+  content: "";
+  display: block;
+  padding-top: 56.25%;
+}
+
+/* While the frame is carried between its slot and the viewport only the
+   picture is drawn, and a shield over it takes every tap. */
+/* Gone at once, and back through the chrome's own fade once the frame
+   settles: a fade out would leave controls drifting over the moving frame. */
+[data-fullscreen-moving] [data-player-chrome] {
+  opacity: 0;
+  transition: none;
+}
+
+[data-fullscreen-moving]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+}
+
+/* The wrapper is the host's first child, so a top padding puts it that
+   far below the scrollport and `top: 0` only catches it once the reader
+   has scrolled past it. Zero here rather than a smaller value: any
+   non-zero amount is the same defect with a smaller number in it. */
+[data-sheet-snap] .media-detail-host {
+  padding-top: 0;
+}
+
+/* The player's own first child bleeds with negative margins that cancel
+   the host's `p-4`, and the rule above has already cancelled the top
+   one, so the net −16px puts the player above the scrollport's top edge.
+   Cancelled here rather than in the component: the bleed is right on
+   every other surface, and a player must not re-render to learn about
+   its host. */
+[data-sheet-snap] .media-detail-player > :first-child {
+  margin-top: 0;
+}
+
+/* A PDF or a book brings its own margin, so the canvas adds none around it.
+   On the wrapper, not the viewer: the viewers are `w-full`, and a full-width
+   box with negative margins moves instead of growing. */
+.media-detail-player[data-bleed="true"] {
+  margin-inline: -1rem;
+  margin-top: -1rem;
+}
+
+/* The phone host has no top padding to cancel (above). */
+[data-sheet-snap] .media-detail-player[data-bleed="true"] {
+  margin-top: 0;
+}
+
+.media-detail-player[data-bleed="true"] [data-viewer-frame] {
+  border-radius: 0;
+}
+
+/* Nor below it, unless something with content follows. */
+.media-detail-host:has(> .media-detail-player[data-bleed="true"]) {
+  padding-bottom: 0;
+}
+
+.media-detail-host:has(> .media-detail-player[data-bleed="true"] ~ :not(:empty)) {
+  padding-bottom: 1rem;
+}
+
+/* `--player-avail` is derived from this element's own offset, which is a
+   constant zero while it is stuck, so the cap would tighten as the reader
+   scrolls. Dropping the cap instead is wrong: in phone landscape a sticky
+   box taller than its scrollport hides its own control bar. */
+[data-sheet-snap] .media-detail-player[data-framed="true"] {
+  max-width: calc(var(--rail-avail, 100dvh) * 16 / 9);
+}
+
+/* Justified thumbnail rows. `flex-grow` is distributed *per wrapped
+   line*, so giving every cell a basis proportional to its aspect ratio
+   makes each line fill the row exactly.
+
+   A container query is safe here only because these cells hold `<img>`
+   and nothing else — no `<video>`, `<audio>` or cross-origin iframe. */
+.justified-grid-host {
+  container-type: inline-size;
+  container-name: justified-grid;
+}
+
+.justified-grid {
+  --jg-gap: 0.5rem;
+  /* The height a line is laid out from, not the height it ends at: this
+     is the basis every cell's width is measured against, so it decides
+     how many cells a line holds. */
+  --jg-row-h: 120px;
+  /* How far past `--jg-row-h` a line may grow before the picture starts
+     being cropped again — see the `max-height` below. */
+  --jg-max-stretch: 2.5;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--jg-gap);
+  /* What this guards is the cell that has no ratio to take a height
+     from: there `stretch` hands that height to every picture on the line,
+     and `flex-start` leaves it to the one cell. */
+  align-items: flex-start;
+}
+
+@container justified-grid (min-width: 40rem) {
+  .justified-grid {
+    --jg-row-h: 200px;
+  }
+}
+
+.justified-grid > .justified-grid-cell {
+  flex-grow: var(--jg-ratio);
+  flex-basis: calc(var(--jg-ratio) * var(--jg-row-h));
+  /* No `height`: the cell is the shape of its picture, so that the only
+     thing `object-fit: cover` has left to remove is the thumbnail's own
+     padding. */
+  aspect-ratio: var(--jg-ratio);
+  /* The ceiling, and the one place the crop comes back. Line-breaking is
+     greedy, so a line can end up holding one narrow cell, and the width
+     it then takes becomes height. */
+  max-height: calc(var(--jg-row-h) * var(--jg-max-stretch));
+  /* A flex item's automatic minimum is its min-content width, and a
+     `truncate` filename in flow would make one long name the cell's
+     minimum, so the row stops justifying. */
+  min-width: 0;
+}
+
+/* The last line does not stretch. The grow factor has to *dominate*, not
+   merely participate: every cell already carries
+   `flex-grow: var(--jg-ratio)`, summed across the line. The height is
+   zero rather than absent so the `gap` above it does not open an empty
+   row. */
+.justified-grid > .justified-grid-tail {
+  flex-grow: 9999;
+  flex-basis: 0;
+  height: 0;
+}
+
+/* `visibility`, not `display`: the held line keeps its box, so the lines
+   above it are laid out as if it were painted. */
+.justified-grid-cell[data-held] {
+  visibility: hidden;
+}
+
+/* The reduced-motion rule gives every element a 0.01ms duration, and the
+   initial `transition-property` is `all`, so without this `visibility`
+   would transition too. In `base` so that a cell's own transition utility
+   (the archive grid's `transition-colors`) and the `play` rule below both
+   win over it. */
+@layer base {
+  .justified-grid > .justified-grid-cell {
+    transition-property: none;
+  }
+}
+
+/* The hook takes its marks off after a delay of its own, so a longer
+   duration here would cut every play short. */
+.justified-grid-cell[data-flip="invert"] {
+  transform-origin: top left;
+  transition: none;
+}
+
+.justified-grid-cell[data-flip="play"] {
+  transform-origin: top left;
+  transition:
+    transform 200ms ease-out,
+    opacity 200ms ease-out;
+}
+
+/* The filename, on request. Unequal cell widths mean a permanent
+   caption would not line up into a column, so it is a hover/focus band
+   — except where there is no hover to ask with. */
+.justified-grid-name {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 0.375rem 0.5rem;
+  background: linear-gradient(to bottom, rgb(0 0 0 / 0.65), transparent);
+  color: #fff;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 200ms ease-out;
+  pointer-events: none;
+}
+
+.group:hover > .justified-grid-name,
+.group:focus-within > .justified-grid-name {
+  opacity: 1;
+}
+
+@media (pointer: coarse) {
+  .justified-grid-name {
+    opacity: 0.85;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .justified-grid-name {
+    transition: none;
+  }
+}
+
+/* A floor under the canvas viewer. `--canvas-h` is measured rather than
+   `70cqh`: `container-type: size` implies `contain: layout`, which would
+   make the canvas the containing block for its unportalled
+   `position: fixed` descendants. */
+main[data-canvas-floor="true"] .media-detail-player {
+  min-height: max(320px, calc(var(--canvas-h, 0px) * 0.7));
+  /* The `min-height` alone reserves the height on this wrapper and
+     stops there: a block box does not stretch its in-flow children. */
+  display: flex;
+  flex-direction: column;
+}
+
+main[data-canvas-floor="true"] .media-detail-player > :first-child {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Related files: two tiles per row only where each is at least as wide
+   as the rail's one column. The rail leaves the grid 22rem before its
+   scrollbar, so 2 x 22rem + the 0.5rem gap = 44.5rem, and the rounding
+   to a whole rem GOES UP.
+
+   A CONTAINER QUERY is only safe because the scope holds `<img>`, lucide
+   `<svg>` and text and nothing else. The host is a wrapper with no
+   padding, so its inline size IS the grid's width. */
+.related-files-host {
+  container-type: inline-size;
+  container-name: related-files;
+}
+
+.related-files-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@container related-files (min-width: 45rem) {
+  .related-files-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }

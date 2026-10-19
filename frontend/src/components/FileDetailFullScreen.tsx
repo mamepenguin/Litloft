@@ -2,57 +2,38 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
-import { useTranslations } from "next-intl";
 
 import { FileDetailContent } from "@/components/FileDetailContent";
+import { FileDetailChrome } from "@/components/FileDetail/FileDetailChrome";
 import { ImageGallery } from "@/components/ImageGallery";
 import {
   CollectionPanel,
   getCollectionOnEnded,
 } from "@/components/CollectionPanel";
 import { useSetOverrideDrive } from "@/components/CurrentDriveProvider";
+import { usePolicy } from "@/hooks/usePolicy";
+import { ridesFileDetailShell } from "@/lib/fileDetailShell";
 import { useOverlaySidebar } from "@/components/SidebarProvider";
 import { useFileNav } from "@/hooks/useFileNav";
-import { getFile } from "@/lib/api";
+import { getFileShared } from "@/lib/api";
+import { peekFileSeed } from "@/lib/fileSeed";
+import { normalizeSortParam } from "@/lib/sortField";
 import type { FileItem } from "@/types";
 
 interface FileDetailFullScreenProps {
   fileId: string;
 }
 
-/**
- * Fullscreen route host for ``/files/{id}``. Used in two situations
- * (per spec §4.6 / §4.7):
- *
- * 1. ``?collection=`` (legacy alias: ``?playlist=``) / ``?folder_play=1``
- *    is set — the spec keeps the collection-exception route fullscreen
- *    (2-pane离脱) so the CollectionPanel and the player share the same
- *    visual focus.
- * 2. (Future) any URL the Server Component decides not to redirect.
- *
- * Composes ``<FileDetailContent>`` with the chrome the legacy
- * `/files/[id]/page.tsx` carried: a back button, ImageGallery on
- * Maximize, CollectionPanel when in collection mode, useOverlaySidebar
- * to collapse the global sidebar to overlay, and useFileNav for
- * arrow-key navigation in non-collection mode.
- */
 export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
-  // Unlike RightPaneFile, the fullscreen host DOES collapse the
-  // global sidebar — there's no tree pane next to us, so the inline
-  // sidebar would just steal width from the player.
   useOverlaySidebar();
 
-  const t = useTranslations("file");
   const router = useRouter();
   const searchParams = useSearchParams();
   const setOverrideDrive = useSetOverrideDrive();
 
-  const sort = searchParams.get("sort") || undefined;
+  const sort = normalizeSortParam(searchParams.get("sort"));
   const order = searchParams.get("order") || undefined;
-  // Spec 2026-05-12-playlist-to-collection §6.4: prefer ``?collection=``
-  // but accept the legacy ``?playlist=`` for one release so bookmarks
-  // and external links keep working. Phase 4 removes the legacy alias.
+  // `?playlist=` is accepted so bookmarks and external links keep working.
   const collectionId =
     searchParams.get("collection") || searchParams.get("playlist") || undefined;
   const folderPlay = searchParams.get("folder_play") === "1";
@@ -61,29 +42,26 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
   const initialTime = tParam ? Number(tParam) : undefined;
   const pageParam = searchParams.get("page");
   const initialPage = pageParam ? Number(pageParam) : undefined;
+  const sectionParam = searchParams.get("section");
+  const initialSection = sectionParam ? Number(sectionParam) : undefined;
   const highlight = searchParams.get("highlight") || undefined;
 
-  // Local file state for chrome (back nav, ImageGallery, override drive).
-  // FileDetailContent does its own getFile internally — accepted dual
-  // fetch is short and cheap.
-  const [file, setFile] = useState<FileItem | null>(null);
+  const [file, setFile] = useState<FileItem | null>(() => peekFileSeed(fileId));
   const [galleryOpen, setGalleryOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    setFile(null);
-    getFile(fileId)
+    const seed = peekFileSeed(fileId);
+    setFile(seed);
+    if (seed) setOverrideDrive(seed.drive);
+    getFileShared(fileId)
       .then((f) => {
         if (cancelled) return;
         setFile(f);
-        // Tell the global sidebar what drive we're "on" since the
-        // URL doesn't carry it.
         setOverrideDrive(f.drive);
       })
       .catch(() => {
-        // 404 / network errors fall through to a blank chrome; the
-        // FileDetailContent below renders its own loading spinner
-        // and the user can navigate away with the browser's back.
+        if (!cancelled) setFile(null);
       });
     return () => {
       cancelled = true;
@@ -104,13 +82,8 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
     [collectionId, folderPlay, sort, order],
   );
 
-  // Arrow-key navigation. Disabled in collection mode — the collection
-  // owns "next" semantics there; ArrowLeft/Right would conflict.
-  // PR-5: ``router.replace`` here is the legacy router (no
-  // useGuardedRouter wrapper) but it doesn't matter — the dirty
-  // editor lives in the 2-pane host, not the fullscreen host. The
-  // global popstate / beforeunload listeners in ``<DirtyBlocker />``
-  // catch any escape paths.
+  // Plain `router.replace` rather than useGuardedRouter: the dirty editor
+  // lives in the 2-pane host, not the fullscreen host.
   useFileNav({
     fileId: !hasCollection && file ? fileId : null,
     sort,
@@ -154,6 +127,17 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
     router.push(backPath);
   }, [router, file]);
 
+  // A Markdown note or an HTML preview rides `FileDetailShell`, which
+  // draws the page row itself; drawing one here too would put two
+  // breadcrumbs on the page.
+  const knowledgeEditorPolicy = usePolicy(file?.drive ?? "", "knowledge", "editor");
+  const contentBringsItsOwnRow = ridesFileDetailShell({
+    surface: "collection",
+    mimeType: file?.mime_type,
+    fileType: file?.file_type,
+    knowledgeEditorEnabled: knowledgeEditorPolicy.enabled,
+  });
+
   const isVideoTheater = hasCollection && file?.file_type === "video";
   const isAudioSide = hasCollection && file?.file_type !== "video";
 
@@ -161,19 +145,28 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
     <div
       className={`mx-auto w-full flex-1 px-4 py-6 ${hasCollection ? "max-w-6xl" : "max-w-5xl"}`}
     >
-      <div className="mb-4">
-        <button
-          onClick={handleBack}
-          className="inline-flex cursor-pointer items-center gap-1 text-sm text-text-muted hover:text-text-primary"
-        >
-          <ArrowLeft size={16} />
-          {t("backTo", {
-            name: file?.folder_path
-              ? file.folder_path.split("/").pop()!
-              : (file?.drive ?? ""),
-          })}
-        </button>
-      </div>
+      {/* The back control keeps this route's own handler: "back" from a
+          collection means the collection you were playing, not the
+          folder the current track happens to live in. */}
+      {!contentBringsItsOwnRow && (
+        <div className="mb-4 -mx-4 -mt-6">
+          {file ? (
+            <FileDetailChrome
+              drive={file.drive}
+              folderPath={file.folder_path}
+              title={file.title || file.filename}
+              onBack={handleBack}
+            />
+          ) : (
+            // Holds the row's place so the page does not step down when
+            // the fetch lands.
+            <div
+              aria-hidden
+              className="h-12 border-b border-bg-border bg-bg-card"
+            />
+          )}
+        </div>
+      )}
 
       <div className={isAudioSide ? "flex flex-col gap-4 md:flex-row" : ""}>
         <div className={isAudioSide ? "min-w-0 flex-1" : ""}>
@@ -182,11 +175,14 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
             drive={file?.drive ?? ""}
             initialTime={initialTime}
             initialPage={initialPage}
+            initialSection={initialSection}
             highlight={highlight}
             onEnded={hasCollection ? handleMediaEnded : undefined}
             autoPlay={hasCollection}
             onRequestImageGallery={() => setGalleryOpen(true)}
             onAfterDelete={handleAfterDelete}
+            onBack={handleBack}
+            surface="collection"
           />
 
           {isVideoTheater && (

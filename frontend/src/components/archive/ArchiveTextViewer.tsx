@@ -1,13 +1,16 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Download, FileWarning } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { getArchiveEntryUrl } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
+import { EmptyState } from "../EmptyState";
 import type { ArchiveEntry } from "@/types";
 
 interface ArchiveTextViewerProps {
   viewingEntry: ArchiveEntry;
+  fileId: string;
   textConfirmed: boolean;
   textLoading: boolean;
   textError: string | null;
@@ -18,6 +21,7 @@ interface ArchiveTextViewerProps {
 
 export function ArchiveTextViewer({
   viewingEntry,
+  fileId,
   textConfirmed,
   textLoading,
   textError,
@@ -37,8 +41,16 @@ export function ArchiveTextViewer({
           <ArrowLeft size={16} />
           {t("backToList")}
         </button>
-        <span className="text-sm text-text-muted">
+        <span className="flex items-center gap-2 text-sm text-text-muted">
           {viewingEntry.filename}
+          <a
+            href={getArchiveEntryUrl(fileId, viewingEntry.path)}
+            download={viewingEntry.filename}
+            className="flex items-center justify-center rounded-lg p-1 transition-colors hover:bg-bg-elevated hover:text-text-primary pointer-coarse:h-11 pointer-coarse:w-11"
+            aria-label={t("downloadFile", { name: viewingEntry.filename })}
+          >
+            <Download size={16} />
+          </a>
         </span>
       </div>
 
@@ -60,11 +72,16 @@ export function ArchiveTextViewer({
           <p className="text-sm text-text-muted">{tt("loading")}</p>
         </div>
       ) : textError ? (
-        <div className="flex items-center justify-center py-16">
-          <p className="text-sm text-danger">
-            {tt("loadFailed", { error: textError ?? "" })}
-          </p>
-        </div>
+        <EmptyState
+          icon={FileWarning}
+          title={t("textLoadFailedTitle")}
+          description={tt("loadFailed", { error: textError })}
+          primaryAction={{
+            label: t("download"),
+            href: getArchiveEntryUrl(fileId, viewingEntry.path),
+            download: true,
+          }}
+        />
       ) : (
         <pre className="max-h-[60vh] overflow-auto p-4 font-mono text-sm leading-relaxed text-text-primary whitespace-pre-wrap break-words">
           {textContent}

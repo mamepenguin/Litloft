@@ -1,75 +1,68 @@
 # Upgrading
 
-Litloft is upgraded by pulling new code (core + addons) and rebuilding the containers.
+Back up `data/` first (see [below](#back-up-first)), then pull the new code and rebuild:
 
 ```bash
 git pull --recurse-submodules
 docker compose up -d --build
 ```
 
-If the build fails, the previous image keeps running — you do not get a half-broken deployment.
+If the build fails, the running version keeps running.
 
 ## What survives an upgrade
 
-Mounted in from the host and never touched by the build:
+These are on the host and the build does not touch them:
 
-- `data/` — SQLite DB, thumbnails, uploads, addon DBs, sentinels, JWT secret.
-- `drives.json`, `passwords.json` — your configuration.
-- `docker-compose.override.yml` — your volume and service customisation.
-- `.env` — your secrets.
-- `addons/<name>/` — addon repositories and their data files (e.g. `search-config.yml`).
+- `data/`: database, thumbnails, uploads, addon databases, the setup marker and the token signing key.
+- `drives.json`, `passwords.json`.
+- `docker-compose.override.yml`.
+- `.env`.
+- Addon config files such as `addons/intelligence/search-config.yml`.
 
-## What gets replaced
+The application code, the base `docker-compose.yml` and the container images are replaced.
 
-- The application code in `backend/`, `frontend/`, and the base `docker-compose.yml`.
-- Container images (rebuilt on each `--build`).
+## The `/setup` wizard does not come back
 
-## The `/setup` wizard does not reappear
+An existing install is not sent to `/setup` after an upgrade. On startup, if `drives.json` already lists drives and `data/setup_completed` is missing, the backend creates `data/setup_completed`. Your drives, passwords and addon settings are not changed.
 
-Newer Litloft builds run the `/setup` wizard on first launch and own logical configuration there. Upgrading an existing install does **not** drop you back into the wizard: on startup the backend sees your non-empty `drives.json` and, if `data/setup_completed` is missing, creates it automatically (a one-time migration for installs that predate the sentinel). Your drives, passwords, and addon policy are untouched. The wizard only runs on genuinely fresh installs whose `drives.json` is still empty.
+## Back up first
 
-## Database migrations
-
-The backend applies schema migrations on boot. There is no separate `migrate` command. Schema changes are forward-only: rolling back to an older Litloft after a migration may not be safe. Take a backup before pulling.
+The backend migrates the database when it starts. There is no separate migrate command, and migrations only go forward: an older version may not run against a migrated database.
 
 ```bash
-# quick backup before upgrade
+docker compose down
 cp -a data data.bak.$(date +%Y%m%d)
 ```
 
-See [backup and restore](../admin-guide/backup-restore.md) for full options.
+See [backup and restore](../admin-guide/backup-restore.md) for more.
 
-## Addon upgrades
+## Addons
 
-Each addon under `addons/` is its own Git repository, tracked as a submodule of this one. The `git pull --recurse-submodules` above already advances each submodule to the commit the core points at. If you want the latest tip of each addon's own default branch instead, update them explicitly:
+Each addon under `addons/` is a Git submodule pinned to the commit the core expects. `git pull --recurse-submodules` moves them along with the core.
 
-```bash
-git submodule update --remote --merge
-docker compose up -d --build
-```
+Addon config files are not overwritten, but an addon may add new settings. After an upgrade, compare your `addons/intelligence/search-config.yml` with `search-config.yml.example` next to it.
 
-Addon-specific config files (for example `addons/intelligence/search-config.yml`) are *not* overwritten by submodule updates, but new fields may be introduced. After an addon upgrade, glance at the addon's `search-config.yml.example` (or equivalent) to see what is new.
+## Pending changes banner
 
-## Restart-pending banner
+If the admin pages show **Pending changes — restart required** before the upgrade, the rebuild restarts the backend and the banner clears.
 
-Some configuration changes (drive paths, password file edits, addon policy) only take effect after a backend restart. The admin UI shows a *pending changes* banner backed by `data/restart_pending`. After `docker compose up -d --build` (or `docker compose restart backend`), the flag clears automatically.
+## Breaking changes
 
-## Breaking-change policy
-
-Litloft is developed primarily for personal use; breaking changes are possible. Watch the repository's `CHANGELOG.md` (when present) and Git commit history for notes prefixed with `BREAKING:`. For unfamiliar major version bumps, take a `data/` backup before upgrading.
+Litloft is a personal project and breaking changes can happen. Take a backup of `data/` before every upgrade.
 
 ## Rolling back
-
-If an upgrade causes problems:
 
 ```bash
 git log --oneline -20            # find the previous commit
 git checkout <previous-sha>
+git submodule update --init --recursive
+docker compose down
+```
+
+If the database was migrated by the newer version, restore `data/` from the backup you took, then start:
+
+```bash
 docker compose up -d --build
 ```
 
-If a database migration has already run, restore `data/data.db` from a backup before bringing the stack up. Mismatched schema and code is the most common cause of post-rollback errors.
-
-## Continuous deployment helper
-
-`deploy/post-receive` is a Git hook that auto-rebuilds when a developer pushes to a bare repo on the host. It is for the project author's own workflow and not something most operators need.
+Old code against a migrated database is the most common cause of errors after a rollback.

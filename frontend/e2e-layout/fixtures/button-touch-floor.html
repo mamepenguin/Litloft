@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!--
+      Without this, a context that sets `isMobile` lays the page out at
+      Chromium's mobile default instead of the viewport the spec asked for.
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>button touch floor — layout fixture</title>
+    <!--
+      No <style> of its own: every declaration measured here has to come
+      out of the app's own stylesheet.
+    -->
+    <link rel="stylesheet" href="./globals.built.css" />
+  </head>
+  <body>
+    <!--
+      Utilities are named here as the rule they emit, not as a class list
+      spells them: Tailwind scans this file's comments, so a class written
+      whole in prose is a source for it.
+
+      `wrapClamped` is not the app: it is `wrapFloored` with the floor
+      respelled as a fixed height, so the "a wrapped label is not clipped"
+      case has something it fails on.
+    -->
+    <script type="application/json" id="fixture-markup">
+      {
+        "shapes": {
+          "buttonSm": "inline-flex items-center justify-center gap-1.5 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring bg-sand text-text-primary enabled:hover:bg-sand-hover rounded-2xl px-3 py-1.5 text-sm pointer-coarse:min-h-11 disabled:bg-sand disabled:text-warm-silver disabled:cursor-not-allowed",
+          "buttonMd": "inline-flex items-center justify-center gap-1.5 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring bg-sand text-text-primary enabled:hover:bg-sand-hover rounded-2xl px-4 py-2 text-sm pointer-coarse:min-h-11 disabled:bg-sand disabled:text-warm-silver disabled:cursor-not-allowed",
+          "buttonLg": "inline-flex items-center justify-center gap-1.5 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring bg-sand text-text-primary enabled:hover:bg-sand-hover rounded-2xl px-5 py-2.5 text-sm pointer-coarse:min-h-11 disabled:bg-sand disabled:text-warm-silver disabled:cursor-not-allowed",
+          "linkSm": "inline-flex items-center justify-center gap-1.5 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring bg-sand text-text-primary hover:bg-sand-hover rounded-2xl px-3 py-1.5 text-sm pointer-coarse:min-h-11",
+          "linkMd": "inline-flex items-center justify-center gap-1.5 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring bg-sand text-text-primary hover:bg-sand-hover rounded-2xl px-4 py-2 text-sm pointer-coarse:min-h-11",
+          "linkLg": "inline-flex items-center justify-center gap-1.5 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring bg-sand text-text-primary hover:bg-sand-hover rounded-2xl px-5 py-2.5 text-sm pointer-coarse:min-h-11",
+          "iconOnly": "inline-flex items-center justify-center gap-1.5 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring text-text-primary enabled:hover:bg-bg-elevated rounded-2xl h-8 w-8 relative pointer-coarse:before:absolute pointer-coarse:before:-inset-1.5 pointer-coarse:before:content-[''] disabled:bg-sand disabled:text-warm-silver disabled:cursor-not-allowed"
+        },
+        "controls": {
+          "wrapClamped": "inline-flex items-center justify-center gap-1.5 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring bg-sand text-text-primary enabled:hover:bg-sand-hover rounded-2xl px-4 py-2 text-sm pointer-coarse:h-11 disabled:bg-sand disabled:text-warm-silver disabled:cursor-not-allowed"
+        },
+        "label": "Save",
+        "wrappingLabel": "選択したファイルを別のフォルダへ移動",
+        "wrapColumnPx": 120
+      }
+    </script>
+
+    <div id="frame"></div>
+
+    <script>
+      const SPEC = JSON.parse(
+        document.getElementById("fixture-markup").textContent,
+      );
+
+      window.buildButtons = () => {
+        const frame = document.getElementById("frame");
+        frame.innerHTML = "";
+
+        const make = (tag, cls, text) => {
+          const el = document.createElement(tag);
+          el.className = cls;
+          el.textContent = text;
+          if (tag === "a") el.setAttribute("href", "#");
+          return el;
+        };
+
+        for (const size of ["Sm", "Md", "Lg"]) {
+          const row = document.createElement("div");
+          row.style.display = "flex";
+          row.style.alignItems = "flex-start";
+          row.style.gap = "8px";
+          row.setAttribute("data-row", size.toLowerCase());
+
+          const button = make("button", SPEC.shapes["button" + size], SPEC.label);
+          button.setAttribute("data-shape", "button" + size);
+          const link = make("a", SPEC.shapes["link" + size], SPEC.label);
+          link.setAttribute("data-shape", "link" + size);
+
+          row.append(button, link);
+          frame.append(row);
+        }
+
+        const icon = make("button", SPEC.shapes.iconOnly, "");
+        icon.setAttribute("data-shape", "iconOnly");
+        icon.setAttribute("aria-label", "Delete Q1 notes");
+        const glyph = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        glyph.setAttribute("width", "18");
+        glyph.setAttribute("height", "18");
+        icon.append(glyph);
+        frame.append(icon);
+
+        for (const [name, cls] of [
+          ["wrapFloored", SPEC.shapes.buttonMd],
+          ["wrapClamped", SPEC.controls.wrapClamped],
+        ]) {
+          const column = document.createElement("div");
+          column.style.width = SPEC.wrapColumnPx + "px";
+          const el = make("button", cls, SPEC.wrappingLabel);
+          el.setAttribute("data-shape", name);
+          el.style.width = "100%";
+          column.append(el);
+          frame.append(column);
+        }
+      };
+
+      window.measure = (shape) => {
+        const el = document.querySelector(`[data-shape="${shape}"]`);
+        const box = el.getBoundingClientRect();
+        const overhang = getComputedStyle(el, "::before");
+        return {
+          height: box.height,
+          width: box.width,
+          clientHeight: el.clientHeight,
+          scrollHeight: el.scrollHeight,
+          beforeContent: overhang.content,
+          beforeTop: overhang.top,
+          beforeBottom: overhang.bottom,
+        };
+      };
+
+      window.pointerIsCoarse = () =>
+        window.matchMedia("(pointer: coarse)").matches;
+    </script>
+  </body>
+</html>

@@ -4,6 +4,8 @@ import { ChevronDown, ChevronRight, Folder } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { FileTypeIcon } from "@/components/FileTypeIcon";
+import { InlineNameEditor } from "@/components/InlineNameEditor";
+import { RENAME_FOCUS_ATTR } from "@/hooks/useInlineRename";
 import type { FolderTreeNode } from "@/types";
 
 export interface FlatTreeRow {
@@ -11,19 +13,10 @@ export interface FlatTreeRow {
   depth: number;
   isExpanded: boolean;
   isLoading: boolean;
-  /**
-   * When the tree filter is active, ancestor rows are dimmed so the
-   * matched leaf still reads cleanly. The tree pane sets this on rows
-   * that are visible only as path context.
-   */
+  /** Set on rows that are visible only as path context. */
   isAncestor?: boolean;
 }
 
-/**
- * Drag-and-drop event handlers exactly matching what
- * `useDragAndDrop.getDropTargetProps()` returns. The tree pane decides
- * whether to attach them per row (folders only, not self/descendant).
- */
 export interface DropTargetEventProps {
   onDragEnter: (e: React.DragEvent) => void;
   onDragLeave: (e: React.DragEvent) => void;
@@ -36,30 +29,17 @@ interface FolderTreeRowProps {
   selected: boolean;
   onSelect: (row: FlatTreeRow) => void;
   onToggle: (row: FlatTreeRow) => void;
-  /**
-   * Optional right-click handler. When provided, the row swallows the
-   * browser context menu and bubbles a typed event up to the tree pane,
-   * which mounts the appropriate FileContextMenu / FolderContextMenu.
-   */
   onContextMenu?: (row: FlatTreeRow, event: React.MouseEvent) => void;
-  /**
-   * Drag-source callbacks. When both are set the row is `draggable`.
-   * The pane decides between file-id and folder-path payloads based on
-   * the row's node kind.
-   */
   onDragStart?: (row: FlatTreeRow, event: React.DragEvent) => void;
   onDragEnd?: () => void;
-  /**
-   * Drop target wiring. When non-null, the row attaches the drop
-   * handlers and is eligible to receive a drop. The pane returns null
-   * for rows that are not folders or that would create an invalid move
-   * (self / descendant of the dragged folder).
-   */
   dropTargetProps?: DropTargetEventProps | null;
-  /** True for the row currently being dragged — render at opacity 40. */
   isDragSource?: boolean;
-  /** True for the row that holds the current drop highlight. */
   isDropHover?: boolean;
+  isEditing?: boolean;
+  onRenameCommit?: (next: string) => Promise<void>;
+  onRenameCancel?: (error?: string) => void;
+  onRowFocus?: () => void;
+  onRowBlur?: () => void;
 }
 
 const INDENT_PX = 12;
@@ -75,6 +55,11 @@ export function FolderTreeRow({
   dropTargetProps,
   isDragSource,
   isDropHover,
+  isEditing,
+  onRenameCommit,
+  onRenameCancel,
+  onRowFocus,
+  onRowBlur,
 }: FolderTreeRowProps) {
   const t = useTranslations("tree");
   const { node, depth, isExpanded, isLoading } = row;
@@ -87,27 +72,36 @@ export function FolderTreeRow({
       ? "bg-bg-elevated font-medium text-text-primary"
       : "bg-accent/15 text-text-primary"
     : "text-text-primary hover:bg-bg-elevated";
-  // Drop hover wins over the resting hover style: the accent ring +
-  // tinted background must be visible regardless of the row's
-  // selection or ancestor state.
   const dropHoverClass = isDropHover
     ? "ring-2 ring-accent ring-inset bg-accent/10"
     : "";
   const dragSourceClass = isDragSource ? "opacity-40" : "";
   const ancestorClass = row.isAncestor && !isDropHover ? "opacity-60" : "";
-  const draggable = !!onDragStart;
+  // A text selection inside a `draggable` ancestor is swallowed by the drag
+  // system, so the field would be impossible to select in.
+  const draggable = !!onDragStart && !isEditing;
   // `select-none` is required for the native HTML5 drag to actually
   // start: without it the browser interprets a mousedown-and-move on
   // the inner <span> text as a text-selection gesture instead of a
-  // drag, even though the parent has draggable=true. (FolderCard
-  // doesn't need this because its text lives inside an <a>, which
-  // suppresses text selection naturally.) The cursor classes are
-  // visual hints — `grab` invites the gesture, `grabbing` confirms it.
+  // drag, even though the parent has draggable=true.
   const dragInteractClass = draggable
     ? isDragSource
       ? "cursor-grabbing select-none"
       : "cursor-grab select-none"
     : "";
+
+  const icon = isFolder ? (
+    <Folder
+      size={14}
+      className={`flex-shrink-0 ${selected ? "text-accent" : "text-accent/70"}`}
+    />
+  ) : (
+    <FileTypeIcon
+      fileType={node.file_type}
+      size={14}
+      className={selected ? "text-accent" : "text-text-muted"}
+    />
+  );
 
   const handleChevronClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -118,20 +112,20 @@ export function FolderTreeRow({
   // primary click handler. When `draggable=true` and `onClick` live on
   // the same element AND the visible click area is inline text in a
   // <span>, browsers prefer the click gesture and the native HTML5
-  // dragstart never fires. Knowledge's working sidebar wraps the
-  // selectable area in an inner <button>, leaving the outer container
-  // as a pure drag/drop surface; we mirror that pattern.
+  // dragstart never fires.
   return (
     <div
       draggable={draggable}
       onDragStart={
-        onDragStart
+        onDragStart && !isEditing
           ? (e) => {
               onDragStart(row, e);
             }
           : undefined
       }
-      onDragEnd={onDragEnd}
+      onDragEnd={isEditing ? undefined : onDragEnd}
+      onFocus={onRowFocus}
+      onBlur={onRowBlur}
       onDragEnter={dropTargetProps?.onDragEnter}
       onDragLeave={dropTargetProps?.onDragLeave}
       onDragOver={dropTargetProps?.onDragOver}
@@ -151,9 +145,6 @@ export function FolderTreeRow({
       aria-current={selected ? "true" : undefined}
       title={node.path}
     >
-      {/* Chevron: independent click target, never propagates to row.
-          aria-expanded lives on the chevron (the disclosure control)
-          rather than the row whose action is "select". */}
       {isFolder && hasChildren ? (
         <button
           type="button"
@@ -167,30 +158,33 @@ export function FolderTreeRow({
       ) : (
         <span aria-hidden className="flex h-7 w-6 flex-shrink-0" />
       )}
-      {/* Body button: the actual clickable selection target. Carrying
-          onClick here (not on the draggable parent) lets the native
-          drag system claim mousedown gestures over the row. */}
-      <button
-        type="button"
-        onClick={() => onSelect(row)}
-        className="flex flex-1 items-center gap-1 overflow-hidden rounded-lg text-left"
-      >
-        <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center">
-          {isFolder ? (
-            <Folder
-              size={14}
-              className={`flex-shrink-0 ${selected ? "text-accent" : "text-accent/70"}`}
-            />
-          ) : (
-            <FileTypeIcon
-              fileType={node.file_type}
-              size={14}
-              className={selected ? "text-accent" : "text-text-muted"}
-            />
-          )}
+      {/* While editing this degrades to a plain container — a text field
+          inside a <button> would both be invalid and navigate on every
+          click. */}
+      {isEditing && onRenameCommit && onRenameCancel ? (
+        <span className="flex flex-1 items-center gap-1 overflow-hidden py-0.5">
+          <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center">
+            {icon}
+          </span>
+          <InlineNameEditor
+            initialName={node.name}
+            onCommit={onRenameCommit}
+            onCancel={onRenameCancel}
+          />
         </span>
-        <span className="flex-1 truncate py-1.5">{node.name}</span>
-      </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => onSelect(row)}
+          {...{ [RENAME_FOCUS_ATTR]: node.path }}
+          className="flex flex-1 items-center gap-1 overflow-hidden rounded-lg text-left"
+        >
+          <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center">
+            {icon}
+          </span>
+          <span className="flex-1 truncate py-1.5">{node.name}</span>
+        </button>
+      )}
       {isFolder && (
         <span className="ml-1 flex-shrink-0 text-xs text-text-muted">
           {isLoading ? t("loading") : node.file_count > 0 ? node.file_count : ""}

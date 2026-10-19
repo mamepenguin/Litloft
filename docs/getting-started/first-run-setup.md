@@ -1,84 +1,97 @@
 # First-run setup
 
-The first time you load Litloft in a browser, you are redirected to `/setup`, a wizard where you turn the mounted directories into named drives and decide how access is gated. `configure.py` already wired the containers and the backend seeded one stub drive per mounted directory; the wizard is where that becomes your real configuration (names, passwords, AI features). The wizard runs without authentication; until it completes, any LAN client can write the configuration. Run it from the same network you trust to admin from.
+The first time you open Litloft, it sends you to `/setup`. The wizard turns the mounted directories into named drives, sets up access control, and chooses which addons each drive uses.
 
-> **Image needed:** screenshot of the wizard's overall stepper. See [`IMAGES-NEEDED.md`](../IMAGES-NEEDED.md).
+The wizard runs while `data/setup_completed` does not exist. Finishing it creates that file.
 
-## When the wizard runs
+## Setup token
 
-The setup wizard is shown when the file `data/setup_completed` does **not** exist. The first successful run creates this sentinel file. To re-run setup later, delete the sentinel and reload `/setup`.
+No password exists yet, so the wizard asks for a **setup token** instead. Until setup is finished, only someone with the token can change the configuration.
 
-## Step 1 — Language
+`configure.py` prints an address that already carries the token:
 
-Choose the UI language. English is selected by default, and the choice is stored client-side (cookie + localStorage) for both the wizard and the running app. Locale is later changeable from the in-app settings.
+```
+→  http://localhost:3000/setup?token=6f2a…
+```
 
-## Step 2 — Welcome
+Open it and the wizard skips straight to the language choice.
 
-A localised summary of what the next four steps will collect. No input needed.
+If you started the containers another way, the backend prints the token at startup:
 
-## Step 3 — Drives
+```bash
+docker compose logs backend | grep "setup token"
+```
 
-The wizard lists the drives the backend detected — one per directory you mounted under `/app/drives/` via `configure.py`. You do not type host paths here; the mounts are already wired. For each detected drive you set:
+Paste it into **Setup token** and press **→**.
 
-| Field | Required | Notes |
-|---|---|---|
-| `name` | yes | Display name and URL slug. Defaults to the mount slug; rename it to something readable. Avoid path separators (`/`, `\`). Unicode is fine (e.g. `Movies`, `Photos`). |
-| `access_group` | no | If set, the drive is protected and only viewers who unlock this group via password can see it. Set up groups in steps 4–5. |
+`configure.py` saves the token in `.env` as `LITLOFT_SETUP_TOKEN`, so it stays the same across restarts. If that variable is not set, every backend restart prints a new token.
 
-The container path is fixed by the mount and is not editable here. To add or remove a drive, add or remove a mount line in `docker-compose.override.yml` and run `docker compose up -d --build` again.
+If setup is already finished, the page says **Setup is complete.** with a link back to Litloft.
 
-If no drives appear, no directories are mounted under `/app/drives/`. Fix the `services.backend.volumes` block in `docker-compose.override.yml` (or re-run `configure.py`), rebuild, and reload `/setup`.
+## Language
 
-## Step 4 — Access mode
+Choose **English** or **日本語**. The choice is saved in a cookie and carries over to the app.
 
-Pick how access is gated:
+## Welcome
 
-- **Public** — every drive is visible to everyone on the LAN. `passwords.json` stays empty (`[]`), which is treated exactly like having no passwords at all.
-- **Protected** — at least one drive uses an `access_group`. You will set passwords in step 5.
+A summary of the steps ahead. Press **Get started**.
 
-You can switch later from the admin settings page.
+## Drives
 
-## Step 5 — Password (only if Protected)
+The wizard lists one drive for each directory mounted under `/app/drives/`. You do not type paths here. For each drive, set:
 
-Create one or more password entries. Each entry has:
+- **Name**: shown in the sidebar and used in the URL. It starts as the slug from `configure.py`. Letters, numbers and hyphens are safest.
+- **Group** (optional): an access group. A drive with a group is hidden until someone unlocks a password for that group. Leave it blank for a public drive.
 
-- `password` — the password string. Compared with HMAC-SHA256 against the entered value.
-- `groups` — list of `access_group` names this password unlocks.
+To add or remove a drive, change the mounts in `docker-compose.override.yml` (or re-run `configure.py`), run `docker compose up -d --build`, and reload `/setup`.
 
-The wizard makes you create at least one password whose `groups` cover **every** protected drive. This guarantees you have an admin path: a viewer who unlocks all groups holds *master viewer* status and can edit settings later.
+## Access control
 
-> **Tip.** Use one password that covers all groups for yourself, plus narrower passwords (one or two groups each) for housemates or kids.
+- **Public (LAN-only, no auth)**: anyone on your network can browse every drive, and anyone can open the admin pages. `passwords.json` stays empty.
+- **Password protected**: you set an admin password in the next step.
 
-## Step 6 — Addon policy
+## Admin password
 
-If addons are installed, you see a matrix of `drives × addons`. Toggle each cell to opt the drive in or out of that addon. Most addons declare per-feature flags too — for example, the `intelligence` addon exposes a `transcription_cloud` toggle so you can keep some drives strictly local.
+Shown only for **Password protected**. The password you enter becomes the admin password: it unlocks every group and opens the admin pages. All groups must stay checked.
 
-The defaults are addon-specific. Most addons are **off** unless explicitly enabled, but the policy is *graceful-degradation*: if a feature is unspecified the addon decides whether to enable it.
+If no drive has a group, this password protects only the admin pages, and every drive stays public.
 
-If no addons are installed, this step is skipped automatically.
+You can add passwords for single groups later, in [Settings](../admin-guide/settings-gui.md#passwords).
 
-## Step 7 — Complete
+## Addon policy
 
-A summary of what you configured: drive count, access mode, addon enablement. Click **Finish**; the wizard:
+Shown when addons are installed. A short description of each addon comes first, then one card per drive with a switch for each addon. Every switch starts on. Turn one off to keep that addon away from that drive.
 
-1. Writes `drives.json` with your names and access groups (atomic write through `.tmp` + rename), replacing the seeded stubs.
-2. Writes password entries into `passwords.json` if you chose Protected (the file already exists as `[]`; the wizard fills it in).
-3. Writes the per-drive addon policy into `drives.json` under each drive's `addons` field.
-4. Creates `data/setup_completed`.
-5. Triggers a backend rescan.
+Finer switches, such as the intelligence addon's cloud transcription, are set later in [Settings](../admin-guide/settings-gui.md#addon-policy).
 
-You are then redirected to the home page (`/`) listing your drives.
+You can skip this step. Anything not saved counts as on.
+
+If the addon list cannot load, the step shows **Retry**. Continuing without it leaves every addon on for every drive.
+
+## Finish
+
+The last step shows a summary. Press **Save and finish**. The wizard saves the drives, the admin password and the addon policy, marks setup as finished, and opens the admin dashboard.
+
+If a save fails, the error appears under the summary and setup is not marked finished. Fix the cause and press **Save and finish** again.
+
+The dashboard then shows **Pending changes — restart required**. Run:
+
+```bash
+docker compose restart backend
+```
+
+Drives are scanned under their new names when the backend starts.
 
 ## After setup
 
-- All settings can be edited at [`/admin/settings`](../admin-guide/settings-gui.md). Some changes (drive paths, addon policy reload) require a backend restart — Litloft surfaces a *pending changes* banner and a `data/restart_pending` flag is set.
-- A *master viewer* is anyone whose unlocked password covers every protected drive. Master viewers see the **Admin** link in the global menu.
-- If you set `access_mode = Public`, anyone on your LAN is effectively an admin. This is a deliberate design choice for trusted home networks; do not expose Litloft to the internet in this mode.
+- Change drives, passwords and addons at [`/admin/settings`](../admin-guide/settings-gui.md).
+- An administrator is someone who unlocked the admin password, or a password covering every protected drive. When no password exists, everyone is an administrator. Do not expose a public-mode install to the internet.
 
 ## Troubleshooting
 
-- **No drives detected on the Drives step.** No directories are mounted under `/app/drives/`. Re-check the `services.backend.volumes` block in `docker-compose.override.yml` (or re-run `configure.py`), then `docker compose up -d --build` and reload.
-- **Locked out after setting protected mode.** `data/setup_completed` blocks the wizard from re-running. To recover: stop the stack, edit `passwords.json` directly, and start again. As a last resort, `rm data/setup_completed` and reset `drives.json` / `passwords.json` to `[]` (`echo '[]' > drives.json && echo '[]' > passwords.json`) to start clean — reset them to `[]`, do **not** delete the files (an absent single-file bind-mount makes Docker create an unusable directory). This does **not** delete files in your drives, only the configuration.
-- **Addons not showing in step 6.** Confirm the addon's symlink under `addons/` is intact and that the addon container (if independent) is up.
+- **No drives on the Drives step.** Nothing is mounted under `/app/drives/`. Fix the mounts in `docker-compose.override.yml` (or re-run `configure.py`), run `docker compose up -d --build`, and reload.
+- **Locked out after choosing Password protected.** Stop the stack, fix `passwords.json` by hand (see [Direct file editing](../admin-guide/settings-gui.md#direct-file-editing)), and start it again.
+- **Running the wizard again.** Stop the stack, delete `data/setup_completed`, and start it. If the wizard still does not appear, also set `drives.json` to `[]` so the backend reads the mounts again. Empty the file; do not delete it. Your files are not touched.
+- **An addon is missing from the Addon policy step.** Check that its folder under `addons/` is checked out and the images were rebuilt. For intelligence and knowledge, also check that `configure.py` enabled the service and that its container is running.
 
-Continue with the [user-guide overview](../user-guide/overview.md) or jump straight to [browsing files](../user-guide/file-browsing.md).
+Next: the [user guide](../user-guide/overview.md).

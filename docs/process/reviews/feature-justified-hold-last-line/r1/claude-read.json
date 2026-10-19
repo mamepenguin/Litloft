@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The new unlayered rule `.justified-grid > .justified-grid-cell { transition-property: none; }` in globals.css also matches the archive grid's cells (`ArchiveEntryGrid` / `ArchiveEntryCard`). That grid is not in the touch-point list, and the rule cancels that cell's Tailwind `transition-colors` hover transition.",
+      "impact": "In the archive entry grid, the clickable cell's hover background (`hover:bg-bg-elevated`) now switches at once instead of fading over Tailwind's default transition. This visual change outside the planned scope is not covered by any invariant or test. The spec's 'Checked, no action' entry on `ArchiveEntryGrid` covers only the hold, not this CSS.",
+      "evidence": "frontend/src/app/globals.css:1276-1278 adds the rule outside any @layer. globals.css:509-510 notes that unlayered rules beat Tailwind's `@layer utilities` whatever their specificity. frontend/src/components/archive/ArchiveEntryGrid.tsx:42-58 renders `ArchiveEntryCard` cells as direct children of `.justified-grid`. frontend/src/components/archive/ArchiveEntryCard.tsx:116 gives the clickable cell `justified-grid-cell ... transition-colors hover:bg-bg-elevated`.",
+      "repro": "not_reproduced. Reasoned from the cascade: open an archive whose entries render in the justified grid and hover a clickable cell. With the rule removed the background eases in; with it present, `transition-property` computes to `none` and the change is instant.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant covers the archive grid. The effect is real but cosmetic, and it lands at a place the touch-point list does not name.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Scope the rule to the grid that holds, for example `.justified-grid > .justified-grid-cell[data-held]` together with the cells the flip marks, or `.justified-grid-cell:not(.transition-colors)`. Alternatively, add ArchiveEntryGrid to the touch points and accept the change explicitly."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The diff edits four fixture/registry files outside the touch-point list: `frontend/e2e-components/fixtures/app.tsx`, `frontend/e2e-components/projects.ts`, `frontend/e2e-components/spec-viewport.spec.ts` and `frontend/src/components/__tests__/componentFixtureParity.test.tsx`. The list names only 'a browser test under frontend/e2e-components/'.",
+      "impact": "None for a user. These files register the new `justified-hold` arrangement and the desktop-only spec in shared harness lists that other suites also read.",
+      "evidence": "fixtures/app.tsx:70,1905 import and register `JustifiedHoldArrangement`. projects.ts:15 and spec-viewport.spec.ts:74 add `justified-hold-desktop.spec.ts`. componentFixtureParity.test.tsx:284 adds `justified-hold` to the expected arrangement list.",
+      "repro": "not_reproduced; read from the diff.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "These are harness registrations that a new browser test needs; no invariant is at stake.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "Two new jsdom suites are not in the touch-point list: `FolderBrowser.hasMore.test.tsx` and `FolderContent.moreMayFollow.test.tsx`. The planned 'new jsdom test for the hold hook's branching' does not exist.",
+      "impact": "`useJustifiedHold`'s branching is tested only in the Chromium e2e suite: the empty grid, the ResizeObserver path, and the focus fallback when no earlier cell has a `[data-file-thumb]`. That suite does not run in the regular vitest run, so a regression in those branches would pass the jsdom test run.",
+      "evidence": "Glob `frontend/src/hooks/__tests__/useJustified*` finds only useJustifiedFlip.test.tsx; no useJustifiedHold test exists. The diff adds frontend/src/components/__tests__/FolderBrowser.hasMore.test.tsx and frontend/src/components/folder/__tests__/FolderContent.moreMayFollow.test.tsx, neither of which is listed.",
+      "repro": "Mutation in thought: in useJustifiedHold.ts applyHold, drop the `cells[0].offsetTop !== lastTop` guard. jsdom gives every offsetTop as 0, so a jsdom test asserting the one-line branch would catch it. With no such test, only the e2e I7 case would.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a gap between the planned and the actual test files. The invariants themselves are exercised in the e2e suite.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    }
+  ],
+  "specification_compliance": [
+    "The useInfiniteScroll root comes from useScrollContainer() with the 400px margin, and scrollContainer is in the effect dependencies (I10). This matches the touch point.",
+    "FolderBrowser passes hasMore, FolderContent passes `hasMore && !filter.isActive`, and FileGrid passes moreMayFollow (default false) only to useJustifiedHold on the justified ref. All of this matches the touch points.",
+    "useJustifiedHold and the held rule in globals.css match the listed touch points. Beyond them, globals.css adds a second rule (`transition-property: none` on every justified cell), which reaches the archive grid (F1).",
+    "The useJustifiedFlip changes (wasHeld read, released cells faded) are in the listed file."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The archive entry grid's hover background transition is cancelled by the new unlayered `transition-property: none` rule (F1).",
+    "useJustifiedFlip now plays a fade for released cells on a commit whose width differs from the stored snapshot (the `before.width !== width` path). Before this change, that path never animated."
+  ],
+  "regression_risks": [
+    "The unlayered `.justified-grid > .justified-grid-cell { transition-property: none }` overrides any Tailwind transition utility on any justified cell, now and in future (ArchiveEntryCard today).",
+    "useJustifiedFlip imports HELD_ATTR from useJustifiedHold, and hook order in FileGrid is now load-bearing: the flip must run before the hold. Nothing but a comment enforces this."
+  ],
+  "test_coverage": [
+    "I10 is covered in jsdom by observer-constructor options, both inside and outside a provider, including the ref that is null at first.",
+    "The hasMore and moreMayFollow wiring is covered by the two new jsdom suites.",
+    "I1-I9 are covered only by e2e-components/justified-hold-desktop.spec.ts in Chromium. The hold hook has no jsdom test (F3).",
+    "No test covers the archive grid's hover transition (F1)."
+  ],
+  "not_verified": [
+    "I did not run any test or e2e suite.",
+    "I did not check in a browser that ArchiveEntryCard's hover transition is actually cancelled; the conclusion comes from reading the cascade and Tailwind's layering.",
+    "I did not inspect other suites that mock useScrollContainer or IntersectionObserver (for example FolderBrowser.snapshotScroll.test.tsx) to see whether they still pass.",
+    "I reviewed the diff as given, the branch against its base. I did not separately isolate commit c048af50's own content."
+  ],
+  "confidence": 80
+}

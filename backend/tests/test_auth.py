@@ -10,11 +10,6 @@ import pytest
 from tests.conftest import TEST_DRIVE
 
 
-# ────────────────────────────────────────────────
-# Unit tests for app.auth module
-# ────────────────────────────────────────────────
-
-
 class TestLoadPasswords:
     def test_no_file_returns_empty(self, tmp_path):
         import app.auth as auth
@@ -146,6 +141,135 @@ class TestJWT:
         assert groups == []
 
 
+class TestViewerIdentity:
+    def _make_request(self, headers: dict[str, str]):
+        from starlette.requests import Request
+
+        scope = {
+            "type": "http",
+            "headers": [(k.lower().encode(), v.encode()) for k, v in headers.items()],
+        }
+        return Request(scope)
+
+    def test_cookie_only_viewer_id_and_nickname(self):
+        import app.auth as auth
+
+        request = self._make_request({"Cookie": "lit_viewer=alice"})
+        assert auth.get_viewer_id(request) == auth.nickname_to_viewer_id("alice")
+        assert auth.get_nickname(request) == "alice"
+
+    def test_header_only_viewer_id_and_nickname(self):
+        import app.auth as auth
+
+        request = self._make_request({"X-Lit-Viewer": "alice"})
+        assert auth.get_viewer_id(request) == auth.nickname_to_viewer_id("alice")
+        assert auth.get_nickname(request) == "alice"
+
+    def test_cookie_takes_priority_over_header(self):
+        import app.auth as auth
+
+        request = self._make_request({
+            "Cookie": "lit_viewer=alice",
+            "X-Lit-Viewer": "bob",
+        })
+        assert auth.get_viewer_id(request) == auth.nickname_to_viewer_id("alice")
+        assert auth.get_nickname(request) == "alice"
+
+    def test_a_blank_nickname_names_no_viewer(self):
+        import app.auth as auth
+
+        for raw in ("", "   ", "\t\n"):
+            request = self._make_request({"X-Lit-Viewer": raw})
+            assert auth.get_viewer_id(request) is None
+            assert auth.get_nickname(request) is None
+
+    def test_surrounding_whitespace_is_not_part_of_the_nickname(self):
+        import app.auth as auth
+
+        padded = self._make_request({"X-Lit-Viewer": "  alice  "})
+        assert auth.get_nickname(padded) == "alice"
+        assert auth.get_viewer_id(padded) == auth.nickname_to_viewer_id("alice")
+
+    def test_the_viewer_id_is_sixteen_hex_digits(self):
+        import app.auth as auth
+
+        request = self._make_request({"X-Lit-Viewer": "alice"})
+        vid = auth.get_viewer_id(request)
+        assert len(vid) == 16
+        assert all(c in "0123456789abcdef" for c in vid)
+
+    def test_overlong_header_is_ignored(self):
+        import app.auth as auth
+
+        request = self._make_request({"X-Lit-Viewer": "x" * 51})
+        assert auth.get_viewer_id(request) is None
+        assert auth.get_nickname(request) is None
+
+
+class TestGetUnlockedGroupsBearer:
+    def _make_request(self, headers: dict[str, str]):
+        from starlette.requests import Request
+
+        scope = {
+            "type": "http",
+            "headers": [(k.lower().encode(), v.encode()) for k, v in headers.items()],
+        }
+        return Request(scope)
+
+    def test_bearer_header_only(self):
+        import app.auth as auth
+        auth._jwt_secret = "test-secret-key"
+        token, _ = auth.create_jwt(["private"], remember=False)
+        request = self._make_request({"Authorization": f"Bearer {token}"})
+        assert auth.get_unlocked_groups(request) == ["private"]
+
+    def test_cookie_only_still_works(self):
+        import app.auth as auth
+        auth._jwt_secret = "test-secret-key"
+        token, _ = auth.create_jwt(["private"], remember=False)
+        request = self._make_request({"Cookie": f"{auth.COOKIE_NAME}={token}"})
+        assert auth.get_unlocked_groups(request) == ["private"]
+
+    def test_no_credentials_returns_empty(self):
+        import app.auth as auth
+        request = self._make_request({})
+        assert auth.get_unlocked_groups(request) == []
+
+    def test_invalid_bearer_does_not_fall_back_to_cookie(self):
+        # An explicitly-presented Bearer credential that fails to decode is
+        # treated as invalid, not absent — it must not silently degrade to
+        # the cookie, which could mask a broken/expired API token.
+        import app.auth as auth
+        auth._jwt_secret = "test-secret-key"
+        cookie_token, _ = auth.create_jwt(["private"], remember=False)
+        request = self._make_request({
+            "Authorization": "Bearer invalid.token.here",
+            "Cookie": f"{auth.COOKIE_NAME}={cookie_token}",
+        })
+        assert auth.get_unlocked_groups(request) == []
+
+    def test_bearer_takes_priority_over_cookie(self):
+        import app.auth as auth
+        auth._jwt_secret = "test-secret-key"
+        bearer_token, _ = auth.create_jwt(["bearer-group"], remember=False)
+        cookie_token, _ = auth.create_jwt(["cookie-group"], remember=False)
+        request = self._make_request({
+            "Authorization": f"Bearer {bearer_token}",
+            "Cookie": f"{auth.COOKIE_NAME}={cookie_token}",
+        })
+        assert auth.get_unlocked_groups(request) == ["bearer-group"]
+
+    def test_non_bearer_authorization_scheme_falls_back_to_cookie(self):
+        import app.auth as auth
+        auth._jwt_secret = "test-secret-key"
+        cookie_token, _ = auth.create_jwt(["private"], remember=False)
+        request = self._make_request({
+            "Authorization": "Basic dXNlcjpwYXNz",
+            "Cookie": f"{auth.COOKIE_NAME}={cookie_token}",
+        })
+        assert auth.get_unlocked_groups(request) == ["private"]
+
+
 class TestRateLimit:
     def test_allows_under_limit(self):
         from app.auth import check_rate_limit, _failed_attempts
@@ -188,11 +312,6 @@ class TestFilterDrives:
         drives = [{"name": "private", "access_group": "secret"}]
         result = filter_drives(drives, ["secret"])
         assert len(result) == 1
-
-
-# ────────────────────────────────────────────────
-# Integration tests for /api/auth endpoints
-# ────────────────────────────────────────────────
 
 
 def _make_auth_client(tmp_path, passwords=None, drives=None):
@@ -309,6 +428,60 @@ class TestUnlockEndpoint:
             res = c.post("/api/auth/unlock", json={"password": "pass123", "remember": True})
             assert res.status_code == 200
             assert res.json()["success"] is True
+        finally:
+            cleanup()
+
+
+class TestUnlockBearerToken:
+    def test_unlock_response_includes_token(self, tmp_path):
+        passwords = [{"password": "pass123", "groups": ["private"]}]
+        c, cleanup = _make_auth_client(tmp_path, passwords=passwords)
+        try:
+            res = c.post("/api/auth/unlock", json={"password": "pass123"})
+            body = res.json()
+            assert body["success"] is True
+            assert isinstance(body.get("token"), str)
+            assert len(body["token"]) > 0
+        finally:
+            cleanup()
+
+    def test_unlock_failure_has_no_token(self, tmp_path):
+        passwords = [{"password": "pass123", "groups": ["private"]}]
+        c, cleanup = _make_auth_client(tmp_path, passwords=passwords)
+        try:
+            res = c.post("/api/auth/unlock", json={"password": "wrong"})
+            body = res.json()
+            assert body["success"] is False
+            assert body.get("token") is None
+        finally:
+            cleanup()
+
+    def test_bearer_token_reproduces_unlocked_state_without_cookie(self, tmp_path):
+        passwords = [{"password": "pass123", "groups": ["private"]}]
+        drive_dir = tmp_path / "drives" / "protected"
+        drive_dir.mkdir(parents=True)
+        drives = [
+            {"name": TEST_DRIVE, "path": str(drive_dir), "access_group": "private"},
+        ]
+        c, cleanup = _make_auth_client(tmp_path, passwords=passwords, drives=drives)
+        try:
+            unlock_res = c.post("/api/auth/unlock", json={"password": "pass123"})
+            token = unlock_res.json()["token"]
+
+            # Simulate a non-browser client: drop the cookie jar entirely and
+            # rely only on the returned token as a Bearer header.
+            c.cookies.clear()
+            status_res = c.get(
+                "/api/auth/status", headers={"Authorization": f"Bearer {token}"}
+            )
+            body = status_res.json()
+            assert body["unlocked_groups"] == ["private"]
+
+            drives_res = c.get(
+                "/api/drives", headers={"Authorization": f"Bearer {token}"}
+            )
+            names = [d["name"] for d in drives_res.json()]
+            assert TEST_DRIVE in names
         finally:
             cleanup()
 
@@ -440,9 +613,7 @@ class TestStatusEndpoint:
 
     def test_admin_password_only_no_drive_groups_visitor_not_admin(self, tmp_path):
         # Same config, but a visitor who never entered the password must NOT
-        # be admin. This is the gap __admin__ introduced: with no group-
-        # protected drive, the old `if not required: return True` leaked
-        # admin to everyone. An __admin__ password makes admin earned.
+        # be admin: an __admin__ password makes admin earned.
         drive_dir = tmp_path / "drives" / "open"
         drive_dir.mkdir(parents=True)
         passwords = [{"password": "admin-pass", "groups": ["__admin__"]}]
@@ -511,10 +682,9 @@ class TestDriveAccessControl:
             cleanup()
 
     def test_locked_drive_file_count_not_leaked(self, tmp_path):
-        # spec 2026-05-19-root-home-enrichment §2.1/§6.1 (boundary):
-        # a locked protected drive must not appear in /api/drives at all,
-        # and a hidden drive's file_count (here 3) must not be attributed
-        # to any visible drive's count.
+        # A locked protected drive must not appear in /api/drives at all,
+        # and its file_count (here 3) must not be attributed to any visible
+        # drive's count.
         from sqlalchemy import create_engine
         from sqlalchemy.orm import sessionmaker
 

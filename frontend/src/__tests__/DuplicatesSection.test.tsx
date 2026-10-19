@@ -18,6 +18,8 @@ import type { DuplicatesResponse, FileItem } from "@/types";
 const makeDrive = (name: string) => ({ name, protected: false });
 
 const makeFile = (id: string, overrides?: Partial<FileItem>): FileItem => ({
+  image_width: null,
+  image_height: null,
   id,
   filename: `${id}.jpg`,
   title: `File ${id}`,
@@ -30,12 +32,14 @@ const makeFile = (id: string, overrides?: Partial<FileItem>): FileItem => ({
   has_thumbnail: false,
   file_size: 1024000,
   duration: null,
-  likes: 0,
+  liked_at: null,
   is_favorite: false,
   tags: [],
   subtitles: [],
   deleted_at: null,
   missing_since: null,
+  trust_tier: "verified",
+  trust_reviewed_at: null,
   created_at: "2026-01-01T00:00:00",
   updated_at: "2026-01-01T00:00:00",
   ...overrides,
@@ -53,6 +57,15 @@ const makeDuplicatesResponse = (groups: DuplicatesResponse["groups"]): Duplicate
   };
 };
 
+/**
+ * The combobox is rendered before the drives arrive, so waiting for it alone
+ * lets a change to "media" be dropped as a value the select does not have.
+ */
+async function selectWithDrives(): Promise<HTMLElement> {
+  await screen.findByRole("option", { name: "media" });
+  return screen.getByRole("combobox");
+}
+
 describe("DuplicatesSection", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -64,11 +77,7 @@ describe("DuplicatesSection", () => {
   it("renders drive selector", async () => {
     render(<DuplicatesSection />);
 
-    await waitFor(() => {
-      expect(screen.getByRole("combobox")).toBeTruthy();
-    });
-
-    const select = screen.getByRole("combobox");
+    const select = await selectWithDrives();
     const options = select.querySelectorAll("option");
     expect(options.length).toBe(3); // placeholder + 2 drives
   });
@@ -83,21 +92,15 @@ describe("DuplicatesSection", () => {
 
     render(<DuplicatesSection />);
 
-    await waitFor(() => {
-      expect(screen.getByRole("combobox")).toBeTruthy();
-    });
-
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "media" } });
+    fireEvent.change(await selectWithDrives(), { target: { value: "media" } });
 
     await waitFor(() => {
       expect(screen.getByText("Duplicate Files")).toBeTruthy();
     });
 
-    // Verify the skeleton is shown (animate-pulse class)
     const skeleton = document.querySelector(".animate-pulse");
     expect(skeleton).toBeTruthy();
 
-    // Resolve to clean up
     resolvePromise!(makeDuplicatesResponse([]));
   });
 
@@ -106,11 +109,7 @@ describe("DuplicatesSection", () => {
 
     render(<DuplicatesSection />);
 
-    await waitFor(() => {
-      expect(screen.getByRole("combobox")).toBeTruthy();
-    });
-
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "media" } });
+    fireEvent.change(await selectWithDrives(), { target: { value: "media" } });
 
     await waitFor(() => {
       expect(screen.getByText("No Duplicates")).toBeTruthy();
@@ -134,17 +133,12 @@ describe("DuplicatesSection", () => {
 
     render(<DuplicatesSection />);
 
-    await waitFor(() => {
-      expect(screen.getByRole("combobox")).toBeTruthy();
-    });
-
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "media" } });
+    fireEvent.change(await selectWithDrives(), { target: { value: "media" } });
 
     await waitFor(() => {
       expect(screen.getByText("1 groups")).toBeTruthy();
     });
 
-    // Group header shows filename and file count
     expect(screen.getByText("photo.jpg")).toBeTruthy();
     expect(screen.getByText(/2 files/)).toBeTruthy();
   });
@@ -164,29 +158,21 @@ describe("DuplicatesSection", () => {
 
     render(<DuplicatesSection />);
 
-    await waitFor(() => {
-      expect(screen.getByRole("combobox")).toBeTruthy();
-    });
-
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "media" } });
+    fireEvent.change(await selectWithDrives(), { target: { value: "media" } });
 
     await waitFor(() => {
       expect(screen.getByText("photo.jpg")).toBeTruthy();
     });
 
-    // Expand the group
     fireEvent.click(screen.getByText("photo.jpg"));
 
     await waitFor(() => {
-      // Both files should be visible with their folder paths
       const folderPaths = screen.getAllByText(/\/(photos|backup)/);
       expect(folderPaths.length).toBeGreaterThanOrEqual(2);
     });
 
-    // First file should be marked as "keep" by default
     expect(screen.getByText("Keep")).toBeTruthy();
 
-    // Checkboxes should exist
     const checkboxes = screen.getAllByRole("checkbox");
     expect(checkboxes.length).toBe(2);
   });
@@ -206,28 +192,21 @@ describe("DuplicatesSection", () => {
 
     render(<DuplicatesSection />);
 
-    await waitFor(() => {
-      expect(screen.getByRole("combobox")).toBeTruthy();
-    });
-
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "media" } });
+    fireEvent.change(await selectWithDrives(), { target: { value: "media" } });
 
     await waitFor(() => {
       expect(screen.getByText("photo1.jpg")).toBeTruthy();
     });
 
-    // Expand
     fireEvent.click(screen.getByText("photo1.jpg"));
 
     await waitFor(() => {
       expect(screen.getAllByRole("checkbox").length).toBe(2);
     });
 
-    // Click on second file's checkbox to make it the kept one
     const checkboxes = screen.getAllByRole("checkbox");
     fireEvent.click(checkboxes[1]);
 
-    // The "Keep" badge should still exist (now on the second file)
     expect(screen.getByText("Keep")).toBeTruthy();
   });
 
@@ -246,27 +225,21 @@ describe("DuplicatesSection", () => {
 
     render(<DuplicatesSection />);
 
-    await waitFor(() => {
-      expect(screen.getByRole("combobox")).toBeTruthy();
-    });
-
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "media" } });
+    fireEvent.change(await selectWithDrives(), { target: { value: "media" } });
 
     await waitFor(() => {
       expect(screen.getByText("photo.jpg")).toBeTruthy();
     });
 
-    // Expand group
     fireEvent.click(screen.getByText("photo.jpg"));
 
     await waitFor(() => {
       expect(screen.getByText(/Delete Selected/)).toBeTruthy();
     });
 
-    // Click delete button (opens confirmation dialog)
     fireEvent.click(screen.getByText(/Delete Selected/));
 
-    // Confirm in the dialog — the last button with this label is inside the dialog
+    // The last button with this label is the one inside the dialog.
     await waitFor(() => {
       expect(screen.getByText(/Move.*to trash/i)).toBeTruthy();
     });
@@ -274,11 +247,9 @@ describe("DuplicatesSection", () => {
     fireEvent.click(deleteButtons[deleteButtons.length - 1]);
 
     await waitFor(() => {
-      // Should call batchDelete with the non-kept file IDs
       expect(mockBatchDelete).toHaveBeenCalledWith(["file2"]);
     });
 
-    // Should refresh duplicates after delete
     expect(mockGetDuplicates).toHaveBeenCalledTimes(2);
   });
 });

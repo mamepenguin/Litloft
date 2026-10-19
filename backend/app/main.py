@@ -6,15 +6,20 @@ import pkgutil
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Callable, Coroutine
+from typing import Callable, Coroutine, Iterable
 
-from fastapi import FastAPI
+import time
+
+from fastapi import FastAPI, HTTPException, Request
+from sqlalchemy.orm.exc import ObjectDeletedError
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.database import SessionLocal, init_db
-from app.auth import init_jwt_secret, load_passwords
+from app.auth import check_drive_access, get_unlocked_groups, init_jwt_secret, load_passwords
+import app.setup_token as setup_token
 import app.config as config
 from app.models import File
-from app.routers import admin, auth, collections, comments, drives, files, progress, uploads, ws
+from app.routers import admin, admin_markdown_images, auth, collections, comments, drives, files, progress, uploads, ws
 from app.routers import addon_proxy, admin_config, drive_policies, internal, smart_folders
 from app.services.fileops import physical_delete
 from app.services.scanner import scan_all_drives
@@ -33,55 +38,122 @@ _PURGE_INTERVAL_SECONDS = 86400  # 24 hours
 _PURGE_BATCH_SIZE = 100
 
 
+def _run_purge_batch(
+    cutoff: datetime,
+) -> tuple[list[str], set[tuple[str, str]], set[str]]:
+    """Synchronous purge work — runs in a thread via asyncio.to_thread.
+
+    Load-bearing:
+
+    - **Every** failure arm adds to ``skipped``. The batch query is re-run
+      from the top, so an unskipped failing row is re-read forever.
+    - Each row is committed or rolled back on its own. ``physical_delete``
+      flushes its DELETE before its last step, so under a shared commit a
+      failed row's DELETE would ride out on the next row's success.
+      ``_PURGE_BATCH_SIZE`` is a query page size, not a transaction size.
+    - Not a savepoint per row: pysqlite emits no ``BEGIN``, so SQLite
+      commits on ``RELEASE`` and the isolation would be imaginary.
+    """
+    all_purged_ids: list[str] = []
+    folders_to_check: set[tuple[str, str]] = set()
+    purged_drives: set[str] = set()
+    # Two sets, because they answer different questions and conflating them
+    # costs one property or the other. ``skipped`` is the termination
+    # invariant: every row this run failed to delete, for any reason, must
+    # leave the query or the loop re-reads it forever. ``retained`` is the
+    # operator signal: of those, the ones this run is reporting as left
+    # behind. It is not a census of the trash, and the gap is deliberate —
+    # see the arm below.
+    skipped: set[str] = set()
+    retained: set[str] = set()
+    while True:
+        db = SessionLocal()
+        try:
+            query = db.query(File).filter(
+                File.deleted_at.isnot(None), File.deleted_at < cutoff
+            )
+            if skipped:
+                query = query.filter(File.id.notin_(skipped))
+            batch = query.limit(_PURGE_BATCH_SIZE).all()
+            if not batch:
+                break
+            # Take the bookkeeping columns before the first commit, which
+            # expires every instance — the primary key included, so reading
+            # any of them afterwards is a refresh SELECT. That is fine where
+            # it can be caught: ``physical_delete`` re-reads its own columns
+            # off the same expired instances and sits inside the per-row
+            # handler below. What could not be caught was reading them in the
+            # loop header, where a row another session purged in the meantime
+            # raises ``ObjectDeletedError`` past the handler, into the outer
+            # one, which ends the whole run. This moves that read out of the
+            # loop; it does not remove the refreshes.
+            rows = [(f, f.id, f.drive, f.folder_path) for f in batch]
+            for file, file_id, drive, folder_path in rows:
+                try:
+                    physical_delete(db, file)
+                    db.commit()
+                except ObjectDeletedError:
+                    # Someone else purged it between the query and here — a
+                    # hard delete from the Trash view. Kept out of
+                    # ``retained`` so the warning does not report a trash
+                    # entry the user has already removed; that is a judgement
+                    # about the reachable cause, and it is only allowed to
+                    # decide the *message*. It goes into ``skipped`` like
+                    # every other failure, because termination is not allowed
+                    # to depend on the same judgement being right.
+                    db.rollback()
+                    skipped.add(file_id)
+                    logger.info(
+                        "File %s was purged by another session; skipping",
+                        file_id,
+                    )
+                    continue
+                except Exception:
+                    db.rollback()
+                    skipped.add(file_id)
+                    retained.add(file_id)
+                    logger.exception("Failed to purge file %s", file_id)
+                    continue
+                all_purged_ids.append(file_id)
+                purged_drives.add(drive)
+                if folder_path:
+                    folders_to_check.add((drive, folder_path))
+        except Exception:
+            db.rollback()
+            logger.exception("Error during trash purge")
+            break
+        finally:
+            db.close()
+    if retained:
+        logger.warning(
+            "Trash purge left %d file(s) behind; they will be retried on the "
+            "next run", len(retained)
+        )
+    return all_purged_ids, folders_to_check, purged_drives
+
+
 async def purge_expired_trash() -> None:
     """Periodically purge soft-deleted files older than TRASH_RETENTION_DAYS."""
     while True:
         cutoff = datetime.now(UTC) - timedelta(days=TRASH_RETENTION_DAYS)
-        total_purged = 0
-        all_purged_ids: list[str] = []
-        folders_to_check: set[tuple[str, str]] = set()
-        while True:
-            db = SessionLocal()
-            try:
-                batch = (
-                    db.query(File)
-                    .filter(File.deleted_at.isnot(None), File.deleted_at < cutoff)
-                    .limit(_PURGE_BATCH_SIZE)
-                    .all()
-                )
-                if not batch:
-                    break
-                purged = 0
-                for file in batch:
-                    try:
-                        file_id = file.id
-                        if file.folder_path:
-                            folders_to_check.add((file.drive, file.folder_path))
-                        physical_delete(db, file)
-                        purged += 1
-                        all_purged_ids.append(file_id)
-                    except Exception:
-                        logger.exception("Failed to purge file %s", file.id)
-                if purged:
-                    db.commit()
-                    total_purged += purged
-            except Exception:
-                db.rollback()
-                logger.exception("Error during trash purge")
-                break
-            finally:
-                db.close()
-        if total_purged:
-            logger.info("Purged %d expired trash files", total_purged)
+        all_purged_ids, folders_to_check, purged_drives = await asyncio.to_thread(
+            _run_purge_batch, cutoff
+        )
+        if all_purged_ids:
+            logger.info("Purged %d expired trash files", len(all_purged_ids))
             asyncio.create_task(
-                event_hooks.emit("files.purged", {"file_ids": all_purged_ids})
+                event_hooks.emit(
+                    "files.purged",
+                    {"file_ids": all_purged_ids},
+                    drives=sorted(purged_drives),
+                )
             )
-        _cleanup_empty_folders_after_purge(folders_to_check)
+        await asyncio.to_thread(_cleanup_empty_folders_after_purge, folders_to_check)
         await asyncio.sleep(_PURGE_INTERVAL_SECONDS)
 
 
 def _cleanup_empty_folders_after_purge(
-    folders: set[tuple[str, str]],
+    folders: Iterable[tuple[str, str]],
 ) -> None:
     """Remove empty directories left after purging files, walking up to drive root."""
     for drive_name, folder_path in folders:
@@ -112,6 +184,14 @@ def _rmdir_up_to_root(directory: Path, root: Path) -> None:
 _loaded_addons: dict[str, dict] = {}
 _addon_startup_fns: list[Callable[[], Coroutine]] = []
 
+#: Where in-process addons are discovered. A module-level name rather than an
+#: expression inside the loader so a test can point it at a directory it owns:
+#: writing packages into the real one leaves executables in a path that is
+#: gitignored, is not dockerignored, and that ``backend/Dockerfile`` copies
+#: into the runtime image, where a leftover from a killed run would mount as
+#: an addon with nothing in ``git status`` to say why.
+_ADDONS_DIR = Path(__file__).parent.parent / "addons"
+
 
 def _load_addons(app: FastAPI) -> None:
     """Discover and load addon routers from backend/addons/.
@@ -122,7 +202,7 @@ def _load_addons(app: FastAPI) -> None:
       ``{"label": "Download", "icon": "download", "href": "/download"}``
     - ``on_startup`` (optional): async function called during lifespan
     """
-    addons_path = Path(__file__).parent.parent / "addons"
+    addons_path = _ADDONS_DIR
     if not addons_path.is_dir():
         logger.info("No addons directory found (skipping)")
         return
@@ -151,24 +231,7 @@ def _load_addons(app: FastAPI) -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Drive bootstrap: pre-seed count -> setup-sentinel migration -> seed.
-    #
-    # The mere *existence* of drives.json no longer distinguishes a fresh
-    # install from an upgrade: the shrunk configure.py writes an empty
-    # ``[]`` for brand-new users too (a footgun guard for the single-file
-    # bind-mount — an absent host file would otherwise make Docker mount a
-    # directory at /app/drives.json). The discriminator is the **pre-seed
-    # non-empty** state: only a non-empty drives.json means a pre-existing
-    # user who configured logical settings via the old configure.py and
-    # must keep skipping /setup. An empty ``[]`` is a new user — the
-    # sentinel must NOT be touched so /setup runs, and the seed then
-    # populates drives.json from the Docker mount directories.
-    #
-    # Ordering is load-bearing (spec 2026-05-19 §3.1, H5 grounding fix):
-    # the pre-seed count is read once, the migration inspects that
-    # pre-seed count and runs *before* the seed, and everything here
-    # happens before scan_all_drives() so the freshly seeded drives are
-    # picked up and the persistent _drives_cache is invalidated in time.
+    # Must run before scan_all_drives() so freshly seeded drives are scanned.
     drive_seed.run_startup_drive_bootstrap()
 
     # The restart-pending flag is set by admin_config writes. Once we've
@@ -187,12 +250,15 @@ async def lifespan(app: FastAPI):
     load_passwords()
     init_jwt_secret()
     logger.info("Auth initialized")
+    # Minting here, not at the first write, is what puts the token in the log
+    # before the operator opens /setup and is asked for it.
+    if not config.setup_completed_sentinel().exists():
+        setup_token.setup_token()
     if not os.environ.get("CORE_INTERNAL_SECRET"):
         # Surface the unset secret at startup so the ops-time implication
         # is visible without grep. Docker network isolation is still the
         # primary defence, but any container on the network can hit write
-        # endpoints like POST /api/internal/files/{id}/tags unauthenticated
-        # (spec 2026-04-24-knowledge-tag-unification.md).
+        # endpoints like POST /api/internal/files/{id}/tags unauthenticated.
         logger.warning(
             "CORE_INTERNAL_SECRET is unset — internal write endpoints "
             "(e.g. POST /api/internal/files/{id}/tags) are reachable from "
@@ -202,7 +268,10 @@ async def lifespan(app: FastAPI):
     event_hooks.init()
     addon_registry.load_external_manifests()
     set_event_loop(asyncio.get_running_loop())
+    event_hooks.set_event_loop(asyncio.get_running_loop())
     cleanup_abandoned_uploads()
+    from app.services.markdown_image_import import initialize_interrupted_jobs
+    initialize_interrupted_jobs()
     asyncio.create_task(scan_all_drives())
     logger.info("Background scan started for all drives")
     asyncio.create_task(purge_expired_trash())
@@ -217,7 +286,28 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Video Share API", lifespan=lifespan)
 
+_SLOW_REQUEST_THRESHOLD_SEC = 2.0
+
+
+class SlowRequestMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        t0 = time.perf_counter()
+        response = await call_next(request)
+        elapsed = time.perf_counter() - t0
+        if elapsed >= _SLOW_REQUEST_THRESHOLD_SEC:
+            logger.warning(
+                "SLOW REQUEST %.3fs %s %s",
+                elapsed,
+                request.method,
+                request.url.path,
+            )
+        return response
+
+
+app.add_middleware(SlowRequestMiddleware)
+
 app.include_router(admin.router)
+app.include_router(admin_markdown_images.router)
 app.include_router(admin_config.router)
 app.include_router(auth.router)
 app.include_router(comments.router)
@@ -235,7 +325,7 @@ app.include_router(addon_proxy.router)
 
 
 @app.get("/api/addons/status")
-async def addons_status(drive: str | None = None):
+async def addons_status(request: Request, drive: str | None = None):
     """Return the addon catalogue, optionally filtered by a drive.
 
     When ``drive`` is omitted (admin / global UI) every loaded addon
@@ -247,12 +337,12 @@ async def addons_status(drive: str | None = None):
     UI-side hook for the "intelligence: false" config: the sidebar
     link disappears, the slot stays empty, no API calls fire.
 
-    A ``drive`` that is not in drives.json yields an empty addon /
-    slot map rather than 404 so the frontend can render the admin
-    surface without special-casing missing drives.
+    A ``drive`` that is not in drives.json, or that the caller has not
+    unlocked, yields the same empty addon / slot map rather than 404, so
+    the answer does not reveal whether a locked drive exists.
     """
     # Strip internal-only fields (proxy config) before returning to clients
-    _FRONTEND_FIELDS = {"label", "description", "icon", "href", "type", "slots", "scope", "policy_features"}
+    _FRONTEND_FIELDS = {"label", "description", "icon", "href", "type", "slots", "scope", "policy_features", "navigation"}
 
     def is_configured(meta: dict) -> bool:
         # External services need compose/env wiring. A manifest alone can
@@ -291,8 +381,8 @@ async def addons_status(drive: str | None = None):
         return {"addons": addons, "slots": slots}
 
     try:
-        config.get_drive_path(drive)  # validate drive exists
-    except ValueError:
+        check_drive_access(drive, get_unlocked_groups(request))
+    except HTTPException:
         return {"addons": {}, "slots": {}}
 
     enabled_names = {

@@ -1,5 +1,4 @@
-import type { FolderTreeNode, TreeTypeFilter } from "@/types";
-import { fileMatchesTypeFilter } from "./fileTypeFilter";
+import type { FolderTreeNode } from "@/types";
 
 export interface FilteredTreeRow {
   node: FolderTreeNode;
@@ -9,13 +8,6 @@ export interface FilteredTreeRow {
   isAncestor: boolean;
 }
 
-/**
- * Group flat tree nodes by their parent path so the rendering pass can
- * walk the hierarchy without further API calls.
- *
- * The drive root is keyed under the empty string. The split takes the
- * path's last `/` segment as the node name and the prefix as its parent.
- */
 export function groupByParent(nodes: FolderTreeNode[]): Map<string, FolderTreeNode[]> {
   const byParent = new Map<string, FolderTreeNode[]>();
   for (const node of nodes) {
@@ -29,19 +21,12 @@ export function groupByParent(nodes: FolderTreeNode[]): Map<string, FolderTreeNo
 }
 
 interface MatchTables {
-  /** Paths whose node matched the filter directly. */
   matched: Set<string>;
-  /** Paths that should be visible as ancestors (dimmed). */
   ancestors: Set<string>;
-  /** Folder paths whose subtree cascades because the folder name matched. */
   cascadingFolders: Set<string>;
 }
 
-function nodeMatches(
-  node: FolderTreeNode,
-  loweredText: string,
-  typeFilter: TreeTypeFilter | null,
-): boolean {
+function nodeMatches(node: FolderTreeNode, loweredText: string): boolean {
   const nameMatches =
     loweredText.length === 0 || node.name.toLowerCase().includes(loweredText);
   if (!nameMatches) return false;
@@ -52,15 +37,10 @@ function nodeMatches(
     // every folder.
     return loweredText.length > 0;
   }
-  if (typeFilter === null) return true;
-  return fileMatchesTypeFilter(
-    {
-      filename: node.name,
-      mime_type: node.mime_type,
-      file_type: node.file_type,
-    },
-    typeFilter,
-  );
+  // A file node that arrived under an active type filter already
+  // satisfies it: the query carried the filter and the backend applied
+  // it. Re-deciding here would be a second classifier that can disagree.
+  return true;
 }
 
 function ancestorsOf(path: string): string[] {
@@ -75,7 +55,6 @@ function ancestorsOf(path: string): string[] {
 export function computeMatchTables(
   nodes: FolderTreeNode[],
   text: string,
-  typeFilter: TreeTypeFilter | null,
 ): MatchTables {
   const loweredText = text.trim().toLowerCase();
   const matched = new Set<string>();
@@ -83,13 +62,12 @@ export function computeMatchTables(
   const cascadingFolders = new Set<string>();
 
   for (const node of nodes) {
-    if (nodeMatches(node, loweredText, typeFilter)) {
+    if (nodeMatches(node, loweredText)) {
       matched.add(node.path);
       if (node.kind === "folder") cascadingFolders.add(node.path);
     }
   }
 
-  // Add ancestors for every match.
   for (const path of matched) {
     for (const a of ancestorsOf(path)) {
       if (!matched.has(a)) ancestors.add(a);
@@ -99,15 +77,6 @@ export function computeMatchTables(
   return { matched, ancestors, cascadingFolders };
 }
 
-/**
- * Walk the (already grouped) tree and produce flat rows for rendering,
- * applying the filter visibility rules:
- *
- *  - matched nodes render normally
- *  - matched-folder descendants render normally (cascade)
- *  - ancestors of matches render dimmed
- *  - everything else is hidden
- */
 export function buildFilteredRows(
   rootNodes: FolderTreeNode[],
   byParent: Map<string, FolderTreeNode[]>,

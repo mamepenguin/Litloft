@@ -1,8 +1,5 @@
 """Generic addon proxy — drive-scope enforcement.
 
-Covers the scope=drive behaviour added for drive-scoped addons
-(originally motivated by the knowledge addon).
-
 What we guard:
 - scope=drive addons require ``X-Lit-Drive`` → 400 otherwise
 - scope=drive addons reject inaccessible drives → 403
@@ -13,6 +10,7 @@ We stub httpx.AsyncClient so no real network calls happen.
 """
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import httpx
@@ -181,11 +179,6 @@ def test_global_scope_still_validates_drive_if_provided(
     assert r.status_code == 403
 
 
-# ---------------------------------------------------------------------------
-# current_drive_only response filter
-# ---------------------------------------------------------------------------
-
-
 class _JsonClient:
     """Captures requests and returns a configurable JSON body."""
 
@@ -253,6 +246,15 @@ def filter_addon(monkeypatch):
                         "type": "addon_feature",
                         "feature": "rag",
                     },
+                },
+                {
+                    "path": "/files/{file_id}/candidate",
+                    "methods": ["GET"],
+                    "pre_check": {
+                        "type": "file_access",
+                        "param": "file_id",
+                    },
+                    "addon_feature": "candidate_generation",
                 },
             ],
         },
@@ -336,9 +338,88 @@ def test_addon_feature_pre_check_passes_when_enabled(client, filter_addon):
     assert r.status_code == 200
 
 
-# ---------------------------------------------------------------------------
-# Per-route timeout override
-# ---------------------------------------------------------------------------
+def test_route_addon_feature_composes_with_file_access(
+    client, filter_addon, monkeypatch
+):
+    """A file route can require both file access and a feature policy gate."""
+    import app.config as config
+    from app.models import File
+
+    c, session, _drive_dir, _data_dir = client
+    _JsonClient.last_request = {}
+    session.add(File(
+        id="file00000001",
+        filename="talk.mp4",
+        title="talk.mp4",
+        drive="test-drive",
+        file_path="talk.mp4",
+        file_size=1,
+        file_type="video",
+        mime_type="video/mp4",
+    ))
+    session.commit()
+
+    monkeypatch.setattr(
+        config,
+        "is_addon_feature_enabled",
+        lambda drive, addon, feature: feature != "candidate_generation",
+    )
+    denied = c.get(
+        "/api/addons/_filter/files/file00000001/candidate",
+        headers={"X-Lit-Drive": "test-drive"},
+    )
+    assert denied.status_code == 404
+    assert _JsonClient.last_request == {}
+
+    monkeypatch.setattr(
+        config,
+        "is_addon_feature_enabled",
+        lambda _drive, _addon, _feature: True,
+    )
+    allowed = c.get(
+        "/api/addons/_filter/files/file00000001/candidate",
+        headers={"X-Lit-Drive": "test-drive"},
+    )
+    assert allowed.status_code == 200
+
+
+def test_file_feature_policy_cannot_use_a_different_drive_header(
+    client, filter_addon, monkeypatch
+):
+    import app.config as config
+    from app.models import File
+
+    c, session, drive_dir, _data_dir = client
+    other_dir = drive_dir.parent / "other"
+    other_dir.mkdir()
+    config.DRIVES_CONFIG.write_text(json.dumps([
+        {"name": "test-drive", "path": str(drive_dir)},
+        {"name": "other-drive", "path": str(other_dir)},
+    ]))
+    config._drives_cache = None
+    session.add(File(
+        id="file00000002",
+        filename="private.mp4",
+        title="private.mp4",
+        drive="other-drive",
+        file_path="private.mp4",
+        file_size=1,
+        file_type="video",
+        mime_type="video/mp4",
+    ))
+    session.commit()
+    monkeypatch.setattr(
+        config,
+        "is_addon_feature_enabled",
+        lambda drive, _addon, _feature: drive == "test-drive",
+    )
+
+    response = c.get(
+        "/api/addons/_filter/files/file00000002/candidate",
+        headers={"X-Lit-Drive": "test-drive"},
+    )
+
+    assert response.status_code == 404
 
 
 class _TimeoutCapturingClient:

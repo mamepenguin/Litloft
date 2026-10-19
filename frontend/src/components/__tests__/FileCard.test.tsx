@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 
 vi.mock("next/link", () => ({
@@ -22,6 +22,8 @@ import { FileCard } from "../FileCard";
 import type { FileItem } from "@/types";
 
 const mockFile: FileItem = {
+  image_width: null,
+  image_height: null,
   id: "abc123def456",
   filename: "test.mp4",
   title: "Test Video",
@@ -34,12 +36,14 @@ const mockFile: FileItem = {
   has_thumbnail: false,
   file_size: 1048576,
   duration: 125.5,
-  likes: 3,
+  liked_at: null,
   is_favorite: false,
   tags: [],
   subtitles: [],
   deleted_at: null,
   missing_since: null,
+  trust_tier: "verified",
+  trust_reviewed_at: null,
   created_at: "2026-03-20T10:00:00",
   updated_at: "2026-03-20T10:00:00",
 };
@@ -50,9 +54,9 @@ describe("FileCard", () => {
     expect(screen.getByText("Test Video")).toBeInTheDocument();
   });
 
-  it("renders file size and relative date", () => {
+  it("leaves the size off a video, whose length the badge already says", () => {
     render(<FileCard file={mockFile} />);
-    expect(screen.getByText("1.0 MB")).toBeInTheDocument();
+    expect(screen.queryByText("1.0 MB")).toBeNull();
   });
 
   it("renders formatted duration for video", () => {
@@ -63,7 +67,7 @@ describe("FileCard", () => {
   it("links to file page", () => {
     render(<FileCard file={mockFile} />);
     const links = screen.getAllByRole("link");
-    const fileLink = links.find((l) => l.getAttribute("href") === "/files/abc123def456");
+    const fileLink = links.find((l) => l.getAttribute("href") === "/drive/test-drive/%E6%97%85%E8%A1%8C?file=abc123def456");
     expect(fileLink).toBeTruthy();
   });
 
@@ -127,7 +131,7 @@ describe("FileCard", () => {
         />
       );
       const link = screen.getAllByRole("link").find(
-        (l) => l.getAttribute("href") === "/files/abc123def456",
+        (l) => l.getAttribute("href") === "/drive/test-drive/%E6%97%85%E8%A1%8C?file=abc123def456",
       );
       expect(link).toBeTruthy();
       fireEvent.touchStart(link!, { touches: [{ clientX: 10, clientY: 10 }] });
@@ -143,7 +147,7 @@ describe("FileCard", () => {
         />
       );
       const link = screen.getAllByRole("link").find(
-        (l) => l.getAttribute("href") === "/files/abc123def456",
+        (l) => l.getAttribute("href") === "/drive/test-drive/%E6%97%85%E8%A1%8C?file=abc123def456",
       );
       fireEvent.touchEnd(link!);
       expect(onTouchEnd).toHaveBeenCalledTimes(1);
@@ -158,7 +162,7 @@ describe("FileCard", () => {
         />
       );
       const link = screen.getAllByRole("link").find(
-        (l) => l.getAttribute("href") === "/files/abc123def456",
+        (l) => l.getAttribute("href") === "/drive/test-drive/%E6%97%85%E8%A1%8C?file=abc123def456",
       );
       fireEvent.touchMove(link!, { touches: [{ clientX: 30, clientY: 30 }] });
       expect(onTouchMove).toHaveBeenCalledTimes(1);
@@ -179,7 +183,6 @@ describe("FileCard", () => {
           onTouchMove={onTouchMove}
         />
       );
-      // selectable mode renders a div with role=button instead of a link
       const button = screen.getByRole("button");
       fireEvent.touchStart(button, { touches: [{ clientX: 10, clientY: 10 }] });
       fireEvent.touchEnd(button);
@@ -195,8 +198,18 @@ describe("FileCard", () => {
       render(<FileCard file={mockFile} />);
       expect(screen.getByRole("link")).toHaveAttribute(
         "href",
-        "/files/abc123def456",
+        "/drive/test-drive/%E6%97%85%E8%A1%8C?file=abc123def456",
       );
+    });
+
+    it("hands a Cmd/Ctrl-click on the plain link to onMetaSelect instead of following it", () => {
+      const onMetaSelect = vi.fn();
+      render(<FileCard file={mockFile} onMetaSelect={onMetaSelect} />);
+      const link = screen.getByRole("link");
+      const event = new MouseEvent("click", { bubbles: true, cancelable: true, metaKey: true });
+      fireEvent(link, event);
+      expect(onMetaSelect).toHaveBeenCalledWith("abc123def456");
+      expect(event.defaultPrevented).toBe(true);
     });
 
     it("absorbs the click and invokes the override when a provider is present", async () => {
@@ -209,8 +222,6 @@ describe("FileCard", () => {
           <FileCard file={mockFile} />
         </FileNavigationOverrideProvider>,
       );
-      // With the override, the card renders a <div role="button">
-      // instead of a <Link>, so there is no anchor to follow.
       expect(screen.queryByRole("link")).toBeNull();
       fireEvent.click(screen.getByRole("button"));
       expect(onNavigate).toHaveBeenCalledWith("abc123def456");
@@ -252,5 +263,42 @@ describe("FileCard", () => {
       expect(onSelect).toHaveBeenCalledWith("abc123def456");
       expect(onNavigate).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe("FileCard's text preview for Office files", () => {
+  beforeEach(() => {
+    // `TextThumbnail` waits to be scrolled into view before it fetches.
+    vi.stubGlobal(
+      "IntersectionObserver",
+      class {
+        observe() {}
+        disconnect() {}
+        unobserve() {}
+      },
+    );
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  const XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+  const office = (mime: string): FileItem => ({
+    ...mockFile,
+    filename: "trade.xlsx",
+    title: "Trade",
+    file_type: "document",
+    mime_type: mime,
+    has_thumbnail: false,
+    duration: null,
+  });
+
+  it("draws the extracted-text card for an Office file with no thumbnail", () => {
+    render(<FileCard file={office(XLSX)} />);
+    expect(document.querySelector('[data-testid="text-thumbnail"]')).not.toBeNull();
+  });
+
+  it("does not draw it for a format the backend cannot extract", () => {
+    render(<FileCard file={office("application/vnd.ms-excel")} />);
+    expect(document.querySelector('[data-testid="text-thumbnail"]')).toBeNull();
   });
 });

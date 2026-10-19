@@ -3,20 +3,26 @@
 import { Suspense, useCallback, useEffect, useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { LockOpen } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useShortcuts } from "@/hooks/useShortcuts";
 
+import { addonNavEntries } from "@/lib/addonNavigation";
 import { lock as lockApi } from "@/lib/api";
 import { useAddonSlots } from "./AddonSlotsProvider";
 import { useSidebar } from "./SidebarProvider";
-import { useCurrentDrive, useSetOverrideDrive } from "./CurrentDriveProvider";
+import { useCurrentDrive, useCurrentFolderPath, useSetOverrideDrive } from "./CurrentDriveProvider";
 import { useSidebarData } from "./sidebar/useSidebarData";
+import { isSidebarLinkActive } from "./sidebar/isSidebarLinkActive";
+import { AddonNavRows } from "./sidebar/AddonNavRows";
 import { useCollectionManagement } from "./sidebar/useCollectionManagement";
 import { SidebarLibrarySection } from "./sidebar/SidebarLibrarySection";
+import { SidebarSystemSection } from "./sidebar/SidebarSystemSection";
+import { isLibraryRowActive, pinHrefFor } from "./sidebar/libraryRowActive";
+import { normaliseDriveView } from "@/lib/driveViews";
 import { SidebarCollectionsSection } from "./sidebar/SidebarCollectionsSection";
 import { SidebarPinsSection } from "./sidebar/SidebarPinsSection";
 import { SidebarSmartFoldersSection } from "./sidebar/SidebarSmartFoldersSection";
 import { SidebarTagsSection } from "./sidebar/SidebarTagsSection";
-import { SidebarDrivesSection } from "./sidebar/SidebarDrivesSection";
 import { SectionDragHandle } from "./sidebar/SectionDragHandle";
 import { useSidebarSectionOrder } from "./sidebar/useSidebarSectionOrder";
 import { useReorderableDnD } from "./sidebar/useReorderableDnD";
@@ -25,10 +31,14 @@ import { useReorderableDnD } from "./sidebar/useReorderableDnD";
  * Stable IDs for the four reorderable sections (canonical order = default display order).
  * These IDs match the keys used by useSidebarSectionCollapsed to keep namespaces consistent.
  */
+// Read only by `typeof` on the next line, which the rule does not count as
+// a use. The declaration cannot go: the type is derived from the value.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const REORDERABLE_SECTIONS = ["collections", "pins", "smart-folders", "tags"] as const;
 type ReorderableSectionId = (typeof REORDERABLE_SECTIONS)[number];
 
 function SidebarNav() {
+  const t = useTranslations("sidebar");
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -40,14 +50,24 @@ function SidebarNav() {
   }, [isOverlay, close]);
 
   const currentDrive = useCurrentDrive();
+  const currentFolderPath = useCurrentFolderPath();
   const setOverrideDrive = useSetOverrideDrive();
-  const activeView = searchParams.get("view");
+  const activeView = normaliseDriveView(searchParams.get("view"));
   const activeTag = searchParams.get("tag");
 
-  const { addons } = useAddonSlots();
+  const { addons, catalogueDrive } = useAddonSlots();
+  // A catalogue still held from the previous drive would put that drive's
+  // addons on this one until the new response lands.
+  const navAddons = useMemo(
+    () => (catalogueDrive === currentDrive ? addons : {}),
+    [addons, catalogueDrive, currentDrive],
+  );
+  const primaryAddons = useMemo(() => addonNavEntries(navAddons, currentDrive, "primary"), [navAddons, currentDrive]);
+  const sourceAddons = useMemo(() => addonNavEntries(navAddons, currentDrive, "sources"), [navAddons, currentDrive]);
+  const utilityAddons = useMemo(() => addonNavEntries(navAddons, currentDrive, "utility"), [navAddons, currentDrive]);
 
   const { drives, tags, pins, collectionList, setCollectionList, authStatus, driveSummary } =
-    useSidebarData(currentDrive, refreshKey);
+    useSidebarData(currentDrive, currentFolderPath, refreshKey);
 
   const collection = useCollectionManagement({
     currentDrive,
@@ -85,41 +105,30 @@ function SidebarNav() {
     onReorder: setOrder,
   });
 
-  function isActive(href: string): boolean {
-    if (href === "/") return pathname === "/";
-    if (href === "/admin") return pathname === "/admin";
-    if (!currentDrive) return false;
+  const isActive = (href: string) =>
+    isSidebarLinkActive({ href, pathname, currentDrive, activeView, activeTag });
 
-    const base = `/drive/${encodeURIComponent(currentDrive)}`;
+  // The Pins section builds its hrefs the same way, from the same helper,
+  // so "am I standing in a pinned folder" cannot be answered differently
+  // by the row that yields and the row it yields to.
+  const pinnedHrefs = useMemo(
+    () => (driveBase ? pins.map((pin) => pinHrefFor(driveBase, pin.path)) : []),
+    [driveBase, pins],
+  );
+  const libraryActive = isLibraryRowActive({
+    pathname,
+    driveBase,
+    activeView,
+    activeTag,
+    pinnedHrefs,
+  });
 
-    if (href === `${base}?view=favorites`) {
-      return pathname === base && activeView === "favorites";
-    }
-    if (href === `${base}?view=recent`) {
-      return pathname === base && activeView === "recent";
-    }
-    if (href === `${base}?view=recent-added`) {
-      return pathname === base && activeView === "recent-added";
-    }
-    if (href === `${base}?view=all`) {
-      return pathname === base && activeView === "all";
-    }
-    if (href.includes("?tag=")) {
-      const hrefTag = new URL(href, "http://x").searchParams.get("tag");
-      return pathname === base && activeTag === hrefTag && !activeView;
-    }
-    if (href === base) {
-      return pathname === base && !activeView && !activeTag;
-    }
-    if (href.startsWith("/drive/")) {
-      return pathname === decodeURIComponent(href) || pathname === href;
-    }
-    return false;
-  }
-
-  const linkClass = (href: string) =>
+  // `active` overrides the href-derived answer. Tag rows need it: their
+  // href toggles between "apply this tag" and "clear it", so the href
+  // alone cannot say whether the row is the selected one.
+  const linkClass = (href: string, active?: boolean) =>
     `flex items-center gap-2.5 rounded-2xl px-3 py-2 text-sm transition-colors ${
-      isActive(href)
+      (active ?? isActive(href))
         ? "bg-bg-elevated text-text-primary font-medium"
         : "text-text-muted hover:bg-bg-elevated hover:text-text-primary"
     }`;
@@ -127,7 +136,7 @@ function SidebarNav() {
   return (
     <nav className="scrollbar-hover flex h-full flex-col gap-1 overflow-y-auto p-3">
       {/* Library section: fixed at top, never reordered */}
-      <SidebarLibrarySection driveBase={driveBase} currentDrive={currentDrive} linkClass={linkClass} close={closeIfOverlay} addons={addons} driveSummary={driveSummary} isAdmin={authStatus?.is_admin === true} />
+      <SidebarLibrarySection driveBase={driveBase} currentDrive={currentDrive} drives={drives} linkClass={linkClass} close={closeIfOverlay} primaryAddons={primaryAddons} sourceAddons={sourceAddons} libraryActive={libraryActive} />
 
       {/* Reorderable sections */}
       {order.map((id) => {
@@ -191,9 +200,12 @@ function SidebarNav() {
             <div key={id} className="relative" {...dnd.getRowProps(id)}>
               {dropIndicator}
               <SidebarTagsSection
-                driveBase={driveBase}
                 drive={currentDrive}
+                currentFolderPath={currentFolderPath}
+                pathname={pathname}
                 tags={tags}
+                activeTag={activeTag}
+                activeView={activeView}
                 linkClass={linkClass}
                 close={closeIfOverlay}
                 dragHandle={handle}
@@ -205,9 +217,13 @@ function SidebarNav() {
         return null;
       })}
 
-      {/* Drives + Lock: fixed at bottom, never reordered */}
-      <SidebarDrivesSection drives={drives} currentDrive={currentDrive} close={closeIfOverlay} />
+      {/* Below the reader's own sections: these are about the drive
+          rather than about what is in it, and are reached rarely. */}
+      <AddonNavRows entries={utilityAddons} linkClass={linkClass} close={closeIfOverlay} />
 
+      <SidebarSystemSection driveBase={driveBase} linkClass={linkClass} close={closeIfOverlay} driveSummary={driveSummary} isAdmin={authStatus?.is_admin === true} />
+
+      {/* Lock: fixed at bottom, never reordered */}
       {authStatus?.has_protected_drives && authStatus.unlocked_groups.length > 0 && (
         <div className="mt-4 px-3">
           <button
@@ -218,7 +234,7 @@ function SidebarNav() {
             className="flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-xs text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
           >
             <LockOpen size={14} />
-            Lock
+            {t("lock")}
           </button>
         </div>
       )}

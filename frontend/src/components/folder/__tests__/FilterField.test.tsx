@@ -1,8 +1,3 @@
-/**
- * Tests for the shared <FilterField> component (right-pane + tree-pane filter UI).
- * Spec: docs/superpowers/specs/2026-05-09-folder-filter-and-tree-filter.md §4
- * (chip inline 化、2026-05-09 改訂版).
- */
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -42,8 +37,6 @@ describe("FilterField", () => {
         onTypeFilterChange={vi.fn()}
       />,
     );
-    // The trigger now reads "Filter by type" — chip replaces the labeled
-    // dropdown when a type is selected.
     expect(
       screen.getByRole("button", {
         name: /filter by type|filter\.openTypeFilter|型でフィルタ/i,
@@ -78,12 +71,10 @@ describe("FilterField", () => {
         onTypeFilterChange={vi.fn()}
       />,
     );
-    // The chip body is a button advertising "click to change".
     const chip = screen.getByRole("button", {
       name: /click to change|filter\.chipChange|クリックで変更/i,
     });
     expect(chip).toBeInTheDocument();
-    // The chip label includes the translated type name.
     expect(chip.textContent ?? "").toMatch(/video|動画/i);
   });
 
@@ -131,12 +122,12 @@ describe("FilterField", () => {
     });
     fireEvent.click(trigger);
 
-    const markdownOption = await screen.findByRole("menuitem", {
-      name: /markdown/i,
+    const textOption = await screen.findByRole("menuitem", {
+      name: /^text$/i,
     });
-    fireEvent.click(markdownOption);
+    fireEvent.click(textOption);
 
-    expect(onTypeFilterChange).toHaveBeenCalledWith("markdown");
+    expect(onTypeFilterChange).toHaveBeenCalledWith("text");
   });
 
   it("re-opens the dropdown when the chip body is clicked", async () => {
@@ -156,7 +147,6 @@ describe("FilterField", () => {
     });
     fireEvent.click(chip);
 
-    // The dropdown opens and the user can pick a different type.
     const imageOption = await screen.findByRole("menuitem", {
       name: /image|画像/i,
     });
@@ -283,7 +273,6 @@ describe("FilterField", () => {
 
     const input = screen.getByPlaceholderText("search...") as HTMLInputElement;
     input.focus();
-    // Caret in the middle of the text.
     input.setSelectionRange(2, 2);
     fireEvent.keyDown(input, { key: "Backspace" });
 
@@ -291,9 +280,6 @@ describe("FilterField", () => {
   });
 
   it("Backspace at caret-0 with non-empty text does NOT remove the chip (Linear convention)", () => {
-    // The chip should only disappear via Backspace when the input is fully
-    // empty. Otherwise users who deliberately moved the caret to the start
-    // would lose their type filter unexpectedly.
     const onTypeFilterChange = vi.fn();
     render(
       <FilterField
@@ -327,7 +313,6 @@ describe("FilterField", () => {
 
     const input = screen.getByPlaceholderText("search...") as HTMLInputElement;
     input.focus();
-    // Selection from 0 to 2 — caret is at start but a range is highlighted.
     input.setSelectionRange(0, 2);
     fireEvent.keyDown(input, { key: "Backspace" });
 
@@ -378,7 +363,42 @@ describe("FilterField", () => {
     fireEvent.keyDown(menu, { key: "ArrowDown" });
     fireEvent.keyDown(menu, { key: "Enter" });
 
-    expect(onTypeFilterChange).toHaveBeenCalledWith("markdown");
+    expect(onTypeFilterChange).toHaveBeenCalledWith("video");
+  });
+
+  it("offers every kind, including the ones it used to leave out", async () => {
+    render(
+      <FilterField
+        text=""
+        onTextChange={vi.fn()}
+        placeholder="..."
+        typeFilter={null}
+        onTypeFilterChange={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /filter by type|filter\.openTypeFilter|型でフィルタ/i,
+      }),
+    );
+    const items = await screen.findAllByRole("menuitem");
+    expect(items).toHaveLength(9);
+    expect(items.map((el) => el.textContent)).toEqual([
+      "All", "Video", "Image", "Audio", "Document", "Text", "PDF",
+      "Archive", "Other",
+    ]);
+  });
+
+  it("renders no kind control at all when the caller does not offer one", () => {
+    render(<FilterField text="" onTextChange={vi.fn()} placeholder="..." />);
+
+    expect(
+      screen.queryByRole("button", {
+        name: /filter by type|filter\.openTypeFilter|型でフィルタ/i,
+      }),
+    ).toBeNull();
+    expect(screen.getByRole("textbox")).toBeInTheDocument();
   });
 
   it("ArrowUp wraps focus from the first to the last option", async () => {
@@ -402,7 +422,7 @@ describe("FilterField", () => {
     fireEvent.keyDown(menu, { key: "ArrowUp" });
     fireEvent.keyDown(menu, { key: "Enter" });
 
-    expect(onTypeFilterChange).toHaveBeenCalledWith("pdf");
+    expect(onTypeFilterChange).toHaveBeenCalledWith("other");
   });
 
   it("renders a chip button when a type is selected", () => {
@@ -421,5 +441,45 @@ describe("FilterField", () => {
     });
     expect(chip).toBeInTheDocument();
     expect(chip.className).toMatch(/text-text-primary/);
+  });
+
+  describe("the two shapes", () => {
+    const classesFor = (variant?: "pill" | "underline") => {
+      const { unmount } = render(
+        <FilterField
+          text=""
+          onTextChange={vi.fn()}
+          placeholder="..."
+          variant={variant}
+        />,
+      );
+      const el = screen.getByRole("textbox");
+      const className = el.className;
+      const hasSearchIcon = Boolean(
+        el.parentElement?.querySelector("svg.lucide-search"),
+      );
+      unmount();
+      return { className, hasSearchIcon };
+    };
+
+    it("draws a bordered pill with a magnifier by default", () => {
+      const pill = classesFor();
+      expect(pill.className).toContain("rounded-2xl");
+      expect(pill.hasSearchIcon).toBe(true);
+    });
+
+    it("draws a bare rule with no magnifier when asked for underline", () => {
+      const line = classesFor("underline");
+      expect(line.className).toContain("border-b");
+      expect(line.className).not.toContain("rounded-2xl");
+      expect(line.hasSearchIcon).toBe(false);
+    });
+
+    it("makes the two visibly different", () => {
+      const pill = classesFor("pill");
+      const line = classesFor("underline");
+      expect(line.className).not.toBe(pill.className);
+      expect(line.hasSearchIcon).not.toBe(pill.hasSearchIcon);
+    });
   });
 });

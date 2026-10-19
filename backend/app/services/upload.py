@@ -10,22 +10,47 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 import app.config as config
-from app.models import File
-from app.services.filetype import classify
+from app.models import TRUST_UNVERIFIED, File
+from app.services.atomic_write import replacing_file
+from app.services.chapters import probe_file_chapters
+from app.services.filetype import (
+    classify,
+    is_probeable_media,
+    refine_classification_with_probe,
+)
+from app.services.image_dimensions import read_image_dimensions
+from app.services.tagops import cleanup_orphan_tags
 from app.services.fileops import (
     _filename_to_title,
-    remove_empty_folder_if_has_files,
+    untrack_empty_folder,
     resolve_drive_path,
     validate_filename,
     validate_path_safe,
     validate_within_drive,
 )
-from app.services.thumbnail import get_thumbnail_generator, get_video_duration
+from app.services.thumbnail import (
+    get_thumbnail_generator,
+    get_video_duration,
+    write_thumbnail_atomically,
+)
 from app.services.ws import broadcast_from_thread
 
 logger = logging.getLogger(__name__)
 
 _upload_sessions: dict[str, "UploadSession"] = {}
+
+
+class _SizeMismatch(Exception):
+    """Raised inside the assembly block so the rename does not happen.
+
+    Refusing before the rename means the cleanup never has to ``unlink()``
+    the destination, which would delete whatever is there, not only what
+    this upload wrote.
+    """
+
+    def __init__(self, actual: int):
+        self.actual = actual
+        super().__init__(f"expected size mismatch, got {actual}")
 
 
 @dataclass
@@ -162,30 +187,44 @@ def complete_upload(upload_id: str, db: Session) -> tuple[File, bool]:
         else session.filename
     )
     target_full = drive_path / target_rel
-    target_full.parent.mkdir(parents=True, exist_ok=True)
 
-    # Stream chunks via copyfileobj so we never hold a full chunk in memory.
-    # Matters for huge uploads where chunk_size may be 50-100MB.
-    with open(target_full, "wb") as out:
-        for i in range(session.total_chunks):
-            chunk_file = session.temp_dir / f"chunk_{i:06d}"
-            with open(chunk_file, "rb") as src:
-                shutil.copyfileobj(src, out, length=1024 * 1024)
-
-    actual_size = target_full.stat().st_size
-    if actual_size != session.file_size:
-        target_full.unlink()
+    # Assembled beside the destination and renamed, not written into it. The
+    # chunks live under `UPLOAD_DIR`, which may be another filesystem — that is
+    # what `_check_disk_capacity` measures both sides of — so the sibling is
+    # what keeps the rename within one.
+    #
+    # Streamed with copyfileobj rather than read into memory: chunk_size can be
+    # 50-100MB.
+    try:
+        with replacing_file(target_full) as assembling:
+            with open(assembling, "wb") as out:
+                for i in range(session.total_chunks):
+                    chunk_file = session.temp_dir / f"chunk_{i:06d}"
+                    with open(chunk_file, "rb") as src:
+                        shutil.copyfileobj(src, out, length=1024 * 1024)
+            actual_size = assembling.stat().st_size
+            if actual_size != session.file_size:
+                raise _SizeMismatch(actual_size)
+    except _SizeMismatch as mismatch:
         shutil.rmtree(session.temp_dir, ignore_errors=True)
         del _upload_sessions[upload_id]
-        raise HTTPException(status_code=400, detail=f"File size mismatch: expected {session.file_size}, got {actual_size}")
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"File size mismatch: expected {session.file_size}, "
+                f"got {mismatch.actual}"
+            ),
+        ) from None
 
     shutil.rmtree(session.temp_dir, ignore_errors=True)
     del _upload_sessions[upload_id]
 
-    file_type, mime_type = classify(session.filename)
+    file_type, mime_type = refine_classification_with_probe(
+        target_full, *classify(session.filename)
+    )
 
     duration = None
-    if file_type in ("video", "audio"):
+    if is_probeable_media(file_type, mime_type):
         duration = get_video_duration(str(target_full))
 
     thumbnail_rel = None
@@ -197,12 +236,16 @@ def complete_upload(upload_id: str, db: Session) -> tuple[File, bool]:
             else f"{session.drive}/{Path(session.filename).stem}.jpg"
         )
         thumbnail_full = config.THUMBNAILS_DIR / thumbnail_rel
-        if not gen_fn(str(target_full), str(thumbnail_full)):
+        # Atomically: a thumbnail is kept when its file goes missing and is
+        # still served, and an upload to the same path revives that record,
+        # so this destination can be one the thumbnail endpoint is reading.
+        if not write_thumbnail_atomically(
+            gen_fn, str(target_full), str(thumbnail_full)
+        ):
             thumbnail_rel = None
 
     # Reconcile any DB record already holding this file_path so the UNIQUE
-    # constraint can't blow up at commit (consistent with
-    # fileops.resolve_db_path_conflict used by move / rename / copy).
+    # constraint can't blow up at commit.
     #
     # init_upload's FS check (target_full.exists() → 409) already guaranteed
     # there was no live physical file at this path, so any record here is a
@@ -219,7 +262,16 @@ def complete_upload(upload_id: str, db: Session) -> tuple[File, bool]:
         # the slot cleanly (no fake-path leftover, no IntegrityError).
         db.delete(existing)
         db.flush()
+        cleanup_orphan_tags(db, session.drive)
         existing = None
+
+    # Read from the file that just landed, not from whatever the row
+    # said before. A re-upload to the same path replaces the picture, and
+    # the scanner's backfill only visits rows whose width is still NULL —
+    # so a stale value here would never be corrected.
+    dimensions = (
+        read_image_dimensions(target_full) if file_type == "image" else None
+    )
 
     recovered_missing = False
     if existing is not None and existing.deleted_at is None:
@@ -236,6 +288,15 @@ def complete_upload(upload_id: str, db: Session) -> tuple[File, bool]:
         existing.mime_type = mime_type
         existing.thumbnail_path = thumbnail_rel
         existing.duration = duration
+        existing.image_width = dimensions[0] if dimensions else None
+        existing.image_height = dimensions[1] if dimensions else None
+        existing.file_hash = None
+        existing.chapters_probed_at = None
+        # An earlier verification was about content this upload just
+        # replaced, so it cannot carry over: new material would inherit
+        # a person's vouch and start grounding Ask answers under it.
+        existing.trust_tier = TRUST_UNVERIFIED
+        existing.trust_reviewed_at = None
         file_record = existing
     else:
         file_record = File(
@@ -249,9 +310,13 @@ def complete_upload(upload_id: str, db: Session) -> tuple[File, bool]:
             mime_type=mime_type,
             thumbnail_path=thumbnail_rel,
             duration=duration,
+            image_width=dimensions[0] if dimensions else None,
+            image_height=dimensions[1] if dimensions else None,
         )
         db.add(file_record)
-    remove_empty_folder_if_has_files(db, session.drive, session.folder_path)
+    db.flush()
+    probe_file_chapters(db, file_record, target_full)
+    untrack_empty_folder(db, session.drive, session.folder_path)
     db.commit()
     db.refresh(file_record)
 

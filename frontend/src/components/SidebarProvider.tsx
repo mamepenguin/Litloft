@@ -10,6 +10,8 @@ import {
   type ReactNode,
 } from "react";
 
+import { readStored, writeStored } from "@/lib/safeStorage";
+
 const STORAGE_KEY = "sidebar-open";
 export const SIDEBAR_INLINE_MIN_WIDTH = 1200;
 const NARROW_QUERY = `(max-width: ${SIDEBAR_INLINE_MIN_WIDTH - 1}px)`;
@@ -27,14 +29,12 @@ interface SidebarContextValue {
 const SidebarContext = createContext<SidebarContextValue | null>(null);
 
 function readStoredPreference(): boolean {
-  if (typeof window === "undefined") return true;
-  const stored = window.localStorage.getItem(STORAGE_KEY);
+  const stored = readStored(STORAGE_KEY);
   return stored !== null ? stored === "true" : true;
 }
 
 function writeStoredPreference(next: boolean): void {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, String(next));
+  writeStored(STORAGE_KEY, String(next));
 }
 
 export function SidebarProvider({ children }: { children: ReactNode }) {
@@ -133,10 +133,29 @@ export function useSidebar(): SidebarContextValue {
   return ctx ?? defaultValue;
 }
 
-export function useOverlaySidebar(): void {
+/**
+ * Ask the sidebar to give up its place for as long as `active` holds.
+ *
+ * Overlay is the right shape for "something else needs this space", not
+ * `close()`: overlay stops the sidebar taking width, forces it shut,
+ * restores the reader's stored preference on the way out, and — the part
+ * `close()` gets wrong — leaves `localStorage` alone, so a reader who
+ * keeps the sidebar open still has it open once the borrower is done.
+ * The hamburger still opens it over the top meanwhile, so nothing is
+ * taken away, only moved.
+ *
+ * Counting is in `setOverlayMode`, so two borrowers at once are fine.
+ */
+export function useOverlaySidebarWhen(active: boolean): void {
   const { setOverlayMode } = useSidebar();
   useEffect(() => {
+    if (!active) return;
     setOverlayMode(true);
     return () => setOverlayMode(false);
-  }, [setOverlayMode]);
+  }, [active, setOverlayMode]);
+}
+
+/** The unconditional form: borrows for as long as the caller is mounted. */
+export function useOverlaySidebar(): void {
+  useOverlaySidebarWhen(true);
 }

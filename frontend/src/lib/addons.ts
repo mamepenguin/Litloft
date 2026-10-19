@@ -1,3 +1,5 @@
+import type { AddonNavigation } from "./addonNavigation";
+
 export type AddonScope = "drive" | "global" | "both";
 
 export interface AddonMeta {
@@ -7,6 +9,7 @@ export interface AddonMeta {
   type?: "in_process" | "external_service";
   scope?: AddonScope;
   slots?: Record<string, SlotEntry[]>;
+  navigation?: AddonNavigation;
 }
 
 export function addonUrlFor(name: string, meta: AddonMeta, currentDrive: string | null): string | null {
@@ -26,7 +29,23 @@ export function addonUrlFor(name: string, meta: AddonMeta, currentDrive: string 
 
 export interface SlotEntry {
   id: string;
+  /**
+   * The manifest's own label. English, because a manifest is not a
+   * translation catalogue — treat it as the fallback, not the answer.
+   */
   label: string;
+  /**
+   * Optional translation key for the label, resolved against the merged
+   * catalogue. Addons already declare one of these on
+   * `policy_features`, so this is the same pattern one field wider
+   * rather than a new idea, and the backend passes manifest fields
+   * through untouched (`addon_registry.get_all_slots` spreads the whole
+   * entry), so an addon adding it needs no core release.
+   *
+   * The key belongs in that addon's own `frontend/messages/{ja,en}.json`
+   * — never in `messages-core/` (`frontend-conventions.md`).
+   */
+  i18n_key?: string;
   priority: number;
   addonName?: string;
 }
@@ -103,4 +122,23 @@ export function hasSlotEntries(
 export function invalidateAddonsCache(): void {
   _cached.clear();
   _fetchPromise.clear();
+}
+
+/**
+ * Slot entries in the order their manifests asked for.
+ *
+ * Three places sort them and all three must agree: `AddonSlot` for a
+ * whole slot, the inspector's tab composer for one tab per entry, and
+ * the media canvas for the same entries in the box below the player.
+ * Written out three times, the beside and below forms of one panel
+ * ordered themselves differently the day a second addon shipped, and
+ * nothing said so — one of the three copies had no test at all.
+ *
+ * Returns a new array: `Array.prototype.sort` is in place, and the
+ * catalogue's own array is shared.
+ */
+export function sortSlotEntries<T extends { priority: number }>(
+  entries: readonly T[],
+): T[] {
+  return [...entries].sort((a, b) => a.priority - b.priority);
 }

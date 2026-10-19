@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 
 import { FolderBrowser } from "@/components/FolderBrowser";
+import { useSetOverrideFolderPath } from "@/components/CurrentDriveProvider";
 
 export default function FolderPage() {
   const params = useParams();
@@ -11,6 +13,12 @@ export default function FolderPage() {
   const pathSegments = (params.path as string[]).map(decodeURIComponent);
   const folderPath = pathSegments.join("/");
   const tagFilter = searchParams.get("tag");
+
+  const setOverrideFolderPath = useSetOverrideFolderPath();
+  useEffect(() => {
+    setOverrideFolderPath(folderPath);
+    return () => setOverrideFolderPath(null);
+  }, [folderPath, setOverrideFolderPath]);
 
   return (
     <FolderBrowser

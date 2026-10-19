@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "unplanned-llm-json-mode-fallback",
+      "status": "confirmed",
+      "note": "llm.py:468 initialises self._json_mode_rejected; :577-581 drops response_format when json_mode and latched; :608-609 sets the latch after a successful resend; :650-668 resends without response_format on a 400 in json_mode; :1242 skips the empty-body retry once latched. Grep for SPEC-ADDON-008 in *.md across the repo returns nothing; it appears only in addons/intelligence/tests/test_llm.py:1494-1918. docs/specs/INDEX.md has no SPEC-ADDON-008 row. llm.py is not in the 009/010/011 touch points."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "unplanned-llm-comment-detached",
+      "status": "confirmed",
+      "note": "llm.py:349-355 is the comment about 400-derived failures and response_format, :356 is `_JSON_OBJECT_FORMAT = {\"type\": \"json_object\"}`, :357 blank, :358 `_RESPONSE_FORMAT_SUSPECT_FAILURES = frozenset(`. So the comment now sits directly above the wrong constant."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "unplanned-aligner-segments",
+      "status": "confirmed",
+      "note": "aligner.py:163-171 flattens rows from every segment (`items = [item for seg in segments if isinstance(seg, dict) for item in (seg.get(key) or [])]`). aligner.py is not named in the touch points of whisper-langdetect-refine-digits.md; it appears only in whisper-langdetect-vad-aligner-sentences.md:197 (SPEC-ADDON-013). invariants.md carries no revision for it. I did not diff against origin/develop to confirm the hunk is in this commit range."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "unplanned-balance-two-lines-and-digit-module",
+      "status": "confirmed",
+      "note": "The new app/digit_separator.py exists (is_digit_separator :9, splits_number :27). subtitle_builder.py:466 `_balance_two_lines` uses is_digit_separator at :480 and splits_number at :502/:510, and the new `_number_edge` is at :517. Neither the module nor _balance_two_lines appears in the touch points of the refine-digits spec. Both are named in SPEC-ADDON-014 (vad-aligner-sentences.md:198-199). Note that is_digit_separator also implements in-scope 010 behaviour (whisper.py:634, subtitle_builder.py:247/355), so only the _balance_two_lines and splits_number parts are truly outside 010."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "unplanned-whisper-vad-helpers",
+      "status": "confirmed",
+      "note": "whisper.py:286 sets _LANG_DETECT_SECONDS = 120 and :291 sets _LANG_DETECT_MIN_SPEECH_S = 1.0. :294 defines _decode_detection_sample, :310-315 _speech_seconds (imports faster_whisper.vad.get_speech_timestamps), and :334-340 returns None on less than 1 s of speech. The declared invariants carry only revised I2 from SPEC-ADDON-012 (vad_filter=True, 120 s). The 1 s speech gate (012's own I2) is not among them, and invariants.md has an empty Revisions section."
+    }
+  ],
+  "specification_compliance": [
+    "Revised I2 (120 s, vad_filter=True, numpy array): whisper.py:294-307 decodes with `-t 120` to f32le at sampling_rate, and :341-343 passes audio= with vad_filter=True.",
+    "I3: whisper.py:328-333 returns None on an empty decode without calling detect_language. The except at :344-348 logs one WARNING. The speech gate at :335-340 adds a None return that logs INFO, which no declared invariant covers."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The JSON-mode latch in llm.py (cited as SPEC-ADDON-008) has no spec document under docs/.",
+    "The 1 s VAD speech gate in _detect_language is not among the declared invariants for this review."
+  ],
+  "regression_risks": [
+    "llm.py json-mode latch is client-wide: after one successful resend, every later json_object request on that client is sent without response_format and skips the empty-body retry."
+  ],
+  "test_coverage": [
+    "test_llm.py:1494-1918 covers the json-mode latch cases, all labelled SPEC-ADDON-008."
+  ],
+  "not_verified": [
+    "Did not run git diff against origin/develop to confirm that each hunk falls inside the reviewed commit range; I verified only the working-tree state at HEAD.",
+    "Did not run any tests.",
+    "Did not check whether a SPEC-ADDON-008 spec exists in the addon submodule's own history or on another branch."
+  ],
+  "confidence": 85
+}

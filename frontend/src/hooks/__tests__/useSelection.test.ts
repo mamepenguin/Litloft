@@ -67,7 +67,6 @@ describe("useSelection", () => {
     act(() => result.current.toggle("a"));
     act(() => result.current.toggle("c"));
     act(() => result.current.selectRange(allIds, "e"));
-    // c→e selected, plus a still selected
     expect(result.current.isSelected("a")).toBe(true);
     expect(result.current.isSelected("c")).toBe(true);
     expect(result.current.isSelected("d")).toBe(true);

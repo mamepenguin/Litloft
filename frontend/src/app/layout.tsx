@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import "./globals.css";
+import "./view-transitions.css";
 
 import { AppShell } from "@/components/AppShell";
 import { DirtyBlocker } from "@/components/DirtyBlocker";
@@ -9,11 +10,13 @@ import { SidebarProvider } from "@/components/SidebarProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ToastProvider } from "@/components/ToastProvider";
 import { CurrentDriveProvider } from "@/components/CurrentDriveProvider";
+import { PREFERENCE_INIT_SCRIPT } from "@/lib/preferenceInitScript";
 import { WebSocketProvider } from "@/components/WebSocketProvider";
 import { ClipboardProvider } from "@/components/ClipboardProvider";
 import { ProfileProvider } from "@/components/ProfileProvider";
 import { AddonSlotsProvider } from "@/components/AddonSlotsProvider";
 import { SetupRedirector } from "@/components/SetupRedirector";
+import { NavigationCommitSignal } from "@/components/NavigationCommitSignal";
 
 export const metadata: Metadata = {
   title: "Litloft",
@@ -46,15 +49,6 @@ export const viewport: Viewport = {
   ],
 };
 
-const themeInitScript = `
-(function(){
-  var t = localStorage.getItem('theme-preference') || 'system';
-  var resolved = t === 'light' || t === 'dark'
-    ? t
-    : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-  document.documentElement.setAttribute('data-theme', resolved);
-})();
-`;
 
 export default async function RootLayout({
   children,
@@ -67,9 +61,10 @@ export default async function RootLayout({
   return (
     <html lang={locale} className="h-full antialiased" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script dangerouslySetInnerHTML={{ __html: PREFERENCE_INIT_SCRIPT }} />
       </head>
       <body className="min-h-dvh">
+        <NavigationCommitSignal />
         <NextIntlClientProvider messages={messages}>
           <ThemeProvider>
             <ToastProvider>

@@ -24,11 +24,6 @@ export interface UseSmartFoldersResult {
   remove: (id: string) => Promise<void>;
 }
 
-/**
- * Loads & manages the Smart Folder list for a single drive. The list is
- * scoped per drive: switching drives discards the previous list and
- * refetches.
- */
 export function useSmartFolders(drive: string | null): UseSmartFoldersResult {
   const [smartFolders, setSmartFolders] = useState<SmartFolder[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -47,7 +42,6 @@ export function useSmartFolders(drive: string | null): UseSmartFoldersResult {
       setError(null);
       try {
         const list = await getSmartFolders(target);
-        // Drop the response if the drive changed mid-flight.
         if (driveRef.current !== target) return;
         setSmartFolders(list);
       } catch (e) {

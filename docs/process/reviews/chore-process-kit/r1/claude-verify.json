@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "At HEAD, deploy/pre-push no longer exists: Glob finds only .githooks/pre-push, and classification.json:70 lists deploy/pre-push as a changed path. No file at HEAD mentions deploy/pre-push or .git/hooks/pre-push, so nothing cleans up or warns about an old symlink. docs/developer-guide/testing.md:249-255 now tells the user to run `git config core.hooksPath .githooks`, and docs/process/limitations.md:41-42 says the hook is active only where hooksPath is set. Git looks up hooks with access(X_OK). For a dangling symlink that check fails with ENOENT, so git treats the hook as absent and prints nothing. It warns only on EACCES (advice.ignoredHook). The pre-push gate is therefore silently skipped until hooksPath is set. I could not see the removed `ln -s ../../deploy/pre-push` line itself, because only HEAD is readable, but the commit message ('replace deploy/pre-push with the kit's pre-push hook') is consistent with it."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "process/process.conf:9 sets test_dirs to include frontend/src, mcp-server/src and addons. scripts/process/check-traceability.sh:70-78 `referenced()` runs `grep -rqE` over each directory with no file-name filter, and line 113 is the only test-citation check for `implemented` rows. A SPEC-ID in a production source comment under frontend/src or mcp-server/src therefore satisfies the check. The defect is latent at this commit: docs/specs/INDEX.md has no rows yet, and the addons directory has no files in this worktree."
+    }
+  ],
+  "specification_compliance": [
+    "check-traceability.sh is meant to check that implemented specs are cited by tests. Because test_dirs includes production source trees, it only checks that the ID appears somewhere in the repository."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "A clone that installed the old hook symlink and never sets core.hooksPath runs no pre-push checks and gets no message."
+  ],
+  "regression_risks": [
+    "Existing clones lose pre-push enforcement silently after this commit is pulled.",
+    "Traceability can pass for implemented specs that no test cites, once the ledger is filled."
+  ],
+  "test_coverage": [
+    "No test exercises check-traceability.sh with this project's process.conf.",
+    "No test or install step detects a stale .git/hooks/pre-push symlink."
+  ],
+  "not_verified": [
+    "The base-revision content of docs/developer-guide/testing.md (the removed `ln -s` install line). Only HEAD was readable.",
+    "Git hook behaviour with a dangling symlink was not executed. It is based on git's documented access(X_OK) lookup.",
+    "Whether addons/ has content outside this worktree (for example, gitignored or a submodule)."
+  ],
+  "confidence": 85
+}

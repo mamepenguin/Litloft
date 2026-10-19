@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { PropertiesPanel } from "@/components/PropertiesPanel";
+import jaMessages from "@/messages-core/ja.json";
 
-// Minimal FileItem stub for getFile() mock
 function fakeFile(id: string, filename = "sample.mp4") {
   return {
     id,
@@ -17,12 +17,14 @@ function fakeFile(id: string, filename = "sample.mp4") {
     has_thumbnail: true,
     file_size: 1000,
     duration: 10,
-    likes: 0,
+    liked_at: null,
     is_favorite: false,
     tags: [],
     subtitles: [],
     deleted_at: null,
     missing_since: null,
+    trust_tier: "verified",
+    trust_reviewed_at: null,
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
   };
@@ -30,7 +32,6 @@ function fakeFile(id: string, filename = "sample.mp4") {
 
 describe("PropertiesPanel", () => {
   beforeEach(() => {
-    // Reset fetch mock per test
     vi.stubGlobal(
       "fetch",
       vi.fn(() =>
@@ -94,9 +95,6 @@ describe("PropertiesPanel", () => {
   });
 
   it("treats legacy approved_at as an unknown key (not promoted to created)", () => {
-    // Spec 2026-04-24: only ``created`` is reserved. Legacy keys from
-    // pre-spec writes show up verbatim rather than pretending to be
-    // first-class creation timestamps.
     const { container } = render(
       <PropertiesPanel
         frontmatter={{ approved_at: "2026-01-15T00:00:00Z" }}
@@ -132,7 +130,6 @@ describe("PropertiesPanel", () => {
     expect(container.querySelector("time")?.getAttribute("datetime")).toBe(
       "2026-04-20T00:00:00Z",
     );
-    // Legacy keys still render as unknown rows
     expect(screen.getByText("approved_at")).toBeInTheDocument();
     expect(screen.getByText("clipped_at")).toBeInTheDocument();
   });
@@ -156,14 +153,30 @@ describe("PropertiesPanel", () => {
     expect(screen.getByText("Web clip")).toBeInTheDocument();
   });
 
+  describe("labels every origin a note can be written with", () => {
+    const ORIGIN_LABELS_EN: Record<string, string> = {
+      webclip: "Web clip",
+      detailed_summary: "AI summary",
+      source_capture: "Captured from a source",
+      ask_answer: "Saved from Ask",
+    };
+
+    it.each(Object.entries(ORIGIN_LABELS_EN))("%s in English", (origin, label) => {
+      render(<PropertiesPanel frontmatter={{ origin }} />);
+      expect(screen.getByText(label)).toBeInTheDocument();
+    });
+
+    it.each(Object.keys(ORIGIN_LABELS_EN))("%s in Japanese", (origin) => {
+      const labels = jaMessages.propertiesPanel.origin as Record<string, unknown>;
+      expect(typeof labels[origin]).toBe("string");
+      expect((labels[origin] as string).trim()).not.toBe("");
+    });
+  });
+
   it("renders unknown origin values verbatim", () => {
     render(<PropertiesPanel frontmatter={{ origin: "exotic" }} />);
-    // The mock returns "propertiesPanel.origin.exotic" for missing keys,
-    // and the component treats that as non-localised → raw value shown.
-    // Our fallback in OriginRenderer catches this via t() throwing is
-    // not exercised by the mock, so we accept either the raw key path
-    // or the raw value. Verify the user at least sees *something* that
-    // includes "exotic".
+    // The translation mock does not throw for a missing key, so either the
+    // raw key path or the raw value is accepted.
     expect(
       screen.getByText((c) => c.includes("exotic")),
     ).toBeInTheDocument();
@@ -206,12 +219,10 @@ describe("PropertiesPanel", () => {
       />,
     );
     expect(screen.getByText("Sources")).toBeInTheDocument();
-    // At first only 5 cards resolve
     await waitFor(() => {
       expect(screen.getByText("name-a.mp4")).toBeInTheDocument();
       expect(screen.getByText("name-e.mp4")).toBeInTheDocument();
     });
-    // f, g are hidden behind "more"
     expect(screen.queryByText("name-f.mp4")).toBeNull();
     const more = screen.getByRole("button", { name: /2 more/ });
     expect(more).toBeInTheDocument();
@@ -250,7 +261,6 @@ describe("PropertiesPanel", () => {
     const dts = Array.from(container.querySelectorAll("dt")).map(
       (el) => el.textContent,
     );
-    // Reserved order: origin, tags — then the unknown customKey last
     expect(dts).toEqual(["Origin", "Tags", "customKey"]);
   });
 
@@ -260,13 +270,13 @@ describe("PropertiesPanel", () => {
       mime_type: "text/markdown",
       filename: "note.md",
       drive: "media",
+      folder_path: "notes",
     };
 
     it("shows an Add button even when frontmatter has no tags", () => {
       const { container } = render(
         <PropertiesPanel frontmatter={{}} editable={editable} />,
       );
-      // Empty frontmatter + editable still renders a panel with a tags row.
       expect(container.firstChild).not.toBeNull();
       expect(screen.getByText("Tags")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: /Add tag/ })).toBeInTheDocument();
@@ -290,11 +300,9 @@ describe("PropertiesPanel", () => {
   });
 
   describe("hideTags mode (Phase 3 fm-card)", () => {
-    // Spec 2026-05-10 §D2 / hako B5QG4AcZjbn47MDErmQAO: in the document
-    // layout canvas, frontmatter.tags is edited via the inspector
-    // metadataNode (EditableTagChips on File.tags). The canvas
-    // PropertiesPanel suppresses the tags row to avoid a duplicate
-    // editing surface.
+    // In the document layout, tags are edited in the inspector, so the
+    // canvas panel suppresses its tags row to avoid a duplicate editing
+    // surface.
 
     it("suppresses the tags row when hideTags is set", () => {
       render(
@@ -340,6 +348,7 @@ describe("PropertiesPanel", () => {
         mime_type: "text/markdown",
         filename: "note.md",
         drive: "media",
+        folder_path: "notes",
       };
       // Without hideTags this would inject an empty tags row so the
       // user has somewhere to add tags. With hideTags, the canvas

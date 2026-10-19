@@ -1,18 +1,3 @@
-/**
- * Frontmatter read/write helpers for ``.md`` files.
- *
- * ``gray-matter`` (already a core dep, used by MarkdownPreview) handles
- * the YAML parse. Serialisation uses ``matter.stringify`` with a
- * defensive fallback so we never write a subtly-different block than
- * we read — the scanner compares ``updated_at`` on the core side, so
- * spurious rewrites would trigger unnecessary re-projections.
- *
- * Spec ``docs/superpowers/specs/2026-04-24-knowledge-tag-unification.md``
- * §D3: this is how the UI writes ``frontmatter.tags`` without touching
- * the body. Keep the validator mirror (TAG_RE, MAX_*) in sync with
- * core's ``TagUpdate`` and the knowledge scanner's ``_normalise_tags``.
- */
-
 import matter from "gray-matter";
 
 // Mirrors core's backend/app/schemas.py::TagUpdate.validate_tags and
@@ -30,13 +15,6 @@ export interface ParsedNote {
   body: string;
 }
 
-/**
- * Parse a ``.md`` string into its frontmatter dict and body. Notes
- * without frontmatter return ``{metadata: {}, body: <full>}``.
- * Malformed YAML falls back to empty metadata so the caller can still
- * render the body. ``gray-matter`` is permissive — mirrors the server
- * side.
- */
 export function parseNote(content: string): ParsedNote {
   try {
     const parsed = matter(content);
@@ -49,11 +27,6 @@ export function parseNote(content: string): ParsedNote {
   }
 }
 
-/**
- * Return the ``tags:`` list from frontmatter, filtered to core-valid
- * names. Mirrors the scanner's ``_normalise_tags`` so the UI never
- * displays a tag the server would reject.
- */
 export function extractValidTags(metadata: Record<string, unknown>): string[] {
   const raw = metadata["tags"];
   if (!Array.isArray(raw)) return [];
@@ -71,39 +44,26 @@ export function extractValidTags(metadata: Record<string, unknown>): string[] {
   return Array.from(seen.values());
 }
 
-/**
- * Rewrite a ``.md`` string so its ``frontmatter.tags`` equals
- * ``newTags``. Other metadata is preserved verbatim. An empty
- * ``newTags`` removes the ``tags:`` key entirely (YAML convention —
- * we prefer absence to ``tags: []`` so the file stays clean).
- *
- * When the note has no frontmatter at all and ``newTags`` is empty,
- * returns the original content unchanged.
- */
 export function withTags(content: string, newTags: string[]): string {
   const parsed = parseNote(content);
   const filtered = extractValidTags({ tags: newTags });
   const nextMeta = { ...parsed.metadata };
   // Belt-and-braces prototype pollution guard: js-yaml 4 defends by
   // default, but relying on dependency behaviour for a security
-  // property is risky. Strip the well-known dangerous keys before we
-  // re-serialise so a malicious upstream ``.md`` can't round-trip
-  // ``__proto__: {admin: true}`` through our editor.
+  // property is risky.
   delete (nextMeta as Record<string, unknown>)["__proto__"];
   delete nextMeta["constructor"];
   delete nextMeta["prototype"];
 
   if (filtered.length === 0) {
     if (!("tags" in nextMeta)) {
-      return content; // no-op: no frontmatter tags to clear
+      return content;
     }
     delete nextMeta["tags"];
   } else {
     nextMeta["tags"] = filtered;
   }
 
-  // When the resulting metadata is empty we emit the body alone — no
-  // stray "--- \n---" block. Otherwise gray-matter handles YAML dump.
   if (Object.keys(nextMeta).length === 0) {
     return parsed.body;
   }

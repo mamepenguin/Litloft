@@ -2,7 +2,7 @@
 
 ## Design system
 - All UI-related changes (colors, typography, radius, tables, MarkdownPreview, long-form prose in general) must follow `DESIGN.md`.
-- When adding new color tokens, radius values, or typography scales, update `DESIGN.md` together with the implementation (do not let the implementation land first).
+- The code is authoritative for values (`@theme inline` in `globals.css`, `lib/layoutSizes.ts`, `lib/sheetSnap.ts`, and so on). `DESIGN.md` records the design rules and the reasons for them; when a new token or scale changes a rule, update the rule. Do not add tests that compare `DESIGN.md` text against the code.
 - Before hardcoding a `max-width` or `font-size`, check whether the scale already exists in `DESIGN.md` §3 / §5.
 
 ## Next.js 16

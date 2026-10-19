@@ -1,48 +1,26 @@
 "use client";
 
-// AddonPolicyStep: optional first-run step. Loads the addon manifest list
-// from /api/addons/status and shows per-drive cards with switch-style
-// toggles (one row per addon). The drives come from props (the wizard
-// owns them; they aren't persisted yet).
-//
-// Each toggle is rendered as a sr-only checkbox inside a clickable
-// switch row to preserve the `role="checkbox"` semantics existing tests
-// rely on, while presenting an iOS-style switch visually.
-
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { useTranslations } from "next-intl";
 
 import type { DriveDraft } from "./DriveStep";
-import type { AddonStatusEntry, AddonPolicy } from "@/lib/adminConfig";
+import { isAddonOn, type AddonStatusEntry, type AddonPolicy } from "@/lib/adminConfig";
 
 interface Props {
   drives: DriveDraft[];
+  addons: AddonStatusEntry[];
+  loadFailed?: boolean;
+  onRetry?: () => void;
   value: AddonPolicy;
   onChange: (policy: AddonPolicy) => void;
   onNext: () => void;
   onBack: () => void;
 }
 
-function readToggle(
-  policy: AddonPolicy,
-  drive: string,
-  addon: string,
-): boolean {
-  const driveEntry = policy[drive];
-  if (!driveEntry) return false;
-  const value = driveEntry[addon];
-  if (typeof value === "boolean") return value;
-  if (typeof value === "object" && value !== null) {
-    return Object.values(value).some(Boolean);
-  }
-  return false;
-}
-
 interface AddonRowProps {
   drive: string;
   addon: AddonStatusEntry;
   enabled: boolean;
-  noDescription: string;
   onToggle: () => void;
 }
 
@@ -50,7 +28,6 @@ function AddonRow({
   drive,
   addon,
   enabled,
-  noDescription,
   onToggle,
 }: AddonRowProps): React.ReactElement {
   return (
@@ -74,13 +51,10 @@ function AddonRow({
           }`}
         />
       </span>
-      <span className="flex-1">
-        <span className="block font-medium text-text-primary">
-          {addon.name}
-        </span>
-        <span className="block text-xs text-text-muted">
-          {addon.description ?? noDescription}
-        </span>
+      {/* What the addon does is the same sentence on every drive's card,
+          so it is said once, in the list above. */}
+      <span className="flex-1 font-medium text-text-primary">
+        {addon.name}
       </span>
     </label>
   );
@@ -88,6 +62,9 @@ function AddonRow({
 
 export function AddonPolicyStep({
   drives,
+  addons,
+  loadFailed = false,
+  onRetry,
   value,
   onChange,
   onNext,
@@ -95,39 +72,9 @@ export function AddonPolicyStep({
 }: Props): React.ReactElement {
   const t = useTranslations("setup");
   const tAddon = useTranslations("setup.addonPolicy");
-  const [addons, setAddons] = useState<AddonStatusEntry[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/addons/status", { credentials: "include" })
-      .then(async (res): Promise<AddonStatusEntry[]> => {
-        if (!res.ok) return [];
-        // Backend returns {addons: {[name]: meta}, slots: {...}}; tolerate
-        // the legacy array shape too so tests / older deployments work.
-        const data = (await res.json()) as
-          | { addons?: Record<string, Omit<AddonStatusEntry, "name">> }
-          | AddonStatusEntry[];
-        if (Array.isArray(data)) return data;
-        const addons = data?.addons ?? {};
-        return Object.entries(addons).map(([name, meta]) => ({
-          name,
-          ...meta,
-        }));
-      })
-      .then((list) => {
-        if (!cancelled) setAddons(list);
-      })
-      .catch(() => {
-        // Manifest list is optional; render an empty matrix when it fails.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   const toggle = useCallback(
     (drive: string, addon: string) => {
-      const current = readToggle(value, drive, addon);
+      const current = isAddonOn(value, drive, addon);
       const driveEntry = { ...(value[drive] ?? {}) };
       driveEntry[addon] = !current;
       onChange({ ...value, [drive]: driveEntry });
@@ -135,9 +82,7 @@ export function AddonPolicyStep({
     [onChange, value],
   );
 
-  const hasAnyToggleOn = drives.some((d) =>
-    addons.some((a) => readToggle(value, d.name, a.name)),
-  );
+  const storesAnything = drives.some((d) => value[d.name] !== undefined);
 
   return (
     <div className="space-y-4">
@@ -149,6 +94,24 @@ export function AddonPolicyStep({
       <div className="rounded-xl bg-warm-light/40 p-4 text-sm text-text-muted">
         {tAddon("skipNote")}
       </div>
+
+      {drives.length > 0 && addons.length > 0 && (
+        <section className="rounded-xl bg-warm-light/30 p-5">
+          <h3 className="mb-3 text-sm font-semibold text-text-muted">
+            {tAddon("legendTitle")}
+          </h3>
+          <dl className="space-y-3">
+            {addons.map((addon) => (
+              <div key={addon.name}>
+                <dt className="font-medium text-text-primary">{addon.name}</dt>
+                <dd className="text-xs text-text-muted">
+                  {addon.description ?? tAddon("noDescription")}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      )}
 
       {drives.length > 0 && addons.length > 0 ? (
         <div className="space-y-4">
@@ -166,14 +129,24 @@ export function AddonPolicyStep({
                     key={addon.name}
                     drive={drive.name}
                     addon={addon}
-                    enabled={readToggle(value, drive.name, addon.name)}
-                    noDescription={tAddon("noDescription")}
+                    enabled={isAddonOn(value, drive.name, addon.name)}
                     onToggle={() => toggle(drive.name, addon.name)}
                   />
                 ))}
               </div>
             </div>
           ))}
+        </div>
+      ) : loadFailed ? (
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs text-danger">{tAddon("loadFailed")}</p>
+          <button
+            type="button"
+            onClick={onRetry}
+            className="rounded-2xl bg-sand px-4 py-2 text-sm hover:bg-sand-hover"
+          >
+            {tAddon("retry")}
+          </button>
         </div>
       ) : (
         <p className="text-sm text-text-muted">{tAddon("skipDescription")}</p>
@@ -192,7 +165,7 @@ export function AddonPolicyStep({
           onClick={onNext}
           className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
         >
-          {hasAnyToggleOn ? t("next") : t("skip")}
+          {storesAnything ? t("next") : t("skip")}
         </button>
       </div>
     </div>

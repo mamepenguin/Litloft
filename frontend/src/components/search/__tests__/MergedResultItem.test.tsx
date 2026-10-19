@@ -5,6 +5,8 @@ import { MergedResultItem } from "../MergedResultItem";
 
 function makeFile(overrides: Partial<FileItemWithMatch> = {}): FileItemWithMatch {
   return {
+    image_width: null,
+    image_height: null,
     id: "f1",
     filename: "f1.mp4",
     title: "f1",
@@ -17,12 +19,14 @@ function makeFile(overrides: Partial<FileItemWithMatch> = {}): FileItemWithMatch
     has_thumbnail: true,
     file_size: 100,
     duration: 60,
-    likes: 0,
+    liked_at: null,
     is_favorite: false,
     tags: [],
     subtitles: [],
     deleted_at: null,
     missing_since: null,
+    trust_tier: "verified",
+    trust_reviewed_at: null,
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
     match_meta: {},
@@ -41,8 +45,7 @@ describe("MergedResultItem", () => {
 
     expect(screen.getByText("Filename")).toBeInTheDocument();
     expect(screen.queryByText("Transcript")).not.toBeInTheDocument();
-    // No "M:SS" formatted time pill in DOM
-    expect(screen.queryByText(/^\d+:\d{2}$/)).not.toBeInTheDocument();
+    expect(screen.queryAllByTestId("match-timestamp-pill")).toEqual([]);
   });
 
   it("semantic-only transcript hit at [120, 150] shows Transcript badge + 2:00 timestamp pill", () => {
@@ -57,7 +60,6 @@ describe("MergedResultItem", () => {
 
     expect(screen.getByText("Transcript")).toBeInTheDocument();
     expect(screen.queryByText("Filename")).not.toBeInTheDocument();
-    // formatDuration(120) → "2:00"
     expect(screen.getByText("2:00")).toBeInTheDocument();
   });
 
@@ -97,7 +99,6 @@ describe("MergedResultItem", () => {
       <MergedResultItem file={file} onSelect={onSelect} />,
     );
 
-    // The row is the outermost interactive container.
     const row = container.querySelector(
       '[data-testid="merged-result-item"]',
     ) as HTMLElement | null;
@@ -125,6 +126,99 @@ describe("MergedResultItem", () => {
     expect(onSelect).toHaveBeenCalledWith("/files/abc?t=120");
   });
 
+  it("renders one page pill per matched page", () => {
+    const file = makeFile({
+      id: "abc",
+      match_meta: { content: { score: 0.6 }, matched_pages: [3, 7, 12, 15] },
+    });
+    render(<MergedResultItem file={file} onSelect={vi.fn()} />);
+
+    expect(
+      screen.getAllByTestId("match-page-pill").map((p) => p.textContent),
+    ).toEqual(["p.3", "p.7", "p.12", "p.15"]);
+  });
+
+  it("clicking a page pill fires onSelect with ?page=7 and stops row propagation", () => {
+    const file = makeFile({
+      id: "abc",
+      match_meta: { content: { score: 0.6 }, matched_pages: [3, 7] },
+    });
+    const onSelect = vi.fn();
+    render(<MergedResultItem file={file} onSelect={onSelect} />);
+
+    fireEvent.click(screen.getByText("p.7"));
+
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onSelect).toHaveBeenCalledWith("/files/abc?page=7");
+  });
+
+  it.each(["Enter", " "])(
+    "%j on a page pill fires onSelect with that pill's page only",
+    (key) => {
+      const file = makeFile({
+        id: "abc",
+        match_meta: { content: { score: 0.6 }, matched_pages: [3, 7] },
+      });
+      const onSelect = vi.fn();
+      render(<MergedResultItem file={file} onSelect={onSelect} />);
+
+      const pill = screen.getByRole("button", { name: "p.7" });
+      expect(pill).toHaveAttribute("tabindex", "0");
+      fireEvent.keyDown(pill, { key });
+
+      expect(onSelect).toHaveBeenCalledTimes(1);
+      expect(onSelect).toHaveBeenCalledWith("/files/abc?page=7");
+    },
+  );
+
+  const LONG_TITLE = "A chapter title long enough that a pill cannot hold all of it on one line";
+  const SECTIONS = {
+    content: { score: 0.6 },
+    matched_sections: [
+      { section: 3, title: "Chapter Two" },
+      { section: 5, title: null },
+      { section: 9, title: LONG_TITLE },
+    ],
+  };
+
+  it("labels a section pill with its title, else its number, and never p.N", () => {
+    render(<MergedResultItem file={makeFile({ id: "abc", match_meta: SECTIONS })} onSelect={vi.fn()} />);
+
+    const pills = screen.getAllByTestId("match-section-pill");
+    expect(pills.map((p) => p.textContent)).toEqual(["Chapter Two", "Section 5", LONG_TITLE]);
+    expect(pills.map((p) => p.getAttribute("title"))).toEqual(["Chapter Two", null, LONG_TITLE]);
+    expect(screen.queryByTestId("match-page-pill")).toBeNull();
+  });
+
+  it.each(["click", "Enter", " "])(
+    "%j on a section pill fires onSelect with ?section= for that pill only",
+    (how) => {
+      const onSelect = vi.fn();
+      render(<MergedResultItem file={makeFile({ id: "abc", match_meta: SECTIONS })} onSelect={onSelect} />);
+
+      const pill = screen.getByRole("button", { name: "Section 5" });
+      if (how === "click") fireEvent.click(pill);
+      else fireEvent.keyDown(pill, { key: how });
+
+      expect(onSelect).toHaveBeenCalledTimes(1);
+      expect(onSelect).toHaveBeenCalledWith("/files/abc?section=5");
+    },
+  );
+
+  it("clicking the row of a PDF hit opens the file without a page", () => {
+    const file = makeFile({
+      id: "abc",
+      match_meta: { content: { score: 0.6 }, matched_pages: [3, 7] },
+    });
+    const onSelect = vi.fn();
+    render(<MergedResultItem file={file} onSelect={onSelect} />);
+
+    fireEvent.click(screen.getByTestId("merged-result-item"));
+
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onSelect).toHaveBeenCalledWith("/files/abc");
+  });
+
   it("does NOT render pills for placeholder time_range entries [-1, -1]", () => {
     // buildMatchMeta uses [-1, -1] as a synthetic time_range when it
     // wants the audio badge to render but has no real timestamp.
@@ -137,12 +231,15 @@ describe("MergedResultItem", () => {
     const onSelect = vi.fn();
     render(<MergedResultItem file={file} onSelect={onSelect} />);
 
-    // Badge visible, pill suppressed.
+    // Badge visible, pill suppressed. By identity, not by the shape of the
+    // text: a placeholder that did render reads `-1:-1`, which no
+    // time-shaped pattern matches, so it would leave the population instead
+    // of failing this line.
     expect(screen.getByText("Transcript")).toBeInTheDocument();
-    expect(screen.queryByText(/^-?\d+:\d{2}$/)).not.toBeInTheDocument();
+    expect(screen.queryAllByTestId("match-timestamp-pill")).toEqual([]);
   });
 
-  it("renders at most 5 timestamp pills even when more are present", () => {
+  it("renders three timestamp pills and counts the rest", () => {
     const file = makeFile({
       id: "f1",
       match_meta: {
@@ -160,7 +257,156 @@ describe("MergedResultItem", () => {
     const onSelect = vi.fn();
     render(<MergedResultItem file={file} onSelect={onSelect} />);
 
-    const pills = screen.getAllByText(/^\d+:\d{2}$/);
-    expect(pills.length).toBeLessThanOrEqual(5);
+    expect(
+      screen.getAllByTestId("match-timestamp-pill").map((p) => p.textContent),
+    ).toEqual([
+      "0:10",
+      "0:20",
+      "0:30",
+    ]);
+    expect(screen.getByText("+4")).toBeInTheDocument();
+  });
+
+  /**
+   * A title starts life as `filenameToTitle(filename)`, so the filename
+   * under it usually repeats it with ".mp4" glued back on. The titles here
+   * are the ones a backend can actually produce.
+   */
+  describe("the second line", () => {
+    it("draws the title, which is what the second line is second to", () => {
+      render(
+        <MergedResultItem
+          file={makeFile({
+            filename: "kyoto.mp4",
+            title: "Autumn in Kyoto",
+            folder_path: "travel/2026",
+          })}
+          onSelect={vi.fn()}
+        />,
+      );
+      expect(screen.getByText("Autumn in Kyoto")).toBeInTheDocument();
+      expect(screen.getByText("travel/2026/kyoto.mp4")).toBeInTheDocument();
+    });
+
+    it("is absent when the filename is the title plus an extension", () => {
+      const { container } = render(
+        <MergedResultItem
+          file={makeFile({ filename: "kyoto.mp4", title: "Kyoto", folder_path: "" })}
+          onSelect={vi.fn()}
+        />,
+      );
+      expect(screen.queryByText(/kyoto\.mp4/)).not.toBeInTheDocument();
+      expect(container.querySelectorAll("p")).toHaveLength(1);
+    });
+
+    it("is absent when the title is the raw filename", () => {
+      // A semantic-only hit has no file record behind it, so
+      // `mergeResults` titles the row with the filename verbatim
+      // (`searchMerge.ts` `title: hit.filename`). Comparing only against
+      // the stem would print ".mp4"'s row twice.
+      const { container } = render(
+        <MergedResultItem
+          file={makeFile({ filename: "clip.mp4", title: "clip.mp4", folder_path: "" })}
+          onSelect={vi.fn()}
+        />,
+      );
+      // By text, not by element count: rendering the line as a `<div>`
+      // would keep the `<p>` count at one and put the name back on screen.
+      expect(screen.queryAllByText("clip.mp4")).toHaveLength(1);
+      expect(container.querySelectorAll("p")).toHaveLength(1);
+    });
+
+    it("is the folder path alone when that is the only new fact", () => {
+      render(
+        <MergedResultItem
+          file={makeFile({
+            filename: "kyoto.mp4",
+            title: "Kyoto",
+            folder_path: "travel/2026",
+          })}
+          onSelect={vi.fn()}
+        />,
+      );
+      expect(screen.getByText("travel/2026/")).toBeInTheDocument();
+      expect(screen.queryByText(/kyoto\.mp4/)).not.toBeInTheDocument();
+    });
+
+    it("keeps the filename when the title no longer derives from it", () => {
+      // A title is editable. Once it has been changed the filename is a
+      // fact the title does not carry, so the line says it.
+      render(
+        <MergedResultItem
+          file={makeFile({
+            filename: "kyoto_day_1.mp4",
+            title: "Kyoto day 1 (edited)",
+            folder_path: "travel/2026",
+          })}
+          onSelect={vi.fn()}
+        />,
+      );
+      expect(screen.getByText("travel/2026/kyoto_day_1.mp4")).toBeInTheDocument();
+    });
+
+    it("keeps the filename with no folder to prefix it", () => {
+      render(
+        <MergedResultItem
+          file={makeFile({
+            filename: "renamed.mp4",
+            title: "Something Else",
+            folder_path: "",
+          })}
+          onSelect={vi.fn()}
+        />,
+      );
+      expect(screen.getByText("renamed.mp4")).toBeInTheDocument();
+    });
+
+    it("drops only the last extension of a double one", () => {
+      // `archive.tar.gz` titles as `archive.tar`, so the stem matches and
+      // the line has nothing to add.
+      const { container } = render(
+        <MergedResultItem
+          file={makeFile({
+            filename: "archive.tar.gz",
+            title: "Archive.tar",
+            folder_path: "",
+          })}
+          onSelect={vi.fn()}
+        />,
+      );
+      expect(screen.queryByText("archive.tar.gz")).toBeNull();
+      expect(container.querySelectorAll("p")).toHaveLength(1);
+    });
+
+    it("keeps a name with no extension at all", () => {
+      const { container } = render(
+        <MergedResultItem
+          file={makeFile({ filename: "README", title: "README", folder_path: "" })}
+          onSelect={vi.fn()}
+        />,
+      );
+      expect(screen.queryAllByText("README")).toHaveLength(1);
+      expect(container.querySelectorAll("p")).toHaveLength(1);
+    });
+  });
+
+  it("stays navigation-only: no snippet or capture action in the dropdown", () => {
+    // The dropdown is driven by arrow keys + Enter. Search snippets and
+    // capture actions live on the results page / file list instead, so a
+    // row stays one focusable target and the selection highlight stays
+    // the height of a row.
+    const file = makeFile({
+      match_meta: {
+        transcript: [{
+          time_range: [10, 20],
+          score: 0.8,
+          text: "quotable source excerpt",
+        }],
+      },
+    });
+    render(<MergedResultItem file={file} onSelect={vi.fn()} />);
+
+    expect(screen.queryByText("quotable source excerpt")).not.toBeInTheDocument();
+    expect(screen.getByTestId("merged-result-item").tagName).toBe("BUTTON");
   });
 });

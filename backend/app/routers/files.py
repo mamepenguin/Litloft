@@ -1,10 +1,8 @@
 import asyncio
-import hashlib
 import json
 import logging
 import os
 import re
-import tempfile
 import zipfile
 from collections import defaultdict
 from datetime import UTC, datetime
@@ -21,15 +19,15 @@ from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session
 
 import app.config as config
-from app.auth import check_drive_access, get_unlocked_groups
+from app.auth import check_drive_access, get_nickname, get_unlocked_groups, get_viewer_id
 from app.database import get_db
 from app.models import (
     File,
+    FileChapter,
     FileExif,
     FileRelation,
     Tag,
     active_file_filter,
-    file_tags,
 )
 from app.schemas import (
     ArchiveContentsResponse,
@@ -44,37 +42,55 @@ from app.schemas import (
     BatchRestoreResponse,
     BatchTagRequest,
     ExifResponse,
+    FileChapterResponse,
+    FileChaptersResponse,
     FileCopyRequest,
+    FileDetailResponse,
     FileRelationItem,
     FileRelationsResponse,
     FileResponse,
     FileMoveRequest,
     FileRenameRequest,
     FileUpdate,
+    FileVersionBodyResponse,
+    FileVersionDiffResponse,
+    FileVersionItemResponse,
+    FileVersionsResponse,
     NeighborsResponse,
     RelatedFileSummary,
     SubtitleInfo,
     TagUpdate,
+    TrustTierUpdate,
     file_to_response,
 )
+from app.services import file_versions as file_version_service
 from app.services import fileops
-from app.services import ws as ws_service
 from app.services.filetype import classify
 from app.services.frontmatter import (
     compose as compose_frontmatter,
     ensure_id,
     extract_valid_aliases,
     extract_valid_tags,
+    has_unreadable_frontmatter,
     parse as parse_frontmatter,
 )
 from app.services.markdown_relations import (
     ResolveDiagnostic,
     extract_links,
-    resolve_wiki_targets,
     resolve_wiki_targets_with_map,
+    sync_markdown_file_relations,
+)
+from app.services.markdown_images import project_markdown_thumbnail
+from app.services.content_write import (
+    ContentConflictError,
+    ContentMissingError,
+    compute_content_etag,
+    write_text_content,
 )
 from app.services.heic import HEIC_MIME_TYPES, convert_heic_to_jpeg
 from app.services.subtitle import convert_srt_to_vtt, detect_subtitles
+from app.services.tagops import cleanup_orphan_tags
+from app.services.zip_names import decode_zip_filename
 
 logger = logging.getLogger(__name__)
 
@@ -108,111 +124,14 @@ def _sync_md_file_relations(
     content: str,
     self_dir: str,
 ) -> list[ResolveDiagnostic]:
-    """Sync file_relations for a .md file using its body and frontmatter.
-
-    Spec ``2026-05-12-markdown-link-three-forms.md`` §3.5.
-
-    Three sources contribute to ``kind='related'`` relations on ``.md`` files:
-
-    * ``loft://<id>`` in body — direct file id reference.
-    * ``[[X]]`` in body — wiki target, resolved drive-scoped via
-      :func:`resolve_wiki_targets` (see §3.3 for precedence).
-    * ``source_file_ids: [...]`` in frontmatter — raw file IDs (same format
-      as distill / Ask-save notes). Allows relations to persist even when the
-      body is empty or the user hasn't written explicit links yet.
-
-    Any combination of these sources can maintain a relation independently;
-    removing one source only removes the relation if no other source references
-    the same file.
-
-    Ambiguous and unresolved wiki targets do **not** create relations
-    (per spec §7.5 — auto-picking would surprise the writer). They are
-    returned as diagnostics so the caller can surface a warning.
-
-    Same-drive + active filter is applied; cross-drive references are
-    silently dropped (drive = security boundary).
-    """
-    extracted = extract_links(content)
-    loft_ids = {m for m in extracted.loft_ids if m != file_id}
-    wiki_ids, diagnostics = resolve_wiki_targets(
-        db, drive, self_dir, extracted.wiki_targets
-    )
-
-    # frontmatter source_file_ids contribute the same way as loft_ids.
-    # Malformed frontmatter is silently ignored — a save must never fail
-    # due to a YAML parse error in this projection step.
-    fm_ids: set[str] = set()
-    try:
-        _parsed_fm = parse_frontmatter(content)
-        _raw = _parsed_fm.metadata.get("source_file_ids")
-        if isinstance(_raw, list):
-            fm_ids = {
-                str(v) for v in _raw
-                if isinstance(v, str) and v and v != file_id
-            }
-    except Exception:
-        pass
-
-    # loft_ids and fm_ids bypass the resolver, so apply the same-drive +
-    # active filter explicitly. Without this, a stale id pointing at a
-    # different drive could leak into ``file_relations``.
-    raw_ids = (loft_ids | fm_ids) - {file_id}
-    valid_raw: set[str] = set()
-    if raw_ids:
-        rows = (
-            db.query(File.id)
-            .filter(
-                File.id.in_(raw_ids),
-                File.drive == drive,
-                active_file_filter(),
-            )
-            .all()
-        )
-        valid_raw = {row.id for row in rows}
-
-    target_ids = (valid_raw | wiki_ids) - {file_id}
-
-    # Current file_relations for this file (kind='related', both directions)
-    existing_rels = db.query(FileRelation).filter(
-        or_(
-            FileRelation.file_id_a == file_id,
-            FileRelation.file_id_b == file_id,
-        ),
-        FileRelation.kind == "related",
-    ).all()
-    existing_map: dict[str, FileRelation] = {}
-    for rel in existing_rels:
-        other = rel.file_id_b if rel.file_id_a == file_id else rel.file_id_a
-        existing_map[other] = rel
-
-    existing_ids = set(existing_map)
-    to_add = target_ids - existing_ids
-    to_remove = existing_ids - target_ids
-
-    for tid in to_add:
-        db.add(
-            FileRelation(
-                file_id_a=file_id,
-                file_id_b=tid,
-                kind="related",
-                created_at=datetime.now(UTC),
-            )
-        )
-    for tid in to_remove:
-        db.delete(existing_map[tid])
-
-    return diagnostics
+    return sync_markdown_file_relations(db, file_id, drive, content, self_dir)
 
 
 def _is_markdown_file(file: File) -> bool:
     """Whether frontmatter should be parsed on content writes for ``file``.
 
-    Mirrors the frontend ``isMarkdown`` heuristic (frontend/src/lib/tags.ts):
-    trust ``text/markdown`` first, fall back to the ``.md`` extension
-    because some older rows still report ``text/plain`` for ``.md``.
-    Keeping the two sides aligned is a spec §D1 requirement — a file
-    that the UI treats as markdown must project frontmatter on the
-    backend, and vice versa.
+    Must agree with the frontend's ``isMarkdown``. The extension fallback
+    covers older rows that report ``text/plain`` for ``.md``.
     """
     if (file.mime_type or "") == "text/markdown":
         return True
@@ -223,10 +142,8 @@ def replace_file_tags(db: Session, file: File, tag_names: list[str]) -> None:
     """Replace ``file.tags`` with the given names, reusing existing Tag rows.
 
     Shared by ``PUT /api/files/{id}/tags`` and the internal
-    ``POST /api/internal/files/{id}/tags`` (spec
-    ``2026-04-24-knowledge-tag-unification.md``). Case-insensitive dedup
-    via ``func.lower(Tag.name)``; the ``Tag`` namespace is per-drive
-    (``uq_tags_drive_name``).
+    ``POST /api/internal/files/{id}/tags``. Case-insensitive dedup; the
+    ``Tag`` namespace is per-drive.
 
     SECURITY: callers MUST verify drive access before invoking this
     helper. It performs no authorisation check — it trusts that
@@ -291,59 +208,21 @@ def merge_file_tags(db: Session, file: File, tag_names: list[str]) -> None:
         existing_lower.add(tag_name.lower())
 
 
-def cleanup_orphan_tags(db: Session) -> int:
-    """Remove Tag rows no longer referenced by any file. Returns count deleted.
 
-    Transactional contract: caller commits. Symmetric with
-    ``replace_file_tags`` so the two helpers always compose inside a
-    single transaction.
 
-    ``db.flush()`` first so pending ``file.tags = [...]`` reassignments
-    from ``replace_file_tags`` are written to the ``file_tags`` table
-    before the OUTER JOIN query runs. Without the flush, SQLAlchemy
-    keeps the association change in the session and the orphan query
-    reads a stale snapshot.
+def _is_macos_metadata(name: str) -> bool:
+    """Whether a ZIP entry is macOS packaging noise rather than archive content.
+
+    The Finder's compressor writes a parallel `__MACOSX/` tree holding an
+    AppleDouble sidecar (`._name`) for every file, plus a `.DS_Store` per
+    directory. Sorted by path it lands at the top of almost every archive made
+    on a Mac, so it is the first thing a reader sees and it never carries
+    anything they opened the archive for.
     """
-    db.flush()
-    orphans = (
-        db.query(Tag)
-        .outerjoin(file_tags)
-        .filter(file_tags.c.file_id.is_(None))
-        .all()
-    )
-    for orphan in orphans:
-        db.delete(orphan)
-    return len(orphans)
-
-
-
-
-def _decode_zip_filename(info: zipfile.ZipInfo) -> str:
-    """Decode ZIP entry filename, handling Shift_JIS encoded names.
-
-    ZIP files created on Japanese Windows encode filenames in Shift_JIS (CP932)
-    but don't set the UTF-8 flag. Python's zipfile decodes them as CP437,
-    producing garbled text. This function detects and re-decodes as CP932.
-    """
-    # If UTF-8 flag is set, Python already decoded correctly
-    if info.flag_bits & 0x800:
-        return info.filename
-
-    # Try re-encoding from CP437 back to bytes, then decode as CP932
-    try:
-        raw = info.filename.encode("cp437")
-    except UnicodeEncodeError:
-        return info.filename
-
-    # Pure ASCII is identical in both encodings — no need to re-decode
-    if all(b < 0x80 for b in raw):
-        return info.filename
-
-    try:
-        return raw.decode("cp932")
-    except UnicodeDecodeError:
-        # Not Shift_JIS — return as-is (original CP437 decode)
-        return info.filename
+    parts = PurePosixPath(name.rstrip("/")).parts
+    if not parts:
+        return False
+    return parts[0] == "__MACOSX" or parts[-1] == ".DS_Store"
 
 
 _SAFE_INLINE_TYPES = frozenset({
@@ -388,6 +267,27 @@ def _get_file_or_404(
         raise HTTPException(status_code=404, detail="File not found")
     check_drive_access(file.drive, unlocked_groups)
     return file
+
+
+def _check_target_drive_access(
+    target_drive: str | None, unlocked_groups: list[str]
+) -> None:
+    """Gate the *destination* of a move/copy.
+
+    ``target_drive`` comes from the request body; without this a caller
+    holding one drive's password could move files into a drive they cannot
+    see.
+
+    Any falsy value, including ``""``, means "same drive as the source"
+    (``fileops`` uses ``target_drive or src_drive``), so this does not test
+    ``is None``.
+
+    Raises 404 (not 403) for both locked and unknown drives, so the response
+    cannot be used to tell the two apart.
+    """
+    if not target_drive:
+        return
+    check_drive_access(target_drive, unlocked_groups)
 
 
 def _get_trashed_file_or_404(
@@ -472,8 +372,8 @@ def batch_delete(
         except HTTPException as e:
             errors.append({"id": file_id, "error": e.detail})
     if deleted_ids:
-        asyncio.create_task(
-            event_hooks.emit("files.deleted", {"file_ids": deleted_ids, "type": "soft_delete"})
+        event_hooks.emit_from_thread(
+            "files.deleted", {"file_ids": deleted_ids, "type": "soft_delete"}
         )
     return {"deleted": deleted, "errors": errors}
 
@@ -484,13 +384,21 @@ async def batch_move(
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
+    _check_target_drive_access(body.target_drive, unlocked_groups)
     moved = 0
     moved_ids: list[str] = []
+    touched_drives: set[str] = set()
     errors = []
+    if body.target_drive:
+        touched_drives.add(body.target_drive)
     try:
         for file_id in body.ids:
             try:
-                _get_file_or_404(db, file_id, unlocked_groups)
+                source = _get_file_or_404(db, file_id, unlocked_groups)
+                # Captured before the move: ``move_file`` rewrites
+                # ``File.drive``, so afterwards only the destination is
+                # visible and a tab on the source drive is never told.
+                touched_drives.add(source.drive)
                 fileops.move_file(db, file_id, body.target_drive, body.target_folder_path)
                 moved += 1
                 moved_ids.append(file_id)
@@ -510,19 +418,14 @@ async def batch_move(
         # ``move_file`` commits individually, so ids already in ``moved_ids``
         # are durable on disk and need to reach addons regardless.
         if moved_ids:
-            await event_hooks.emit("files.moved", {"file_ids": moved_ids})
-            # Also broadcast via WS so the frontend's useWebSocketRefresh
-            # triggers a list refresh (move_file_endpoint does both; batch_move
-            # was previously missing the WS broadcast, leaving the UI stale
-            # after multi-file moves).
-            await ws_service.manager.broadcast(
-                "files.moved", {"file_ids": moved_ids}
+            await event_hooks.emit(
+                "files.moved", {"file_ids": moved_ids}, drives=sorted(touched_drives)
             )
     return {"moved": moved, "errors": errors}
 
 
 @router.put("/batch/tags")
-def batch_tags(
+async def batch_tags(
     body: BatchTagRequest,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -533,16 +436,21 @@ def batch_tags(
     for file_id in body.ids:
         try:
             file = _get_file_or_404(db, file_id, unlocked_groups)
-            merge_file_tags(db, file, body.tags)
+            if _is_markdown_file(file):
+                await _write_md_tags(db, file, body.tags, merge=True)
+            else:
+                merge_file_tags(db, file, body.tags)
+                db.commit()
             updated += 1
             updated_ids.append(file_id)
         except HTTPException as e:
             errors.append({"id": file_id, "error": e.detail})
-    db.commit()
+        except OSError:
+            db.rollback()
+            logger.exception("batch_tags: write failed for %s", file_id)
+            errors.append({"id": file_id, "error": "Could not write file"})
     if updated_ids:
-        asyncio.create_task(
-            event_hooks.emit("files.updated", {"file_ids": updated_ids})
-        )
+        asyncio.create_task(event_hooks.emit("files.updated", {"file_ids": updated_ids}))
     return {"updated": updated, "errors": errors}
 
 
@@ -587,9 +495,7 @@ def batch_restore(
         except HTTPException as e:
             errors.append({"id": file_id, "error": e.detail})
     if restored_ids:
-        asyncio.create_task(
-            event_hooks.emit("files.restored", {"file_ids": restored_ids})
-        )
+        event_hooks.emit_from_thread("files.restored", {"file_ids": restored_ids})
     return {"restored": restored, "errors": errors}
 
 
@@ -601,10 +507,14 @@ def batch_purge(
 ):
     purged = 0
     purged_ids = []
+    purged_drives: set[str] = set()
     errors = []
     for file_id in body.ids:
         try:
             file = _get_trashed_or_missing_file_or_404(db, file_id, unlocked_groups)
+            # Captured before the delete: afterwards the row is gone and the
+            # drive is unrecoverable.
+            purged_drives.add(file.drive)
             if file.missing_since is not None and file.deleted_at is None:
                 fileops.purge_missing_file(db, file_id)
             else:
@@ -614,8 +524,8 @@ def batch_purge(
         except HTTPException as e:
             errors.append({"id": file_id, "error": e.detail})
     if purged_ids:
-        asyncio.create_task(
-            event_hooks.emit("files.purged", {"file_ids": purged_ids})
+        event_hooks.emit_from_thread(
+            "files.purged", {"file_ids": purged_ids}, drives=sorted(purged_drives)
         )
     return {"purged": purged, "errors": errors}
 
@@ -626,6 +536,7 @@ def batch_copy(
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
+    _check_target_drive_access(body.target_drive, unlocked_groups)
     copied = 0
     copied_ids = []
     errors = []
@@ -636,15 +547,24 @@ def batch_copy(
             copied_ids.append(new_file.id)
             copied += 1
         except HTTPException as e:
+            db.rollback()
             errors.append({"id": file_id, "error": e.detail})
+        except Exception as e:
+            # ``copy_file`` touches the filesystem outside its own ``try``,
+            # so an ENOSPC or EACCES arrives here as a bare OSError. Without
+            # this the whole batch 500s after earlier files have already been
+            # committed one at a time, and the caller is told nothing about
+            # the ones that did land. Rolled back first: the path-conflict
+            # step flushes a delete that must not ride out on the next
+            # file's commit.
+            db.rollback()
+            errors.append({"id": file_id, "error": str(e)})
     if copied_ids:
-        asyncio.create_task(
-            event_hooks.emit("files.created", {"file_ids": copied_ids})
-        )
+        event_hooks.emit_from_thread("files.created", {"file_ids": copied_ids})
     return {"copied": copied, "errors": errors}
 
 
-@router.get("/{file_id}", response_model=FileResponse)
+@router.get("/{file_id}", response_model=FileDetailResponse)
 def get_file(
     file_id: FileId,
     db: Annotated[Session, Depends(get_db)],
@@ -652,7 +572,15 @@ def get_file(
 ):
     file = _get_file_or_404(db, file_id, unlocked_groups)
     subtitles = _detect_file_subtitles(file)
-    return _to_response(file, subtitles=subtitles)
+    has_chapters = (
+        db.query(FileChapter.id).filter(FileChapter.file_id == file_id).first()
+        is not None
+    )
+    response = _to_response(file, subtitles=subtitles)
+    return FileDetailResponse(
+        **response.model_dump(),
+        has_chapters=has_chapters,
+    )
 
 
 @router.get("/{file_id}/neighbors", response_model=NeighborsResponse)
@@ -660,7 +588,7 @@ def get_file_neighbors(
     file_id: FileId,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
-    sort: str = Query("created_at", pattern="^(created_at|title|file_size|likes)$"),
+    sort: str = Query("created_at", pattern="^(created_at|title|file_size|liked_at)$"),
     order: str = Query("desc", pattern="^(asc|desc)$"),
 ):
     file = _get_file_or_404(db, file_id, unlocked_groups)
@@ -668,48 +596,77 @@ def get_file_neighbors(
     sort_col = getattr(File, sort)
     current_val = getattr(file, sort)
 
-    base = db.query(File.id).filter(
+    folder = db.query(File.id).filter(
         File.drive == file.drive,
         File.folder_path == file.folder_path,
-        File.id != file.id,
         active_file_filter(),
     )
 
+    # ``position`` and ``total`` count the same rows the arrows can walk,
+    # which is why the NULL filter is here and not only in the keyset
+    # comparisons below: a NULL sort key drops out of every ``<`` / ``>``,
+    # so counting it would report rows the arrows cannot reach. Applied to
+    # every sort column, not just the nullable ``liked_at``.
+    ranked = folder.filter(sort_col.is_not(None))
+    total = ranked.count()
+
+    if current_val is None:
+        # The keyset comparisons need a total order, and a file that was
+        # never liked has no place in a like-ordered sequence: it has no
+        # neighbours there rather than a position invented by comparing
+        # against NULL. ``total`` goes with it. The count of liked files
+        # is a true number, but printed beside a file that is not one of
+        # them it would answer a question nobody asked.
+        return NeighborsResponse(
+            prev_id=None, next_id=None, position=None, total=None
+        )
+
+    base = ranked.filter(File.id != file.id)
+
     if order == "asc":
-        prev_query = base.filter(
-            or_(
-                sort_col < current_val,
-                and_(sort_col == current_val, File.id < file.id),
-            )
-        ).order_by(sort_col.desc(), File.id.desc()).limit(1)
-
-        next_query = base.filter(
-            or_(
-                sort_col > current_val,
-                and_(sort_col == current_val, File.id > file.id),
-            )
-        ).order_by(sort_col.asc(), File.id.asc()).limit(1)
+        before = or_(
+            sort_col < current_val,
+            and_(sort_col == current_val, File.id < file.id),
+        )
+        after = or_(
+            sort_col > current_val,
+            and_(sort_col == current_val, File.id > file.id),
+        )
+        prev_query = base.filter(before).order_by(
+            sort_col.desc(), File.id.desc()
+        ).limit(1)
+        next_query = base.filter(after).order_by(
+            sort_col.asc(), File.id.asc()
+        ).limit(1)
     else:
-        prev_query = base.filter(
-            or_(
-                sort_col > current_val,
-                and_(sort_col == current_val, File.id > file.id),
-            )
-        ).order_by(sort_col.asc(), File.id.asc()).limit(1)
-
-        next_query = base.filter(
-            or_(
-                sort_col < current_val,
-                and_(sort_col == current_val, File.id < file.id),
-            )
-        ).order_by(sort_col.desc(), File.id.desc()).limit(1)
+        before = or_(
+            sort_col > current_val,
+            and_(sort_col == current_val, File.id > file.id),
+        )
+        after = or_(
+            sort_col < current_val,
+            and_(sort_col == current_val, File.id < file.id),
+        )
+        prev_query = base.filter(before).order_by(
+            sort_col.asc(), File.id.asc()
+        ).limit(1)
+        next_query = base.filter(after).order_by(
+            sort_col.desc(), File.id.desc()
+        ).limit(1)
 
     prev_row = prev_query.first()
     next_row = next_query.first()
 
+    # The same predicate that finds the previous file counts everything
+    # ahead of this one. Writing a second copy is what lets the two drift
+    # apart on the day the ``asc`` branch changes.
+    position = base.filter(before).count() + 1
+
     return NeighborsResponse(
         prev_id=prev_row[0] if prev_row else None,
         next_id=next_row[0] if next_row else None,
+        position=position,
+        total=total,
     )
 
 
@@ -728,37 +685,28 @@ def update_file(
 
     db.commit()
     db.refresh(file)
-    asyncio.create_task(
-        event_hooks.emit("files.updated", {"file_ids": [file_id]})
-    )
+    event_hooks.emit_from_thread("files.updated", {"file_ids": [file_id]})
     return _to_response(file)
 
 
 @router.post("/{file_id}/like", response_model=FileResponse)
-def like_file(
+def toggle_like(
     file_id: FileId,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
+    """Toggle the like stamp.
+
+    The stamp is the sort key for the Liked view, so a file that is
+    unliked and liked again returns to the top rather than keeping the
+    time it was first liked.
+    """
     file = _get_file_or_404(db, file_id, unlocked_groups)
 
-    file.likes = File.likes + 1
+    file.liked_at = None if file.liked_at else datetime.now(UTC)
     db.commit()
     db.refresh(file)
-    return _to_response(file)
-
-
-@router.post("/{file_id}/dislike", response_model=FileResponse)
-def dislike_file(
-    file_id: FileId,
-    db: Annotated[Session, Depends(get_db)],
-    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
-):
-    file = _get_file_or_404(db, file_id, unlocked_groups)
-
-    file.likes = File.likes - 1
-    db.commit()
-    db.refresh(file)
+    event_hooks.emit_from_thread("files.updated", {"file_ids": [file_id]})
     return _to_response(file)
 
 
@@ -773,27 +721,131 @@ def toggle_favorite(
     file.is_favorite = not file.is_favorite
     db.commit()
     db.refresh(file)
-    asyncio.create_task(
-        event_hooks.emit("files.updated", {"file_ids": [file_id]})
-    )
+    event_hooks.emit_from_thread("files.updated", {"file_ids": [file_id]})
     return _to_response(file)
 
 
+def _merged_tag_list(existing: object, added: list[str]) -> list:
+    if existing is None:
+        existing = []
+    if not isinstance(existing, list):
+        raise HTTPException(status_code=422, detail="Frontmatter tags is not a list")
+    present = {str(t).lower() for t in existing if isinstance(t, (str, int))}
+    return existing + [t for t in added if t.lower() not in present]
+
+
+async def _write_md_tags(db: Session, file: File, tags: list[str], *, merge: bool) -> None:
+    """Write ``tags`` into a Markdown file's frontmatter and project ``File.tags``.
+
+    Never falls back to writing ``File.tags`` alone: the next content write
+    re-projects the frontmatter and would silently drop such tags.
+    """
+    drive_path = config.get_drive_path(file.drive)
+    file_path = _validate_path(str(drive_path / file.file_path), drive_path)
+
+    async with _text_write_locks[file.id]:
+        try:
+            current = file_path.read_bytes()
+        except FileNotFoundError:
+            raise HTTPException(status_code=404, detail="File not found on disk")
+        if len(current) > _TEXT_WRITE_MAX_BYTES:
+            raise HTTPException(status_code=413, detail="Content exceeds size limit")
+        try:
+            text = current.decode("utf-8")
+        except UnicodeDecodeError:
+            raise HTTPException(status_code=422, detail="File is not valid UTF-8")
+        if has_unreadable_frontmatter(text):
+            raise HTTPException(status_code=422, detail="Frontmatter cannot be parsed")
+
+        parsed = parse_frontmatter(text)
+        metadata = dict(parsed.metadata)
+        new_tags = _merged_tag_list(metadata.get("tags"), tags) if merge else tags
+        if new_tags:
+            metadata["tags"] = new_tags
+        else:
+            metadata.pop("tags", None)
+        if metadata:
+            new_text = compose_frontmatter(metadata, parsed.body)
+        elif text.lstrip("\ufeff").startswith("---\n"):
+            # Dropping the block would let a body that opens with a `---` rule
+            # be read back as frontmatter.
+            new_text = "---\n---\n\n" + parsed.body
+        else:
+            new_text = text
+        new_bytes = new_text.encode("utf-8")
+
+        if new_bytes != current:
+            if len(new_bytes) > _TEXT_WRITE_MAX_BYTES:
+                raise HTTPException(status_code=413, detail="Content exceeds size limit")
+            try:
+                write_text_content(
+                    db,
+                    file,
+                    file_path,
+                    new_bytes,
+                    expected_etag=_compute_text_etag(current),
+                    kind="auto",
+                    viewer_id=None,
+                    nickname=None,
+                )
+            except ContentMissingError:
+                raise HTTPException(status_code=404, detail="File not found on disk")
+            except ContentConflictError:
+                raise HTTPException(status_code=409, detail="File changed during tag write")
+
+        try:
+            replace_file_tags(db, file, extract_valid_tags(parse_frontmatter(new_text).metadata))
+            cleanup_orphan_tags(db, file.drive)
+            db.commit()
+        except Exception:
+            db.rollback()
+            logger.exception("tags: projection failed for %s", file.id)
+            raise HTTPException(status_code=500, detail="Tag projection failed")
+
+
 @router.put("/{file_id}/tags", response_model=FileResponse)
-def update_file_tags(
+async def update_file_tags(
     file_id: FileId,
     update: TagUpdate,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     file = _get_file_or_404(db, file_id, unlocked_groups)
-    replace_file_tags(db, file, update.tags)
-    cleanup_orphan_tags(db)
+    if _is_markdown_file(file):
+        await _write_md_tags(db, file, update.tags, merge=False)
+    else:
+        replace_file_tags(db, file, update.tags)
+        cleanup_orphan_tags(db, file.drive)
+        db.commit()
+    db.refresh(file)
+    asyncio.create_task(event_hooks.emit("files.updated", {"file_ids": [file_id]}))
+    return _to_response(file)
+
+
+@router.put("/{file_id}/trust-tier", response_model=FileResponse)
+def update_file_trust_tier(
+    file_id: FileId,
+    update: TrustTierUpdate,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+):
+    """Vouch for a source, or withdraw that vouch.
+
+    Stamping ``trust_reviewed_at`` is what separates a human judgement from
+    a bulk migration or an addon's ingest-time declaration, so it is set on
+    both directions — including a demotion back to the tier the file
+    started at.
+
+    Demoting never touches anything distilled from this file: a note holds
+    the viewer's own words and stays verified on its own merit.
+    """
+    file = _get_file_or_404(db, file_id, unlocked_groups)
+
+    file.trust_tier = update.tier
+    file.trust_reviewed_at = datetime.now(UTC)
     db.commit()
     db.refresh(file)
-    asyncio.create_task(
-        event_hooks.emit("files.updated", {"file_ids": [file_id]})
-    )
+    event_hooks.emit_from_thread("files.updated", {"file_ids": [file_id]})
     return _to_response(file)
 
 
@@ -1097,9 +1149,81 @@ def get_preview_text(
     return Response(content=text, media_type="text/plain; charset=utf-8")
 
 
+def _if_none_match(request: Request, etag: str) -> bool:
+    """RFC 9110 §13.1.2, to the extent a thumbnail needs it.
+
+    `*` matches anything that exists; otherwise the header is a list and
+    a weak validator compares equal to its strong form, because a
+    revalidating browser echoes whatever it was sent.
+    """
+    header = request.headers.get("if-none-match")
+    if not header:
+        return False
+    if header.strip() == "*":
+        return True
+    strip_weak = lambda tag: tag[2:] if tag.startswith("W/") else tag
+    return strip_weak(etag) in {strip_weak(t.strip()) for t in header.split(",")}
+
+
+def _image_media_type(path: Path) -> str:
+    """The type of a thumbnail's bytes.
+
+    Read from the bytes rather than the name: every cache slot ends in
+    `.jpg`, and a slot can hold a WebP with alpha or, for a `.loft`, the
+    remote thumbnail exactly as it was downloaded.
+    """
+    try:
+        with open(path, "rb") as stored:
+            head = stored.read(12)
+    except OSError:
+        head = b""
+    if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
+        return "image/webp"
+    if head[:8] == b"\x89PNG\r\n\x1a\n":
+        return "image/png"
+    return "image/jpeg"
+
+
+def _revalidating_image(request: Request, path: Path) -> Response:
+    """A `no-cache` image response that answers its own revalidation.
+
+    The two belong together, on every branch that sends the header.
+    `FileResponse` sets an ETag and ignores `If-None-Match` — only
+    `StaticFiles` wraps it in a `NotModifiedResponse` — so `no-cache`
+    alone turns every cache hit into a full body, which is the opposite
+    of what the header is for.
+
+    `no-cache` at all because the bytes behind a thumbnail URL change
+    while the URL does not: a thumbnail regenerated into the picture box,
+    a replaced file, a placeholder that a later scan turns into a real
+    picture.
+    """
+    try:
+        stat_result = os.stat(path)
+    except OSError:
+        raise HTTPException(status_code=404, detail="Thumbnail not found")
+    response = FastAPIFileResponse(
+        str(path),
+        media_type=_image_media_type(path),
+        stat_result=stat_result,
+        headers={"Cache-Control": "no-cache"},
+    )
+    etag = response.headers.get("etag")
+    if not etag or not _if_none_match(request, etag):
+        return response
+    # RFC 9110 §15.4.5: a 304 carries the header fields a 200 would have
+    # sent that are useful for updating the cached entry.
+    headers = {"ETag": etag, "Cache-Control": "no-cache"}
+    last_modified = response.headers.get("last-modified")
+    if last_modified:
+        headers["Last-Modified"] = last_modified
+    return Response(status_code=304, headers=headers)
+
+
 @router.get("/{file_id}/thumbnail")
 def get_thumbnail(
     file_id: FileId,
+    request: Request,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
@@ -1110,14 +1234,10 @@ def get_thumbnail(
             str(config.THUMBNAILS_DIR / file.thumbnail_path), config.DATA_DIR
         )
         if thumb_path.exists():
-            return FastAPIFileResponse(str(thumb_path), media_type="image/jpeg")
+            return _revalidating_image(request, thumb_path)
 
     if PLACEHOLDER_THUMBNAIL.exists():
-        return FastAPIFileResponse(
-            str(PLACEHOLDER_THUMBNAIL),
-            media_type="image/jpeg",
-            headers={"Cache-Control": "no-cache"},
-        )
+        return _revalidating_image(request, PLACEHOLDER_THUMBNAIL)
 
     raise HTTPException(status_code=404, detail="Thumbnail not found")
 
@@ -1144,12 +1264,14 @@ def get_archive_contents(
         for info in zf.infolist():
             if len(entries) >= _MAX_ARCHIVE_ENTRIES:
                 break
+            if _is_macos_metadata(decode_zip_filename(info)):
+                continue
             # Skip symlink entries
             if info.external_attr != 0:
                 mode = info.external_attr >> 16
                 if mode != 0 and (mode & 0o170000) == 0o120000:
                     continue
-            decoded_name = _decode_zip_filename(info)
+            decoded_name = decode_zip_filename(info)
             is_dir = info.is_dir()
             clean_path = decoded_name.rstrip("/") if is_dir else decoded_name
             entry_name = PurePosixPath(clean_path).name
@@ -1198,7 +1320,7 @@ async def get_archive_entry(
             # Look up entry by decoded name (handles Shift_JIS re-encoding)
             info = None
             for zi in zf.infolist():
-                if _decode_zip_filename(zi) == path:
+                if decode_zip_filename(zi) == path:
                     info = zi
                     break
             if info is None:
@@ -1296,13 +1418,6 @@ async def rename_file_endpoint(
     _get_file_or_404(db, file_id, unlocked_groups)
     file = fileops.rename_file(db, file_id, body.new_filename)
     await event_hooks.emit("files.moved", {"file_ids": [file.id]})
-    # Broadcast on the browser WebSocket alongside the addon webhook so
-    # FolderTreePane / useFolderFiles subscribers refresh without a
-    # manual reload. event_hooks dispatches to addon URLs only; the WS
-    # layer is independent and reaches the browser directly.
-    await ws_service.manager.broadcast(
-        "files.moved", {"file_ids": [file.id]}, drive=file.drive
-    )
     return _to_response(file)
 
 
@@ -1313,11 +1428,14 @@ async def move_file_endpoint(
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
-    _get_file_or_404(db, file_id, unlocked_groups)
+    source = _get_file_or_404(db, file_id, unlocked_groups)
+    source_drive = source.drive  # captured before move_file rewrites it
+    _check_target_drive_access(body.target_drive, unlocked_groups)
     file = fileops.move_file(db, file_id, body.target_drive, body.target_folder_path)
-    await event_hooks.emit("files.moved", {"file_ids": [file.id]})
-    await ws_service.manager.broadcast(
-        "files.moved", {"file_ids": [file.id]}, drive=file.drive
+    await event_hooks.emit(
+        "files.moved",
+        {"file_ids": [file.id]},
+        drives=sorted({source_drive, file.drive}),
     )
     return _to_response(file)
 
@@ -1330,10 +1448,9 @@ def copy_file_endpoint(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     _get_file_or_404(db, file_id, unlocked_groups)
+    _check_target_drive_access(body.target_drive, unlocked_groups)
     new_file = fileops.copy_file(db, file_id, body.target_drive, body.target_folder_path)
-    asyncio.create_task(
-        event_hooks.emit("files.created", {"file_ids": [new_file.id]})
-    )
+    event_hooks.emit_from_thread("files.created", {"file_ids": [new_file.id]})
     return _to_response(new_file)
 
 
@@ -1345,8 +1462,8 @@ def delete_file_endpoint(
 ):
     _get_file_or_404(db, file_id, unlocked_groups)
     fileops.delete_file(db, file_id)
-    asyncio.create_task(
-        event_hooks.emit("files.deleted", {"file_ids": [file_id], "type": "soft_delete"})
+    event_hooks.emit_from_thread(
+        "files.deleted", {"file_ids": [file_id], "type": "soft_delete"}
     )
     return {"status": "deleted"}
 
@@ -1359,14 +1476,12 @@ def restore_file_endpoint(
 ):
     _get_trashed_file_or_404(db, file_id, unlocked_groups)
     file = fileops.restore_file(db, file_id)
-    asyncio.create_task(
-        event_hooks.emit("files.restored", {"file_ids": [file_id]})
-    )
+    event_hooks.emit_from_thread("files.restored", {"file_ids": [file_id]})
     return _to_response(file)
 
 
 def _compute_text_etag(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
+    return compute_content_etag(data)
 
 
 def _inject_md_id(
@@ -1380,8 +1495,6 @@ def _inject_md_id(
     ``None`` when no injection happened (malformed UTF-8/YAML, or the
     body already had a valid id — in which case ``new_md_id`` is still
     returned for projection so ``File.md_id`` stays in sync).
-
-    Spec: docs/superpowers/specs/2026-05-12-markdown-link-three-forms.md §3.1.
     """
     try:
         body_str = body.decode("utf-8")
@@ -1401,7 +1514,7 @@ def _inject_md_id(
     came_from_fm = isinstance(fm_id_raw, (str, int)) and str(fm_id_raw) == new_id
     came_from_db = (not came_from_fm) and file.md_id == new_id
     if not came_from_fm and not came_from_db:
-        # Same-second collision insurance (spec §3.1): when the freshly
+        # Same-second collision insurance: when the freshly
         # generated 14-digit id already exists as another file's md_id
         # in the same drive, append the millisecond component to extend
         # to 17 digits. 14-digit ids remain the common case.
@@ -1440,6 +1553,8 @@ async def put_file_content(
     request: Request,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    viewer_id: Annotated[str | None, Depends(get_viewer_id)],
+    nickname: Annotated[str | None, Depends(get_nickname)],
 ):
     """Overwrite a text file's content with optimistic-lock safety.
 
@@ -1484,8 +1599,8 @@ async def put_file_content(
         if _strip_etag_quotes(if_match) != current_etag:
             raise HTTPException(status_code=412, detail="ETag mismatch")
 
-        # Spec 2026-05-12-markdown-link-three-forms §3.1: inject frontmatter
-        # ``id:`` for .md writes so wiki-link resolution has a stable handle.
+        # Inject frontmatter ``id:`` for .md writes so wiki-link resolution
+        # has a stable handle.
         # Skipped silently on UnicodeDecodeError / malformed YAML — id is
         # never blocked on the write path.
         injected_md_id: str | None = None
@@ -1496,28 +1611,27 @@ async def put_file_content(
                     status_code=413, detail="Content exceeds size limit after id injection"
                 )
 
-        # Atomic write: tmp + os.replace. Temp file is on the same FS as target
-        # so os.replace is atomic on POSIX.
-        tmp_fd, tmp_name = tempfile.mkstemp(
-            prefix=f".{file_path.name}.", suffix=".tmp", dir=str(file_path.parent)
-        )
         try:
-            with os.fdopen(tmp_fd, "wb") as f:
-                f.write(body)
-            os.replace(tmp_name, file_path)
-        except Exception:
-            try:
-                os.unlink(tmp_name)
-            except OSError:
-                pass
-            raise
+            write_result = write_text_content(
+                db,
+                file,
+                file_path,
+                body,
+                expected_etag=current_etag,
+                kind=(
+                    "explicit"
+                    if request.headers.get("X-Litloft-Save-Kind") == "explicit"
+                    else "auto"
+                ),
+                viewer_id=viewer_id,
+                nickname=nickname,
+            )
+        except ContentMissingError:
+            raise HTTPException(status_code=404, detail="File not found on disk")
+        except ContentConflictError:
+            raise HTTPException(status_code=412, detail="ETag mismatch")
 
-        new_etag = _compute_text_etag(body)
-        # Update File.file_size (ignore mtime — FS is authoritative for mtime)
-        file.file_size = len(body)
-        db.commit()
-
-        # β canonical rule (spec 2026-04-24, Phase 11): for .md files,
+        # For .md files,
         # the frontmatter's ``tags:`` is the source of truth for
         # ``File.tags``. Project synchronously so UI edits see the
         # effect without waiting for the knowledge scanner's hourly
@@ -1542,7 +1656,7 @@ async def put_file_content(
                 parsed = parse_frontmatter(body.decode("utf-8"))
                 tags = extract_valid_tags(parsed.metadata)
                 replace_file_tags(db, file, tags)
-                cleanup_orphan_tags(db)
+                cleanup_orphan_tags(db, file.drive)
                 db.commit()
             except UnicodeDecodeError:
                 db.rollback()
@@ -1556,7 +1670,7 @@ async def put_file_content(
                     "put_content: tag projection failed for %s", file_id
                 )
 
-            # Phase B (spec 2026-05-12 §3.6): project frontmatter
+            # Project frontmatter
             # ``aliases:`` to ``File.md_aliases`` so the wiki-link
             # resolver can match alias-form targets. Isolated like the
             # tag projection — a parse / write failure must not roll
@@ -1600,12 +1714,151 @@ async def put_file_content(
                     "put_content: link sync failed for %s", file_id
                 )
 
+            # The Markdown body is canonical; thumbnail_path is a local,
+            # network-free projection of its first loft:// image. Keep this
+            # isolated like the other projections so a thumbnail failure can
+            # never roll back the durable content write.
+            try:
+                content_str = body.decode("utf-8")
+                project_markdown_thumbnail(db, file, content_str)
+                db.commit()
+            except UnicodeDecodeError:
+                db.rollback()
+                logger.warning(
+                    "put_content: %s is not valid UTF-8; skipping thumbnail projection",
+                    file_id,
+                )
+            except Exception:
+                db.rollback()
+                logger.exception(
+                    "put_content: thumbnail projection failed for %s", file_id
+                )
+
     asyncio.create_task(
         event_hooks.emit("files.updated", {"file_ids": [file_id]})
     )
     return Response(
         status_code=200,
-        headers={"ETag": f'"{new_etag}"'},
+        headers={
+            "ETag": f'"{write_result.etag}"',
+            **(
+                {"X-Litloft-Version-Action": write_result.version_action}
+                if write_result.version_action is not None
+                else {}
+            ),
+        },
+    )
+
+
+def _get_versionable_file_or_404(
+    db: Session, file_id: str, unlocked_groups: list[str]
+) -> File:
+    file = _get_file_or_404(db, file_id, unlocked_groups)
+    if (file.mime_type or "") not in _TEXT_WRITE_ALLOWED_MIMES:
+        raise HTTPException(status_code=404, detail="File not found")
+    return file
+
+
+@router.get("/{file_id}/versions", response_model=FileVersionsResponse)
+def get_file_versions(
+    file_id: FileId,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    response: Response,
+    limit: Annotated[int, Query(ge=1)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> FileVersionsResponse:
+    _get_versionable_file_or_404(db, file_id, unlocked_groups)
+    response.headers["Cache-Control"] = "no-store"
+    safe_limit = min(limit, 100)
+    rows, total = file_version_service.list_versions(
+        db, file_id=file_id, limit=safe_limit, offset=offset
+    )
+    return FileVersionsResponse(
+        versions=[FileVersionItemResponse.model_validate(row) for row in rows],
+        total=total,
+        limit=safe_limit,
+        offset=offset,
+    )
+
+
+@router.get(
+    "/{file_id}/versions/{version_id}", response_model=FileVersionBodyResponse
+)
+def get_file_version_body(
+    file_id: FileId,
+    version_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    response: Response,
+) -> FileVersionBodyResponse:
+    _get_versionable_file_or_404(db, file_id, unlocked_groups)
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        result = file_version_service.get_version_body(
+            db, file_id=file_id, version_id=version_id
+        )
+    except file_version_service.FileVersionReadError:
+        logger.exception(
+            "Stored file version unavailable: file_id=%s version_id=%s",
+            file_id,
+            version_id,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Stored version is unavailable",
+            headers={"Cache-Control": "no-store"},
+        ) from None
+    if result is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Version not found",
+            headers={"Cache-Control": "no-store"},
+        )
+    row, content = result
+    return FileVersionBodyResponse(id=row.id, content=content, etag=row.etag)
+
+
+@router.get(
+    "/{file_id}/versions/{version_id}/diff",
+    response_model=FileVersionDiffResponse,
+)
+def get_file_version_diff(
+    file_id: FileId,
+    version_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    response: Response,
+) -> FileVersionDiffResponse:
+    _get_versionable_file_or_404(db, file_id, unlocked_groups)
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        result = file_version_service.diff_version(
+            db, file_id=file_id, version_id=version_id
+        )
+    except file_version_service.FileVersionReadError:
+        logger.exception(
+            "Stored file version diff unavailable: file_id=%s version_id=%s",
+            file_id,
+            version_id,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Stored version is unavailable",
+            headers={"Cache-Control": "no-store"},
+        ) from None
+    if result is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Version not found",
+            headers={"Cache-Control": "no-store"},
+        )
+    row, lines, lines_added, lines_removed = result
+    return FileVersionDiffResponse(
+        id=row.id,
+        lines=[{"kind": line.kind, "text": line.text} for line in lines],
+        lines_added=lines_added,
+        lines_removed=lines_removed,
     )
 
 
@@ -1617,8 +1870,7 @@ def get_wiki_resolutions(
 ):
     """Return the resolver verdict for every ``[[X]]`` in a ``.md`` body.
 
-    Spec ``2026-05-12-markdown-link-three-forms.md`` §3.8. Lets the
-    renderer pick per-link styling (resolved / unresolved / ambiguous)
+    Lets the renderer pick per-link styling (resolved / unresolved / ambiguous)
     without re-parsing the body in the browser.
 
     Response shape::
@@ -1694,12 +1946,13 @@ def purge_file_endpoint(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     file = _get_trashed_or_missing_file_or_404(db, file_id, unlocked_groups)
+    purged_drive = file.drive  # captured before the row is deleted
     if file.missing_since is not None and file.deleted_at is None:
         fileops.purge_missing_file(db, file_id)
     else:
         fileops.purge_file(db, file_id)
-    asyncio.create_task(
-        event_hooks.emit("files.purged", {"file_ids": [file_id]})
+    event_hooks.emit_from_thread(
+        "files.purged", {"file_ids": [file_id]}, drives=[purged_drive]
     )
     return {"status": "purged"}
 
@@ -1709,12 +1962,14 @@ def _related_file_summary(file: File) -> RelatedFileSummary:
         id=file.id,
         drive=file.drive,
         filename=file.filename,
+        title=file.title,
         folder_path=file.folder_path,
         file_type=file.file_type,
         mime_type=file.mime_type,
         thumbnail_url=f"/api/files/{file.id}/thumbnail",
         has_thumbnail=file.thumbnail_path is not None,
         file_size=file.file_size,
+        duration=file.duration,
         missing_since=file.missing_since,
         created_at=file.created_at,
         updated_at=file.updated_at,
@@ -1733,8 +1988,8 @@ def list_file_relations(
     The source file must be accessible to the caller (drive unlock).
     Results exclude related files that have been trashed; missing files
     are included so the UI can grey them out without dropping history.
-    Related files live on the same drive as the source (spec R4), so
-    access already covers both sides.
+    Related files live on the same drive as the source, so access already
+    covers both sides.
     """
     source = _get_file_or_404(db, file_id, unlocked_groups)
 
@@ -1774,14 +2029,15 @@ def list_file_relations(
 
     items: list[FileRelationItem] = []
     for rel in relations:
-        other_id = relation_other[rel.id]
-        other = by_id.get(other_id)
+        other = by_id.get(relation_other[rel.id])
         if other is None:
             continue
         items.append(
             FileRelationItem(
                 relation_id=rel.id,
                 kind=rel.kind,
+                direction="outgoing" if rel.file_id_a == file_id else "incoming",
+                origin=rel.origin,
                 created_at=rel.created_at,
                 created_by=rel.created_by,
                 file=_related_file_summary(other),
@@ -1789,6 +2045,26 @@ def list_file_relations(
         )
 
     return FileRelationsResponse(relations=items)
+
+
+@router.get("/{file_id}/chapters", response_model=FileChaptersResponse)
+def list_file_chapters(
+    file_id: FileId,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+) -> FileChaptersResponse:
+    """Return the accessible active file's ordered chapter set."""
+    _get_file_or_404(db, file_id, unlocked_groups)
+    rows = (
+        db.query(FileChapter)
+        .filter(FileChapter.file_id == file_id)
+        .order_by(FileChapter.ordering, FileChapter.id)
+        .all()
+    )
+    return FileChaptersResponse(
+        chapters=[FileChapterResponse.model_validate(row) for row in rows],
+        source=rows[0].source if rows else None,
+    )
 
 
 @router.get("/{file_id}/exif", response_model=ExifResponse)
@@ -1804,4 +2080,3 @@ def get_file_exif(
     if not exif:
         raise HTTPException(status_code=404, detail="No EXIF data")
     return ExifResponse.model_validate(exif)
-

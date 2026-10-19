@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "R1-TP-1",
+      "origin": "reviewer",
+      "claim": "The change in chunk boundaries also reaches the refine re-chunk path in addons/intelligence/app/workers/refine.py (which calls _build_chunks_from_words and then deletes and rewrites transcript_chunks and their embeddings) and _persist_transcript in workers/whisper.py, but the touch-point list names only _build_chunks_from_words and not these transitive callers or refine.py.",
+      "impact": "None at runtime: these callers pass words through unchanged and store whatever chunks come back. A reader working from the list alone could miss that a refine run on an existing transcript rewrites its chunk rows, so boundaries around colon times change for old files when they are refined again, not only for new transcriptions. Spec section 4 covers this as 'written by a transcription or refine run'.",
+      "evidence": "addons/intelligence/app/workers/refine.py:318 imports _build_chunks_from_words, :353 calls it, and :380 deletes and re-inserts TranscriptChunk rows. addons/intelligence/app/workers/whisper.py:1398 (_persist_transcript) calls it. addons/intelligence/app/subtitle_builder.py:577 renders WebVTT through build_cues. Every direct caller of is_digit_separator/splits_number (subtitle_builder.py:247,355,480,502,510,526,531 and whisper.py:634) sits inside a listed function. flush_with_rewind is nested in build_cues.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is broken. The list is incomplete only for transitive callers that use the result without inspecting it, and the spec's Data section already describes the effect.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Optionally add refine.py (re-chunk on refine) and whisper._persist_transcript to the touch-point list as transitive callers. No code change."
+    }
+  ],
+  "specification_compliance": [
+    "The diff changes only addons/intelligence/app/digit_separator.py (the separator set and docstrings), the two listed test files, the submodule pointer, the spec and INDEX.md. All of these are in the touch-point list or are implicit touch points.",
+    "grep found no direct callers of is_digit_separator or splits_number outside subtitle_builder.py (_safe_break_between, build_cues, _balance_two_lines, _number_edge) and whisper.py (_build_chunks_from_words). This matches spec step 4 and section 7 ('there are no other callers').",
+    "Both test oracles (_is_digit_separator_boundary and _inside_number) now include ':' and '：', as the touch points require."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The space-separated path of _balance_two_lines joins 'N:' with the next word when that word starts with a digit (subtitle_builder.py:480), so 'Step 1: 2 eggs' becomes one unbreakable unit. Spec Failure cases accepts this."
+  ],
+  "regression_risks": [
+    "Refine re-chunking (refine.py:353) rewrites the chunk rows and embeddings of existing transcripts with the new boundaries the next time they are refined."
+  ],
+  "test_coverage": [
+    "New tests cover is_digit_separator for colon rows, chunking in the token-row and character-row forms, max_duration bounding, cue safe breaks for en and ja, and CJK and space-path line balancing with colon sweeps.",
+    "A grep found no existing test in test_subtitle_builder/test_loft_vtt_sidecar/whisper/refine tests that relies on a cue or chunk break at a digit-colon-digit."
+  ],
+  "not_verified": [
+    "I did not run the test suite, so I cannot say whether the new tests pass.",
+    "I did not check whether the submodule commit e102ecb contains changes beyond those shown in the diff.",
+    "I did not check whether janome's tokenization of colon times changes any expected layout when janome is installed."
+  ],
+  "confidence": 85
+}

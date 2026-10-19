@@ -1,13 +1,4 @@
-"""Tests for the safepath helper module.
-
-Validates that path resolution is safe against:
-- Path traversal (.., absolute paths)
-- NUL / control characters
-- Symbolic links (O_NOFOLLOW semantics)
-- Windows reserved names
-- realpath escape from drive root
-- Filename length limits
-"""
+"""Tests for the safepath helper module."""
 import json
 import os
 import unicodedata

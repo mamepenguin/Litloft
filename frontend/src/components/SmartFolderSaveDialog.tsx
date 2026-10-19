@@ -4,10 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import { Star, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useShortcuts } from "@/hooks/useShortcuts";
+import { useImeKeyGuard } from "@/lib/ime";
+import { Button } from "@/components/Button";
 
 interface SmartFolderSaveDialogProps {
   open: boolean;
-  /** "save" | "rename" — controls dialog title only. */
   mode?: "save" | "rename";
   initialName?: string;
   description?: string;
@@ -26,13 +27,12 @@ export function SmartFolderSaveDialog({
   const t = useTranslations("smartFolder");
   const tc = useTranslations("common");
   const [name, setName] = useState(initialName);
-  const [composing, setComposing] = useState(false);
+  const ime = useImeKeyGuard();
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
       setName(initialName);
-      // Defer focus to next tick so the input is mounted.
       setTimeout(() => {
         inputRef.current?.focus();
         inputRef.current?.select();
@@ -40,10 +40,14 @@ export function SmartFolderSaveDialog({
     }
   }, [open, initialName]);
 
+  // `editingOnly: false` is load-bearing: the dialog focuses its own
+  // field, and the provider counts a focused input as "editing", where
+  // the flag's default ("only when nothing is being edited") means the
+  // shortcut never fires.
   useShortcuts(
     "smart-folder-save-dialog",
     "Dialog",
-    [{ key: "escape", label: "Cancel", handler: onCancel, hidden: true }],
+    [{ key: "escape", label: "Cancel", editingOnly: false, handler: onCancel, hidden: true }],
     open,
   );
 
@@ -55,9 +59,6 @@ export function SmartFolderSaveDialog({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    // Skip Enter while IME composition is active, otherwise the
-    // conversion-confirming Enter would submit the form.
-    if (composing) return;
     if (!canSubmit) return;
     onSubmit(trimmed);
   }
@@ -98,8 +99,11 @@ export function SmartFolderSaveDialog({
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            onCompositionStart={() => setComposing(true)}
-            onCompositionEnd={() => setComposing(false)}
+            onCompositionEnd={ime.onCompositionEnd}
+            onKeyDown={(e) => {
+              // Cancelling the keydown is what stops the form's implicit submission.
+              if (e.key === "Enter" && ime.isImeKeystroke(e)) e.preventDefault();
+            }}
             placeholder={t("namePlaceholder")}
             className="mb-6 w-full rounded-2xl border border-bg-border bg-bg-elevated px-3 py-2 text-sm text-text-primary outline-none focus:border-focus-ring"
           />
@@ -111,13 +115,14 @@ export function SmartFolderSaveDialog({
             >
               {tc("cancel")}
             </button>
-            <button
+            <Button
+              variant="primary"
+              size="md"
               type="submit"
               disabled={!canSubmit}
-              className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-40"
             >
               {submitLabel}
-            </button>
+            </Button>
           </div>
         </form>
       </div>

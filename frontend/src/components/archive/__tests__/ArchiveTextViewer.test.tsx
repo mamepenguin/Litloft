@@ -15,6 +15,7 @@ const textEntry: ArchiveEntry = {
 
 const defaultProps = {
   viewingEntry: textEntry,
+  fileId: "zip-1",
   textConfirmed: false,
   textLoading: false,
   textError: null,
@@ -49,6 +50,27 @@ describe("ArchiveTextViewer", () => {
     );
     expect(screen.getByText(/Failed to load/)).toBeInTheDocument();
     expect(screen.getByText(/500 Server Error/)).toBeInTheDocument();
+  });
+
+  it("offers the file itself when it could not be read", () => {
+    render(
+      <ArchiveTextViewer {...defaultProps} textConfirmed={true} textError="500 Server Error" />
+    );
+    const action = screen.getByRole("link", { name: "Download" });
+    expect(action.hasAttribute("download")).toBe(true);
+    expect(action.getAttribute("href")).toContain("readme.txt");
+  });
+
+  it("offers the file itself while it is being read, too", () => {
+    render(
+      <ArchiveTextViewer
+        {...defaultProps}
+        textConfirmed={true}
+        textContent="hello"
+      />
+    );
+    const action = screen.getByRole("link", { name: "Download readme.txt" });
+    expect(action.getAttribute("download")).toBe("readme.txt");
   });
 
   it("displays text content when loaded", () => {

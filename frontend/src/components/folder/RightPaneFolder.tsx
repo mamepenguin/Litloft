@@ -8,6 +8,7 @@ import { FileGrid } from "@/components/FileGrid";
 import { FileList } from "@/components/FileList";
 import { FolderCard } from "@/components/FolderCard";
 import { EmptyState } from "@/components/EmptyState";
+import { cardGridTemplate, useCardColumns } from "@/lib/cardGrid";
 import { getDriveFiles, getFolders } from "@/lib/api";
 import type { FileItem, Folder } from "@/types";
 
@@ -20,16 +21,13 @@ interface RightPaneFolderProps {
 }
 
 /**
- * 2-pane right column when a folder is selected.
- *
- * v1 keeps this minimal: it lists immediate children with a small
- * grid/list toggle (separate from the outer 2-pane viewMode).
  * Selection, drag/drop and pin operations are not provided here — for
  * those, the user switches the outer viewMode to grid or list.
  */
 export function RightPaneFolder({ drive, folderPath }: RightPaneFolderProps) {
   const t = useTranslations("view");
   const [innerMode, setInnerMode] = useState<InnerViewMode>("grid");
+  const { ref: folderGridRef, columns } = useCardColumns();
   const [folders, setFolders] = useState<Folder[]>([]);
   const [files, setFiles] = useState<FileItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,7 +79,7 @@ export function RightPaneFolder({ drive, folderPath }: RightPaneFolderProps) {
     }`;
 
   return (
-    <div className="flex h-full flex-col bg-bg-base">
+    <div className="flex h-full flex-col bg-bg-primary">
       <div className="flex items-center justify-between gap-2 border-b border-bg-border px-4 py-3">
         <h2 className="min-w-0 flex-1 truncate text-sm font-medium text-text-primary">
           {folderPath || drive}
@@ -116,7 +114,11 @@ export function RightPaneFolder({ drive, folderPath }: RightPaneFolderProps) {
         ) : (
           <>
             {folders.length > 0 && (
-              <div className="mb-4 grid grid-cols-2 gap-2">
+              <div
+                ref={folderGridRef}
+                className="mb-4 grid gap-3"
+                style={{ gridTemplateColumns: cardGridTemplate(columns) }}
+              >
                 {folders.map((folder) => (
                   <FolderCard key={folder.path} folder={folder} driveName={drive} />
                 ))}

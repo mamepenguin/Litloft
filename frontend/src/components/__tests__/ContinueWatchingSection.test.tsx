@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import type { WatchHistoryItem } from "@/types";
 
@@ -62,6 +62,8 @@ import { ContinueWatchingSection } from "../ContinueWatchingSection";
 import { deleteWatchProgress } from "@/lib/api";
 
 const item1: WatchHistoryItem = {
+  image_width: null,
+  image_height: null,
   id: "file-1",
   filename: "video1.mp4",
   title: "Video One",
@@ -74,12 +76,14 @@ const item1: WatchHistoryItem = {
   has_thumbnail: true,
   file_size: 1024,
   duration: 120,
-  likes: 0,
+  liked_at: null,
   is_favorite: false,
   tags: [],
   subtitles: [],
   deleted_at: null,
   missing_since: null,
+  trust_tier: "verified",
+  trust_reviewed_at: null,
   created_at: "2026-03-20T10:00:00",
   updated_at: "2026-03-20T10:00:00",
   watch_progress: { position: 30, duration: 120 },
@@ -121,14 +125,13 @@ describe("ContinueWatchingSection", () => {
     expect(screen.getByText("Video Two")).toBeInTheDocument();
   });
 
-  it("renders watch progress bar based on watchProgress", () => {
+  it("fills the progress bar to the fraction watched", () => {
+    // item1 stopped at 30s of 120s.
     const { container } = render(
       <ContinueWatchingSection items={[item1]} loading={false} />,
     );
-    // FileCard renders a progress bar div when watchProgress.duration > 0.
-    // The fill bar uses inline style width — assert at least one element has width style.
-    const progressFills = container.querySelectorAll('[style*="width"]');
-    expect(progressFills.length).toBeGreaterThan(0);
+    const fills = [...container.querySelectorAll<HTMLElement>('[style*="width"]')];
+    expect(fills.map((el) => el.style.width)).toEqual(["25%"]);
   });
 
   it("opens context menu on right-click", async () => {
@@ -151,8 +154,7 @@ describe("ContinueWatchingSection", () => {
         <ContinueWatchingSection items={[item1]} loading={false} />,
       );
       const card = screen.getByText("Video One");
-      // Find the closest element that holds touch handlers (the wrapper).
-      // Fire at the visible text — bubbling reaches handlers.
+      // Fired at the visible text; bubbling reaches the wrapper's handlers.
       fireEvent.touchStart(card, {
         touches: [{ clientX: 50, clientY: 50 }],
       });
@@ -205,7 +207,6 @@ describe("ContinueWatchingSection", () => {
     await waitFor(() => {
       expect(deleteWatchProgress).toHaveBeenCalled();
     });
-    // onRemoveItem should not be invoked on failure
     expect(onRemoveItem).not.toHaveBeenCalled();
   });
 });

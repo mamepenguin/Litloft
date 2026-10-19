@@ -1,0 +1,221 @@
+import { afterAll, beforeAll, describe, it, expect } from "vitest";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { fileURLToPath } from "node:url";
+import { resolve, dirname, relative } from "node:path";
+import { stripComments } from "./helpers/sourceScan";
+import { addonPresent } from "./helpers/addonPresent";
+
+/**
+ * Every `<h1>` in core and in every addon checked out beside it. The whole
+ * tree rather than a chosen set of screens: a screen left out of a chosen
+ * set cannot fail.
+ */
+
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+const ADDONS_DIR = resolve(REPO_ROOT, "addons");
+const ADDON_LINK_DIR = resolve(REPO_ROOT, "frontend/src/addons");
+
+const SOURCE_ROOTS = [
+  "frontend/src",
+  ...(existsSync(ADDONS_DIR)
+    ? readdirSync(ADDONS_DIR, { withFileTypes: true })
+        .filter((e) => e.isDirectory())
+        .map((e) => `addons/${e.name}/frontend`)
+    : []),
+];
+
+/**
+ * Screens that still write their own `<h1>`, each with the reason it has not
+ * moved. Removing a line here is how a migration is recorded; adding one
+ * should need an argument.
+ */
+const NOT_YET_MIGRATED: Record<string, string> = {
+  // Brand surfaces outside the AppShell — these are not page headers naming a
+  // subject, they are the product introducing itself.
+  "frontend/src/app/setup/steps/WelcomeStep.tsx": "first-run wizard, brand surface",
+  "frontend/src/app/setup/steps/LanguageStep.tsx": "first-run wizard, brand surface",
+  "frontend/src/app/setup/steps/UnlockStep.tsx": "first-run wizard, brand surface",
+  "frontend/src/app/unlock/page.tsx": "unlock gate, outside the AppShell",
+
+
+  // The inspector's fixed block heads a region and wants to be an <h2>, but
+  // `FileDetailChrome` emits no page heading yet, so demoting it now would
+  // leave the file detail page with no <h1> at all.
+  "frontend/src/components/FileDetail/FileMetaBlock.tsx":
+    "inspector heading; demoted with the FileDetailChrome migration (PR A2b)",
+
+};
+
+
+/** The one component allowed to emit a page's `<h1>`. */
+const OWNER = "frontend/src/components/PageHeader.tsx";
+
+function sourceFiles(root: string): string[] {
+  const abs = resolve(REPO_ROOT, root);
+  if (!existsSync(abs)) return [];
+  const out: string[] = [];
+  const walk = (dir: string) => {
+    if (dir === ADDON_LINK_DIR) return;
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = resolve(dir, entry.name);
+      if (entry.name === "node_modules" || entry.name.startsWith(".")) continue;
+      if (!existsSync(full)) continue;
+      if (statSync(full).isDirectory()) walk(full);
+      else if (/\.tsx$/.test(entry.name) && !/\.test\.tsx$/.test(entry.name)) {
+        out.push(full);
+      }
+    }
+  };
+  walk(abs);
+  return out;
+}
+
+
+interface Heading {
+  file: string;
+  line: number;
+  tag: string;
+}
+
+function headings(): Heading[] {
+  const found: Heading[] = [];
+  for (const root of SOURCE_ROOTS) {
+    for (const file of sourceFiles(root)) {
+      const text = stripComments(readFileSync(file, "utf-8"));
+      for (const m of text.matchAll(/<h1\b[^>]*>/g)) {
+        found.push({
+          file: relative(REPO_ROOT, file),
+          line: text.slice(0, m.index!).split("\n").length,
+          tag: m[0],
+        });
+      }
+    }
+  }
+  return found;
+}
+
+function staleEntries(paths: string[], root: string = REPO_ROOT): string[] {
+  return paths.filter((f) => {
+    // The *addon* being absent excuses an entry, not the file: a listed file
+    // deleted inside a checked-out addon is stale.
+    if (f.startsWith("addons/") && !addonPresent(root, f)) return false;
+    const full = resolve(root, f);
+    if (!existsSync(full)) return true;
+    return !/<h1\b/.test(stripComments(readFileSync(full, "utf-8")));
+  });
+}
+
+describe("page headings", () => {
+  it("accounts for every <h1> in the tree", () => {
+    const unaccounted = headings()
+      .map((h) => h.file)
+      .filter((f) => f !== OWNER && !(f in NOT_YET_MIGRATED));
+    expect([...new Set(unaccounted)].sort()).toEqual([]);
+  });
+
+  // The exact count, so that a *new* hand-written `<h1>` in an
+  // already-listed file is caught too — the allowlist is keyed by file, and a
+  // second heading inside one of them would otherwise slip through.
+  it("finds exactly the headings it expects", () => {
+    // Counted per source root: a single total would depend on which
+    // submodules happen to be checked out.
+    const perRoot = new Map<string, number>();
+    for (const h of headings()) {
+      const root = h.file.startsWith("addons/")
+        ? h.file.split("/").slice(0, 3).join("/")
+        : "frontend/src";
+      perRoot.set(root, (perRoot.get(root) ?? 0) + 1);
+    }
+    // `OWNER` is excluded from the allowlist check above, never from this
+    // count.
+    expect(perRoot.get("frontend/src")).toBe(6);
+
+    const EXPECTED_ADDON_HEADINGS: Record<string, number> = {
+      "addons/intelligence": 0,
+      "addons/knowledge": 0,
+      "addons/media_import": 0,
+    };
+
+    for (const [root, expected] of Object.entries(EXPECTED_ADDON_HEADINGS)) {
+      // The scanned path, not the submodule directory: an uninitialised
+      // submodule leaves `addons/<name>/` behind as an empty directory.
+      if (!existsSync(resolve(REPO_ROOT, root, "frontend"))) continue;
+      expect(perRoot.get(`${root}/frontend`) ?? 0).toBe(expected);
+    }
+  });
+
+  it("emits the page heading from exactly one component", () => {
+    const owned = headings().filter((h) => h.file === OWNER);
+    expect(owned).toHaveLength(1);
+  });
+
+  it("gives the owned heading the §3.2 size and nothing else", () => {
+    const [owned] = headings().filter((h) => h.file === OWNER);
+    expect(owned.tag).toContain("text-2xl");
+    expect(owned.tag).toContain("font-bold");
+    const others = owned.tag.match(/\btext-(xs|sm|base|lg|xl|3xl|4xl)\b/g);
+    expect(others).toBeNull();
+  });
+
+  // Every entry must name a real file. A stale line is worse than no line: it
+  // reads as a considered decision while excusing nothing.
+  it("keeps the not-yet-migrated list free of stale entries", () => {
+    expect(staleEntries(Object.keys(NOT_YET_MIGRATED))).toEqual([]);
+  });
+
+  // The real ledger asserts an empty result, which cannot go red when the
+  // excuse is too broad; these cases expect something back.
+  describe("what counts as stale", () => {
+    let root: string;
+
+    beforeAll(() => {
+      root = mkdtempSync(resolve(tmpdir(), "page-headings-"));
+      mkdirSync(resolve(root, "addons/present/frontend"), { recursive: true });
+      writeFileSync(
+        resolve(root, "addons/present/frontend/Heading.tsx"),
+        "export const A = () => <h1>title</h1>;\n",
+      );
+      writeFileSync(
+        resolve(root, "addons/present/frontend/NoHeading.tsx"),
+        "export const B = () => <h2>section</h2>;\n",
+      );
+    });
+
+    afterAll(() => {
+      rmSync(root, { recursive: true, force: true });
+    });
+
+    it("keeps one that still writes a heading", () => {
+      expect(
+        staleEntries(["addons/present/frontend/Heading.tsx"], root),
+      ).toEqual([]);
+    });
+
+    it("reports a listed file that writes no heading", () => {
+      expect(
+        staleEntries(["addons/present/frontend/NoHeading.tsx"], root),
+      ).toEqual(["addons/present/frontend/NoHeading.tsx"]);
+    });
+
+    it("treats an addon that is not checked out as absent", () => {
+      expect(staleEntries(["addons/absent/frontend/x.tsx"], root)).toEqual([]);
+    });
+
+    it("still reports a file that has gone from an addon that is here", () => {
+      // Absence of the addon is a reason; absence of the file is the defect.
+      expect(
+        staleEntries(["addons/present/frontend/Deleted.tsx"], root),
+      ).toEqual(["addons/present/frontend/Deleted.tsx"]);
+    });
+  });
+});

@@ -1,26 +1,4 @@
-"""Unit tests for ``app.services.frontmatter.ensure_id`` (Phase A).
-
-The ``ensure_id`` helper is a pure function that decides whether the
-frontmatter for a ``.md`` file needs an ``id:`` key written in. It is
-called by both ``PUT /api/files/{id}/content`` (core write path) and
-the scanner's first-detect hook.
-
-Spec: docs/superpowers/specs/2026-05-12-markdown-link-three-forms.md §3.1 / §4 Phase A.
-
-Contract:
-- ``ensure_id(metadata, existing_id=None, now=None) -> (new_metadata, id_value)``
-- Idempotent: if ``metadata['id']`` is a string/int matching ``^\\d{12,17}$``
-  it is preserved as-is (and normalised to string).
-- Otherwise, if ``existing_id`` is provided and valid, it is used.
-- Otherwise, a fresh 14-digit ``YYYYMMDDhhmmss`` timestamp is generated
-  from ``now`` (or ``datetime.now(UTC)``).
-- ``id`` is the first key of the returned dict (top-down readability).
-- Input metadata is never mutated; a new dict is returned.
-
-Collision handling (3-digit ms suffix → 17 chars) is the caller's
-responsibility — the helper itself is pure (the caller queries the DB
-for collisions and re-calls with a different ``now``).
-"""
+"""Unit tests for ``app.services.frontmatter.ensure_id`` (Phase A)."""
 from __future__ import annotations
 
 import re
@@ -153,7 +131,6 @@ class TestEnsureIdOrdering:
         new_meta, _ = ensure_id(metadata, existing_id=None, now=now)
         keys = list(new_meta.keys())
         assert keys[0] == "id"
-        # The remaining keys preserve original order.
         assert keys[1:] == ["tags", "created"]
 
     def test_id_appears_first_even_when_preserved(self) -> None:
@@ -179,7 +156,6 @@ class TestEnsureIdImmutability:
 
 
 class TestComposeHelper:
-    """``compose(metadata, body)`` mirrors the addons/knowledge helper."""
 
     def test_compose_roundtrip_with_id(self) -> None:
         metadata = {"id": "20260512143028", "tags": ["a"]}

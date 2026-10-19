@@ -11,6 +11,8 @@ import type { FileItem } from "@/types";
 
 function makeFile(id: string): FileItem {
   return {
+    image_width: null,
+    image_height: null,
     id,
     filename: `${id}.mp4`,
     title: `File ${id}`,
@@ -23,12 +25,14 @@ function makeFile(id: string): FileItem {
     has_thumbnail: true,
     file_size: 1024,
     duration: 60,
-    likes: 0,
+    liked_at: null,
     is_favorite: false,
     tags: [],
     subtitles: [],
     deleted_at: null,
     missing_since: null,
+    trust_tier: "verified",
+    trust_reviewed_at: null,
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
   };
@@ -40,7 +44,7 @@ const BASE_SNAPSHOT: Omit<ListSnapshot, "ts"> = {
   pagesLoaded: 3,
   items: [makeFile("a"), makeFile("b")],
   total: 90,
-  folders: [{ name: "sub", path: "photos/sub", file_count: 5, thumbnail_file_id: null, dominant_kind: null }],
+  folders: [{ name: "sub", path: "photos/sub", file_count: 5, kind_counts: {}, dominant_kind: null }],
   filters: { sort: "created_at", order: "desc", typeFilter: null, viewMode: "grid" },
 };
 
@@ -120,6 +124,39 @@ describe("listSnapshot", () => {
         ts: Date.now(),
       };
       window.sessionStorage.setItem("hv_list_snapshot", JSON.stringify(bad));
+      expect(loadListSnapshot("main|photos||")).toBeNull();
+    });
+
+    it("discards a snapshot filtered by the old markdown kind", () => {
+      const stale = {
+        ...BASE_SNAPSHOT,
+        filters: { ...BASE_SNAPSHOT.filters, typeFilter: "markdown" },
+        ts: Date.now(),
+      };
+      window.sessionStorage.setItem("hv_list_snapshot", JSON.stringify(stale));
+      expect(loadListSnapshot("main|photos||")).toBeNull();
+    });
+
+    it("evicts a snapshot holding a retired sort field", () => {
+      // "likes" outlives the deploy that removed it, and replaying it
+      // would 422.
+      const stale = {
+        ...BASE_SNAPSHOT,
+        filters: { ...BASE_SNAPSHOT.filters, sort: "likes" },
+        ts: Date.now(),
+      };
+      window.sessionStorage.setItem("hv_list_snapshot", JSON.stringify(stale));
+      expect(loadListSnapshot("main|photos||")).toBeNull();
+      expect(window.sessionStorage.getItem("hv_list_snapshot")).toBeNull();
+    });
+
+    it("evicts a snapshot holding a listing-only sort field", () => {
+      const stale = {
+        ...BASE_SNAPSHOT,
+        filters: { ...BASE_SNAPSHOT.filters, sort: "updated_at" },
+        ts: Date.now(),
+      };
+      window.sessionStorage.setItem("hv_list_snapshot", JSON.stringify(stale));
       expect(loadListSnapshot("main|photos||")).toBeNull();
     });
 

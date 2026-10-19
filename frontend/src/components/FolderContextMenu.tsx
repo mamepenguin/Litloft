@@ -30,19 +30,10 @@ interface FolderContextMenuProps {
   onTogglePin?: () => void;
   onUpdate?: () => void;
   onClose: () => void;
-  /**
-   * Tree-pane opt-ins. Each callback adds a corresponding menu item; the
-   * right pane (FolderContent / DriveHome) leaves them unset and the
-   * surface shape stays unchanged.
-   */
   onOpen?: () => void;
   onCreateFileHere?: () => void;
-  /**
-   * When provided, the menu shows "New folder here" and creates the
-   * folder via the core createFolder API. The callback is invoked after
-   * a successful creation so the caller can refresh its tree/list.
-   */
   onCreateFolderHere?: () => void;
+  onStartInlineRename?: () => void;
 }
 
 export function FolderContextMenu({
@@ -57,6 +48,7 @@ export function FolderContextMenu({
   onOpen,
   onCreateFileHere,
   onCreateFolderHere,
+  onStartInlineRename,
 }: FolderContextMenuProps) {
   const t = useTranslations("folder");
   const tc = useTranslations("common");
@@ -160,7 +152,9 @@ export function FolderContextMenu({
   items.push({
     icon: Pencil,
     label: tc("rename"),
-    onClick: () => setRenameOpen(true),
+    // Branch on the prop's presence, not its return value.
+    onClick: () =>
+      onStartInlineRename ? onStartInlineRename() : setRenameOpen(true),
   });
   items.push({
     icon: Move,

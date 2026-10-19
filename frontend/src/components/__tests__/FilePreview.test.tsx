@@ -1,15 +1,44 @@
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { resolve, dirname } from "node:path";
+
+import { accentFills } from "@/__tests__/helpers/accentFills";
 import { FilePreview } from "../FilePreview";
 import type { FileItem } from "@/types";
 
+/**
+ * The layout fixture's declarations. The shell harness stubs `FilePreview`,
+ * so this is the only suite where the bleed wrapper's class list exists.
+ */
+const FIXTURE: Record<string, string> = JSON.parse(
+  readFileSync(
+    resolve(
+      dirname(fileURLToPath(import.meta.url)),
+      "../../../e2e-layout/fixtures/mobile-inspector-sheet.html",
+    ),
+    "utf-8",
+  ).match(
+    /<script type="application\/json" id="fixture-markup">([\s\S]*?)<\/script>/,
+  )![1],
+);
+
+const sorted = (className: string) =>
+  className.split(/\s+/).filter(Boolean).sort();
+
 vi.mock("@/lib/api", () => ({
   getStreamUrl: (id: string) => `/api/files/${id}/stream`,
+  getDownloadUrl: (id: string) => `/api/files/${id}/stream?download=true`,
+  getThumbnailUrl: (id: string) => `/api/files/${id}/thumbnail`,
+  getPreviewTextUrl: (id: string) => `/api/files/${id}/preview-text`,
 }));
 
 vi.mock("../VideoPlayer", () => ({
-  VideoPlayer: ({ videoId }: { videoId: string }) => (
-    <div data-testid="video-player">{videoId}</div>
+  VideoPlayer: ({ videoId, posterUrl }: { videoId: string; posterUrl?: string }) => (
+    <div data-testid="video-player" data-poster={posterUrl ?? ""}>
+      {videoId}
+    </div>
   ),
 }));
 
@@ -31,12 +60,55 @@ vi.mock("../HtmlPreview", () => ({
   ),
 }));
 
-vi.mock("../TextPreview", () => ({
-  TextPreview: ({ fileId }: { fileId: string }) => (
-    <div data-testid="text-preview">{fileId}</div>
+const epubMounts = vi.hoisted(() => ({ count: 0 }));
+
+vi.mock("../epub/EpubPreview", async () => {
+  const { useEffect } = await import("react");
+  return {
+    EpubPreview: ({ file, initialSection }: { file: { id: string }; initialSection?: number | null }) => {
+      useEffect(() => {
+        epubMounts.count += 1;
+      }, []);
+      return (
+        <div data-testid="epub-preview">
+          {file.id}:{String(initialSection ?? null)}
+        </div>
+      );
+    },
+  };
+});
+
+vi.mock("../PdfPreview", () => ({
+  PdfPreview: ({
+    fileId,
+    initialPage,
+    onPdfController,
+  }: {
+    fileId: string;
+    initialPage?: number;
+    onPdfController?: unknown;
+  }) => (
+    <div data-testid="pdf-preview" data-has-pdf-controller={String(Boolean(onPdfController))}>
+      {fileId}:{initialPage ?? 1}
+    </div>
   ),
-  isTextPreviewable: (mime: string) => mime === "text/plain",
 }));
+
+// The predicate is the real one: what this file is about is which arguments
+// the call site hands it, and a stub answering on the mime alone cannot show
+// that the name was passed.
+vi.mock("../TextPreview", async () => {
+  const actual =
+    await vi.importActual<typeof import("../TextPreview")>("../TextPreview");
+  return {
+    isTextPreviewable: actual.isTextPreviewable,
+    TextPreview: ({ fileId, filename }: { fileId: string; filename?: string }) => (
+      <div data-testid="text-preview" data-filename={filename ?? ""}>
+        {fileId}
+      </div>
+    ),
+  };
+});
 
 vi.mock("../FileTypeIcon", () => ({
   FileTypeIcon: ({ fileType }: { fileType: string }) => (
@@ -45,8 +117,10 @@ vi.mock("../FileTypeIcon", () => ({
 }));
 
 vi.mock("../loft/LoftPlayer", () => ({
-  default: ({ fileId }: { fileId: string }) => (
-    <div data-testid="loft-player">{fileId}</div>
+  default: ({ fileId, posterUrl }: { fileId: string; posterUrl?: string }) => (
+    <div data-testid="loft-player" data-poster={posterUrl ?? ""}>
+      {fileId}
+    </div>
   ),
 }));
 
@@ -56,6 +130,8 @@ vi.mock("../AddonSlot", () => ({
 
 function makeFile(overrides: Partial<FileItem> = {}): FileItem {
   return {
+    image_width: null,
+    image_height: null,
     id: "file-1",
     filename: "test.mp4",
     title: "Test",
@@ -68,12 +144,14 @@ function makeFile(overrides: Partial<FileItem> = {}): FileItem {
     has_thumbnail: false,
     file_size: 1000,
     duration: 60,
-    likes: 0,
+    liked_at: null,
     is_favorite: false,
     tags: [],
     subtitles: [],
     deleted_at: null,
     missing_since: null,
+    trust_tier: "verified",
+    trust_reviewed_at: null,
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
     ...overrides,
@@ -81,6 +159,25 @@ function makeFile(overrides: Partial<FileItem> = {}): FileItem {
 }
 
 describe("FilePreview", () => {
+  it.each([
+    ["video-player", {}],
+    [
+      "loft-player",
+      { mime_type: "application/vnd.litloft.loft+json", filename: "clip.loft" },
+    ],
+  ] as const)("gives %s the thumbnail as its poster when there is one", (testId, kind) => {
+    const { unmount } = render(
+      <FilePreview file={makeFile({ ...kind, has_thumbnail: true })} />,
+    );
+    expect(screen.getByTestId(testId)).toHaveAttribute(
+      "data-poster",
+      "/api/files/file-1/thumbnail",
+    );
+    unmount();
+    render(<FilePreview file={makeFile({ ...kind, has_thumbnail: false })} />);
+    expect(screen.getByTestId(testId)).toHaveAttribute("data-poster", "");
+  });
+
   it("renders VideoPlayer for video files", () => {
     render(<FilePreview file={makeFile()} />);
     expect(screen.getByTestId("video-player")).toBeInTheDocument();
@@ -94,8 +191,6 @@ describe("FilePreview", () => {
   });
 
   it("renders SVG file via img tag with stream URL", () => {
-    // Regression guard for the stream XSS hardening
-    // (docs/superpowers/specs/2026-05-09-stream-xss-hardening.md):
     // SVG must keep going through <img> so that
     // ``Content-Disposition: attachment`` on the stream endpoint is
     // ignored as a sub-resource (browsers honour attachment only on
@@ -118,11 +213,39 @@ describe("FilePreview", () => {
     expect(screen.getByTestId("audio-player")).toBeInTheDocument();
   });
 
-  it("renders iframe for PDF files", () => {
+  // The viewer is loaded with next/dynamic and ssr: false, so it arrives a
+  // tick after render. That is deliberate: react-pdf evaluates pdfjs-dist,
+  // which needs DOMMatrix and throws during SSR.
+  it("renders the selectable PDF viewer at the requested page", async () => {
     const file = makeFile({ file_type: "document", mime_type: "application/pdf", filename: "doc.pdf" });
+    render(<FilePreview file={file} initialPage={4} />);
+    expect(await screen.findByTestId("pdf-preview")).toHaveTextContent("file-1:4");
+  });
+
+  it("renders the EPUB reader for an EPUB", async () => {
+    const file = makeFile({
+      file_type: "document",
+      mime_type: "application/epub+zip",
+      filename: "book.epub",
+    });
     render(<FilePreview file={file} />);
-    const iframe = screen.getByTitle("Test");
-    expect(iframe).toHaveAttribute("src", "/api/files/file-1/stream");
+    expect(await screen.findByTestId("epub-preview")).toHaveTextContent("file-1:null");
+  });
+
+  it("opens the EPUB reader at the requested section, and a new section remounts it", async () => {
+    const file = makeFile({
+      file_type: "document",
+      mime_type: "application/epub+zip",
+      filename: "book.epub",
+    });
+    epubMounts.count = 0;
+    const { rerender } = render(<FilePreview file={file} initialSection={3} />);
+    expect(await screen.findByTestId("epub-preview")).toHaveTextContent("file-1:3");
+    rerender(<FilePreview file={file} initialSection={3} />);
+    expect(epubMounts.count).toBe(1);
+    rerender(<FilePreview file={file} initialSection={5} />);
+    expect(screen.getByTestId("epub-preview")).toHaveTextContent("file-1:5");
+    expect(epubMounts.count).toBe(2);
   });
 
   it("renders ArchivePreview for archive files", () => {
@@ -136,6 +259,48 @@ describe("FilePreview", () => {
     render(<FilePreview file={file} />);
     expect(screen.getByTestId("text-preview")).toBeInTheDocument();
   });
+
+  // None of these four has a mime that says text; the name is all there is.
+  it.each([["main.rs"], ["main.go"], ["Makefile"], ["LICENSE"]])(
+    "renders TextPreview for %s",
+    (filename) => {
+      const file = makeFile({
+        file_type: "other",
+        mime_type: "application/octet-stream",
+        filename,
+      });
+      render(<FilePreview file={file} />);
+      expect(screen.getByTestId("text-preview")).toBeInTheDocument();
+    },
+  );
+
+  it("hands the text viewer the name it colours by", () => {
+    // Without this the viewer has no language and nothing is ever coloured.
+    const file = makeFile({
+      file_type: "other",
+      mime_type: "application/octet-stream",
+      filename: "main.rs",
+    });
+    render(<FilePreview file={file} />);
+    expect(screen.getByTestId("text-preview")).toHaveAttribute(
+      "data-filename",
+      "main.rs",
+    );
+  });
+
+  it.each([["a.out"], ["photo.raw"], ["app.bin"]])(
+    "offers no text viewer for %s",
+    (filename) => {
+      const file = makeFile({
+        file_type: "other",
+        mime_type: "application/octet-stream",
+        filename,
+      });
+      render(<FilePreview file={file} />);
+      expect(screen.queryByTestId("text-preview")).not.toBeInTheDocument();
+    },
+  );
+
 
   it("renders HtmlPreview for text/html files", () => {
     const file = makeFile({
@@ -165,10 +330,127 @@ describe("FilePreview", () => {
     expect(screen.queryByTestId("video-player")).not.toBeInTheDocument();
   });
 
+  it("carries the playable surface alone, in both player branches", () => {
+    // The bleed wrapper is the surface the Bottom Sheet's `half` stays clear
+    // of, so anything else inside it pushes the sheet below the player.
+    for (const file of [
+      makeFile(),
+      makeFile({
+        mime_type: "application/vnd.litloft.loft+json",
+        filename: "clip.loft",
+      }),
+    ]) {
+      const { container, unmount } = render(<FilePreview file={file} />);
+      const bleed = container.firstElementChild!;
+      expect(sorted(bleed.className)).toEqual(sorted(FIXTURE.playerBleed));
+      expect(bleed.children).toHaveLength(1);
+      unmount();
+    }
+  });
+
   it("renders fallback for unsupported files", () => {
     const file = makeFile({ file_type: "other", mime_type: "application/octet-stream", filename: "data.bin" });
     render(<FilePreview file={file} />);
-    expect(screen.getByText("data.bin")).toBeInTheDocument();
-    expect(screen.getByText("Preview not available")).toBeInTheDocument();
+    expect(screen.getByText(/data\.bin/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "This kind of file cannot be shown in a browser" }),
+    ).toBeInTheDocument();
+  });
+
+  /**
+   * Both of these are `<a>`, not buttons: a download whose address cannot be
+   * copied or middle-clicked is a worse download.
+   */
+  it("offers the file itself when it cannot be previewed", () => {
+    const file = makeFile({ file_type: "other", mime_type: "application/octet-stream", filename: "data.bin" });
+    render(<FilePreview file={file} />);
+
+    const download = screen.getByRole("link", { name: "Download" });
+    expect(download).toHaveAttribute("href", expect.stringContaining("download=true"));
+    // The attribute, not just the label: without `target` the "new tab"
+    // link navigates in this one, and the label is then the only place the
+    // promise lives. `rel` because a `_blank` without it hands the opened
+    // page a `window.opener`.
+    expect(download).toHaveAttribute("download");
+    const open = screen.getByRole("link", { name: "Open in new tab" });
+    expect(open).toHaveAttribute("href", expect.stringContaining(`/files/${file.id}/stream`));
+    expect(open.getAttribute("href")).not.toContain("download=true");
+    expect(open).toHaveAttribute("target", "_blank");
+    expect(open).toHaveAttribute("rel", "noopener noreferrer");
+
+    // Neither goes through the router: `<Link>` prefetches an internal
+    // href when it comes into view, which for a file endpoint means
+    // fetching the body of a file nobody asked for yet.
+    expect(download.getAttribute("data-prefetch")).toBeNull();
+    for (const el of [download, open]) {
+      expect(el.tagName).toBe("A");
+    }
+  });
+
+  /**
+   * One accent fill per screen. Counted through the shared detector rather
+   * than a `[class*='bg-accent']` selector, which miscounts `hover:bg-accent`,
+   * `bg-accent-cta` and `<svg>` class names.
+   */
+  it("spends one accent fill on the download", () => {
+    const file = makeFile({ file_type: "other", mime_type: "application/octet-stream", filename: "data.bin" });
+    const { container } = render(<FilePreview file={file} />);
+    expect(accentFills(container).map((el) => el.textContent)).toEqual(["Download"]);
+  });
+});
+
+
+describe("FilePreview's PDF controller pass-through", () => {
+  it("hands the viewer the callback the shell gave it", async () => {
+    // The page-list tab exists only if this reaches the viewer, and nothing
+    // in the shell's own suite can see the wire: it stubs `FilePreview`.
+    const file = makeFile({ file_type: "document", mime_type: "application/pdf", filename: "doc.pdf" });
+    render(<FilePreview file={file} onPdfController={vi.fn()} />);
+
+    expect(
+      (await screen.findByTestId("pdf-preview")).getAttribute("data-has-pdf-controller"),
+    ).toBe("true");
+  });
+
+  it("passes nothing when the caller offered nothing", async () => {
+    const file = makeFile({ file_type: "document", mime_type: "application/pdf", filename: "doc.pdf" });
+    render(<FilePreview file={file} />);
+
+    expect(
+      (await screen.findByTestId("pdf-preview")).getAttribute("data-has-pdf-controller"),
+    ).toBe("false");
+  });
+});
+
+
+describe("FilePreview's Office excerpt", () => {
+  const XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  const originalFetch = globalThis.fetch;
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it("puts the extracted text under the panel that says there is no preview", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () => "Trade statistics, 2019 return",
+    }) as unknown as typeof fetch;
+
+    render(<FilePreview file={makeFile({ file_type: "document", mime_type: XLSX, filename: "trade.xlsx" })} />);
+
+    // Both, and in this order: the excerpt is an addition to the empty
+    // state, not a replacement for it — a reader still needs the download.
+    expect(await screen.findByText("Trade statistics, 2019 return")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /download/i })).toBeInTheDocument();
+  });
+
+  it("asks for nothing on a file that is not Office", async () => {
+    const fetchMock = vi.fn();
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    render(<FilePreview file={makeFile({ file_type: "other", mime_type: "application/octet-stream", filename: "blob.bin" })} />);
+
+    await screen.findByRole("link", { name: /download/i });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

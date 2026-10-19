@@ -8,9 +8,11 @@ import { useTranslations } from "next-intl";
 import type { FileItem } from "@/types";
 import { getDaysRemaining } from "@/lib/trash";
 import { getThumbnailUrl } from "@/lib/api";
-import { formatFileSize } from "@/lib/format";
+import { primaryMetaLine } from "@/lib/primaryMeta";
+import { cardGridTemplate, useCardColumns } from "@/lib/cardGrid";
 import { FileTypeIcon } from "@/components/FileTypeIcon";
 import { ContextMenu, type MenuItem } from "@/components/ContextMenu";
+import { Button } from "@/components/Button";
 
 interface TrashFileGridProps {
   files: FileItem[];
@@ -24,65 +26,103 @@ interface TrashFileGridProps {
 }
 
 export function TrashFileGrid({
-  files, selectable, isSelected, onSelect, onMetaSelect, onShiftSelect,
-  onRestore, onPurge,
+  files,
+  selectable,
+  isSelected,
+  onSelect,
+  onMetaSelect,
+  onShiftSelect,
+  onRestore,
+  onPurge,
 }: TrashFileGridProps) {
   const formatRelativeDate = useRelativeDate();
   const tt = useTranslations("trash");
-  const [menuPos, setMenuPos] = useState<{ open: boolean; x: number; y: number }>({
-    open: false, x: 0, y: 0,
+  const [menuPos, setMenuPos] = useState<{
+    open: boolean;
+    x: number;
+    y: number;
+  }>({
+    open: false,
+    x: 0,
+    y: 0,
   });
   const [target, setTarget] = useState<FileItem | null>(null);
+  const { ref: gridRef, columns } = useCardColumns();
 
   const closeMenu = useCallback(() => {
     setMenuPos({ open: false, x: 0, y: 0 });
   }, []);
 
-  const menuItems: MenuItem[] = target ? [
-    {
-      icon: RotateCcw,
-      label: tt("restore"),
-      onClick: () => onRestore(target.id),
-    },
-    {
-      icon: Trash2,
-      label: tt("purge"),
-      onClick: () => onPurge(target.id),
-      danger: true,
-    },
-  ] : [];
+  const menuItems: MenuItem[] = target
+    ? [
+        {
+          icon: RotateCcw,
+          label: tt("restore"),
+          onClick: () => onRestore(target.id),
+        },
+        {
+          icon: Trash2,
+          label: tt("purge"),
+          onClick: () => onPurge(target.id),
+          danger: true,
+        },
+      ]
+    : [];
 
   return (
     <>
-      <div className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div
+        ref={gridRef}
+        className="grid gap-x-3 gap-y-6"
+        style={{ gridTemplateColumns: cardGridTemplate(columns) }}
+      >
         {files.map((file) => {
-          const hasThumbnail = file.has_thumbnail || file.file_type === "video" || file.file_type === "image";
+          const hasThumbnail =
+            file.has_thumbnail ||
+            file.file_type === "video" ||
+            file.file_type === "image";
           const selected = isSelected?.(file.id);
-          const daysRemaining = file.deleted_at ? getDaysRemaining(file.deleted_at) : 0;
+          const daysRemaining = file.deleted_at
+            ? getDaysRemaining(file.deleted_at)
+            : 0;
+          // No badge on this card to hang a length on: the corner
+          // `FileCard` puts it in is this surface's deadline.
+          const metaLine = primaryMetaLine(file);
 
           return (
             <div
               key={file.id}
-              className={`group relative block rounded-xl overflow-hidden transition-all duration-200 ease-out hover:bg-bg-card ${
+              className={`group/trash-item relative block rounded-xl overflow-hidden transition-all duration-200 ease-out hover:bg-bg-card ${
                 selectable ? "cursor-pointer select-none" : ""
               } ${selected ? "ring-2 ring-accent bg-bg-card" : ""}`}
-              onClick={selectable
-                ? (e) => {
-                    if (e.shiftKey && onShiftSelect) {
-                      e.preventDefault();
-                      onShiftSelect(file.id);
-                    } else {
-                      onSelect?.(file.id);
-                    }
-                  }
-                : undefined
-              }
-              onContextMenu={selectable ? undefined : (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setTarget(file);
-                setMenuPos({ open: true, x: e.clientX, y: e.clientY });
+              /* Not gated on `selectable`: Cmd/Ctrl-click is how a
+                 selection is *started* here. */
+              onClick={(e) => {
+                // Shift first once a selection is running: Cmd/Ctrl+Shift
+                // extends the range rather than toggling one file.
+                if (selectable && e.shiftKey && onShiftSelect) {
+                  e.preventDefault();
+                  onShiftSelect(file.id);
+                  return;
+                }
+                if ((e.metaKey || e.ctrlKey) && onMetaSelect) {
+                  e.preventDefault();
+                  onMetaSelect(file.id);
+                  return;
+                }
+                if (!selectable) return;
+                onSelect?.(file.id);
               }}
+              onContextMenu={
+                selectable
+                  ? undefined
+                  : (e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setTarget(file);
+                      setMenuPos({ open: true, x: e.clientX, y: e.clientY });
+                    }
+              }
             >
               {selectable && (
                 <div className="absolute top-2 left-2 z-10">
@@ -95,8 +135,19 @@ export function TrashFileGrid({
                     aria-hidden
                   >
                     {selected && (
-                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                        <path d="M2 6L5 9L10 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 12 12"
+                        fill="none"
+                      >
+                        <path
+                          d="M2 6L5 9L10 3"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
                     )}
                   </div>
@@ -113,32 +164,17 @@ export function TrashFileGrid({
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center opacity-60">
-                    <FileTypeIcon fileType={file.file_type} size={48} className="text-text-muted" />
+                    <FileTypeIcon
+                      fileType={file.file_type}
+                      size={48}
+                      className="text-text-muted"
+                    />
                   </div>
                 )}
 
-                <div className="absolute bottom-2 right-2 rounded-lg bg-black/70 px-1.5 py-0.5 text-xs font-medium text-text-muted">
+                <div className="absolute bottom-2 right-2 rounded-lg bg-black/70 px-1.5 py-0.5 text-xs font-medium text-white">
                   {tt("daysRemaining", { days: daysRemaining })}
                 </div>
-
-                {!selectable && (
-                  <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onRestore(file.id); }}
-                      className="rounded-lg bg-black/60 p-1.5 text-white transition-colors hover:bg-accent"
-                      aria-label={tt("restore")}
-                    >
-                      <RotateCcw size={14} />
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onPurge(file.id); }}
-                      className="rounded-lg bg-black/60 p-1.5 text-white transition-colors hover:bg-danger"
-                      aria-label={tt("purge")}
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                )}
               </div>
 
               <div className="p-3">
@@ -146,9 +182,54 @@ export function TrashFileGrid({
                   {file.title}
                 </h3>
                 <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-text-muted">
-                  <span className="tabular-nums">{formatFileSize(file.file_size)}</span>
-                  <span className="opacity-40">·</span>
-                  <span className="tabular-nums">{formatRelativeDate(file.updated_at)}</span>
+                  {metaLine !== null && (
+                    <>
+                      <span className="tabular-nums">{metaLine}</span>
+                      <span className="opacity-40">·</span>
+                    </>
+                  )}
+                  <span className="tabular-nums">
+                    {formatRelativeDate(file.updated_at)}
+                  </span>
+                </div>
+
+                {/* `opacity-0` and not `hidden`, so the button stays in the
+                    tab order for `group-focus-within` to fire on;
+                    `pointer-coarse:opacity-100` because `group-hover`
+                    compiles inside `@media (hover: hover)`. */}
+                {/* Made `invisible` in selection mode rather than dropped:
+                    the strip is in flow, so unmounting it would make the
+                    grid jump under the Cmd/Ctrl-click that starts a
+                    selection. */}
+                <div
+                  className={`mt-2 flex flex-wrap items-center gap-1 opacity-0 transition-opacity group-hover/trash-item:opacity-100 group-focus-within/trash-item:opacity-100 pointer-coarse:min-h-11 pointer-coarse:opacity-100 ${
+                    selectable ? "invisible" : ""
+                  }`}
+                >
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRestore(file.id);
+                    }}
+                    aria-label={tt("restoreNamed", { name: file.title })}
+                  >
+                    <RotateCcw size={14} />
+                    {tt("restore")}
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onPurge(file.id);
+                    }}
+                    aria-label={tt("purgeNamed", { name: file.title })}
+                  >
+                    <Trash2 size={14} />
+                    {tt("purge")}
+                  </Button>
                 </div>
               </div>
             </div>

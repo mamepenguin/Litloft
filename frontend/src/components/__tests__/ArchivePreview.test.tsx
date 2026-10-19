@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { act, render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { ReactNode } from "react";
 import { ArchivePreview } from "../ArchivePreview";
@@ -27,7 +27,7 @@ vi.mock("../ViewToggle", () => ({
 function renderWithShortcuts(ui: ReactNode) {
   return render(<ShortcutsProvider>{ui}</ShortcutsProvider>);
 }
-import type { ArchiveContents } from "@/types";
+import type { ArchiveContents, ArchiveEntry } from "@/types";
 
 const mockArchive: ArchiveContents = {
   entries: [
@@ -77,6 +77,27 @@ const mockArchive: ArchiveContents = {
       is_dir: false,
     },
     {
+      // Opened by its extension, not by its mime: `classify` has no bucket
+      // for Dart, so a ZIP entry named `main.dart` arrives here opaque.
+      path: "main.dart",
+      filename: "main.dart",
+      file_size: 512,
+      compressed_size: 400,
+      file_type: "other",
+      mime_type: "application/octet-stream",
+      is_dir: false,
+    },
+    {
+      // Over `MAX_TEXT_AUTO_LOAD`, so opening it must ask first.
+      path: "huge.log",
+      filename: "huge.log",
+      file_size: 4 * 1024 * 1024,
+      compressed_size: 900000,
+      file_type: "document",
+      mime_type: "text/plain",
+      is_dir: false,
+    },
+    {
       path: "data.bin",
       filename: "data.bin",
       file_size: 1024,
@@ -86,7 +107,7 @@ const mockArchive: ArchiveContents = {
       is_dir: false,
     },
   ],
-  total_entries: 6,
+  total_entries: 8,
   total_size: 1140000,
 };
 
@@ -114,13 +135,24 @@ const mockedGetArchiveContents = vi.mocked(getArchiveContents);
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // `mockReset` as well as `clearAllMocks`: a `mockReturnValueOnce`
+  // queued by a test that changes `fileId` mid-run is not cleared by
+  // `clearAllMocks`, and an unconsumed one is then handed to whichever
+  // test happens to run next.
+  mockedGetArchiveContents.mockReset();
   mockedGetArchiveContents.mockResolvedValue(mockArchive);
   mockSearchParams.delete("archivePath");
   localStorage.clear();
 });
 
+const originalFetch = globalThis.fetch;
+
 afterEach(() => {
   localStorage.clear();
+  // Restored by hand, not with `vi.unstubAllGlobals()`: the
+  // `IntersectionObserver` stub above is installed once at module scope, and
+  // unstubbing everything takes it away with the fetch.
+  globalThis.fetch = originalFetch;
 });
 
 describe("ArchivePreview", () => {
@@ -134,7 +166,6 @@ describe("ArchivePreview", () => {
     expect(screen.getByText("readme.txt")).toBeInTheDocument();
     expect(screen.getByText("cover.jpg")).toBeInTheDocument();
     expect(screen.getByText("data.bin")).toBeInTheDocument();
-    // Files in subdirectory should not appear at root
     expect(screen.queryByText("001.jpg")).not.toBeInTheDocument();
   });
 
@@ -145,7 +176,6 @@ describe("ArchivePreview", () => {
       expect(screen.getByText("chapter1")).toBeInTheDocument();
     });
 
-    // The directory entry should be a button
     const dirButton = screen.getByText("chapter1").closest("button");
     expect(dirButton).toBeTruthy();
     expect(dirButton).not.toBeDisabled();
@@ -160,25 +190,20 @@ describe("ArchivePreview", () => {
 
     fireEvent.click(screen.getByText("chapter1"));
 
-    // Should navigate via router.push with archivePath param
     expect(mockPush).toHaveBeenCalledWith("?archivePath=chapter1");
   });
 
   it("breadcrumb navigation works", async () => {
-    // Simulate being inside chapter1
     mockSearchParams.set("archivePath", "chapter1");
     render(<ArchivePreview fileId="test-id" />);
 
-    await waitFor(() => {
-      expect(screen.getByText("001.jpg")).toBeInTheDocument();
-    });
-
-    // Breadcrumb should show Archive > chapter1
-    expect(screen.getByText("Archive")).toBeInTheDocument();
-    // Click "Archive" to go back to root
+    expect(await screen.findByText("Archive")).toBeInTheDocument();
+    expect(screen.getByText("chapter1")).toBeInTheDocument();
+    // This level is nothing but pages, so the grid stops repeating
+    // their names under the thumbnails.
+    expect(screen.queryByText("001.jpg")).toBeNull();
     fireEvent.click(screen.getByText("Archive"));
 
-    // Should navigate to root (no query params, uses pathname)
     expect(mockPush).toHaveBeenCalledWith(window.location.pathname);
   });
 
@@ -195,7 +220,6 @@ describe("ArchivePreview", () => {
       expect(screen.getByAltText("cover.jpg")).toBeInTheDocument();
     });
 
-    // Should show counter
     expect(screen.getByText("1 / 1")).toBeInTheDocument();
   });
 
@@ -215,7 +239,6 @@ describe("ArchivePreview", () => {
     fireEvent.keyDown(document, { key: "Escape" });
 
     await waitFor(() => {
-      // Should be back to listing
       expect(screen.getByText("readme.txt")).toBeInTheDocument();
       expect(screen.queryByAltText("cover.jpg")).not.toBeInTheDocument();
     });
@@ -233,14 +256,395 @@ describe("ArchivePreview", () => {
     });
   });
 
-  it("non-previewable files are disabled", async () => {
+  it("opens the text viewer from the grid, not only from the listing", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, text: async () => "hello from the zip" }) as unknown as typeof fetch;
+    // The root level derives a list (one image among three files), so the
+    // grid is reached the way a reader reaches it: by choosing it.
+    localStorage.setItem(
+      "archive-view-choices",
+      JSON.stringify([{ id: "test-id", mode: "grid" }])
+    );
+    render(<ArchivePreview fileId="test-id" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("readme.txt")).toBeInTheDocument();
+    });
+    // Asserted rather than assumed: this test reaches the grid through
+    // `useArchiveViewMode`'s storage. The listing renders a
+    // `<ul role="list">`; the grid does not.
+    expect(screen.queryByRole("list")).toBeNull();
+
+    fireEvent.click(screen.getByText("readme.txt"));
+
+    expect(await screen.findByTestId("text-viewer")).toBeInTheDocument();
+    expect(await screen.findByText("hello from the zip")).toBeInTheDocument();
+  });
+
+  it("asks before fetching a text entry over 1 MB", async () => {
+    globalThis.fetch = vi.fn() as unknown as typeof fetch;
+    render(<ArchivePreview fileId="test-id" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("huge.log")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText("huge.log"));
+
+    expect(await screen.findByText("Load")).toBeInTheDocument();
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+
+  it("opens it from the listing too", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, text: async () => "hello from the zip" }) as unknown as typeof fetch;
+    render(<ArchivePreview fileId="test-id" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("readme.txt")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText("readme.txt"));
+
+    expect(await screen.findByTestId("text-viewer")).toBeInTheDocument();
+  });
+
+  it("offers a download when the text cannot be fetched", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500, statusText: "Server Error" }) as unknown as typeof fetch;
+    render(<ArchivePreview fileId="test-id" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("readme.txt")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText("readme.txt"));
+
+    await screen.findByText("This file could not be opened");
+    // Named exactly "Download": the viewer's own header link is named
+    // "Download readme.txt", so this picks out the empty state's action
+    // rather than either one that happens to be on screen.
+    const link = screen.getByRole("link", { name: "Download" });
+    // `EmptyState`'s action carries `download` as a flag, so the name comes
+    // from the URL rather than the attribute.
+    expect(link.hasAttribute("download")).toBe(true);
+    expect(link.getAttribute("href")).toContain("readme.txt");
+  });
+
+  it("opens a source file the mime table has no name for", async () => {
+    // `isTextPreviewable` reads the entry's name here because the mime
+    // is `application/octet-stream` — the same value `data.bin` carries, so
+    // the mime alone cannot tell the two apart.
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, text: async () => "void main() {}" }) as unknown as typeof fetch;
+    render(<ArchivePreview fileId="test-id" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("main.dart")).toBeInTheDocument();
+    });
+    const row = screen.getByText("main.dart").closest("li")!;
+    expect(within(row).queryByText("No preview")).toBeNull();
+
+    fireEvent.click(screen.getByText("main.dart"));
+    expect(await screen.findByText("void main() {}")).toBeInTheDocument();
+  });
+
+  it("non-previewable files are not controls, and are given a way out", async () => {
     render(<ArchivePreview fileId="test-id" />);
 
     await waitFor(() => {
       expect(screen.getByText("data.bin")).toBeInTheDocument();
     });
 
-    const binButton = screen.getByText("data.bin").closest("button");
-    expect(binButton).toBeDisabled();
+    const row = screen.getByText("data.bin").closest("li")!;
+    expect(row.querySelector("button")).toBeNull();
+    expect(within(row).getByText("No preview")).toBeInTheDocument();
+    expect(within(row).getByRole("link").getAttribute("download")).toBe(
+      "data.bin"
+    );
+  });
+});
+
+
+/**
+ * Reading `getState()` straight after the grid appears assumes the
+ * store's effect has run for the *loaded* archive rather than for the
+ * `null` the fetch sets first.
+ */
+async function loadedEntries(
+  controller: () => import("@/lib/archiveController").ArchiveController | null,
+) {
+  await waitFor(() => {
+    expect(controller()?.getState().entries.length).toBeGreaterThan(0);
+  });
+  return controller()!.getState().entries;
+}
+
+/** Fails by name rather than by `undefined` reaching the component. */
+function entryAt(entries: ArchiveEntry[], path: string) {
+  const found = entries.find((e) => e.path === path);
+  if (!found) {
+    throw new Error(
+      `no archive entry at ${path}; have ${entries.map((e) => e.path).join(", ")}`,
+    );
+  }
+  return found;
+}
+
+describe("ArchivePreview — the index's press", () => {
+  it("publishes the whole archive and the level to the inspector", async () => {
+    // The controller is handed over once and updated in place — the
+    // inspector subscribes, it is not re-mounted per level.
+    const published: Array<import("@/lib/archiveController").ArchiveController> =
+      [];
+    renderWithShortcuts(
+      <ArchivePreview
+        fileId="file-1"
+        onArchiveController={(c) => {
+          if (c) published.push(c);
+        }}
+      />,
+    );
+    await screen.findByText("cover.jpg");
+    expect(published).toHaveLength(1);
+    // The store is filled from a `useEffect` — deliberately, because `set`
+    // notifies its subscribers synchronously and one of them is a
+    // component — so it lands a flush later than the row `findByText` sees.
+    await waitFor(() =>
+      expect(published[0].getState().entries).toHaveLength(8),
+    );
+    const state = published[0].getState();
+    // Every entry at every depth, not the level the canvas is on.
+    expect(state.entries).toHaveLength(8);
+    expect(state.currentPath).toBe("");
+  });
+
+  it("empties the index while a different archive is loading", async () => {
+    // The panel subscribes to the store rather than remounting, and the
+    // App Router keeps this component's state across a file change. Left
+    // alone, zip A's index sits beside zip B's spinner — and pressing a
+    // row there writes A's path into B's URL.
+    let controller: import("@/lib/archiveController").ArchiveController | null =
+      null;
+    const view = renderWithShortcuts(
+      <ArchivePreview
+        fileId="file-1"
+        onArchiveController={(c) => {
+          if (c) controller = c;
+        }}
+      />,
+    );
+    await screen.findByText("cover.jpg");
+    // Same flush gap as above: the row is rendered, the store is filled
+    // by an effect.
+    await waitFor(() =>
+      expect(controller!.getState().entries).toHaveLength(8),
+    );
+
+    let resolveSecond: (v: ArchiveContents) => void = () => {};
+    mockedGetArchiveContents.mockReturnValueOnce(
+      new Promise<ArchiveContents>((res) => {
+        resolveSecond = res;
+      }),
+    );
+    view.rerender(
+      <ShortcutsProvider>
+        <ArchivePreview
+          fileId="file-2"
+          onArchiveController={(c) => {
+            if (c) controller = c;
+          }}
+        />
+      </ShortcutsProvider>,
+    );
+
+    await waitFor(() => expect(controller!.getState().entries).toHaveLength(0));
+    await act(async () => {
+      resolveSecond({ entries: [], total_entries: 0, total_size: 0 });
+    });
+  });
+
+  it("descends into a directory the index hands it", async () => {
+    let controller: import("@/lib/archiveController").ArchiveController | null =
+      null;
+    renderWithShortcuts(
+      <ArchivePreview
+        fileId="file-1"
+        onArchiveController={(c) => {
+          controller = c;
+        }}
+      />,
+    );
+    await screen.findByText("cover.jpg");
+    mockPush.mockClear();
+
+    const dir = entryAt(
+      await loadedEntries(() => controller),
+      "chapter1/",
+    );
+    controller!.open(dir);
+
+    expect(mockPush).toHaveBeenCalledWith("?archivePath=chapter1");
+  });
+
+  it("moves to the level first for a leaf that is not on this one, then opens it", async () => {
+    // `handleFileClick` reads the *current* level's image list, so
+    // calling it before the move lands opens the wrong page or none.
+    let controller: import("@/lib/archiveController").ArchiveController | null =
+      null;
+    const view = renderWithShortcuts(
+      <ArchivePreview
+        fileId="file-1"
+        onArchiveController={(c) => {
+          controller = c;
+        }}
+      />,
+    );
+    await screen.findByText("cover.jpg");
+    mockPush.mockClear();
+
+    const deep = entryAt(
+      await loadedEntries(() => controller),
+      "chapter1/002.jpg",
+    );
+    await act(async () => {
+      controller!.open(deep);
+    });
+
+    expect(mockPush).toHaveBeenCalledWith("?archivePath=chapter1");
+    // Nothing has opened yet: the level has not arrived. The page-turner
+    // is a dialog; the grid draws an `<img alt="002.jpg">` of its own, so
+    // the alt text cannot tell the two apart.
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    // The commit that `router.push` guarantees before the level changes.
+    // Without it the mock delivers the request and the level change in
+    // one flush, which the browser never does — and the effect that
+    // decides whether the pending open survives never runs in between.
+    await act(async () => {});
+
+    // The navigation lands. `useSearchParams` is a mock, so the level
+    // change has to be delivered by hand.
+    mockSearchParams.set("archivePath", "chapter1");
+    view.rerender(
+      <ShortcutsProvider>
+        <ArchivePreview fileId="file-1" onArchiveController={() => {}} />
+      </ShortcutsProvider>,
+    );
+
+    await screen.findByRole("dialog");
+  });
+
+  it("lets a second press replace the one still in flight", async () => {
+    // A deep press, then a same-level press before the first lands. The
+    // same-level entry opens straight away; if the deep one is still
+    // armed it opens too, the moment its navigation arrives — a page the
+    // reader pressed once and got twice.
+    let controller: import("@/lib/archiveController").ArchiveController | null =
+      null;
+    const view = renderWithShortcuts(
+      <ArchivePreview
+        fileId="file-1"
+        onArchiveController={(c) => {
+          controller = c;
+        }}
+      />,
+    );
+    await screen.findByText("cover.jpg");
+
+    const deep = entryAt(
+      await loadedEntries(() => controller),
+      "chapter1/002.jpg",
+    );
+    const here = entryAt(
+      await loadedEntries(() => controller),
+      "readme.txt",
+    );
+    await act(async () => {
+      controller!.open(deep);
+    });
+    await act(async () => {
+      controller!.open(here);
+    });
+    await screen.findByTestId("text-viewer");
+
+    // The deep request's navigation lands afterwards. Nothing should
+    // open on top of the text viewer.
+    mockSearchParams.set("archivePath", "chapter1");
+    view.rerender(
+      <ShortcutsProvider>
+        <ArchivePreview fileId="file-1" onArchiveController={() => {}} />
+      </ShortcutsProvider>,
+    );
+    await screen.findByAltText("001.jpg");
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("drops a pending open the reader navigated away from", async () => {
+    // Press a deep leaf, then go somewhere else before it lands. Waiting
+    // forever turns that into a page that opens itself later, the moment
+    // the reader happens to walk into that folder.
+    let controller: import("@/lib/archiveController").ArchiveController | null =
+      null;
+    const view = renderWithShortcuts(
+      <ArchivePreview
+        fileId="file-1"
+        onArchiveController={(c) => {
+          controller = c;
+        }}
+      />,
+    );
+    await screen.findByText("cover.jpg");
+
+    const deep = entryAt(
+      await loadedEntries(() => controller),
+      "chapter1/002.jpg",
+    );
+    controller!.open(deep);
+
+    // The reader presses the root breadcrumb instead — the real control,
+    // because cancelling on another move is what makes this work: a
+    // reader who leaves and comes back leaves `currentPath` exactly
+    // where the request was issued, so no amount of watching state can
+    // tell the two apart.
+    await act(async () => {
+      fireEvent.click(screen.getByText("Archive"));
+    });
+    mockSearchParams.delete("archivePath");
+    view.rerender(
+      <ShortcutsProvider>
+        <ArchivePreview fileId="file-1" onArchiveController={() => {}} />
+      </ShortcutsProvider>,
+    );
+    await screen.findByText("cover.jpg");
+
+    // Later, they walk into chapter1 themselves. Nothing should open.
+    mockSearchParams.set("archivePath", "chapter1");
+    view.rerender(
+      <ShortcutsProvider>
+        <ArchivePreview fileId="file-1" onArchiveController={() => {}} />
+      </ShortcutsProvider>,
+    );
+    // The level really did change — chapter1's pages are on screen.
+    await screen.findByAltText("001.jpg");
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("opens a leaf on this level without moving anywhere", async () => {
+    let controller: import("@/lib/archiveController").ArchiveController | null =
+      null;
+    renderWithShortcuts(
+      <ArchivePreview
+        fileId="file-1"
+        onArchiveController={(c) => {
+          controller = c;
+        }}
+      />,
+    );
+    await screen.findByText("cover.jpg");
+    mockPush.mockClear();
+
+    const here = entryAt(
+      await loadedEntries(() => controller),
+      "readme.txt",
+    );
+    controller!.open(here);
+
+    expect(mockPush).not.toHaveBeenCalled();
+    // The text viewer is what "open" means for a `.txt`.
+    await screen.findByTestId("text-viewer");
   });
 });

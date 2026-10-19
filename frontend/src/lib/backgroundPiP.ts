@@ -34,6 +34,24 @@ export async function enterPictureInPicture(video: HTMLVideoElement): Promise<vo
   }
 }
 
+export async function exitPictureInPicture(
+  video: HTMLVideoElement,
+): Promise<void> {
+  if (!isInPictureInPicture(video)) return;
+  if (
+    typeof document !== "undefined" &&
+    document.pictureInPictureElement === video &&
+    typeof document.exitPictureInPicture === "function"
+  ) {
+    await document.exitPictureInPicture();
+    return;
+  }
+  const wk = video as WebKitVideoElement;
+  if (typeof wk.webkitSetPresentationMode === "function") {
+    wk.webkitSetPresentationMode("inline");
+  }
+}
+
 export function setupBackgroundPiP(video: HTMLVideoElement): () => void {
   if (typeof document === "undefined") return () => {};
 

@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [],
+  "specification_compliance": [
+    "Every place the diff reaches is in the touch-point list or is an implicit touch point. The places are: the addons/intelligence submodule pointer bump (listed: 'the core bumps the addons/intelligence pointer'); addons/intelligence/app/subtitle_builder.py build_cues return line 396, after the trailing emit at 393-394 and before _balance_two_lines (listed); addons/intelligence/tests/test_cue_no_overlap.py (listed: new tests citing SPEC-ADDON-018 in addons/intelligence/tests/); addons/intelligence/frontend/TranscriptSection.test.tsx (listed for I8); docs/specs/cue-no-overlap.md and docs/specs/INDEX.md (implicit).",
+    "The new module-level helper _clamp_to_next_start (subtitle_builder.py:399-411) is a new symbol outside the body of build_cues. Its only caller is the touch-point location in build_cues (line 396), and grep finds no other reference. It adds no reach beyond the declared point, so I do not count it as an unplanned place.",
+    "Nothing in the diff touches to_webvtt, build_vtt, TranscriptSection.tsx or the transcript_words rows. This matches the 'Read, not changed' list.",
+    "r1/classification.json lists zones_touched as addons/intelligence, docs/specs/INDEX.md and docs/specs/cue-no-overlap.md, with no protected paths. This matches 'No protected path'."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "_clamp_to_next_start returns a new dict for a clamped cue ({**cue, 'end': ...}) and the original dict for an unclamped one. This does not matter because _balance_two_lines consumes the result right away, but the aliasing differs between the two cases."
+  ],
+  "regression_risks": [
+    "The helper compares against the original nxt['start'], never against a value it has already clamped, as the spec requires. Since starts are not changed, the iteration order cannot cascade."
+  ],
+  "test_coverage": [
+    "test_cue_no_overlap.py covers the measured ja case, an en overlap/touch/gap/last mix, second-to-last against last, a chained clamp, I6 (next start at or before own start), WebVTT serialisation, and a randomized property test over 300+ inputs that checks I1-I7.",
+    "TranscriptSection.test.tsx adds an I8 test for the highlight moving at the boundary 13.695 when the cues are back to back."
+  ],
+  "not_verified": [
+    "I could not run git, so I did not confirm that the submodule range 490adae..238fc81 contains no addon files beyond the three shown in the diff. I relied on the diff as given.",
+    "I did not run the Python or frontend tests.",
+    "I did not read the full TranscriptSection.tsx highlight logic to confirm the I8 test exercises the start <= t < end boundary as claimed."
+  ],
+  "confidence": 85
+}

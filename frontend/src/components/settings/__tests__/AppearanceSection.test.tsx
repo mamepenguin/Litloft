@@ -21,7 +21,6 @@ beforeEach(() => {
 describe("AppearanceSection", () => {
   it("renders three theme options with translated labels", () => {
     render(<AppearanceSection />);
-    // ja translations under settings.appearance
     expect(screen.getByRole("button", { name: "System" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Light" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Dark" })).toBeInTheDocument();
@@ -52,7 +51,6 @@ describe("AppearanceSection", () => {
     const dark = screen.getByRole("button", { name: "Dark" });
     const light = screen.getByRole("button", { name: "Light" });
     const system = screen.getByRole("button", { name: "System" });
-    // Either aria-pressed or aria-checked must be true on the active option
     const isActive = (el: HTMLElement) =>
       el.getAttribute("aria-pressed") === "true" ||
       el.getAttribute("aria-checked") === "true";

@@ -1,42 +1,16 @@
 "use client";
 
-/**
- * MergedResultItem — popup launcher row for the unified search list.
- *
- * Style + badge-selection logic mirrors `MatchOverlay.tsx` (page-side
- * card overlay) so popup quick-pick rows and the search-results page
- * read consistently. Color tokens follow DESIGN.md §2.2 (warm palette
- * only). The popup variant differs from MatchOverlay in two ways:
- *  - 5 timestamp pills instead of 3 (popup is denser, no card chrome
- *    competing for visual budget).
- *  - Row layout (thumbnail + text column) instead of card overlay.
- */
-
 import { useTranslations } from "next-intl";
 import { formatDuration } from "@/lib/format";
+import { filenameToTitle } from "@/lib/filenameTitle";
+import { collectMatchTimestamps } from "@/lib/matchTimestamps";
+import { MATCH_BADGE_STYLES, matchBadgeLabels } from "@/lib/matchBadges";
 import type { FileItemWithMatch, MatchMeta } from "@/types";
-
-const MAX_POPUP_PILLS = 5;
-
-const BADGE_STYLES: Record<string, string> = {
-  filename: "bg-accent/15 text-accent",
-  path: "bg-accent/5 text-accent",
-  metadata: "bg-accent/10 text-accent",
-  transcript: "bg-accent-teal/15 text-accent-teal",
-  clip: "bg-accent-amber/15 text-accent-amber",
-  clip_thumbnail: "bg-accent-amber/10 text-accent-amber",
-  content: "bg-warm-light text-text-primary",
-  // SIRA-style LLM-expanded keyword hit. Re-uses the warm-light tone
-  // of the content badge so it sits visually adjacent to the existing
-  // keyword chips; the distinct label is what tells users the match
-  // came from an expansion rather than the document body.
-  retrieval_keywords: "bg-warm-light text-text-secondary",
-};
 
 function selectActiveBadgeKeys(meta: MatchMeta | undefined): string[] {
   if (!meta) return [];
   const keys: string[] = [];
-  // filename and metadata are semantically close — collapse to one (same rule as MatchOverlay).
+  // filename and metadata are semantically close — collapse to one.
   if (meta.filename) keys.push("filename");
   else if (meta.metadata) keys.push("metadata");
   if (meta.path) keys.push("path");
@@ -48,20 +22,18 @@ function selectActiveBadgeKeys(meta: MatchMeta | undefined): string[] {
   return keys;
 }
 
-function collectTimestamps(
-  meta: MatchMeta | undefined,
-): Array<{ seconds: number }> {
-  if (!meta) return [];
-  const out: Array<{ seconds: number }> = [];
-  for (const t of meta.transcript ?? []) {
-    const start = t.time_range?.[0];
-    if (typeof start === "number" && start >= 0) out.push({ seconds: start });
-  }
-  for (const c of meta.clip ?? []) {
-    const start = c.time_range?.[0];
-    if (typeof start === "number" && start >= 0) out.push({ seconds: start });
-  }
-  return out.slice(0, MAX_POPUP_PILLS);
+/**
+ * The comparison goes through `filenameToTitle` rather than through the
+ * stem: `kyoto.mp4` is titled "Kyoto", so comparing stems answers "no" for
+ * every filename that starts with a lower-case letter.
+ */
+function secondLine(file: FileItemWithMatch): string | null {
+  const folder = file.folder_path ? `${file.folder_path}/` : "";
+  // The exact match is the row built without a file record, titled with
+  // the raw filename, extension and all.
+  const saysNothingNew =
+    file.filename === file.title || filenameToTitle(file.filename) === file.title;
+  return saysNothingNew ? folder || null : `${folder}${file.filename}`;
 }
 
 interface Props {
@@ -74,25 +46,19 @@ export function MergedResultItem({ file, onSelect, isSelected = false }: Props) 
   const t = useTranslations("search");
   const meta = file.match_meta;
 
-  const labels: Record<string, string> = {
-    filename: t("matchFilename"),
-    path: t("matchPath"),
-    metadata: t("matchMetadata"),
-    transcript: t("matchTranscript"),
-    clip: t("matchClip"),
-    clip_thumbnail: t("matchClipThumbnail"),
-    content: t("matchContent"),
-    retrieval_keywords: t("matchRetrievalKeywords"),
-  };
+  const labels = matchBadgeLabels(t);
 
   const badgeKeys = selectActiveBadgeKeys(meta);
-  const timestamps = collectTimestamps(meta);
+  const { shown: timestamps, overflow } = collectMatchTimestamps(meta);
   const matchedPages = meta?.matched_pages ?? [];
+  const matchedSections = meta?.matched_sections ?? [];
+  const subtitle = secondLine(file);
 
   return (
     <button
       type="button"
       data-testid="merged-result-item"
+      data-file-id={file.id}
       onClick={() => onSelect(`/files/${file.id}`)}
       className={`flex w-full items-start gap-3 px-4 py-2.5 text-left transition-colors ${isSelected ? "bg-bg-elevated" : "hover:bg-bg-elevated"}`}
     >
@@ -106,18 +72,15 @@ export function MergedResultItem({ file, onSelect, isSelected = false }: Props) 
       />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm text-text-primary">{file.title}</p>
-        {(file.folder_path || file.filename !== file.title) && (
-          <p className="truncate text-xs text-text-muted">
-            {file.folder_path ? `${file.folder_path}/` : ""}
-            {file.filename}
-          </p>
+        {subtitle && (
+          <p className="truncate text-xs text-text-muted">{subtitle}</p>
         )}
         {badgeKeys.length > 0 && (
           <div className="mt-0.5 flex flex-wrap items-center gap-1">
             {badgeKeys.map((key) => (
               <span
                 key={key}
-                className={`inline-flex rounded-lg px-1.5 py-0.5 text-[10px] font-medium ${BADGE_STYLES[key]}`}
+                className={`inline-flex rounded-lg px-1.5 py-0.5 text-[10px] font-medium ${MATCH_BADGE_STYLES[key]}`}
               >
                 {labels[key]}
               </span>
@@ -126,9 +89,9 @@ export function MergedResultItem({ file, onSelect, isSelected = false }: Props) 
         )}
         {timestamps.length > 0 && (
           <div className="mt-1 flex flex-wrap gap-0.5">
-            {timestamps.map((ts, i) => (
+            {timestamps.map((ts) => (
               <span
-                key={`${ts.seconds}-${i}`}
+                key={`${ts.kind}-${ts.seconds}`}
                 role="button"
                 tabIndex={0}
                 onClick={(e) => {
@@ -142,17 +105,71 @@ export function MergedResultItem({ file, onSelect, isSelected = false }: Props) 
                     onSelect(`/files/${file.id}?t=${Math.floor(ts.seconds)}`);
                   }
                 }}
-                className="cursor-pointer rounded-lg px-1.5 py-0.5 text-[10px] font-medium text-accent transition-colors hover:bg-accent/10"
+                data-testid="match-timestamp-pill"
+                className="cursor-pointer rounded-lg px-1.5 py-0.5 text-[10px] font-medium text-text-muted transition-colors hover:bg-accent/10"
               >
                 {formatDuration(ts.seconds)}
               </span>
             ))}
+            {overflow > 0 && (
+              <span className="px-1.5 py-0.5 text-[10px] text-text-muted">
+                +{overflow}
+              </span>
+            )}
           </div>
         )}
         {matchedPages.length > 0 && (
-          <p className="mt-1 text-[11px] text-text-muted">
-            {t("matchedPages", { pages: matchedPages.join(", ") })}
-          </p>
+          <div className="mt-1 flex flex-wrap gap-0.5">
+            {matchedPages.map((page) => (
+              <span
+                key={page}
+                role="button"
+                tabIndex={0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelect(`/files/${file.id}?page=${page}`);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    onSelect(`/files/${file.id}?page=${page}`);
+                  }
+                }}
+                data-testid="match-page-pill"
+                className="cursor-pointer rounded-lg px-1.5 py-0.5 text-[10px] font-medium text-text-muted transition-colors hover:bg-accent/10"
+              >
+                {t("matchedPages", { pages: page })}
+              </span>
+            ))}
+          </div>
+        )}
+        {matchedSections.length > 0 && (
+          <div className="mt-1 flex flex-wrap gap-0.5">
+            {matchedSections.map(({ section, title }) => (
+              <span
+                key={section}
+                role="button"
+                tabIndex={0}
+                title={title ?? undefined}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelect(`/files/${file.id}?section=${section}`);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    onSelect(`/files/${file.id}?section=${section}`);
+                  }
+                }}
+                data-testid="match-section-pill"
+                className="max-w-[12rem] cursor-pointer truncate rounded-lg px-1.5 py-0.5 text-[10px] font-medium text-text-muted transition-colors hover:bg-accent/10"
+              >
+                {title ?? t("matchedSectionNumber", { section })}
+              </span>
+            ))}
+          </div>
         )}
       </div>
     </button>

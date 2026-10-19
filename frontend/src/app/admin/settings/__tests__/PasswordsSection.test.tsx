@@ -1,17 +1,11 @@
-// PasswordsSection test
-//
-// Choices:
-// - GET /api/admin/config/passwords returns masked entries (password is "***").
-// - Adding a password POSTs to /passwords/append with the new entry only
-//   (avoids round-tripping masked "***" values through PUT, which the
-//   backend correctly rejects).
-// - Deleting goes through DELETE /passwords/{index}.
-// - Empty list shows a "全公開モード" notice and a CTA "パスワード保護を有効化".
+// Adding a password POSTs to /passwords/append with the new entry only, which
+// avoids round-tripping masked "***" values through PUT.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 import { PasswordsSection } from "@/app/admin/settings/PasswordsSection";
+import { accentFills } from "@/__tests__/helpers/accentFills";
 
 const mockFetch = vi.fn();
 
@@ -30,6 +24,48 @@ function jsonResponse(data: unknown, status = 200) {
     headers: { "Content-Type": "application/json" },
   });
 }
+
+describe("PasswordsSection accent budget", () => {
+  /**
+   * The page's one fill belongs to saving a password, which lives inside
+   * the modal; "Add a password" is how you reach the form, not the act itself.
+   */
+  it("spends nothing with a list on screen and the modal closed", async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse([{ password: "***", groups: ["default"] }]),
+    );
+    const { container } = render(<PasswordsSection />);
+    await waitFor(() => {
+      expect(screen.getAllByText("***").length).toBeGreaterThanOrEqual(1);
+    });
+    expect(accentFills(container)).toEqual([]);
+  });
+
+  it("spends exactly one once the modal that saves is open", async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse([{ password: "***", groups: ["default"] }]),
+    );
+    const { container } = render(<PasswordsSection />);
+    await waitFor(() => {
+      expect(screen.getAllByText("***").length).toBeGreaterThanOrEqual(1);
+    });
+    fireEvent.click(screen.getByRole("button", { name: /追加|add/i }));
+    expect(accentFills(container)).toHaveLength(1);
+  });
+
+  it("spends nothing in public mode either", async () => {
+    // `[]` is the graceful-degradation state: no passwords configured, so
+    // every drive is public and the section offers to start protecting.
+    mockFetch.mockResolvedValueOnce(jsonResponse([]));
+    const { container } = render(<PasswordsSection />);
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: /有効|enable/i }),
+      ).toBeInTheDocument();
+    });
+    expect(accentFills(container)).toEqual([]);
+  });
+});
 
 describe("PasswordsSection", () => {
   it("loads masked passwords and shows '***' (never the real value)", async () => {
@@ -74,7 +110,6 @@ describe("PasswordsSection", () => {
       );
       expect(appendCall).toBeTruthy();
       const body = JSON.parse((appendCall![1] as RequestInit).body as string);
-      // POST body is a single entry, never a masked-laden array
       expect(body.password).toBe("newSecret");
       expect(body.groups).toContain("secret");
     });
@@ -120,11 +155,11 @@ describe("PasswordsSection", () => {
   it("empty passwords list shows 全公開モード notice and CTA", async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse([]));
     render(<PasswordsSection />);
-    await waitFor(() => {
-      expect(screen.getByText(/全公開モード|public/i)).toBeInTheDocument();
+    // Wait for the CTA rather than for the notice above it: `/public/i` is
+    // loose enough to match earlier text.
+    const cta = await screen.findByRole("button", {
+      name: /パスワード保護を有効化|enable/i,
     });
-    expect(
-      screen.getByRole("button", { name: /パスワード保護を有効化|enable/i }),
-    ).toBeInTheDocument();
+    expect(cta.closest("div")).toHaveTextContent(/全公開モード|public/i);
   });
 });

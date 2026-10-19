@@ -1,34 +1,60 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Check,
   CheckSquare,
-  Filter,
-  FilePlus,
   MoreHorizontal,
+  Pin,
+  PinOff,
   Play,
   RefreshCw,
-  Shuffle,
   X,
 } from "lucide-react";
 
 import { useTranslations } from "next-intl";
-import type { FileType, SortField, SortOrder, ViewMode } from "@/types";
-import { SortButton } from "@/components/SortButton";
-import { UploadButton } from "@/components/UploadButton";
-import { ViewToggle } from "@/components/ViewToggle";
+import type { FileKind, SortField, SortOrder, TrustFilter, ViewMode } from "@/types";
+import { AddButton } from "@/components/AddButton";
 import { AddonSlot } from "@/components/AddonSlot";
+import { useAddonSlots } from "@/components/AddonSlotsProvider";
+import { useShortcuts } from "@/hooks/useShortcuts";
+import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
+import { useImeKeyGuard } from "@/lib/ime";
+import { FilterMenu } from "./FilterMenu";
+import { Button } from "@/components/Button";
+import { useViewModeState } from "@/components/viewMode";
+import { ActionMenuItem } from "@/components/ActionMenuItem";
+import { BAR_WIDE, MenuSeparator, useMenuSurface } from "@/components/ToolbarMenu";
+import { SortGroup, SortMenu } from "./SortMenu";
+import { DismissScrim } from "@/components/DismissScrim";
+import { ViewGroup, ViewMenu } from "@/components/ViewMenu";
+import { WidenTagScopeLink, type WidenTagScope } from "./WidenTagScopeLink";
+
+/**
+ * Addon rows in the `…` menu: commands over the files the listing holds.
+ * Rows that put something into the folder belong to `ADD_MENU_SLOT` instead.
+ * The row contract is the Add menu's.
+ */
+export const BULK_ACTIONS_MENU_SLOT = "folder-bulk-actions-menu";
 
 interface FolderToolbarProps {
   isSpecialView: boolean;
+  /**
+   * Is there a place to write into? Not the same as "is there a folder
+   * path": the drive root is a place — its own `folder_path` is empty —
+   * while a tag applied there widens the listing to the whole drive and
+   * so is not.
+   */
+  isWriteDestination: boolean;
   isSearch?: boolean;
   tagFilter?: string | null;
   hasPlayableFiles: boolean;
   sort: SortField;
   order: SortOrder;
-  typeFilter: FileType | null;
+  typeFilter: FileKind | null;
+  trustFilter?: TrustFilter | null;
   total: number;
+  /** Omitted means "not known", which is treated as "not empty". */
+  folderCount?: number;
   selectable: boolean;
   scanning: boolean;
   creatingFolder: boolean;
@@ -38,14 +64,14 @@ interface FolderToolbarProps {
   drive: string;
   folderPath?: string;
   /**
-   * Current viewMode. When provided, ViewToggle is controlled
-   * (FolderBrowser owns persistence via useFolderViewMode); when
-   * omitted, ViewToggle falls back to its uncontrolled mode and
-   * persists to the global default key.
+   * When omitted, `useViewModeState` holds it here and persists to the
+   * global default key.
    */
   viewMode?: ViewMode;
+  widenTagScope?: WidenTagScope | null;
   onSortChange: (s: SortField, o: SortOrder) => void;
-  onTypeFilterChange: (t: FileType | null) => void;
+  onTypeFilterChange: (t: FileKind | null) => void;
+  onTrustFilterChange?: (t: TrustFilter | null) => void;
   onViewChange: (mode: ViewMode) => void;
   onToggleSelectable: () => void;
   onScan: () => void;
@@ -54,227 +80,207 @@ interface FolderToolbarProps {
   onSetNewFolderName: (v: string) => void;
   onSetFolderError: (v: string | null) => void;
   onCreateFolder: () => void;
-  /**
-   * When provided, render a "New Note" button that creates a blank
-   * Markdown file in the current folder. Omitting the prop hides the
-   * button — used by FolderBrowser to disable file creation in
-   * special views (favorites, search, tag filters) where there's no
-   * concrete folder to write into.
-   */
-  onCreateFile?: () => void;
   onReshuffle?: () => void;
+  /**
+   * Both or neither: without the flag the overflow row would have to
+   * guess which of "Pin" and "Unpin" it is offering.
+   */
+  isPinned?: boolean;
+  onTogglePin?: (folderPath: string) => void;
 }
 
-const TYPE_OPTION_KEYS: ReadonlyArray<{ value: FileType | null; labelKey: string }> = [
-  { value: null, labelKey: "all" },
-  { value: "video", labelKey: "video" },
-  { value: "image", labelKey: "image" },
-  { value: "audio", labelKey: "audio" },
-  { value: "document", labelKey: "document" },
-  { value: "archive", labelKey: "archiveType" },
-  { value: "other", labelKey: "other" },
-];
-
 export function FolderToolbar({
-  isSpecialView, isSearch, tagFilter, hasPlayableFiles,
-  sort, order, typeFilter, total, selectable, scanning,
+  isSpecialView, isWriteDestination, isSearch, tagFilter, hasPlayableFiles,
+  sort, order, typeFilter, trustFilter, total, folderCount, selectable, scanning,
   creatingFolder, newFolderName, folderError, fileIds, drive, folderPath,
-  viewMode,
-  onSortChange, onTypeFilterChange, onViewChange, onToggleSelectable,
+  viewMode, widenTagScope,
+  onSortChange, onTypeFilterChange, onTrustFilterChange, onViewChange, onToggleSelectable,
   onScan, onPlayAll, onSetCreatingFolder, onSetNewFolderName,
-  onSetFolderError, onCreateFolder, onCreateFile, onReshuffle,
+  onSetFolderError, onCreateFolder, onReshuffle,
+  isPinned, onTogglePin,
 }: FolderToolbarProps) {
-  const hideMutatingActions = isSpecialView || !!tagFilter || !!isSearch;
+  const hideMutatingActions = !isWriteDestination;
+  const hidePlayAll = isSpecialView || !!tagFilter || !!isSearch;
+  // When a filter is what emptied the listing, the chip that produced the
+  // empty result is also the way back out of it.
+  const isFiltered =
+    typeFilter !== null || !!trustFilter || !!tagFilter || !!isSearch;
+
+  const hideArrangingControls = total === 0 && folderCount === 0 && !isFiltered;
   const t = useTranslations("toolbar");
   const tc = useTranslations("common");
   const ts = useTranslations("selection");
   const tf = useTranslations("folder");
+  const ime = useImeKeyGuard();
 
-  const [typeFilterOpen, setTypeFilterOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [moreDialogOpen, setMoreDialogOpen] = useState(false);
+  const moreTriggerRef = useRef<HTMLButtonElement>(null);
+  const moreSurface = useMenuSurface(moreOpen);
+  const { hasSlot } = useAddonSlots();
+  const showBulkRows = !hideMutatingActions && hasSlot(BULK_ACTIONS_MENU_SLOT);
 
-  const activeTypeOption = TYPE_OPTION_KEYS.find((opt) => opt.value === typeFilter);
-  const activeTypeLabel = activeTypeOption ? t(activeTypeOption.labelKey) : t("all");
-  const isTypeFiltered = typeFilter !== null;
+  // Focus moves before the focused row unmounts, or it lands on `<body>`.
+  const closeMore = useCallback(() => {
+    setMoreDialogOpen(false);
+    setMoreOpen(false);
+    moreTriggerRef.current?.focus();
+  }, []);
 
-  // Left mutating actions — rendered in two places:
-  // mobile (normal flow, above the sticky bar) and desktop (inside the sticky bar).
+  // An entry that never reports `false` must not leave the next menu
+  // ignoring Escape and outside presses.
+  useEffect(() => {
+    if (!moreOpen) setMoreDialogOpen(false);
+  }, [moreOpen]);
+
+  // `editingOnly: false`: nothing traps focus in this menu, and the default
+  // would leave Escape inert once Tab walks out into a field.
+  useShortcuts(
+    "folder-more-menu",
+    "Dialog",
+    [
+      {
+        key: "escape",
+        label: "Close",
+        editingOnly: false,
+        hidden: true,
+        handler: () => {
+          closeMore();
+        },
+      },
+    ],
+    moreOpen && !moreDialogOpen,
+    OVERLAY_PRIORITY,
+  );
+  // Held here, not inside each menu. The same choice is offered twice — on
+  // the bar from 768 up and inside `…` below it — and two switchers each
+  // holding their own state would answer differently on the two sides of
+  // that width.
+  const view = useViewModeState(viewMode, onViewChange);
+  // A drive root has no path to pin, and `""` would pin the drive itself.
+  const pinnablePath = folderPath && onTogglePin ? folderPath : null;
+
+
   const leftActions = !hideMutatingActions ? (
-    <>
-      <UploadButton onCreateFolder={() => onSetCreatingFolder(true)} />
-
-      {creatingFolder && (
-        <div className="flex w-full items-center gap-2 sm:w-auto">
-          <input
-            type="text"
-            autoFocus
-            value={newFolderName}
-            onChange={(e) => onSetNewFolderName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") onCreateFolder();
-              if (e.key === "Escape") { onSetCreatingFolder(false); onSetNewFolderName(""); onSetFolderError(null); }
-            }}
-            placeholder={tf("namePlaceholder")}
-            className="min-w-0 flex-1 rounded-2xl bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-ring sm:w-40 sm:flex-initial"
-          />
-          <button
-            onClick={onCreateFolder}
-            className="rounded-2xl bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-hover"
-          >
-            {tc("create")}
-          </button>
-          <button
-            onClick={() => { onSetCreatingFolder(false); onSetNewFolderName(""); onSetFolderError(null); }}
-            className="rounded-lg p-2 text-text-muted hover:text-text-primary"
-          >
-            <X size={16} />
-          </button>
-          {folderError && <span className="text-xs text-danger">{folderError}</span>}
-        </div>
-      )}
-
-      {onCreateFile && !creatingFolder && (
-        <button
-          onClick={() => onCreateFile()}
-          className="flex items-center gap-2 rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-bg-elevated"
-          aria-label={tf("newFile")}
-        >
-          <FilePlus size={16} />
-          <span className="hidden sm:inline">{tf("newFile")}</span>
-        </button>
-      )}
-    </>
+    <AddButton
+      onCreateFolder={() => onSetCreatingFolder(true)}
+      addonProps={{ fileIds, drive, path: folderPath ?? "", surface: "library" }}
+    />
   ) : null;
+
+  /**
+   * `w-full` and a **direct child of the wrapping row**. Nested in a group,
+   * `w-full` is 100% of the group rather than of the row, so the group grows
+   * and the controls beside it wrap instead.
+   */
+  const createFolderRow = creatingFolder ? (
+    <div className="flex w-full items-center gap-2">
+      <input
+        type="text"
+        autoFocus
+        value={newFolderName}
+        onChange={(e) => onSetNewFolderName(e.target.value)}
+        onCompositionEnd={ime.onCompositionEnd}
+        onKeyDown={(e) => {
+          if (ime.isImeKeystroke(e)) return;
+          if (e.key === "Enter") onCreateFolder();
+          if (e.key === "Escape") {
+            // A React `onKeyDown` is invisible to the shortcut registry; without
+            // this an open `…` menu answers the same press.
+            e.stopPropagation();
+            onSetCreatingFolder(false); onSetNewFolderName(""); onSetFolderError(null);
+          }
+        }}
+        placeholder={tf("namePlaceholder")}
+        className="min-w-0 flex-1 rounded-2xl bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-ring pointer-coarse:min-h-11 md:w-40 md:flex-initial"
+      />
+      {/* Not a second accent fill: Add stays on screen behind this row, so
+          filling Create would put two on the bar at once. */}
+      <Button
+        variant="secondary"
+        size="sm"
+        onClick={onCreateFolder}
+      >
+        {tc("create")}
+      </Button>
+      <Button
+        iconOnly
+        variant="ghost"
+        aria-label={tc("cancel")}
+        onClick={() => { onSetCreatingFolder(false); onSetNewFolderName(""); onSetFolderError(null); }}
+      >
+        <X size={16} />
+      </Button>
+      {folderError && <span className="text-xs text-danger">{folderError}</span>}
+    </div>
+  ) : null;
+
+  const showPlayAll = hasPlayableFiles && !hidePlayAll;
 
   return (
     <>
-      {/* Mobile only: left actions + AddonSlot in normal flow (not sticky).
-          Always rendered so AddonSlot appears in the left group on mobile
-          even when hideMutatingActions is true. */}
-      <div className="flex flex-wrap items-center gap-2 px-4 py-1 sm:hidden">
-        {leftActions}
-        <AddonSlot id="folder-actions" layout="stack" props={{ fileIds, drive, path: folderPath ?? "" }} />
-      </div>
-
-      {/* Sticky control bar.
-          - Mobile: right-side controls only (sort/view/filter/more/count).
-            Left actions + AddonSlot scroll away in the normal-flow row above.
-          - Desktop (sm+): left actions + AddonSlot + right controls in one row.
-          Must be a direct child of the flex column containing block so that
+      {/* Must be a direct child of the flex column containing block so that
           sticky has sufficient height to actually stick.
           z-20 matches the Header so that FilterField's absolute search icon
           (z-10) is covered when the bar sticks. */}
       <div className="sticky top-0 z-20 mb-2 flex flex-wrap items-center gap-2 bg-bg-primary px-4 py-2">
-        {/* Desktop: left actions inside sticky bar */}
-        {leftActions && (
-          <div className="hidden items-center gap-2 sm:flex">
-            {leftActions}
+        {leftActions}
+
+        {/* `flex` on this div is what keeps the link at its content width.
+            Without it the div is a block and the link fills it.
+
+            `flex-1` gives the wrapper a base of zero. Wrapping is decided on
+            base sizes, so that is what stops a long label pushing `…` onto a
+            second row; `min-w-0` is what lets the link shrink below its
+            content once the slack is gone. */}
+        {widenTagScope ? (
+          <div className="flex min-w-0 flex-1">
+            <WidenTagScopeLink scope={widenTagScope} />
+          </div>
+        ) : (
+          <div className="flex-1" />
+        )}
+
+        {/* Not accent-filled: the screen gets one fill and `Add` holds it.
+            Below 768 Play is the control that leaves the bar, so Add, Filter
+            and `…` share one row down to 320px. */}
+        {showPlayAll && (
+          <div {...BAR_WIDE}>
+            <Button variant="secondary" size="sm" onClick={onPlayAll}>
+              <Play size={16} />
+              {tc("play")}
+            </Button>
           </div>
         )}
 
-        {/* Desktop only: AddonSlot in sticky bar */}
-        <div className="hidden sm:block">
-          <AddonSlot id="folder-actions" layout="stack" props={{ fileIds, drive, path: folderPath ?? "" }} />
-        </div>
-
-        <div className="flex-1" />
-
-        {/* RIGHT: view controls */}
-        {hasPlayableFiles && !hideMutatingActions && (
-          <button
-            onClick={onPlayAll}
-            className="flex items-center gap-1.5 rounded-2xl bg-accent px-3 py-2 text-sm font-medium text-white transition-all hover:bg-accent-hover"
-            aria-label={t("playAll")}
-          >
-            <Play size={16} />
-            <span className="hidden sm:inline">{tc("play")}</span>
-          </button>
+        {!hideArrangingControls && (
+          <>
+            <ViewMenu mode={view.mode} onSelect={view.select} {...BAR_WIDE} />
+            <SortMenu
+              sort={sort}
+              order={order}
+              onChange={onSortChange}
+              allowRelevance={isSearch}
+              onReshuffle={sort === "random" ? onReshuffle : undefined}
+              {...BAR_WIDE}
+            />
+            <FilterMenu
+              typeFilter={typeFilter}
+              onTypeFilterChange={onTypeFilterChange}
+              trustFilter={trustFilter}
+              onTrustFilterChange={onTrustFilterChange}
+            />
+          </>
         )}
 
-        {/* Type filter — single chip + popover */}
-        <div className="relative">
-          <button
-            onClick={() => setTypeFilterOpen((s) => !s)}
-            className={`flex items-center gap-1.5 rounded-2xl border px-3 py-2 text-sm transition-colors ${
-              isTypeFiltered
-                ? "border-bg-border bg-bg-elevated text-text-primary font-medium"
-                : "border-bg-border bg-bg-card text-text-muted hover:text-text-primary"
-            }`}
-            aria-haspopup="menu"
-            aria-expanded={typeFilterOpen}
-            aria-label={t("fileType")}
-          >
-            <Filter size={16} />
-            {isTypeFiltered && (
-              <span className="text-sm font-medium">{activeTypeLabel}</span>
-            )}
-          </button>
-          {typeFilterOpen && (
-            <>
-              <div
-                className="fixed inset-0 z-30 bg-black/30 sm:bg-transparent"
-                aria-hidden="true"
-                onClick={() => setTypeFilterOpen(false)}
-              />
-              <div
-                role="menu"
-                className="fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-none sm:min-w-[160px] sm:overflow-visible sm:origin-top-right"
-              >
-              {TYPE_OPTION_KEYS.map((opt) => (
-                <button
-                  key={opt.labelKey}
-                  role="menuitem"
-                  onClick={() => {
-                    onTypeFilterChange(opt.value);
-                    setTypeFilterOpen(false);
-                  }}
-                  className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
-                    typeFilter === opt.value
-                      ? "bg-bg-elevated text-text-primary font-medium"
-                      : "text-text-primary hover:bg-bg-elevated"
-                  }`}
-                >
-                  <span className="w-4 flex-shrink-0">
-                    {typeFilter === opt.value && <Check size={14} />}
-                  </span>
-                  {t(opt.labelKey)}
-                </button>
-              ))}
-              </div>
-            </>
-          )}
-        </div>
-
-        {sort === "random" && onReshuffle && (
-          <button
-            onClick={onReshuffle}
-            className="rounded-lg p-2 text-text-muted transition-colors hover:text-text-primary"
-            aria-label={t("reshuffle")}
-            title={t("reshuffle")}
-          >
-            <Shuffle size={16} />
-          </button>
-        )}
-
-        {/* Sort + view toggle + overflow grouped in a single pill */}
-        <div className="flex items-center gap-1 rounded-2xl bg-bg-elevated p-1">
-          <SortButton
-            sort={sort}
-            order={order}
-            onChange={onSortChange}
-            allowRelevance={isSearch}
-          />
-
-          <ViewToggle mode={viewMode} onChange={onViewChange} />
-
-          {/* Overflow: select-mode + rescan (low-frequency, not search-mode) */}
-          <div className="relative">
+        <div ref={moreSurface.wrapperRef} className="relative">
             <button
+              ref={moreTriggerRef}
               onClick={() => setMoreOpen((s) => !s)}
-              className={`rounded-lg p-2 transition-colors ${
+              className={`flex items-center justify-center rounded-2xl border border-bg-border p-2 transition-colors pointer-coarse:h-11 pointer-coarse:w-11 ${
                 selectable
                   ? "bg-bg-card text-text-primary"
-                  : "text-text-muted hover:text-text-primary"
+                  : "bg-bg-card text-text-muted hover:text-text-primary"
               }`}
               aria-haspopup="menu"
               aria-expanded={moreOpen}
@@ -284,37 +290,73 @@ export function FolderToolbar({
               <MoreHorizontal size={16} />
             </button>
             {moreOpen && (
-              <>
+              <DismissScrim onDismiss={() => setMoreOpen(false)} disabled={moreDialogOpen}>
                 <div
-                  className="fixed inset-0 z-30 bg-black/30 sm:bg-transparent"
-                  aria-hidden="true"
-                  onClick={() => setMoreOpen(false)}
-                />
-                <div
+                  ref={moreSurface.panelRef}
                   role="menu"
-                  className="fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-none sm:min-w-[200px] sm:overflow-visible sm:origin-top-right"
+                  className={moreSurface.className}
                 >
-                <button
-                  role="menuitem"
+                {/* `md:hidden` and `BAR_WIDE` are the two halves of one
+                    decision: a control that leaves the bar has to arrive
+                    here. */}
+                {showPlayAll && (
+                  <div className="md:hidden" role="presentation">
+                    <ActionMenuItem
+                      icon={Play}
+                      label={tc("play")}
+                      onClick={() => {
+                        onPlayAll();
+                        closeMore();
+                      }}
+                    />
+                    <MenuSeparator />
+                  </div>
+                )}
+                {!hideArrangingControls && (
+                  <div className="md:hidden" role="presentation">
+                    <ViewGroup
+                      mode={view.mode}
+                      onSelect={(next) => {
+                        view.select(next);
+                        closeMore();
+                      }}
+                    />
+                    <MenuSeparator />
+                    <SortGroup
+                      sort={sort}
+                      order={order}
+                      allowRelevance={isSearch}
+                      onChange={(nextSort, nextOrder) => {
+                        onSortChange(nextSort, nextOrder);
+                        closeMore();
+                      }}
+                      onReshuffle={
+                        sort === "random" && onReshuffle
+                          ? () => {
+                              onReshuffle();
+                              closeMore();
+                            }
+                          : undefined
+                      }
+                    />
+                    <MenuSeparator />
+                  </div>
+                )}
+                <ActionMenuItem
+                  icon={CheckSquare}
+                  label={ts("selectMode")}
+                  active={selectable}
                   onClick={() => {
                     onToggleSelectable();
-                    setMoreOpen(false);
+                    closeMore();
                   }}
-                  className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors ${
-                    selectable
-                      ? "bg-bg-elevated text-text-primary font-medium"
-                      : "text-text-primary hover:bg-bg-elevated"
-                  }`}
-                >
-                  <CheckSquare size={16} className="flex-shrink-0" />
-                  <span className="flex-1">{ts("selectMode")}</span>
-                </button>
+                />
                 {!isSearch && (
                   <button
                     role="menuitem"
                     onClick={() => {
                       if (!scanning) onScan();
-                      setMoreOpen(false);
+                      closeMore();
                     }}
                     disabled={scanning}
                     className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-text-primary transition-colors hover:bg-bg-elevated disabled:opacity-50"
@@ -326,17 +368,52 @@ export function FolderToolbar({
                     <span className="flex-1">{t("rescan")}</span>
                   </button>
                 )}
+                {pinnablePath && (
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      onTogglePin!(pinnablePath);
+                      closeMore();
+                    }}
+                    className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-text-primary transition-colors hover:bg-bg-elevated"
+                  >
+                    {isPinned ? (
+                      <PinOff size={16} className="flex-shrink-0" />
+                    ) : (
+                      <Pin size={16} className="flex-shrink-0" />
+                    )}
+                    <span className="flex-1">
+                      {isPinned ? t("unpinFolder") : t("pinFolder")}
+                    </span>
+                  </button>
+                )}
+                {showBulkRows && (
+                  /* The rule is this element's own border so `empty:hidden`
+                     removes it with the rows when every entry draws nothing. */
+                  <div
+                    role="none"
+                    className="mt-1 border-t border-bg-border pt-1 empty:hidden"
+                  >
+                    <AddonSlot
+                      id={BULK_ACTIONS_MENU_SLOT}
+                      layout="stack"
+                      props={{
+                        drive,
+                        path: folderPath ?? "",
+                        fileIds,
+                        surface: "library",
+                        onRequestClose: closeMore,
+                        onDialogOpenChange: setMoreDialogOpen,
+                      }}
+                    />
+                  </div>
+                )}
                 </div>
-              </>
+              </DismissScrim>
             )}
-          </div>
         </div>
 
-        {!isSearch && (
-          <span className="text-sm text-text-muted whitespace-nowrap">
-            {tc("items", { count: total })}
-          </span>
-        )}
+        {createFolderRow}
       </div>
     </>
   );

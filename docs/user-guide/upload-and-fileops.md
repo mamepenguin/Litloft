@@ -1,96 +1,88 @@
 # Upload and file operations
 
-Litloft accepts files via drag-and-drop or a file picker, then runs them through a chunked upload pipeline that survives flaky connections and large folders.
-
 ## Uploading files
 
-Drop files anywhere on a folder page, or use the **Upload** button.
+Drop files or a folder onto any folder listing, or choose **Files** or **Folder** from the **Add** menu. A drop on Home uploads to the drive root. A dropped folder keeps its subfolders.
 
-![Upload progress drawer showing queued, paused, and completed uploads](../images/user-guide/upload-progress-drawer.png)
+![Upload progress drawer showing queued and completed uploads](../images/user-guide/upload-progress-drawer.png)
 
-- **Folder upload** is supported in browsers that expose `webkitdirectory`. Drop a folder and the relative tree is preserved.
-- **Multi-file upload** is supported. Files are queued and uploaded sequentially per chunked session.
-- An upload **progress drawer** at the bottom of the screen lets you monitor speed, ETA, and individual file statuses. You can cancel any in-flight upload.
+The drawer at the bottom of the screen shows each file's progress. You can cancel a file that has not finished, **Clear** the finished ones, and collapse the drawer. Two files upload at a time.
 
-### Chunked upload protocol
+Things to plan around:
 
-Behind the scenes:
+- Uploads do not resume. Closing or reloading the tab stops the upload, and you have to start that file again from the beginning. If part of a file fails, that file fails and the drawer shows an error.
+- The size limit is 50 GB per file unless your administrator changed it (`LITLOFT_MAX_UPLOAD_SIZE_GB`, see [environment variables](../reference/env-variables.md)). A reverse proxy in front of Litloft may have its own limit.
+- An upload is refused before it starts if the disk has less than 110% of the file's size free.
+- An upload is also refused if a file already exists at that path.
 
-1. `POST /api/drives/<drive>/upload/init` — declare the filename, size, MIME, and target folder; returns an `upload_id`.
-2. `POST /api/drives/<drive>/upload/<upload_id>/chunk` — push a chunk (default 5 MiB). Each chunk is independently retryable.
-3. `POST /api/drives/<drive>/upload/<upload_id>/complete` — finalise; the backend assembles, hashes, and inserts the file record.
+### Uploading a missing file again
 
-The upload survives the browser tab closing; when reopened, the queue resumes from the last completed chunk for incomplete uploads (best-effort, depends on the server-side temp file still being present).
-
-### Limits and constraints
-
-- **Size**: no hard cap from Litloft itself; constrained by available disk space in the drive's container path. Reverse proxies in front of Litloft (if any) often impose their own limit.
-- **Concurrent chunks**: the backend uses a small pool to prevent runaway parallelism on slow disks.
-- **Path safety**: file paths are normalised and validated against the drive root (`os.path.realpath()` check) to defend against traversal.
-
-### Reviving a missing file via upload
-
-If a file went *missing* (file deleted from disk, DB row kept), uploading the same path **revives** the existing record rather than inserting a new row. This preserves tags, comments, watch history, and AI artefacts that referenced the original.
+If a file went missing from disk, uploading it to the same path brings the old entry back, with its tags, comments and watch history. If the file at that path is in the trash, the upload replaces it as a new file.
 
 ## Renaming, moving, and copying
 
-The `…` menu on a file or selection offers:
+Folders, and files in the folder tree, rename in place. See [renaming in place](file-browsing.md#renaming-in-place). The right-click and `…` menus offer:
 
-- **Rename** — change the basename. Server prevents collisions and validates the new name.
-- **Move** — change the parent folder; same drive only.
-- **Copy** — duplicate to another folder. The copy gets a new file ID and starts with empty watch history; tags and comments are not duplicated.
+- **Rename**: a name that is already taken, starts with a dot, uses forbidden characters or is over 255 characters is refused. Renaming a Markdown file also updates `[[links]]` to it in the other notes of the drive.
+- **Move**: pick another folder in the same drive.
+- **Copy** / **Cut**, then **Paste**: go to the target folder and press **Paste here** in the banner above the list. The clipboard survives a reload.
+- **Copy ID** (files only): copies the file's ID, for the MCP tools' `file_id` or a `![](loft://ID)` embed in a note. When the browser will not copy, usually because Litloft was opened at a plain `http://` LAN address, the ID is shown selected so you can copy it yourself.
 
-Batch operations work the same way: select multiple files, then pick the action.
+Pasting in a different drive copies or moves the files to that drive.
 
-### Empty folders
+After a paste the clipboard is empty. If nothing could be pasted, it stays, so you can try another folder. A message says how many files could not be pasted.
 
-When a move or delete leaves a parent folder empty, Litloft tracks it in the `empty_folders` table so the count remains accurate. A future write into that path naturally clears the empty tracker.
+A copy is a new file. It starts with no likes, no favourite, no watch history, no tags and no comments. If the name is taken, the copy is named `_copy`, `_copy_2`, and so on. A move to a name that is taken is refused.
 
-## Editing text in place
+To work on several files, use select mode and the selection bar. If one file fails, the others still go through.
 
-Text and Markdown files can be edited directly in the browser:
+### Batch rename
 
-- Open the file → click **Edit**.
-- The editor is debounced (500 ms) so rapid typing produces a single HTTP write.
-- Server limits content to 1 MB per write. Larger files must be replaced via re-upload.
-- For Markdown, frontmatter edits trigger a tag re-projection into the database.
+Select files and choose **Rename** in the selection bar. The dialog previews every new name before you apply it. There are three modes:
 
-## Soft delete (trash)
+- **Template**: build names from `{original}` and a counter `{n}`, with a start number and zero-padding.
+- **Regex**: a pattern and a replacement.
+- **Prefix / Suffix**: add or remove text at the start or end.
 
-Deleting a file moves it to the trash:
+Files are renamed in the order you selected them. A file cannot take a name that another file in the folder still holds at that point, so swapping two names, or numbering files upward onto each other, is refused and nothing changes; rename through a temporary name first.
 
-- `deleted_at` is set; `missing_since` cleared.
-- The file remains on disk in its original location — the OS-level filesystem is untouched until purge.
-- Trash auto-purges after 30 days. Auto-purge runs at backend startup and every 24 hours.
-- Restore at any time before purge. Restore clears both `deleted_at` and `missing_since` (a defensive safety net for out-of-band edits).
+## Editing text
 
-For full semantics, see [trash and missing files](trash-and-missing.md).
+To edit a Markdown or text file in the browser you need the [Knowledge addon](../addons/knowledge.md). On the file's page, press **Open editor**. Without the addon, text files are read-only in the browser. See [notes](notes.md).
 
-## Hard delete (purge)
+- The editor saves 2 seconds after you stop typing.
+- If someone changed the file elsewhere, it shows **Changes detected on another device** and lets you reload theirs or keep yours.
+- Files over 1 MB cannot be saved from the editor. Replace them by uploading instead.
 
-Purging is **irreversible** — both the row and the file on disk are removed.
+## Trash and permanent delete
 
-- From the trash view, **Empty trash** purges everything older than 30 days (or all if you confirm).
-- Per file, **Purge** in the trash row removes immediately.
-- Empty parent folders are cleaned up after a purge.
+Deleting a file moves it to the **Trash**. The file stays on disk until it is permanently deleted.
 
-A `files.purged` WebSocket event is emitted only on user-initiated purges. Auto-purge cycles also emit the event in batches of 200.
+- Items in the trash are deleted permanently after 30 days.
+- **Restore** puts a file back. It fails if the file has since disappeared from disk.
+- **Permanently Delete** on a file, or **Empty Trash** for the whole drive, deletes the file from disk at once, whatever its age. This cannot be undone.
+- A missing file cannot go to the trash, because there is nothing on disk. Delete it permanently from **Missing Files**.
+
+See [trash and missing files](trash-and-missing.md).
 
 ## Downloading
 
-- **Per file** — `Download` button in the viewer; streams the original.
-- **Batch** — multi-select files in a folder and click **Download**; the backend zips them on the fly into a streaming response.
+Choose **Download** from a file's right-click menu or in the viewer. Downloads can be resumed by download managers.
 
-Streaming downloads use byte-range requests where supported, so resumable downloaders work.
+You cannot download several files at once, or a folder as a ZIP.
 
-## Archive entries
+If you open Litloft over plain `http://` at an address other than `localhost` (a LAN IP or host name), Chromium-based browsers hold every download as insecure until you allow it. The file keeps a temporary name such as `Unconfirmed 123456.crdownload` and never finishes, even though all of it has arrived. Chrome shows a warning with a **Keep** button in its download list. Arc shows no warning at all, so the download just looks stuck. Serving Litloft over HTTPS removes the hold.
 
-For ZIP, TAR, and RAR files, Litloft does not extract on the server. To get a single file out:
+## ZIP files
 
-- Open the archive in the viewer.
-- Right-click the entry → **Extract** to extract to the drive (capped at 50 MB per entry, max 3 concurrent extractions globally).
-- Or **Download** to fetch the entry directly as a stream.
+Open a `.zip` file to browse what is inside, like a folder. Other archive types, such as TAR or RAR, are not opened.
+
+- **Download** a single entry. Images and plain text open in the browser.
+- **Download archive** in the toolbar downloads the whole ZIP.
+- Only the first 10,000 entries are listed, and an entry over 50 MB cannot be opened.
+
+Litloft does not unpack a ZIP into the drive. To do that, download it, unpack it and upload the files.
 
 ## Backups
 
-For backing up the data the user-facing tools touch, see [backup and restore](../admin-guide/backup-restore.md). The short version: snapshot `data/` and your drive directories, both at the host filesystem level, while the stack is up.
+See [backup and restore](../admin-guide/backup-restore.md).

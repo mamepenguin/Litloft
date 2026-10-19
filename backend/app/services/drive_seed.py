@@ -1,20 +1,10 @@
 """Startup drive bootstrap: drives.json [] detection -> auto-seed.
 
-Spec: docs/superpowers/specs/2026-05-19-gui-first-setup-cli-bootstrap.md §3.1
-
-The shrunk configure.py writes drives.json as an empty ``[]`` (a footgun
-guard against the single-file bind-mount: a missing host file makes Docker
-mount a *directory* at /app/drives.json, which is unreadable/unwritable).
-On backend startup we detect that empty array and seed one stub entry per
-directory under ``config.DRIVES_MOUNT_ROOT`` (``/app/drives/<slug>``), which
-configure.py created as Docker mount targets.
-
-Ordering is the load-bearing invariant (spec §3.1 "実行順", H5 grounding
-fix): the pre-seed entry count is read **once**, the setup-completed
-sentinel migration runs **before** the seed (so a brand-new user whose
-drives.json is ``[]`` is NOT mistaken for an existing user once the seed
-populates it), and the seed runs only when the pre-seed count is exactly 0.
-``None`` (the directory footgun) does nothing but log.
+Ordering is the load-bearing invariant: the pre-seed entry count is read
+**once**, the setup-completed sentinel migration runs **before** the seed (so
+a brand-new user whose drives.json is ``[]`` is NOT mistaken for an existing
+user once the seed populates it), and the seed runs only when the pre-seed
+count is exactly 0. ``None`` (the directory footgun) does nothing but log.
 """
 from __future__ import annotations
 
@@ -53,12 +43,8 @@ def seed_drives_from_mounts() -> list[dict]:
     """Seed drives.json from directories under ``config.DRIVES_MOUNT_ROOT``.
 
     Each ``<slug>`` directory becomes ``{"name": <slug>, "path":
-    f"{root}/{slug}"}`` (the slug doubles as the display name; logical
-    naming is the GUI's job per the spec). Entries are slug-sorted for a
-    stable file. Writes via ``config_writer.atomic_write_json`` with
-    ``touch_restart_pending=False`` (startup seed is not a user config
-    change). After writing, ``config._drives_cache`` is invalidated so the
-    next ``load_drives()`` re-reads (spec §3.1 H4).
+    f"{root}/{slug}"}``. Writes with ``touch_restart_pending=False``
+    (startup seed is not a user config change).
 
     If the mount root has no subdirectories, nothing is written and ``[]``
     is returned (the caller leaves drives.json as the empty array).
@@ -89,7 +75,7 @@ def seed_drives_from_mounts() -> list[dict]:
     # Record that this install's non-empty drives.json is our own seed
     # product. A later boot (before /setup completes) will read pre_seed_count
     # >= 1 and must NOT mistake it for a pre-GUI hand-config — the migration
-    # checks this marker (spec §3.1).
+    # checks this marker.
     try:
         marker = config._auto_seeded_marker()
         config.DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -97,7 +83,7 @@ def seed_drives_from_mounts() -> list[dict]:
     except OSError:
         logger.exception("Failed to write auto-seed marker")
     # Invalidate the persistent cache so the next load_drives() sees the
-    # freshly seeded file (spec §3.1 H4 — must happen before scan_all_drives).
+    # freshly seeded file; must happen before scan_all_drives.
     config._drives_cache = None
     logger.info(
         "Seeded drives.json with %d drive(s) from %s: %s",
@@ -109,23 +95,7 @@ def seed_drives_from_mounts() -> list[dict]:
 
 
 def run_startup_drive_bootstrap() -> None:
-    """Spec-mandated startup sequence: pre-seed count -> migration -> seed.
-
-    Mirrors spec §3.1 "実行順" exactly:
-
-      1. Read the pre-seed entry count **once**.
-      2. Migration: a pre-seed count of >= 1 with the sentinel absent means
-         an existing user who configured logical settings via the old
-         configure.py — touch the sentinel so they skip /setup (unchanged
-         behaviour). A count of 0 (new user) or None (footgun) does NOT
-         touch it.
-      3. Seed: only when the pre-seed count is exactly 0.
-
-    Because the migration inspects the **pre-seed** count, a brand-new user
-    (drives.json ``[]``) is not mistaken for an existing user even though
-    the seed populates drives.json immediately afterward. All of this runs
-    before ``scan_all_drives()``.
-    """
+    """Startup sequence: pre-seed count -> migration -> seed."""
     pre_seed_count = drives_json_entry_count()
 
     if pre_seed_count is None:
@@ -144,28 +114,21 @@ def run_startup_drive_bootstrap() -> None:
 def _migrate_setup_sentinel(pre_seed_count: int) -> None:
     """Touch the setup-completed sentinel for pre-existing users only.
 
-    drives.json existing on disk no longer distinguishes a fresh install
-    from an upgrade: the shrunk configure.py writes an empty ``[]`` for
-    brand-new users too. The discriminator is therefore whether the
-    **pre-seed** drives.json was *non-empty* — only then is this a user who
-    already configured logical settings via the old configure.py and must
-    keep skipping /setup. An empty ``[]`` (new user) must NOT touch the
-    sentinel, so the seed can populate drives.json and /setup still runs.
+    configure.py writes ``[]`` for new installs too, so the file existing
+    proves nothing; a **non-empty** pre-seed drives.json is what marks a user
+    who configured drives by hand and must skip /setup.
     """
     if pre_seed_count < 1:
         return
-    # A non-empty drives.json produced by our own startup seed is NOT a
-    # legacy hand-config: if the marker is present, leave the sentinel absent
-    # so a new user who restarts before completing /setup still reaches the
-    # wizard (spec §3.1). Genuine pre-GUI users predate the seed regime and
-    # have no marker, so they keep skipping /setup as before.
+    # Our own seed also leaves drives.json non-empty; the marker keeps a new
+    # user who restarts before finishing /setup on the wizard.
     if config._auto_seeded_marker().exists():
         logger.info(
             "Skipping setup-sentinel migration: drives.json is auto-seeded"
         )
         return
     try:
-        sentinel = config._setup_completed_sentinel()
+        sentinel = config.setup_completed_sentinel()
         if not sentinel.exists():
             config.DATA_DIR.mkdir(parents=True, exist_ok=True)
             sentinel.touch()

@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "claude-read-1",
+      "status": "confirmed",
+      "note": "Reproduced by reading. backend/tests/test_sidecar_match.py:1 has the docstring 'SPEC-ADDON-002: the NFC-literal sibling matcher Media Import lists directories with.' and imports app.services.sidecar_match (line 13). The spec's touch-point list (docs/specs/nfc-tolerant-name-matching.md:306) gives backend/tests/ only 'batch-rename tests and the inventory test over backend/app (I7)'. The merge order (lines 329-333) says core PR 1 'Carries the SPEC-CORE-003 tests' and each addon PR 'carries its own SPEC-ADDON tests'. backend/tests/test_listing_call_inventory.py:1 also cites 'SPEC-CORE-003, SPEC-ADDON-002'. So the finding is accurate: there is a core test file tagged with an addon spec ID that the touch points do not list. In mitigation, the module under test, backend/app/services/sidecar_match.py, is a core file that is listed and ships in core PR 1, so testing it in core PR 1 makes sense. The discrepancy is about scope, documentation and tagging, not behavior."
+    }
+  ],
+  "specification_compliance": [
+    "The core matcher test file exists outside the declared touch points and carries a SPEC-ADDON-002 tag, while the merge order assigns SPEC-ADDON tests to the addon PRs (spec lines 306 and 329-333)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "If SPEC-ADDON-002 traceability is counted from core tests while the SPEC-ADDON rows stay 'approved' (spec line 375), spec status tooling may report coverage in an unexpected place."
+  ],
+  "test_coverage": [
+    "backend/tests/test_sidecar_match.py covers the core match_siblings with NFC/NFD parametrized cases (read the first 40 lines only)."
+  ],
+  "not_verified": [
+    "Did not read the rest of test_sidecar_match.py or check whether its cases cover every point of the shared contract.",
+    "Did not check whether the spec-traceability tooling (process.conf or test_dirs) accepts SPEC-ADDON tags in backend/tests.",
+    "Did not inspect the addon submodule tests or the diff against origin/develop directly; I checked file contents at the working tree only."
+  ],
+  "confidence": 88
+}

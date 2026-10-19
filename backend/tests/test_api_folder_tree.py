@@ -1,9 +1,4 @@
-"""Tests for GET /api/drives/{drive}/folder-tree endpoint and FolderResponse.dominant_kind.
-
-Spec: docs/superpowers/specs/2026-05-08-vault-core-merger-design-handoff.md
-- Topic 9: dominant_kind for layered viewMode fallback
-- Topic 10: GET /api/drives/{drive}/folder-tree endpoint for left tree pane
-"""
+"""Tests for GET /api/drives/{drive}/folder-tree endpoint and FolderResponse.dominant_kind."""
 
 import shutil
 from pathlib import Path
@@ -64,7 +59,7 @@ class TestFolderTree:
         _add_file(db, drive_dir, folder_path="travel", filename="trip.mp4", file_type="video", mime_type="video/mp4")
         _add_file(db, drive_dir, folder_path="", filename="readme.md", file_type="document", mime_type="text/markdown")
 
-        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree")
+        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?include_files=true")
         assert res.status_code == 200
         nodes = res.json()
         assert len(nodes) == 2
@@ -86,7 +81,7 @@ class TestFolderTree:
         _add_file(db, drive_dir, folder_path="zfolder", filename="v.mp4", file_type="video", mime_type="video/mp4")
         _add_file(db, drive_dir, folder_path="", filename="a_root.md", file_type="document", mime_type="text/markdown")
 
-        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree")
+        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?include_files=true")
         nodes = res.json()
         assert len(nodes) == 2
         # Folders first regardless of name
@@ -98,7 +93,7 @@ class TestFolderTree:
         _add_file(db, drive_dir, folder_path="parent/child", filename="v.mp4", file_type="video", mime_type="video/mp4")
         _add_file(db, drive_dir, folder_path="parent", filename="note.md", file_type="document", mime_type="text/markdown")
 
-        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?root=parent")
+        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?root=parent&include_files=true")
         assert res.status_code == 200
         nodes = res.json()
         assert len(nodes) == 2
@@ -106,56 +101,28 @@ class TestFolderTree:
         assert by_name["child"]["kind"] == "folder"
         assert by_name["note.md"]["kind"] == "file"
 
-    def test_type_filter_markdown_excludes_other_files(self, client):
+    # One kind, not the vocabulary: the tree shares `_apply_kind_filter`
+    # with the listing, and `test_file_kind_filter.py::TestTheVocabulary`
+    # holds every kind against a declared table. What is the tree's own is
+    # that `type_filter` reaches the filter at all.
+    def test_type_filter_reaches_the_shared_filter(self, client):
         c, db, drive_dir, data_dir = client
         _add_file(db, drive_dir, folder_path="", filename="note.md", file_type="document", mime_type="text/markdown")
         _add_file(db, drive_dir, folder_path="", filename="movie.mp4", file_type="video", mime_type="video/mp4")
 
-        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?type_filter=markdown")
+        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?type_filter=text&include_files=true")
         nodes = res.json()
         names = {n["name"] for n in nodes}
         assert "note.md" in names
         assert "movie.mp4" not in names
-
-    def test_type_filter_video_excludes_markdown(self, client):
-        c, db, drive_dir, data_dir = client
-        _add_file(db, drive_dir, folder_path="", filename="note.md", file_type="document", mime_type="text/markdown")
-        _add_file(db, drive_dir, folder_path="", filename="movie.mp4", file_type="video", mime_type="video/mp4")
-
-        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?type_filter=video")
-        nodes = res.json()
-        names = {n["name"] for n in nodes}
-        assert "movie.mp4" in names
-        assert "note.md" not in names
-
-    def test_type_filter_pdf(self, client):
-        c, db, drive_dir, data_dir = client
-        _add_file(db, drive_dir, folder_path="", filename="doc.pdf", file_type="document", mime_type="application/pdf")
-        _add_file(db, drive_dir, folder_path="", filename="movie.mp4", file_type="video", mime_type="video/mp4")
-
-        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?type_filter=pdf")
-        names = {n["name"] for n in res.json()}
-        assert "doc.pdf" in names
-        assert "movie.mp4" not in names
-
-    def test_type_filter_image(self, client):
-        c, db, drive_dir, data_dir = client
-        _add_file(db, drive_dir, folder_path="", filename="pic.jpg", file_type="image", mime_type="image/jpeg")
-        _add_file(db, drive_dir, folder_path="", filename="note.md", file_type="document", mime_type="text/markdown")
-
-        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?type_filter=image")
-        names = {n["name"] for n in res.json()}
-        assert "pic.jpg" in names
-        assert "note.md" not in names
 
     def test_type_filter_does_not_hide_folders(self, client):
         """Folders must remain visible even when their direct files don't match filter."""
         c, db, drive_dir, data_dir = client
         _add_file(db, drive_dir, folder_path="onlyvideos", filename="v.mp4", file_type="video", mime_type="video/mp4")
 
-        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?type_filter=markdown")
+        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?type_filter=text&include_files=true")
         nodes = res.json()
-        # Folder is still listed even though it has no markdown files
         names = {n["name"] for n in nodes if n["kind"] == "folder"}
         assert "onlyvideos" in names
         # But file_count reflects matching count under filter
@@ -177,9 +144,8 @@ class TestFolderTree:
         _add_file(db, drive_dir, folder_path="parent", filename="a.md", file_type="document", mime_type="text/markdown")
         _add_file(db, drive_dir, folder_path="parent/child", filename="b.md", file_type="document", mime_type="text/markdown")
 
-        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?root=parent")
+        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?root=parent&include_files=true")
         nodes = res.json()
-        # `child` is a sub-folder under parent
         child_folder = next((n for n in nodes if n["name"] == "child"), None)
         assert child_folder is not None
         # has_children should be True for child since it has b.md inside
@@ -187,7 +153,6 @@ class TestFolderTree:
 
     def test_folder_has_children_false_when_empty(self, client):
         c, db, drive_dir, data_dir = client
-        # Create a folder via EmptyFolder marker
         from app.models import EmptyFolder
         db.add(EmptyFolder(drive=TEST_DRIVE, path="empty"))
         db.commit()
@@ -233,7 +198,7 @@ class TestFolderTree:
 
 
 class TestFolderTreeFlat:
-    """Spec 2026-05-09 tree filter: ``flat=true`` returns the entire tree."""
+    """``flat=true`` returns the entire tree."""
 
     def test_flat_returns_all_folders_and_files(self, client):
         c, db, drive_dir, data_dir = client
@@ -242,16 +207,14 @@ class TestFolderTreeFlat:
         _add_file(db, drive_dir, folder_path="docs/specs", filename="spec1.md", file_type="document", mime_type="text/markdown")
         _add_file(db, drive_dir, folder_path="media", filename="v.mp4", file_type="video", mime_type="video/mp4")
 
-        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?flat=true")
+        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?flat=true&include_files=true")
         assert res.status_code == 200
         nodes = res.json()
-        # Folders + files all returned regardless of depth.
         names = {n["name"] for n in nodes}
         assert "root.md" in names
         assert "a.md" in names
         assert "spec1.md" in names
         assert "v.mp4" in names
-        # Folder entries for every ancestor.
         folder_paths = {n["path"] for n in nodes if n["kind"] == "folder"}
         assert "docs" in folder_paths
         assert "docs/specs" in folder_paths
@@ -267,7 +230,7 @@ class TestFolderTreeFlat:
         gone.missing_since = datetime.now(timezone.utc)
         db.commit()
 
-        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?flat=true")
+        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?flat=true&include_files=true")
         names = {n["name"] for n in res.json()}
         assert "ok.md" in names
         assert "trashed.md" not in names
@@ -278,23 +241,128 @@ class TestFolderTreeFlat:
         _add_file(db, drive_dir, folder_path="docs", filename="a.md", file_type="document", mime_type="text/markdown")
         _add_file(db, drive_dir, folder_path="docs", filename="movie.mp4", file_type="video", mime_type="video/mp4")
 
-        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?flat=true&type_filter=markdown")
+        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?flat=true&include_files=true&type_filter=text")
         names = {(n["kind"], n["name"]) for n in res.json()}
         assert ("file", "a.md") in names
         assert ("file", "movie.mp4") not in names
-        # Folder still listed (filter does not hide folders).
         assert ("folder", "docs") in names
 
     def test_flat_invalid_drive(self, client):
         c, db, drive_dir, data_dir = client
-        res = c.get("/api/drives/nonexistent/folder-tree?flat=true")
+        res = c.get("/api/drives/nonexistent/folder-tree?flat=true&include_files=true")
         assert res.status_code == 404
 
 
-class TestFolderResponseDominantKind:
-    """Topic 9: dominant_kind on FolderResponse for layered viewMode fallback."""
+class TestFolderTreeIncludeFiles:
+    """The tree is a map of the drive's shape, files are opt-in.
 
-    def test_dominant_kind_markdown(self, client):
+    The pane beside the tree already lists the files in the folder you are
+    standing in, so the tree drawing them too spends its height saying the
+    same thing twice — and on a drive of any size the folders get pushed
+    off the bottom by the files.
+    """
+
+    def test_default_response_holds_no_file_nodes(self, client):
+        c, db, drive_dir, data_dir = client
+        _add_file(db, drive_dir, folder_path="travel", filename="trip.mp4", file_type="video", mime_type="video/mp4")
+        _add_file(db, drive_dir, folder_path="", filename="readme.md", file_type="document", mime_type="text/markdown")
+
+        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree")
+        assert res.status_code == 200
+        assert [n["kind"] for n in res.json()] == ["folder"]
+        assert [n["name"] for n in res.json()] == ["travel"]
+
+    def test_include_files_brings_them_back(self, client):
+        c, db, drive_dir, data_dir = client
+        _add_file(db, drive_dir, folder_path="travel", filename="trip.mp4", file_type="video", mime_type="video/mp4")
+        _add_file(db, drive_dir, folder_path="", filename="readme.md", file_type="document", mime_type="text/markdown")
+
+        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?include_files=true")
+        assert sorted((n["kind"], n["name"]) for n in res.json()) == [
+            ("file", "readme.md"),
+            ("folder", "travel"),
+        ]
+
+    def test_default_response_under_a_root_holds_no_file_nodes(self, client):
+        c, db, drive_dir, data_dir = client
+        _add_file(db, drive_dir, folder_path="parent/child", filename="v.mp4", file_type="video", mime_type="video/mp4")
+        _add_file(db, drive_dir, folder_path="parent", filename="note.md", file_type="document", mime_type="text/markdown")
+
+        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?root=parent")
+        assert [(n["kind"], n["name"]) for n in res.json()] == [("folder", "child")]
+
+    def test_flat_mode_follows_the_same_default(self, client):
+        """The filter searches this list, so it decides what the filter matches.
+
+        With files hidden, the pane's filter field says "find a folder" and
+        must not quietly match a filename either.
+        """
+        c, db, drive_dir, data_dir = client
+        _add_file(db, drive_dir, folder_path="docs", filename="a.md", file_type="document", mime_type="text/markdown")
+        _add_file(db, drive_dir, folder_path="docs/specs", filename="spec1.md", file_type="document", mime_type="text/markdown")
+
+        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?flat=true")
+        assert res.status_code == 200
+        nodes = res.json()
+        assert [n["kind"] for n in nodes] == ["folder", "folder"]
+        assert sorted(n["path"] for n in nodes) == ["docs", "docs/specs"]
+
+    def test_flat_mode_include_files_brings_them_back(self, client):
+        c, db, drive_dir, data_dir = client
+        _add_file(db, drive_dir, folder_path="docs", filename="a.md", file_type="document", mime_type="text/markdown")
+
+        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?flat=true&include_files=true")
+        assert sorted((n["kind"], n["name"]) for n in res.json()) == [
+            ("file", "a.md"),
+            ("folder", "docs"),
+        ]
+
+    def test_a_folder_holding_only_files_is_a_leaf_by_default(self, client):
+        """`has_children` answers "will expanding this show anything"."""
+        c, db, drive_dir, data_dir = client
+        _add_file(db, drive_dir, folder_path="leaf", filename="a.md", file_type="document", mime_type="text/markdown")
+
+        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree")
+        leaf = next(n for n in res.json() if n["name"] == "leaf")
+        assert leaf["has_children"] is False
+
+    def test_that_same_folder_gains_a_caret_with_files_shown(self, client):
+        c, db, drive_dir, data_dir = client
+        _add_file(db, drive_dir, folder_path="leaf", filename="a.md", file_type="document", mime_type="text/markdown")
+
+        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?include_files=true")
+        leaf = next(n for n in res.json() if n["name"] == "leaf")
+        assert leaf["has_children"] is True
+
+    def test_a_folder_with_a_subfolder_keeps_its_caret_either_way(self, client):
+        c, db, drive_dir, data_dir = client
+        _add_file(db, drive_dir, folder_path="parent/child", filename="a.md", file_type="document", mime_type="text/markdown")
+
+        hidden = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree")
+        shown = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?include_files=true")
+        for res in (hidden, shown):
+            parent = next(n for n in res.json() if n["name"] == "parent")
+            assert parent["has_children"] is True
+
+    def test_file_count_is_the_folder_size_and_does_not_move(self, client):
+        """A folder's size is a fact about the folder, not about the tree."""
+        c, db, drive_dir, data_dir = client
+        _add_file(db, drive_dir, folder_path="parent", filename="a.md", file_type="document", mime_type="text/markdown")
+        _add_file(db, drive_dir, folder_path="parent/child", filename="b.md", file_type="document", mime_type="text/markdown")
+
+        hidden = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree")
+        shown = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?include_files=true")
+        counts = [
+            next(n for n in res.json() if n["name"] == "parent")["file_count"]
+            for res in (hidden, shown)
+        ]
+        assert counts == [2, 2]
+
+
+class TestFolderResponseDominantKind:
+    """dominant_kind on FolderResponse."""
+
+    def test_dominant_kind_text(self, client):
         c, db, drive_dir, data_dir = client
         _add_file(db, drive_dir, folder_path="notes", filename="a.md", file_type="document", mime_type="text/markdown")
         _add_file(db, drive_dir, folder_path="notes", filename="b.md", file_type="document", mime_type="text/markdown")
@@ -303,7 +371,7 @@ class TestFolderResponseDominantKind:
         res = c.get(f"/api/drives/{TEST_DRIVE}/folders")
         folders = res.json()
         assert len(folders) == 1
-        assert folders[0]["dominant_kind"] == "markdown"
+        assert folders[0]["dominant_kind"] == "text"
 
     def test_dominant_kind_video(self, client):
         c, db, drive_dir, data_dir = client
@@ -345,7 +413,7 @@ class TestFolderResponseDominantKind:
         assert folders[0]["dominant_kind"] is None
 
     def test_dominant_kind_recursive(self, client):
-        """Recursive: folder with markdown-heavy descendants reports markdown."""
+        """Recursive: folder with note-heavy descendants reports text."""
         c, db, drive_dir, data_dir = client
         _add_file(db, drive_dir, folder_path="parent/sub1", filename="a.md", file_type="document", mime_type="text/markdown")
         _add_file(db, drive_dir, folder_path="parent/sub2", filename="b.md", file_type="document", mime_type="text/markdown")
@@ -353,7 +421,6 @@ class TestFolderResponseDominantKind:
 
         res = c.get(f"/api/drives/{TEST_DRIVE}/folders")
         folders = res.json()
-        # Root view: only "parent" appears as a top-level folder
         parent = next(f for f in folders if f["name"] == "parent")
-        # 2 markdown vs 1 video → markdown wins recursively
-        assert parent["dominant_kind"] == "markdown"
+        # 2 notes vs 1 video → text wins recursively
+        assert parent["dominant_kind"] == "text"

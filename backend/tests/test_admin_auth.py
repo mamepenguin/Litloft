@@ -56,11 +56,6 @@ def test_admin_dashboard_200_when_unlocked(two_drive_setup):
     assert resp.status_code == 403 if unlock.status_code != 200 else resp.status_code == 200
 
 
-# ---------------------------------------------------------------------------
-# addon_proxy admin pre_check
-# ---------------------------------------------------------------------------
-
-
 def _register_admin_addon():
     addon_registry._registry["_admintest"] = {
         "label": "AdminTest",

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
+import { useScrollContainer } from "@/lib/scrollContainer";
 
 interface FetchResult<T> {
   data: T[];
@@ -59,6 +60,7 @@ export function useInfiniteScroll<T>({
   const hydratedRef = useRef(initial != null);
   const fetchIdRef = useRef(0);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const scrollContainer = useScrollContainer();
 
   const hasMore = !reachedEnd && items.length < total;
 
@@ -157,17 +159,20 @@ export function useInfiniteScroll<T>({
     const el = sentinelRef.current;
     if (!el) return;
 
+    // The margin only extends the root's own box. With the viewport as
+    // root, a scrolling ancestor clips the sentinel first, and the margin
+    // never takes effect.
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
           loadPage(pageRef.current + 1, true);
         }
       },
-      { rootMargin: "0px 0px 400px 0px" },
+      { root: scrollContainer?.current ?? null, rootMargin: "0px 0px 400px 0px" },
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [disabled, hasMore, loadingMore, loading, loadPage]);
+  }, [disabled, hasMore, loadingMore, loading, loadPage, scrollContainer]);
 
   return { items, total, loading, loadingMore, hasMore, pagesLoaded, sentinelRef, reset, setItems, setTotal };
 }

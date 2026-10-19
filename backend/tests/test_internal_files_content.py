@@ -1,11 +1,8 @@
 """HTTP tests for GET /api/internal/files/{id}/content.
 
-Returns the raw UTF-8 text content of a file from its drive mount. Used
-by the knowledge addon's note scanner to reconcile ``note_origins``
-cache against Vault ``.md`` frontmatter even when the file lives on a
-password-protected drive (the scanner has no user cookie). Gated by an
-optional shared secret ``CORE_INTERNAL_SECRET`` that matches the
-``KNOWLEDGE_WEBHOOK_SECRET`` pattern in reverse direction.
+Returns the raw UTF-8 text content of a file from its drive mount, even when
+the file lives on a password-protected drive (the caller has no user cookie).
+Gated by an optional shared secret ``CORE_INTERNAL_SECRET``.
 """
 
 from __future__ import annotations
@@ -143,6 +140,16 @@ class TestInternalFileContent:
     def test_415_for_non_text_mime(self, client):
         c, db, drive_dir, _ = client
         f = _seed_video(db, drive_dir, "v.mp4")
+        r = c.get(f"/api/internal/files/{f.id}/content")
+        assert r.status_code == 415
+
+    def test_415_for_an_epub_even_when_its_bytes_are_utf8(self, client):
+        from app.services.filetype import classify
+
+        c, db, drive_dir, _ = client
+        f = _seed_md(db, drive_dir, "books/b.epub", "plain utf-8 text")
+        f.file_type, f.mime_type = classify("b.epub")
+        db.commit()
         r = c.get(f"/api/internal/files/{f.id}/content")
         assert r.status_code == 415
 

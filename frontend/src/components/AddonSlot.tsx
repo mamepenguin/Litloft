@@ -1,8 +1,10 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { useAddonSlots } from "./AddonSlotsProvider";
-import type { SlotEntry } from "@/lib/addons";
+import { sortSlotEntries, type SlotEntry } from "@/lib/addons";
+import { slotEntryLabel } from "@/lib/slotLabel";
 
 type SlotModule = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -35,17 +37,22 @@ function loadAddonSlotModule(addonName: string): Promise<SlotModule> {
 interface AddonSlotProps {
   id: string;
   props?: Record<string, unknown>;
-  layout?: "tabs" | "stack" | "menu";
+  /**
+   * How the host draws the entries it gets back.
+   *
+   * There is deliberately no `"menu"`: a menu-shaped slot is the host's
+   * own `role="menu"` wrapping `layout="stack"`, with each entry drawing
+   * `ActionMenuItem` rows (see `file-actions-menu`).
+   */
+  layout?: "tabs" | "stack";
   /**
    * Optional allowlist by entry id. When provided, only entries whose
    * `id` is in the list are rendered. Both filters are applied before
    * sorting / tab activation, so an empty resulting set still hides the
    * entire slot (matches the `sorted.length === 0` early return).
    *
-   * Used by the Markdown DocumentLayout split (spec
-   * `2026-05-10-markdown-document-layout.md`) to send `knowledge-edit`
-   * to the canvas while the rest go to the Inspector. Both undefined →
-   * full back-compat (every entry rendered, original behaviour).
+   * Used by the Markdown DocumentLayout split to send `knowledge-edit`
+   * to the canvas while the rest go to the Inspector.
    */
   includeIds?: string[];
   /**
@@ -56,7 +63,15 @@ interface AddonSlotProps {
   excludeIds?: string[];
 }
 
-function SlotEntryRenderer({
+/**
+ * One slot entry, loaded and rendered on its own.
+ *
+ * Exported because the inspector's tab strip composes core tabs and
+ * addon tabs into a single list, so it needs one entry at a time rather
+ * than the whole slot at once — `AddonSlot` renders every entry it
+ * finds, which is the wrong shape when each entry is its own tab.
+ */
+export function SlotEntryRenderer({
   entry,
   props,
 }: {
@@ -103,6 +118,8 @@ export function AddonSlot({
   excludeIds,
 }: AddonSlotProps) {
   const { getSlotEntries } = useAddonSlots();
+  // Global namespace: a slot's `i18n_key` names its own addon's.
+  const tGlobal = useTranslations();
   const entries = getSlotEntries(id);
 
   const sorted = useMemo(() => {
@@ -113,7 +130,7 @@ export function AddonSlot({
       if (excludeSet && excludeSet.has(entry.id)) return false;
       return true;
     });
-    return filtered.sort((a, b) => a.priority - b.priority);
+    return sortSlotEntries(filtered);
   }, [entries, includeIds, excludeIds]);
 
   const [activeTab, setActiveTab] = useState(0);
@@ -135,7 +152,7 @@ export function AddonSlot({
                   : "text-text-muted hover:text-text-primary"
               }`}
             >
-              {entry.label}
+              {slotEntryLabel(entry, tGlobal)}
             </button>
           ))}
         </div>

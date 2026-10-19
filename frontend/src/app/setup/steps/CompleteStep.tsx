@@ -1,29 +1,28 @@
 "use client";
 
-// CompleteStep: final wizard screen. Renders an input summary card and
-// a "next steps" list, then POSTs /api/admin/config/complete-setup and
-// navigates to /admin on success. Surfaces failures inline and leaves
-// the user on this step so they can retry.
-
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 
+import { SETUP_TOKEN_HEADER } from "@/lib/adminConfig";
+
 export interface CompleteSummary {
   driveCount: number;
   accessMode: "public" | "protected";
-  addonOnCount: number;
+  addonOnCount: number | null;
 }
 
 interface Props {
   onBack: () => void;
   onBeforeSubmit?: () => Promise<void>;
+  setupToken: string;
   summary: CompleteSummary;
 }
 
 export function CompleteStep({
   onBack,
   onBeforeSubmit,
+  setupToken,
   summary,
 }: Props): React.ReactElement {
   const t = useTranslations("setup");
@@ -40,7 +39,10 @@ export function CompleteStep({
       const res = await fetch("/api/admin/config/complete-setup", {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          [SETUP_TOKEN_HEADER]: setupToken,
+        },
       });
       if (!res.ok) {
         let message = tComplete("errorMessage");
@@ -59,7 +61,7 @@ export function CompleteStep({
     } finally {
       setSubmitting(false);
     }
-  }, [onBeforeSubmit, router, tComplete]);
+  }, [onBeforeSubmit, router, setupToken, tComplete]);
 
   const accessModeLabel =
     summary.accessMode === "public"
@@ -78,7 +80,7 @@ export function CompleteStep({
       </div>
 
       <div className="rounded-xl border border-bg-border bg-bg-card p-5">
-        <h3 className="text-sm font-semibold uppercase text-text-muted">
+        <h3 className="text-sm font-semibold text-text-muted">
           {tComplete("summary.title")}
         </h3>
         <dl className="mt-3 space-y-2 text-sm">
@@ -100,8 +102,14 @@ export function CompleteStep({
           <div className="flex justify-between">
             <dt className="text-text-muted">{tComplete("summary.addons")}</dt>
             <dd className="font-medium text-text-primary">
-              {summary.addonOnCount}
-              {tComplete("summary.addonUnit")}
+              {summary.addonOnCount === null ? (
+                tComplete("summary.addonsDefault")
+              ) : (
+                <>
+                  {summary.addonOnCount}
+                  {tComplete("summary.addonUnit")}
+                </>
+              )}
             </dd>
           </div>
         </dl>
@@ -132,7 +140,7 @@ export function CompleteStep({
           type="button"
           onClick={handleComplete}
           disabled={submitting}
-          className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50"
+          className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:bg-sand disabled:text-warm-silver disabled:cursor-not-allowed"
         >
           {submitting ? tComplete("submitting") : tComplete("submit")}
         </button>

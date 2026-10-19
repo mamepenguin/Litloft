@@ -4,16 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { FolderPlus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useShortcuts } from "@/hooks/useShortcuts";
+import { Button } from "@/components/Button";
 
 interface NameInputDialogProps {
   open: boolean;
-  /** Dialog title shown at the top. */
   title: string;
-  /** Optional input placeholder. */
   placeholder?: string;
-  /** Optional submit-button label (defaults to common.create). */
   submitLabel?: string;
-  /** Optional initial value (typically empty). */
   initialValue?: string;
   onSubmit: (name: string) => void;
   onCancel: () => void;
@@ -39,10 +36,14 @@ export function NameInputDialog({
     }
   }, [open, initialValue]);
 
+  // `editingOnly: false` is load-bearing: the dialog focuses its own
+  // field, and the provider counts a focused input as "editing", where
+  // the flag's default ("only when nothing is being edited") means the
+  // shortcut never fires.
   useShortcuts(
     "name-input-dialog",
     "Dialog",
-    [{ key: "escape", label: "Cancel", handler: onCancel, hidden: true }],
+    [{ key: "escape", label: "Cancel", editingOnly: false, handler: onCancel, hidden: true }],
     open,
   );
 
@@ -91,13 +92,14 @@ export function NameInputDialog({
             >
               {tc("cancel")}
             </button>
-            <button
+            <Button
+              variant="primary"
+              size="md"
               type="submit"
               disabled={!name.trim()}
-              className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-40"
             >
               {submitLabel ?? tc("create")}
-            </button>
+            </Button>
           </div>
         </form>
       </div>

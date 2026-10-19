@@ -76,10 +76,35 @@ describe("ArchiveFileListing", () => {
     expect(sizes).toHaveLength(2); // readme.txt and image.jpg
   });
 
-  it("shows download links for files", () => {
+  it("offers a reason and a download only where the row is a dead end", () => {
     render(<ArchiveFileListing {...defaultProps} />);
-    expect(screen.getByLabelText("Download readme.txt")).toBeInTheDocument();
-    expect(screen.getByLabelText("Download image.jpg")).toBeInTheDocument();
+    expect(screen.queryByText("No preview")).toBeNull();
+    expect(screen.queryByRole("link")).toBeNull();
+  });
+
+  it("gives every dead-end row a reason and a download", () => {
+    // `ArchivePreview`'s own predicate always admits a directory, so the fake
+    // does too — a listing where even folders are dead ends is not a state
+    // this component is ever handed.
+    render(
+      <ArchiveFileListing {...defaultProps} isClickable={(e) => e.is_dir} />
+    );
+
+    // Two, not three: a directory is always openable, so the count says the
+    // treatment is per-row rather than per-listing.
+    expect(screen.getAllByText("No preview").length).toBe(2);
+    const links = screen.getAllByRole("link");
+    expect(links.map((a) => a.getAttribute("download"))).toEqual([
+      "readme.txt",
+      "image.jpg",
+    ]);
+    expect(links[0].textContent).toBe("Download");
+    // The visible word stays inside the name, so WCAG 2.5.3's containment
+    // holds.
+    expect(links.map((a) => a.getAttribute("aria-label"))).toEqual([
+      "Download readme.txt",
+      "Download image.jpg",
+    ]);
   });
 
   it("shows empty message when no entries", () => {
@@ -87,21 +112,34 @@ describe("ArchiveFileListing", () => {
     expect(screen.getByText("This folder is empty")).toBeInTheDocument();
   });
 
-  it("disables non-clickable entries", () => {
+  it("makes a dead-end row not a control, rather than a control that is off", () => {
     render(
-      <ArchiveFileListing {...defaultProps} isClickable={() => false} />
+      <ArchiveFileListing {...defaultProps} isClickable={(e) => e.is_dir} />
     );
+
+    // The one button left is the directory's. A `disabled` row puts an
+    // unreachable control in the tab order and dims the name that would
+    // explain it.
     const buttons = screen.getAllByRole("button");
-    const entryButtons = buttons.filter((b) => b.hasAttribute("disabled"));
-    expect(entryButtons.length).toBeGreaterThan(0);
+    expect(buttons.length).toBe(1);
+    expect(buttons[0].textContent).toContain("photos");
+    expect(document.querySelectorAll("[disabled]").length).toBe(0);
+    expect(document.querySelectorAll(".opacity-60").length).toBe(0);
   });
 
-  it("renders children", () => {
+  it("puts the touch floor on the row, so rows are evenly pitched", () => {
     render(
-      <ArchiveFileListing {...defaultProps}>
-        <div data-testid="child">Extra content</div>
-      </ArchiveFileListing>
+      <ArchiveFileListing {...defaultProps} isClickable={(e) => e.is_dir} />
     );
-    expect(screen.getByTestId("child")).toBeInTheDocument();
+    const rows = [...document.querySelectorAll("li > *")];
+    expect(rows.length).toBe(3);
+    for (const row of rows) {
+      expect(row.className).toContain("pointer-coarse:min-h-11");
+    }
+  });
+
+  it("keeps every openable row a control", () => {
+    render(<ArchiveFileListing {...defaultProps} />);
+    expect(screen.getAllByRole("button").length).toBe(3);
   });
 });

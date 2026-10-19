@@ -10,11 +10,9 @@ afterEach(() => {
 });
 
 describe("markdownContentRegistry", () => {
-  // Phase 3.5 fix-up for spec 2026-05-10 §D2 / hako ZWLqXgdTwt9le4dAI3U8C:
-  // a tiny module-level store that lets the inspector's EditableTagChips
-  // share the editor's `content` state via content-mode, eliminating
-  // the etag race between standalone tag saves and editor textarea
-  // autosaves on `.md` in document-layout mode.
+  // Lets the inspector's EditableTagChips share the editor's `content`
+  // state, so standalone tag saves and editor autosaves on `.md` do not
+  // race on the etag.
 
   it("returns null when nothing is registered for a fileId", () => {
     expect(markdownContentRegistry.lookup("missing")).toBeNull();
@@ -36,7 +34,6 @@ describe("markdownContentRegistry", () => {
 
     found!.setContent("updated");
     expect(stored).toBe("updated");
-    // Subsequent reads reflect the same backing state.
     expect(found!.getContent()).toBe("updated");
   });
 
@@ -67,7 +64,7 @@ describe("markdownContentRegistry", () => {
     // The Editor remounts when fileId changes (its useEffect dep
     // includes fileId). Re-registering the same fileId must replace
     // the previous entry — otherwise stale closures point at unmounted
-    // state. Mirrors the dirtyRegistry "set replaces" behaviour.
+    // state.
     markdownContentRegistry.register("f1", {
       getContent: () => "old",
       setContent: () => undefined,
@@ -136,8 +133,6 @@ describe("markdownContentRegistry", () => {
     });
 
     it("notifySaved on an unsubscribed fileId is a no-op", () => {
-      // No throws / no listeners involved — just exercising the
-      // empty-map branch.
       expect(() =>
         markdownContentRegistry.notifySaved("never-subscribed"),
       ).not.toThrow();
@@ -171,9 +166,7 @@ describe("markdownContentRegistry", () => {
 
     markdownContentRegistry.reset();
 
-    // After reset, the prior entry is gone.
     expect(markdownContentRegistry.lookup("f1")).toBeNull();
-    // And the prior subscriber must not fire on later activity.
     markdownContentRegistry.register("f2", {
       getContent: () => "",
       setContent: () => undefined,

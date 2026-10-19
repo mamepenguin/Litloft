@@ -6,7 +6,7 @@ Endpoints (all at /api/internal):
 - GET    /file_relations?drive=X[&kind=...]     drive-wide bulk (graph view)
 - DELETE /file_relations/{id}   (204, 404)
 
-Drive boundary (spec R4): the two files must live on the same drive.
+Drive boundary: the two files must live on the same drive.
 Self-relation (file_id_a == file_id_b) is rejected at the application
 layer with 400 (not swallowed as a 500 IntegrityError from the CHECK).
 """
@@ -186,7 +186,6 @@ class TestListFileRelations:
         assert res.status_code == 200
         items = res.json()
         assert len(items) == 1
-        # The row is returned regardless of orientation
         assert {items[0]["file_id_a"], items[0]["file_id_b"]} == {a.id, b.id}
 
     def test_kind_filter(self, client):
@@ -339,7 +338,6 @@ class TestDeleteFileRelation:
         res = c.delete(f"/api/internal/file_relations/{created['id']}")
         assert res.status_code == 204
 
-        # Now gone.
         listing = c.get(
             "/api/internal/file_relations", params={"file_id": a.id}
         ).json()
