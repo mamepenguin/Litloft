@@ -1,0 +1,1 @@
+{"verdict":"HUMAN_REVIEW_REQUIRED","reasons":["protected_path"],"findings":[{"reviewer":"claude-read","id":"R1-SCOPE-1","state":"open"}],"needs_human":[{"kind":"protected_path","ref":null,"note":"the change touches a protected path","paths":["process/reviewers.conf"]}]}

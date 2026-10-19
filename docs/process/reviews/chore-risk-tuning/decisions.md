@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship (r1, HUMAN_REVIEW_REQUIRED for protected_path; the user chose "DOC-1 を直して ship (Recommended)" for both repositories. The missing touch-point list (R1-SCOPE-1) is accepted without a spec.)
 ran_in_app: not-applicable
 at: ac703453d96e4db2357c384777d4d2da70388299
 by: agent

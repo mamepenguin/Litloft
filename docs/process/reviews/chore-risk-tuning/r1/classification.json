@@ -1,0 +1,23 @@
+{
+  "risk": "CRITICAL",
+  "score": 10,
+  "base": 0,
+  "zone_max": "CRITICAL",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "process/reviewers.conf",
+      "level": "CRITICAL"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [
+    "process/reviewers.conf"
+  ],
+  "docs_only": false,
+  "reasons": [
+    "highest zone CRITICAL (10 points)",
+    "protected path changed: process/reviewers.conf"
+  ]
+}
