@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "R1-SCOPE-1",
+      "origin": "reviewer",
+      "claim": "The diff changes process/reviewers.conf, a protected CRITICAL-zone path, and this change has no spec and no invariants file, so that path is not in any declared touch-point list.",
+      "impact": "No user-visible defect. Litloft users see no difference: the file is read only by scripts/process/review.sh. The cost is that no reviewer can check this CRITICAL change against a planned scope, and bucket A cannot be used. The row itself is well-formed: review.sh parse_conf (scripts/process/review.sh:95-126) accepts it, and it adds claude-deep to CRITICAL reviews only.",
+      "evidence": "process/reviewers.conf:24 adds `claude-deep | claude | read | CRITICAL | scope,submodules,persistence,concurrency`. docs/process/reviews/chore-risk-tuning/ holds only decisions.md and r1/{head.txt,expected.txt,classification.json,fixes.txt}, with no invariants.md. Grep under docs/specs/ finds no spec that mentions reviewers.conf, claude-deep or risk-tuning. r1/classification.json lists process/reviewers.conf as a CRITICAL zone and a protected path. r1/expected.txt lists claude-read, claude-verify and claude-deep, which matches what the new row does. The same situation was raised in docs/process/reviews/fix-backend-image-addons-dir/r1/triage.md:39 and accepted there by a human decision.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is declared, so no invariant can be broken. The change has no touch-point list, so the place it reaches is unplanned only in the scope sense. The workflow.md Skips table exempts only docs-only and kit-update changes from /spec, and this change is neither.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Have a person decide either to accept the change without a spec, with a decision line as fix-backend-image-addons-dir did, or to add docs/process/reviews/chore-risk-tuning/invariants.md that lists process/reviewers.conf as the touch point."
+    }
+  ],
+  "specification_compliance": [
+    "No spec or invariants file exists for this change, so there is no touch-point list to compare against. The only place the diff reaches outside the implicit review-record paths is process/reviewers.conf.",
+    "The added row has the documented shape (id | engine | role | min_risk | perspectives). Its id is lowercase and unique, its engine is claude, its role is read and its min_risk is CRITICAL. Its perspectives contain only characters that all_perspectives handles. parse_conf in scripts/process/review.sh:95-126 would accept it."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "If a command-line --perspective is given, review.sh all_perspectives merges it with the conf perspectives of claude-deep, so that reviewer's brief lists both sets."
+  ],
+  "regression_risks": [
+    "A CRITICAL review now runs one more claude -p reader. That raises the cost of every CRITICAL review and adds one more artifact that has to validate, and I did not check whether a failed artifact from it blocks the verdict."
+  ],
+  "test_coverage": [
+    "No test exercises the new row. Its effect shows up only in r1/expected.txt, which lists claude-deep for this CRITICAL change."
+  ],
+  "not_verified": [
+    "I did not run review.sh or parse_conf, so whether the row is accepted is inferred from reading the code.",
+    "I did not read the commit 3306844cb itself through git. I relied on the supplied diff and the files in the working tree.",
+    "I did not check how review.sh handles a claude-deep run that fails or returns an invalid artifact."
+  ],
+  "confidence": 88
+}
