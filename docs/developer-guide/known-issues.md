@@ -605,3 +605,10 @@ listing.** Litloft shows the new name, but on a Docker Desktop bind mount of a
 case-insensitive macOS volume the file on disk keeps its old case, because a
 rename that differs only in case does nothing inside the container. The file
 still opens. Reached with `Foo.txt → foo.txt`, single or batch rename.
+
+**An Ask about files you watched can skip its summary narrowing.** Ask's coarse
+retrieval keeps the drive's 20 best-matching file summaries before it intersects
+them with your watch history, so when other files' summaries outrank every
+watched file, the intersection is empty and Ask searches the whole history
+instead. Reached with an Ask that uses personal history in a drive where many
+unwatched files match the question better than the watched ones.
