@@ -15,10 +15,17 @@ of `vec_clip`. The channels run in parallel, so the slowest one sets the time.
 `vec_clip` holds 857,359 rows: 838,039 scene frames (`clip`) and 19,320 representative
 frames (`clip_thumbnail`). With **Scene search** off, which is the default, the channel
 keeps only `clip_thumbnail` rows. Today it applies that filter after the KNN. It takes
-the nearest `rrf_candidates` (50) rows of any type, then drops the scene rows. In a
-production sample, 46 of the 50 were scene rows and only 4 thumbnails were left. So
-default search silently loses image and video hits that a scene frame happened to
-outrank.
+the nearest `rrf_candidates` (50) rows of any type, then drops the scene rows.
+
+In practice the channel contributes almost nothing to default search on production. The
+score gap check runs over those 50 mixed rows, and scene frames flatten the distribution.
+For 20 everyday text queries embedded with the production CLIP model (2026-10-21), the
+gap check discarded everything for 17 and the score floor for 2. Only one query passed,
+with a single match. On the same queries, the `clip_thumbnail` partition alone passed
+the gates for 15 queries and kept 10-50 thumbnails each. The user inspected the kept
+thumbnails for 12 queries and judged them to show what the query names, down to the
+lowest-ranked. Whether a viewer wants such a file (an anime scene for "住宅") is a
+property of image matching itself, not of this change.
 
 Since SPEC-ADDON-022, `vec_clip` and `vec_text` carry `embedding_type` as a sqlite-vec
 partition key. A `MATCH` constrained to one type scans only that partition.
@@ -61,7 +68,8 @@ SPEC-ADDON-025 (search CLIP channel):
    and coefficient-of-variation checks over all returned scores, the per-type
    `min_score_clip_thumbnail` floor, and the margin cutoff. The difference is the input:
    every row is now a `clip_thumbnail` row, so the gap and CV are computed over
-   thumbnails only.
+   thumbnails only. The filter on `embeddings.embedding_type` against `allowed_types`
+   stays after the KNN.
 4. With `include_scene_clip=True`, the channel behaves exactly as today: an
    unconstrained KNN over `vec_clip`, then the filter to `clip_thumbnail` and `clip`.
    Constraining to both partitions costs a full scan as well (measured 0.48 s), so
@@ -89,7 +97,10 @@ SPEC-ADDON-026 (Ask coarse retrieval):
 - **A vec row whose partition value is NULL.** Addon code older than SPEC-ADDON-022
   writes such rows. A constrained KNN never returns them, which is the same as
   SPEC-ADDON-023's similar-files KNN. `repair_unkeyed_vec_rows` re-keys them at the next
-  start.
+  start. If the repair raises, the lifespan logs an ERROR with the traceback and starts
+  anyway. The unkeyed thumbnails and summaries then stay out of default search and
+  coarse retrieval until a later start repairs them. Today's unconstrained KNN still
+  finds such rows, so this change makes that gap visible in search results.
 - **An empty partition** (a library with no thumbnails or no summaries). The KNN
   returns no rows. The CLIP channel returns `[]` as it does today for an empty table.
   `coarse_retrieve` returns an empty shortlist, which the caller already treats as the
@@ -121,10 +132,13 @@ of another drive that today's query would not have dropped.
 
 ### 7. Effect on existing features
 
-- **Ordinary search (Scene search off)**: the CLIP channel can return thumbnails that
-  scene rows crowded out before. The RRF/cosine combiners, and so the result list, may
-  gain image and video hits and reorder. The gap and CV gates now judge a thumbnail-only
-  score distribution, so a query they discarded before may pass, or the reverse.
+- **Ordinary search (Scene search off)**: the CLIP channel starts contributing. Its
+  matches enter the cosine and RRF combiners, so the result list gains image and video
+  hits and reorders. This is intended. The gap and CV gates now judge a thumbnail-only
+  score distribution. On production they pass most everyday queries (15 of 20 measured),
+  where today they discard almost all of them (19 of 20). The thresholds stay as they
+  are. How much of the final top 20 the new matches take is not measured before
+  implementation. R-5 checks it on the running app.
 - **`GET /search/compare`**: calls `_vector_search_clip(clip_vector, candidates)` with
   the default `include_scene_clip=False`, so it changes the same way.
 - **Ask retrieval** (`app/rag/retriever.py`): calls `search()` with
@@ -132,6 +146,12 @@ of another drive that today's query would not have dropped.
 - **Ask coarse shortlist**: it can contain summaries that transcript chunks crowded out
   before. `top_score` can only rise or stay the same for a given query, so the
   low-confidence bypass fires the same or less often.
+- **Ask with personal history** (`retrieve_hierarchical` with `pre_scope_file_ids`): the
+  shortlist is intersected with the history scope. A fuller shortlist can make an
+  intersection non-empty that was empty before. The `empty_intersection` bypass then
+  fires less often, and retrieval is scoped to the intersection more often. The
+  intersected `top_score` can only rise or stay the same. Both are intended: they are
+  the history files whose summaries match, which the crowding hid.
 - **Scene search on**: unchanged.
 - **The text channel (`_vector_search_text`)**: unchanged.
 - **Similar files and tag recommendation (`tag_knn`)**: unchanged.
@@ -146,8 +166,9 @@ still fire. They now describe thumbnail-only distributions.
 - Search with Scene search off answers faster: about 0.5 s to about 0.15 s on production
   with a warm cache. After a restart or memory pressure, the first search reads about
   60 MB of thumbnail vectors instead of about 2.6 GB.
-- Search with Scene search off can list more image and video results, or list them in a
-  different order. Text, labels and defaults do not change.
+- Search with Scene search off lists image and video results that match the query
+  visually, where today it almost never does. These can take places in the list from
+  text-matched files and change the order. Text, labels and defaults do not change.
 - Ask can cite files whose summaries were not reached before.
 - Search with Scene search on: no change.
 
@@ -164,7 +185,13 @@ still fire. They now describe thumbnail-only distributions.
   branch on `include_scene_clip`).
 - `addons/intelligence/app/rag/coarse_retriever.py`: `coarse_retrieve` (the KNN in the
   CTE).
-- `addons/intelligence/tests/`: tests citing SPEC-ADDON-025 and SPEC-ADDON-026.
+- `addons/intelligence/tests/`: new tests citing SPEC-ADDON-025 and SPEC-ADDON-026. They
+  run against real partitioned `vec_clip` / `vec_text` tables (sqlite-vec v0.1.6 is in
+  `Dockerfile.test`), because the mocked connections in the existing tests cannot see the
+  partition constraint.
+- `addons/intelligence/tests/test_rag_coarse_retriever.py`: unchanged. The KNN keeps the
+  bind name `over_fetch` and its value, so
+  `test_passes_drive_and_overfetch_to_query` still holds as written.
 - The submodule pointer `addons/intelligence` in core.
 - `docs/specs/INDEX.md`.
 - Rules passed through: `.claude/rules/design-decisions.md`, Drives (a drive is a
@@ -173,25 +200,32 @@ still fire. They now describe thumbnail-only distributions.
 
 ## Invariants
 
-I1. With Scene search off, every row the CLIP channel's KNN returns has `embedding_type`
-`clip_thumbnail`.
-I2. With Scene search off, the CLIP channel's KNN returns the `min(rrf_candidates, N)`
-nearest `clip_thumbnail` rows, where N is the number of `clip_thumbnail` rows. This holds
-however many scene (`clip`) rows are nearer to the query.
-I3. With Scene search on, the CLIP channel returns the same matches, scores and order as
-before this change, for the same database and query vector.
-I4. The CLIP channel's discard stages (score gap, coefficient of variation, per-type
+I1. With Scene search off, and with thresholds and margin that let every row through,
+`_vector_search_clip` returns the `min(rrf_candidates, N)` nearest `clip_thumbnail`
+matches and no `clip` match. N is the number of `vec_clip` rows keyed `clip_thumbnail`.
+This holds however many `clip` rows are nearer to the query.
+I2. With Scene search on, `_vector_search_clip` returns the same matches, scores and
+order as before this change, for the same database and query vector.
+I3. The CLIP channel's discard stages (score gap, coefficient of variation, per-type
 minimum score, margin) apply the same thresholds as before to the rows the KNN returned.
-I5. `coarse_retrieve` shortlists only active files of the request drive that have a
-`metadata` embedding, ordered by ascending distance, at most `top_k` of them.
-I6. `coarse_retrieve` considers the `over_fetch` nearest `metadata` rows, however many
-rows of other embedding types are nearer to the query.
-I7. The text channel (`_vector_search_text`) returns the same matches as before this
+I4. `coarse_retrieve` shortlists only active files of the request drive that have a
+`metadata` embedding. Each file appears at most once, with the score of its nearest
+`metadata` row. The files are ordered by ascending distance, at most `top_k` of them.
+I5. `coarse_retrieve` shortlists the drive's nearest `metadata` files from the
+`over_fetch` nearest `metadata` rows, however many rows of other embedding types are
+nearer to the query.
+I6. The text channel (`_vector_search_text`) returns the same matches as before this
 change for the same database and query vector.
-I8. Neither query writes to `search.db`.
+I7. Neither query writes to `search.db`.
 
 ## Checked, no action
 
+- **Retuning the CLIP gates for the thumbnail-only distribution.** Seven of the
+  12 inspected queries keep all 50 thumbnails, because their scores fit inside the 0.05
+  margin. The user judged those matches relevant down to the last one, so a tighter gate
+  would drop correct matches. The thresholds stay. If the final result list turns out
+  crowded by image matches, that is a ranking question for the combiners, outside this
+  change.
 - **The text channel (`_vector_search_text`).** It keeps every type except
   `video_visual_scene`, and production has no rows of that type. Constraining it would
   scan the same rows. `whisper` alone is 576,143 of 632,274 rows and its KNN takes
