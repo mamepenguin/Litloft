@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship (human, 2026-10-22, after r1 HUMAN_REVIEW_REQUIRED: B findings are touch-point scope only; the known-issues row was added by this branch in 939a9beee; stated by the user as "ship")
 ran_in_app: yes
 at: f915aeac7079442f3e45606e469c7cad34258424
 by: agent
