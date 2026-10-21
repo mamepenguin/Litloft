@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "addons/intelligence/app/search.py:279-283: inside search(), the ThreadPoolExecutor submit of _vector_search_clip now passes drive=drive. The touch points (docs/specs/search-knn-partition.md:217-236) name only _vector_search_clip (the KNN query and the include_scene_clip branch) and coarse_retrieve. invariants.md revises only I1, I3 and I9, not the touch points."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "addons/intelligence/app/search.py:2459-2481: execute_search_compare calls _vector_search_clip(clip_vector, candidates, drive=drive). A grep for execute_search_compare and search/compare over addons/intelligence/tests returns no matches. Spec §7 (search-knn-partition.md:153-154) still describes the call as _vector_search_clip(clip_vector, candidates) and does not mention the drive. The only evidence for the compare path is the manual R-5 record in decisions.md:14."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "search.py:565-609 adds _CLIP_DRIVE_FETCH_MAX=4096, _CLIP_DRIVE_FETCH_FACTORS=(4,16,64) and _drive_thumbnail_neighbours. For limit=50 that helper runs KNNs at k = 200, 800, 3200 and 4096, and after each one queries Embedding joined to IndexedFile, filtered to the drive and to active files. search.py:612-619 adds a drive keyword parameter, and search.py:674-675 routes to the helper when drive is set and include_scene_clip is false. The r5 revisions of I1, I3 and I9 describe this behaviour, but the Touch points section and §1/§6 (the drive filter stays in _build_results) were not updated."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-4",
+      "status": "needs_human",
+      "note": "The row exists at docs/developer-guide/known-issues.md:616-620, right after the personal-history row at :609-614 that the touch points allow. With Read/Grep only I cannot diff against origin/develop (base 750874542), so I cannot confirm that this branch added the row rather than inheriting it. The branch reflog (.git/logs/refs/heads/feature/search-knn-partition) has no commit that names this row. decisions.md:17 calls it 'a known defect from before this change (docs/developer-guide/known-issues.md)', which fits either reading. A human needs to run `git diff origin/develop...5b63f2d -- docs/developer-guide/known-issues.md`."
+    }
+  ],
+  "specification_compliance": [
+    "The touch-point list in docs/specs/search-knn-partition.md was not updated after the r5 drive-filter revision. The search() call site, execute_search_compare and the new helper fall outside it (TP-1 to TP-3 confirmed).",
+    "Spec §6 says the drive filter after the KNN stays in _build_results, and §7 describes the compare call without a drive. Both are stale against the r5 behaviour at search.py:674-675 and :2478."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "execute_search_compare with no drive (drive=None) takes the unfiltered single-KNN path. The spec does not state this for compare.",
+    "_drive_thumbnail_neighbours stops after the first KNN that returns fewer rows than asked (partition exhausted), and returns [] as soon as one KNN returns nothing."
+  ],
+  "regression_risks": [
+    "The compare endpoint's drive filtering has no automated test. A regression in execute_search_compare's drive argument would go unnoticed."
+  ],
+  "test_coverage": [
+    "No test references execute_search_compare (grep over addons/intelligence/tests)."
+  ],
+  "not_verified": [
+    "Whether the 'An Ask whose answer the LLM fails to generate never finishes' known-issues row was added by this branch or already on origin/develop (no git diff available).",
+    "I did not read the new SPEC-ADDON-025/026 tests and did not run any test.",
+    "I did not check coarse_retrieve or the INDEX.md change."
+  ],
+  "confidence": 85
+}

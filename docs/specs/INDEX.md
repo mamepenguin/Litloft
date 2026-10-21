@@ -45,3 +45,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-024 | implemented | docs/specs/similar-files-on-open.md | sha256:3ca2bc754db9122108b7e45dcf1af68f1219414612ef8cdbecf6be93c20eaf10 |
 | SPEC-CORE-006 | implemented | docs/specs/transparent-image-thumbnails.md | sha256:9b02f5efcf4a5f360c8cbcf4602bb6beaf3b24880518d6258b5f928fa5889090 |
 | SPEC-CORE-007 | implemented | docs/specs/transparent-image-thumbnails.md | sha256:9b02f5efcf4a5f360c8cbcf4602bb6beaf3b24880518d6258b5f928fa5889090 |
+| SPEC-ADDON-025 | implemented | docs/specs/search-knn-partition.md | sha256:b67aa3da71ae87e11cbecb54e0085d54cd257fbf1ac1a371b712b3341e6e2b69 |
+| SPEC-ADDON-026 | implemented | docs/specs/search-knn-partition.md | sha256:b67aa3da71ae87e11cbecb54e0085d54cd257fbf1ac1a371b712b3341e6e2b69 |
