@@ -612,3 +612,9 @@ them with your watch history, so when other files' summaries outrank every
 watched file, the intersection is empty and Ask searches the whole history
 instead. Reached with an Ask that uses personal history in a drive where many
 unwatched files match the question better than the watched ones.
+
+**An Ask whose answer the LLM fails to generate never finishes.** When the LLM
+call for the answer fails after the sources have been sent, the stream stays
+open without its closing event, so the page keeps showing "Creating answer…".
+Reached with a local LLM that fails on a long prompt, for example an Ask over
+several long documents.
