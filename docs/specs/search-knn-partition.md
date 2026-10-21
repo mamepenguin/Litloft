@@ -58,12 +58,17 @@ viewer searching a drive and asking questions about it.
 
 SPEC-ADDON-025 (search CLIP channel):
 
-1. A viewer searches, through `GET /search`, `GET /search/compare` or an Ask retrieval
-   that calls `search()`. `search()` embeds the query with CLIP and calls
+1. A viewer searches, through `GET /search`, `GET /search/compare`, or an Ask, Find or
+   `search_files` tool retrieval that calls `search()`. `search()` embeds the query with
+   CLIP and calls
    `_vector_search_clip(clip_vector, rrf_candidates, mode=..., include_scene_clip=...)`.
+   In recall mode (the Ask-side callers), `search()` skips the channel entirely when no
+   BLIP model is configured (`_recall_clip_enabled`), as today.
 2. With `include_scene_clip=False`, the KNN is constrained to the `clip_thumbnail`
-   partition with `k = rrf_candidates`. It returns the nearest `clip_thumbnail` rows,
-   at most `rrf_candidates` of them, ordered by distance. No scene row is fetched.
+   partition with `k = rrf_candidates`. It fetches the nearest `clip_thumbnail` rows, at
+   most `rrf_candidates` of them. No scene row is fetched. The order of the matches
+   `_vector_search_clip` returns is not part of this contract; the combiners do not
+   depend on it.
 3. The returned rows go through the stages that exist today, unchanged: the score gap
    and coefficient-of-variation checks over all returned scores, the per-type
    `min_score_clip_thumbnail` floor, and the margin cutoff. The difference is the input:
@@ -105,8 +110,11 @@ SPEC-ADDON-026 (Ask coarse retrieval):
   returns no rows. The CLIP channel returns `[]` as it does today for an empty table.
   `coarse_retrieve` returns an empty shortlist, which the caller already treats as the
   `empty_shortlist` bypass.
-- **A sqlite error during the KNN.** Propagates as today: `search()` fails, and so do
-  `GET /search` (500 "Search failed") and `coarse_retrieve`'s caller. No new handling.
+- **A sqlite error during the KNN.** Propagates as today, with no new handling.
+  `GET /search` answers 500 "Search failed". An Ask stream, whether it fails in
+  `search()` or in `coarse_retrieve`, ends with a `done` event carrying
+  "Answer generation failed". Find catches the error in its retrieval stage and shows
+  no results.
 
 ### 3. States
 
@@ -138,11 +146,22 @@ of another drive that today's query would not have dropped.
   score distribution. On production they pass most everyday queries (15 of 20 measured),
   where today they discard almost all of them (19 of 20). The thresholds stay as they
   are. How much of the final top 20 the new matches take is not measured before
-  implementation. R-5 checks it on the running app.
+  implementation. R-5 records, for a few queries on the running app, how many of the
+  top 20 the CLIP channel brought in. This is a record, not a pass/fail gate (the user's
+  decision): if image matches crowd out text-matched files, the combiner weights are
+  tuned in a separate change.
 - **`GET /search/compare`**: calls `_vector_search_clip(clip_vector, candidates)` with
   the default `include_scene_clip=False`, so it changes the same way.
-- **Ask retrieval** (`app/rag/retriever.py`): calls `search()` with
-  `include_scene_clip` from the Ask request. With it off, it changes the same way.
+- **Ask, Find and the `search_files` RAG tool** (through `retrieve_with_keywords` /
+  `retrieve_candidates` in `app/rag/retriever.py`), and the eval harness
+  (`app/evals/stages.py`): none of them turns Scene search on, so all take the
+  constrained path. They run `search()` in recall mode.
+  - With a BLIP model configured (the default, `models.blip`), the gap check is already
+    disabled there and the margin is 0.15. So today recall keeps the few thumbnails left
+    after scene rows took the top 50. After the change, up to 50 thumbnails reach the
+    floor and margin. More and different thumbnails enter RRF, at the recall CLIP weight
+    of 0.2.
+  - With BLIP unset, the channel is skipped, and nothing changes.
 - **Ask coarse shortlist**: it can contain summaries that transcript chunks crowded out
   before. `top_score` can only rise or stay the same for a given query, so the
   low-confidence bypass fires the same or less often.
@@ -178,6 +197,11 @@ still fire. They now describe thumbnail-only distributions.
   `clip_thumbnail` partition, not by the whole of `vec_clip`.
 - The coarse retrieval KNN is bounded by the size of the `metadata` partition.
 - No new memory, concurrency or privacy effect: the same rows are read, fewer of them.
+- Latency is not an acceptance-test criterion: test fixtures and the local library are
+  too small to show it. After deploy, `GET /search` is measured on production as on
+  2026-10-21 (same queries, warm cache, second request) and recorded in `decisions.md`.
+  The target is a median of 0.25 s or less. A miss opens a follow-up and does not revert
+  the change, because the CLIP KNN's cost is measured directly (0.013 s).
 
 ## Touch points
 
@@ -204,19 +228,32 @@ I1. With Scene search off, and with thresholds and margin that let every row thr
 `_vector_search_clip` returns the `min(rrf_candidates, N)` nearest `clip_thumbnail`
 matches and no `clip` match. N is the number of `vec_clip` rows keyed `clip_thumbnail`.
 This holds however many `clip` rows are nearer to the query.
-I2. With Scene search on, `_vector_search_clip` returns the same matches, scores and
-order as before this change, for the same database and query vector.
-I3. The CLIP channel's discard stages (score gap, coefficient of variation, per-type
-minimum score, margin) apply the same thresholds as before to the rows the KNN returned.
+I2. With Scene search on, `_vector_search_clip` takes its candidates from the
+`rrf_candidates` nearest rows of all of `vec_clip`, whatever their type (rows with a
+NULL partition included). It returns, with their scores, those that are `clip_thumbnail`
+or `clip` and pass the discard stages. The order of the returned matches is not part of
+the contract.
+I3. The CLIP channel's discard stages use the configured values. In precision mode these
+are `search.score_gap_threshold`, the coefficient-of-variation cut-off 0.01,
+`search.min_score_clip_thumbnail` / `search.min_score_clip`, and
+`search.score_cutoff_margin`. In recall mode they are the `_RECALL_PARAMS` gap threshold
+and margin, with the same per-type floors. The gap and CV are computed over every row
+the KNN returned.
 I4. `coarse_retrieve` shortlists only active files of the request drive that have a
 `metadata` embedding. Each file appears at most once, with the score of its nearest
 `metadata` row. The files are ordered by ascending distance, at most `top_k` of them.
 I5. `coarse_retrieve` shortlists the drive's nearest `metadata` files from the
 `over_fetch` nearest `metadata` rows, however many rows of other embedding types are
 nearer to the query.
-I6. The text channel (`_vector_search_text`) returns the same matches as before this
-change for the same database and query vector.
+I6. The text channel (`_vector_search_text`) takes its candidates from the
+`rrf_candidates` nearest rows of all of `vec_text`, whatever their type.
 I7. Neither query writes to `search.db`.
+I8. `search()` with Scene search off returns no file of a drive other than the requested
+one, and no inactive file, although the CLIP channel's matches now span every drive.
+
+## Revises
+
+SPEC-ADDON-022 I7. For the same index contents, every KNN outside `_find_similar_by_embedding`, `_vector_search_clip` with Scene search off, and `coarse_retrieve` returns the same rows (for distinct distances; the order among rows at exactly equal distance, such as duplicate files, may differ) and distances as on the unpartitioned table. Every DELETE by `embedding_id` removes the vec row.
 
 ## Checked, no action
 
