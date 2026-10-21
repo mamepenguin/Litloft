@@ -163,14 +163,20 @@ of another drive that today's query would not have dropped.
     of 0.2.
   - With BLIP unset, the channel is skipped, and nothing changes.
 - **Ask coarse shortlist**: it can contain summaries that transcript chunks crowded out
-  before. `top_score` can only rise or stay the same for a given query, so the
-  low-confidence bypass fires the same or less often.
-- **Ask with personal history** (`retrieve_hierarchical` with `pre_scope_file_ids`): the
-  shortlist is intersected with the history scope. A fuller shortlist can make an
-  intersection non-empty that was empty before. The `empty_intersection` bypass then
-  fires less often, and retrieval is scoped to the intersection more often. The
-  intersected `top_score` can only rise or stay the same. Both are intended: they are
-  the history files whose summaries match, which the crowding hid.
+  before. Those can push files that were in the old top `coarse_top_k` out of it, so
+  Stage 2's scope changes in both directions. Without personal history, `top_score` can
+  only rise or stay the same for a given query, so the low-confidence bypass fires the
+  same or less often.
+- **Ask with personal history** (`retrieve_hierarchical` with `pre_scope_file_ids`):
+  `coarse_retrieve` trims to `coarse_top_k` before the shortlist is intersected with the
+  history scope. Newly reachable summaries of files outside the history can push history
+  files out of the top `coarse_top_k`. The intersection can then become empty, or its
+  `top_score` can fall, where it did not before. `empty_intersection` or `low_confidence`
+  fires, and retrieval falls back to the whole history scope without the summary
+  narrowing. It stays scoped to the history. The user accepted this (2026-10-21). The
+  root cause, trimming before intersecting, predates this change. It is recorded in
+  `docs/developer-guide/known-issues.md` and is fixed under its own spec. No invariant of
+  this spec covers the history path.
 - **Scene search on**: unchanged.
 - **The text channel (`_vector_search_text`)**: unchanged.
 - **Similar files and tag recommendation (`tag_knn`)**: unchanged.
@@ -198,10 +204,15 @@ still fire. They now describe thumbnail-only distributions.
 - The coarse retrieval KNN is bounded by the size of the `metadata` partition.
 - No new memory, concurrency or privacy effect: the same rows are read, fewer of them.
 - Latency is not an acceptance-test criterion: test fixtures and the local library are
-  too small to show it. After deploy, `GET /search` is measured on production as on
-  2026-10-21 (same queries, warm cache, second request) and recorded in `decisions.md`.
-  The target is a median of 0.25 s or less. A miss opens a follow-up and does not revert
-  the change, because the CLIP KNN's cost is measured directly (0.013 s).
+  too small to show it. After the merge is deployed, `GET /search` is measured on
+  production as on 2026-10-21 (same queries, warm cache, second request). The author
+  agent prepares the command and the user runs it, because agent reads of production
+  are blocked. The result is added as a `production:` line to
+  `docs/process/reviews/feature-search-knn-partition/decisions.md` in a docs-only PR,
+  as was done for `feature-vec-partition-keys`. The target is a median of 0.25 s or
+  less. A miss goes into `docs/developer-guide/known-issues.md` and does not revert the
+  change, because the CLIP KNN's cost is measured directly (0.013 s). The measurement
+  does not gate moving the ledger rows to `implemented`.
 
 ## Touch points
 
@@ -218,6 +229,8 @@ still fire. They now describe thumbnail-only distributions.
   `test_passes_drive_and_overfetch_to_query` still holds as written.
 - The submodule pointer `addons/intelligence` in core.
 - `docs/specs/INDEX.md`.
+- `docs/developer-guide/known-issues.md`: one row under Addons for the personal-history
+  Ask trimming before intersecting.
 - Rules passed through: `.claude/rules/design-decisions.md`, Drives (a drive is a
   security boundary); LLM features (Ask applies access control twice).
 - No protected path is edited.
