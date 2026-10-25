@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship. The human chose option 1 ("1") on 2026-10-25: continue as is; claude-verify:V1 left open because no current code path writes path_conflict, so the docs sentence holds in normal use.
 ran_in_app: yes
 at: 6951fdff8483bf91834526d082d7c08dd45a3f8a
 by: agent
