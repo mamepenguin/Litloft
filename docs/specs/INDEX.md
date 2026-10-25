@@ -47,6 +47,6 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-007 | implemented | docs/specs/transparent-image-thumbnails.md | sha256:9b02f5efcf4a5f360c8cbcf4602bb6beaf3b24880518d6258b5f928fa5889090 |
 | SPEC-ADDON-025 | implemented | docs/specs/search-knn-partition.md | sha256:b67aa3da71ae87e11cbecb54e0085d54cd257fbf1ac1a371b712b3341e6e2b69 |
 | SPEC-ADDON-026 | implemented | docs/specs/search-knn-partition.md | sha256:b67aa3da71ae87e11cbecb54e0085d54cd257fbf1ac1a371b712b3341e6e2b69 |
-| SPEC-ADDON-027 | draft | docs/specs/media-import-unavailable-items.md | |
-| SPEC-ADDON-028 | draft | docs/specs/media-import-unavailable-items.md | |
-| SPEC-ADDON-029 | draft | docs/specs/media-import-unavailable-items.md | |
+| SPEC-ADDON-027 | approved | docs/specs/media-import-unavailable-items.md | sha256:75dc39f0468f6051067054c8c78791ede86e467ae18e0bb3b4d3f839fcb239a9 |
+| SPEC-ADDON-028 | approved | docs/specs/media-import-unavailable-items.md | sha256:75dc39f0468f6051067054c8c78791ede86e467ae18e0bb3b4d3f839fcb239a9 |
+| SPEC-ADDON-029 | approved | docs/specs/media-import-unavailable-items.md | sha256:75dc39f0468f6051067054c8c78791ede86e467ae18e0bb3b4d3f839fcb239a9 |
