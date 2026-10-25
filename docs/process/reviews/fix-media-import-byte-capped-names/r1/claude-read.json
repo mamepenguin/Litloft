@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [],
+  "specification_compliance": [
+    "This change has no invariants file, so there is no declared touch-point list to check the diff against. As a result there are no unplanned touch points to report, and bucket A is not available.",
+    "The diff touches three places, all inside the submodule addons/media_import, which is the zone classification.json lists (MEDIUM): service.py `_sanitize_filename`, subscription/manager.py `_sanitize_filename` (the documented mirror of service.py), and tests/test_nfc_names.py. The core commit 85d01b025 itself adds only docs/process/reviews records, which are implicit touch points.",
+    "The callers of the sanitizers are service.py:683 (create_loft_sync) and manager.py:130 (_allocate_loft_path). Both build `<safe>.loft` or `<safe> (n).loft`. Sidecars (.vtt, .stt_temp.<ext>.part) and the thumbnail path (`<stem>.jpg` under THUMBNAILS_DIR, service.py:604-610) are derived from those names. All of them stay under 255 bytes when safe is at most 200 bytes, so the change reaches nothing beyond the two sanitizers it edits."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "After a byte cut, a combining mark that is not at the very end can still separate a base character from its marks in the middle of a grapheme. Only trailing combining marks are stripped. This is cosmetic and was already the policy before the change."
+  ],
+  "regression_risks": [
+    "The two sanitizers are separate copies, and only the parametrized test that asserts they are identical keeps them in sync. A future edit to one copy without the other would be caught by that test, but only for the inputs listed in SANITIZE.",
+    "When two long titles share the same first 200 bytes, they now collapse to the same stem sooner than before, because the cut is by bytes rather than by characters. The collision counter handles this, giving `(1)`, `(2)` and so on."
+  ],
+  "test_coverage": [
+    "test_nfc_names.py covers the byte cut for 3-byte characters (あ), 4-byte characters (🎐), a partial multibyte character at the boundary, and the NFD-to-NFC length interplay. It asserts `len(link.encode()) <= 200` for both sanitizers.",
+    "If `or len(title.encode()) > 200` were removed, the cut-by-bytes case would fail. If `.decode('utf-8','ignore')` were changed to 'strict', the multibyte-char-not-split case would raise. If the combining-mark loop were removed, the no-orphan cases would fail. All of these mutants would be killed.",
+    "No test exercises the full on-disk name, including the ` (n)` suffix and the `.stt_temp.<ext>.part` suffix, against a 255-byte file system. The decisions.md record says this was checked manually on btrfs."
+  ],
+  "not_verified": [
+    "I did not run the test suite or any mutation; the kill and survive reasoning above is from reading only.",
+    "I did not check whether code outside addons/media_import (core backend or frontend) derives further file names from the .loft name with suffixes longer than `.stt_temp.<ext>.part`.",
+    "I did not check _download_thumbnail_sync for temporary-file suffixes on the thumbnail path.",
+    "I did not check the subscription-driven import end to end, or the NFS-backed NAS drive."
+  ],
+  "confidence": 85
+}
