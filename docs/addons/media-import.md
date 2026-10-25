@@ -133,6 +133,8 @@ A subscription's details show its schedule, destination and imported items, with
 - **Resolve…** for an item whose filename is already taken;
 - **Delete subscription**, which stops tracking new videos. Files already imported stay.
 
+Every item shows its title and a link to the video, including items that were not imported. Members-only, age-restricted, private and removed videos are listed under **Unavailable** and are not tried again unless you choose **Retry**. Live streams and premieres that have not started, and videos that failed for another reason, are listed under **Retrying** and are tried again on the next syncs. An item appears under **Needs attention**, and marks the subscription, only after it fails three times in a row for a reason Litloft cannot classify. When YouTube rate-limits a sync, the sync stops and the remaining items wait under **Retrying** for the next one; an open subscription panel says so.
+
 ## Limits
 
 - The addon never saves the video file. Only the speech-to-text audio is downloaded, temporarily, for transcription.
