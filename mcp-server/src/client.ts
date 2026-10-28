@@ -44,6 +44,7 @@ export interface LitloftBytesRequestOptions {
 export interface LitloftBytesResponse {
   bytes: Uint8Array;
   contentType: string;
+  etag: string | null;
 }
 
 export interface LitloftSseEvent {
@@ -235,6 +236,7 @@ export function createLitloftClient(config: LitloftClientConfig): LitloftClient 
       return {
         bytes: new Uint8Array(await res.arrayBuffer()),
         contentType: res.headers.get("Content-Type") ?? "",
+        etag: res.headers.get("ETag"),
       };
     },
 

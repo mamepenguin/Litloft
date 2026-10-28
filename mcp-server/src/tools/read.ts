@@ -1,14 +1,17 @@
 import { z } from "zod";
 import { runTool } from "./runTool.js";
-import { readOnlyAnnotations, textResult, type LitloftTool } from "./types.js";
+import {
+  FULL_READ_MAX_BYTES,
+  RANGED_OUTPUT_MAX_BYTES,
+  RANGED_READ_MAX_BYTES,
+  decodeUtf8,
+  getFileMeta,
+  isReadableMime,
+  readTextBody,
+  selectLines,
+} from "./textContent.js";
+import { errorResult, readOnlyAnnotations, textResult, type LitloftTool } from "./types.js";
 
-// Mirrors backend/app/routers/files.py _TEXT_WRITE_ALLOWED_MIMES /
-// _TEXT_WRITE_MAX_BYTES. get_file_content refuses non-text mimes so a call
-// against a video/image file can't stream megabytes of binary data into the
-// tool result, and refuses oversized text files so a large-but-legitimate
-// markdown/log file doesn't get dumped whole into the agent's context.
-const TEXT_CONTENT_MIMES = new Set(["text/markdown", "text/plain"]);
-const TEXT_CONTENT_MAX_BYTES = 1024 * 1024; // 1 MB
 
 // get_transcript has no server-side range/pagination support (the backend
 // endpoint always returns every chunk), so range filtering and the size
@@ -110,10 +113,29 @@ const listFolders: LitloftTool = {
     }),
 };
 
+const SUMMARY_FIELDS = [
+  "id",
+  "filename",
+  "title",
+  "folder_path",
+  "file_type",
+  "mime_type",
+  "file_size",
+  "duration",
+  "tags",
+  "created_at",
+  "updated_at",
+  "match_source",
+];
+
+function summarizeFile(item: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(SUMMARY_FIELDS.filter((k) => k in item).map((k) => [k, item[k]]));
+}
+
 const searchFiles: LitloftTool = {
   name: "search_files",
   description:
-    "List and/or search files within a single drive. Set path (and leave search empty) to list files directly inside a specific folder; set search to filter by filename/folder-path substring. Drives are a hard security boundary in Litloft; there is no cross-drive search.",
+    "List and/or search files within a single drive. Set path (and leave search empty) to list files directly inside a specific folder; set search to filter by filename/folder-path substring. Each item is a summary (id, filename, title, folder_path, file_type, mime_type, file_size, duration, tags, created_at, updated_at, match_source); pass fields: 'full' for every field (thumbnail, favorite, likes, trust, subtitles…). Drives are a hard security boundary in Litloft; there is no cross-drive search.",
   inputSchema: {
     drive: z.string().describe("Drive name"),
     search: z.string().optional().describe("Substring match against title/folder path"),
@@ -141,16 +163,27 @@ const searchFiles: LitloftTool = {
     page: z.number().int().min(1).optional(),
     limit: z.number().int().min(1).max(500).optional(),
     path: z.string().optional().describe("Folder path filter"),
+    fields: z
+      .enum(["summary", "full"])
+      .optional()
+      .describe("'summary' (default) keeps the main fields of each file; 'full' returns every field"),
   },
   annotations: readOnlyAnnotations,
   handler: (args, client) =>
     runTool(async () => {
-      const { drive, ...query } = args as { drive: string } & Record<string, unknown>;
-      return textResult(
-        await client.request("GET", `/api/drives/${encodeURIComponent(drive)}/files`, {
-          query: query as Record<string, string | number | boolean | undefined>,
-        })
+      const { drive, fields, ...query } = args as { drive: string; fields?: string } & Record<
+        string,
+        unknown
+      >;
+      const res = await client.request<{ data: Record<string, unknown>[] }>(
+        "GET",
+        `/api/drives/${encodeURIComponent(drive)}/files`,
+        { query: query as Record<string, string | number | boolean | undefined> }
       );
+      if (fields === "full") {
+        return textResult(res);
+      }
+      return textResult({ ...res, data: res.data.map(summarizeFile) });
     }),
 };
 
@@ -173,32 +206,76 @@ const getFile: LitloftTool = {
 const getFileContent: LitloftTool = {
   name: "get_file_content",
   description:
-    "Read the full text content of a small text/markdown file, plus the ETag required by update_file_content. Refuses non-text files without downloading them.",
-  inputSchema: { file_id: z.string() },
+    "Read a text file (Markdown, plain text, CSV, HTML, code, JSON, any text/* type). Without offset/limit it returns the whole text and, for Markdown/plain text, the ETag update_file_content needs; files over 1 MB must be read in ranges and files over 10 MB are refused. With offset (1-based first line) and/or limit (number of lines) it returns those lines with their terminators, start_line, end_line, total_lines, truncated (stopped at 1 MB of output) and a null ETag: to change part of a file use edit_file_content, never update_file_content with a partial read.",
+  inputSchema: {
+    file_id: z.string(),
+    offset: z.number().int().min(1).optional().describe("1-based first line to return"),
+    limit: z.number().int().min(1).optional().describe("Number of lines to return"),
+  },
   annotations: readOnlyAnnotations,
   handler: (args, client) =>
     runTool(async () => {
       const fileId = args.file_id as string;
-      const file = await client.request<{ mime_type?: string; file_size?: number }>(
-        "GET",
-        `/api/files/${encodeURIComponent(fileId)}`
-      );
-      if (!file.mime_type || !TEXT_CONTENT_MIMES.has(file.mime_type)) {
-        return textResult({
-          error: `File mime type '${file.mime_type}' is not readable as text. Only text/markdown and text/plain are supported by this tool.`,
-        });
+      const offset = args.offset as number | undefined;
+      const limit = args.limit as number | undefined;
+      const ranged = offset !== undefined || limit !== undefined;
+      const bound = ranged ? RANGED_READ_MAX_BYTES : FULL_READ_MAX_BYTES;
+
+      const file = await getFileMeta(client, fileId);
+      if (!isReadableMime(file.mime_type)) {
+        return errorResult(
+          `File mime type '${file.mime_type}' is not readable as text; only text/* and application/json are.`
+        );
       }
-      if (typeof file.file_size === "number" && file.file_size > TEXT_CONTENT_MAX_BYTES) {
-        return textResult({
-          error: `File is ${file.file_size} bytes, which exceeds the ${TEXT_CONTENT_MAX_BYTES}-byte limit for this tool. Use the Litloft web UI to view it.`,
-        });
+      const tooLarge = (size: number) =>
+        size > RANGED_READ_MAX_BYTES
+          ? errorResult(
+              `File is ${size} bytes, over the ${RANGED_READ_MAX_BYTES}-byte limit for this tool.`
+            )
+          : errorResult(
+              `File is ${size} bytes, over ${FULL_READ_MAX_BYTES} bytes; read it in parts with offset and limit.`
+            );
+      if ((file.file_size ?? 0) > bound) {
+        return tooLarge(file.file_size ?? 0);
       }
-      const res = await client.requestRaw(
-        "GET",
-        `/api/files/${encodeURIComponent(fileId)}/stream`
-      );
-      return textResult({ content: res.text, etag: res.headers.get("ETag") });
+
+      const body = await readTextBody(client, fileId);
+      if (body.bytes.length > bound) {
+        return tooLarge(body.bytes.length);
+      }
+      const text = decodeUtf8(body.bytes, false);
+      if (!ranged) {
+        return textResult({ content: text, etag: body.etag });
+      }
+      const range = selectLines(text, offset ?? 1, limit);
+      if ("tooLongLine" in range) {
+        return errorResult(
+          `Line ${range.tooLongLine} alone is over ${RANGED_OUTPUT_MAX_BYTES} bytes and cannot be returned.`
+        );
+      }
+      return textResult(range);
     }),
+};
+
+const getFileByPath: LitloftTool = {
+  name: "get_file_by_path",
+  description:
+    "Get a file's metadata (including its file_id) from its drive-relative path, e.g. 'notes/2026/trip.md'. Looks only in the given drive.",
+  inputSchema: {
+    drive: z.string().describe("Drive name"),
+    path: z.string().min(1).describe("Drive-relative path including the filename"),
+  },
+  annotations: readOnlyAnnotations,
+  handler: (args, client) =>
+    runTool(async () =>
+      textResult(
+        await client.request(
+          "GET",
+          `/api/drives/${encodeURIComponent(args.drive as string)}/files/by-path`,
+          { query: { path: args.path as string } }
+        )
+      )
+    ),
 };
 
 const getWatchHistory: LitloftTool = {
@@ -345,6 +422,7 @@ export const readTools: LitloftTool[] = [
   listFolders,
   searchFiles,
   getFile,
+  getFileByPath,
   getFileContent,
   semanticSearch,
   getTranscript,

@@ -1,6 +1,13 @@
 import { z } from "zod";
 import { runTool } from "./runTool.js";
-import { textResult, writeAnnotations, type LitloftTool } from "./types.js";
+import {
+  EDITABLE_MAX_BYTES,
+  EDITABLE_MIMES,
+  decodeUtf8,
+  getFileMeta,
+  readTextBody,
+} from "./textContent.js";
+import { errorResult, textResult, writeAnnotations, type LitloftTool } from "./types.js";
 
 // All writes mirror the public /api/* surface the Litloft frontend itself
 // uses — no bypass of existing validation or drive access control.
@@ -114,7 +121,7 @@ const updateTags: LitloftTool = {
 const updateFileContent: LitloftTool = {
   name: "update_file_content",
   description:
-    "Overwrite a text/markdown file's content. `content` is plain text, not base64 (unlike upload_file's content_base64). Requires the current ETag (from get_file_content) as an optimistic-lock guard; a 412 conflict means the file changed since you last read it, so call get_file_content again before retrying.",
+    "Replace a text/markdown file's whole content. `content` is plain text, not base64 (unlike upload_file's content_base64). Requires the ETag of a full get_file_content read (a ranged read returns none) as an optimistic-lock guard; a 412 conflict means the file changed since you last read it, so read it again before retrying. To change part of a file, use edit_file_content instead.",
   inputSchema: { file_id: z.string(), content: z.string(), etag: z.string() },
   annotations: writeAnnotations({ destructive: true, idempotent: true }),
   handler: (args, client) =>
@@ -131,6 +138,91 @@ const updateFileContent: LitloftTool = {
         }
       );
       return textResult({ etag: res.headers.get("ETag") });
+    }),
+};
+
+// Counts left to right without overlap, the way the replacement below walks.
+function countOccurrences(text: string, needle: string): number {
+  let count = 0;
+  for (let at = text.indexOf(needle); at !== -1; at = text.indexOf(needle, at + needle.length)) {
+    count += 1;
+  }
+  return count;
+}
+
+const editFileContent: LitloftTool = {
+  name: "edit_file_content",
+  description:
+    "Change part of a Markdown or plain-text file (at most 1 MB) by exact string replacement, without sending the whole file. old_string must occur exactly once in the current file (include surrounding text to make it unique), or pass replace_all to replace every occurrence. Both strings are literal. The tool reads the file itself, so no ETag is needed; it applies to the file as it is now.",
+  inputSchema: {
+    file_id: z.string(),
+    old_string: z.string().describe("Exact text to replace"),
+    new_string: z.string().describe("Text to put in its place"),
+    replace_all: z.boolean().optional().describe("Replace every occurrence (default false)"),
+  },
+  annotations: writeAnnotations({ destructive: true, idempotent: false }),
+  handler: (args, client) =>
+    runTool(async () => {
+      const fileId = args.file_id as string;
+      const oldString = args.old_string as string;
+      const newString = args.new_string as string;
+      const replaceAll = (args.replace_all as boolean | undefined) ?? false;
+
+      if (oldString === "") {
+        return errorResult("old_string is empty.");
+      }
+      if (oldString === newString) {
+        return errorResult("old_string and new_string are the same; nothing to change.");
+      }
+
+      const file = await getFileMeta(client, fileId);
+      if (!file.mime_type || !EDITABLE_MIMES.has(file.mime_type)) {
+        return errorResult(
+          `File mime type '${file.mime_type}' is not editable; only text/markdown and text/plain are.`
+        );
+      }
+      if ((file.file_size ?? 0) > EDITABLE_MAX_BYTES) {
+        return errorResult(
+          `File is ${file.file_size} bytes, over the ${EDITABLE_MAX_BYTES}-byte limit for editing.`
+        );
+      }
+
+      const body = await readTextBody(client, fileId);
+      let text: string;
+      try {
+        text = decodeUtf8(body.bytes, true);
+      } catch {
+        return errorResult("File is not valid UTF-8 and cannot be edited.");
+      }
+      if (!body.etag) {
+        return errorResult(
+          `File has no ETag to guard the write; it is over ${EDITABLE_MAX_BYTES} bytes on disk.`
+        );
+      }
+
+      const count = countOccurrences(text, oldString);
+      if (count === 0) {
+        return errorResult("old_string not found in the file.");
+      }
+      if (count > 1 && !replaceAll) {
+        return errorResult(
+          `old_string occurs ${count} times; include more surrounding text to make it unique, or pass replace_all.`
+        );
+      }
+      // split/join inserts new_string literally; String.replace would expand $& and $1.
+      const updated = replaceAll
+        ? text.split(oldString).join(newString)
+        : text.replace(oldString, () => newString);
+
+      const res = await client.requestRaw(
+        "PUT",
+        `/api/files/${encodeURIComponent(fileId)}/content`,
+        {
+          body: updated,
+          headers: { "If-Match": body.etag, "Content-Type": "text/plain" },
+        }
+      );
+      return textResult({ etag: res.headers.get("ETag"), replacements: count });
     }),
 };
 
@@ -364,6 +456,7 @@ export const writeTools: LitloftTool[] = [
   restoreFile,
   updateTags,
   updateFileContent,
+  editFileContent,
   createPlaylist,
   addToPlaylist,
   uploadFile,

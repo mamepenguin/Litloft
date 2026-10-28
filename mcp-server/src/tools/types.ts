@@ -55,12 +55,11 @@ export function writeAnnotations({
 }
 
 export function textResult(value: unknown): ToolTextResult {
-  const text = typeof value === "string" ? value : JSON.stringify(value, null, 2);
-  return { content: [{ type: "text", text }] };
+  return { content: [textBlock(value)] };
 }
 
 export function textBlock(value: unknown): TextBlock {
-  return { type: "text", text: typeof value === "string" ? value : JSON.stringify(value, null, 2) };
+  return { type: "text", text: typeof value === "string" ? value : JSON.stringify(value) };
 }
 
 export function imageBlock(bytes: Uint8Array, contentType: string): ImageBlock {
