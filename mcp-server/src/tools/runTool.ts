@@ -7,9 +7,12 @@ import type { ToolMediaResult, ToolTextResult } from "./types.js";
 // found 404, tag validation 422) are meaningful information for the agent,
 // not exceptional failures.
 export function apiErrorDetail(err: LitloftApiError): string {
-  return typeof err.body === "object" && err.body !== null && "detail" in err.body
-    ? String((err.body as { detail: unknown }).detail)
-    : JSON.stringify(err.body);
+  if (typeof err.body === "object" && err.body !== null && "detail" in err.body) {
+    const detail = (err.body as { detail: unknown }).detail;
+    // FastAPI's 422 detail is a list of objects, which String() turns into [object Object].
+    return typeof detail === "string" ? detail : JSON.stringify(detail);
+  }
+  return JSON.stringify(err.body);
 }
 
 export async function runTool<R extends ToolMediaResult = ToolTextResult>(
