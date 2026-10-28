@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The diff edits backend/tests/test_markdown_image_import.py, which is not in the declared touch-point list.",
+      "impact": "No user-facing defect. The image import job is a caller of write_text_content whose recorded history changes from one row to two. The touch-point list does not mention that caller or its test, so a planner reading the list would not expect it to change.",
+      "evidence": "In the diff, backend/tests/test_markdown_image_import.py (around line 205) now expects two explicit, viewer-less rows: the pre-import text, then the rewritten text. The touch points name only content_write.py, file_versions.py and test_file_versions.py. backend/app/services/markdown_image_import.py:435 calls write_text_content with kind='explicit' and viewer_id=None.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is an omission in the touch-point list, not an invariant breach. The changed expectation agrees with I1.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add backend/tests/test_markdown_image_import.py, and the image-import caller backend/app/services/markdown_image_import.py as a caller whose behavior changes, to the touch-point list."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The diff adds a new test module, backend/tests/test_file_versions_baseline.py. The touch-point list places new tests only under backend/tests/test_file_versions.py.",
+      "impact": "No user-facing defect. The list names a different file from the one where the new acceptance tests actually live.",
+      "evidence": "The diff creates backend/tests/test_file_versions_baseline.py (295 lines). The touch-point bullet reads 'backend/tests/test_file_versions.py: existing write-path tests ...; new tests'.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The touch-point list is incomplete. No invariant is affected.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "List backend/tests/test_file_versions_baseline.py as a touch point."
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "The change alters the behavior of write_text_content's callers in backend/app/routers/files.py: the content PUT at line 1615 and the Markdown tag write at line 781. Neither is in the touch-point list.",
+      "impact": "No new defect was found. Every first write through these routes now records an extra explicit row with no viewer. The content PUT also feeds the MCP edit tools. The tag write passes kind='auto' with viewer_id=None, so its first write yields an explicit baseline with no viewer followed by an auto row with no viewer.",
+      "evidence": "backend/app/routers/files.py:781 (tag write, kind='auto', viewer_id=None) and :1615 (content PUT) both call write_text_content. content_write.py:77-86 now records a baseline when has_versions is false.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "These are behavioral touch points the spec's Summary names but the touch-point list omits. The changed behavior matches I1 and I2.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add the content PUT and tag-write handlers in backend/app/routers/files.py to the touch-point list as reached callers."
+    },
+    {
+      "id": "TP-4",
+      "origin": "reviewer",
+      "claim": "The X-Litloft-Version-Action header for a first write whose body equals the file's current text changes from 'created' to 'unchanged'. The header's consumer, addons/knowledge/frontend (api.ts:270, Editor.tsx:518), is not in the touch-point list.",
+      "impact": "An explicit save that changes no text, on a file with no history, now shows the editor's 'unchanged' save state instead of a normal saved state, even though a baseline row was just written. The text really did not change, so the message is plausible, but this is a user-visible change outside the declared touch points.",
+      "evidence": "content_write.py:89-90 sets version_action = 'unchanged' when baseline_recorded and body == current, for both auto and explicit kinds. Before the change, record_version_with_action with no latest row returned 'created'. files.py:1745 sends the action as a header. Editor.tsx:518 sets the save state to { kind: 'unchanged' } when kind === 'explicit' and versionAction === 'unchanged'.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The behavior agrees with the spec's failure table ('one row results'). It is reported because the consumer is an unlisted touch point, not because it breaks an invariant.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "List addons/knowledge/frontend/api.ts and Editor.tsx (the version-action consumer) as reached touch points. Optionally assert the header value in test_write_of_identical_text_leaves_one_explicit_row."
+    }
+  ],
+  "specification_compliance": [
+    "I1: content_write.py:77-86 records the pre-write bytes as an explicit row with no viewer before the new version, in the same nested transaction. Covered by test_first_write_keeps_prior_text_as_oldest_viewerless_explicit_version.",
+    "I2: has_versions gates the baseline, so files with any row keep their previous recording path. Covered by TestFileWithHistoryGetsNoBaseline.",
+    "I3: both recordings sit inside the existing try/except and begin_nested; the disk write happens earlier. Covered by TestRecordingFailure for both bodies.",
+    "I4: after the first write has_versions is true, so no second baseline is recorded. Covered by test_second_write_adds_no_second_baseline.",
+    "I5: _can_be_baseline checks the cap and UTF-8 validity before has_versions; the new version is still recorded. Covered by TestBaselineEligibility."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "When the first write's body equals the current text, the code skips recording the new version and reports 'unchanged' for both auto and explicit kinds. The spec says the existing dedup rule decides; the code instead bypasses that rule for auto saves.",
+    "The Markdown tag write's first write produces an explicit baseline with no viewer followed by an auto row with no viewer. The auto row can later be evicted by the cap or collapsed."
+  ],
+  "regression_risks": [
+    "The response header value for identical-content first writes changed from 'created' to 'unchanged', which the knowledge editor UI consumes.",
+    "Version listings for files with no history now include an extra row; anything that counts versions after the first write sees one more."
+  ],
+  "test_coverage": [
+    "The new test_file_versions_baseline.py covers I1 through I5, including both save kinds, an empty file, the tag write, identical text, the cap boundary, non-UTF-8 input and failure of either recording.",
+    "No test asserts the X-Litloft-Version-Action header for the identical-text first write."
+  ],
+  "not_verified": [
+    "I did not run the test suite; I have read-only tools.",
+    "I did not check whether the MCP edit tools call write_text_content directly or only go through the HTTP PUT.",
+    "I did not inspect frontend tests for expectations about the first-save state.",
+    "I did not check concurrent first writes without the per-file lock (for example, the image import job against an editor PUT) for duplicate baselines."
+  ],
+  "confidence": 80
+}

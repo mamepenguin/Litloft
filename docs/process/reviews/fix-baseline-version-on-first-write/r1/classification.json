@@ -1,0 +1,44 @@
+{
+  "risk": "HIGH",
+  "score": 7,
+  "base": 3,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "backend/app/services/content_write.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/services/file_versions.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/tests/test_file_versions.py",
+      "level": "LOW"
+    },
+    {
+      "path": "backend/tests/test_file_versions_baseline.py",
+      "level": "LOW"
+    },
+    {
+      "path": "backend/tests/test_markdown_image_import.py",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/baseline-version-on-first-write.md",
+      "level": "LOW"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}
