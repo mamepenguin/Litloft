@@ -7,12 +7,17 @@ import { fakeClient } from "./testClient.js";
 
 const expectedToolNames = [
   "add_comment",
+  "add_tags",
   "add_to_playlist",
   "ask",
   "clip_pasted",
   "clip_url",
+  "copy_files",
+  "create_folder",
   "create_playlist",
+  "edit_file_content",
   "get_file",
+  "get_file_by_path",
   "get_file_content",
   "get_transcript",
   "get_video_frame",
@@ -22,11 +27,17 @@ const expectedToolNames = [
   "list_folders",
   "list_video_scenes",
   "move_file",
+  "move_files",
+  "move_folder",
   "rename_file",
+  "rename_folder",
   "restore_file",
+  "restore_files",
   "search_files",
   "semantic_search",
   "trash_file",
+  "trash_files",
+  "trash_folder",
   "update_file_content",
   "update_tags",
   "upload_file",
@@ -34,6 +45,7 @@ const expectedToolNames = [
 
 const readOnlyTools = new Set([
   "get_file",
+  "get_file_by_path",
   "get_file_content",
   "get_transcript",
   "get_video_frame",
@@ -47,19 +59,32 @@ const readOnlyTools = new Set([
 ]);
 
 const destructiveTools = new Set([
+  "edit_file_content",
   "move_file",
+  "move_files",
+  "move_folder",
   "rename_file",
+  "rename_folder",
   "trash_file",
+  "trash_files",
+  "trash_folder",
   "update_file_content",
   "update_tags",
 ]);
 
 const idempotentTools = new Set([
   ...readOnlyTools,
+  "add_tags",
   "move_file",
+  "move_files",
+  "move_folder",
   "rename_file",
+  "rename_folder",
   "restore_file",
+  "restore_files",
   "trash_file",
+  "trash_files",
+  "trash_folder",
   "update_file_content",
   "update_tags",
 ]);

@@ -34,6 +34,7 @@ export interface BytesRequestOptions {
 export interface BytesResponse {
   bytes: Uint8Array;
   contentType: string;
+  etag?: string | null;
 }
 
 export interface RecordedBytesCall {
