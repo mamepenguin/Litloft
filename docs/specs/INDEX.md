@@ -54,3 +54,9 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-009 | implemented | docs/specs/mcp-video-frames.md | sha256:906255cb063cc388ddc4e8723c3c46b065d1016336352c3ed90d99bd0b2eb31a |
 | SPEC-ADDON-030 | implemented | docs/specs/mcp-video-frames.md | sha256:906255cb063cc388ddc4e8723c3c46b065d1016336352c3ed90d99bd0b2eb31a |
 | SPEC-ADDON-031 | implemented | docs/specs/mcp-video-frames.md | sha256:906255cb063cc388ddc4e8723c3c46b065d1016336352c3ed90d99bd0b2eb31a |
+| SPEC-CORE-010 | draft | docs/specs/mcp-read-write-granularity.md | |
+| SPEC-CORE-011 | draft | docs/specs/mcp-read-write-granularity.md | |
+| SPEC-CORE-012 | draft | docs/specs/mcp-read-write-granularity.md | |
+| SPEC-CORE-013 | draft | docs/specs/mcp-read-write-granularity.md | |
+| SPEC-CORE-014 | draft | docs/specs/mcp-read-write-granularity.md | |
+| SPEC-CORE-015 | draft | docs/specs/mcp-read-write-granularity.md | |
