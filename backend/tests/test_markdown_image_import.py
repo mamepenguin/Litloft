@@ -1,6 +1,7 @@
 import io
 import json
 import time
+import zlib
 from datetime import UTC, datetime
 
 import pytest
@@ -204,10 +205,19 @@ def test_import_localizes_image_and_rewrites_markdown(client, monkeypatch):
         .count()
         == 1
     )
-    versions = db.query(FileVersion).filter(FileVersion.file_id == note.id).all()
-    assert len(versions) == 1
-    assert versions[0].kind == "explicit"
-    assert versions[0].viewer_id is None
+    versions = (
+        db.query(FileVersion)
+        .filter(FileVersion.file_id == note.id)
+        .order_by(FileVersion.id)
+        .all()
+    )
+    # The note had no history, so the text before the import is kept first.
+    assert [v.kind for v in versions] == ["explicit", "explicit"]
+    assert all(v.viewer_id is None for v in versions)
+    assert zlib.decompress(versions[0].content_z).decode() == (
+        "Before\n![dish](https://images.example.com/stew.jpg)\nAfter\n"
+    )
+    assert zlib.decompress(versions[1].content_z).decode() == rewritten
 
 
 def test_import_rejects_host_not_in_analysis(client):
