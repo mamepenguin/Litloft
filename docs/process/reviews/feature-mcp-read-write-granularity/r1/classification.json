@@ -1,0 +1,108 @@
+{
+  "risk": "HIGH",
+  "score": 7,
+  "base": 3,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/mcp-read-write-granularity.md",
+      "level": "LOW"
+    },
+    {
+      "path": "mcp-server/README.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/__tests__/batch.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/__tests__/client.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/__tests__/compactOutput.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/__tests__/fileContent.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/__tests__/foldersAndPaths.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/__tests__/read.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/__tests__/runTool.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/__tests__/testClient.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/__tests__/toolHarness.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/__tests__/toolMetadata.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/client.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/server.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/tools/batch.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/tools/folders.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/tools/index.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/tools/read.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/tools/runTool.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/tools/textContent.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/tools/types.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/tools/write.ts",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}
