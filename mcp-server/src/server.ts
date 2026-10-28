@@ -38,6 +38,11 @@ Key concepts:
   it as \`![alt](loft://file_id)\` (the file_id from upload_file's completion
   response). A plain relative path or filename will NOT render — only the
   \`loft://file_id\` scheme resolves to the file's stream URL.
+- To see what a video shows rather than what is said in it, call
+  list_video_scenes for an overview (scene times, nearby transcript and a
+  small frame each), then get_video_frame for a large frame at a time of
+  interest — from the scene list, get_transcript, or a semantic_search time
+  range. Large frames are big enough to read on-screen text.
 - add_comment and web clipper tools need LITLOFT_VIEWER so Litloft can
   attribute the write to a profile.
 `.trim();

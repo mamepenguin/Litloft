@@ -281,3 +281,115 @@ describe("createLitloftClient", () => {
     });
   });
 });
+
+describe("requestBytes (SPEC-CORE-008)", () => {
+  const FRAME_PATH = "/api/addons/intelligence/files/abc123456789/frame";
+  // 0x00 and 0xff are not valid UTF-8 on their own, so a text decode would alter them.
+  const FRAME_BYTES = new Uint8Array([0x52, 0x49, 0x46, 0x46, 0x00, 0xff, 0x80, 0xfe, 0x0a]);
+
+  it("SPEC-CORE-008: returns the body bytes unaltered with the response Content-Type", async () => {
+    server.use(
+      http.get(`${BASE_URL}${FRAME_PATH}`, () =>
+        HttpResponse.arrayBuffer(FRAME_BYTES.buffer, {
+          headers: { "Content-Type": "image/webp" },
+        })
+      )
+    );
+    const client = createLitloftClient({ baseUrl: BASE_URL, token: TOKEN });
+    const res = await client.requestBytes("GET", FRAME_PATH);
+    expect(Array.from(res.bytes)).toEqual(Array.from(FRAME_BYTES));
+    expect(res.contentType).toBe("image/webp");
+  });
+
+  it("SPEC-CORE-008: sends the bearer token, custom headers and query", async () => {
+    let seenAuth: string | null = null;
+    let seenDrive: string | null = null;
+    let seenSearch = "";
+    server.use(
+      http.get(`${BASE_URL}${FRAME_PATH}`, ({ request }) => {
+        seenAuth = request.headers.get("Authorization");
+        seenDrive = request.headers.get("X-Lit-Drive");
+        seenSearch = new URL(request.url).search;
+        return HttpResponse.arrayBuffer(FRAME_BYTES.buffer, {
+          headers: { "Content-Type": "image/webp" },
+        });
+      })
+    );
+    const client = createLitloftClient({ baseUrl: BASE_URL, token: TOKEN });
+    await client.requestBytes("GET", FRAME_PATH, {
+      query: { t: 12.5, size: "large" },
+      headers: { "X-Lit-Drive": "media" },
+    });
+    expect(seenAuth).toBe(`Bearer ${TOKEN}`);
+    expect(seenDrive).toBe("media");
+    const params = new URLSearchParams(seenSearch);
+    expect(params.get("t")).toBe("12.5");
+    expect(params.get("size")).toBe("large");
+  });
+
+  it("SPEC-CORE-008: a non-2xx JSON body becomes LitloftApiError with the parsed body", async () => {
+    server.use(
+      http.get(`${BASE_URL}${FRAME_PATH}`, () =>
+        HttpResponse.json({ detail: "Not a video file" }, { status: 400 })
+      )
+    );
+    const client = createLitloftClient({ baseUrl: BASE_URL, token: TOKEN });
+    await expect(client.requestBytes("GET", FRAME_PATH)).rejects.toSatisfy((err: unknown) => {
+      expect(err).toBeInstanceOf(LitloftApiError);
+      expect((err as LitloftApiError).status).toBe(400);
+      expect((err as LitloftApiError).body).toEqual({ detail: "Not a video file" });
+      return true;
+    });
+  });
+
+  it("SPEC-CORE-008: a non-2xx text body becomes LitloftApiError with the text", async () => {
+    server.use(
+      http.get(`${BASE_URL}${FRAME_PATH}`, () =>
+        HttpResponse.text("Addon service unavailable", { status: 502 })
+      )
+    );
+    const client = createLitloftClient({ baseUrl: BASE_URL, token: TOKEN });
+    await expect(client.requestBytes("GET", FRAME_PATH)).rejects.toSatisfy((err: unknown) => {
+      expect(err).toBeInstanceOf(LitloftApiError);
+      expect((err as LitloftApiError).status).toBe(502);
+      expect((err as LitloftApiError).body).toBe("Addon service unavailable");
+      return true;
+    });
+  });
+
+  it("SPEC-CORE-008: the caller's AbortSignal aborts the request", async () => {
+    server.use(
+      http.get(`${BASE_URL}${FRAME_PATH}`, async () => {
+        await new Promise((resolve) => setTimeout(resolve, 2_000));
+        return HttpResponse.arrayBuffer(FRAME_BYTES.buffer, {
+          headers: { "Content-Type": "image/webp" },
+        });
+      })
+    );
+    const client = createLitloftClient({ baseUrl: BASE_URL, token: TOKEN });
+    const controller = new AbortController();
+    const pending = client.requestBytes("GET", FRAME_PATH, { signal: controller.signal });
+    setTimeout(() => controller.abort(), 20);
+    const started = Date.now();
+    await expect(pending).rejects.toBeDefined();
+    expect(Date.now() - started).toBeLessThan(1_500);
+  });
+
+  it("SPEC-CORE-008: the client timeout still aborts when a caller signal is given and never fires", async () => {
+    server.use(
+      http.get(`${BASE_URL}${FRAME_PATH}`, async () => {
+        await new Promise((resolve) => setTimeout(resolve, 2_000));
+        return HttpResponse.arrayBuffer(FRAME_BYTES.buffer, {
+          headers: { "Content-Type": "image/webp" },
+        });
+      })
+    );
+    const client = createLitloftClient({ baseUrl: BASE_URL, token: TOKEN, timeoutMs: 30 });
+    const controller = new AbortController();
+    const started = Date.now();
+    await expect(
+      client.requestBytes("GET", FRAME_PATH, { signal: controller.signal })
+    ).rejects.toBeDefined();
+    expect(Date.now() - started).toBeLessThan(1_500);
+  });
+});

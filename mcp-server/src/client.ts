@@ -35,6 +35,17 @@ export interface LitloftRawResponse {
   text: string;
 }
 
+export interface LitloftBytesRequestOptions {
+  query?: Record<string, string | number | boolean | undefined>;
+  headers?: Record<string, string>;
+  signal?: AbortSignal;
+}
+
+export interface LitloftBytesResponse {
+  bytes: Uint8Array;
+  contentType: string;
+}
+
 export interface LitloftSseEvent {
   event: string;
   data: unknown;
@@ -72,6 +83,11 @@ export interface LitloftClient {
     path: string,
     options?: LitloftSseRequestOptions
   ): Promise<LitloftSseEvent[]>;
+  requestBytes(
+    method: string,
+    path: string,
+    options?: LitloftBytesRequestOptions
+  ): Promise<LitloftBytesResponse>;
   // For multipart/form-data endpoints (chunked upload). fetch sets its own
   // Content-Type with boundary for a FormData body, so this must not set
   // one manually the way request()/requestRaw() do for JSON/text.
@@ -197,6 +213,29 @@ export function createLitloftClient(config: LitloftClientConfig): LitloftClient 
       }
 
       return { status: res.status, headers: res.headers, text };
+    },
+
+    // For binary bodies (video frames). requestRaw decodes the body as text,
+    // which would corrupt bytes that are not valid UTF-8.
+    async requestBytes(
+      method: string,
+      path: string,
+      options: LitloftBytesRequestOptions = {}
+    ): Promise<LitloftBytesResponse> {
+      const url = buildUrl(baseUrl, path, options.query);
+      const timeout = AbortSignal.timeout(timeoutMs);
+      const res = await fetch(url, {
+        method,
+        headers: { ...baseHeaders(config), ...options.headers },
+        signal: options.signal ? AbortSignal.any([options.signal, timeout]) : timeout,
+      });
+      if (!res.ok) {
+        await finishJsonOrText(res);
+      }
+      return {
+        bytes: new Uint8Array(await res.arrayBuffer()),
+        contentType: res.headers.get("Content-Type") ?? "",
+      };
     },
 
     async requestSse(

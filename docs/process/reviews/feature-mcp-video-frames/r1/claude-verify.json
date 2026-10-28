@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "mcp-server/src/tools/video.ts exists. It defines getVideoFrame (:124), listVideoScenes (:168) and fetchSceneFrames (:78), and exports videoTools at :235, the file's last line. read.ts:343 exports readTools typed LitloftTool[]. Grep finds neither get_video_frame nor list_video_scenes in read.ts."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "mcp-server/src/tools/index.ts:7-12 reads `allTools: LitloftMediaTool[] = [...readTools, ...videoTools, ...writeTools, ...askTools]` and imports videoTools at :3. index.ts is not on the touch-point list."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "runTool.ts:9-13 exports apiErrorDetail. runTool.ts:15-17 has the signature `runTool<R extends ToolMediaResult = ToolTextResult>(fn: () => Promise<R>): Promise<R | ToolTextResult>`. video.ts:3 imports apiErrorDetail, and failureReason uses it at video.ts:74. runTool.ts is not on the touch-point list."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-4",
+      "status": "confirmed",
+      "note": "mcp-server/src/__tests__/videoFrames.test.ts exists and has 625 lines. In read.test.ts the only matches are the readTools import (:4) and its use (:7); get_video_frame and list_video_scenes do not appear."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-5",
+      "status": "confirmed",
+      "note": "addons/intelligence/app/main.py:31 imports scenes, and main.py:466 calls app.include_router(scenes.router) right after video_visual.router at :465. addons/intelligence/app/routers/scenes.py exists. main.py is not on the touch-point list."
+    }
+  ],
+  "specification_compliance": [
+    "The touch points differ from the implementation in file placement only: the MCP tools are in video.ts instead of read.ts, the tests are in videoFrames.test.ts instead of read.test.ts, and index.ts, runTool.ts and the intelligence main.py are also changed. All five reported deviations are confirmed."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "runTool now has a generic return type, R | ToolTextResult. This affects every existing tool's typing, but the default type parameter keeps existing call sites at ToolTextResult."
+  ],
+  "regression_risks": [
+    "Widening allTools to LitloftMediaTool[] changes the type of every tool that server.ts registers."
+  ],
+  "test_coverage": [
+    "The MCP tool tests are in mcp-server/src/__tests__/videoFrames.test.ts (625 lines). read.test.ts has no tests for the video tools."
+  ],
+  "not_verified": [
+    "Shell access was not available, so I did not read the diff against origin/develop with git. I inferred that index.ts, runTool.ts and main.py changed from the current file contents (the new imports and exports).",
+    "I did not check invariants I1–I10 against the code.",
+    "I did not run any tests."
+  ],
+  "confidence": 88
+}

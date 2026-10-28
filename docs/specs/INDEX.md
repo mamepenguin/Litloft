@@ -50,3 +50,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-027 | implemented | docs/specs/media-import-unavailable-items.md | sha256:75dc39f0468f6051067054c8c78791ede86e467ae18e0bb3b4d3f839fcb239a9 |
 | SPEC-ADDON-028 | implemented | docs/specs/media-import-unavailable-items.md | sha256:75dc39f0468f6051067054c8c78791ede86e467ae18e0bb3b4d3f839fcb239a9 |
 | SPEC-ADDON-029 | implemented | docs/specs/media-import-unavailable-items.md | sha256:75dc39f0468f6051067054c8c78791ede86e467ae18e0bb3b4d3f839fcb239a9 |
+| SPEC-CORE-008 | implemented | docs/specs/mcp-video-frames.md | sha256:906255cb063cc388ddc4e8723c3c46b065d1016336352c3ed90d99bd0b2eb31a |
+| SPEC-CORE-009 | implemented | docs/specs/mcp-video-frames.md | sha256:906255cb063cc388ddc4e8723c3c46b065d1016336352c3ed90d99bd0b2eb31a |
+| SPEC-ADDON-030 | implemented | docs/specs/mcp-video-frames.md | sha256:906255cb063cc388ddc4e8723c3c46b065d1016336352c3ed90d99bd0b2eb31a |
+| SPEC-ADDON-031 | implemented | docs/specs/mcp-video-frames.md | sha256:906255cb063cc388ddc4e8723c3c46b065d1016336352c3ed90d99bd0b2eb31a |
