@@ -15,10 +15,12 @@ const expectedToolNames = [
   "get_file",
   "get_file_content",
   "get_transcript",
+  "get_video_frame",
   "get_watch_history",
   "list_comments",
   "list_drives",
   "list_folders",
+  "list_video_scenes",
   "move_file",
   "rename_file",
   "restore_file",
@@ -34,10 +36,12 @@ const readOnlyTools = new Set([
   "get_file",
   "get_file_content",
   "get_transcript",
+  "get_video_frame",
   "get_watch_history",
   "list_comments",
   "list_drives",
   "list_folders",
+  "list_video_scenes",
   "search_files",
   "semantic_search",
 ]);
@@ -109,6 +113,12 @@ describe("advertised tool safety metadata", () => {
         openWorldTools.has(tool.name)
       );
     }
+  });
+
+  it("SPEC-CORE-008 SPEC-CORE-009: the server instructions name both video frame tools", () => {
+    const instructions = client.getInstructions() ?? "";
+    expect(instructions).toContain("get_video_frame");
+    expect(instructions).toContain("list_video_scenes");
   });
 
   it("discloses Ask's possible file-excerpt transfer to the configured LLM provider", () => {

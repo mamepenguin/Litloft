@@ -25,6 +25,23 @@ export interface RecordedMultipartCall {
   form: FormData;
 }
 
+export interface BytesRequestOptions {
+  query?: Record<string, string | number | boolean | undefined>;
+  headers?: Record<string, string>;
+  signal?: AbortSignal;
+}
+
+export interface BytesResponse {
+  bytes: Uint8Array;
+  contentType: string;
+}
+
+export interface RecordedBytesCall {
+  method: string;
+  path: string;
+  options?: BytesRequestOptions;
+}
+
 export interface RecordedSseCall {
   method: string;
   path: string;
@@ -37,22 +54,26 @@ export function fakeClient(
   impl: (call: RecordedCall) => Promise<unknown>,
   rawImpl?: (call: RecordedRawCall) => Promise<LitloftRawResponse>,
   multipartImpl?: (call: RecordedMultipartCall) => Promise<unknown>,
-  sseImpl?: (call: RecordedSseCall) => Promise<LitloftSseEvent[]>
+  sseImpl?: (call: RecordedSseCall) => Promise<LitloftSseEvent[]>,
+  bytesImpl?: (call: RecordedBytesCall) => Promise<BytesResponse>
 ): LitloftClient & {
   calls: RecordedCall[];
   rawCalls: RecordedRawCall[];
   multipartCalls: RecordedMultipartCall[];
   sseCalls: RecordedSseCall[];
+  bytesCalls: RecordedBytesCall[];
 } {
   const calls: RecordedCall[] = [];
   const rawCalls: RecordedRawCall[] = [];
   const multipartCalls: RecordedMultipartCall[] = [];
   const sseCalls: RecordedSseCall[] = [];
+  const bytesCalls: RecordedBytesCall[] = [];
   return {
     calls,
     rawCalls,
     multipartCalls,
     sseCalls,
+    bytesCalls,
     async request(method, path, options) {
       const call = { method, path, options };
       calls.push(call);
@@ -81,6 +102,14 @@ export function fakeClient(
         throw new Error("requestSse not stubbed for this test");
       }
       return sseImpl(call);
+    },
+    async requestBytes(method: string, path: string, options?: BytesRequestOptions) {
+      const call = { method, path, options };
+      bytesCalls.push(call);
+      if (!bytesImpl) {
+        throw new Error("requestBytes not stubbed for this test");
+      }
+      return bytesImpl(call);
     },
   };
 }
