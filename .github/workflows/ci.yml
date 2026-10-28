@@ -302,7 +302,10 @@ jobs:
     # the gitignored link tree, which Tailwind skips silently when absent.
     # No addon writes a rule the justified grid reads.
     name: frontend (layout invariants and components in a browser)
-    runs-on: ubuntu-latest
+    # Pinned because Playwright refuses to install browsers on ubuntu-26.04,
+    # which ubuntu-latest now resolves to. Return to ubuntu-latest once the
+    # pinned @playwright/test supports it.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
