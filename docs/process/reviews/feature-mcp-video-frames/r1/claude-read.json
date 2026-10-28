@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The two new MCP tools live in a new module mcp-server/src/tools/video.ts. The touch-point list names mcp-server/src/tools/read.ts, which this change leaves alone.",
+      "impact": "A reviewer or later author who follows the list looks for get_video_frame and list_video_scenes in read.ts and does not find them. The behavior under I7 to I10 sits in a file the list does not name.",
+      "evidence": "The diff adds mcp-server/src/tools/video.ts (235 lines; getVideoFrame, listVideoScenes, fetchSceneFrames). mcp-server/src/tools/read.ts:343 still exports readTools with LitloftTool entries only, and Grep finds no video tool in read.ts.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant breaks. The touch-point list names a different file from the one the code changes.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Change the touch point from read.ts to mcp-server/src/tools/video.ts (new)."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "mcp-server/src/tools/index.ts is changed but is not in the touch-point list. allTools now has type LitloftMediaTool[] and includes videoTools.",
+      "impact": "Every tool that server.ts:56-64 registers now goes through the widened media-result type. The list does not name the registration point, so a reviewer would not check that existing text-only tools still register the same way.",
+      "evidence": "In the diff, mcp-server/src/tools/index.ts changes `allTools: LitloftTool[]` to `allTools: LitloftMediaTool[] = [...readTools, ...videoTools, ...writeTools, ...askTools]`. server.ts:56 iterates allTools.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a touch point the list leaves out. The list rules out no tool-registration change, and no invariant breaks.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add mcp-server/src/tools/index.ts (tool registration) to the touch points."
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "mcp-server/src/tools/runTool.ts is changed but is not in the touch-point list. runTool becomes generic (`runTool<R extends ToolMediaResult = ToolTextResult>`, returning `R | ToolTextResult`), and the error-detail formatting moves into an exported apiErrorDetail.",
+      "impact": "runTool wraps every MCP tool, so a change here reaches every tool's error output. The list names neither runTool.ts nor this shared path.",
+      "evidence": "In the diff, runTool.ts:9-13 adds an exported apiErrorDetail, and runTool.ts:15-17 changes the signature. video.ts imports apiErrorDetail for per-scene reasons (failureReason).",
+      "repro": "Reading the change: the default type parameter keeps existing callers at ToolTextResult, and the error text `Litloft API error (<status>): <detail>` is built the same way as before. No behavior change was found.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This shared module is missing from the touch-point list. Behavior appears unchanged, and no invariant breaks.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add mcp-server/src/tools/runTool.ts (generic result type, apiErrorDetail extracted) to the touch points."
+    },
+    {
+      "id": "TP-4",
+      "origin": "reviewer",
+      "claim": "The MCP tool tests are in a new file mcp-server/src/__tests__/videoFrames.test.ts. The touch-point list names mcp-server/src/__tests__/read.test.ts, which this change does not touch.",
+      "impact": "Someone checking the tests for I7 to I10 by following the list would look in read.test.ts, find nothing, and could wrongly decide the tests are missing.",
+      "evidence": "The diff adds mcp-server/src/__tests__/videoFrames.test.ts (625 lines). Grep finds no get_video_frame or list_video_scenes in read.test.ts.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The listed file is not where the tests are. No invariant breaks.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Change the touch point read.test.ts to videoFrames.test.ts (new)."
+    },
+    {
+      "id": "TP-5",
+      "origin": "reviewer",
+      "claim": "addons/intelligence/app/main.py is changed to register the new scenes router, and the touch-point list does not name it. The list does allow 'a new router module', which covers the new file app/routers/scenes.py.",
+      "impact": "Without the main.py include, GET /files/{file_id}/scenes would return 404. That route registration is in a file the list leaves out.",
+      "evidence": "In the diff, addons/intelligence/app/main.py adds `scenes` to the import from app.routers and `app.include_router(scenes.router)` after video_visual.router.",
+      "repro": "Mutation: remove `app.include_router(scenes.router)`. TestRouteDeclaration::test_spec_addon_031_handler_is_sync_so_it_runs_in_the_thread_pool (len(routes) == 1) and all endpoint tests would fail, so the tests cover this omission.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Router registration is missing from the touch-point list. No invariant breaks.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add addons/intelligence/app/main.py (router include) and name app/routers/scenes.py explicitly in the touch points."
+    }
+  ],
+  "specification_compliance": [
+    "The diff reaches five places the touch-point list misses or names wrongly: mcp-server/src/tools/video.ts (new; the list names read.ts), mcp-server/src/tools/index.ts, mcp-server/src/tools/runTool.ts, mcp-server/src/__tests__/videoFrames.test.ts (new; the list names read.test.ts) and addons/intelligence/app/main.py.",
+    "addons/intelligence/app/routers/scenes.py is covered by the list's clause 'or a new router module in the addon'. addons/intelligence/tests/test_frame_size.py and test_video_scenes_endpoint.py are covered by 'addons/intelligence/tests/'.",
+    "docs/specs/mcp-video-frames.md and docs/specs/INDEX.md are implicit touch points and are not reported.",
+    "Touch points listed but not changed in the diff: mcp-server/src/tools/read.ts, mcp-server/src/__tests__/read.test.ts and addons/intelligence/app/routers/video_visual.py (the list offers that file as an alternative to a new module)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "runTool's return type widens to `R | ToolTextResult` for every tool. Existing tools default R to ToolTextResult, so their observable output looks unchanged."
+  ],
+  "regression_risks": [
+    "runTool.ts is shared by every MCP tool. The refactor that extracts apiErrorDetail looks behavior-preserving, but it reaches tools outside this feature.",
+    "Changing index.ts to LitloftMediaTool[] puts every registered tool on the media result type. server.ts:64 passes handler results through unchanged."
+  ],
+  "test_coverage": [
+    "videoFrames.test.ts covers the video.ts tools. toolMetadata.test.ts checks registration through allTools, which covers the index.ts change.",
+    "test_video_scenes_endpoint.py finds the scenes route through app.routes, which covers the main.py include.",
+    "I found no test aimed at the runTool.ts refactor itself. Existing error-path tests in read.test.ts and videoFrames.test.ts check the `Litloft API error (...)` text."
+  ],
+  "not_verified": [
+    "I did not run any tests or the TypeScript compiler, so I did not confirm that the widened types compile for every tool.",
+    "I did not read the invariants.md revision file under docs/process/reviews/feature-mcp-video-frames/ to see whether it changes the touch-point list.",
+    "I did not check the actual contents of the submodule commit 76633de beyond the diff provided."
+  ],
+  "confidence": 85
+}
