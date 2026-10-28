@@ -165,7 +165,8 @@ exposes:
   the `initialize` response, describing the drive/file_id concepts, the
   trash-not-purge behavior, and the ETag-based content-edit workflow.
 - **Per-tool `description`, `inputSchema`, and safety annotations**
-  (`src/tools/read.ts`, `src/tools/write.ts`): sent via `tools/list`. This is
+  (`src/tools/read.ts`, `src/tools/write.ts`, `src/tools/folders.ts`,
+  `src/tools/batch.ts`, `src/tools/video.ts`): sent via `tools/list`. This is
   the only documentation an MCP client's model has for each individual tool,
   so tool descriptions carry the actual usage rules (e.g.
   `update_file_content`'s description explains the 412-conflict retry
@@ -184,9 +185,10 @@ When adding a new tool, put agent-facing behavior notes in its
 |---|---|
 | `list_drives` | List drives visible to the current credentials |
 | `list_folders` | List subfolders under a path (one level deep by default; pass `depth` up to 5 to recurse and nest results under `subfolders`) |
-| `search_files` | Search/list files within a single drive (set `path` with no `search` to list a folder's files) |
+| `search_files` | Search/list files within a single drive (set `path` with no `search` to list a folder's files); a summary of each file by default, `fields: "full"` for every field |
 | `get_file` | Get metadata for a single file |
-| `get_file_content` | Read the text content of a small `text/markdown`/`text/plain` file (≤1MB), plus its ETag |
+| `get_file_by_path` | Get a file's metadata from its drive-relative path |
+| `get_file_content` | Read any `text/*` or JSON file: whole (≤1MB, with the ETag for Markdown/plain text) or by line range (`offset`/`limit`, files up to 10MB, no ETag) |
 | `semantic_search` | Rank files in a drive by relevance to a natural-language query; a hybrid search combining transcript/caption/embedding relevance with filename/title/path/tag matching — returns matching excerpts |
 | `get_transcript` | Get a video/audio file's Whisper transcript as time-stamped chunks, optionally narrowed to a time range |
 | `list_video_scenes` | Up to 24 representative scenes of a video, each with its time range, nearby transcript and a small frame image; optionally within a time window |
@@ -204,16 +206,28 @@ When adding a new tool, put agent-facing behavior notes in its
 | `trash_file` | Soft-delete a file (recoverable for 30 days) |
 | `restore_file` | Restore a file out of trash |
 | `update_tags` | Replace a file's full tag list |
-| `update_file_content` | Overwrite a text/markdown file's content as plain text, not base64 (requires the ETag from `get_file_content`) |
+| `update_file_content` | Replace a text/markdown file's whole content as plain text, not base64 (requires the ETag of a full `get_file_content` read) |
+| `edit_file_content` | Change part of a Markdown/plain-text file by exact string replacement (`old_string` → `new_string`, optionally `replace_all`) |
 | `create_playlist` | Create a playlist (collection) in a drive |
 | `add_to_playlist` | Add files to an existing playlist |
 | `upload_file` | Upload a new small file (note, document, image), ≤10MB decoded — plain text via `content`, or base64 via `content_base64` for binary files |
 | `add_comment` | Post a comment on a file (requires `LITLOFT_VIEWER`) |
 | `clip_url` | Create a Knowledge web clip from a URL (requires `LITLOFT_VIEWER`) |
 | `clip_pasted` | Create a Knowledge clip from pasted HTML (requires `LITLOFT_VIEWER`) |
+| `create_folder` | Create a folder inside a parent folder |
+| `rename_folder` | Rename a folder |
+| `move_folder` | Move a folder into another parent folder |
+| `trash_folder` | Move every file under a folder to trash (the directory stays on disk) |
+| `move_files` | Move up to 100 files into a folder |
+| `copy_files` | Copy up to 100 files into a folder |
+| `trash_files` | Move up to 100 files to trash |
+| `restore_files` | Restore up to 100 files out of trash |
+| `add_tags` | Add tags to up to 100 files, keeping their existing tags |
 
-Every write tool call maps 1:1 onto an existing Litloft API endpoint, with
-no additional gating beyond what the backend already enforces. The MCP
+Every write tool call maps onto one existing Litloft API endpoint, except
+`edit_file_content`, which reads the file, replaces the string locally and
+writes it back with `If-Match`. None adds gating beyond what the backend
+already enforces. The MCP
 client's own tool-call confirmation step is the trust boundary — Litloft
 does not double-gate on top of it.
 

@@ -301,6 +301,32 @@ describe("requestBytes (SPEC-CORE-008)", () => {
     expect(res.contentType).toBe("image/webp");
   });
 
+  it("SPEC-CORE-010: returns the ETag response header as etag", async () => {
+    server.use(
+      http.get(`${BASE_URL}/api/files/abc123456789/stream`, () =>
+        HttpResponse.arrayBuffer(new TextEncoder().encode("# hi").buffer, {
+          headers: { "Content-Type": "text/markdown", ETag: '"v1"' },
+        })
+      )
+    );
+    const client = createLitloftClient({ baseUrl: BASE_URL, token: TOKEN });
+    const res = await client.requestBytes("GET", "/api/files/abc123456789/stream");
+    expect(res.etag).toBe('"v1"');
+  });
+
+  it("SPEC-CORE-010: etag is null when the response has no ETag header", async () => {
+    server.use(
+      http.get(`${BASE_URL}${FRAME_PATH}`, () =>
+        HttpResponse.arrayBuffer(FRAME_BYTES.buffer, {
+          headers: { "Content-Type": "image/webp" },
+        })
+      )
+    );
+    const client = createLitloftClient({ baseUrl: BASE_URL, token: TOKEN });
+    const res = await client.requestBytes("GET", FRAME_PATH);
+    expect(res.etag).toBeNull();
+  });
+
   it("SPEC-CORE-008: sends the bearer token, custom headers and query", async () => {
     let seenAuth: string | null = null;
     let seenDrive: string | null = null;

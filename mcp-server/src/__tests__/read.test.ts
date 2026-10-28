@@ -157,13 +157,16 @@ describe("get_file", () => {
 });
 
 describe("get_file_content", () => {
-  it("fetches metadata, then streams body + ETag for a text/markdown file", async () => {
+  it("SPEC-CORE-010: fetches metadata, then streams body + ETag over requestBytes for a text/markdown file", async () => {
     const client = fakeClient(
-      async () => ({ mime_type: "text/markdown", file_size: 10 }),
+      async () => ({ mime_type: "text/markdown", file_size: 7 }),
+      undefined,
+      undefined,
+      undefined,
       async () => ({
-        status: 200,
-        headers: new Headers({ ETag: '"abc"' }),
-        text: "# hello",
+        bytes: new TextEncoder().encode("# hello"),
+        contentType: "text/markdown",
+        etag: '"abc"',
       })
     );
     const result = await findTool("get_file_content").handler(
@@ -173,15 +176,16 @@ describe("get_file_content", () => {
     expect(client.calls).toEqual([
       { method: "GET", path: "/api/files/abc123456789", options: undefined },
     ]);
-    expect(client.rawCalls).toEqual([
-      { method: "GET", path: "/api/files/abc123456789/stream", options: undefined },
+    expect(client.bytesCalls.map((c) => [c.method, c.path])).toEqual([
+      ["GET", "/api/files/abc123456789/stream"],
     ]);
+    expect(client.rawCalls).toEqual([]);
     const parsed = JSON.parse(result.content[0].text);
     expect(parsed).toEqual({ content: "# hello", etag: '"abc"' });
     expect(result.isError).toBeUndefined();
   });
 
-  it("refuses to stream a text/markdown file over the size cap without calling requestRaw", async () => {
+  it("SPEC-CORE-010: refuses a text/markdown file over 1 MB without a range, as an error result with no stream request", async () => {
     const client = fakeClient(async () => ({
       mime_type: "text/markdown",
       file_size: 5 * 1024 * 1024,
@@ -191,16 +195,20 @@ describe("get_file_content", () => {
       client
     );
     expect(client.rawCalls).toEqual([]);
-    expect(result.content[0].text).toContain("5242880");
+    expect(client.bytesCalls).toEqual([]);
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toMatch(/offset|limit/);
   });
 
-  it("refuses to stream a non-text mime without calling requestRaw", async () => {
+  it("SPEC-CORE-010: refuses a non-text mime as an error result naming it, with no stream request", async () => {
     const client = fakeClient(async () => ({ mime_type: "video/mp4", file_size: 999999 }));
     const result = await findTool("get_file_content").handler(
       { file_id: "abc123456789" },
       client
     );
     expect(client.rawCalls).toEqual([]);
+    expect(client.bytesCalls).toEqual([]);
+    expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain("video/mp4");
   });
 });

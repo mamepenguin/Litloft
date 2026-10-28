@@ -20,11 +20,18 @@ Key concepts:
   (files directly in that folder).
 - Deleting a file only ever moves it to trash (trash_file), recoverable for
   30 days via restore_file. There is no permanent-delete tool.
-- To edit a text/markdown file's content: call get_file_content first to
-  get the current text and its ETag, then pass that ETag to
-  update_file_content (content is plain text, not base64). If the write is
-  rejected as a conflict, the file changed since you last read it — call
-  get_file_content again and retry.
+- To change part of a Markdown/plain-text file, use edit_file_content
+  (exact old_string → new_string; it reads the file itself). To replace a
+  whole file, read it in full with get_file_content and pass its ETag to
+  update_file_content (content is plain text, not base64); a 412 means it
+  changed since you read it. A ranged read (offset/limit) returns no ETag,
+  so it can never be written back whole.
+- get_file_content reads any text/* or JSON file; read files over 1 MB in
+  line ranges. To open a file by its path, use get_file_by_path.
+- Folders: create_folder, rename_folder, move_folder, trash_folder. Many
+  files at once: move_files, copy_files, trash_files, restore_files,
+  add_tags (up to 100 ids each). trash_folder and trash_files only move
+  files to trash.
 - search_files only matches filenames/folder paths. semantic_search is a
   hybrid search: it also matches filenames/paths/tags, plus ranks by
   transcript/caption/embedding relevance and returns the matching excerpt —

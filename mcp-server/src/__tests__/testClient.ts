@@ -34,6 +34,7 @@ export interface BytesRequestOptions {
 export interface BytesResponse {
   bytes: Uint8Array;
   contentType: string;
+  etag?: string | null;
 }
 
 export interface RecordedBytesCall {
@@ -109,7 +110,8 @@ export function fakeClient(
       if (!bytesImpl) {
         throw new Error("requestBytes not stubbed for this test");
       }
-      return bytesImpl(call);
+      const res = await bytesImpl(call);
+      return { ...res, etag: res.etag ?? null };
     },
   };
 }
