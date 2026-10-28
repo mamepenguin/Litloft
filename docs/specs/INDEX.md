@@ -50,3 +50,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-027 | implemented | docs/specs/media-import-unavailable-items.md | sha256:75dc39f0468f6051067054c8c78791ede86e467ae18e0bb3b4d3f839fcb239a9 |
 | SPEC-ADDON-028 | implemented | docs/specs/media-import-unavailable-items.md | sha256:75dc39f0468f6051067054c8c78791ede86e467ae18e0bb3b4d3f839fcb239a9 |
 | SPEC-ADDON-029 | implemented | docs/specs/media-import-unavailable-items.md | sha256:75dc39f0468f6051067054c8c78791ede86e467ae18e0bb3b4d3f839fcb239a9 |
+| SPEC-CORE-008 | draft | docs/specs/mcp-video-frames.md | |
+| SPEC-CORE-009 | draft | docs/specs/mcp-video-frames.md | |
+| SPEC-ADDON-030 | draft | docs/specs/mcp-video-frames.md | |
+| SPEC-ADDON-031 | draft | docs/specs/mcp-video-frames.md | |
