@@ -60,3 +60,4 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-013 | implemented | docs/specs/mcp-read-write-granularity.md | sha256:b45a5cd6231bfc7af1ed2c43119140d37ddc83a814192125737727ee69a25fd8 |
 | SPEC-CORE-014 | implemented | docs/specs/mcp-read-write-granularity.md | sha256:b45a5cd6231bfc7af1ed2c43119140d37ddc83a814192125737727ee69a25fd8 |
 | SPEC-CORE-015 | implemented | docs/specs/mcp-read-write-granularity.md | sha256:b45a5cd6231bfc7af1ed2c43119140d37ddc83a814192125737727ee69a25fd8 |
+| SPEC-CORE-016 | draft | docs/specs/baseline-version-on-first-write.md | |
