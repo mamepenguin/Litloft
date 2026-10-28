@@ -189,6 +189,8 @@ When adding a new tool, put agent-facing behavior notes in its
 | `get_file_content` | Read the text content of a small `text/markdown`/`text/plain` file (≤1MB), plus its ETag |
 | `semantic_search` | Rank files in a drive by relevance to a natural-language query; a hybrid search combining transcript/caption/embedding relevance with filename/title/path/tag matching — returns matching excerpts |
 | `get_transcript` | Get a video/audio file's Whisper transcript as time-stamped chunks, optionally narrowed to a time range |
+| `list_video_scenes` | Up to 24 representative scenes of a video, each with its time range, nearby transcript and a small frame image; optionally within a time window |
+| `get_video_frame` | The frame of a video at a given time as an image; `large` (default, long edge up to 1280 px, enough to read on-screen text) or `small` (320 px wide) |
 | `get_watch_history` | Continue-watching / watch history for a drive |
 | `list_comments` | List comments on a file |
 | `ask` | Ask Litloft Intelligence a question within one drive |

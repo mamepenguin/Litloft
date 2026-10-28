@@ -1,6 +1,12 @@
 import { askTools } from "./ask.js";
 import { readTools } from "./read.js";
+import { videoTools } from "./video.js";
 import { writeTools } from "./write.js";
-import type { LitloftTool } from "./types.js";
+import type { LitloftMediaTool } from "./types.js";
 
-export const allTools: LitloftTool[] = [...readTools, ...writeTools, ...askTools];
+export const allTools: LitloftMediaTool[] = [
+  ...readTools,
+  ...videoTools,
+  ...writeTools,
+  ...askTools,
+];

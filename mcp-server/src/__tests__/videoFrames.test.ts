@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { LitloftApiError } from "../client.js";
-import { readTools } from "../tools/read.js";
+import { videoTools } from "../tools/video.js";
 import { fakeClient, type BytesResponse, type RecordedBytesCall } from "./testClient.js";
 
 const FILE_ID = "abc123456789";
@@ -12,7 +12,7 @@ const FRAME_PATH = `/api/addons/intelligence/files/${FILE_ID}/frame`;
 const SCENES_PATH = `/api/addons/intelligence/files/${FILE_ID}/scenes`;
 
 function findTool(name: string) {
-  const tool = readTools.find((t) => t.name === name);
+  const tool = videoTools.find((t) => t.name === name);
   if (!tool) throw new Error(`tool not found: ${name}`);
   return tool;
 }

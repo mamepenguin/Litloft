@@ -2,19 +2,33 @@ import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
 import type { ZodRawShape } from "zod";
 import type { LitloftClient } from "../client.js";
 
+export type TextBlock = { type: "text"; text: string };
+export type ImageBlock = { type: "image"; data: string; mimeType: string };
+
 export interface ToolTextResult {
   [key: string]: unknown;
-  content: { type: "text"; text: string }[];
+  content: TextBlock[];
   isError?: boolean;
 }
 
-export interface LitloftTool<Args extends ZodRawShape = ZodRawShape> {
+export interface ToolMediaResult {
+  [key: string]: unknown;
+  content: (TextBlock | ImageBlock)[];
+  isError?: boolean;
+}
+
+export interface LitloftTool<
+  Args extends ZodRawShape = ZodRawShape,
+  Result extends ToolMediaResult = ToolTextResult,
+> {
   name: string;
   description: string;
   inputSchema: Args;
   annotations: ToolAnnotations;
-  handler: (args: Record<string, unknown>, client: LitloftClient) => Promise<ToolTextResult>;
+  handler: (args: Record<string, unknown>, client: LitloftClient) => Promise<Result>;
 }
+
+export type LitloftMediaTool = LitloftTool<ZodRawShape, ToolMediaResult>;
 
 export const readOnlyAnnotations: ToolAnnotations = {
   readOnlyHint: true,
@@ -43,4 +57,20 @@ export function writeAnnotations({
 export function textResult(value: unknown): ToolTextResult {
   const text = typeof value === "string" ? value : JSON.stringify(value, null, 2);
   return { content: [{ type: "text", text }] };
+}
+
+export function textBlock(value: unknown): TextBlock {
+  return { type: "text", text: typeof value === "string" ? value : JSON.stringify(value, null, 2) };
+}
+
+export function imageBlock(bytes: Uint8Array, contentType: string): ImageBlock {
+  return {
+    type: "image",
+    data: Buffer.from(bytes).toString("base64"),
+    mimeType: contentType.split(";")[0].trim(),
+  };
+}
+
+export function errorResult(message: string): ToolTextResult {
+  return { content: [{ type: "text", text: message }], isError: true };
 }
