@@ -2,7 +2,7 @@
 
 SPEC-ID: SPEC-CORE-016
 
-Approval:
+Approval: sha256:0eb6a5a0f5518de9bca66d7ba42918029d5a371721498e7f195264bbd240e561 Yuichi Senga 2026-10-29
 
 <!--
 Leave the Approval line empty. After a human approves this spec, the approval step
