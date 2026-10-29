@@ -57,25 +57,40 @@ sent to the LLM does not change.
    starts at its labelled passage.
 6. The per-file budget (`_cap_snippets`) clips the overflowing snippet with
    `trim_to_sentence_boundary(text[:remaining])`. That trims the tail, and it can also drop
-   a leading fragment and surrounding whitespace. The clipped snippet's anchor is
-   recomputed from the number of characters removed from the front, `removed`:
+   a leading fragment and surrounding whitespace. `removed` is the number of characters
+   the trim removed from the front of its input. The trim reports this number itself (a
+   companion function returning `(trimmed, removed)`, which `trim_to_sentence_boundary`
+   delegates to). It is never found by searching the text, for the reason in step 4.
+   - In the normal branch, `removed` is `leading_cut` plus the leading whitespace that
+     `.strip()` drops after it.
+   - In the fallback branch, where the trimmed result is empty and the function returns
+     `snippet.strip()`, `removed` is the snippet's leading whitespace.
+
+   The clipped snippet's `anchor` becomes:
    - `anchor - removed` when `removed <= anchor` and that is less than the clipped length:
      the cited passage starts inside the clipped text;
    - `0` when `removed > anchor`: the clipped text begins inside or after the cited
      passage's start, so its own start is the closest point;
-   - "lost" when `anchor - removed` is at or beyond the clipped length: the cited passage
-     did not survive the budget.
+   - `len(clipped text)` when `anchor - removed` is at or beyond the clipped length: the
+     cited passage did not survive the budget ("lost").
+
+   So `anchor` is always an `int` with `0 <= anchor <= len(text)`, and `anchor == len(text)`
+   means the passage was lost. Snippets that are kept whole keep their anchor.
 7. `_quote_from_contexts` picks the snippet exactly as today: the first snippet whose
    location contains the citation's location as a whole token, else the first snippet.
-   The quote is `text[anchor:]`, stripped and capped at 200 characters with a trailing `…`,
-   as today. When the anchor is "lost", the quote is the empty string. The text before
-   the cited moment is not shown as if it were the citation, and text the LLM never saw is
-   not shown either.
+   The quote is today's rule applied to `text[anchor:]` instead of `text`: stripped, then
+   capped at 200 characters with a trailing `…` when cut. When the passage was lost,
+   `text[anchor:]` is empty and so is the quote. The text before the cited moment is not
+   shown as if it were the citation, and text the LLM never saw is not shown either.
 8. A citation whose LLM output carries its own `quote` keeps that quote, as today.
-9. `_to_citation_dict` uses this quote everywhere it uses the quote today. When the LLM's
-   location is not a recognised marker, that includes choosing `segment_location` from
-   the quote (`_segment_location_for`). For such citations the seek target is chosen from
-   the cited passage instead of the lead-in, and it can differ from before.
+9. `_to_citation_dict` uses this quote everywhere it uses the quote today. A location is
+   "accepted" when `_to_citation_dict` uses it as given: a recognised marker that is not
+   distrusted (a `page N` on an EPUB or a `section N` on anything else is distrusted).
+   Accepted locations keep their `segment_location`. For any other location,
+   `segment_location` is chosen from the quote (`_segment_location_for`), as today. It is
+   now chosen from the cited passage instead of the lead-in, and it can differ from before.
+   When the passage was lost, the quote is empty, and `_segment_location_for` falls back
+   to the candidate's first match, as it does for an empty quote today.
 
 ### 2. Failure cases
 
@@ -135,9 +150,12 @@ Nothing new. No new failure path, no new log line.
   before it.
 - Citations whose snippet has no surrounding context are unchanged.
 - A citation whose cited passage was cut off by the per-file budget shows no quote, where
-  it used to show the lead-in. Its seek target is unchanged.
-- A citation whose LLM location is not a timestamp, page or section marker can seek to a
-  different, closer moment, because its target is chosen from the anchored quote.
+  it used to show the lead-in.
+  - With an accepted location, its seek target is unchanged.
+  - With any other location, it seeks to the file's first match.
+  - A `chunk N` citation also loses its `?highlight=` and opens the file at the top.
+- A citation whose location is not accepted can seek to a different, closer moment,
+  because its target is chosen from the anchored quote.
 - No documentation page describes the quote's source, so none changes.
 
 ### 10. Non-functional
@@ -167,15 +185,16 @@ Nothing new. No new failure path, no new log line.
 
 ## Invariants
 
-I1. For an unclipped time-window transcript snippet labelled `start`, a citation choosing it quotes text that begins with the text of the first chunk in the window whose `timestamp_end` is greater than `start`. This holds even when an earlier chunk in the window has identical text.
-I2. For an unclipped expanded document snippet, a citation choosing it quotes text that begins with the target chunk's text, not the preceding chunk's. This holds even when the two chunks have identical text.
+I1. For an unclipped time-window transcript snippet labelled `start`, the quote of a citation choosing it equals today's quote rule (strip, then cap at 200 with `…`) applied to the joined text from the position of the first chunk whose `timestamp_end` is greater than `start`. This holds even when an earlier chunk in the window has identical text.
+I2. For an unclipped expanded document snippet, the quote of a citation choosing it equals today's quote rule applied to the joined text from the target chunk's position, not the preceding chunk's. This holds even when the two chunks have identical text.
 I3. The prompt sent to the LLM is byte-for-byte identical to the prompt before this change, for the same retrieved candidates.
 I4. For a snippet built without surrounding context (anchor 0, unclipped), the quote is identical to the quote before this change.
 I5. The quote never contains text that is absent from the snippet `text` the LLM received, and never contains text from before the anchor.
 I6. When the per-file budget clipped a snippet so that its cited passage did not survive, a citation choosing it has an empty quote. When the passage survived, the quote begins where the passage begins in the clipped text, or at the clipped text's start if the clip cut into the passage.
-I7. Which snippet a citation's quote comes from is the same as before this change, and a citation whose LLM location is a recognised marker keeps the same `segment_location`.
+I7. Which snippet a citation's quote comes from is the same as before this change, and a citation whose location is accepted (a recognised, not distrusted marker) keeps the same `segment_location`.
 I8. A citation that carries its own `quote` from the LLM keeps it unchanged.
 I9. The quote is at most 200 characters plus a trailing `…` when cut, stripped of surrounding whitespace, as before.
+I10. `trim_to_sentence_boundary` returns the same string as before this change for every input, so the summaries worker and every other caller see no difference.
 
 ## Checked, no action
 
