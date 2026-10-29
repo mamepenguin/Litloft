@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "frontend/src/components/TextLines.tsx exists (135 lines). TextPreview.tsx:10 imports TextLines and :12 re-exports MAX_DECORATED_LINES from it. docs/specs/txt-edit.md has no mention of TextLines; the only 'or a sibling' wording is at :283 for textKind.ts. The touch-point list names only TextPreview.tsx for this extraction."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "In the main checkout (pre-change), TextPreview.tsx:160 called useHighlightPassage(preRef, highlight, content !== null). At this commit, TextLines.tsx:86 (not :84) calls it with true. TextPreview.tsx:96 initialises loading to false, and :160-166 renders <TextLines text={content ?? \"\"}> on the first render when confirmed is true, before the fetch effect at :100-125 sets loading. Child effects run first, so useHighlightPassage.ts:74-97 runs on the empty pre, findPassageRange returns null, and it calls container.scrollIntoView and logs a dev warning. Then setLoading(true) unmounts TextLines. When TextLines remounts after the load, scrolledRef starts fresh, so the real highlight still marks and scrolls; decisions.md (3) observed this end state. So the defect is an extra early scroll to the empty pre plus a spurious dev warning, not a lost highlight. The same path runs after the Load click on a file over 1 MB, where setConfirmed(true) renders TextLines before the effect."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "Pre-change TextPreview.tsx:159 called useDocumentCapturePublisher at the top level, so it published for the component's whole life. At this commit the only call is TextLines.tsx:85, and TextPreview.tsx:127-158 returns the prompt, loading and error branches without TextLines. useDocumentCapturePublisher.ts:20-24 publishes the store on mount and sends null on unmount. So FileDetailContainer.tsx:70 holds null during the prompt, loading and error states, and a new store instance replaces the old one on each remount. Its consumer is the slot prop documentCaptureController (FileDetailContainer.tsx:204). Before the change the capture value was null in those states anyway (no pre, so readDocumentSelection had no root), so the visible effect is likely limited to whether the slot receives a controller object. I did not check how the knowledge addon handles a null controller."
+    }
+  ],
+  "specification_compliance": [
+    "The TextLines extraction keeps the decorate() limits, bare-CR folding and the coloured and uncoloured rendering byte for byte compared with the pre-change TextPreview (main checkout, TextPreview.tsx:158-229). This is relevant to I6 and I8.",
+    "TextLines.tsx is a new file that the touch-point list does not name (F1)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The highlight effect now runs on an empty pre on the first render or right after Load, which causes an early scrollIntoView and a dev console warning (F2).",
+    "The document-capture controller is null during the prompt, loading and error states, and a new store instance is published each time TextLines mounts (F3)."
+  ],
+  "regression_risks": [
+    "Any consumer of the documentCaptureController slot prop that assumes the controller stays stable or non-null for a text file's whole time on the page.",
+    "The highlight scroll could jump twice on a cited .txt: once to the empty pre, then to the mark."
+  ],
+  "test_coverage": [
+    "frontend/src/components/__tests__/TextPreview.test.tsx covers onDocumentCaptureController publishing. A grep for highlight and scrollIntoView found no highlight or scroll test, and there is no test for the controller during the loading or prompt state.",
+    "There is no dedicated TextLines test file under frontend/src/components/__tests__."
+  ],
+  "not_verified": [
+    "How the knowledge addon's capture action handles a null or replaced documentCaptureController (the addon code was not read).",
+    "Whether the pre-change file in the main checkout exactly matches origin/develop. I used it as the base because I could not run git.",
+    "Runtime behaviour under React StrictMode double effects. I could not run tests or the app."
+  ],
+  "confidence": 85
+}

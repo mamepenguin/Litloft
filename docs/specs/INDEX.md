@@ -69,3 +69,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-035 | implemented | docs/specs/ask-shortlist-exact-match.md | sha256:2282595fcfd38316d072574041e309e59411d59d26c8eb875e234554ec10ba91 |
 | SPEC-ADDON-036 | implemented | docs/specs/read-document-text.md | sha256:15341188b29f879364e908d4cf07075c9802547e0c6090ce667a77a6554b83f7 |
 | SPEC-CORE-019 | implemented | docs/specs/read-document-text.md | sha256:15341188b29f879364e908d4cf07075c9802547e0c6090ce667a77a6554b83f7 |
+| SPEC-CORE-020 | approved | docs/specs/txt-edit.md | sha256:b9b2bf414210170871ce18124fa5157c7e8ac0dcf816086ab41362dfc631b10d |
+| SPEC-ADDON-037 | approved | docs/specs/txt-edit.md | sha256:b9b2bf414210170871ce18124fa5157c7e8ac0dcf816086ab41362dfc631b10d |

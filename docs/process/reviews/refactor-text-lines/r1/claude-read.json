@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The diff adds a new file, frontend/src/components/TextLines.tsx, and the touch-point list does not name it. The list names only TextPreview.tsx, saying the rendering 'is taken out as a component that takes text'.",
+      "impact": "No user-visible impact. A reviewer who audits the change by the touch-point paths would not see this new module, even though it now holds the line-numbered rendering, the decoration limits, the highlight hook and capture publishing for every TextPreview caller.",
+      "evidence": "diff: new file frontend/src/components/TextLines.tsx (135 lines). frontend/src/components/TextPreview.tsx:10 imports it and :12 re-exports MAX_DECORATED_LINES from it. The touch-point list has no TextLines entry, and no 'or a sibling' wording like the one textKind.ts gets.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The TextPreview touch point implies the extraction, so no invariant is broken. Only the path is missing from the list.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add `frontend/src/components/TextLines.tsx` (the extracted renderer) to the touch-point list next to TextPreview.tsx."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The extraction changes useHighlightPassage's ready flag from `content !== null` to a constant `true`. On TextPreview's first render (confirmed, loading not yet set, content null), TextLines mounts with an empty <pre> and the highlight effect already runs against it.",
+      "impact": "When a text file is opened with a search `highlight` term, the hook finds no match in the empty <pre>, smooth-scrolls that empty container into view and, in dev, logs a 'no DOM match' warning. TextPreview's fetch effect then sets loading, which unmounts TextLines. After the load, TextLines remounts and scrolls to the real mark. The user sees an extra scroll before the correct one. The final highlight is still right.",
+      "evidence": "frontend/src/components/TextLines.tsx:84 `useHighlightPassage(preRef, highlight, true)`. Before the change, TextPreview called it with `content !== null`. TextPreview.tsx:96 `useState(false)` for loading, and :160-166 renders TextLines with `content ?? \"\"` whenever it is not loading, not in error and confirmed, which includes the first render before the fetch effect runs. Child effects run before the parent's, so useHighlightPassage.ts:94-97 reaches the no-range branch and calls container.scrollIntoView. The same applies to the Load click on a file over 1 MB.",
+      "repro": "not_reproduced (by reading the code: mount TextPreview with highlight='x' and a pending fetch; the old code skips the effect because ready is false, the new code calls scrollIntoView on the empty <pre> once)",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "I8 lists what TextPreview must keep (syntax colour, decoration limits, bare-CR folding, copy without numbers, the over-1 MB prompt), and the highlight scroll timing is not on that list. I6 governs the future plain-text Read view, which does not exist yet. So no declared invariant breaks, but this is an unplanned behaviour change in a refactor declared behaviour-preserving.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "In TextPreview, render TextLines only once content is non-null (for example `if (content === null) return the loading block`), or add a `ready` prop to TextLines that TextPreview sets to `content !== null`."
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "The document-capture controller is now published only while TextLines is mounted. Before the change, TextPreview published it for the whole life of the component, including the loading state and the over-1 MB Load prompt.",
+      "impact": "While a file is loading or waiting at the over-1 MB prompt, the parent receives `null` instead of a store whose capture is null. On load, the parent gets null and then a new store, so any capture affordance keyed on the controller's presence may mount or unmount at different times than before. The decisions record observed no capture button before Load in either case, so no visible defect was found.",
+      "evidence": "frontend/src/components/TextLines.tsx:83 `useDocumentCapturePublisher(preRef, onDocumentCaptureController)`. TextLines is not rendered in TextPreview.tsx:127-158 (the prompt, loading and error branches). useDocumentCapturePublisher.ts:20-24 publishes on mount and sends null on unmount.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant covers when TextPreview publishes the controller. This is a timing change in a refactor meant to preserve behaviour.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "The diff reaches docs/specs/INDEX.md and docs/specs/txt-edit.md (implicit touch points), frontend/src/components/TextPreview.tsx (listed) and frontend/src/components/TextLines.tsx (not listed by path; see F1).",
+    "It matches the spec's ordering step 1 (core PR 1: extract the line-numbered renderer as an exported component). No predicate, slot prop, layout or addon file is touched.",
+    "MAX_DECORATED_LINES is still exported from TextPreview through a re-export, so the e2e-components fixture import (frontend/e2e-components/fixtures/app.tsx:46) keeps resolving."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The highlight hook now runs before content has loaded and can scroll the empty <pre> into view (F2).",
+    "The capture controller is not published while the file is loading or at the Load prompt, and a new store is published after each load (F3)."
+  ],
+  "regression_risks": [
+    "In the future plain-text Read view, I6 expects a scroll to the highlight once per open. With ready hard-wired to true in TextLines, a Read view mounted over an empty or still-loading buffer would use up its single scroll on the wrong target, unless the scroll state survives remounts.",
+    "Unmounting and remounting TextLines between the loading and loaded states resets useHighlightPassage's scrolledRef and the capture store."
+  ],
+  "test_coverage": [
+    "frontend/src/components/__tests__/TextPreview.test.tsx covers capture publishing, colouring, line splitting, the too-large fallback, CR/CRLF folding and empty files. None of its tests pass `highlight`, so neither the ready-flag change nor the scroll timing is pinned by a test.",
+    "No test exercises TextLines directly. It is covered only through TextPreview."
+  ],
+  "not_verified": [
+    "Whether any consumer of onDocumentCaptureController for TextPreview reacts visibly to the null-then-new-store sequence (I did not trace FileDetail's capture action).",
+    "Whether the smooth scroll in F2 is visible in a real browser before the remount; I reasoned it from the code and did not run it.",
+    "I could not run tests or the build. Whether git object b7d59e34 itself touches more than docs/process/reviews files was not checked beyond the shown diff."
+  ],
+  "confidence": 80
+}
