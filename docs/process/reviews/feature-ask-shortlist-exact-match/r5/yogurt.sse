@@ -1,0 +1,84 @@
+event: keywords
+data: {"keywords": "ヨーグルト 動画"}
+
+event: shortlist
+data: {"file_ids": ["LBKKSzC7FFQp", "wIu3jyU8Xl0c", "mQb3-7ABpBzo", "cxRk9ks4N7_U", "hzp4gmVIyYL4", "uH3sEtzJu_e1", "LJf_ZkPc1NKP", "jcqeUJGG9Xze", "5kAaYWxDGh4R", "w0AMfwt3d4mD", "KHluVd_49Yox", "wmDPSo_THRCQ", "msijkin99ioX", "NspBD2IfrXPA", "CmwTmVA8XRw5", "UgKWHEnnTTmi", "aWhA8ZQjZ8Fm", "XomHWUIREQP6", "slUp6AHi2Pn-", "O1R3_k2iZi3R", "vtUdYObsQfwD"], "exact_match_file_ids": ["vtUdYObsQfwD"], "drive_file_count": 794, "top_score": 0.8386675062461109}
+
+event: clues
+data: {"clues": ["ヨーグルト 動画"]}
+
+event: sources
+data: {"sources": [{"file_id": "XomHWUIREQP6", "drive": "動画", "filename": "日本では当たり前の光景に絶叫！中国の友達が日本に来て驚くこと！.loft", "file_type": "video", "score": 0.017270788912579958, "match_types": ["clip_thumbnail", "whisper"]}, {"file_id": "vtUdYObsQfwD", "drive": "動画", "filename": "これがリアル。Apple発表会の『ウラ側』って結構すごいんです。.loft", "file_type": "video", "score": 0.014705882352941176, "match_types": ["whisper"]}, {"file_id": "aWhA8ZQjZ8Fm", "drive": "動画", "filename": "【YouTube見れる・ChatGPT使える】伝説の「Android電卓」はなぜ生まれ、なぜ消えたのか？謎に包まれた”悲劇の歴史”を解明した。【GHLBD検証-Part4】.loft", "file_type": "video", "score": 0.010309278350515464, "match_types": ["whisper"]}]}
+
+event: answer_chunk
+data: {"delta": "提供"}
+
+event: answer_chunk
+data: {"delta": "された"}
+
+event: answer_chunk
+data: {"delta": "ファイル"}
+
+event: answer_chunk
+data: {"delta": "情報"}
+
+event: answer_chunk
+data: {"delta": "の中"}
+
+event: answer_chunk
+data: {"delta": "には"}
+
+event: answer_chunk
+data: {"delta": "、「"}
+
+event: answer_chunk
+data: {"delta": "ヨー"}
+
+event: answer_chunk
+data: {"delta": "グ"}
+
+event: answer_chunk
+data: {"delta": "ルト"}
+
+event: answer_chunk
+data: {"delta": "」"}
+
+event: answer_chunk
+data: {"delta": "に関する"}
+
+event: answer_chunk
+data: {"delta": "話"}
+
+event: answer_chunk
+data: {"delta": "をしている"}
+
+event: answer_chunk
+data: {"delta": "動画"}
+
+event: answer_chunk
+data: {"delta": "についての"}
+
+event: answer_chunk
+data: {"delta": "言"}
+
+event: answer_chunk
+data: {"delta": "及"}
+
+event: answer_chunk
+data: {"delta": "は見"}
+
+event: answer_chunk
+data: {"delta": "当たり"}
+
+event: answer_chunk
+data: {"delta": "ませんでした"}
+
+event: answer_chunk
+data: {"delta": "。"}
+
+event: citations
+data: {"citations": []}
+
+event: done
+data: {"retrieved_count": 3, "took_ms": 5115}
+
