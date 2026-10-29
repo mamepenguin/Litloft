@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "I1: every query in addons/intelligence/app/exact_search.py filters on `f.drive = :drive AND f.active = 1` (_IN_DRIVE, line 76) for text, transcript, scene hits and both scene-ranking queries.",
+    "I2: matching uses `instr(lower(col), lower(:q)) > 0` (line 75), so %, _ and \\ are literal; total is len(all hits) and paging slices the fully sorted list (line 192-193).",
+    "I3: match_count uses str.count on ASCII-folded text (non-overlapping); _snippet takes 80 chars each side and adds an ellipsis only at a cut end (lines 39-44). ASCII folding preserves length so offsets align.",
+    "I4: rank_scenes restricts to embedding_type = 'video_visual_scene', active runs (r.is_active = 1), active files of the drive, and sorts by descending score before truncating to limit (line 277-278).",
+    "I5: both code paths use get_search_db_read and only SELECT; scene search calls embed_query (embedding, not an LLM).",
+    "I7: manifest.json lines 250-273 declare pre_check addon_feature `search` for both routes.",
+    "I8: EPUB rows put page into section with page null; others into page; transcripts LEFT JOIN transcript_chunks on chunk_index; scene segments carry `field`.",
+    "I9: _visual_index_open returns False when global setting is 'false' or the drive policy is off or the policy call fails (default_on_failure=False, exceptions swallowed to False); /search/scenes then 404s and /search/exact excludes scenes.",
+    "I10: mcp-server/src/tools/search.ts encodes X-Lit-Drive with encodeURIComponent, passes only given params, strips `available`, and zod bounds match server bounds (q 1-200 / 1-1000, limit 1-200 / 1-50, offset >= 0)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Zod `q` min(1) counts unstripped length while the server strips; a whitespace-only q passes zod and gets a server 422, which is a server-side error rather than a client-side rejection (arguably within I10 since a request is made for an in-bounds argument)."
+  ],
+  "regression_risks": [
+    "find_exact loads every matching row of the drive into memory before paging; a very common short q in a large drive could be slow, bounded by the 30s proxy timeout."
+  ],
+  "test_coverage": [
+    "Did not inspect the addon test files or MCP tool tests in detail; coverage judgement not made."
+  ],
+  "not_verified": [
+    "I6 (existing /search and Ask keep include_video_visual_scene false) was not traced through app/search.py.",
+    "Addon tests and mcp-server tests were not read or run.",
+    "Submodule pointer target commit contents were assumed to match the checked-out addons/intelligence tree.",
+    "Event-loop discipline test conformance was not checked beyond observing asyncio.to_thread use."
+  ],
+  "confidence": 78
+}

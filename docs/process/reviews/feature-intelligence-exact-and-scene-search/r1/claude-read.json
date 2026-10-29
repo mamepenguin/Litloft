@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "Every file the diff reaches maps to a declared touch point: addons/intelligence submodule pointer (listed); addons/intelligence/app/exact_search.py (the 'new module for the queries'); app/routers/exact_search.py and app/main.py registration (listed); app/schemas.py (listed); manifest.json with two route entries (listed); tests/search_endpoint_db.py, tests/test_search_exact_endpoint.py, tests/test_search_scenes_endpoint.py (under addons/intelligence/tests/, listed); mcp-server/src/tools/search.ts, tools/index.ts, server.ts, README.md (listed); mcp-server/src/__tests__/searchTools.test.ts and toolMetadata.test.ts (listed); docs/addons/intelligence.md (listed).",
+    "docs/specs/intelligence-exact-and-scene-search.md and docs/specs/INDEX.md are implicit touch points and not reported.",
+    "No protected path is edited and backend/app/routers/addon_proxy.py does not appear in the diff, as the touch-point list states.",
+    "The test helpers the new tests import (unit, at_distance, search_index, add_embedding, put_vector in addons/intelligence/tests/vec_partition_db.py:31,37,119,126,255) already exist, so the diff does not need to reach that file.",
+    "docs/addons/intelligence.md: the touch point says 'one sentence each under Semantic search / Visual index'; the diff adds a single sentence under '### Scene search' (docs/addons/intelligence.md:171), which lies between those sections. Same file, so this is not an unplanned place, only a different placement within a listed file."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "mcp-server/src/tools/index.ts inserts searchTools between readTools and videoTools, which changes tool-list order; toolMetadata.test.ts uses a sorted name list, so order-sensitive consumers (if any) are not covered."
+  ],
+  "test_coverage": [
+    "Touch-point coverage only was assessed: every listed test location (addons/intelligence/tests/, mcp-server/src/__tests__/ including toolMetadata.test.ts) receives tests in the diff."
+  ],
+  "not_verified": [
+    "I could not run git, so I could not confirm that commit eeaf9cb59 by itself touches only the files shown in the supplied diff (its message suggests it records only the R-5 run under docs/process/reviews/). I took the supplied diff as authoritative.",
+    "I did not check whether the submodule range ed3f3ee..a4acca5 contains commits that touch addons/intelligence files beyond those shown in the diff.",
+    "I did not assess the correctness of the code against the invariants (I1-I10), only the touch-point question asked.",
+    "I did not run any tests."
+  ],
+  "confidence": 80
+}

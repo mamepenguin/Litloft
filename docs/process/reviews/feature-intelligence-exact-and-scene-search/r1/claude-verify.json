@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "V1",
+      "origin": "verifier",
+      "claim": "The Visual Index gate in the new router fails OPEN when the drive policy cannot be read. `_visual_index_open` calls `is_feature_enabled(drive, \"video_visual_index\")` without `default_on_failure=False`. The spec requires the fail-closed check the Visual Index routes use.",
+      "impact": "Suppose the core policy endpoint is unreachable, or answers something other than 200 or 404, or returns non-JSON. Then `/search/exact` includes scene segments, and `/search/scenes` returns ranked scenes instead of 404, even for a drive whose `video_visual_index` policy is off. That breaks I9 and spec items 3 and 1 (\"policy is off or cannot be read\" means no scenes or 404) without any error. The tests pass anyway, because they model an unreadable policy as a raised exception, which the real client never raises on this path.",
+      "evidence": "addons/intelligence/app/routers/exact_search.py:52-58: `return await is_feature_enabled(drive, \"video_visual_index\")` with a bare `except Exception: return False`. addons/intelligence/app/policy_client.py:124 defaults to `default_on_failure: bool = True`. On httpx errors (l.157-170) and non-JSON responses (l.178-182), `_resolve_failure(True, ...)` returns True (l.111-112) instead of raising, so the router's except branch never runs. By contrast, addons/intelligence/app/routers/video_visual.py:46-51 (the Visual Index routes the spec cites) passes `default_on_failure=False`. Spec docs/specs/intelligence-exact-and-scene-search.md:61-63 and 101-102 require fail-closed. The test fixture addons/intelligence/tests/search_endpoint_db.py:162ff replaces `is_feature_enabled` and raises `RuntimeError` for the unreadable case (test_search_exact_endpoint.py:260). That masks the real client's fail-open return.",
+      "repro": "Traced statically, not run. Make the internal policy API unreachable after the addon has observed a healthy backend, or let it answer 500. Do this for a drive whose video_visual_index policy is off and whose cached entry has expired, with features.video_visual_index set to \"manual\". Then GET /search/exact?q=<text in a scene label>&sources=scene. policy_client returns True, so include_scenes is True and the scene segments are returned. GET /search/scenes answers 200 with results instead of 404.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "This happens in normal use, during a transient core or internal-API outage, with no crafted input. A declared invariant (I9) and an explicit spec line fail without any error, and the test double hides it.",
+        "invariant_ref": "I9"
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Call `is_feature_enabled(drive, \"video_visual_index\", default_on_failure=False)` in `_visual_index_open`, keeping the except for TransientError, or reuse the Visual Index router's wrapper. Change the test double so that it returns the client's actual fail value rather than raising, or so that it asserts `default_on_failure=False` is passed."
+    }
+  ],
+  "verification": [],
+  "specification_compliance": [
+    "The /search/exact matching uses instr(lower(col), lower(:q)) with bound parameters, so %, _ and \\ are literal (I2). The Python side folds with an ASCII-only translate that preserves length, so the snippet offsets and match_count (str.count, non-overlapping) line up with SQLite's lower() (I3).",
+    "Every query filters `f.drive = :drive AND f.active = 1`. Scene queries also join `video_visual_runs.is_active = 1` (I1, I4).",
+    "The order key is (filename, file_id, source rank, position), and the scene position is start_time, ordering, field rank, matching spec item 4. Python code-point order equals SQLite BINARY order over UTF-8.",
+    "EPUB rows put page into section and look up document_sections titles; other files get page. The transcript LEFT JOINs transcript_chunks on CAST(chunk_index AS INTEGER) (I8).",
+    "rank_scenes filters embedding_type='video_visual_scene' and the drive before ranking, keeps the maximum score per scene, skips missing or zero vectors, sorts by (-score, file_id, start_time), and rounds to 4 places (I4).",
+    "search.ts sends X-Lit-Drive through encodeURIComponent, joins sources with commas, leaves undefined params to the client, and strips `available`. The zod bounds match the spec (I10).",
+    "The manifest declares both routes with pre_check addon_feature search, response_filter null and timeout 30 (I7). The proxy's _match_route matches whole paths, so `/search` does not shadow them.",
+    "The Visual Index policy gate is fail-open on an unreadable policy, against the spec's fail-closed requirement (finding V1)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "A whitespace-only q passes the MCP zod min(1) and gets a 422 from the addon. That is consistent with the spec's stripping rule but is not stated for the tool."
+  ],
+  "regression_risks": [
+    "rank_scenes binds every candidate scene id, and then every embedding id, into a single IN list. A drive with tens of thousands of scenes could exceed the SQLite variable limit and fail with 500.",
+    "/search/exact loads every matching row of the drive into memory before paging. A very common short q on a large drive is slow, bounded only by the 30s proxy timeout."
+  ],
+  "test_coverage": [
+    "test_search_exact_endpoint.py covers the drive-policy-off case and an 'unreadable' case. The unreadable case is modelled as a raised exception from a monkeypatched is_feature_enabled, so it does not exercise the real policy_client's fail-open return value (see V1)."
+  ],
+  "not_verified": [
+    "I did not run any test or the mutation suite. All conclusions come from static reading.",
+    "I did not read the MCP tests, toolMetadata.test.ts, SERVER_INSTRUCTIONS or the README/docs edits.",
+    "I did not verify that schemas.py's ExactSearchResponse/SceneSearchResponse field types accept every value produced (e.g. section as int).",
+    "I did not check whether search.py and Ask callers stay byte-for-byte unchanged (I6) beyond confirming that include_video_visual_scene still defaults to False.",
+    "I did not verify the client.request query serialisation for undefined values in mcp-server."
+  ],
+  "confidence": 80
+}
