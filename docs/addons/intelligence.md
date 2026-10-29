@@ -168,6 +168,8 @@ The query is embedded with `models.text_embedding`, matched against the vectors 
 
 **Scene search** above the search results matches your words against the stored video frames. `search.min_score_clip` and `search.min_score_clip_thumbnail` are the score floors. Both default to 0.05, which suits the default SigLIP2 model; use 0.20 with CLIP-family models.
 
+An agent can also list every place a string appears in a drive's document text, transcripts and Visual Index scenes (`search_exact`, a plain substring match rather than a ranking), and rank Visual Index scenes by what they show (`search_video_scenes`); both need the `search` policy, and scenes also need the Visual index enabled for the drive.
+
 An agent connected through the [MCP server](../../mcp-server/README.md) can look at the same frames: `list_video_scenes` returns representative scenes picked from them, with a small frame each, and `get_video_frame` returns a large frame at any time. Neither needs the Visual index or a vision model.
 
 ### Auto-tags
