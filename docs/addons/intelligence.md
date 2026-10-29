@@ -219,7 +219,7 @@ Modes (`features.chapter_suggestions`): `"false"` (default), `"manual"`, `"on_in
 
 How an answer is built (keys under `rag.*`):
 
-1. Shortlist (`rag.hierarchical`): picks up to `coarse_top_k` likely files first. Skipped on drives with fewer than `min_drive_files_for_shortlist` files, or when no file scores above `coarse_score_threshold`.
+1. Shortlist (`rag.hierarchical`): picks up to `coarse_top_k` likely files first, judged by title and summary. Skipped on drives with fewer than `min_drive_files_for_shortlist` files, or when no file scores above `coarse_score_threshold`. A file whose transcript or text contains a word from the question is added as well, when that word appears in at most `exact_match_max_files` files of the drive. This keeps a product mentioned once inside a long round-up video from being lost. `0` turns the addition off.
 2. Retrieval: finds matching passages, searching with up to `clue_count` rewrites of the question.
 3. Viewing history (`rag.personal_history`): questions like *"what I watched last week"* are limited to files the viewer opened, up to `max_lookback_days` back. Needs a [profile](../user-guide/profile-preferences.md).
 4. Category expansion (`rag.category_expansion`, off by default): the LLM turns vague words like *"sci-fi-ish"* into up to `max_terms` search terms.
@@ -489,6 +489,7 @@ rag:
     min_drive_files_for_shortlist: 50
     fallback_full_search: true
     clue_count: 3
+    exact_match_max_files: 10
 
   personal_history:
     enabled: true

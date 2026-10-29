@@ -1,0 +1,4 @@
+# exact_match_max_files: -1 (restart 1)
+intelligence-1  | rag.hierarchical.exact_match_max_files must be an integer >= 0, got -1; using 10
+# exact_match_max_files: "ten" (restart 2)
+intelligence-1  | rag.hierarchical.exact_match_max_files must be an integer >= 0, got 'ten'; using 10
