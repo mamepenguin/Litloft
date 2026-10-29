@@ -2,7 +2,7 @@
 
 SPEC-ID: SPEC-ADDON-038
 
-Approval:
+Approval: sha256:e15b775cb0ffa4e65cd205e852565459fe6de56a70b18359d86047f90250fe00 Yuichi Senga 2026-10-30
 
 ## Summary
 
