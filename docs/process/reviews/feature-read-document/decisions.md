@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship — the human, on r1 HUMAN_REVIEW_REQUIRED (unspecified_behavior; four bucket B touch-point findings), said "出荷".
 ran_in_app: yes
 at: 0f4f3ae1dd00b492cce62908690c79fb0b583966
 by: agent
