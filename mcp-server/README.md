@@ -194,8 +194,8 @@ When adding a new tool, put agent-facing behavior notes in its
 | `search_video_scenes` | Rank a drive's Visual Index scenes by meaning against a description of what is shown |
 | `read_document` | Read a PDF, Word, Excel, PowerPoint or EPUB file's text a page, slide, sheet or section at a time, with a cursor for the next read |
 | `get_transcript` | Get a video/audio file's Whisper transcript as time-stamped chunks, optionally narrowed to a time range |
-| `list_video_scenes` | Up to 24 representative scenes of a video, each with its time range, nearby transcript and a small frame image; optionally within a time window |
-| `get_video_frame` | The frame of a video at a given time as an image; `large` (default, long edge up to 1280 px, enough to read on-screen text) or `small` (320 px wide) |
+| `list_video_scenes` | Up to 24 representative scenes of a video, each with its time range, nearby transcript and a small frame image; optionally within a time window; for a .loft, the error gives its URL |
+| `get_video_frame` | The frame of a video at a given time as an image; `large` (default, long edge up to 1280 px, enough to read on-screen text) or `small` (320 px wide); for a .loft, the error gives its URL |
 | `get_watch_history` | Continue-watching / watch history for a drive |
 | `list_comments` | List comments on a file |
 | `ask` | Ask Litloft Intelligence a question within one drive |
