@@ -1,8 +1,8 @@
 # Ask citations quote the passage at their location, not the context before it
 
-SPEC-ID: SPEC-ADDON-037
+SPEC-ID: SPEC-ADDON-038
 
-Approval: sha256:7d0af8ae6e923834a44530ddf96355f69f8e2887ddf50d9095290e878228cdc5 Yuichi Senga 2026-10-30
+Approval:
 
 ## Summary
 
