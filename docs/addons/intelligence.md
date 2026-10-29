@@ -170,6 +170,8 @@ The query is embedded with `models.text_embedding`, matched against the vectors 
 
 An agent can also list every place a string appears in a drive's document text, transcripts and Visual Index scenes (`search_exact`, a plain substring match rather than a ranking), and rank Visual Index scenes by what they show (`search_video_scenes`); both need the `search` policy, and scenes also need the Visual index enabled for the drive.
 
+An agent can read the text of a PDF, Word, Excel, PowerPoint or EPUB file a page, slide, sheet or EPUB section at a time (`read_document`, backed by `GET /files/{file_id}/document-text`). The text is extracted from the file on each call with the same extractors indexing uses, and nothing is stored. A response stops at `max_chars` and returns a `next` cursor to continue. A PDF read covers at most 10 pages. At most two reads extract at once, and PDF conversions (reads and indexing) run one at a time; a read that cannot start within 10 seconds gets 429. The file must already be indexed by the addon.
+
 An agent connected through the [MCP server](../../mcp-server/README.md) can look at the same frames: `list_video_scenes` returns representative scenes picked from them, with a small frame each, and `get_video_frame` returns a large frame at any time. Neither needs the Visual index or a vision model.
 
 ### Auto-tags
@@ -217,7 +219,7 @@ Modes (`features.chapter_suggestions`): `"false"` (default), `"manual"`, `"on_in
 
 How an answer is built (keys under `rag.*`):
 
-1. Shortlist (`rag.hierarchical`): picks up to `coarse_top_k` likely files first. Skipped on drives with fewer than `min_drive_files_for_shortlist` files, or when no file scores above `coarse_score_threshold`.
+1. Shortlist (`rag.hierarchical`): picks up to `coarse_top_k` likely files first, judged by title and summary. Skipped on drives with fewer than `min_drive_files_for_shortlist` files, or when no file scores above `coarse_score_threshold`. A file whose transcript or text contains a word from the question is added as well, when that word appears in at most `exact_match_max_files` files of the drive. This keeps a product mentioned once inside a long round-up video from being lost. `0` turns the addition off.
 2. Retrieval: finds matching passages, searching with up to `clue_count` rewrites of the question.
 3. Viewing history (`rag.personal_history`): questions like *"what I watched last week"* are limited to files the viewer opened, up to `max_lookback_days` back. Needs a [profile](../user-guide/profile-preferences.md).
 4. Category expansion (`rag.category_expansion`, off by default): the LLM turns vague words like *"sci-fi-ish"* into up to `max_terms` search terms.
@@ -487,6 +489,7 @@ rag:
     min_drive_files_for_shortlist: 50
     fallback_full_search: true
     clue_count: 3
+    exact_match_max_files: 10
 
   personal_history:
     enabled: true

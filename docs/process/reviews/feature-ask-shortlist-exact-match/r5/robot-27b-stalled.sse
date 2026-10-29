@@ -1,0 +1,12 @@
+event: keywords
+data: {"keywords": "ロボット掃除機 お勧め"}
+
+event: shortlist
+data: {"file_ids": ["bPHyRgSPFq9o", "Qf2ruNydDR6t", "_AUsvNRs9BHt", "4XZlQEFNgVfM", "5qnd1V8ZkmJ1", "MQcg5DhcRDjh", "Xx7Qkkuj8gtC", "3Y7d7c2fZx3p", "cGV6BURD2VWB", "NFRl_vC-pedW", "CmwTmVA8XRw5", "Wq-vf_K4WSfj", "wGwxVltt-fCS", "Ak7ONDTp5cWH", "DuRk8Z-B68TR", "v7ZQ2gOn1YRU", "hBuSNjZaN-gD", "lMjTCeVsbXbM", "btdpmPxHWUkn", "KD_NFcdvsUcC", "UVoAvUT9G1sI", "mjP5XlIgml_H"], "exact_match_file_ids": ["UVoAvUT9G1sI", "mjP5XlIgml_H"], "drive_file_count": 792, "top_score": 0.8678849967711528}
+
+event: clues
+data: {"clues": ["ロボット掃除機 お勧め"]}
+
+event: sources
+data: {"sources": [{"file_id": "bPHyRgSPFq9o", "drive": "動画", "filename": "圧倒的に安い。DREAMEの新型掃除機がかなり攻めてるのでご紹介します。.loft", "file_type": "video", "score": 0.019098822324628777, "match_types": ["clip_thumbnail", "metadata", "tfidf_keywords", "whisper"]}, {"file_id": "_AUsvNRs9BHt", "drive": "動画", "filename": "【Amazon プライムデー 2026】今年はすごいぞ。実際に試して良かったおすすめ製品をご紹介します。.loft", "file_type": "video", "score": 0.018169848584595128, "match_types": ["clip_thumbnail", "tfidf_keywords", "whisper"]}, {"file_id": "CmwTmVA8XRw5", "drive": "動画", "filename": "まるで生きてるみたい..。iPhoneに命を吹き込むロボット『LOOI』をご紹介します。.loft", "file_type": "video", "score": 0.018099976308931533, "match_types": ["clip_thumbnail", "whisper"]}, {"file_id": "NFRl_vC-pedW", "drive": "動画", "filename": "AIに課金してるなら入れるべきアプリ「Genspark」をご紹介します。.loft", "file_type": "video", "score": 0.01657608695652174, "match_types": ["clip_thumbnail", "whisper"]}, {"file_id": "3Y7d7c2fZx3p", "drive": "動画", "filename": "【良くも悪くも”98点”】ついに(ほぼ)理想に出会った。見た目も画質も美しすぎる「6Kモニター」を自腹購入&長期使用レビュー。【LG UltraFine evo】.loft", "file_type": "video", "score": 0.016558441558441557, "match_types": ["clip_thumbnail", "whisper"]}]}
+
