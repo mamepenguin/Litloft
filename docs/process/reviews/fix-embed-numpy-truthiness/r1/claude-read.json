@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [],
+  "specification_compliance": [
+    "The diff reaches these places: addons/intelligence/app/workers/video_visual.py (_embed_scene, line 304), addons/intelligence/app/workers/vision.py (_embed_and_store, line 436), the new addons/intelligence/tests/test_embed_numpy_result.py, the addons/intelligence submodule pointer, docs/specs/embed-numpy-truthiness.md and docs/specs/INDEX.md. Each one is a declared touch point or one of the implicit spec, ledger and review touch points. Nothing in the diff falls outside the list.",
+    "The new test imports the tests/vec_partition_db.py helper (unit, search_index, dim, keyed, embeddings, sql, add_file) but does not modify it, so it is not an unplanned touch point.",
+    "I1: when the result has at least one row, both workers store vectors[0] through the existing Embedding and vec_text path (video_visual.py:306-327, vision.py:438-465). I2: a None or zero-length result returns before any database write (video_visual.py:304-305, vision.py:436-437)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Once vision_description rows exist, default /search, Ask and similar-files results can include them. The spec (section 7) declares this as intended; I did not look at any read-side code."
+  ],
+  "test_coverage": [
+    "Both workers import embed_passages from app.workers.embedder inside the function (video_visual.py:295, vision.py:424), so the test's monkeypatch of embedder.embed_passages reaches the code under test.",
+    "The tests feed a real np.stack array of one row, which `if not vectors` would reject with ValueError. Reverting either check would therefore fail test_spec_addon_034_a_one_row_array_is_stored_with_its_vector.",
+    "The None and zero-row cases (np.empty((0, dim))) are tested for both workers. Removing the `len(vectors) == 0` clause would make the zero-row case raise IndexError on vectors[0], so that test would fail too.",
+    "The vec_text insert-failure path is covered by dropping the vec_text table."
+  ],
+  "not_verified": [
+    "I did not list the files in the submodule commit range 371396bc..d3501548 with git, because I have no shell. I relied on the provided diff to show that only the three files changed inside the submodule.",
+    "I did not run the tests.",
+    "I did not read .claude/rules/design-decisions.md (addons policy) in detail.",
+    "I did not check the spec's claim that every other embed_passages caller already handles the result without truthiness."
+  ],
+  "confidence": 88
+}
