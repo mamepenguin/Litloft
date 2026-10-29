@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "addons/intelligence/tests/test_summaries.py:17 imports trim_to_sentence_boundary_with_offset, and the file adds class TestTrimToSentenceBoundaryWithOffset at lines 2320-2352. That class checks the result against _trim_to_sentence_boundary, which is imported at line 35. The file neither constructs ContextSnippet nor asserts quotes. The touch points in docs/specs/citation-quote-anchor.md:167-184 list app/text_utils.py and 'Existing tests that construct ContextSnippet or assert quotes' (line 178), and no other test files. So this edit falls outside the declared touch points. The added test only adds coverage for the new helper and I10, and does not loosen any existing assertion."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "addons/intelligence/tests/test_citation_quote_anchor.py exists at the reviewed tree. The touch-point list (docs/specs/citation-quote-anchor.md:167-184) names only existing tests that are updated (line 178) and no new test module. invariants.md has no revision that adds one. The new file is therefore outside the declared touch points, though it is test-only."
+    }
+  ],
+  "specification_compliance": [
+    "Touch-point list (spec lines 167-184) does not cover the edit to tests/test_summaries.py or the new tests/test_citation_quote_anchor.py; both are test-only additions."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [],
+  "test_coverage": [
+    "TestTrimToSentenceBoundaryWithOffset (test_summaries.py:2320-2352) asserts that the string part of the new helper equals _trim_to_sentence_boundary for each parametrized input. This partially covers I10."
+  ],
+  "not_verified": [
+    "Did not read the contents of test_citation_quote_anchor.py or check it against invariants I1-I9.",
+    "Did not run any tests.",
+    "Did not confirm via git diff that the working tree matches commit 9f5ffd994 exactly; relied on the checked-out files."
+  ],
+  "confidence": 90
+}
