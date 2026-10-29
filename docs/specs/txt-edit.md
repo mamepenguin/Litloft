@@ -38,7 +38,13 @@ and what it leaves out.
    This is the only place the decision is made. While the addon slot list for the
    file's drive has not arrived (`AddonSlotsProvider` still loading, or its catalogue
    belongs to another drive), core cannot decide and draws the existing file-detail
-   skeleton in the canvas: no viewer, no editor, no write.
+   skeleton in the canvas: no viewer, no editor, no write. On the collection surface
+   `FileDetailFullScreen` keeps drawing its own page row while undecided, so the page
+   has exactly one row in every phase. If the slot list request fails, the catalogue is
+   empty and the `.txt` goes to `TextPreview`. The undecided wait applies only to the
+   first decision for an opened file: once a plain-text document is mounted, a later
+   catalogue reload (a drive change on the collection surface, a refetch) does not
+   unmount it until the file itself changes.
 2. Core renders a plain-text document in `MarkdownDocumentLayout`, as it does a `.md`, on
    both the canonical and the collection surface (`/files/{id}?collection=` /
    `?folder_play=1`), exactly as `.md` already does. It mounts the `knowledge-edit` slot
@@ -50,7 +56,9 @@ and what it leaves out.
    `plainTextDocument: true`. For any `text/plain` file without that prop it renders
    nothing (so a `.txt` core keeps on the canvas shows no editor or editor link in the
    inspector). The `.md` gate is unchanged.
-5. The editor loads the body with a new plain-text loader (the existing `getFileContent`
+5. Every load in plain-text mode — the first load, Reload, Overwrite's probe, and the
+   reload after a restore — goes through one new plain-text loader and refreshes the
+   form. The editor loads the body with that loader (the existing `getFileContent`
    and its callers, the capture basket among them, are unchanged): `GET
    /api/files/{id}/stream` as bytes, decoded as UTF-8 with `fatal: true`. It records the
    file's **form**: whether the bytes begin with a UTF-8 BOM, and its line ending — LF
@@ -61,16 +69,20 @@ and what it leaves out.
    `TextPreview` uses, with its limits: above 512 K characters, 5,000 lines or any line
    over 5,000 characters it shows the text without numbers and with `TextPreview`'s
    too-large notice. Read is computed only while it is visible: it is rebuilt from the
-   buffer each time the view switches to Read, and does no work while Edit is shown, so
+   buffer each time the view switches to Read and each time the buffer is replaced while
+   Read is shown (restore, Reload, Overwrite), and does no work while Edit is shown, so
    typing costs nothing for Read. A `highlight` term is highlighted, and the view
    scrolls to it the first time Read is shown after the file opens (also when the page
    opened in Edit with `?edit=1`), once per open. Copying leaves the line numbers out. Read publishes a document-capture controller as
    `TextPreview` does, and `KnowledgeEditSection` mounts its capture action for a `.txt`
    as for a `.md`.
 7. In Edit the viewer types into a CodeMirror editor with no Markdown language and no
-   decorations; its edit area is labelled "Text editor" / 「テキストエディタ」. Above it
-   is a toolbar with only Keep version and History. Ctrl/Cmd+S keeps the current
-   version; Ctrl/Cmd+Shift+\ switches between Read and Edit. The editor registers no
+   decorations; its edit area is labelled "Text editor" / 「テキストエディタ」. Enter
+   inserts a line break and nothing else (no indentation is carried over); Tab inserts a
+   tab character; Escape then Tab moves focus out, as CodeMirror does. Above it the
+   toolbar keeps only its `…` menu (Keep version, History) in its current place; the
+   formatting group and the file-link button are not drawn. Ctrl/Cmd+S keeps the
+   current version; Ctrl/Cmd+Shift+\ switches between Read and Edit. The editor registers no
    formatting shortcut (see §9). In plain-text mode the editor sends no request to any
    knowledge addon endpoint (no wiki-resolution fetch, no `resync-tags`); every call it
    makes is to core.
@@ -86,12 +98,12 @@ and what it leaves out.
    re-encoded per step 8, so the restored file has the current form whatever form the
    version was stored in. In plain-text mode the panel shows a version's text raw, as
    stored: no Markdown link decoding (`decodeLinkTargets`).
-10. Renaming a plain-text document from the title row first saves any unsaved buffer
-    (step 8) and makes the editor read-only until the rename settles. If that save
-    fails (412, 413, network), the rename is not sent. After a successful rename the
-    editor sends no further write; core re-decides step 1 with the new name, so a name
-    still ending in `.txt` keeps the document open, and any other name moves the page to
-    whatever that name gets (for a `.md` with `mime_type` `text/plain`, today's canvas).
+10. The title row of a plain-text document edits the name without its `.txt`: the
+    field shows and edits the stem, `.txt` is shown fixed beside it, and the name sent
+    is always `<stem>.txt` (the suffix in its original case). A rename therefore never
+    changes the kind, the predicate, or the write path; the editor goes on saving
+    through it with no flush and no change of state. Changing the extension is done from
+    the file list's rename, outside this page.
 
 ### 2. Failure cases
 
@@ -125,6 +137,10 @@ and what it leaves out.
   load-error display. It is left by reopening the file, as today.
 - **Reload fails** (network): the buffer is kept and the conflict stays, with the
   editor's existing save-error message, as today.
+- **Overwrite's probe load fails** (network, 404, no ETag): nothing is written; the
+  buffer is kept and the conflict stays, with the existing save-error message.
+- **A save returns 404 or 415** (file trashed or gone missing elsewhere): the editor's
+  existing save-error state; the buffer is kept.
 
 ### 3. States
 
@@ -135,17 +151,17 @@ Per open plain-text document:
 - `editable`: Read ⇄ Edit by the switch or the shortcut; within Edit the existing save
   states (`idle`, `dirty`, `saving`, `saved`, `unchanged`, `error`, `conflict`).
 - `conflict` → Reload → `loading` (or stays `conflict` if Reload fails); → Overwrite →
-  `saving` (current bytes editable) or `held` (current bytes not editable).
-- `renaming` (from `editable`, step 10): the buffer is saved, then the rename is sent;
-  read-only throughout. A failed save returns to `editable` with its error; a successful
-  rename ends the editor's writes.
+  `saving` (current bytes editable), `held` (current bytes not editable) or stays
+  `conflict` (probe failed); → Dismiss → `idle`, as today.
 - `held`: the viewer's text shown read-only with the notice; no write leaves this state.
-  Read ⇄ Edit still switches, and Read draws the retained text. The buffer stays dirty,
-  so leaving the page shows the existing unsaved-changes prompt. It ends when the file is
-  closed or reopened.
-- `not-editable`: Read ⇄ Edit still switches, and Edit shows the notice. The version
-  history entry and panel are not offered. Nothing leads to `editable` without reopening
-  the file.
+  Read ⇄ Edit still switches, by the switch and by Ctrl/Cmd+Shift+\, and Read draws the
+  retained text. Ctrl/Cmd+S does nothing. The toolbar and its `…` menu are not drawn.
+  The buffer stays dirty, so leaving the page shows the existing unsaved-changes prompt.
+  It ends when the file is closed or reopened.
+- `not-editable`: Read ⇄ Edit still switches, by the switch and the shortcut, and Edit
+  shows the notice. Ctrl/Cmd+S does nothing; no toolbar, no version-history entry or
+  panel. Nothing leads to `editable` without reopening the file.
+- A title-row rename (step 10) is available in every state and changes none of them.
 
 ### 4. Data read and written
 
@@ -190,8 +206,8 @@ availability per drive is the existing `knowledge` / `editor` policy, the same g
 - **The page chrome for a `.txt`**, on the canonical and the collection surface, becomes
   the document layout's: the title row (showing `file.filename`, not `file.title`) with
   rename, the save dot and the view switch, the inspector and mobile sheet as a `.md` has
-  them, with exactly one page row on the collection surface. Rename does not add or
-  strip any extension (step 10).
+  them, with exactly one page row on the collection surface. The title row edits the
+  stem and keeps `.txt` (step 10).
 - **First open of any `.txt`** waits on the addon slot list (step 1) and shows the
   skeleton until it arrives, where today the text appears without waiting for it.
 - **Document capture from a `.txt`** keeps working in Read (step 6).
@@ -223,9 +239,11 @@ availability per drive is the existing `knowledge` / `editor` policy, the same g
   no Split. The switch's labels are the existing ones (the "preview" label names Read).
 - Read looks like today's text viewer (line numbers, no colour, highlight from search,
   the same too-large handling).
-- Edit is a plain editor with a toolbar holding only Keep version and History: no
-  formatting buttons, no file-link button, no Markdown styling, no `[[` autocomplete.
-  Pasting or dropping a file inserts nothing and uploads nothing.
+- Edit is a plain editor whose toolbar holds only the `…` menu (Keep version, History):
+  no formatting buttons, no file-link button, no Markdown styling, no `[[` autocomplete,
+  no list continuation or carried indentation on Enter; Tab inserts a tab. Pasting or
+  dropping a file inserts nothing and uploads nothing.
+- The title row shows the name's stem as editable and `.txt` beside it, fixed.
 - Ctrl/Cmd+B, I, K, E and Shift+K are not taken by the editor; they do what they do in
   any text field of the app. The shortcut help lists no formatting entries while a
   `.txt` is open.
@@ -249,7 +267,7 @@ availability per drive is the existing `knowledge` / `editor` policy, the same g
   1. Core PR 1: extract the line-numbered renderer from `TextPreview` as an exported
      component, behaviour-preserving for every current viewer; merged to develop.
   2. Knowledge PR: plain-text mode, built and tested against core develop with PR 1.
-  3. Core PR 2: the predicate, slot props, Split rule, rename flush and docs, together
+  3. Core PR 2: the predicate, slot props, Split rule, fixed-suffix title and docs, together
      with the pointer bump to the merged knowledge commit, so no core commit sends a
      `.txt` to the document layout without the addon commit that fills it.
 - **What the agent cannot verify.** Nothing in `agent_cannot_verify` applies. IME input
@@ -272,10 +290,17 @@ availability per drive is the existing `knowledge` / `editor` policy, the same g
 - `frontend/src/components/markdown/MarkdownDocumentLayout.tsx`,
   `frontend/src/components/MarkdownViewModeToggle.tsx`,
   `frontend/src/lib/markdownChromeContext.tsx`: a plain-text document never enters
-  Split; the chrome context carries the editor's save-before-rename hook (step 10), and
-  the title-row rename awaits it for a plain-text document.
+  Split.
+- `frontend/src/components/markdown/EditableTitle.tsx`: the fixed `.txt` suffix
+  (step 10).
+- `frontend/src/components/FileDetail/FileDetailPresenter.tsx`: forwards the
+  plain-text decision between the container and `ShellLayout`.
 - `frontend/src/components/AddonSlotsProvider.tsx` (read only): whether the slot list for
   the file's drive has arrived.
+- `frontend/src/lib/__tests__/fileDetailShell.test.ts`: the existing rows gain the new
+  inputs with values that keep each row's expected result (the `text/plain` rows that
+  expect `false` take a name that is not `.txt`, or no `knowledge-edit` slot); new rows
+  cover the plain-text document. No expected result of an existing row changes.
 - `frontend/src/components/TextPreview.tsx`: the line-numbered rendering (with its limits,
   highlight and capture publishing) is taken out as a component that takes text.
 - `frontend/src/components/MarkdownAwareTagChips.tsx`: stays on `File.tags` for a `.txt`.
@@ -287,8 +312,8 @@ availability per drive is the existing `knowledge` / `editor` policy, the same g
   view modes, shortcuts, wiki links, frontmatter, registry, resync-tags, upload, restore,
   Reload / Overwrite, `held`, version history availability).
 - `addons/knowledge/frontend/EditorToolbar.tsx`: the version-only toolbar.
-- `addons/knowledge/frontend/MarkdownEditor.tsx`: language, live preview and paste/drop
-  handlers by mode.
+- `addons/knowledge/frontend/MarkdownEditor.tsx`: language, live preview, keymap (Enter,
+  Tab) and paste/drop handlers by mode.
 - `addons/knowledge/frontend/api.ts`: a new plain-text loader and encoder;
   `getFileContent` unchanged.
 - `addons/knowledge/frontend/VersionHistoryPanel.tsx`,
@@ -306,14 +331,14 @@ availability per drive is the existing `knowledge` / `editor` policy, the same g
 
 ## Invariants
 
-I1. Every write of a plain-text document (autosave, explicit save, unmount save, restore's draft save, Overwrite, restore, the save before a rename) leaves the file with exactly one leading UTF-8 BOM if its form has one and none otherwise, and with every line break in the form's ending; a line the viewer did not change keeps its bytes.
+I1. Every write of a plain-text document (autosave, explicit save, unmount save, restore's draft save, Overwrite, restore) leaves the file with exactly one leading UTF-8 BOM if its form has one and none otherwise, and with every line break in the form's ending; a line the viewer did not change keeps its bytes.
 I2. A `.txt` whose bytes are not valid UTF-8, or whose line endings are mixed or bare CR, at load, Reload or Overwrite time, is never written by the editor: no `PUT /content` is sent for it on any path.
-I3. Saving a `.txt` from the editor never changes its `File.tags`, including across a title-row rename: no write from the plain-text editor reaches the file after the rename is sent. Tag chips on a `.txt` write `File.tags` and never write the file's bytes.
-I4. Nothing typed, pasted or dropped into the plain-text editor inserts Markdown syntax or uploads a file; the only text inserted is what the viewer typed or pasted as text.
+I3. Saving a `.txt` from the editor never changes its `File.tags`, and a title-row rename of a plain-text document always produces a name ending in `.txt`. Tag chips on a `.txt` write `File.tags` and never write the file's bytes.
+I4. Nothing typed, pasted or dropped into the plain-text editor inserts Markdown syntax, carried indentation or a list marker, or uploads a file; Enter inserts only a line break, Tab only a tab character, and otherwise the only text inserted is what the viewer typed or pasted as text.
 I5. A plain-text document renders in the document layout with exactly one page row on both the canonical and the collection surface, and never shows Split, on any viewport width, by the switch or by the shortcut.
 I6. The Read view draws the editor's current buffer with the same rendering and limits as `TextPreview` (line numbers that copying leaves out, the too-large fallback), highlights a search `highlight` term, and publishes a document-capture controller.
 I7. A `.md` file keeps the Markdown editor, Split, frontmatter tag handling, wiki links, formatting shortcuts, toolbar and rename exactly as before; a `.md` recorded with `mime_type` `text/plain` keeps today's canvas with no editor.
-I8. A `text/plain` file not named `.txt`, a `.txt` over 1,048,576 bytes, and any `.txt` without the knowledge editor (addon absent, policy off, inline flag off) render in `TextPreview` read-only as before, with no editor and no editor link anywhere on the page; every file `TextPreview` shows today keeps its syntax colour, decoration limits, bare-CR folding, copy without numbers and over-1 MB prompt.
+I8. A `text/plain` file not named `.txt`, a `.txt` over 1,048,576 bytes, and any `.txt` without the knowledge editor (addon absent, policy off, inline flag off) render in `TextPreview` read-only as before, with no editor and no editor link anywhere on the page; every file `TextPreview` shows today keeps its syntax colour, decoration limits, bare-CR folding, copy without numbers and over-1 MB prompt. Before the addon slot list for the file's drive has arrived, a `.txt` mounts neither the editor nor `TextPreview` and nothing writes it; once a plain-text document is mounted, a catalogue reload does not unmount it.
 I9. Core imports nothing from the knowledge addon, and the addon renders a `text/plain` file in the editor only when core passes `plainTextDocument: true` in the slot props.
 I10. In plain-text mode the editor sends no request to a knowledge addon endpoint, its version-history panel shows a version's text exactly as stored, and a not-editable document offers no version-history entry or panel.
 
