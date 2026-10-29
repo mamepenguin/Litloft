@@ -1,0 +1,237 @@
+event: keywords
+data: {"keywords": "140W充電器 比較 継ぎ目 側面"}
+
+event: shortlist
+data: {"file_ids": ["532Tz9YssoCP", "YjXcBiGfWOG1", "3Y7d7c2fZx3p", "wOeotDwi2z_e", "iBwmMwhU19Nd", "ZLjxMzGCnWWw", "aYzXICOfCz4Z", "bPHyRgSPFq9o", "aWhA8ZQjZ8Fm", "XWaAfBpieroY", "btdpmPxHWUkn", "Ak7ONDTp5cWH", "wISBe_MX_Pf6", "JVHvxyXgS9KR", "7OgMO7sm5kqs", "DRfzsqXQkcOE", "-Oa1BZoKKTub", "jhqI9aCPj9km", "9lHqBrpDyEcP", "2x5kYuD3K8-r", "1c5FT_DjcCHb", "7a68tnfaMdGb", "Ln8jzsZkiTDI", "WejIz44ehXqb", "liiYYNtJhQFr", "noz56FPlta7u", "ohvvCNeLc4-V", "tK9ag6CUVeWL", "AH00Ml_q-dJw", "ThU4RhvAVb1g", "vBuGQ4UAETm0", "utRWYZ2twtcT"], "exact_match_file_ids": ["1c5FT_DjcCHb", "7a68tnfaMdGb", "Ln8jzsZkiTDI", "WejIz44ehXqb", "liiYYNtJhQFr", "noz56FPlta7u", "ohvvCNeLc4-V", "tK9ag6CUVeWL", "AH00Ml_q-dJw", "ThU4RhvAVb1g", "vBuGQ4UAETm0", "utRWYZ2twtcT"], "drive_file_count": 794, "top_score": 0.8845236794113305}
+
+event: clues
+data: {"clues": ["140W充電器 比較 継ぎ目 側面"]}
+
+event: sources
+data: {"sources": [{"file_id": "532Tz9YssoCP", "drive": "動画", "filename": "【徹底検証】”新世代の充電器”vs”これまでの最強”→「世代交代」が起こってる。【最強充電器”防衛戦”2026初夏 ～140W部門～】.loft", "file_type": "video", "score": 0.019672131147540985, "match_types": ["clip_thumbnail", "metadata", "whisper"]}, {"file_id": "ZLjxMzGCnWWw", "drive": "動画", "filename": "【流行る寸前か？】満充電で「自動的にケーブルを抜く」新発想ガジェットを検証。本当に役に立つのか…？【フルチャージセパレーター】.loft", "file_type": "video", "score": 0.01899801587301587, "match_types": ["clip_thumbnail", "whisper"]}, {"file_id": "-Oa1BZoKKTub", "drive": "動画", "filename": "【REDMAGIC 11 Proレビュー：後編】”疑惑”あっても「嫌いになれない」のは何故か？”美しすぎる変態機”、さらなる徹底検証・2か月使っての感想。【※概要欄に追記あり】.loft", "file_type": "video", "score": 0.018454613653413353, "match_types": ["clip_thumbnail", "whisper"]}, {"file_id": "aYzXICOfCz4Z", "drive": "動画", "filename": "あのTORRASからついに『半固体モバイルバッテリー』が誕生しました。.loft", "file_type": "video", "score": 0.014705882352941176, "match_types": ["whisper"]}]}
+
+event: answer_chunk
+data: {"delta": "目"}
+
+event: answer_chunk
+data: {"delta": "立つ"}
+
+event: answer_chunk
+data: {"delta": "継"}
+
+event: answer_chunk
+data: {"delta": "ぎ"}
+
+event: answer_chunk
+data: {"delta": "目"}
+
+event: answer_chunk
+data: {"delta": "が多い"}
+
+event: answer_chunk
+data: {"delta": "こと"}
+
+event: answer_chunk
+data: {"delta": "、"}
+
+event: answer_chunk
+data: {"delta": "および"}
+
+event: answer_chunk
+data: {"delta": "側"}
+
+event: answer_chunk
+data: {"delta": "面に"}
+
+event: answer_chunk
+data: {"delta": "大きく"}
+
+event: answer_chunk
+data: {"delta": "「"}
+
+event: answer_chunk
+data: {"delta": "1"}
+
+event: answer_chunk
+data: {"delta": "4"}
+
+event: answer_chunk
+data: {"delta": "0"}
+
+event: answer_chunk
+data: {"delta": "W"}
+
+event: answer_chunk
+data: {"delta": "」"}
+
+event: answer_chunk
+data: {"delta": "の"}
+
+event: answer_chunk
+data: {"delta": "文字"}
+
+event: answer_chunk
+data: {"delta": "が"}
+
+event: answer_chunk
+data: {"delta": "目"}
+
+event: answer_chunk
+data: {"delta": "立つ"}
+
+event: answer_chunk
+data: {"delta": "点が"}
+
+event: answer_chunk
+data: {"delta": "惜"}
+
+event: answer_chunk
+data: {"delta": "しい"}
+
+event: answer_chunk
+data: {"delta": "と言"}
+
+event: answer_chunk
+data: {"delta": "われた"}
+
+event: answer_chunk
+data: {"delta": "充電"}
+
+event: answer_chunk
+data: {"delta": "器"}
+
+event: answer_chunk
+data: {"delta": "は"}
+
+event: answer_chunk
+data: {"delta": "、"}
+
+event: answer_chunk
+data: {"delta": "**"}
+
+event: answer_chunk
+data: {"delta": "Eco"}
+
+event: answer_chunk
+data: {"delta": "Flow"}
+
+event: answer_chunk
+data: {"delta": "**"}
+
+event: answer_chunk
+data: {"delta": "の"}
+
+event: answer_chunk
+data: {"delta": "モバイル"}
+
+event: answer_chunk
+data: {"delta": "向け"}
+
+event: answer_chunk
+data: {"delta": "シリーズ"}
+
+event: answer_chunk
+data: {"delta": "です"}
+
+event: answer_chunk
+data: {"delta": "。"}
+
+event: answer_chunk
+data: {"delta": "この"}
+
+event: answer_chunk
+data: {"delta": "充電"}
+
+event: answer_chunk
+data: {"delta": "器"}
+
+event: answer_chunk
+data: {"delta": "は"}
+
+event: answer_chunk
+data: {"delta": "、"}
+
+event: answer_chunk
+data: {"delta": "重"}
+
+event: answer_chunk
+data: {"delta": "さ"}
+
+event: answer_chunk
+data: {"delta": "や"}
+
+event: answer_chunk
+data: {"delta": "サイズ"}
+
+event: answer_chunk
+data: {"delta": "は"}
+
+event: answer_chunk
+data: {"delta": "今回"}
+
+event: answer_chunk
+data: {"delta": "比較"}
+
+event: answer_chunk
+data: {"delta": "した"}
+
+event: answer_chunk
+data: {"delta": "中で"}
+
+event: answer_chunk
+data: {"delta": "平均"}
+
+event: answer_chunk
+data: {"delta": "的"}
+
+event: answer_chunk
+data: {"delta": "であり"}
+
+event: answer_chunk
+data: {"delta": "、"}
+
+event: answer_chunk
+data: {"delta": "ポート"}
+
+event: answer_chunk
+data: {"delta": "構成"}
+
+event: answer_chunk
+data: {"delta": "は"}
+
+event: answer_chunk
+data: {"delta": "C"}
+
+event: answer_chunk
+data: {"delta": "3"}
+
+event: answer_chunk
+data: {"delta": "つ"}
+
+event: answer_chunk
+data: {"delta": "に"}
+
+event: answer_chunk
+data: {"delta": "A"}
+
+event: answer_chunk
+data: {"delta": "1"}
+
+event: answer_chunk
+data: {"delta": "つ"}
+
+event: answer_chunk
+data: {"delta": "となっています"}
+
+event: answer_chunk
+data: {"delta": "。"}
+
+event: citation
+data: {"citation": {"file_id": "532Tz9YssoCP", "drive": "動画", "filename": "【徹底検証】”新世代の充電器”vs”これまでの最強”→「世代交代」が起こってる。【最強充電器”防衛戦”2026初夏 ～140W部門～】.loft", "file_type": "video", "quote": "一言で表せばこれらすべて「140W充電器」ですからね♡ただ一方で、実際に比較してみると全然違うというのがおもしろいところでこの動画ではそれをお見せしていきます", "relevance": 0.0, "segment_location": "2:54", "section_title": null}, "index": 1}
+
+event: citations
+data: {"citations": [{"file_id": "532Tz9YssoCP", "drive": "動画", "filename": "【徹底検証】”新世代の充電器”vs”これまでの最強”→「世代交代」が起こってる。【最強充電器”防衛戦”2026初夏 ～140W部門～】.loft", "file_type": "video", "quote": "一言で表せばこれらすべて「140W充電器」ですからね♡ただ一方で、実際に比較してみると全然違うというのがおもしろいところでこの動画ではそれをお見せしていきます", "relevance": 0.0, "segment_location": "2:54", "section_title": null}]}
+
+event: done
+data: {"retrieved_count": 4, "took_ms": 10118}
+

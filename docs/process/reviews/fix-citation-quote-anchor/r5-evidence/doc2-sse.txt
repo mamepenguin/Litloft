@@ -1,0 +1,378 @@
+event: keywords
+data: {"keywords": "サンデマン宗 ファラデーの伝 教え 宗派"}
+
+event: shortlist
+data: {"file_ids": ["ijDmXF8n2hsY", "tS-PP-OOm16V", "XQ2nmSRkGvWO", "5bL35TsN-qDw", "v3UB-xFptXV2", "KVkoqZC35tD3", "QfiZXCGeX7T6", "HSJgagNcX8Tr", "akUe8rzbsXSp", "VwRYBjN_rXgU", "itIj9UIfsTEZ", "Q4YhWf494p_Y", "CjZnk7fb9iC7", "gd5LcbK0tXHw", "JvqQlP98M2-U", "5_tVEqDLBFiF", "uwQBYkThId7R", "-gT0XG5qsech", "ktLe2p4TXA3w", "dMcRdAJcStjD"], "exact_match_file_ids": [], "drive_file_count": 1352, "top_score": 0.8484164439477624}
+
+event: clues
+data: {"clues": ["ファラデーの伝 サンデマン宗 教義", "サンデマン宗 説く教え", "ファラデー サンデマン宗"]}
+
+event: sources
+data: {"sources": [{"file_id": "ijDmXF8n2hsY", "drive": "テスト画像", "filename": "ファラデーの伝.txt", "file_type": "document", "score": 0.01639344262295082, "match_types": ["metadata", "text_content"]}]}
+
+event: answer_chunk
+data: {"delta": "サン"}
+
+event: answer_chunk
+data: {"delta": "デ"}
+
+event: answer_chunk
+data: {"delta": "マン"}
+
+event: answer_chunk
+data: {"delta": "宗"}
+
+event: answer_chunk
+data: {"delta": "は"}
+
+event: answer_chunk
+data: {"delta": "、"}
+
+event: answer_chunk
+data: {"delta": "初期"}
+
+event: answer_chunk
+data: {"delta": "の"}
+
+event: answer_chunk
+data: {"delta": "キ"}
+
+event: answer_chunk
+data: {"delta": "リスト"}
+
+event: answer_chunk
+data: {"delta": "教"}
+
+event: answer_chunk
+data: {"delta": "徒"}
+
+event: answer_chunk
+data: {"delta": "が"}
+
+event: answer_chunk
+data: {"delta": "信"}
+
+event: answer_chunk
+data: {"delta": "じて"}
+
+event: answer_chunk
+data: {"delta": "いた"}
+
+event: answer_chunk
+data: {"delta": "教"}
+
+event: answer_chunk
+data: {"delta": "え"}
+
+event: answer_chunk
+data: {"delta": "のみ"}
+
+event: answer_chunk
+data: {"delta": "を"}
+
+event: answer_chunk
+data: {"delta": "信"}
+
+event: answer_chunk
+data: {"delta": "じる"}
+
+event: answer_chunk
+data: {"delta": "べき"}
+
+event: answer_chunk
+data: {"delta": "である"}
+
+event: answer_chunk
+data: {"delta": "と"}
+
+event: answer_chunk
+data: {"delta": "説"}
+
+event: answer_chunk
+data: {"delta": "いた"}
+
+event: answer_chunk
+data: {"delta": "宗"}
+
+event: answer_chunk
+data: {"delta": "派"}
+
+event: answer_chunk
+data: {"delta": "です"}
+
+event: answer_chunk
+data: {"delta": "。"}
+
+event: answer_chunk
+data: {"delta": "この"}
+
+event: answer_chunk
+data: {"delta": "教"}
+
+event: answer_chunk
+data: {"delta": "旨"}
+
+event: answer_chunk
+data: {"delta": "は"}
+
+event: answer_chunk
+data: {"delta": "、"}
+
+event: answer_chunk
+data: {"delta": "グラス"}
+
+event: answer_chunk
+data: {"delta": "と"}
+
+event: answer_chunk
+data: {"delta": "彼の"}
+
+event: answer_chunk
+data: {"delta": "婿"}
+
+event: answer_chunk
+data: {"delta": "である"}
+
+event: answer_chunk
+data: {"delta": "サン"}
+
+event: answer_chunk
+data: {"delta": "デ"}
+
+event: answer_chunk
+data: {"delta": "マン"}
+
+event: answer_chunk
+data: {"delta": "によって"}
+
+event: answer_chunk
+data: {"delta": "広"}
+
+event: answer_chunk
+data: {"delta": "め"}
+
+event: answer_chunk
+data: {"delta": "られ"}
+
+event: answer_chunk
+data: {"delta": "、"}
+
+event: answer_chunk
+data: {"delta": "この"}
+
+event: answer_chunk
+data: {"delta": "宗"}
+
+event: answer_chunk
+data: {"delta": "は"}
+
+event: answer_chunk
+data: {"delta": "グラ"}
+
+event: answer_chunk
+data: {"delta": "サイト"}
+
+event: answer_chunk
+data: {"delta": "や"}
+
+event: answer_chunk
+data: {"delta": "サン"}
+
+event: answer_chunk
+data: {"delta": "デ"}
+
+event: answer_chunk
+data: {"delta": "マ"}
+
+event: answer_chunk
+data: {"delta": "ニ"}
+
+event: answer_chunk
+data: {"delta": "アン"}
+
+event: answer_chunk
+data: {"delta": "とも"}
+
+event: answer_chunk
+data: {"delta": "呼ば"}
+
+event: answer_chunk
+data: {"delta": "れます"}
+
+event: answer_chunk
+data: {"delta": "。"}
+
+event: answer_chunk
+data: {"delta": "教"}
+
+event: answer_chunk
+data: {"delta": "義"}
+
+event: answer_chunk
+data: {"delta": "の"}
+
+event: answer_chunk
+data: {"delta": "大部分"}
+
+event: answer_chunk
+data: {"delta": "は"}
+
+event: answer_chunk
+data: {"delta": "清"}
+
+event: answer_chunk
+data: {"delta": "教"}
+
+event: answer_chunk
+data: {"delta": "徒"}
+
+event: answer_chunk
+data: {"delta": "に"}
+
+event: answer_chunk
+data: {"delta": "近く"}
+
+event: answer_chunk
+data: {"delta": "、"}
+
+event: answer_chunk
+data: {"delta": "礼"}
+
+event: answer_chunk
+data: {"delta": "拝"}
+
+event: answer_chunk
+data: {"delta": "の"}
+
+event: answer_chunk
+data: {"delta": "形式"}
+
+event: answer_chunk
+data: {"delta": "は"}
+
+event: answer_chunk
+data: {"delta": "プレス"}
+
+event: answer_chunk
+data: {"delta": "ビ"}
+
+event: answer_chunk
+data: {"delta": "テリア"}
+
+event: answer_chunk
+data: {"delta": "ン"}
+
+event: answer_chunk
+data: {"delta": "に"}
+
+event: answer_chunk
+data: {"delta": "似"}
+
+event: answer_chunk
+data: {"delta": "て"}
+
+event: answer_chunk
+data: {"delta": "いますが"}
+
+event: answer_chunk
+data: {"delta": "、"}
+
+event: answer_chunk
+data: {"delta": "他の"}
+
+event: answer_chunk
+data: {"delta": "教会"}
+
+event: answer_chunk
+data: {"delta": "とは"}
+
+event: answer_chunk
+data: {"delta": "全く"}
+
+event: answer_chunk
+data: {"delta": "関"}
+
+event: answer_chunk
+data: {"delta": "わ"}
+
+event: answer_chunk
+data: {"delta": "らず"}
+
+event: answer_chunk
+data: {"delta": "、"}
+
+event: answer_chunk
+data: {"delta": "他"}
+
+event: answer_chunk
+data: {"delta": "宗"}
+
+event: answer_chunk
+data: {"delta": "の"}
+
+event: answer_chunk
+data: {"delta": "信"}
+
+event: answer_chunk
+data: {"delta": "者を"}
+
+event: answer_chunk
+data: {"delta": "改"}
+
+event: answer_chunk
+data: {"delta": "宗"}
+
+event: answer_chunk
+data: {"delta": "させ"}
+
+event: answer_chunk
+data: {"delta": "よう"}
+
+event: answer_chunk
+data: {"delta": "とする"}
+
+event: answer_chunk
+data: {"delta": "ような"}
+
+event: answer_chunk
+data: {"delta": "ことは"}
+
+event: answer_chunk
+data: {"delta": "しない"}
+
+event: answer_chunk
+data: {"delta": "ため"}
+
+event: answer_chunk
+data: {"delta": "、"}
+
+event: answer_chunk
+data: {"delta": "あまり"}
+
+event: answer_chunk
+data: {"delta": "広"}
+
+event: answer_chunk
+data: {"delta": "ま"}
+
+event: answer_chunk
+data: {"delta": "らなかった"}
+
+event: answer_chunk
+data: {"delta": "と"}
+
+event: answer_chunk
+data: {"delta": "されています"}
+
+event: answer_chunk
+data: {"delta": "。"}
+
+event: citation
+data: {"citation": {"file_id": "ijDmXF8n2hsY", "drive": "テスト画像", "filename": "ファラデーの伝.txt", "file_type": "document", "quote": "を［＃「特別に箱を」に傍点］つくりて、その内に入れて索引まで［＃「索引まで」に傍点］も附けて置いた。\n\n［＃５字下げ］五一　宗教［＃「五一　宗教」は小見出し］\n\n　ファラデーの信じておったサンデマン宗の事については前にも述べたが、一八四〇年から四四年までの間、ファラデーはこの教会の長老であった。それが四四年に長老たることも会員たることもやめられた［＃「やめられた」に傍点］が、その委細は、ある日曜日…", "relevance": 0.0, "segment_location": "chunk 217", "section_title": null}, "index": 1}
+
+event: citations
+data: {"citations": [{"file_id": "ijDmXF8n2hsY", "drive": "テスト画像", "filename": "ファラデーの伝.txt", "file_type": "document", "quote": "を［＃「特別に箱を」に傍点］つくりて、その内に入れて索引まで［＃「索引まで」に傍点］も附けて置いた。\n\n［＃５字下げ］五一　宗教［＃「五一　宗教」は小見出し］\n\n　ファラデーの信じておったサンデマン宗の事については前にも述べたが、一八四〇年から四四年までの間、ファラデーはこの教会の長老であった。それが四四年に長老たることも会員たることもやめられた［＃「やめられた」に傍点］が、その委細は、ある日曜日…", "relevance": 0.0, "segment_location": "chunk 217", "section_title": null}]}
+
+event: done
+data: {"retrieved_count": 1, "took_ms": 10853}
+
