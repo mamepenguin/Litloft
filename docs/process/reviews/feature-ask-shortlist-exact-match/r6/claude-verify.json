@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "addons/intelligence/tests/test_rag_shortlist_exact_match.py exists in the tree. The Touch points section of docs/specs/ask-shortlist-exact-match.md:203-228 names only tests/test_rag_hierarchical.py and tests/test_rag_hierarchical_personal_history.py (:211-214) and tests/test_event_loop_discipline.py (:215). It names no new test module, and the spec contains no 'new test' or 'test module' wording. The helpers exist in tests/search_endpoint_db.py: patch_everywhere at :28, text_chunk(page=) at :56 and on_loop at :203. I could not confirm with git that the file is new in this diff or that search_endpoint_db.py is unchanged, because only Read, Glob and Grep were available. A new test file that only adds coverage is a deviation from the touch-point list, not a behavioural defect."
+    }
+  ],
+  "specification_compliance": [
+    "The touch-point list (docs/specs/ask-shortlist-exact-match.md:203-228) does not name the new test module addons/intelligence/tests/test_rag_shortlist_exact_match.py."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [],
+  "test_coverage": [
+    "The new module test_rag_shortlist_exact_match.py exists. I did not check its contents against I1-I10."
+  ],
+  "not_verified": [
+    "Could not use git to confirm that the test file was added in commit 0accbc70c or that tests/search_endpoint_db.py is unchanged against origin/develop.",
+    "Did not check the implementation in service.py or coarse_retriever.py against invariants I1-I10.",
+    "Did not run the tests."
+  ],
+  "confidence": 85
+}
