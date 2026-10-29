@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DOCUMENT_MIMES } from "./documents.js";
 import { runTool } from "./runTool.js";
 import {
   FULL_READ_MAX_BYTES,
@@ -224,7 +225,9 @@ const getFileContent: LitloftTool = {
       const file = await getFileMeta(client, fileId);
       if (!isReadableMime(file.mime_type)) {
         return errorResult(
-          `File mime type '${file.mime_type}' is not readable as text; only text/* and application/json are.`
+          DOCUMENT_MIMES.has(file.mime_type ?? "")
+            ? `File mime type '${file.mime_type}' is not readable as text here; read it with read_document.`
+            : `File mime type '${file.mime_type}' is not readable as text; only text/* and application/json are.`
         );
       }
       const tooLarge = (size: number) =>
