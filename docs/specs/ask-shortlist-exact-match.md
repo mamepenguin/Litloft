@@ -42,15 +42,22 @@ hearing or reading.
    intersection and the bypass checks (small drive, empty shortlist, low confidence)
    exactly as today. On a bypass nothing below happens; the bypass search is already
    unscoped (or scoped to the personal-history set) and can find the files on its own.
-3. When the scoped path continues, the keywords are split on Unicode whitespace into
-   tokens. Each token is cleaned in this order:
+3. When the scoped path continues, the `keywords` string that `_run_hierarchical_retrieval`
+   receives is split on Unicode whitespace into tokens. That string is the flat
+   `raw_keywords` of the transform. On a transform passthrough it is the question itself:
+   a Japanese question without spaces then becomes one long token that matches nothing,
+   and the step adds nothing. A multi-word required term (`Vision Pro`) is looked up word
+   by word, and its aliases are not looked up. Each token is cleaned in this order:
    1. Double quotes are removed.
    2. Surrounding whitespace is stripped.
    3. A cleaned token shorter than 2 characters is skipped.
    4. Duplicates are dropped by cleaned value, keeping the first occurrence.
 4. The matching rule: for each cleaned token, the set of distinct files of drive D whose
-   rows match the FTS5 phrase query `"<token>"` in any of `fts_transcripts`,
-   `fts_text_content`, `fts_transcripts_word` and `fts_text_content_word`. Only files with
+   rows match the FTS5 query `text : "<token>"` (the phrase, restricted to the `text`
+   column) in any of `fts_transcripts`, `fts_text_content`, `fts_transcripts_word` and
+   `fts_text_content_word`. The `file_id`, `chunk_index` and `page` columns of those tables
+   are indexed too, so an unrestricted MATCH would let `LED` hit a file id or `150` hit a
+   chunk number. Only files with
    `indexed_files.active = 1` count. This rule defines both "contains the token" and the
    file count in this spec. It inherits the tables' own limits: trigram tables cannot match
    fewer than 3 characters, and word tables match whole words with case and diacritic
@@ -82,9 +89,12 @@ hearing or reading.
 12. The `shortlist` SSE event sends `file_ids` as the surviving coarse ids followed by
     `exact_match_file_ids`. It also sends `exact_match_file_ids` itself (an empty list when
     none). `top_score` is the best surviving coarse score, as before.
-13. The lookup reads the search DB synchronously, so it runs off the event loop through
-    `asyncio.to_thread`, as `coarse_retrieve` and `fetch_long_summaries` do.
-    `tests/test_event_loop_discipline.py` stays unmodified and passes.
+13. The lookup is a synchronous function that reads the search DB. It is called only
+    through `asyncio.to_thread`, as `coarse_retrieve` and `fetch_long_summaries` are, so
+    it never runs on the event-loop thread. `tests/test_event_loop_discipline.py` stays
+    unmodified and passes. That guard sees only the session factories and not
+    `get_search_engine().connect()`, so I5 is checked by its own test.
+14. With `exact_match_max_files: 0` the lookup is not called at all.
 
 Measured on production with the 20-file shortlist of the failing question plus the two
 target files as scope: all three LLM clues from that run (`パネルヒーター おすすめ`,
@@ -102,9 +112,10 @@ target files as scope: all three LLM clues from that run (`パネルヒーター
   shortlist. The answer does not fail because of this step, and no error event is sent.
 - A token made only of quotes or whitespace is empty after cleaning (step 3) and is
   skipped without a lookup.
-- `exact_match_max_files` is absent: the default of 10 applies. It is present but not an
-  integer ≥ 0 (negative, float, string, bool): a WARNING is logged when the config loads
-  and the default of 10 applies.
+- `exact_match_max_files` is absent or YAML `null`: the default of 10 applies with no log.
+  It is present but not an integer ≥ 0 (negative, float, string, bool): one WARNING is
+  logged per config load, and the default of 10 applies. The check lives where
+  `rag.hierarchical` is parsed from the YAML.
 - The access filter fails closed (it returns an empty set): the existing
   access-filter-empty bypass runs, as today.
 
@@ -220,13 +231,13 @@ None. The step is stateless: it reads the index on every question and keeps no c
 
 I1. On the scoped hierarchical path, if a cleaned keyword token matches (by the step 4 rule) at least 1 and at most `exact_match_max_files` active files of drive D, every one of those files is inside the `file_id_scope` of every clue search, unless the personal-history scope or the access filter excludes it.
 I2. A token adds no file when it matches more than `exact_match_max_files` files of D, when it is shorter than 2 characters after quote removal, or when it matches only in filename or title tables (`fts_files*`).
-I3. No file of another drive, and no file with `active = 0`, is ever added to the shortlist.
+I3. No file of another drive, no file with `active = 0`, and (when `pre_scope_file_ids` is set) no file outside it is ever added to the shortlist. Neither is a file whose only match is in the `file_id`, `chunk_index` or `page` column.
 I4. An exact-match file appears in the clue scope and in the `shortlist` SSE event only after the same access filter as the coarse files has passed it. A file the caller cannot access appears in no event.
-I5. When `pre_scope_file_ids` is set, no file outside it is added.
+I5. The exact-match lookup never runs on the event-loop thread.
 I6. The clue generator receives exactly the summaries of the access-filtered coarse files, in coarse order, whether or not exact-match files were added.
 I7. When one table's lookup raises for a token, that token adds no file and the other tokens still run. When the whole lookup fails, Ask answers from the coarse shortlist. In both cases no error event is sent, and a WARNING is logged.
-I8. With `exact_match_max_files: 0`, the access-filter argument, the clue scopes, the clues and the sources are identical to the behaviour before this change. With the key absent or invalid, the cap is 10.
-I9. Every bypass branch runs the same search with the same scope as before this change, and makes no exact-match lookup on the small-drive, empty-shortlist and low-confidence branches. The branches are: small drive, empty shortlist or intersection, low confidence, and no coarse file surviving the access filter.
+I8. With `exact_match_max_files: 0`, no exact-match lookup is made, and the access-filter argument, the clue scopes, the clues and the sources are identical to the behaviour before this change. With the key absent, `null` or invalid, the cap is 10.
+I9. Every branch that does not reach the clue searches runs the same search with the same scope as before this change. The branches are: `rag.hierarchical.enabled: false` or no drive, small drive, empty shortlist or intersection, low confidence, and no coarse file surviving the access filter. The first four make no exact-match lookup. The `fallback_full_search` pass keeps `pre_scope_file_ids` as its scope.
 I10. In the `shortlist` SSE event, `file_ids` lists the surviving coarse files in coarse order, then the exact-match files. `exact_match_file_ids` equals that tail: token order, then `file_id` ascending within a token, each file once, and no file that is also a coarse file. `top_score` is the best surviving coarse score.
 
 ## Checked, no action
@@ -257,6 +268,17 @@ I10. In the `shortlist` SSE event, `file_ids` lists the surviving coarse files i
   changes as files are scanned. A cache would add invalidation for no measured gain.
 - **The `len(scoped) < 2` full-search fallback.** It is left as is; this change addresses
   the case where the scoped pass returns plenty of wrong files.
+- **Looking up `structured.required` canonicals and aliases as whole phrases** instead of
+  splitting the flat keyword string. That would cover multi-word terms and cross-script
+  aliases. It is a wider change to which questions the step covers; the flat string is
+  what every clue search already receives.
+- **Skipping the step on a transform passthrough.** The passthrough string makes one long
+  Japanese token that matches nothing. An English passthrough yields function words,
+  which exceed the cap, and content words, which can legitimately add files. A special
+  case buys nothing.
+- **Measurement column scope.** The two-file count for `パネルヒーター` was taken with an
+  unrestricted MATCH. A 7-character katakana token cannot occur in a file id, chunk
+  number or page number, so the `text`-only count is the same.
 - **Respecting `file_type` in the lookup.** The coarse retrieval ignores it too, and the
   clue searches apply it, so a file of another type in the scope is never retrieved. The
   cost is that such files count toward the cap. That is rare, and it errs toward adding
