@@ -25,8 +25,8 @@ Measured on production on 2026-10-29, drive `main` (6052 files), question
 This change adds to the shortlist the files whose transcript or text content matches a
 rare keyword token as an FTS phrase (the matching rule is defined in step 4). Rare means
 the token matches at most `rag.hierarchical.exact_match_max_files` files of the drive.
-The two-file count above was measured with that rule, over the four tables of step 4. A query about a topic is not
-affected. A query naming a specific thing that only a few files mention no longer loses
+The two-file count above was measured over the four tables of step 4 (column scope: see
+`## Checked, no action`). A query about a topic is not affected. A query naming a specific thing that only a few files mention no longer loses
 those files.
 
 The change is for the single household user who asks Ask about something they remember
