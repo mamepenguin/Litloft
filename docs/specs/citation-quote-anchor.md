@@ -41,27 +41,41 @@ sent to the LLM does not change.
    begins. The default is 0.
 2. **Time-window transcript snippet** (`_collect_transcript_snippets`, strategy 3): the
    text is the chunks of `[start - window, end + window]` joined with `" "`, labelled
-   `start`. `anchor` is the offset in that joined text of the first chunk whose
+   `start`. `anchor` is the position, in that joined text, of the first chunk whose
    `timestamp_end` is greater than `start`. On the measured file, that is the chunk
    beginning at 1682.509 s ("季節の快適さを上げるアイテムとして…").
 3. **Neighbour document snippet** (`_collect_document_snippets` with `expand`): the text
    is chunks `chunk_index - 1 .. chunk_index + 1` joined with `"\n\n"`, labelled with the
-   target chunk's page or `chunk N`. `anchor` is the offset of the target chunk's text in
-   that joined text.
-4. Every other snippet (keyword and vector chunks of transcripts and documents,
+   target chunk's page or `chunk N`. `anchor` is the position of the target chunk in that
+   joined text.
+4. The positions in steps 2 and 3 are computed while joining: the sum of the lengths of
+   the non-empty chunks placed before it, plus their separators. They are never found by
+   searching the joined text, because adjacent chunks can have identical text (`[音楽]`,
+   boilerplate) and a search would land on an earlier copy.
+5. Every other snippet (keyword and vector chunks of transcripts and documents,
    unexpanded document chunks, metadata, captions) keeps `anchor = 0`. Its text already
    starts at its labelled passage.
-5. The per-file budget (`_cap_snippets`) keeps `anchor` on a clipped snippet unchanged.
-   It never changes `text` other than by clipping its tail, as today.
-6. `_quote_from_contexts` picks the snippet exactly as today: the first snippet whose
+6. The per-file budget (`_cap_snippets`) clips the overflowing snippet with
+   `trim_to_sentence_boundary(text[:remaining])`. That trims the tail, and it can also drop
+   a leading fragment and surrounding whitespace. The clipped snippet's anchor is
+   recomputed from the number of characters removed from the front, `removed`:
+   - `anchor - removed` when `removed <= anchor` and that is less than the clipped length:
+     the cited passage starts inside the clipped text;
+   - `0` when `removed > anchor`: the clipped text begins inside or after the cited
+     passage's start, so its own start is the closest point;
+   - "lost" when `anchor - removed` is at or beyond the clipped length: the cited passage
+     did not survive the budget.
+7. `_quote_from_contexts` picks the snippet exactly as today: the first snippet whose
    location contains the citation's location as a whole token, else the first snippet.
-   It then takes the quote from `text[start:]`:
-   - `start = anchor` when `anchor < len(text)`;
-   - otherwise (the budget clipped the text before the anchor)
-     `start = max(0, len(text) - 200)`. The quote then shows the last part of what the LLM
-     actually saw, which is the text closest to the location.
-   The quote is stripped and capped at 200 characters with a trailing `…`, as today.
-7. A citation whose LLM output carries its own `quote` keeps that quote, as today.
+   The quote is `text[anchor:]`, stripped and capped at 200 characters with a trailing `…`,
+   as today. When the anchor is "lost", the quote is the empty string. The text before
+   the cited moment is not shown as if it were the citation, and text the LLM never saw is
+   not shown either.
+8. A citation whose LLM output carries its own `quote` keeps that quote, as today.
+9. `_to_citation_dict` uses this quote everywhere it uses the quote today. When the LLM's
+   location is not a recognised marker, that includes choosing `segment_location` from
+   the quote (`_segment_location_for`). For such citations the seek target is chosen from
+   the cited passage instead of the lead-in, and it can differ from before.
 
 ### 2. Failure cases
 
@@ -100,6 +114,11 @@ Unchanged. Quotes come from snippets of retrieved, access-filtered files only.
   their old text.
 - The MCP `ask` tool returns the new quote. It reads the field as is.
 - The agentic Ask loop does not build quotes from contexts and is unaffected.
+- `segment_location` for citations whose LLM location is not a marker (step 9), and with
+  it the eval metric `citation_segment_match` (`app/evals/stages.py`), can move. Citations
+  with a marker location keep their `segment_location`.
+- The progressive `citation` SSE event and the final `citations` event both go through
+  `_to_citation_dict`, so they carry the same quote.
 - Everything else that reads `ContextSnippet` sees the same `text` and `location`. That
   is prompt building in `app/rag/prompt.py`, plus duplicate detection and the per-file
   budget in `app/rag/context.py`.
@@ -115,6 +134,10 @@ Nothing new. No new failure path, no new log line.
 - A citation at `page N` or `chunk N` on a document quotes the cited chunk, not the one
   before it.
 - Citations whose snippet has no surrounding context are unchanged.
+- A citation whose cited passage was cut off by the per-file budget shows no quote, where
+  it used to show the lead-in. Its seek target is unchanged.
+- A citation whose LLM location is not a timestamp, page or section marker can seek to a
+  different, closer moment, because its target is chosen from the anchored quote.
 - No documentation page describes the quote's source, so none changes.
 
 ### 10. Non-functional
@@ -128,7 +151,12 @@ Nothing new. No new failure path, no new log line.
 - `addons/intelligence/app/rag/context.py`: `ContextSnippet.anchor`;
   `_collect_transcript_snippets` (time-window snippets); `_collect_document_snippets`
   (expanded neighbour snippets); `_cap_snippets` (carry `anchor` on a clipped snippet).
-- `addons/intelligence/app/rag/service.py`: `_quote_from_contexts`.
+- `addons/intelligence/app/rag/service.py`: `_quote_from_contexts`; `_to_citation_dict`
+  and `_segment_location_for` read the new quote (not edited unless needed to pass it).
+- `addons/intelligence/app/text_utils.py`: `trim_to_sentence_boundary`, read to compute
+  `removed` in step 6. It may be given a way to report the leading cut, and its existing
+  return value and callers must not change.
+- `addons/intelligence/app/evals/stages.py` (`citation_segment_match`): read, not changed.
 - Existing tests that construct `ContextSnippet` or assert quotes. These are updated to the
   new behaviour, never loosened.
 - Consumers of the quote, read and not changed: `addons/intelligence/frontend/Page.tsx`
@@ -139,13 +167,13 @@ Nothing new. No new failure path, no new log line.
 
 ## Invariants
 
-I1. For a time-window transcript snippet labelled `start`, a citation choosing it quotes text that begins with the text of the first chunk in the window whose `timestamp_end` is greater than `start`.
-I2. For an expanded document snippet, a citation choosing it quotes text that begins with the target chunk's text, not the preceding chunk's.
+I1. For an unclipped time-window transcript snippet labelled `start`, a citation choosing it quotes text that begins with the text of the first chunk in the window whose `timestamp_end` is greater than `start`. This holds even when an earlier chunk in the window has identical text.
+I2. For an unclipped expanded document snippet, a citation choosing it quotes text that begins with the target chunk's text, not the preceding chunk's. This holds even when the two chunks have identical text.
 I3. The prompt sent to the LLM is byte-for-byte identical to the prompt before this change, for the same retrieved candidates.
-I4. For a snippet built without surrounding context (anchor 0), the quote is identical to the quote before this change.
-I5. The quote never contains text that is absent from the snippet `text` the LLM received.
-I6. When the per-file budget clipped a snippet's text before its anchor, the quote is the last up-to-200 characters of the clipped text, capped by the existing rule.
-I7. Which snippet a citation's quote comes from, and its `segment_location`, are the same as before this change.
+I4. For a snippet built without surrounding context (anchor 0, unclipped), the quote is identical to the quote before this change.
+I5. The quote never contains text that is absent from the snippet `text` the LLM received, and never contains text from before the anchor.
+I6. When the per-file budget clipped a snippet so that its cited passage did not survive, a citation choosing it has an empty quote. When the passage survived, the quote begins where the passage begins in the clipped text, or at the clipped text's start if the clip cut into the passage.
+I7. Which snippet a citation's quote comes from is the same as before this change, and a citation whose LLM location is a recognised marker keeps the same `segment_location`.
 I8. A citation that carries its own `quote` from the LLM keeps it unchanged.
 I9. The quote is at most 200 characters plus a trailing `…` when cut, stripped of surrounding whitespace, as before.
 
@@ -161,8 +189,17 @@ I9. The quote is at most 200 characters plus a trailing `…` when cut, stripped
 - **Duplicate citations of the same location.** The measured run repeated one location
   three times. This is unchanged and a separate concern.
 - **A leading `…` on quotes that start mid-snippet.** The anchored start is a chunk
-  boundary, so it reads as a natural start. The budget fallback is rare. A leading mark
-  would also stop the `?highlight=` text from matching the page.
+  boundary, so it reads as a natural start. A leading mark would also stop the
+  `?highlight=` text from matching the page.
+- **When the budget lost the cited passage: other quotes.**
+  - The tail of the clipped text before the anchor is the lead-in, which is the defect
+    being fixed.
+  - The cited passage taken from the unclipped text would show words the LLM never read,
+    under a claim it made from other words.
+  - An empty quote keeps the seek target and hides nothing true. The time-window snippets
+    come last in a file's budget, so this case is not rare.
+- **A very short quote** when the clip lands just after the anchor. It is the true start of
+  the cited passage. It is shown as is.
 - **Rewriting old saved notes.** They are the user's documents. They keep what was saved.
 - **Document neighbour snippets labelled `chunk N` whose highlight fails for other
   reasons** (the trailing `…`). That is existing behaviour and is unchanged here.
