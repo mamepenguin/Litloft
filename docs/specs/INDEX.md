@@ -70,3 +70,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-036 | implemented | docs/specs/read-document-text.md | sha256:15341188b29f879364e908d4cf07075c9802547e0c6090ce667a77a6554b83f7 |
 | SPEC-ADDON-037 | implemented | docs/specs/citation-quote-anchor.md | sha256:7d0af8ae6e923834a44530ddf96355f69f8e2887ddf50d9095290e878228cdc5 |
 | SPEC-CORE-019 | implemented | docs/specs/read-document-text.md | sha256:15341188b29f879364e908d4cf07075c9802547e0c6090ce667a77a6554b83f7 |
+| SPEC-CORE-020 | approved | docs/specs/txt-edit.md | sha256:b9b2bf414210170871ce18124fa5157c7e8ac0dcf816086ab41362dfc631b10d |
+| SPEC-ADDON-037 | approved | docs/specs/txt-edit.md | sha256:b9b2bf414210170871ce18124fa5157c7e8ac0dcf816086ab41362dfc631b10d |
