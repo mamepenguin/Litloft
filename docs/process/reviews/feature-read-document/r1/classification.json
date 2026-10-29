@@ -1,0 +1,64 @@
+{
+  "risk": "HIGH",
+  "score": 7,
+  "base": 3,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "addons/intelligence",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "docs/addons/intelligence.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/read-document-text.md",
+      "level": "LOW"
+    },
+    {
+      "path": "mcp-server/README.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/__tests__/readDocument.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/__tests__/toolMetadata.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/server.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/tools/documents.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/tools/index.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/tools/read.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/tools/search.ts",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}

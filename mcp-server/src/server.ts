@@ -28,6 +28,8 @@ Key concepts:
   so it can never be written back whole.
 - get_file_content reads any text/* or JSON file; read files over 1 MB in
   line ranges. To open a file by its path, use get_file_by_path.
+- To read a PDF, Word, Excel, PowerPoint or EPUB file, use read_document
+  (page, slide, sheet or section at a time; follow its \`next\` cursor).
 - Folders: create_folder, rename_folder, move_folder, trash_folder. Many
   files at once: move_files, copy_files, trash_files, restore_files,
   add_tags (up to 100 ids each). trash_folder and trash_files only move

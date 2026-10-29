@@ -4,7 +4,7 @@ import { readOnlyAnnotations, textResult, type LitloftTool } from "./types.js";
 
 type Query = Record<string, string | number | boolean | undefined>;
 
-function withoutAvailable(response: unknown): unknown {
+export function withoutAvailable(response: unknown): unknown {
   if (typeof response !== "object" || response === null || Array.isArray(response)) {
     return response;
   }
@@ -12,7 +12,7 @@ function withoutAvailable(response: unknown): unknown {
   return rest;
 }
 
-function intelligenceGet(
+export function intelligenceGet(
   client: Parameters<LitloftTool["handler"]>[1],
   path: string,
   drive: string,

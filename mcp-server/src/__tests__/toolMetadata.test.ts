@@ -29,6 +29,7 @@ const expectedToolNames = [
   "move_file",
   "move_files",
   "move_folder",
+  "read_document",
   "rename_file",
   "rename_folder",
   "restore_file",
@@ -56,6 +57,7 @@ const readOnlyTools = new Set([
   "list_drives",
   "list_folders",
   "list_video_scenes",
+  "read_document",
   "search_exact",
   "search_files",
   "search_video_scenes",
@@ -154,6 +156,11 @@ describe("advertised tool safety metadata", () => {
     const instructions = client.getInstructions() ?? "";
     expect(instructions).toContain("search_exact");
     expect(instructions).toContain("search_video_scenes");
+  });
+
+  it("SPEC-CORE-019: the server instructions name read_document", () => {
+    const instructions = client.getInstructions() ?? "";
+    expect(instructions).toContain("read_document");
   });
 
   it("discloses Ask's possible file-excerpt transfer to the configured LLM provider", () => {
