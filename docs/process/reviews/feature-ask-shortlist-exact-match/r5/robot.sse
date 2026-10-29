@@ -1,0 +1,894 @@
+event: keywords
+data: {"keywords": "ロボット掃除機"}
+
+event: shortlist
+data: {"file_ids": ["bPHyRgSPFq9o", "Qf2ruNydDR6t", "_AUsvNRs9BHt", "4XZlQEFNgVfM", "5qnd1V8ZkmJ1", "MQcg5DhcRDjh", "Xx7Qkkuj8gtC", "3Y7d7c2fZx3p", "cGV6BURD2VWB", "NFRl_vC-pedW", "CmwTmVA8XRw5", "Wq-vf_K4WSfj", "wGwxVltt-fCS", "Ak7ONDTp5cWH", "DuRk8Z-B68TR", "v7ZQ2gOn1YRU", "hBuSNjZaN-gD", "lMjTCeVsbXbM", "btdpmPxHWUkn", "KD_NFcdvsUcC", "UVoAvUT9G1sI", "fqW9hJl8nv-7", "mjP5XlIgml_H"], "exact_match_file_ids": ["UVoAvUT9G1sI", "fqW9hJl8nv-7", "mjP5XlIgml_H"], "drive_file_count": 794, "top_score": 0.8678849967711528}
+
+event: clues
+data: {"clues": ["ロボット掃除機"]}
+
+event: sources
+data: {"sources": [{"file_id": "DuRk8Z-B68TR", "drive": "動画", "filename": "【買うなら今！】Amazonプライムデーで今買うべきおすすめアイテム『14選』.loft", "file_type": "video", "score": 0.04098360655737705, "match_types": ["tfidf_keywords", "transcript_keyword", "whisper"]}, {"file_id": "CmwTmVA8XRw5", "drive": "動画", "filename": "まるで生きてるみたい..。iPhoneに命を吹き込むロボット『LOOI』をご紹介します。.loft", "file_type": "video", "score": 0.04095740860446743, "match_types": ["clip_thumbnail", "transcript_keyword", "whisper"]}, {"file_id": "fqW9hJl8nv-7", "drive": "動画", "filename": "待ってたぞ..!! 6年ぶりに進化した「HomePod mini 2」がすごいぞ..。.loft", "file_type": "video", "score": 0.04032258064516129, "match_types": ["transcript_keyword", "whisper"]}, {"file_id": "mjP5XlIgml_H", "drive": "動画", "filename": "椅子は「冷える」時代へ。いまだかつてない、至高のワークチェアをご紹介します。｜LiberNovo Omni Pro.loft", "file_type": "video", "score": 0.03750815394651011, "match_types": ["transcript_keyword", "whisper"]}, {"file_id": "UVoAvUT9G1sI", "drive": "動画", "filename": "【iOS 27リリース!!】これぞ、最高傑作。今すぐ使いたい新機能をまとめてご紹介します。.loft", "file_type": "video", "score": 0.0234375, "match_types": ["transcript_keyword"]}]}
+
+event: answer_chunk
+data: {"delta": "お"}
+
+event: answer_chunk
+data: {"delta": "勧め"}
+
+event: answer_chunk
+data: {"delta": "されている"}
+
+event: answer_chunk
+data: {"delta": "ロボ"}
+
+event: answer_chunk
+data: {"delta": "ット"}
+
+event: answer_chunk
+data: {"delta": "掃除"}
+
+event: answer_chunk
+data: {"delta": "機"}
+
+event: answer_chunk
+data: {"delta": "として"}
+
+event: answer_chunk
+data: {"delta": "、"}
+
+event: answer_chunk
+data: {"delta": "**"}
+
+event: answer_chunk
+data: {"delta": "メ"}
+
+event: answer_chunk
+data: {"delta": "ー"}
+
+event: answer_chunk
+data: {"delta": "カード"}
+
+event: answer_chunk
+data: {"delta": "リー"}
+
+event: answer_chunk
+data: {"delta": "ミー"}
+
+event: answer_chunk
+data: {"delta": "**"}
+
+event: answer_chunk
+data: {"delta": "の"}
+
+event: answer_chunk
+data: {"delta": "ロボ"}
+
+event: answer_chunk
+data: {"delta": "ット"}
+
+event: answer_chunk
+data: {"delta": "掃除"}
+
+event: answer_chunk
+data: {"delta": "機"}
+
+event: answer_chunk
+data: {"delta": "が"}
+
+event: answer_chunk
+data: {"delta": "紹介"}
+
+event: answer_chunk
+data: {"delta": "されています"}
+
+event: answer_chunk
+data: {"delta": "。"}
+
+event: answer_chunk
+data: {"delta": "この"}
+
+event: answer_chunk
+data: {"delta": "製品"}
+
+event: answer_chunk
+data: {"delta": "の"}
+
+event: answer_chunk
+data: {"delta": "主な"}
+
+event: answer_chunk
+data: {"delta": "特徴"}
+
+event: answer_chunk
+data: {"delta": "は"}
+
+event: answer_chunk
+data: {"delta": "以下の"}
+
+event: answer_chunk
+data: {"delta": "通り"}
+
+event: answer_chunk
+data: {"delta": "です"}
+
+event: answer_chunk
+data: {"delta": "。"}
+
+event: answer_chunk
+data: {"delta": "\n"}
+
+event: answer_chunk
+data: {"delta": "\n"}
+
+event: answer_chunk
+data: {"delta": "*"}
+
+event: answer_chunk
+data: {"delta": "   "}
+
+event: answer_chunk
+data: {"delta": "**"}
+
+event: answer_chunk
+data: {"delta": "全"}
+
+event: answer_chunk
+data: {"delta": "自動"}
+
+event: answer_chunk
+data: {"delta": "ド"}
+
+event: answer_chunk
+data: {"delta": "ッグ"}
+
+event: answer_chunk
+data: {"delta": "型"}
+
+event: answer_chunk
+data: {"delta": "**"}
+
+event: answer_chunk
+data: {"delta": "で"}
+
+event: answer_chunk
+data: {"delta": "、"}
+
+event: answer_chunk
+data: {"delta": "吸引"}
+
+event: answer_chunk
+data: {"delta": "力"}
+
+event: answer_chunk
+data: {"delta": "は"}
+
+event: answer_chunk
+data: {"delta": "最大"}
+
+event: answer_chunk
+data: {"delta": "2"}
+
+event: answer_chunk
+data: {"delta": "万"}
+
+event: answer_chunk
+data: {"delta": "5"}
+
+event: answer_chunk
+data: {"delta": "0"}
+
+event: answer_chunk
+data: {"delta": "0"}
+
+event: answer_chunk
+data: {"delta": "0"}
+
+event: answer_chunk
+data: {"delta": "パ"}
+
+event: answer_chunk
+data: {"delta": "スカ"}
+
+event: answer_chunk
+data: {"delta": "と"}
+
+event: answer_chunk
+data: {"delta": "、"}
+
+event: answer_chunk
+data: {"delta": "全"}
+
+event: answer_chunk
+data: {"delta": "モデル"}
+
+event: answer_chunk
+data: {"delta": "の"}
+
+event: answer_chunk
+data: {"delta": "約"}
+
+event: answer_chunk
+data: {"delta": "2"}
+
+event: answer_chunk
+data: {"delta": "."}
+
+event: answer_chunk
+data: {"delta": "5"}
+
+event: answer_chunk
+data: {"delta": "倍"}
+
+event: answer_chunk
+data: {"delta": "の"}
+
+event: answer_chunk
+data: {"delta": "吸引"}
+
+event: answer_chunk
+data: {"delta": "力"}
+
+event: answer_chunk
+data: {"delta": "があり"}
+
+event: answer_chunk
+data: {"delta": "、"}
+
+event: answer_chunk
+data: {"delta": "ゴミ"}
+
+event: answer_chunk
+data: {"delta": "や"}
+
+event: answer_chunk
+data: {"delta": "ペット"}
+
+event: answer_chunk
+data: {"delta": "の"}
+
+event: answer_chunk
+data: {"delta": "毛"}
+
+event: answer_chunk
+data: {"delta": "を"}
+
+event: answer_chunk
+data: {"delta": "吸"}
+
+event: answer_chunk
+data: {"delta": "い"}
+
+event: answer_chunk
+data: {"delta": "残"}
+
+event: answer_chunk
+data: {"delta": "し"}
+
+event: answer_chunk
+data: {"delta": "にくい"}
+
+event: answer_chunk
+data: {"delta": "点"}
+
+event: answer_chunk
+data: {"delta": "。"}
+
+event: answer_chunk
+data: {"delta": "\n"}
+
+event: answer_chunk
+data: {"delta": "*"}
+
+event: answer_chunk
+data: {"delta": "   "}
+
+event: answer_chunk
+data: {"delta": "**"}
+
+event: answer_chunk
+data: {"delta": "2"}
+
+event: answer_chunk
+data: {"delta": "期の"}
+
+event: answer_chunk
+data: {"delta": "回転"}
+
+event: answer_chunk
+data: {"delta": "モ"}
+
+event: answer_chunk
+data: {"delta": "ップ"}
+
+event: answer_chunk
+data: {"delta": "**"}
+
+event: answer_chunk
+data: {"delta": "が"}
+
+event: answer_chunk
+data: {"delta": "搭載"}
+
+event: answer_chunk
+data: {"delta": "されており"}
+
+event: answer_chunk
+data: {"delta": "、"}
+
+event: answer_chunk
+data: {"delta": "さらに"}
+
+event: answer_chunk
+data: {"delta": "**"}
+
+event: answer_chunk
+data: {"delta": "加"}
+
+event: answer_chunk
+data: {"delta": "圧"}
+
+event: answer_chunk
+data: {"delta": "でお"}
+
+event: answer_chunk
+data: {"delta": "お"}
+
+event: answer_chunk
+data: {"delta": "り"}
+
+event: answer_chunk
+data: {"delta": "洗い"}
+
+event: answer_chunk
+data: {"delta": "**"}
+
+event: answer_chunk
+data: {"delta": "ができ"}
+
+event: answer_chunk
+data: {"delta": "、"}
+
+event: answer_chunk
+data: {"delta": "終了"}
+
+event: answer_chunk
+data: {"delta": "後は"}
+
+event: answer_chunk
+data: {"delta": "ド"}
+
+event: answer_chunk
+data: {"delta": "ッグ"}
+
+event: answer_chunk
+data: {"delta": "で"}
+
+event: answer_chunk
+data: {"delta": "自動"}
+
+event: answer_chunk
+data: {"delta": "洗浄"}
+
+event: answer_chunk
+data: {"delta": "と"}
+
+event: answer_chunk
+data: {"delta": "**"}
+
+event: answer_chunk
+data: {"delta": "温"}
+
+event: answer_chunk
+data: {"delta": "風"}
+
+event: answer_chunk
+data: {"delta": "乾燥"}
+
+event: answer_chunk
+data: {"delta": "**"}
+
+event: answer_chunk
+data: {"delta": "機能"}
+
+event: answer_chunk
+data: {"delta": "が付"}
+
+event: answer_chunk
+data: {"delta": "いている"}
+
+event: answer_chunk
+data: {"delta": "ため"}
+
+event: answer_chunk
+data: {"delta": "、"}
+
+event: answer_chunk
+data: {"delta": "生"}
+
+event: answer_chunk
+data: {"delta": "乾"}
+
+event: answer_chunk
+data: {"delta": "き"}
+
+event: answer_chunk
+data: {"delta": "臭"}
+
+event: answer_chunk
+data: {"delta": "の"}
+
+event: answer_chunk
+data: {"delta": "回避"}
+
+event: answer_chunk
+data: {"delta": "に"}
+
+event: answer_chunk
+data: {"delta": "役"}
+
+event: answer_chunk
+data: {"delta": "立ち"}
+
+event: answer_chunk
+data: {"delta": "ます"}
+
+event: answer_chunk
+data: {"delta": "。"}
+
+event: answer_chunk
+data: {"delta": "\n"}
+
+event: answer_chunk
+data: {"delta": "*"}
+
+event: answer_chunk
+data: {"delta": "   "}
+
+event: answer_chunk
+data: {"delta": "モ"}
+
+event: answer_chunk
+data: {"delta": "ップ"}
+
+event: answer_chunk
+data: {"delta": "は"}
+
+event: answer_chunk
+data: {"delta": "最大"}
+
+event: answer_chunk
+data: {"delta": "4"}
+
+event: answer_chunk
+data: {"delta": "cm"}
+
+event: answer_chunk
+data: {"delta": "まで"}
+
+event: answer_chunk
+data: {"delta": "自動"}
+
+event: answer_chunk
+data: {"delta": "で"}
+
+event: answer_chunk
+data: {"delta": "伸び"}
+
+event: answer_chunk
+data: {"delta": "る"}
+
+event: answer_chunk
+data: {"delta": "ため"}
+
+event: answer_chunk
+data: {"delta": "、"}
+
+event: answer_chunk
+data: {"delta": "壁"}
+
+event: answer_chunk
+data: {"delta": "際"}
+
+event: answer_chunk
+data: {"delta": "も"}
+
+event: answer_chunk
+data: {"delta": "掃除"}
+
+event: answer_chunk
+data: {"delta": "しやすい"}
+
+event: answer_chunk
+data: {"delta": "です"}
+
+event: answer_chunk
+data: {"delta": "。"}
+
+event: answer_chunk
+data: {"delta": "\n"}
+
+event: answer_chunk
+data: {"delta": "*"}
+
+event: answer_chunk
+data: {"delta": "   "}
+
+event: answer_chunk
+data: {"delta": "**"}
+
+event: answer_chunk
+data: {"delta": "センサー"}
+
+event: answer_chunk
+data: {"delta": "が"}
+
+event: answer_chunk
+data: {"delta": "優秀"}
+
+event: answer_chunk
+data: {"delta": "**"}
+
+event: answer_chunk
+data: {"delta": "であり"}
+
+event: answer_chunk
+data: {"delta": "、"}
+
+event: answer_chunk
+data: {"delta": "**"}
+
+event: answer_chunk
+data: {"delta": "Matter"}
+
+event: answer_chunk
+data: {"delta": "対応"}
+
+event: answer_chunk
+data: {"delta": "**"}
+
+event: answer_chunk
+data: {"delta": "で"}
+
+event: answer_chunk
+data: {"delta": "Apple"}
+
+event: answer_chunk
+data: {"delta": "純正"}
+
+event: answer_chunk
+data: {"delta": "ホーム"}
+
+event: answer_chunk
+data: {"delta": "アプリ"}
+
+event: answer_chunk
+data: {"delta": "から"}
+
+event: answer_chunk
+data: {"delta": "起動"}
+
+event: answer_chunk
+data: {"delta": "できる"}
+
+event: answer_chunk
+data: {"delta": "点"}
+
+event: answer_chunk
+data: {"delta": "も"}
+
+event: answer_chunk
+data: {"delta": "評価"}
+
+event: answer_chunk
+data: {"delta": "されています"}
+
+event: answer_chunk
+data: {"delta": "。"}
+
+event: answer_chunk
+data: {"delta": "\n"}
+
+event: answer_chunk
+data: {"delta": "*"}
+
+event: answer_chunk
+data: {"delta": "   "}
+
+event: answer_chunk
+data: {"delta": "また"}
+
+event: answer_chunk
+data: {"delta": "、"}
+
+event: answer_chunk
+data: {"delta": "**"}
+
+event: answer_chunk
+data: {"delta": "自動"}
+
+event: answer_chunk
+data: {"delta": "ゴミ"}
+
+event: answer_chunk
+data: {"delta": "収集"}
+
+event: answer_chunk
+data: {"delta": "ステ"}
+
+event: answer_chunk
+data: {"delta": "ーション"}
+
+event: answer_chunk
+data: {"delta": "**"}
+
+event: answer_chunk
+data: {"delta": "付き"}
+
+event: answer_chunk
+data: {"delta": "の"}
+
+event: answer_chunk
+data: {"delta": "コード"}
+
+event: answer_chunk
+data: {"delta": "レス"}
+
+event: answer_chunk
+data: {"delta": "スティ"}
+
+event: answer_chunk
+data: {"delta": "ック"}
+
+event: answer_chunk
+data: {"delta": "掃除"}
+
+event: answer_chunk
+data: {"delta": "機"}
+
+event: answer_chunk
+data: {"delta": "も"}
+
+event: answer_chunk
+data: {"delta": "紹介"}
+
+event: answer_chunk
+data: {"delta": "されており"}
+
+event: answer_chunk
+data: {"delta": "、"}
+
+event: answer_chunk
+data: {"delta": "こちらは"}
+
+event: answer_chunk
+data: {"delta": "自動"}
+
+event: answer_chunk
+data: {"delta": "ゴミ"}
+
+event: answer_chunk
+data: {"delta": "収集"}
+
+event: answer_chunk
+data: {"delta": "機能"}
+
+event: answer_chunk
+data: {"delta": "で"}
+
+event: answer_chunk
+data: {"delta": "ゴミ"}
+
+event: answer_chunk
+data: {"delta": "捨て"}
+
+event: answer_chunk
+data: {"delta": "の手"}
+
+event: answer_chunk
+data: {"delta": "間"}
+
+event: answer_chunk
+data: {"delta": "を"}
+
+event: answer_chunk
+data: {"delta": "省"}
+
+event: answer_chunk
+data: {"delta": "き"}
+
+event: answer_chunk
+data: {"delta": "、"}
+
+event: answer_chunk
+data: {"delta": "最大"}
+
+event: answer_chunk
+data: {"delta": "4"}
+
+event: answer_chunk
+data: {"delta": "5"}
+
+event: answer_chunk
+data: {"delta": "日間"}
+
+event: answer_chunk
+data: {"delta": "ゴミ"}
+
+event: answer_chunk
+data: {"delta": "捨て"}
+
+event: answer_chunk
+data: {"delta": "が"}
+
+event: answer_chunk
+data: {"delta": "不要"}
+
+event: answer_chunk
+data: {"delta": "な"}
+
+event: answer_chunk
+data: {"delta": "点"}
+
+event: answer_chunk
+data: {"delta": "や"}
+
+event: answer_chunk
+data: {"delta": "、"}
+
+event: answer_chunk
+data: {"delta": "LED"}
+
+event: answer_chunk
+data: {"delta": "ライト"}
+
+event: answer_chunk
+data: {"delta": "で"}
+
+event: answer_chunk
+data: {"delta": "埃"}
+
+event: answer_chunk
+data: {"delta": "が"}
+
+event: answer_chunk
+data: {"delta": "目"}
+
+event: answer_chunk
+data: {"delta": "に見"}
+
+event: answer_chunk
+data: {"delta": "え"}
+
+event: answer_chunk
+data: {"delta": "掃除"}
+
+event: answer_chunk
+data: {"delta": "しやすい"}
+
+event: answer_chunk
+data: {"delta": "点"}
+
+event: answer_chunk
+data: {"delta": "などが"}
+
+event: answer_chunk
+data: {"delta": "メリット"}
+
+event: answer_chunk
+data: {"delta": "として"}
+
+event: answer_chunk
+data: {"delta": "挙げ"}
+
+event: answer_chunk
+data: {"delta": "られています"}
+
+event: answer_chunk
+data: {"delta": "。"}
+
+event: answer_chunk
+data: {"delta": "\n"}
+
+event: answer_chunk
+data: {"delta": "\n"}
+
+event: answer_chunk
+data: {"delta": "その他"}
+
+event: answer_chunk
+data: {"delta": "、"}
+
+event: answer_chunk
+data: {"delta": "スマート"}
+
+event: answer_chunk
+data: {"delta": "ホーム"}
+
+event: answer_chunk
+data: {"delta": "連携"}
+
+event: answer_chunk
+data: {"delta": "の"}
+
+event: answer_chunk
+data: {"delta": "観"}
+
+event: answer_chunk
+data: {"delta": "点"}
+
+event: answer_chunk
+data: {"delta": "からは"}
+
+event: answer_chunk
+data: {"delta": "、"}
+
+event: answer_chunk
+data: {"delta": "**"}
+
+event: answer_chunk
+data: {"delta": "Home"}
+
+event: answer_chunk
+data: {"delta": "Pod"}
+
+event: answer_chunk
+data: {"delta": " mini"}
+
+event: answer_chunk
+data: {"delta": "**"}
+
+event: answer_chunk
+data: {"delta": "から"}
+
+event: answer_chunk
+data: {"delta": "ロボ"}
+
+event: answer_chunk
+data: {"delta": "ット"}
+
+event: answer_chunk
+data: {"delta": "掃除"}
+
+event: answer_chunk
+data: {"delta": "機の"}
+
+event: answer_chunk
+data: {"delta": "操作"}
+
+event: answer_chunk
+data: {"delta": "が可能"}
+
+event: answer_chunk
+data: {"delta": "である"}
+
+event: answer_chunk
+data: {"delta": "ことも"}
+
+event: answer_chunk
+data: {"delta": "紹介"}
+
+event: answer_chunk
+data: {"delta": "されています"}
+
+event: answer_chunk
+data: {"delta": "。"}
+
+event: citation
+data: {"citation": {"file_id": "DuRk8Z-B68TR", "drive": "動画", "filename": "【買うなら今！】Amazonプライムデーで今買うべきおすすめアイテム『14選』.loft", "file_type": "video", "quote": "皆さん、こんにちは。まめです。Amazonプライムで今回はおすすめ製品14戦をご紹介[音楽]します。僕が実際に愛用しているものから今回のセール で購入予定のものも惜しみなくお届けするので是非最後までご覧ください。それでは早速行きましょう。まずはこちらポイントアップキャンペーン に必ずエントリーしておきましょう。どこにあるか分からない方は僕の概要欄かこのQRコードからアクセスして必ずエントリーしてか…", "relevance": 0.0, "segment_location": "0:37", "section_title": null}, "index": 1}
+
+event: citation
+data: {"citation": {"file_id": "DuRk8Z-B68TR", "drive": "動画", "filename": "【買うなら今！】Amazonプライムデーで今買うべきおすすめアイテム『14選』.loft", "file_type": "video", "quote": "買うと絶対失敗するので初めてのロボット掃除機にもおすめですね。次はこちら。またまたドリーミーのコードレススティック掃除機ですね。ドリーミー", "relevance": 0.0, "segment_location": "1:55", "section_title": null}, "index": 2}
+
+event: citation
+data: {"citation": {"file_id": "DuRk8Z-B68TR", "drive": "動画", "filename": "【買うなら今！】Amazonプライムデーで今買うべきおすすめアイテム『14選』.loft", "file_type": "video", "quote": "。やっぱりドリーミーのロボット掃除機はセンサーが優秀なんですよね。僕が毎日使う理由もそこにあります。で、なんとマタ対応。Apple純正ホームアプリに", "relevance": 0.0, "segment_location": "1:32", "section_title": null}, "index": 3}
+
+event: citation
+data: {"citation": {"file_id": "DuRk8Z-B68TR", "drive": "動画", "filename": "【買うなら今！】Amazonプライムデーで今買うべきおすすめアイテム『14選』.loft", "file_type": "video", "quote": "小スペースで自動収集がついた掃除機が欲しい方におすめですね。次はこちら。AAのスマートロックJ200。AppleHホームの後付けのスマート", "relevance": 0.0, "segment_location": "3:03", "section_title": null}, "index": 4}
+
+event: citations
+data: {"citations": [{"file_id": "DuRk8Z-B68TR", "drive": "動画", "filename": "【買うなら今！】Amazonプライムデーで今買うべきおすすめアイテム『14選』.loft", "file_type": "video", "quote": "皆さん、こんにちは。まめです。Amazonプライムで今回はおすすめ製品14戦をご紹介[音楽]します。僕が実際に愛用しているものから今回のセール で購入予定のものも惜しみなくお届けするので是非最後までご覧ください。それでは早速行きましょう。まずはこちらポイントアップキャンペーン に必ずエントリーしておきましょう。どこにあるか分からない方は僕の概要欄かこのQRコードからアクセスして必ずエントリーしてか…", "relevance": 0.0, "segment_location": "0:37", "section_title": null}, {"file_id": "DuRk8Z-B68TR", "drive": "動画", "filename": "【買うなら今！】Amazonプライムデーで今買うべきおすすめアイテム『14選』.loft", "file_type": "video", "quote": "買うと絶対失敗するので初めてのロボット掃除機にもおすめですね。次はこちら。またまたドリーミーのコードレススティック掃除機ですね。ドリーミー", "relevance": 0.0, "segment_location": "1:55", "section_title": null}, {"file_id": "DuRk8Z-B68TR", "drive": "動画", "filename": "【買うなら今！】Amazonプライムデーで今買うべきおすすめアイテム『14選』.loft", "file_type": "video", "quote": "。やっぱりドリーミーのロボット掃除機はセンサーが優秀なんですよね。僕が毎日使う理由もそこにあります。で、なんとマタ対応。Apple純正ホームアプリに", "relevance": 0.0, "segment_location": "1:32", "section_title": null}, {"file_id": "DuRk8Z-B68TR", "drive": "動画", "filename": "【買うなら今！】Amazonプライムデーで今買うべきおすすめアイテム『14選』.loft", "file_type": "video", "quote": "小スペースで自動収集がついた掃除機が欲しい方におすめですね。次はこちら。AAのスマートロックJ200。AppleHホームの後付けのスマート", "relevance": 0.0, "segment_location": "3:03", "section_title": null}]}
+
+event: done
+data: {"retrieved_count": 5, "took_ms": 22790}
+
