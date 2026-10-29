@@ -65,3 +65,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-033 | implemented | docs/specs/intelligence-exact-and-scene-search.md | sha256:66254005533f7c28ac2cfb9e6d720b72e7085e738b2346145cbe8701e3923752 |
 | SPEC-CORE-017 | implemented | docs/specs/intelligence-exact-and-scene-search.md | sha256:66254005533f7c28ac2cfb9e6d720b72e7085e738b2346145cbe8701e3923752 |
 | SPEC-CORE-018 | implemented | docs/specs/intelligence-exact-and-scene-search.md | sha256:66254005533f7c28ac2cfb9e6d720b72e7085e738b2346145cbe8701e3923752 |
+| SPEC-ADDON-034 | draft | docs/specs/embed-numpy-truthiness.md | |
+| SPEC-ADDON-035 | draft | docs/specs/embed-numpy-truthiness.md | |
