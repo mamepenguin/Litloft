@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: 続ける (human, 2026-10-30, r1: fix F2, accept F3 and F1)
 ran_in_app: yes
 at: ff9d835ec2c5005d404defd1e6054c2444a6fc6d
 by: agent
