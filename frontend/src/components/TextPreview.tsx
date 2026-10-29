@@ -141,14 +141,6 @@ export function TextPreview({
     );
   }
 
-  if (loading) {
-    return (
-      <div className="flex w-full items-center justify-center rounded-xl bg-bg-card py-16">
-        <p className="text-sm text-text-muted">{t("loading")}</p>
-      </div>
-    );
-  }
-
   if (error) {
     return (
       <div className="flex w-full items-center justify-center rounded-xl bg-bg-card py-16">
@@ -157,9 +149,17 @@ export function TextPreview({
     );
   }
 
+  if (loading || content === null) {
+    return (
+      <div className="flex w-full items-center justify-center rounded-xl bg-bg-card py-16">
+        <p className="text-sm text-text-muted">{t("loading")}</p>
+      </div>
+    );
+  }
+
   return (
     <TextLines
-      text={content ?? ""}
+      text={content}
       filename={filename}
       highlight={highlight}
       onDocumentCaptureController={onDocumentCaptureController}
