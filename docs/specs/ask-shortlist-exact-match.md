@@ -22,9 +22,10 @@ Measured on production on 2026-10-29, drive `main` (6052 files), question
 - An unscoped recall search with the same keywords ranks them #1 and #2.
 - Ask answered with an unrelated ceramic fan heater.
 
-This change adds the files that contain a rare keyword token, as an exact substring of
-their transcript or text content, to the shortlist. Rare means the token occurs in at most
-`rag.hierarchical.exact_match_max_files` files of the drive. A query about a topic is not
+This change adds to the shortlist the files whose transcript or text content matches a
+rare keyword token as an FTS phrase (the matching rule is defined in step 4). Rare means
+the token matches at most `rag.hierarchical.exact_match_max_files` files of the drive.
+The two-file count above was measured with that rule, over the four tables of step 4. A query about a topic is not
 affected. A query naming a specific thing that only a few files mention no longer loses
 those files.
 
@@ -42,14 +43,20 @@ hearing or reading.
    exactly as today. On a bypass nothing below happens; the bypass search is already
    unscoped (or scoped to the personal-history set) and can find the files on its own.
 3. When the scoped path continues, the keywords are split on Unicode whitespace into
-   tokens. Duplicates are dropped and the first occurrence is kept. A token shorter than 2
-   characters is skipped.
-4. For each token, the set of distinct files of drive D is looked up. Only files with
-   `indexed_files.active = 1` count. A file is in the set when its transcript chunks or
-   its text-content chunks contain the token as a phrase. The lookup uses the FTS tables
-   `fts_transcripts`, `fts_text_content`, `fts_transcripts_word` and
-   `fts_text_content_word`. Filenames and titles (`fts_files*`) are not searched, because
-   the coarse retrieval already embeds the title.
+   tokens. Each token is cleaned in this order:
+   1. Double quotes are removed.
+   2. Surrounding whitespace is stripped.
+   3. A cleaned token shorter than 2 characters is skipped.
+   4. Duplicates are dropped by cleaned value, keeping the first occurrence.
+4. The matching rule: for each cleaned token, the set of distinct files of drive D whose
+   rows match the FTS5 phrase query `"<token>"` in any of `fts_transcripts`,
+   `fts_text_content`, `fts_transcripts_word` and `fts_text_content_word`. Only files with
+   `indexed_files.active = 1` count. This rule defines both "contains the token" and the
+   file count in this spec. It inherits the tables' own limits: trigram tables cannot match
+   fewer than 3 characters, and word tables match whole words with case and diacritic
+   folding. It is not the substring rule of `app/exact_search.py`. Filenames and titles
+   (`fts_files*`) are not searched, because the coarse retrieval already embeds the title.
+   The request's `file_type` is ignored here, as it is by the coarse retrieval.
 5. A token whose set has between 1 and `exact_match_max_files` files contributes the whole
    set. A token with an empty set, or with more files than the cap, contributes nothing.
 6. When `pre_scope_file_ids` is set (personal history composed with the shortlist), only
@@ -58,16 +65,26 @@ hearing or reading.
    after the coarse files, in token order and then by `file_id` ascending within a token.
    Each file is added once. These are the "exact-match files".
 8. The union (coarse files, then exact-match files) goes through the existing access-filter
-   call `_filter_file_ids_via_internal_api`. What survives is the shortlist. If nothing
-   survives, the existing access-filter-empty bypass runs.
+   call `_filter_file_ids_via_internal_api`, once. If no **coarse** file survives, the
+   existing access-filter-empty bypass runs, exactly as before this change: drive-wide (or
+   over `pre_scope_file_ids`), with no `shortlist` or `clues` event. That bypass search is
+   unscoped, so it can still find the exact-match files. Otherwise the surviving coarse
+   files and the surviving exact-match files form the shortlist.
 9. The clue generator receives the summaries of the surviving **coarse** files only. Its
    input is the same as without this change.
-10. Every clue search runs with `file_id_scope` equal to the whole surviving shortlist,
-    exact-match files included. The RRF merge, the `len(scoped) < 2` full-search fallback
-    and the answer stage are unchanged.
-11. The `shortlist` SSE event lists the surviving shortlist in `file_ids`, coarse files
-    first. It also carries `exact_match_file_ids`, the surviving exact-match files in
-    their order (empty list when none).
+10. Every clue search runs with `file_id_scope` equal to the surviving coarse files
+    followed by the surviving exact-match files. The RRF merge, the `len(scoped) < 2`
+    full-search fallback and the answer stage are unchanged.
+11. `ShortlistResult` keeps `file_ids`, `scores`, `top_score` and `drive_file_count` for
+    the coarse files only (`scores` stays parallel to `file_ids`). It gains
+    `exact_match_file_ids: tuple[str, ...]`, which is empty by default. The return shape of
+    `_run_hierarchical_retrieval` is unchanged.
+12. The `shortlist` SSE event sends `file_ids` as the surviving coarse ids followed by
+    `exact_match_file_ids`. It also sends `exact_match_file_ids` itself (an empty list when
+    none). `top_score` is the best surviving coarse score, as before.
+13. The lookup reads the search DB synchronously, so it runs off the event loop through
+    `asyncio.to_thread`, as `coarse_retrieve` and `fetch_long_summaries` do.
+    `tests/test_event_loop_discipline.py` stays unmodified and passes.
 
 Measured on production with the 20-file shortlist of the failing question plus the two
 target files as scope: all three LLM clues from that run (`パネルヒーター おすすめ`,
@@ -76,14 +93,18 @@ target files as scope: all three LLM clues from that run (`パネルヒーター
 
 ### 2. Failure cases
 
-- The FTS lookup raises for one table (syntax, locked DB, missing table): that table
-  contributes nothing for that token, the error is logged at WARNING, and the remaining
-  tables and tokens still run. This is the same safety net `_fts_lookup_required` uses.
+- The FTS lookup raises for one table for a token (syntax, locked DB, missing table): that
+  **token** contributes nothing, because a count from fewer tables could fall under the cap
+  by accident. The error is logged at WARNING with the table and the token. The other
+  tokens still run.
 - The whole lookup fails, for example because the search DB engine is unavailable: no
   exact-match files are added, a WARNING is logged, and Ask continues with the coarse
-  shortlist. The answer does not fail because of this step.
-- A token contains a double quote: the quote is removed before the phrase is built. A token
-  left empty is skipped.
+  shortlist. The answer does not fail because of this step, and no error event is sent.
+- A token made only of quotes or whitespace is empty after cleaning (step 3) and is
+  skipped without a lookup.
+- `exact_match_max_files` is absent: the default of 10 applies. It is present but not an
+  integer ≥ 0 (negative, float, string, bool): a WARNING is logged when the config loads
+  and the default of 10 applies.
 - The access filter fails closed (it returns an empty set): the existing
   access-filter-empty bypass runs, as today.
 
@@ -136,7 +157,8 @@ None. The step is stateless: it reads the index on every question and keeps no c
 
 - The viewer sees nothing new on failure: Ask answers from the coarse shortlist as it does
   today.
-- The operator sees a WARNING log line naming the table and the error when a lookup fails.
+- The operator sees a WARNING log line naming the table, the token and the error when a
+  lookup fails, and one WARNING when the config value is invalid.
 - When exact-match files are added, one DEBUG line records the token, the file count of
   each token, and which tokens were over the cap.
 
@@ -172,8 +194,14 @@ None. The step is stateless: it reads the index on every question and keeps no c
 - `addons/intelligence/app/rag/service.py`: `_run_hierarchical_retrieval` (the union
   before the access filter; scope of the clue searches) and the `shortlist` SSE event
   payload in the streaming path.
-- `addons/intelligence/app/rag/coarse_retriever.py` or a new module beside it: the
-  drive-scoped exact-match lookup.
+- `addons/intelligence/app/rag/coarse_retriever.py`: `ShortlistResult` gains
+  `exact_match_file_ids`. The drive-scoped exact-match lookup lives here or in a new
+  module beside it.
+- Existing tests whose expectations move with the change: `tests/test_rag_hierarchical.py`
+  and `tests/test_rag_hierarchical_personal_history.py`. They cover the access-filter
+  argument, the `fetch_long_summaries` ids, `file_id_scope` and the `shortlist` payload.
+  They are updated to the new behaviour, never loosened.
+- `tests/test_event_loop_discipline.py`: must pass unmodified.
 - `addons/intelligence/app/config.py`: `HierarchicalRagConfig.exact_match_max_files`
   and its loading from `search-config.yml`.
 - `addons/intelligence/search-config.yml.example`: the new key.
@@ -190,16 +218,16 @@ None. The step is stateless: it reads the index on every question and keeps no c
 
 ## Invariants
 
-I1. On the scoped hierarchical path, an active file of drive D that has a keyword token in its transcript or text content, where that token is in at most `exact_match_max_files` such files of D, is inside the `file_id_scope` of every clue search, unless the personal-history scope or the access filter excludes it.
-I2. A token found in more than `exact_match_max_files` files of drive D adds no file to the shortlist.
+I1. On the scoped hierarchical path, if a cleaned keyword token matches (by the step 4 rule) at least 1 and at most `exact_match_max_files` active files of drive D, every one of those files is inside the `file_id_scope` of every clue search, unless the personal-history scope or the access filter excludes it.
+I2. A token adds no file when it matches more than `exact_match_max_files` files of D, when it is shorter than 2 characters after quote removal, or when it matches only in filename or title tables (`fts_files*`).
 I3. No file of another drive, and no file with `active = 0`, is ever added to the shortlist.
 I4. An exact-match file appears in the clue scope and in the `shortlist` SSE event only after the same access filter as the coarse files has passed it. A file the caller cannot access appears in no event.
 I5. When `pre_scope_file_ids` is set, no file outside it is added.
 I6. The clue generator receives exactly the summaries of the access-filtered coarse files, in coarse order, whether or not exact-match files were added.
-I7. A failure of the exact-match lookup leaves Ask answering from the coarse shortlist, with no error event and a WARNING in the log.
-I8. With `exact_match_max_files: 0` the shortlist, the clues and the sources are identical to the behaviour before this change.
-I9. Every bypass branch (small drive, empty shortlist, low confidence, access-filter empty) runs the same search with the same scope as before this change.
-I10. In the `shortlist` SSE event, `file_ids` lists the coarse files first in coarse order, then the exact-match files. `exact_match_file_ids` equals that tail. `top_score` is the best score among the surviving coarse files (0.0 when none survive).
+I7. When one table's lookup raises for a token, that token adds no file and the other tokens still run. When the whole lookup fails, Ask answers from the coarse shortlist. In both cases no error event is sent, and a WARNING is logged.
+I8. With `exact_match_max_files: 0`, the access-filter argument, the clue scopes, the clues and the sources are identical to the behaviour before this change. With the key absent or invalid, the cap is 10.
+I9. Every bypass branch runs the same search with the same scope as before this change, and makes no exact-match lookup on the small-drive, empty-shortlist and low-confidence branches. The branches are: small drive, empty shortlist or intersection, low confidence, and no coarse file surviving the access filter.
+I10. In the `shortlist` SSE event, `file_ids` lists the surviving coarse files in coarse order, then the exact-match files. `exact_match_file_ids` equals that tail: token order, then `file_id` ascending within a token, each file once, and no file that is also a coarse file. `top_score` is the best surviving coarse score.
 
 ## Checked, no action
 
@@ -229,3 +257,22 @@ I10. In the `shortlist` SSE event, `file_ids` lists the coarse files first in co
   changes as files are scanned. A cache would add invalidation for no measured gain.
 - **The `len(scoped) < 2` full-search fallback.** It is left as is; this change addresses
   the case where the scoped pass returns plenty of wrong files.
+- **Respecting `file_type` in the lookup.** The coarse retrieval ignores it too, and the
+  clue searches apply it, so a file of another type in the scope is never retrieved. The
+  cost is that such files count toward the cap. That is rare, and it errs toward adding
+  nothing.
+- **Being in scope is not being retrieved.** `search()` applies `file_id_scope` after each
+  channel has chosen its top candidates drive-wide, so with very common clue terms an
+  exact-match file can still drop out. For the measured question it ranks #1 and #2 under
+  every clue. The R-5 run checks the failing question end to end.
+- **The `required` hard filter inside clue searches** can remove an exact-match file whose
+  text does not match the required aliases. This is unchanged behaviour and a separate
+  concern.
+- **Unverified files.** The access filter applies `trust_tier="verified"`, so an unverified
+  file with the rare token is not added. This is consistent with "Ask cites only verified
+  files".
+- **A list cap on `POST /api/internal/filter-file-ids`.** There is none today. The ids grow
+  by at most `tokens × 10`.
+- **Reverting to the scoped path over exact-match files when no coarse file survives the
+  access filter.** That would change a bypass that exists today. The drive-wide bypass
+  search can find the exact-match files anyway (step 8).
