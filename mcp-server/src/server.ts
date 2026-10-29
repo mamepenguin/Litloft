@@ -36,6 +36,9 @@ Key concepts:
   hybrid search: it also matches filenames/paths/tags, plus ranks by
   transcript/caption/embedding relevance and returns the matching excerpt —
   prefer it for "find files about X" style queries.
+- To find every place a string appears (like grep), use search_exact; to
+  find files about a topic, semantic_search; to find where something is
+  shown in a video, search_video_scenes (videos with a Visual Index only).
 - ask can synthesize an answer through Litloft's intelligence addon. It
   streams internally and returns the final answer plus source events.
 - upload_file is for small notes/documents/images only (10MB cap on

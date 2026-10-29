@@ -190,6 +190,8 @@ When adding a new tool, put agent-facing behavior notes in its
 | `get_file_by_path` | Get a file's metadata from its drive-relative path |
 | `get_file_content` | Read any `text/*` or JSON file: whole (≤1MB, with the ETag for Markdown/plain text) or by line range (`offset`/`limit`, files up to 10MB, no ETag) |
 | `semantic_search` | Rank files in a drive by relevance to a natural-language query; a hybrid search combining transcript/caption/embedding relevance with filename/title/path/tag matching — returns matching excerpts |
+| `search_exact` | List every segment of a drive containing a string (document text, transcripts, Visual Index scenes), paged, with positions and snippets |
+| `search_video_scenes` | Rank a drive's Visual Index scenes by meaning against a description of what is shown |
 | `get_transcript` | Get a video/audio file's Whisper transcript as time-stamped chunks, optionally narrowed to a time range |
 | `list_video_scenes` | Up to 24 representative scenes of a video, each with its time range, nearby transcript and a small frame image; optionally within a time window |
 | `get_video_frame` | The frame of a video at a given time as an image; `large` (default, long edge up to 1280 px, enough to read on-screen text) or `small` (320 px wide) |

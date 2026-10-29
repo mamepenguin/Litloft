@@ -33,7 +33,9 @@ const expectedToolNames = [
   "rename_folder",
   "restore_file",
   "restore_files",
+  "search_exact",
   "search_files",
+  "search_video_scenes",
   "semantic_search",
   "trash_file",
   "trash_files",
@@ -54,7 +56,9 @@ const readOnlyTools = new Set([
   "list_drives",
   "list_folders",
   "list_video_scenes",
+  "search_exact",
   "search_files",
+  "search_video_scenes",
   "semantic_search",
 ]);
 
@@ -144,6 +148,12 @@ describe("advertised tool safety metadata", () => {
     const instructions = client.getInstructions() ?? "";
     expect(instructions).toContain("get_video_frame");
     expect(instructions).toContain("list_video_scenes");
+  });
+
+  it("SPEC-CORE-017 SPEC-CORE-018: the server instructions name both search tools", () => {
+    const instructions = client.getInstructions() ?? "";
+    expect(instructions).toContain("search_exact");
+    expect(instructions).toContain("search_video_scenes");
   });
 
   it("discloses Ask's possible file-excerpt transfer to the configured LLM provider", () => {

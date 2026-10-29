@@ -61,3 +61,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-014 | implemented | docs/specs/mcp-read-write-granularity.md | sha256:b45a5cd6231bfc7af1ed2c43119140d37ddc83a814192125737727ee69a25fd8 |
 | SPEC-CORE-015 | implemented | docs/specs/mcp-read-write-granularity.md | sha256:b45a5cd6231bfc7af1ed2c43119140d37ddc83a814192125737727ee69a25fd8 |
 | SPEC-CORE-016 | implemented | docs/specs/baseline-version-on-first-write.md | sha256:0eb6a5a0f5518de9bca66d7ba42918029d5a371721498e7f195264bbd240e561 |
+| SPEC-ADDON-032 | implemented | docs/specs/intelligence-exact-and-scene-search.md | sha256:66254005533f7c28ac2cfb9e6d720b72e7085e738b2346145cbe8701e3923752 |
+| SPEC-ADDON-033 | implemented | docs/specs/intelligence-exact-and-scene-search.md | sha256:66254005533f7c28ac2cfb9e6d720b72e7085e738b2346145cbe8701e3923752 |
+| SPEC-CORE-017 | implemented | docs/specs/intelligence-exact-and-scene-search.md | sha256:66254005533f7c28ac2cfb9e6d720b72e7085e738b2346145cbe8701e3923752 |
+| SPEC-CORE-018 | implemented | docs/specs/intelligence-exact-and-scene-search.md | sha256:66254005533f7c28ac2cfb9e6d720b72e7085e738b2346145cbe8701e3923752 |
