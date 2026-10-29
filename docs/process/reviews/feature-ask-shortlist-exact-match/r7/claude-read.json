@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "The commit under review (00ccbe4bd) only moves the submodule pointer from 3f850ab to 1678407. Inside the submodule that is one test change: test_spec_addon_035_a_token_adds_files_only_up_to_the_cap now varies the cap ((3,1),(3,3),(3,4),(1,1),(1,2)) where before it fixed it at 3. No production code changes between r6 and this commit.",
+    "service.py:830-843: the lookup runs only past the four bypass checks (enabled/drive, small drive, empty shortlist or intersection, low confidence) and only when cfg.exact_match_max_files > 0. This matches I8 and the 'first four make no lookup' clause of I9. Coarse ids and ids outside pre_scope_file_ids are dropped before the access filter, which matches I3 and step 6/7.",
+    "service.py:853-878: one access-filter call over the coarse ids plus the exact-match ids. The bypass fires when no coarse id survives and uses bypass_scope (pre_scope or None) as before, which matches I9 and step 8. With cap 0 the argument is list(shortlist.file_ids), the same as before (I8).",
+    "service.py:891-918: filtered_shortlist.file_ids and scores hold only the surviving coarse ids. fetch_long_summaries and the summaries list use only those ids, so I6 holds. scope_ids is the surviving coarse ids followed by the accessible exact-match ids and goes to every clue search (I1, I4). The fallback_full_search pass keeps pre_scope_file_ids (I9).",
+    "service.py:1699-1708: the shortlist event's file_ids is coarse followed by exact-match, plus exact_match_file_ids and top_score from filtered_shortlist (I10).",
+    "exact_match.py: each query uses the column filter 'text : \"<token>\"', joins indexed_files on drive = :drive AND active = 1, and covers the four content tables and no fts_files* table (I2, I3). If any table raises, that token is voided with a WARNING and the loop continues (I7). lookup_exact_match_files wraps the work in asyncio.to_thread and turns any exception into () with a WARNING (I5, I7). Ordering is token order, then sorted file_id, with duplicates removed (I10)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Word-table tokenization of punctuation-bearing tokens (e.g. 'C++' becomes phrase 'c', 'Wi-Fi' becomes 'wi fi'): the phrase can match differently from what the user typed. The spec's step 4 says the rule inherits the tables' own limits, and such tokens usually exceed the cap, so this adds nothing in practice. Not reported as a finding."
+  ],
+  "regression_risks": [
+    "Eval baselines that go through answer_question (app/evals/stages.py) can move, because the non-streaming path also widens the clue scope. The spec states this.",
+    "The access-filter request grows by up to tokens × exact_match_max_files ids. No cap exists on /api/internal/filter-file-ids. The spec accepts this."
+  ],
+  "test_coverage": [
+    "The fix in this round strengthens the cap test. Before it, a mutant that hard-codes the cap as 3 in find_exact_match_files (`<= 3` instead of `<= max_files`) survived the cap test (though test_the_default_cap_is_ten and the four-table count test would likely have killed it). Now the cases (1,1,True) and (1,2,False) kill it directly.",
+    "Mentally applied mutants: dropping the `fid not in coarse_set` filter is killed by test_a_file_already_in_the_coarse_shortlist_is_not_repeated. Dropping the pre_scope filter is killed by the personal-history test. Reverting the bypass check to `if not accessible` is killed by test_with_no_surviving_coarse_file_the_access_bypass_runs_unscoped (exact-match survivors would otherwise make it non-empty). Passing scope_ids to fetch_long_summaries is killed by the clue-generator test. Removing the `text :` column filter is killed by test_only_the_text_column_is_matched. Replacing `break; continue` with partial accumulation on a table failure is killed by the one-failing-table test. Calling the sync function directly on the loop is killed by the on_loop test.",
+    "tests/test_rag_hierarchical.py and tests/test_rag_hierarchical_personal_history.py were not updated. Neither they nor conftest.py set up a search DB (no match for search_index/init_search_db/_search_engine), so in those tests the lookup takes the whole-failure path, logs a WARNING and adds nothing. Their existing assertions still hold, and the new module carries the widened-scope coverage."
+  ],
+  "not_verified": [
+    "I did not run the test suite, including tests/test_event_loop_discipline.py, so I have not observed the mutants above being killed or surviving.",
+    "I did not confirm that SQLAlchemy keeps the connection usable after a real DBAPI OperationalError mid-loop. The test injects the error from a before_cursor_execute listener instead.",
+    "I did not read _filter_file_ids_via_internal_api to confirm it returns a set and not a list (membership semantics are the same, only cost differs).",
+    "I did not diff the submodule range 3f850ab..1678407 beyond the diff provided."
+  ],
+  "confidence": 82,
+  "trajectory": "The only round since r6 is three commits. 45dea0c flips SPEC-ADDON-035 from approved to implemented in docs/specs/INDEX.md. ab69c94 is a review-record doc commit. 00ccbe4 bumps the submodule to a commit that only changes test parametrization: the cap test now varies the cap (including cap=1) instead of fixing it at 3. No round adds a branch, a state or a prediction to production code, and none removes one. The implementation is the same as at r6. The design is not being patched; this round tightens a test. The open r6 finding TP-1 (the new test module is not on the touch-point list) is not addressed by this round."
+}
