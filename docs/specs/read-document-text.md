@@ -56,12 +56,11 @@ the ones indexing stored, so they match what search reports.
 3. It extracts only the requested units, off the event loop. A unit's text is the text
    indexing builds for it before chunking, without the heading line indexing prepends to a
    slide or sheet (its name is the `title`):
-   - PDF: the requested pages converted by PyMuPDF4LLM in one call over just those pages.
-     Heading levels (`#`) are detected over the pages converted, so they can differ from
-     the whole-file conversion indexing made; the page text is the same. If PyMuPDF4LLM
-     raises on the requested pages, those pages are read as PyMuPDF plain text and
-     `extractor` is `fitz_fallback`; reads of other ranges of the same file can still use
-     PyMuPDF4LLM.
+   - PDF: each requested page converted by PyMuPDF4LLM on its own, so a page's text does
+     not depend on which other pages a request asks for. Heading levels (`#`) are detected
+     within the page, so they can differ from the whole-file conversion indexing made; the
+     page text is the same. If PyMuPDF4LLM raises on a page, that page is read as PyMuPDF
+     plain text, and that unit's `extractor` is `fitz_fallback`.
    - docx: headings as `#` lines and paragraphs in document order, then the tables, one row
      per line with cells joined by ` | `. An empty document is one unit with empty text.
    - xlsx: the sheet's non-empty rows, cells joined by spaces, up to 1000 rows. An empty
@@ -70,7 +69,9 @@ the ones indexing stored, so they match what search reports.
    - pptx: the slide's text frames other than the title, one paragraph per line.
    - EPUB: the section's Markdown with ruby annotations dropped and links removed, as
      indexing builds it. The navigation document, a non-HTML item, an encrypted (DRM) item,
-     and an item over the 5 MB section cap have empty text, as they do in indexing.
+     an item over the 5 MB section cap, an item missing from the archive, and an item
+     whose parse fails have empty text, as they do in indexing. A book without a readable
+     container or package document is 422 `Document could not be read`.
 4. Size caps: the per-file caps indexing applies (PDF 200 MB, docx and xlsx 50 MB, pptx
    100 MB) refuse the file. For EPUB, one request may decompress at most 20 MB: the
    container, the package document, `encryption.xml` and the requested sections, in that
@@ -78,14 +79,17 @@ the ones indexing stored, so they match what search reports.
    that section and `next` points at it, unless it is the first unit of the response, in
    which case its text is empty. The indexing caps of 500 PDF pages, 2000 EPUB sections and
    2 million EPUB characters do not apply: any unit up to `unit_count` can be read.
-5. It skips `offset` characters of the first unit; if `offset` is at or beyond that unit's
-   length, the unit is left out of `units`, does not count toward `count`, and the read
-   starts at the next unit with offset 0. It then returns units in order until `count`
-   units are returned or their text reaches `max_chars`. A unit that would pass
+5. `count` is the number of units examined from `start`: units `start` to
+   `start + count - 1`, clamped to `unit_count`; nothing outside that range is extracted.
+   It skips `offset` characters of the first unit; if `offset` is greater than 0 and at or
+   beyond that unit's length, that unit is left out of `units` (it still counts toward
+   `count`). An empty unit read at offset 0 is returned with `text: ""`. Units are returned
+   in order until the range ends or their text reaches `max_chars`; a unit that would pass
    `max_chars` is cut there.
-6. At most two extractions run at once in the addon. A third request waits up to 10 s for a
-   slot, then gets 503 `Document reader busy`. An extraction keeps its slot until it
-   finishes, even if the caller has gone.
+6. At most two requests to this endpoint extract at once; indexing does not use these
+   slots. A third request waits up to 10 s for a slot, then gets 429 `Document reader
+   busy` (a 4xx, which the core proxy forwards as is). An extraction keeps its slot until
+   it finishes, even if the caller has gone.
 7. Response:
 
    ```json
@@ -93,8 +97,8 @@ the ones indexing stored, so they match what search reports.
      "file_id": "...",
      "unit": "page" | "slide" | "sheet" | "section" | "document",
      "unit_count": 0,
-     "extractor": "pymupdf4llm" | "fitz_fallback" | "office" | "epub",
-     "units": [{"number": 1, "title": "..." | null, "text": "...", "truncated": false}],
+     "units": [{"number": 1, "title": "..." | null, "text": "...", "truncated": false,
+                "extractor": "pymupdf4llm" | "fitz_fallback" | "office" | "epub"}],
      "next": {"start": 1, "offset": 0} | null
    }
    ```
@@ -115,7 +119,9 @@ the ones indexing stored, so they match what search reports.
    and returns the response as compact JSON, like `search_exact`.
 3. The description says which formats it reads, what a unit is per format, that `next` is
    the cursor to pass back, that a scanned page without a text layer reads as empty, that a
-   slow PDF read fails and should be retried with a smaller `count`, and that
+   slow PDF read fails with 502 and should be retried with a smaller `count`, that 429 means
+   the reader is busy and the call can be retried as is, that a file the intelligence addon
+   has not indexed yet (just uploaded or moved) reads as 404 until it is, and that
    `get_file_content` is the tool for `text/*` and JSON files.
 4. `get_file_content`'s refusal for a PDF, docx, xlsx, pptx or EPUB file names
    `read_document`; its refusal for any other MIME type is unchanged. It does not check
@@ -127,16 +133,17 @@ the ones indexing stored, so they match what search reports.
 
 | Step | What goes wrong | What happens |
 |---|---|---|
-| Lookup | the file is unknown, inactive or in another drive | 404 `File not found` |
+| Lookup | the file is unknown, inactive, in another drive, or not indexed by intelligence yet | 404 `File not found` |
 | Lookup | the MIME type is none of the five | 415 naming the supported types |
 | Parameters | out of bounds, or `count` above the kind's maximum | 422 |
 | Parameters | `start` above `unit_count` (including `unit_count` 0) | 200 with `units: []`, `next: null` |
 | Parameters | `offset` at or beyond the first unit's length | that unit is left out; the read continues at the next unit |
-| Concurrency | two extractions are running and none finishes within 10 s | 503 `Document reader busy` |
+| Concurrency | two extractions are running and none finishes within 10 s | 429 `Document reader busy` |
 | Extraction | the file is missing on disk, over its size cap, corrupt, or password-protected | 422 `Document could not be read` |
-| Extraction | an EPUB item is the navigation document, encrypted, not HTML or over 5 MB | that unit's text is empty |
+| Extraction | an EPUB item is the navigation document, encrypted, not HTML, over 5 MB, missing or unparsable | that unit's text is empty |
+| Extraction | an EPUB has no readable container or package document | 422 `Document could not be read` |
 | Extraction | the EPUB budget runs out mid-request | the response ends before the section; `next` points at it |
-| Extraction | PyMuPDF4LLM raises on the requested pages | PyMuPDF plain text, `extractor: fitz_fallback` |
+| Extraction | PyMuPDF4LLM raises on a page | that page as PyMuPDF plain text, its `extractor` is `fitz_fallback` |
 | Extraction | the extractor raises anything else | 422 `Document could not be read`, logged with the exception type |
 | Proxy | the extraction outlasts the route's 25 s timeout | the core proxy's 502 `Addon service unavailable`; the extraction finishes in the addon and is discarded |
 | MCP | any non-2xx | the tool's existing error text with the status and detail |
@@ -188,7 +195,7 @@ A new MCP tool. No web UI change.
 - Every hop on the MCP path gives up at about 30 s (the MCP client's request timeout and
   the Next.js rewrite proxy), so the route timeout is 25 s and a PDF read is at most 10
   pages. PyMuPDF4LLM takes roughly 0.1 to 1 s per page.
-- At most two extractions run at once, so reads cannot starve indexing of CPU.
+- At most two reads extract at once, so reads cannot starve indexing of CPU.
 - A response carries at most 200000 characters of text.
 - Privacy: text leaves the addon only to the authorised caller, as `pdf-markdown` already
   does.
@@ -214,28 +221,32 @@ A new MCP tool. No web UI change.
 
 ## Invariants
 
-I1. For a file whose `indexed_files` row is unknown, inactive or in a drive other than
-`X-Lit-Drive`, the endpoint returns 404 `File not found` and opens nothing on disk.
+I1. The manifest route carries the `file_access` pre-check, and for a file whose
+`indexed_files` row is unknown, inactive or in a drive other than `X-Lit-Drive` the
+endpoint returns 404 `File not found` and opens nothing on disk.
 I2. Concatenating the `text` of every unit returned by following `next` from `start=1,
 offset=0` until it is `null` yields each unit's full text exactly once, in unit order, for
 any `max_chars` and `count` within bounds.
-I3. For a docx, xlsx, pptx or EPUB unit for which indexing builds text, and for a PDF page
-whose conversion detects no headings, the unit's `text` equals the text indexing builds for
-it before chunking, less the slide or sheet heading line.
+I3. For a docx, xlsx, pptx or EPUB unit for which indexing builds untruncated text, and for
+a PDF page whose conversion detects no headings, the unit's `text` equals the text indexing
+builds for it before chunking, less the slide or sheet heading line.
 I4. A unit `number` means the same unit as the `page` / `section` a search result reports
 for that file (PDF page, EPUB spine section), and an EPUB unit's `title` is that section's
 stored title.
-I5. No response carries more than `max_chars` characters of `text` in total, and no PDF
-request converts more than 10 pages.
+I5. No response carries more than `max_chars` characters of `text` in total, no request
+extracts a unit outside `start` to `start + count - 1`, and no PDF request converts more
+than 10 pages.
 I6. The endpoint writes nothing to any database or file, and calls no LLM, vision model or
 embedder.
 I7. A corrupt, missing, over-cap or password-protected file yields 422 `Document could not
 be read`, never a 5xx.
-I8. No more than two extractions run at once in the addon.
+I8. No more than two requests to the endpoint extract at once; a request that finds no slot
+within 10 s gets 429.
 I9. For any file, `extract()` returns the same chunks, Markdown, extractor, page count and
-section titles as before the change.
+section titles as before the change, including a workbook with a chartsheet.
 I10. `read_document` sends `X-Lit-Drive` for the `drive` argument on every call and returns
-the endpoint's body unchanged in content.
+the endpoint's body unchanged in content; `get_file_content` names `read_document` in its
+refusal for exactly the five MIME types.
 
 ## Checked, no action
 
@@ -264,6 +275,8 @@ the endpoint's body unchanged in content.
   description states.
 - **A feature-policy gate**: reading text involves no AI feature; the drive's intelligence
   policy already removes the rows the lookup needs.
+- **Telling "not indexed yet" apart from "not found"**: the addon cannot tell an id it has
+  not indexed yet from one that does not exist; the tool description names the case.
 - **A dedicated error for a read that outlasts the proxy timeout**: the proxy maps every
   upstream timeout to 502; the tool description tells the agent to retry with a smaller
   `count`.
