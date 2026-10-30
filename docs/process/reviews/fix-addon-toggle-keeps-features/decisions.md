@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship (human, 2026-10-31, "両方OK", after r1 HUMAN_REVIEW_REQUIRED for unspecified_behavior on the hand-written `_all: true` shape; CR-1 bucket B accepted as is)
 ran_in_app: yes
 at: 50a131cae9a12daab0c0535c3c1632f0ed37d7ac
 by: agent

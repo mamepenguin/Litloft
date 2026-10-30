@@ -1,0 +1,68 @@
+{
+  "risk": "HIGH",
+  "score": 6,
+  "base": 2,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "backend/app/routers/drive_policies.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/tests/fixtures/addon_policy.json",
+      "level": "LOW"
+    },
+    {
+      "path": "backend/tests/test_addon_policies.py",
+      "level": "LOW"
+    },
+    {
+      "path": "backend/tests/test_addon_policy_parity.py",
+      "level": "LOW"
+    },
+    {
+      "path": "backend/tests/test_config_addon_policy.py",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/admin-guide/settings-gui.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/developer-guide/known-issues.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/reference/configuration.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/src/app/admin/settings/AddonPolicySection.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/admin/settings/__tests__/AddonPolicySection.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/setup/steps/AddonPolicyStep.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/__tests__/addonPolicy.parity.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/adminConfig.ts",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}
