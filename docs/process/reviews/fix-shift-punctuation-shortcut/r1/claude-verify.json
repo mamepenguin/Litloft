@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "Reproduced by reading the code. frontend/src/lib/shortcuts.ts:85-89 defines UNSHIFTED_PUNCTUATION, a table keyed by US shifted characters. shortcuts.ts:107-112 applies it when shiftKey is held with the primary modifier or Alt. ShortcutsProvider.tsx:81 is the only production caller of normalizeKey, found by grep. The match loop at :99-109 compares every context's s.key against that one normalized string. A grep for ctrl/alt Shift bindings finds exactly the three the reader cites: GlobalSearch.tsx:166 and :188 (ctrl+shift+f), addons/knowledge/frontend/Editor.tsx:1151 (ctrl+shift+k) and Editor.tsx:1170 (ctrl+shift+\\\\). No invariants.md exists under docs/process/reviews/fix-shift-punctuation-shortcut/, which holds only decisions.md and r1/{head,expected,classification,fixes}, so no touch-point list is declared. The only other ctrl binding on a punctuation key, FileDetailShell.tsx:124 ctrl+\\\\, has no Shift and is unaffected because shiftInChord is false."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "frontend/src/lib/__tests__/shortcuts.test.ts:184-210 resolves the frontend root, lists ../addons/*/frontend plus src, and drops empty or missing roots. sourceFiles (:175-182) skips node_modules and __tests__. The test matches /\\bkey:\\s*(\"(?:[^\"\\\\\\n]|\\\\.)*\")/g and keeps chords that contain shift+ and end in a non-letter. Line 218 is the only guard against a vacuous pass: expect(chords.length).toBeGreaterThan(0). Today that set has one member (ctrl+shift+\\\\ from Editor.tsx:1170), so the guard holds only while the addon binding exists. No touch-point list names these trees, because no invariants file exists for this review."
+    }
+  ],
+  "specification_compliance": [
+    "The behaviour docs/process/reviews/fix-shift-punctuation-shortcut/decisions.md describes (Cmd/Ctrl+Shift+\\\\ cycles the view, ctrl+shift+f and ctrl+shift+k still work, bare ? opens the cheat sheet) matches normalizeKey at shortcuts.ts:98-117, read statically."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Alt+Shift chords also go through UNSHIFTED_PUNCTUATION. On macOS, Option changes e.key to a different character, so an alt+shift+<punct> binding would not match. No such binding exists today."
+  ],
+  "regression_risks": [
+    "Any Ctrl/Alt+Shift chord bound in core or in an addon now normalizes the shifted punctuation back to the US unshifted face. A binding written with the shifted character (for example ctrl+shift+|) would silently stop matching. No such binding exists at this commit."
+  ],
+  "test_coverage": [
+    "shortcuts.test.ts:60-83 covers primary+Shift+\\\\ on Mac and Win, Shift-only | and ctrl+shift+f.",
+    "shortcuts.test.ts:214-231 scans source for Shift punctuation chords. It finds only one chord today (ctrl+shift+\\\\ in the knowledge addon)."
+  ],
+  "not_verified": [
+    "Did not run the vitest suite, so the tests passing at this commit was not confirmed by execution.",
+    "Did not check the in-app run recorded in decisions.md, or its logs and screenshots.",
+    "Did not check behaviour on non-US layouts such as JIS beyond what the code comment says."
+  ],
+  "confidence": 88
+}

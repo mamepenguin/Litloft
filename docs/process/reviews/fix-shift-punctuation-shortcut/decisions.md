@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship (human, 2026-10-30, "出荷", after r1 HUMAN_REVIEW_REQUIRED for unspecified_behavior on the UNSPEC bug fix; F1 and F2 bucket B accepted as is)
 ran_in_app: yes
 at: 11b6c205b29048f383661afe83dc035ba52e2787
 by: agent
