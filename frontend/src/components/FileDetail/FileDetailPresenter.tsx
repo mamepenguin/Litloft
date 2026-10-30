@@ -25,6 +25,7 @@ export interface FileDetailPresenterProps {
   companionKind: string | null;
   hasPlayer: boolean;
   usesCanvasViewer: boolean;
+  plainTextDocument: boolean;
   descriptionInCanvas: boolean;
   playerFramed: boolean;
   railEligible: boolean;
@@ -71,6 +72,7 @@ export function FileDetailPresenter({
   companionKind,
   hasPlayer,
   usesCanvasViewer,
+  plainTextDocument,
   descriptionInCanvas,
   playerFramed,
   railEligible,
@@ -112,6 +114,7 @@ export function FileDetailPresenter({
         isHtmlPreview={isHtmlPreview}
         hasPlayer={hasPlayer}
         usesCanvasViewer={usesCanvasViewer}
+        plainTextDocument={plainTextDocument}
         descriptionInCanvas={descriptionInCanvas}
         companionMountable={companionMountable}
         companionOccupied={companionOccupied}

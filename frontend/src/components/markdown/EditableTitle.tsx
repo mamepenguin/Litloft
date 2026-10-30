@@ -7,14 +7,22 @@ import { AlertCircle } from "lucide-react";
 /**
  * Passes the user's value verbatim to the host (matching the file browser
  * rename dialog) — no automatic `.md` suffix, no extension normalisation.
+ *
+ * With `fixedSuffix` the field holds the name without it, the suffix is
+ * shown beside the field, and the name sent always ends in it.
  */
 export function EditableTitle({
-  title,
-  onRename,
+  title: fullTitle,
+  onRename: renameFull,
+  fixedSuffix,
 }: {
   title: string;
   onRename: (newFilename: string) => Promise<void>;
+  fixedSuffix?: string;
 }): ReactElement {
+  const suffix = fixedSuffix ?? "";
+  const title = suffix ? fullTitle.slice(0, -suffix.length) : fullTitle;
+  const onRename = (name: string) => renameFull(name + suffix);
   const t = useTranslations("inspector.rename");
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(title);
@@ -53,8 +61,14 @@ export function EditableTitle({
     }
   }
 
+  const suffixNode = suffix ? (
+    <span className="shrink-0 text-sm font-medium text-text-primary">
+      {suffix}
+    </span>
+  ) : null;
+
   if (!editing) {
-    return (
+    const button = (
       <button
         type="button"
         onClick={() => setEditing(true)}
@@ -67,6 +81,13 @@ export function EditableTitle({
       >
         {title}
       </button>
+    );
+    if (!suffixNode) return button;
+    return (
+      <span className="flex min-w-0 flex-auto items-center">
+        {button}
+        {suffixNode}
+      </span>
     );
   }
 
@@ -97,6 +118,7 @@ export function EditableTitle({
         aria-label={t("label")}
         className="w-full min-w-0 rounded border border-bg-border bg-bg-primary px-2 py-0.5 text-sm font-medium text-text-primary focus:border-focus-ring focus:outline-none focus:ring-1 focus:ring-focus-ring"
       />
+      {suffixNode}
       {error && (
         <span className="text-danger" title={error}>
           <AlertCircle size={14} />
