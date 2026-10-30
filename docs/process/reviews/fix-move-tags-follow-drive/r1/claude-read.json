@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "non-ascii-capital-tag-breaks-move",
+      "origin": "reviewer",
+      "claim": "retarget_file_tags compares Python's Unicode-aware str.lower() against SQLite's ASCII-only lower(), so a destination tag with a non-ASCII capital is never found and a second row is created for it.",
+      "impact": "Moving a file tagged `Übung` to a drive that already has `Übung` now fails with a 500, where the same move succeeded before this change. For a video, the failed move also leaves its thumbnail unreachable. If the source spelling is `übung` and the destination has `Übung`, the move succeeds but the destination silently gets a second tag row differing only in case. The same applies to any cased non-ASCII script the tag validator accepts (accented Latin, Cyrillic, Greek, full-width Latin).",
+      "evidence": "backend/app/services/tagops.py:49 sets key = tag.name.lower() ('übung'). backend/app/services/tagops.py:54 filters func.lower(Tag.name) == key. No lower() override is registered (no create_function in backend/app; backend/app/database.py:33-35 only sets PRAGMAs), and docs/developer-guide/known-issues.md:182 records SQLite's lower() as ASCII-only. The lookup misses, tagops.py:57 builds Tag(name='Übung', drive=dst), and the flush at tagops.py:59 (via cleanup_orphan_tags) violates uq_tags_drive_name (backend/app/models.py:47). fileops.py:508-517 then rolls back and returns 500. Only the file is moved back: the thumbnail renamed by fileops.py:491 stays at the new path while the rolled-back thumbnail_path names the old one. All tests in backend/tests/test_move_tags_follow_drive.py use ASCII tags.",
+      "repro": "not_reproduced (read-only review). Steps: tag a video `Übung` on drive A and another file `Übung` on drive B, then PUT /api/files/{id}/move to drive B. Expected from the code: 500 'Move failed (DB error, filesystem reversed)', file back on A, thumbnail JPEG under B's path. Batch move reports the same failure as a per-file error.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariants are declared. Normal tag names reach it, so it is in the threat model, but the shared-name non-ASCII case is uncommon.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Compare in one place, not across Python and SQL: load the destination drive's tags once, build a dict keyed by Python lower() or casefold(), and look up there. Add a test with a non-ASCII capital present on both drives."
+    },
+    {
+      "id": "pending-delete-tag-reused-in-ghost-purge",
+      "origin": "reviewer",
+      "claim": "When the destination path is held by a trashed ghost row that was the last user of a same-named tag, retarget_file_tags reuses a Tag row already scheduled for deletion, so the moved file can lose that tag.",
+      "impact": "The move reports success, but the file arrives without a tag it had, and the tag is gone from both drives. The source row is swept as well, so nothing is left to recover from. For non-Markdown files File.tags is canonical, so the tag is lost for good. This needs a trashed row whose file was removed from disk out of band, so it is rare, but the loss is silent.",
+      "evidence": "backend/app/services/fileops.py:479 calls resolve_db_path_conflict before the retarget. For a trashed row, fileops.py:192-194 deletes it and calls cleanup_orphan_tags(db, drive), and tagops.py:30-31 calls db.delete(orphan) with no flush afterwards. Production uses autoflush=False (backend/app/database.py:38), so the query at tagops.py:52-56 still returns that row. tagops.py:58 attaches it to file.tags, and the flush at tagops.py:59 deletes it. By my reading of SQLAlchemy's unit of work, the row stays in the session's deleted set because it is still in the identity map, so the association row is removed with the tag (file_tags.tag_id is ON DELETE CASCADE, backend/app/models.py:28). A trashed file that still exists on disk does not reach this path, because fileops.py:474 returns 409 first.",
+      "repro": "not_reproduced (read-only review; the SQLAlchemy outcome is inferred, and an IntegrityError or 500 instead of silent loss is possible). Steps: on drive B, trash a file x.mp4 tagged `alpha` (its only user) and delete x.mp4 from disk by hand. On drive A, tag x.mp4 `alpha` and move it to B. Then check the file's tags and both drives' tag lists.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariants are declared. It is reachable without misuse but needs an out-of-band deletion of a trashed file.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Call db.flush() at the start of the retarget, before the destination lookup, or at the end of the trashed branch of resolve_db_path_conflict, so a pending delete is written before the lookup runs. Add a test that moves a file onto a ghost row holding the same sole tag."
+    },
+    {
+      "id": "rows-from-earlier-moves-are-not-repaired",
+      "origin": "reviewer",
+      "claim": "The change removes the known-issues entry but does not repair files moved before the fix, which still link to the old drive's Tag rows, and moving such a file onward leaves the old row unattached.",
+      "impact": "On an existing database, a file moved earlier still counts in the old drive's tag list, and its tag does not appear in its current drive's list, with nothing recording that this remains. Moving it to a third drive strands the old drive's row: that drive's tag list keeps showing the tag with count 0. Rows linked from a file on another drive also continue to cross the drive boundary that design-decisions.md calls a security boundary.",
+      "evidence": "The move passes old_drive = file.drive as src_drive (backend/app/services/fileops.py:494-496), so tagops.py:59 sweeps only the file's current drive, not the drive the legacy row belongs to. backend/app/routers/drives.py:817-820 keeps rows with file_id NULL in the listing, so a stranded row is listed with count 0. The diff has no data repair, and backend/app/database.py has no migration touching tag drives. The R-5 'no file linked to another drive's tag row' result in docs/process/reviews/fix-move-tags-follow-drive/decisions.md is from a fresh scratch database.",
+      "repro": "not_reproduced (read-only review). Steps: create a file on drive B linked to drive A's Tag row, as the old code left it. List tags on A and B, then move the file to drive C and list tags on A again. Expected from the code: A still lists the tag, now with count 0.",
+      "introduced": "pre-existing",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariants are declared. The wrong data predates this change, but the entry describing it was removed while such rows can still exist on a database that ran the old code.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Add a one-off idempotent startup repair that retargets every file_tags link whose Tag.drive differs from File.drive and then deletes the rows left unattached. Alternatively, keep a known-issues entry describing the remaining legacy rows."
+    }
+  ],
+  "specification_compliance": [
+    "Answer to the first-review question: no invariants file exists for this change, so there is no touch-point list to compare against, and no finding is raised for being outside the list. Bucket A is not used.",
+    "Places the diff reaches beyond its edited files, for whoever writes a list: PUT /api/files/{id}/move and PUT /api/files/batch/move (backend/app/routers/files.py:1434, :402); the tag listing and tag filter on both drives (backend/app/routers/drives.py:814-838, :716); the ghost-purge path in resolve_db_path_conflict, which runs earlier in the same transaction (backend/app/services/fileops.py:191-195); and the intelligence addon's direct reads of tags and file_tags (addons/intelligence/app/workers/tag_knn.py:207-223, addons/intelligence/app/workers/auto_tags.py:558-560, addons/intelligence/app/indexer.py:2039).",
+    "Same-drive moves return early from retarget_file_tags (backend/app/services/tagops.py:45) and keep their Tag row ids, and backend/tests/test_move_tags_follow_drive.py asserts this.",
+    "fileops.move_file is the only ORM assignment to File.drive in backend/app (backend/app/services/fileops.py:497), and no raw SQL in backend/app matches 'SET drive', so no second drive-changing path was found that bypasses the retarget.",
+    "The tag rows stay drive-scoped, as design-decisions.md requires: the destination lookup filters on Tag.drive == dst_drive and new rows take drive=dst_drive."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "A file carrying two case variants of one tag in the source drive (`Alpha` and `alpha`, which uq_tags_drive_name allows) silently ends up with a single tag at the destination, and the spelling kept depends on iteration order when the destination has no row.",
+    "retarget_file_tags sweeps every unattached Tag row in the source drive, not only those this file left, so unrelated orphans are deleted in the same move transaction.",
+    "If the destination holds both `Alpha` and `alpha`, .first() has no ORDER BY, so which row is reused is not defined.",
+    "A destination row's spelling wins over the moved file's. For a Markdown file the frontmatter keeps its own spelling while File.tags shows the destination's, until something re-projects it."
+  ],
+  "regression_risks": [
+    "New failure path inside move_file's try block: any flush error in the retarget (see non-ascii-capital-tag-breaks-move) now triggers a rollback where the move previously succeeded, and that rollback does not restore a video's moved thumbnail (backend/app/services/fileops.py:491, :508-513).",
+    "The retarget's correctness depends on autoflush=False semantics (backend/app/database.py:38): cleanup_orphan_tags leaves its deletes unflushed, and earlier deletes in the same transaction are visible to the destination lookup as still-live rows.",
+    "decisions.md records that the sidebar tag list stays stale after a paste until reload. That record also observes staleness on a same-drive tag edit, so it is not new, but this change makes the stale list more visible because tags now disappear from the source drive."
+  ],
+  "test_coverage": [
+    "Covered by backend/tests/test_move_tags_follow_drive.py: tag lists of both drives after a move, case-insensitive reuse for ASCII names, new-row spelling, a source tag still used elsewhere, batch move, same-drive move, purge after a move, and rollback on a later DB failure.",
+    "Mutations I expect to be killed (by reading, not run): removing the retarget call, dropping func.lower in favour of exact match, removing cleanup_orphan_tags, removing the src==dst early return.",
+    "Mutation I expect to survive: removing `if key in retargeted: continue` at backend/app/services/tagops.py:50. No test seeds one file with two case variants of a tag.",
+    "Not covered: non-ASCII cased tags, a move onto a trashed ghost row holding the same tag, a file whose tags already belong to a third drive, moving a file with a thumbnail and asserting the thumbnail after a failed move, and a Markdown file (only the R-5 walk exercised one)."
+  ],
+  "not_verified": [
+    "No test or code was run (read-only tools); all three findings are from reading the code.",
+    "The exact SQLAlchemy flush outcome for a Tag in the pending-delete set that is attached to a collection is inferred, not observed.",
+    "SQLite's lower() being ASCII-only rests on the known-issues record and the absence of a create_function override; the SQLite build in the container was not inspected for ICU.",
+    "Addon-side stores that may cache tag names or drive, and the knowledge addon's handling of files.moved, were not fully read.",
+    "The frontend's refresh of the tag list after a move was not traced beyond the decisions.md record.",
+    "The tag validator in backend/app/schemas.py was not read directly; the accepted character set is taken from the regex in backend/app/services/frontmatter.py:20, whose comment says it mirrors that validator."
+  ],
+  "confidence": 78
+}
