@@ -27,6 +27,8 @@ import { ArchiveImageViewer } from "@/components/archive/ArchiveImageViewer";
 import { FileDetailChrome } from "@/components/FileDetail/FileDetailChrome";
 import { MediaLayoutToggle } from "@/components/MediaLayoutToggle";
 import { MarkdownViewModeToggle } from "@/components/MarkdownViewModeToggle";
+import { MarkdownDocumentLayout } from "@/components/markdown/MarkdownDocumentLayout";
+import { TextLines } from "@/components/TextLines";
 import { EpubTypographyPanel } from "@/components/epub/EpubTypographyPanel";
 import { EpubPositionBar } from "@/components/epub/EpubPositionBar";
 import { TYPOGRAPHY_DEFAULTS, type Typography } from "@/lib/epubTypography";
@@ -1431,6 +1433,31 @@ function TypographyPanelEn(): ReactElement {
   return <TypographyPanel locale="en" />;
 }
 
+/** A `.txt` in the document layout, as `ShellLayout` draws a plain-text document. */
+function PlainTextDocumentArrangement(): ReactElement {
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <ShortcutsProvider>
+        <CurrentDriveProvider>
+          <MarkdownDocumentLayout
+            drive="Household Archive"
+            folderPath={NOTE_FOLDER}
+            title="shopping list.txt"
+            onRename={async () => {}}
+            inspector={<div>inspector</div>}
+            resetKey="plain-text"
+            plainText
+          >
+            <div className="flex flex-1 flex-col bg-bg-primary">
+              <TextLines text={"milk\neggs\nbread\n"} filename="shopping list.txt" />
+            </div>
+          </MarkdownDocumentLayout>
+        </CurrentDriveProvider>
+      </ShortcutsProvider>
+    </NextIntlClientProvider>
+  );
+}
+
 function FileDetailChromeNoteArrangement(): ReactElement {
   const noop = () => {};
   return (
@@ -1850,6 +1877,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "file-detail-chrome-deep": FileDetailChromeArrangement,
   "file-detail-chrome-note": FileDetailChromeNoteArrangement,
   "file-detail-chrome-plain-phone": FileDetailChromePlainPhoneArrangement,
+  "plain-text-document": PlainTextDocumentArrangement,
   "file-detail-chrome-collection": FileDetailChromeCollectionArrangement,
   "file-detail-chrome-note-deep": FileDetailChromeNoteDeepArrangement,
   "archive-toolbar-deep": ArchiveToolbarArrangement,
