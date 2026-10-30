@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "list-filter-drops-stale-linked-files",
+      "origin": "reviewer",
+      "claim": "The tag filter in list_drive_files now matches only Tag rows of the listed drive, so a file whose tag link still points at another drive's row is silently left out of a tag listing it used to appear in.",
+      "impact": "On a database with cross-drive moves made before the tag-follows-drive fix (known-issues.md:74 says these links stay and no migration exists), a file on drive B linked to drive A's row `trip` still shows the chip `trip`. Choosing `trip` on B (`?tag=trip`, the `tag:trip` search operator, or the sidebar row if B has its own `trip` row) used to list that file and now omits it with no error. For ASCII names this is a regression; non-ASCII names did not match this way before.",
+      "evidence": "backend/app/routers/drives.py:719 restricts the id lookup to `Tag.drive == drive_name`; drives.py:723 filters on those ids only. The removed code was `File.tags.any(func.lower(Tag.name) == name.lower())`, with no drive condition, while drives.py:684 restricts only the file to the drive. frontend/src/components/folder/useFolderFiles.ts:193 passes `tag:` search operators to this filter. No test seeds a file on the listed drive linked to another drive's row.",
+      "repro": "not_reproduced (read-only review). Predicted steps: seed a File on SRC, append Tag(name='trip', drive=DST) to it, commit, GET /api/drives/SRC/files?tag=trip. At the parent commit the file is listed; at c317e9de1 the result is empty. Optionally add a SRC row `trip` on another file: the parent lists both files, this commit lists one.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariants are declared, so A is unavailable. It affects only legacy data, but it is a silent change in a normal listing and is not recorded by the known-issues entry for these links.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Decide which behaviour is wanted. Either match the names of the rows the files actually hold, for example by collecting matching ids without the drive condition, or keep the drive scope, add a test for it, and extend the known-issues entry to say such a file is not listed under that tag on its current drive."
+    },
+    {
+      "id": "drive-scope-test-cannot-fail",
+      "origin": "reviewer",
+      "claim": "test_another_drives_tag_is_not_listed does not exercise the new `Tag.drive == drive_name` condition, so the drive scoping of the tag filter is effectively untested.",
+      "impact": "The only test named for this rule stays green whether or not the scoping exists, so the behaviour change in list-filter-drops-stale-linked-files, or a later removal of the scope, passes the suite unnoticed.",
+      "evidence": "backend/tests/test_tag_name_matching.py:80-86 seeds the `übung` file on DST and lists SRC. backend/app/routers/drives.py:684 already excludes that file through `File.drive == drive_name`, regardless of which Tag rows are matched.",
+      "repro": "not_reproduced (no shell). Predicted mutation: delete `.filter(Tag.drive == drive_name)` at drives.py:719. The test still passes, because the DST file never enters the query and the SRC file still matches through its own row.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "There is no declared invariant for the test to protect; it reads as coverage it does not provide.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Seed a file on the listed drive that is linked to another drive's row and assert the intended result."
+    },
+    {
+      "id": "move-now-sweeps-destination-drive-orphans",
+      "origin": "reviewer",
+      "claim": "retarget_file_tags now also sweeps the destination drive when the moved file held a stale link to it, deleting every unreferenced Tag row there and not only the row the file left.",
+      "impact": "Moving such a file removes unrelated zero-count rows from the destination drive's tag list, and whether this happens depends on the file's stale links. The result is harmless in practice because other tag edits on a drive sweep the same way, so it is reported as a place the diff reaches beyond name matching and not as a data-loss defect.",
+      "evidence": "backend/app/services/tagops.py:88 builds left_drives from the file's old rows; tagops.py:98-99 now sweeps all of them, where the parent excluded dst_drive. backend/tests/test_tag_name_matching.py:167-180 pins this behaviour, including the removal of `leftover`, which the file never held.",
+      "repro": "not_reproduced as a run; the test at test_tag_name_matching.py:167-180 asserts the deletion of `leftover`.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is broken and the behaviour is deliberate and tested; it is listed because the question asks what the diff reaches.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "No spec or invariants file exists for this change (docs/process/workflow.md:69 allows a bug fix to state correct behaviour as SPEC or UNSPEC), so there is no touch-point list and no place can be checked against one. Bucket A is unavailable.",
+    "Answer to the first-review question: with no list, every reached place is undeclared. They are the list_drive_files tag filter (drives.py:715-724), replace_file_tags (files.py:157-170) and its callers (PUT tags, PUT content, _write_md_tags, internal POST tags, knowledge scanner via the internal client), merge_file_tags (files.py:187-199), retarget_file_tags (tagops.py:87-99), and known-issues.md. Findings are raised only for the places that change behaviour beyond name matching.",
+    "The test file's UNSPEC comments state the intended behaviour; the code matches them for exact-row preference, the lowest-id variant, listing every variant in a drive, and the sweep after a stale-link move, by reading only.",
+    "The known-issues entry removed at known-issues.md was describing the two defects this diff addresses, and no remaining Tag-name comparison through SQL lower() exists in backend/app or the addons by grep."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The tag filter is now scoped to the listed drive's Tag rows, so stale-linked files drop out of the listing. This rests on no SPEC or UNSPEC statement that covers stale links.",
+    "Coexisting variants in one drive: each sidebar row shows its own count (`Übung` 1, `übung` 1) while choosing either lists both files (2 items). The UNSPEC at test_tag_name_matching.py:56 states the listing rule, and no rule states the count disagreement; decisions.md step 7 observed it.",
+    "A case-variant name on a note renames the one shared row for all files in the drive, while batch tagging a non-Markdown file keeps the existing spelling. A batch mixing .md and other files therefore treats the same request differently. This matches the existing ASCII behaviour and is newly reachable for non-ASCII names.",
+    "Matching uses Python str.lower(), not casefold: `STRASSE` and `straße` stay different tags, and Greek final sigma makes `ΣΑΣ` lower to `σας`, which differs from `σασ`. Tests pin only the lower() rule."
+  ],
+  "regression_risks": [
+    "Two notes whose frontmatter spells one non-ASCII tag differently previously could hold two separate rows when only that spelling mismatch existed. Now, if the drive holds one row, each projection of a note renames it, so every file's chip spelling can flip with the most recent projection. No data is lost and this is already the ASCII behaviour.",
+    "A stale exact entry remains in TagIndex._exact after a rename in replace_file_tags (files.py:165-168). It is unreachable through current callers because TagUpdate, BatchTagRequest and extract_valid_tags all dedupe by the same lower() key; a future caller passing undeduped names would hit it.",
+    "replace_file_tags and merge_file_tags now load all of a drive's Tag rows per file, so batch tagging costs one full-row read per file. This is unlikely to matter at personal-tool scale."
+  ],
+  "test_coverage": [
+    "Covered by reading: resolve_tag ordering and exact preference (parametrised), non-ASCII listing, coexisting variants listing, PUT tags with add and rename, batch merge with same name and case variant, content PUT projection, stale-link move sweep, exact-row preference on move.",
+    "Predicted survivor: deleting `.filter(Tag.drive == drive_name)` at drives.py:719 (see drive-scope-test-cannot-fail).",
+    "Not covered: a listed file holding a stale link to another drive's row; multiple non-ASCII `tag` params combined with an unknown name (ASCII combination is covered by test_api_drives.py:661-665); the internal POST tags route with a non-ASCII case variant; `_write_md_tags` with merge=True and a non-ASCII case variant; a move where the source file holds two variants that resolve to one destination row (the `any(row is kept ...)` dedupe at tagops.py:95)."
+  ],
+  "not_verified": [
+    "No test or the application was run: this reviewer has only Read, Glob and Grep, so every behaviour and mutation prediction comes from reading.",
+    "The parent commit's listing of stale-linked files was inferred from the removed lines in the diff and not observed.",
+    "SQLAlchemy's handling of a duplicate object in a many-to-many list was not checked in its source; it is not reachable through current callers because names are deduped first.",
+    "How the addons read tag rows after a merge or rename (addons/intelligence workers) was only grepped, not read in full.",
+    "The frontend tag UI was only partly read; whether a chip click on a file leads to the tag filter was not confirmed."
+  ],
+  "confidence": 80
+}
