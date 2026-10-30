@@ -509,4 +509,101 @@ describe("AddonPolicySection shows what the backend enforces", () => {
       });
     });
   });
+
+  const kept = { transcription_cloud: false };
+
+  function loadStateful(initial: unknown, putStatus = 200) {
+    let current = initial;
+    const puts: unknown[] = [];
+    mockFetch.mockImplementation((url: string, opts?: RequestInit) => {
+      if (url === "/api/admin/config/addon-policy" && opts?.method === "PUT") {
+        if (putStatus !== 200) {
+          return Promise.resolve(
+            jsonResponse({ detail: { code: "write_failed", message: "disk full" } }, putStatus),
+          );
+        }
+        current = JSON.parse(opts.body as string);
+        puts.push(current);
+        return Promise.resolve(jsonResponse({ ok: true }));
+      }
+      if (url === "/api/admin/config/addon-policy") {
+        return Promise.resolve(jsonResponse(current));
+      }
+      if (url === "/api/addons/status") {
+        return Promise.resolve(jsonResponse(addonsStatusResponse));
+      }
+      return Promise.resolve(jsonResponse({ ok: true }));
+    });
+    render(<AddonPolicySection />);
+    return puts;
+  }
+
+  // UNSPEC: a map carrying `_all: false` reads as the addon turned off, and
+  // its feature rows are not offered.
+  it("shows a map with _all false as off, without its feature rows", async () => {
+    loadStateful({ kept: { intelligence: { transcription_cloud: false, _all: false } } });
+    await waitFor(() => expect(sw("kept / intelligence")).toBeInTheDocument());
+    expect(sw("kept / intelligence").checked).toBe(false);
+    expect(
+      screen.queryByTestId("feature-row-kept-intelligence-transcription_cloud"),
+    ).toBeNull();
+  });
+
+  // UNSPEC: turning an addon off keeps its feature switches, and turning it
+  // back on stores exactly what was there before.
+  it("returns the original feature map after off then on", async () => {
+    const puts = loadStateful({ kept: { intelligence: kept } });
+    await waitFor(() => expect(sw("kept / intelligence")).toBeInTheDocument());
+
+    fireEvent.click(sw("kept / intelligence"));
+    await waitFor(() => expect(puts).toHaveLength(1));
+    expect(puts[0]).toEqual({
+      kept: { intelligence: { transcription_cloud: false, _all: false } },
+    });
+    await waitFor(() => expect(sw("kept / intelligence").checked).toBe(false));
+
+    fireEvent.click(sw("kept / intelligence"));
+    await waitFor(() => expect(puts).toHaveLength(2));
+    expect(puts[1]).toEqual({ kept: { intelligence: kept } });
+    await waitFor(() =>
+      expect(
+        screen
+          .getByLabelText("kept / intelligence / transcription_cloud")
+          .getAttribute("aria-checked"),
+      ).toBe("false"),
+    );
+  });
+
+  // UNSPEC: a plain `false` has nothing to restore; turning it on stores
+  // `true`, and a map that held only `index` or `_all` collapses to `true`.
+  it("stores true when there is nothing to restore", async () => {
+    const puts = loadStateful({
+      a: { intelligence: false },
+      b: { intelligence: { index: false, _all: false } },
+    });
+    await waitFor(() => expect(sw("a / intelligence")).toBeInTheDocument());
+    fireEvent.click(sw("a / intelligence"));
+    await waitFor(() => expect(puts).toHaveLength(1));
+    fireEvent.click(sw("b / intelligence"));
+    await waitFor(() => expect(puts).toHaveLength(2));
+    expect(puts[1]).toEqual({
+      a: { intelligence: true },
+      b: { intelligence: true },
+    });
+  });
+
+  // UNSPEC: when the save fails the screen goes back to the policy it had,
+  // feature map included, and says so.
+  it("restores the previous map when the save fails", async () => {
+    loadStateful({ kept: { intelligence: kept } }, 500);
+    await waitFor(() => expect(sw("kept / intelligence")).toBeInTheDocument());
+    fireEvent.click(sw("kept / intelligence"));
+    await screen.findByText("disk full");
+    expect(sw("kept / intelligence").checked).toBe(true);
+    expect(
+      screen
+        .getByLabelText("kept / intelligence / transcription_cloud")
+        .getAttribute("aria-checked"),
+    ).toBe("false");
+  });
 });

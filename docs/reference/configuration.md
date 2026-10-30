@@ -64,6 +64,7 @@ Each entry under `addons` is either a `bool` for the whole addon or an object of
 - `"knowledge": false`: every feature of that addon is off for this drive.
 - `"intelligence": {"rag": false}`: `rag` is off; every other feature is on.
 - Key absent: everything is on.
+- `"intelligence": {"llm_cloud": false, "_all": false}`: `_all: false` in an object turns the whole addon off, and the other keys are kept so `/admin/settings` can bring them back when the addon is turned on again.
 
 Unlisted addons and features are on. The core does not interpret addon or feature names. `GET /api/drives/{name}/addon-policies` returns the normalised `{default, features}` view to the frontend, and `GET /api/internal/drive-policy` returns the same to addons. The settings API rejects a policy that names an unknown drive or an addon that is not installed.
 
