@@ -175,3 +175,106 @@ class TestMoveTagsFollowDrive:
         assert _tags(c, SRC) == {"alpha": 1}
         assert _tags(c, DST) == {}
         assert _rows_attached_to_nothing(db) == 0
+
+
+def _drive_names_of_tags(db, file_id):
+    db.expire_all()
+    return {t.drive for t in db.get(File, file_id).tags}
+
+
+# UNSPEC: a tag name matches its own case variants on the destination drive
+# whatever script it is written in, and a move never fails on a tag name.
+class TestNonAsciiTagNames:
+    def test_the_same_non_ascii_name_is_reused(self, two_drives):
+        c, db, open_dir, locked_dir = two_drives
+        _unlock(c)
+        _seed(db, locked_dir, DST, "other.mp4", ["Übung"])
+        f = _seed(db, open_dir, SRC, "a.mp4", ["Übung"])
+
+        _move(c, f.id, DST)
+
+        assert _tags(c, DST) == {"Übung": 2}
+
+    def test_a_non_ascii_case_variant_is_reused_without_renaming(self, two_drives):
+        c, db, open_dir, locked_dir = two_drives
+        _unlock(c)
+        _seed(db, locked_dir, DST, "other.mp4", ["Übung"])
+        f = _seed(db, open_dir, SRC, "a.mp4", ["übung"])
+
+        _move(c, f.id, DST)
+
+        assert _tags(c, DST) == {"Übung": 2}
+
+    def test_a_destination_holding_two_variants_resolves_to_the_older_row(self, two_drives):
+        c, db, open_dir, locked_dir = two_drives
+        _unlock(c)
+        _seed(db, locked_dir, DST, "one.mp4", ["Alpha"])
+        _seed(db, locked_dir, DST, "two.mp4", ["ALPHA"])
+        f = _seed(db, open_dir, SRC, "a.mp4", ["alpha"])
+
+        _move(c, f.id, DST)
+
+        assert _tags(c, DST) == {"Alpha": 2, "ALPHA": 1}
+
+
+# UNSPEC: a move onto a path held by a trashed record keeps the moved file's
+# tags, even when that record was the only user of the tag on the destination.
+class TestMoveOntoTrashedRecord:
+    def test_the_tag_the_trashed_record_alone_used_survives(self, two_drives):
+        from datetime import UTC, datetime
+
+        c, db, open_dir, locked_dir = two_drives
+        _unlock(c)
+        ghost = File(
+            filename="a.mp4",
+            title="ghost",
+            drive=DST,
+            folder_path="",
+            file_path="a.mp4",
+            file_size=1,
+            file_type="video",
+            mime_type="video/mp4",
+            deleted_at=datetime.now(UTC),
+        )
+        ghost.tags.append(Tag(name="alpha", drive=DST))
+        db.add(ghost)
+        db.commit()
+        f = _seed(db, open_dir, SRC, "a.mp4", ["alpha"])
+
+        _move(c, f.id, DST)
+
+        assert _tags(c, DST) == {"alpha": 1}
+        assert _drive_names_of_tags(db, f.id) == {DST}
+
+
+# UNSPEC: moving a file whose tag links point at a drive other than the one it
+# sits on leaves no tag behind on any drive it left.
+class TestMoveSweepsEveryDriveTheTagsCameFrom:
+    def test_stale_links_to_a_third_drive_are_swept(self, two_drives):
+        import json
+
+        import app.config as config
+
+        c, db, open_dir, locked_dir = two_drives
+        _unlock(c)
+        third_dir = open_dir.parent / "third"
+        third_dir.mkdir()
+        drives = json.loads(config.DRIVES_CONFIG.read_text())
+        drives.append({"name": "third", "path": str(third_dir)})
+        config.DRIVES_CONFIG.write_text(json.dumps(drives))
+        config._drives_cache = None
+
+        f = _seed(db, locked_dir, DST, "a.mp4", [])
+        f.tags.append(Tag(name="alpha", drive=SRC))
+        db.commit()
+        assert _tags(c, SRC) == {"alpha": 1}
+
+        res = c.put(
+            f"/api/files/{f.id}/move",
+            json={"target_drive": "third", "target_folder_path": ""},
+        )
+
+        assert res.status_code == 200
+        assert _tags(c, SRC) == {}
+        assert _tags(c, "third") == {"alpha": 1}
+        assert _rows_attached_to_nothing(db) == 0

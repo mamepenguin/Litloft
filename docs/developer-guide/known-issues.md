@@ -43,6 +43,10 @@ no password, so the drive is 404, `GET /api/admin/config/drives` is 403 and
 and then leaving the access mode at its Public default, and by re-running the
 wizard on an install that already has protected drives.
 
+**`readonly` in `drives.json` does nothing.** `drives.json.example` shows the key
+and nothing reads it, so a drive declared read-only still accepts a paste, a move
+or an edit.
+
 ## Files
 
 **A page foliate moves by itself is not saved.** Extending a text selection
@@ -66,6 +70,19 @@ Each was inherited from the host mime table and is now written down as a
 decision this project made, which it never did. Reached by putting one on a
 drive: the wrong player, the wrong bucket in the type filter, and for `.ass` a
 subtitle listed as a media file of its own.
+
+**A file moved between drives before the tag fix keeps its old tag links until it is moved again.**
+Such a file still links to the `Tag` rows of the drive it came from, so its tag
+counts on that drive and is missing from the list of the drive it sits on. There is
+no data migration. Reached only on a database that had such moves; the next move of
+the file between drives sweeps the old rows.
+
+**Adding a tag to a note whose frontmatter tags were never projected replaces them.**
+The tag chips are built from `File.tags`, and a scan does not fill it from
+frontmatter, so a note with `tags: [a, b]` shows no chips until the knowledge
+scanner has run or the note has been saved. Adding a tag then writes only that tag.
+Seen with the knowledge addon not running.
+
 
 **Bulk tagging skips a Markdown file it cannot rewrite without saying so.**
 For `.md` the tags live in the frontmatter, so a note whose frontmatter uses CRLF
@@ -137,6 +154,11 @@ The drive chip in the trail and the root band in the tree both offer themselves
 as destinations while dragging. The backend answers 409 and the handler swallows
 it: the target lights up, the drop lands, nothing happens and nothing is said.
 
+**The sidebar's tag list goes stale after a paste or bulk tagging.** It keeps its
+old rows until a reload or a change of folder or drive; the listing itself is
+current.
+
+
 **A failed Library listing reads `<drive> · 0 items`.** The listing hook sets
 the total to 0 on a failed request, so the scope line cannot tell a failure
 from an empty drive. Reached when the listing request fails.
@@ -185,6 +207,11 @@ result. Core's own `MarkdownPreview` path is wired; the addon drops it.
 An addon whose saved policy holds feature settings (`transcription_cloud: false`,
 say) is saved as a plain `true` or `false` when its own switch is pressed, so the
 feature settings are gone when it is turned back on.
+
+**The intelligence `/similar/{file_id}` route answers while the addon is off for
+the drive.** It is gated by file access only, so it stays 200 under a policy of
+`false`, where feature-gated routes answer 404.
+
 
 **Media Import's `url_import` feature switch only hides a menu row.** With
 `url_import: false` the Add menu has no **Import from URL**, but the Media Import

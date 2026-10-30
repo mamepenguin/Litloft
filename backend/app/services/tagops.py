@@ -1,6 +1,5 @@
 """Tag rows that outlive the files that referenced them."""
 
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models import File, Tag, file_tags
@@ -37,23 +36,27 @@ def retarget_file_tags(db: Session, file: File, src_drive: str, dst_drive: str) 
 
     A destination row is reused as it stands, so its spelling is never
     rewritten; a name with no row there gets one in the source's spelling.
-    Source rows the file leaves unreferenced are removed.
+    Every other drive the file's old rows belonged to is swept of rows it
+    leaves unreferenced, ``src_drive`` included.
 
     Transactional contract: caller commits. Call it before ``file.drive`` is
-    reassigned, with ``src_drive`` the drive the tags currently belong to.
+    reassigned, with ``src_drive`` the drive the file is leaving.
     """
     if src_drive == dst_drive:
         return
+    # Pending deletes (an orphan swept earlier in the same transaction) must
+    # reach the database first, or a row about to be deleted gets attached.
+    db.flush()
+    # SQLite's lower() folds ASCII only, so names are matched in Python.
+    dst_by_key: dict[str, Tag] = {}
+    for dst_tag in db.query(Tag).filter(Tag.drive == dst_drive).order_by(Tag.id):
+        dst_by_key.setdefault(dst_tag.name.lower(), dst_tag)
+    left_drives = {src_drive} | {tag.drive for tag in file.tags}
     retargeted: dict[str, Tag] = {}
     for tag in file.tags:
         key = tag.name.lower()
-        if key in retargeted:
-            continue
-        dst_tag = (
-            db.query(Tag)
-            .filter(func.lower(Tag.name) == key, Tag.drive == dst_drive)
-            .first()
-        )
-        retargeted[key] = dst_tag or Tag(name=tag.name, drive=dst_drive)
+        if key not in retargeted:
+            retargeted[key] = dst_by_key.get(key) or Tag(name=tag.name, drive=dst_drive)
     file.tags = list(retargeted.values())
-    cleanup_orphan_tags(db, src_drive)
+    for drive in sorted(left_drives - {dst_drive}):
+        cleanup_orphan_tags(db, drive)
