@@ -21,6 +21,7 @@ import {
   type AddonPolicy,
   type AddonPolicyFeature,
   type AddonStatusEntry,
+  withAddonSwitched,
 } from "@/lib/adminConfig";
 
 function describeError(err: unknown, t: (key: string) => string): string {
@@ -118,7 +119,7 @@ export function AddonPolicySection(): React.ReactElement {
     async (drive: string, addon: string) => {
       const current = isAddonOn(policy, drive, addon);
       const driveEntry = { ...(policy[drive] ?? {}) };
-      driveEntry[addon] = !current;
+      driveEntry[addon] = withAddonSwitched(driveEntry[addon], !current);
       const next: AddonPolicy = { ...policy, [drive]: driveEntry };
       setPolicy(next);
       setSaveError(null);

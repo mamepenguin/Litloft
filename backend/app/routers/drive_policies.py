@@ -23,12 +23,16 @@ def _normalize_policy(raw: bool | dict) -> AddonPolicy:
 
     - ``True`` / ``False``  → ``{default: <bool>, features: {}}``
     - ``{feature: bool}``   → ``{default: True, features: {...}}``
+    - ``{_all: bool, ...}`` → ``{default: <_all>, features: {}}``, as
+      ``GET /api/internal/drive-policy`` answers.
 
     ``load_drives()`` rejects any other shape at config-load time, so the
     branches here are exhaustive for valid configs.
     """
     if isinstance(raw, bool):
         return AddonPolicy(default=raw, features={})
+    if "_all" in raw:
+        return AddonPolicy(default=bool(raw["_all"]), features={})
     coerced = {key: bool(value) for key, value in raw.items()}
     return AddonPolicy(default=True, features=coerced)
 

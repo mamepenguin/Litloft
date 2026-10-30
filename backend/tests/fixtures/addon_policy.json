@@ -9,6 +9,8 @@
     { "name": "index false", "addons": { "knowledge": { "index": false } }, "on": false, "features": { "editor": true, "transcription_cloud": true } },
     { "name": "index true", "addons": { "knowledge": { "index": true } }, "on": true, "features": { "editor": true, "transcription_cloud": true } },
     { "name": "a feature false", "addons": { "knowledge": { "editor": false } }, "on": true, "features": { "editor": false, "transcription_cloud": true } },
-    { "name": "index true and a feature false", "addons": { "knowledge": { "index": true, "editor": false } }, "on": true, "features": { "editor": false, "transcription_cloud": true } }
+    { "name": "index true and a feature false", "addons": { "knowledge": { "index": true, "editor": false } }, "on": true, "features": { "editor": false, "transcription_cloud": true } },
+    { "name": "_all false keeping feature keys", "addons": { "knowledge": { "editor": true, "transcription_cloud": false, "_all": false } }, "on": false, "features": { "editor": false, "transcription_cloud": false, "other": false } },
+    { "name": "_all true over a feature false", "addons": { "knowledge": { "editor": false, "_all": true } }, "on": true, "features": { "editor": true, "transcription_cloud": true } }
   ]
 }
