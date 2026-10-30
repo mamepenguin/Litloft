@@ -71,6 +71,7 @@ Litloft draws its own control bar over the video. It looks different with a mous
 - Mini player: on a computer, scrolling the video out of view shrinks it into a small window at the bottom right. It has only play, time, mute and seeking; set speed and subtitles before you scroll away, or restore the full player.
 - The lock screen and media keys control playback, including next and previous in a collection.
 - **Cast**: a Chromecast button appears when one is found.
+- `.mts` files have no player, because that extension also names a TypeScript module. For footage from a camcorder, rename them to `.m2ts`.
 
 In the [iOS app](ios-app.md), leaving the app moves the video into picture-in-picture, and there is no mini player.
 

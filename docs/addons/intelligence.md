@@ -363,7 +363,7 @@ Every flag except `indexing`, `search` and `auto_tags` does nothing while `llm.p
 llm:
   provider: "disabled"                # ollama | openai_compatible | disabled
   base_url: ""                        # ollama: "http://host.docker.internal:11434"
-  api_key: ""                         # or env LLM_API_KEY (ignored for ollama)
+  api_key: ""                         # or env LLM_API_KEY (ignored for ollama); keep the quotes, a bare number is ignored
   model: ""                           # e.g. "gemma4:e4b", "gpt-4o-mini"
   max_tokens: 8192
   temperature: 0.3
@@ -424,7 +424,7 @@ llm:
 
 - A profile names its own endpoint and model; only tuning knobs (`temperature`, `max_tokens`, retries, timeouts, `reasoning`, vision limits) are inherited from the top of `llm`. The output language is global and cannot be set per profile.
 - `offhost` says the model runs on a server outside this machine. A profile without it counts as one. Such a profile is used only on drives whose `llm_cloud` policy is on; elsewhere the feature runs on `local_fallback`, or does not run. If the policy cannot be read, nothing is sent and the job is picked up again later.
-- `api_key_env` must be `LLM_API_KEY` or `LLM_API_KEY_<NAME>`. Leave it out for a profile that needs no key. Add the variable to the `intelligence` service in `docker-compose.override.yml`; a new variable needs a container restart.
+- `api_key_env` must be `LLM_API_KEY` or `LLM_API_KEY_<NAME>`. Any other name turns every LLM feature off until it is corrected. Leave it out for a profile that needs no key. Add the variable to the `intelligence` service in `docker-compose.override.yml`; a new variable needs a container restart.
 - Features: `rag` (Ask and Find), `summaries`, `detailed_summaries`, `auto_tags`, `transcript_refine`, `retrieval_keywords`, `chapter_suggestions`, `vision_describe`, `video_visual_index`. A vision feature needs a profile with a `vision_model`.
 - The multi-step Ask runs on a profile with `agentic: true`, or, for the single `default` profile, a model listed in `agentic_models`. `agentic_mode: "off"` stops it for every profile.
 - A mistake in `profiles` or `routing` (an unknown profile or feature, a fallback that is an external server, an invalid key variable) turns every LLM feature off and shows the reason in the settings page.

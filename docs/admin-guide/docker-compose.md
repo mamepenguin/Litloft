@@ -178,6 +178,10 @@ services:
           memory: 8g
 ```
 
+## Behind a reverse proxy
+
+Pass the browser's `Host` header through unchanged. The EPUB reader only runs scripts from the `Host` a request arrived with, so behind a proxy that rewrites it, a book stays on *Loading the book...*.
+
 ## Multiple instances
 
 To run two Litlofts on one host, clone into two directories, give each its own `LITLOFT_PORT`, and start each with its own project name, for example `docker compose -p litloft-a up -d`. Each directory has its own `data/`, `drives.json`, `passwords.json` and `.env`.
