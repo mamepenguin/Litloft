@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "non-ascii-capital-tag-edit-fails-after-move",
+      "status": "confirmed",
+      "note": "Traced by reading, not run. For row `Übung`, files.py:162 compares SQL lower(Tag.name), which stays `Übung` (no create_function in backend/app), with Python `übung`, so the lookup misses. files.py:168 and :204 build a duplicate (drive, name). uq_tags_drive_name (models.py:47) rejects it at the flush in cleanup_orphan_tags (tagops.py:24) or at files.py:206. update_file_tags (files.py:817-819) has no handler, batch_tags (files.py:446-451) catches only HTTPException and OSError, and backend/app has no exception_handler. merge_file_tags skips a file already holding the name (files.py:193), so the batch path fails only for a file without it. A move is not needed: a second file tagged `Übung` on one drive hits the same error, and files.py is the existing helper, so the defect is pre-existing and the move only adds a route to it. The new tests never edit tags after the move."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "exact-name-row-passed-over-for-older-variant",
+      "status": "confirmed",
+      "note": "tagops.py:52-53 keeps the lowest-id row per name.lower() and tagops.py:59 looks up only that key, so an exact row with a higher id is not chosen. Reachability is narrower than the seed in the pinned test: replace_file_tags and merge_file_tags match ASCII variants and create no second row (files.py:162, :169-170), and Tag() is built only at files.py:168, files.py:204 and tagops.py:59, so current code does not create `Alpha` and `ALPHA` together. Coexistence through normal use needs a non-ASCII capital created first: `Übung`, then `übung` (files.py:162 misses, :168 creates). Moving `übung` then lands on `Übung`."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "variant-row-on-destination-stranded-by-return-move",
+      "status": "confirmed",
+      "note": "tagops.py:61 excludes dst_drive from the sweep, and tagops.py:53 and :59 can resolve a stale-linked file to an older row. Sequence on drive B: rows `Übung`(1) and `übung`(2), a file on row 2 moved to A by the old code keeps that link, then moved back to B by this commit. It attaches to row 1, row 2 is linked to nothing and is listed with count 0 (drives.py:817-820). It needs legacy data plus a non-ASCII variant pair. The row is removed by the next cleanup_orphan_tags on B, for example any tag edit there (files.py:818), so the stranding is not permanent."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F1-python-fold-ignores-exact-row-and-lands-on-unfilterable-row",
+      "status": "confirmed",
+      "note": "tagops.py:52-53 and :59 behave as claimed. files.py:162 and :167-168 allow `Übung` then `übung` on one drive. drives.py:716 compares SQL lower with name.lower(), so both spellings select only the `übung` row, and a file linked to `Übung` is not listed. A file tagged `übung` that is filterable on the source becomes unfilterable after a move onto `Übung`, even when an exact `übung` row exists on the destination. test_a_non_ascii_case_variant_is_reused_without_renaming (test_move_tags_follow_drive.py:198-206) pins the merge and checks only the tag list. The statement about the replaced code was checked against the r1 triage quote of tagops.py:54 (`func.lower(Tag.name) == key`), not against the old source itself. The filter's folding limit is pre-existing; landing moved files on the unfilterable row is new in this commit."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F2-non-ascii-capital-tag-edit-fails-after-reuse",
+      "status": "confirmed",
+      "note": "files.py:162, :168 and models.py:47 fail as traced. For Markdown, files.py:781-790 writes the content first, then files.py:796-803 rolls back and answers 500 `Tag projection failed`. internal.py:165-166 calls the same helper. The validator at schemas.py:129 uses re.UNICODE and accepts `Übung`, and schemas.py:132-137 dedupes only within one request. files.py:198-206 has the same lookup. known-issues.md:204 records only the listing symptom. In addition, files.py:1655-1671 logs and swallows the same failure on a Markdown content save, so the save succeeds while File.tags is not updated. Pre-existing and not specific to a move."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F3-legacy-link-row-stranded-by-tag-edit-or-purge",
+      "status": "confirmed",
+      "note": "fileops.py:697-701 and files.py:817-818 sweep only file.drive, and every cleanup_orphan_tags caller in backend/app passes one drive (fileops.py:194, :701, upload.py:265, files.py:798, :818, :1659, internal.py:166, tagops.py:62). tagops.py:45-46 returns early on a same-drive move. A stale link's row therefore stays and is listed with count 0 (drives.py:814-819). database.py has no repair of tag rows by drive. Requires links written by the old code, which normal moves produced. Pre-existing, and the next sweep on the row's own drive removes the row."
+    }
+  ],
+  "specification_compliance": [
+    "The move path at tagops.py:34-62 satisfies the UNSPEC comments in test_move_tags_follow_drive.py by reading: non-ASCII variants match, a name cannot cause a unique-constraint failure in the move, and the drives of the file's old rows other than the destination are swept.",
+    "docs/process/workflow.md says R-5 runs again when a post-review fix changes what a user can observe. decisions.md records R-5 at 295ba729f, before this commit, which changes non-ASCII tag matching and the sweep."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "No spec text or test states whether a moved tag should prefer an exact-name row on the destination over an older case variant; test_a_destination_holding_two_variants_resolves_to_the_older_row covers only a destination with no exact row.",
+    "Moving a non-ASCII lowercase tag onto a capitalised row merges two spellings that tag editing and the tag filter treat as separate tags."
+  ],
+  "regression_risks": [
+    "A file tagged `übung` that is filterable on its source becomes unfilterable after a move onto a `Übung` row, because drives.py:716 never matches that row.",
+    "More files can now be attached to non-ASCII capital rows through moves, and any tag edit that names such a row fails at files.py:162-168."
+  ],
+  "test_coverage": [
+    "test_move_tags_follow_drive.py covers variant reuse and the older-row choice, but no destination holding an exact row beside an older variant.",
+    "No test edits tags or filters by tag after a move onto a non-ASCII capital row.",
+    "test_stale_links_to_a_third_drive_are_swept covers a stale link to a drive other than the destination; no test covers a stale link to the destination that resolves to an older variant, or a stale link followed by a tag edit or purge.",
+    "A name-pattern grep of backend/tests found no other test with case, unicode or non-ASCII in a tag test name."
+  ],
+  "not_verified": [
+    "Nothing was executed: all six records come from reading the code, so the IntegrityError and the response codes were not observed.",
+    "Whether the SQLite build in the deployed image has ICU; this rests on no registration in backend/app and on known-issues.md:204.",
+    "The old retarget code was read only through the quotes in the r1 triage, and no git diff was available.",
+    "Addon code that may call the tag helpers or read tag rows, and the frontend tag and filter requests, were not read.",
+    "How often the scanner or knowledge addon re-posts tags through internal.py:165-166."
+  ],
+  "confidence": 85
+}
