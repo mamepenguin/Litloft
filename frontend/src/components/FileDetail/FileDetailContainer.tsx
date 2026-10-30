@@ -83,7 +83,7 @@ export function FileDetailContainer({
   const { decided, plainTextDocument } = usePlainTextDocument(
     file,
     drive,
-    knowledgeEditorPolicy.enabled,
+    knowledgeEditorPolicy,
   );
 
   const ridesShell = ridesFileDetailShell({

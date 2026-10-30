@@ -330,6 +330,37 @@ describe("SPEC-CORE-020 deciding needs the addon's slot list for this drive (I8)
     await isCanvasText();
   });
 
+  it("falls back to the canvas viewer when the editor policy turns out off after loading", async () => {
+    usePolicyMock.mockReturnValue({ enabled: true, isLoading: true });
+    const view = mount();
+    await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    usePolicyMock.mockReturnValue({ enabled: false, isLoading: false });
+    view.rerender(<FileDetailContent fileId="f1" drive="main" />);
+
+    await isCanvasText();
+    for (const stub of screen.queryAllByTestId("knowledge-edit-stub")) {
+      expect(stub.dataset.plainText).toBe("false");
+    }
+  });
+
+  it("keeps the canvas viewer of a policy-off .txt while the policy is refetched", async () => {
+    usePolicyMock.mockReturnValue({ enabled: false, isLoading: false });
+    const view = mount();
+    await isCanvasText();
+
+    usePolicyMock.mockReturnValue({ enabled: true, isLoading: true });
+    view.rerender(<FileDetailContent fileId="f1" drive="main" />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(screen.getByTestId("file-preview")).toBeInTheDocument();
+  });
+
   it("does not unmount a mounted plain-text document when the catalogue reloads", async () => {
     const view = mount();
     await isDocument();

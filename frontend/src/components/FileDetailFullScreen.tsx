@@ -135,7 +135,7 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
   const { plainTextDocument } = usePlainTextDocument(
     file,
     file?.drive ?? "",
-    knowledgeEditorPolicy.enabled,
+    knowledgeEditorPolicy,
   );
   const contentBringsItsOwnRow = ridesFileDetailShell({
     surface: "collection",
