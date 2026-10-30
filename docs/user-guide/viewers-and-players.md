@@ -144,7 +144,7 @@ Text and source files are shown read-only, with line numbers. Copying the text l
 
 A file over 1 MB asks before it loads. A very large file is shown without numbers or colour.
 
-Markdown notes can be edited in the app (see above), and so can a `.txt` file up to 1 MB when the knowledge editor is on. A `.txt` opens in **Read** and has an **Edit** switch beside the name; see [the editor](../addons/knowledge.md#the-editor). A `.txt` that is not UTF-8 text, or whose line endings are mixed, opens read-only. Other text and source files stay read-only.
+Markdown notes can be edited in the app (see above), and so can a `.txt` file up to 1 MB when the knowledge editor is on. A `.txt` opens in **Preview** and has an **Edit** switch beside the name; see [the editor](../addons/knowledge.md#the-editor). A `.txt` that is not UTF-8 text, or whose line endings are mixed, opens read-only. Other text and source files stay read-only.
 
 ## Imported videos (media_import addon)
 

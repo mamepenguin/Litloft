@@ -80,10 +80,20 @@ export function formatShortcut(key: string): string {
     .join(isMacPlatform() ? "" : "+")
 }
 
+// Keyed by character, not e.code: on a JIS keyboard the key that types "|"
+// with Shift is the ¥/\ key, which e.code would report as a different key.
+const UNSHIFTED_PUNCTUATION: Record<string, string> = {
+  "~": "`", "!": "1", "@": "2", "#": "3", "$": "4", "%": "5", "^": "6",
+  "&": "7", "*": "8", "(": "9", ")": "0", "_": "-", "+": "=", "{": "[",
+  "}": "]", "|": "\\", ":": ";", '"': "'", "<": ",", ">": ".", "?": "/",
+}
+
 /**
  * "ctrl" means Cmd on macOS; a bare Ctrl there does not match, so
  * emacs-style bindings stay free. "shift+" is omitted for Shift+printable,
  * because `e.key` is already the shifted character ("?", not "/").
+ * With another modifier held the shifted character is mapped back to its
+ * unshifted key, so a binding is written with the key's face (`ctrl+shift+\\`).
  */
 export function normalizeKey(e: KeyboardEvent): string {
   const parts: string[] = []
@@ -94,7 +104,13 @@ export function normalizeKey(e: KeyboardEvent): string {
   if (e.altKey) parts.push("alt")
   if (e.shiftKey && (hasOtherModifier || e.key.length > 1)) parts.push("shift")
 
-  const key = e.key === " " ? "space" : e.key.toLowerCase()
+  const shiftInChord = e.shiftKey && hasOtherModifier
+  const key =
+    e.key === " "
+      ? "space"
+      : shiftInChord
+        ? (UNSHIFTED_PUNCTUATION[e.key] ?? e.key.toLowerCase())
+        : e.key.toLowerCase()
   parts.push(key)
 
   return parts.join("+")

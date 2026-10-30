@@ -172,7 +172,7 @@ While editing a note:
 | `Cmd/Ctrl+K` | Insert link |
 | `Cmd/Ctrl+E` | Inline code |
 | `Cmd/Ctrl+Shift+K` | Code block |
-| `Cmd/Ctrl+Shift+\` | Switch between Edit, Split and Preview (on a `.txt` file: between Edit and Read) |
+| `Cmd/Ctrl+Shift+\` | Switch between Edit, Split and Preview (on a `.txt` file: between Edit and Preview) |
 
 Notes save automatically. `Cmd/Ctrl+S` marks the current text as a version to keep. In the editor `Cmd/Ctrl+K` inserts a link instead of opening search.
 
