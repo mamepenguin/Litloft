@@ -17,7 +17,7 @@ from app.nanoid import generate_nanoid
 from app.services.atomic_write import generating_file
 from app.services.heic import cleanup_heic_cache
 from app.services.markdown_images import project_markdown_thumbnail
-from app.services.tagops import cleanup_orphan_tags
+from app.services.tagops import cleanup_orphan_tags, retarget_file_tags
 
 logger = logging.getLogger(__name__)
 
@@ -493,6 +493,7 @@ def move_file(db: Session, file_id: str, target_drive: str | None, target_folder
 
         old_drive = file.drive
         old_folder = file.folder_path
+        retarget_file_tags(db, file, old_drive, dst_drive)
         file.drive = dst_drive
         file.folder_path = target_folder
         file.file_path = new_rel

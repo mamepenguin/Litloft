@@ -67,14 +67,6 @@ decision this project made, which it never did. Reached by putting one on a
 drive: the wrong player, the wrong bucket in the type filter, and for `.ass` a
 subtitle listed as a media file of its own.
 
-**A file moved to another drive keeps the tags of the drive it came from.**
-`move_file` reassigns `File.drive` and leaves `file_tags` pointing at the source
-drive's `Tag` rows, so the source drive's tag list counts a file that is no
-longer in it, and the destination drive's list does not show the tag at all.
-Purging the file afterwards sweeps the destination drive, so the source row is
-left attached to nothing. This crosses the drive boundary rather than only
-reading wrong. Reached by moving a tagged file between drives.
-
 **Bulk tagging skips a Markdown file it cannot rewrite without saying so.**
 For `.md` the tags live in the frontmatter, so a note whose frontmatter uses CRLF
 line endings, does not parse, or has a `tags:` that is not a list is refused and
