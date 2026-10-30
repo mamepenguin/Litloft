@@ -52,7 +52,7 @@ def _listed(c, drive, name):
     return {f["id"] for f in res.json()["data"]}
 
 
-# UNSPEC: choosing a tag lists the files of every row in the drive that is the
+# UNSPEC: choosing a tag lists the files of every row that is the
 # same name in another case, and nothing from another drive.
 class TestTagFilter:
     @pytest.mark.parametrize(
@@ -82,6 +82,16 @@ class TestTagFilter:
         _seed(db, locked_dir, DST, "b.mp4", ["übung"])
 
         assert _listed(c, SRC, "Übung") == {f.id}
+
+    # UNSPEC: a file moved before tags followed their drive still links to its
+    # old drive's row, and choosing the tag on its current drive lists it.
+    def test_a_file_linked_to_another_drives_row_is_listed(self, two_drives):
+        c, db, open_dir, _ = two_drives
+        f = _seed(db, open_dir, SRC, "a.mp4", [])
+        f.tags = [Tag(name="trip", drive=DST)]
+        db.commit()
+
+        assert _listed(c, SRC, "trip") == {f.id}
 
 
 # UNSPEC: editing the tags of a file that holds a non-ASCII-capital tag

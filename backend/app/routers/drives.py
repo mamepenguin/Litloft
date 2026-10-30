@@ -715,8 +715,11 @@ def list_drive_files(
     chosen = [name for name in tag or [] if name]
     if chosen:
         # Folded in Python: SQLite's lower() leaves non-ASCII capitals alone.
+        # Not narrowed to this drive's rows: a file moved before tags followed
+        # their drive links to its old drive's row, and File.drive above already
+        # bounds what is listed.
         by_fold: dict[str, list[int]] = defaultdict(list)
-        for tag_id, tag_name in db.query(Tag.id, Tag.name).filter(Tag.drive == drive_name):
+        for tag_id, tag_name in db.query(Tag.id, Tag.name):
             by_fold[tag_name.lower()].append(tag_id)
         for name in chosen:
             query = query.filter(
