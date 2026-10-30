@@ -1,0 +1,92 @@
+{
+  "risk": "HIGH",
+  "score": 7,
+  "base": 3,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "addons/knowledge",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "docs/addons/knowledge.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/keyboard-shortcuts.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/viewers-and-players.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/plain-text-document.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FileDetailContainer.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FileDetailPresenter.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/ShellLayout.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/PlainTextDocument.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/hooks/usePlainTextDocument.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetailFullScreen.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/componentFixtureParity.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/markdown/EditableTitle.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/markdown/MarkdownDocumentLayout.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/__tests__/fileDetailShell.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/fileDetailShell.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/textKind.ts",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}

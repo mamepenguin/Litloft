@@ -99,7 +99,9 @@ A note's title is its filename. Rename the file to rename the note.
 
 ## The editor
 
-A Markdown file on a drive with the editor turned on opens in the editor on its file page. A `.txt` file opens for reading only.
+A Markdown file on a drive with the editor turned on opens in the editor on its file page.
+
+A `.txt` file up to 1 MB opens the same way, in a plain editor: **Read** and **Edit** only, no Split, no formatting buttons, no Markdown styling, no `[[` links, and nothing is uploaded when you drop or paste a file. Autosave, the conflict prompt and version history work as for a note. The file keeps its byte order mark and line endings. The name above the page edits the part before `.txt`, and `.txt` stays. A `.txt` that is not UTF-8 text or whose line endings are mixed opens in **Read** and shows a notice in **Edit**; it has no version history. A `.txt` over 1 MB, and every other text file, stays read-only.
 
 The editor has three views: **Edit**, **Split** (editor and preview side by side, not offered on narrow screens), and **Preview**. In **Edit**, live preview styles the text as you type: headings, bold, links, lists, task checkboxes and code blocks. The Markdown characters are hidden except on the line the cursor is on. Frontmatter is shown as YAML in **Edit** and as a properties card in **Preview**.
 
@@ -121,7 +123,7 @@ The editor's keys are listed in [Keyboard shortcuts](../user-guide/keyboard-shor
 Litloft keeps a version every time a `.md` or `.txt` file is written, whoever wrote it, and when the file is created. The knowledge addon adds the **Version history** panel at the bottom of the editor. You can also open it from **Version history** in the editor toolbar menu or in the file's `...` menu.
 
 - Versions are listed newest first, 50 per page. Each shows the time, whether it is a **Kept version** or **Autosaved**, who saved it if they have a profile, and how many lines were added and removed.
-- Select a version to see what changed in it. **Read-only preview** shows its full text as raw Markdown.
+- Select a version to see what changed in it. **Read-only preview** shows its full text as raw Markdown (for a `.txt`, exactly as stored).
 - **Restore this version** saves the old text as a new version, so a restore can itself be undone. Unsaved edits are kept as a version first.
 - `Cmd/Ctrl+S`, or **Keep this version**, marks the current text as a kept version.
 - Autosaves by the same person within five minutes of each other are merged into one version.

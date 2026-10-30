@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useCallback,
   useMemo,
   useState,
   type ReactElement,
@@ -34,6 +35,8 @@ interface MarkdownDocumentLayoutProps {
   onScrollRootChange?: (node: HTMLElement | null) => void;
   resetKey?: string;
   previewOnly?: boolean;
+  /** Read and Edit only: there is no rendering that differs from the source. */
+  plainText?: boolean;
 }
 
 export function MarkdownDocumentLayout({
@@ -49,6 +52,7 @@ export function MarkdownDocumentLayout({
   onScrollRootChange,
   resetKey,
   previewOnly = false,
+  plainText = false,
 }: MarkdownDocumentLayoutProps): ReactElement {
   const searchParams = useSearchParams();
   const isMobile = useIsMobile();
@@ -56,8 +60,13 @@ export function MarkdownDocumentLayout({
   // the rendered output first. `useCreateFile` carries `?edit=1` through
   // the canonical-URL redirect for freshly created notes; that's the one
   // case where landing in "edit" is the desired UX.
-  const [viewMode, setViewMode] = useState<MarkdownViewMode>(() =>
+  const [viewMode, setViewModeState] = useState<MarkdownViewMode>(() =>
     searchParams?.get("edit") === "1" ? "edit" : "preview",
+  );
+  const setViewMode = useCallback(
+    (next: MarkdownViewMode) =>
+      setViewModeState(plainText && next === "split" ? "preview" : next),
+    [plainText],
   );
   const [saveState, setSaveState] = useState<MarkdownSaveState>({
     status: "idle",
@@ -81,7 +90,7 @@ export function MarkdownDocumentLayout({
   // standalone, and the chrome owns it when mounted under us).
   useEffect(() => {
     if (isMobile && viewMode === "split") setViewMode("preview");
-  }, [isMobile, viewMode]);
+  }, [isMobile, viewMode, setViewMode]);
 
   const chromeValue: MarkdownChromeContextValue = useMemo(
     () => ({
@@ -90,7 +99,7 @@ export function MarkdownDocumentLayout({
       publishSaveState: setSaveState,
       isMobile,
     }),
-    [viewMode, isMobile],
+    [viewMode, setViewMode, isMobile],
   );
 
   return (
@@ -102,7 +111,11 @@ export function MarkdownDocumentLayout({
         onBack={onBack}
         titleNode={
           onRename && !previewOnly ? (
-            <EditableTitle title={title} onRename={onRename} />
+            <EditableTitle
+              title={title}
+              onRename={onRename}
+              fixedSuffix={plainText ? title.slice(-4) : undefined}
+            />
           ) : undefined
         }
         chromeControls={
@@ -112,7 +125,7 @@ export function MarkdownDocumentLayout({
               <MarkdownViewModeToggle
                 mode={viewMode}
                 onChange={setViewMode}
-                hideSplit={isMobile}
+                hideSplit={isMobile || plainText}
               />
             </>
           )

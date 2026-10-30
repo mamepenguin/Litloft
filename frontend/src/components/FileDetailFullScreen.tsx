@@ -13,6 +13,7 @@ import {
 import { useSetOverrideDrive } from "@/components/CurrentDriveProvider";
 import { usePolicy } from "@/hooks/usePolicy";
 import { ridesFileDetailShell } from "@/lib/fileDetailShell";
+import { usePlainTextDocument } from "./FileDetail/hooks/usePlainTextDocument";
 import { useOverlaySidebar } from "@/components/SidebarProvider";
 import { useFileNav } from "@/hooks/useFileNav";
 import { getFileShared } from "@/lib/api";
@@ -131,11 +132,17 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
   // draws the page row itself; drawing one here too would put two
   // breadcrumbs on the page.
   const knowledgeEditorPolicy = usePolicy(file?.drive ?? "", "knowledge", "editor");
+  const { plainTextDocument } = usePlainTextDocument(
+    file,
+    file?.drive ?? "",
+    knowledgeEditorPolicy,
+  );
   const contentBringsItsOwnRow = ridesFileDetailShell({
     surface: "collection",
     mimeType: file?.mime_type,
     fileType: file?.file_type,
     knowledgeEditorEnabled: knowledgeEditorPolicy.enabled,
+    plainTextDocument,
   });
 
   const isVideoTheater = hasCollection && file?.file_type === "video";

@@ -22,6 +22,7 @@ import { FileMetaBlock } from "./FileMetaBlock";
 import { useCompanionMetrics } from "./hooks/useCompanionMetrics";
 import { useFileDetailData } from "./hooks/useFileDetailData";
 import { FileDetailSkeleton } from "./FileDetailSkeleton";
+import { usePlainTextDocument } from "./hooks/usePlainTextDocument";
 import { useSlotAvailability } from "./hooks/useSlotAvailability";
 
 export interface FileDetailContentProps {
@@ -79,11 +80,18 @@ export function FileDetailContainer({
   // `useEffect([fileId])`.
   const knowledgeEditorPolicy = usePolicy(drive, "knowledge", "editor");
 
+  const { decided, plainTextDocument } = usePlainTextDocument(
+    file,
+    drive,
+    knowledgeEditorPolicy,
+  );
+
   const ridesShell = ridesFileDetailShell({
     surface,
     mimeType: file?.mime_type,
     fileType: file?.file_type,
     knowledgeEditorEnabled: knowledgeEditorPolicy.enabled,
+    plainTextDocument,
   });
 
   // The shell owns the element that scrolls the canvas, so on the shell
@@ -112,7 +120,7 @@ export function FileDetailContainer({
     );
   }
 
-  if (!file) {
+  if (!file || !decided) {
     return (
       <FileDetailSkeleton
         drive={drive}
@@ -159,6 +167,7 @@ export function FileDetailContainer({
   const useDocumentLayout = usesDocumentShell(
     file.mime_type,
     knowledgeEditorPolicy.enabled,
+    plainTextDocument,
   );
 
   /**
@@ -275,6 +284,7 @@ export function FileDetailContainer({
       isHtmlPreview={isHtmlPreview}
       hasPlayer={hasPlayer}
       usesCanvasViewer={usesCanvasViewer}
+      plainTextDocument={plainTextDocument}
       descriptionInCanvas={descriptionInCanvas}
       playerFramed={playerFramed}
       companionKind={companionKind}
