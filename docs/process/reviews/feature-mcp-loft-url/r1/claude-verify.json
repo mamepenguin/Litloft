@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "claude-read-1",
+      "status": "confirmed",
+      "note": "Reproduced against the files in the worktree. mcp-server/src/__tests__/loftUrl.test.ts exists. It is 138 lines plus a trailing newline and holds a describe.each over get_video_frame and list_video_scenes (loftUrl.test.ts:43-54) that covers I1 (:55-70), I3 (:72-89), I6 (:91-97), I2/I5 (:99-124), plus the duration-order check (:127-138). The spec's touch-point list (docs/specs/mcp-loft-url.md:120) names only videoFrames.test.ts for tests, so the new file is outside the list. In videoFrames.test.ts the .loft tests at :138 and :440 still assert only the fallback text (:146 and :452). This matches spec §7 (docs/specs/mcp-loft-url.md:87-92), which says those tests 'stay as they are'. The touch-point line ('the existing .loft test and new tests') says something different, so the spec contradicts itself. I could not run git, so I did not diff the file to prove videoFrames.test.ts is byte-for-byte unchanged. Its .loft tests do match the unchanged-test description."
+    }
+  ],
+  "specification_compliance": [
+    "video.ts:56-76 implements the URL text, the fallback for any read or parse failure, and a stream request with no drive header, as spec items 3-5 and I1/I2/I5 require.",
+    "The new tests are in loftUrl.test.ts, not in videoFrames.test.ts as the touch points say (finding claude-read-1)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Spec §7 and the touch-point line disagree on whether videoFrames.test.ts gets new tests."
+  ],
+  "regression_risks": [
+    "Low: the fallback catch-all in readLoftUrl (video.ts:73) hides every stream failure. The spec intends this."
+  ],
+  "test_coverage": [
+    "loftUrl.test.ts covers I1, I2, I3 (paths and headers), I5 (no API error text) and I6 for both tools, and checks that the .loft check runs before the duration check.",
+    "I4 (non-.loft files send no stream request) is not tested in loftUrl.test.ts. videoFrames.test.ts:620 asserts rawCalls is empty in one place."
+  ],
+  "not_verified": [
+    "I did not run git diff, so I did not confirm that videoFrames.test.ts and testClient.ts are unchanged between origin/develop and ab22e431c.",
+    "I did not run the test suite.",
+    "I did not check the README rows or the tool description wording."
+  ],
+  "confidence": 85
+}

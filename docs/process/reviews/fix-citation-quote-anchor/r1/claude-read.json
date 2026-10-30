@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The diff edits addons/intelligence/tests/test_summaries.py. That file is not in the touch-point list: it neither constructs ContextSnippet nor asserts quotes, and the list names only those existing tests.",
+      "impact": "No user-visible impact. The change adds a test class for trim_to_sentence_boundary_with_offset to the summaries test module. A reader looking at the touch-point list would not expect the summaries suite to change, even though the I10 guard for trim_to_sentence_boundary now lives there.",
+      "evidence": "addons/intelligence/tests/test_summaries.py:17 imports trim_to_sentence_boundary_with_offset. TestTrimToSentenceBoundaryWithOffset is appended at the end of the file (around lines 2318-2352) and compares the result against the summaries alias _trim_to_sentence_boundary (app/workers/summaries.py:112). The touch-point list covers text_utils.py and 'Existing tests that construct ContextSnippet or assert quotes' only.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Scope drift into a test module that is not listed. It breaks no declared invariant, and the test itself supports I10.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Either add the summaries/text_utils test module to the touch points in the invariants revision, or move the class into the new test_citation_quote_anchor.py (or a test_text_utils.py)."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The diff adds a new test module, addons/intelligence/tests/test_citation_quote_anchor.py. The touch-point list names only existing tests that get updated, and no new test file.",
+      "impact": "None for users. The touch-point list just leaves out the new test file.",
+      "evidence": "The new file addons/intelligence/tests/test_citation_quote_anchor.py (680 lines). The touch points say 'Existing tests that construct ContextSnippet or assert quotes. These are updated to the new behaviour'.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Tests for the spec are expected, so this is a documentation gap in the touch-point list rather than a defect. No invariant is involved.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "List the new test module in the touch points of the invariants revision."
+    }
+  ],
+  "specification_compliance": [
+    "All production edits are in listed touch points: context.py (anchor field, _joined_offset helper, window/neighbour anchors, _cap_snippets), service.py (_quote_from_contexts only), and text_utils.py (new companion trim_to_sentence_boundary_with_offset that trim_to_sentence_boundary delegates to).",
+    "trim_to_sentence_boundary returns [0] of the companion. The companion keeps the original leading_cut, trailing_cut and strip logic, so the string result looks unchanged (I10).",
+    "stages.py, Page.tsx, askNoteFormat.ts, the MCP ask tool and prompt.py are not touched by the diff.",
+    "The core diff touches only the submodule pointer, docs/specs/INDEX.md and the new spec, which are implicit touch points."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "service.py uses getattr(chosen, 'anchor', 0), so duck-typed snippet objects without anchor still work. The spec does not describe this tolerance."
+  ],
+  "regression_risks": [
+    "context.py no longer imports trim_to_sentence_boundary. Any test that monkeypatches app.rag.context.trim_to_sentence_boundary would now fail or have no effect (not searched exhaustively)."
+  ],
+  "test_coverage": [
+    "The new test_citation_quote_anchor.py covers window and neighbour anchors, identical-text neighbours, budget clipping (kept, lost, removed > anchor) and the citation dict paths.",
+    "test_summaries.py adds parametrized cases for the removed offset, including the fallback branch, and checks equality with the old trim."
+  ],
+  "not_verified": [
+    "Did not run the test suite.",
+    "Did not read the repository's rules and process documents in full to check whether test-module placement conventions apply.",
+    "Did not search all tests for monkeypatches of app.rag.context.trim_to_sentence_boundary."
+  ],
+  "confidence": 80
+}

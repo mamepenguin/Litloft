@@ -1,0 +1,96 @@
+event: keywords
+data: {"keywords": "140W充電器 比較動画 候補"}
+
+event: shortlist
+data: {"file_ids": ["532Tz9YssoCP", "YjXcBiGfWOG1", "iBwmMwhU19Nd", "ZLjxMzGCnWWw", "kIQR5PWfiZ4q", "AlWSycNkuiHE", "d_OpfE50VeRO", "RahUIjcLoXp_", "DuRk8Z-B68TR", "NAKG9JnCTLOW", "Q_lSHWSKdave", "DJwqyKQYwPtd", "PvySIIbEWLu9", "_y3nhP7GmS0U", "M_mrFZNz3YVA", "E4_WfZ4-rqco", "7OgMO7sm5kqs", "3Y7d7c2fZx3p", "bBmbHbyVSw_Z", "cpIBBHrC9XhR", "-Oa1BZoKKTub", "ccwTmVZpWasI", "j6u_k96fPNqv", "Ln8jzsZkiTDI", "ohvvCNeLc4-V"], "exact_match_file_ids": ["-Oa1BZoKKTub", "ccwTmVZpWasI", "j6u_k96fPNqv", "Ln8jzsZkiTDI", "ohvvCNeLc4-V"], "drive_file_count": 794, "top_score": 0.9093928975356089}
+
+event: clues
+data: {"clues": ["140W充電器 比較動画 候補"]}
+
+event: sources
+data: {"sources": [{"file_id": "532Tz9YssoCP", "drive": "動画", "filename": "【徹底検証】”新世代の充電器”vs”これまでの最強”→「世代交代」が起こってる。【最強充電器”防衛戦”2026初夏 ～140W部門～】.loft", "file_type": "video", "score": 0.01951844262295082, "match_types": ["clip_thumbnail", "metadata", "tfidf_keywords", "whisper"]}, {"file_id": "ZLjxMzGCnWWw", "drive": "動画", "filename": "【流行る寸前か？】満充電で「自動的にケーブルを抜く」新発想ガジェットを検証。本当に役に立つのか…？【フルチャージセパレーター】.loft", "file_type": "video", "score": 0.019114106884930187, "match_types": ["clip_thumbnail", "whisper"]}, {"file_id": "iBwmMwhU19Nd", "drive": "動画", "filename": "【は？？？】ついに「液冷式モバイルバッテリー」が登場。新たな変態技術の実力に迫る。【UGREEN MagFlow Pro 10000mAh】.loft", "file_type": "video", "score": 0.01632761600850951, "match_types": ["clip_thumbnail", "whisper"]}, {"file_id": "DuRk8Z-B68TR", "drive": "動画", "filename": "【買うなら今！】Amazonプライムデーで今買うべきおすすめアイテム『14選』.loft", "file_type": "video", "score": 0.015625, "match_types": ["whisper"]}, {"file_id": "-Oa1BZoKKTub", "drive": "動画", "filename": "【REDMAGIC 11 Proレビュー：後編】”疑惑”あっても「嫌いになれない」のは何故か？”美しすぎる変態機”、さらなる徹底検証・2か月使っての感想。【※概要欄に追記あり】.loft", "file_type": "video", "score": 0.015384615384615385, "match_types": ["whisper"]}]}
+
+event: answer_chunk
+data: {"delta": "候補"}
+
+event: answer_chunk
+data: {"delta": "の"}
+
+event: answer_chunk
+data: {"delta": "4"}
+
+event: answer_chunk
+data: {"delta": "選手"}
+
+event: answer_chunk
+data: {"delta": "を一"}
+
+event: answer_chunk
+data: {"delta": "言"}
+
+event: answer_chunk
+data: {"delta": "で"}
+
+event: answer_chunk
+data: {"delta": "表"}
+
+event: answer_chunk
+data: {"delta": "すと"}
+
+event: answer_chunk
+data: {"delta": "、"}
+
+event: answer_chunk
+data: {"delta": "すべて"}
+
+event: answer_chunk
+data: {"delta": "「"}
+
+event: answer_chunk
+data: {"delta": "1"}
+
+event: answer_chunk
+data: {"delta": "4"}
+
+event: answer_chunk
+data: {"delta": "0"}
+
+event: answer_chunk
+data: {"delta": "W"}
+
+event: answer_chunk
+data: {"delta": "充電"}
+
+event: answer_chunk
+data: {"delta": "器"}
+
+event: answer_chunk
+data: {"delta": "」"}
+
+event: answer_chunk
+data: {"delta": "である"}
+
+event: answer_chunk
+data: {"delta": "と"}
+
+event: answer_chunk
+data: {"delta": "説明"}
+
+event: answer_chunk
+data: {"delta": "されています"}
+
+event: answer_chunk
+data: {"delta": "。"}
+
+event: citation
+data: {"citation": {"file_id": "532Tz9YssoCP", "drive": "動画", "filename": "【徹底検証】”新世代の充電器”vs”これまでの最強”→「世代交代」が起こってる。【最強充電器”防衛戦”2026初夏 ～140W部門～】.loft", "file_type": "video", "quote": "一言で表せばこれらすべて「140W充電器」ですからね♡ただ一方で、実際に比較してみると全然違うというのがおもしろいところでこの動画ではそれをお見せしていきます", "relevance": 0.0, "segment_location": "2:54", "section_title": null}, "index": 1}
+
+event: citation
+data: {"citation": {"file_id": "532Tz9YssoCP", "drive": "動画", "filename": "【徹底検証】”新世代の充電器”vs”これまでの最強”→「世代交代」が起こってる。【最強充電器”防衛戦”2026初夏 ～140W部門～】.loft", "file_type": "video", "quote": "続けて各充電器、簡単に外観を見てしまうとまずは前回王者のCIOがこちらマットな素材感で統一された黒い外装はその素材感の良さ、指紋の付きにくさも相まってかなり良い感じ それとスペックのわりに非常に小型なことも特徴でポート構成としてはType-C3つとなっています続いてAnker一見ただの充電器かと思わせておいて上側面にはこのようにタッチ式のボタンと画面が搭載 詳しくは後で紹介しますがここを使って充電…", "relevance": 0.0, "segment_location": "4:00", "section_title": null}, "index": 2}
+
+event: citations
+data: {"citations": [{"file_id": "532Tz9YssoCP", "drive": "動画", "filename": "【徹底検証】”新世代の充電器”vs”これまでの最強”→「世代交代」が起こってる。【最強充電器”防衛戦”2026初夏 ～140W部門～】.loft", "file_type": "video", "quote": "一言で表せばこれらすべて「140W充電器」ですからね♡ただ一方で、実際に比較してみると全然違うというのがおもしろいところでこの動画ではそれをお見せしていきます", "relevance": 0.0, "segment_location": "2:54", "section_title": null}, {"file_id": "532Tz9YssoCP", "drive": "動画", "filename": "【徹底検証】”新世代の充電器”vs”これまでの最強”→「世代交代」が起こってる。【最強充電器”防衛戦”2026初夏 ～140W部門～】.loft", "file_type": "video", "quote": "続けて各充電器、簡単に外観を見てしまうとまずは前回王者のCIOがこちらマットな素材感で統一された黒い外装はその素材感の良さ、指紋の付きにくさも相まってかなり良い感じ それとスペックのわりに非常に小型なことも特徴でポート構成としてはType-C3つとなっています続いてAnker一見ただの充電器かと思わせておいて上側面にはこのようにタッチ式のボタンと画面が搭載 詳しくは後で紹介しますがここを使って充電…", "relevance": 0.0, "segment_location": "4:00", "section_title": null}]}
+
+event: done
+data: {"retrieved_count": 5, "took_ms": 12026}
+

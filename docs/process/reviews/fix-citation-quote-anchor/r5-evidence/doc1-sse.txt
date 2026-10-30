@@ -1,0 +1,99 @@
+event: keywords
+data: {"keywords": "ファラデー サラ・バーナード 結婚"}
+
+event: shortlist
+data: {"file_ids": ["ijDmXF8n2hsY", "t-Al21kDLk92", "5-9pkfx9f_x0", "swAEZYgRAr4M", "tc9zLIWBeZxG", "Z8g7p80sAYAr", "29q6xy1ENXlZ", "4HDCXLJ-_fHW", "Y4AM-j6ffv4Y", "TZPVOiLmRFrf", "kTi10tbSRbK0", "v3UB-xFptXV2", "R7q11AOc4RkW", "S49s1fSN-r5A", "P2a01KpFWJkr", "8iRu_2c2Ac2l", "YldPrK2dTyGK", "KC-1o5lDknK9", "fslYG8RAdrey", "Mum6KYQ6Q8Th"], "exact_match_file_ids": [], "drive_file_count": 1352, "top_score": 0.7885321073436966}
+
+event: clues
+data: {"clues": ["ファラデー サラ・バーナード 結婚 年月日", "ファラデー サラ・バーナード 日付", "ファラデー サラ・バーナード 記念日"]}
+
+event: sources
+data: {"sources": [{"file_id": "ijDmXF8n2hsY", "drive": "テスト画像", "filename": "ファラデーの伝.txt", "file_type": "document", "score": 0.01639344262295082, "match_types": ["text_content"]}]}
+
+event: answer_chunk
+data: {"delta": "ファ"}
+
+event: answer_chunk
+data: {"delta": "ラ"}
+
+event: answer_chunk
+data: {"delta": "デー"}
+
+event: answer_chunk
+data: {"delta": "が"}
+
+event: answer_chunk
+data: {"delta": "サラ"}
+
+event: answer_chunk
+data: {"delta": "・"}
+
+event: answer_chunk
+data: {"delta": "バー"}
+
+event: answer_chunk
+data: {"delta": "ナ"}
+
+event: answer_chunk
+data: {"delta": "ード"}
+
+event: answer_chunk
+data: {"delta": "と"}
+
+event: answer_chunk
+data: {"delta": "結婚"}
+
+event: answer_chunk
+data: {"delta": "したのは"}
+
+event: answer_chunk
+data: {"delta": "、"}
+
+event: answer_chunk
+data: {"delta": "**"}
+
+event: answer_chunk
+data: {"delta": "一"}
+
+event: answer_chunk
+data: {"delta": "八"}
+
+event: answer_chunk
+data: {"delta": "二"}
+
+event: answer_chunk
+data: {"delta": "一年"}
+
+event: answer_chunk
+data: {"delta": "六"}
+
+event: answer_chunk
+data: {"delta": "月"}
+
+event: answer_chunk
+data: {"delta": "十二"}
+
+event: answer_chunk
+data: {"delta": "日"}
+
+event: answer_chunk
+data: {"delta": "**"}
+
+event: answer_chunk
+data: {"delta": "です"}
+
+event: answer_chunk
+data: {"delta": "。"}
+
+event: citation
+data: {"citation": {"file_id": "ijDmXF8n2hsY", "drive": "テスト画像", "filename": "ファラデーの伝.txt", "file_type": "document", "quote": "だけは［＃「だけは」に傍点］、せめてそのままにしておいて下さい。しかし私に御許し下さるよう願います。」\n\n［＃５字下げ］二五　結婚［＃「二五　結婚」は小見出し］\n\n　サラはこの手紙を父に見せると、父は一笑に附して、科学者が、馬鹿な事を書いたものだといった。ファラデーは段々と熱心になる。サラは返事に困って躊躇し、※［＃「女＋（「第−竹」の「コ」に代えて「ノ」）、「姉」の正字」、U+59CA、65-6…", "relevance": 0.0, "segment_location": "chunk 107", "section_title": null}, "index": 1}
+
+event: citation
+data: {"citation": {"file_id": "ijDmXF8n2hsY", "drive": "テスト画像", "filename": "ファラデーの伝.txt", "file_type": "document", "quote": "って、一緒にドーバーあたりで一日を送り、愉快に満ちた顔して帰って来た。ついに一八二一年六月十二日に結婚した［＃「ついに一八二一年六月十二日に結婚した」に傍点］。\n　式の当日は賑やかなことや、馬鹿騒ぎはせぬ様にし、またこの日が平日と特に区別の無い様にしようとの希望であった［＃「平日と特に区別の無い様にしようとの希望であった」に傍点］。しかし実際においては、この日こそファラデーに取って、生涯忘るべから…", "relevance": 0.0, "segment_location": "chunk 108", "section_title": null}, "index": 2}
+
+event: citations
+data: {"citations": [{"file_id": "ijDmXF8n2hsY", "drive": "テスト画像", "filename": "ファラデーの伝.txt", "file_type": "document", "quote": "だけは［＃「だけは」に傍点］、せめてそのままにしておいて下さい。しかし私に御許し下さるよう願います。」\n\n［＃５字下げ］二五　結婚［＃「二五　結婚」は小見出し］\n\n　サラはこの手紙を父に見せると、父は一笑に附して、科学者が、馬鹿な事を書いたものだといった。ファラデーは段々と熱心になる。サラは返事に困って躊躇し、※［＃「女＋（「第−竹」の「コ」に代えて「ノ」）、「姉」の正字」、U+59CA、65-6…", "relevance": 0.0, "segment_location": "chunk 107", "section_title": null}, {"file_id": "ijDmXF8n2hsY", "drive": "テスト画像", "filename": "ファラデーの伝.txt", "file_type": "document", "quote": "って、一緒にドーバーあたりで一日を送り、愉快に満ちた顔して帰って来た。ついに一八二一年六月十二日に結婚した［＃「ついに一八二一年六月十二日に結婚した」に傍点］。\n　式の当日は賑やかなことや、馬鹿騒ぎはせぬ様にし、またこの日が平日と特に区別の無い様にしようとの希望であった［＃「平日と特に区別の無い様にしようとの希望であった」に傍点］。しかし実際においては、この日こそファラデーに取って、生涯忘るべから…", "relevance": 0.0, "segment_location": "chunk 108", "section_title": null}]}
+
+event: done
+data: {"retrieved_count": 1, "took_ms": 13612}
+
