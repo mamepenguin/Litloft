@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path as PathParam, Query,
 from app.services import event_hooks
 from fastapi.responses import FileResponse as FastAPIFileResponse
 from fastapi.responses import Response, StreamingResponse
-from sqlalchemy import and_, func, or_
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 import app.config as config
@@ -89,7 +89,7 @@ from app.services.content_write import (
 )
 from app.services.heic import HEIC_MIME_TYPES, convert_heic_to_jpeg
 from app.services.subtitle import convert_srt_to_vtt, detect_subtitles
-from app.services.tagops import cleanup_orphan_tags
+from app.services.tagops import cleanup_orphan_tags, load_tag_index
 from app.services.zip_names import decode_zip_filename
 
 logger = logging.getLogger(__name__)
@@ -154,22 +154,18 @@ def replace_file_tags(db: Session, file: File, tag_names: list[str]) -> None:
     commit-free so batch callers can replace tags on many files in a
     single transaction.
     """
+    index = load_tag_index(db, file.drive)
     tag_objects: list[Tag] = []
     for tag_name in tag_names:
-        tag = (
-            db.query(Tag)
-            .filter(
-                func.lower(Tag.name) == tag_name.lower(),
-                Tag.drive == file.drive,
-            )
-            .first()
-        )
+        tag = index.get(tag_name)
         if not tag:
             tag = Tag(name=tag_name, drive=file.drive)
+            index.add(tag)
         elif tag.name != tag_name:
             tag.name = tag_name
             db.add(tag)
             db.flush()
+            index.add(tag)
         tag_objects.append(tag)
     file.tags = tag_objects
 
@@ -189,21 +185,16 @@ def merge_file_tags(db: Session, file: File, tag_names: list[str]) -> None:
     this helper never removes tags.
     """
     existing_lower = {t.name.lower() for t in file.tags}
+    index = load_tag_index(db, file.drive)
     for tag_name in tag_names:
         if tag_name.lower() in existing_lower:
             continue
-        tag = (
-            db.query(Tag)
-            .filter(
-                func.lower(Tag.name) == tag_name.lower(),
-                Tag.drive == file.drive,
-            )
-            .first()
-        )
+        tag = index.get(tag_name)
         if not tag:
             tag = Tag(name=tag_name, drive=file.drive)
             db.add(tag)
             db.flush()
+            index.add(tag)
         file.tags.append(tag)
         existing_lower.add(tag_name.lower())
 

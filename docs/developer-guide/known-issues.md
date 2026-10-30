@@ -201,8 +201,6 @@ present, so `?highlight=` on a note does nothing: no mark and no scroll to the
 passage. Reached by searching for a phrase inside a note and pressing the
 result. Core's own `MarkdownPreview` path is wired; the addon drops it.
 
-**A tag with a non-ASCII capital lists nothing when chosen.** The rail counts `Übung` but the list filter lowercases with SQLite's ASCII-only `lower()`, so choosing it shows no notes. The tag-edit lookup has the same mismatch, so adding a tag to a file that holds such a tag answers 500 and changes nothing.
-
 **The intelligence `/similar/{file_id}` route answers while the addon is off for
 the drive.** It is gated by file access only, so it stays 200 under a policy of
 `false`, where feature-gated routes answer 404.
