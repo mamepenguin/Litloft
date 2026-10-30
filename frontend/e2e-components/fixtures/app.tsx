@@ -1439,6 +1439,7 @@ function PlainTextDocumentArrangement(): ReactElement {
     <NextIntlClientProvider locale="en" messages={enMessages}>
       <ShortcutsProvider>
         <CurrentDriveProvider>
+          <div className="flex h-screen w-full bg-bg-primary">
           <MarkdownDocumentLayout
             drive="Household Archive"
             folderPath={NOTE_FOLDER}
@@ -1452,6 +1453,7 @@ function PlainTextDocumentArrangement(): ReactElement {
               <TextLines text={"milk\neggs\nbread\n"} filename="shopping list.txt" />
             </div>
           </MarkdownDocumentLayout>
+          </div>
         </CurrentDriveProvider>
       </ShortcutsProvider>
     </NextIntlClientProvider>

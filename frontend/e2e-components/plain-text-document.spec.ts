@@ -29,7 +29,14 @@ for (const width of [1280, 390]) {
     const suffix = page.getByText(".txt", { exact: true });
     const stemBox = (await stem.boundingBox())!;
     const suffixBox = (await suffix.boundingBox())!;
-    expect(suffixBox.x).toBeGreaterThanOrEqual(stemBox.x + stemBox.width - 1);
+    const stemTextRight = await stem.evaluate((el) => {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      return range.getBoundingClientRect().right;
+    });
+    const gap = suffixBox.x - Math.min(stemTextRight, stemBox.x + stemBox.width);
+    expect(gap).toBeGreaterThanOrEqual(-1);
+    expect(gap).toBeLessThan(8);
     expect(Math.abs(suffixBox.y + suffixBox.height / 2 - (stemBox.y + stemBox.height / 2))).toBeLessThan(4);
   });
 }
