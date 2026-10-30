@@ -114,6 +114,13 @@ describe("MarkdownDocumentLayout — chrome", () => {
       screen.getByTestId("view-mode-preview").getAttribute("aria-pressed"),
     ).toBe("false");
   });
+  it("enters Split from the switch", () => {
+    renderLayout();
+    fireEvent.click(screen.getByTestId("view-mode-split"));
+    expect(
+      screen.getByTestId("view-mode-split").getAttribute("aria-pressed"),
+    ).toBe("true");
+  });
 });
 
 describe("MarkdownDocumentLayout — desktop (>= 768px)", () => {

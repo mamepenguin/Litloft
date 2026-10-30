@@ -465,6 +465,7 @@ describe("SPEC-CORE-020 the title row of a plain-text document (I3)", () => {
     fireEvent.click(button);
     const input = screen.getByLabelText("Filename") as HTMLInputElement;
     expect(input.value).toBe(filename.replace(/\.txt$/i, ""));
+    expect(input.closest("form")).toHaveTextContent(filename.slice(-4));
     fireEvent.change(input, { target: { value: typed } });
     fireEvent.submit(input.closest("form")!);
     await waitFor(() => expect(api.renameFile).toHaveBeenCalledWith("f1", sent));
