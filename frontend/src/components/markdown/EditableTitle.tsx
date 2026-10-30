@@ -78,8 +78,9 @@ export function EditableTitle({
         // the row's base size, so nothing beside this ever has to give and
         // the filename is left whatever the rest did not take. With a fixed
         // suffix the wrapper takes that role and the name must not grow, or
-        // the suffix is pushed to the far end of the row.
-        className={`min-w-0 ${suffix ? "flex-initial" : "flex-auto"} truncate rounded px-1 py-0.5 text-left text-sm font-medium text-text-primary hover:bg-bg-elevated`}
+        // the suffix is pushed to the far end of the row; nor pad its right,
+        // which reads as a space before the suffix.
+        className={`min-w-0 ${suffix ? "flex-initial pl-1" : "flex-auto px-1"} truncate rounded py-0.5 text-left text-sm font-medium text-text-primary hover:bg-bg-elevated`}
       >
         {title}
       </button>

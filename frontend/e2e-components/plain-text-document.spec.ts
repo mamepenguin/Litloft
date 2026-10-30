@@ -36,7 +36,7 @@ for (const width of [1280, 390]) {
     });
     const gap = suffixBox.x - Math.min(stemTextRight, stemBox.x + stemBox.width);
     expect(gap).toBeGreaterThanOrEqual(-1);
-    expect(gap).toBeLessThan(8);
+    expect(gap).toBeLessThan(1);
     expect(Math.abs(suffixBox.y + suffixBox.height / 2 - (stemBox.y + stemBox.height / 2))).toBeLessThan(4);
   });
 }
