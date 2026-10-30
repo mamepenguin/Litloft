@@ -209,6 +209,8 @@ function shiftPunctuationBindings(): string[] {
   return [...found];
 }
 
+// UNSPEC: a Cmd/Ctrl+Shift chord on a punctuation key fires on a real
+// keypress (docs/user-guide/keyboard-shortcuts.md, Cmd/Ctrl+Shift+\).
 describe("normalizeKey — every Shift chord on a punctuation key", () => {
   it("matches the event a US keyboard delivers for each registered binding", () => {
     setPlatform("Win32");
