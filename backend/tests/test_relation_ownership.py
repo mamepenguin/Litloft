@@ -219,8 +219,8 @@ class TestLegacyRowsFollowThePreOriginRule:
 
         assert _rows(session) == set()
 
-    # UNSPEC: when X links Y back, Y is listed once on X's page for each
-    # direction and not a third time under Related files.
+    # UNSPEC: when X links Y back, the old row is replaced by X's own, so Y is
+    # listed once on X's page and not again under Related files.
     def test_legacy_incoming_link_is_replaced_when_the_target_links_back(self, client):
         api, session, drive_dir, _ = client
         source = _seed_md(session, drive_dir, "source.md", "See [[target]].\n")

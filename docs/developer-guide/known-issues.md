@@ -105,6 +105,8 @@ note's tags. Reached by clearing all tags on such a note in the web UI.
 
 **A top-level folder named `search`, `addons` or `collections` hides its files' pages.** A file in such a folder gets a URL that collides with the drive's own routes: one in `search` opens full screen with no tree, and the others land on the addon or collection page instead of the file.
 
+**A mutual link recorded before relation origins existed loses one direction until both notes are saved.** Saving X with a link back to Y replaces the old (Y, X) row with X's own, so Y's link to X is not listed until Y is next saved.
+
 **An addon deleting its own relation hides a link the note still has.** If `DELETE /api/internal/file_relations/{id}` removes an `internal` (N, T) row while N links T, the link is not listed until N is saved again; posting (N, T) after the link exists returns 409.
 
 **Copying a file onto a name whose thumbnail slot is owned by a different file
