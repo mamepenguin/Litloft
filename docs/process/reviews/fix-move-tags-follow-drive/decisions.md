@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship (human, 2026-10-31, "ok", after r2 HUMAN_REVIEW_REQUIRED for unspecified_behavior on non-ASCII case variants and legacy-link sweeps; r2 findings bucket B accepted, the shared name match follows in the non-ASCII tag fix)
 ran_in_app: yes
 at: 6cfb41bfae26617c1bba43e028771167856dfe84
 by: agent
