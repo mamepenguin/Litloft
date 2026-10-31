@@ -129,10 +129,7 @@ def init_upload(
     target_full = drive_path / target_rel
     validate_within_drive(target_full, drive_path)
 
-    # A corrected subtitle replaces the old one; `replacing_file` lands it
-    # atomically, so a failed upload leaves the old file.
-    replaces_subtitle = is_subtitle_file(filename) and target_full.is_file()
-    if target_full.exists() and not replaces_subtitle:
+    if target_full.exists():
         raise HTTPException(status_code=409, detail="File already exists")
 
     _check_disk_capacity(drive_path, file_size)
