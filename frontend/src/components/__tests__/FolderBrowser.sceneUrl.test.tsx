@@ -113,9 +113,14 @@ vi.mock("@/components/AddButton", () => ({
 }));
 
 const routerReplace = vi.hoisted(() => vi.fn());
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), replace: routerReplace }),
-}));
+// One object for every render, as the app router gives: a fresh one per call
+// re-runs every effect that lists the router, which hides a missing
+// dependency.
+const stableRouter = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
+vi.mock("next/navigation", () => {
+  stableRouter.replace = routerReplace;
+  return { useRouter: () => stableRouter };
+});
 
 vi.mock("@/components/ClipboardProvider", () => ({
   useClipboard: () => ({ clipboard: null, clear: vi.fn(), copy: vi.fn(), cut: vi.fn() }),
