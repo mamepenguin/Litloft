@@ -79,10 +79,10 @@ and listing can disagree. There is no data migration. Reached only on a database
 the file between drives sweeps the old rows.
 
 **Adding a tag to a note whose frontmatter tags were never projected replaces them.**
-The tag chips are built from `File.tags`, and a scan does not fill it from
-frontmatter, so a note with `tags: [a, b]` shows no chips until the knowledge
-scanner has run or the note has been saved. Adding a tag then writes only that tag.
-Seen with the knowledge addon not running.
+The tag chips are built from `File.tags`. A note registered by a scan or an upload
+has its frontmatter tags projected; a note registered before that, or changed on disk, keeps
+none until the knowledge scanner has run or the note has been saved. Adding a tag
+to it then writes only that tag. Seen with the knowledge addon not running.
 
 
 **Bulk tagging skips a Markdown file it cannot rewrite without saying so.**

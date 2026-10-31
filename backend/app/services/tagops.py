@@ -42,6 +42,38 @@ def load_tag_index(db: Session, drive: str) -> TagIndex:
     return TagIndex(db.query(Tag).filter(Tag.drive == drive).all())
 
 
+def replace_file_tags(db: Session, file: File, tag_names: list[str]) -> None:
+    """Replace ``file.tags`` with the given names, reusing existing Tag rows.
+
+    Shared by ``PUT /api/files/{id}/tags`` and the internal
+    ``POST /api/internal/files/{id}/tags``. Case-insensitive dedup; the
+    ``Tag`` namespace is per-drive.
+
+    SECURITY: callers MUST verify drive access before invoking this
+    helper. It performs no authorisation check — it trusts that
+    ``_get_file_or_404`` or equivalent was called upstream.
+
+    Transactional contract: the caller is responsible for ``db.commit()``
+    and for invoking ``cleanup_orphan_tags`` afterwards. Kept
+    commit-free so batch callers can replace tags on many files in a
+    single transaction.
+    """
+    index = load_tag_index(db, file.drive)
+    tag_objects: list[Tag] = []
+    for tag_name in tag_names:
+        tag = index.get(tag_name)
+        if not tag:
+            tag = Tag(name=tag_name, drive=file.drive)
+            index.add(tag)
+        elif tag.name != tag_name:
+            tag.name = tag_name
+            db.add(tag)
+            db.flush()
+            index.add(tag)
+        tag_objects.append(tag)
+    file.tags = tag_objects
+
+
 def cleanup_orphan_tags(db: Session, drive: str | None = None) -> int:
     """Remove Tag rows no longer referenced by any file. Returns count deleted.
 
