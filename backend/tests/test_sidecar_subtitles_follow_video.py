@@ -260,27 +260,6 @@ def _upload(c, drive, folder, filename, body=b"1\n00:00:00,000 --> 00:00:01,000\
     return done.json()
 
 
-def _init_and_send(c, drive, folder, filename, body, declared_size=None):
-    base = f"/api/drives/{drive}/upload"
-    init = c.post(
-        f"{base}/init",
-        json={
-            "filename": filename,
-            "file_size": declared_size or len(body),
-            "folder_path": folder,
-        },
-    )
-    assert init.status_code == 200, init.text
-    upload_id = init.json()["upload_id"]
-    sent = c.post(
-        f"{base}/{upload_id}/chunk",
-        data={"chunk_index": 0},
-        files={"chunk": ("chunk", body)},
-    )
-    assert sent.status_code == 200, sent.text
-    return base, upload_id
-
-
 def _subtitle_row(db, name="movie.srt", tagged=False, **state):
     row = File(
         filename=name, title=name, drive=OPEN_DRIVE, folder_path="a",
@@ -376,35 +355,19 @@ class TestUploadedSubtitle:
 
         assert ("scan.complete", {"drive": OPEN_DRIVE, "added": 0, "removed": 0}) in sent
 
-    def test_a_second_upload_replaces_the_file(self, two_drives):
+    def test_a_second_upload_of_the_same_subtitle_is_refused_and_the_first_stays(
+        self, two_drives
+    ):
         c, _, open_dir, _ = two_drives
         (open_dir / "a").mkdir()
         _upload(c, OPEN_DRIVE, "a", "movie.srt", body=b"first")
 
-        _upload(c, OPEN_DRIVE, "a", "movie.srt", body=b"second")
-
-        assert (open_dir / "a" / "movie.srt").read_bytes() == b"second"
-
-    def test_a_failed_second_upload_keeps_the_first(self, two_drives):
-        c, _, open_dir, _ = two_drives
-        (open_dir / "a").mkdir()
-        _upload(c, OPEN_DRIVE, "a", "movie.srt", body=b"first")
-        base, upload_id = _init_and_send(
-            c, OPEN_DRIVE, "a", "movie.srt", b"short", declared_size=50
+        res = c.post(
+            f"/api/drives/{OPEN_DRIVE}/upload/init",
+            json={"filename": "movie.srt", "file_size": 6, "folder_path": "a"},
         )
 
-        assert c.post(f"{base}/{upload_id}/complete").status_code == 400
-
-        assert (open_dir / "a" / "movie.srt").read_bytes() == b"first"
-
-    def test_a_cancelled_second_upload_keeps_the_first(self, two_drives):
-        c, _, open_dir, _ = two_drives
-        (open_dir / "a").mkdir()
-        _upload(c, OPEN_DRIVE, "a", "movie.srt", body=b"first")
-        base, upload_id = _init_and_send(c, OPEN_DRIVE, "a", "movie.srt", b"second")
-
-        assert c.delete(f"{base}/{upload_id}").status_code == 200
-
+        assert res.status_code == 409
         assert (open_dir / "a" / "movie.srt").read_bytes() == b"first"
 
     def test_an_existing_file_of_another_type_still_refuses_the_upload(self, two_drives):
