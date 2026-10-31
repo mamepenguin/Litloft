@@ -298,7 +298,7 @@ class TestUploadThumbnailIsNotWrittenInPlace:
         assert res.status_code == 200
 
         assert len(handed) == 1
-        expected = data_dir / "thumbnails" / TEST_DRIVE / "photo.jpg"
+        expected = data_dir / "thumbnails" / ".by-id" / f"{res.json()['id']}.jpg"
         assert handed[0] != str(expected)
         assert Path(handed[0]).parent == expected.parent
         assert expected.exists()

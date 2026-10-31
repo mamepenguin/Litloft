@@ -182,7 +182,7 @@ class TestCopyFileService:
         )
         assert res.status_code == 200
         new_id = res.json()["id"]
-        new_thumb_rel = f"{TEST_DRIVE}/旅行/test_copy.jpg"
+        new_thumb_rel = f".by-id/{new_id}.jpg"
         assert (config.THUMBNAILS_DIR / new_thumb_rel).exists()
         assert (config.THUMBNAILS_DIR / file.thumbnail_path).exists()
 
@@ -381,8 +381,6 @@ class TestBatchCopy:
         from app.models import File, WatchHistory
 
         c, db, drive_dir, data_dir = client
-        # With a thumbnail on both sides, because the cache slot is derived
-        # from the path: the copy takes the name and the slot together.
         source = _seed_with_thumbnail(db, drive_dir, data_dir, "a.mp4", folder="one")
         (drive_dir / "dest").mkdir(exist_ok=True)
 
@@ -426,7 +424,6 @@ class TestBatchCopy:
         assert (
             db.query(WatchHistory).filter(WatchHistory.file_id == ghost_id).count() == 1
         )
-        # And stops pointing at the thumbnail slot the copy has taken over.
         # Two rows naming one cache file means the Missing view shows the
         # other file's picture, and purging the ghost deletes a thumbnail
         # the live copy is using.
@@ -435,7 +432,7 @@ class TestBatchCopy:
             .filter(File.drive == TEST_DRIVE, File.file_path == "dest/a.mp4")
             .one()
         )
-        assert copied_row.thumbnail_path == f"{TEST_DRIVE}/dest/a.jpg"
+        assert copied_row.thumbnail_path == f".by-id/{copied_row.id}.jpg"
         assert kept.thumbnail_path != copied_row.thumbnail_path
 
     def test_a_database_failure_leaves_no_file_behind(self, client, monkeypatch):
@@ -757,8 +754,7 @@ class TestBatchCopy:
         )
 
     def test_a_copy_onto_a_missing_record_at_the_drive_root(self, client):
-        """The retirement reads the slot out of the destination path, and a file
-        at the top of a drive has no folder segment in it."""
+        """A file at the top of a drive has no folder segment in its path."""
         import app.config as config
         from app.models import File
 
@@ -796,8 +792,8 @@ class TestBatchCopy:
             .filter(File.drive == TEST_DRIVE, File.file_path == "a.mp4")
             .one()
         )
-        assert landed.thumbnail_path == root_thumb_rel
-        assert db.get(File, ghost_id).thumbnail_path is None
+        assert landed.thumbnail_path == f".by-id/{landed.id}.jpg"
+        assert db.get(File, ghost_id).thumbnail_path == root_thumb_rel
 
     def test_a_failed_copy_of_a_note_leaves_no_projection_behind(
         self, client, monkeypatch

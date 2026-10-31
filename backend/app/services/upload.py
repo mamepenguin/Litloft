@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 import app.config as config
 from app.models import TRUST_UNVERIFIED, File
+from app.nanoid import generate_nanoid
 from app.services.atomic_write import replacing_file
 from app.services.chapters import probe_file_chapters
 from app.services.filetype import (
@@ -34,6 +35,8 @@ from app.services.subtitle import is_subtitle_file
 from app.services.thumbnail import (
     get_thumbnail_generator,
     get_video_duration,
+    remove_thumbnail_quietly,
+    thumbnail_slot_rel,
     write_thumbnail_atomically,
 )
 from app.services.ws import broadcast_from_thread
@@ -254,23 +257,6 @@ def complete_upload(
     if is_probeable_media(file_type, mime_type):
         duration = get_video_duration(str(target_full))
 
-    thumbnail_rel = None
-    gen_fn = get_thumbnail_generator(file_type, mime_type)
-    if gen_fn is not None:
-        thumbnail_rel = (
-            f"{session.drive}/{session.folder_path}/{Path(session.filename).stem}.jpg"
-            if session.folder_path
-            else f"{session.drive}/{Path(session.filename).stem}.jpg"
-        )
-        thumbnail_full = config.THUMBNAILS_DIR / thumbnail_rel
-        # Atomically: a thumbnail is kept when its file goes missing and is
-        # still served, and an upload to the same path revives that record,
-        # so this destination can be one the thumbnail endpoint is reading.
-        if not write_thumbnail_atomically(
-            gen_fn, str(target_full), str(thumbnail_full)
-        ):
-            thumbnail_rel = None
-
     # Reconcile any DB record already holding this file_path so the UNIQUE
     # constraint can't blow up at commit.
     #
@@ -283,76 +269,99 @@ def complete_upload(
         .filter(File.drive == session.drive, File.file_path == target_rel)
         .first()
     )
+    superseded_picture: str | None = None
     if existing is not None and existing.deleted_at is not None:
         # Trashed ghost: the user re-uploaded to this path, superseding the
         # earlier delete intent. Purge the ghost so the fresh upload takes
         # the slot cleanly (no fake-path leftover, no IntegrityError).
+        superseded_picture = existing.thumbnail_path
         db.delete(existing)
         db.flush()
         cleanup_orphan_tags(db, session.drive)
         existing = None
 
-    # Read from the file that just landed, not from whatever the row
-    # said before. A re-upload to the same path replaces the picture, and
-    # the scanner's backfill only visits rows whose width is still NULL —
-    # so a stale value here would never be corrected.
-    dimensions = (
-        read_image_dimensions(target_full) if file_type == "image" else None
-    )
+    file_id = existing.id if existing is not None else generate_nanoid()
+    thumbnail_rel = None
+    gen_fn = get_thumbnail_generator(file_type, mime_type)
+    if gen_fn is not None:
+        thumbnail_rel = thumbnail_slot_rel(file_id)
+        # Atomically: a reused row keeps its id, so this destination can be one
+        # the thumbnail endpoint is reading.
+        if not write_thumbnail_atomically(
+            gen_fn, str(target_full), str(config.THUMBNAILS_DIR / thumbnail_rel)
+        ):
+            thumbnail_rel = None
+    if existing is not None and existing.thumbnail_path != thumbnail_rel:
+        superseded_picture = existing.thumbnail_path
 
-    recovered_missing = False
-    if existing is not None and existing.deleted_at is None:
-        # Reuse the row in place. Covers a Missing ghost (classic recover)
-        # and an Active row whose FS file had vanished and is now restored
-        # by this upload — reusing keeps its watch-history / tags / comments.
-        recovered_missing = existing.missing_since is not None
-        existing.missing_since = None
-        existing.filename = session.filename
-        existing.title = _filename_to_title(session.filename)
-        existing.folder_path = session.folder_path
-        existing.file_size = target_full.stat().st_size
-        existing.file_type = file_type
-        existing.mime_type = mime_type
-        existing.thumbnail_path = thumbnail_rel
-        existing.duration = duration
-        existing.image_width = dimensions[0] if dimensions else None
-        existing.image_height = dimensions[1] if dimensions else None
-        existing.file_hash = None
-        existing.chapters_probed_at = None
-        # An earlier verification was about content this upload just
-        # replaced, so it cannot carry over: new material would inherit
-        # a person's vouch and start grounding Ask answers under it.
-        existing.trust_tier = TRUST_UNVERIFIED
-        existing.trust_reviewed_at = None
-        file_record = existing
-    else:
-        file_record = File(
-            filename=session.filename,
-            title=_filename_to_title(session.filename),
-            drive=session.drive,
-            folder_path=session.folder_path,
-            file_path=target_rel,
-            file_size=target_full.stat().st_size,
-            file_type=file_type,
-            mime_type=mime_type,
-            thumbnail_path=thumbnail_rel,
-            duration=duration,
-            image_width=dimensions[0] if dimensions else None,
-            image_height=dimensions[1] if dimensions else None,
+    try:
+        # Read from the file that just landed, not from whatever the row
+        # said before. A re-upload to the same path replaces the picture, and
+        # the scanner's backfill only visits rows whose width is still NULL —
+        # so a stale value here would never be corrected.
+        dimensions = (
+            read_image_dimensions(target_full) if file_type == "image" else None
         )
-        db.add(file_record)
-    db.flush()
-    if mime_type == "text/markdown" or session.filename.lower().endswith(".md"):
-        try:
-            if target_full.stat().st_size <= _MD_READ_MAX_BYTES:
-                content = target_full.read_text(encoding="utf-8")
-                project_frontmatter_tags(db, file_record, content)
-                cleanup_orphan_tags(db, session.drive)
-        except (OSError, UnicodeDecodeError):
-            pass
-    probe_file_chapters(db, file_record, target_full)
-    untrack_empty_folder(db, session.drive, session.folder_path)
-    db.commit()
+
+        recovered_missing = False
+        if existing is not None and existing.deleted_at is None:
+            # Reuse the row in place. Covers a Missing ghost (classic recover)
+            # and an Active row whose FS file had vanished and is now restored
+            # by this upload — reusing keeps its watch-history / tags / comments.
+            recovered_missing = existing.missing_since is not None
+            existing.missing_since = None
+            existing.filename = session.filename
+            existing.title = _filename_to_title(session.filename)
+            existing.folder_path = session.folder_path
+            existing.file_size = target_full.stat().st_size
+            existing.file_type = file_type
+            existing.mime_type = mime_type
+            existing.thumbnail_path = thumbnail_rel
+            existing.duration = duration
+            existing.image_width = dimensions[0] if dimensions else None
+            existing.image_height = dimensions[1] if dimensions else None
+            existing.file_hash = None
+            existing.chapters_probed_at = None
+            # An earlier verification was about content this upload just
+            # replaced, so it cannot carry over: new material would inherit
+            # a person's vouch and start grounding Ask answers under it.
+            existing.trust_tier = TRUST_UNVERIFIED
+            existing.trust_reviewed_at = None
+            file_record = existing
+        else:
+            file_record = File(
+                id=file_id,
+                filename=session.filename,
+                title=_filename_to_title(session.filename),
+                drive=session.drive,
+                folder_path=session.folder_path,
+                file_path=target_rel,
+                file_size=target_full.stat().st_size,
+                file_type=file_type,
+                mime_type=mime_type,
+                thumbnail_path=thumbnail_rel,
+                duration=duration,
+                image_width=dimensions[0] if dimensions else None,
+                image_height=dimensions[1] if dimensions else None,
+            )
+            db.add(file_record)
+        db.flush()
+        if mime_type == "text/markdown" or session.filename.lower().endswith(".md"):
+            try:
+                if target_full.stat().st_size <= _MD_READ_MAX_BYTES:
+                    content = target_full.read_text(encoding="utf-8")
+                    project_frontmatter_tags(db, file_record, content)
+                    cleanup_orphan_tags(db, session.drive)
+            except (OSError, UnicodeDecodeError):
+                pass
+        probe_file_chapters(db, file_record, target_full)
+        untrack_empty_folder(db, session.drive, session.folder_path)
+        db.commit()
+    except Exception:
+        if existing is None:
+            remove_thumbnail_quietly(thumbnail_rel)
+        raise
+    remove_thumbnail_quietly(superseded_picture)
     db.refresh(file_record)
 
     logger.info("Upload complete: %s → %s", upload_id, target_rel)
