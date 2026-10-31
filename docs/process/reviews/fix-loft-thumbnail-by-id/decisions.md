@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship (human, 2026-11-01, "推奨通り。", the approval of the thumbnail ship plan that included this Media Import step, after r3 HUMAN_REVIEW_REQUIRED for unspecified_behavior; V1 bucket B fixed in this record)
 ran_in_app: yes
 at: 9ba15e59f1be005ebcc4386bf373e2a5ab703b8e
 by: agent
