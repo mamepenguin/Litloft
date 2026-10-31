@@ -1,7 +1,9 @@
 """A thumbnail slot belongs to one file (SPEC-CORE-022, 023, 024)."""
 
+import asyncio
 import io
 import json
+import logging
 import os
 import shutil
 import time
@@ -409,6 +411,54 @@ class TestGhostPictures:
         assert g.thumbnail_path != m.thumbnail_path or g.thumbnail_path is None
         assert c.delete(f"/api/files/{ghost.id}/purge").status_code == 200
         assert _served(c, mover.id) == b"\xff\xd8mover"
+
+
+    def test_a_move_that_fails_before_its_commit_leaves_the_ghost_and_its_picture(
+        self, client, monkeypatch
+    ):
+        """SPEC-CORE-022 I13"""
+        import app.services.fileops as fileops
+
+        c, db, drive_dir, _ = client
+        ghost = _seed(
+            db, drive_dir, "dest/a.mp4", file_id="ghost0000003", state="missing"
+        )
+        ghost.missing_since = None
+        ghost.deleted_at = datetime.now(UTC)
+        ghost.thumbnail_path = _slot_rel(ghost.id)
+        mover = _seed(db, drive_dir, "one/a.mp4", file_id="mover0000003")
+        db.commit()
+        ghost_pic = _put_thumb(ghost.thumbnail_path, b"\xff\xd8ghost")
+
+        def refuse(*_a, **_kw):
+            raise RuntimeError("cannot track the emptied folder")
+
+        monkeypatch.setattr(fileops, "_ensure_empty_folder_tracked", refuse)
+        res = c.put(f"/api/files/{mover.id}/move", json={"target_folder_path": "dest"})
+
+        assert res.status_code == 500
+        assert _fresh(db, "ghost0000003") is not None
+        assert ghost_pic.read_bytes() == b"\xff\xd8ghost"
+        assert (drive_dir / "one" / "a.mp4").exists()
+
+    def test_upload_over_a_trashed_ghost_removes_the_ghosts_picture(self, client):
+        """SPEC-CORE-022 I13"""
+        c, db, drive_dir, _ = client
+        ghost = _seed(
+            db, drive_dir, "p.png", file_id="ghost0000004", state="missing"
+        )
+        ghost.missing_since = None
+        ghost.deleted_at = datetime.now(UTC)
+        ghost.thumbnail_path = _slot_rel(ghost.id)
+        db.commit()
+        ghost_pic = _put_thumb(ghost.thumbnail_path, b"\xff\xd8ghost")
+
+        row = _upload_png(c, db, "p.png", (255, 0, 0))
+
+        assert row.id != "ghost0000004"
+        assert _fresh(db, "ghost0000004") is None
+        assert not ghost_pic.exists()
+        assert _dominant_red(_served(c, row.id))
 
 
 def _second_drive(tmp_path, monkeypatch):
@@ -831,6 +881,106 @@ class TestStartupMigration:
                 time.sleep(0.05)
 
         assert seen["pointer"] == _slot_rel(row.id)
+
+
+    def test_commit_that_raises_stops_the_run_and_the_next_startup_repoints(
+        self, client, monkeypatch
+    ):
+        """SPEC-CORE-024 I20"""
+        c, db, drive_dir, _ = client
+        row = _seed(db, drive_dir, "one/a.mp4", thumb=f"{TEST_DRIVE}/one/a.jpg")
+        _put_thumb(row.thumbnail_path, b"\xff\xd8intact")
+        real_factory = main.SessionLocal
+
+        def failing_factory():
+            session = real_factory()
+
+            def refuse():
+                raise RuntimeError("database is locked")
+
+            session.commit = refuse
+            return session
+
+        monkeypatch.setattr(main, "SessionLocal", failing_factory)
+        _restart()
+
+        assert _fresh(db, row.id).thumbnail_path == f"{TEST_DRIVE}/one/a.jpg"
+        assert (_thumbs() / _slot_rel(row.id)).read_bytes() == b"\xff\xd8intact"
+
+        monkeypatch.setattr(main, "SessionLocal", real_factory)
+        _restart()
+
+        assert _fresh(db, row.id).thumbnail_path == _slot_rel(row.id)
+        assert (_thumbs() / _slot_rel(row.id)).read_bytes() == b"\xff\xd8intact"
+
+    def test_lifespan_does_not_yield_before_the_migration_has_finished(
+        self, client, monkeypatch
+    ):
+        """SPEC-CORE-024 I19"""
+        c, db, drive_dir, _ = client
+        finished = []
+        real_migrate = main.migrate_thumbnail_slots
+
+        def slow_migrate(factory):
+            time.sleep(0.3)
+            result = real_migrate(factory)
+            finished.append(True)
+            return result
+
+        monkeypatch.setattr(main, "migrate_thumbnail_slots", slow_migrate)
+        seen = {}
+
+        async def drive_lifespan():
+            async with main.lifespan(app):
+                seen["finished_when_serving"] = bool(finished)
+
+        asyncio.run(drive_lifespan())
+
+        assert seen["finished_when_serving"]
+
+    def test_a_run_of_more_than_one_batch_moves_every_row(self, client):
+        """SPEC-CORE-024"""
+        c, db, drive_dir, _ = client
+        ids = []
+        for n in range(450):
+            row = _seed(
+                db, drive_dir, f"bulk/{n}.mp4", thumb=f"{TEST_DRIVE}/bulk/{n}.jpg",
+                body=b"x",
+            )
+            _put_thumb(row.thumbnail_path, str(n).encode())
+            ids.append(row.id)
+
+        _restart()
+
+        db.expire_all()
+        by_id = {r.id: r.thumbnail_path for r in db.query(File).all()}
+        assert all(by_id[i] == _slot_rel(i) for i in ids)
+        assert len(list((_thumbs() / ".by-id").iterdir())) == 450
+
+    def test_shared_file_that_cannot_be_removed_warns_and_pointers_stay_empty(
+        self, client, monkeypatch, caplog
+    ):
+        """SPEC-CORE-024"""
+        c, db, drive_dir, _ = client
+        shared = f"{TEST_DRIVE}/one/book.jpg"
+        a = _seed(db, drive_dir, "one/book.pdf", thumb=shared)
+        b = _seed(db, drive_dir, "one/book.epub", thumb=shared)
+        old = _put_thumb(shared)
+        real_unlink = Path.unlink
+
+        def stuck(self, *args, **kwargs):
+            if self.name == "book.jpg":
+                raise OSError("read-only file system")
+            return real_unlink(self, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "unlink", stuck)
+        with caplog.at_level(logging.WARNING, logger="app.services.thumbnail"):
+            _restart()
+
+        assert _fresh(db, a.id).thumbnail_path is None
+        assert _fresh(db, b.id).thumbnail_path is None
+        assert old.exists()
+        assert any("book.jpg" in r.getMessage() for r in caplog.records)
 
 
 class TestInternalApi:
