@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship (human, 2026-10-31, "OK", after r1 HUMAN_REVIEW_REQUIRED for unspecified_behavior on pre-origin rows; r1 findings bucket B accepted: F1 recorded as a known-issues row, F2 needs no change)
 ran_in_app: yes
 at: c1abf4dc8fd4d7718cc832ed2fc693ba1036bf24
 by: agent
