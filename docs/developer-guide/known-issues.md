@@ -252,10 +252,6 @@ has not been measured. The sidebar's addon rows do not do this.
 the video, so the copy has no `movie.ja.srt` next to it and the detail page offers
 the generated track, or none.
 
-**A file with only a detailed summary is reported as having a short summary.**
-`GET /summary` and the batch run treat the row as present, so the batch skips
-the file and the panel shows an empty short summary.
-
 **Short summaries off with detailed summaries on still sends a short summary
 request.** Generating a detailed summary also asks the LLM for the short one.
 
