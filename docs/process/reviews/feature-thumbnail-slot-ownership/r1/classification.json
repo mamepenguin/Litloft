@@ -1,0 +1,91 @@
+{
+  "risk": "CRITICAL",
+  "score": 12,
+  "base": 3,
+  "zone_max": "HIGH",
+  "modifiers": [
+    "persistence"
+  ],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "backend/app/main.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/services/fileops.py",
+      "level": "HIGH"
+    },
+    {
+      "path": "backend/app/services/markdown_image_import.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/services/scanner.py",
+      "level": "HIGH"
+    },
+    {
+      "path": "backend/app/services/thumbnail.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/services/upload.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/tests/test_atomic_write.py",
+      "level": "LOW"
+    },
+    {
+      "path": "backend/tests/test_copy.py",
+      "level": "LOW"
+    },
+    {
+      "path": "backend/tests/test_fileops.py",
+      "level": "LOW"
+    },
+    {
+      "path": "backend/tests/test_scanner_move_detection.py",
+      "level": "LOW"
+    },
+    {
+      "path": "backend/tests/test_thumbnail_slots.py",
+      "level": "LOW"
+    },
+    {
+      "path": "backend/tests/test_transparent_thumbnails.py",
+      "level": "LOW"
+    },
+    {
+      "path": "backend/tests/test_upload.py",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/admin-guide/monitoring.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/developer-guide/architecture.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/developer-guide/known-issues.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/thumbnail-slot-ownership.md",
+      "level": "LOW"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone HIGH (8 points)",
+    "modifiers: persistence"
+  ]
+}
