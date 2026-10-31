@@ -73,4 +73,4 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-021 | implemented | docs/specs/mcp-loft-url.md | sha256:e6f6f24f2ff8ab56b128db67e6917f844890d4fe02bc66d435dd2c7794ae3e75 |
 | SPEC-ADDON-037 | implemented | docs/specs/txt-edit.md | sha256:b9b2bf414210170871ce18124fa5157c7e8ac0dcf816086ab41362dfc631b10d |
 | SPEC-ADDON-038 | implemented | docs/specs/citation-quote-anchor.md | sha256:e15b775cb0ffa4e65cd205e852565459fe6de56a70b18359d86047f90250fe00 |
-| SPEC-ADDON-039 | draft | docs/specs/haas-local-transcription.md | |
+| SPEC-ADDON-039 | approved | docs/specs/haas-local-transcription.md | sha256:37526c33df7af2782a18cf431f7706321bbaf26716d0d5503b9b325a6359822c |
