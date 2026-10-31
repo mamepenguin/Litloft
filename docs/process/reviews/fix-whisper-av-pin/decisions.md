@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: Ship. "出荷" (r1)
 ran_in_app: yes
 at: 1ad2645ae441a0c0d10170069a96311113e01553
 by: agent
@@ -13,3 +13,9 @@ evidence: Scratch Compose project `litloft-r5-whisperfix` (backend, frontend, in
   6. Provider `haas_local` through the settings page with av 18.1.0, restart, Regenerate on `clip60.mp4`: job `succeeded`, `provider = haas_local`, 4 chunks spanning 0.08 to 59.95 s, 335 words, Japanese subtitles (`/private/tmp/claude-502/-Users-libre-Sources-video-share/40abaa4e-a99d-4bd6-b1b0-918dc959717b/scratchpad/r5w/shots/s-provider-haas_local.png`).
   Addon log: `/private/tmp/claude-502/-Users-libre-Sources-video-share/40abaa4e-a99d-4bd6-b1b0-918dc959717b/scratchpad/r5w/logs/intelligence.log`. Stack taken down afterwards.
 pending: A file over 50 MB through the splitter (`long40big.m4a`, 40 minutes), to check that transcript times continue across chunks: skipped by instruction of the coordinator because CPU and RAM on the machine were nearly exhausted by other work; splitter behaviour is unchanged by this fix. Job time and peak memory were dropped for the same reason. Subtitle timing as seen and heard during playback is `agent_cannot_verify`.
+
+## Correct behavior (unspecified-behavior entry, no spec covered it)
+
+- `whisper_local` on a built image transcribes: `av` is pinned because av 19 removed the `metadata_errors` argument faster-whisper passes to `av.open`.
+- TypeError, AttributeError or ImportError from the faster-whisper call fails the job with `FatalError`, leaves a normal file not indexed with any earlier transcript in place, and a later scan queues it again. Media Import temp audio stays one-shot, as for any provider failure.
+- Every other exception stays a zero-segment success, as before. Narrowing that set is left to a later spec (r1 CR-2).
