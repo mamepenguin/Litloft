@@ -285,6 +285,10 @@ the UI.** It is a sidecar file like one placed on disk. Uploading again to the
 same name is refused with `409 File already exists`, and the upload drawer shows
 that error.
 
+**A subtitle dropped into the knowledge editor inserts a broken link.** The
+editor builds `loft://<id>` from the upload's answer, and a subtitle upload has no
+row and no id, so the note gets `loft://undefined`. The file itself lands.
+
 **A rename whose new name is taken by one of the video's own sidecars leaves
 that sidecar under the old name.** Renaming `movie.ja.mp4` to `movie.mp4` while
 `movie.srt` is present is one case. No file is lost, and a backend warning
