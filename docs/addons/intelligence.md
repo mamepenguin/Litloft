@@ -344,6 +344,7 @@ An unofficial community ONNX conversion of Haas-ja-v1.0 (`oboroge0/Haas-ja-v1.0-
 - Conversational speech comes out with far fewer punctuation marks than Whisper writes, so transcript chunks run longer and subtitle cues break less naturally. Numerals are written as digits and fillers tend to be dropped.
 - `transcription.haas_local.max_segment_seconds` (15 to 120, default 45) is the longest stretch of speech decoded at once. Lowering it lost a clause without any error in measurement; raising it uses more memory (2.66 GB at 120).
 - `transcription.haas_local.num_threads` (at least 1, default 4) is the CPU threads the recognizer uses. A value outside either range is logged and replaced by the default.
+- Memory grows with how long a file is, because the audio is decoded whole and voice detection runs over all of it. Peak for the whole addon process, measured on Linux arm64 at the default settings: about 2.6 GB for 5 minutes, 3.6 GB for 35 minutes, and 7.7 GB for a 3.4-hour file small enough (49 MB) to skip splitting. Files over 50 MB are split, which held a 40-minute file to about 3.3 GB. Memory can stay high after a long job even once the recognizer is released.
 - `memory.whisper_idle_unload` releases the recognizer too.
 
 ## Configuration reference
