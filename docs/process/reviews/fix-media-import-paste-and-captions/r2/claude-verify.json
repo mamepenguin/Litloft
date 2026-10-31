@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-2",
+      "status": "confirmed",
+      "note": "Confirmed by tracing the code; nothing was run. service.py:249-251 creates `.mi_captions_*` in output_stem.parent, and a kill skips the TemporaryDirectory cleanup. A repo-wide grep outside docs/process/reviews finds `mi_captions` only at service.py:250. The sweep at service.py:378-419 looks only for `.stt_temp.*` siblings of a loft stem (service.py:401) and skips non-files (service.py:406). Each run gets a new random name, so a later run does not reuse or clear the leftover. main.py:174-181 stops at the rmdir OSError on a non-empty folder. scanner.py:836-854 records non-hidden directories as EmptyFolder; is_hidden (filetype.py:329-334) leaves out the scratch directory itself, so its parent can be listed as empty while still holding it. fileops.py:899-925 only soft-deletes and removes rows, with no filesystem delete. cloud-sync/backend/service.py:275-286 passes no filter to rclone sync, and grep finds no --exclude, --filter or --include in addons/cloud-sync. One scope limit: only the /link path (service.py:973) places the scratch directory in a drive folder. The subscription path (youtube.py:579-583) passes a stem under a /tmp `ytsub_` directory, so its scratch directory is not in a drive folder."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-3",
+      "status": "confirmed",
+      "note": "Confirmed by tracing the tests; no mutant was run because this role cannot execute anything. service.py:274 is the only call, and repo-wide *.py greps find `_dedup_rolling_vtt` only at service.py:274 and 422. Tests that reach line 274 with a real caption file: test_nfc_names.py:175-193 and 196-206 use a single-cue fixture (VTT at test_nfc_names.py:40) and check the return value and `\"hello\" in` the file, which still holds without dedup. test_nfc_names.py:233-250 checks the return value and directory listing only. test_loft_caption_state.py:105-130 checks only ok and kind. Its other callers in test_loft_caption_state.py (238, 288, 310) patch the function, and test_youtube_provider_network.py stubs `_download_captions_sync_for_provider`. test_loft_creation.py and test_subscription_manager.py mention .vtt but do not call this function's download path with such a fixture. Decisions.md does record 60 cues and 4376 bytes, which is in-app evidence and not a regression test."
+    }
+  ],
+  "specification_compliance": [
+    "No specification check was requested beyond the two findings. Both match the code at the working tree of the reviewed branch."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "A leftover scratch directory keeps its parent folder from being removed by _rmdir_up_to_root, and the scanner can still list that parent as empty, because the hidden directory is not counted (scanner.py:836-854, filetype.py:329-334)."
+  ],
+  "regression_risks": [
+    "Removing the service.py:274 call would change both the /link and the subscription caption output, since youtube.py:268-270 calls the same function, and no test would fail."
+  ],
+  "test_coverage": [
+    "No test feeds _download_captions_sync a fixture with rolling duplicates, or asserts cue count, cue numbering, tag stripping or removal of short cues in the output.",
+    "No test simulates a killed process leaving a `.mi_captions_*` directory, and no code exists to sweep one."
+  ],
+  "not_verified": [
+    "No test or mutant was executed, because this role has only Read, Glob and Grep. Both confirmations come from reading the code.",
+    "Reads used the working tree of the checked-out branch, assuming it matches ff7322a56; the only reported change is the untracked r2 review directory.",
+    "Actual SIGKILL behaviour in the deployed container, and whether SIGTERM on a normal shutdown lets the worker thread finish its TemporaryDirectory cleanup.",
+    "rclone's real handling of a leftover dot-directory was not run; the absence of a filter was checked only in the command arguments and by grep in addons/cloud-sync.",
+    "The R-5 evidence files behind the 60 cues and 4376 bytes figures; only the decisions.md text was matched."
+  ],
+  "confidence": 88
+}

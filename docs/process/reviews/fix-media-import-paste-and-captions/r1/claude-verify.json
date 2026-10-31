@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-1",
+      "status": "confirmed",
+      "note": "Confirmed by reading only; nothing was executed because this verifier cannot run commands. Production path: service.py:243 creates the scratch directory with tempfile.TemporaryDirectory and no dir argument. No TMPDIR is set in docker-compose.yml or backend/Dockerfile, so it lands in /tmp on the container filesystem. Drives are separate bind mounts (docker-compose.override.yml.example:19-22), so os.rename inside shutil.move at service.py:264 gets EXDEV and falls back to copy2. decisions.md:7 records /tmp/mi_captions_l6bzv5me/captions.en.vtt in the container. Failure path: an exception from the move reaches service.py:968 when called from _fetch_and_update, leaving captions_ok False at service.py:957. Test gap: test_nfc_names.py:175-206 and test_loft_caption_state.py:105-130 use tmp_path with no basetemp override in addons/media_import/pytest.ini, so source and destination normally share a filesystem. A grep of addons/media_import finds no EXDEV, copy2 or copystat, and no os.rename patch. Qualifications: 'always' holds for the Compose deployment, not for a non-container run or one with TMPDIR pointed at the drive filesystem. 'No test' means no automated test: the R-5 run in decisions.md:7 was an in-app Compose run with its own drive, and it reports captions delivered, so the fallback very likely worked on that scratch drive, although the drive's mount type is not recorded. Production drives may be NFS-backed (fix-media-import-byte-capped-names/decisions.md:8), and this change has no recorded check there. Open question from the finding: _dedup_rolling_vtt ends with an in-place vtt_path.write_text (service.py:522), which needs write access to the destination but does not set times or mode as copy2's copystat does. Old-code behaviour was not compared, because the base version could not be read with the available tools."
+    }
+  ],
+  "specification_compliance": [
+    "The only requirement checked was the CR-1 claim about the caption move in _download_captions_sync; the rest of the change was not assessed against its specification."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Across filesystems, shutil.move falls back to copy2, which overwrites an existing destination .vtt in place instead of replacing it atomically as a rename would. A reader could briefly see a partial file, and a copy failure could damage the older captions. This is inferred from documented shutil behaviour and was not reproduced."
+  ],
+  "regression_risks": [
+    "If copy2's copystat step raises after the file contents are copied (for example utime or chmod refused on a network drive), the .vtt stays in place without rolling-cue dedup because service.py:266 is skipped, and the import records captions_downloaded false. Whether any production NFS configuration does this is unverified, so this is a risk and not a finding.",
+    "The scratch directory is on the container's /tmp, so caption downloads now depend on free space there as well as on the drive."
+  ],
+  "test_coverage": [
+    "Tests of _download_captions_sync that write a real caption file use tmp_path for the destination (test_nfc_names.py:175-206, test_loft_caption_state.py:105-130), which normally shares a filesystem with the scratch directory, so the rename branch is the one expected to run.",
+    "No test in addons/media_import simulates EXDEV or a copy2/copystat failure.",
+    "Failure of the caption step in _fetch_and_update is covered only through mocks of _download_captions_sync (test_loft_caption_state.py:238-310), which were located by grep and not read in full."
+  ],
+  "not_verified": [
+    "Nothing was executed: the EXDEV fallback, the tests and the filesystem layout of the test container were established by reading code and configuration, not observed.",
+    "Behaviour on the production NFS-backed drive, including whether copystat's utime or chmod can fail there.",
+    "The caption code at the base commit, so whether the old code had a similar exposure is unresolved.",
+    "The actual docker-compose.override.yml used in production, which is gitignored; only the example file was read.",
+    "The R-5 evidence files under the scratchpad path cited in decisions.md, and which code path the metadata refresh takes through manager.py:727 versus service.py:965.",
+    "The rest of the commit, including the Composer paste changes."
+  ],
+  "confidence": 85
+}
