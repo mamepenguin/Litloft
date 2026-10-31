@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The eval CLI entry point `app/evals_transcription/__main__.py`, which is not in the touch-point list, builds its `--providers` help from `ALL_PROVIDERS`, so the help now names `haas_local` as part of the default run although a run naming no providers leaves it out.",
+      "impact": "An operator running `python -m app.evals_transcription --help` is told the default covers `haas_local`, then runs with no `--providers` and gets a comparison report with no Haas row and no message saying it was excluded. They could wrongly conclude the provider was evaluated or was skipped by mistake. No transcript or index data is affected.",
+      "evidence": "`addons/intelligence/app/evals_transcription/__main__.py:68-69` formats `all available ({','.join(ALL_PROVIDERS)})`, and `:44` says 'Run every available transcription provider'. `addons/intelligence/app/evals_transcription/runner.py:58-60` and `:135` make the default `_DEFAULT_PROVIDERS`, which excludes `haas_local`. `__main__.py:89-95` passes `None` when `--providers` is absent. The touch points name only `app/evals_transcription/runner.py` for the harness, and no test covers the help text.",
+      "repro": "not_reproduced: read in code only, no command can be run in this role. Expected: `python -m app.evals_transcription --help` prints a default list containing `haas_local`, while `resolve_providers(None)` omits it (asserted by `test_spec_addon_039_i10_runner_accepts_haas_local_by_name_only`).",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "I10 holds, because the harness does accept the name and does leave it out of a default run. Only the generated help text reads wrong, and the file was missed by the touch-point list.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Export `_DEFAULT_PROVIDERS` from `runner.py`, use it in the `--providers` default text, and state that `haas_local` runs only when named. Add `__main__.py` to the touch points."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The change makes `huggingface_hub` a direct dependency of the addon, but `requirements.txt` neither pins nor names it, and the touch-point entry for that file lists only `sherpa-onnx==2.0.1`.",
+      "impact": "The version comes from whatever the other dependencies resolve to at image build. The provider's fetch classification (I7) relies on `snapshot_download` and on the `huggingface_hub.errors` classes, and R-5 measured these only at 0.36.2. A rebuild that resolves another version could change how a partial cache or a vanished file is classified. A missing module fails loudly as `FatalError`, so the exposure is a changed failure class on a first-use or partial-cache fetch. A complete cache is not at risk in the same way.",
+      "evidence": "`addons/intelligence/app/workers/transcription/haas_local.py:71-77` imports from `huggingface_hub` and `huggingface_hub.errors`. A search of the repository outside tests and process documents for `huggingface.hub` finds only that file, so `addons/intelligence/requirements.txt` has no such line. `docs/process/reviews/feature-haas-local-transcription/decisions.md` step 8 records the measured behaviour at huggingface_hub 0.36.2. CI cannot catch a drift, because `tests/haas_fakes.py` replaces the module and `Dockerfile.test` does not install it.",
+      "repro": "not_reproduced: read in code and requirements only. The resolved version in a fresh image build was not observed.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant fails at the measured version. This is an undeclared dependency reach, and it matters only if the resolved version changes.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Pin `huggingface-hub` in `requirements.txt` at the measured version, if that is compatible with the existing pins, and list it in the touch points."
+    }
+  ],
+  "specification_compliance": [
+    "Every path in the supplied diff falls inside the declared touch points or the implicit spec, ledger and review-record paths. Core: `addons/intelligence`, `docs/addons/intelligence.md`, `docs/reference/configuration.md`, `docs/specs/INDEX.md`, `docs/specs/haas-local-transcription.md`. Addon: `config.py`, `evals_transcription/runner.py`, `indexer.py`, `routers/admin.py`, `workers/transcription/__init__.py`, `workers/transcription/haas_local.py`, `AdminTranscriptionSettingsSection.tsx` and its test, `messages/{en,ja}.json`, `requirements.txt`, `search-config.yml.example`, and `tests/` (new `haas_fakes.py` and `test_haas_local_*`, plus the four named existing tests).",
+    "So no edited file is unplanned. The two findings are places the change reaches without editing or listing them: the eval CLI `__main__.py` and the `huggingface_hub` dependency.",
+    "Within listed files, `docs/addons/intelligence.md` also gains a `language_hint` clause ('`haas_local` ignores it'), which the touch-point sentence for that document does not name. It matches spec item 7 and would not mislead a code change, so it is not raised as a finding.",
+    "`admin.py` now imports `haas_local` at module top to read `MODEL_REPO`, and `indexer.py` imports it at module top for the idle check. Both load only numpy, `app.config` and the transcription base and error modules. `sherpa_onnx` and `huggingface_hub` stay lazily imported, which is consistent with I5.",
+    "Unchanged code that the provider reaches was read and needs no edit. `whisper.py:928` gates the cloud fallback on `sends_audio_offhost`, which gives I6. `retry.py:83-84` uses `getattr` with a default, so `HaasLocalProviderConfig` having no `circuit_breaker_threshold` is safe. `splitting_transcriber.py:163,191` gates the prompt on `accepts_initial_prompt`. `report.py:30` leaves `haas_local` out of the Whisper family, which is correct. `transcription_overrides.py` has no provider list of its own in the lines read."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The eval CLI `--help` output changes as a side effect of extending `ALL_PROVIDERS` and now misdescribes the default run (TP-1).",
+    "The admin settings help `languageHintHelp` still says 'Leave empty for auto-detect' and `hotwordsHelp` still names Whisper-family providers, while `haas_local` ignores both fields. The spec states they are accepted and ignored, but the form gives no hint of this while Haas is selected."
+  ],
+  "regression_risks": [
+    "`docs/admin-guide/docker-compose.md:178` shows `memory: 8g` as an example limit, and R-5 measured an addon peak of 7746 MiB on a 49 MB, 3.4-hour file. A lower-bitrate file under the 50 MB cap would be decoded whole and could exceed that limit. The spec records this exposure as shared with `whisper_local` and adds no duration limit; the guide is not in the touch points.",
+    "Top-level imports of `haas_local` in `admin.py` and `indexer.py` mean a syntax or import-time error in that module would break the admin router and the indexer even when another provider is selected."
+  ],
+  "test_coverage": [
+    "No test covers `evals_transcription/__main__.py` help text against the default provider set, so TP-1 passes CI.",
+    "`tests/haas_fakes.py` replaces `huggingface_hub`, `sherpa_onnx`, `faster_whisper.vad` and `ffmpeg`. CI therefore cannot detect a change in real hub behaviour, and only the recorded R-5 runs exercise the real path.",
+    "Tests pinning the provider list were extended in `test_admin_router.py`, `test_admin_whisper_model_summary.py`, `test_transcription_memory_cap.py` and `test_evals_transcription_runner.py`. A repository search shows other tests naming providers (`test_provider_capabilities.py`, `test_per_provider_breaker_threshold.py`, `test_provider_failure_handling.py`) were not extended. I did not read them to confirm they do not pin the full list."
+  ],
+  "not_verified": [
+    "No test, build or command was run; every statement comes from reading the supplied diff and the working tree.",
+    "I could not confirm that the working tree of `addons/intelligence` is exactly commit `f8f66fff`; its HEAD is a branch ref and I did not resolve it.",
+    "The file list was taken from the supplied diff, not from git itself.",
+    "The `huggingface_hub` version resolved in a fresh image build was not observed.",
+    "`--help` output of the eval CLI was read in code, not executed.",
+    "This review answered the touch-point question; the invariants were not each checked with mutations."
+  ],
+  "confidence": 85
+}

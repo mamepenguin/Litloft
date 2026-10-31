@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "No findings were listed, so no verification record is due. I read the code against I1-I10 and found no defect. This is a static reading, with nothing executed.",
+    "I1: haas_local.py:280-291 joins maximal byte-token runs, decodes with errors=ignore and removes U+FFFD (the Grep for \\x{FFFD} matched line 289). Empty text is dropped at :304, and :368 builds the segment text by joining the word texts.",
+    "I2: haas_local.py:309-325 clamps each start to the previous end and to the span, and clamps each end to the next item's start and the span end, never below start. Offsets are added to span_start at :310. Multi-chunk offsets come from the existing offset_segment call at splitting_transcriber.py:189.",
+    "I3: haas_local.py:245-247 passes max_segment_seconds to VadOptions and :159 passes num_threads. config.py:791-830 applies the ranges (num_threads >= 1, max_segment_seconds 15-120) with one warning per bad value, and _parse_transcription has a single call site at config.py:1222.",
+    "I4: haas_local.py:333-337 and :229-236 and :253-254 return before any lock or load. Segments are appended only when words is non-empty (:365). SplittingTranscriber exposes the inner name (splitting_transcriber.py:95-100), which _insert_running_job records (whisper.py:1072).",
+    "I5: config.py:234 defaults to whisper_local. The only sherpa_onnx import in app/ is inside _load_recognizer (haas_local.py:148). The idle check returns while _recognizer is None (:197). The top-level imports in indexer.py:46 and admin.py:50 load only this module, which imports numpy and project modules.",
+    "I6: haas_local.py:383 and :389 declare the capabilities. whisper.py:928 enters the cloud policy and fallback branch only when sends_audio_offhost is true, so whisper_local is not constructed for haas_local. _effective_input_cap keeps 50 MB below the 64 MB memory ceiling (__init__.py:108-117).",
+    "I7: revision=MODEL_COMMIT is used at haas_local.py:90 and :116, and a complete cache returns at :98-100 before any network call. LocalEntryNotFoundError is caught before EntryNotFoundError (:119-127). Import, load, ffmpeg-missing, VAD and recognizer failures raise FatalError (:150, :164, :224, :256, :353). Fetch and load messages name MODEL_REPO. whisper.py:1093-1109 fails the job and returns False.",
+    "I8: _load_recognizer, _release_recognizer and decode run under _lock (haas_local.py:341-356, :200-206). transcribe uses asyncio.to_thread (:408), and the idle check uses a non-blocking acquire (:200). One qualification on the unload path is recorded under regression_risks.",
+    "I9: timeout <= 0 returns at haas_local.py:197, and _inflight blocks release during a call. _last_used is set after each span decode (:356) and at load (:170). A recognizer exception releases the recognizer at :352. indexer.py:1642-1645 calls the Haas check after the existing checks.",
+    "I10: admin.py:59-61 lists it second, admin.py:73 needs no key, and admin.py:275-277 reports the repository. runner.py:58-60 and :134-143 exclude it by default and accept it by name. The frontend has PROVIDER_KEY_ENV null at AdminTranscriptionSettingsSection.tsx:27 and labels at messages/en.json:659 and ja.json:659.",
+    "The r1 eval help finding TP-1 looks fixed in code: __main__.py:68-69 now prints DEFAULT_PROVIDERS and states that haas_local runs only when named."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "If a recognizer result has fewer timestamps than tokens, _words (haas_local.py:297, :302) raises a raw IndexError outside the try block at :343-355. The job still fails visibly through the generic handler at whisper.py:1110, but as an unclassified error rather than FatalError, and the recognizer is not released. I2 covers overlapping times and omitted durations, not omitted timestamps, and R-5 did not report this shape.",
+    "A non-mapping `transcription.haas_local` section (for example a scalar) silently uses the defaults with no WARNING (config.py:804-805). This needs a malformed config, so it is outside the threat model, and I3 speaks only of a setting outside its range."
+  ],
+  "regression_risks": [
+    "The actual unload in check_idle_unload runs gc.collect() and malloc_trim() synchronously on the event loop (haas_local.py:184-187, reached from :204). It never waits on the lock, as the spec's touch point requires, and whisper.py:255-260 does the same. The duration of this stall was not measured, and R-5's /health probes were recorded during a job, not during an unload.",
+    "huggingface_hub is still imported directly (haas_local.py:71-77) and is not named in addons/intelligence/requirements.txt, as r1 TP-2 recorded. A rebuild that resolves another version could change the fetch failure classification.",
+    "The fetch classification tests rely on fakes. Real huggingface_hub behaviour is backed only by the R-5 records in decisions.md, at version 0.36.2."
+  ],
+  "test_coverage": [
+    "test_haas_local_provider.py has named tests for I1, I2, I3, I4, I7, I8 and I9, including token reconstruction, ordering, fetch classification, lock overlap, loop responsiveness and cancelled calls that still hold the lock. Their assertions were read only in part.",
+    "test_haas_local_dispatch.py covers zero-segment success with the provider name, failures leaving a file unindexed, and the cloud-off drive using haas_local.",
+    "haas_fakes.py:452 drives the real indexer._idle_unload_worker, so the indexer wiring is exercised.",
+    "CI uses a fake recognizer, VAD and decoder by the spec's own design. decisions.md lists these as not run in the stack: recognizer exception on a span, sherpa_onnx import failure, missing ffmpeg, VAD IndexError, .loft consumption and an eval run by name."
+  ],
+  "not_verified": [
+    "No test, build or command was run, because only Read, Glob and Grep were available. Every statement comes from reading the code.",
+    "The submodule tree was read from the working directory, not extracted from the commit object, so I did not independently confirm that addons/intelligence matches the pointer in cae83606c.",
+    "Real sherpa_onnx, faster_whisper and huggingface_hub behaviour was not checked; package sources were not read and the R-5 records in decisions.md were taken as stated.",
+    "The duration of the event-loop stall during an idle unload was not measured.",
+    "Not every test body was read, and frontend tests other than the cloud-policy help assertion were checked only by name or grep.",
+    "The full text of docs/addons/intelligence.md was not compared line by line with the spec's item 9 limits; only the lines mentioning Haas were read.",
+    "No mutation testing was done, because this role cannot modify or run anything."
+  ],
+  "confidence": 80
+}
