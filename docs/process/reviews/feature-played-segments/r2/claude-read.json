@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "Every file the diff reaches maps to a declared touch point: backend/app/models.py (table and file_id index), backend/app/routers/progress.py and backend/app/schemas.py (endpoints), backend/tests/test_played_segments.py (backend/tests/), docs/reference/api.md (docs), frontend/src/lib/playbackProgress.ts and the new capture module frontend/src/lib/playedRanges.ts, frontend/src/lib/__tests__/playbackProgress.playedRanges.test.ts and frontend/src/components/__tests__/componentFixtureParity.test.tsx (tests under frontend/src/), and frontend/e2e-components/played-ranges.spec.ts, fixtures/playedRanges.tsx, fixtures/app.tsx and spec-viewport.spec.ts (the e2e-components spec, its fixtures and its registration).",
+    "docs/specs/played-segments.md and docs/specs/INDEX.md are implicit touch points and are not reported.",
+    "The reverse holds too: the listed touch point frontend/src/lib/api.ts is not edited. The send function sendPlayedRanges sits in playedRanges.ts and calls fetch with a literal '/api/files/...' path. api.ts defines API_BASE as the constant '/api' (frontend/src/lib/api.ts:5), so the URL is the same and nothing behaves differently. The list was larger than needed, not incomplete.",
+    "backend/app/database.py is not edited, as the spec says it should not be. No protected path, addon or iOS file is reached."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "sendPlayedRanges bypasses api.ts's shared fetch helper (frontend/src/lib/api.ts:8), so if API_BASE or the helper's options change later, this request will not follow them."
+  ],
+  "regression_risks": [
+    "frontend/e2e-components/spec-viewport.spec.ts gains the new spec in AT_THE_PHONE_WIDTH. This is registration, but it ties the new spec to the phone-width viewport check run."
+  ],
+  "test_coverage": [
+    "Read only for touch-point mapping. I did not assess per-invariant test strength in this pass, beyond confirming that tests exist under each declared test location."
+  ],
+  "not_verified": [
+    "I did not run any test or build.",
+    "I did not check whether spec-viewport.spec.ts registration is the only registration the e2e-components harness needs (for example a playwright config list).",
+    "I did not check the correctness of the capture logic or the backend endpoints against I1–I10; this pass answered only the touch-point question.",
+    "I did not read the r1/r2 classification.json contents beyond a grep hit."
+  ],
+  "confidence": 88
+}
