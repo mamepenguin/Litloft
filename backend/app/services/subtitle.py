@@ -103,18 +103,17 @@ def detect_subtitles(video_file_path: str, drive_path: Path) -> list[dict]:
     return subtitles
 
 
-def move_sidecar_subtitles(old_video: Path, new_video: Path) -> list[tuple[Path, Path]]:
+def move_sidecar_subtitles(old_video: Path, new_video: Path) -> None:
     """Move the subtitle files named after ``old_video`` to match ``new_video``.
 
     Runs after the video has moved, so the old directory is listed here rather
-    than taken from the caller. Returns the ``(source, target)`` pairs actually
-    moved. Best effort: a failure is logged and never raised, and an existing
-    destination is left alone with its source in place.
+    than taken from the caller. Best effort: a failure is logged and never
+    raised, and an existing destination is left alone with its source in place.
     """
     old_stem = unicodedata.normalize("NFC", old_video.stem)
     new_stem = new_video.stem
     if old_video.parent == new_video.parent and old_stem == unicodedata.normalize("NFC", new_stem):
-        return []
+        return
 
     try:
         sidecars = [
@@ -124,9 +123,8 @@ def move_sidecar_subtitles(old_video: Path, new_video: Path) -> list[tuple[Path,
         ]
     except OSError:
         logger.exception("subtitle sidecars: could not list %s", old_video.parent)
-        return []
+        return
 
-    moved: list[tuple[Path, Path]] = []
     for item in sidecars:
         name = unicodedata.normalize("NFC", item.name)
         target = new_video.parent / (new_stem + name[len(old_stem):])
@@ -137,10 +135,8 @@ def move_sidecar_subtitles(old_video: Path, new_video: Path) -> list[tuple[Path,
                 )
                 continue
             shutil.move(str(item), str(target))
-            moved.append((item, target))
         except Exception:
             logger.exception("subtitle sidecar %s could not move to %s", item, target)
-    return moved
 
 
 def convert_srt_to_vtt(srt_content: str) -> str:

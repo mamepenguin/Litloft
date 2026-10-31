@@ -304,6 +304,7 @@ class TestUploadedSubtitle:
             res = c.put(f"/api/files/{row.id}/move", json={"target_folder_path": "b"})
             assert res.status_code == 200, res.text
             moved = "b/movie.mp4"
+        db.expire_all()
         _scan_and_register(db, OPEN_DRIVE)
 
         assert [p for p, _ in _tracks(open_dir, moved)] == [moved[:-3] + "srt"]

@@ -281,6 +281,14 @@ already there. The request answers 200 and only a backend warning records it.
 With `movie.mp4` and `movie.mkv` next to `movie.srt`, the first one renamed or
 moved takes the subtitle and the other loses that track.
 
+**`movie.ja.srt` can be both the bare track of `movie.ja.mp4` and the Japanese
+track of `movie.mp4`.** Renaming `movie.mp4` takes it from the other video.
+
+**An uploaded subtitle has no card, so it cannot be replaced or removed from
+the UI.** It is a sidecar file like one placed on disk. Uploading again to the
+same name is refused with `409 File already exists`, and the upload drawer shows
+that error.
+
 **A rename whose new name is taken by one of the video's own sidecars leaves
 that sidecar under the old name.** Renaming `movie.ja.mp4` to `movie.mp4` while
 `movie.srt` is present is one case. No file is lost, and a backend warning

@@ -5,7 +5,7 @@ import re
 import shutil
 import unicodedata
 from datetime import UTC, datetime
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 
 from fastapi import HTTPException
 from sqlalchemy import text
@@ -385,63 +385,12 @@ def _serves_subtitles(file: File) -> bool:
     return file.file_type == "video" or file.mime_type == "application/vnd.litloft.loft+json"
 
 
-def _follow_sidecar_row(
-    db: Session, old_drive: str, new_drive: str, source_rel: str, target_rel: str
-) -> None:
-    """Point the row of a moved sidecar, if it has one, at its new path.
-
-    An uploaded subtitle has a row of its own and the scanner never creates one,
-    so nothing else would correct it.
-    """
-    row = (
-        db.query(File)
-        .filter(File.drive == old_drive, File.file_path == source_rel)
-        .first()
-    )
-    if row is None:
-        return
-    taken = (
-        db.query(File.id)
-        .filter(File.drive == new_drive, File.file_path == target_rel)
-        .first()
-    )
-    if taken is not None:
-        logger.warning(
-            "sidecar subtitle row %s not updated: %s already has a record", row.id, target_rel
-        )
-        return
-    target = PurePosixPath(target_rel)
-    retarget_file_tags(db, row, old_drive, new_drive)
-    if row.filename != target.name:
-        row.title = _filename_to_title(target.name)
-    row.drive = new_drive
-    row.folder_path = "" if target.parent == PurePosixPath(".") else str(target.parent)
-    row.filename = target.name
-    row.file_path = target_rel
-    db.commit()
-
-
-def _carry_sidecars(
-    db: Session, file: File, old_full: Path, new_full: Path, old_drive: str, new_drive: str
-) -> None:
+def _carry_sidecars(file: File, old_full: Path, new_full: Path) -> None:
     """Best effort: a failure here never undoes the video's own change."""
     if not _serves_subtitles(file):
         return
     try:
-        old_root = resolve_drive_path(old_drive)
-        new_root = resolve_drive_path(new_drive)
-        for source, target in move_sidecar_subtitles(old_full, new_full):
-            try:
-                _follow_sidecar_row(
-                    db,
-                    old_drive,
-                    new_drive,
-                    source.relative_to(old_root).as_posix(),
-                    target.relative_to(new_root).as_posix(),
-                )
-            except Exception:
-                db.rollback()
-                logger.exception("sidecar subtitles: could not update the row of %s", source)
+        move_sidecar_subtitles(old_full, new_full)
     except Exception:
         logger.exception("sidecar subtitles: could not carry %s to %s", old_full, new_full)
 
@@ -499,7 +448,7 @@ def rename_file(db: Session, file_id: str, new_filename: str) -> File:
             detail=f"Rename failed (DB error, filesystem reversed): {exc}",
         ) from exc
 
-    _carry_sidecars(db, file, old_full, new_full, old_drive, old_drive)
+    _carry_sidecars(file, old_full, new_full)
 
     # Best-effort: a rewrite failure must NOT roll back the user-visible rename
     # (FS + DB row are already durable).
@@ -589,7 +538,7 @@ def move_file(db: Session, file_id: str, target_drive: str | None, target_folder
             detail=f"Move failed (DB error, filesystem reversed): {exc}",
         ) from exc
 
-    _carry_sidecars(db, file, old_full, new_full, src_drive, dst_drive)
+    _carry_sidecars(file, old_full, new_full)
 
     db.refresh(file)
     return file
@@ -1183,7 +1132,7 @@ def _carry_batch_sidecars(
             new_full = resolve_drive_path(file.drive) / file.file_path
             old_full = by_new_path.get(new_full)
             if old_full is not None:
-                _carry_sidecars(db, file, old_full, new_full, file.drive, file.drive)
+                _carry_sidecars(file, old_full, new_full)
         except Exception:
             logger.exception("batch rename: could not carry sidecar subtitles of %s", file.id)
 

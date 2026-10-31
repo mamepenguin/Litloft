@@ -8,6 +8,7 @@ from app.database import get_db
 from app.schemas import (
     ChunkResponse,
     FileResponse,
+    SubtitleUploadResponse,
     UploadInitRequest,
     UploadInitResponse,
     file_to_response,
@@ -65,7 +66,10 @@ async def upload_chunk(
     )
 
 
-@router.post("/{drive_name}/upload/{upload_id}/complete", response_model=FileResponse)
+@router.post(
+    "/{drive_name}/upload/{upload_id}/complete",
+    response_model=FileResponse | SubtitleUploadResponse,
+)
 async def complete_upload(
     drive_name: str,
     upload_id: str,
@@ -75,6 +79,8 @@ async def complete_upload(
     check_drive_access(drive_name, unlocked_groups)
     _validate_session_drive(upload_id, drive_name)
     file_record, was_recovered = upload_service.complete_upload(upload_id, db)
+    if isinstance(file_record, SubtitleUploadResponse):
+        return file_record
     if was_recovered:
         await event_hooks.emit("files.recovered", {"file_ids": [file_record.id]})
     await event_hooks.emit("scan.complete", {

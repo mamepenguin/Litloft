@@ -183,7 +183,7 @@ Keyword search is the `search` parameter of `GET /api/drives/{drive}/files`. Sem
 |---|---|---|
 | `POST` | `/api/drives/{drive}/upload/init` | Body `{ filename, file_size, folder_path, relative_path, chunk_size }`; `chunk_size` defaults to 5 MiB. Returns `{ upload_id, chunk_size, total_chunks }`. |
 | `POST` | `/api/drives/{drive}/upload/{upload_id}/chunk` | `multipart/form-data` with `chunk_index` and `chunk`. Returns the received and total chunk counts. |
-| `POST` | `/api/drives/{drive}/upload/{upload_id}/complete` | Finish and return the file. An upload to the path of a Missing file revives that record. |
+| `POST` | `/api/drives/{drive}/upload/{upload_id}/complete` | Finish and return the file. An upload to the path of a Missing file revives that record. A subtitle (`.srt`, `.vtt` and the other subtitle extensions) is a sidecar file and gets no record: the answer is `{ "status": "sidecar", "drive", "file_path" }`, and a record already at that path is removed. |
 | `DELETE` | `/api/drives/{drive}/upload/{upload_id}` | Cancel. |
 
 An upload session belongs to the drive it was opened on; using it under another drive is `404`.
