@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship (human, 2026-10-31, "推奨通り", after r2 HUMAN_REVIEW_REQUIRED; F1, F2, F3, F4 and R2-F1 bucket B accepted as is)
 ran_in_app: yes
 at: c6c022417aabb34baf00e82fdfe148985acf8392
 by: agent
