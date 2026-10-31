@@ -524,6 +524,50 @@ class ProgressUpdateRequest(BaseModel):
         return self
 
 
+PLAYED_RANGES_MAX = 256
+PLAYED_RANGE_MAX_SECONDS = 604800
+PLAYED_SEGMENT_SECONDS = 5
+
+
+class PlayedRange(BaseModel):
+    start: float
+    end: float
+
+    @model_validator(mode="before")
+    @classmethod
+    def drop_non_finite(cls, data: Any) -> Any:
+        # The 422 body echoes each rejected input, and a NaN or an infinity
+        # there cannot be encoded as JSON, which turns the 422 into a 500.
+        if not isinstance(data, dict):
+            return data
+        return {
+            key: None if isinstance(value, float) and not math.isfinite(value) else value
+            for key, value in data.items()
+        }
+
+    @model_validator(mode="after")
+    def validate_bounds(self):
+        if not (0 <= self.start < self.end <= PLAYED_RANGE_MAX_SECONDS):
+            raise ValueError(
+                f"range must satisfy 0 <= start < end <= {PLAYED_RANGE_MAX_SECONDS}"
+            )
+        return self
+
+
+class PlayedRangesRequest(BaseModel):
+    ranges: list[PlayedRange] = Field(min_length=1, max_length=PLAYED_RANGES_MAX)
+
+
+class PlayedSegmentItem(BaseModel):
+    index: int
+    played_seconds: float
+
+
+class PlayedSegmentsResponse(BaseModel):
+    segment_seconds: int = PLAYED_SEGMENT_SECONDS
+    segments: list[PlayedSegmentItem]
+
+
 class ProgressResponse(BaseModel):
     position: float
     duration: float

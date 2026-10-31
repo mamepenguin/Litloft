@@ -70,6 +70,7 @@ import { useAnchoredDirection } from "@/hooks/useAnchoredDirection";
 import { folderTransitionKind } from "@/lib/folderTransition";
 import { showOpenGhost } from "@/lib/openGhost";
 import { JustifiedHoldArrangement } from "./justifiedHold";
+import { PlayedRangesArrangement } from "./playedRanges";
 import {
   navigateWithTransition,
   notifyNavigationCommit,
@@ -1948,6 +1949,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "epub-bar": EpubBarAtRest,
   "epub-bar-loading": EpubBarLoading,
   "markdown-tables": MarkdownTables,
+  "played-ranges": PlayedRangesArrangement,
 };
 
 function App(): ReactElement {
