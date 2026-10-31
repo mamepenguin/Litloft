@@ -73,8 +73,9 @@ subtitle listed as a media file of its own.
 
 **A file moved between drives before the tag fix keeps its old tag links until it is moved again.**
 Such a file still links to the `Tag` rows of the drive it came from, so its tag
-counts on that drive and is missing from the list of the drive it sits on. There is
-no data migration. Reached only on a database that had such moves; the next move of
+counts on that drive and is missing from the tag list of the drive it sits on.
+Filtering by that name on its current drive still lists it, so that drive's count
+and listing can disagree. There is no data migration. Reached only on a database that had such moves; the next move of
 the file between drives sweeps the old rows.
 
 **Adding a tag to a note whose frontmatter tags were never projected replaces them.**

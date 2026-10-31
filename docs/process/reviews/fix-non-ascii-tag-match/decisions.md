@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship (human, 2026-10-31, "OK" to shipping once the R-5 re-run on the tag filter showed no problem, after r2 HUMAN_REVIEW_REQUIRED for unspecified_behavior on count and listing disagreement, case-variant handling and lower() matching; r1 and r2 findings bucket B accepted, the listing regression and stale docstring fixed)
 ran_in_app: yes
 at: 7598db2e4d000b053a212e5fb5fe0c5857f81689
 by: agent
