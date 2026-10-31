@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 import pytest
 
 import app.config as config
-from app.models import File
+from app.models import File, Tag
 from app.services.frontmatter import parse as parse_frontmatter
 from app.services.scanner import _scan_and_register, register_single_file
 
@@ -143,3 +143,63 @@ class TestCollisionInScanner:
         assert fm["id"] == "20260512143028123"
         record = db_session.query(File).filter(File.id == file_id).first()
         assert record.md_id == "20260512143028123"
+
+
+def _tag_names(db, filename):
+    record = db.query(File).filter(File.filename == filename).one()
+    return sorted(t.name for t in record.tags)
+
+
+def _register(db, drive_dir, how, name, text):
+    (drive_dir / name).write_text(text)
+    if how == "scan":
+        _scan_and_register(db, "test-drive")
+    else:
+        register_single_file(db, "test-drive", drive_dir / name)
+    db.commit()
+
+
+@pytest.mark.parametrize("how", ["scan", "single"])
+class TestRegistrationProjectsFrontmatterTags:
+    @pytest.mark.parametrize(
+        ("text", "expected"),
+        [
+            ("---\ntags: [a, b]\n---\n\nbody\n", ["a", "b"]),
+            ("---\ntitle: t\n---\n\nbody\n", []),
+            ("# no frontmatter\n", []),
+            ("---\ntags: [ok, 'bad tag!', '']\n---\n\nbody\n", ["ok"]),
+        ],
+        ids=["two-tags", "no-tags-key", "no-frontmatter", "invalid-dropped"],
+    )
+    def test_file_tags(self, db_session, drive_env, how, text, expected):
+        _register(db_session, drive_env, how, "n.md", text)
+        assert _tag_names(db_session, "n.md") == expected
+
+    def test_case_variant_reuses_row(self, db_session, drive_env, how):
+        db_session.add(Tag(name="Python", drive="test-drive"))
+        db_session.commit()
+        _register(db_session, drive_env, how, "n.md", "---\ntags: [python]\n---\n\nbody\n")
+        assert _tag_names(db_session, "n.md") == ["python"]
+        assert db_session.query(Tag).filter(Tag.drive == "test-drive").count() == 1
+
+    def test_projection_failure_does_not_break_registration(
+        self, db_session, drive_env, how, monkeypatch
+    ):
+        import app.services.scanner as scanner_mod
+
+        def boom(*args, **kwargs):
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(scanner_mod, "replace_file_tags", boom)
+        _register(db_session, drive_env, how, "n.md", "---\ntags: [a]\n---\n\nbody\n")
+        record = db_session.query(File).filter(File.filename == "n.md").one()
+        assert record.md_id is not None
+        assert record.tags == []
+
+
+def test_scan_shares_new_tag_row_across_notes(db_session, drive_env):
+    (drive_env / "a.md").write_text("---\ntags: [x]\n---\n\nbody\n")
+    (drive_env / "b.md").write_text("---\ntags: [X]\n---\n\nbody\n")
+    _scan_and_register(db_session, "test-drive")
+    db_session.commit()
+    assert db_session.query(Tag).filter(Tag.drive == "test-drive").count() == 1
