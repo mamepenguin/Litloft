@@ -1,7 +1,11 @@
 """Renaming or moving a video carries its sidecar subtitles with it."""
 import shutil
 import unicodedata
+from datetime import UTC, datetime
 
+import pytest
+
+import app.config as config
 import app.services.subtitle as subtitle
 from app.models import File
 from app.services.subtitle import detect_subtitles
@@ -233,3 +237,93 @@ class TestBatchRename:
         assert _names(a) == ["clip_1.ja.srt", "clip_1.mp4", "clip_2.ja.srt", "clip_2.mp4"]
         assert (a / "clip_1.ja.srt").read_text(encoding="utf-8") == "content of clip_2.ja.srt"
         assert (a / "clip_2.ja.srt").read_text(encoding="utf-8") == "content of old.ja.srt"
+
+
+def _upload(c, drive, folder, filename, body=b"1\n00:00:00,000 --> 00:00:01,000\nhi\n"):
+    """Upload through the real route, so the row is the one production creates."""
+    base = f"/api/drives/{drive}/upload"
+    init = c.post(
+        f"{base}/init",
+        json={"filename": filename, "file_size": len(body), "folder_path": folder},
+    )
+    assert init.status_code == 200, init.text
+    upload_id = init.json()["upload_id"]
+    chunk = c.post(
+        f"{base}/{upload_id}/chunk",
+        data={"chunk_index": 0},
+        files={"chunk": ("chunk", body)},
+    )
+    assert chunk.status_code == 200, chunk.text
+    done = c.post(f"{base}/{upload_id}/complete")
+    assert done.status_code == 200, done.text
+    return done.json()["id"]
+
+
+def _place(db, row_id):
+    db.expire_all()
+    row = db.get(File, row_id)
+    return row.drive, row.folder_path, row.filename, row.file_path
+
+
+def _rename_to_film(c, row, _locked_dir):
+    _rename(c, row, "film.mp4")
+
+
+def _move_to_b(c, row, _locked_dir):
+    res = c.put(f"/api/files/{row.id}/move", json={"target_folder_path": "b"})
+    assert res.status_code == 200, res.text
+
+
+def _move_to_locked(c, row, _locked_dir):
+    assert c.post("/api/auth/unlock", json={"password": LOCKED_PASSWORD}).status_code == 200
+    res = c.put(
+        f"/api/files/{row.id}/move",
+        json={"target_drive": LOCKED_DRIVE, "target_folder_path": "z"},
+    )
+    assert res.status_code == 200, res.text
+
+
+def _batch_rename(c, row, _locked_dir):
+    _batch(c, [row.id], "film")
+
+
+class TestUploadedSubtitleRow:
+    @pytest.mark.parametrize(
+        ("act", "expected"),
+        [
+            (_rename_to_film, (OPEN_DRIVE, "a", "film.srt", "a/film.srt")),
+            (_move_to_b, (OPEN_DRIVE, "b", "movie.srt", "b/movie.srt")),
+            (_move_to_locked, (LOCKED_DRIVE, "z", "movie.srt", "z/movie.srt")),
+            (_batch_rename, (OPEN_DRIVE, "a", "film.srt", "a/film.srt")),
+        ],
+        ids=["rename", "move", "move-across-drives", "batch-rename"],
+    )
+    def test_row_follows_its_file(self, two_drives, monkeypatch, tmp_path, act, expected):
+        c, db, open_dir, locked_dir = two_drives
+        monkeypatch.setattr(config, "UPLOAD_DIR", tmp_path / "uploads")
+        row = _seed(db, open_dir)
+        (open_dir / "b").mkdir()
+        sub_id = _upload(c, OPEN_DRIVE, "a", "movie.srt")
+
+        act(c, row, locked_dir)
+
+        assert _place(db, sub_id) == expected
+
+    def test_row_holding_the_target_path_stays_and_the_rename_succeeds(
+        self, two_drives, monkeypatch, tmp_path
+    ):
+        c, db, open_dir, _ = two_drives
+        monkeypatch.setattr(config, "UPLOAD_DIR", tmp_path / "uploads")
+        row = _seed(db, open_dir)
+        sub_id = _upload(c, OPEN_DRIVE, "a", "movie.srt")
+        db.add(File(
+            filename="film.srt", title="film.srt", drive=OPEN_DRIVE, folder_path="a",
+            file_path="a/film.srt", file_size=0, file_type="document", mime_type="text/plain",
+            missing_since=datetime.now(UTC),
+        ))
+        db.commit()
+
+        _rename(c, row, "film.mp4")
+
+        assert _place(db, sub_id) == (OPEN_DRIVE, "a", "movie.srt", "a/movie.srt")
+        assert db.get(File, row.id).filename == "film.mp4"
