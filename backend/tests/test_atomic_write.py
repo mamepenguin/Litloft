@@ -207,8 +207,8 @@ ROLES = {
         # destination is never seen half-written.
         "app/services/config_writer.py",
         # Moves an already-complete cache file to its slot; no contents are
-        # published.
-        "app/services/thumbnail.py",
+        # published, and the module holds no generators.
+        "app/services/thumbnail_migration.py",
     }),
     # `tmp.replace(dst)` — `Path.replace` takes one argument, which is what
     # tells it apart from `str.replace`.

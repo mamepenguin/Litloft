@@ -18,7 +18,11 @@ from app.services.atomic_write import generating_file
 from app.services.heic import cleanup_heic_cache
 from app.services.markdown_images import project_markdown_thumbnail
 from app.services.subtitle import move_sidecar_subtitles
-from app.services.thumbnail import remove_thumbnail_quietly, thumbnail_slot_rel
+from app.services.thumbnail import (
+    prune_empty_dirs,
+    remove_thumbnail_quietly,
+    thumbnail_slot_rel,
+)
 from app.services.tagops import (
     cleanup_orphan_tags,
     project_frontmatter_tags,
@@ -104,16 +108,6 @@ def _filename_to_title(filename: str) -> str:
     if not name:
         return stem
     return name[0].upper() + name[1:]
-
-
-def _cleanup_empty_parents(directory: Path, stop_at: Path) -> None:
-    current = directory
-    while current != stop_at and current.is_dir():
-        try:
-            current.rmdir()
-            current = current.parent
-        except OSError:
-            break
 
 
 def untrack_empty_folder(db: Session, drive: str, folder_path: str) -> None:
@@ -328,7 +322,7 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
         if projected_thumb is not None:
             try:
                 projected_thumb.unlink()
-                _cleanup_empty_parents(projected_thumb.parent, config.THUMBNAILS_DIR)
+                prune_empty_dirs(projected_thumb.parent, config.THUMBNAILS_DIR)
             except OSError:
                 pass
         raise
@@ -645,7 +639,7 @@ def physical_delete(db: Session, file: File) -> None:
         thumb = config.THUMBNAILS_DIR / file.thumbnail_path
         if thumb.exists():
             thumb.unlink()
-            _cleanup_empty_parents(thumb.parent, config.THUMBNAILS_DIR)
+            prune_empty_dirs(thumb.parent, config.THUMBNAILS_DIR)
 
     cleanup_heic_cache(str(full_path.resolve()), config.CONVERTED_DIR)
 

@@ -24,7 +24,7 @@ from app.routers import addon_proxy, admin_config, drive_policies, internal, sma
 from app.services.fileops import physical_delete
 from app.services.scanner import scan_all_drives
 from app.services import addon_registry, drive_seed, event_hooks
-from app.services.thumbnail import migrate_thumbnail_slots
+from app.services.thumbnail_migration import migrate_thumbnail_slots
 from app.services.upload import cleanup_abandoned_uploads
 from app.services.ws import set_event_loop
 
