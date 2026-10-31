@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "source-folder-vanishes-after-uploaded-sidecar-row-follows",
+      "origin": "reviewer",
+      "claim": "When a move takes both a video and its uploaded subtitle out of a folder, the source folder is checked for emptiness while the subtitle row is still in it and is never checked again, so the now-empty folder is not tracked and drops out of the folder tree.",
+      "impact": "A user uploads `movie.mp4` and `movie.srt` into a folder and moves the video to another folder or drive. The folder still exists on disk, but it disappears from the tree and cannot be opened or used as a destination until a rescan rebuilds the empty-folder rows. Moving the same video with a sidecar that has no row keeps the folder visible, so the result depends on how the subtitle got there, and nothing tells the user.",
+      "evidence": "backend/app/services/fileops.py:579 calls `_ensure_empty_folder_tracked(db, old_drive, old_folder)` before the carry at fileops.py:592. At that point fileops.py:148-154 finds the active subtitle row and returns without adding an EmptyFolder. `_follow_sidecar_row` (fileops.py:396-421) then changes the row's folder_path and has no empty-folder step. routers/drives.py:285-302 builds the tree only from active File rows and EmptyFolder rows, so no row names the folder. Only a scan heals it (scanner.py:849-863). test_sidecar_subtitles_follow_video.py has no match for EmptyFolder. The fixtures in the third and fourth R-5 runs left `keep.txt` in the source folder (decisions.md:35 and :47), so those walks could not show this.",
+      "repro": "not_reproduced (read-only review). Steps: upload `movie.mp4` and `movie.srt` into `a/`, with nothing else in the folder. PUT `/api/files/<video id>/move` with target_folder_path `b`. Reading the code predicts that `a/` exists on disk, no EmptyFolder row exists for `a`, and the drive's folder tree omits `a` until `POST /api/drives/<drive>/scan`.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariants are declared. Normal use reaches this through the upload path, and the result is a silently wrong tree until the next scan. No data is lost.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Run `_ensure_empty_folder_tracked` for the old folder after the sidecar rows have followed, then commit, and add a test that uploads both files, moves the video and asserts the EmptyFolder row."
+    },
+    {
+      "id": "batch-move-reports-failure-for-a-subtitle-already-carried",
+      "origin": "reviewer",
+      "claim": "A batch move that selects a video and then its uploaded subtitle counts the subtitle as failed, because the video's move has already carried that row to the destination.",
+      "impact": "Uploaded subtitles appear as their own cards, so selecting both cards and using Cut and Paste is ordinary use. Every file lands correctly, but the page shows `1 file could not be pasted`, and the same request answers an `errors` entry. The user is told something failed when nothing did, and may go looking for a file that is already in place. The selection bar and drag paths discard the errors array, so they show nothing.",
+      "evidence": "backend/app/routers/files.py:354-369 calls `fileops.move_file` for each id in turn. The first call carries the subtitle and its row (fileops.py:592, :396-421). The second call builds new_rel from the row's new folder and the same filename (fileops.py:543-544), so old and new paths are the same file. fileops.py:547-548 finds that it exists and raises 409 `File already exists at target`, and files.py:369 records it as an error. frontend/src/components/ClipboardProvider.tsx:135-138 and :158-160 turn the error count into `toast.error(pasteFailed)`. The ids come from selection insertion order (SelectionBar.tsx:100). In the opposite order the subtitle moves first, the video finds no sidecar left to carry, and there is no error. No test in test_sidecar_subtitles_follow_video.py uses `/batch/move`, and the R-5 runs moved only the video card.",
+      "repro": "not_reproduced (read-only review). Steps: upload `movie.mp4` and `movie.srt` into `a/`, then PUT `/api/files/batch/move` with ids [video id, subtitle id] and target_folder_path `b`. Reading the code predicts `{\"moved\": 1, \"errors\": [{\"id\": <subtitle id>, \"error\": \"File already exists at target\"}]}`, with both files and rows correct in `b/`.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariants are declared. The final state is right and only the report is wrong, but ordinary use of the visible subtitle card reaches it.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "In the batch move loop, treat a row that is already at the requested destination as moved, and add this selection order as a test row."
+    },
+    {
+      "id": "sidecar-row-tags-title-and-root-unpinned",
+      "origin": "reviewer",
+      "claim": "The tests for `_follow_sidecar_row` compare only drive, folder, filename and path, so the tag retarget, the title update and the root-folder branch can all be removed or broken with the suite staying green.",
+      "impact": "An edit that drops `retarget_file_tags` would leave a tagged subtitle moved across drives linked to the old drive's Tag row, so that row keeps counting on the wrong drive and the subtitle's own drive does not list the tag. Removing the title line would leave the card showing the old name after a rename. Removing the root branch would store folder_path `.` for a sidecar moved to a drive root, which would hide it from that folder's listing. Only the manual walks saw title and root, and no walk tagged a subtitle.",
+      "evidence": "backend/app/services/fileops.py:414-418 holds the three behaviors. `_place` in backend/tests/test_sidecar_subtitles_follow_video.py returns only `row.drive, row.folder_path, row.filename, row.file_path`, and no test reads `row.title` or `row.tags`. Every parametrized destination of `test_row_follows_its_file` has a non-empty folder (`a`, `b`, `z`), so `target.parent == PurePosixPath('.')` is never true.",
+      "repro": "Mutations reasoned, not run. (1) Delete fileops.py:414. (2) Delete fileops.py:415-416. (3) Replace fileops.py:418 with `row.folder_path = str(target.parent)`. Tracing `TestUploadedSubtitleRow` predicts all three survive. Asserting title and tags, and adding a move-to-root row, would kill them.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The code reads correctly for these inputs. This is a coverage gap on new row-state logic, not a live defect.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add a move-to-drive-root row to the existing parametrized test, and extend its assertion to title and tag rows."
+    }
+  ],
+  "specification_compliance": [
+    "No invariants file exists, so bucket A is unavailable and no touch-point list applies.",
+    "r2's uploaded-row finding is fixed for the row's location: `_follow_sidecar_row` runs on rename, move and batch rename, and the scanner no longer flags a subtitle row whose file is on disk (scanner.py:455-465). Keeping that row consistent is not complete, as the empty-folder and batch-move findings show.",
+    "r2's orphan-copy and batch-sibling-loop findings no longer apply: the copy branch and the `later` state were removed. The inverse-rename and mixed-extension cascade findings remain in the code and are recorded in known-issues.md, with the commit message citing human consent for dropping the sibling behaviour.",
+    "A disk-only subtitle still gets no row from a scan or from `register_single_file` (scanner.py:348, :455-465). A row whose file is gone is still flagged missing, because its path is not added to found_paths.",
+    "Upload names pass through `validate_filename`, which applies NFC (fileops.py:67, safepath.py:55), so a row's name normally matches the on-disk name. `source_rel` in `_carry_sidecars` is not normalized, so a row whose on-disk name was later changed to NFD would not follow. I found no ordinary path to that state and did not raise it."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "When a row already holds the target path, the file moves but its own row stays at the old path (fileops.py:403-412, pinned by `test_row_holding_the_target_path_stays_and_the_rename_succeeds`). At the next scan, by reading the code, the stale row at the target recovers and takes over the file with its old tags and history, while the uploaded row is flagged missing.",
+    "A batch rename with `clip_{n}` that selects a video and its uploaded subtitle numbers them separately, for example `clip_1.mp4` and `clip_2.srt`, so the track detaches with a 200. The dialog offers no way to keep the pair together.",
+    "A trashed subtitle row follows its file, because `_follow_sidecar_row` applies no state filter (fileops.py:396-400), so it stays trashed at the new path and possibly on another drive. No test covers this.",
+    "A sidecar row's move produces no `files.moved` event of its own: the routes emit only the video's id (routers/files.py:381, :435, :1379). Addon reactions to the subtitle row were not traced."
+  ],
+  "regression_risks": [
+    "`_follow_sidecar_row` commits once per sidecar, so a failure on a later sidecar leaves earlier rows moved. This matches the best-effort contract but makes a partial state possible.",
+    "`_serves_subtitles(file)` at fileops.py:428 sits outside the `try` and reloads an expired row after the commit, so a database failure there would turn a durable rename or move into a 500. This is unlikely in normal use.",
+    "Scans now clear `missing_since` and emit `files.recovered` for subtitle rows that were flagged by earlier scans, so an existing database will see one wave of recoveries. Addon reactions to recovered subtitle rows were not traced.",
+    "Removing the sort from `move_sidecar_subtitles` makes the renames recorded in known-issues.md depend on listing order again. decisions.md:41 shows that only one order was produced."
+  ],
+  "test_coverage": [
+    "Covered by `TestUploadedSubtitleRow`: the row's location after rename, move, cross-drive move and batch rename, plus a row already holding the target path.",
+    "Covered by `TestScanKeepsUploadedSubtitles`: an active row stays active, a flagged row recovers, a disk-only subtitle gets no row, and a row whose file is gone is flagged. Removing `found_paths.add` at scanner.py:461 or the recovery at :463 would each fail one of these by reading.",
+    "Not covered: the source folder's EmptyFolder state after a carried row leaves, a batch move selecting both video and subtitle, row title and tags, a move to a drive root, a failure inside `_follow_sidecar_row`, and a trashed or missing sidecar row being carried.",
+    "The shared-stem and listing-order tests were removed along with the behaviour they held. No test now pins the documented outcome that the first video renamed takes a shared sidecar, or the inverse language-suffix rename."
+  ],
+  "not_verified": [
+    "No test, command or application was run because this review is read-only, so every repro and mutation result is predicted from reading the code.",
+    "The worktree was read as it stands and assumed to match b6e0da5; git was not available to confirm it.",
+    "The R-5 logs and screenshots cited in decisions.md were not opened; only the record itself was read.",
+    "Addon handling of a subtitle row that moves without its own `files.moved` event, and of `files.recovered` for subtitle rows, was not traced.",
+    "How often a scan runs on its own was not checked, so how long a vanished folder stays hidden is unknown.",
+    "Selection order in the frontend was read only as insertion order into a Set. The order `Select all` inserts was not traced, and the toast was not observed.",
+    "Behavior on case-insensitive or normalization-folding mounts was not observed."
+  ],
+  "confidence": 85,
+  "trajectory": "The earlier rounds added predictions, and this range removed them. c37fb760a had added a copy-or-move branch, a sibling claim state, a position-based `later` state and a longest-first ordering; 1deeba6a0 deletes all four, together with their tests in e5ea1ef91, and the outcomes they guarded are recorded in known-issues.md instead. That part is a real simplification. But the same range then adds branches of a new kind for one new state, a subtitle that has a File row: 1deeba6a0 adds `_follow_sidecar_row` with its row-missing and target-taken branches, and 6b7dfd7ea adds a subtitle-row branch to the scanner, because the third R-5 run found rows flagged missing. So two consecutive rounds each special-cased that state at one consumer, and the two new findings are further consumers not yet handled: empty-folder tracking in `move_file` and the batch move loop. For this state the design is being patched. The question r2 raised, whether an upload should register a subtitle row at all, was answered by keeping the row, which leaves each path that assumes subtitles have no row to be corrected in turn. The other tag-related commits in the range belong to merged develop work and do not touch this design."
+}

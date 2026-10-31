@@ -1,0 +1,130 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "last-sidecar-row-leaving-drops-the-source-folder",
+      "origin": "reviewer",
+      "claim": "move_file decides whether the old folder is empty while an uploaded subtitle's row still sits in it, and _follow_sidecar_row then moves that row out with no empty-folder bookkeeping, so the folder ends with no rows and no EmptyFolder record.",
+      "impact": "Upload movie.mp4 and movie.srt into folder `a`, then move the video to another folder or drive. The request answers 200 and the directory still exists on disk, but `a` disappears from the folder tree and listing until the next rescan. The user cannot open it or upload into it. With a row-less sidecar, or with the video alone, the same move keeps `a` visible, so the result depends on how the subtitle got there.",
+      "evidence": "backend/app/services/fileops.py:579 calls `_ensure_empty_folder_tracked(db, old_drive, old_folder)` before the carry. Its check at :148-154 finds the still-active subtitle row in the folder and returns without tracking. fileops.py:592 then carries, and `_follow_sidecar_row` (:388-421) changes drive, folder_path and file_path and commits without calling `_ensure_empty_folder_tracked` or `untrack_empty_folder`. backend/app/routers/drives.py:284-302 and :424-441 build folders only from active File rows and EmptyFolder rows. scanner.py:849-863 restores the record, which is why a rescan hides this. test_sidecar_subtitles_follow_video.py has no match for EmptyFolder. The R-5 third and fourth runs left `keep.txt` in the source folder, so the folder stayed populated (decisions.md:35 and :47).",
+      "repro": "not_reproduced (read-only review). Steps from reading the code: upload movie.mp4 and movie.srt into `a` with nothing else in it, PUT /api/files/<video id>/move to `b`, then GET the drive's folder tree. Expected: `a` is absent, and there is no EmptyFolder row for it, while the directory exists on disk. A rescan brings it back.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariants are declared. Nothing is lost, but a folder silently vanishes from the UI in ordinary use of the path this change added.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "After the carry in move_file, call `_ensure_empty_folder_tracked` for the old folder again and commit, and add a parametrized case that uploads into a folder with no other file and asserts the folder is still listed."
+    },
+    {
+      "id": "carried-sidecar-onto-a-ghost-row-can-be-purged",
+      "origin": "reviewer",
+      "claim": "When a carried sidecar lands on a path held by a missing or trashed row, that row stays in place naming the live file, and the sidecar's own row, if any, keeps pointing at a path with no file.",
+      "impact": "A Missing Files or Trash entry for `a/film.srt` now names the subtitle just carried there. Permanently Delete on that entry, or Empty Trash, unlinks the live file, and the video loses a track it just kept. Until a rescan, the uploaded subtitle's own card opens as File not found. After a rescan, its row is flagged missing and the ghost is recovered as the owner of the file. The request answered 200 with a warning at most, and with no warning at all when the sidecar has no row.",
+      "evidence": "backend/app/services/fileops.py:401-402 returns when the source has no row, without looking at the target, and :403-412 logs and returns when the target is taken. The video's own path clears such ghosts first with `resolve_db_path_conflict` (:168-203, called at :472 and :552). subtitle.py:134 checks only the disk, so a ghost whose file is gone does not stop the move. `purge_missing_file` (:849-866) and `purge_file` (:822-830) both reach `physical_delete`, whose :760-761 unlinks whatever exists at the row's path; decisions.md:37 records that behavior for a missing row. scanner.py:458-464 now recovers the ghost. `test_row_holding_the_target_path_stays_and_the_rename_succeeds` asserts only the source row's place and the video's name, never the ghost or the file.",
+      "repro": "not_reproduced (read-only review). Steps from reading the code: seed a missing row at a/film.srt with no file, plus a/movie.mp4 and an uploaded a/movie.srt. PUT rename the video to film.mp4, then DELETE the purge route for the missing row. Expected: a/film.srt is unlinked and detect_subtitles('a/film.mp4') returns [].",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariants are declared. It needs a pre-existing ghost at the exact target name, so it is narrow, but the result is a user file deleted by an action whose page says the file is not on disk.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Clear the target through `resolve_db_path_conflict` for an inactive holder, whether or not the sidecar has a row, as the video's path does; or skip the file move when the target path has any row. Extend the existing test to assert the outcome for the ghost row and the file."
+    },
+    {
+      "id": "sidecar-row-lookup-uses-the-listed-name",
+      "origin": "reviewer",
+      "claim": "The carry looks up a sidecar's row with the name as listed on disk, not its NFC form, so a sidecar listed in NFD does not match its row, whose stored file_path is NFC.",
+      "impact": "On a host that presents a Japanese subtitle name decomposed, the file moves and the track keeps working, but the uploaded subtitle's row is silently left at the old path with no log line. Its card opens as File not found until a rescan flags it missing. The carried file then has no row, so the card stays gone. The scanner handles the same name correctly, so the two paths disagree.",
+      "evidence": "backend/app/services/subtitle.py:120-124 keeps `item` from `iterdir`, and :140 returns it unnormalized. backend/app/services/fileops.py:439 builds source_rel with `source.relative_to(old_root).as_posix()`, and :398 compares it for equality with `File.file_path`. backend/app/services/upload.py:118 stores the row through `validate_filename`, which applies NFC at fileops.py:67. scanner.py:458 normalizes the same lookup. backend/tests/test_listing_call_inventory.py:3-6 names this hazard and says a stored-name listing must normalize, but `test_stored_name_listings_normalize` only requires a normalize call in the listing function, which subtitle.py:114 and :131 satisfy. `test_a_decomposed_sidecar_name_lands_under_the_composed_target` has no row.",
+      "repro": "not_reproduced (read-only review). Mutation of the fixture rather than the code: upload a subtitle with a dakuten name beside a video, rename its file on disk to the NFD spelling, then rename the video. Expected: the file reaches the new NFC name and `_place` for the subtitle row still returns the old path, with nothing logged. Whether an NFC upload is ever listed as NFD depends on the host: APFS through Docker Desktop preserves what was written, so this needs a normalizing mount or a file replaced from outside.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariants are declared. The repository treats this as a known hazard class, but the exact reach on the owner's host is unverified.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Normalize source_rel to NFC in `_carry_sidecars`, as scanner.py:458 does, and add a row to the NFD test."
+    },
+    {
+      "id": "follow-row-branches-unpinned",
+      "origin": "reviewer",
+      "claim": "Several behaviors of `_follow_sidecar_row` and the new scanner branch have no test that would fail if they were removed.",
+      "impact": "A later edit could drop tag retargeting, so a tagged subtitle moved across drives keeps its old drive's tag row and the destination's tag list and counts disagree. It could also store folder_path `.` for a video moved to a drive root, which hides the card from its folder, or stop refreshing the title. The suite would stay green in each case.",
+      "evidence": "`test_row_follows_its_file` compares only drive, folder_path, filename and file_path through `_place` (backend/tests/test_sidecar_subtitles_follow_video.py), and its uploaded subtitle has no tags. Every expected folder is `a`, `b` or `z`, so the root branch at fileops.py:418 never runs. Title at :415-416 is never read. No test forces the rollback at :442-444. `TestScanKeepsUploadedSubtitles` uses ASCII names and checks only missing_since, so the NFC normalize at scanner.py:458 and `recovered_ids.append` at :464 are unpinned. The manual R-5 walk covers the drive root and the title once, and it does not cover tags.",
+      "repro": "Mutations reasoned, not run. Delete fileops.py:414; change :418 to `str(target.parent)`; delete :415-416; remove the normalize at scanner.py:458; delete scanner.py:464. Reading the tests predicts all five survive.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The code reads correctly for these inputs. This is a coverage gap on new logic.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add a drive-root target, a tagged subtitle moved across drives and a title assertion to the parametrized test, and assert the scan's `recovered` count."
+    }
+  ],
+  "specification_compliance": [
+    "No invariants file exists, so bucket A is unavailable and no touch-point list applies.",
+    "r2 uploaded-sidecar-row-left-pointing-at-old-path is fixed for the ordinary case: `_follow_sidecar_row` is reached from rename, move and, through `_carry_batch_sidecars`, batch rename, and it updates trashed and missing rows as well as active ones because it applies no state filter. Its gaps are in the findings above.",
+    "r3's rescan defect recorded at decisions.md:34-37 is fixed on the only scanner path that marks rows missing: scanner.py:455-465 adds a subtitle row to found_paths and clears missing_since, and a grep shows scanner.py:792 is the only place that sets it. A dropped subtitle still gets no row, and register_single_file still refuses subtitles.",
+    "r2 same-stem-pair and same-destination-siblings orphan copies are gone because the copy branch was removed. Moving movie.mp4 and movie.mkv together now gives the sidecar to the first video, and the second finds no file. This is recorded in known-issues.md and the commit message records the human's consent.",
+    "r2 batch-inner-sibling-logic and batch-internal-sibling-loop findings are void because that loop was deleted (fileops.py:1172-1188 now only maps new paths to old).",
+    "r2 shortening-rename and longest-first findings: the sort was removed, so the outcome for a rename onto a sidecar's own name depends on listing order again in some shapes. known-issues.md records the taken-name limit, and the R-5 fourth run's regression set does not include it. This was accepted as a limit, not fixed.",
+    "r2 batch-cascade and blocked-by-later-rename findings are unchanged in code and recorded in known-issues.md. Rows follow their files in the cascade, because `taken` is read after each earlier row has committed.",
+    "The diff also carries tag changes through the merge from develop (c98e45116). They were read only where they meet this change, at `retarget_file_tags` and at fileops.py:21-25."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "After the scanner fix, an uploaded subtitle stays in the listing as its own card through rescans, while a subtitle placed on disk never has one. The same file therefore looks different by origin. decisions.md:33 and :46 observed the card, and the user guide says subtitles do not appear in the file list.",
+    "Databases where a rescan already flagged uploaded subtitles missing will see them recover as cards on the next scan after this change, with a files.recovered event for each.",
+    "A subtitle row that follows its video is not named in the files.moved event (routers/files.py:381 and :435 emit only the video ids), and a row whose path the carry changed gets no event of its own. Intelligence documents a reconcile for missed events (addons/intelligence/app/indexer.py:374), but other subscribers were not traced.",
+    "Video and sidecar are not committed together. A process stop between the video's commit and the carry leaves the sidecars under the old name, and a stop between shutil.move and the row commit leaves an active row with no file until a rescan.",
+    "`movie.ja.srt` is both the bare track of `movie.ja.mp4` and the Japanese track of `movie.mp4`, so renaming `movie.mp4` takes it from the other video. Commit 84bed1b38 removed the `movie.ja.mp4` example from known-issues.md because its stated form with `movie.srt` was wrong, and this form is not recorded."
+  ],
+  "regression_risks": [
+    "`_follow_sidecar_row` commits inside the video's request after the video's own commit. rename_file then runs the Markdown rewrite and `db.refresh(file)`. A failed row update rolls back only its own work because the video is already durable; this path has no test.",
+    "`_serves_subtitles(file)` at fileops.py:428 sits outside the try and reloads an expired row after the commit, so a database failure there would turn a durable rename into a 500. This is unlikely in normal use, and r2 reported it too.",
+    "A scan's `existing` snapshot (scanner.py:434-437) is not protected against a concurrent carry. A move committed during a scan can leave its row's old path unseen, and scanner.py:791 then flags the row by id although it now sits at the new path. The same race exists for videos and is rare with one user; the next scan recovers a subtitle row at its current path.",
+    "`target.exists()` followed by shutil.move (subtitle.py:134-139) overwrites a file created in between on POSIX. This is unchanged since r1 and rare."
+  ],
+  "test_coverage": [
+    "Covered and judged effective by reading: row follows on rename, same-drive move, cross-drive move and batch rename; a held target path; scan keeps, recovers and flags subtitle rows, and creates none for a dropped file; decomposed sidecar name on a row-less file.",
+    "Not covered: folder tracking after the last row leaves (finding), a ghost row's fate (finding), an NFD name with a row (finding), a tagged subtitle row, a drive-root target, the title, the row-update rollback, and PUT /batch/move with an uploaded subtitle. The batch move reaches the same code and R-5 walked it.",
+    "Removed with human consent in e5ea1ef91: shared-stem and listing-order tests. Nothing now pins either outcome, including the rule in known-issues.md that the first video renamed takes a shared sidecar.",
+    "`test_row_holding_the_target_path_stays_and_the_rename_succeeds` pins a state in which the row and its file have parted, and it does not assert what a rescan or purge does next."
+  ],
+  "not_verified": [
+    "No test, command or application was run because this role has read-only tools. Every repro and mutation result comes from reading the code, and the R-5 record in decisions.md was read but its logs and screenshots were not opened.",
+    "The tree was read from the worktree and assumed to match b6e0da5af, because the git status snapshot shows that commit at HEAD; git could not be run.",
+    "Whether a periodic or startup scan shortens how long a dropped folder stays hidden was not traced; only the manual scan route and the scanner's own repair were read.",
+    "The frontend's handling of the vanished folder, for example when the user is browsing it at the time, was not read.",
+    "Which hosts list an NFC-written name as NFD was not observed; APFS through Docker Desktop is expected to preserve it, from general knowledge and not from a run here.",
+    "Addon subscribers to files.moved and files.recovered were checked by grep only. Whether intelligence or knowledge index subtitle rows was not established."
+  ],
+  "confidence": 84,
+  "perspectives": [
+    {
+      "name": "scope",
+      "notes": "All paths that rename or move a single file reach the carry. The commits since r2 touching this feature are 1deeba6a0 (code), 6b7dfd7ea (scanner), their tests and docs; the rest arrive through the merge from develop. The scanner branch is outside the original rename scope but follows from uploaded rows, and it changes behavior for rows on any video or none."
+    },
+    {
+      "name": "submodules",
+      "notes": "No submodule pin or addon file is in the diff. The carried row is not in the files.moved payload, and intelligence documents a drift reconcile for missed events. media_import and knowledge were not traced beyond grep."
+    },
+    {
+      "name": "persistence",
+      "notes": "This is where the findings sit. A subtitle row now has its own commit after the video's, and three things around it are not reconciled: EmptyFolder for the old folder, an inactive row at the target, and the NFC form of the source path. All three are repaired or made worse only by the next scan."
+    },
+    {
+      "name": "concurrency",
+      "notes": "Everything runs sequentially within one request with no lock. Batch order works for rows because each commit precedes the next `taken` read. The scan snapshot race and exists-then-move gap are the same shape as existing code and rare with one user."
+    }
+  ],
+  "trajectory": "Read in order, and leaving out the tag and relation commits that arrive through the merge from develop: yes for one strand, no for the other. c37fb760a (reviewed in r2) added a copy-or-move branch, sibling claims, a longest-first order and a per-step name replay. 1deeba6a0 removed all four, so that strand of per-sidecar prediction shrank; the sort's removal returned one rename shape to listing-order dependence, which known-issues.md records. The same commit added a new state, the subtitle's own row, with a `taken` branch, and 6b7dfd7ea added a second branch for that state in the scanner. Each of the last two code rounds therefore adds a branch for the fact that uploads create rows for subtitles while the scanner says it never does, and this review finds a third place that needs one, EmptyFolder tracking. On that strand the design is being patched: r2 asked whether uploads should register subtitles at all, and that question is still undecided. The rows are being taught place by place to behave like files."
+}
