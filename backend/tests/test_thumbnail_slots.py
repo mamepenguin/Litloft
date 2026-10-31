@@ -196,7 +196,7 @@ class TestEachFileOwnsItsSlot:
         assert _dominant_red(_served(c, row.id))
 
 
-def _upload_png(c, db, name, color, folder=""):
+def _staged_upload(c, name, color, folder=""):
     buf = io.BytesIO()
     Image.new("RGB", (64, 64), color).save(buf, format="PNG")
     payload = buf.getvalue()
@@ -211,11 +211,17 @@ def _upload_png(c, db, name, color, folder=""):
     )
     assert res.status_code == 200
     upload_id = res.json()["upload_id"]
-    c.post(
+    sent = c.post(
         f"/api/drives/{TEST_DRIVE}/upload/{upload_id}/chunk",
         data={"chunk_index": "0"},
         files={"chunk": ("chunk", io.BytesIO(payload), "image/png")},
     )
+    assert sent.status_code == 200
+    return upload_id
+
+
+def _upload_png(c, db, name, color, folder=""):
+    upload_id = _staged_upload(c, name, color, folder)
     done = c.post(f"/api/drives/{TEST_DRIVE}/upload/{upload_id}/complete")
     assert done.status_code == 200
     db.expire_all()
@@ -506,25 +512,45 @@ class TestGhostPictures:
         )
         db.commit()
         ghost_pic = _put_thumb(ghost.thumbnail_path, b"\xff\xd8ghost")
+        reached = {"ghost": False, "failure": 0}
 
         def refuse(*_a, **_kw):
+            reached["failure"] += 1
             raise RuntimeError("cannot record the change")
 
+        real_conflict = fileops.resolve_db_path_conflict
+
+        def watch_conflict(*args, **kwargs):
+            picture = real_conflict(*args, **kwargs)
+            reached["ghost"] = reached["ghost"] or picture == ghost.thumbnail_path
+            return picture
+
+        real_cleanup = upload_service.cleanup_orphan_tags
+
+        def watch_cleanup(*args, **kwargs):
+            reached["ghost"] = True
+            return real_cleanup(*args, **kwargs)
+
+        monkeypatch.setattr(fileops, "resolve_db_path_conflict", watch_conflict)
         monkeypatch.setattr(fileops, "_filename_to_title", refuse)
         monkeypatch.setattr(fileops, "untrack_empty_folder", refuse)
         monkeypatch.setattr(upload_service, "untrack_empty_folder", refuse)
-        try:
-            if op == "rename":
-                c.put(f"/api/files/{mover.id}/rename", json={"new_filename": "a.png"})
-            elif op == "copy":
-                c.post(
-                    f"/api/files/{mover.id}/copy", json={"target_folder_path": "dest"}
-                )
-            else:
-                _upload_png(c, db, "a.png", (255, 0, 0), folder="dest")
-        except Exception:
-            pass
+        monkeypatch.setattr(upload_service, "cleanup_orphan_tags", watch_cleanup)
+        quiet = TestClient(app, raise_server_exceptions=False)
+        if op == "rename":
+            res = quiet.put(
+                f"/api/files/{mover.id}/rename", json={"new_filename": "a.png"}
+            )
+        elif op == "copy":
+            res = quiet.post(
+                f"/api/files/{mover.id}/copy", json={"target_folder_path": "dest"}
+            )
+        else:
+            upload_id = _staged_upload(c, "a.png", (255, 0, 0), folder="dest")
+            res = quiet.post(f"/api/drives/{TEST_DRIVE}/upload/{upload_id}/complete")
 
+        assert res.status_code == 500
+        assert reached == {"ghost": True, "failure": 1}
         assert _fresh(db, "ghost0000005") is not None
         assert ghost_pic.read_bytes() == b"\xff\xd8ghost"
 
@@ -535,18 +561,59 @@ class TestGhostPictures:
         import app.services.upload as upload_service
 
         c, db, drive_dir, _ = client
+        seen = {}
 
         def refuse(*_a, **_kw):
+            seen["slots_at_failure"] = len(_slot_files())
             raise RuntimeError("cannot record the change")
 
         monkeypatch.setattr(upload_service, "untrack_empty_folder", refuse)
-        try:
-            _upload_png(c, db, "fresh.png", (255, 0, 0))
-        except Exception:
-            pass
+        upload_id = _staged_upload(c, "fresh.png", (255, 0, 0))
+        quiet = TestClient(app, raise_server_exceptions=False)
+        res = quiet.post(f"/api/drives/{TEST_DRIVE}/upload/{upload_id}/complete")
 
+        assert res.status_code == 500
+        assert seen["slots_at_failure"] == 1
         assert _slot_files() == []
 
+    def test_upload_over_a_trashed_ghost_generates_without_holding_the_write_lock(
+        self, client, monkeypatch
+    ):
+        """SPEC-CORE-022"""
+        import sqlite3
+
+        import app.services.upload as upload_service
+        from app.services.thumbnail import generate_image_thumbnail
+
+        c, db, drive_dir, _ = client
+        ghost = _seed(
+            db, drive_dir, "a.png", file_id="ghost0000006", state="missing"
+        )
+        ghost.missing_since = None
+        ghost.deleted_at = datetime.now(UTC)
+        db.commit()
+        database = db.get_bind().url.database
+        outcome = {}
+
+        def generator(source, destination):
+            other = sqlite3.connect(database, timeout=0.2, isolation_level=None)
+            try:
+                other.execute("BEGIN IMMEDIATE")
+                other.execute("ROLLBACK")
+                outcome["write_lock_free"] = True
+            except sqlite3.OperationalError:
+                outcome["write_lock_free"] = False
+            finally:
+                other.close()
+            return generate_image_thumbnail(source, destination)
+
+        monkeypatch.setattr(
+            upload_service, "get_thumbnail_generator", lambda *_: generator
+        )
+
+        _upload_png(c, db, "a.png", (255, 0, 0))
+
+        assert outcome == {"write_lock_free": True}
 
 def _second_drive(tmp_path, monkeypatch):
     other = tmp_path / "drives" / "other"
@@ -1155,7 +1222,7 @@ class TestStartupMigration:
         assert _fresh(db, row.id).thumbnail_path is None
         assert not [r for r in caplog.records if "a.jpg" in r.getMessage()]
 
-    def test_the_returned_counts_say_what_happened(self, client, monkeypatch):
+    def test_the_returned_counts_say_what_happened(self, client, monkeypatch, caplog):
         """SPEC-CORE-024"""
         c, db, drive_dir, _ = client
         sole = _seed(db, drive_dir, "one/a.mp4", thumb=f"{TEST_DRIVE}/one/a.jpg")
@@ -1165,18 +1232,51 @@ class TestStartupMigration:
         _seed(db, drive_dir, "one/s2.mp4", thumb=shared)
         _put_thumb(shared)
         _seed(db, drive_dir, "one/gone.mp4", thumb=f"{TEST_DRIVE}/one/gone.jpg")
-        denied = _seed(db, drive_dir, "one/d.mp4", thumb=f"{TEST_DRIVE}/one/d.jpg")
+        denied = _seed(
+            db, drive_dir, "one/d.mp4", file_id="denied000001",
+            thumb=f"{TEST_DRIVE}/one/d.jpg",
+        )
         _put_thumb(denied.thumbnail_path)
-        real_stat = Path.stat
+        stuck = _seed(
+            db, drive_dir, "one/r.mp4", file_id="stuck0000001",
+            thumb=f"{TEST_DRIVE}/one/r.jpg",
+        )
+        _put_thumb(stuck.thumbnail_path)
+        repointed = _seed(
+            db, drive_dir, "one/p.mp4", file_id="repoint00002",
+            thumb=f"{TEST_DRIVE}/one/p.jpg",
+        )
+        _put_thumb(_slot_rel(repointed.id))
+        real_stat, real_replace, real_unlink = Path.stat, os.replace, Path.unlink
 
         def deny(self, *args, **kwargs):
             if self.name == "d.jpg":
                 raise PermissionError(13, "Permission denied")
             return real_stat(self, *args, **kwargs)
 
-        monkeypatch.setattr(Path, "stat", deny)
+        def refuse_replace(src, dst, *args, **kwargs):
+            if str(src).endswith("r.jpg"):
+                raise OSError("busy")
+            return real_replace(src, dst, *args, **kwargs)
 
-        assert _migrate(db) == {"moved": 1, "emptied": 3, "failed": 1}
+        def refuse_unlink(self, *args, **kwargs):
+            if self.name == "s.jpg":
+                raise OSError("read-only file system")
+            return real_unlink(self, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "stat", deny)
+        monkeypatch.setattr(os, "replace", refuse_replace)
+        monkeypatch.setattr(Path, "unlink", refuse_unlink)
+
+        with caplog.at_level(logging.WARNING, logger="app.services.thumbnail_migration"):
+            counts = _migrate(db)
+
+        assert counts == {"moved": 2, "emptied": 3, "failed": 3}
+        messages = [r.getMessage() for r in caplog.records]
+        assert sum("stuck0000001" in m for m in messages) == 1
+        assert sum("denied000001" in m for m in messages) == 1
+        assert sum("s.jpg" in m for m in messages) == 1
+
 
 class TestInternalApi:
     def test_internal_file_returns_the_stored_pointer(self, client):
