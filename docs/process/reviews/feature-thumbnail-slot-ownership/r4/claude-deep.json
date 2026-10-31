@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "TEST-8",
+      "origin": "reviewer",
+      "claim": "No test decides the `reused_row` predicate in complete_upload's failure branch, on either side: a failed upload over a reused row, or a failure inside the trashed-ghost branch before `existing` is cleared.",
+      "impact": "Changing the predicate leaves every test green. If it became unconditional, a failed upload over a Missing row would remove that row's own slot while the rollback keeps its pointer, so the row shows the placeholder until the next scan, and a .loft or still-Missing row keeps it longer. If it reverted to `existing is None`, a failure in the ghost's delete or tag cleanup would strand a slot under an id no row holds. The current code is correct, and the effect is limited to a cache file after an uncommon failure.",
+      "evidence": "backend/app/services/upload.py:272 sets the flag and :363 tests it. In test_thumbnail_slots.py, test_upload_with_a_new_id_whose_commit_fails_leaves_no_slot has no existing row. The upload case of test_an_operation_that_fails_before_its_commit fails at upload.py:360, after `existing = None` at :296, and does not assert the new slot is gone. TestUploadOverReusedRow (seed at :234) only completes successful commits. A search of the thumbnail_slots and upload test files for 'reused' and 'vanish' finds only that seed.",
+      "repro": "not_reproduced (read-only reviewer). Predicted mutations, each predicted to survive: replace `if not reused_row:` at upload.py:363 with `if True:`; replace it with `if existing is None:`.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The code as read keeps a reused row's slot and removes a new id's slot, and I14 says nothing about a failed commit. This is a test gap on a branch the r3 reorder created.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add a case that fails a reused-row upload before its commit and asserts the row's slot still exists, and assert in the ghost failure case that no slot other than the ghost's remains."
+    },
+    {
+      "id": "TEST-9",
+      "origin": "reviewer",
+      "claim": "test_two_spellings_of_one_file_count_as_shared asserts the emptied pointers but not that the file is gone, so it does not check the removal half of I8 for two spellings.",
+      "impact": "If the unlink loop stopped covering every spelling, a hard-linked picture would stay in the cache under its second name with no row naming it, at a cost in disk only, and the test would stay green. On a folding mount one unlink is enough, so a user would not see a wrong picture.",
+      "evidence": "backend/tests/test_thumbnail_slots.py:899-913 asserts both pointers are None and .by-id is empty, and never reads `first` or the alias path. backend/app/services/thumbnail_migration.py:100-103 unlinks each distinct string. test_rows_sharing_one_file_lose_the_pointer_and_the_file covers removal for one spelling only.",
+      "repro": "not_reproduced (read-only reviewer). Predicted mutation: at thumbnail_migration.py:100 iterate only over `{members[0][1]}`; predicted to survive.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The code as read satisfies I8, so this is a weak assertion and not a breach.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Assert that both `first` and the alias path no longer exist after the restart."
+    },
+    {
+      "id": "SCOPE-3",
+      "origin": "reviewer",
+      "claim": "Commit 9e230c67e adds two rows to known-issues.md, while the touch-point list says only that four rows are removed there.",
+      "impact": "No user effect. Both rows describe behaviour that the code and the recorded run support: the async upload route calls the generator directly, and a scan raises on an unwritable cache. Only the planned reach is understated.",
+      "evidence": "docs/developer-guide/known-issues.md:119-121 adds the rows. The spec's Touch points read 'docs/developer-guide/known-issues.md: four rows removed'. backend/app/routers/uploads.py:73-81 is `async def` and calls complete_upload directly. decisions.md first run item 9 records the scan's 500 and that origin/develop does the same. decisions.md's ship line accepts SCOPE-2 but predates this commit's rows and does not name them.",
+      "repro": "Read the 9e230c67e diff against the Touch points section.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Unplanned reach with no invariant at risk. The sentences are accurate by reading and should stay.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Record the two rows in a touch-point revision. The text needs no change."
+    }
+  ],
+  "specification_compliance": [
+    "No bucket A finding: read against the code at this commit, I1-I14 and I16-I23 hold in ordinary use, and I15's migration half holds. I15's Media Import half is not at this commit: addons/media_import/backend/service.py:605-622 still writes path form, as Delivery step 1 expects, and SPEC-ADDON-040 stays 'approved' in INDEX.md.",
+    "r3 fix check, TEST-6 and R3-TEST-2: fixed. The blanket `except Exception: pass` is gone from both tests. Both now use a TestClient with raise_server_exceptions=False and assert a 500. Setup moved to _staged_upload outside the guarded request, and its chunk response is now asserted. `reached == {\"ghost\": True, \"failure\": 1}` proves the ghost's path was hit and the injected failure fired exactly once. A wrong seed like the one 819742a01 corrected would now fail on the `ghost` flag, and an early 404 would fail on the status. Traced by reading: rename fails at fileops.py:393, copy at fileops.py:281, upload at upload.py:360.",
+    "r3 fix check, the new-id half of TEST-6: fixed. seen['slots_at_failure'] == 1 shows the slot existed before the failure, so `_slot_files() == []` now shows the cleanup removed it. Deleting upload.py:363-364 should fail this test.",
+    "r3 fix check, TEST-7: fixed. test_upload_over_a_trashed_ghost_generates_without_holding_the_write_lock takes BEGIN IMMEDIATE on a separate connection inside the generator with a 0.2 s timeout. With the ghost delete and flush moved ahead of generation, the app's open write transaction should make that fail, and the exact-dict assertion also fails if the generator never ran. The test uses a real database file (conftest.py:76-80) and a separate session per request (conftest.py:85-88), so its connection competes with the app's.",
+    "r3 fix check, R3-TEST-1: fixed. I traced the counts test by hand against the loop: one sole move and one repoint give moved 2; the shared pair and one absent row give emptied 3; a denied stat, a refused os.replace and a refused unlink give failed 3. Deleting thumbnail_migration.py:106, :119 or :127 changes the dict. The three message assertions pin the warnings that name the row and the shared path, and none of them matches another's message.",
+    "Round contents: fa12b3689 changes tests only. 9e230c67e changes docs only. thumbnail_migration.py still reads as r3 described it, with the same line numbers for the states it cited. invariants.md records I22 and I23, and the code agrees with both: thumbnail_migration.py:29-34 and :83-92 for I22, scanner.py:657-706 with no thumbnail step for I23.",
+    "The monitoring.md edit agrees with the warning text at thumbnail_migration.py:86, which closes the part of R3-SPEC-1 about the guide.",
+    "decisions.md records the human ship decision that accepts COPY-1, MIG-3, R3-SPEC-1 and SCOPE-2, so I did not raise them again.",
+    "Whole-change checks repeated here: all three resolve_db_path_conflict callers remove the returned picture after their commit (fileops.py:262/330, :386/406, :457/488). Both batch routes roll back on every exception (routers/files.py:368, 373, 509, 519), so a flushed ghost delete cannot ride out on the next file's commit. admin.py's cache total uses rglob, which includes .by-id. get_thumbnail_generator returns None for .loft and Markdown (thumbnail.py:650-660), so neither enters the scan's branch.",
+    "The `stored` name in the scan loop is assigned at scanner.py:453 for the probe result and again at :502 for the pointer. The first value is consumed at :456-457 before the reassignment, and the loop resets it on each pass, so it does no harm."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Carried from r1, with no specific ruling: two rows in one ('absent', rel) group are both emptied at thumbnail_migration.py:93-98 even if a slot exists, whereas I10 repoints a row with a slot. I still found no ordinary way to reach it, because a shared group commits its emptied pointers before unlinking.",
+    "Carried from r2, with no specific ruling: an upload over a reused row whose commit fails leaves the slot holding the new file's picture while the row rolls back (upload.py:280-283, :363). The landed file stays on disk, so for a .by-id row the picture matches the file on disk. For a path-form or Markdown pointer the new slot is stranded until a later upload or migration reuses it.",
+    "Carried from r1, with no specific ruling: with the old addon pin, Media Import's caption retry rewrites .loft rows to path form with a new mtime and ETag, so each startup repeats the move during the delivery window (decisions.md first run, item 5). The Delivery entry says only that such a write migrates at the next startup.",
+    "Carried from r3: slot.is_file() at thumbnail_migration.py:125 and the prune at :122 sit outside the OSError guards, so an examine error there stops the whole run instead of failing one row as I22 does at a pointer. main.py:278 logs it and the next start retries. It needs an unsearchable .by-id directory or parent."
+  ],
+  "regression_risks": [
+    "The r3 upload reorder is still untested against a running scan. upload.py:267 looks the path up before generation and the insert is at :350, while the scan runs in an executor thread (scanner.py:894). If a scan commits a row for the just-landed file during generation, the upload answers 500 with an IntegrityError, its slot is removed, and the scan's row and the file remain. Develop looked the path up after generation and would have reused that row. The window is the generator's duration. The failure is visible, not silent, and no data is lost.",
+    "Grouping trusts (st_dev, st_ino). A cache mount returning non-unique inode numbers would make sole owners look shared and delete their pictures after emptying their pointers. decisions.md observed only the Compose bind mount.",
+    "prune_empty_dirs, called by physical_delete and remove_thumbnail_quietly, can remove .by-id when its last slot goes. A generator between generating_file's directory creation and its temporary file would raise. It needs a nearly empty cache and a very narrow window.",
+    "When a failed row crosses a multiple of 1,000, the `continue` at thumbnail_migration.py:92 or :121 skips that progress line. Only the log is affected.",
+    "Between delivery steps 1 and 3, purging a .loft row rewritten to path form by the old addon strands its earlier .by-id file, because the pointer no longer names it."
+  ],
+  "test_coverage": [
+    "New this round and effective by reading: asserted failure status and reach for I13's failure half on rename, copy and upload; the new-id upload's slot existing before its removal; generation running without the write lock; migration counts for a move, a repoint, a shared pair, an absent row, a denied stat, a refused replace and a refused unlink; and the warnings naming the row or the shared path.",
+    "Gap: the reused_row predicate at upload.py:363 (TEST-8).",
+    "Gap: removal of both spellings in I8 (TEST-9).",
+    "Gap: the summary log line's format is not asserted, although the admin guide tells the operator to read it. Its values come from the same dict the counts test checks, so only a format change could slip through.",
+    "Gap carried from r1: I11's second half, a projection serving after its source migrates with no re-copy, has no direct test. It rests on the mtime asserted under I7, the comparison at markdown_images.py:406-410 and the manual runs in decisions.md.",
+    "Gap carried from r1: I14 is tested only for a Missing row, not an Active row whose file vanished. Both take upload.py:309.",
+    "Gap carried from r1: I18 asserts thumbnail_path only, though routers/internal.py is unchanged.",
+    "Gap carried from r2: I4 replaces the cache directory with a file and has no cross-drive case; decisions.md records a chmod a-w run.",
+    "Gap carried from r3: a stat error in copy_file's picture check at fileops.py:255 has no test, and the human accepted COPY-1 as bucket B.",
+    "The per-1,000-row progress line has no test; the bulk test uses 450 rows."
+  ],
+  "not_verified": [
+    "I ran nothing: no tests, mutations or application. Every mutation outcome here is predicted from reading the code, including my claim that the new tests pass and fail as described.",
+    "Git objects were not read. I read the working tree and took it to be commit 9e230c67e from the status snapshot. I saw diffs only for fa12b3689 and 9e230c67e. For 2dc144dd4 and 058f0d7b5 I relied on their subjects, r4/fixes.txt and the current invariants.md and decisions.md.",
+    "The evidence directory cited in decisions.md is outside this worktree, so its observations are taken as a record and not checked.",
+    "The Media Import half of I15 and SPEC-ADDON-040, which are not at this commit.",
+    "The Intelligence reconcile and the frontend beyond search hits on thumbnail paths; I confirmed only that the addon code hits I read treat the column as an opaque value.",
+    "The scan-and-upload IntegrityError window was not exercised, and I did not establish how often a scan commits inside a generation window.",
+    "Inode stability on case-folding, FUSE or network cache mounts, and migration timing against the healthcheck window on a large library.",
+    "Test files other than test_thumbnail_slots.py were searched by pattern for the gaps above and not read in full."
+  ],
+  "confidence": 82,
+  "perspectives": [
+    {
+      "name": "scope",
+      "notes": "This round touches one test file and two documents, and invariants.md gains I22 and I23. No production file changed and no further test was deleted. The two new known-issues rows are outside the touch-point wording (SCOPE-3). Earlier departures were accepted in the ship decision."
+    },
+    {
+      "name": "submodules",
+      "notes": "I re-searched addons for removed helpers and thumbnail path use. Non-test addon code that reads the column treats it as opaque, and no addon calls resolve_db_path_conflict or imports a removed helper. Media Import's register_single_file call sites are unchanged by this round; earlier rounds recorded that they register .loft files, which get_thumbnail_generator excludes, and I did not re-read service.py:728. Its writer still uses path form, as Delivery step 1 expects. This round moves no pin."
+    },
+    {
+      "name": "persistence",
+      "notes": "I re-read the migration's grouping, commit order, crash recovery and absent and unknown branches, plus ghost removal after commit in every caller, the batch rollbacks and upload's superseded picture. No lost picture in ordinary use. The remaining undecided cases are listed as carried unspecified behaviour."
+    },
+    {
+      "name": "concurrency",
+      "notes": "The lifespan awaits migration before the scan, purge task, addon startup and yield. The new test pins that upload generation holds no write lock. The upload lookup-to-insert window against a running scan is a regression risk that is visible when hit, and the .by-id prune race remains."
+    }
+  ],
+  "trajectory": "No. This round adds no branch, state or prediction to production code, and it is the first round with no production change at all. fa12b3689 changes tests only and 9e230c67e changes docs only. 2dc144dd4 and 058f0d7b5 record r3 and the ship decision, going by their subjects and the resulting files. Looking back: r2 added the 'unknown' state, plus a branch and a prediction that the next startup retries; r3 removed part of it by moving the non-regular case back to absent, and added only the reused_row local that its reorder needed. This round adds no sibling to any of those. It also ends the oscillation on the non-file rule by recording the outcome as I22, with I23 settling the scan-detected move, so a state that had stayed unspecified is now written down instead of being changed again. The test edits remove a weakness rather than add to it: two blanket exception guards go, replaced by asserted statuses and reach flags, and one new helper, _staged_upload, replaces duplicated setup. The design is not being patched. What remains is a short list of carried edge cases with no specific ruling, none of them reachable in ordinary use by my reading except the delivery-window addon rewrite, which the spec expects."
+}
