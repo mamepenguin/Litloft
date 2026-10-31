@@ -8,7 +8,7 @@ import { navigationGuard } from "@/lib/navigationGuard";
 const FILE_PARAM = "file";
 
 /** Places inside one file; they mean nothing in the next one. */
-const FILE_LOCATION_PARAMS = ["section", "page", "t"] as const;
+const FILE_LOCATION_PARAMS = ["section", "page", "t", "highlight"] as const;
 
 export interface SelectedFileApi {
   fileId: string | null;
