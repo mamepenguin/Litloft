@@ -278,14 +278,13 @@ video's own sidecar stays behind under the old name and the video plays the file
 already there. The request answers 200 and only a backend warning records it.
 
 **Two videos with the same stem in one folder share one sidecar subtitle.**
-With `movie.mp4` and `movie.mkv`, or `movie.mp4` and `movie.ja.mp4`, next to
-`movie.srt`, the first one renamed or moved takes the subtitle and the other
-loses that track.
+With `movie.mp4` and `movie.mkv` next to `movie.srt`, the first one renamed or
+moved takes the subtitle and the other loses that track.
 
 **A rename whose new name is taken by one of the video's own sidecars leaves
 that sidecar under the old name.** Renaming `movie.ja.mp4` to `movie.mp4` while
-`movie.srt` is present is one case. No file is lost; which of the two stays
-behind depends on the order the folder is listed in.
+`movie.srt` is present is one case. No file is lost, and a backend warning
+records it.
 
 **A batch rename that renumbers videos of mixed extensions can leave a video
 showing another video's subtitles.** Renaming `new.mp4`, `ep_1.mkv` and
