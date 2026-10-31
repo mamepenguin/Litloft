@@ -428,7 +428,8 @@ export function ShellLayout({
               props={{
                 ...addonSlotProps,
                 fillHeight: true,
-                ...(plainTextDocument ? { plainTextDocument: true, highlight } : {}),
+                highlight,
+                ...(plainTextDocument ? { plainTextDocument: true } : {}),
               }}
             />
           )}
