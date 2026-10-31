@@ -73,7 +73,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-021 | implemented | docs/specs/mcp-loft-url.md | sha256:e6f6f24f2ff8ab56b128db67e6917f844890d4fe02bc66d435dd2c7794ae3e75 |
 | SPEC-ADDON-037 | implemented | docs/specs/txt-edit.md | sha256:b9b2bf414210170871ce18124fa5157c7e8ac0dcf816086ab41362dfc631b10d |
 | SPEC-ADDON-038 | implemented | docs/specs/citation-quote-anchor.md | sha256:e15b775cb0ffa4e65cd205e852565459fe6de56a70b18359d86047f90250fe00 |
-| SPEC-CORE-022 | draft | docs/specs/thumbnail-slot-ownership.md | |
-| SPEC-CORE-023 | draft | docs/specs/thumbnail-slot-ownership.md | |
-| SPEC-CORE-024 | draft | docs/specs/thumbnail-slot-ownership.md | |
-| SPEC-ADDON-040 | draft | docs/specs/thumbnail-slot-ownership.md | |
+| SPEC-CORE-022 | approved | docs/specs/thumbnail-slot-ownership.md | sha256:9fcfcc2fd70ea2565226ed64e3d02217fe9fbc1550e8860ffa3a7e0b91195879 |
+| SPEC-CORE-023 | approved | docs/specs/thumbnail-slot-ownership.md | sha256:9fcfcc2fd70ea2565226ed64e3d02217fe9fbc1550e8860ffa3a7e0b91195879 |
+| SPEC-CORE-024 | approved | docs/specs/thumbnail-slot-ownership.md | sha256:9fcfcc2fd70ea2565226ed64e3d02217fe9fbc1550e8860ffa3a7e0b91195879 |
+| SPEC-ADDON-040 | approved | docs/specs/thumbnail-slot-ownership.md | sha256:9fcfcc2fd70ea2565226ed64e3d02217fe9fbc1550e8860ffa3a7e0b91195879 |
