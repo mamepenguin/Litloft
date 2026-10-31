@@ -161,7 +161,7 @@ The drive chip in the trail and the root band in the tree both offer themselves
 as destinations while dragging. The backend answers 409 and the handler swallows
 it: the target lights up, the drop lands, nothing happens and nothing is said.
 
-**The sidebar's tag list goes stale after a paste or bulk tagging.** It keeps its
+**The sidebar's tag list goes stale after a paste, bulk tagging, an upload or a quick note.** It keeps its
 old rows until a reload or a change of folder or drive; the listing itself is
 current.
 

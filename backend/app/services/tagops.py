@@ -46,12 +46,18 @@ def load_tag_index(db: Session, drive: str) -> TagIndex:
     return TagIndex(db.query(Tag).filter(Tag.drive == drive).all())
 
 
-def replace_file_tags(db: Session, file: File, tag_names: list[str]) -> None:
+def replace_file_tags(
+    db: Session, file: File, tag_names: list[str], *, respell: bool = True
+) -> None:
     """Replace ``file.tags`` with the given names, reusing existing Tag rows.
 
     Shared by ``PUT /api/files/{id}/tags`` and the internal
     ``POST /api/internal/files/{id}/tags``. Case-insensitive dedup; the
     ``Tag`` namespace is per-drive.
+
+    A case-variant row is renamed to the given spelling unless ``respell`` is
+    False, which keeps the row as it stands (what a move or a passive
+    registration wants: no other note's chip changes).
 
     SECURITY: callers MUST verify drive access before invoking this
     helper. It performs no authorisation check — it trusts that
@@ -69,7 +75,7 @@ def replace_file_tags(db: Session, file: File, tag_names: list[str]) -> None:
         if not tag:
             tag = Tag(name=tag_name, drive=file.drive)
             index.add(tag)
-        elif tag.name != tag_name:
+        elif respell and tag.name != tag_name:
             tag.name = tag_name
             db.add(tag)
             db.flush()
@@ -87,7 +93,16 @@ def project_frontmatter_tags(db: Session, file: File, content: str) -> None:
     before (``replace_file_tags`` leaves that to it).
     """
     try:
-        replace_file_tags(db, file, extract_valid_tags(parse_frontmatter(content).metadata))
+        # The savepoint flushes pending rows (a trashed ghost's deleted tag, a
+        # previous note's new tag) before the index is read, and confines a
+        # failing flush to this projection.
+        with db.begin_nested():
+            replace_file_tags(
+                db,
+                file,
+                extract_valid_tags(parse_frontmatter(content).metadata),
+                respell=False,
+            )
     except Exception:
         logger.warning("tags projection failed for %s", file.file_path)
 

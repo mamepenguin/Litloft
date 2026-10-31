@@ -25,7 +25,7 @@ def _tag_rows(db, drive=TEST_DRIVE):
 
 
 def _upload(c, name, text):
-    data = text.encode()
+    data = text if isinstance(text, bytes) else text.encode()
     init = c.post(
         f"/api/drives/{TEST_DRIVE}/upload/init",
         json={"filename": name, "file_size": len(data), "folder_path": "", "chunk_size": len(data)},
@@ -79,6 +79,12 @@ class TestNewRow:
         assert _names(db, fid) == []
 
 
+def test_upload_of_non_utf8_note_succeeds_without_tags(client):
+    c, db, _, _ = client
+    fid = _upload(c, "n.md", b"---\ntags: [a]\n---\n\xff\xfe\n")
+    assert _names(db, fid) == []
+
+
 class TestReusedRow:
     def test_upload_over_missing_row_follows_new_tags_and_sweeps(self, client):
         c, db, drive_dir, _ = client
@@ -119,7 +125,7 @@ class TestCopy:
         assert _names(db, r.json()["id"]) == ["Alpha", "beta"]
         assert _tag_rows(db) == ["Alpha", "beta"]
 
-    def test_cross_drive_uses_destination_rows(self, client):
+    def test_cross_drive_joins_destination_row_as_it_stands(self, client):
         c, db, drive_dir, _ = client
         drive2 = drive_dir.parent / "drive2"
         drive2.mkdir(parents=True)
@@ -129,11 +135,36 @@ class TestCopy:
         ]))
         config._drives_cache = None
         src = _seed_note(db, drive_dir)
+        src_row = Tag(name="ALPHA", drive=TEST_DRIVE)
+        dst_row = Tag(name="aLpHa", drive="drive2")
+        db.add_all([src_row, dst_row])
+        db.commit()
+        dst_row_id = dst_row.id
+
         r = c.post(
             f"/api/files/{src.id}/copy",
             json={"target_folder_path": "", "target_drive": "drive2"},
         )
         assert r.status_code == 200, r.text
-        assert _names(db, r.json()["id"]) == ["Alpha", "beta"]
-        assert _tag_rows(db, "drive2") == ["Alpha", "beta"]
-        assert _tag_rows(db, TEST_DRIVE) == []
+        db.expire_all()
+        copy = db.query(File).filter(File.id == r.json()["id"]).one()
+        assert sorted(t.name for t in copy.tags) == ["aLpHa", "beta"]
+        assert dst_row_id in {t.id for t in copy.tags}
+        assert _tag_rows(db, "drive2") == ["aLpHa", "beta"]
+        assert _tag_rows(db, TEST_DRIVE) == ["ALPHA"]
+
+    def test_copy_onto_trashed_ghost_keeps_the_tag(self, client):
+        c, db, drive_dir, _ = client
+        src = _seed_note(db, drive_dir, "---\ntags: [solo]\n---\n\nx\n")
+        ghost = _seed_note(db, drive_dir, "---\ntags: [solo]\n---\n\nx\n", "src_copy.md")
+        (drive_dir / "src_copy.md").unlink()
+        from app.services.tagops import project_frontmatter_tags
+        project_frontmatter_tags(db, ghost, "---\ntags: [solo]\n---\n")
+        ghost.deleted_at = datetime.now(UTC).replace(tzinfo=None)
+        db.commit()
+
+        r = c.post(f"/api/files/{src.id}/copy", json={"target_folder_path": ""})
+        assert r.status_code == 200, r.text
+        assert r.json()["filename"] == "src_copy.md"
+        assert _names(db, r.json()["id"]) == ["solo"]
+        assert _tag_rows(db) == ["solo"]

@@ -175,12 +175,43 @@ class TestRegistrationProjectsFrontmatterTags:
         _register(db_session, drive_env, how, "n.md", text)
         assert _tag_names(db_session, "n.md") == expected
 
-    def test_case_variant_reuses_row(self, db_session, drive_env, how):
-        db_session.add(Tag(name="Python", drive="test-drive"))
+    def test_case_variant_joins_existing_row_as_it_stands(self, db_session, drive_env, how):
+        row = Tag(name="Python", drive="test-drive")
+        other = File(
+            filename="a.md", title="a", drive="test-drive", folder_path="",
+            file_path="a.md", file_size=1, file_type="document",
+            mime_type="text/markdown", tags=[row],
+        )
+        db_session.add(other)
         db_session.commit()
-        _register(db_session, drive_env, how, "n.md", "---\ntags: [python]\n---\n\nbody\n")
-        assert _tag_names(db_session, "n.md") == ["python"]
+        text = "---\ntags: [python]\n---\n\nbody\n"
+        _register(db_session, drive_env, how, "n.md", text)
+        assert _tag_names(db_session, "n.md") == ["Python"]
+        assert _tag_names(db_session, "a.md") == ["Python"]
         assert db_session.query(Tag).filter(Tag.drive == "test-drive").count() == 1
+        assert (drive_env / "n.md").read_text().count("python") == 1
+
+    def test_tags_survive_a_failed_id_writeback(self, db_session, drive_env, how, monkeypatch):
+        import app.services.scanner as scanner_mod
+
+        def read_only(*args, **kwargs):
+            raise OSError("read-only file system")
+
+        monkeypatch.setattr(scanner_mod, "replace_file_contents", read_only)
+        _register(db_session, drive_env, how, "n.md", "---\ntags: [a]\n---\n\nbody\n")
+        assert _tag_names(db_session, "n.md") == ["a"]
+
+    def test_failing_flush_leaves_session_usable(self, db_session, drive_env, how, monkeypatch):
+        import app.services.tagops as tagops_mod
+
+        def bad_row(db, file, names, **kwargs):
+            file.tags = [Tag(name=None, drive=file.drive)]
+
+        monkeypatch.setattr(tagops_mod, "replace_file_tags", bad_row)
+        _register(db_session, drive_env, how, "n.md", "---\ntags: [a]\n---\n\nbody\n")
+        record = db_session.query(File).filter(File.filename == "n.md").one()
+        assert record.md_id is not None
+        assert record.tags == []
 
     def test_projection_failure_does_not_break_registration(
         self, db_session, drive_env, how, monkeypatch
@@ -202,4 +233,6 @@ def test_scan_shares_new_tag_row_across_notes(db_session, drive_env):
     (drive_env / "b.md").write_text("---\ntags: [X]\n---\n\nbody\n")
     _scan_and_register(db_session, "test-drive")
     db_session.commit()
-    assert db_session.query(Tag).filter(Tag.drive == "test-drive").count() == 1
+    rows = db_session.query(Tag).filter(Tag.drive == "test-drive").all()
+    assert len(rows) == 1
+    assert _tag_names(db_session, "a.md") == _tag_names(db_session, "b.md") == [rows[0].name]

@@ -291,6 +291,8 @@ def _ensure_md_id_for_new_file(
     if not parsed.metadata:
         return
 
+    project_frontmatter_tags(db, file_record, content)
+
     fm_id_raw = parsed.metadata.get("id")
     now = datetime.now(UTC)
     new_meta, new_id = ensure_id(parsed.metadata, existing_id=None, now=now)
@@ -326,8 +328,6 @@ def _ensure_md_id_for_new_file(
         logger.warning(
             "scanner: md_aliases projection failed for %s", file_record.file_path
         )
-
-    project_frontmatter_tags(db, file_record, content)
 
 
 def register_single_file(db: Session, drive_name: str, file_path: Path) -> str:
