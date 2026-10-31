@@ -206,6 +206,21 @@ class WatchHistory(Base):
     )
 
 
+class PlayedSegment(Base):
+    __tablename__ = "played_segments"
+
+    viewer_id: Mapped[str] = mapped_column(String(16), primary_key=True)
+    file_id: Mapped[str] = mapped_column(
+        String(12), ForeignKey("files.id", ondelete="CASCADE"), primary_key=True
+    )
+    segment_index: Mapped[int] = mapped_column(Integer, primary_key=True)
+    played_seconds: Mapped[float] = mapped_column(Float, nullable=False)
+
+    # The primary key leads with viewer_id, so without this index the
+    # cascade from a file's hard delete scans the whole table.
+    __table_args__ = (Index("idx_played_segments_file_id", "file_id"),)
+
+
 class Comment(Base):
     __tablename__ = "comments"
 
