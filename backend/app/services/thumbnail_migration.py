@@ -21,8 +21,9 @@ def _reach_key(path: Path, rel: str) -> tuple:
     """What a pointer reaches. The cache's mount can fold case and Unicode
     normalisation, so two strings can name one file, and only the inode tells.
 
-    Only a missing path means the file is absent. Any other failure leaves it
-    unknown, and an unknown file must keep its pointer."""
+    A missing path, or something that is not a regular file, means there is no
+    picture. Any other failure leaves it unknown, and an unknown file must keep
+    its pointer."""
     try:
         st = path.stat()
     except (FileNotFoundError, NotADirectoryError):
@@ -30,7 +31,7 @@ def _reach_key(path: Path, rel: str) -> tuple:
     except OSError:
         return ("unknown", rel)
     if not stat.S_ISREG(st.st_mode):
-        return ("unknown", rel)
+        return ("absent", rel)
     return ("inode", st.st_dev, st.st_ino)
 
 
@@ -80,8 +81,12 @@ def migrate_thumbnail_slots(session_factory: Callable[[], Session]) -> dict[str,
         examined = 0
         for key, members in groups.items():
             if key[0] == "unknown":
-                for _, rel in members:
-                    logger.warning("Could not examine thumbnail %s; keeping its pointer", rel)
+                for file_id, rel in members:
+                    logger.warning(
+                        "Could not examine thumbnail %s of file %s; keeping its pointer",
+                        rel,
+                        file_id,
+                    )
                 counts["failed"] += len(members)
                 examined += len(members)
                 continue

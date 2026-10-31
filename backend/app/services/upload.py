@@ -269,18 +269,8 @@ def complete_upload(
         .filter(File.drive == session.drive, File.file_path == target_rel)
         .first()
     )
-    superseded_picture: str | None = None
-    if existing is not None and existing.deleted_at is not None:
-        # Trashed ghost: the user re-uploaded to this path, superseding the
-        # earlier delete intent. Purge the ghost so the fresh upload takes
-        # the slot cleanly (no fake-path leftover, no IntegrityError).
-        superseded_picture = existing.thumbnail_path
-        db.delete(existing)
-        db.flush()
-        cleanup_orphan_tags(db, session.drive)
-        existing = None
-
-    file_id = existing.id if existing is not None else generate_nanoid()
+    reused_row = existing is not None and existing.deleted_at is None
+    file_id = existing.id if reused_row else generate_nanoid()
     thumbnail_rel = None
     gen_fn = get_thumbnail_generator(file_type, mime_type)
     if gen_fn is not None:
@@ -291,10 +281,22 @@ def complete_upload(
             gen_fn, str(target_full), str(config.THUMBNAILS_DIR / thumbnail_rel)
         ):
             thumbnail_rel = None
-    if existing is not None and existing.thumbnail_path != thumbnail_rel:
-        superseded_picture = existing.thumbnail_path
 
+    superseded_picture: str | None = None
     try:
+        if existing is not None and existing.deleted_at is not None:
+            # Trashed ghost: the user re-uploaded to this path, superseding the
+            # earlier delete intent. Purge the ghost so the fresh upload takes
+            # the slot cleanly (no fake-path leftover, no IntegrityError). This
+            # follows the generator so the write lock is not held while it runs.
+            superseded_picture = existing.thumbnail_path
+            db.delete(existing)
+            db.flush()
+            cleanup_orphan_tags(db, session.drive)
+            existing = None
+        elif existing is not None and existing.thumbnail_path != thumbnail_rel:
+            superseded_picture = existing.thumbnail_path
+
         # Read from the file that just landed, not from whatever the row
         # said before. A re-upload to the same path replaces the picture, and
         # the scanner's backfill only visits rows whose width is still NULL —
@@ -358,7 +360,7 @@ def complete_upload(
         untrack_empty_folder(db, session.drive, session.folder_path)
         db.commit()
     except Exception:
-        if existing is None:
+        if not reused_row:
             remove_thumbnail_quietly(thumbnail_rel)
         raise
     remove_thumbnail_quietly(superseded_picture)
