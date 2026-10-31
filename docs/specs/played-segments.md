@@ -35,23 +35,29 @@ the display.
    - the duration is a finite positive number;
    - the stored resume position is not being read (`resumePendingRef` is false);
    - `getPlaybackRate()` returns without throwing.
-3. Between two consecutive eligible ticks, the position's movement is classified. The
-   **allowance** is `elapsed wall time × playback rate + 1 second`.
-   - **Played:** forward and no larger than the allowance. It extends the open stretch.
-   - **Unchanged:** the same position, or backward by at most 1 second. Nothing is counted and
-     the stretch stays open. Players that publish their position on their own timer produce
-     this during normal playback.
+3. Each eligible tick is compared with the **reference**, an earlier eligible tick's position
+   and wall time. The **allowance** is `wall time since the reference × playback rate + 1 second`.
+   - **Played:** forward and no larger than the allowance. The stretch's `end` becomes this
+     position, and this tick becomes the reference.
+   - **Unchanged:** the same position, or backward by at most 1 second. Nothing is counted, the
+     stretch stays open, and the reference stays as it is, wall time included. Players that
+     publish their position on their own timer produce this during normal playback, and keeping
+     the wall time means any publish interval still counts as played.
    - **Jump:** anything else. It closes the stretch, and this tick starts a new one.
 4. A **stretch** is one continuous run of played media time, `{ start, end }`. It closes on a
    jump, when an eligible tick arrives more than 1 second from its end after a non-eligible
    tick, on teardown, and when the profile is cleared. A pause, a stall or an interruption alone
-   does not close it: if playback carries on from where it stopped, the same stretch continues.
+   does not close it: if playback carries on from where it stopped, the same stretch continues,
+   and its `end` becomes the larger of its current `end` and the new position. Clearing the
+   profile discards the open stretch, held or counted, at the first tick with no profile.
 5. A stretch counts once its length reaches **10 media seconds**. A stretch that closes below
    that is discarded and nothing about it is sent. This is what makes opening a file and leaving
    within seconds, or trying several places while looking for a scene, record nothing.
 6. Pending ranges are sent by `POST /api/files/{id}/played-ranges`, using `fetch` with
-   `keepalive: true`, at these **send moments**:
-   - every 15 seconds while anything is sendable;
+   `keepalive: true` and the body `{ "ranges": [{ "start": 12, "end": 47.5 }] }`, at these
+   **send moments**. The backend ignores unknown fields.
+   - every 15 seconds, by a wall-clock timer of its own that starts with the hook's effect, runs
+     while paused, and stops at teardown. A moment with nothing sendable sends no request;
    - when the player reports the end of the file (`notifyEnded`);
    - when the hook's effect tears down (the file or the controller changes, or the player
      unmounts);
@@ -59,9 +65,11 @@ the display.
 
    At a send moment, an open stretch that has reached 10 seconds is cut: its played part becomes
    a range, the stretch stays open from the cut point and stays counted, so a later piece of any
-   length is sent and nothing is sent twice. An open stretch below 10 seconds is held back. On
-   teardown it is discarded. Sending at any of these moments does not depend on the player's
-   state at that moment and reads nothing from the controller.
+   length is sent and nothing is sent twice. A stretch with no played media since its last cut
+   produces no range, at a cut or at its close, so a request never holds a zero-length range. An
+   open stretch below 10 seconds is held back. On teardown it is discarded. Sending at any of
+   these moments does not depend on the player's state at that moment and reads nothing from the
+   controller, so up to one clock tick at the very end of a stretch is not recorded.
 7. The backend splits each range across fixed 5-second segments and adds the seconds to the
    totals in `played_segments`. It returns `204`.
 8. `GET /api/files/{id}/played-segments` returns this viewer's totals.
@@ -110,9 +118,10 @@ Capture, per hook effect (one file and one controller):
 |---|---|---|
 | Not tracking | Eligible tick | Tracking, with this tick as the reference. No movement is counted for this tick. |
 | Not tracking | Non-eligible tick | Not tracking |
-| Tracking | Non-eligible tick | Not tracking. The open stretch is kept, unless the profile was cleared. |
+| Tracking | Non-eligible tick | Not tracking. The open stretch is kept. |
+| Any | Tick with no profile | Not tracking. The open stretch is discarded. |
 | Tracking | Played movement | Tracking. The stretch is extended and this tick is the new reference. |
-| Tracking | Unchanged position | Tracking. The reference's wall time moves to this tick and its position stays. |
+| Tracking | Unchanged position | Tracking. The reference does not change. |
 | Tracking | Jump | Tracking. The stretch closes, this tick is the new reference, and a new stretch starts here. |
 | Any | Teardown | Ended. Capture for this effect stops after the final send. |
 
@@ -196,19 +205,21 @@ No UI reads this data, so a wrong capture would stay invisible until the later d
 by then the data cannot be recovered. A jsdom test with a fake controller cannot show how a real
 player reports its position. So SPEC-CORE-025 also has a real-browser test in
 `frontend/e2e-components/`: a real `<video>` in Chromium plays a known stretch through
-`usePlaybackProgress`, with the request intercepted and asserted within a tolerance. It runs in
-CI and needs no Litloft stack.
+`usePlaybackProgress`, with the request intercepted. The sent ranges must start within 1 second
+of where the video started and total within 1.5 seconds of the position it reached, with
+`keepalive` set. It runs in CI and needs no Litloft stack.
 
 Pending for a human (`agent_cannot_verify`), recorded in `decisions.md`, not blocking the merge:
-after deployment, play a stretch in the iOS shell and in a YouTube embed, then confirm through
-`GET /played-segments` that about that many seconds were stored.
+after deployment, confirm through `GET /played-segments` that the stored seconds are within 3
+seconds of what was played, for 60 seconds of each of: the iOS shell in the foreground, the iOS
+shell with the screen locked (background audio), a YouTube embed at 1x and a YouTube embed at 2x.
 
 ### 10. Non-functional
 
 - **Requests:** at most one periodic send per player per 15 seconds during playback, plus the
   sends at the other moments in Normal flow step 6. A moment with nothing sendable sends nothing.
-- **Rendering:** capture state lives in refs. It causes no React re-render and adds no second
-  polling source: it uses the existing shared media clock.
+- **Rendering:** capture state lives in refs. It causes no React re-render, and it reads the
+  position from the existing shared media clock rather than polling the player itself.
 - **Storage:** at most 720 rows per viewer, per file, per hour of media. A 3-hour file watched
   fully is 2,160 rows. Segments are fixed in seconds so that a duration that reads differently
   between players does not move data. A display can merge 5-second segments, but it could never
@@ -241,12 +252,12 @@ I1. A range adds exactly its length to the stored totals, divided at 5-second bo
 I2. Sending the same range twice doubles those totals, and two concurrent requests lose neither addition.
 I3. Time while the player is paused, stalled, interrupted, reading the stored resume position, or without a finite positive duration adds nothing to any range, and playback that carries on from where it stopped continues the same stretch.
 I4. A forward seek larger than the allowance (`elapsed wall time × playback rate + 1 second`) or a backward seek of more than 1 second, including the player's own resume seek and a `?t=` seek, adds nothing for the skipped span and closes the stretch.
-I5. One pass through the same stretch produces the same ranges at any playback rate, a tick delayed by a throttled background timer is still counted as played, and a repeated position or a backward wobble of at most 1 second neither counts anything nor closes the stretch.
-I6. A stretch that closes below 10 media seconds sends nothing wherever in the file it started, and a stretch that reaches 10 seconds is sent in full from its start, with cuts at send moments leaving no gap and no overlap.
-I7. No request to `POST /played-ranges` or `GET /played-segments` changes `playback_position`, `duration` or `last_played_at`, and the capture does not change when or with what values `saveWatchProgress` is called.
+I5. One pass through the same stretch produces the same ranges at any playback rate and any interval at which the player publishes its position, a tick delayed by a throttled background timer is still counted as played, and a repeated position or a backward wobble of at most 1 second neither counts anything nor closes the stretch.
+I6. A stretch that closes below 10 media seconds sends nothing wherever in the file it started, and a stretch that reaches 10 seconds is sent from its start up to its last observed tick, with cuts at send moments leaving no gap, no overlap and no zero-length range.
+I7. No request to `POST /played-ranges` or `GET /played-segments` changes `playback_position`, `duration` or `last_played_at`, the capture does not change when or with what values `saveWatchProgress` is called, a throw inside capture does not stop those saves or playback, and capture causes no React re-render.
 I8. Without a profile the client captures and sends nothing; without a viewer identity `POST /played-ranges` with a valid body returns `204` and writes nothing, and `GET /played-segments` on an available file returns an empty `segments` list; `GET` returns only the requesting viewer's totals; and on a missing, trashed or locked-drive file, an identified viewer gets `404` from both endpoints and nothing is written.
 I9. `DELETE /progress` removes the requesting viewer's `played_segments` rows for that file in the same transaction as its `watch_history` row, even when no `watch_history` row exists, and leaves other viewers' and other files' rows; a file's hard delete removes its rows; trash then restore, missing then recovery, rename and move all keep them.
-I10. Pending ranges are sent with `keepalive: true` every 15 seconds and at `visibilitychange` to hidden, `pagehide`, teardown and `notifyEnded`, always to the file they were captured for and never more than the newest 256; a network failure or `5xx` keeps them for the next send only while that file and controller stay active, a `4xx` discards them, and a request with 0 or more than 256 ranges or any invalid range returns `422` and writes nothing.
+I10. Pending ranges are sent with `keepalive: true` every 15 seconds and at `visibilitychange` to hidden, `pagehide`, teardown and `notifyEnded`, whatever the player's state at that moment (interrupted, reading the resume position, or a controller that throws), always to the file they were captured for and never more than the newest 256; a network failure or `5xx` keeps them for the next send only while that file and controller stay active, a `4xx` discards them, and a request with 0 or more than 256 ranges or any invalid range returns `422` and writes nothing.
 
 ## Checked, no action
 
@@ -260,9 +271,14 @@ I10. Pending ranges are sent with `keepalive: true` every 15 seconds and at `vis
   gains seconds once it is played for 10 seconds, and a brief landing gains nothing, so played
   seconds covers it. If the display later needs seek arrivals as their own signal, they start
   from zero at that point.
-- **A seek inside the allowance:** a forward seek of 1 second or less, or a seek inside a throttled
-  gap (a lock-screen control during background play), counts the skipped span as played. Telling
-  them apart would need events the `MediaController` does not offer, and the error is small.
+- **A seek inside the allowance:** a forward seek of 1 second or less, a seek inside a throttled
+  gap (a lock-screen control during background play), or a seek after a stall at least as long as
+  the seek counts the skipped span as played. Telling them apart would need events the
+  `MediaController` does not offer, and the error is small.
+- **YouTube ads on an embed with no duration hint:** `isAdDuration` fails open without a hint, so
+  an ad there is not `interrupted` and its seconds are stored under the file's first segments.
+  Accepted: core cannot detect it without YouTube-specific knowledge, it needs an import with no
+  duration metadata, and start-of-file bias is already the display spec's to correct.
 - **A short moment replayed on purpose:** rewinding to rewatch 5 seconds again and again closes a
   stretch below 10 seconds each time and records nothing. Accepted, because the same pattern is what
   looking for a scene looks like. This is the cost of the 10-second rule.
