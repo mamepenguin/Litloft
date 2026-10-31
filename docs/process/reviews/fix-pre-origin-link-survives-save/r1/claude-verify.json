@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "Traced by hand with X saved as 'See [[Y]]' and row (Y, X, NULL), Y being Markdown: target_ids={Y}; markdown_relations.py:167 gives waiting_for_source={Y}-{Y}=empty, so :171 does not skip; :174 fails because file_id_a is Y, so :181 deletes the row; :187-196 adds (X, Y, markdown). The (Y, X) row is therefore gone although Y's file still links X. test_relation_ownership.py:226-233 pins exactly this, with source.md seeded 'See [[target]]', and the comment at :222 ('once on X's page for each direction') does not match the one-direction assertion at :233. decisions.md step 4 records the same result in the running app, and that Y's next save restores both rows. docs/developer-guide/known-issues.md in this worktree has no such entry. The main checkout's known-issues.md:106 still has the entry 'A relation recorded before relation origins existed disappears when its target note is saved first'; it was seen by comparing the two files, not in a git diff. known-issues.md:6-9 and :22-23 state the listing and removal rules as quoted. The behaviour is deliberate per the code comment at markdown_relations.py:164-166, and it needs a database holding pre-origin rows. The commit message was not read, so whether it records a decision not to fix this was not checked."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "Glob finds no invariants file under docs/process/reviews/fix-pre-origin-link-survives-save/. r1/classification.json lists the three edited paths claimed. All cited sites match: files.py:1701 (through the wrapper at :120-127), drives.py:881, markdown_image_import.py:458, files.py:1996, groupRelations.ts:10 (any origin other than 'markdown' goes to 'related'), internal.py:612 and :647, connections_graph.py:160-165 (list_file_relations_by_drive), get_related_files.py:93 (file_relations URL), markdown_relations.py:110. A grep of backend/app finds no other caller of the sync function. fileops.py:28-29 and files.py:130-138 implement the same predicate: mime text/markdown, or a filename ending in .md, case-insensitively."
+    }
+  ],
+  "specification_compliance": [
+    "No spec or invariants file exists for this topic; the only behavioural record is decisions.md (R-5) and the UNSPEC comments in test_relation_ownership.py.",
+    "The code at markdown_relations.py:162-181 matches its comment and the outcomes recorded in decisions.md steps 1 to 6, as traced by hand."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "A kept pre-origin row (Y, X, NULL) for a live link is listed under Related files, while docs/user-guide/tags-and-relations.md:64 describes that section as relations made some other way, such as by an addon. It moves to Links to this file only after Y's next save.",
+    "A pre-origin row from a Markdown note is now kept on X's save whatever Y's file says, because the code does not read Y's content. A row Y's file does not back stays listed on X until Y is saved.",
+    "Missing Markdown sources are kept like trashed ones, because _markdown_source_ids applies no active-file filter. Only the trashed case has a test."
+  ],
+  "regression_risks": [
+    "Rows that now persist remain visible through the public listing and the internal file_relations endpoint, so the knowledge graph and the intelligence get_related_files tool still receive them.",
+    "Because _markdown_source_ids runs a File query, a save with pre-origin incoming rows does one extra query; it applies only when such rows exist."
+  ],
+  "test_coverage": [
+    "test_relation_ownership.py covers the kept row, settlement by Y's save, removal when Y drops the link, replacement when X links back, the trashed source, and non-Markdown sources.",
+    "No test covers a missing (missing_since) Markdown source, or the row kept when Y's file no longer links X.",
+    "No test covers Y's save after the link-back case; only decisions.md step 4 records that both rows then exist."
+  ],
+  "not_verified": [
+    "No tests were run and the app was not started; the claims were reproduced by tracing the code by hand, because only Read, Glob and Grep were available.",
+    "The commit diff and the message of commit c1abf4dc8 were not read, so the removal of the known-issues entry rests on comparing the worktree with the main checkout, and whether the commit states why it was removed is unknown.",
+    "The screenshots and logs cited in decisions.md, which are outside the repository, were not read.",
+    "The downstream handling in connections_graph.py after line 184 and in get_related_files.py beyond the grep results was not read in full."
+  ],
+  "confidence": 88
+}

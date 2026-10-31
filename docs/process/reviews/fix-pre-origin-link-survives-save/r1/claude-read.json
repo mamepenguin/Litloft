@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "When note X is saved linking back to Markdown note Y, Y's pre-origin row (Y, X) is still deleted even if Y's file still links X, so a live backlink stays unlisted until Y is next saved, while the commit removes the only known-issues entry describing that behavior.",
+      "impact": "With mutual links recorded before origins existed, X's page shows Y only under Links from this file and omits Links to this file, and Y's page omits Links from this file. Nothing tells the user why, and known-issues.md no longer lets them recognize it. Saving Y restores the row. This is limited to pre-origin rows and heals itself.",
+      "evidence": "backend/app/services/markdown_relations.py:167 subtracts target_ids from waiting_for_source, so the row falls through to db.delete at :181. backend/tests/test_relation_ownership.py:226-233 seeds source.md with 'See [[target]]' and pins only the (target, source) row. docs/process/reviews/fix-pre-origin-link-survives-save/decisions.md step 4 records that Y still says [[X]] and X's page does not list Y under Links to until Y is next saved. The diff deletes the known-issues entry, and docs/developer-guide/known-issues.md:6-9 and :22-23 say reachable defects are listed and a row is removed when fixed or when it is decided not to fix it. The test comment at test_relation_ownership.py:222 says Y is listed 'once on X's page for each direction', but the assertion at :233 allows one direction only.",
+      "repro": "not_reproduced by this reviewer (read-only). Traced from the code and matches decisions.md step 4: Y contains [[X]], set (Y, X) origin to NULL, save X with [[Y]], then GET /api/files/X/relations returns only (Y, outgoing, markdown).",
+      "introduced": "pre-existing",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariants are declared. The narrowed behavior is deliberate and pinned by a test, but it is still a user-visible missing backlink that is now undocumented.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Keep a narrowed known-issues entry for the link-back case, and delete the misleading sentence in the test comment at test_relation_ownership.py:222."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "No invariants file exists, so there is no touch-point list to compare against, and every place the diff reaches is by definition outside a declared list.",
+      "impact": "No separate user-visible defect. The places reached have no declared list covering them, so a reader cannot check the change's scope against one.",
+      "evidence": "Edited directly: backend/app/services/markdown_relations.py, backend/tests/test_relation_ownership.py, docs/developer-guide/known-issues.md. Reached through the shared sync function: backend/app/routers/files.py:1701 (content save), backend/app/routers/drives.py:881 (create/recover), backend/app/services/markdown_image_import.py:458 (image import). Reached through rows that now persist: backend/app/routers/files.py:1996 (public listing), frontend/src/components/FileDetail/related/groupRelations.ts:10 (a null-origin row renders under Related files, not Links to this file), and backend/app/routers/internal.py:612 and :647 with its addon consumers (addons/knowledge/app/routers/connections_graph.py:160, addons/intelligence/app/rag/tools/get_related_files.py:93). New runtime dependency: markdown_relations.py:110 lazily imports fileops._is_markdown_file. That predicate has the same logic as files.py:130.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Bucket A is unavailable without declared invariants, and these reaches break nothing by themselves.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "No invariants file or touch-point list exists for this change, so compliance against declared invariants could not be assessed.",
+    "Traced as behaving the way the tests pin it: Markdown Y's pre-origin row survives X's save when X does not link Y; Y's save marks or removes it; a non-Markdown Y's row is still settled by X's save; a trashed Y's row is kept and listed again on restore."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "A kept null-origin row is displayed under Related files, not Links to this file, until Y is saved (groupRelations.ts:10).",
+    "A missing Y (missing_since set) counts as a Markdown source because _markdown_source_ids applies no active filter, so its row waits as a trashed note's row does. No test pins this.",
+    "A pre-origin (Y, X) row where Markdown Y never linked X, such as one written by an addon before origins existed, now also waits for Y's save rather than going on X's save.",
+    "A pre-origin seed row from a Markdown source to a note (source, note) now survives the note's uncited save and waits for the source's save. The existing seed tests use only a video source."
+  ],
+  "regression_risks": [
+    "If Y is edited outside the app and no longer links X, the row remains listed: no scanner path calling sync_markdown_file_relations was found in backend/app, and X's save no longer clears it. It stays until Y is saved through the app.",
+    "A lingering (Y, X) pre-origin row occupies uq_file_relations_a_b_kind for longer, so POST /api/internal/file_relations for the same pair and kind returns 409 for longer (backend/app/routers/internal.py:622).",
+    "The new File query and lazy import run on a save only when an incoming null-origin row exists, so the cost is limited to upgraded data."
+  ],
+  "test_coverage": [
+    "Mutations traced by reading, not run. Removing '- target_ids' at markdown_relations.py:167 should fail test_legacy_incoming_link_is_replaced_when_the_target_links_back. Removing the _is_markdown_file filter at :115 should fail test_legacy_seed_the_note_does_not_cite_is_removed. Adding an active-file filter to the query at :114 should fail test_legacy_incoming_link_from_trashed_markdown_is_kept.",
+    "The 'relation.file_id_b == file_id' check at markdown_relations.py:171 is redundant: a row whose file_id_a is in waiting_for_source cannot have file_id_a == file_id, so removing it is an equivalent mutant rather than a test gap.",
+    "No test seeds both pre-origin directions (X, Y) and (Y, X) together; by reading, the code handles this correctly.",
+    "No test exercises the waiting branch through drives.py:881 or markdown_image_import.py:458; they call the same function.",
+    "No test covers a missing (missing_since) Y, or a Markdown source identified only by mime type."
+  ],
+  "not_verified": [
+    "No tests or mutations were run; the tools were read-only and all behavior was traced by reading.",
+    "The R-5 walk in decisions.md and its logs and screenshots were not independently checked.",
+    "Which addon code, if any, actually writes kind=related rows between Markdown files, and in which direction. A search of addons/knowledge/app for the client's create_file_relation found only its definition, and other addons were not searched for it.",
+    "Whether SQLite foreign-key cascade is enabled in production for rows whose source file is physically deleted.",
+    "Frontend rendering beyond groupRelations.ts."
+  ],
+  "confidence": 80
+}
