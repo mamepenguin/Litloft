@@ -1,10 +1,14 @@
 """Tag rows that outlive the files that referenced them."""
 
+import logging
 from collections.abc import Iterable
 
 from sqlalchemy.orm import Session
 
 from app.models import File, Tag, file_tags
+from app.services.frontmatter import extract_valid_tags, parse as parse_frontmatter
+
+logger = logging.getLogger(__name__)
 
 
 class TagIndex:
@@ -40,6 +44,67 @@ def resolve_tag(tags: Iterable[Tag], name: str) -> Tag | None:
 def load_tag_index(db: Session, drive: str) -> TagIndex:
     """Index every Tag row of ``drive``; one query however many names follow."""
     return TagIndex(db.query(Tag).filter(Tag.drive == drive).all())
+
+
+def replace_file_tags(
+    db: Session, file: File, tag_names: list[str], *, respell: bool = True
+) -> None:
+    """Replace ``file.tags`` with the given names, reusing existing Tag rows.
+
+    Shared by ``PUT /api/files/{id}/tags`` and the internal
+    ``POST /api/internal/files/{id}/tags``. Case-insensitive dedup; the
+    ``Tag`` namespace is per-drive.
+
+    A case-variant row is renamed to the given spelling unless ``respell`` is
+    False, which keeps the row as it stands (what a move or a passive
+    registration wants: no other note's chip changes).
+
+    SECURITY: callers MUST verify drive access before invoking this
+    helper. It performs no authorisation check — it trusts that
+    ``_get_file_or_404`` or equivalent was called upstream.
+
+    Transactional contract: the caller is responsible for ``db.commit()``
+    and for invoking ``cleanup_orphan_tags`` afterwards. Kept
+    commit-free so batch callers can replace tags on many files in a
+    single transaction.
+    """
+    index = load_tag_index(db, file.drive)
+    tag_objects: list[Tag] = []
+    for tag_name in tag_names:
+        tag = index.get(tag_name)
+        if not tag:
+            tag = Tag(name=tag_name, drive=file.drive)
+            index.add(tag)
+        elif respell and tag.name != tag_name:
+            tag.name = tag_name
+            db.add(tag)
+            db.flush()
+            index.add(tag)
+        tag_objects.append(tag)
+    file.tags = tag_objects
+
+
+def project_frontmatter_tags(db: Session, file: File, content: str) -> None:
+    """Set ``file.tags`` from the frontmatter ``tags:`` of Markdown ``content``.
+
+    A case-variant row is joined as it stands. A failure is logged and
+    swallowed so registering the note never depends on its tags. The caller
+    decides that the file is Markdown, and sweeps orphans if the row existed
+    before (``replace_file_tags`` leaves that to it).
+    """
+    try:
+        # The savepoint flushes pending rows (a trashed ghost's deleted tag, a
+        # previous note's new tag) before the index is read, and confines a
+        # failing flush to this projection.
+        with db.begin_nested():
+            replace_file_tags(
+                db,
+                file,
+                extract_valid_tags(parse_frontmatter(content).metadata),
+                respell=False,
+            )
+    except Exception:
+        logger.warning("tags projection failed for %s", file.file_path)
 
 
 def cleanup_orphan_tags(db: Session, drive: str | None = None) -> int:

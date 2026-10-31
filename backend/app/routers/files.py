@@ -89,7 +89,7 @@ from app.services.content_write import (
 )
 from app.services.heic import HEIC_MIME_TYPES, convert_heic_to_jpeg
 from app.services.subtitle import convert_srt_to_vtt, detect_subtitles
-from app.services.tagops import cleanup_orphan_tags, load_tag_index
+from app.services.tagops import cleanup_orphan_tags, load_tag_index, replace_file_tags
 from app.services.zip_names import decode_zip_filename
 
 logger = logging.getLogger(__name__)
@@ -136,38 +136,6 @@ def _is_markdown_file(file: File) -> bool:
     if (file.mime_type or "") == "text/markdown":
         return True
     return file.filename.lower().endswith(".md")
-
-
-def replace_file_tags(db: Session, file: File, tag_names: list[str]) -> None:
-    """Replace ``file.tags`` with the given names, reusing existing Tag rows.
-
-    Shared by ``PUT /api/files/{id}/tags`` and the internal
-    ``POST /api/internal/files/{id}/tags``. Case-insensitive dedup; the
-    ``Tag`` namespace is per-drive.
-
-    SECURITY: callers MUST verify drive access before invoking this
-    helper. It performs no authorisation check — it trusts that
-    ``_get_file_or_404`` or equivalent was called upstream.
-
-    Transactional contract: the caller is responsible for ``db.commit()``
-    and for invoking ``cleanup_orphan_tags`` afterwards. Kept
-    commit-free so batch callers can replace tags on many files in a
-    single transaction.
-    """
-    index = load_tag_index(db, file.drive)
-    tag_objects: list[Tag] = []
-    for tag_name in tag_names:
-        tag = index.get(tag_name)
-        if not tag:
-            tag = Tag(name=tag_name, drive=file.drive)
-            index.add(tag)
-        elif tag.name != tag_name:
-            tag.name = tag_name
-            db.add(tag)
-            db.flush()
-            index.add(tag)
-        tag_objects.append(tag)
-    file.tags = tag_objects
 
 
 def merge_file_tags(db: Session, file: File, tag_names: list[str]) -> None:

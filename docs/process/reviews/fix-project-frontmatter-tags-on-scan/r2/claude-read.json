@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "R2-F1-later-save-still-respells-shared-row",
+      "origin": "reviewer",
+      "claim": "A note registered with a case-variant spelling now keeps that spelling on disk while it joins the existing row, and its first body-only save or bulk add of any tag renames the shared row to the disk spelling, so other notes' chips change on an operation that did not edit that tag.",
+      "impact": "With A and C spelled `Python` and a new note B spelled `python`, registration leaves every chip `Python`. Editing only B's body, or bulk-adding an unrelated tag to B, turns every chip on the drive into `python`. Saving A's body then turns them back to `Python`. The user is not told. The fix stops the rename at registration, but the same surprise arrives at B's next write.",
+      "evidence": "backend/app/routers/files.py:1616-1617 projects PUT content through replace_file_tags with the default respell=True. backend/app/routers/files.py:721 and :756 do the same after a bulk merge, reached from files.py:399 with the disk spelling kept by _merged_tag_list (files.py:692-693). tagops.py:78-82 performs the rename. The non-Markdown batch rule keeps the spelling (backend/tests/test_tag_name_matching.py:131-139), so the two paths disagree. The new tests in backend/tests/test_scanner_md_id.py:178-192 stop at registration and make no later write.",
+      "repro": "not_reproduced (read-only reviewer). Traced by reading: row `Python` on note a.md; register n.md with `tags: [python]`, and n.md joins `Python`; PUT /api/files/{n}/content with the same frontmatter and a changed body; index.get('python') returns the folded row, respell defaults to True, and a.md's chip reads `python`.",
+      "introduced": "pre-existing",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is declared. The commit keeps the rename for content PUTs on purpose, but a body-only save or a bulk add of a different tag is not a tag edit, and the fix now makes a disk spelling that differs from the row an ordinary state.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Rename a row on a content write only when this note's own frontmatter spelling of that tag changed compared with the previous content; otherwise pass respell=False."
+    }
+  ],
+  "specification_compliance": [
+    "No invariants file exists and bucket A is unavailable. The code was judged on behaviour and on .claude/rules/design-decisions.md:60-73, which makes frontmatter canonical for `.md` and File.tags a projection.",
+    "Earlier F1/F2 (registration respells a shared row): fixed for scan, single registration, upload, create and copy, since all go through project_frontmatter_tags with respell=False (tagops.py:100-105). Explicit edits keep the rename. The deferred effect is R2-F1.",
+    "Earlier write-back finding (read-only drive loses tags): fixed. The projection now runs at scanner.py:294, before the write-back at scanner.py:316-320, and test_tags_survive_a_failed_id_writeback kills a move back.",
+    "Earlier flush-poison finding (claude-deep F3): fixed for a failure inside the savepoint, with test_failing_flush_leaves_session_usable using a real NOT NULL failure. A failure in the flush that begin_nested performs before the savepoint exists is not isolated. By reading it stays loud: copy returns 500 and reverses the file (fileops.py:344-349), and no normal-use trigger was found.",
+    "V1 (copy onto a trashed ghost attaches a row pending delete): fixed, by reading of SQLAlchemy's session behaviour. begin_nested flushes the pending delete regardless of autoflush=False before load_tag_index runs, and test_copy_onto_trashed_ghost_keeps_the_tag covers it.",
+    "Earlier test gap on cross-drive copy: fixed. The test now seeds a source row and a destination row and asserts the destination row id and both drives' rows (test_frontmatter_tags_on_create.py:128-154).",
+    "Still open and unchanged by these commits: reused-row upload that skips projection and keeps stale tags with nothing logged (upload.py:321-326); copy's 1,000,000-byte limit against 1 MiB elsewhere (fileops.py:38, scanner.py:57); sidebar staleness, now recorded in known-issues.md rather than fixed."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "A note's chip can now differ in case from its frontmatter from the moment it is registered: disk `python`, chip `Python`. The first chip edit rewrites the file to the row's spelling (frontend/src/lib/tags.ts:59-63), and a body-only save rewrites the row to the file's spelling (R2-F1). Which of the two wins depends on the next operation.",
+    "When one scan registers several notes with case variants of a new tag, the first note visited sets the row's spelling (test_scan_shares_new_tag_row_across_notes asserts only that the notes agree). The visiting order depends on the filesystem walk.",
+    "Registration projects only the first 10 valid tags (frontmatter.py:209-210), so a note with more shows only 10 chips, and the next chip edit writes that shorter list to the file. known-issues.md records this data loss for rejected tags but not for the cap.",
+    "Create parses the raw request body, so a CRLF frontmatter block is read as no frontmatter (frontmatter.py:110-112), while scan, upload and copy use read_text, which normalises line endings and projects it. Unchanged since the previous review."
+  ],
+  "regression_risks": [
+    "copy_file now inserts the new row at the savepoint's flush (tagops.py:99), before project_markdown_thumbnail runs (fileops.py:337), so the SQLite write lock is held during that step rather than only at commit. The engine sets no explicit timeout, so another writer could wait or fail with a lock error. Not measured; the failure would be loud.",
+    "pysqlite in legacy transaction mode emits no BEGIN before SAVEPOINT. If an upload's flush at upload.py:318 emits no UPDATE, the savepoint is outermost and its RELEASE commits the tag rows early. A reused row with every assigned value unchanged is needed, and the effect is only a lost atomicity with the later commit. Recalled driver behaviour, not observed.",
+    "A swallowed projection failure logs one warning line with no cause (tagops.py:107), and no later scan re-projects the row, so the note stays without chips until saved. files.py:1628 uses logger.exception for the equivalent failure.",
+    "The new tests depend on begin_nested's implicit flush for the ghost case and a previous note's new tag. A later refactor that moves the index load outside the savepoint would be caught by test_copy_onto_trashed_ghost_keeps_the_tag and test_scan_shares_new_tag_row_across_notes."
+  ],
+  "test_coverage": [
+    "Mutations reasoned, not run. Moving the scanner projection back after the write-back: killed by test_tags_survive_a_failed_id_writeback. Removing begin_nested: killed by test_failing_flush_leaves_session_usable and expected to fail test_copy_onto_trashed_ghost_keeps_the_tag. Flipping respell=False to True: killed by test_case_variant_joins_existing_row_as_it_stands and the cross-drive copy test. Narrowing upload's except to OSError: killed by test_upload_of_non_utf8_note_succeeds_without_tags.",
+    "Mutations expected to survive: removing upload's size guard at upload.py:321; making a non-UTF-8 upload over a reused row clear or keep tags, because the new non-UTF-8 test uses a new row only; removing the None check for a non-UTF-8 or oversize note on copy.",
+    "Not covered: a projection failure on a reused row (old tags should remain and the row should still be usable); a projection failure through upload, create or copy, since both failure tests go through scanner registration only; a later content save of a case-variant note (R2-F1).",
+    "Case-variant joining is tested through scan, single registration and copy, not through upload or create. They share project_frontmatter_tags, so a helper-level mutant is still killed."
+  ],
+  "not_verified": [
+    "No code, test or mutation was run; every statement about SQLAlchemy savepoints, pysqlite and test outcomes comes from reading the code and from recalled library behaviour.",
+    "decisions.md and the docs commits 933ca488 and db7aa7e7 were not read, so I treat them as documentation by their subjects and do not know whether the still-open earlier findings were deliberately accepted.",
+    "Addon code, including the knowledge scanner's reconciliation of File.tags and its own spelling of a tag, was not read.",
+    "The frontend editor's autosave path was not traced beyond frontend/src/lib/tags.ts, so how often a body save reaches PUT content in R2-F1 is assumed.",
+    "project_markdown_thumbnail's run time and the actual lock contention on copy were not measured.",
+    "Behaviour on a real read-only mount was not observed; the tests simulate it with an OSError."
+  ],
+  "confidence": 78,
+  "trajectory": "Only one round since r1 changes code: c6c022417. By their subjects, 933ca488 and db7aa7e7 only record documents, and their diffs were not supplied. c6c022417 adds a state, the `respell` keyword that gives replace_file_tags two modes, and a savepoint around the projection, and it moves the scanner's projection call ahead of the id write-back. It removes no branch. The round before r1 (6a3839fc7) added per-path call sites for upload, copy and create, which is a different kind of addition, so no mechanism has been added twice and this does not yet show the design being patched. The savepoint in one helper handles the flush hazards for all paths, with no per-path flush added. One thing to watch: reusing a case-variant row as it stands is now spelled in three places, retarget_file_tags, merge_file_tags and replace_file_tags(respell=False), and content writes keep the opposite rule, which is the source of R2-F1. If the next round adds another condition to `respell`, the design is being patched.",
+  "perspectives": [
+    {
+      "name": "savepoint",
+      "notes": "Checked rollback state on new and reused rows, the implicit flush before the savepoint, the handler's access to file.file_path, and the existing begin_nested uses in drives.py:57 and content_write.py:75. Nothing silent was found."
+    },
+    {
+      "name": "case handling",
+      "notes": "extract_valid_tags and TagIndex both fold with lower(), so two names in one note cannot resolve to one row and hit the file_tags primary key. Filtering folds too (drives.py:727)."
+    },
+    {
+      "name": "call sites",
+      "notes": "Scan and single registration project for new rows only. Upload and create sweep orphans after projecting, and copy needs no sweep because its row is new. Default respell=True remains on the explicit paths at files.py:756, 776, 1617 and internal.py:165."
+    }
+  ]
+}

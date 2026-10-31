@@ -19,7 +19,8 @@ from app.services.filetype import (
     refine_classification_with_probe,
 )
 from app.services.image_dimensions import read_image_dimensions
-from app.services.tagops import cleanup_orphan_tags
+from app.services.scanner import _MD_READ_MAX_BYTES
+from app.services.tagops import cleanup_orphan_tags, project_frontmatter_tags
 from app.services.fileops import (
     _filename_to_title,
     untrack_empty_folder,
@@ -315,6 +316,14 @@ def complete_upload(upload_id: str, db: Session) -> tuple[File, bool]:
         )
         db.add(file_record)
     db.flush()
+    if mime_type == "text/markdown" or session.filename.lower().endswith(".md"):
+        try:
+            if target_full.stat().st_size <= _MD_READ_MAX_BYTES:
+                content = target_full.read_text(encoding="utf-8")
+                project_frontmatter_tags(db, file_record, content)
+                cleanup_orphan_tags(db, session.drive)
+        except (OSError, UnicodeDecodeError):
+            pass
     probe_file_chapters(db, file_record, target_full)
     untrack_empty_folder(db, session.drive, session.folder_path)
     db.commit()
