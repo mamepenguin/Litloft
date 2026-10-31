@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "CR-1",
+      "origin": "reviewer",
+      "claim": "No touch-point list or stated correct behavior exists for this bug fix, so every place the diff reaches is undeclared and the first-review question cannot resolve to 'the list was complete'.",
+      "impact": "The change turns a zero-segment success into a failed job for all whisper_local files, in addition to the dependency pin, and no document states which paths were meant to change. A later reader cannot tell intended reach from accidental reach. No runtime defect follows from this by itself.",
+      "evidence": "docs/process/reviews/fix-whisper-av-pin/ holds decisions.md and r1/ only, with no invariants.md. A search of docs/ for metadata_errors, av== and whisper-av-pin matches only that decisions.md. docs/specs/INDEX.md has no row for this fix. docs/process/workflow.md:69 says a bug fix states the correct behavior as a SPEC or UNSPEC. Reached and undeclared: addons/intelligence/requirements.txt:26 (production image dependency set); app/workers/whisper.py:546 and its fallback caller at :473; retry.py:209; splitting_transcriber.py:179; whisper.py:1099 (failed JobRecord and WS event); whisper.py:991-992 (loft temp consumption); evals_transcription/runner.py:309.",
+      "repro": "not_reproduced; established by reading the review directory, the specs ledger and the call chain.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is declared, so nothing declared is broken; the gap is in what was recorded, not in the code path.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "State the correct behavior as a SPEC or UNSPEC with the touch points listed above."
+    },
+    {
+      "id": "CR-2",
+      "origin": "reviewer",
+      "claim": "Failures other than TypeError, AttributeError and ImportError still close as a zero-segment succeeded job with whisper_indexed set to true, including environmental and dependency failures that are not about the input.",
+      "impact": "If a future dependency break, an inference runtime error, a MemoryError or a transient read error from a drive surfaces as any other exception type, every affected file silently shows a succeeded transcription with no text, and it is not re-queued. On Regenerate the old transcript stays while the job reports success. For a file over the 50 MB cap, one failed chunk becomes a silent gap in an otherwise normal transcript. This is the same silent wrong result the fix targets, narrowed to one exception family.",
+      "evidence": "app/workers/whisper.py:552-563 returns [] for IndexError, RuntimeError and any other Exception. app/workers/whisper.py:1394-1400 (_persist_transcript) then sets whisper_indexed=True and finishes the job as succeeded. app/workers/transcription/splitting_transcriber.py:179-190 accepts an empty chunk result and continues. tests/test_whisper_local_provider.py test_undecodable_input_stays_an_empty_result pins RuntimeError('decode failed') and ValueError to [] under the name 'undecodable input'; the code does not distinguish undecodable input from these other causes.",
+      "repro": "not_reproduced as a running job. By reading: make model.transcribe raise RuntimeError or OSError twice, and _transcribe_sequential returns [] (the RuntimeError half is asserted by the new test); _persist_transcript with [] then records success.",
+      "introduced": "pre-existing",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is declared and the change makes this no worse, but it is a silent wrong result in normal use under the project's threat model. Fix scope is for a person to decide.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Decide whether only exceptions positively identified as bad input (no audio stream, invalid data) should produce an empty result, with everything else failing the job."
+    },
+    {
+      "id": "CR-3",
+      "origin": "reviewer",
+      "claim": "No test or gate fails if the av pin is removed or changed, because the test image does not install faster-whisper or av and the test suite stubs faster_whisper.",
+      "impact": "Deleting or bumping av==18.1.0 passes CI, and the regression returns at the next image rebuild. The new FatalError then makes it visible as failed jobs, but only after the rebuild and only once transcription runs. Any other unpinned transitive dependency of faster-whisper has the same exposure.",
+      "evidence": "addons/intelligence/Dockerfile.test:23-28 copies requirements.txt but installs a fixed lightweight list without it. tests/conftest.py:23 lists faster_whisper among the stubbed modules. A search of tests/ for requirements.txt, importlib.metadata and av stubs finds only an unrelated comment in test_gemini_provider.py:45. The new tests raise the TypeError from a MagicMock, so they exercise the classification and not the real av.open contract. The real contract was exercised only by hand (decisions.md, R-5 step 5).",
+      "repro": "not_reproduced; mutation by reading: remove av==18.1.0 from requirements.txt. No test reads that file or imports av, so the suite would stay green.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is declared; the pin itself is correct and the failure is now loud at runtime, so this is a coverage gap rather than a wrong design.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add a check in a built production image (the existing build or a smoke step) that calls faster_whisper.audio.decode_audio on a short generated file."
+    },
+    {
+      "id": "CR-4",
+      "origin": "reviewer",
+      "claim": "A dependency contract error during Media Import temp-audio transcription now takes the one-shot failure path, which deletes the temp audio and sets whisper_indexed to true, so restoring the dependency does not retry that file.",
+      "impact": "During a dependency break, each Media Import speech-to-text attempt ends as a failed job and its audio is gone; the file is not re-queued by a later scan, unlike normal media. The user must request the temp audio again after fixing the image. The audio was deleted before this change too, and the failure is now visible, so this is a narrow residual. The new comment's premise that the error is global and not about the file is not applied on this path.",
+      "evidence": "app/workers/whisper.py:989-995: on success=False with a loft temp path, _mark_loft_stt_temp_consumed runs, and the finally block deletes the temp file. app/workers/whisper.py:150-166 sets whisper_indexed=True. tests/test_whisper_skip_jobrecord.py:259-294 pins this for a provider FatalError in general. decisions.md R-5 steps do not exercise a .loft file under the av break.",
+      "repro": "not_reproduced as a running job; by reading: a .loft with an adjacent .stt_temp.m4a and model.transcribe raising TypeError leads to FatalError, a False return from _do_transcribe_and_index, then consumption and deletion.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This follows the documented one-shot design for provider failures and breaks no declared invariant; only its reachability from whisper_local is new.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "CR-5",
+      "origin": "reviewer",
+      "claim": "The new except clause classifies by exception type across the whole attempt body, so any file-specific TypeError or AttributeError, including one from the project's own loop or from faster-whisper's lazy segment generator, is reported as a permanent failure and fails the entire file.",
+      "impact": "If such an error is specific to one file or chunk, it no longer closes as empty. Earlier chunks of a split file are discarded, the message blames faster-whisper even if the cause is local code, and because whisper_indexed stays false the file is re-transcribed on every scan with no attempt cap, while summaries and auto-tags wait. I found no concrete input that does this; the R-5 corrupt, no-audio and silent files did not hit it.",
+      "evidence": "app/workers/whisper.py:489-551: the try covers kwargs construction, model.transcribe, info access and segment iteration; the handler at :546 raises FatalError with a fixed 'faster-whisper could not run' prefix. splitting_transcriber.py:179 lets FatalError discard segments_all. decisions.md R-5 step 5 records the re-queue after a scan (attempts 2).",
+      "repro": "not_reproduced; no real input was found that raises these types per file. Mutation by reading: a segments_iter that yields normally and then raises AttributeError on chunk N of a split file loses chunks 0..N-1 and fails the job.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is declared and the trigger is hypothetical in normal use; failing loudly is the better default even when the classification is imprecise.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    }
+  ],
+  "specification_compliance": [
+    "No spec or invariants file exists for this change, so there is nothing to check compliance against. docs/specs/INDEX.md has no row for it, and workflow.md expects a bug fix to state its correct behavior as a SPEC or UNSPEC (see CR-1).",
+    "The conventions read were docs/process/review.md, docs/process/PROJECT.md and the Skips section of docs/process/workflow.md."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "whisper_local now records a failed job with error_class FatalError, keeps whisper_indexed false and re-queues on each scan with no attempt cap when faster-whisper raises TypeError, AttributeError or ImportError. No spec states this.",
+    "IndexError, RuntimeError, ValueError and every other exception stay zero-segment successes, and the new test pins that for RuntimeError and ValueError. No spec states which failures count as undecodable input (see CR-2).",
+    "For Media Import temp audio, a dependency contract error now ends as a failed job with the audio deleted and whisper_indexed true (see CR-4)."
+  ],
+  "regression_risks": [
+    "The pin keeps the production image on av 18.1.0; the R-5 record reports pip check clean with whisperx 3.3.1 and faster-whisper 1.1.0, but I could not run this.",
+    "Downstream stages gated on whisper_indexed (for example TF-IDF keywords at indexer.py:350-353) stay pending for every transcribable file during a dependency break, instead of proceeding with no transcript.",
+    "A file with a repeating FatalError is transcribed again on every scan; this costs model load and language detection each time, since _detect_language runs before the failing call when no prompt override is set."
+  ],
+  "test_coverage": [
+    "Covered: TypeError, AttributeError and ImportError from model.transcribe raise FatalError on the first attempt with the original text in the message, and the batched path's fallback does not swallow it.",
+    "Covered: IndexError and RuntimeError retry once without VAD and return []; ValueError returns [] after one attempt. Removing the new except clause fails the contract tests, by reading.",
+    "Not covered: errors raised during segment iteration rather than from transcribe, since all new tests use side_effect on the transcribe call. The clause does cover iteration by reading.",
+    "Not covered by the new tests: the end-to-end effect through WhisperLocalProvider and _do_transcribe_and_index (failed JobRecord, whisper_indexed false, existing transcript kept). The FatalError dispatch path has generic tests in test_whisper_skip_jobrecord.py, and R-5 checked this by hand.",
+    "Not covered: the real av and faster-whisper contract and the pin itself (see CR-3)."
+  ],
+  "not_verified": [
+    "No tests were run and no code was executed; this reviewer has Read, Glob and Grep only.",
+    "The source of faster-whisper 1.1.0, 1.2.1 and av 18 and 19 is not available in the repository, so the claim about the metadata_errors argument and the requirements.txt comment about 1.2.1 were not checked.",
+    "Whether any real input raises TypeError or AttributeError per file in faster-whisper (CR-5).",
+    "Compatibility of av==18.1.0 with the rest of the dependency set; only the R-5 record's pip check result was read.",
+    "The splitter path over 50 MB under the pin, which decisions.md records as skipped, and the frontend rendering of failed jobs beyond what decisions.md describes.",
+    "The R-5 evidence files under the scratch directory and whether decisions.md describes them accurately.",
+    "The .claude/rules/ files were not read, since this change touches no drive boundary, Internal API or visual code."
+  ],
+  "confidence": 80
+}
