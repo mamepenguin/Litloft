@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3-batch-reports-queued-for-image-placeholder-rows",
+      "status": "confirmed",
+      "note": "Confirmed by a static trace at the checked-out tree; nothing was executed. Backend: addons/intelligence/app/workers/vision.py:266-272 inserts a row with short_summary=''. app/workers/summaries.py:554 defines _HAS_SHORT_SUMMARY as COALESCE(short_summary,'') != '', and app/routers/summaries.py:539-540 uses it, so that row is not in 'existing'. Lines 554-559 enqueue and count queued with no file-type check. In the worker, _has_summary is false, so want_short is true at app/workers/summaries.py:1382-1385. _classify_file_type returns None for any type other than video, audio, document or text, or a Loft MIME (354-369), and line 1400 returns without writing anything, so a repeat run gives the same result. UI path, which the finding left untraced, is now closed: frontend/src/components/FolderBrowser.tsx:590 passes files.map(f => f.id); frontend/src/components/folder/FolderToolbar.tsx:397-407 passes fileIds to the folder-bulk-actions-menu slot; addons/intelligence/manifest.json:143-145 and frontend/slots.ts:23 bind that slot to FolderAIActionsMenuItems, and line 115 sends fileIds unchanged. useFolderFiles sends typeFilter to the server (frontend/src/components/folder/useFolderFiles.ts:215) and only applies the trust filter client-side (322), so an unfiltered folder listing keeps images, assuming the listing endpoint returns them. A filter on type=video would exclude images. The toast is the summariesBatchQueued message, with queued counting the image, because result.queued > 0 at FolderAIActionsMenuItems.tsx:116-124. A folder whose only unsummarized files are described images therefore never reaches 'All files already have summaries'. Whether this was introduced by the change was not checked against origin/develop; the placeholder-row part is inferred from the use of _HAS_SHORT_SUMMARY in the classification."
+    }
+  ],
+  "specification_compliance": [
+    "Not assessed beyond this finding: the verification covered only the batch classification path for image rows with a vision placeholder."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Batch 'queued' counts include images that have only a vision placeholder row, and the worker writes nothing for them, so the toast overstates the work on every repeat run."
+  ],
+  "test_coverage": [
+    "addons/intelligence/tests/test_summaries_edit.py:250-271 covers batch queueing for an empty versus present short summary, but its fixture uses file_type='video' (line 91), and enqueue is mocked. Grep found no batch test that seeds an image with a placeholder row."
+  ],
+  "not_verified": [
+    "Nothing was executed: no POST /batch/summaries call and no UI run; the result comes from reading the code.",
+    "The origin/develop version of the batch classification was not read, so the before-and-after behaviour is not confirmed by a diff.",
+    "The backend listing endpoint was not read, so that an unfiltered folder listing returns images is assumed from the client code.",
+    "enqueue_unprocessed (app/workers/summaries.py:1270 onward) was not examined for how it treats image placeholder rows on the on_index path."
+  ],
+  "confidence": 88
+}

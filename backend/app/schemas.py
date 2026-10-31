@@ -291,6 +291,14 @@ class UploadInitResponse(BaseModel):
     total_chunks: int
 
 
+class SubtitleUploadResponse(BaseModel):
+    """Answer for an uploaded subtitle: a sidecar file, so it has no record."""
+
+    status: Literal["sidecar"] = "sidecar"
+    drive: str
+    file_path: str
+
+
 class ChunkResponse(BaseModel):
     chunk_index: int
     received_chunks: int

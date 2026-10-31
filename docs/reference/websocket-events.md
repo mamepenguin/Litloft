@@ -35,7 +35,7 @@ Both are derived from the [webhook events](#event-hook-webhooks) below: `files.u
 
 `upload:complete`
 - When: a chunked upload finished, including one that revived a Missing file at the same path.
-- Payload: `{ "drive", "file_id", "filename" }`.
+- Payload: `{ "drive", "file_id", "filename" }`. An uploaded subtitle has no file record, so its payload is `{ "drive", "filename" }`.
 
 The core sends no event for chapters or version history.
 

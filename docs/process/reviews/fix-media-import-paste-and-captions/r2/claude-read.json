@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "CR-2",
+      "origin": "reviewer",
+      "claim": "A `.mi_captions_*` scratch directory left in a drive folder by a backend process killed during a caption download is never removed.",
+      "impact": "A container restart during the roughly two seconds of a caption download or refresh leaves a hidden directory in the user's folder, invisible in the UI. If that folder is later deleted, the trash purge's rmdir fails on it, so the folder stays on disk and the next scan lists it again as an empty folder. Deleting it again removes only the database rows, so it comes back on each scan until someone removes the directory from the host. cloud-sync also uploads the leftover, because its rclone call has no excludes. The scratch location before 0b277d11b was the container's /tmp, which did not touch the drive.",
+      "evidence": "service.py:249-251 creates the directory inside the drive folder, and TemporaryDirectory cleanup does not run on SIGKILL. The only stale-temp sweep, service.py:378-419 (`_cleanup_stale_stt_temp_files`, started at service.py:669 and 673), matches `.stt_temp.*` sibling files only and skips non-files (service.py:401, 406). No other code refers to `.mi_captions`. main.py:174-180 stops at the rmdir OSError. scanner.py:836-854 adds any non-hidden directory without active files as EmptyFolder. fileops.py:899-925 only soft-deletes and removes rows. cloud-sync/backend/service.py:275-283 passes no filter to rclone sync.",
+      "repro": "not_reproduced; found by reading. Suggested steps: create `<folder>/.mi_captions_x/captions.en.vtt`, delete the folder in the UI, let the purge run, then scan and observe the folder listed again as empty.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is declared. It needs a process kill inside a window of about two seconds followed by deletion of that folder, so it is rare, but it is ordinary operation and not misuse.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Extend the periodic stale-temp sweep to remove `.mi_captions_*` directories older than _STT_TEMP_MAX_AGE in the folders of known lofts, with a test beside the existing sweep tests."
+    },
+    {
+      "id": "CR-3",
+      "origin": "reviewer",
+      "claim": "No test would fail if `_download_captions_sync` stopped calling `_dedup_rolling_vtt`.",
+      "impact": "Removing or misplacing the call, for example inside the early-return flow of the block this change rewrote, would give users YouTube auto-captions with rolling duplicate text, and the addon's suite would stay green.",
+      "evidence": "service.py:274 is the only call, and this change moved it out of the old `if vtt_path.exists()` branch. A case-insensitive grep for `_dedup_rolling_vtt` and `rolling` in addons/media_import/backend/tests returns nothing. The tests that reach this line assert only the return value or `\"hello\" in` the file (test_nfc_names.py:189-190, 204-206; test_loft_caption_state.py:128-130), and those fixtures have no rolling duplicates. Decisions.md records 60 cues and 4376 bytes at both R-5 runs, which is in-app evidence that the current code path gives the same output as the first run, but it is not a regression test.",
+      "repro": "not_reproduced; found by reading. Mutation: delete service.py:274; by reading, no test in addons/media_import/backend/tests observes the difference.",
+      "introduced": "pre-existing",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is declared and the current code calls dedup correctly. This is a test gap on a line the change moved, not a present defect.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Have one caption fake write a rolling VTT and assert the repeated text appears once in `<stem>.vtt`."
+    }
+  ],
+  "specification_compliance": [
+    "No invariants file exists, so nothing is checked against declared invariants and no bucket A applies.",
+    "r1 CR-1 is resolved in the code. The move at service.py:272 is now os.replace from a scratch directory created in the destination's own parent (service.py:249-251), so the copy2 fallback, the in-place truncation and the copystat failure are gone from this step. service.py no longer uses shutil.",
+    "The proposed fix for CR-1 was not taken as written (copy to a temporary name, then replace). Moving the scratch directory beside the loft reaches the same property for this step. `_dedup_rolling_vtt` still rewrites the file in place after the replace, so a disk-full failure there can still damage the new captions. That step already rewrote the same file before this change.",
+    "fetch_transcript (youtube.py:579-587) passes a stem in its own temp directory, so its scratch directory stays in that temp directory and the subscription path never places anything on the drive. Only the link import and refresh path at service.py:973 does.",
+    "The caller at service.py:968-980 catches exceptions, including those from mkdtemp on an unwritable folder, so the new failure sources before the download do not escape; they are recorded with captions_downloaded false.",
+    "The core listers I read skip the scratch directory: scanner.py:453 and 837 through is_hidden. The base image is python:3.12-slim (backend/Dockerfile:1), so a scratch directory vanishing mid-scan should not raise from Path.rglob; this rests on my memory of the 3.12 implementation, not on reading it. Decisions.md records 91 scans and folder-tree polls during the window with no entry listed.",
+    "The listing inventory entry (service.py, _download_captions_sync, glob) still matches the single glob at service.py:269.",
+    "The docs/developer-guide/known-issues.md removals match the code: the `<title>.*.vtt` lookup is gone and submit classifies when the preview has not finished. The remaining failed-resolve case is a different condition from the one the removed entry describes."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "A new timing dependence in the Composer folder: when a submit finishes before the 400 ms debounce fires, the cleanup at Composer.tsx:158 cancels the preview, so selectedFolder stays empty and the next URL uses its own remembered folder. When the preview fires first, Composer.tsx:148 fills the picker with the remembered folder, the state is not reset after submit, and the next URL goes to that folder whatever its kind. The same user action can therefore send the next import to different folders. The picker shows the folder, so it is visible. Retaining the folder is old behaviour; a submit that also sends the right kind before the preview is what this change makes reliable.",
+    "Unchanged from r1 and still present: a failed resolve sends a channel URL to createLoft (Composer.tsx:153, 181), and tests encode it; a preview answering after a successful submit leaves the empty composer showing Subscribe (Composer.tsx:143-144); classified.current is keyed by URL only."
+  ],
+  "regression_risks": [
+    "Caption scratch data now lives on the drive for about two seconds per download. An rclone sync overlapping that window can see `.mi_captions_*` and its file, since cloud-sync passes no excludes (addons/cloud-sync/backend/service.py:275-283). The old code also wrote `<title>.<lang>.vtt` on the drive and renamed it, so the exposure is similar in kind and the window is short.",
+    "TemporaryDirectory cleanup now runs on the user's drive filesystem, and a cleanup OSError on exit from the `with` at service.py:249 would skip dedup and record captions_downloaded false while the new .vtt is in place. I found no ordinary way to reach this, because the only file is moved out before cleanup. Behaviour on the production NFS-backed drive is not recorded.",
+    "The purge's rmdir (main.py:178) fails if it runs while a scratch directory is present. This needs a purge and a refresh on the same folder at the same moment, and the next purge does not recheck that folder unless another file is purged from it."
+  ],
+  "test_coverage": [
+    "Backend, by reading: `test_spec_addon_002_caption_download_works_beside_the_loft_and_leaves_nothing` fails if `dir=output_stem.parent` is removed (the parent assert), if the scratch directory is left behind (listing assert), or if the raises path leaks its partial file. The r1 gap about scratch removal is closed.",
+    "The patches of shutil.copy2 and shutil.copystat in that test do not guard the property on their own, since a same-filesystem shutil.move would use rename and never reach them. The parent assert and the source reading are what pin the location. No test forces EXDEV, which is acceptable now that no copy branch exists; a return to shutil.move would not fail this test.",
+    "The neighbour case fails if a `<title>.*.vtt` lookup returns. `replaces_an_older_stem_vtt` covers the overwrite. No test asserts that an existing `<stem>.vtt` survives when yt-dlp raises or produces nothing; the code never touches it on those paths.",
+    "The missing-folder test at test_nfc_names.py:253-259 fails if the is_dir guard is removed, because mkdtemp would raise FileNotFoundError.",
+    "No test calls `_dedup_rolling_vtt` or checks its effect (CR-3). No test covers a leftover scratch directory (CR-2).",
+    "Frontend, by reading: replacing `done && done.url === trimmed` with an unconditional re-resolve would likely survive the new table, because no case asserts the resolve call count or a cached classification differing from a fresh one. The effect would be one extra request in a normal waited submit, and the empty-folder fill would apply to a folder the user deliberately left at root.",
+    "The `metacharacters-and-nfd` parameter still holds no NFD input since the listing lookup went away. This is a naming residue with no behaviour gap."
+  ],
+  "not_verified": [
+    "I ran no tests or mutations and made no filesystem experiment; all kill and survive statements and the CR-2 chain come from reading code.",
+    "I did not observe how often the backend is killed during a download, and I did not read how interrupted caption jobs resume after restart.",
+    "I did not read the Python 3.12 pathlib or tempfile source; statements about rglob and TemporaryDirectory cleanup rest on memory of the standard library.",
+    "I did not read the yt-dlp source or the R-5 evidence files under the scratchpad path; I relied on the summary in decisions.md.",
+    "Behaviour on the production NFS-backed drive, including rename across directories and rmtree of the scratch directory.",
+    "rclone's behaviour when a source file vanishes during sync, and whether it would fail the run.",
+    "The process documents under docs/process beyond a keyword search of CLAUDE.md for temp and hidden-file conventions, and other first-party addons' non-backend code that may list drive folders."
+  ],
+  "confidence": 80,
+  "trajectory": "Only one round since r1 changes code. 88e708493 and ff7322a56 are record-only commits by their subject lines and by the listing given. 0b277d11b removed a branch: the shutil.move copy fallback goes away with os.replace and the shutil import is dropped. It added one new guard, the `is_dir` check at service.py:243, because mkdtemp in a missing folder would otherwise raise, and it moved one state, the scratch directory, from /tmp onto the drive. No earlier round added a similar guard or prediction, so this is not a repeating patch pattern. The move does introduce an on-drive state that needs handling after a crash (CR-2), so a further round here would be adding to that same state."
+}

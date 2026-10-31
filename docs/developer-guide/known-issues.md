@@ -79,10 +79,16 @@ and listing can disagree. There is no data migration. Reached only on a database
 the file between drives sweeps the old rows.
 
 **Adding a tag to a note whose frontmatter tags were never projected replaces them.**
-The tag chips are built from `File.tags`, and a scan does not fill it from
-frontmatter, so a note with `tags: [a, b]` shows no chips until the knowledge
-scanner has run or the note has been saved. Adding a tag then writes only that tag.
-Seen with the knowledge addon not running.
+The tag chips are built from `File.tags`. A note registered before its frontmatter
+tags were projected, or changed on disk, keeps no chips until the knowledge scanner has
+run or the note has been saved; adding a tag then writes only that tag. Seen with the
+knowledge addon not running.
+
+**Editing a chip removes a frontmatter tag the tag rules reject.**
+A tag such as `machine learning` (it has a space) is not projected, so it shows no
+chip. The chip list is what the web UI saves, so the next chip edit on that note drops
+the tag from the file: `tags: [machine learning, ok]` plus a chip `more` leaves
+`[ok, more]`. Tags past the tenth valid one are dropped the same way.
 
 
 **Bulk tagging skips a Markdown file it cannot rewrite without saying so.**
@@ -155,7 +161,7 @@ The drive chip in the trail and the root band in the tree both offer themselves
 as destinations while dragging. The backend answers 409 and the handler swallows
 it: the target lights up, the drop lands, nothing happens and nothing is said.
 
-**The sidebar's tag list goes stale after a paste or bulk tagging.** It keeps its
+**The sidebar's tag list goes stale after a paste, bulk tagging, an upload or a quick note.** It keeps its
 old rows until a reload or a change of folder or drive; the listing itself is
 current.
 
@@ -195,13 +201,6 @@ but has no place for the section number, so the note's link opens the book
 where it was last read. Reached by adding an EPUB citation from Ask to the
 capture basket and making a note from it.
 
-**A Markdown note opened from a search result is never highlighted while the
-knowledge editor is installed.** `Editor.tsx` renders `MarkdownPreview` without the
-`highlight` prop, and a `.md` file always opens in that editor when the addon is
-present, so `?highlight=` on a note does nothing: no mark and no scroll to the
-passage. Reached by searching for a phrase inside a note and pressing the
-result. Core's own `MarkdownPreview` path is wired; the addon drops it.
-
 **The intelligence `/similar/{file_id}` route answers while the addon is off for
 the drive.** It is gated by file access only, so it stays 200 under a policy of
 `false`, where feature-gated routes answer 404.
@@ -230,11 +229,6 @@ does today.
 **Open existing in the Notes page's duplicate notice goes nowhere.** It closes the
 notice without opening the earlier clip. The Add menu's notice opens it.
 
-**Composer: pasting a channel or playlist URL and pressing Enter before its
-classification finishes (about 400 ms) imports it as a single loft instead of
-subscribing.** The Import from URL dialog classifies on submit and is not
-affected.
-
 **Right after a drive switch, the previous drive's addon slots can render with the
 new drive's props.** `AddonSlotsProvider` keeps the old drive's `slots` until the
 new drive's catalogue arrives, so an addon turned off on the new drive (Home's
@@ -242,30 +236,79 @@ Pickup, for example) can draw for a frame or more there, and may call its API
 for that drive. The proxy's `pre_check` should answer those calls with 404; that
 has not been measured. The sidebar's addon rows do not do this.
 
-**Renaming a video detaches its sidecar subtitles.** `detect_subtitles` matches
-subtitle files against the video's current basename, and `rename_file` renames
-only the video, so `movie.ja.srt` stops being found the moment `movie.mp4`
-becomes anything else. The detail page then offers the generated track, or no
-track at all. Renaming the subtitle files to match by hand attaches them again.
-
-**A file with only a detailed summary is reported as having a short summary.**
-`GET /summary` and the batch run treat the row as present, so the batch skips
-the file and the panel shows an empty short summary.
+**Copying a video leaves its sidecar subtitles behind.** `copy_file` copies only
+the video, so the copy has no `movie.ja.srt` next to it and the detail page offers
+the generated track, or none.
 
 **Short summaries off with detailed summaries on still sends a short summary
 request.** Generating a detailed summary also asks the LLM for the short one.
-
-**Refreshing a video's captions can take another video's subtitle file.** Media
-Import looks for the file yt-dlp wrote as `<title>.*.vtt`, which also matches
-`<title>.<anything>.vtt` belonging to a different video, and may rename it to
-`<title>.vtt` or delete it. Reached when one folder holds an import named
-`Title` and another named `Title.<something>`.
 
 **Renaming a file to a different case of its own name changes only the
 listing.** Litloft shows the new name, but on a Docker Desktop bind mount of a
 case-insensitive macOS volume the file on disk keeps its old case, because a
 rename that differs only in case does nothing inside the container. The file
-still opens. Reached with `Foo.txt → foo.txt`, single or batch rename.
+still opens. Reached with `Foo.txt → foo.txt`, single or batch rename. A
+video's sidecar subtitles keep the old case and stop matching.
+
+**A subtitle already at the destination is played in place of the video's own.**
+When a video is moved or renamed to a name whose sidecar subtitle exists, the
+video's own sidecar stays behind under the old name and the video plays the file
+already there. The request answers 200 and only a backend warning records it.
+
+**Two videos with the same stem in one folder share one sidecar subtitle.**
+With `movie.mp4` and `movie.mkv` next to `movie.srt`, the first one renamed or
+moved takes the subtitle and the other loses that track.
+
+**`movie.ja.srt` can be both the bare track of `movie.ja.mp4` and the Japanese
+track of `movie.mp4`.** Renaming `movie.mp4` takes it from the other video.
+
+**An uploaded subtitle has no card, so it cannot be replaced or removed from the
+UI.** It is a sidecar file like one placed on disk. Uploading again to the same
+name is refused with a 409, and the upload drawer shows `API error: 409
+Conflict`. A folder uploaded with nothing but subtitles stays out of its parent's
+listing until the next scan.
+
+**Purging a video leaves its sidecar subtitle on disk.** The file becomes a track
+of any later video with the same stem, and it keeps the folder's directory, so
+the next scan lists the folder again. A new subtitle under that name is then
+refused too.
+
+**Renaming or creating a file with a `.srt` or `.vtt` name keeps its card until
+the next scan.** The scan removes the record with its comments, tags and
+history; the file stays and becomes a track.
+
+**Dropping a subtitle record sends no `files.purged`.** Knowledge keeps a summary
+pointer for an id that no longer exists.
+
+**A subtitle record trashed by an earlier version still deletes the real file
+when purged,** by hand or by the 30-day purge.
+
+**An uploaded subtitle the player cannot read leaves the video with no captions.**
+A Shift_JIS `.srt` or one over 5 MB lands with a success answer, but its track
+request fails, and because a sidecar exists the generated track is not offered
+either. Uploading a corrected copy under that name is refused, so the file has to
+be fixed from the host. Reading the code, not run.
+
+**A subtitle dropped into the knowledge editor inserts a broken link.** The
+editor builds `loft://<id>` from the upload's answer, and a subtitle upload has no
+row and no id, so the note gets `loft://undefined`. The file itself lands.
+
+**A rename whose new name is taken by one of the video's own sidecars leaves
+that sidecar under the old name.** Renaming `movie.ja.mp4` to `movie.mp4` while
+`movie.srt` is present is one case. No file is lost, and a backend warning
+records it.
+
+**A batch rename that renumbers videos of mixed extensions can leave a video
+showing another video's subtitles.** Renaming `new.mp4`, `ep_1.mkv` and
+`ep_2.mp4` to `ep_{n}` is one case: a sidecar name is still taken when its turn
+comes, so the subtitle stays under the old name and lands next to a different
+video.
+
+**A `.loft` file's sidecar subtitles are listed but not shown.** The detail API
+lists them and the stream serves them, but a YouTube embed showed no caption
+text and sent no request for them, although `viewers-and-players.md` says they
+load for `.loft` too. `LoftEmbedProps` has no field that carries subtitle
+tracks, so no embed is handed them.
 
 **An Ask about files you watched can skip its summary narrowing.** Ask's coarse
 retrieval keeps the drive's 20 best-matching file summaries before it intersects

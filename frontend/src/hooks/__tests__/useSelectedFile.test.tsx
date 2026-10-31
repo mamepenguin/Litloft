@@ -74,8 +74,8 @@ describe("useSelectedFile", () => {
     ["file=A&section=3&sort=name", "B", "/drive/work/Q1?file=B&sort=name"],
     ["file=A&page=7&sort=name", "B", "/drive/work/Q1?file=B&sort=name"],
     ["file=A&t=42&sort=name", "B", "/drive/work/Q1?file=B&sort=name"],
-    ["file=A&highlight=x&view=liked", "B", "/drive/work/Q1?file=B&highlight=x&view=liked"],
-    ["file=A&section=3&page=7&t=42", "A", "/drive/work/Q1?file=A&section=3&page=7&t=42"],
+    ["file=A&highlight=x&view=liked", "B", "/drive/work/Q1?file=B&view=liked"],
+    ["file=A&section=3&page=7&t=42&highlight=x", "A", "/drive/work/Q1?file=A&section=3&page=7&t=42&highlight=x"],
   ])("from ?%s, selecting %s goes to %s", (query, id, want) => {
     mockSearchParams = new URLSearchParams(query);
     const { result } = renderHook(() => useSelectedFile());

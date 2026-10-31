@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "subtitle-upload-no-longer-triggers-indexing",
+      "origin": "reviewer",
+      "claim": "A subtitle upload returns before the route emits `scan.complete`, so Intelligence no longer reconciles when a `.vtt` is uploaded beside a `.loft`.",
+      "impact": "A user uploads `clip.vtt` beside an imported `clip.loft` that has no transcript. Before this change the upload's `scan.complete` made Intelligence reset the loft and index the captions straight away. Now the file lands and the track is listed, but Ask and search do not get the transcript until the next periodic reconcile (default 3600 s) or an unrelated scan or upload. Nothing tells the user. This is a delay and no data is lost.",
+      "evidence": "backend/app/routers/uploads.py:82-83 returns for `SubtitleUploadResponse` before the emit at :86, and `_finish_subtitle_upload` (backend/app/services/upload.py:179-195) only broadcasts the `upload:complete` WebSocket event. addons/intelligence/manifest.json:170-171 subscribes to `scan.complete`. indexer.py:1110-1125 runs `reconcile()`, whose :488 calls `_reset_loft_refs_with_new_vtt`, and :124-143 resets an unchunked loft once `match_siblings(parent, stem, \"*.vtt\")` finds a file. whisper.py:1732-1745 then indexes that VTT. The only other trigger is `_reconciliation_worker` (indexer.py:1615-1622), with `reconciliation_interval` 3600 (config.py:255). addons/media_import/backend/service.py:1051-1054 emits `scan.complete` after captions for this hand-off. No test asserts either way, and the fifth R-5 walk ran without Intelligence (decisions.md:65).",
+      "repro": "not_reproduced (read-only review). Steps: with Intelligence running and an indexed `clip.loft` with `whisper_indexed` true and no chunks, upload `clip.vtt` through Add, Files. Reading the code predicts no reconcile log line until the next hourly pass, where the base branch ran one at once.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariants are declared. Normal use reaches it through a loft whose captions the user supplies, and the result is a silently stale search index until a later reconcile.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Emit `scan.complete` for the drive in the route's subtitle branch, with `added` 0, and add a route test for it."
+    },
+    {
+      "id": "subtitle-dropped-in-editor-writes-dead-link",
+      "origin": "reviewer",
+      "claim": "The knowledge editor treats a successful subtitle upload as a file with an id and writes `loft://undefined` into the note.",
+      "impact": "Dropping an `.srt` or `.vtt` into a note replaces the uploading placeholder with a link that opens nothing. No error toast appears, and the broken text is autosaved into the user's Markdown. The known-issues ledger records this, but the code path still reports success.",
+      "evidence": "addons/knowledge/frontend/Editor.tsx:729-732 interpolates `fileItem.id` into `loft://` with no check. frontend/src/lib/api.ts:453-459 declares `SidecarUploadResult` with `id?: undefined`, so that access compiles against the new union and the type check cannot catch it. backend/app/services/upload.py:246-247 returns the id-less answer for these names. addons/knowledge/frontend/__tests__/Editor.dnd.test.tsx mocks `completeUpload` only with ids (:109, :148, :173, :203, :314, :343). decisions.md:63 says no knowledge editor was running, so this case was not walked.",
+      "repro": "not_reproduced (read-only review). Steps: open a note in the knowledge editor and drop `movie.srt`. Reading the code predicts the file lands beside the note and the note body gains `[movie.srt](loft://undefined)`.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariants are declared. The wrong text is written to a user's file silently, though dropping a subtitle into a note is uncommon and the ledger already records it.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "In `uploadFile`, branch on `status === \"sidecar\"`: remove the placeholder and leave plain text or show a notice. Add an Editor.dnd case with the sidecar answer."
+    },
+    {
+      "id": "scan-drops-rows-renamed-to-a-subtitle-name",
+      "origin": "reviewer",
+      "claim": "The scan's row drop matches on filename alone, while rename, batch rename and the create-file route can still put a subtitle name on a row, so a row a user made this way is deleted with its comments, tags and history at the next scan.",
+      "impact": "A user renames `transcript.txt` to `movie.srt` so that it becomes the video's track. The rename answers 200 and the card keeps working. The next scan, or the next restart, removes the card, its comments, tags and watch history with only an INFO log line. The file stays on disk and the video gets the track, but the disappearance is unexplained, and it depends on when a scan happens to run. Uploads were closed against this state and these paths were not.",
+      "evidence": "backend/app/services/fileops.py:398-423 `rename_file` applies only `validate_filename`, with no subtitle check, and `batch_rename` builds names the same way. backend/app/routers/drives.py:1084-1096 creates a row for whatever name the create route receives. backend/app/services/scanner.py:441-451 deletes every non-trashed row where `is_subtitle_file(row.filename)` holds, whatever its `file_type`. backend/app/main.py:275 runs that scan at every startup. `test_comments_and_watch_history_go_with_the_row` pins the cascade. No test renames a row to a subtitle name.",
+      "repro": "not_reproduced (read-only review). Steps: rename a commented `a/transcript.txt` to `movie.srt` beside `a/movie.mp4`, then POST `/api/drives/<drive>/scan`. Reading the code predicts the row and comments are gone, `a/movie.srt` remains, and the video lists the track.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariants are declared. A row disappears at an unrelated later moment after a plain rename. The file survives, and on the base branch the same row was flagged missing, so this is a different wrong outcome and not a new loss of the file.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Decide this at the rename and create paths: when the new name is a subtitle, remove the row in the same request or refuse the rename, and add a test for the chosen outcome."
+    },
+    {
+      "id": "row-drop-side-effects-unpinned",
+      "origin": "reviewer",
+      "claim": "The tests for dropping subtitle rows check only that rows and files are gone, so the tag cleanup in both drop paths and the `del existing` line in the scanner can be removed with the suite staying green.",
+      "impact": "Without `del existing[...]`, a scan reports each dropped row as newly missing: the `missing` count shown by the scan is wrong and `files.missing` names ids that no longer exist. Without `cleanup_orphan_tags`, a tag whose only file was an uploaded subtitle stays in the sidebar with nothing behind it. Both would ship unnoticed.",
+      "evidence": "backend/app/services/scanner.py:448 and :451 and backend/app/services/upload.py:187 hold these behaviours. In backend/tests/test_sidecar_subtitles_follow_video.py, `test_active_and_missing_rows_go_and_the_files_stay` asserts only the row count and directory names and ignores the scan's return value and events. `_row` sets no tags and leaves `missing_since` None for `one.srt` and `gone.srt`, so scanner.py:791-797 would select them. `test_upload_over_a_path_holding_a_row_removes_the_row` seeds no tag. `test_other_uploads_still_answer_with_the_file` takes a `kind` parameter it never asserts.",
+      "repro": "Mutations reasoned, not run. (1) Delete scanner.py:448: the deleted objects keep their loaded attributes after the flush, so `newly_missing_ids` includes them, the update matches no rows, and every assertion in `TestScanRemovesSubtitleRows` still holds. (2) Delete scanner.py:451. (3) Delete upload.py:187. All three are predicted to survive.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The code reads correctly. This is a coverage gap on new row-removal logic.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Assert `result[\"missing\"] == 0` in the scan test, and seed a tag on the dropped row in both the scan and upload tests, asserting the tag row is gone."
+    }
+  ],
+  "specification_compliance": [
+    "No invariants file exists, so bucket A is unavailable and no touch-point list applies.",
+    "The r3 row-following findings no longer apply because `_follow_sidecar_row` and its callers are removed (fileops.py:388-396). That covers source-folder-vanishes and last-sidecar-row-leaving (the folder stays tracked, because no subtitle row is present when move_file checks at :528), batch-move-reports-failure (no card to select), sidecar-row-lookup and the tag, title and root test gaps.",
+    "The r3 ghost-row finding is mostly closed. A missing row at a subtitle path is dropped by the startup scan (main.py:275, scanner.py:441-451), and the upload removes a row at its own path (upload.py:183). What remains is a trashed row at a subtitle path whose file has already gone: a carry can land there, and Empty Trash then unlinks the live file through physical_delete (fileops.py:709-710). That needs a row left by an earlier version plus an out-of-band file removal.",
+    "The defect that started this redesign, a rescan flagging an uploaded subtitle missing and Permanently Delete then removing the real file, is fixed for uploads by reading: upload.py:246-247 creates no row, and scanner.py:441-451 drops active and missing rows before the walk, so neither can be listed as missing again.",
+    "Batch rename still carries sidecars in plan order. `by_new_path` (fileops.py:1129) reads `completed_fs` entries as (new, old), matching the append at :1103. r2's mixed-extension cascade remains in the code and is recorded in known-issues.md.",
+    "Shared stems, a taken destination, renames onto a video's own sidecar name, and case-only renames are unchanged in code and recorded in known-issues.md, which the commit message says the human chose.",
+    "Both `_SUBTITLE_EXTENSIONS` sets hold `.srt` and `.vtt` (subtitle.py:11), so `classify` and `is_subtitle_file` agree. All foreign keys to files.id declare ON DELETE CASCADE with `PRAGMA foreign_keys=ON` (database.py:35), so the bulk delete at upload.py:183-185 and the ORM delete in the scanner both clear dependants."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "A trashed subtitle row left by an earlier version stays in Trash while its file keeps serving the video as a track. Purging it, by hand or through the trash purge loop, deletes that file and the video loses the track (decisions.md:58 observed this by hand). The dialog says only that the file will be deleted.",
+    "Restoring such a trashed row gives a card back until the next scan, which then removes the row without notice.",
+    "Dropping a subtitle row emits no `files.purged`. Intelligence catches up through the orphan purge in reconcile (indexer.py:477-484) because the scan emits `scan.complete`, but the row removed at upload.py:183 waits for the next reconcile, and knowledge rows naming the id are cleaned only by `files.purged` (addons/knowledge/app/routers/webhooks.py).",
+    "A folder containing only uploaded subtitles is listed as empty, while its directory and files stay on disk. `delete_folder` (fileops.py:918-944) does not touch the disk and removes the EmptyFolder row, so a later scan lists the folder again. The non-row subtitle files stay invisible throughout.",
+    "Skipping `scan.complete` also skips the `drive.structure_changed` WebSocket event that it maps to (event_hooks.py:150, :164). A detail page already open during a subtitle upload may therefore not refresh its track list. decisions.md:55 notes this case was not exercised."
+  ],
+  "regression_risks": [
+    "`_carry_batch_sidecars` (fileops.py:1121) keeps a `db` parameter that nothing in its body uses since the row-following code left, which invites a later edit to assume it has a role.",
+    "`_serves_subtitles(file)` at the top of `_carry_sidecars` sits outside the `try` and reads attributes of a row expired by the commit, so a database failure there would turn a durable rename or move into a 500. Reported in r3 and unchanged. This is unlikely in normal use.",
+    "`target.exists()` followed by `shutil.move` (subtitle.py:132-137) overwrites a file created in between, and a cross-drive move can leave a partial target. Reported in r1 and unchanged, and rare with one user.",
+    "The response of `POST .../complete` is now a union. Any future caller that assumes `id` gets `undefined` with no type error, because `SidecarUploadResult` declares `id?: undefined`.",
+    "`_scan_and_register` deletes rows before walking the drive, so a scan of an empty or unmounted drive path that still exists removes subtitle rows for good, where other rows would only be flagged missing. Only rows from earlier versions can be affected."
+  ],
+  "test_coverage": [
+    "Covered by `TestUploadedSubtitle`: no row and the sidecar answer, listing excludes the file, track offered, rename and move followed by a rescan, a row at the upload path removed, other uploads still answering with the file, a subtitle-only folder listed as empty after a scan.",
+    "Covered by `TestScanRemovesSubtitleRows`: active, missing and fileless rows go while files stay, a trashed row stays, comments and watch history cascade.",
+    "Removing the `is_subtitle_file` branch at upload.py:246 would fail `test_upload_beside_a_video_creates_no_row_and_the_video_offers_it` by reading. Removing the `deleted_at` filter at scanner.py:444 would fail `test_a_trashed_row_is_left_alone`.",
+    "Not covered: the scan's returned `missing` count and events after a drop, tag cleanup after either drop, `scan.complete` for a subtitle upload, a trashed row at the upload path, a row renamed to a subtitle name, a batch move of videos with uploaded subtitles, a subtitle-only folder upload before a scan, and the editor's handling of the sidecar answer.",
+    "frontend/src/hooks/__tests__/useUpload.test.ts and addons/knowledge Editor.dnd tests never return the sidecar shape from `completeUpload`."
+  ],
+  "not_verified": [
+    "No test, command, application or mutant was run because this review is read-only, so every repro and mutation result is predicted from reading the code.",
+    "The worktree was read as it stands and assumed to match d9733d231; git was not available to confirm that or to read the submodule pins directly.",
+    "The fix diffs supplied to this review were cut at 200000 bytes, so the trailing part of the submodule diffs was not read in that form. The trajectory rests on the subtitle commits, which appear in full.",
+    "The R-5 logs and screenshots cited in decisions.md were not opened, and lines 45-54 of that record, covering the fourth run and the start of the fifth, were not read.",
+    "Whether the frontend refetches an open detail page on `drive.structure_changed` was not traced, so the effect of skipping that event is unconfirmed.",
+    "How the frontend or addons behave with the renamed-to-subtitle row before the next scan was not traced, and the rename dialog's own validation was not read.",
+    "The intelligence reset path was read only as far as cited; the indexing of an uploaded VTT was not run, and whether the index feature is on for a given drive affects the first finding."
+  ],
+  "confidence": 80,
+  "trajectory": "Partly yes, and this round is mostly a removal. Earlier rounds added per-sidecar predictions (r2: copy-or-move, sibling claims, longest-first order, a replayed name state), which 1deeba6a0 removed, and then a new state, the subtitle's own row, with `_follow_sidecar_row` and a scanner branch that kept such rows alive. bd49bc092 removes that state: `_follow_sidecar_row`, the scanner's keep-and-recover branch, the moved-pairs return value and the per-row commit are all gone, and r2's still-open question, whether an upload should register a subtitle at all, is answered no. That is the first round to remove the source of the branches rather than add another one, and it closes all the r3 row findings. It does add branches of its own: a subtitle branch in `complete_upload`, a transitional row-drop block at the top of the scan, a union response with an isinstance check in the route, and a union return type in the frontend. The scanner therefore gains a subtitle-specific branch for the second round running, though with the opposite effect and with cleanup as its only job. The upload branch's early return is what skips `scan.complete`, and the rows are closed at upload but not at rename or create, so the remaining findings are at the edge of this one decision and not repeats of the earlier prediction pattern. The design is no longer being patched on the row strand. Sidecar placement itself is still one pass of per-sidecar `target.exists()` checks, with its known limits moved to the ledger and not redesigned. The other commits in the range are develop merges and submodule pins that do not touch this design."
+}

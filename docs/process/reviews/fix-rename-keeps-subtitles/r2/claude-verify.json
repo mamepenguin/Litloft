@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "shortening-rename-loses-language-track",
+      "status": "confirmed",
+      "note": "Traced by reading; not executed. Old stem `movie.ja`, new stem `movie`. subtitle.py:124-128 lists both sidecars and :135 puts `movie.ja.ja.srt` first. Its target (:140) is `movie.ja.srt`, which still exists, so :143-147 skips it. `movie.ja.srt` then moves to `movie.srt`. Final disk: `movie.mp4`, `movie.srt`, `movie.ja.ja.srt`. `_parse_subtitle_filename('movie', movie.ja.ja.srt)` returns None because `ja.ja` fails the regex at :64, so the Japanese track disappears, with only a warning logged. This is the exact inverse of the rename in test_language_suffixed_stem_does_not_depend_on_listing_order, and no test covers it. No file is lost; the track is stranded."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "batch-sidecar-blocked-by-later-rename-gets-wrong-track",
+      "status": "confirmed",
+      "note": "Traced by reading; not executed. Rows `a.mp4` -> `clip_1.mp4` and `clip_1.mkv` -> `clip_2.mkv` pass fileops.py:1041-1060, which compares full names. Step 1: `a.srt` targets `clip_1.srt`, which exists, so subtitle.py:143-147 skips it and `a.srt` stays. Step 2: the earlier row now holds stem `clip_1` (fileops.py:1172-1173), so `clip_1.srt` is shared and copied to `clip_2.srt`, and the original stays (subtitle.py:148-149). `clip_1.mp4` then plays the former mkv's subtitle and `a.srt` has no owner. On the base the wrong track would also be found by stem, so the misattachment itself is not new; stranding `a.srt` and not repairing it are the behaviour of this carry. The known-issues entry at known-issues.md:270 does not describe a sidecar that the same batch is moving away."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "same-stem-pair-acted-on-together-leaves-orphan-copy",
+      "status": "confirmed",
+      "note": "Traced by reading; not executed. Batch rename `one.mp4` and `one.mkv` with prefix `x_`: row 1 sees the later row's old stem `one`, so `one.srt` is shared and copied to `x_one.srt`. Row 2 sees only stem `x_one`, so it is not shared, but subtitle.py:143 finds the target and skips before any removal. `one.srt` stays with no owner. Batch move: routers/files.py:395-402 calls move_file per id. The first call sees sibling `one` in the old folder (fileops.py:556, :383-398) and copies. The second call finds no sibling, the target exists, and it skips, so `a/one.srt` stays. test_siblings_renamed_together_share_the_moved_sidecar asserts only `_tracks`. The four test files that use batch/move (test_files_moved_event, test_target_drive_access, test_move_tags_follow_drive, test_lifecycle_ws_events_integration) have no match for srt, vtt or subtitle."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "batch-inner-sibling-logic-unpinned",
+      "status": "confirmed",
+      "note": "Confirmed for deleting the loop and for forcing `later` to True, by tracing; no mutant was run. One part of the claim is too broad: forcing `later` to False is caught. In test_a_name_freed_earlier_in_the_batch_takes_its_sidecar, row 1 would then see row 2's new stem `clip_2` (fileops.py:1173), treat `clip_2.ja.srt` as shared and copy it (subtitle.py:141, :149). `old.ja.srt` would then be blocked at subtitle.py:143, so the `_names` and read_text assertions at the test's lines 308-310 fail. So the old-name branch is pinned against that one mutation, but no test needs the loop to exist. decisions.md line 21 confirms the second run's step 1 used `ep1` and `ep2`, which share no stem."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "uploaded-sidecar-row-left-pointing-at-old-path",
+      "status": "confirmed",
+      "note": "Traced by reading; not executed. init_upload (upload.py:108-151) has no subtitle guard. classify returns (`subtitle`, ...) at filetype.py:260-262, and upload.py:302-316 adds the File row, reached from routers/uploads.py:77. subtitle.py:148-151 moves the file with no database write, and neither carry function in fileops.py updates rows. Limits on the impact: the scanner skips subtitle files before adding to found_paths (scanner.py:451-455), so scanner.py:591 and :768-779 would mark any uploaded subtitle row missing at the next scan even without a carry. The stale active row therefore matters mainly between the carry and the next scan, and a row going missing after a scan is pre-existing. detect_subtitles reads the disk, so the video's track still works. The docs and tests saying subtitles have no rows (viewers-and-players.md:69, routers/drives.py:97-99, test_file_kind_filter.py:219) do not hold for uploads. I did not confirm how such a row renders in the UI."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "same-destination-siblings-leave-orphan-sidecar",
+      "status": "confirmed",
+      "note": "Same defect as same-stem-pair-acted-on-together-leaves-orphan-copy, traced the same way and not executed: first row copies (fileops.py:1165-1174, subtitle.py:141, :149), last row skips at subtitle.py:143-147 before any removal, and move_file reaches the same state through two `_carry_sidecars` calls. The test asserts only `_tracks`, not `_names`. decisions.md lines 21-24 confirm that the bulk step used two different stems and that the shared-stem steps moved or renamed one video only."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "longest-first-breaks-the-inverse-rename",
+      "status": "confirmed",
+      "note": "Same defect as shortening-rename-loses-language-track, traced and not executed. The sort at subtitle.py:135 makes the skip deterministic. The history claim holds as well: r1/triage.md lines 156-158 record the earlier code keeping unsorted `iterdir()` order, so before c37fb760a this case depended on listing order. Actual listing order on any filesystem was not observed."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "batch-cascade-keeps-the-wrong-tracks",
+      "status": "confirmed",
+      "note": "Traced by reading; not executed. A concrete plan that passes validation: `new.mp4` -> `ep_1.mp4`, `ep_1.mkv` -> `ep_2.mkv`, `ep_2.mp4` -> `ep_3.mp4`. With one extension throughout, the second row would get a 409 from fileops.py:1054, so mixed extensions are required, as the finding says. Row 1: target `ep_1.srt` exists, so skipped and `new.srt` is stranded. Row 2: target `ep_2.srt` exists, so skipped. Row 3: the earlier row's new stem `ep_2` claims `ep_2.srt` (fileops.py:1173), so it is copied to `ep_3.srt`. Final state: `ep_1.mp4` shows the former mkv's subtitle, `ep_2.mkv` shows the former `ep_2.mp4` subtitle, `ep_3.mp4` is correct, and `new.srt` has no owner. The pre-existing note also holds: on the base these names would find the same wrong tracks by stem, because detect_subtitles matches by stem only."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "batch-internal-sibling-loop-untested",
+      "status": "confirmed",
+      "note": "Traced by reading; no mutant was run. With fileops.py:1165-1173 removed, all four TestBatchRename tests still pass. test_sidecars_follow_every_renamed_video and test_a_name_freed_earlier_in_the_batch_takes_its_sidecar have no stem claim between rows. test_a_sibling_outside_the_batch_keeps_the_shared_sidecar has one row and relies on the `outside` list. test_siblings_renamed_together_share_the_moved_sidecar moves `one.srt` to `x_one.srt` and both `_tracks` assertions still hold. test_batch_rename.py and test_batch_rename_clash.py have no match for srt, vtt or subtitle. No test has two same-stem rows going to different stems."
+    }
+  ],
+  "specification_compliance": [
+    "The carry works for the paths the tests and the R-5 record cover: distinct stems, one video of a same-stem pair, and a growing language-suffixed stem, by tracing the code.",
+    "viewers-and-players.md:69 says renaming or moving a video takes its subtitles along. That does not hold for the shrinking language-stem rename, or for batches where a target is still held by a later row, as confirmed in the records above."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "A missing row for a video deleted long ago still claims its sidecars through `_sibling_stems`, so a rename copies rather than moves that sidecar. The docstring at fileops.py:384-388 states this on purpose; it is listed only because it also leaves a copy behind."
+  ],
+  "regression_risks": [
+    "Reordering sidecars by rename direction, or planning batch moves as a whole, would touch behaviour that has no test today: the batch sibling loop and the disk listing after same-stem batch operations.",
+    "Case-only batch renames on a case-insensitive volume leave sidecars under the old case. known-issues.md:264-268 already documents this, so it is not reported as new."
+  ],
+  "test_coverage": [
+    "test_sidecar_subtitles_follow_video.py covers the growing language-stem rename in both listing orders, but not the inverse rename.",
+    "TestBatchRename has four tests. None has two same-stem rows going to different stems, and the same-destination test asserts `_tracks` only.",
+    "No test seeds sidecars through PUT /batch/move, and no test uploads a subtitle and then carries it."
+  ],
+  "not_verified": [
+    "Nothing was executed: this role has only Read, Glob and Grep, so every trace, including the mutant outcomes, comes from reading the code.",
+    "The checkout was read as is and assumed to match c5fcadfab, since the git status snapshot shows that commit at HEAD and git could not be run; the base was compared only through r1/triage.md and detect_subtitles.",
+    "How an uploaded subtitle row renders in the frontend listing, and what opening it does after a carry, was not checked.",
+    "Actual `iterdir()` order and case or normalization behaviour were not observed on APFS, ext4 or a Docker Desktop bind mount.",
+    "The referenced R-5 logs and screenshots under /private/tmp were not opened; only decisions.md was read."
+  ],
+  "confidence": 88
+}
