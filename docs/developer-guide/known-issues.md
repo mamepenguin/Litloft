@@ -247,10 +247,6 @@ only the video, so `movie.ja.srt` stops being found the moment `movie.mp4`
 becomes anything else. The detail page then offers the generated track, or no
 track at all. Renaming the subtitle files to match by hand attaches them again.
 
-**A file with only a detailed summary is reported as having a short summary.**
-`GET /summary` and the batch run treat the row as present, so the batch skips
-the file and the panel shows an empty short summary.
-
 **Short summaries off with detailed summaries on still sends a short summary
 request.** Generating a detailed summary also asks the LLM for the short one.
 

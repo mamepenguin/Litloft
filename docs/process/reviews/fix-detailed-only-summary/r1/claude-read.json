@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "F1-regenerate-update-text-clearing-untested",
+      "origin": "reviewer",
+      "claim": "No test exercises the new regenerate UPDATE branch on a row that actually holds short/long text, so the columns that make regeneration happen can be dropped from the UPDATE with every test still green.",
+      "impact": "The most common regenerate case, a file with both a short and a detailed summary, could regress unnoticed: 'Create again' returns 200, the worker's _has_summary sees the old text and skips, and the user silently keeps the old summary with no error.",
+      "evidence": "addons/intelligence/app/routers/summaries.py:296-297 clears short_summary and long_summary. The only real-DB regenerate test is tests/test_summaries_edit.py test_regenerate_keeps_the_detailed_summary (call at line 301). It seeds through _mark_detailed_only(engine, short=\"\"), which already sets short_summary='', long_summary='' and status='hidden', and asserts only detailed_status, edited_at and short_original. tests/test_llm_routing_callers.py lines 469-472 and 497-500 use a recording fake and check only startswith('UPDATE file_summaries SET'). The worker skip is at app/workers/summaries.py:557-567 and 1382-1385.",
+      "repro": "not_reproduced (read-only reviewer; traced by reading, not run). Mutation: remove \"short_summary = '', long_summary = '', \" and/or \"status = 'hidden'\" and/or 'long_original = NULL' from the UPDATE at summaries.py:296-300. Predicted result: all tests stay green, because the seeded row already has those values or the column is not asserted. The commit's R-5 record in decisions.md covers this path manually at one SHA, not as a regression test.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariants are declared, so A is unavailable. The code as written is correct by reading and only the regression protection is missing.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Add a real-DB test that calls _mark_detailed_only(engine, short=\"AI short\") with a non-empty long_summary and status='generated', calls regenerate_summary, and asserts short_summary == '', long_summary == '', status == 'hidden', long_original is None and detailed_status == 'generated'."
+    },
+    {
+      "id": "F2-regenerate-delete-branch-only-prefix-checked",
+      "origin": "reviewer",
+      "claim": "The DELETE branch for rows without a detailed summary is covered only by a fake-session check that discards its WHERE clause, so a wrong predicate that stops the row being deleted passes the tests.",
+      "impact": "A short-only file, whose 'Create again' path the old exact-SQL assertion pinned, could silently stop regenerating: the row survives, the worker skips the file and the old summary stays.",
+      "evidence": "addons/intelligence/app/routers/summaries.py:305-311. tests/test_llm_routing_callers.py:469-471 and 497-499 changed from an exact SQL match to sql.split(\" WHERE \")[0], which drops the predicate. tests/test_summaries_edit.py test_regenerate_keeps_the_detailed_summary uses a row with detailed_status='generated', so it never exercises a row where detailed_status is NULL. Grep of addons/intelligence/tests finds regenerate_summary called against a real DB only at test_summaries_edit.py:301.",
+      "repro": "not_reproduced (traced by reading, not run). Mutation: change 'detailed_status IS NULL' at summaries.py:308 to \"detailed_status = ''\". Predicted result: the prefix assertions still pass and the keep-detailed test still passes, while a short-only row is no longer deleted.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariants are declared. The current code is correct by reading; the change weakened an assertion and added no real-DB replacement.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add a real-DB regenerate test on the seeded row with detailed_status NULL that asserts the row is gone and the worker was enqueued."
+    },
+    {
+      "id": "F3-batch-reports-queued-for-image-placeholder-rows",
+      "origin": "reviewer",
+      "claim": "Batch classification now counts a file with only a vision placeholder row as missing a summary, so an image previously reported as skipped is reported as queued although the worker never generates anything for it.",
+      "impact": "Running 'Create AI summaries' on a folder containing described images can report 'Added N summaries to the queue' on every run instead of 'All files already have summaries', and nothing appears for those files.",
+      "evidence": "app/workers/vision.py:266-272 inserts a row with short_summary=''. app/routers/summaries.py:539-540 now excludes that row from 'existing', and lines 554-559 enqueue it because the router has no file-type filter. app/workers/summaries.py:1397-1401 then returns without work because _classify_file_type returns None for images. Images with no row at all already behaved this way, so this widens an existing inaccurate count to images that have a vision row rather than creating a new class of it.",
+      "repro": "not_reproduced. Predicted steps: describe an image so it has a vision row, then POST /batch/summaries with its file_id. Predicted response: queued 1, skipped 0, on every repeat, with no summary written. Whether the folder menu's caller filters fileIds by type before calling batchSummaries was not established, so this may not be reachable from the UI.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariants are declared. This is a misleading count with no data damage or LLM cost.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    }
+  ],
+  "specification_compliance": [
+    "No invariants file, and therefore no touch-point list, exists for this change, and no spec under docs/ mentions the detailed-only fix, so the question 'which places does the diff reach outside the touch-point list' has no list to compare against.",
+    "Taking the removed known-issues entry as the only statement of intent, it names GET /summary and the batch run. The diff also changes POST /summary/regenerate (summaries.py:290-311), which that entry does not name. This is the one place reached beyond it. The change looks deliberate: it has a comment and a test, and the old unconditional DELETE dropped detailed_status, which makes enqueue_unprocessed's detailed gap (workers/summaries.py:1316-1319) and _has_detailed_summary treat the file as having no detailed summary.",
+    "The known-issues removal matches the code: GET (summaries.py:226-227) and batch (summaries.py:539-540) now read the short text through _HAS_SHORT_SUMMARY, the same predicate as _has_summary and enqueue_unprocessed."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Regenerate on a row with detailed_status set now keeps the row and clears the short/long columns in place, rather than deleting it. Visual-description columns on such a row also survive, while a row with detailed_status NULL is still deleted along with any visual-description columns.",
+    "POST /summary/edit and /summary/revert on a row cleared by regenerate find the row, whereas after the old DELETE edit returned 404 'No summary to edit'. An edit there succeeds while status stays 'hidden' and writes short_original='' as the snapshot."
+  ],
+  "regression_risks": [
+    "A stale panel can reach edit on a cleared row: SummarySection.handleRegenerate (frontend/SummarySection.tsx:96-119) only updates data when polling succeeds, so if regeneration fails, old data may remain client-side. An edit would then succeed on a status='hidden' row, and metadata.py:245 omits long_summary from the embedding for hidden rows. decisions.md reports the panel section disappearing in the failure case, so this path may not be reachable through the UI.",
+    "The predicate is duplicated: indexer.py:1044 still spells out COALESCE(short_summary, '') != '' instead of using _HAS_SHORT_SUMMARY, so a later change to one would diverge from the other. This is pre-existing and not touched by the diff.",
+    "GET /summary filters with the unqualified short_summary in a join with indexed_files, which would become ambiguous if indexed_files ever gained a column of that name."
+  ],
+  "test_coverage": [
+    "GET by short text (empty and non-empty) and batch queue/skip by short text are covered with a real SQLite DB in TestRowWithoutShortSummary; removing _HAS_SHORT_SUMMARY from either query should fail those tests.",
+    "Regenerate on a detailed-only row is covered for keeping detailed_status and clearing edited_at and short_original. Clearing of short_summary, long_summary, status and long_original is not effectively asserted (F1).",
+    "The DELETE branch's predicate has no real-DB coverage (F2).",
+    "The chosen-profile regenerate path shares _delete and is covered only by the recording fake. No test covers a row with detailed_status='generating' or 'failed' in regenerate, although the predicate treats them the same as 'generated'."
+  ],
+  "not_verified": [
+    "No test or mutation was executed; every 'survives' prediction comes from reading the code and tests only.",
+    "Whether the callers of FolderAIActionsMenuItems filter fileIds by file type before batchSummaries (affects whether F3 is reachable from the UI).",
+    "The context of the regenerate URL test at tests/test_llm_routing_callers.py:937 was not read beyond the grep line.",
+    "Whether another addon, such as knowledge, consumes GET /summary's available flag; the knowledge addon is not checked out in this tree.",
+    "The R-5 record in decisions.md was read as a claim; its screenshots and logs were not inspected.",
+    "Concurrent detailed generation during regenerate was not analysed, since artificial timing is out of scope."
+  ],
+  "confidence": 80
+}
