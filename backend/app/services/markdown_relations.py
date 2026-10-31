@@ -96,6 +96,26 @@ def direct_reference_ids(content: str, file_id: str) -> set[str]:
     return ids - {file_id}
 
 
+def _markdown_source_ids(
+    db: Session, file_id: str, touching: list[FileRelation]
+) -> set[str]:
+    source_ids = {
+        relation.file_id_a
+        for relation in touching
+        if relation.origin is None and relation.file_id_b == file_id
+    }
+    if not source_ids:
+        return set()
+    # fileops imports this module, so it cannot be imported at the top.
+    from app.services.fileops import _is_markdown_file
+
+    return {
+        file.id
+        for file in db.query(File).filter(File.id.in_(source_ids)).all()
+        if _is_markdown_file(file)
+    }
+
+
 def sync_markdown_file_relations(
     db: Session,
     file_id: str,
@@ -141,8 +161,14 @@ def sync_markdown_file_relations(
     }
     # A row with no origin predates origins, so nothing says who wrote it. It
     # is reconciled the way every row was then: kept only as this note's link.
+    # A Markdown note's own save settles the row it wrote, so (Y, X) waits for
+    # Y unless X links Y itself, where (X, Y) replaces it. A non-Markdown Y
+    # never saves, so its row is settled here.
+    waiting_for_source = _markdown_source_ids(db, file_id, touching) - target_ids
     for relation in touching:
         if relation.origin is not None:
+            continue
+        if relation.file_id_b == file_id and relation.file_id_a in waiting_for_source:
             continue
         if (
             relation.file_id_a == file_id

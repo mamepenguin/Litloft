@@ -34,6 +34,11 @@ def _internal(session, a: File, b: File) -> None:
     _unmarked(session, a, b, origin="internal")
 
 
+def _listed(api, file: File) -> list[tuple[str, str, str | None]]:
+    items = api.get(f"/api/files/{file.id}/relations").json()["relations"]
+    return sorted((i["file"]["id"], i["direction"], i.get("origin")) for i in items)
+
+
 class TestSaveOwnsOnlyItsMarkdownRows:
     def test_saved_links_are_marked_markdown(self, client):
         api, session, drive_dir, _ = client
@@ -175,17 +180,75 @@ class TestLegacyRowsFollowThePreOriginRule:
 
         assert _rows(session) == set()
 
-    def test_legacy_incoming_link_returns_when_the_linking_note_is_saved(self, client):
+    # UNSPEC: a link recorded before origins existed, from a Markdown note Y
+    # to X, is still listed on X's page after X is saved without linking Y.
+    def test_legacy_incoming_link_from_markdown_survives_the_target_save(self, client):
         api, session, drive_dir, _ = client
         source = _seed_md(session, drive_dir, "source.md", "See [[target]].\n")
         target = _seed_md(session, drive_dir, "target.md")
         _unmarked(session, source, target)
 
         _save(api, drive_dir, target, "No links.\n")
-        assert _rows(session) == set()
+
+        assert _rows(session) == {(source.id, target.id, "related", None)}
+        assert _listed(api, target) == [(source.id, "incoming", None)]
+
+    # UNSPEC: the linking note's own save settles a pre-origin row it wrote:
+    # it becomes a Markdown row while Y links X and goes when Y does not.
+    def test_legacy_incoming_link_is_settled_by_the_linking_notes_save(self, client):
+        api, session, drive_dir, _ = client
+        source = _seed_md(session, drive_dir, "source.md", "See [[target]].\n")
+        target = _seed_md(session, drive_dir, "target.md")
+        _unmarked(session, source, target)
+        _save(api, drive_dir, target, "No links.\n")
 
         _save(api, drive_dir, source, "See [[target]] again.\n")
         assert _rows(session) == {(source.id, target.id, "related", "markdown")}
+
+
+    # UNSPEC: a pre-origin row from Markdown Y to X goes on Y's save when Y no
+    # longer links X.
+    def test_legacy_incoming_link_goes_when_the_linking_note_drops_it(self, client):
+        api, session, drive_dir, _ = client
+        source = _seed_md(session, drive_dir, "source.md", "See [[target]].\n")
+        target = _seed_md(session, drive_dir, "target.md")
+        _unmarked(session, source, target)
+        _save(api, drive_dir, target, "No links.\n")
+
+        _save(api, drive_dir, source, "Dropped.\n")
+
+        assert _rows(session) == set()
+
+    # UNSPEC: when X links Y back, the old row is replaced by X's own, so Y is
+    # listed once on X's page and not again under Related files.
+    def test_legacy_incoming_link_is_replaced_when_the_target_links_back(self, client):
+        api, session, drive_dir, _ = client
+        source = _seed_md(session, drive_dir, "source.md", "See [[target]].\n")
+        target = _seed_md(session, drive_dir, "target.md")
+        _unmarked(session, source, target)
+
+        _save(api, drive_dir, target, "See [[source]].\n")
+
+        assert _rows(session) == {(target.id, source.id, "related", "markdown")}
+        assert _listed(api, target) == [(source.id, "outgoing", "markdown")]
+
+    # UNSPEC: a pre-origin row from a trashed note is not discarded by the
+    # target's save; it is listed again once the note is restored.
+    def test_legacy_incoming_link_from_trashed_markdown_is_kept(self, client):
+        api, session, drive_dir, _ = client
+        source = _seed_md(session, drive_dir, "source.md", "See [[target]].\n")
+        target = _seed_md(session, drive_dir, "target.md")
+        _unmarked(session, source, target)
+        source.deleted_at = datetime.now(UTC).replace(tzinfo=None)
+        session.commit()
+
+        _save(api, drive_dir, target, "No links.\n")
+        assert _rows(session) == {(source.id, target.id, "related", None)}
+        assert _listed(api, target) == []
+
+        source.deleted_at = None
+        session.commit()
+        assert _listed(api, target) == [(source.id, "incoming", None)]
 
     def test_marked_rows_of_other_notes_survive_a_legacy_cleanup(self, client):
         api, session, drive_dir, _ = client

@@ -104,9 +104,9 @@ note's tags. Reached by clearing all tags on such a note in the web UI.
 
 **The Related tab does not follow a save made in place.** After editing a note's links on its own page, the tab keeps the previous lists until the page is opened again.
 
-**A relation recorded before relation origins existed disappears when its target note is saved first.** A backlink from note Y to note X that predates the upgrade is removed by X's first save and reappears on Y's next save. Rows written after the upgrade are not affected.
-
 **A top-level folder named `search`, `addons` or `collections` hides its files' pages.** A file in such a folder gets a URL that collides with the drive's own routes: one in `search` opens full screen with no tree, and the others land on the addon or collection page instead of the file.
+
+**A mutual link recorded before relation origins existed loses one direction until both notes are saved.** Saving X with a link back to Y replaces the old (Y, X) row with X's own, so Y's link to X is not listed until Y is next saved.
 
 **An addon deleting its own relation hides a link the note still has.** If `DELETE /api/internal/file_relations/{id}` removes an `internal` (N, T) row while N links T, the link is not listed until N is saved again; posting (N, T) after the link exists returns 409.
 
