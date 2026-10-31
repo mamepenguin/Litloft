@@ -6,9 +6,10 @@ from datetime import UTC, datetime
 import pytest
 
 import app.config as config
+import app.services.event_hooks as event_hooks
 import app.services.subtitle as subtitle
 from app.services.scanner import _scan_and_register
-from app.models import Comment, File, WatchHistory
+from app.models import Comment, File, Tag, WatchHistory
 from app.services.subtitle import detect_subtitles
 from tests.test_target_drive_access import (  # noqa: F401  (fixture)
     FIXTURES_DIR,
@@ -259,6 +260,40 @@ def _upload(c, drive, folder, filename, body=b"1\n00:00:00,000 --> 00:00:01,000\
     return done.json()
 
 
+def _init_and_send(c, drive, folder, filename, body, declared_size=None):
+    base = f"/api/drives/{drive}/upload"
+    init = c.post(
+        f"{base}/init",
+        json={
+            "filename": filename,
+            "file_size": declared_size or len(body),
+            "folder_path": folder,
+        },
+    )
+    assert init.status_code == 200, init.text
+    upload_id = init.json()["upload_id"]
+    sent = c.post(
+        f"{base}/{upload_id}/chunk",
+        data={"chunk_index": 0},
+        files={"chunk": ("chunk", body)},
+    )
+    assert sent.status_code == 200, sent.text
+    return base, upload_id
+
+
+def _subtitle_row(db, name="movie.srt", tagged=False, **state):
+    row = File(
+        filename=name, title=name, drive=OPEN_DRIVE, folder_path="a",
+        file_path=f"a/{name}", file_size=1, file_type="document", mime_type="text/plain",
+        **state,
+    )
+    if tagged:
+        row.tags = [Tag(name="soup", drive=OPEN_DRIVE)]
+    db.add(row)
+    db.commit()
+    return row.id
+
+
 def _srt_rows(db):
     db.expire_all()
     return db.query(File).filter(File.filename.like("%.srt")).all()
@@ -311,21 +346,78 @@ class TestUploadedSubtitle:
         assert _srt_rows(db) == []
         assert db.query(File).filter(File.missing_since.isnot(None)).count() == 0
 
-    def test_upload_over_a_path_holding_a_row_removes_the_row(self, two_drives):
+    @pytest.mark.parametrize(
+        "state",
+        [{}, {"missing_since": datetime.now(UTC)}, {"deleted_at": datetime.now(UTC)}],
+        ids=["active", "missing", "trashed"],
+    )
+    def test_upload_over_a_path_holding_a_row_removes_the_row(self, two_drives, state):
         c, db, open_dir, _ = two_drives
-        ghost = File(
-            filename="movie.srt", title="movie.srt", drive=OPEN_DRIVE, folder_path="a",
-            file_path="a/movie.srt", file_size=1, file_type="document", mime_type="text/plain",
-            missing_since=datetime.now(UTC),
-        )
         (open_dir / "a").mkdir()
-        db.add(ghost)
-        db.commit()
+        _subtitle_row(db, tagged=True, **state)
 
         _upload(c, OPEN_DRIVE, "a", "movie.srt")
 
         assert _srt_rows(db) == []
+        assert db.query(Tag).count() == 0
         assert (open_dir / "a" / "movie.srt").exists()
+
+    def test_upload_announces_a_scan_with_nothing_added(self, two_drives, monkeypatch):
+        c, _, open_dir, _ = two_drives
+        (open_dir / "a").mkdir()
+        sent = []
+
+        async def record(event, data):
+            sent.append((event, data))
+
+        monkeypatch.setattr(event_hooks, "emit", record)
+
+        _upload(c, OPEN_DRIVE, "a", "movie.srt")
+
+        assert ("scan.complete", {"drive": OPEN_DRIVE, "added": 0, "removed": 0}) in sent
+
+    def test_a_second_upload_replaces_the_file(self, two_drives):
+        c, _, open_dir, _ = two_drives
+        (open_dir / "a").mkdir()
+        _upload(c, OPEN_DRIVE, "a", "movie.srt", body=b"first")
+
+        _upload(c, OPEN_DRIVE, "a", "movie.srt", body=b"second")
+
+        assert (open_dir / "a" / "movie.srt").read_bytes() == b"second"
+
+    def test_a_failed_second_upload_keeps_the_first(self, two_drives):
+        c, _, open_dir, _ = two_drives
+        (open_dir / "a").mkdir()
+        _upload(c, OPEN_DRIVE, "a", "movie.srt", body=b"first")
+        base, upload_id = _init_and_send(
+            c, OPEN_DRIVE, "a", "movie.srt", b"short", declared_size=50
+        )
+
+        assert c.post(f"{base}/{upload_id}/complete").status_code == 400
+
+        assert (open_dir / "a" / "movie.srt").read_bytes() == b"first"
+
+    def test_a_cancelled_second_upload_keeps_the_first(self, two_drives):
+        c, _, open_dir, _ = two_drives
+        (open_dir / "a").mkdir()
+        _upload(c, OPEN_DRIVE, "a", "movie.srt", body=b"first")
+        base, upload_id = _init_and_send(c, OPEN_DRIVE, "a", "movie.srt", b"second")
+
+        assert c.delete(f"{base}/{upload_id}").status_code == 200
+
+        assert (open_dir / "a" / "movie.srt").read_bytes() == b"first"
+
+    def test_an_existing_file_of_another_type_still_refuses_the_upload(self, two_drives):
+        c, _, open_dir, _ = two_drives
+        (open_dir / "a").mkdir()
+        (open_dir / "a" / "note.md").write_text("mine", encoding="utf-8")
+
+        res = c.post(
+            f"/api/drives/{OPEN_DRIVE}/upload/init",
+            json={"filename": "note.md", "file_size": 3, "folder_path": "a"},
+        )
+
+        assert res.status_code == 409
 
     @pytest.mark.parametrize(
         ("name", "kind"), [("clip.mp4", "video"), ("note.md", "document")]
@@ -337,6 +429,7 @@ class TestUploadedSubtitle:
         answer = _upload(c, OPEN_DRIVE, "a", name, body=b"# hi\n")
 
         assert answer["filename"] == name
+        assert answer["file_type"] == kind
         assert answer["id"]
         assert db.query(File).filter(File.filename == name).count() == 1
 
@@ -353,34 +446,41 @@ class TestUploadedSubtitle:
 
 
 class TestScanRemovesSubtitleRows:
-    def _row(self, db, name, **state):
-        row = File(
-            filename=name, title=name, drive=OPEN_DRIVE, folder_path="a",
-            file_path=f"a/{name}", file_size=1, file_type="document", mime_type="text/plain",
-            **state,
-        )
-        db.add(row)
-        db.commit()
-        return row.id
-
-    def test_active_and_missing_rows_go_and_the_files_stay(self, two_drives):
+    def test_active_and_missing_rows_go_and_the_files_stay(self, two_drives, monkeypatch):
         _, db, open_dir, _ = two_drives
         _sidecars(open_dir, "a", "one.srt", "two.vtt")
         now = datetime.now(UTC)
-        self._row(db, "one.srt")
-        self._row(db, "two.vtt", missing_since=now)
-        self._row(db, "gone.srt")
+        ids = [
+            _subtitle_row(db, "one.srt"),
+            _subtitle_row(db, "two.vtt", missing_since=now),
+            _subtitle_row(db, "gone.srt"),
+        ]
+        sent = []
+        monkeypatch.setattr(event_hooks, "emit_sync", lambda event, data: sent.append((event, data)))
+
+        result = _scan_and_register(db, OPEN_DRIVE)
+
+        db.expire_all()
+        assert db.query(File).count() == 0
+        assert result["missing"] == 0
+        assert not [e for e, data in sent if e == "files.missing"
+                    and set(data["file_ids"]) & set(ids)]
+        assert _names(open_dir / "a") == ["one.srt", "two.vtt"]
+
+    def test_the_tags_of_a_dropped_row_go_with_it(self, two_drives):
+        _, db, open_dir, _ = two_drives
+        _sidecars(open_dir, "a", "one.srt")
+        _subtitle_row(db, "one.srt", tagged=True)
 
         _scan_and_register(db, OPEN_DRIVE)
 
         db.expire_all()
-        assert db.query(File).count() == 0
-        assert _names(open_dir / "a") == ["one.srt", "two.vtt"]
+        assert db.query(Tag).count() == 0
 
     def test_a_trashed_row_is_left_alone(self, two_drives):
         _, db, open_dir, _ = two_drives
         _sidecars(open_dir, "a", "one.srt")
-        row_id = self._row(db, "one.srt", deleted_at=datetime.now(UTC))
+        row_id = _subtitle_row(db, "one.srt", deleted_at=datetime.now(UTC))
 
         _scan_and_register(db, OPEN_DRIVE)
 
@@ -392,7 +492,7 @@ class TestScanRemovesSubtitleRows:
     def test_comments_and_watch_history_go_with_the_row(self, two_drives):
         _, db, open_dir, _ = two_drives
         _sidecars(open_dir, "a", "one.srt")
-        row_id = self._row(db, "one.srt")
+        row_id = _subtitle_row(db, "one.srt")
         db.add(Comment(file_id=row_id, viewer_id="v", nickname="n", body="hi"))
         db.add(WatchHistory(file_id=row_id, viewer_id="v", last_played_at=datetime.now(UTC)))
         db.commit()
