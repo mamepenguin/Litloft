@@ -17,6 +17,7 @@ from app.nanoid import generate_nanoid
 from app.services.atomic_write import generating_file
 from app.services.heic import cleanup_heic_cache
 from app.services.markdown_images import project_markdown_thumbnail
+from app.services.subtitle import move_sidecar_subtitles
 from app.services.tagops import (
     cleanup_orphan_tags,
     project_frontmatter_tags,
@@ -380,6 +381,20 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
     return new_file
 
 
+def _serves_subtitles(file: File) -> bool:
+    return file.file_type == "video" or file.mime_type == "application/vnd.litloft.loft+json"
+
+
+def _carry_sidecars(file: File, old_full: Path, new_full: Path) -> None:
+    """Best effort: a failure here never undoes the video's own change."""
+    if not _serves_subtitles(file):
+        return
+    try:
+        move_sidecar_subtitles(old_full, new_full)
+    except Exception:
+        logger.exception("sidecar subtitles: could not carry %s to %s", old_full, new_full)
+
+
 def rename_file(db: Session, file_id: str, new_filename: str) -> File:
     file = db.query(File).filter(File.id == file_id).first()
     if not file:
@@ -432,6 +447,8 @@ def rename_file(db: Session, file_id: str, new_filename: str) -> File:
             status_code=500,
             detail=f"Rename failed (DB error, filesystem reversed): {exc}",
         ) from exc
+
+    _carry_sidecars(file, old_full, new_full)
 
     # Best-effort: a rewrite failure must NOT roll back the user-visible rename
     # (FS + DB row are already durable).
@@ -520,6 +537,8 @@ def move_file(db: Session, file_id: str, target_drive: str | None, target_folder
             status_code=500,
             detail=f"Move failed (DB error, filesystem reversed): {exc}",
         ) from exc
+
+    _carry_sidecars(file, old_full, new_full)
 
     db.refresh(file)
     return file
@@ -1095,7 +1114,27 @@ def batch_rename(
         db.rollback()
         raise
 
+    _carry_batch_sidecars(db, rename_plan, completed_fs)
     return results
+
+
+def _carry_batch_sidecars(
+    db: Session,
+    rename_plan: list[tuple[File, str]],
+    completed_fs: list[tuple[Path, Path]],
+) -> None:
+    """Carry sidecars in rename order, so a name freed by an earlier rename is
+    free again when a later one needs it.
+    """
+    by_new_path = {new: old for new, old in completed_fs}
+    for file, _ in rename_plan:
+        try:
+            new_full = resolve_drive_path(file.drive) / file.file_path
+            old_full = by_new_path.get(new_full)
+            if old_full is not None:
+                _carry_sidecars(file, old_full, new_full)
+        except Exception:
+            logger.exception("batch rename: could not carry sidecar subtitles of %s", file.id)
 
 
 def _update_file_after_rename(

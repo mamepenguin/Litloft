@@ -450,8 +450,19 @@ export async function uploadChunk(
   );
 }
 
-export async function completeUpload(drive: string, uploadId: string): Promise<FileItem> {
-  return fetchJSON<FileItem>(
+/** The answer for an uploaded subtitle: a sidecar file, so there is no record and no id. */
+export interface SidecarUploadResult {
+  status: "sidecar";
+  drive: string;
+  file_path: string;
+  id?: undefined;
+}
+
+export async function completeUpload(
+  drive: string,
+  uploadId: string
+): Promise<FileItem | SidecarUploadResult> {
+  return fetchJSON<FileItem | SidecarUploadResult>(
     `${API_BASE}/drives/${encodeURIComponent(drive)}/upload/${uploadId}/complete`,
     { method: "POST" }
   );

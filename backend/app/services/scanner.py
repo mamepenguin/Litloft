@@ -28,7 +28,7 @@ from app.services.frontmatter import (
     parse as parse_frontmatter,
 )
 from app.services.hash import compute_file_hash
-from app.services.tagops import project_frontmatter_tags
+from app.services.tagops import cleanup_orphan_tags, project_frontmatter_tags
 from app.services.image_dimensions import read_image_dimensions
 from app.services.markdown_images import project_markdown_thumbnail
 from app.services.maintenance import (
@@ -435,6 +435,24 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
         f.file_path: f
         for f in db.query(File).filter(File.drive == drive_name).all()
     }
+    # A subtitle is a sidecar file, never a record. Rows left by an earlier
+    # upload are dropped here; the file on disk is not touched. A trashed row
+    # stays for the trash's own purge.
+    stale_subtitles = [
+        row
+        for row in existing.values()
+        if row.deleted_at is None and is_subtitle_file(row.filename)
+    ]
+    if stale_subtitles:
+        for row in stale_subtitles:
+            del existing[row.file_path]
+            db.delete(row)
+        db.flush()
+        cleanup_orphan_tags(db, drive_name)
+        logger.info(
+            "Dropped %d subtitle records (drive: %s)", len(stale_subtitles), drive_name
+        )
+
     found_paths: set[str] = set()
     pending_new: list[dict] = []
     added = 0
