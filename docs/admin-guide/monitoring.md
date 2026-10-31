@@ -78,6 +78,15 @@ A locked drive answers `404`, not `403`, so that its existence stays hidden. Thi
 2. Look for ffmpeg errors: `docker compose logs backend | grep -i thumbnail`.
 3. HEIC thumbnails are made with Pillow, not ffmpeg. A black HEIC thumbnail means that step failed.
 
+#### After upgrading to per-file thumbnail slots
+
+The first start after this upgrade moves each existing thumbnail to `data/thumbnails/.by-id/<file id>.jpg` before the app answers anything. The log shows `Thumbnail migration: N rows to examine`, then `Thumbnail migration done: moved N, emptied N, failed N`. A large library can take longer than the backend healthcheck allows (about 100 seconds); `docker compose up` then reports a dependency failure while the migration carries on, and a second `docker compose up -d` succeeds once it has finished.
+
+- A picture that two or more files used to share (`book.pdf` and `book.epub` in one folder) is removed, and each of those files shows the placeholder until the first scan after the upgrade finishes and draws its own.
+- A `.loft` file that shared a picture with another file keeps the placeholder until you run Refresh metadata on it, which downloads its picture again.
+- A row that logs `Could not move thumbnail` keeps its old picture and is tried again at the next start.
+- A picture that is already wrong because a same-name file overwrote it earlier stays wrong. Delete its file from `data/thumbnails/.by-id/` and the next scan draws it again.
+
 ### Uploads
 
 Unfinished uploads are removed when the backend starts.

@@ -116,32 +116,6 @@ note's tags. Reached by clearing all tags on such a note in the web UI.
 
 **An addon deleting its own relation hides a link the note still has.** If `DELETE /api/internal/file_relations/{id}` removes an `internal` (N, T) row while N links T, the link is not listed until N is saved again; posting (N, T) after the link exists returns 409.
 
-**Copying a file onto a name whose thumbnail slot is owned by a different file
-swaps that file's picture.** Slots are keyed by stem, so pasting `a.mp4` next to
-an existing `a.png` makes `a.png` show the video's frame, and purging the copy
-leaves `a.png` blank. Two such files need no copy to collide: a scan of a folder
-holding `book.pdf` and `book.epub` gives both rows `book.jpg`, so one shows the
-other's cover. The right fix is a lookup, not a `stat`. Written up in
-`docs/superpowers/specs/2026-09-14-thumbnail-slot-ownership.md`.
-
-**A thumbnail failure rolls back the file operation it belongs to.** In
-`rename_file`, `move_file` and batch rename, the thumbnail rename sits inside
-the transaction, so an `OSError` there undoes a completed rename or move (for
-batch rename, the whole batch). A thumbnail is a cache and should not be able
-to do this. Same spec.
-
-**A non-video file keeps its thumbnail at the old path after a move or rename.**
-`_move_thumbnail` is gated on `file_type == "video"`. The picture is left behind
-rather than following the file. Same spec.
-
-**Moving a video onto a Missing record's path leaves two rows naming one
-thumbnail.** `_move_thumbnail` renames the mover's JPEG onto the destination
-slot, which the retired record still points at, so purging that record deletes
-the picture the live file is showing. Reachable with no error: a file goes
-missing, and another of the same name is moved into its folder. Copying does not
-do this: `copy_file` takes the name away from the retired record once the JPEG
-is written.
-
 **A zoomed picture in the image or archive viewer is not re-fitted when the
 window changes size or the picture finishes loading.** Rotating a phone while
 zoomed can leave empty space beside the picture until the next drag or pinch,
