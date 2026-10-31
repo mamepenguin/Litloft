@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship (human, 2026-10-31, "推奨通り。", after r6 HUMAN_REVIEW_REQUIRED for unspecified_behavior on the UNSPEC bug fix; the unreadable upload finding and the duplicate test finding bucket B accepted, the first recorded in known-issues.md)
 ran_in_app: yes
 at: 57dcc730379e5795bb97daca05dcaa9c9b61a9fe
 by: agent

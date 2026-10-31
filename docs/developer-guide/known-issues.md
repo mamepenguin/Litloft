@@ -283,6 +283,12 @@ pointer for an id that no longer exists.
 **A subtitle record trashed by an earlier version still deletes the real file
 when purged,** by hand or by the 30-day purge.
 
+**An uploaded subtitle the player cannot read leaves the video with no captions.**
+A Shift_JIS `.srt` or one over 5 MB lands with a success answer, but its track
+request fails, and because a sidecar exists the generated track is not offered
+either. Uploading a corrected copy under that name is refused, so the file has to
+be fixed from the host. Reading the code, not run.
+
 **A subtitle dropped into the knowledge editor inserts a broken link.** The
 editor builds `loft://<id>` from the upload's answer, and a subtitle upload has no
 row and no id, so the note gets `loft://undefined`. The file itself lands.
