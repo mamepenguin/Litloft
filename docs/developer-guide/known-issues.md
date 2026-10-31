@@ -282,8 +282,9 @@ track of `movie.mp4`.** Renaming `movie.mp4` takes it from the other video.
 
 **An uploaded subtitle has no card, so it cannot be replaced or removed from
 the UI.** It is a sidecar file like one placed on disk. Uploading again to the
-same name is refused with `409 File already exists`, and the upload drawer shows
-that error.
+same name is refused with a 409, and the upload drawer shows `API error: 409
+Conflict`. A folder uploaded with nothing but subtitles stays out of its parent's
+listing until the next scan.
 
 **A subtitle dropped into the knowledge editor inserts a broken link.** The
 editor builds `loft://<id>` from the upload's answer, and a subtitle upload has no
