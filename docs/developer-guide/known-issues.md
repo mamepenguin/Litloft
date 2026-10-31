@@ -201,13 +201,6 @@ but has no place for the section number, so the note's link opens the book
 where it was last read. Reached by adding an EPUB citation from Ask to the
 capture basket and making a note from it.
 
-**A Markdown note opened from a search result is never highlighted while the
-knowledge editor is installed.** `Editor.tsx` renders `MarkdownPreview` without the
-`highlight` prop, and a `.md` file always opens in that editor when the addon is
-present, so `?highlight=` on a note does nothing: no mark and no scroll to the
-passage. Reached by searching for a phrase inside a note and pressing the
-result. Core's own `MarkdownPreview` path is wired; the addon drops it.
-
 **The intelligence `/similar/{file_id}` route answers while the addon is off for
 the drive.** It is gated by file access only, so it stays 200 under a policy of
 `false`, where feature-gated routes answer 404.
