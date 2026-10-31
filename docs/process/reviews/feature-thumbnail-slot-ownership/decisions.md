@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship (human, 2026-11-01, "推奨通り。", after r3 HUMAN_REVIEW_REQUIRED for unspecified_behavior; TEST-6, R3-TEST-1 and TEST-7 fixed before merge with no production change, the merge conditional on no bucket A in the following review; COPY-1, MIG-3, R3-SPEC-1 and SCOPE-2 bucket B accepted; I22 and I23 added to invariants.md)
 ran_in_app: yes
 at: 819742a011a215bca78534721b095e8a6e6578f7
 by: agent
