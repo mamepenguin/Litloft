@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R4-TEST-1",
+      "status": "confirmed",
+      "note": "Confirmed by reading. thumbnail_migration.py:49 sets updated_at=File.updated_at, and models.py:90-92 declares onupdate, so a Core update without that value would bump the column. A search of test_thumbnail_slots.py for updated_at has no match, and it is the only test file using the migrate_thumbnail_slots symbol (test_atomic_write.py:211 only lists the module's file name). test_listing_sort_updated_at.py seeds no thumbnail_path, so it never enters migration. The ETag assertion in the migration tests cannot catch this: the thumbnail ETag comes from FileResponse (routers/files.py:1150-1170), not from the row. drives.py:670, FileListRow.tsx:163 and TrashFileList.tsx:149 are as cited, and spec section 9 line 196 says no ordering changes. Mutation outcome is inferred; nothing was run."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R4-TEST-2",
+      "status": "confirmed",
+      "note": "test_thumbnail_slots.py:899-913 uses `first` only for os.link at :905, then asserts the two pointers are None and .by-id is empty. It never checks either name on disk. os.link at :905 is the only hard link in the file, so no other test there covers two strings. test_rows_sharing_one_file_lose_the_pointer_and_the_file (:882-897) asserts removal but uses one string. With hard links, a mutant that unlinks only one member's string at thumbnail_migration.py:100-103 would be expected to survive; inferred, not run."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "TEST-8",
+      "status": "confirmed",
+      "note": "upload.py:272 sets reused_row and :363 tests it. test_upload_with_a_new_id_whose_commit_fails_leaves_no_slot (:557-577) has no existing row. The upload case of the parametrized test (:495-555) fails at the patched untrack_empty_folder, upload.py:360, after existing = None at :296, and asserts only the ghost row and ghost picture, not the new slot. TestUploadOverReusedRow (:231-283) only completes uploads with status 200. The other files that post to /complete have no raise_server_exceptions=False or 500 assertion; test_upload.py's failure tests fail during chunk assembly or size checking, before line 272. Precision: the search for reused/vanish also matches the class name at :231 besides the seed at :234, which changes nothing. The new-id test does kill a mutant that never removes the slot, but neither test separates `not reused_row` from always removing, or from `existing is None`."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "TEST-9",
+      "status": "confirmed",
+      "note": "Same gap as claude-read R4-TEST-2. test_thumbnail_slots.py:909-913 asserts both pointers are None and .by-id is empty, and neither `first` nor the alias path is read afterwards. thumbnail_migration.py:100-103 unlinks each distinct string. :882-897 covers removal for one string only."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "SCOPE-3",
+      "status": "confirmed",
+      "note": "The tree at the commit has both rows at known-issues.md:119 and :121, and spec line 245 says only 'four rows removed'. invariants.md has no touch-point revision. decisions.md line 3 names SCOPE-2 only, and SCOPE-2 in r3/triage.md:201-205 is about the migration module and test assertions, not these rows. uploads.py:73-81 is async and calls complete_upload directly. decisions.md first run item 9 records the scan's 500 and that origin/develop does the same. Attribution to 9e230c67e is indirect, because git objects cannot be read with these tools: the commit subject names 'two thumbnail-related known issues', r4/fixes.txt lists the commit, and a Grep of the main checkout's known-issues.md finds neither row (that checkout's branch was not established)."
+    }
+  ],
+  "specification_compliance": [
+    "Spec line 245 lists known-issues.md as 'four rows removed'; the tree also holds two added rows, with no touch-point revision (SCOPE-3).",
+    "_set_pointer at thumbnail_migration.py:49 holds updated_at, which matches spec section 9's 'no ordering change'; no test pins it (R4-TEST-1).",
+    "thumbnail_migration.py:93-106 empties the pointers, commits, then unlinks each distinct string, which matches I8 by reading; the two-string removal half has no assertion (R4-TEST-2, TEST-9)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "A failed commit on a reused row whose pointer is not yet its slot leaves the newly generated slot file on disk with no pointer naming it (upload.py:363 skips removal). The spec states slot removal only for an upload with a new id. This was read from the code, not exercised, and is not raised as a defect."
+  ],
+  "regression_risks": [
+    "Removing updated_at=File.updated_at from _set_pointer would bump updated_at on every migrated row and reorder listings sorted by updated_at, with no test failing (R4-TEST-1).",
+    "Changing the reused_row predicate at upload.py:363 to always remove, or to `existing is None`, would not be expected to fail any existing test (TEST-8)."
+  ],
+  "test_coverage": [
+    "No migration test asserts updated_at.",
+    "test_two_spellings_of_one_file_count_as_shared asserts pointers and an empty .by-id only, not removal under either name.",
+    "No test fails complete_upload's try block over a reused row, or inside the trashed-ghost branch before existing is cleared.",
+    "The upload case of test_an_operation_that_fails_before_its_commit_leaves_the_ghost_and_its_picture does not assert the new slot is removed; test_upload_with_a_new_id_whose_commit_fails_leaves_no_slot does assert it for a new id with no existing row."
+  ],
+  "not_verified": [
+    "Nothing was run: no tests, no mutations and no application. Every mutant outcome is inferred from reading the code.",
+    "Git objects were not read, so the working tree was taken to be commit 9e230c67e from head.txt and the status snapshot, and the rows' attribution to that commit is indirect.",
+    "The evidence files cited in decisions.md under the scratchpad directory were not opened.",
+    "Whether prune_empty_dirs can raise at thumbnail_migration.py:122, outside the try block, was not checked.",
+    "The addon tests and addon code were not examined."
+  ],
+  "confidence": 88
+}

@@ -74,3 +74,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-037 | implemented | docs/specs/txt-edit.md | sha256:b9b2bf414210170871ce18124fa5157c7e8ac0dcf816086ab41362dfc631b10d |
 | SPEC-ADDON-038 | implemented | docs/specs/citation-quote-anchor.md | sha256:e15b775cb0ffa4e65cd205e852565459fe6de56a70b18359d86047f90250fe00 |
 | SPEC-ADDON-039 | implemented | docs/specs/haas-local-transcription.md | sha256:37526c33df7af2782a18cf431f7706321bbaf26716d0d5503b9b325a6359822c |
+| SPEC-CORE-022 | approved | docs/specs/thumbnail-slot-ownership.md | sha256:9fcfcc2fd70ea2565226ed64e3d02217fe9fbc1550e8860ffa3a7e0b91195879 |
+| SPEC-CORE-023 | approved | docs/specs/thumbnail-slot-ownership.md | sha256:9fcfcc2fd70ea2565226ed64e3d02217fe9fbc1550e8860ffa3a7e0b91195879 |
+| SPEC-CORE-024 | approved | docs/specs/thumbnail-slot-ownership.md | sha256:9fcfcc2fd70ea2565226ed64e3d02217fe9fbc1550e8860ffa3a7e0b91195879 |
+| SPEC-ADDON-040 | approved | docs/specs/thumbnail-slot-ownership.md | sha256:9fcfcc2fd70ea2565226ed64e3d02217fe9fbc1550e8860ffa3a7e0b91195879 |

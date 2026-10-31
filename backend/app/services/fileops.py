@@ -18,6 +18,11 @@ from app.services.atomic_write import generating_file
 from app.services.heic import cleanup_heic_cache
 from app.services.markdown_images import project_markdown_thumbnail
 from app.services.subtitle import move_sidecar_subtitles
+from app.services.thumbnail import (
+    prune_empty_dirs,
+    remove_thumbnail_quietly,
+    thumbnail_slot_rel,
+)
 from app.services.tagops import (
     cleanup_orphan_tags,
     project_frontmatter_tags,
@@ -105,32 +110,6 @@ def _filename_to_title(filename: str) -> str:
     return name[0].upper() + name[1:]
 
 
-def _move_thumbnail(file: File, new_thumb_rel: str) -> None:
-    if not file.thumbnail_path:
-        return
-    old_thumb = config.THUMBNAILS_DIR / file.thumbnail_path
-    new_thumb = config.THUMBNAILS_DIR / new_thumb_rel
-    if old_thumb.exists():
-        new_thumb.parent.mkdir(parents=True, exist_ok=True)
-        old_thumb.rename(new_thumb)
-        _cleanup_empty_parents(old_thumb.parent, config.THUMBNAILS_DIR)
-
-
-def _cleanup_empty_parents(directory: Path, stop_at: Path) -> None:
-    current = directory
-    while current != stop_at and current.is_dir():
-        try:
-            current.rmdir()
-            current = current.parent
-        except OSError:
-            break
-
-
-def path_thumbnail_rel(drive: str, folder_path: str, stem: str) -> str:
-    """The thumbnail cache slot a file at this path owns."""
-    return f"{drive}/{folder_path}/{stem}.jpg" if folder_path else f"{drive}/{stem}.jpg"
-
-
 def untrack_empty_folder(db: Session, drive: str, folder_path: str) -> None:
     existing = (
         db.query(EmptyFolder)
@@ -175,11 +154,11 @@ def resolve_db_path_conflict(db: Session, new_rel: str, drive: str) -> str | Non
 
     Per record state:
       • Active → 409; the user must rescan and purge it deliberately.
-      • Trashed → purge the ghost.
+      • Trashed → purge the ghost. The file its thumbnail pointer names is
+        returned for the caller to remove once its own commit has succeeded, so
+        a rollback leaves the ghost its picture.
       • Missing → retire its file_path to a placeholder, keeping the row
-        (watch history, tags, comments). Its id is returned because it still
-        names the thumbnail cache slot of the freed path; the caller clears
-        that pointer only after writing the slot.
+        (watch history, tags, comments) and its own thumbnail slot.
     """
     conflict = (
         db.query(File)
@@ -194,26 +173,22 @@ def resolve_db_path_conflict(db: Session, new_rel: str, drive: str) -> str | Non
             detail=f"A database record already exists at '{new_rel}' (id={conflict.id})",
         )
     if conflict.deleted_at is not None:
+        ghost_picture = conflict.thumbnail_path
         db.delete(conflict)
         db.flush()
         cleanup_orphan_tags(db, drive)
-        return None
+        return ghost_picture
     conflict.file_path = f"__missing_{conflict.id}_{new_rel}"
     db.flush()
-    return conflict.id
+    return None
 
 
-def _rename_thumbnail_owner(
-    db: Session, owner: File, thumb_rel: str, retired_id: str | None
-) -> None:
-    """Point ``owner`` at the JPEG just written, and stop a record retired out
-    of that path from naming it. Its own commit, because the JPEG is a cache: a
-    database error here must not take back a file that has already arrived."""
+def _rename_thumbnail_owner(db: Session, owner: File, thumb_rel: str) -> None:
+    """Point ``owner`` at the JPEG just written. Its own commit, because the
+    JPEG is a cache: a database error here must not take back a file that has
+    already arrived."""
     try:
         owner.thumbnail_path = thumb_rel
-        retired = db.get(File, retired_id) if retired_id is not None else None
-        if retired is not None and retired.thumbnail_path == thumb_rel:
-            retired.thumbnail_path = None
         db.commit()
     except Exception:
         db.rollback()
@@ -268,7 +243,7 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
     new_id = generate_nanoid()
     new_rel = f"{target_folder}/{new_filename}" if target_folder else new_filename
 
-    new_thumb_rel = path_thumbnail_rel(dst_drive, target_folder, Path(new_filename).stem)
+    new_thumb_rel = thumbnail_slot_rel(new_id)
     new_thumb = config.THUMBNAILS_DIR / new_thumb_rel
     # Markdown thumbnails are projections owned by the note ID, so they are
     # regenerated from the copy's own content instead of taking this slot.
@@ -277,25 +252,14 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
         if source.thumbnail_path and not _is_markdown_file(source)
         else None
     )
-    # Only video thumbnails follow a move, so an image moved out of a folder
-    # still points at the thumbnail it left there, and copying it back names one
-    # file on both sides — which `copy2` refuses. `samefile` rather than a path
-    # comparison, because the drive is read through a mount that folds case and
-    # Unicode normalisation. The copy takes no pointer in that case: the slot
-    # belongs to the row already naming it, and two rows sharing one JPEG means
-    # purging either blanks the other.
-    fills_thumbnail_slot = (
-        old_thumb is not None
-        and old_thumb.exists()
-        and not (new_thumb.exists() and old_thumb.samefile(new_thumb))
-    )
+    fills_thumbnail_slot = old_thumb is not None and old_thumb.exists()
 
     # Free the UNIQUE file_path slot if a stale ghost holds it. Done BEFORE
     # creating the FS file so an active 409 conflict doesn't leave an orphan
     # file on disk. (_resolve_copy_filename only avoids FS collisions; a DB
     # ghost with no FS copy would otherwise pass that check and then blow up
     # at db.commit with an IntegrityError.)
-    retired_id = resolve_db_path_conflict(db, new_rel, dst_drive)
+    ghost_picture = resolve_db_path_conflict(db, new_rel, dst_drive)
 
     # Atomic copy: create exclusive target then copy content to prevent TOCTOU race
     projected_thumb: Path | None = None
@@ -358,16 +322,17 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
         if projected_thumb is not None:
             try:
                 projected_thumb.unlink()
-                _cleanup_empty_parents(projected_thumb.parent, config.THUMBNAILS_DIR)
+                prune_empty_dirs(projected_thumb.parent, config.THUMBNAILS_DIR)
             except OSError:
                 pass
         raise
 
+    remove_thumbnail_quietly(ghost_picture)
+
     # A thumbnail is a cache the scanner can rebuild, so it is filled after the
     # row is durable and never inside the handler that reverses the filesystem:
-    # a copy that arrived must not be undone because its picture did not. Which
-    # row names the JPEG is decided here too, from the write that happened —
-    # naming it beforehand hands the picture to whoever the write then missed.
+    # a copy that arrived must not be undone because its picture did not. The
+    # row names the JPEG only once the write has happened.
     if fills_thumbnail_slot:
         try:
             with generating_file(new_thumb) as staged_thumb:
@@ -375,7 +340,7 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
         except OSError:
             logger.warning("Copied %s but could not fill %s", new_rel, new_thumb_rel)
         else:
-            _rename_thumbnail_owner(db, new_file, new_thumb_rel, retired_id)
+            _rename_thumbnail_owner(db, new_file, new_thumb_rel)
 
     db.refresh(new_file)
     return new_file
@@ -418,21 +383,11 @@ def rename_file(db: Session, file_id: str, new_filename: str) -> File:
     if not old_full.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
 
-    resolve_db_path_conflict(db, new_rel, file.drive)
+    ghost_picture = resolve_db_path_conflict(db, new_rel, file.drive)
 
     old_full.rename(new_full)
 
     try:
-        if file.file_type == "video" and file.thumbnail_path:
-            new_stem = Path(new_filename).stem
-            new_thumb_rel = (
-                f"{file.drive}/{file.folder_path}/{new_stem}.jpg"
-                if file.folder_path
-                else f"{file.drive}/{new_stem}.jpg"
-            )
-            _move_thumbnail(file, new_thumb_rel)
-            file.thumbnail_path = new_thumb_rel
-
         file.filename = new_filename
         file.file_path = new_rel
         file.title = _filename_to_title(new_filename)
@@ -448,6 +403,7 @@ def rename_file(db: Session, file_id: str, new_filename: str) -> File:
             detail=f"Rename failed (DB error, filesystem reversed): {exc}",
         ) from exc
 
+    remove_thumbnail_quietly(ghost_picture)
     _carry_sidecars(file, old_full, new_full)
 
     # Best-effort: a rewrite failure must NOT roll back the user-visible rename
@@ -498,21 +454,12 @@ def move_file(db: Session, file_id: str, target_drive: str | None, target_folder
     if not old_full.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
 
-    resolve_db_path_conflict(db, new_rel, dst_drive)
+    ghost_picture = resolve_db_path_conflict(db, new_rel, dst_drive)
 
     new_full.parent.mkdir(parents=True, exist_ok=True)
     shutil.move(str(old_full), str(new_full))
 
     try:
-        if file.file_type == "video" and file.thumbnail_path:
-            new_thumb_rel = (
-                f"{dst_drive}/{target_folder}/{file.filename.rsplit('.', 1)[0]}.jpg"
-                if target_folder
-                else f"{dst_drive}/{file.filename.rsplit('.', 1)[0]}.jpg"
-            )
-            _move_thumbnail(file, new_thumb_rel)
-            file.thumbnail_path = new_thumb_rel
-
         old_drive = file.drive
         old_folder = file.folder_path
         retarget_file_tags(db, file, old_drive, dst_drive)
@@ -538,6 +485,7 @@ def move_file(db: Session, file_id: str, target_drive: str | None, target_folder
             detail=f"Move failed (DB error, filesystem reversed): {exc}",
         ) from exc
 
+    remove_thumbnail_quietly(ghost_picture)
     _carry_sidecars(file, old_full, new_full)
 
     db.refresh(file)
@@ -603,28 +551,6 @@ def _update_folder_paths(
             "old_prefix": old_prefix + "%",
         },
     )
-
-    files_in_folder = (
-        db.query(File)
-        .filter(
-            File.drive == drive,
-            (File.folder_path == new_path) | File.folder_path.like(new_path + "/%"),
-        )
-        .all()
-    )
-    for f in files_in_folder:
-        if f.file_type == "video" and f.thumbnail_path:
-            old_thumb = config.THUMBNAILS_DIR / f.thumbnail_path
-            new_thumb_rel = (
-                f"{drive}/{f.folder_path}/{Path(f.filename).stem}.jpg"
-                if f.folder_path
-                else f"{drive}/{Path(f.filename).stem}.jpg"
-            )
-            new_thumb = config.THUMBNAILS_DIR / new_thumb_rel
-            if old_thumb.exists():
-                new_thumb.parent.mkdir(parents=True, exist_ok=True)
-                old_thumb.rename(new_thumb)
-            f.thumbnail_path = new_thumb_rel
 
     db.execute(
         text("""
@@ -713,7 +639,7 @@ def physical_delete(db: Session, file: File) -> None:
         thumb = config.THUMBNAILS_DIR / file.thumbnail_path
         if thumb.exists():
             thumb.unlink()
-            _cleanup_empty_parents(thumb.parent, config.THUMBNAILS_DIR)
+            prune_empty_dirs(thumb.parent, config.THUMBNAILS_DIR)
 
     cleanup_heic_cache(str(full_path.resolve()), config.CONVERTED_DIR)
 
@@ -1140,16 +1066,6 @@ def _carry_batch_sidecars(
 def _update_file_after_rename(
     file: File, new_name: str, new_rel: str, drive_path: Path
 ) -> None:
-    if file.file_type == "video" and file.thumbnail_path:
-        new_stem = Path(new_name).stem
-        new_thumb_rel = (
-            f"{file.drive}/{file.folder_path}/{new_stem}.jpg"
-            if file.folder_path
-            else f"{file.drive}/{new_stem}.jpg"
-        )
-        _move_thumbnail(file, new_thumb_rel)
-        file.thumbnail_path = new_thumb_rel
-
     file.filename = new_name
     file.file_path = new_rel
     file.title = _filename_to_title(new_name)

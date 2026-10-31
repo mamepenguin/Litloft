@@ -24,6 +24,7 @@ from app.routers import addon_proxy, admin_config, drive_policies, internal, sma
 from app.services.fileops import physical_delete
 from app.services.scanner import scan_all_drives
 from app.services import addon_registry, drive_seed, event_hooks
+from app.services.thumbnail_migration import migrate_thumbnail_slots
 from app.services.upload import cleanup_abandoned_uploads
 from app.services.ws import set_event_loop
 
@@ -272,6 +273,10 @@ async def lifespan(app: FastAPI):
     cleanup_abandoned_uploads()
     from app.services.markdown_image_import import initialize_interrupted_jobs
     initialize_interrupted_jobs()
+    try:
+        await asyncio.to_thread(migrate_thumbnail_slots, SessionLocal)
+    except Exception:
+        logger.exception("Thumbnail migration failed; startup continues")
     asyncio.create_task(scan_all_drives())
     logger.info("Background scan started for all drives")
     asyncio.create_task(purge_expired_trash())

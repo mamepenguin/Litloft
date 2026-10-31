@@ -206,6 +206,9 @@ ROLES = {
         # `rename(2)` returns EBUSY. Neither belongs behind a promise that a
         # destination is never seen half-written.
         "app/services/config_writer.py",
+        # Moves an already-complete cache file to its slot; no contents are
+        # published, and the module holds no generators.
+        "app/services/thumbnail_migration.py",
     }),
     # `tmp.replace(dst)` — `Path.replace` takes one argument, which is what
     # tells it apart from `str.replace`.

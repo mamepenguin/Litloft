@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2-TEST-1",
+      "status": "confirmed",
+      "note": "By reading. fileops.py:330, :406 and :488 and upload.py:364 remove the picture after the commit. test_thumbnail_slots.py:427 is the only trashed-ghost failure test and it drives move only. The parametrised test at :369-403 asserts success only. A name search across backend/tests for ghost or trashed tests with a failure finds only that test and test_copy.py:507, whose ghost is a Missing row with no picture (test_copy.py:531-541). test_upload.py has no ghost test. A removal moved before the commit in rename, copy or upload would not be caught by the tests read. The mutation was predicted, not run."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2-TEST-2",
+      "status": "confirmed",
+      "note": "The line references hold: thumbnail_migration.py:85, 93, 101, 114, 119, 122 and 125. No test in backend/tests calls migrate_thumbnail_slots directly or reads its return value. slow_migrate at test_thumbnail_slots.py:935-939 passes the value on without asserting it. The caplog tests at :992-998, :1018-1024 and :1039-1043 count messages containing the path, at WARNING level, so the INFO summary line is never checked. Searches for 'Thumbnail migration' and 'moved %' in backend/tests find nothing. The only observed numbers are the manual runs in decisions.md."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2-TEST-3",
+      "status": "confirmed",
+      "note": "thumbnail_migration.py:28 catches NotADirectoryError. No file in backend/tests mentions NotADirectory. test_absent_file_* at test_thumbnail_slots.py:786-807 leave the parent directory missing, which raises FileNotFoundError. Without this arm the error falls to :30-31, returns unknown and keeps the pointer with a warning at every startup, instead of emptying or repointing it, so the claim about what it decides holds. The prediction was not run."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2-TEST-4",
+      "status": "confirmed",
+      "note": "upload.py:360-363 is the branch, and spec section 2 states the case. test_upload.py's only commit matches are the seeding calls at :416 and :429. The session-commit replacements in backend/tests are test_trash_purge_loop.py:479 and :513, test_markdown_image_import.py:694 and test_thumbnail_slots.py:912, and none goes through complete_upload. The upload tests at test_thumbnail_slots.py:177, :222-264 and :455 all reach a successful commit."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2-MIG-1",
+      "status": "confirmed",
+      "note": "thumbnail_migration.py:32-33 and :82-87 behave as claimed, and scanner.py:161-164 with :501 skips the row. Spec section 3's states and section 2's failure list do not contain this outcome, and invariants.md has an empty Revisions section. The group key ('unknown', rel) can hold several rows, which contradicts section 3's 'names its own file alone'. Qualification: 'no way out' means no way inside the app. Purge also fails, because fileops.py:640-641 calls unlink on the directory. Removing the directory by hand makes the next startup treat the row as absent. A stat error recovers by itself at the next startup (test_thumbnail_slots.py:1026-1029). I found no ordinary way to get a directory at a pointer's path, since the pointer's own cache file would occupy it."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2-TP-1",
+      "status": "confirmed",
+      "note": "main.py:27 imports from thumbnail_migration, and the spec's touch points (line 211) place the step in thumbnail.py. The module is not listed there. invariants.md lines 1-3 hold an empty Revisions section, so the departures r1 listed (TP-1, TP-3, TP-4 in r1/triage.md) are also unrecorded. test_atomic_write.py:209-211 now exempts the new module, and the os.replace search of thumbnail.py finds none. The move itself matches a fix r1 proposed."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "TEST-3",
+      "status": "confirmed",
+      "note": "Traced with _is_slot_or_empty removed from scanner.py:501. test_path_form_row_is_left_alone (test_thumbnail_slots.py:638-652) has an existing file, so :503 is false. Its PNG mime and stored bytes \\xff\\xd8l fail the signature at :215, and image_width is None at :180, because the backfill at :544 runs later. The pointer and bytes stay as asserted. Other path-form scans do not decide it: test_markdown_images.py:256-283 asserts the note's pointer, and its source file is a JPEG with an existing thumbnail. test_missing.py:84 and :288 have the file gone, so those rows are not in this branch. The restart tests in test_thumbnail_slots.py, including the absent-file case at :897-925, do not scan, because conftest.py:134-140 replaces main.scan_all_drives with a no-op. Scan seeds in test_transparent_thumbnails.py and test_scanner_move_detection.py use registered or .by-id values per search hits. The mutation was predicted, not run."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "TEST-4",
+      "status": "confirmed",
+      "note": "upload.py:360-364 is as cited. The ghost success test at test_thumbnail_slots.py:455-472 is the only upload-over-ghost test. Searches confirm the listed commit replacements and no commit-failure, SQLAlchemyError or untrack_empty_folder injection in test_upload.py. Spec section 2 and I13 both state the behaviour left untested."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "TEST-5",
+      "status": "confirmed",
+      "note": "Same gap as R2-TEST-3. The other citations hold: test_a_stat_that_fails uses PermissionError at test_thumbnail_slots.py:1014, and test_unavailable_cache at :591-604 seeds a .by-id pointer, which _is_path_form excludes, and does not restart. No other test places a file where a path-form pointer's parent should be, per the search for 'not a directory' and NotADirectory."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "MIG-2",
+      "status": "confirmed",
+      "note": "thumbnail_migration.py:30-33 and :82-87, spec sections 1 and 3, and the empty Revisions section are as cited. r1/triage.md lists both cases under needs-a-human, and decisions.md holds no human decision on them. Qualifications: the 500s recorded in decisions.md run 2 item 2 came from the PermissionError case, not a directory. Whether a directory counts as 'absent' under I10 is an interpretation, though no spec text keeps its pointer. routers/files.py:1195 does use exists(), so a directory is passed on to _revalidating_image."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "CONC-1",
+      "status": "confirmed",
+      "note": "upload.py:278-280 flushes a DELETE, and generation runs at :290 before the commit at :359. A copy of the pre-change code in the main checkout, whose commit is not confirmed as origin/develop, generates at lines 257-272 before the lookup. database.py:15-27 and config.py:10 set no timeout, and no busy_timeout is set in database.py or config.py. Generators have subprocess timeouts of 30 to 60 seconds (thumbnail.py:32, :62, :126, :206, :463), which bounds the hold. Reach is narrow: init_upload answers 409 while the trashed file is still on disk (decisions.md item 7), so this needs a trashed row whose file has already gone. The 5-second sqlite3 default and the behaviour under contention were not exercised."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "SCOPE-1",
+      "status": "confirmed",
+      "note": "Duplicate in substance of R2-TP-1. thumbnail_migration.py:109 is the only os.replace in that module. fileops.py:325 and :642 use prune_empty_dirs, and fileops.py no longer has _cleanup_empty_parents. The touch points do not list physical_delete. Comparing the main checkout's fileops.py:119-126 with thumbnail.py:624-631 shows the same walk and stop on OSError, so behaviour is unchanged by reading."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "LOG-1",
+      "status": "confirmed",
+      "note": "thumbnail_migration.py:83-84 discards the id and logs only the path. Spec section 8 requires each failed row's warning to name the row and the path, and :111-113 does name both. The tests at test_thumbnail_slots.py:1024 and :1043 check only the path, so they would not catch this."
+    }
+  ],
+  "specification_compliance": [
+    "All 13 listed findings match the code at the checked-out tree, with the qualifications in their notes.",
+    "I13: the code removes the ghost's picture after the commit in copy, rename, move and upload. Only the move failure half is tested.",
+    "Spec section 8's warning that names the row and the path is met for os.replace failures (thumbnail_migration.py:111-113), not for the unknown state (:83-84).",
+    "The unknown migration state has no support in the spec or in a recorded revision."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Migration keeps the pointer for a stat error or a non-regular file (thumbnail_migration.py:30-33, :82-87). r1 sent this question to a human, and no decision is recorded.",
+    "Purging a row whose pointer names a directory raises at fileops.py:641, because unlink is called on a directory, and the migration now keeps such pointers. No ordinary way to reach this was found.",
+    "An upload over a reused row whose commit fails leaves the slot already rewritten, since upload.py:361 removes the new slot only when there is no reused row. The spec states only the new-id case. The target file also stays on disk, so a later scan would match the picture for a .by-id row."
+  ],
+  "regression_risks": [
+    "Upload's ghost and new-slot failure branch can change without a test failing (TEST-4, R2-TEST-1).",
+    "The migration summary counts can drift without a test failing (R2-TEST-2).",
+    "Removing or weakening the scan's path-form guard would not fail the I16 test (TEST-3).",
+    "Other writers can wait on the SQLite write lock during generation when an upload replaces a trashed ghost (CONC-1)."
+  ],
+  "test_coverage": [
+    "Read test_thumbnail_slots.py's ghost, scan-branch and migration sections and the conftest client fixture. conftest.py:134-140 stubs the startup scan, so lifespan restarts in these tests never exercise the scan's guard.",
+    "Missing tests confirmed by search and reading: I13 failure for rename, copy and upload; upload commit failure; migration counts; NotADirectoryError; and a path-form row whose file is absent, or that has a transparent source or letterboxed dimensions, in a scan."
+  ],
+  "not_verified": [
+    "Nothing was run: no tests, mutations or application. Every mutation outcome is predicted from reading.",
+    "Git objects were not read. The worktree was taken as commit 134c1042a from the status snapshot and r2/head.txt, and the base comparison used the main checkout, whose commit was not confirmed.",
+    "Not every test body that sets deleted_at or scans was read. Coverage outside the files named comes from pattern searches.",
+    "Starlette's FileResponse behaviour for a directory with a supplied stat result was not read, nor was a directory case run.",
+    "The evidence directory cited in decisions.md is outside this worktree and was not checked.",
+    "SQLite lock contention and the driver's 5-second default were not exercised, and the default comes from memory of the Python documentation."
+  ],
+  "confidence": 88
+}

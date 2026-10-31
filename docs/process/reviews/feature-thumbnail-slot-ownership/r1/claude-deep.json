@@ -1,0 +1,178 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The diff edits docs/developer-guide/architecture.md, which is not in the touch-point list.",
+      "impact": "No user effect. The sentence describes the code correctly (.by-id slots, Markdown projections under <drive>/.markdown/). Only the list of planned reach is incomplete.",
+      "evidence": "docs/developer-guide/architecture.md:45 gains the `.by-id/<file id>.jpg` sentence. The spec's documentation touch points name only docs/specs/INDEX.md, docs/developer-guide/known-issues.md and docs/admin-guide/monitoring.md.",
+      "repro": "Compare the diff's file list with the spec's Touch points section.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Unplanned reach with no invariant at risk. It breaks no declared invariant and is a candidate for a touch-point revision only.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Record the file in a touch-point revision. The text needs no change."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The diff adds app/services/thumbnail.py to the `rename-by-os` allow-list of the detector in backend/tests/test_atomic_write.py, a test edit the touch-point list does not cover.",
+      "impact": "The exemption covers the whole file, and that file holds every thumbnail generator. A later `os.replace` that publishes a half-written thumbnail from thumbnail.py would pass test_no_write_publishes_a_file_outside_the_helper, which is the mistake the detector exists to catch. Nothing is wrong at runtime today.",
+      "evidence": "backend/tests/test_atomic_write.py:209-211 adds the entry. backend/app/services/thumbnail.py:782 is the only os.replace in that module and moves a complete file. The spec's test rules cover the listed deletions, one rewrite, and changes to path-form values only.",
+      "repro": "not_reproduced. By reading: with the entry in place, a second `os.replace(tmp, dst)` in thumbnail.py leaves `_files_by_role()` unchanged, so the assertion at test_atomic_write.py:278 still passes.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The test's own comment allows a file to be written down with its reason, so this breaks no invariant. It is still a widened check outside the planned reach, and a person should accept it.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Have a human accept the entry through a touch-point revision, or move the migration's os.replace into a module with no generators so the exemption does not cover them."
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "test_spec_core_006_a_shared_slot_is_never_written drops an assertion and now forces the shared pointer by hand, which goes beyond the touch-point rule that other tests change a path-form value only.",
+      "impact": "The test no longer shows that two rows can reach one slot through registration, only that the guard works once that state is seeded. The state is now unreachable through registration, so the guard is exercised on a fabricated row. No user effect today.",
+      "evidence": "backend/tests/test_transparent_thumbnails.py:720-721 replaces `assert png_row.thumbnail_path == jpg_row.thumbnail_path` with `jpg_row.thumbnail_path = png_row.thumbnail_path` and a commit. The spec's tests touch point says any other test 'changes that value only'.",
+      "repro": "Read the diff hunk at test_transparent_thumbnails.py:717.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a test-rule deviation outside the plan. SPEC-CORE-006 I11 is still exercised and no declared invariant is broken.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Record the rewrite in a touch-point revision, or delete the test and the redundant check together under a later spec."
+    },
+    {
+      "id": "TP-4",
+      "origin": "reviewer",
+      "claim": "test_a_copy_onto_a_missing_record_at_the_drive_root has its assertion inverted from `is None` to the retained path, a rewrite the touch-point list does not name.",
+      "impact": "The new expectation matches the spec's statement that a retired row keeps its own picture, so no behaviour is wrong. The list of rewritten tests names only test_thumbnail_relocated_on_move, so an approver reading it would not know this expectation changed.",
+      "evidence": "backend/tests/test_copy.py:796 asserts `db.get(File, ghost_id).thumbnail_path == root_thumb_rel`; it previously asserted `is None`. The expected value changed from empty to a path, and the docstring at test_copy.py:757 was also reworded.",
+      "repro": "Read the diff hunk at test_copy.py:792.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Unplanned test rewrite whose new behaviour agrees with the spec. No invariant is broken.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Record it in a touch-point revision. The assertion stays."
+    },
+    {
+      "id": "TEST-1",
+      "origin": "reviewer",
+      "claim": "No test covers removal of a trashed ghost's picture by rename_file or copy_file, although I13 names both.",
+      "impact": "Deleting either removal call would leave every test green, and each such operation would then strand the ghost's picture permanently, because the row is gone and nothing lists .by-id. It costs disk and passes silently.",
+      "evidence": "backend/app/services/fileops.py:336 (copy) and :412 (rename) make the calls. test_thumbnail_slots.py covers only a move and an upload over a trashed ghost. A search of backend/tests/test_copy.py for `deleted_at =` and `state=\"trash\"` finds nothing, and no other test file reached by my search seeds a trashed ghost with a picture for these two operations. test_purge_orphan_tags.py:148 calls resolve_db_path_conflict directly on a ghost and expects None.",
+      "repro": "not_reproduced (I cannot run tests). Predicted mutation: delete fileops.py:336 or fileops.py:412; all tests still pass.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The code as read satisfies I13, so the invariant is not broken. The gap is a test that would let a regression through.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Parametrise test_trashed_ghost_picture_is_removed_when_a_move_takes_its_path over rename and copy."
+    },
+    {
+      "id": "TEST-2",
+      "origin": "reviewer",
+      "claim": "No test covers the failed-commit half of I17, the slot cleanup after register_single_file returns in Markdown image import.",
+      "impact": "Removing the cleanup would leave every test green, and a commit failure during import would strand a slot under an id no row holds. It costs disk only, but this branch is the one the change replaced, and the old unlink is gone.",
+      "evidence": "backend/app/services/markdown_image_import.py:424-425 is the branch. test_markdown_image_import.py:650-674 replaces register_single_file with a function that raises, so asset_id stays None and the branch is not entered. That test also does not check the thumbnail directory. test_thumbnail_slots.py's I17 test calls register_single_file directly and never reaches the importer.",
+      "repro": "not_reproduced (I cannot run tests). Predicted mutation: delete markdown_image_import.py:424-425; all tests still pass.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The code as read satisfies I17. This is a coverage gap on a declared invariant.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Add an importer test where register_single_file succeeds on a real image and the session's commit raises, then assert that neither the asset nor the slot remains."
+    },
+    {
+      "id": "MIG-1",
+      "origin": "reviewer",
+      "claim": "The migration treats any stat failure as 'file absent', so a stat error other than not-found empties the pointer of a row whose picture still exists.",
+      "impact": "A permission or I/O error on the cache at the first startup empties those pointers silently, and the run counts them as `emptied`, not `failed`. The old files stay at paths no row names, and the next run has nothing to retry. A `.loft` then needs Refresh metadata and loses its picture for good if the remote one has gone. It needs a faulty cache mount at upgrade time, so it is not ordinary use.",
+      "evidence": "backend/app/services/thumbnail.py:707-710 returns (\"absent\", rel) on any OSError. thumbnail.py:793-798 then repoints or empties the row. The spec's grouping and I10 speak of a file that does not exist, while I9 keeps the pointer only when os.replace fails.",
+      "repro": "not_reproduced. By reading: make `<thumbs>/<drive>` unsearchable before startup, and stat raises PermissionError for each row under it, so a sole-owner row with no slot gets an empty pointer.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "A cache mount failing at the upgrade is outside normal use and no declared invariant covers a stat error. It still reads wrong because retryable failures are handled destructively.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Treat only FileNotFoundError and NotADirectoryError as absent. For any other OSError, keep the pointer, log a warning and count the row as failed, as I9 does for os.replace."
+    }
+  ],
+  "specification_compliance": [
+    "Answer to the first-review question: the diff reaches four places outside the touch-point list: docs/developer-guide/architecture.md (TP-1), the allow-list in backend/tests/test_atomic_write.py (TP-2), the rewritten assertion in test_transparent_thumbnails.py (TP-3) and the inverted assertion in test_copy.py (TP-4).",
+    "backend/tests/test_thumbnail_slots.py is new and not named, but it falls under the `backend/tests/` touch point and carries the spec's invariant tests, so I did not raise it.",
+    "The six deleted tests match the spec's list exactly. test_scanner_move_detection is the one listed rewrite. The changes in test_upload.py and the two `endswith` assertions in test_transparent_thumbnails.py only change expected path values.",
+    "_is_flattened_transparent_picture keeps its check of other rows, as spec section 7 requires. Only its docstring changed, so I raised nothing.",
+    "Read against the code, the core invariants I1-I14 and I16-I21 hold. I15's migration half holds. Its Media Import half is not in this commit: addons/media_import/backend/service.py:606-622 still writes the path form, which the Delivery section expects for the old pin.",
+    "Submodules: no addon or test imports the removed path_thumbnail_rel, _move_thumbnail, _relocate_thumbnail or _expected_thumbnail_path, and no addon calls resolve_db_path_conflict. Media Import's register_single_file callers register .loft files, which have no generator, so no slot is written for them there.",
+    "Persistence: _set_pointer holds updated_at (thumbnail.py:727). Renames commit every 200 rows, and an uncommitted rename is repointed on the next run through the absent-file-with-slot branch. A shared group commits its emptied pointers before unlinking.",
+    "Concurrency: main.py:276-280 awaits the migration before the scan task, addon startup and yield. The Dockerfile starts uvicorn with one worker, so two migrations cannot race. The batch routers roll back on every exception (routers/files.py:368, 373, 509, 519), so a flushed ghost delete cannot ride out on the next file's commit, and I13's failure half holds for batches."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "A stat error other than not-found counts as an absent file during migration (MIG-1).",
+    "Two rows naming one absent path string form a shared group and are both emptied, even if each has a slot file, whereas I10's wording repoints a row with an existing slot. I found no ordinary way to reach this: a shared group commits its emptied pointers before unlinking, so a stopped run cannot produce it. An existing slot would be stranded, and a .loft would lose its picture.",
+    "A scan-detected move of a row with an empty or dangling .by-id pointer no longer generates in that scan, because _relocate_thumbnail is gone. The placeholder stays until the next scan. This agrees with I3 and I16, but the spec does not state the one-scan delay."
+  ],
+  "regression_risks": [
+    "prune_empty_dirs and physical_delete's _cleanup_empty_parents can remove .by-id when its last slot goes. A generator between _atomic's mkdir and mkstemp would then get FileNotFoundError, and in a scan that is uncaught. The window is very narrow and needs a nearly empty cache.",
+    "The old-pin delivery window: the decisions record shows Media Import's 30-second caption retry rewriting .loft rows to path form with a new mtime and ETag, and each later startup moves them again until the addon PR lands. The spec expects this, but it means I7's same-ETag result does not hold across that retry.",
+    "Grouping relies on st_dev and st_ino being stable and unique on the cache mount. A mount that reuses inode numbers would treat sole owners as shared and delete their pictures. The recorded Compose upgrade shows the expected counts on the one mount it ran on."
+  ],
+  "test_coverage": [
+    "Covered by read tests: I1, I2, I3 (all operations and types, including scan-detected moves), I4, I5, I6, I7, I8, I9, I10, I12, I16, I19, I20 and I21, plus the path-form selection part of I11 and the migration half of I15.",
+    "Gap: I13 for rename and copy (TEST-1). I13's failure half is tested only for a move.",
+    "Gap: I17's failed-commit half (TEST-2).",
+    "Gap: I11's second half, a projection serving after its source migrates with no re-copy, has no automated test. It rests on the preserved mtime tested under I7 and on the manual run in decisions.md.",
+    "Gap: I14 is tested only for a Missing row, not an Active row whose file vanished. Both take the same branch in upload.py:307.",
+    "Gap: the spec's failure case 'upload with a new id, the commit fails: the slot is removed' (upload.py:360-362) has no test I could find in test_upload.py or test_thumbnail_slots.py.",
+    "I18 asserts only thumbnail_path, not the whole field set, but routers/internal.py is unchanged."
+  ],
+  "not_verified": [
+    "I ran nothing: no tests, mutations or application. Every mutation outcome here is predicted from reading the code.",
+    "The Media Import half of I15 and SPEC-ADDON-040, which are not at this commit.",
+    "Migration timing on a Docker Desktop bind mount and the healthcheck-window claim in monitoring.md.",
+    "Inode stability on real case-folding or FUSE cache mounts.",
+    "Frontend behaviour beyond confirming that media_import's frontend uses thumbnail_path only as a truthy check in the two components I found.",
+    "The full body of the Intelligence reconcile; I read only the path resolver and the grep results of the sync code.",
+    "That no test outside the files I searched seeds a trashed ghost with a picture for rename or copy; my search covered test_copy.py and the test_{fileops,rename*,upload*,purge*,batch*}.py files."
+  ],
+  "confidence": 82,
+  "perspectives": [
+    {
+      "name": "scope",
+      "notes": "I compared the diff's file list and test hunks with the touch points. Four unlisted places are reported as TP-1 to TP-4, and the six deletions match the list."
+    },
+    {
+      "name": "submodules",
+      "notes": "I searched for addon use of the removed helpers and resolve_db_path_conflict and found none. The media_import writer still uses the path form, as Delivery expects. Intelligence treats the pointer as an opaque path under its mount."
+    },
+    {
+      "name": "persistence",
+      "notes": "I traced migration commits, crash recovery, updated_at preservation and ghost removal after commit. The only weakness found is stat errors counted as absent (MIG-1)."
+    },
+    {
+      "name": "concurrency",
+      "notes": "I checked the lifespan ordering, the single uvicorn worker, batch-router rollbacks and slot write ordering in copy and upload. The remaining .by-id prune race is listed as a regression risk."
+    }
+  ]
+}
