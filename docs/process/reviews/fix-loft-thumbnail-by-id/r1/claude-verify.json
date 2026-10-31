@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "V1-partial-download-truncates-live-by-id-slot",
+      "origin": "verifier",
+      "claim": "A refresh whose thumbnail download fails mid-transfer overwrites the live slot in place, so a row with a `.by-id` pointer keeps its pointer but can name a truncated picture, while `_save_loft_thumbnail` reports the failure as if nothing had changed.",
+      "impact": "A connection dropped during Refresh metadata or the startup caption retry can silently leave a card with a partial picture. It needs no misuse, only a short read. No test covers it. The next successful download repairs it.",
+      "evidence": "addons/media_import/backend/service.py:545 calls `urllib.request.urlretrieve(thumbnail_url, str(dest))` directly on the slot path, with no temporary file. service.py:547-549 catches the exception and returns False. service.py:611-612 then returns None without touching the pointer. Core writes its generated slots through `write_thumbnail_atomically` (backend/app/services/thumbnail.py:611 uses `generating_file`), which this path does not use. docs/specs/thumbnail-slot-ownership.md section 5 says the download's failure handling is unchanged, and the non-atomic download is not new in this change.",
+      "repro": "not_reproduced: read-only verifier, no commands available. Code trace only: `urlretrieve` opens the destination for writing before it copies the body, and raises `ContentTooShortError` on a short body after those bytes are written. A 404 raises before the destination is opened, so it does not damage the slot.",
+      "introduced": "pre-existing",
+      "bucket_proposal": {
+        "bucket": "C",
+        "reason": "Normal-use failure inside the threat model, but the non-atomic write predates this change and the spec keeps the download's failure handling unchanged, so it is follow-up material rather than a defect of this commit.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Download to a temporary file beside the slot and `os.replace` it on success, or reuse core's atomic write helper."
+    }
+  ],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1-unlink-oserror-aborts-link-fetch",
+      "status": "confirmed",
+      "note": "Traced by reading; not executed. service.py:621 commits the pointer, then service.py:624-625 unlinks with no try. The call at service.py:923 has no local handler. The only handlers are service.py:1022-1024 (rollback and re-raise) and service.py:780-782 (status `error`), so the upsert at 933-963, captions at 965-1009 and the `files.updated` emit at 1016-1020 are all skipped. Core's `remove_thumbnail_quietly` at thumbnail.py:634-643 absorbs OSError, and core's upload path uses it for the same case (upload.py:366). The touch-point list names `_save_loft_thumbnail` but not `_fetch_and_update`. Subscription claim holds: `register_single_file` inserts a new id (scanner.py:331) and `get_thumbnail_generator` returns None for `.loft` (thumbnail.py:650-651), so the new row has no old pointer, and subscription/db.py only reads `thumbnail_path`. Two limits on the impact: the failure is logged by `logger.exception`, so it is not silent, and it needs an unlink error on a cache where the slot write just succeeded. A later refresh sees old_rel == slot and skips the unlink, so the fetch recovers and the old file stays stranded."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2-download-failure-test-is-vacuous",
+      "status": "confirmed",
+      "note": "Read test_loft_thumbnail.py in full. The only failed-download test, lines 180-201, seeds f5 with a NULL pointer and no old file, and asserts NULL. Tests at 225-265 and 267-301 both use a successful download. test_subscription_manager.py patches `_download_thumbnail_sync` at 394, 435 and 483, all returning success or with no URL. No test makes a commit fail. By inspection (mutants not run), clearing the pointer on failure, or unlinking the old file before the download or before the commit, would keep all these tests green. decisions.md:8 records that the failure of a thumbnail download was not exercised. This is a test gap: the current code does not lose the pointer or old picture on a failed download, because service.py:611-612 returns before the DB block. See V1 for a separate mid-transfer effect on the slot itself."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3-stale-manager-comment-and-dead-parameters",
+      "status": "confirmed",
+      "note": "manager.py:702-707 still says the thumb_rel must match the on-disk filename for the core endpoint to find it, and manager.py:720 still passes `loft_path.name`. service.py:606 derives the slot from `file_id` alone, and `drive`, `folder_path` and `filename` (service.py:578-580) are not read in the body at 603-626. Callers at service.py:925-927 and manager.py:718-720 still pass them. The spec's touch points list `service.py` and two test files for the addon, not `subscription/manager.py`. It has no runtime effect."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F4-new-tests-write-to-process-wide-thumbnail-cache",
+      "status": "confirmed",
+      "note": "addons/media_import/backend/tests/conftest.py:17-99 never patches `THUMBNAILS_DIR`, and no other conftest applying to these tests does: backend/tests/conftest.py patches it at 123-124 only for core's own `client` fixture, and addons/media_import/Dockerfile.test copies only the addon's tests. config.py:8,11 derives it from `DATA_DIR`, default `./data`. test_loft_thumbnail.py:236-239 seeds `d/yt/Old.jpg` there, and the fakes at 80-85, 250-254 and 289-292 write slots there. Limit on the impact: Dockerfile.test copies the tree into the image and CI runs `docker run --rm` without mounting data, so there the files go to a throwaway container. Only a run from a checkout with the default `DATA_DIR` would reach the checkout's `./data`."
+    }
+  ],
+  "specification_compliance": [
+    "SPEC-ADDON-040 / I15: `_save_loft_thumbnail` writes to `thumbnail_slot_rel(file_id)` and stores that pointer (service.py:606-620), as the spec's normal flow requires.",
+    "Spec section 1 and the states table: a Media Import save over a path-form or `.markdown` pointer removes the old file when the pointer changes (service.py:624-625), and a re-save to the same slot keeps it.",
+    "Spec section 5: download failure handling is unchanged (service.py:534-549, 611-612)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The spec's failure cases do not say what happens when Media Import fails to remove the old picture. The code lets the OSError propagate, while the spec's nearest rule, for trashed ghosts, says a removal failure logs a warning and changes nothing else.",
+    "The old-picture removal does not prune an emptied directory, unlike `remove_thumbnail_quietly`. The spec requires pruning only during migration, and decisions.md:7 records the emptied directory staying in the cache."
+  ],
+  "regression_risks": [
+    "A cache unlink error during Refresh metadata now skips the metadata upsert, captions and the `files.updated` emit (F1).",
+    "The removal and failed-refresh paths rest on one successful-download test, so a reorder of the commit and unlink would not be caught (F2).",
+    "A mid-transfer download failure can truncate a live `.by-id` slot (V1, pre-existing)."
+  ],
+  "test_coverage": [
+    "Covered: slot path on success with and without a folder, NFD filename, path-form pointer replaced and old file removed, by-id pointer rewritten in place, no URL, missing row, and subscription imports getting their own slots.",
+    "Not covered: failed download on a row with an existing pointer or picture, commit failure before removal, unlink OSError, and a partial download.",
+    "No test isolates `THUMBNAILS_DIR` per test (F4)."
+  ],
+  "not_verified": [
+    "Nothing was executed: no tests, mutants or reproductions were run, because only Read, Glob and Grep are available. Every record rests on reading the code.",
+    "The working tree was read rather than the commit object; it was assumed to match c55aa33e, including the addon submodule at its pin, based on the clean git status snapshot.",
+    "`urlretrieve` behaviour in V1 comes from knowledge of the Python standard library, not from running it or reading its source in this environment.",
+    "How an `error` item status reaches the user in the UI, and how the `.gitignore` treats `./data`, were not checked."
+  ],
+  "confidence": 88
+}
