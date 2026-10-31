@@ -236,11 +236,6 @@ does today.
 **Open existing in the Notes page's duplicate notice goes nowhere.** It closes the
 notice without opening the earlier clip. The Add menu's notice opens it.
 
-**Composer: pasting a channel or playlist URL and pressing Enter before its
-classification finishes (about 400 ms) imports it as a single loft instead of
-subscribing.** The Import from URL dialog classifies on submit and is not
-affected.
-
 **Right after a drive switch, the previous drive's addon slots can render with the
 new drive's props.** `AddonSlotsProvider` keeps the old drive's `slots` until the
 new drive's catalogue arrives, so an addon turned off on the new drive (Home's
@@ -260,12 +255,6 @@ the file and the panel shows an empty short summary.
 
 **Short summaries off with detailed summaries on still sends a short summary
 request.** Generating a detailed summary also asks the LLM for the short one.
-
-**Refreshing a video's captions can take another video's subtitle file.** Media
-Import looks for the file yt-dlp wrote as `<title>.*.vtt`, which also matches
-`<title>.<anything>.vtt` belonging to a different video, and may rename it to
-`<title>.vtt` or delete it. Reached when one folder holds an import named
-`Title` and another named `Title.<something>`.
 
 **Renaming a file to a different case of its own name changes only the
 listing.** Litloft shows the new name, but on a Docker Desktop bind mount of a
