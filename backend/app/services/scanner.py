@@ -453,6 +453,15 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
         if is_hidden(item, drive_path):
             continue
         if is_subtitle_file(item.name):
+            # The scanner never creates a row for a subtitle, but an upload
+            # does; without this the row looks unseen and is flagged missing.
+            subtitle_path = unicodedata.normalize("NFC", str(item.relative_to(drive_path)))
+            subtitle_row = existing.get(subtitle_path)
+            if subtitle_row is not None:
+                found_paths.add(subtitle_path)
+                if subtitle_row.missing_since is not None:
+                    subtitle_row.missing_since = None
+                    recovered_ids.append(subtitle_row.id)
             continue
 
         relative_path = unicodedata.normalize("NFC", str(item.relative_to(drive_path)))
