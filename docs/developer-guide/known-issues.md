@@ -264,7 +264,19 @@ Import looks for the file yt-dlp wrote as `<title>.*.vtt`, which also matches
 listing.** Litloft shows the new name, but on a Docker Desktop bind mount of a
 case-insensitive macOS volume the file on disk keeps its old case, because a
 rename that differs only in case does nothing inside the container. The file
-still opens. Reached with `Foo.txt → foo.txt`, single or batch rename.
+still opens. Reached with `Foo.txt → foo.txt`, single or batch rename. A
+video's sidecar subtitles keep the old case and stop matching.
+
+**A subtitle already at the destination is played in place of the video's own.**
+When a video is moved or renamed to a name whose sidecar subtitle exists, the
+video's own sidecar stays behind under the old name and the video plays the file
+already there. The request answers 200 and only a backend warning records it.
+
+**A `.loft` file's sidecar subtitles are listed but not shown.** The detail API
+lists them and the stream serves them, but a YouTube embed showed no caption
+text and sent no request for them, although `viewers-and-players.md` says they
+load for `.loft` too. `LoftEmbedProps` has no field that carries subtitle
+tracks, so no embed is handed them.
 
 **An Ask about files you watched can skip its summary narrowing.** Ask's coarse
 retrieval keeps the drive's 20 best-matching file summaries before it intersects
