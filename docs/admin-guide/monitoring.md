@@ -84,7 +84,7 @@ The first start after this upgrade moves each existing thumbnail to `data/thumbn
 
 - A picture that two or more files used to share (`book.pdf` and `book.epub` in one folder) is removed, and each of those files shows the placeholder until the first scan after the upgrade finishes and draws its own.
 - A `.loft` file that shared a picture with another file keeps the placeholder until you run Refresh metadata on it, which downloads its picture again.
-- A row that logs `Could not move thumbnail` keeps its old picture and is tried again at the next start.
+- A row that logs `Could not move thumbnail` or `Could not examine thumbnail` keeps its old picture and is tried again at the next start.
 - A picture that is already wrong because a same-name file overwrote it earlier stays wrong. Delete its file from `data/thumbnails/.by-id/` and the next scan draws it again.
 
 ### Uploads

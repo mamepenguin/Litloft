@@ -116,6 +116,10 @@ note's tags. Reached by clearing all tags on such a note in the web UI.
 
 **An addon deleting its own relation hides a link the note still has.** If `DELETE /api/internal/file_relations/{id}` removes an `internal` (N, T) row while N links T, the link is not listed until N is saved again; posting (N, T) after the link exists returns 409.
 
+**Finishing an upload of a large video blocks every other request while its thumbnail is generated.** For a 4K file this is about 5 seconds, during which pages, API calls and playback requests wait. Reached by completing an upload of a large video file.
+
+**With an unwritable thumbnail cache, a scan that finds a new file answers 500 and does not register it.** The file is registered by a later scan once `data/thumbnails/` is writable again.
+
 **A zoomed picture in the image or archive viewer is not re-fitted when the
 window changes size or the picture finishes loading.** Rotating a phone while
 zoomed can leave empty space beside the picture until the next drag or pinch,
