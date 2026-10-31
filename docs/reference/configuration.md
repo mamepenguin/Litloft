@@ -132,10 +132,10 @@ Read once when the intelligence container starts, from `SEARCH_CONFIG_PATH` (def
 | `rag` | Top-k, context budgets, retrieval options, personal history |
 | `models` | Whisper, text embedding, CLIP, BLIP model IDs |
 | `search` | Vector/keyword weighting, limits, score floors |
-| `transcription` | Provider (`whisper_local`, `openai_compatible`, `deepgram`, `elevenlabs_scribe`, `assemblyai`, `gemini`) and provider settings |
+| `transcription` | Provider (`whisper_local`, `haas_local`, `openai_compatible`, `deepgram`, `elevenlabs_scribe`, `assemblyai`, `gemini`) and provider settings |
 | `indexing` | Reconciliation interval, frame extraction, text chunking |
 | `workers` | Concurrency and batch sizes |
-| `memory` | Idle-unload thresholds for Whisper and BLIP |
+| `memory` | Idle-unload thresholds for Whisper (and the `haas_local` recognizer) and BLIP |
 
 The intelligence sections of `/admin/settings` save JSON override files in its data directory for `features`, `llm`, `rag`, the embedding model, and the transcription provider. They are merged over the yaml. LLM profiles and routing saved there replace `llm.profiles` and `llm.routing` in the yaml as a whole and apply without a restart. Keys come only from the environment (`LLM_API_KEY`, `LLM_API_KEY_<NAME>`).
 

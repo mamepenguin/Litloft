@@ -17,7 +17,7 @@ The `intelligence` addon adds meaning-based search, Ask (question answering over
 | **Transcript refine** | Corrects transcripts with an LLM | off | yes |
 | **Vision describe** | Image descriptions | manual | yes, with `llm.vision_model` |
 | **Visual index** | A list of described scenes in a video, each one seekable | off | yes, with `llm.vision_model` |
-| **Transcription** | Local faster-Whisper or a cloud provider | local | no |
+| **Transcription** | Local faster-Whisper, the local Japanese-only Haas engine, or a cloud provider | local | no |
 | **Pickup** | A feed of files you have never opened, ranked by your watch history | always | no |
 
 The LLM itself ships disabled (`llm.provider: "disabled"`), so a new install makes no LLM calls until you configure a provider. Features marked "manual" run only when you press a button.
@@ -29,7 +29,7 @@ The addon can send your file content to outside services. Whether it does depend
 - Which [LLM profile](#llm-profiles-and-routing) a feature uses. A profile on your own machine (ollama, or another model on your network) keeps content at home. A profile marked **External server** sends it to that server, and only on drives that allow it (`llm_cloud` below).
 - **Ask** (`features.rag`) sends transcripts and text of the files it retrieves on every question.
 - Vision describe and the visual index send image bytes (and, for the visual index, nearby transcript text) to the vision model.
-- `transcription.provider`: `"whisper_local"` keeps audio local; every other provider sends audio to the cloud.
+- `transcription.provider`: `"whisper_local"` and `"haas_local"` keep audio local; every other provider sends audio to the cloud.
 
 ### Per-drive policy
 
@@ -58,7 +58,7 @@ Each drive can switch features off in its `addons.intelligence` entry in `drives
 | `retrieval_keywords` | No retrieval keywords |
 | `vision_describe` | No image descriptions; existing ones are deleted at the next addon start |
 | `video_visual_index` | No visual index; existing ones are deleted at the next addon start |
-| `transcription_cloud` | The drive uses `whisper_local` even when a cloud provider is configured |
+| `transcription_cloud` | The drive uses a local engine: the configured provider when it is local, otherwise `whisper_local` |
 | `llm_cloud` | No content from the drive goes to an **External server** profile. A feature routed to one uses the local fallback profile instead, or does not run when there is none |
 
 A missing key means on. The [settings GUI](../admin-guide/settings-gui.md#addon-policy) shows only `transcription_cloud`, `chapter_suggestions` and `llm_cloud`; set the others by editing `drives.json`. A change saved in the GUI reaches this addon within about 30 seconds; a hand edit of `drives.json` needs a backend restart.
@@ -322,17 +322,29 @@ Modes (`features.video_visual_index`): `"false"` (default), `"manual"`, `"on_ind
 | Provider | API key | Speakers | Word timestamps | Hotwords |
 |---|---|---|---|---|
 | `whisper_local` (default) | — | no | yes | no |
+| `haas_local` (Japanese only) | — | no | yes | no |
 | `openai_compatible` (OpenAI, Groq, Fireworks, self-hosted) | `OPENAI_API_KEY` | no | yes | no |
 | `deepgram` | `DEEPGRAM_API_KEY` | yes | yes | no |
 | `elevenlabs_scribe` | `ELEVENLABS_API_KEY` | yes | yes | yes |
 | `assemblyai` | `ASSEMBLYAI_API_KEY` | yes | yes | yes |
 | `gemini` | `GEMINI_API_KEY` | no | evenly spaced, not measured | yes, through the prompt |
 
-- `whisper_local` runs on your machine. Everything else sends audio to the cloud.
+- `whisper_local` and `haas_local` run on your machine. Everything else sends audio to the cloud.
 - Large files are converted and split at silences before they are sent, so no provider's upload limit applies. The split size is the provider's limit or 64 MB, whichever is smaller. Change the 64 MB with the `TRANSCRIPTION_MAX_INPUT_MEMORY_BYTES` environment variable on the intelligence container.
 - `transcription.hotwords` is a list of names and terms for providers that support it.
-- `transcription.language_hint` is a language code (`"ja"`, `"en"`) passed to cloud providers. Empty means detect. `whisper_local` always detects.
-- A drive with `transcription_cloud: false` uses `whisper_local` whatever the provider.
+- `transcription.language_hint` is a language code (`"ja"`, `"en"`) passed to cloud providers. Empty means detect. `whisper_local` always detects; `haas_local` ignores it.
+- A drive with `transcription_cloud: false` uses `haas_local` when it is the provider, and `whisper_local` when the provider is a cloud one.
+
+#### `haas_local`
+
+An unofficial community ONNX conversion of Haas-ja-v1.0 (`oboroge0/Haas-ja-v1.0-onnx-quantized`, Apache 2.0), run on the CPU through `sherpa-onnx`. It is several times faster than `whisper_local` on Japanese and sends no audio out. Select it in **Admin > Settings** or with `transcription.provider`, restart, and it applies to files transcribed from then on. Nothing is re-transcribed automatically; use **Regenerate** on the `whisper` task for one file.
+
+- **Japanese only.** Audio in another language is not detected and does not fail: it produces meaningless text, which is indexed, embedded and searched like any transcript. The provider applies to every drive.
+- The model (about 460 MB) downloads from Hugging Face the first time a file is transcribed, so that job takes longer and other transcription waits. It then needs no network. The model stays in `data/addons/intelligence/models/` after you select another provider; delete the `models--oboroge0--Haas-ja-v1.0-onnx-quantized` folder there to fetch it again.
+- Conversational speech comes out with far fewer punctuation marks than Whisper writes, so transcript chunks run longer and subtitle cues break less naturally. Numerals are written as digits and fillers tend to be dropped.
+- `transcription.haas_local.max_segment_seconds` (15 to 120, default 45) is the longest stretch of speech decoded at once. Lowering it lost a clause without any error in measurement; raising it uses more memory (2.66 GB at 120).
+- `transcription.haas_local.num_threads` (at least 1, default 4) is the CPU threads the recognizer uses. A value outside either range is logged and replaced by the default.
+- `memory.whisper_idle_unload` releases the recognizer too.
 
 ## Configuration reference
 
@@ -540,7 +552,7 @@ search:
 
 ```yaml
 transcription:
-  provider: whisper_local   # whisper_local | openai_compatible | deepgram | elevenlabs_scribe | assemblyai | gemini
+  provider: whisper_local   # whisper_local | haas_local | openai_compatible | deepgram | elevenlabs_scribe | assemblyai | gemini
   language_hint: ""         # empty = detect
   hotwords: []
 
@@ -552,6 +564,10 @@ transcription:
     compression_ratio_threshold: 2.0
     no_speech_threshold: 0.45
     log_prob_threshold: -1.0
+
+  haas_local:
+    num_threads: 4
+    max_segment_seconds: 45   # 15 to 120
 
   openai_compatible:
     base_url: https://api.openai.com/v1
@@ -620,7 +636,7 @@ memory:
   clip_concepts_idle_unload: 600
 ```
 
-Whisper, BLIP and the tag vocabulary model are unloaded after this many idle seconds. CLIP and the text embedding model stay loaded because search uses them.
+Whisper (or the `haas_local` recognizer, when that is the provider), BLIP and the tag vocabulary model are unloaded after this many idle seconds. CLIP and the text embedding model stay loaded because search uses them.
 
 ## UI surface
 
