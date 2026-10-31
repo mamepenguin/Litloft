@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship (human, 2026-10-31, "推奨通り", after r2 HUMAN_REVIEW_REQUIRED for unspecified_behavior on the UNSPEC bug fix; CR-2 and CR-3 bucket B accepted as is)
 ran_in_app: yes
 at: 0b277d11b3482bac9f638d8e9a28e03343305240
 by: agent
