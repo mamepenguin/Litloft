@@ -8,7 +8,7 @@ import pytest
 import app.config as config
 import app.services.subtitle as subtitle
 from app.services.scanner import _scan_and_register
-from app.models import File
+from app.models import Comment, File, WatchHistory
 from app.services.subtitle import detect_subtitles
 from tests.test_target_drive_access import (  # noqa: F401  (fixture)
     FIXTURES_DIR,
@@ -241,7 +241,6 @@ class TestBatchRename:
 
 
 def _upload(c, drive, folder, filename, body=b"1\n00:00:00,000 --> 00:00:01,000\nhi\n"):
-    """Upload through the real route, so the row is the one production creates."""
     base = f"/api/drives/{drive}/upload"
     init = c.post(
         f"{base}/init",
@@ -257,128 +256,148 @@ def _upload(c, drive, folder, filename, body=b"1\n00:00:00,000 --> 00:00:01,000\
     assert chunk.status_code == 200, chunk.text
     done = c.post(f"{base}/{upload_id}/complete")
     assert done.status_code == 200, done.text
-    return done.json()["id"]
+    return done.json()
 
 
-def _place(db, row_id):
+def _srt_rows(db):
     db.expire_all()
-    row = db.get(File, row_id)
-    return row.drive, row.folder_path, row.filename, row.file_path
+    return db.query(File).filter(File.filename.like("%.srt")).all()
 
 
-def _rename_to_film(c, row, _locked_dir):
-    _rename(c, row, "film.mp4")
-
-
-def _move_to_b(c, row, _locked_dir):
-    res = c.put(f"/api/files/{row.id}/move", json={"target_folder_path": "b"})
+def _listing(c, folder):
+    res = c.get(f"/api/drives/{OPEN_DRIVE}/files", params={"path": folder})
     assert res.status_code == 200, res.text
+    return sorted(f["filename"] for f in res.json()["data"])
 
 
-def _move_to_locked(c, row, _locked_dir):
-    assert c.post("/api/auth/unlock", json={"password": LOCKED_PASSWORD}).status_code == 200
-    res = c.put(
-        f"/api/files/{row.id}/move",
-        json={"target_drive": LOCKED_DRIVE, "target_folder_path": "z"},
-    )
-    assert res.status_code == 200, res.text
+@pytest.fixture()
+def uploads(monkeypatch, tmp_path):
+    monkeypatch.setattr(config, "UPLOAD_DIR", tmp_path / "uploads")
 
 
-def _batch_rename(c, row, _locked_dir):
-    _batch(c, [row.id], "film")
+@pytest.mark.usefixtures("uploads")
+class TestUploadedSubtitle:
+    def test_upload_beside_a_video_creates_no_row_and_the_video_offers_it(self, two_drives):
+        c, db, open_dir, _ = two_drives
+        row = _seed(db, open_dir)
 
+        answer = _upload(c, OPEN_DRIVE, "a", "movie.srt")
 
-class TestUploadedSubtitleRow:
-    @pytest.mark.parametrize(
-        ("act", "expected"),
-        [
-            (_rename_to_film, (OPEN_DRIVE, "a", "film.srt", "a/film.srt")),
-            (_move_to_b, (OPEN_DRIVE, "b", "movie.srt", "b/movie.srt")),
-            (_move_to_locked, (LOCKED_DRIVE, "z", "movie.srt", "z/movie.srt")),
-            (_batch_rename, (OPEN_DRIVE, "a", "film.srt", "a/film.srt")),
-        ],
-        ids=["rename", "move", "move-across-drives", "batch-rename"],
-    )
-    def test_row_follows_its_file(self, two_drives, monkeypatch, tmp_path, act, expected):
-        c, db, open_dir, locked_dir = two_drives
-        monkeypatch.setattr(config, "UPLOAD_DIR", tmp_path / "uploads")
+        assert answer == {"status": "sidecar", "drive": OPEN_DRIVE, "file_path": "a/movie.srt"}
+        assert (open_dir / "a" / "movie.srt").exists()
+        assert _srt_rows(db) == []
+        assert _listing(c, "a") == ["movie.mp4"]
+        detail = c.get(f"/api/files/{row.id}")
+        assert [t["format"] for t in detail.json()["subtitles"]] == ["srt"]
+
+    @pytest.mark.parametrize("act", ["rename", "move"])
+    def test_the_track_follows_the_video_and_a_rescan_flags_nothing(self, two_drives, act):
+        c, db, open_dir, _ = two_drives
         row = _seed(db, open_dir)
         (open_dir / "b").mkdir()
-        sub_id = _upload(c, OPEN_DRIVE, "a", "movie.srt")
+        _upload(c, OPEN_DRIVE, "a", "movie.srt")
 
-        act(c, row, locked_dir)
+        if act == "rename":
+            _rename(c, row, "film.mp4")
+            moved = "a/film.mp4"
+        else:
+            res = c.put(f"/api/files/{row.id}/move", json={"target_folder_path": "b"})
+            assert res.status_code == 200, res.text
+            moved = "b/movie.mp4"
+        _scan_and_register(db, OPEN_DRIVE)
 
-        assert _place(db, sub_id) == expected
+        assert [p for p, _ in _tracks(open_dir, moved)] == [moved[:-3] + "srt"]
+        assert _srt_rows(db) == []
+        assert db.query(File).filter(File.missing_since.isnot(None)).count() == 0
 
-    def test_row_holding_the_target_path_stays_and_the_rename_succeeds(
-        self, two_drives, monkeypatch, tmp_path
-    ):
+    def test_upload_over_a_path_holding_a_row_removes_the_row(self, two_drives):
         c, db, open_dir, _ = two_drives
-        monkeypatch.setattr(config, "UPLOAD_DIR", tmp_path / "uploads")
-        row = _seed(db, open_dir)
-        sub_id = _upload(c, OPEN_DRIVE, "a", "movie.srt")
-        db.add(File(
-            filename="film.srt", title="film.srt", drive=OPEN_DRIVE, folder_path="a",
-            file_path="a/film.srt", file_size=0, file_type="document", mime_type="text/plain",
+        ghost = File(
+            filename="movie.srt", title="movie.srt", drive=OPEN_DRIVE, folder_path="a",
+            file_path="a/movie.srt", file_size=1, file_type="document", mime_type="text/plain",
             missing_since=datetime.now(UTC),
-        ))
+        )
+        (open_dir / "a").mkdir()
+        db.add(ghost)
         db.commit()
 
-        _rename(c, row, "film.mp4")
+        _upload(c, OPEN_DRIVE, "a", "movie.srt")
 
-        assert _place(db, sub_id) == (OPEN_DRIVE, "a", "movie.srt", "a/movie.srt")
-        assert db.get(File, row.id).filename == "film.mp4"
+        assert _srt_rows(db) == []
+        assert (open_dir / "a" / "movie.srt").exists()
+
+    @pytest.mark.parametrize(
+        ("name", "kind"), [("clip.mp4", "video"), ("note.md", "document")]
+    )
+    def test_other_uploads_still_answer_with_the_file(self, two_drives, name, kind):
+        c, db, open_dir, _ = two_drives
+        (open_dir / "a").mkdir()
+
+        answer = _upload(c, OPEN_DRIVE, "a", name, body=b"# hi\n")
+
+        assert answer["filename"] == name
+        assert answer["id"]
+        assert db.query(File).filter(File.filename == name).count() == 1
+
+    def test_a_folder_holding_only_an_uploaded_subtitle_is_listed_as_empty(self, two_drives):
+        c, db, open_dir, _ = two_drives
+        (open_dir / "n").mkdir()
+        _upload(c, OPEN_DRIVE, "n", "movie.srt")
+
+        _scan_and_register(db, OPEN_DRIVE)
+
+        folders = c.get(f"/api/drives/{OPEN_DRIVE}/folders").json()
+        assert [(f["path"], f["file_count"]) for f in folders if f["path"] == "n"] == [("n", 0)]
+        assert (open_dir / "n" / "movie.srt").exists()
 
 
-class TestScanKeepsUploadedSubtitles:
-    def _state(self, db, row_id):
+class TestScanRemovesSubtitleRows:
+    def _row(self, db, name, **state):
+        row = File(
+            filename=name, title=name, drive=OPEN_DRIVE, folder_path="a",
+            file_path=f"a/{name}", file_size=1, file_type="document", mime_type="text/plain",
+            **state,
+        )
+        db.add(row)
+        db.commit()
+        return row.id
+
+    def test_active_and_missing_rows_go_and_the_files_stay(self, two_drives):
+        _, db, open_dir, _ = two_drives
+        _sidecars(open_dir, "a", "one.srt", "two.vtt")
+        now = datetime.now(UTC)
+        self._row(db, "one.srt")
+        self._row(db, "two.vtt", missing_since=now)
+        self._row(db, "gone.srt")
+
+        _scan_and_register(db, OPEN_DRIVE)
+
+        db.expire_all()
+        assert db.query(File).count() == 0
+        assert _names(open_dir / "a") == ["one.srt", "two.vtt"]
+
+    def test_a_trashed_row_is_left_alone(self, two_drives):
+        _, db, open_dir, _ = two_drives
+        _sidecars(open_dir, "a", "one.srt")
+        row_id = self._row(db, "one.srt", deleted_at=datetime.now(UTC))
+
+        _scan_and_register(db, OPEN_DRIVE)
+
         db.expire_all()
         row = db.get(File, row_id)
-        return row.missing_since is not None
+        assert row is not None
+        assert row.missing_since is None
 
-    def test_uploaded_subtitle_stays_active_after_a_rescan(
-        self, two_drives, monkeypatch, tmp_path
-    ):
-        c, db, open_dir, _ = two_drives
-        monkeypatch.setattr(config, "UPLOAD_DIR", tmp_path / "uploads")
-        (open_dir / "a").mkdir()
-        sub_id = _upload(c, OPEN_DRIVE, "a", "movie.srt")
-
-        _scan_and_register(db, OPEN_DRIVE)
-
-        assert not self._state(db, sub_id)
-
-    def test_row_flagged_missing_recovers_when_its_file_is_on_disk(
-        self, two_drives, monkeypatch, tmp_path
-    ):
-        c, db, open_dir, _ = two_drives
-        monkeypatch.setattr(config, "UPLOAD_DIR", tmp_path / "uploads")
-        (open_dir / "a").mkdir()
-        sub_id = _upload(c, OPEN_DRIVE, "a", "movie.srt")
-        db.get(File, sub_id).missing_since = datetime.now(UTC)
+    def test_comments_and_watch_history_go_with_the_row(self, two_drives):
+        _, db, open_dir, _ = two_drives
+        _sidecars(open_dir, "a", "one.srt")
+        row_id = self._row(db, "one.srt")
+        db.add(Comment(file_id=row_id, viewer_id="v", nickname="n", body="hi"))
+        db.add(WatchHistory(file_id=row_id, viewer_id="v", last_played_at=datetime.now(UTC)))
         db.commit()
 
         _scan_and_register(db, OPEN_DRIVE)
 
-        assert not self._state(db, sub_id)
-
-    def test_scan_creates_no_row_for_a_subtitle_dropped_on_disk(self, two_drives):
-        _, db, open_dir, _ = two_drives
-        _sidecars(open_dir, "a", "movie.srt")
-
-        _scan_and_register(db, OPEN_DRIVE)
-
-        assert db.query(File).filter(File.filename == "movie.srt").count() == 0
-
-    def test_row_whose_subtitle_file_is_gone_is_flagged_missing(
-        self, two_drives, monkeypatch, tmp_path
-    ):
-        c, db, open_dir, _ = two_drives
-        monkeypatch.setattr(config, "UPLOAD_DIR", tmp_path / "uploads")
-        (open_dir / "a").mkdir()
-        sub_id = _upload(c, OPEN_DRIVE, "a", "movie.srt")
-        (open_dir / "a" / "movie.srt").unlink()
-
-        _scan_and_register(db, OPEN_DRIVE)
-
-        assert self._state(db, sub_id)
+        db.expire_all()
+        assert db.query(Comment).filter(Comment.file_id == row_id).count() == 0
+        assert db.query(WatchHistory).filter(WatchHistory.file_id == row_id).count() == 0
