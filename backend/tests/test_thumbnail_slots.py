@@ -366,8 +366,9 @@ class TestPurge:
 
 
 class TestGhostPictures:
-    def test_trashed_ghost_picture_is_removed_when_a_move_takes_its_path(
-        self, client
+    @pytest.mark.parametrize("op", ["move", "rename", "copy"])
+    def test_trashed_ghost_picture_is_removed_when_an_operation_takes_its_path(
+        self, client, op
     ):
         """SPEC-CORE-022 I13"""
         c, db, drive_dir, _ = client
@@ -377,15 +378,25 @@ class TestGhostPictures:
         ghost.missing_since = None
         ghost.deleted_at = datetime.now(UTC)
         ghost.thumbnail_path = _slot_rel(ghost.id)
-        mover = _seed(db, drive_dir, "one/a.mp4", file_id="mover0000001")
+        source_path = "dest/b.mp4" if op == "rename" else "one/a.mp4"
+        mover = _seed(db, drive_dir, source_path, file_id="mover0000001")
         mover.thumbnail_path = _slot_rel(mover.id)
         db.commit()
         ghost_pic = _put_thumb(ghost.thumbnail_path, b"\xff\xd8ghost")
         mover_pic = _put_thumb(mover.thumbnail_path, b"\xff\xd8mover")
         ghost_id = ghost.id
 
-        res = c.put(f"/api/files/{mover.id}/move", json={"target_folder_path": "dest"})
-        assert res.status_code == 200
+        if op == "move":
+            res = c.put(
+                f"/api/files/{mover.id}/move", json={"target_folder_path": "dest"}
+            )
+        elif op == "rename":
+            res = c.put(f"/api/files/{mover.id}/rename", json={"new_filename": "a.mp4"})
+        else:
+            res = c.post(
+                f"/api/files/{mover.id}/copy", json={"target_folder_path": "dest"}
+            )
+        assert res.status_code == 200, res.text
 
         assert _fresh(db, ghost_id) is None
         assert not ghost_pic.exists()
@@ -978,13 +989,58 @@ class TestStartupMigration:
             return real_unlink(self, *args, **kwargs)
 
         monkeypatch.setattr(Path, "unlink", stuck)
-        with caplog.at_level(logging.WARNING, logger="app.services.thumbnail"):
+        with caplog.at_level(logging.WARNING, logger="app.services.thumbnail_migration"):
             _restart()
 
         assert _fresh(db, a.id).thumbnail_path is None
         assert _fresh(db, b.id).thumbnail_path is None
         assert old.exists()
         assert any("book.jpg" in r.getMessage() for r in caplog.records)
+
+
+    def test_a_stat_that_fails_for_another_reason_keeps_the_pointer_and_the_run_goes_on(
+        self, client, monkeypatch, caplog
+    ):
+        """SPEC-CORE-024"""
+        c, db, drive_dir, _ = client
+        stuck = _seed(db, drive_dir, "one/a.mp4", thumb=f"{TEST_DRIVE}/one/a.jpg")
+        fine = _seed(db, drive_dir, "one/b.mp4", thumb=f"{TEST_DRIVE}/one/b.jpg")
+        _put_thumb(stuck.thumbnail_path, b"\xff\xd8stuck")
+        _put_thumb(fine.thumbnail_path, b"\xff\xd8fine")
+        real_stat = Path.stat
+
+        def denied(self, *args, **kwargs):
+            if self.name == "a.jpg":
+                raise PermissionError(13, "Permission denied")
+            return real_stat(self, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "stat", denied)
+        with caplog.at_level(logging.WARNING, logger="app.services.thumbnail_migration"):
+            _restart()
+
+        assert _fresh(db, stuck.id).thumbnail_path == f"{TEST_DRIVE}/one/a.jpg"
+        assert (_thumbs() / stuck.thumbnail_path).read_bytes() == b"\xff\xd8stuck"
+        assert _fresh(db, fine.id).thumbnail_path == _slot_rel(fine.id)
+        assert sum("a.jpg" in r.getMessage() for r in caplog.records) == 1
+
+        monkeypatch.setattr(Path, "stat", real_stat)
+        _restart()
+
+        assert _fresh(db, stuck.id).thumbnail_path == _slot_rel(stuck.id)
+
+    def test_a_pointer_naming_something_that_is_not_a_file_is_kept(
+        self, client, caplog
+    ):
+        """SPEC-CORE-024"""
+        c, db, drive_dir, _ = client
+        row = _seed(db, drive_dir, "one/a.mp4", thumb=f"{TEST_DRIVE}/one/a.jpg")
+        (_thumbs() / row.thumbnail_path).mkdir(parents=True)
+
+        with caplog.at_level(logging.WARNING, logger="app.services.thumbnail_migration"):
+            _restart()
+
+        assert _fresh(db, row.id).thumbnail_path == f"{TEST_DRIVE}/one/a.jpg"
+        assert sum("a.jpg" in r.getMessage() for r in caplog.records) == 1
 
 
 class TestInternalApi:
