@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: Continue. "では続行でお願いします" (r1)
 ran_in_app: yes
 at: 85f9c73b87eb07bcc350ffee3c96a31eed3f048d
 by: agent
