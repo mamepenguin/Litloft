@@ -90,6 +90,19 @@ def _restart():
         pass
 
 
+def _migrate(db):
+    from sqlalchemy.orm import sessionmaker
+
+    from app.services.thumbnail_migration import migrate_thumbnail_slots
+
+    factory = sessionmaker(bind=db.get_bind())
+    return migrate_thumbnail_slots(factory)
+
+
+def _slot_files():
+    return [p for p in _thumbs().rglob("*") if p.is_file() and ".by-id" in p.parts]
+
+
 def _fresh(db, file_id):
     db.expire_all()
     return db.get(File, file_id)
@@ -183,7 +196,7 @@ class TestEachFileOwnsItsSlot:
         assert _dominant_red(_served(c, row.id))
 
 
-def _upload_png(c, db, name, color):
+def _upload_png(c, db, name, color, folder=""):
     buf = io.BytesIO()
     Image.new("RGB", (64, 64), color).save(buf, format="PNG")
     payload = buf.getvalue()
@@ -192,7 +205,7 @@ def _upload_png(c, db, name, color):
         json={
             "filename": name,
             "file_size": len(payload),
-            "folder_path": "",
+            "folder_path": folder,
             "chunk_size": len(payload),
         },
     )
@@ -472,6 +485,66 @@ class TestGhostPictures:
         assert _dominant_red(_served(c, row.id))
 
 
+    @pytest.mark.parametrize("op", ["rename", "copy", "upload"])
+    def test_an_operation_that_fails_before_its_commit_leaves_the_ghost_and_its_picture(
+        self, client, monkeypatch, op
+    ):
+        """SPEC-CORE-022 I13"""
+        import app.services.fileops as fileops
+        import app.services.upload as upload_service
+
+        c, db, drive_dir, _ = client
+        ghost = _seed(
+            db, drive_dir, "dest/a.png", file_id="ghost0000005", state="missing"
+        )
+        ghost.missing_since = None
+        ghost.deleted_at = datetime.now(UTC)
+        ghost.thumbnail_path = _slot_rel(ghost.id)
+        mover = _seed(db, drive_dir, "dest/b.png", file_id="mover0000005")
+        db.commit()
+        ghost_pic = _put_thumb(ghost.thumbnail_path, b"\xff\xd8ghost")
+
+        def refuse(*_a, **_kw):
+            raise RuntimeError("cannot record the change")
+
+        monkeypatch.setattr(fileops, "_filename_to_title", refuse)
+        monkeypatch.setattr(fileops, "untrack_empty_folder", refuse)
+        monkeypatch.setattr(upload_service, "untrack_empty_folder", refuse)
+        try:
+            if op == "rename":
+                c.put(f"/api/files/{mover.id}/rename", json={"new_filename": "a.png"})
+            elif op == "copy":
+                c.post(
+                    f"/api/files/{mover.id}/copy", json={"target_folder_path": "dest"}
+                )
+            else:
+                _upload_png(c, db, "a.png", (255, 0, 0), folder="dest")
+        except Exception:
+            pass
+
+        assert _fresh(db, "ghost0000005") is not None
+        assert ghost_pic.read_bytes() == b"\xff\xd8ghost"
+
+    def test_upload_with_a_new_id_whose_commit_fails_leaves_no_slot(
+        self, client, monkeypatch
+    ):
+        """SPEC-CORE-022"""
+        import app.services.upload as upload_service
+
+        c, db, drive_dir, _ = client
+
+        def refuse(*_a, **_kw):
+            raise RuntimeError("cannot record the change")
+
+        monkeypatch.setattr(upload_service, "untrack_empty_folder", refuse)
+        try:
+            _upload_png(c, db, "fresh.png", (255, 0, 0))
+        except Exception:
+            pass
+
+        assert _slot_files() == []
+
+
 def _second_drive(tmp_path, monkeypatch):
     other = tmp_path / "drives" / "other"
     other.mkdir(parents=True)
@@ -635,21 +708,35 @@ class TestScanDetectedMove:
 
 
 class TestScanThumbnailBranch:
-    def test_path_form_row_is_left_alone(self, client):
+    @pytest.mark.parametrize("case", ["file-present", "file-absent", "transparent", "letterboxed"])
+    def test_path_form_row_is_left_alone(self, client, case):
         """SPEC-CORE-022 I16"""
         c, db, drive_dir, _ = client
-        _png(drive_dir / "p.png", (255, 0, 0))
+        if case == "transparent":
+            Image.new("RGBA", (64, 64), (0, 0, 0, 0)).save(drive_dir / "p.png")
+        else:
+            _png(drive_dir / "p.png", (255, 0, 0))
         row = _seed(
             db, drive_dir, "p.png", thumb=f"{TEST_DRIVE}/legacy/p.jpg",
             body=(drive_dir / "p.png").read_bytes(),
         )
-        old = _put_thumb(row.thumbnail_path, b"\xff\xd8legacy")
+        if case == "letterboxed":
+            buf = io.BytesIO()
+            Image.new("RGB", (320, 180), (9, 9, 9)).save(buf, format="JPEG")
+            legacy = buf.getvalue()
+            row.image_width, row.image_height = 640, 480
+            db.commit()
+        else:
+            legacy = FAKE_JPEG + b"legacy"
+        old = None if case == "file-absent" else _put_thumb(row.thumbnail_path, legacy)
 
         _scan_and_register(db, TEST_DRIVE)
 
         after = _fresh(db, row.id)
         assert after.thumbnail_path == f"{TEST_DRIVE}/legacy/p.jpg"
-        assert old.read_bytes() == b"\xff\xd8legacy"
+        if old is not None:
+            assert old.read_bytes() == legacy
+        assert _slot_files() == []
 
     def test_slot_pointer_with_absent_file_is_regenerated(self, client):
         """SPEC-CORE-022 I16"""
@@ -1028,20 +1115,65 @@ class TestStartupMigration:
 
         assert _fresh(db, stuck.id).thumbnail_path == _slot_rel(stuck.id)
 
-    def test_a_pointer_naming_something_that_is_not_a_file_is_kept(
-        self, client, caplog
+    @pytest.mark.parametrize("slot_exists", [False, True])
+    def test_a_pointer_naming_something_that_is_not_a_file_counts_as_absent(
+        self, client, caplog, slot_exists
     ):
-        """SPEC-CORE-024"""
+        """SPEC-CORE-024 I10"""
         c, db, drive_dir, _ = client
-        row = _seed(db, drive_dir, "one/a.mp4", thumb=f"{TEST_DRIVE}/one/a.jpg")
+        row = _seed(
+            db, drive_dir, "one/a.mp4", file_id="notafile0001",
+            thumb=f"{TEST_DRIVE}/one/a.jpg",
+        )
         (_thumbs() / row.thumbnail_path).mkdir(parents=True)
+        if slot_exists:
+            _put_thumb(_slot_rel(row.id), b"\xff\xd8slot")
 
         with caplog.at_level(logging.WARNING, logger="app.services.thumbnail_migration"):
             _restart()
 
-        assert _fresh(db, row.id).thumbnail_path == f"{TEST_DRIVE}/one/a.jpg"
-        assert sum("a.jpg" in r.getMessage() for r in caplog.records) == 1
+        expected = _slot_rel(row.id) if slot_exists else None
+        assert _fresh(db, row.id).thumbnail_path == expected
+        assert not [r for r in caplog.records if "a.jpg" in r.getMessage()]
 
+    def test_a_pointer_below_a_regular_file_counts_as_absent_without_a_warning(
+        self, client, caplog
+    ):
+        """SPEC-CORE-024 I10"""
+        c, db, drive_dir, _ = client
+        row = _seed(
+            db, drive_dir, "one/a.mp4", thumb=f"{TEST_DRIVE}/f.jpg/a.jpg"
+        )
+        _put_thumb(f"{TEST_DRIVE}/f.jpg")
+
+        with caplog.at_level(logging.WARNING, logger="app.services.thumbnail_migration"):
+            _restart()
+
+        assert _fresh(db, row.id).thumbnail_path is None
+        assert not [r for r in caplog.records if "a.jpg" in r.getMessage()]
+
+    def test_the_returned_counts_say_what_happened(self, client, monkeypatch):
+        """SPEC-CORE-024"""
+        c, db, drive_dir, _ = client
+        sole = _seed(db, drive_dir, "one/a.mp4", thumb=f"{TEST_DRIVE}/one/a.jpg")
+        _put_thumb(sole.thumbnail_path)
+        shared = f"{TEST_DRIVE}/one/s.jpg"
+        _seed(db, drive_dir, "one/s1.mp4", thumb=shared)
+        _seed(db, drive_dir, "one/s2.mp4", thumb=shared)
+        _put_thumb(shared)
+        _seed(db, drive_dir, "one/gone.mp4", thumb=f"{TEST_DRIVE}/one/gone.jpg")
+        denied = _seed(db, drive_dir, "one/d.mp4", thumb=f"{TEST_DRIVE}/one/d.jpg")
+        _put_thumb(denied.thumbnail_path)
+        real_stat = Path.stat
+
+        def deny(self, *args, **kwargs):
+            if self.name == "d.jpg":
+                raise PermissionError(13, "Permission denied")
+            return real_stat(self, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "stat", deny)
+
+        assert _migrate(db) == {"moved": 1, "emptied": 3, "failed": 1}
 
 class TestInternalApi:
     def test_internal_file_returns_the_stored_pointer(self, client):
