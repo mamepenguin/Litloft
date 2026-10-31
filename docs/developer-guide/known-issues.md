@@ -73,8 +73,9 @@ subtitle listed as a media file of its own.
 
 **A file moved between drives before the tag fix keeps its old tag links until it is moved again.**
 Such a file still links to the `Tag` rows of the drive it came from, so its tag
-counts on that drive and is missing from the list of the drive it sits on. There is
-no data migration. Reached only on a database that had such moves; the next move of
+counts on that drive and is missing from the tag list of the drive it sits on.
+Filtering by that name on its current drive still lists it, so that drive's count
+and listing can disagree. There is no data migration. Reached only on a database that had such moves; the next move of
 the file between drives sweeps the old rows.
 
 **Adding a tag to a note whose frontmatter tags were never projected replaces them.**
@@ -200,8 +201,6 @@ knowledge editor is installed.** `Editor.tsx` renders `MarkdownPreview` without 
 present, so `?highlight=` on a note does nothing: no mark and no scroll to the
 passage. Reached by searching for a phrase inside a note and pressing the
 result. Core's own `MarkdownPreview` path is wired; the addon drops it.
-
-**A tag with a non-ASCII capital lists nothing when chosen.** The rail counts `Übung` but the list filter lowercases with SQLite's ASCII-only `lower()`, so choosing it shows no notes. The tag-edit lookup has the same mismatch, so adding a tag to a file that holds such a tag answers 500 and changes nothing.
 
 **The intelligence `/similar/{file_id}` route answers while the addon is off for
 the drive.** It is gated by file access only, so it stays 200 under a policy of

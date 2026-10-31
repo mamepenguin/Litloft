@@ -1,5 +1,6 @@
 import unicodedata
 import logging
+from collections import defaultdict
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -711,9 +712,19 @@ def list_drive_files(
         query = query.filter(
             File.liked_at.is_not(None) if liked else File.liked_at.is_(None)
         )
-    for name in tag or []:
-        if name:
-            query = query.filter(File.tags.any(func.lower(Tag.name) == name.lower()))
+    chosen = [name for name in tag or [] if name]
+    if chosen:
+        # Folded in Python: SQLite's lower() leaves non-ASCII capitals alone.
+        # Not narrowed to this drive's rows: a file moved before tags followed
+        # their drive links to its old drive's row, and File.drive above already
+        # bounds what is listed.
+        by_fold: dict[str, list[int]] = defaultdict(list)
+        for tag_id, tag_name in db.query(Tag.id, Tag.name):
+            by_fold[tag_name.lower()].append(tag_id)
+        for name in chosen:
+            query = query.filter(
+                File.tags.any(Tag.id.in_(by_fold[name.lower()]))
+            )
     query = _apply_kinds_filter(query, [_normalize_kind(kind) for kind in type or []])
     if trust == "unreviewed":
         # Not a tier: the review queue is "nobody has ruled on this", which
