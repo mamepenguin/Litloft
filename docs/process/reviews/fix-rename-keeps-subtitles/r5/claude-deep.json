@@ -1,0 +1,146 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "replaced-vtt-keeps-old-transcript-in-index",
+      "origin": "reviewer",
+      "claim": "Replacing a `.vtt` beside a loft whose transcript is already chunked changes the captions but not the indexed transcript, although the upload now announces a scan.",
+      "impact": "A user corrects `clip.vtt` by uploading it again. The player shows the corrected text, while Ask and search keep answering from the old text and citing it, with no message. Nothing reindexes it on a later reconcile either, so this is not a delay like the one r4 reported: the old text stays until the file is reindexed by hand.",
+      "evidence": "backend/app/services/upload.py:134-135 now allows the replacement, and backend/app/routers/uploads.py:82-87 emits `scan.complete`. addons/intelligence/app/indexer.py:138-139 `_loft_needs_reset` returns False once the loft is chunked, before it looks at the VTT, so `_reset_loft_refs_with_new_vtt` (:488, :620) leaves it alone. A grep of indexer.py finds no mtime comparison. addons/intelligence/app/workers/whisper.py:1731-1763 reads the VTT only when the indexing task runs. Before cde9bc7a3 the upload answered 409, so the app could not produce this state. decisions.md:67 says the sixth run started no addon service.",
+      "repro": "not_reproduced (read-only review; Intelligence was not run). Steps from reading the code: index a loft with `clip.vtt` until it has chunks, upload a corrected `clip.vtt`, wait for the reconcile that `scan.complete` triggers, then search for a phrase only the corrected file holds. Expected: no match, while a phrase from the old file still matches.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariants are declared. Normal use of the replacement this round added silently leaves a stale search result.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "When a subtitle upload replaced an existing `.vtt`, request a reindex of the matching loft, or record the limit in known-issues.md if it is accepted."
+    },
+    {
+      "id": "unreadable-replacement-discards-a-working-track",
+      "origin": "reviewer",
+      "claim": "A subtitle upload lands without checking that the file can be served, so a replacement that is not UTF-8 or is over 5 MB discards a working track and answers 200.",
+      "impact": "A Shift_JIS `.srt`, which is an ordinary encoding for Japanese subtitles, replaces a working UTF-8 file. The drawer shows success. The track request then fails, so the video shows no captions for that track and the page gives no reason. The earlier good file is gone, and the app holds no copy of it.",
+      "evidence": "backend/app/routers/files.py:1358 calls `read_text(encoding=\"utf-8-sig\")` with no guard, so a decode error becomes a 500; backend/app/main.py has no matching exception handler. files.py:1354-1356 answers 413 over 5 MB. backend/app/services/upload.py:226-234 checks only the declared size before `os.replace`, and upload.py:249-250 finishes with no content check. The failing read predates this change; cde9bc7a3 adds the path that overwrites a good file with such a one. The sixth R-5 run used readable text only (decisions.md:68), and backend/tests/test_subtitle.py has no match for shift, cp932, sjis or utf-8-sig.",
+      "repro": "not_reproduced (read-only review). Steps from reading the code: upload `movie.mp4` and a UTF-8 `movie.srt`, upload a Shift_JIS `movie.srt` with Japanese text, then GET `/api/files/<id>/subtitles/0`. Expected: complete answers 200 and the GET answers 500.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariants are declared. This is ordinary input rather than crafted input, and the result is a silent loss of a working track.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Before replacing, refuse a subtitle upload that the serving route could not read (size and decoding), or make the route decode common encodings. Add a test that uploads a non-UTF-8 replacement."
+    },
+    {
+      "id": "replacement-misses-a-decomposed-sidecar-name",
+      "origin": "reviewer",
+      "claim": "Replacement compares the NFC upload name by exact path, so on a normalization-sensitive filesystem an NFD-named sidecar is not replaced and a second file with the same track identity appears.",
+      "impact": "On a Linux or NAS drive holding a sidecar copied from macOS, uploading the corrected subtitle leaves two files. The video lists the same track twice. A later rename or move carries whichever is listed first, so the old text can take the new name while the corrected file stays behind under the old name with only a backend warning. The user then sees the old captions after correcting them.",
+      "evidence": "backend/app/services/upload.py:120 normalizes the name through `validate_filename`, and :134 tests that exact path with `is_file()`. backend/app/services/subtitle.py:83-98 lists both files as the same language and normalizes both paths to the same NFC string, so both track entries serve one file. subtitle.py:119-123 keeps listing order, and :132-136 skips the second file because the first already took the target. backend/tests/test_listing_call_inventory.py:3-6 names this hazard class. `test_a_second_upload_replaces_the_file` uses an ASCII name only. decisions.md:17 walked an NFD rename on the Docker Desktop mount, not an NFD replacement.",
+      "repro": "not_reproduced (read-only review). Steps from reading the code, on a normalization-sensitive filesystem: place a video and an NFD-named `.srt` with the same dakuten stem, upload the NFC name, GET the file's `subtitles`, then rename the video. Expected: two entries with one path, and after the rename one file under the new stem and one under the old, chosen by listing order. APFS is expected to treat the two names as one file, so this would not reproduce there.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariants are declared. The repository treats this as a known hazard class, but the reach depends on the host filesystem, which was not observed.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "In the subtitle upload, find an existing file whose NFC name equals the upload's name and replace that entry, removing the old spelling, and add an NFD row to the replacement test."
+    },
+    {
+      "id": "subtitle-only-folder-upload-stays-unlisted",
+      "origin": "reviewer",
+      "claim": "A subtitle upload into a folder with no records creates the directory but records no EmptyFolder row, so the folder is not listed until a scan.",
+      "impact": "Add, Folder with a folder holding only subtitles shows every file as complete, but neither the uploading tab nor another tab lists the folder, even after a reload. The user cannot browse to it from the UI, and the files have no card to show where they went. A rescan brings it back as 0 items. The `scan.complete` added this round refreshes the listing but gives it nothing new to show.",
+      "evidence": "backend/app/services/upload.py:182-198 `_finish_subtitle_upload` neither tracks nor untracks a folder, while backend/app/services/fileops.py:144 `_ensure_empty_folder_tracked` is the helper for this state. backend/app/services/atomic_write.py:47 creates the missing parents. decisions.md:75 observed the behavior in the sixth run with both tabs. `test_a_folder_holding_only_an_uploaded_subtitle_is_listed_as_empty` calls `_scan_and_register` first and creates the directory by hand, so it does not cover the state before a scan. docs/developer-guide/known-issues.md records the limit.",
+      "repro": "Observed by the author's run in decisions.md:75, not run by this reviewer: a folder holding only `alone.srt`, uploaded through Add, Folder, was absent from both tabs until a rescan.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariants are declared and the limit is recorded. It is still a silently wrong listing in normal use, and one helper call away from correct.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Call `_ensure_empty_folder_tracked` for the upload's folder in `_finish_subtitle_upload`, and add a test with `relative_path` that asserts the listing without a scan."
+    },
+    {
+      "id": "directory-at-subtitle-path-guard-unpinned",
+      "origin": "reviewer",
+      "claim": "No automated test fails if the `is_file()` half of `replaces_subtitle` is removed, so a directory with a subtitle name could pass the 409 check unnoticed.",
+      "impact": "If the guard is dropped, an upload to a directory named `movie.srt` passes init, sends every chunk, and then fails at `os.replace` with a 500 rather than a 409. The session also stays behind until the abandoned-upload cleanup. Only the manual walk covers this today.",
+      "evidence": "backend/app/services/upload.py:134. `test_an_existing_file_of_another_type_still_refuses_the_upload` uses `note.md`, which fails the `is_subtitle_file` half instead. No test in backend/tests/test_sidecar_subtitles_follow_video.py creates a directory with a subtitle name. decisions.md:71 walked it by hand. upload.py:235 handles only `_SizeMismatch`, so an OSError leaves the session in place.",
+      "repro": "Mutation reasoned, not run: change upload.py:134 to `replaces_subtitle = is_subtitle_file(filename)`. Every replacement test has a regular file at the path, and the 409 test has a `.md` name, so the mutant is predicted to survive.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The code reads correctly and R-5 observed the 409. This is a coverage gap on the branch this round added.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add a test that creates a directory named `movie.srt` and asserts that init answers 409 and the directory is unchanged."
+    }
+  ],
+  "specification_compliance": [
+    "No invariants file exists, so bucket A is unavailable and no touch-point list applies.",
+    "r4 subtitle-upload-skips-scan-complete and subtitle-upload-no-longer-triggers-indexing are fixed for a first upload: uploads.py:82-87 emits after the commit, addons/intelligence/app/webhook.py reads `drive` and passes it on regardless of `added`, and a loft with no chunks is then reset through indexer.py:140-141. A replacement on a chunked loft is not covered (finding replaced-vtt-keeps-old-transcript-in-index).",
+    "r4 row-drop-side-effects-unpinned and scan-row-drop-branches-unpinned are closed by reading. Removing scanner.py:451 fails `test_the_tags_of_a_dropped_row_go_with_it`, because that is the only cleanup call in scanner.py. Removing scanner.py:448 fails `result[\"missing\"] == 0`. Removing upload.py:190 fails the parametrized upload test. `kind` is now asserted.",
+    "r4 purged-video-leaves-uploaded-subtitle-that-reattaches is narrowed: the 409 is gone, so a corrected subtitle can replace the old one. The re-attachment and the kept directory remain in code and are now recorded in known-issues.md.",
+    "r4 rename-into-subtitle-extension, subtitle-row-drops-send-no-lifecycle-event and subtitle-dropped-in-editor-writes-dead-link are unchanged in code. The first two gained known-issues.md rows and the third already had one. `SidecarUploadResult.id?: undefined` still lets `loft://undefined` compile.",
+    "Replacement is atomic and keeps an existing mode: atomic_write.py:58-61 replaces only after a successful assembly, so a size mismatch or cancel leaves the old file, and both are pinned by tests. The temporary name starts with a dot and fails `_parse_subtitle_filename` for a normal stem, so a concurrent carry or detection does not treat it as a sidecar.",
+    "`FileResponse | SubtitleUploadResponse` as the response model: a sidecar answer lacks FileResponse's required fields, and a file answer must stay FileResponse although it also holds `drive` and `file_path`. `test_other_uploads_still_answer_with_the_file` pins this by asserting `id` and `file_type`.",
+    "Fix commits 4e5d2d82c and f08c2dd63 record reviews and R-5 only. The batch carry's `by_new_path` keys match: fileops.py:1092-1103 builds them from `resolve_drive_path` and `file_path`, the same as fileops.py:1132 after the commit."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Replacement has no confirmation and keeps no copy. Uploading a folder again answers 409 for its videos and notes but silently overwrites any hand-edited subtitle with the same name. The docs state the replacement, but not that it is unconditional and cannot be undone.",
+    "An upload now replaces a file whose path a trashed row holds and deletes that row, so the trash entry can no longer be restored and its comments and tags go. Before this round the same upload answered 409 when the file was still on disk. `test_upload_over_a_path_holding_a_row_removes_the_row` pins the row's removal with no file at the path, not this overwrite.",
+    "A detail page already open does not refetch its tracks after a subtitle upload: decisions.md:69 observed the WebSocket frames arrive with no `GET /api/files/<id>`, because only folder and drive views subscribe to `drive.structure_changed`. known-issues.md does not record this.",
+    "A subtitle upload answers `removed: 0` in `scan.complete` even when it deleted a row. No current consumer branches on that value, since Intelligence only logs it."
+  ],
+  "regression_risks": [
+    "Each subtitle upload now triggers a full Intelligence reconcile, plus a refetch in every open folder view. A folder with many subtitles causes one of each per file, as other uploads already do. This was not measured.",
+    "`_finish_subtitle_upload` commits after the file has already replaced the old one. A database failure answers 500 with the new content on disk and any old row still present; a retry now succeeds rather than answering 409, but the old text cannot be recovered.",
+    "The scan's drop at scanner.py:450 flushes before the drive walk, and the only commit in `_scan_and_register` is at :880, so the write transaction spans the walk whenever stale rows exist. Autoflush from an in-place update could already open it during the walk, so the difference is how early it opens; the effect on other writers was not measured.",
+    "`_carry_batch_sidecars` still takes a `db` parameter that its body does not use, which r4 also noted."
+  ],
+  "test_coverage": [
+    "New and judged effective by reading: second upload replaces the file, failed and cancelled replacements keep the first file, another file type still gets 409, `scan.complete` with `added` 0, tags dropped on the upload and scan paths, active, missing and trashed rows at the upload path, the scan's `missing` count and `files.missing` ids, and `file_type` of other uploads.",
+    "Mutations reasoned, not run: removing the `is_subtitle_file` half at upload.py:134 fails the replacement test, and removing the emit at uploads.py:83-87 fails the event test. Removing the `is_file()` half is predicted to survive (finding directory-at-subtitle-path-guard-unpinned).",
+    "Not covered: replacement with an existing row holding a live file (an active or trashed row where the file is on disk), a `.vtt` or upper-case extension replacement, a non-UTF-8 or oversized replacement, an NFD-named existing sidecar, the listing of a subtitle-only folder before a scan, and mode preservation through the upload path.",
+    "`test_a_folder_holding_only_an_uploaded_subtitle_is_listed_as_empty` runs a scan first, so it pins the state after the scan and not what the user sees right after uploading."
+  ],
+  "not_verified": [
+    "No test, command, application or mutant was run, because this role has only Read, Glob and Grep. Every repro and mutation result is traced from the code, except those citing decisions.md, whose logs and screenshots were not opened.",
+    "The worktree was read as it stands and assumed to match f08c2dd63, since the status snapshot shows that commit at HEAD with only the r5 directory untracked. Git could not confirm this or the submodule checkouts.",
+    "Intelligence's behavior after a replaced VTT was read in `_loft_needs_reset` and grepped for mtime in indexer.py only. Other files in the addon, a manual reindex route and whether a transcript is compared elsewhere were not traced.",
+    "Whether any deployment of this project uses a normalization-sensitive filesystem for a drive was not observed, and APFS behavior for the NFD case comes from general knowledge.",
+    "What the frontend player shows when a track request answers 500 was not read beyond the player receiving a track URL.",
+    "SQLite lock effects of the scan's early flush were not observed.",
+    "docs/process documents other than the first 60 lines of review.md were not read in full, and .claude/rules files were listed but not read."
+  ],
+  "confidence": 80,
+  "perspectives": [
+    {
+      "name": "scope",
+      "notes": "This round's code touches only the upload route and `init_upload`. The rest is tests and prose. Against the base, the change still reaches past the original rename fix into upload answers, scan row drops and now overwrite semantics. Copying a video stays out of scope and is recorded."
+    },
+    {
+      "name": "submodules",
+      "notes": "No pin differs in this round's diff. Intelligence accepts the new event because `added` is optional and only logged. The replaced-VTT gap sits in its chunked check. media_import emits the same event without counts. The knowledge editor's dead link is unchanged."
+    },
+    {
+      "name": "persistence",
+      "notes": "Replacement is atomic and keeps the mode. Row deletion runs after the file lands, with cascades relied on through PRAGMA foreign_keys. What the database does not protect is the old subtitle's content: there is no version or validation step before it is overwritten."
+    },
+    {
+      "name": "concurrency",
+      "notes": "Two uploads of one subtitle use separate temp names and the last rename wins, with no torn file. A concurrent carry does not match the temp name. The exists-then-move gap in `move_sidecar_subtitles` is unchanged. The emit runs after the commit, so a reconcile sees the committed row removal."
+    }
+  ],
+  "trajectory": "Partly yes, at a much smaller scale than before, and this round also removed one rule. cde9bc7a3 is the only code commit since r4; 5ea567d60 adds tests, and 4e5d2d82c and f08c2dd63 are records. cde9bc7a3 removes the subtitle's 409 and the silent skip of `scan.complete`, both of which r4 reported. It adds one more branch of the kind bd49bc092 added in the previous round, a test for 'is this a subtitle' on the upload path: `replaces_subtitle` at init, joining the branches in `complete_upload` and in the route. So the upload path now special-cases subtitles in three places, and the route's branch repeats the same emit with different counts. It adds no new state, and no prediction of the kind r2 and r3 kept adding; the row state stays removed. The per-sidecar `target.exists()` prediction from r1 is untouched, and its failures stay in the ledger, which gained four more rows this round. On the row strand the design is no longer being patched. The remaining pattern is at the edge of the decision that a subtitle is a file with no record: each capability it lacks is handled by a branch or a ledger row. This round's new findings follow from that, because a file with no record has no version, validation, reindex or folder tracking around it."
+}
