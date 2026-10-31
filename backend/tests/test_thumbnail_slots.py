@@ -500,7 +500,10 @@ class TestGhostPictures:
         ghost.missing_since = None
         ghost.deleted_at = datetime.now(UTC)
         ghost.thumbnail_path = _slot_rel(ghost.id)
-        mover = _seed(db, drive_dir, "dest/b.png", file_id="mover0000005")
+        mover = _seed(
+            db, drive_dir, "dest/b.png" if op == "rename" else "one/a.png",
+            file_id="mover0000005",
+        )
         db.commit()
         ghost_pic = _put_thumb(ghost.thumbnail_path, b"\xff\xd8ghost")
 
