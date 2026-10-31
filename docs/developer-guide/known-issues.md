@@ -243,11 +243,9 @@ Pickup, for example) can draw for a frame or more there, and may call its API
 for that drive. The proxy's `pre_check` should answer those calls with 404; that
 has not been measured. The sidebar's addon rows do not do this.
 
-**Renaming a video detaches its sidecar subtitles.** `detect_subtitles` matches
-subtitle files against the video's current basename, and `rename_file` renames
-only the video, so `movie.ja.srt` stops being found the moment `movie.mp4`
-becomes anything else. The detail page then offers the generated track, or no
-track at all. Renaming the subtitle files to match by hand attaches them again.
+**Copying a video leaves its sidecar subtitles behind.** `copy_file` copies only
+the video, so the copy has no `movie.ja.srt` next to it and the detail page offers
+the generated track, or none.
 
 **A file with only a detailed summary is reported as having a short summary.**
 `GET /summary` and the batch run treat the row as present, so the batch skips
