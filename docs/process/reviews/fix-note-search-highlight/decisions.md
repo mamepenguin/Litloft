@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship (human, 2026-10-31, "推奨通り", after r2 HUMAN_REVIEW_REQUIRED for unspecified_behavior on the UNSPEC bug fix; r2 has no findings)
 ran_in_app: yes
 at: b780e8a1a1070447376346a682cccae868476feb
 by: agent
