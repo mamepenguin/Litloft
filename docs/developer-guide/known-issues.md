@@ -79,10 +79,16 @@ and listing can disagree. There is no data migration. Reached only on a database
 the file between drives sweeps the old rows.
 
 **Adding a tag to a note whose frontmatter tags were never projected replaces them.**
-The tag chips are built from `File.tags`. A note registered by a scan or an upload
-has its frontmatter tags projected; a note registered before that, or changed on disk, keeps
-none until the knowledge scanner has run or the note has been saved. Adding a tag
-to it then writes only that tag. Seen with the knowledge addon not running.
+The tag chips are built from `File.tags`. A note registered before its frontmatter
+tags were projected, or changed on disk, keeps no chips until the knowledge scanner has
+run or the note has been saved; adding a tag then writes only that tag. Seen with the
+knowledge addon not running.
+
+**Editing a chip removes a frontmatter tag the tag rules reject.**
+A tag such as `machine learning` (it has a space) is not projected, so it shows no
+chip. The chip list is what the web UI saves, so the next chip edit on that note drops
+the tag from the file: `tags: [machine learning, ok]` plus a chip `more` leaves
+`[ok, more]`.
 
 
 **Bulk tagging skips a Markdown file it cannot rewrite without saying so.**

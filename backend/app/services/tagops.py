@@ -1,10 +1,14 @@
 """Tag rows that outlive the files that referenced them."""
 
+import logging
 from collections.abc import Iterable
 
 from sqlalchemy.orm import Session
 
 from app.models import File, Tag, file_tags
+from app.services.frontmatter import extract_valid_tags, parse as parse_frontmatter
+
+logger = logging.getLogger(__name__)
 
 
 class TagIndex:
@@ -72,6 +76,20 @@ def replace_file_tags(db: Session, file: File, tag_names: list[str]) -> None:
             index.add(tag)
         tag_objects.append(tag)
     file.tags = tag_objects
+
+
+def project_frontmatter_tags(db: Session, file: File, content: str) -> None:
+    """Set ``file.tags`` from the frontmatter ``tags:`` of Markdown ``content``.
+
+    Same rules as ``PUT /api/files/{id}/content``. A failure is logged and
+    swallowed so registering the note never depends on its tags. The caller
+    decides that the file is Markdown, and sweeps orphans if the row existed
+    before (``replace_file_tags`` leaves that to it).
+    """
+    try:
+        replace_file_tags(db, file, extract_valid_tags(parse_frontmatter(content).metadata))
+    except Exception:
+        logger.warning("tags projection failed for %s", file.file_path)
 
 
 def cleanup_orphan_tags(db: Session, drive: str | None = None) -> int:

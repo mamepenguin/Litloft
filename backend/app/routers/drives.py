@@ -38,6 +38,7 @@ from app.schemas import (
     file_to_response,
 )
 from app.services import fileops
+from app.services.tagops import cleanup_orphan_tags, project_frontmatter_tags
 from app.services.file_versions import record_version
 from app.services.filetype import classify
 from app.services.markdown_relations import sync_markdown_file_relations
@@ -885,6 +886,13 @@ _TEXT_CREATE_MAX_BYTES = 1 * 1024 * 1024  # 1 MB
 _SUFFIX_MAX_ATTEMPTS = 99
 
 
+def _project_created_markdown_tags(db: Session, file: File, content: str) -> None:
+    if not fileops._is_markdown_file(file):
+        return
+    project_frontmatter_tags(db, file, content)
+    cleanup_orphan_tags(db, file.drive)
+
+
 def _sync_created_markdown_relations(db: Session, file: File, content: str) -> None:
     if not fileops._is_markdown_file(file):
         return
@@ -1003,6 +1011,7 @@ async def create_text_file(
         existing_missing.filename = nfc_name
         existing_missing.folder_path = folder_path
         _record_created_file_version(db, existing_missing, content_bytes)
+        _project_created_markdown_tags(db, existing_missing, body.content)
         db.commit()
         db.refresh(existing_missing)
         _sync_created_markdown_relations(db, existing_missing, body.content)
@@ -1088,6 +1097,7 @@ async def create_text_file(
         try:
             db.flush()
             _record_created_file_version(db, new_file, content_bytes)
+            _project_created_markdown_tags(db, new_file, body.content)
             db.commit()
         except IntegrityError:
             db.rollback()

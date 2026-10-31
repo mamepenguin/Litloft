@@ -185,12 +185,12 @@ class TestRegistrationProjectsFrontmatterTags:
     def test_projection_failure_does_not_break_registration(
         self, db_session, drive_env, how, monkeypatch
     ):
-        import app.services.scanner as scanner_mod
+        import app.services.tagops as tagops_mod
 
         def boom(*args, **kwargs):
             raise RuntimeError("boom")
 
-        monkeypatch.setattr(scanner_mod, "replace_file_tags", boom)
+        monkeypatch.setattr(tagops_mod, "replace_file_tags", boom)
         _register(db_session, drive_env, how, "n.md", "---\ntags: [a]\n---\n\nbody\n")
         record = db_session.query(File).filter(File.filename == "n.md").one()
         assert record.md_id is not None

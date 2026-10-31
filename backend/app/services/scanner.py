@@ -25,11 +25,10 @@ from app.services.frontmatter import compose as compose_frontmatter
 from app.services.frontmatter import (
     ensure_id,
     extract_valid_aliases,
-    extract_valid_tags,
     parse as parse_frontmatter,
 )
 from app.services.hash import compute_file_hash
-from app.services.tagops import replace_file_tags
+from app.services.tagops import project_frontmatter_tags
 from app.services.image_dimensions import read_image_dimensions
 from app.services.markdown_images import project_markdown_thumbnail
 from app.services.maintenance import (
@@ -328,12 +327,7 @@ def _ensure_md_id_for_new_file(
             "scanner: md_aliases projection failed for %s", file_record.file_path
         )
 
-    try:
-        replace_file_tags(db, file_record, extract_valid_tags(parsed.metadata))
-    except Exception:
-        logger.warning(
-            "scanner: tags projection failed for %s", file_record.file_path
-        )
+    project_frontmatter_tags(db, file_record, content)
 
 
 def register_single_file(db: Session, drive_name: str, file_path: Path) -> str:
