@@ -87,7 +87,7 @@ def replace_file_tags(
 def project_frontmatter_tags(db: Session, file: File, content: str) -> None:
     """Set ``file.tags`` from the frontmatter ``tags:`` of Markdown ``content``.
 
-    Same rules as ``PUT /api/files/{id}/content``. A failure is logged and
+    A case-variant row is joined as it stands. A failure is logged and
     swallowed so registering the note never depends on its tags. The caller
     decides that the file is Markdown, and sweeps orphans if the row existed
     before (``replace_file_tags`` leaves that to it).

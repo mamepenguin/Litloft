@@ -88,7 +88,7 @@ knowledge addon not running.
 A tag such as `machine learning` (it has a space) is not projected, so it shows no
 chip. The chip list is what the web UI saves, so the next chip edit on that note drops
 the tag from the file: `tags: [machine learning, ok]` plus a chip `more` leaves
-`[ok, more]`.
+`[ok, more]`. Tags past the tenth valid one are dropped the same way.
 
 
 **Bulk tagging skips a Markdown file it cannot rewrite without saying so.**
