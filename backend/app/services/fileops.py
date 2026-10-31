@@ -18,7 +18,11 @@ from app.services.atomic_write import generating_file
 from app.services.heic import cleanup_heic_cache
 from app.services.markdown_images import project_markdown_thumbnail
 from app.services.subtitle import move_sidecar_subtitles
-from app.services.tagops import cleanup_orphan_tags, retarget_file_tags
+from app.services.tagops import (
+    cleanup_orphan_tags,
+    project_frontmatter_tags,
+    retarget_file_tags,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -330,6 +334,7 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
             if _is_markdown_file(new_file):
                 content = _read_markdown_for_projection(new_full)
                 if content is not None:
+                    project_frontmatter_tags(db, new_file, content)
                     project_markdown_thumbnail(db, new_file, content)
                     if new_file.thumbnail_path:
                         projected_thumb = (

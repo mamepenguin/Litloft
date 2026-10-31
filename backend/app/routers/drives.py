@@ -1,5 +1,6 @@
 import unicodedata
 import logging
+from collections import defaultdict
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -37,6 +38,7 @@ from app.schemas import (
     file_to_response,
 )
 from app.services import fileops
+from app.services.tagops import cleanup_orphan_tags, project_frontmatter_tags
 from app.services.file_versions import record_version
 from app.services.filetype import classify
 from app.services.markdown_relations import sync_markdown_file_relations
@@ -711,9 +713,19 @@ def list_drive_files(
         query = query.filter(
             File.liked_at.is_not(None) if liked else File.liked_at.is_(None)
         )
-    for name in tag or []:
-        if name:
-            query = query.filter(File.tags.any(func.lower(Tag.name) == name.lower()))
+    chosen = [name for name in tag or [] if name]
+    if chosen:
+        # Folded in Python: SQLite's lower() leaves non-ASCII capitals alone.
+        # Not narrowed to this drive's rows: a file moved before tags followed
+        # their drive links to its old drive's row, and File.drive above already
+        # bounds what is listed.
+        by_fold: dict[str, list[int]] = defaultdict(list)
+        for tag_id, tag_name in db.query(Tag.id, Tag.name):
+            by_fold[tag_name.lower()].append(tag_id)
+        for name in chosen:
+            query = query.filter(
+                File.tags.any(Tag.id.in_(by_fold[name.lower()]))
+            )
     query = _apply_kinds_filter(query, [_normalize_kind(kind) for kind in type or []])
     if trust == "unreviewed":
         # Not a tier: the review queue is "nobody has ruled on this", which
@@ -874,6 +886,13 @@ _TEXT_CREATE_MAX_BYTES = 1 * 1024 * 1024  # 1 MB
 _SUFFIX_MAX_ATTEMPTS = 99
 
 
+def _project_created_markdown_tags(db: Session, file: File, content: str) -> None:
+    if not fileops._is_markdown_file(file):
+        return
+    project_frontmatter_tags(db, file, content)
+    cleanup_orphan_tags(db, file.drive)
+
+
 def _sync_created_markdown_relations(db: Session, file: File, content: str) -> None:
     if not fileops._is_markdown_file(file):
         return
@@ -992,6 +1011,7 @@ async def create_text_file(
         existing_missing.filename = nfc_name
         existing_missing.folder_path = folder_path
         _record_created_file_version(db, existing_missing, content_bytes)
+        _project_created_markdown_tags(db, existing_missing, body.content)
         db.commit()
         db.refresh(existing_missing)
         _sync_created_markdown_relations(db, existing_missing, body.content)
@@ -1077,6 +1097,7 @@ async def create_text_file(
         try:
             db.flush()
             _record_created_file_version(db, new_file, content_bytes)
+            _project_created_markdown_tags(db, new_file, body.content)
             db.commit()
         except IntegrityError:
             db.rollback()

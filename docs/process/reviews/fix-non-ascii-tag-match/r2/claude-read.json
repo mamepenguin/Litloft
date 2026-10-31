@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "No invariants file exists for this change, so bucket A is unavailable and there is no touch-point list to check against.",
+    "r1 finding list-filter-drops-stale-linked-files: the fix does what it claims, by reading. The lookup at backend/app/routers/drives.py:722 no longer has a drive condition, so a stale row's id is in by_fold, and drives.py:684 still bounds the listing with File.drive == drive_name. The chip and `tag:` paths named in r1 reach this same filter.",
+    "r1 finding drive-scope-test-cannot-fail: the condition that test could not exercise no longer exists. test_another_drives_tag_is_not_listed now holds the File.drive bound on a tag listing, and the new test test_a_file_linked_to_another_drives_row_is_listed (backend/tests/test_tag_name_matching.py:88) pins the opposite direction.",
+    "r1 finding move-now-sweeps-destination-drive-orphans: unchanged by the fix commits. backend/app/services/tagops.py:98 still sweeps every drive in left_drives, including dst_drive, and test_tag_name_matching.py:178-190 still pins the removal of `leftover`. No new evidence changes its INFO assessment.",
+    "The UNSPEC at test_tag_name_matching.py:55-56 and the new UNSPEC at :86-87 now agree with the code when `nothing from another drive` is read as files, not rows.",
+    "No remaining Tag-name comparison through SQL lower() was found in backend/app or addons by grep; the only hit is a docstring at backend/tests/test_api_tags.py:267."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "On a database with stale links, a drive's sidebar count and its listing disagree. On drive B, the row `trip` counts only files linked to B's row (drives.py:829) while choosing it also lists files linked to A's `trip` (drives.py:722-726). On drive A, the row counts the file now sitting on B because list_drive_tags has no File.drive condition, while choosing it omits that file (drives.py:684). The listing half is the parent's behaviour restored; known-issues.md:74-78 records only the count half.",
+    "Coexisting variants in one drive still show separate counts while choosing either lists the files of both, as r1 noted and decisions.md step 7 observed. The fix commits did not change or specify this.",
+    "A case-variant name on a note renames the shared row (files.py:164-168) while batch tagging a non-Markdown file keeps the existing spelling (files.py:192), so one batch mixing both treats the same request differently. Unchanged since r1.",
+    "Matching uses Python str.lower(), not casefold, so `STRASSE` and `straße` stay different tags. Unchanged since r1 and pinned only for lower()."
+  ],
+  "regression_risks": [
+    "The tag filter now reads every Tag row of every drive on each tagged listing (drives.py:722). This is unlikely to matter at personal-tool scale, and the IN list holds only the case variants of a chosen name.",
+    "A tag edit on a stale-linked file relinks it to its current drive's row but sweeps only that drive (files.py:809), so the old drive's row can remain with count 0. This is not introduced by this change's filter fix and affects only legacy data.",
+    "A later change that scopes by_fold to the listed drive would be caught by test_a_file_linked_to_another_drives_row_is_listed; a later change that adds a second tag-filter path would not inherit that protection."
+  ],
+  "test_coverage": [
+    "Predicted killed: re-adding `.filter(Tag.drive == drive_name)` at drives.py:722 makes test_a_file_linked_to_another_drives_row_is_listed fail, because the file's only link is to DST's row and by_fold has no id for `trip`.",
+    "Predicted killed: removing File.drive == drive_name at drives.py:684 makes test_another_drives_tag_is_not_listed fail, because DST's b.mp4 enters the listing through the variant `übung`.",
+    "Predicted killed: replacing `by_fold[name.lower()]` with an exact-name lookup makes the variant cases at test_tag_name_matching.py:58-76 fail.",
+    "Covered for a chosen name with no row: test_api_tags.py:249 and test_api_drives.py:664 reach the empty IN list.",
+    "Not covered: a stale-linked file with a case-variant or non-ASCII chosen name, and a stale-linked file combined with a second tag parameter. Both follow the same code path as the covered cases, so no finding is raised.",
+    "Not covered, as in r1: a move where the source file holds two variants resolving to one destination row (the dedupe at tagops.py:95), the internal POST tags route with a non-ASCII variant, and _write_md_tags with merge=True and a non-ASCII variant."
+  ],
+  "not_verified": [
+    "No test, mutant or application was run: this reviewer has only Read, Glob and Grep, so every behaviour and mutation result is predicted from reading.",
+    "The worktree was assumed to match commit e49e4dba7; git objects were not inspected and the parent's code was taken from the supplied diffs.",
+    "SQLAlchemy's rendering of an empty IN inside File.tags.any was not read in its source; it was inferred from existing tests that list by an unknown tag.",
+    "How many stale links exist in a real database was not measured.",
+    "The frontend chip and search flows were not read or run for this review; their reach to the filter is taken from the r1 record.",
+    "The addons' raw SQL that reads tags was only grepped, not read in full."
+  ],
+  "confidence": 85,
+  "trajectory": "Only one round of fixes exists, so no round can repeat what an earlier fix round added. Commit 91d0b7b65 records the r1 review and changes no code. Commit e49e4dba7 removes a state rather than adding one: it deletes the `Tag.drive == drive_name` narrowing from the filter's name lookup and adds no branch to the code. It adds one test and a comment recording a prediction about stale links. The design is not being patched on this evidence."
+}

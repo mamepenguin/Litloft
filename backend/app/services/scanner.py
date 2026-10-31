@@ -28,6 +28,7 @@ from app.services.frontmatter import (
     parse as parse_frontmatter,
 )
 from app.services.hash import compute_file_hash
+from app.services.tagops import project_frontmatter_tags
 from app.services.image_dimensions import read_image_dimensions
 from app.services.markdown_images import project_markdown_thumbnail
 from app.services.maintenance import (
@@ -266,7 +267,8 @@ def _ensure_md_id_for_new_file(
     file_path: Path,
 ) -> None:
     """For ``.md`` files: read frontmatter, ensure ``id:`` and project
-    ``id`` + ``aliases`` to ``File.md_id`` / ``File.md_aliases``.
+    ``id``, ``aliases`` and ``tags`` to ``File.md_id`` / ``File.md_aliases`` /
+    ``File.tags``.
 
     No-op when the file is not markdown, has no frontmatter, or is too
     large to safely parse. When the frontmatter has no ``id:``, generate
@@ -288,6 +290,8 @@ def _ensure_md_id_for_new_file(
     parsed = parse_frontmatter(content)
     if not parsed.metadata:
         return
+
+    project_frontmatter_tags(db, file_record, content)
 
     fm_id_raw = parsed.metadata.get("id")
     now = datetime.now(UTC)

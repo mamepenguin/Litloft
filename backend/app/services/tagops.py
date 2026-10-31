@@ -1,8 +1,110 @@
 """Tag rows that outlive the files that referenced them."""
 
+import logging
+from collections.abc import Iterable
+
 from sqlalchemy.orm import Session
 
 from app.models import File, Tag, file_tags
+from app.services.frontmatter import extract_valid_tags, parse as parse_frontmatter
+
+logger = logging.getLogger(__name__)
+
+
+class TagIndex:
+    """One drive's tag rows, looked up by name.
+
+    A name resolves to the row spelled exactly that way if there is one,
+    otherwise to the lowest-id row whose ``name.lower()`` is the same. Both
+    sides are folded in Python: SQLite's ``lower()`` folds ASCII only, so a
+    SQL comparison never matches ``Übung`` with ``übung``.
+
+    Rows not yet flushed (``id`` is None) count as newer than any stored row.
+    """
+
+    def __init__(self, tags: Iterable[Tag] = ()) -> None:
+        self._exact: dict[str, Tag] = {}
+        self._folded: dict[str, Tag] = {}
+        for tag in sorted(tags, key=lambda t: (t.id is None, t.id or 0)):
+            self.add(tag)
+
+    def add(self, tag: Tag) -> None:
+        self._exact.setdefault(tag.name, tag)
+        self._folded.setdefault(tag.name.lower(), tag)
+
+    def get(self, name: str) -> Tag | None:
+        return self._exact.get(name) or self._folded.get(name.lower())
+
+
+def resolve_tag(tags: Iterable[Tag], name: str) -> Tag | None:
+    """The row of ``tags`` (one drive's rows) that ``name`` resolves to."""
+    return TagIndex(tags).get(name)
+
+
+def load_tag_index(db: Session, drive: str) -> TagIndex:
+    """Index every Tag row of ``drive``; one query however many names follow."""
+    return TagIndex(db.query(Tag).filter(Tag.drive == drive).all())
+
+
+def replace_file_tags(
+    db: Session, file: File, tag_names: list[str], *, respell: bool = True
+) -> None:
+    """Replace ``file.tags`` with the given names, reusing existing Tag rows.
+
+    Shared by ``PUT /api/files/{id}/tags`` and the internal
+    ``POST /api/internal/files/{id}/tags``. Case-insensitive dedup; the
+    ``Tag`` namespace is per-drive.
+
+    A case-variant row is renamed to the given spelling unless ``respell`` is
+    False, which keeps the row as it stands (what a move or a passive
+    registration wants: no other note's chip changes).
+
+    SECURITY: callers MUST verify drive access before invoking this
+    helper. It performs no authorisation check — it trusts that
+    ``_get_file_or_404`` or equivalent was called upstream.
+
+    Transactional contract: the caller is responsible for ``db.commit()``
+    and for invoking ``cleanup_orphan_tags`` afterwards. Kept
+    commit-free so batch callers can replace tags on many files in a
+    single transaction.
+    """
+    index = load_tag_index(db, file.drive)
+    tag_objects: list[Tag] = []
+    for tag_name in tag_names:
+        tag = index.get(tag_name)
+        if not tag:
+            tag = Tag(name=tag_name, drive=file.drive)
+            index.add(tag)
+        elif respell and tag.name != tag_name:
+            tag.name = tag_name
+            db.add(tag)
+            db.flush()
+            index.add(tag)
+        tag_objects.append(tag)
+    file.tags = tag_objects
+
+
+def project_frontmatter_tags(db: Session, file: File, content: str) -> None:
+    """Set ``file.tags`` from the frontmatter ``tags:`` of Markdown ``content``.
+
+    A case-variant row is joined as it stands. A failure is logged and
+    swallowed so registering the note never depends on its tags. The caller
+    decides that the file is Markdown, and sweeps orphans if the row existed
+    before (``replace_file_tags`` leaves that to it).
+    """
+    try:
+        # The savepoint flushes pending rows (a trashed ghost's deleted tag, a
+        # previous note's new tag) before the index is read, and confines a
+        # failing flush to this projection.
+        with db.begin_nested():
+            replace_file_tags(
+                db,
+                file,
+                extract_valid_tags(parse_frontmatter(content).metadata),
+                respell=False,
+            )
+    except Exception:
+        logger.warning("tags projection failed for %s", file.file_path)
 
 
 def cleanup_orphan_tags(db: Session, drive: str | None = None) -> int:
@@ -36,8 +138,8 @@ def retarget_file_tags(db: Session, file: File, src_drive: str, dst_drive: str) 
 
     A destination row is reused as it stands, so its spelling is never
     rewritten; a name with no row there gets one in the source's spelling.
-    Every other drive the file's old rows belonged to is swept of rows it
-    leaves unreferenced, ``src_drive`` included.
+    Every drive the file's old rows belonged to, ``src_drive`` and
+    ``dst_drive`` included, is swept of rows it leaves unreferenced.
 
     Transactional contract: caller commits. Call it before ``file.drive`` is
     reassigned, with ``src_drive`` the drive the file is leaving.
@@ -47,16 +149,16 @@ def retarget_file_tags(db: Session, file: File, src_drive: str, dst_drive: str) 
     # Pending deletes (an orphan swept earlier in the same transaction) must
     # reach the database first, or a row about to be deleted gets attached.
     db.flush()
-    # SQLite's lower() folds ASCII only, so names are matched in Python.
-    dst_by_key: dict[str, Tag] = {}
-    for dst_tag in db.query(Tag).filter(Tag.drive == dst_drive).order_by(Tag.id):
-        dst_by_key.setdefault(dst_tag.name.lower(), dst_tag)
+    dst_index = load_tag_index(db, dst_drive)
     left_drives = {src_drive} | {tag.drive for tag in file.tags}
-    retargeted: dict[str, Tag] = {}
+    retargeted: list[Tag] = []
     for tag in file.tags:
-        key = tag.name.lower()
-        if key not in retargeted:
-            retargeted[key] = dst_by_key.get(key) or Tag(name=tag.name, drive=dst_drive)
-    file.tags = list(retargeted.values())
-    for drive in sorted(left_drives - {dst_drive}):
+        row = dst_index.get(tag.name)
+        if row is None:
+            row = Tag(name=tag.name, drive=dst_drive)
+            dst_index.add(row)
+        if not any(row is kept for kept in retargeted):
+            retargeted.append(row)
+    file.tags = retargeted
+    for drive in sorted(left_drives):
         cleanup_orphan_tags(db, drive)
