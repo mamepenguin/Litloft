@@ -80,6 +80,11 @@ async def complete_upload(
     _validate_session_drive(upload_id, drive_name)
     file_record, was_recovered = upload_service.complete_upload(upload_id, db)
     if isinstance(file_record, SubtitleUploadResponse):
+        await event_hooks.emit("scan.complete", {
+            "drive": drive_name,
+            "added": 0,
+            "removed": 0,
+        })
         return file_record
     if was_recovered:
         await event_hooks.emit("files.recovered", {"file_ids": [file_record.id]})

@@ -262,11 +262,24 @@ moved takes the subtitle and the other loses that track.
 **`movie.ja.srt` can be both the bare track of `movie.ja.mp4` and the Japanese
 track of `movie.mp4`.** Renaming `movie.mp4` takes it from the other video.
 
-**An uploaded subtitle has no card, so it cannot be replaced or removed from
-the UI.** It is a sidecar file like one placed on disk. Uploading again to the
-same name is refused with a 409, and the upload drawer shows `API error: 409
-Conflict`. A folder uploaded with nothing but subtitles stays out of its parent's
-listing until the next scan.
+**An uploaded subtitle has no card, so it cannot be removed from the UI.** It is
+a sidecar file like one placed on disk. Uploading again to the same name
+replaces the file. A folder uploaded with nothing but subtitles stays out of its
+parent's listing until the next scan.
+
+**Purging a video leaves its sidecar subtitle on disk.** The file becomes a track
+of any later video with the same stem, and it keeps the folder's directory, so
+the next scan lists the folder again.
+
+**Renaming or creating a file with a `.srt` or `.vtt` name keeps its card until
+the next scan.** The scan removes the record with its comments, tags and
+history; the file stays and becomes a track.
+
+**Dropping a subtitle record sends no `files.purged`.** Knowledge keeps a summary
+pointer for an id that no longer exists.
+
+**A subtitle record trashed by an earlier version still deletes the real file
+when purged,** by hand or by the 30-day purge.
 
 **A subtitle dropped into the knowledge editor inserts a broken link.** The
 editor builds `loft://<id>` from the upload's answer, and a subtitle upload has no

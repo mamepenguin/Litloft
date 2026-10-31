@@ -13,7 +13,7 @@ Things to plan around:
 - Uploads do not resume. Closing or reloading the tab stops the upload, and you have to start that file again from the beginning. If part of a file fails, that file fails and the drawer shows an error.
 - The size limit is 50 GB per file unless your administrator changed it (`LITLOFT_MAX_UPLOAD_SIZE_GB`, see [environment variables](../reference/env-variables.md)). A reverse proxy in front of Litloft may have its own limit.
 - An upload is refused before it starts if the disk has less than 110% of the file's size free.
-- An upload is also refused if a file already exists at that path.
+- An upload is also refused if a file already exists at that path. A subtitle (`.srt`, `.vtt`) is the exception: uploading it again replaces the old file.
 
 ### Uploading a missing file again
 
