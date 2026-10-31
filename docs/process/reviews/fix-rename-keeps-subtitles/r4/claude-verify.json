@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "subtitle-upload-no-longer-triggers-indexing",
+      "status": "confirmed",
+      "note": "Traced by reading. uploads.py:82-83 returns before the emit at :86, and _finish_subtitle_upload (upload.py:179-195) only broadcasts upload:complete. intelligence manifest.json:170 subscribes to scan.complete, handle_scan_complete calls reconcile (indexer.py:1110-1125), reconcile calls _reset_loft_refs_with_new_vtt at :488, and _loft_needs_reset checks *.vtt siblings at :138-141. The effect is a delay, not a permanent loss: the next reconcile picks the VTT up, from any later scan.complete (including another file's upload or a scan) or from the worker at the 3600 s default (config.py:255, indexer.py:1615-1622). Only .vtt counts here; an uploaded .srt never triggered this path."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "subtitle-dropped-in-editor-writes-dead-link",
+      "status": "confirmed",
+      "note": "Editor.tsx:729-732 interpolates fileItem.id with no check. api.ts:454-459 declares id?: undefined, and completeUpload returns the union at :464, so the access type-checks. upload.py:246-247 returns the id-less SubtitleUploadResponse. Without an exception the catch at Editor.tsx:739 does not fire, so the note gets loft://undefined. known-issues.md:271-273 already records the behaviour and decisions.md:63 says it was not walked. The mock lines the finding lists carry ids; the chained mock at Editor.dnd.test.tsx:230 was not read."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "scan-drops-rows-renamed-to-a-subtitle-name",
+      "status": "confirmed",
+      "note": "Confirmed for single rename and the create route. fileops.py:403 applies only validate_filename, drives.py:1084-1096 creates a row for any name, and scanner.py:441-451 deletes every non-trashed row with a subtitle name regardless of file_type. main.py:275 scans at startup, and the FK cascade (models.py ondelete=CASCADE, database.py:35 foreign_keys=ON) removes comments, history and tag links. Correction on one detail: batch_rename does not build names the same way. _compute_new_filename (fileops.py:987-1004) re-appends the original suffix, so a batch rename can reach a subtitle name only for a file with no extension or one already subtitle-named. The rename dialog pre-selects only the stem but leaves the extension editable (RenameDialog.test.tsx:34)."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "row-drop-side-effects-unpinned",
+      "status": "confirmed",
+      "note": "test_sidecar_subtitles_follow_video.py has no reference to tags or file_tags (grep count 0). test_active_and_missing_rows_go_and_the_files_stay asserts only the row count and directory names (:376-378). Removing `del existing` leaves the dropped one.srt and gone.srt rows in unseen_paths, and scanner.py:791-803 then selects their ids. The update matches no row, so the test stays green, while the scan reports a wrong missing count and emits files.missing for deleted ids. A dropped row that carries a hash could also be taken as a move candidate at :678-680, which no test seeds. test_other_uploads_still_answer_with_the_file never asserts kind (:333-341). The survival of these mutants was derived by reading, not by running them."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "purged-video-leaves-uploaded-subtitle-that-reattaches",
+      "status": "confirmed",
+      "note": "physical_delete (fileops.py:704-726) unlinks only the row's own path. No subtitle delete route exists: files.py has only the GET at :1333. delete_folder (fileops.py:918-944) does not touch the disk. upload.py:132-133 returns 409 on re-upload. subtitle.py:83-88 with _parse_subtitle_filename matches by stem, so a later same-stem video takes the file as a track. main.py:178 rmdir fails on a non-empty directory, and scanner.py:854-872 records it as an EmptyFolder. known-issues.md:265-269 omits the reattach and the kept folder. A sidecar placed on disk already behaved this way; what is new is that an uploaded one no longer has a row through which it can be removed."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "rename-into-subtitle-extension-drops-the-row-at-next-scan",
+      "status": "confirmed",
+      "note": "Same defect as scan-drops-rows-renamed-to-a-subtitle-name. scanner.py:441-449 selects by filename and deleted_at only, fileops.py:403 has no extension rule, drives.py:1084-1096 creates a row from any name, and the comment at scanner.py:438-440 mentions only rows from an earlier upload. TestScanRemovesSubtitleRows seeds rows directly. test_comments_and_watch_history_go_with_the_row (:392-404) pins the loss of children."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "subtitle-row-drops-send-no-lifecycle-event",
+      "status": "confirmed",
+      "note": "Neither scanner.py:446-454 nor upload.py:183-188 nor uploads.py:82-83 emits files.purged; the only scan emissions are files.missing, files.recovered, files.moved and scan.complete. files.py:1914 and drives.py:1431 do emit, and knowledge manifest.json:51 subscribes. Correction: 'every other route' is overstated, because the existing trashed-ghost delete at upload.py:290 also reaches uploads.py with no files.purged emit. Intelligence recovers at its next reconcile through the orphan purge at indexer.py:477-484, which the scan's own scan.complete (scanner.py:896) triggers on the scan path but nothing triggers immediately on the upload path. The knowledge handler's behaviour for such a row was not traced."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "subtitle-upload-skips-scan-complete",
+      "status": "confirmed",
+      "note": "uploads.py:82-83 returns before the emit at :86-90. event_hooks.py:164 maps scan.complete to WS_STRUCTURE_CHANGED, and FolderTreePane.tsx:29 and :168 refresh on drive.structure_changed. upload:complete has no consumer outside tests in the frontend (grep finds only useWebSocket.test.ts:309). media_import service.py:999-1002 emits after captions. The uploading tab still refreshes through onFileComplete (useUpload.ts:138). This overlaps subtitle-upload-no-longer-triggers-indexing, and the Intelligence effect is a delay until the next reconcile rather than a loss."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "subtitle-dropped-in-editor-writes-a-dead-link",
+      "status": "confirmed",
+      "note": "Same defect as subtitle-dropped-in-editor-writes-dead-link. Editor.tsx:729-732, api.ts:454-459 and :464, known-issues.md:271-273 and decisions.md:63 all read as claimed. The claim that the field is what lets this compile follows from the union: without id on SidecarUploadResult, the property access on the union would be a type error. The compiler was not run."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "scan-row-drop-branches-unpinned",
+      "status": "confirmed",
+      "note": "Tag cleanup at scanner.py:451 and upload.py:187 and the removal at scanner.py:448 have no assertion: the test file has zero references to tags, `_row` and `_upload` seed none, and the return value of _scan_and_register is never read. test_upload_over_a_path_holding_a_row_removes_the_row (:314-328) seeds only a missing row. Survival was derived by reading, not by running the mutants."
+    }
+  ],
+  "specification_compliance": [
+    "The specification text was not reviewed as a separate document. Records were checked against code at the working tree of the branch and against docs/process/reviews/fix-rename-keeps-subtitles/decisions.md and docs/developer-guide/known-issues.md.",
+    "known-issues.md:265-273 records the subtitle's lack of a card, the 409 on re-upload and the editor's broken link. It does not record the missing scan.complete, the reattach to a later same-stem video, or the scan dropping rows that were renamed to a subtitle name."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "A row renamed or created with a .srt or .vtt name is deleted at the next scan with its comments, history and tag links, while the file stays on disk (scanner.py:441-451).",
+    "A subtitle upload no longer emits scan.complete, so an adjacent .vtt reaches Intelligence only at the next reconcile (uploads.py:82-83)."
+  ],
+  "regression_risks": [
+    "Removing `del existing` at scanner.py:448 would go unnoticed by the suite and would produce a wrong missing count and files.missing events for deleted ids.",
+    "Removing the tag cleanup at scanner.py:451 or upload.py:187 would leave orphan tags with the suite still green."
+  ],
+  "test_coverage": [
+    "backend/tests/test_sidecar_subtitles_follow_video.py covers row and file presence for upload and scan. It has no assertions on tags, scan return values, emitted events, renames to a subtitle name, or purging a video that has an uploaded subtitle.",
+    "addons/knowledge/frontend/__tests__/Editor.dnd.test.tsx has no case for an id-less upload answer in the mock lines checked."
+  ],
+  "not_verified": [
+    "No test, mutant, compiler or running app was executed; this verifier has only Read, Glob and Grep, so every record rests on reading the code.",
+    "I read the working tree on the branch and did not compare it with origin/develop by diff, so 'the route ran this emit before the change' relies on the code shape and the other reviewers' statements.",
+    "Editor.dnd.test.tsx:230 (a chained completeUpload mock) was not read.",
+    "The knowledge addon's files-purged webhook handler and what it would do for a dropped subtitle row were not traced.",
+    "Backend tests that do not contain a double-quoted .srt or .vtt name, and test_listing_call_inventory.py, test_subtitle.py, test_sidecar_match.py and test_classify_table.py, were not read in full for tag or event assertions on the drop paths."
+  ],
+  "confidence": 85
+}
