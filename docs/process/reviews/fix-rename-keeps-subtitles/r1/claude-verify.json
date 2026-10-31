@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "case-only-rename-sidecars-stay-detached",
+      "origin": "verifier",
+      "claim": "A case-only rename of a video on a case-insensitive Docker Desktop bind mount does not carry its sidecars to the new stem's case, so the video loses its tracks.",
+      "impact": "After `Movie.mp4` -> `movie.mp4` on the macOS setup that known-issues.md describes, the row's stem is `movie` while the sidecar on disk is still `Movie.srt`. The stem comparison is case-sensitive, so the detail page offers no track or the generated one. The rename returns 200 with no message.",
+      "evidence": "backend/app/services/subtitle.py:115 returns early only when the NFC stems are exactly equal, so a case-only rename reaches the loop. At subtitle.py:132 `target.exists()` is either true on a case-insensitive mount (warning, no move), or false and `shutil.move` at :137 does nothing, per docs/developer-guide/known-issues.md:263-267, which says a case-only rename does nothing inside the container. Either way the sidecar keeps its old case. subtitle.py:58 and :61 compare stems case-sensitively, and detect_subtitles takes the stem from the DB path at subtitle.py:74 and :79. backend/app/services/fileops.py:421-422 stores the new case. test_sidecar_subtitles_follow_video.py has no case-only rename test.",
+      "repro": "not_reproduced: traced by reading only, because this role cannot run commands. Expected steps on a Docker Desktop macOS bind mount: place `Movie.mp4` and `Movie.srt`, rename to `movie.mp4` through File actions, then open the Settings panel.",
+      "introduced": "pre-existing",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant was shown to this reviewer. The detachment on a case-only rename existed before the commit and the commit does not repair it. It sits next to the known case-only rename issue, which does not yet mention subtitles.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Record it in the existing known-issues entry for case-only renames, or make the sidecar stem comparison case-insensitive if the owner wants it fixed."
+    }
+  ],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "batch-rename-still-detaches",
+      "status": "confirmed",
+      "note": "Traced by reading. fileops.py:1089 renames, and :1092 calls _update_file_after_rename (:1107-1122), which has no sidecar step. A repository grep finds move_sidecar_subtitles called only at fileops.py:437 and :528. The path is reachable: routers/files.py:457-477, frontend/src/lib/api.ts:522, BatchRenameDialog.tsx:89, SelectionBar.tsx:435. detect_subtitles then uses the new stem (subtitle.py:79), so the old sidecars stop matching. test_batch_rename.py has 0 matches for srt, vtt or subtitle. docs/user-guide/viewers-and-players.md:69 states without exception that renaming in Litloft takes subtitles along, so the commit's own doc is untrue for this path."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "shared-stem-sidecars-taken-from-sibling",
+      "status": "confirmed",
+      "note": "Traced by reading. subtitle.py:119-123 selects by name only, and fileops.py:437 and :528 pass only the two paths. detect_subtitles is stem-based (subtitle.py:83-88). Same-stem siblings are allowed because fileops.py:401 and resolve_db_path_conflict (:180-184) compare full paths. filetype.py:33 files .loft as video. With movie.mp4, movie.mkv and movie.srt, renaming movie.mp4 to film.mp4 moves movie.srt to film.srt and movie.mkv loses the track. Variant: `Title.en.srt` is the bare track of `Title.en.mp4` and also the en track of `Title.mp4`, so renaming Title.mp4 takes it from Title.en.mp4. No test seeds two videos with one stem."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "nfd-target-name-untested",
+      "status": "confirmed",
+      "note": "Grep for NFD or normaliz in test_sidecar_subtitles_follow_video.py returns 0 matches, and that file uses ASCII names only. test_subtitle.py:140-161 covers NFD for detect_subtitles only. test_listing_call_inventory.py:109-116 checks only that the enclosing function calls unicodedata.normalize, using _called_names over the function scope, and subtitle.py:113 still satisfies that if :129 is removed. Without :129, `item.name[len(old_stem):]` on an NFD name cuts inside the stem and builds a wrong target, and the selection at :122 still matches because _parse_subtitle_filename normalizes by itself. Mutation not executed, since this role cannot run tests. The manual NFD walk in decisions.md is not a regression test."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "batch-rename-leaves-sidecars",
+      "status": "confirmed",
+      "note": "Same defect as claude-read's batch-rename-still-detaches, verified the same way. fileops.py:1043-1104 has no move_sidecar_subtitles call. The path is documented at docs/user-guide/upload-and-fileops.md:39-47. A grep of backend/tests/*batch* for srt, vtt or subtitle returns 0 matches."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "shared-stem-sidecar-taken-from-sibling",
+      "status": "confirmed",
+      "note": "Same defect as claude-read's shared-stem-sidecars-taken-from-sibling. The cited lines are accurate. delete_file (fileops.py:716-732) sets deleted_at and leaves the file on disk, so a trashed same-stem video also counts as a holder only by name: its sidecar is moved by a sibling's rename and is gone from its folder if it is restored. No test has two subtitle-serving files sharing a stem."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "collision-silently-mixes-tracks",
+      "status": "confirmed",
+      "note": "subtitle.py:132-136 logs a warning and continues. The function returns None (:106), and fileops.py:437 and :528 ignore the outcome, so the PUT returns 200. decisions.md step 6 records this in the running app: PUT move 200, no message, Subtitles showing LEFTOVER-OF-ANOTHER-VIDEO, with the video's own film.srt left in the old folder and film.ja.vtt moved. test_sidecar_subtitles_follow_video.py:88-98 and :173-184 assert only files on disk. The docstring at subtitle.py:110-111 shows the no-overwrite behaviour is deliberate, but nothing tells the user."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "language-suffixed-stem-order-dependent",
+      "status": "confirmed",
+      "note": "Traced by reading for movie.mp4 -> movie.ja.mp4 with movie.srt and movie.ja.srt. subtitle.py:119-123 keeps iterdir order, and :132 checks exists per item. If movie.ja.srt comes first, it moves to movie.ja.ja.srt, then movie.srt moves to movie.ja.srt, and both tracks survive (bare and ja). If movie.srt comes first, its target movie.ja.srt still exists so it is skipped, then movie.ja.srt moves to movie.ja.ja.srt, leaving movie.srt behind and detect_subtitles offering only the ja track. Not run, and which order a given filesystem yields was not observed. No test covers this rename."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "nfc-slice-untested",
+      "status": "confirmed",
+      "note": "Same gap as claude-read's nfd-target-name-untested. subtitle.py:113 and :129-130 are as cited. The test file has no non-ASCII or NFD name. test_stored_name_listings_normalize (test_listing_call_inventory.py:109-116) still passes when only :129 is removed, because :113 and :115 still call unicodedata.normalize. It would fail only if every normalize call in the function were removed. test_subtitle.py:148-157 shows that an NFD fixture is feasible. Mutation not executed."
+    }
+  ],
+  "specification_compliance": [
+    "docs/user-guide/viewers-and-players.md:69 says renaming or moving a video takes its subtitles along. This holds for PUT rename, PUT move and batch move (routers/files.py:402 goes through move_file), but not for batch rename (fileops.py:1043-1104).",
+    "No spec document for this change was found. The decisions.md R-5 walk covers rename, move, cross-drive move and bulk move, and does not walk batch rename."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "On a destination collision, the operation returns success, the sidecar stays behind and the video plays the file already at the destination (subtitle.py:132-136).",
+    "Moved sidecars attach to whichever video holds the target stem: renaming movie.mp4 to film.mp4 when film.webm exists gives film.webm the moved tracks, because detection is stem-based (subtitle.py:83-88).",
+    "A sidecar is moved even when a trashed or other same-stem video also relies on it (subtitle.py:119-123)."
+  ],
+  "regression_risks": [
+    "Renaming or moving one of two same-stem videos now removes tracks from the other, which did not happen before this commit.",
+    "Partial sidecar moves leave a video's tracks split across folders with only a backend log line (subtitle.py:128-139)."
+  ],
+  "test_coverage": [
+    "test_sidecar_subtitles_follow_video.py covers single rename, lookalikes, extension-only rename, destination collision on disk, non-video, .loft, a failing move, same-drive move and cross-drive move.",
+    "No automated test covers batch rename with sidecars, same-stem siblings, NFD sidecar names, renames to a language-suffixed stem, or case-only renames.",
+    "Batch move has no sidecar test in that file; it reaches the same code through move_file (routers/files.py:402) and was walked manually in decisions.md step 5."
+  ],
+  "not_verified": [
+    "No code or test was executed, because this role has only Read, Glob and Grep. All reproductions are traces through the code, plus the R-5 record in decisions.md for the collision.",
+    "The R-5 logs and screenshots under /private/tmp cited in decisions.md were not opened.",
+    "The actual iterdir order on APFS, ext4 or a Docker Desktop bind mount was not observed for the language-suffixed rename.",
+    "Case-only rename behaviour on a Docker Desktop bind mount was taken from known-issues.md and not observed.",
+    "Whether the tree read in this worktree matches c2e5b8840 exactly was not checked with git; the branch status showed it at that commit with only the r1 directory untracked.",
+    "The addons' use of .vtt sidecars (media_import, intelligence) after a sidecar move was not traced."
+  ],
+  "confidence": 88
+}
