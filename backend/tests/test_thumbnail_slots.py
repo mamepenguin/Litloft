@@ -934,7 +934,11 @@ class TestStartupMigration:
             async with main.lifespan(app):
                 seen["finished_when_serving"] = bool(finished)
 
-        asyncio.run(drive_lifespan())
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(drive_lifespan())
+        finally:
+            loop.close()
 
         assert seen["finished_when_serving"]
 
