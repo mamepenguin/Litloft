@@ -375,9 +375,10 @@ export function FolderBrowser({
     if (sort !== "relevance") params.set("sort", sort);
     if (order !== "desc") params.set("order", order);
     if (smartFolderId) params.set("smart_folder_id", smartFolderId);
+    if (includeSceneClip) params.set("include_scene_clip", "true");
     const next = `/drive/${encodeURIComponent(driveName)}/search?${params.toString()}`;
     folderRouter.replace(next);
-  }, [isSearch, searchQuery, typeFilter, sort, order, smartFolderId, driveName, folderRouter]);
+  }, [isSearch, searchQuery, typeFilter, sort, order, smartFolderId, includeSceneClip, driveName, folderRouter]);
 
   const handleViewChange = useCallback(
     (mode: ViewMode) => {

@@ -740,6 +740,7 @@ trustReviewedAt, onFileChange }` plus what its row lists.
 | Slot ID | Location | Props / contract |
 |---------|----------|------------------|
 | `search-modes` | Search results page (`/drive/{drive}/search`). Not the header search modal | `{ query, drive, filter, onSelect }`. Draws a results-page mode such as semantic search |
+| `search-results-top` | Search results page (`/drive/{drive}/search`), between the **Scene search** toggle and the file list. Not drawn for a query with operators | `{ query, drive, includeSceneClip, typeFilter, smartFolderId }`. `typeFilter` and `smartFolderId` are `null` when unset. Draw nothing when you have nothing to show: the host adds no wrapper |
 | `search-result-actions` | Next to a match excerpt in search results | `{ capture }` |
 | `file-detail-sections` | File detail inspector, **Info** tab | File props. The entries with id `detailed-summary` and `knowledge-edit` are placed outside the tab by the core (the canvas or the sheet). Not for a transcript (`player-side`) or derived relations (`file-relations`); an entry in two slots renders twice |
 | `file-relations` | Inspector **Related** tab, after the core's own relation lists | File props. See [below](#contributing-to-the-related-tab) |
@@ -1249,6 +1250,7 @@ Slot entries each addon declares, for reference when designing your own.
 | Addon | Slot | Entry IDs |
 |-------|------|-----------|
 | `intelligence` | `search-modes` | `find-mode` |
+| `intelligence` | `search-results-top` | `scene-segments` |
 | `intelligence` | `file-detail-sections` | `unverified-source`, `suggested-tags`, `suggested-chapters`, `summary`, `detailed-summary`, `visual-description`, `visual-index`, `clip-frames` |
 | `intelligence` | `file-relations` | `similar-files` |
 | `intelligence` | `player-side` | `transcript` |
