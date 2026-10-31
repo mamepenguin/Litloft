@@ -7,6 +7,7 @@ import pytest
 
 import app.config as config
 import app.services.subtitle as subtitle
+from app.services.scanner import _scan_and_register
 from app.models import File
 from app.services.subtitle import detect_subtitles
 from tests.test_target_drive_access import (  # noqa: F401  (fixture)
@@ -327,3 +328,57 @@ class TestUploadedSubtitleRow:
 
         assert _place(db, sub_id) == (OPEN_DRIVE, "a", "movie.srt", "a/movie.srt")
         assert db.get(File, row.id).filename == "film.mp4"
+
+
+class TestScanKeepsUploadedSubtitles:
+    def _state(self, db, row_id):
+        db.expire_all()
+        row = db.get(File, row_id)
+        return row.missing_since is not None
+
+    def test_uploaded_subtitle_stays_active_after_a_rescan(
+        self, two_drives, monkeypatch, tmp_path
+    ):
+        c, db, open_dir, _ = two_drives
+        monkeypatch.setattr(config, "UPLOAD_DIR", tmp_path / "uploads")
+        (open_dir / "a").mkdir()
+        sub_id = _upload(c, OPEN_DRIVE, "a", "movie.srt")
+
+        _scan_and_register(db, OPEN_DRIVE)
+
+        assert not self._state(db, sub_id)
+
+    def test_row_flagged_missing_recovers_when_its_file_is_on_disk(
+        self, two_drives, monkeypatch, tmp_path
+    ):
+        c, db, open_dir, _ = two_drives
+        monkeypatch.setattr(config, "UPLOAD_DIR", tmp_path / "uploads")
+        (open_dir / "a").mkdir()
+        sub_id = _upload(c, OPEN_DRIVE, "a", "movie.srt")
+        db.get(File, sub_id).missing_since = datetime.now(UTC)
+        db.commit()
+
+        _scan_and_register(db, OPEN_DRIVE)
+
+        assert not self._state(db, sub_id)
+
+    def test_scan_creates_no_row_for_a_subtitle_dropped_on_disk(self, two_drives):
+        _, db, open_dir, _ = two_drives
+        _sidecars(open_dir, "a", "movie.srt")
+
+        _scan_and_register(db, OPEN_DRIVE)
+
+        assert db.query(File).filter(File.filename == "movie.srt").count() == 0
+
+    def test_row_whose_subtitle_file_is_gone_is_flagged_missing(
+        self, two_drives, monkeypatch, tmp_path
+    ):
+        c, db, open_dir, _ = two_drives
+        monkeypatch.setattr(config, "UPLOAD_DIR", tmp_path / "uploads")
+        (open_dir / "a").mkdir()
+        sub_id = _upload(c, OPEN_DRIVE, "a", "movie.srt")
+        (open_dir / "a" / "movie.srt").unlink()
+
+        _scan_and_register(db, OPEN_DRIVE)
+
+        assert self._state(db, sub_id)
