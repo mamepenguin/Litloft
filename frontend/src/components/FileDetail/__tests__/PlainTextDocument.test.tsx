@@ -223,6 +223,21 @@ describe("SPEC-CORE-020 which files take the document layout", () => {
     expect(screen.getAllByTestId("knowledge-edit-stub")).toHaveLength(1);
   });
 
+  it("hands the search term to the knowledge-edit slot for a .md note too", async () => {
+    mount(
+      makeFile({
+        filename: "note.md",
+        mime_type: "text/markdown",
+        file_type: "document",
+      }),
+      "canonical",
+      { highlight: "needle" },
+    );
+    const stub = await screen.findByTestId("knowledge-edit-stub");
+    expect(stub.dataset.plainText).toBe("false");
+    expect(stub.dataset.highlight).toBe("needle");
+  });
+
   it("decides on the name case-insensitively", async () => {
     mount(txtFile({ filename: "NOTES.TXT" }));
     expect((await isDocument()).dataset.plainText).toBe("true");
