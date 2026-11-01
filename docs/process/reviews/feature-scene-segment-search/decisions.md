@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: その不変条件を追加した上での出荷をする。
 ran_in_app: yes
 at: bca41ab8947b8fbf0756a4a2b1cdeb091404898d
 by: agent
