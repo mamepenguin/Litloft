@@ -1,10 +1,11 @@
 # Decisions
 
 decision:
-ran_in_app:
-at:
-by:
-evidence:
+ran_in_app: yes
+at: 71e9cd802aa146184a7e515215019c2cbab099b2
+by: agent
+evidence: Local stack (`docker compose up -d --build`, intelligence 9b58ec5), drive テスト画像, through :3000 and in headless Chromium. Before = the same container with app/search.py and app/config.py from aa67c10, the only app files that differ; its app tree hashed identical to aa67c10. `GET /search/compare` clip_vector before -> after: photo 0->50, picture 0->50, small 0->50, middle 0->50. `GET /search?q=flower&limit=50`: 5 results, none with a CLIP match -> 29, 24 with clip_thumbnail. `GET /search?q=dog&include_scene_clip=true&limit=50`: 11, no CLIP match -> 45, 34 clip_thumbnail. Every before result stayed, at the same score. Search page: flower 5->29 items, photo 29->50, dog 11->50, Thumbnail badges only after, all after the other matches; Scene search checkbox on dog 11->45 items, URL gains include_scene_clip=true. Popup flower: badges Transcript, Content, Transcript x3 -> the same five followed by Thumbnail x3. Unrelated word 量子力学: 50 Thumbnail on both builds. mode=recall flower, 19 results: file ids, scores and match types hashed identical on before and the first after run; a second after run, after a restart, hashed differently and was not compared item by item. Filters on after: drive 動画 returned only 動画; type=video returned only video. Visual badge type `clip` seen only through the API on after (person, robot with Scene search on). `GET /search?q=flower&limit=50` time, median of requests 2-6: 0.035 s before, 0.041 and 0.038 s after, below the 1 s line. No page errors or 5xx. Not produced, because ordinary use cannot: a failed CLIP embedding, a failed KNN. Screenshots: /private/tmp/claude-502/-Users-libre-Sources-video-share/c532cfae-bef4-4683-a233-b1ff16e5e518/scratchpad/r5/{before,after}-{flower,photo,dog,dog-scene,dog-toggle,quantum,popup-flower}.png. Tied scores changed order between restarts of the same 9b58ec5 build (flower, dog, 量子力学).
+pending: none
 
 ## Production benchmark
 
