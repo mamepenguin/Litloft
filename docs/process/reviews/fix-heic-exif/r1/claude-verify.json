@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-1",
+      "status": "confirmed",
+      "note": "Confirmed by reading, narrowed in one respect. scanner.py:387, :549-552 and :754 call extract_exif and are unchanged by the fix, and no test under backend/tests asserts a file_exif result from them. Grep finds FileExif/extract_exif only in test_exif.py and the migration test, plus a comment in test_database_rebuild_failure.py. Two corrections. (1) 'No test exercises' holds only as 'no test asserts': test_image_dimensions.py:133-140 and :168-197 run real scans over PNG files, so :754 and the :549 backfill branch do execute, and only dimensions are checked. (2) A grep for 'scan' in test_exif.py is not empty: line 193 has 'rescan' in a comment, though no scan is run there. decisions.md item (8) records file_exif identical across a rescan, and no item records a backfill of a pre-fix HEIC row. Not executed; the tools are read-only."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-2",
+      "status": "confirmed",
+      "note": "exif.py:69-72 now calls img.getexif(). Sibling worktrees (video_share, video_share-epub-controls) still have `raw = img._getexif()` at exif.py:69; I treated that as the pre-change code. In Pillow 12.3.0, `def _getexif` exists only in the JPEG, PNG and WebP plugins, and TiffImagePlugin.py has none. So the old call on a TIFF raised AttributeError, and the old extract_exif's broad except (kept at exif.py:138-140) would turn that into None. Image.py:1637-1645 loads a TIFF's own tags through tag_v2/load_from_fp, so the new call returns them. filetype.py:68-69 classifies .tif/.tiff as image. The test parametrization at test_exif.py:127 is JPEG, HEIF and WEBP only. Limits: Pillow source read was 12.3.0 from another project's venv, not the pinned 11.2.1; not executed. A TIFF with only baseline tags and none of the mapped fields still returns None through exif.py:134."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-3",
+      "status": "confirmed",
+      "note": "upload.py:351 flushes, :358 calls extract_exif and :371 commits, so the read happens inside the open write transaction after the INSERT/UPDATE. In Pillow 12.3.0, PngImagePlugin.py:1097-1101 calls self.load() when 'exif' is not in info. The first decode is real: read_image_dimensions at upload.py:306 reaches image_dimensions.py:50 img.getexif() through _is_transposing, on its own Image.open. extract_exif opens the file again, so the decode repeats. On the trashed-ghost path the flush at upload.py:295 comes before even the first decode, matching 'most paths'. database.py:17 sets only check_same_thread. decisions.md item (6) timed JPEG and HEIC only. Line numbers differ from the finding's 1094-1098 because I read 12.3.0 rather than 12.1.1. The pinned 11.2.1 and the actual lock duration were not checked or measured. The behaviour in scanner.py is not part of this: it is only the upload path that newly runs this read under the lock."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-4",
+      "status": "confirmed",
+      "note": "scanner.py:549 extracts only when db.get(FileExif, id) is None. Grep of backend/app finds no scanner code that deletes or updates a FileExif row; the only delete is upload.py:356. A same-path replacement matches the existing row, so its old EXIF stays. The comment at upload.py:352-353 acknowledges this. scanner.py:549 itself is not in the fix, so the scanner's staleness predates it; what the fix adds is the asymmetry with uploads. Not executed."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "DEEP-1",
+      "status": "confirmed",
+      "note": "Call sites confirmed at scanner.py:387, :549-552 and :754, and markdown_image_import.py:416 calls register_single_file. test_exif.py runs no scan: its tests call extract_exif directly or go through upload and copy, and 'scan' appears only in the comment at line 193. decisions.md item (8) is a rescan with file_exif unchanged, not a backfill of a pre-fix HEIC. Scope note: other test files do execute the scanner call sites (test_image_dimensions.py:133-197) without asserting EXIF, which does not contradict this finding because it is limited to test_exif.py. Not executed."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "DEEP-2",
+      "status": "confirmed",
+      "note": "Order confirmed at upload.py:351, :358 and :371. PngImagePlugin.py:1097-1101 in Pillow 12.3.0 matches the cited lines and loads the image when 'exif' is absent from info; exif.py:70 calls getexif. database.py:17 sets only check_same_thread, and decisions.md item (6) has no PNG. One qualifier: 'deliberately called before the flush' at upload.py:305-307 is not stated by the code. The comment at :301-304 explains reading from the landed file, not lock avoidance. The comment at :290-292 does establish lock avoidance for the generator. Pinned 11.2.1 not read; lock duration not measured."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "DEEP-3",
+      "status": "confirmed",
+      "note": "upload.py:354-360 deletes and inserts file_exif rows. A reused row keeps its id (:273-274, :310-333). A trashed ghost is deleted and the new row gets a new id (:288-297), with the old file_exif row removed by ondelete=CASCADE at models.py:355 and PRAGMA foreign_keys=ON at database.py:35. test_exif.py:206-228 covers replacement and removal on a reused row; the ghost branch has no EXIF test there. No touch-point list exists for this change: docs/process/reviews/fix-heic-exif/ holds only decisions.md and r1/, with no invariants.md, and docs/specs/INDEX.md has no heic or exif entry. So 'no list names it' is true because there is no list at all. Not executed."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "DEEP-4",
+      "status": "confirmed",
+      "note": "fileops.py:298-313 writes the new row. Callers confirmed at routers/files.py:505 (batch_copy) and :1411 inside copy_file_endpoint, defined at :1403. Backfill condition confirmed at scanner.py:549, autoflush=False at database.py:38. test_exif.py:230-248 copies only with target_folder_path \"\" and no target drive. No touch-point list exists, as in DEEP-3. On ordering: models.py defines no relationship between File and FileExif, and fileops.py:297-301 adds both without a flush, so insert order rests on SQLAlchemy's unit-of-work sort, whose source was not available here. test_a_copied_photo_has_the_same_exif and decisions.md item (3) report it working with foreign keys on, which agrees with the finding's 'no problem found' but I could not establish it from source."
+    }
+  ],
+  "specification_compliance": [
+    "No spec or invariants file exists for this change: docs/process/reviews/fix-heic-exif/ has only decisions.md and r1/, and docs/specs/INDEX.md has no heic or exif entry. Compliance could be checked only against the UNSPEC comments at test_exif.py:125 and :192 and against decisions.md."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "TIFF files now yield file_exif rows (CR-2).",
+    "Image formats with no _getexif and no EXIF, such as GIF and BMP, previously hit AttributeError and logged an 'EXIF extraction failed' warning; by reading Image.getexif they now return None with no warning. Not executed."
+  ],
+  "regression_risks": [
+    "fileops.py:297-313 adds File and FileExif in one flush with no relationship() between them and foreign keys enforced, so the insert order depends on SQLAlchemy's internal sort rather than on anything declared in this repository. The existing copy test would catch a break.",
+    "A large PNG upload now decodes inside the write transaction (upload.py:351-371), so a concurrent writer could wait on the lock; the wait was not measured."
+  ],
+  "test_coverage": [
+    "test_exif.py covers extract_exif directly for JPEG, HEIF and WEBP, upload including re-upload over a reused row, and copy in the same folder on the same drive.",
+    "Not covered by any assertion: EXIF stored by the scanner call sites or register_single_file, a backfill of a pre-fix HEIC row, TIFF, the trashed-ghost upload path for EXIF, cross-folder or cross-drive copy, and batch_copy.",
+    "Scanner call sites do execute in test_image_dimensions.py:133-197 with PNG fixtures, with assertions on dimensions only."
+  ],
+  "not_verified": [
+    "Nothing was executed: tests, the app and Pillow calls were all checked by reading only.",
+    "The pinned Pillow 11.2.1 and pillow-heif 0.22.0 sources were unavailable; Pillow behaviour was read from 12.3.0 in another project's venv, and pillow-heif's getexif path was not read.",
+    "The pre-change exif.py was read from sibling worktrees, not from origin/develop itself, because git commands are unavailable.",
+    "SQLAlchemy unit-of-work source was not available, so insert ordering for fileops.py:297-313 is not established from source.",
+    "The time a PNG decode holds the SQLite write lock was not measured, nor whether it can exceed the driver's busy timeout.",
+    "Whether every test in test_markdown_image_import.py reaches the real register_single_file was not traced."
+  ],
+  "confidence": 85
+}
