@@ -61,6 +61,7 @@ const AT_THE_PHONE_WIDTH = [
   "epub-bar.spec.ts",
   "markdown-table-scroll.spec.ts",
   "plain-text-document.spec.ts",
+  "played-ranges.spec.ts",
   "spec-viewport.spec.ts",
 ] as const;
 

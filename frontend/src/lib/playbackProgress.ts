@@ -9,6 +9,12 @@ import { useCallback, useEffect, useRef } from "react";
 import type { MediaController } from "./mediaController";
 import { getMediaClockSnapshot, subscribeMediaClock } from "./mediaClock";
 import { getWatchProgress, saveWatchProgress } from "./api";
+import {
+  createPlayedRangeCapture,
+  PLAYED_RANGES_SEND_INTERVAL_MS,
+  sendPlayedRanges,
+  type PlayedRangeCapture,
+} from "./playedRanges";
 import { getSavedProgress, saveProgress } from "./recentlyPlayed";
 import { useProfile } from "@/components/ProfileProvider";
 
@@ -49,6 +55,7 @@ export function usePlaybackProgress({
   // a save could clobber the marker being restored.
   const resumePendingRef = useRef(false);
   const resumeNowRef = useRef<(() => Promise<void>) | null>(null);
+  const captureRef = useRef<PlayedRangeCapture | null>(null);
 
   // Read through refs inside the subscription so a change of profile or
   // requested start does not tear the clock subscription down and
@@ -70,6 +77,11 @@ export function usePlaybackProgress({
   }, [fileId]);
 
   const notifyEnded = useCallback(() => {
+    try {
+      captureRef.current?.flush(hasProfileRef.current);
+    } catch {
+      // Capture must never cost the completion write.
+    }
     if (!mc) return;
     let currentTime: number;
     let duration: number;
@@ -171,13 +183,65 @@ export function usePlaybackProgress({
       write(currentTime, duration);
     };
 
-    const unsubscribe = subscribeMediaClock(mc, onTick);
+    const capture = createPlayedRangeCapture(fileId, sendPlayedRanges);
+    captureRef.current = capture;
+    const flushCapture = (final = false) => {
+      try {
+        capture.flush(hasProfileRef.current, final);
+      } catch {
+        // Capture must never stop playback or the progress saves.
+      }
+    };
+    const observeTick = () => {
+      try {
+        const { currentTime, duration, paused, interrupted } =
+          getMediaClockSnapshot(mc);
+        let rate = 1;
+        let rateReadable = true;
+        try {
+          rate = mc.getPlaybackRate();
+        } catch {
+          rateReadable = false;
+        }
+        capture.observe({
+          hasProfile: hasProfileRef.current,
+          eligible:
+            !paused &&
+            !interrupted &&
+            usable(duration) &&
+            !resumePendingRef.current &&
+            rateReadable,
+          position: currentTime,
+          rate,
+          wallMs: Date.now(),
+        });
+      } catch {
+        // Capture must never stop playback or the progress saves.
+      }
+    };
+    const onPageHidden = () => {
+      if (document.visibilityState === "hidden") flushCapture();
+    };
+    const onPageHide = () => flushCapture();
+    const sendTimer = setInterval(flushCapture, PLAYED_RANGES_SEND_INTERVAL_MS);
+    document.addEventListener("visibilitychange", onPageHidden);
+    window.addEventListener("pagehide", onPageHide);
+
+    const unsubscribe = subscribeMediaClock(mc, () => {
+      observeTick();
+      onTick();
+    });
     onTick();
 
     return () => {
       cancelled = true;
       resumeNowRef.current = null;
       unsubscribe();
+      clearInterval(sendTimer);
+      document.removeEventListener("visibilitychange", onPageHidden);
+      window.removeEventListener("pagehide", onPageHide);
+      if (captureRef.current === capture) captureRef.current = null;
+      flushCapture(true);
       // Read the controller, not the clock: its last tick can be stale.
       try {
         if (mc.isInterrupted?.()) return;

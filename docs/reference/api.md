@@ -17,7 +17,7 @@ Conventions:
 |---|---|
 | `200` / `201` | Success. `201` when a pin, collection, Smart Folder, text file, comment or (Internal API) file relation is created. |
 | `202` | The Markdown image import job was queued. |
-| `204` | Success, no body: unpin, delete a comment, Smart Folder, collection or collection item, delete progress, the Internal API writes, and progress writes made without a viewer identity. |
+| `204` | Success, no body: unpin, delete a comment, Smart Folder, collection or collection item, delete progress, the Internal API writes, played-ranges writes, and progress writes made without a viewer identity. |
 | `206` | A satisfied `Range` request on `/stream`. |
 | `400` | Bad request: path traversal in a `path` / `folder` argument, a missing drive context on a `scope=drive` addon call, a cross-drive collection item or relation. |
 | `401` | A comment posted without a viewer identity. |
@@ -106,7 +106,9 @@ File ids are 12-character nanoids and are validated as such in the path.
 | `DELETE` | `/api/files/{id}/comments/{cid}` | Delete your own comment (`204`; `403` otherwise). |
 | `POST` | `/api/files/{id}/progress` | Body `{ position?, duration? }`. Always updates `last_played_at`; the playback position is updated only when both fields are sent. An empty body records a view. For a PDF, `position` is the page (1-based) and `duration` the page count. |
 | `GET` | `/api/files/{id}/progress` | `{ position, duration }`; zeros when there is no record or no viewer identity. |
-| `DELETE` | `/api/files/{id}/progress` | Remove this viewer's history row for the file (`204`). |
+| `DELETE` | `/api/files/{id}/progress` | Remove this viewer's history row and played segments for the file, in one transaction (`204`). |
+| `POST` | `/api/files/{id}/played-ranges` | Body `{ ranges: [{ start, end }] }`, 1 to 256 ranges, each `0 <= start < end <= 604800` seconds; otherwise `422` and nothing is written. Each range's seconds are split at 5-second boundaries and added to this viewer's totals for the file (`204`). `204` without writing when there is no viewer identity. |
+| `GET` | `/api/files/{id}/played-segments` | This viewer's played seconds per 5-second segment: `{ segment_seconds: 5, segments: [{ index, played_seconds }] }`, ascending by `index`, where segment `n` covers `[5n, 5n + 5)` and a segment never played is left out. Empty `segments` without a viewer identity. |
 | `POST` | `/api/files/{id}/like` | Toggle the like. Liking sets `liked_at` to now, so a re-liked file sorts first in the Liked view. |
 | `POST` | `/api/files/{id}/favorite` | Toggle the favourite flag. |
 | `POST` | `/api/files/{id}/restore` | Restore from trash. |
@@ -192,7 +194,7 @@ An upload session belongs to the drive it was opened on; using it under another 
 
 There is no profile or account API. The nickname in the `lit_viewer` cookie or `X-Lit-Viewer` header is hashed into a `viewer_id`, and watch history and comment ownership are keyed by it. Requests without a nickname are accepted: progress writes do nothing and return `204`, and history reads come back empty.
 
-Per-viewer endpoints: `POST` / `GET` / `DELETE /api/files/{id}/progress` and `GET /api/drives/{drive}/watch-history`.
+Per-viewer endpoints: `POST` / `GET` / `DELETE /api/files/{id}/progress`, `POST /api/files/{id}/played-ranges`, `GET /api/files/{id}/played-segments` and `GET /api/drives/{drive}/watch-history`.
 
 ## Admin
 
