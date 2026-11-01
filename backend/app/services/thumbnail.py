@@ -7,9 +7,12 @@ import tempfile
 from collections import Counter
 from pathlib import Path
 
+import app.config as config
 from app.services.atomic_write import AbandonWrite, generating_file
 
 logger = logging.getLogger(__name__)
+
+SLOT_DIR = ".by-id"
 
 
 def get_video_duration(video_path: str) -> float | None:
@@ -611,6 +614,33 @@ def write_thumbnail_atomically(generator, source: str, destination: str) -> bool
     except AbandonWrite:
         return False
     return True
+
+
+def thumbnail_slot_rel(file_id: str) -> str:
+    """The cache slot a file owns, relative to the thumbnail directory."""
+    return f"{SLOT_DIR}/{file_id}.jpg"
+
+
+def prune_empty_dirs(directory: Path, stop_at: Path) -> None:
+    current = directory
+    while current != stop_at and current.is_dir():
+        try:
+            current.rmdir()
+        except OSError:
+            break
+        current = current.parent
+
+
+def remove_thumbnail_quietly(rel: str | None) -> None:
+    """Remove the file a pointer names. A failure is logged and changes nothing else."""
+    if not rel:
+        return
+    path = config.THUMBNAILS_DIR / rel
+    try:
+        path.unlink(missing_ok=True)
+        prune_empty_dirs(path.parent, config.THUMBNAILS_DIR)
+    except OSError:
+        logger.warning("Could not remove thumbnail %s", rel)
 
 
 def get_thumbnail_generator(file_type: str, mime_type: str | None):

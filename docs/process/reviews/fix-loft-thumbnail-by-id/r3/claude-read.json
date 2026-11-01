@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [],
+  "specification_compliance": [
+    "The brief declares no invariants file, so no finding can be bucket A. As context only, the code was read against docs/specs/thumbnail-slot-ownership.md.",
+    "SPEC-ADDON-040 and I15, first clause: `_save_loft_thumbnail` writes to `thumbnail_slot_rel(file_id)` and stores that value (addons/media_import/backend/service.py:607-621). Consistent.",
+    "State table at docs/specs/thumbnail-slot-ownership.md:133 (path form or `.markdown` to `.by-id` on a Media Import save, old file removed): the removal runs after the commit and only when the pointer changes (service.py:622-626). Consistent.",
+    "Spec section 5, 'Its failure handling is unchanged': r2's contradiction is gone for a short body. `urlretrieve` is back, so `ContentTooShortError` again makes `_download_thumbnail_sync` return False and the next candidate is tried. The one remaining difference is an improvement: a failed transfer now leaves the existing slot intact (see potential_unspecified_behavior).",
+    "Delivery at docs/specs/thumbnail-slot-ownership.md:227-230: SPEC-ADDON-040 becomes `implemented` with the pointer bump, and this commit does that. The three SPEC-CORE rows move with it. backend/tests/test_thumbnail_slots.py cites those IDs. The spec's approval hash is unchanged in all four rows."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The spec does not state that a thumbnail download publishes atomically. Section 5 says only that failure handling is unchanged. The code publishes through `generating_file` (service.py:545-546), and the tests attribute 'a slot is replaced whole or not at all' to SPEC-ADDON-040. The spec text and its approval hash do not record this.",
+    "The spec does not state what a Media Import save does when removing the old picture fails, or that it prunes emptied directories. The code logs a warning and prunes through `remove_thumbnail_quietly` (backend/app/services/thumbnail.py:634-643), and tests cite SPEC-ADDON-040 for both.",
+    "The atomic publish also applies to subscription avatars, because `_save_subscription_avatar` shares `_download_thumbnail_sync` (service.py:574). The spec's touch points name only `_save_loft_thumbnail`. The behaviour is harmless: a failed avatar download now keeps the earlier avatar whole."
+  ],
+  "regression_risks": [
+    "The pin 6ab61614 is recorded locally only as `refs/heads/fix/loft-thumbnail-by-id` in this worktree's submodule git directory, and no remote-tracking ref for that branch or commit exists there. The spec's delivery order has the addon PR merge before the bump. If this core commit merges first, or the addon PR is squash-merged and its branch deleted, the pin can stop resolving on a fresh clone with submodules.",
+    "`urlretrieve` can only detect a short body when the response declares a Content-Length (urllib/request.py:234-235, 247-250). A 200 with `Content-Length: 0`, or a close-delimited response with no length that ends early, still counts as success. It then atomically replaces a good slot, stops the fallback chain and removes an old path-form picture. The in-place write had the same gap on the slot, but removing the old picture is new in this change. It needs an unusual server response, and the next complete download repairs the slot, so it is not raised as a finding.",
+    "Removing the old picture still assumes no other row names it. The spec guarantees that only after a migration completed without failure (thumbnail-slot-ownership.md:140-142). If a migration stopped before handling a shared path, refreshing the .loft deletes a file a sibling still names. The next startup's migration heals this.",
+    "The addon imports `generating_file`, `remove_thumbnail_quietly` and `thumbnail_slot_rel` from core, so it fails at import against a core without them. All three exist in this tree (backend/app/services/atomic_write.py:78, backend/app/services/thumbnail.py:619 and 634).",
+    "The `picture_server` tests go through urllib's environment proxy handling. A developer with `http_proxy` set and no bypass for 127.0.0.1 would see these tests fail. That failure is loud, so it cannot hide a defect."
+  ],
+  "test_coverage": [
+    "r2 F1 is closed. `test_truncated_body_is_a_failure_that_keeps_the_slot` and `test_truncated_candidate_moves_on_to_the_next_url` use a real local server that declares 1000 bytes and sends 3. The handler uses HTTP/1.0, so the connection closes after the body and `fp.read` reaches EOF, leaving `read < size`. A return to `urlopen` plus `copyfileobj` would publish 'cut' and fail both tests.",
+    "r2 F2 is closed. `test_good_download_publishes_the_bytes_and_leaves_no_temp_file` runs the real body with no fake. By reading, it kills `return True` changed to `return False` and raising `AbandonWrite` after the retrieve. The directory listing also kills a retained temporary file.",
+    "r2 F3 is closed. `test_failed_commit_leaves_the_old_picture_on_disk` patches `Session.commit` after seeding. The session comes from a `sessionmaker` subclass, so the patch applies. Moving the removal before `db.commit()` deletes the old file and fails the test. The test does not assert the old pointer, but with no commit the pointer cannot have moved, so no plausible mutant survives through that gap.",
+    "`test_dropped_connection_leaves_existing_slot_and_no_partial` still reaches the real path: `urlretrieve` calls the module-global `urlopen`, which the test patches on the same module object, and `_DroppingResponse` provides `info`, `read` and `close`. Writing directly to `dest` would leave `partial` in the slot and fail the test.",
+    "Mutants predicted to be killed by reading: dropping `old_rel != thumb_rel` (f8); a bare `unlink` (k2); dropping the prune (k3); removal before the download or clearing the pointer on failure (k1); a slot derived from the filename (f1, f6).",
+    "Mutants predicted to survive, none new to this round and none a defect today: reversing the candidate order (the only `fallback_urls` test has a failing first URL and a good second, so reversal still yields the good bytes); dropping the http/https scheme check in `_download_thumbnail_sync`, which the threat model puts out of scope for crafted input. `_youtube_thumbnail_fallbacks` wiring at subscription/manager.py:705-709 is not asserted in this diff.",
+    "Not covered by automated tests: a 200 with an empty body or no Content-Length, and the real download body for subscription avatars, whose tests patch `_save_subscription_avatar`. The recorded in-app run does not exercise a subscription import or a truncated body; a truncated body is covered by the tests above."
+  ],
+  "not_verified": [
+    "Nothing was executed: no tests, mutants or application run, because only Read, Glob and Grep are available. All kill and survive predictions come from reading the code, and the third R-5 run's evidence files outside the repository were not read.",
+    "The `urlretrieve` length check was read in the Python 3.14.8 stdlib on this machine, while the backend image uses python:3.12-slim. No 3.12 source was available locally; the same check is assumed from memory.",
+    "Whether commit 6ab61614 is reachable from the addon remote. Local refs show it only as a local branch head, which is inconclusive because the remote was not queried.",
+    "The working tree was read rather than the commit object, on the assumption that it matches a39a8bead with the submodule at its pin. The local submodule branch head being 6ab61614 and the source matching the diff support that.",
+    "How `_read_chunked` handles an early EOF was recalled from memory, not traced; the short-body conclusion is confirmed only for responses with a Content-Length.",
+    "How often real thumbnail hosts answer with a 200 that has no Content-Length or an empty body was not measured."
+  ],
+  "confidence": 85,
+  "trajectory": "Only 9ba15e59f changes code since r2; 30702a245 and a39a8bead record reviews and an R-5 run. That round adds no branch, state or prediction to production code, so the design is not being patched. It removes what the previous round (accf5dfe4) added: the hand-written `urlopen` plus `shutil.copyfileobj` copy and the `shutil` import are gone, and `urlretrieve` runs inside `generating_file`, restoring the stdlib Content-Length check that round had dropped by accident. Net of all rounds, the download differs from base only by the atomic wrapper, and the other production change remains the slot pointer with quiet removal after the commit. The new lines are tests: a local HTTP server fixture and a commit-failure test. Status of r2's findings: F1, F2 and F3 are fixed by that code and those tests. r1's unused `drive`, `folder_path` and `filename` parameters remain at service.py:579-581 and both callers; they have no user-visible effect and are not reported again as a finding."
+}

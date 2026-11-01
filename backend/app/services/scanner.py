@@ -44,14 +44,14 @@ from app.services.thumbnail import (
     get_thumbnail_generator,
     get_video_duration,
     image_thumbnail_size,
+    SLOT_DIR,
+    remove_thumbnail_quietly,
+    thumbnail_slot_rel,
     write_thumbnail_atomically,
 )
 from app.services import event_hooks
-from app.services.fileops import (
-    _cleanup_empty_parents,
-    _filename_to_title,
-    path_thumbnail_rel,
-)
+from app.nanoid import generate_nanoid
+from app.services.fileops import _filename_to_title
 from app.services.ws import broadcast_from_thread
 
 _MD_READ_MAX_BYTES = 1 * 1024 * 1024
@@ -153,13 +153,15 @@ def _get_folder_path(file_path: Path, base_dir: Path) -> str:
     return parent
 
 
-def _expected_thumbnail_path(drive_name: str, folder_path: str, nfc_stem: str) -> str:
-    return path_thumbnail_rel(drive_name, folder_path, nfc_stem)
-
-
 # The size a picture thumbnail had while it was letterboxed onto a frame.
 # Only one shape ever came out of that, whatever the picture was.
 _LETTERBOXED_SIZE = (320, 180)
+
+
+def _is_slot_or_empty(pointer: str | None) -> bool:
+    """Whether the scan owns this row's thumbnail pointer. A path-form value
+    belongs to the startup migration, and a Markdown projection to its note."""
+    return not pointer or pointer.startswith(f"{SLOT_DIR}/")
 
 
 def _is_letterboxed_image_thumbnail(file_record: File) -> bool:
@@ -203,9 +205,8 @@ def _is_flattened_transparent_picture(
     Cheapest test first, so a picture already moved to WebP stops at the
     stored thumbnail's first bytes and its source is never opened.
 
-    A slot another row also points at is left alone: slots are keyed by
-    stem, so `logo.png` beside `logo.jpg` share one, and writing it would
-    change which of the two files the thumbnail shows.
+    A slot another row also points at is left alone: writing it would change
+    which of the two files the thumbnail shows.
     """
     if file_record.mime_type == "image/jpeg" or is_heic_file(str(item_path)):
         return False
@@ -227,38 +228,6 @@ def _is_flattened_transparent_picture(
     if shared is not None:
         return False
     return carries_transparency(item_path)
-
-
-def _relocate_thumbnail(
-    file_record: File,
-    new_thumb_rel: str,
-    file_type: str,
-    item_path: Path,
-) -> None:
-    """Move a thumbnail to a new path (when a record's path changes), or
-    regenerate it from source if the old thumbnail is missing."""
-    old_thumb_rel = file_record.thumbnail_path
-    new_thumb_full = config.THUMBNAILS_DIR / new_thumb_rel
-
-    if old_thumb_rel == new_thumb_rel and new_thumb_full.exists():
-        return
-
-    if old_thumb_rel:
-        old_thumb_full = config.THUMBNAILS_DIR / old_thumb_rel
-        if old_thumb_full.exists() and old_thumb_rel != new_thumb_rel:
-            new_thumb_full.parent.mkdir(parents=True, exist_ok=True)
-            old_thumb_full.rename(new_thumb_full)
-            _cleanup_empty_parents(old_thumb_full.parent, config.THUMBNAILS_DIR)
-            file_record.thumbnail_path = new_thumb_rel
-            return
-
-    gen_fn = get_thumbnail_generator(file_type, file_record.mime_type)
-    if gen_fn and write_thumbnail_atomically(
-        gen_fn, str(item_path), str(new_thumb_full)
-    ):
-        file_record.thumbnail_path = new_thumb_rel
-    else:
-        file_record.thumbnail_path = None
 
 
 def _ensure_md_id_for_new_file(
@@ -354,75 +323,79 @@ def register_single_file(db: Session, drive_name: str, file_path: Path) -> str:
     file_type, mime_type = refine_classification_with_probe(file_path, file_type, mime_type)
 
     nfc_name = unicodedata.normalize("NFC", file_path.name)
-    nfc_stem = Path(nfc_name).stem
 
     duration = None
     if is_probeable_media(file_type, mime_type):
         duration = get_video_duration(str(file_path))
 
+    file_id = generate_nanoid()
     thumbnail_rel = None
     gen_fn = get_thumbnail_generator(file_type, mime_type)
     if gen_fn is not None:
-        thumbnail_rel = _expected_thumbnail_path(drive_name, folder_path, nfc_stem)
-        thumbnail_full = config.THUMBNAILS_DIR / thumbnail_rel
+        thumbnail_rel = thumbnail_slot_rel(file_id)
         if not write_thumbnail_atomically(
-            gen_fn, str(file_path), str(thumbnail_full)
+            gen_fn, str(file_path), str(config.THUMBNAILS_DIR / thumbnail_rel)
         ):
             thumbnail_rel = None
 
-    file_hash = compute_file_hash(file_path)
-
     try:
-        st = file_path.stat()
-        fs_mtime: datetime | None = datetime.fromtimestamp(st.st_mtime, UTC)
-        fs_size = st.st_size
-    except OSError:
-        fs_mtime = None
-        fs_size = 0
+        file_hash = compute_file_hash(file_path)
 
-    file_record = File(
-        filename=nfc_name,
-        title=_filename_to_title(nfc_name),
-        drive=drive_name,
-        folder_path=folder_path,
-        file_path=relative_path,
-        file_size=fs_size,
-        file_type=file_type,
-        mime_type=mime_type,
-        thumbnail_path=thumbnail_rel,
-        duration=duration,
-        file_hash=file_hash,
-        **({"created_at": fs_mtime} if fs_mtime is not None else {}),
-    )
-    db.add(file_record)
-    db.flush()
-
-    probe_file_chapters(db, file_record, file_path)
-
-    _ensure_md_id_for_new_file(db, file_record, file_path)
-
-    if mime_type == "text/markdown" or nfc_name.lower().endswith(".md"):
         try:
-            if file_path.stat().st_size <= _MD_READ_MAX_BYTES:
-                project_markdown_thumbnail(
-                    db, file_record, file_path.read_text(encoding="utf-8")
-                )
-        except (OSError, UnicodeDecodeError):
-            pass
+            st = file_path.stat()
+            fs_mtime: datetime | None = datetime.fromtimestamp(st.st_mtime, UTC)
+            fs_size = st.st_size
+        except OSError:
+            fs_mtime = None
+            fs_size = 0
 
-    if file_type == "image":
-        dimensions = read_image_dimensions(file_path)
-        if dimensions is not None:
-            file_record.image_width, file_record.image_height = dimensions
-        exif = extract_exif(file_path)
-        if exif is not None:
-            db.add(FileExif(file_id=file_record.id, **exif))
+        file_record = File(
+            id=file_id,
+            filename=nfc_name,
+            title=_filename_to_title(nfc_name),
+            drive=drive_name,
+            folder_path=folder_path,
+            file_path=relative_path,
+            file_size=fs_size,
+            file_type=file_type,
+            mime_type=mime_type,
+            thumbnail_path=thumbnail_rel,
+            duration=duration,
+            file_hash=file_hash,
+            **({"created_at": fs_mtime} if fs_mtime is not None else {}),
+        )
+        db.add(file_record)
+        db.flush()
 
-    logger.info(
-        "Registered file: %s (drive: %s, type: %s)",
-        relative_path, drive_name, file_type,
-    )
-    return file_record.id
+        probe_file_chapters(db, file_record, file_path)
+
+        _ensure_md_id_for_new_file(db, file_record, file_path)
+
+        if mime_type == "text/markdown" or nfc_name.lower().endswith(".md"):
+            try:
+                if file_path.stat().st_size <= _MD_READ_MAX_BYTES:
+                    project_markdown_thumbnail(
+                        db, file_record, file_path.read_text(encoding="utf-8")
+                    )
+            except (OSError, UnicodeDecodeError):
+                pass
+
+        if file_type == "image":
+            dimensions = read_image_dimensions(file_path)
+            if dimensions is not None:
+                file_record.image_width, file_record.image_height = dimensions
+            exif = extract_exif(file_path)
+            if exif is not None:
+                db.add(FileExif(file_id=file_record.id, **exif))
+
+        logger.info(
+            "Registered file: %s (drive: %s, type: %s)",
+            relative_path, drive_name, file_type,
+        )
+        return file_record.id
+    except Exception:
+        remove_thumbnail_quietly(thumbnail_rel)
+        raise
 
 
 def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
@@ -488,7 +461,6 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
             )
 
         nfc_name = unicodedata.normalize("NFC", item.name)
-        nfc_stem = Path(nfc_name).stem
 
         if relative_path in existing:
             file_record = existing[relative_path]
@@ -526,12 +498,17 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
                 needs_update = True
 
             gen_fn = get_thumbnail_generator(file_type, mime_type)
-            if gen_fn is not None:
-                expected_thumb = _expected_thumbnail_path(drive_name, folder_path, nfc_stem)
-                if file_record.thumbnail_path != expected_thumb or not (
-                    config.THUMBNAILS_DIR / expected_thumb
-                ).exists():
-                    _relocate_thumbnail(file_record, expected_thumb, file_type, item)
+            if gen_fn is not None and _is_slot_or_empty(file_record.thumbnail_path):
+                stored = file_record.thumbnail_path
+                if not stored or not (config.THUMBNAILS_DIR / stored).exists():
+                    slot_rel = thumbnail_slot_rel(file_record.id)
+                    file_record.thumbnail_path = (
+                        slot_rel
+                        if write_thumbnail_atomically(
+                            gen_fn, str(item), str(config.THUMBNAILS_DIR / slot_rel)
+                        )
+                        else None
+                    )
                     needs_update = True
                 elif file_type == "image" and _is_flattened_transparent_picture(
                     db, file_record, item
@@ -542,7 +519,7 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
                     if write_thumbnail_atomically(
                         generate_webp_image_thumbnail,
                         str(item),
-                        str(config.THUMBNAILS_DIR / expected_thumb),
+                        str(config.THUMBNAILS_DIR / stored),
                     ):
                         needs_update = True
                 elif file_type == "image" and _is_letterboxed_image_thumbnail(
@@ -556,7 +533,7 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
                     # already the picture's own ratio — so a half-migrated
                     # drive is not a broken one.
                     if write_thumbnail_atomically(
-                        gen_fn, str(item), str(config.THUMBNAILS_DIR / expected_thumb)
+                        gen_fn, str(item), str(config.THUMBNAILS_DIR / stored)
                     ):
                         needs_update = True
 
@@ -598,7 +575,6 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
             "file_type": file_type,
             "mime_type": mime_type,
             "nfc_name": nfc_name,
-            "nfc_stem": nfc_stem,
         })
         processed += 1
         now = time.monotonic()
@@ -664,7 +640,6 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
         file_type: str = entry["file_type"]
         mime_type: str = entry["mime_type"]
         nfc_name: str = entry["nfc_name"]
-        nfc_stem: str = entry["nfc_stem"]
         match_key = entry["match_key"]
         file_hash = entry["file_hash"]
         file_size = entry["file_size"]
@@ -694,12 +669,6 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
                 and probe_file_chapters(db, candidate, item)
             ):
                 updated += 1
-
-            if get_thumbnail_generator(file_type, mime_type) is not None:
-                new_thumb_rel = _expected_thumbnail_path(drive_name, folder_path, nfc_stem)
-                _relocate_thumbnail(candidate, new_thumb_rel, file_type, item)
-            elif mime_type != "text/markdown" and not nfc_name.lower().endswith(".md"):
-                candidate.thumbnail_path = None
 
             moved_ids.append(candidate.id)
             consumed_unseen.add(candidate.id)
@@ -740,12 +709,14 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
         if is_probeable_media(file_type, mime_type):
             duration = get_video_duration(str(item))
 
+        new_id = generate_nanoid()
         thumbnail_rel = None
         gen_fn = get_thumbnail_generator(file_type, mime_type)
         if gen_fn is not None:
-            thumbnail_rel = _expected_thumbnail_path(drive_name, folder_path, nfc_stem)
-            thumbnail_full = config.THUMBNAILS_DIR / thumbnail_rel
-            if not write_thumbnail_atomically(gen_fn, str(item), str(thumbnail_full)):
+            thumbnail_rel = thumbnail_slot_rel(new_id)
+            if not write_thumbnail_atomically(
+                gen_fn, str(item), str(config.THUMBNAILS_DIR / thumbnail_rel)
+            ):
                 thumbnail_rel = None
 
         if file_size is None:
@@ -755,6 +726,7 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
                 file_size = 0
 
         file_record = File(
+            id=new_id,
             filename=nfc_name,
             title=_filename_to_title(nfc_name),
             drive=drive_name,

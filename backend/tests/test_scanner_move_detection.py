@@ -252,7 +252,7 @@ class TestIdempotency:
 
 
 class TestThumbnailFollowsMove:
-    def test_thumbnail_relocated_on_move(self, client):
+    def test_thumbnail_pointer_is_unchanged_on_move(self, client):
         c, db, drive_dir, data_dir = client
         # Use a small text file as a stand-in (no real thumbnail generation
         # for binary content). We pre-place a thumbnail and verify it moves.
@@ -265,7 +265,7 @@ class TestThumbnailFollowsMove:
         # Force the record to look like a video so the thumbnail branch runs
         rec.file_type = "video"
         rec.mime_type = "video/mp4"
-        old_thumb_rel = f"{TEST_DRIVE}/a.jpg"
+        old_thumb_rel = f".by-id/{rec.id}.jpg"
         old_thumb_full = data_dir / "thumbnails" / old_thumb_rel
         old_thumb_full.parent.mkdir(parents=True, exist_ok=True)
         old_thumb_full.write_bytes(b"\xff\xd8\xff\xe0fake")
@@ -287,8 +287,5 @@ class TestThumbnailFollowsMove:
         assert result["moved"] == 1
         rec = db.query(File).first()
         assert rec.file_path == "b.mp4"
-        new_thumb_rel = f"{TEST_DRIVE}/b.jpg"
-        new_thumb_full = data_dir / "thumbnails" / new_thumb_rel
-        assert rec.thumbnail_path == new_thumb_rel
-        assert new_thumb_full.exists()
-        assert not old_thumb_full.exists()
+        assert rec.thumbnail_path == old_thumb_rel
+        assert old_thumb_full.read_bytes() == b"\xff\xd8\xff\xe0fake"

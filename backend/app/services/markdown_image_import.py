@@ -39,6 +39,7 @@ from app.services.safe_image_fetch import (
     validate_image_url,
 )
 from app.services.scanner import register_single_file
+from app.services.thumbnail import remove_thumbnail_quietly, thumbnail_slot_rel
 
 logger = logging.getLogger(__name__)
 
@@ -409,6 +410,7 @@ def _apply_import(
         asset_path, asset = _choose_asset_path(db, note, candidate, image)
         reused = asset is not None
         if asset is None:
+            asset_id: str | None = None
             try:
                 _write_asset(asset_path, image)
                 asset_id = register_single_file(db, note.drive, asset_path)
@@ -417,14 +419,10 @@ def _apply_import(
                 db.rollback()
                 try:
                     asset_path.unlink(missing_ok=True)
-                    thumbnail = (
-                        config.THUMBNAILS_DIR
-                        / note.drive
-                        / Path(asset_path.relative_to(config.get_drive_path(note.drive))).with_suffix(".jpg")
-                    )
-                    thumbnail.unlink(missing_ok=True)
                 except OSError:
                     logger.exception("Could not clean up failed asset registration")
+                if asset_id is not None:
+                    remove_thumbnail_quietly(thumbnail_slot_rel(asset_id))
                 raise
             asset = db.query(File).filter(File.id == asset_id).one()
             created_asset = asset
