@@ -81,5 +81,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-041 | implemented | docs/specs/scene-segment-search.md | sha256:0b5308cb70945d21e1c9c1f8d1eb0297515c254a640dfb114634165e85e2de0a |
 | SPEC-ADDON-042 | implemented | docs/specs/scene-segment-search.md | sha256:0b5308cb70945d21e1c9c1f8d1eb0297515c254a640dfb114634165e85e2de0a |
 | SPEC-CORE-025 | implemented | docs/specs/scene-segment-search.md | sha256:0b5308cb70945d21e1c9c1f8d1eb0297515c254a640dfb114634165e85e2de0a |
-| SPEC-CORE-026 | approved | docs/specs/played-segments.md | sha256:c213890b2c1ed8a97c873781974d13d8f3a9a55d712f5e997133b719ba2a94e3 |
-| SPEC-CORE-027 | approved | docs/specs/played-segments.md | sha256:c213890b2c1ed8a97c873781974d13d8f3a9a55d712f5e997133b719ba2a94e3 |
+| SPEC-CORE-026 | implemented | docs/specs/played-segments.md | sha256:c213890b2c1ed8a97c873781974d13d8f3a9a55d712f5e997133b719ba2a94e3 |
+| SPEC-CORE-027 | implemented | docs/specs/played-segments.md | sha256:c213890b2c1ed8a97c873781974d13d8f3a9a55d712f5e997133b719ba2a94e3 |
