@@ -78,3 +78,6 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-023 | implemented | docs/specs/thumbnail-slot-ownership.md | sha256:9fcfcc2fd70ea2565226ed64e3d02217fe9fbc1550e8860ffa3a7e0b91195879 |
 | SPEC-CORE-024 | implemented | docs/specs/thumbnail-slot-ownership.md | sha256:9fcfcc2fd70ea2565226ed64e3d02217fe9fbc1550e8860ffa3a7e0b91195879 |
 | SPEC-ADDON-040 | implemented | docs/specs/thumbnail-slot-ownership.md | sha256:9fcfcc2fd70ea2565226ed64e3d02217fe9fbc1550e8860ffa3a7e0b91195879 |
+| SPEC-ADDON-041 | implemented | docs/specs/scene-segment-search.md | sha256:0b5308cb70945d21e1c9c1f8d1eb0297515c254a640dfb114634165e85e2de0a |
+| SPEC-ADDON-042 | implemented | docs/specs/scene-segment-search.md | sha256:0b5308cb70945d21e1c9c1f8d1eb0297515c254a640dfb114634165e85e2de0a |
+| SPEC-CORE-025 | implemented | docs/specs/scene-segment-search.md | sha256:0b5308cb70945d21e1c9c1f8d1eb0297515c254a640dfb114634165e85e2de0a |

@@ -4,6 +4,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback } from "react";
 
+import { AddonSlot } from "@/components/AddonSlot";
 import { FolderBrowser } from "@/components/FolderBrowser";
 import type { FileKind } from "@/types";
 import { parseSearchQuery } from "@/lib/searchQuery";
@@ -91,9 +92,21 @@ export default function SearchPage() {
   return (
     <>
       {!filtered && (
-        <div className="px-4 pt-3 pb-1 flex items-center">
-          <SceneSearchToggle active={includeSceneClip} onToggle={handleToggle} />
-        </div>
+        <>
+          <div className="px-4 pt-3 pb-1 flex items-center">
+            <SceneSearchToggle active={includeSceneClip} onToggle={handleToggle} />
+          </div>
+          <AddonSlot
+            id="search-results-top"
+            props={{
+              query: q,
+              drive: driveName,
+              includeSceneClip,
+              typeFilter,
+              smartFolderId,
+            }}
+          />
+        </>
       )}
       <FolderBrowser
         driveName={driveName}

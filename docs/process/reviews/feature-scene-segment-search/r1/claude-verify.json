@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "Reproduced by reading. clip.py:111 and :230 and embedder.py:113-115 call ml_imports.import_ml_libraries(); ml_imports.py:11 lists both libraries and :19 holds one lock around the imports. Touch points (spec:221-239) name no worker file. A case-insensitive grep of the spec finds no 'transformers', 'sentence_transformers' or 'embedder'. decisions.md:78 records 5.33 and 5.55 s against 3.58 s, and decisions.md:72 gives the single setup. One qualification: the part saying no invariant covers concurrent cold loading is literally true, since none of I1-I10 names loading, but spec:208-210 says /search and this endpoint share the encoder and that /search results may not change (I8). D1 (decisions.md:11) was a failure of that kind, so the fix serves a declared requirement even though its files are not listed. Whether these files changed relative to the previous pin was not diffed; this rests on the commit subject 'pin intelligence to the encoder import fix' and decisions.md:7."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "coarseNeedleSources.test.ts:155 expects REQUIRED to have length 64, and build-fixture-css.ts:53-118 holds exactly 64 entries (66 lines less 2 comment lines). The last three, .h-47.5, .h-27 and .aspect-video (:116-118), are used by SceneCandidatesSection.tsx:58,65,149,156. section-rows.test.tsx:90 adds SceneCandidatesSection.tsx to the overflow-x-auto set, and that file uses the class at :149. Both test files are in classification.json's zones_touched and neither appears in Touch points. The edits add one count and one exact-set member, and the other assertions read in those test sections do not depend on them. The earlier value of the count (61) was inferred, not diffed."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "All nine named test files exist at this tree (Glob). Spec:232 names frontend/e2e-layout/ as the only test location, spec:227 enumerates the section, api.ts, slots.ts and messages, and spec:256 refers to acceptance tests without naming files. test_ml_imports.py exists because of the TP-1 fix, so it shares that finding's origin."
+    }
+  ],
+  "specification_compliance": [
+    "Touch points (spec:221-239) do not list addons/intelligence/app/workers/{clip,embedder,ml_imports}.py, the two guard tests or the added unit test files, as the three findings state.",
+    "classification.json also lists docs/specs/INDEX.md, which Touch points does not name; no reader listed it, and it is only a documentation index entry.",
+    "Spec:208-210 and I8 require /search results not to change while it shares the encoder with this endpoint, which is the requirement the import serialization serves."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The first encoder load in the process now imports both transformers and sentence_transformers under one lock, whichever encoder is requested (ml_imports.py:11,19-24). The spec does not describe this. It lengthens the route's cold time per decisions.md:78, still well inside the 30 s timeout on local data."
+  ],
+  "regression_risks": [
+    "Two transformers imports bypass the shared import: clip.py:272 (_ensure_siglip_full_loaded) and blip.py:69. clip.py:272 runs only after the text loader at :265-266, which goes through the shared import. BLIP captions run after the frame or image embedding step in the indexing paths read (clip.py:943, :985-995), so on those paths the shared import has normally happened. I did not raise this as a finding, because I found no normal-use path that loads BLIP first, but the test name 'every_encoder_loader' (test_ml_imports.py:74) covers only three loaders.",
+    "A cold search that races an indexing first load is not among the D1 runs recorded in decisions.md:11-17."
+  ],
+  "test_coverage": [
+    "test_ml_imports.py:20-58 covers one-at-a-time import, single import and retry after failure with a fake importer; :65-84 covers three loaders calling the shared import. No test there imports the real libraries concurrently; that evidence is only the manual runs in decisions.md:11-17.",
+    "REQUIRED's count is pinned at coarseNeedleSources.test.ts:155, and the overflow-x-auto sites are pinned as an exact set at section-rows.test.tsx:81-93."
+  ],
+  "not_verified": [
+    "No test or command was run, and no git diff was available, so before and after states (including the previous REQUIRED count and the changes to clip.py and embedder.py) were inferred from the tree, classification.json and decisions.md.",
+    "That the addons/intelligence working tree is exactly at the pinned submodule commit 52d2a51d.",
+    "The timing figures and the D1 run results in decisions.md, which were read as recorded and not reproduced.",
+    "Whether every indexing path embeds an image before BLIP loads, including the case where every frame in a batch fails."
+  ],
+  "confidence": 85
+}

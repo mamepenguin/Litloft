@@ -82,6 +82,8 @@ With the intelligence addon enabled for the drive, results found by meaning are 
 
 To find a moment inside a video (*the part where the cat jumps off the table*), turn on **Scene search** above the results. It is off by default because it adds noise to ordinary searches.
 
+With it on, **Scene candidates** appear above the results: a row of moments from videos in the drive, each with a frame, the file name and a time range. Click one to open the video at that time. They are the closest matches, not a promise that the scene exists, and the row is not shown when the search uses a smart folder or a type other than video.
+
 ## Ask and Find (intelligence addon)
 
 **Ask** is in the sidebar when the intelligence addon is installed and an administrator has set up a language model. Type a question and it answers from your files, with links to its sources and timestamps for videos. It warns you when it found no strong source. Ask answers only from [verified files](file-browsing.md#trusted-sources-and-the-review-queue).

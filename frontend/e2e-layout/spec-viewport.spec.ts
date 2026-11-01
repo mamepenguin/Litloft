@@ -29,11 +29,12 @@ const FIXTURES = [
   "popup-dismiss.html",
   "pseudo-fullscreen.html",
   "related-files.html",
+  "scene-candidates.html",
   "sidebar-shell.html",
   "toolbar-menu.html",
 ] as const;
 
-const FIXTURE_COUNT = 11;
+const FIXTURE_COUNT = 12;
 
 /**
  * On the far side of `sm` from Chromium's mobile default, so a page that
