@@ -3,7 +3,7 @@ from math import gcd
 from pathlib import Path
 
 from PIL import Image
-from PIL.ExifTags import GPSTAGS, TAGS
+from PIL.ExifTags import GPSTAGS, IFD, TAGS
 
 logger = logging.getLogger(__name__)
 
@@ -65,9 +65,12 @@ def _gps_decimal(coord, ref) -> float | None:
 def extract_exif(image_path: Path) -> dict | None:
     """Extract EXIF from image, return normalized dict or None."""
     try:
+        # Not `_getexif()`, which HEIC images do not have.
         with Image.open(image_path) as img:
-            raw = img._getexif()
-        if not raw:
+            exif = img.getexif()
+            details = exif.get_ifd(IFD.Exif)
+            gps_info = exif.get_ifd(IFD.GPSInfo)
+        if not exif:
             return None
 
         tag_map = {v: k for k, v in TAGS.items()}
@@ -76,7 +79,7 @@ def extract_exif(image_path: Path) -> dict | None:
             tag_id = tag_map.get(name)
             if tag_id is None:
                 return None
-            return raw.get(tag_id)
+            return details.get(tag_id, exif.get(tag_id))
 
         dt_raw = get_tag("DateTimeOriginal")
         datetime_original = None
@@ -106,9 +109,7 @@ def extract_exif(image_path: Path) -> dict | None:
 
         gps_lat = None
         gps_lon = None
-        gps_tag_id = tag_map.get("GPSInfo")
-        if gps_tag_id and gps_tag_id in raw:
-            gps_info = raw[gps_tag_id]
+        if gps_info:
             gps_map = {GPSTAGS.get(k, k): v for k, v in gps_info.items()}
             lat = gps_map.get("GPSLatitude")
             lat_ref = gps_map.get("GPSLatitudeRef", "N")

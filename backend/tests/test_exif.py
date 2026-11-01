@@ -5,8 +5,9 @@ from io import BytesIO
 from pathlib import Path
 
 import pytest
-from PIL import Image
+from PIL import ExifTags, Image, TiffImagePlugin
 
+import app.services.heic  # noqa: F401  (registers the HEIF opener, as the running backend does)
 from app.models import File, FileExif
 from app.services.exif import (
     _exposure_time_str,
@@ -118,6 +119,41 @@ class TestExtractExif:
         img.save(str(png), "PNG")
         result = extract_exif(png)
         assert result is None
+
+
+# UNSPEC: a photo's EXIF is read the same way whatever its container, so a HEIC
+# photo from a phone keeps its capture time, camera and location.
+@pytest.mark.parametrize(("name", "fmt"), [("a.jpg", "JPEG"), ("a.heic", "HEIF"), ("a.webp", "WEBP")])
+def test_exif_is_read_from_every_container(tmp_path, name, fmt):
+    exif = Image.Exif()
+    exif[ExifTags.Base.Make] = "Apple"
+    exif[ExifTags.Base.Model] = "iPhone 15 Pro"
+    details = exif.get_ifd(ExifTags.IFD.Exif)
+    details[ExifTags.Base.DateTimeOriginal] = "2024:03:15 14:23:01"
+    details[ExifTags.Base.FNumber] = TiffImagePlugin.IFDRational(28, 10)
+    details[ExifTags.Base.ExposureTime] = TiffImagePlugin.IFDRational(1, 250)
+    details[ExifTags.Base.ISOSpeedRatings] = 400
+    details[ExifTags.Base.FocalLength] = TiffImagePlugin.IFDRational(240, 10)
+    gps = exif.get_ifd(ExifTags.IFD.GPSInfo)
+    gps[ExifTags.GPS.GPSLatitudeRef] = "S"
+    gps[ExifTags.GPS.GPSLatitude] = (35.0, 40.0, 34.32)
+    gps[ExifTags.GPS.GPSLongitudeRef] = "W"
+    gps[ExifTags.GPS.GPSLongitude] = (139.0, 39.0, 1.08)
+    path = tmp_path / name
+    Image.new("RGB", (64, 64), "red").save(path, fmt, exif=exif.tobytes())
+
+    result = extract_exif(path)
+
+    assert result is not None
+    assert result["make"] == "Apple"
+    assert result["model"] == "iPhone 15 Pro"
+    assert result["datetime_original"] == "2024-03-15T14:23:01"
+    assert result["f_number"] == pytest.approx(2.8)
+    assert result["exposure_time"] == "1/250"
+    assert result["iso_speed"] == 400
+    assert result["focal_length"] == pytest.approx(24.0)
+    assert result["gps_lat"] == pytest.approx(-35.6762, abs=0.001)
+    assert result["gps_lon"] == pytest.approx(-139.6503, abs=0.001)
 
 
 class TestHelpers:
