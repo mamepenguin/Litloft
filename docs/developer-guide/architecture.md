@@ -42,7 +42,7 @@ The backend has no `ports:` entry. The frontend is the only entry point, and it 
 | Path | What |
 |---|---|
 | `data/data.db` | The core SQLite database (WAL mode). |
-| `data/thumbnails/` | Generated thumbnails: JPEG, or WebP with alpha for a transparent picture, every slot named `.jpg`. |
+| `data/thumbnails/` | Generated thumbnails: JPEG, or WebP with alpha for a transparent picture, every slot named `.jpg`. Each file owns `.by-id/<file id>.jpg`; Markdown projections live under `<drive>/.markdown/`. |
 | `data/converted/` | HEIC → JPEG conversion cache. |
 | `data/uploads/` | In-flight chunked upload state. |
 | `data/addons/<name>/` | Addon state, where the compose examples mount it (for example `./data/addons/intelligence:/intelligence-data`). |

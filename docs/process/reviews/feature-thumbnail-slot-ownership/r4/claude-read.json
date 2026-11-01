@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "R4-TEST-1",
+      "origin": "reviewer",
+      "claim": "No test fails if the migration stops preserving `updated_at`, although `_set_pointer` holds that column on purpose and spec section 9 promises no ordering change.",
+      "impact": "If the hold is dropped, the first start after the upgrade stamps every migrated row with the upgrade time. Listings sorted by `updated_at` reorder, and the relative date in the file list and Trash views changes for the whole library. Every test stays green. The current code is correct.",
+      "evidence": "backend/app/services/thumbnail_migration.py:49 sets `updated_at=File.updated_at`. backend/app/models.py:90-92 declares `onupdate=lambda: datetime.now(UTC)` on that column, so an UPDATE without the explicit value bumps it. backend/app/routers/drives.py:670 accepts `updated_at` as a sort key, and frontend/src/components/FileListRow.tsx:163 and frontend/src/components/trash/TrashFileList.tsx:149 show it. A search of backend/tests/test_thumbnail_slots.py for `updated_at` finds nothing, and that is the only test file that references `migrate_thumbnail_slots`.",
+      "repro": "not_reproduced (read-only tools). Predicted mutation: remove `updated_at=File.updated_at` at thumbnail_migration.py:49; all tests are predicted to stay green.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The code as read keeps the value, and no numbered invariant names updated_at. This is a test gap on a stated promise in spec section 9.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "In a sole-owner migration test, set a known updated_at on the row, restart, and assert the value is unchanged for a moved row and an emptied row."
+    },
+    {
+      "id": "R4-TEST-2",
+      "origin": "reviewer",
+      "claim": "test_two_spellings_of_one_file_count_as_shared asserts only that both pointers are empty, not that the file is gone under either name, so the removal half of I8 is untested when two strings reach one file.",
+      "impact": "If the shared-file removal handled only one spelling, the other name would keep the old picture in the cache under a path no row names, and no test would notice. It costs disk only and shows the user nothing wrong. The current code removes every spelling.",
+      "evidence": "backend/app/services/thumbnail_migration.py:100-106 unlinks each distinct string in the group. backend/tests/test_thumbnail_slots.py:899-913 holds the first file in `first` and the alias path in `b.thumbnail_path`, and then asserts only the pointers and that `.by-id` holds nothing. test_rows_sharing_one_file_lose_the_pointer_and_the_file asserts removal, but its rows use one string.",
+      "repro": "not_reproduced (read-only tools). Predicted mutation: replace the loop's set at thumbnail_migration.py:100 with `{members[0][1]}`. test_two_spellings is predicted to pass with `alias.jpg` still on disk, and the other tests use one spelling, so the mutant is predicted to survive.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The code as read satisfies I8. This is a gap in the test that cites it.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Assert that neither `first` nor the alias path exists after the restart."
+    }
+  ],
+  "specification_compliance": [
+    "Fix check against r3. TEST-6 and R3-TEST-2 (failure tests swallowing exceptions): fixed by fa12b3689. The blanket except is gone, setup moved to `_staged_upload` with its status checks outside the failing call, and each operation asserts a 500 and `reached == {\"ghost\": True, \"failure\": 1}`. By reading, all three operations reach the ghost: rename and copy through `watch_conflict`, upload through `watch_cleanup`. The new-id test also asserts `slots_at_failure == 1`, so it can no longer pass with generation having failed.",
+    "Fix check, R3-TEST-1 (counts): fixed. test_the_returned_counts_say_what_happened now has a failed os.replace, a repointed row and an unremovable shared file. Traced by hand against thumbnail_migration.py: moved 2 (a, p), emptied 3 (s1, s2, gone), failed 3 (d, r, s.jpg), which matches the assertion. Deleting line 106, 119 or 127, or the warning at 116-118, is now predicted to fail it.",
+    "Fix check, TEST-7 (order of generation and ghost delete): fixed by test_upload_over_a_trashed_ghost_generates_without_holding_the_write_lock. Moving the ghost branch at upload.py:287-296 above the generator block leaves a flushed DELETE open, so BEGIN IMMEDIATE on the second connection fails and `write_lock_free` becomes False. The mutant is predicted to be killed.",
+    "Fix check, R3-SPEC-1 and MIG-3: the stat-error and non-regular outcomes are recorded as I22, and the code matches I22 at thumbnail_migration.py:29-34 and :83-92. docs/admin-guide/monitoring.md now names `Could not examine thumbnail`. F-5 is recorded as I23, and scanner.py's move branch has no thumbnail step, which matches.",
+    "No production code changed since r3: fa12b3689 touches tests only and 9e230c67e touches docs only. The recorded in-app run at 819742a01 therefore still describes this production code.",
+    "Read against the code at this commit, I1-I14, I16-I23 and the migration half of I15 hold in ordinary use. I found no bucket A. The Media Import half of I15 is not at this commit: addons/media_import/backend/service.py:611-622 still writes path form, as Delivery step 1 expects, and SPEC-ADDON-040 stays `approved` under docs/process/PROJECT.md:141-143.",
+    "Reach check repeated. Every production write of thumbnail_path is in fileops, scanner, upload, markdown_images or thumbnail_migration, plus Media Import. frontend/src has no use of thumbnail_path, so no client derives anything from the old form. All three callers of resolve_db_path_conflict remove the returned picture after their commit (fileops.py:262/330, :386/406, :457/488).",
+    "No `.md` file has a generator (thumbnail.py:646-660), so `_ensure_md_id_for_new_file` cannot leave a slot under a mismatched id, and it changes md_id rather than File.id.",
+    "The test deletions still match the spec's six. fa12b3689 deletes no test and only strengthens two tests and adds one."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Carried from r1, in neither the spec nor I22/I23: two rows naming one absent or non-regular path string are both emptied at thumbnail_migration.py:93-98 even if a slot exists, where I10 repoints a row with a slot. I found no ordinary way to reach this. It was listed at r3, before the recorded ship decision.",
+    "Carried from r2, in neither the spec nor I22/I23: an upload over a reused row whose commit fails leaves the slot holding the new file's picture while the row rolls back (upload.py:280-283, :363). It was listed at r3, before the recorded ship decision.",
+    "Carried from r1: with the old addon pin, Media Import's caption retry rewrites .loft rows to path form with a new mtime and ETag, so each startup repeats the move until the addon PR lands (decisions.md, first run, item 5). The spec's Delivery entry says only that such a write migrates at the next startup."
+  ],
+  "regression_risks": [
+    "The new known-issues entry says a scan with an unwritable cache fails when it finds a new file. By reading, scanner.py:503-510 calls the same unguarded write for an existing row with an empty pointer or an absent slot, so the same PermissionError can also come from a row migration just emptied. Whether the rest of that drive's scan is lost was not traced.",
+    "docs/admin-guide/monitoring.md now says a row logging `Could not examine thumbnail` keeps its old picture. Under I22 that row's route answers 500 with a blank card until the fault clears (routers/files.py:1195, decisions.md third run, item 2). This could mislead an operator but would not lead to a wrong code change.",
+    "Grouping trusts (st_dev, st_ino). A cache mount returning non-unique inode numbers would make sole owners look shared and delete their pictures after emptying their pointers. Only the Compose bind mount was observed.",
+    "prune_empty_dirs can remove .by-id when its last slot goes. A generator between the directory creation and the temporary file would raise, and a scan or upload does not catch that. The window is very narrow.",
+    "The `continue` at thumbnail_migration.py:92 and :121 skips the per-1,000-row progress line when a failed row crosses a multiple. Only the log is affected."
+  ],
+  "test_coverage": [
+    "New since r3 and effective by reading: explicit 500 and reach assertions on the I13 failure half for rename, copy and upload; the slot-existed check on new-id upload failure; all count kinds including repoint, failed replace and unremovable shared file; the row id in the move and examine warnings; the write-lock order on upload over a ghost.",
+    "Gap: updated_at preservation in migration (R4-TEST-1).",
+    "Gap: file removal for two spellings under I8 (R4-TEST-2).",
+    "Gap: a failure inside upload's ghost branch before `existing = None`. Changing upload.py:363 to `if existing is None` is predicted to survive, because watch_cleanup never raises and the upload failure case does not assert the new slot is gone. The new-id test has no ghost.",
+    "Gap: no test fails an upload over a reused row at its commit, so making upload.py:363 unconditional is predicted to survive. The spec is silent on this case.",
+    "Gap carried from r1: I11's second half, a projection serving after its source migrates with no re-copy, has no direct test. It rests on I7's mtime assertion and the comparison at markdown_images.py:406-410.",
+    "Gap carried from r1: I14 is tested for a Missing row only, not an Active row whose file vanished. Both take upload.py:309.",
+    "Gap carried from r1: I4 replaces the cache directory with a file and has no cross-drive case. I18 asserts only thumbnail_path, though routers/internal.py is unchanged.",
+    "The summary log line's format and the per-1,000-row progress line are not asserted; only the returned counts are."
+  ],
+  "not_verified": [
+    "I ran nothing: no tests, mutations or application. Every mutation outcome here is predicted from reading the code, including that the tests in fa12b3689 pass.",
+    "Git objects were not read. I took the working tree as the reviewed commit from the status snapshot. Commits 2dc144dd4 and 058f0d7b5 were not shown as diffs, so I read their result in invariants.md and decisions.md only.",
+    "The evidence directory cited in decisions.md is outside this worktree. Its observations are quoted as a record and not checked.",
+    "Media Import's change and its tests, which are not at this commit, so the first half of I15 and SPEC-ADDON-040 are unchecked.",
+    "Whether a scan that raises PermissionError on an existing row loses the rest of that drive's scan, and how scan_all_drives handles it.",
+    "Inode stability on case-folding, FUSE or network cache mounts, and migration timing against the healthcheck window on a large library.",
+    "That the INDEX.md approval hash matches the spec; computing it needs a command.",
+    "Test files other than test_thumbnail_slots.py were not read in full; statements about them rest on searches and earlier records."
+  ],
+  "confidence": 80,
+  "trajectory": "No. This round adds no branch, state or prediction to production code, and it changes no production code at all. 2dc144dd4 and 058f0d7b5 are records, fa12b3689 is tests only and 9e230c67e is docs only. The r2 round added the 'unknown' state, and the r3 round shrank it by moving the non-regular case back to absent. This round adds no state, and it records both rulings as I22 and I23, which ends the oscillation over the unknown/absent boundary that r3 reported. The test round also removes something: the two `try/except Exception: pass` blocks are gone. Its additions are assertions, one helper split out of `_upload_png`, and one new test that pins an ordering the previous round had already implemented. Those additions check existing behaviour and predict nothing new. The two findings here are small test gaps on code that was already right. On this evidence the design is not being patched.",
+  "perspectives": [
+    {
+      "name": "fix verification",
+      "notes": "I traced each open r3 test finding to fa12b3689 and hand-checked the new count assertion and the reach of each failure case. All are closed. The doc commit's two known-issue entries match the recorded runs, with the caveat under regression_risks."
+    },
+    {
+      "name": "search for a bucket A",
+      "notes": "The r3 ship decision makes the merge conditional on no bucket A, so I re-read the migration, upload, copy, rename, move, the scan's thumbnail branch and the projection code against the invariants. I also checked every writer of thumbnail_path, frontend use of the field and lifespan ordering. I found no breach."
+    },
+    {
+      "name": "tests as a safety net",
+      "notes": "I broke the migration and upload one change at a time in my head. Two survivors were new to the findings list: updated_at preservation and the second spelling's removal. Others stay in test_coverage because the spec is silent or earlier reviews already recorded them."
+    }
+  ]
+}

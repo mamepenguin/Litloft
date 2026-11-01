@@ -673,6 +673,41 @@ class TestImportFailurePaths:
             "![](https://images.example.com/a.jpg)\n"
         )
 
+    def test_a_commit_that_fails_after_registration_leaves_no_row_and_no_slot(
+        self, client, monkeypatch
+    ):
+        """The picture was written under an id the rollback then takes away."""
+        import app.config as config
+
+        http, db, drive_dir, _ = client
+        monkeypatch.setattr(
+            importer, "fetch_and_normalize_image", lambda url: _normalized_jpeg()
+        )
+        real_factory = importer.database.SessionLocal
+
+        def failing_factory():
+            session = real_factory()
+
+            def refuse():
+                raise RuntimeError("database is locked")
+
+            session.commit = refuse
+            return session
+
+        monkeypatch.setattr(importer.database, "SessionLocal", failing_factory)
+        _seed_markdown(
+            db, drive_dir, file_id="notecommit01", path="note.md",
+            content="![](https://images.example.com/a.jpg)\n",
+        )
+
+        job = _run_to_completion(http, _analyse(http)["analysis_id"])
+
+        assert job["failed"] == 1
+        db.expire_all()
+        assert db.query(File).filter(File.folder_path == "assets").count() == 0
+        assert list((drive_dir / "assets").glob("*")) == []
+        assert [p for p in config.THUMBNAILS_DIR.rglob("*") if p.is_file()] == []
+
     def test_a_failed_content_write_takes_the_new_asset_with_it(
         self, client, monkeypatch
     ):
