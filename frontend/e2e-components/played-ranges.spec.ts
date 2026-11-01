@@ -1,5 +1,5 @@
 /**
- * SPEC-CORE-025: played ranges captured from a real `<video>` in Chromium,
+ * SPEC-CORE-027: played ranges captured from a real `<video>` in Chromium,
  * where the position comes from the browser's own media clock.
  *
  * Served from a routed origin rather than `file://`: the profile lives in a
@@ -107,7 +107,7 @@ async function serve(page: Page): Promise<void> {
   });
 }
 
-test("SPEC-CORE-025 a real video sends the stretch it played, with keepalive", async ({
+test("SPEC-CORE-027 a real video sends the stretch it played, with keepalive", async ({
   page,
 }) => {
   test.setTimeout(60_000);

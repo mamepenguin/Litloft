@@ -12,7 +12,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 import app.config as config
-from app.models import EmptyFolder, File, active_file_filter
+from app.models import EmptyFolder, File, FileExif, active_file_filter
 from app.nanoid import generate_nanoid
 from app.services.atomic_write import generating_file
 from app.services.heic import cleanup_heic_cache
@@ -295,6 +295,22 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
 
         try:
             db.add(new_file)
+            source_exif = db.get(FileExif, source.id)
+            if source_exif is not None:
+                db.add(
+                    FileExif(
+                        file_id=new_id,
+                        datetime_original=source_exif.datetime_original,
+                        make=source_exif.make,
+                        model=source_exif.model,
+                        f_number=source_exif.f_number,
+                        exposure_time=source_exif.exposure_time,
+                        iso_speed=source_exif.iso_speed,
+                        focal_length=source_exif.focal_length,
+                        gps_lat=source_exif.gps_lat,
+                        gps_lon=source_exif.gps_lon,
+                    )
+                )
             if _is_markdown_file(new_file):
                 content = _read_markdown_for_projection(new_full)
                 if content is not None:

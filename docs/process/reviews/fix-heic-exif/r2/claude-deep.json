@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "DEEP-R2-1",
+      "origin": "reviewer",
+      "claim": "Moving extract_exif above the flush at upload.py:352 does not cover the trashed-ghost path, where db.delete and db.flush at upload.py:294-295 take the write lock before extract_exif runs at upload.py:308.",
+      "impact": "When a photo in the trash has also lost its file on disk and the user uploads to that path, a large PNG with no eXIf chunk is decoded by extract_exif while the write lock is held, on top of the same decode in read_image_dimensions. Other writers wait, and past the driver's default 5-second busy wait they could fail with 'database is locked'. The path is rare: a soft delete keeps the file on disk (fileops.py:672-687) and init_upload returns 409 for an existing file (upload.py:136-137), so the trashed row must have lost its file outside the app.",
+      "evidence": "backend/app/services/upload.py:288-297 deletes and flushes, :305-308 reads dimensions and EXIF, and :371 commits. The first fix moved only the extract_exif line. backend/tests/test_exif.py test_reading_an_upload_holds_no_write_lock uploads only to a path with no row. No test in test_exif.py uses a trashed row. read_image_dimensions (image_dimensions.py:27-34) and extract_exif (exif.py:138-140) both catch Exception, so both could safely run before the try at upload.py:287.",
+      "repro": "not_reproduced. By reading: in test_reading_an_upload_holds_no_write_lock, first upload a.png, soft-delete it through the API, unlink it from disk, then upload a.png again. BEGIN IMMEDIATE from the other connection should fail, so writable should be [False]. The test as committed does not reach this branch.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is declared. The fix's stated purpose holds on the normal and reused-row paths but not on this rare branch, and the cost needs a large PNG and a concurrent writer.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Compute dimensions and exif above the try at upload.py:287, and add a trashed-row case to the lock test."
+    },
+    {
+      "id": "DEEP-R2-2",
+      "origin": "reviewer",
+      "claim": "The new scan test covers the extract_exif call sites at scanner.py:754 and :549-552 but not the one at scanner.py:387-389 in register_single_file, so removing that one fails no test.",
+      "impact": "If EXIF storage in register_single_file broke, an image registered through it would silently have no Photo Info until a later scan backfilled it. The exposure is small: callers are markdown_image_import.py:416 and the media_import addon (subscription/db.py:983, service.py:729), and the backfill would repair the row on the next scan.",
+      "evidence": "backend/tests/test_exif.py test_a_scan_reads_a_photo_it_finds_and_one_with_no_exif_row calls only _scan_and_register. test_scanner.py, test_image_dimensions.py and test_transparent_thumbnails.py call register_single_file, but a grep of backend/tests outside test_exif.py for exif finds no assertion on a file_exif row from it. test_image_dimensions.py:78-94 only uses EXIF as an orientation fixture. test_safe_image_fetch.py:538 asserts that a fetched image has no EXIF, which suggests that at least some note-image imports arrive without any.",
+      "repro": "not_reproduced. Mutation by reading, not run: delete scanner.py:387-389 and no test asserting file_exif reaches that line, so the suite should stay green.",
+      "introduced": "pre-existing",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is declared. This is the remaining part of the coverage gap reported as CR-1 and DEEP-1 in r1. Reading the code shows this call site working.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add a register_single_file case that asserts the /exif response for a photo with EXIF."
+    },
+    {
+      "id": "DEEP-R2-3",
+      "origin": "reviewer",
+      "claim": "The write-lock test depends on the module attribute upload_service.extract_exif being called exactly once, so moving the call behind a helper in another module fails it with no behavior change.",
+      "impact": "A behavior-preserving refactor would turn this test red with writable == [] or an unpatched read, which docs/process/testing-and-comments.md:14 describes as a change check that was kept. It cannot let a user-visible defect through, because the mutation that matters (moving the read back below the flush) still fails it.",
+      "evidence": "backend/tests/test_exif.py test_reading_an_upload_holds_no_write_lock uses monkeypatch.setattr(upload_service, \"extract_exif\", ...) and asserts writable == [True]. The DB path comes from db.get_bind().url.database, a real file per tests/conftest.py:76-78, so the probe is not vacuous and does test a separate connection.",
+      "repro": "not_reproduced. By reading: re-exporting the read through another module's helper leaves the patch unused, so writable stays empty and the assertion fails.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a test-coupling observation against the repository's testing convention, not a product defect. The coupling is hard to avoid without a real slow read.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "No invariants file exists for this change, and docs/process/reviews/fix-heic-exif/ holds only decisions.md, r1 and r2, so bucket A is unavailable.",
+    "r1 DEEP-2 and CR-3 (read under the write lock): fixed for a first upload and for a reused row, where upload.py:308 now runs before the first flush at :352. Not fixed for the trashed-ghost path, reported as DEEP-R2-1.",
+    "r1 CR-1 and DEEP-1 (scanner paths untested): fixed for scanner.py:754 and :549-552 by test_a_scan_reads_a_photo_it_finds_and_one_with_no_exif_row. scanner.py:387 remains untested, reported as DEEP-R2-2.",
+    "r1 CR-2 (TIFF untested): fixed by the TIFF row in test_exif_is_read_from_every_container. By reading Pillow's get_ifd, moving it outside the `with` would read a closed file for TIFF, so this row should now catch that.",
+    "r1 CR-4 and DEEP-4 (stale rows when bytes change outside the app): unchanged by the fix commits, and still open. The scanner still only fills absent rows at scanner.py:549, and copy_file still copies the source row at fileops.py:298-313.",
+    "r1 DEEP-3 needs no fix; the upload delete and insert are unchanged apart from the moved read.",
+    "The second listed fix commit, 7a68cc9ac, carries no code in the supplied record: the code diff against base is identical to the state after fba3915ca, and its subject says it adds the review run documents.",
+    "Submodules: no gitlink change appears in the diff. A grep under addons/ finds no FileExif or file_exif use. media_import calls register_single_file, whose code is unchanged."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The tests' UNSPEC comment says a photo has its EXIF at once however it got into the library. No spec backs this. docs/specs has no entry for it according to the r1 record, which I did not recheck.",
+    "TIFF files now gain file_exif rows and a Photo Info section, and the TIFF row in the test now pins this as intended behavior.",
+    "Upload still replaces or deletes the file_exif row on a reused row, including removing it when the new photo has no EXIF.",
+    "Copy still duplicates the source's file_exif row, GPS included, without reading the copied bytes."
+  ],
+  "regression_risks": [
+    "Upload and scan on one reused row: scanner.py:549-552 can hold an unflushed db.merge for a row with no EXIF while complete_upload commits a FileExif row for the same id. The scanner's next flush should then hit a primary-key conflict, and scanner.py:906-908 rolls the whole drive scan back. A grep found no scan-side guard against this in complete_upload. It needs a scan passing over a missing row's path in the seconds between the rename at upload.py:227 and the commit, so it is rare. Unchanged since r1, and not reproduced.",
+    "A photo whose ISOSpeedRatings has several values makes int(iso_raw) at exif.py:107 raise TypeError, and the outer except drops all of that photo's EXIF with only a warning. This is pre-existing, but more formats now reach it. Not reproduced, and no real phone or camera file was available.",
+    "Moving extract_exif above the flush adds no new failure route: it catches Exception and returns None, so an unreadable image still completes the upload with no row, as before the move."
+  ],
+  "test_coverage": [
+    "test_reading_an_upload_holds_no_write_lock uses a real on-disk SQLite file and a second connection with timeout=0. By reading, moving extract_exif back below the flush at upload.py:352 would make writable [False] and fail it. It covers only a first upload (DEEP-R2-1).",
+    "test_a_scan_reads_a_photo_it_finds_and_one_with_no_exif_row: deleting scanner.py:754-756 fails its first /exif assertion, and deleting scanner.py:549-552 fails its 404-then-200 sequence. It asserts HEIC only, which is the case that matters for a library.",
+    "test_exif_is_read_from_every_container now includes TIFF. Dropping either get_ifd read would fail all four containers.",
+    "Not covered: register_single_file storing EXIF (DEEP-R2-2), an upload over a trashed row, a copy across drives, batch_copy, a PNG that has an eXIf chunk, and a scan of a row whose bytes changed.",
+    "The lock test does not protect read_image_dimensions: moving that read below the flush would stay green. It runs a similar PNG decode, so the same lock concern applies to it, and it predates this change."
+  ],
+  "not_verified": [
+    "Nothing was executed: tests, mutations and repros are all predictions from reading, because this reviewer has read-only tools.",
+    "The pinned Pillow 11.2.1 and pillow-heif 0.22.0 sources were not read. Claims about getexif, get_ifd and TIFF saving come from memory of Pillow and from r1's notes on newer versions.",
+    "Whether the TIFF test row passes with exif= bytes that hold sub-IFDs was not run; I relied on memory of TiffImagePlugin._save.",
+    "Lock wait and decode time for a large PNG were not measured.",
+    "Real phone HEIC files were not checked.",
+    "The commit contents were not checked with git; I used the supplied diff and the working tree, and 7a68cc9ac's own diff was not shown separately.",
+    "docs/process/review.md and the other process documents were read only in part: testing-and-comments.md in full, review.md lines 40-54 and 200-217.",
+    "addons/knowledge was not checked, and the media_import register_single_file callers were not traced to see whether they ever pass an image.",
+    "The scan and upload race in regression_risks was traced by reading only, and the scan's maintenance lock (`_scan_lock`) was not traced against complete_upload beyond a grep of scanner.py."
+  ],
+  "confidence": 80,
+  "perspectives": [
+    {
+      "name": "scope",
+      "notes": "The fix commits stay within the r1 findings: one moved line in upload.py and tests in test_exif.py. No new production file was touched."
+    },
+    {
+      "name": "submodules",
+      "notes": "No gitlink change in the diff. Addons do not read file_exif. media_import calls register_single_file, whose code did not change, though its extract_exif behaviour did through exif.py."
+    },
+    {
+      "name": "persistence",
+      "notes": "The fix changes no write. The delete and insert still share the upload transaction, and copy still inserts with the File row. A trashed row's EXIF goes through ON DELETE CASCADE, and the new row gets a new id. Stale rows from outside changes remain as in r1."
+    },
+    {
+      "name": "concurrency",
+      "notes": "The read is now outside the write lock on the normal and reused-row paths, and still inside it on the trashed-ghost path (DEEP-R2-1). The scanner merge against an upload insert remains a rare, untested conflict, recorded as a regression risk."
+    }
+  ],
+  "trajectory": "No. The design is not being patched. fba3915ca adds no branch, state or prediction to production code: it moves one existing line, the extract_exif call, from after the flush to beside read_image_dimensions, and removes nothing else. Its test additions are one parametrize row for TIFF and two test functions. 7a68cc9ac is described as adding review documents, and no code change from it appears in the record. There is no earlier fix round in this series to compare against, so nothing repeats. The move does leave the trashed-ghost branch's earlier flush ahead of the read (DEEP-R2-1); that is an incomplete move, not a new branch."
+}

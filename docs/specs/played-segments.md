@@ -1,9 +1,9 @@
 # Record which parts of a video or audio file a viewer actually played
 
-SPEC-ID: SPEC-CORE-025
+SPEC-ID: SPEC-CORE-027
 SPEC-ID: SPEC-CORE-026
 
-Approval: sha256:8c206a4e5e281ae999610faf20178055051aea3de28e7fb31e420bbd20364da6 Yuichi Senga 2026-10-31
+Approval: sha256:c213890b2c1ed8a97c873781974d13d8f3a9a55d712f5e997133b719ba2a94e3 Yuichi Senga 2026-11-01
 
 ## Summary
 
@@ -16,7 +16,7 @@ wherever in the file that happens. This change ships the recording and an endpoi
 back, and no UI. Past viewing cannot be reconstructed, which is why recording starts ahead of
 the display.
 
-- **SPEC-CORE-025**: capture in the player. The player turns its clock into played ranges and
+- **SPEC-CORE-027**: capture in the player. The player turns its clock into played ranges and
   sends them.
 - **SPEC-CORE-026**: storage and read. The backend adds ranges into per-segment totals, serves
   them back to the same viewer, and removes them with the viewer's history for the file.
@@ -203,7 +203,7 @@ from history". Because nothing a viewer sees changes, R-5 is recorded as
 
 No UI reads this data, so a wrong capture would stay invisible until the later display spec, and
 by then the data cannot be recovered. A jsdom test with a fake controller cannot show how a real
-player reports its position. So SPEC-CORE-025 also has a real-browser test in
+player reports its position. So SPEC-CORE-027 also has a real-browser test in
 `frontend/e2e-components/`: a real `<video>` in Chromium plays a known stretch through
 `usePlaybackProgress`, with the request intercepted. The sent ranges must start within 1 second
 of where the video started and total within 1.5 seconds of the position it reached, with

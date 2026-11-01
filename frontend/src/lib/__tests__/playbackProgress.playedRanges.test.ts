@@ -1,4 +1,4 @@
-// SPEC-CORE-025: capture of played ranges inside usePlaybackProgress.
+// SPEC-CORE-027: capture of played ranges inside usePlaybackProgress.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import type { MediaController } from "../mediaController";
@@ -253,9 +253,9 @@ function mount(mc: MediaController, fileId = "f1", initialTime?: number) {
   );
 }
 
-describe("SPEC-CORE-025 played-range capture", () => {
+describe("SPEC-CORE-027 played-range capture", () => {
   describe("normal flow", () => {
-    it("SPEC-CORE-025 sends a played stretch on teardown with keepalive, as a POST to the file", async () => {
+    it("SPEC-CORE-027 sends a played stretch on teardown with keepalive, as a POST to the file", async () => {
       const { mc, state } = stubController();
       const h = mount(mc);
       await settle();
@@ -271,7 +271,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
     });
 
     it.each([0, 300])(
-      "SPEC-CORE-025 a stretch closed below 10 s sends nothing, one of exactly 10 s is sent (start %s)",
+      "SPEC-CORE-027 a stretch closed below 10 s sends nothing, one of exactly 10 s is sent (start %s)",
       async (from) => {
         const { mc, state } = stubController({ currentTime: from });
         const h = mount(mc);
@@ -287,7 +287,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
       },
     );
 
-    it("SPEC-CORE-025 a pause continues the same stretch and adds nothing for the paused time", async () => {
+    it("SPEC-CORE-027 a pause continues the same stretch and adds nothing for the paused time", async () => {
       const { mc, state } = stubController();
       const h = mount(mc);
       await settle();
@@ -300,7 +300,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
       expect(totalSent()).toBe(12);
     });
 
-    it("SPEC-CORE-025 a stall continues the same stretch and adds nothing for the stalled time", async () => {
+    it("SPEC-CORE-027 a stall continues the same stretch and adds nothing for the stalled time", async () => {
       const { mc, state } = stubController();
       const h = mount(mc);
       await settle();
@@ -313,7 +313,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
       expect(totalSent()).toBe(12);
     });
 
-    it("SPEC-CORE-025 time on another clock while interrupted adds nothing, and playback continues the stretch", async () => {
+    it("SPEC-CORE-027 time on another clock while interrupted adds nothing, and playback continues the stretch", async () => {
       const { mc, state } = stubController();
       const h = mount(mc);
       await settle();
@@ -333,7 +333,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
       expect(totalSent()).toBe(12);
     });
 
-    it("SPEC-CORE-025 ticks while the stored position is being read are not counted", async () => {
+    it("SPEC-CORE-027 ticks while the stored position is being read are not counted", async () => {
       let resolveRead!: (p: { position: number; duration: number }) => void;
       mockGetWatchProgress.mockReturnValue(
         new Promise((resolve) => {
@@ -356,7 +356,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
       expect(joined()).toEqual([{ start: 12, end: 24 }]);
     });
 
-    it("SPEC-CORE-025 the player's own resume seek adds nothing for the skipped span", async () => {
+    it("SPEC-CORE-027 the player's own resume seek adds nothing for the skipped span", async () => {
       mockGetWatchProgress.mockResolvedValue({ position: 120, duration: 600 });
       const { mc, state } = stubController();
       const h = mount(mc);
@@ -368,7 +368,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
       expect(joined()).toEqual([{ start: 120, end: 132 }]);
     });
 
-    it("SPEC-CORE-025 a ?t= start adds nothing for the skipped span", async () => {
+    it("SPEC-CORE-027 a ?t= start adds nothing for the skipped span", async () => {
       const { mc, state } = stubController();
       const h = mount(mc, "f1", 42);
       await settle();
@@ -380,7 +380,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
     });
 
     it.each([0, NaN, Infinity])(
-      "SPEC-CORE-025 nothing is captured while the duration is %s",
+      "SPEC-CORE-027 nothing is captured while the duration is %s",
       async (duration) => {
         const { mc, state } = stubController({ duration });
         const h = mount(mc);
@@ -396,7 +396,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
       },
     );
 
-    it("SPEC-CORE-025 a tick whose getPlaybackRate throws is not eligible, and saving carries on", async () => {
+    it("SPEC-CORE-027 a tick whose getPlaybackRate throws is not eligible, and saving carries on", async () => {
       const { mc, state } = stubController({ rateThrows: true });
       const h = mount(mc);
       await settle();
@@ -421,7 +421,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
       { rate: 2, publishMs: 2000, media: 24 },
       { rate: 1.5, publishMs: 1000, media: 12 },
     ])(
-      "SPEC-CORE-025 one pass at rate $rate published every $publishMs ms sends exactly [0, $media]",
+      "SPEC-CORE-027 one pass at rate $rate published every $publishMs ms sends exactly [0, $media]",
       async ({ rate, publishMs, media }) => {
         const { mc, state } = stubController({ rate });
         const h = mount(mc);
@@ -434,7 +434,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
       },
     );
 
-    it("SPEC-CORE-025 a tick that arrives after skipped clock ticks is played within the allowance", async () => {
+    it("SPEC-CORE-027 a tick that arrives after skipped clock ticks is played within the allowance", async () => {
       const { mc, state } = stubController();
       const h = mount(mc);
       await settle();
@@ -453,7 +453,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
   });
 
   describe("jumps", () => {
-    it("SPEC-CORE-025 a forward step equal to the allowance is played", async () => {
+    it("SPEC-CORE-027 a forward step equal to the allowance is played", async () => {
       const { mc, state } = stubController();
       const h = mount(mc);
       await settle();
@@ -466,7 +466,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
       expect(joined()).toEqual([{ start: 0, end: 13.25 }]);
     });
 
-    it("SPEC-CORE-025 a forward step beyond the allowance closes the stretch and counts nothing skipped", async () => {
+    it("SPEC-CORE-027 a forward step beyond the allowance closes the stretch and counts nothing skipped", async () => {
       const { mc, state } = stubController();
       const h = mount(mc);
       await settle();
@@ -479,7 +479,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
       expect(joined()).toEqual([{ start: 0, end: 10 }]);
     });
 
-    it("SPEC-CORE-025 a long forward seek starts a new stretch", async () => {
+    it("SPEC-CORE-027 a long forward seek starts a new stretch", async () => {
       const { mc, state } = stubController();
       const h = mount(mc);
       await settle();
@@ -496,7 +496,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
       expect(totalSent()).toBe(24);
     });
 
-    it("SPEC-CORE-025 a backward seek of more than 1 s starts a new stretch", async () => {
+    it("SPEC-CORE-027 a backward seek of more than 1 s starts a new stretch", async () => {
       const { mc, state } = stubController();
       const h = mount(mc);
       await settle();
@@ -513,7 +513,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
       expect(totalSent()).toBe(24);
     });
 
-    it("SPEC-CORE-025 a backward wobble of exactly 1 s neither counts nor closes the stretch", async () => {
+    it("SPEC-CORE-027 a backward wobble of exactly 1 s neither counts nor closes the stretch", async () => {
       const { mc, state } = stubController();
       const h = mount(mc);
       await settle();
@@ -527,7 +527,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
       expect(totalSent()).toBe(12);
     });
 
-    it("SPEC-CORE-025 a backward step of 1.25 s closes the stretch", async () => {
+    it("SPEC-CORE-027 a backward step of 1.25 s closes the stretch", async () => {
       const { mc, state } = stubController();
       const h = mount(mc);
       await settle();
@@ -543,7 +543,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
       ]);
     });
 
-    it("SPEC-CORE-025 after a pause, resuming more than 1 s from the end starts a new stretch", async () => {
+    it("SPEC-CORE-027 after a pause, resuming more than 1 s from the end starts a new stretch", async () => {
       const { mc, state } = stubController();
       const h = mount(mc);
       await settle();
@@ -563,7 +563,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
       ]);
     });
 
-    it("SPEC-CORE-025 after a pause, resuming exactly 1 s past the end continues the stretch", async () => {
+    it("SPEC-CORE-027 after a pause, resuming exactly 1 s past the end continues the stretch", async () => {
       const { mc, state } = stubController();
       const h = mount(mc);
       await settle();
@@ -580,7 +580,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
       expect(joined()).toEqual([{ start: 0, end: 13 }]);
     });
 
-    it("SPEC-CORE-025 after a pause, resuming 1.25 s past the end starts a new stretch", async () => {
+    it("SPEC-CORE-027 after a pause, resuming 1.25 s past the end starts a new stretch", async () => {
       const { mc, state } = stubController();
       const h = mount(mc);
       await settle();
@@ -599,7 +599,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
   });
 
   describe("profile", () => {
-    it("SPEC-CORE-025 nothing is captured or stored without a profile, and capture starts once one is set", async () => {
+    it("SPEC-CORE-027 nothing is captured or stored without a profile, and capture starts once one is set", async () => {
       withoutProfile();
       const { mc, state } = stubController();
       const h = mount(mc);
@@ -619,7 +619,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
       expect(localStorage.length).toBe(0);
     });
 
-    it("SPEC-CORE-025 clearing the profile discards the open counted stretch at the first tick", async () => {
+    it("SPEC-CORE-027 clearing the profile discards the open counted stretch at the first tick", async () => {
       const { mc, state } = stubController();
       const h = mount(mc);
       await settle();
@@ -640,7 +640,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
       expect(joined()).toEqual([{ start: 100, end: 110 }]);
     });
 
-    it("SPEC-CORE-025 a send moment without a profile discards pending ranges", async () => {
+    it("SPEC-CORE-027 a send moment without a profile discards pending ranges", async () => {
       const { mc, state } = stubController();
       const h = mount(mc);
       await settle();
@@ -663,7 +663,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
   });
 
   describe("send moments", () => {
-    it("SPEC-CORE-025 a periodic send fires at 15 s and cuts the stretch with no gap or overlap", async () => {
+    it("SPEC-CORE-027 a periodic send fires at 15 s and cuts the stretch with no gap or overlap", async () => {
       const { mc, state } = stubController();
       const h = mount(mc);
       await settle();
@@ -687,7 +687,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
       expect(all[1].ranges).toEqual([{ start: cut.end, end: 20 }]);
     });
 
-    it("SPEC-CORE-025 the periodic timer runs while paused and a moment with nothing sendable sends nothing", async () => {
+    it("SPEC-CORE-027 the periodic timer runs while paused and a moment with nothing sendable sends nothing", async () => {
       const { mc, state } = stubController();
       const h = mount(mc);
       await settle();
@@ -703,7 +703,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
       expect(sends()).toHaveLength(1);
     });
 
-    it("SPEC-CORE-025 notifyEnded is a send moment", async () => {
+    it("SPEC-CORE-027 notifyEnded is a send moment", async () => {
       const { mc, state } = stubController();
       const h = mount(mc);
       await settle();
@@ -714,7 +714,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
       expect(sends()[0].ranges).toEqual([{ start: 0, end: 12 }]);
     });
 
-    it("SPEC-CORE-025 visibilitychange to hidden is a send moment, to visible is not", async () => {
+    it("SPEC-CORE-027 visibilitychange to hidden is a send moment, to visible is not", async () => {
       const { mc, state } = stubController();
       mount(mc);
       await settle();
@@ -728,7 +728,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
       expect(sends()[0].ranges).toEqual([{ start: 0, end: 12 }]);
     });
 
-    it("SPEC-CORE-025 pagehide is a send moment", async () => {
+    it("SPEC-CORE-027 pagehide is a send moment", async () => {
       const { mc, state } = stubController();
       mount(mc);
       await settle();
@@ -739,7 +739,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
       expect(sends()[0].ranges).toEqual([{ start: 0, end: 12 }]);
     });
 
-    it("SPEC-CORE-025 a change of file tears down: ranges go to the file they were captured for", async () => {
+    it("SPEC-CORE-027 a change of file tears down: ranges go to the file they were captured for", async () => {
       const { mc, state } = stubController();
       const h = mount(mc);
       await settle();
@@ -758,7 +758,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
       expect(joined(sendsFor("f2"))).toEqual([{ start: 200, end: 212 }]);
     });
 
-    it("SPEC-CORE-025 a change of controller tears down and sends", async () => {
+    it("SPEC-CORE-027 a change of controller tears down and sends", async () => {
       const first = stubController();
       const h = mount(first.mc);
       await settle();
@@ -771,7 +771,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
       expect(sends()[0].ranges).toEqual([{ start: 0, end: 12 }]);
     });
 
-    it("SPEC-CORE-025 sending reads nothing from the controller: it works while the controller throws", async () => {
+    it("SPEC-CORE-027 sending reads nothing from the controller: it works while the controller throws", async () => {
       const { mc, state } = stubController();
       mount(mc);
       await settle();
@@ -783,7 +783,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
       expect(sends()[0].ranges).toEqual([{ start: 0, end: 12 }]);
     });
 
-    it("SPEC-CORE-025 sending does not depend on the player being interrupted", async () => {
+    it("SPEC-CORE-027 sending does not depend on the player being interrupted", async () => {
       const { mc, state } = stubController();
       mount(mc);
       await settle();
@@ -795,7 +795,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
       expect(sends()[0].ranges).toEqual([{ start: 0, end: 12 }]);
     });
 
-    it("SPEC-CORE-025 an open stretch below 10 s is held back at a send moment, then sent whole", async () => {
+    it("SPEC-CORE-027 an open stretch below 10 s is held back at a send moment, then sent whole", async () => {
       const { mc, state } = stubController();
       const h = mount(mc);
       await settle();
@@ -810,7 +810,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
       expect(sends()[0].ranges).toEqual([{ start: 0, end: 12 }]);
     });
 
-    it("SPEC-CORE-025 a counted stretch stays counted after a cut, and no zero-length range is sent", async () => {
+    it("SPEC-CORE-027 a counted stretch stays counted after a cut, and no zero-length range is sent", async () => {
       const { mc, state } = stubController();
       const h = mount(mc);
       await settle();
@@ -836,7 +836,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
       }
     });
 
-    it("SPEC-CORE-025 nothing is sent after teardown, however long time runs", async () => {
+    it("SPEC-CORE-027 nothing is sent after teardown, however long time runs", async () => {
       const { mc, state } = stubController();
       const h = mount(mc);
       await settle();
@@ -856,7 +856,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
       ["a 503", () => Promise.resolve(respond(503))],
       ["a 500", () => Promise.resolve(respond(500))],
     ])(
-      "SPEC-CORE-025 after %s the ranges go with the next send, once",
+      "SPEC-CORE-027 after %s the ranges go with the next send, once",
       async (_label, fail) => {
         fetchMock.mockImplementationOnce(fail);
         const { mc, state } = stubController();
@@ -878,7 +878,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
     );
 
     it.each([400, 404, 422])(
-      "SPEC-CORE-025 a %s discards the ranges and they are not retried",
+      "SPEC-CORE-027 a %s discards the ranges and they are not retried",
       async (status) => {
         fetchMock.mockImplementationOnce(async () => respond(status));
         const { mc, state } = stubController();
@@ -899,7 +899,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
       },
     );
 
-    it("SPEC-CORE-025 a range in flight is in no other request until it fails back to pending", async () => {
+    it("SPEC-CORE-027 a range in flight is in no other request until it fails back to pending", async () => {
       let failFirst!: (r: Response) => void;
       fetchMock.mockImplementationOnce(
         () =>
@@ -936,7 +936,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
       ["a network failure", () => Promise.reject(new TypeError("Failed to fetch"))],
       ["a 503", () => Promise.resolve(respond(503))],
     ])(
-      "SPEC-CORE-025 %s on the teardown send discards the ranges",
+      "SPEC-CORE-027 %s on the teardown send discards the ranges",
       async (_label, fail) => {
         fetchMock.mockImplementationOnce(fail);
         const { mc, state } = stubController();
@@ -957,7 +957,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
       },
     );
 
-    it("SPEC-CORE-025 a failure that lands after teardown discards the ranges", async () => {
+    it("SPEC-CORE-027 a failure that lands after teardown discards the ranges", async () => {
       let failFirst!: (e: Error) => void;
       fetchMock.mockImplementationOnce(
         () =>
@@ -988,7 +988,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
       expect(joined(sendsFor("f2"))).toEqual([{ start: 200, end: 212 }]);
     });
 
-    it("SPEC-CORE-025 more than 256 pending ranges: the oldest are dropped and a request holds at most 256", async () => {
+    it("SPEC-CORE-027 more than 256 pending ranges: the oldest are dropped and a request holds at most 256", async () => {
       fetchMock.mockImplementation(async () => respond(503));
       const { mc, state } = stubController({ rate: 4, duration: 100_000 });
       const h = mount(mc);
@@ -1024,7 +1024,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
   });
 
   describe("effect on the rest of the hook", () => {
-    it("SPEC-CORE-025 a throw from fetch inside a send does not stop saves or playback", async () => {
+    it("SPEC-CORE-027 a throw from fetch inside a send does not stop saves or playback", async () => {
       fetchMock.mockImplementation(() => {
         throw new TypeError("fetch exploded");
       });
@@ -1041,7 +1041,7 @@ describe("SPEC-CORE-025 played-range capture", () => {
       expect(() => h.unmount()).not.toThrow();
     });
 
-    it("SPEC-CORE-025 capture and sending cause no re-render of the host", async () => {
+    it("SPEC-CORE-027 capture and sending cause no re-render of the host", async () => {
       const { mc, state } = stubController();
       let renders = 0;
       renderHook(() => {

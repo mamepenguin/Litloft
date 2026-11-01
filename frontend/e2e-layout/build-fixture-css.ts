@@ -113,6 +113,9 @@ export const REQUIRED = [
   ".wrap-anywhere {",
   ".gap-x-2 {",
   ".gap-y-0\\.5 {",
+  ".h-47\\.5 {",
+  ".h-27 {",
+  ".aspect-video {",
 ];
 /**
  * The compiler that emits this sheet is the compiler that builds the app.

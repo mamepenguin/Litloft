@@ -10,10 +10,11 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 import app.config as config
-from app.models import TRUST_UNVERIFIED, File
+from app.models import TRUST_UNVERIFIED, File, FileExif
 from app.nanoid import generate_nanoid
 from app.services.atomic_write import replacing_file
 from app.services.chapters import probe_file_chapters
+from app.services.exif import extract_exif
 from app.services.filetype import (
     classify,
     is_probeable_media,
@@ -304,6 +305,7 @@ def complete_upload(
         dimensions = (
             read_image_dimensions(target_full) if file_type == "image" else None
         )
+        exif = extract_exif(target_full) if file_type == "image" else None
 
         recovered_missing = False
         if existing is not None and existing.deleted_at is None:
@@ -348,6 +350,14 @@ def complete_upload(
             )
             db.add(file_record)
         db.flush()
+        # Replaced rather than left to the scanner, whose backfill only visits
+        # files with no row, so a stale row would never be corrected.
+        previous_exif = db.get(FileExif, file_record.id)
+        if previous_exif is not None:
+            db.delete(previous_exif)
+            db.flush()
+        if exif is not None:
+            db.add(FileExif(file_id=file_record.id, **exif))
         if mime_type == "text/markdown" or session.filename.lower().endswith(".md"):
             try:
                 if target_full.stat().st_size <= _MD_READ_MAX_BYTES:

@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!--
+      Without this, a context that sets `isMobile` lays the page out at
+      Chromium's mobile default instead of the viewport the spec asked for.
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>scene candidates — layout fixture</title>
+    <!--
+      No <style> of its own: every declaration measured here has to come
+      out of the app's own stylesheet.
+    -->
+    <link rel="stylesheet" href="./globals.built.css" />
+  </head>
+  <body>
+    <!--
+      The URL hash is the state: `loading`, or the number of candidates.
+
+      `section`, `head` and `row` are declared by class and attributes only;
+      their children differ by state. `title` and `status` are the heading
+      row's two text nodes, `skeleton` is repeated six times in the loading
+      row, and `card` is repeated once per candidate.
+    -->
+    <script type="application/json" id="fixture-markup">
+      {
+        "skeletonCount": 6,
+        "section": {
+          "tag": "section",
+          "class": "min-w-0 px-3 pb-3 pt-2"
+        },
+        "head": {
+          "tag": "div",
+          "class": "flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5 px-1"
+        },
+        "title": {
+          "tag": "h3",
+          "class": "text-sm font-semibold",
+          "children": []
+        },
+        "status": {
+          "tag": "p",
+          "class": "text-xs text-text-muted",
+          "children": []
+        },
+        "row": {
+          "tag": "div",
+          "class": "scrollbar-hover flex h-47.5 items-start gap-2 overflow-x-auto px-1 pb-1 pt-2",
+          "attrs": {
+            "tabindex": "0",
+            "aria-label": "*",
+            "aria-busy": "*"
+          }
+        },
+        "skeleton": {
+          "tag": "div",
+          "class": "h-27 w-48 shrink-0 animate-pulse rounded-lg bg-bg-elevated motion-reduce:animate-none",
+          "attrs": {
+            "aria-hidden": "true"
+          },
+          "children": []
+        },
+        "card": {
+          "tag": "a",
+          "class": "group w-48 shrink-0 overflow-hidden rounded-lg bg-bg-card focus-visible:outline-2 focus-visible:outline-accent hover:outline-2 hover:outline-accent",
+          "attrs": {
+            "href": "*"
+          },
+          "children": [
+            {
+              "tag": "img",
+              "class": "aspect-video w-full bg-bg-elevated object-cover",
+              "attrs": {
+                "src": "*",
+                "alt": "",
+                "loading": "lazy"
+              },
+              "children": []
+            },
+            {
+              "tag": "span",
+              "class": "block px-1.5 pb-1 pt-1.5",
+              "children": [
+                {
+                  "tag": "span",
+                  "class": "block text-xs tabular-nums text-text-muted group-hover:text-accent group-focus-visible:text-accent",
+                  "children": []
+                },
+                {
+                  "tag": "span",
+                  "class": "line-clamp-2 wrap-anywhere text-xs leading-snug",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        }
+      }
+    </script>
+
+    <div id="page"></div>
+
+    <script>
+      // A 1x1 transparent GIF: a data URI needs no network, which lets
+      // this page run off file://.
+      const PIXEL =
+        "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+
+      const SPEC = JSON.parse(
+        document.getElementById("fixture-markup").textContent,
+      );
+
+      const build = (spec, text) => {
+        const el = document.createElement(spec.tag);
+        el.setAttribute("class", spec.class);
+        if (spec.tag === "img") el.src = PIXEL;
+        if (spec.tag === "a") el.href = "#";
+        for (const [name, value] of Object.entries(spec.attrs ?? {})) {
+          el.setAttribute(name, value === "*" ? "x" : value);
+        }
+        if (text !== undefined) el.textContent = text;
+        for (const child of spec.children ?? []) el.append(build(child));
+        return el;
+      };
+
+      const NAMES = [
+        "holiday.mp4",
+        "a very long file name that does not fit on two lines of a narrow card and must be cut off somewhere.mkv",
+        "VeryLongFileNameWithoutAnySpacesThatWouldOtherwiseForceTheCardToGrowWiderThanItsBox.mov",
+      ];
+
+      const state = location.hash.slice(1) || "loading";
+      const loading = state === "loading";
+      const count = loading ? 0 : Number(state);
+
+      const section = build(SPEC.section);
+      const head = build(SPEC.head);
+      head.append(build(SPEC.title, "Scene candidates"));
+      if (loading) head.append(build(SPEC.status, "Searching for scenes"));
+      const row = build(SPEC.row);
+      row.setAttribute("aria-busy", String(loading));
+      row.setAttribute("aria-label", "Scene candidates");
+
+      if (loading) {
+        for (let i = 0; i < SPEC.skeletonCount; i++) row.append(build(SPEC.skeleton));
+      }
+      for (let i = 0; i < count; i++) {
+        const card = build(SPEC.card);
+        const spans = card.querySelectorAll("span span");
+        spans[0].textContent = "59:50-1:00:10";
+        spans[1].textContent = NAMES[i % NAMES.length];
+        row.append(card);
+      }
+
+      section.append(head, row);
+
+      const page = document.getElementById("page");
+      const files = document.createElement("div");
+      files.id = "files";
+      files.className = "px-4 py-3 text-sm";
+      files.textContent = "file list";
+      page.append(section, files);
+      document.body.dataset.ready = "1";
+    </script>
+  </body>
+</html>
