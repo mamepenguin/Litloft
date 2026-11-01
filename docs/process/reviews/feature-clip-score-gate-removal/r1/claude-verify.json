@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "The factual claim holds. addons/intelligence/tests/test_search_clip_score_gates.py exists and is not named in the touch points. docs/specs/clip-score-gates.md:245 names only test_search_knn_partition.py as edited, and :246-247 name test_search.py and test_search_file_kind_filter.py as 'read as the existing checks'. The new file imports its helpers from tests.test_search_knn_partition at lines 14-29, and those helpers exist there (for example _rows:54, _use_search_config:47, clip_index:92, _far_scene_rows:173, _far_thumbnails_of_other_files:223). A grep of the addon tests finds none of the four 'replaced' tests or the removed scene-on test from spec :160-165 in the working tree; only the two 'kept' tests remain (test_search_knn_partition.py:240, :283). The replacements are in the new file (lines 56, 84). One nuance in the evidence: spec :157-159 says 'Replaced by tests of the opposite under SPEC-ADDON-043' and does not say where the replacements must live. Only the touch-point list is contradicted, not item 7. The new file holds tests only, reaches no new table, endpoint or rule, and has no effect on runtime behaviour. The deviation is therefore from the declared list, not a defect in behaviour."
+    }
+  ],
+  "specification_compliance": [
+    "SPEC-ADDON-043: a read of _vector_search_clip from the allowed types through the return (addons/intelligence/app/search.py:700-753) shows only the per-type floor and the margin cutoff. A grep finds gap_threshold only at search.py:485 and :489, outside this function, which matches items 3-4 of the normal flow; search.py:614-694 was not read line by line.",
+    "SPEC-ADDON-044: search.py:1501-1517 sorts first, takes top_score from the first result across all results, exempts results with _CLIP_MATCH_TYPES only when mode != 'recall', and truncates to limit after the cutoff. This matches I5, I6 and I7 by reading.",
+    "GET /search/compare calls _build_results with the default mode and with skip_cutoff=True for the no-cutoff lists (search.py:2484-2500), which matches spec item 7."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "test_search_clip_score_gates.py imports private helpers and the clip_index fixture from test_search_knn_partition.py, so a later rename in that file breaks collection of the new module. This is a maintenance coupling only and does not affect runtime."
+  ],
+  "test_coverage": [
+    "By reading, the new test file has tests for I1, I2, I3, I4, I5, I6, I7, I8 and I9. These tests were read but not run.",
+    "The I8 tests exercise _build_results directly with a stated match_types set, not search() end to end. search() filtering is covered by the existing test_spec_addon_025_search_with_scene_off_returns_only_the_drives_active_files at test_search_knn_partition.py:416, for Scene search off.",
+    "No test for I10 (benchmark.py read-only behaviour and query-text suppression) was looked for or found in the files read."
+  ],
+  "not_verified": [
+    "Whether the addons/intelligence working tree is exactly the tree pinned by the gitlink at 5407999f0; git cannot be run with the available tools, so the addon files were read as checked out.",
+    "The actual diff of the addon, including the 367-line count and the prior presence of the deleted tests; the deletion was inferred from their absence in the current file.",
+    "No test suite was run, so no test outcome is confirmed.",
+    "benchmark.py and invariant I10 were not read.",
+    "The docs edits in docs/user-guide/search.md and docs/addons/intelligence.md, and the comment on score_gap_threshold in config.py, were not checked.",
+    "search.py:614-694 (the KNN part of _vector_search_clip) was not read line by line."
+  ],
+  "confidence": 88
+}

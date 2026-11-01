@@ -164,6 +164,8 @@ Meaning-based results are mixed into the ordinary search results. What a viewer 
 
 The query is embedded with `models.text_embedding`, matched against the vectors and against keyword indexes, and the two are blended with `search.alpha` (0 = keywords only, 1 = vectors only). Results are capped by `search.default_limit` and `search.max_limit`.
 
+Search drops results scoring below half the top result, except those with a CLIP match: image cosines sit far below keyword scores, so the rule would hide every picture as soon as one document mentions the word.
+
 ### Scene search
 
 **Scene search** above the search results matches your words against the stored video frames. `search.min_score_clip` and `search.min_score_clip_thumbnail` are the score floors. Both default to 0.05, which suits the default SigLIP2 model; use 0.20 with CLIP-family models.
