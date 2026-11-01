@@ -80,8 +80,8 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-040 | implemented | docs/specs/thumbnail-slot-ownership.md | sha256:9fcfcc2fd70ea2565226ed64e3d02217fe9fbc1550e8860ffa3a7e0b91195879 |
 | SPEC-ADDON-041 | implemented | docs/specs/scene-segment-search.md | sha256:0b5308cb70945d21e1c9c1f8d1eb0297515c254a640dfb114634165e85e2de0a |
 | SPEC-ADDON-042 | implemented | docs/specs/scene-segment-search.md | sha256:0b5308cb70945d21e1c9c1f8d1eb0297515c254a640dfb114634165e85e2de0a |
-| SPEC-ADDON-043 | draft | docs/specs/clip-score-gates.md | |
-| SPEC-ADDON-044 | draft | docs/specs/clip-score-gates.md | |
+| SPEC-ADDON-043 | approved | docs/specs/clip-score-gates.md | sha256:567a5e25c0ad94154e2c8f25cf61296262730ecb127fed3b31733febf7412255 |
+| SPEC-ADDON-044 | approved | docs/specs/clip-score-gates.md | sha256:567a5e25c0ad94154e2c8f25cf61296262730ecb127fed3b31733febf7412255 |
 | SPEC-CORE-025 | implemented | docs/specs/scene-segment-search.md | sha256:0b5308cb70945d21e1c9c1f8d1eb0297515c254a640dfb114634165e85e2de0a |
 | SPEC-CORE-026 | implemented | docs/specs/played-segments.md | sha256:c213890b2c1ed8a97c873781974d13d8f3a9a55d712f5e997133b719ba2a94e3 |
 | SPEC-CORE-027 | implemented | docs/specs/played-segments.md | sha256:c213890b2c1ed8a97c873781974d13d8f3a9a55d712f5e997133b719ba2a94e3 |
