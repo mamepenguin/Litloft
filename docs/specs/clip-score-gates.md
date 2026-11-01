@@ -271,7 +271,9 @@ judged by `search.score_gap_threshold` and the coefficient-of-variation cut-off 
 I5. In precision mode, `_build_results` returns a result whose `match_types` contain
 `clip_thumbnail` or `clip`, alone or beside another type, although its score is below
 `top_score * score_cutoff_ratio`, and drops a result below that value whose `match_types`
-contain neither. `skip_cutoff=True` keeps every result, as today.
+contain neither. `top_score` is the highest score of all results, so a file holding a keyword
+and a CLIP match can raise it above a keyword-only result's reach. `skip_cutoff=True` keeps
+every result, as today.
 I6. In recall mode, `_build_results` drops a result below `top_score *
 _RECALL_PARAMS.score_cutoff_ratio` whatever its `match_types`, so `search()` in recall mode
 returns the same files and scores for the same index as before this change.
@@ -284,9 +286,7 @@ such file of another drive, of another type, outside the scope, or inactive.
 I9. `search(q, limit=100, drive=D)` with Scene search off, over a drive holding 60 thumbnails
 inside a 0.01 band above the floor and no other match, returns the 50 nearest of them. With
 one keyword match on another file of the drive it returns 51 results, the keyword match first.
-I10. `top_score` in `_build_results` is the highest score of all results: a keyword-only result
-below `ratio` × the score of a file holding a keyword and a CLIP match is dropped.
-I11. `benchmark.py` writes nothing to `search.db`, whose open fails on any write because of
+I10. `benchmark.py` writes nothing to `search.db`, whose open fails on any write because of
 `mode=ro`, and its output for the videos drive contains no query text.
 
 ## Revises
