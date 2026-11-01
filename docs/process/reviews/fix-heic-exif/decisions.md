@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: 続行
 ran_in_app: yes
 at: be9a0fcb08490e675b3b91971389200db3236e32
 by: agent

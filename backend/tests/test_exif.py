@@ -1,4 +1,5 @@
 """Tests for EXIF extraction service and GET /api/files/{id}/exif endpoint."""
+import sqlite3
 import struct
 from datetime import UTC, datetime
 from io import BytesIO
@@ -9,6 +10,8 @@ from PIL import ExifTags, Image, TiffImagePlugin
 
 import app.services.heic  # noqa: F401  (registers the HEIF opener, as the running backend does)
 from app.models import File, FileExif
+from app.services import upload as upload_service
+from app.services.scanner import _scan_and_register
 from tests.conftest import TEST_DRIVE
 from app.services.exif import (
     _exposure_time_str,
@@ -124,7 +127,7 @@ class TestExtractExif:
 
 # UNSPEC: a photo's EXIF is read the same way whatever its container, so a HEIC
 # photo from a phone keeps its capture time, camera and location.
-@pytest.mark.parametrize(("name", "fmt"), [("a.jpg", "JPEG"), ("a.heic", "HEIF"), ("a.webp", "WEBP")])
+@pytest.mark.parametrize(("name", "fmt"), [("a.jpg", "JPEG"), ("a.heic", "HEIF"), ("a.webp", "WEBP"), ("a.tiff", "TIFF")])
 def test_exif_is_read_from_every_container(tmp_path, name, fmt):
     exif = _exif_with_everything()
     path = tmp_path / name
@@ -226,6 +229,51 @@ class TestEveryWayIn:
 
         assert second == first
         assert c.get(f"/api/files/{second}/exif").status_code == 404
+
+    def test_reading_an_upload_holds_no_write_lock(self, client, monkeypatch):
+        # A large PNG with no eXIf chunk is decoded whole by this read, and every
+        # other writer would wait on it.
+        c, db, _, _ = client
+        path = db.get_bind().url.database
+        writable = []
+
+        def read_while_another_connection_writes(image_path):
+            other = sqlite3.connect(path, timeout=0)
+            try:
+                other.execute("BEGIN IMMEDIATE")
+                other.rollback()
+                writable.append(True)
+            except sqlite3.OperationalError:
+                writable.append(False)
+            finally:
+                other.close()
+            return None
+
+        monkeypatch.setattr(upload_service, "extract_exif", read_while_another_connection_writes)
+
+        _upload(c, "a.png", _photo_bytes("PNG"))
+
+        assert writable == [True]
+
+    def test_a_scan_reads_a_photo_it_finds_and_one_with_no_exif_row(self, client):
+        # The second case is every HEIC already in a library: a row, and no EXIF.
+        c, db, drive_dir, _ = client
+        (drive_dir / "a.heic").write_bytes(_photo_bytes("HEIF", _exif_with_everything()))
+
+        _scan_and_register(db, TEST_DRIVE)
+        db.commit()
+        record = db.query(File).filter(File.filename == "a.heic").one()
+        assert c.get(f"/api/files/{record.id}/exif").json()["datetime_original"] == "2024-03-15T14:23:01"
+
+        db.delete(db.get(FileExif, record.id))
+        db.commit()
+        assert c.get(f"/api/files/{record.id}/exif").status_code == 404
+
+        _scan_and_register(db, TEST_DRIVE)
+        db.commit()
+        res = c.get(f"/api/files/{record.id}/exif")
+        assert res.status_code == 200, res.text
+        assert res.json()["gps_lat"] == pytest.approx(-35.6762, abs=0.001)
 
     def test_a_copied_photo_has_the_same_exif(self, client):
         c, _, _, _ = client

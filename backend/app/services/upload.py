@@ -305,6 +305,7 @@ def complete_upload(
         dimensions = (
             read_image_dimensions(target_full) if file_type == "image" else None
         )
+        exif = extract_exif(target_full) if file_type == "image" else None
 
         recovered_missing = False
         if existing is not None and existing.deleted_at is None:
@@ -355,7 +356,6 @@ def complete_upload(
         if previous_exif is not None:
             db.delete(previous_exif)
             db.flush()
-        exif = extract_exif(target_full) if file_type == "image" else None
         if exif is not None:
             db.add(FileExif(file_id=file_record.id, **exif))
         if mime_type == "text/markdown" or session.filename.lower().endswith(".md"):
