@@ -17,10 +17,10 @@
       drawer's to `UploadProgress.tsx` so this page cannot keep an old
       placement after the component moves.
 
-      `drawerBottomPx` is where the drawer sits above the screen's bottom
-      edge. The component computes it from what is on screen; a fixture
-      cannot, so the number is written here and the spec measures the four
-      arrangements it produces.
+      `drawerBottomPx` is the drawer's offset above the screen's bottom
+      edge when neither neighbour is shown. The fixture derives the offset
+      from the heights above, the way the component derives it from what is
+      on screen.
     -->
     <script type="application/json" id="fixture-markup">
       {
@@ -79,7 +79,7 @@
       /**
        * `sheet`: "none" | "peek" | "half" | "full".
        * `half` and `full` draw the expanded surface over the page; the
-       * drawer stays where the component puts it.
+       * drawer is not drawn while it is up.
        */
       window.arrange = ({ player: withPlayer, sheet: state }) => {
         player.hidden = !withPlayer;
@@ -87,6 +87,14 @@
         const expanded = state === "half" || state === "full";
         sheet.hidden = !expanded;
         sheet.style.height = state === "full" ? "90%" : "50%";
+
+        const abovePlayer = withPlayer
+          ? SPEC.miniPlayerGapPx + SPEC.miniPlayerHeightPx
+          : 0;
+        const aboveStrip = state === "peek" ? SPEC.peekHeightPx : 0;
+        drawer.style.bottom = `${Math.max(abovePlayer, aboveStrip)}px`;
+        drawer.hidden = expanded;
+
         page.dataset.ready = "1";
       };
     </script>

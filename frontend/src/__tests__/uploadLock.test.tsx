@@ -124,10 +124,17 @@ async function renderAppWithUnfinishedUpload(api: UploadApi) {
   return { view, held };
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.useFakeTimers();
   vi.resetModules();
+  vi.resetAllMocks();
   localStorage.clear();
+  const api = await mockedApi();
+  api.initUpload.mockResolvedValue({ upload_id: "upload-1", chunk_size: 5, total_chunks: 1 });
+  api.uploadChunk.mockResolvedValue({});
+  api.completeUpload.mockResolvedValue({});
+  api.cancelUpload.mockResolvedValue(undefined);
+  api.lock.mockResolvedValue(undefined);
 });
 
 afterEach(() => {

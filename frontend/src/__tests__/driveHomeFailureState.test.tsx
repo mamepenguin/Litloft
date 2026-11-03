@@ -55,8 +55,13 @@ vi.mock("@/lib/api", () => ({
 }));
 
 import { DriveHome } from "@/components/DriveHome";
+import { resetUploadStore } from "@/hooks/useUpload";
 import messages from "@/messages-core/en.json";
 import type { FileItem, WatchHistoryItem } from "@/types";
+
+beforeEach(() => {
+  resetUploadStore();
+});
 
 const FAILED_TITLE = messages.empty.homeUnavailableTitle;
 const EMPTY_TITLE = messages.empty.noHomeActivityTitle;

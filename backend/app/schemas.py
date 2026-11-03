@@ -283,6 +283,7 @@ class UploadInitRequest(BaseModel):
     folder_path: str = ""
     relative_path: str = ""
     chunk_size: int = 5_242_880
+    require_folder: bool = False
 
 
 class UploadInitResponse(BaseModel):

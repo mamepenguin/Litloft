@@ -101,10 +101,15 @@ vi.mock("@/lib/api", () => ({
 }));
 
 import { DriveHome } from "../components/DriveHome";
+import { resetUploadStore } from "@/hooks/useUpload";
 // The catalogue itself, so a prompt's words are read from where a real
 // one would take them rather than guessed at here.
 import messages from "@/messages-core/en.json";
 import type { WatchHistoryItem } from "@/types";
+
+beforeEach(() => {
+  resetUploadStore();
+});
 
 const makeWatchHistoryItem = (id: string): WatchHistoryItem => ({
   image_width: null,

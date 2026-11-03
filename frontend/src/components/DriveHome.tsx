@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import type { FileItem, PaginatedResponse, WatchHistoryItem } from "@/types";
 import { getDriveFiles, getWatchHistory } from "@/lib/api";
 import { UploadZone } from "@/components/UploadZone";
+import { useUploadCompleted } from "@/hooks/useUpload";
 import { useTreeRefresh } from "@/components/TreeRefreshContext";
 import { useWebSocketRefresh } from "@/hooks/useWebSocketRefresh";
 import { AddButton } from "./AddButton";
@@ -190,6 +191,8 @@ export function DriveHome({ driveName }: DriveHomeProps) {
     refreshTree();
   }, [refetchAllSections, refreshTree]);
 
+  useUploadCompleted(driveName, refreshPage);
+
   useWebSocketRefresh(
     ["drive.structure_changed", "drive.file_updated"],
     refreshPage,
@@ -220,7 +223,6 @@ export function DriveHome({ driveName }: DriveHomeProps) {
     <UploadZone
       drive={driveName}
       folderPath=""
-      onUploadComplete={refreshPage}
       className="flex w-full min-w-0 flex-1 flex-col"
     >
       {/* No breadcrumb: a trail here would stop at the drive and say

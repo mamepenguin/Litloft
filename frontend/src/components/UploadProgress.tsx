@@ -1,26 +1,41 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, ChevronRight, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { UploadState } from "@/hooks/useUpload";
+import {
+  DESTINATION_FOLDER_NOT_FOUND,
+  leaveConfirmationArmed,
+  useUpload,
+  type UploadState,
+} from "@/hooks/useUpload";
+import { bottomChromeOffset, useBottomChrome } from "@/lib/bottomChrome";
 
-interface UploadProgressProps {
-  uploads: UploadState[];
-  onCancel: (id: string) => void;
-  onClearCompleted: () => void;
-}
-
-export function UploadProgress({
-  uploads,
-  onCancel,
-  onClearCompleted,
-}: UploadProgressProps) {
+export function UploadProgress() {
   const t = useTranslations("upload");
   const tc = useTranslations("common");
+  const { uploads, cancelUpload, clearCompleted } = useUpload();
+  const chrome = useBottomChrome();
   const [collapsed, setCollapsed] = useState(false);
+  const previousCount = useRef(uploads.length);
+
+  useEffect(() => {
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (leaveConfirmationArmed()) event.preventDefault();
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, []);
+
+  useEffect(() => {
+    if (uploads.length === 0 || uploads.length > previousCount.current) {
+      setCollapsed(false);
+    }
+    previousCount.current = uploads.length;
+  }, [uploads.length]);
 
   if (uploads.length === 0) return null;
+  if (chrome.sheet === "half" || chrome.sheet === "full") return null;
 
   const statusLabelMap: Record<UploadState["status"], string> = {
     pending: t("statusPending"),
@@ -39,7 +54,10 @@ export function UploadProgress({
   ).length;
 
   return (
-    <div className="fixed bottom-0 right-0 z-40 w-full max-w-md">
+    <div
+      className="fixed bottom-0 right-0 z-40 w-full max-w-md"
+      style={{ bottom: bottomChromeOffset(chrome) }}
+    >
       <div className="m-3 overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-lg">
         <button
           onClick={() => setCollapsed((prev) => !prev)}
@@ -58,7 +76,7 @@ export function UploadProgress({
               <span
                 onClick={(e) => {
                   e.stopPropagation();
-                  onClearCompleted();
+                  clearCompleted();
                 }}
                 className="text-xs text-text-muted hover:text-text-primary"
               >
@@ -104,7 +122,7 @@ export function UploadProgress({
                     {(upload.status === "pending" ||
                       upload.status === "uploading") && (
                       <button
-                        onClick={() => onCancel(upload.id)}
+                        onClick={() => cancelUpload(upload.id)}
                         className="rounded-lg p-0.5 text-text-muted hover:text-danger"
                         aria-label={tc("cancel")}
                       >
@@ -125,7 +143,11 @@ export function UploadProgress({
                 )}
 
                 {upload.status === "error" && upload.error && (
-                  <p className="mt-1 text-xs text-danger">{upload.error}</p>
+                  <p className="mt-1 text-xs text-danger">
+                    {upload.error === DESTINATION_FOLDER_NOT_FOUND
+                      ? t("destinationFolderNotFound")
+                      : upload.error}
+                  </p>
                 )}
               </div>
             ))}

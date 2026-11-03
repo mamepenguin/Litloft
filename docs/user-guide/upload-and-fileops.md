@@ -10,7 +10,9 @@ The drawer at the bottom of the screen shows each file's progress. You can cance
 
 Things to plan around:
 
-- Uploads do not resume. Closing or reloading the tab stops the upload, and you have to start that file again from the beginning. If part of a file fails, that file fails and the drawer shows an error.
+- Uploads keep going while you move around the app. Open a file, another folder, another drive, search or Settings, and the drawer stays on screen with its progress, cancel and **Clear**. Each file goes to the folder it was added to.
+- Uploads do not resume. Closing or reloading the tab stops the upload, and you have to start that file again from the beginning. Most desktop browsers ask before you leave; iOS Safari does not. In the iOS app, uploads may stop while the app is in the background. If part of a file fails, that file fails and the drawer shows an error.
+- A file whose destination folder was renamed, moved or deleted before its upload starts fails with **Error**: the folder is not recreated.
 - The size limit is 50 GB per file unless your administrator changed it (`LITLOFT_MAX_UPLOAD_SIZE_GB`, see [environment variables](../reference/env-variables.md)). A reverse proxy in front of Litloft may have its own limit.
 - An upload is refused before it starts if the disk has less than 110% of the file's size free.
 - An upload is also refused if a file already exists at that path.

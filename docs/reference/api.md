@@ -183,12 +183,14 @@ Keyword search is the `search` parameter of `GET /api/drives/{drive}/files`. Sem
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/api/drives/{drive}/upload/init` | Body `{ filename, file_size, folder_path, relative_path, chunk_size }`; `chunk_size` defaults to 5 MiB. Returns `{ upload_id, chunk_size, total_chunks }`. |
+| `POST` | `/api/drives/{drive}/upload/init` | Body `{ filename, file_size, folder_path, relative_path, chunk_size, require_folder }`; `chunk_size` defaults to 5 MiB and `require_folder` defaults to `false`. Returns `{ upload_id, chunk_size, total_chunks }`. |
 | `POST` | `/api/drives/{drive}/upload/{upload_id}/chunk` | `multipart/form-data` with `chunk_index` and `chunk`. Returns the received and total chunk counts. |
 | `POST` | `/api/drives/{drive}/upload/{upload_id}/complete` | Finish and return the file. An upload to the path of a Missing file revives that record. A subtitle (`.srt`, `.vtt` and the other subtitle extensions) is a sidecar file and gets no record: the answer is `{ "status": "sidecar", "drive", "file_path" }`, and a record already at that path is removed. |
 | `DELETE` | `/api/drives/{drive}/upload/{upload_id}` | Cancel. |
 
 An upload session belongs to the drive it was opened on; using it under another drive is `404`.
+
+`require_folder: true` makes `init` check that `folder_path` is an existing directory of the drive. If it is not, `init` answers `404` with `{"detail": "destination_folder_not_found"}` and creates no directory, temp directory or session; otherwise it creates the dropped folder's subfolders as usual. The session remembers the request, and `complete` repeats the check before writing: if the folder has gone by then, `complete` answers the same `404`, deletes the session and its chunks, and writes nothing. Without `require_folder`, both requests behave as before and a missing folder is created.
 
 ## Viewer identity and watch progress
 

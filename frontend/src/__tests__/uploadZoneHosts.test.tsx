@@ -51,6 +51,7 @@ vi.mock("@/lib/api", () => ({
 
 import { DriveHome } from "@/components/DriveHome";
 import { FolderBrowser } from "@/components/FolderBrowser";
+import { resetUploadStore } from "@/hooks/useUpload";
 
 const SCREENS: [string, () => React.ReactElement, string][] = [
   ["the drive home", () => <DriveHome driveName="main" />, ""],
@@ -72,6 +73,7 @@ const SCREENS: [string, () => React.ReactElement, string][] = [
 describe("screens that can upload mount exactly one zone", () => {
   beforeEach(() => {
     localStorage.clear();
+    resetUploadStore();
     initUpload.mockReset();
     initUpload.mockResolvedValue({ upload_id: "upload-1" });
   });
