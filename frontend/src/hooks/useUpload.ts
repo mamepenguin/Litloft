@@ -134,7 +134,7 @@ function notifyComplete(drive: string) {
 
 let processingTimer: ReturnType<typeof setInterval> | null = null;
 let processingInFlight = false;
-let processingRefreshQueued = false;
+let processingRefreshQueued: { all: true } | { ids: Set<string> } | null = null;
 let immediateProcessingFetch: ReturnType<typeof setTimeout> | null = null;
 
 function needsProcessingFetch(entry: UploadState): boolean {
@@ -229,11 +229,31 @@ function applyProcessingAnswer(
   if (changed) emit();
 }
 
+function queueProcessingRefresh(fileIds?: string[]) {
+  if (fileIds === undefined) {
+    processingRefreshQueued = { all: true };
+    return;
+  }
+  const held = fileIds.filter((fileId) =>
+    uploads.some(
+      (entry) => entry.fileId === fileId && needsProcessingFetch(entry),
+    ),
+  );
+  if (held.length === 0) return;
+  if (processingRefreshQueued && "all" in processingRefreshQueued) return;
+  const ids =
+    processingRefreshQueued && "ids" in processingRefreshQueued
+      ? processingRefreshQueued.ids
+      : new Set<string>();
+  for (const fileId of held) ids.add(fileId);
+  processingRefreshQueued = { ids };
+}
+
 async function refreshProcessing(fileIds?: string[]) {
   if (processingInFlight) {
     // The in-flight answer may predate the change that asked for this one,
     // so a call made now earns one more request after it ends.
-    processingRefreshQueued = true;
+    queueProcessingRefresh(fileIds);
     return;
   }
   processingInFlight = true;
@@ -241,9 +261,11 @@ async function refreshProcessing(fileIds?: string[]) {
     await refreshProcessingOnce(fileIds);
   } finally {
     processingInFlight = false;
-    if (processingRefreshQueued) {
-      processingRefreshQueued = false;
-      void refreshProcessing();
+    const queued = processingRefreshQueued;
+    processingRefreshQueued = null;
+    if (queued) {
+      if ("all" in queued) void refreshProcessing();
+      else void refreshProcessing([...queued.ids]);
     }
   }
 }

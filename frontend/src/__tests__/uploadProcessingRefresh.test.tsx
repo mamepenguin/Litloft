@@ -256,6 +256,56 @@ describe("SPEC-CORE-037 I8 — when an entry asks again", () => {
     expect(screen.getByText("Ready")).toBeInTheDocument();
   });
 
+  it.each([
+    { label: "a foreign id", ids: ["file_other"], followUp: null },
+    { label: "a held id", ids: ["file_a"], followUp: ["file_a"] },
+  ])(
+    "SPEC-CORE-037 I8 (r2) follows a mid-request event naming $label only for entries that still need a fetch",
+    async ({ ids, followUp }) => {
+      const api = await mockedApi();
+      const first = deferred<Answer>();
+      const second = deferred<Answer>();
+      let calls = 0;
+      api.getFilesProcessing.mockImplementation(() => {
+        calls += 1;
+        return calls === 1 ? first.promise : second.promise;
+      });
+
+      const { view, Drawer } = await renderCompleted(api);
+      await advance(1);
+      expect(api.getFilesProcessing).toHaveBeenCalledTimes(1);
+
+      wsState.lastEvent = {
+        event: "processing.updated",
+        data: { file_ids: ids, drive: "main" },
+      };
+      await act(async () => {
+        view.rerender(<Drawer />);
+      });
+      await flush(5);
+
+      await act(async () => {
+        first.resolve(inProgress());
+      });
+      await flush(5);
+
+      if (followUp === null) {
+        expect(api.getFilesProcessing).toHaveBeenCalledTimes(1);
+      } else {
+        expect(api.getFilesProcessing).toHaveBeenCalledTimes(2);
+        const callsSoFar = api.getFilesProcessing.mock.calls as unknown as Array<
+          [string[]]
+        >;
+        expect(callsSoFar[1]).toEqual([followUp]);
+      }
+
+      await act(async () => {
+        second.resolve(ready());
+      });
+      await flush(5);
+    },
+  );
+
   it("SPEC-CORE-037 I8 never asks again once the answer is ready", async () => {
     const api = await mockedApi();
     api.getFilesProcessing.mockResolvedValue(ready());
