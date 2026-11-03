@@ -42,6 +42,8 @@ Each addon under `addons/` is a Git submodule pinned to the commit the core expe
 
 Addon config files are not overwritten, but an addon may add new settings. After an upgrade, compare your `addons/intelligence/search-config.yml` with `search-config.yml.example` next to it.
 
+An existing `addons/intelligence/search-config.yml` copied from the old example may still set `search.max_limit: 100`. Delete that line to get the deeper first list on the search page: the default is 1000 now, and **Show more by similarity** reaches the rest.
+
 ## Pending changes banner
 
 If the admin pages show **Pending changes — restart required** before the upgrade, the rebuild restarts the backend and the banner clears.

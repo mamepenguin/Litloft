@@ -150,7 +150,8 @@ export function FolderBrowser({
   const {
     files, folders, total, loading, loadingMore, hasMore, pagesLoaded, sentinelRef,
     reset, setFiles, setPaginatedTotal, isRecent, hasProfile,
-    snapshotKey, hydratedScrollY,
+    snapshotKey, hydratedScrollY, continuationState, onShowMore, continuationSentinelRef,
+    continuationDrawnIds, updateContinuationFile, removeContinuationFiles,
   } = useFolderFiles({ driveName, folderPath, view, tagFilter, typeFilter, trustFilter, sort, order, refreshKey, searchQuery, includeSceneClip, initialSnapshot });
 
   // Approximate the parent folder's dominant_kind from loaded files because the
@@ -295,6 +296,9 @@ export function FolderBrowser({
   const tCommon = useTranslations("common");
   const { pinnedPaths, handleTogglePin } = usePinnedFolders(driveName);
   const selection = useSelection();
+  // `SelectionBar` clears before it reports a completed bulk action, so the
+  // ids of that action are kept here for the continuation's own pruning.
+  const clearedSelectionRef = useRef<string[]>([]);
   const clipboard = useClipboard();
   const tcb = useTranslations("clipboard");
   const tsc = useTranslations("shortcuts");
@@ -418,8 +422,9 @@ export function FolderBrowser({
           prev.map((f) => (f.id === updated.id ? updated : f))
         );
       }
+      updateContinuationFile(updated);
     },
-    [isFavorites, isRecent, setFiles, setPaginatedTotal],
+    [isFavorites, isRecent, setFiles, setPaginatedTotal, updateContinuationFile],
   );
 
   const effectiveSort = isRecentAdded ? "created_at" : isLiked ? "liked_at" : sort;
@@ -710,6 +715,9 @@ export function FolderBrowser({
         selectedCount={selection.count}
         isDropDisabled={isDropDisabled}
         onFolderDragStart={handleFolderDragStart}
+        {...(isSearch
+          ? { continuationState, onShowMore, continuationSentinelRef }
+          : {})}
       />
 
       {selectable && (
@@ -721,10 +729,18 @@ export function FolderBrowser({
           currentPath={folderPath}
           onSelectAll={() => selection.selectAll(files.map((f) => f.id))}
           onClear={() => {
+            clearedSelectionRef.current = [...selection.selectedIds];
             selection.clear();
             setSelectable(false);
           }}
-          onComplete={refresh}
+          onComplete={(removed) => {
+            const cleared = clearedSelectionRef.current;
+            clearedSelectionRef.current = [];
+            const onlyContinuation =
+              cleared.length > 0 && cleared.every((id) => continuationDrawnIds.has(id));
+            if (removed) removeContinuationFiles(cleared);
+            if (!onlyContinuation) refresh();
+          }}
         />
       )}
       </div>

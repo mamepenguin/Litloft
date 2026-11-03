@@ -52,7 +52,8 @@ interface SelectionBarProps {
   isTrashView?: boolean;
   onSelectAll: () => void;
   onClear: () => void;
-  onComplete: () => void;
+  /** `removed` is true when the files left the drive's listing (trash or purge). */
+  onComplete: (removed?: boolean) => void;
 }
 
 export function groupSurvivesNarrow(
@@ -115,7 +116,7 @@ export function SelectionBar({
       await batchPurge(ids);
       setPurgeOpen(false);
       onClear();
-      onComplete();
+      onComplete(true);
     } catch {
       // keep dialog open
     }
@@ -126,7 +127,7 @@ export function SelectionBar({
       await batchDelete(ids);
       setDeleteOpen(false);
       onClear();
-      onComplete();
+      onComplete(true);
     } catch {
       // keep dialog open
     }

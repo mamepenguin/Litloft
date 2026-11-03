@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "V1",
+      "origin": "verifier",
+      "claim": "/search/images answers 503 when every id in one hydration batch is legitimately absent from the core's active set, not only when hydration fails.",
+      "impact": "Example: a file is trashed, and the click comes before search.db marks it inactive (the event-driven deactivation in indexer.py:1142/1179 runs a little later). If that file is the only id in the last 500-id batch, or every id in a batch is affected, the whole continuation fails. The core's empty answer for that key is also cached for 30 s (file_hydrate.py:133-134), so repeated clicks fail too. The frontend then resets the button to clickable with no message, so the user just sees nothing happen. The window is narrow, but it falls within normal use.",
+      "evidence": "addons/intelligence/app/routers/search.py:97-101 raises HTTPException(503) when `hydrate_files(batch)` returns an empty mapping. addons/intelligence/app/file_hydrate.py:80-136 returns `{}` on a transport failure, and also on success when the core lists every id under `not_found` (lines 128-131). The core does not return trashed or missing files (backend/app/routers/internal.py:532-544). search_images selects candidates by `IndexedFile.active` in search.db (search.py:790-793), which can lag the core.",
+      "repro": "Read through the code; not executed. Take a drive whose /search/images answer has 501 hits. Trash the 501st file in the core before the addon processes the trash event. hydrate_files([that id]) gets {'files': [], 'not_found': [id]} → result {} → _hydrate_batches raises 503.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "C",
+        "reason": "An edge case in a narrow timing window. It shows up as a failed request the user can retry, not as a wrong list. It would be cleaner to tell a transport failure apart from an all-not-found answer (for example, have hydrate_files return None on failure).",
+        "invariant_ref": "I6"
+      },
+      "severity": "LOW",
+      "proposed_fix": "Have hydrate_files (or a variant used only here) return None on transport or protocol failure and keep an empty dict for the case where nothing is active. _hydrate_batches should raise 503 only on None."
+    }
+  ],
+  "verification": [],
+  "specification_compliance": [
+    "I1/limit bound: routers/search.py:128 sets le=1000 on /search. config.py:50 defaults max_limit to 1000. effective_limit = min(limit, max_limit) at search.py:215-218.",
+    "SPEC-ADDON-025 I1 revision: search.py:223-227 uses clip_depth = max(effective_limit, rrf_candidates) only in precision mode with Scene search off, and rrf_candidates otherwise (I2). _drive_thumbnail_neighbours widens the fetch up to 4096 (search.py:575-619).",
+    "I4: search_images (search.py:770-875) scores every active clip_thumbnail row of the drive, filtered by type, applies the min_score_clip_thumbnail floor and no margin, caps at 2000, and sorts by (-score, file_id).",
+    "I6: /search/images answers 503 when embedding fails (routers/search.py:176-180) and when a hydration batch comes back empty (97-101). See V1 for the over-broad empty case.",
+    "I7/I11: useFolderFiles.ts:397-426 sends no request while one is loading or after an answer is stored (status != idle). On failure it resets to idle. An answer whose key no longer matches is dropped (line 407). The key includes text, drive, type, scene, sort and order.",
+    "I9/I10: the continuation is appended after mergedSearch.files (line 519). `total` excludes it (521-525). Nothing is drawn until filenameComplete (484-486). Reveal adds 100 at a time (350-356)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The /search/images score is computed with numpy (float32 L2 norm) instead of sqlite-vec's distance. Last-digit rounding could differ slightly from /search's score for the same frame (I5), although the response rounds to 4 decimals."
+  ],
+  "regression_risks": [
+    "/search now hydrates up to 1000 ids in a single /files/bulk call. BulkFilesRequest has no size cap (internal.py:528-529), but latency rises; the manifest timeout of 30 s is meant to cover it.",
+    "Precision clip depth rises from rrf_candidates to up to 1000. This could change result sets for limit > rrf_candidates, which I1 explicitly allows."
+  ],
+  "test_coverage": [
+    "No tests were run (read-only verifier). I did not check whether any test covers the hydration batch where every id is not_found."
+  ],
+  "not_verified": [
+    "The manifest.json routes, pre_check/response_filter and timeout entries",
+    "The FolderContent.tsx/FolderBrowser.tsx button placement and the selection, bulk bar and folder-actions wiring (I12, I13)",
+    "Frontend and addon test contents, and whether they pass",
+    "Docs and translation file changes",
+    "Proxy 404 behaviour for inaccessible drives or the search feature turned off (I6, first half)"
+  ],
+  "confidence": 72
+}

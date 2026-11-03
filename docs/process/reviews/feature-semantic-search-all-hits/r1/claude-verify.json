@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "V-1",
+      "origin": "verifier",
+      "claim": "A bulk tag or bulk rename on selected continuation rows removes those rows from the search page, even though the files still exist, still match, and were neither trashed nor moved.",
+      "impact": "In normal use, tagging or renaming pictures picked from the 'Show more by similarity' rows makes them disappear silently from the results. No refresh brings them back for the same search key, because removeContinuationFiles drops them from the stored answer. This breaks I8, which requires each returned file to appear on the page exactly once.",
+      "evidence": "frontend/src/components/SelectionBar.tsx:153-157 (handleBatchTag) and :173-177 (handleRenameComplete) call onClear() and then onComplete(), the same pair that delete (:126-129) and move (:137-140) use. frontend/src/components/FolderBrowser.tsx:724-735: onClear stores selection.selectedIds in clearedSelectionRef, and onComplete always calls removeContinuationFiles(cleared). It does not check which action ran. frontend/src/components/folder/useFolderFiles.ts:371-382 filters those file_ids out of continuation.results for the current key.",
+      "repro": "Static trace: on the search page, open the continuation and draw its rows. Select one continuation row, run the bulk 'Tag' action with a valid tag, and batchTag succeeds. handleBatchTag then calls onClear and onComplete, and removeContinuationFiles([id]) removes the row. onlyContinuation is true, so refresh() is skipped, and the row is no longer on the page. This was not run in a browser.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "invariant_ref": "I8",
+        "reason": "In normal use with no crafted input, a file returned by /search/images and passing the trust filter disappears from the page after a non-removing bulk action. That is a silently wrong result under the threat model."
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Remove continuation ids only for actions that take the file out of the result set (delete, move out of scope). Have SelectionBar tell onComplete which action ran, or call removeContinuationFiles only from the delete and move paths. For tag and rename, refresh the continuation rows' file data instead."
+    }
+  ],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "FolderBrowser.tsx:724-735: onClear copies selection.selectedIds into clearedSelectionRef, and onComplete always calls removeContinuationFiles(cleared). If the selection was not only continuation rows, it also calls refresh(). SelectionBar.tsx:146-161 (tag) and :173-178 (rename) call onClear then onComplete, as delete (:124-133) and move (:135-144) do. useFolderFiles.ts:371-382 filters the ids out of continuation.results. The touch point says only 'passes the continuation through to FolderContent'. I filed the behavioral effect separately as V-1."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "FolderBrowser.tsx:294 declares clearedSelectionRef. FolderBrowser.tsx:418 calls updateContinuationFile(updated) in handleFavoriteToggle, and :420 adds it to the deps. useFolderFiles.ts:358-369 implements it. The spec touch point at docs/specs/semantic-search-all-hits.md:311-312 does not describe either change. They do support I12 and I13, which the spec's invariants require."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "frontend/src/__tests__/core-search-vocabulary.test.ts:21 has \"components/folder/FolderContent.tsx\": 1 and :92 has expect(used.length).toBe(41). r1/classification.json:34 lists the file among the touched paths. The spec touch points (semantic-search-all-hits.md:285-324) do not name it. I could not see the base value 40 directly without git."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-4",
+      "status": "confirmed",
+      "note": "Both files exist: frontend/src/__tests__/semanticContinuationLabel.test.ts and frontend/src/components/__tests__/SearchPage.semanticContinuation.test.tsx. r1/classification.json:38 and :46 list them as touched. The spec touch points (semantic-search-all-hits.md:298-301) name tests only under addons/intelligence/tests."
+    }
+  ],
+  "specification_compliance": [
+    "Touch-point list at docs/specs/semantic-search-all-hits.md:285-324 omits the FolderBrowser selection and favorite rewiring and three frontend test files that the change touches."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Bulk tag and bulk rename remove selected continuation rows from the page (V-1).",
+    "When the selection is only continuation rows, onComplete skips refresh(), so the rows above the continuation are not reloaded after a delete or move."
+  ],
+  "regression_risks": [
+    "Changing SelectionBar's onClear/onComplete pairing would change the continuation removal, because FolderBrowser depends on onClear running before onComplete."
+  ],
+  "test_coverage": [
+    "I did not check whether SearchPage.semanticContinuation.test.tsx covers bulk tag or rename on continuation rows. Given V-1, it apparently does not assert that they stay."
+  ],
+  "not_verified": [
+    "The base-commit contents (for example, the previous count of 40 in core-search-vocabulary.test.ts), because git diff could not be run.",
+    "The addon-side code (search.py, routers, manifest).",
+    "Runtime behavior in a browser. V-1 is traced statically only."
+  ],
+  "confidence": 85
+}

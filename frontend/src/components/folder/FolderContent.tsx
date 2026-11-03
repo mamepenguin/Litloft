@@ -15,11 +15,13 @@ import { EmptyState } from "@/components/EmptyState";
 import { FolderCard } from "@/components/FolderCard";
 import { FolderListRow } from "@/components/FolderListRow";
 import { FolderContextMenu } from "@/components/FolderContextMenu";
+import { Button } from "@/components/Button";
 
 import { cardGridTemplate, useCardColumns } from "@/lib/cardGrid";
 
 import { FilterField } from "./FilterField";
 import { useFolderCardRename } from "./useFolderCardRename";
+import type { ContinuationUiState } from "./useFolderFiles";
 import { type WidenTagScope } from "./WidenTagScopeLink";
 
 /**
@@ -88,6 +90,9 @@ interface FolderContentProps {
   onFolderDragStart: (e: React.DragEvent, folderPath: string) => void;
   widenTagScope?: WidenTagScope | null;
   onAddFiles?: () => void;
+  continuationState?: ContinuationUiState;
+  onShowMore?: () => void;
+  continuationSentinelRef?: RefObject<HTMLDivElement | null>;
 }
 
 export function FolderContent({
@@ -96,12 +101,13 @@ export function FolderContent({
   pinnedPaths, sentinelRef, dragState, isDropTarget, getDropTargetProps,
   selectedIds, onSelect, onMetaSelect, onShiftSelect, onTogglePin, onFavoriteToggle, onRefresh,
   onDragStart, onDragEnd, selectedCount, isDropDisabled, onFolderDragStart,
-  widenTagScope, onAddFiles,
+  widenTagScope, onAddFiles, continuationState, onShowMore, continuationSentinelRef,
 }: FolderContentProps) {
   const isInternalDragging = useIsInternalDragging();
   const tFilter = useTranslations("filter");
   const tToolbar = useTranslations("toolbar");
   const tEmpty = useTranslations("empty");
+  const tSearch = useTranslations("search");
   const [menuTarget, setMenuTarget] = useState<Folder | null>(null);
   const { ref: folderGridRef, columns } = useCardColumns();
   const { menuState: folderMenuState, close: closeFolderMenu, handlers: folderMenuHandlers } = useContextMenu();
@@ -274,11 +280,31 @@ export function FolderContent({
       )}
 
       {!isRecent && (
-        <div ref={sentinelRef} className="flex items-center justify-center py-4">
-          {loadingMore && (
-            <div className="h-6 w-6 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+        <>
+          <div ref={sentinelRef} className="flex items-center justify-center py-4">
+            {loadingMore && (
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+            )}
+          </div>
+          {continuationState && continuationState !== "hidden" && continuationState !== "done" && (
+            <div
+              ref={continuationSentinelRef}
+              className="flex items-center justify-center py-4"
+            >
+              {continuationState === "open" ? (
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+              ) : (
+                <Button
+                  variant="secondary"
+                  disabled={continuationState === "loading"}
+                  onClick={onShowMore}
+                >
+                  {tSearch("showMoreBySimilarity")}
+                </Button>
+              )}
+            </div>
           )}
-        </div>
+        </>
       )}
     </>
   );

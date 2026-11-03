@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "FolderBrowser.tsx goes beyond the declared touch point ('passes the continuation through to FolderContent'): it also rewires the SelectionBar onComplete handler so that every completed bulk action, not only trash or move, removes the selected ids from the continuation.",
+      "impact": "On the search page, a viewer who selects drawn continuation rows and bulk-tags or bulk-renames them sees those rows disappear from the page, even though the files still match and were neither trashed nor moved. When the selection also includes rows above the continuation, refresh() reloads the list above, but the continuation rows stay removed.",
+      "evidence": "frontend/src/components/FolderBrowser.tsx:725-735 records selection.selectedIds on onClear and calls removeContinuationFiles(cleared) unconditionally in onComplete. frontend/src/components/SelectionBar.tsx:146-161 (handleBatchTag) and :173-178 (handleRenameComplete) call onClear() and then onComplete(), the same pair that handleBatchDelete (:124-133) and handleBatchMove (:135-144) call. removeContinuationFiles (useFolderFiles.ts) filters those ids out of the stored results, so they are no longer drawable.",
+      "repro": "not_reproduced. Steps by reading: search for 'penguin', click Show more by similarity, select one drawn continuation row, Tag → enter 'x' → submit. batchTag succeeds, then onClear sets clearedSelectionRef=[id], and onComplete calls removeContinuationFiles([id]). The row is no longer in drawableContinuation and disappears; onlyContinuation=true, so no refresh happens either. SearchPage.semanticContinuation.test.tsx tests only the trash path (I13), so a tag or rename test would fail where none exists today.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "invariant_ref": "I8",
+        "reason": "After a bulk tag or rename, a file that /search/images returned and that passes the trust filter is no longer on the page, with the text filter off, every drawable row drawn and the filename pages complete. That breaks I8's 'appears on the page exactly once'. This behavior also lives in a file whose declared role is only to pass values through."
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Prune the continuation only for actions that take the file out of the result set (trash, purge, and a move out of scope), for example by having SelectionBar report which action completed, and declare this FolderBrowser behavior as a touch point. Add a test that bulk-tags a drawn continuation row and asserts it stays on the page."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "FolderBrowser.tsx also changes handleFavoriteToggle (it calls updateContinuationFile) and adds clearedSelectionRef, neither of which is in the touch-point entry for that file.",
+      "impact": "No user-facing defect from the favorite path itself, which is what makes I13's star update work. The touch-point list understates what FolderBrowser now owns, so a reviewer working from the list would not look at the favorite and bulk-action paths.",
+      "evidence": "frontend/src/components/FolderBrowser.tsx:294 (clearedSelectionRef), :418 (updateContinuationFile in the favorite toggle callback).",
+      "repro": "not_reproduced; read from the diff.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "Scope gap in the declared touch points; no invariant is broken by the favorite path."
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "The diff edits an existing frontend test not named in the touch points: frontend/src/__tests__/core-search-vocabulary.test.ts, which adds FolderContent.tsx to CALLERS and raises the used-key count from 40 to 41.",
+      "impact": "None for the user. A pinned-count test was changed outside the declared list, so the list does not show that the core vocabulary census was moved.",
+      "evidence": "frontend/src/__tests__/core-search-vocabulary.test.ts: CALLERS gains \"components/folder/FolderContent.tsx\": 1; expect(used.length).toBe(41).",
+      "repro": "not_reproduced; read from the diff.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "Touch-point omission only; this follows from the new translation key, which is listed."
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "TP-4",
+      "origin": "reviewer",
+      "claim": "The touch points name new tests only for the addon (046 and 055). The two new frontend test files for SPEC-CORE-035, frontend/src/components/__tests__/SearchPage.semanticContinuation.test.tsx and frontend/src/__tests__/semanticContinuationLabel.test.ts, are not listed.",
+      "impact": "None for the user. The list does not say where CORE-035's invariants are tested.",
+      "evidence": "Both files are new in the diff; the touch-point list mentions tests only under addons/intelligence/tests.",
+      "repro": "not_reproduced; read from the diff.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "Touch-point omission only."
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "Every other file in the diff matches a listed touch point: the addons/intelligence gitlink, docs/addons/intelligence.md, docs/getting-started/upgrading.md, docs/user-guide/search.md, FolderContent.tsx, useFolderFiles.ts, semanticSearch.ts, en.json and ja.json, and in the addon config.py, routers/search.py, search.py, manifest.json, search-config.yml.example, the two revised tests and the new tests test_search_images_endpoint.py and test_search_limit_depth.py.",
+    "The addon changes inside listed files go past the listed wording but stay in those files: routers/search.py adds a hydrate_map parameter to _to_response_model and a new _hydrate_batches helper, and search.py calls apply_kind_filter, _combine_scores_cosine and _build_results(skip_cutoff=True), which already exists at search.py:1520.",
+    "useFolderFiles.ts also calls, without changing them, lib/scrollContainer (useScrollContainer) and searchMerge.mergeResults, which are not among the listed searchMerge functions buildMatchMeta and fileItemFromHit.",
+    "docs/specs/* and INDEX.md are implicit touch points and are not reported."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Any bulk action from SelectionBar (tag, rename, move within the drive) removes the selected continuation rows from the page.",
+    "When every selected id is a continuation row, refresh() is skipped after a bulk action, so the list above is not reloaded.",
+    "Copy and cut call onClear without onComplete, so clearedSelectionRef keeps stale ids until the next onClear overwrites them."
+  ],
+  "regression_risks": [
+    "Bulk tag or rename on the search page now removes continuation rows (TP-1).",
+    "A /search limit of up to 1000 and a max_limit default of 1000 widen MCP semantic_search results for limits 51 to 100."
+  ],
+  "test_coverage": [
+    "SearchPage.semanticContinuation.test.tsx covers removing a row through the trash, but has no test showing that a bulk tag or rename keeps a continuation row; mutating removeContinuationFiles to fire for every action survives.",
+    "The addon tests cover the depth, the limit bound, the /search/images ranking, the floor, the type filter, ordering, 2000 cap, batching and the 503 paths."
+  ],
+  "not_verified": [
+    "No tests were run; all observations come from reading the code.",
+    "Not checked: whether the core's addon proxy actually returns 404 for a locked drive or a disabled feature on /search/images (I6 through the proxy).",
+    "Not checked: browser layout of the button and the held last line (R-5).",
+    "Not checked whether a bulk move on the search page should count as leaving the folder scope."
+  ],
+  "confidence": 80
+}
