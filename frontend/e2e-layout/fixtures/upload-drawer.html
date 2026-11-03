@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>upload drawer — layout fixture</title>
+    <!--
+      No <style> of its own: every declaration measured here comes out of
+      the app's own stylesheet.
+    -->
+    <link rel="stylesheet" href="./globals.built.css" />
+  </head>
+  <body>
+    <!--
+      The three boxes the drawer shares the bottom of the screen with. The
+      class lists are the components' own; `upload-drawer.spec.ts` holds the
+      drawer's to `UploadProgress.tsx` so this page cannot keep an old
+      placement after the component moves.
+
+      `drawerBottomPx` is where the drawer sits above the screen's bottom
+      edge. The component computes it from what is on screen; a fixture
+      cannot, so the number is written here and the spec measures the four
+      arrangements it produces.
+    -->
+    <script type="application/json" id="fixture-markup">
+      {
+        "peekHeightPx": 56,
+        "miniPlayerHeightPx": 180,
+        "miniPlayerGapPx": 16,
+        "drawerBottomPx": 0,
+        "peekStrip": "fixed bottom-0 left-0 right-0 z-40 flex items-center gap-2 border-t border-bg-border bg-bg-card px-4",
+        "miniPlayer": "group/mini fixed right-4 z-40 h-[180px] w-[min(320px,calc(100vw-2rem))] overflow-hidden rounded-xl bg-black shadow-card ring-1 ring-bg-border",
+        "drawer": "fixed bottom-0 right-0 z-40 w-full max-w-md",
+        "drawerCard": "m-3 overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-lg",
+        "drawerHeader": "flex w-full items-center justify-between px-4 py-3 text-left",
+        "sheetSurface": "fixed bottom-0 left-0 right-0 z-[25] rounded-t-2xl border-t border-bg-border bg-bg-card"
+      }
+    </script>
+
+    <div id="page" class="min-h-dvh bg-bg-primary p-4 text-text-primary">the listing</div>
+    <div id="mini-player"></div>
+    <div id="peek-strip"></div>
+    <div id="sheet" hidden></div>
+    <div id="upload-drawer"></div>
+
+    <script>
+      const SPEC = JSON.parse(
+        document.getElementById("fixture-markup").textContent,
+      );
+
+      const page = document.getElementById("page");
+      const player = document.getElementById("mini-player");
+      const strip = document.getElementById("peek-strip");
+      const sheet = document.getElementById("sheet");
+      const drawer = document.getElementById("upload-drawer");
+
+      player.className = SPEC.miniPlayer;
+      player.style.bottom = `calc(env(safe-area-inset-bottom, 0px) + ${SPEC.miniPlayerGapPx}px)`;
+      player.innerHTML = '<div class="h-full w-full bg-black"></div>';
+
+      strip.className = SPEC.peekStrip;
+      strip.style.height = `${SPEC.peekHeightPx}px`;
+      strip.innerHTML = '<span class="text-sm text-text-primary">Details</span>';
+
+      sheet.className = SPEC.sheetSurface;
+
+      drawer.className = SPEC.drawer;
+      drawer.style.bottom = `${SPEC.drawerBottomPx}px`;
+      drawer.innerHTML = `
+        <div class="${SPEC.drawerCard}">
+          <div class="${SPEC.drawerHeader}">
+            <span class="text-sm font-medium text-text-primary">Upload</span>
+          </div>
+          <div class="border-t border-bg-border px-4 py-3">
+            <span class="text-sm text-text-primary">a-file-with-a-long-enough-name.txt</span>
+          </div>
+        </div>`;
+
+      /**
+       * `sheet`: "none" | "peek" | "half" | "full".
+       * `half` and `full` draw the expanded surface over the page; the
+       * drawer stays where the component puts it.
+       */
+      window.arrange = ({ player: withPlayer, sheet: state }) => {
+        player.hidden = !withPlayer;
+        strip.hidden = state !== "peek";
+        const expanded = state === "half" || state === "full";
+        sheet.hidden = !expanded;
+        sheet.style.height = state === "full" ? "90%" : "50%";
+        page.dataset.ready = "1";
+      };
+    </script>
+  </body>
+</html>
