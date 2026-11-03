@@ -87,13 +87,55 @@ evidence: |
      asked the same question, got the answer with three page citations (`page 2`, `page 29`,
      `page 42`, linking to `/files/oM2PzgubAzbI?page=…`), a Markdown-save action and the Sources
      list, as before. Shot: addon-desktop-ask-page.png.
+   9. Video supplement. `lecture.mp4` (`tvT_hDTCFJ9f`, 39.48 s, AAC audio) was placed in the drive
+      with new content under the name of the 14 s file the drive had already indexed, so the startup
+      scan, the scan it was given and the addon's reconciliation all left its whisper row marked
+      indexed (`added=0`, `updated: 0`). Its transcript was produced the way a user produces one:
+      ファイル操作 → インデックス詳細 → 文字起こし（Whisper） → 再生成 → 再生成
+      (`POST /api/addons/intelligence/files/tvT_hDTCFJ9f/reindex` 200, task moved to 未処理). Whisper
+      then logged `Detected language 'ja'`, `duration: 37.4s`, `segments_count: 2, words_count: 146`
+      and stored 3 `transcript_chunks` (0–13.58, 13.96–25.3, 25.3–37.24 s). Check 1, 1440x900: before
+      the transcript the file page drew 情報, 関連 only and `GET …/files/tvT_hDTCFJ9f/ask` answered
+      `{"available": false}`; it stayed that way for 15 minutes of polling. A page open on the file
+      when the transcript finished did not gain the tab either: the addon posted
+      `intelligence.transcription.completed` to the core's `addon-events` and the core answered
+      `403 Forbidden`, and 15 minutes of polling left the strip at 情報, 関連. A fresh load a minute
+      later had `/ask` answer `{"available": true}` and listed 情報, 関連, 文字起こし, 質問
+      (`addon-video-desktop-tabs-with-transcript.png`); at 390x844 the peek bar has no tabs and the
+      sheet lists the same four (`addon-video-phone-tabs-with-transcript.png`). Shots
+      addon-video-desktop-tabs-before.png and addon-video-desktop-tabs-after.png are identical.
+   10. Check 2, 1440x900: in the 質問 tab asked 「日本で最初の様式灯台は何年に点灯しましたか？」. The
+      answer streamed into the pane with `[n]` shown as typed and ended as 「日本で最初の様式灯台は、
+      観音先灯台というもので、1869年に点灯しました 0:13。」: one pill labelled `0:13` (`M:SS`), no
+      `[n]` left in the text, one POST to `/api/addons/intelligence/files/tvT_hDTCFJ9f/ask` (200).
+      Clicking the pill moved the open player from `currentTime` 0 to 13.96, the URL stayed
+      `/drive/scratch?file=tvT_hDTCFJ9f`, `framenavigated` did not fire and the `<video>` element
+      was the same object before and after; the player read 0:13 / 0:14 (its total comes from the
+      core's stale 14.58 s duration for this path, not from the 39.48 s file). Clicking the pill
+      again while the video played moved 16.43 → 14.30. Shots addon-video-desktop-answered.png,
+      addon-video-desktop-after-pill.png, addon-video-desktop-after-pill-playing.png. A pill past an
+      hour could not be produced: the video is 39 s, so the `H:MM:SS` label was not exercised.
+   11. Check 3, 390x844 (isMobile, hasTouch): the sheet opened at half (top 323) with 情報, 関連,
+      文字起こし, 質問; asked the same question in the 質問 tab and got the same shape of answer
+      (「…1869年に点灯しました 0:13。」). Clicking the `0:13` pill inside the sheet moved
+      `currentTime` 0 → 13.96, left the URL unchanged, kept the same `<video>` element and lowered
+      the sheet to its bar, so the player reading 0:13 / 0:14 was visible. Closing the sheet to the
+      bar and reopening it showed 情報 selected with the question and the answer still in the store;
+      selecting 質問 showed the question, the answer and its `0:13` pill unchanged, `currentTime`
+      still 13.96. No horizontal overflow (`documentElement.scrollWidth` 390 = `innerWidth` 390)
+      at any point. Shots addon-video-phone-peek.png, addon-video-phone-ask-tab.png,
+      addon-video-phone-answered.png, addon-video-phone-after-pill.png,
+      addon-video-phone-sheet-closed.png, addon-video-phone-reopened.png.
+   12. The 403 above is the reason the tab does not appear live when a media transcript finishes: the
+      whisper worker posts `/api/internal/addon-events` with no `X-Internal-Secret` while
+      `CORE_INTERNAL_SECRET` is set, and `configure.py` generates that secret for the intelligence
+      addon on a normal install.
 
   Seen outside the checks: the knowledge addon's routes answered 502 (not part of this stack), the
   phone load logged minified React #418, and the Ask page issued two POSTs to `/ask` for one
   rendered answer (that page is not part of this change). No attempt was made to attribute them.
-pending: The video checks (a time pill, its `M:SS`/`H:MM:SS` label, and `seek` on the open player)
-  could not run because `clip.mp4` has no transcript in this environment (whisper failure, 0
-  segments). The null-position/uncited-`[n]` case was not reachable: the prepared drive holds only
-  PDFs and an EPUB, whose citations all carried a page or section position. Audio and video as
-  heard and seen, the iOS app on a real device, real home-LAN playback and third-party addon
-  services are `PROJECT.md` agent_cannot_verify items left to a human.
+pending: The null-position/uncited-`[n]` case was not reachable: the drive holds PDFs, an EPUB and
+  two videos, whose citations all carried a page, section or time position, and the `H:MM:SS` pill
+  label was not exercised because the video is 39 s. Audio and video as heard and seen, the iOS app
+  on a real device, real home-LAN playback and third-party addon services are `PROJECT.md`
+  agent_cannot_verify items left to a human.
