@@ -83,7 +83,7 @@ With the intelligence addon enabled for the drive, results found by meaning are 
 
 To find a moment inside a video (*the part where the cat jumps off the table*), turn on **Scene search** above the results. It is off by default because it adds noise to ordinary searches.
 
-With it on, **Scene candidates** appear above the results: a row of moments from videos in the drive, each with a frame, the file name and a time range. Click one to open the video at that time. They are the closest matches, not a promise that the scene exists, and the row is not shown when the search uses a smart folder or a type other than video.
+With it on, **Scene candidates** appear above the results: a grid of moments from videos in the drive, each with a frame, the file name and a time range. Click one to open the video at that time. The first eight candidates are shown; **Show all** expands the remaining candidates, and **Collapse** returns to the first eight. They are the closest matches, not a promise that the scene exists, and the grid is not shown when the search uses a smart folder or a type other than video.
 
 ## Ask and Find (intelligence addon)
 

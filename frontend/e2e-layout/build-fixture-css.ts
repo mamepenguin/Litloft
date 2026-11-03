@@ -113,8 +113,8 @@ export const REQUIRED = [
   ".wrap-anywhere {",
   ".gap-x-2 {",
   ".gap-y-0\\.5 {",
-  ".h-47\\.5 {",
-  ".h-27 {",
+  ".grid {",
+  ".gap-3 {",
   ".aspect-video {",
 ];
 /**
