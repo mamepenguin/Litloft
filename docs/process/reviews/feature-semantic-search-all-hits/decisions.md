@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship — the human, after r3 (HUMAN_REVIEW_REQUIRED: open C claude-verify:V1 and the unspecified behaviour carried from r2): "1。直す必要がないものはknow-issuesにも記載不要。そのままPR" (ship; V1 and R2-1 are left as they are and not recorded in known-issues)
 ran_in_app: yes
 at: 8514f9c4292bc810afef9f5994623d5f07240a21
 by: agent
