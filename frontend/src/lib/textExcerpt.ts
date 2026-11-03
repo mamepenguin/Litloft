@@ -19,3 +19,9 @@ export function showsTextExcerpt(file: FileItem): boolean {
   }
   return file.file_type === "document" && OFFICE_MIMES.has(file.mime_type);
 }
+
+export function showsRawExcerpt(file: FileItem): boolean {
+  return (
+    file.file_type === "other" && Boolean(file.mime_type?.startsWith("text/"))
+  );
+}

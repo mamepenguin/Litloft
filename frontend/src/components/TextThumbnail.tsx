@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { FileItem } from "@/types";
 import { getPreviewTextUrl } from "@/lib/api";
 import { OFFICE_MIMES } from "@/lib/officeFiles";
+import { showsRawExcerpt } from "@/lib/textExcerpt";
 
 
 
@@ -67,6 +68,7 @@ export function TextThumbnail({ file }: { file: FileItem }) {
           observerRef.current?.disconnect();
 
           const isOffice = OFFICE_MIMES.has(file.mime_type ?? "");
+          const showsRaw = showsRawExcerpt(file);
           const fetchPromise = isOffice
             ? fetch(getPreviewTextUrl(file.id))
             : fetch(`/api/files/${file.id}/stream`, {
@@ -80,7 +82,7 @@ export function TextThumbnail({ file }: { file: FileItem }) {
             })
             .then((raw) => {
               if (raw != null) {
-                setText(isOffice ? raw.trim() : stripPreviewText(raw));
+                setText(isOffice || showsRaw ? raw.trim() : stripPreviewText(raw));
               }
             })
             .catch(() => {});
@@ -94,7 +96,7 @@ export function TextThumbnail({ file }: { file: FileItem }) {
     return () => {
       observerRef.current?.disconnect();
     };
-  }, [file.id, file.mime_type]);
+  }, [file.id, file.mime_type, file.file_type]);
 
   return (
     <div
