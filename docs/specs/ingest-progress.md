@@ -243,10 +243,11 @@ Core:
 Addon (intelligence):
 - `addons/intelligence/app/routers/files.py`: `POST /files/processing` (a literal path
   declared before the `/files/{file_id}` routes).
-- `addons/intelligence/app/workers/metadata.py` (`metadata_indexed` batches,
-  `text_indexed`), `app/workers/whisper.py` (end of transcription, fatal failures): post
-  `processing.updated`. `app/indexer.py` resume and the resets in `app/database.py` post
-  nothing.
+- Every intelligence write that moves `metadata_indexed`, `text_indexed` or
+  `whisper_indexed` from false to true, or ends a transcription job `failed`, posts
+  `processing.updated`: `app/workers/metadata.py`, `app/workers/whisper.py` (including the
+  `.loft` and flag-only paths), `app/indexer.py` (resume). The resets in `app/database.py`
+  clear flags and post nothing.
 - `addons/intelligence/manifest.json`: `processing_status`.
 - `addons/intelligence/frontend/messages/ja.json`, `en.json`:
   `intelligence.processing.search`, `.text`, `.transcript`.
@@ -265,8 +266,8 @@ I1. `POST /api/files/processing` returns nothing for a file the viewer cannot ac
 I2. Each file's stages start with `saved`, followed by the stages of every external addon that declares `processing_status` and has its `index` feature on for that drive, in addon-name order and each addon's own order; each addon receives only ids of the drive named in its `X-Lit-Drive`; an in-process addon is never called.
 I3. An addon that fails, takes over 3 s, answers a malformed body or omits a file contributes one required, `pending` `unavailable` stage for that file, and the other addons' stages are still returned.
 I4. `ready` is true exactly when every required stage is `done`; with no addon declaring the key, every file is `[saved]` and ready.
-I5. Intelligence's `search` stage is required and `done` exactly when `metadata_indexed`; its `text` and `transcript` stages are not required, never `skipped`, and `transcript` is `failed` only for a fatal error class on a file that is not `whisper_indexed`.
-I6. Intelligence posts `processing.updated` with `drive` set on the transitions of 057 step 3, at most 100 ids per event, and posts nothing from resume or bulk passes; a viewer who cannot open that drive never receives it.
+I5. Intelligence's `search` stage is required and `done` exactly when the file has an active row in the request drive with `metadata_indexed`; its `text` and `transcript` stages are not required and never `skipped`; `transcript` is `failed` only when the latest transcription job failed and either the row is `whisper_indexed` or the error class is `FatalError`, and `pending` for a retried failure.
+I6. Intelligence posts `processing.updated` with `drive` set exactly for writes that move one of the three flags from false to true or end a transcription job `failed`, at most 100 ids per event, and nothing for writes that leave a flag unchanged or clear it; a viewer who cannot open that drive never receives it.
 I7. A drawer entry shows **Ready** exactly when the latest answer for its file is ready, and keeps a failure mark beside it when a stage had failed.
 I8. A drawer entry fetches only on an event naming its id or on the tick, and never after it is ready, gone, removed, or 30 minutes past **Complete**; a failed request keeps its last line.
 I9. The processing view changes neither the at-most-two upload limit, nor the leave-page confirmation, nor what **Clear** removes.
