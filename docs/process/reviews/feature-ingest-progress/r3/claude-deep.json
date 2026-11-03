@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "deep-r3-1",
+      "origin": "reviewer",
+      "claim": "Since aee93a7, any processing.updated event that arrives while a drawer request is in flight queues a follow-up refresh with no id filter. This holds even when the event names only files the drawer does not hold, so the follow-up request fetches every entry in processing view, including entries the event did not name.",
+      "impact": "During bulk indexing (resume, metadata batches, scans on a drive the viewer can open), events arrive every few seconds for files outside the drawer. Each event that lands during a request triggers another full request once that request ends. The drawer can then chain requests back to back, each costing up to about 3 s of addon calls, for as long as any entry is not ready (up to 30 minutes), instead of sending one request per 30 s tick. No stage is shown wrongly. The cost is extra core and addon load, and the spec says events for files the drawer does not hold are ignored.",
+      "evidence": "frontend/src/hooks/useUpload.ts:285-287 handleProcessingUpdated forwards any non-empty id list without checking that a held entry matches it. useUpload.ts:234-237 sets processingRefreshQueued = true unconditionally when a request is in flight. useUpload.ts:244-246 then calls refreshProcessing() with no fileIds, which targets every entry that needsProcessingFetch. The id filter in refreshProcessingOnce applies only when a request is not already in flight. The test 'refreshes on an event naming its file and ignores another file' sends the foreign event while no request is in flight, so it does not exercise this path. The new mid-request test uses an event that names the held file.",
+      "repro": "Mutation thought experiment on uploadProcessingRefresh.test.tsx: copy the 'refreshes after a request ends when its event arrives mid-request' test, but set the event's file_ids to ['file_other']. At HEAD, getFilesProcessing is called a second time after first.resolve. The spec's 'ignored' behaviour expects one call. Not executed (read-only review).",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I8 says an entry fetches only on an event naming its id, on the tick, or once on entering the view. Here an entry fetches because of an event that names another file, or a file the drawer does not hold.",
+        "invariant_ref": "I8"
+      },
+      "severity": "LOW",
+      "proposed_fix": "In the in-flight branch, queue the refresh only when fileIds is undefined or names a held entry that still needs fetching, and keep the union of queued ids so that the follow-up request asks only for those ids (or for all entries when an id-less call was queued)."
+    },
+    {
+      "id": "deep-r3-2",
+      "origin": "reviewer",
+      "claim": "The X-Lit-Drive fix (7e28bdc) is covered by a single test that only checks the stub's decoded header and ids. Nothing tests the addon side end to end, so a drive name the stub decodes correctly is assumed to also be decoded by intelligence's require_drive.",
+      "impact": "There is no current defect: drive_context.py:30 calls unquote, which matches quote(drive, safe=''). Drive names that contain '%' now round-trip correctly where before they did not. The only risk is that a future change to the addon's decoding would not be caught by the core test.",
+      "evidence": "backend/app/routers/files_processing.py:155 sends quote(drive, safe=''). addons/intelligence/app/drive_context.py:30 returns unquote(x_hv_drive). backend/tests/test_files_processing.py test_spec_core_031_i2_each_call_carries_one_drives_ids_and_its_name decodes the header with unquote inside the stub.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is broken. This records the extent of the coverage for the r2 bucket-A fix.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "r2 deep-r2-1 (A, I2) is resolved: files_processing.py now percent-encodes X-Lit-Drive, the addon's require_drive unquotes it (drive_context.py:30), and the core test now includes a drive named '写真 2026' and asserts that it receives its ids.",
+    "r2 deep-r2-2 is resolved for events that name a held entry: an event arriving mid-request now earns one more request, and the new mid-request test covers it. The fix over-reaches for events that name other files (deep-r3-1).",
+    "The reviewed commit a51507602 itself records docs/process only. The behaviour reviewed is the branch diff, together with fix commits 7e28bdc and aee93a7.",
+    "r2 R-1 (refine events dropped when the snapshot has no drive) and R2-2 (startup posts) were not changed by these fixes and remain as recorded."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "A queued follow-up refresh asks about every entry still in processing view, not only the ids that triggered it."
+  ],
+  "regression_risks": [
+    "Back-to-back drawer requests during bulk indexing on a drive the viewer can open (deep-r3-1).",
+    "resetUploadStore does not reset processingInFlight or processingRefreshQueued, so a test that resets mid-request could leak a queued refresh into the next case. This is test-only."
+  ],
+  "test_coverage": [
+    "backend: the non-ASCII drive round trip is now covered at the stub level.",
+    "frontend: the mid-request event test covers an event that names a held entry. No test covers an event for a foreign or unheld file arriving mid-request, which is the path deep-r3-1 describes."
+  ],
+  "not_verified": [
+    "I ran no tests, frontend or backend.",
+    "I did not measure how often intelligence posts processing.updated during bulk resume in practice.",
+    "I did not re-read the truncated tail of the submodule diff or the docs/addons/intelligence.md change.",
+    "I did not re-check the core WS drive filtering for processing.updated, and relied on r1 and r2 for it."
+  ],
+  "confidence": 80,
+  "trajectory": "The rounds since r2 are two code fixes and two record commits. 7e28bdc adds no new branch or state. It replaces the raw header value with a percent-encoded one, matching the existing proxy convention, and does not repeat an earlier round's pattern. aee93a7 removes a branch: the 'fileIds === undefined' condition on queuing is gone, so every in-flight call collapses into one boolean flag. That widens the earlier prediction ('an in-flight answer cannot cover the new entry') into 'any call may be stale', and this over-reach produces deep-r3-1. The refresh queue has now been adjusted in two rounds: an id-less queue first, then an unconditional queue. It is still a single boolean, not a design that tracks pending ids, so the frontend refresh scheduling is being patched incrementally. 37a930af and a51507602 are review records only."
+}

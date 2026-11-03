@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R3-1",
+      "status": "confirmed",
+      "note": "docs/ADDON-DEVELOPMENT.md:371-373 says the request carries `X-Lit-Drive: <drive>` and does not mention encoding. backend/app/routers/files_processing.py:155 sends headers={\"X-Lit-Drive\": quote(drive, safe=\"\")}. addons/intelligence/app/drive_context.py:30 returns unquote(x_hv_drive). The proxy section (line 350) and the drive-context section (line 722) both describe percent-encoding, but the processing_status section does not. A third-party addon that reads the header raw would see a percent-encoded drive name."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "deep-r3-1",
+      "status": "confirmed",
+      "note": "useUpload.ts:285-287 forwards any non-empty id list without checking it against held entries. useUpload.ts:233-237 sets processingRefreshQueued=true whenever a request is in flight and drops the fileIds. useUpload.ts:244-246 then calls refreshProcessing() with no ids. In refreshProcessingOnce (258-263), wanted=null, so the follow-up request targets every entry for which needsProcessingFetch is true. So an event that names only foreign files, if it arrives mid-request, triggers a fetch for entries it did not name. That goes against I8's 'fetches only on an event naming its id or on the tick'. The impact is limited to an extra request; the answers are still correct."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "deep-r3-2",
+      "status": "confirmed",
+      "note": "backend/tests/test_files_processing.py:326 decodes the header with unquote inside the stub. addons/intelligence/tests/test_spec_addon_057_processing_route.py:207 sends a raw `X-Lit-Drive: drive` with no encoded or non-ASCII drive name. No test links the core's encoding to the addon's decoding. The code itself appears correct: quote(safe='') followed by unquote round-trips, including '%'. The finding is a test-coverage gap, not a functional defect."
+    }
+  ],
+  "specification_compliance": [
+    "I8: the queued follow-up refresh does not filter by id, so an entry can fetch on an event that does not name it (deep-r3-1).",
+    "I2/X-Lit-Drive: the core encodes and intelligence decodes symmetrically (files_processing.py:155, drive_context.py:30)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "After an in-flight request ends, the queued follow-up refresh covers every entry still in processing view, whatever the event named."
+  ],
+  "regression_risks": [
+    "A third-party addon that follows ADDON-DEVELOPMENT.md:372 literally would mis-read drive names containing non-ASCII or reserved characters."
+  ],
+  "test_coverage": [
+    "No frontend test sends a foreign-id event while a request is in flight.",
+    "No addon test sends a percent-encoded or non-ASCII X-Lit-Drive to POST /files/processing."
+  ],
+  "not_verified": [
+    "I did not run the test suites; I have no command execution.",
+    "I did not check whether docs/reference/api.md also describes the header encoding.",
+    "I did not check needsProcessingFetch's exact conditions beyond its use in refreshProcessingOnce."
+  ],
+  "confidence": 88
+}
