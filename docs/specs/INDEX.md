@@ -95,7 +95,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-029 | draft | docs/specs/office-viewer.md | |
 | SPEC-ADDON-051 | draft | docs/specs/extraction-corrections.md | |
 | SPEC-ADDON-052 | draft | docs/specs/figure-aware-reading.md | |
-| SPEC-CORE-030 | draft | docs/specs/background-upload.md | |
+| SPEC-CORE-030 | approved | docs/specs/background-upload.md | sha256:ffe09b32450a1f43cf6e5aaec2211505c8508836e1a38857b51bc8b161bf5211 |
 | SPEC-CORE-031 | draft | docs/specs/ingest-progress.md | |
 | SPEC-CORE-032 | draft | docs/specs/inbox.md | |
 | SPEC-CORE-033 | draft | docs/specs/share-target.md | |
