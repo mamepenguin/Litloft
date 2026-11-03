@@ -1,0 +1,44 @@
+{
+  "risk": "HIGH",
+  "score": 6,
+  "base": 2,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "docs/developer-guide/known-issues.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/src/__tests__/officeMimes.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileCard.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileListRow.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/JustifiedFileCell.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/sourceCardExcerpt.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/textExcerpt.ts",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}
