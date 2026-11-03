@@ -134,6 +134,8 @@ function notifyComplete(drive: string) {
 
 let processingTimer: ReturnType<typeof setInterval> | null = null;
 let processingInFlight = false;
+let processingRefreshQueued = false;
+let immediateProcessingFetch: ReturnType<typeof setTimeout> | null = null;
 
 function needsProcessingFetch(entry: UploadState): boolean {
   return (
@@ -154,11 +156,26 @@ function stopProcessingTimer() {
   }
 }
 
+function stopImmediateProcessingFetch() {
+  if (immediateProcessingFetch !== null) {
+    clearTimeout(immediateProcessingFetch);
+    immediateProcessingFetch = null;
+  }
+}
+
 function ensureProcessingTimer() {
   if (processingTimer !== null || !hasProcessingWork()) return;
   processingTimer = setInterval(() => {
     void refreshProcessing();
   }, PROCESSING_TICK_MS);
+}
+
+function scheduleImmediateProcessingFetch() {
+  if (immediateProcessingFetch !== null) return;
+  immediateProcessingFetch = setTimeout(() => {
+    immediateProcessingFetch = null;
+    void refreshProcessing();
+  }, 0);
 }
 
 function stopExpiredEntries(now: number) {
@@ -213,12 +230,21 @@ function applyProcessingAnswer(
 }
 
 async function refreshProcessing(fileIds?: string[]) {
-  if (processingInFlight) return;
+  if (processingInFlight) {
+    // An answer already being assembled was computed before the newest entry
+    // entered the view, so it cannot cover that entry.
+    if (fileIds === undefined) processingRefreshQueued = true;
+    return;
+  }
   processingInFlight = true;
   try {
     await refreshProcessingOnce(fileIds);
   } finally {
     processingInFlight = false;
+    if (processingRefreshQueued) {
+      processingRefreshQueued = false;
+      void refreshProcessing();
+    }
   }
 }
 
@@ -334,6 +360,7 @@ async function processUpload(id: string, internal: InternalUpload) {
         },
       });
       ensureProcessingTimer();
+      scheduleImmediateProcessingFetch();
     } else {
       updateUpload(id, { status: "complete", progress: 100 });
     }
@@ -438,6 +465,7 @@ export function leaveConfirmationArmed(): boolean {
 /** Empty the store. Tests call this between cases; the app never does. */
 export function resetUploadStore() {
   stopProcessingTimer();
+  stopImmediateProcessingFetch();
   uploads = EMPTY_UPLOADS;
   pendingQueue = [];
   activeCount = 0;

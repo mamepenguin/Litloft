@@ -106,11 +106,69 @@ afterEach(() => {
 });
 
 describe("SPEC-CORE-037 I8 — when an entry asks again", () => {
+  it("SPEC-CORE-037 I8 (r2) asks as soon as an entry reaches the processing view, then on each tick", async () => {
+    const api = await mockedApi();
+    api.getFilesProcessing.mockResolvedValue(inProgress());
+
+    await renderCompleted(api);
+    await advance(1);
+
+    expect(api.getFilesProcessing).toHaveBeenCalledWith(["file_a"]);
+    expect(screen.getByText("Pending")).toBeInTheDocument();
+
+    await advance(TICK);
+    expect(api.getFilesProcessing).toHaveBeenCalledTimes(2);
+
+    await advance(TICK - 1000);
+    expect(api.getFilesProcessing).toHaveBeenCalledTimes(2);
+
+    await advance(1000);
+    expect(api.getFilesProcessing).toHaveBeenCalledTimes(3);
+  });
+
+  it("SPEC-CORE-037 I8 (r2) shares one request among entries that complete together", async () => {
+    const api = await mockedApi();
+    const { useUpload } = await import("@/hooks/useUpload");
+    const hook = renderHook(() => useUpload());
+
+    api.initUpload.mockImplementation(
+      async (_drive: string, body: { filename: string }) =>
+        initResult(`upload-${body.filename}`),
+    );
+    api.completeUpload.mockImplementation(
+      async (_drive: string, uploadId: string) => ({ id: uploadId }),
+    );
+    api.getFilesProcessing.mockImplementation(async (ids: string[]) =>
+      answer(
+        Object.fromEntries(
+          ids.map((id) => [id, { stages: [SAVED, SEARCH_PENDING], ready: false }]),
+        ),
+      ),
+    );
+
+    await act(async () => {
+      hook.result.current.addFiles("main", "", [
+        new File(["x"], "a.txt"),
+        new File(["x"], "b.txt"),
+      ]);
+    });
+    await flush(20);
+    await advance(1);
+
+    expect(api.completeUpload).toHaveBeenCalledTimes(2);
+    expect(api.getFilesProcessing).toHaveBeenCalledTimes(1);
+    const [[requested]] = api.getFilesProcessing.mock.calls as unknown as Array<
+      [string[]]
+    >;
+    expect(new Set(requested)).toEqual(new Set(["upload-a.txt", "upload-b.txt"]));
+  });
+
   it("SPEC-CORE-037 I8 asks on the tick and not again for 30 s", async () => {
     const api = await mockedApi();
     api.getFilesProcessing.mockResolvedValue(inProgress());
 
     await renderCompleted(api);
+    await advance(1);
     const before = api.getFilesProcessing.mock.calls.length;
 
     await advance(TICK - 1000);
