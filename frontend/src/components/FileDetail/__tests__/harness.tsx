@@ -28,6 +28,13 @@ export const slotMocks = {
   entries: new Map<string, SlotEntry[]>(),
 };
 
+/**
+ * Props a mounted slot node was last rendered with. Per node rather than per
+ * entry id: two slots may hand over entries with the same id, which is one of
+ * the things the inspector's tab strip has to keep apart.
+ */
+export const slotPropsByNode = new WeakMap<Element, Record<string, unknown>>();
+
 export const editableTagChipsCalls: Array<Record<string, unknown>> = [];
 
 export const usePolicyMock = vi.fn();
@@ -155,7 +162,11 @@ export function SlotEntryRendererStub({
     | undefined;
   return (
     <div
+      ref={(node) => {
+        if (node) slotPropsByNode.set(node, props);
+      }}
       data-testid={`slot-entry-${entry.id}`}
+      data-addon={entry.addonName ?? ""}
       data-fill-height={props?.fillHeight === true ? "true" : "false"}
       data-labelled-by-host={props?.labelledByHost === true ? "true" : "false"}
     >
@@ -204,6 +215,9 @@ export function AddonSlotStub({
           : "all";
   return (
     <div
+      ref={(node) => {
+        if (node) slotPropsByNode.set(node, props ?? {});
+      }}
       data-testid={`addon-slot-${tag}`}
       data-fill-height={props?.fillHeight === true ? "true" : "false"}
       data-prop-file-id={
