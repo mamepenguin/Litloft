@@ -56,13 +56,6 @@ without going through the reader's own turn, so that place is not recorded.
 **Paging back to the first page and leaving keeps the later place.** The first
 page is never written, so the book reopens where it was last saved.
 
-**A source file's card shows no excerpt.** A card draws the first lines of a
-file in place of a thumbnail only when the file is a Document, so the source
-files that are now Other lost it: `.c`, `.h`, `.py`, `.pl`, `.css`, `.js` and
-`.bat` had one and no longer do. The file still opens as text; only the card is
-blank. The gate is `file_type === "document"` in `FileCard`, `FileListRow` and
-`JustifiedFileCell`, and it is a bucket test where a name test would serve.
-
 **Some extensions are filed as something they are not.** `.ass` is a subtitle
 format and is filed as audio; `.3gp`, `.3g2`, `.3gpp` and `.3gpp2` are video
 containers and are filed as audio; `.mpa` is MPEG audio and is filed as video.

@@ -1,7 +1,6 @@
 import { useRelativeDate } from "@/hooks/useRelativeDate";
 import { memo, type ReactNode } from "react";
 import type { FileItem, WatchProgress } from "@/types";
-import { OFFICE_MIMES } from "@/lib/officeFiles";
 import { formatDuration } from "@/lib/format";
 import { getThumbnailUrl } from "@/lib/api";
 import { useFileCardLink } from "@/hooks/useFileCardLink";
@@ -12,6 +11,7 @@ import { FileTypeIcon } from "./FileTypeIcon";
 import { VideoPreview } from "./VideoPreview";
 import { TextThumbnail } from "./TextThumbnail";
 import { hasKnownLength, primaryMetaText } from "@/lib/primaryMeta";
+import { hasThumbnail, showsTextExcerpt } from "@/lib/textExcerpt";
 
 function FileCardImpl({
   file,
@@ -71,12 +71,8 @@ function FileCardImpl({
     onShiftSelect,
     sortQuery,
   });
-  const hasThumbnail = file.has_thumbnail || file.file_type === "video" || file.file_type === "image";
-  const isTextPreviewable =
-    !hasThumbnail &&
-    file.file_type === "document" &&
-    ((file.mime_type?.startsWith("text/") ?? false) ||
-      OFFICE_MIMES.has(file.mime_type ?? ""));
+  const drawsThumbnail = hasThumbnail(file);
+  const drawsExcerpt = showsTextExcerpt(file);
 
   return (
     <div
@@ -119,7 +115,7 @@ function FileCardImpl({
           data-file-thumb=""
           className="relative aspect-video bg-bg-elevated rounded-2xl overflow-hidden"
         >
-          {hasThumbnail ? (
+          {drawsThumbnail ? (
             <img
               src={getThumbnailUrl(file.id)}
               alt={file.title}
@@ -127,7 +123,7 @@ function FileCardImpl({
               loading="lazy"
               draggable="false"
             />
-          ) : isTextPreviewable ? (
+          ) : drawsExcerpt ? (
             <TextThumbnail file={file} />
           ) : (
             <div className="flex h-full w-full items-center justify-center">
