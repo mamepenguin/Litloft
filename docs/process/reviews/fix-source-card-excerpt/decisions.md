@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: continue (user, 2026-11-03, after r1 HUMAN_REVIEW_REQUIRED: "とりあえず実際のバグ修正の方はその方針で", accepting the proposal to keep the markdown cleanup for .md/.markdown/.txt and show other text files' first lines as they are, add a subtitle text/vtt row with no excerpt, and leave non-UTF-8 sources out of scope)
 ran_in_app: yes
 at: bb32127e80bd6afb3c315c5dbea9ff5923310444
 by: agent
