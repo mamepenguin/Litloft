@@ -135,11 +135,15 @@ Read once when the intelligence container starts, from `SEARCH_CONFIG_PATH` (def
 | `transcription` | Provider (`whisper_local`, `haas_local`, `openai_compatible`, `deepgram`, `elevenlabs_scribe`, `assemblyai`, `gemini`) and provider settings |
 | `indexing` | Reconciliation interval, frame extraction, text chunking |
 | `workers` | Concurrency and batch sizes |
-| `memory` | Idle-unload thresholds for Whisper (and the `haas_local` recognizer) and BLIP |
+| `memory` | Idle-unload thresholds for Whisper (and the `haas_local` recognizer), BLIP and the OCR engine |
 
 The intelligence sections of `/admin/settings` save JSON override files in its data directory for `features`, `llm`, `rag`, the embedding model, and the transcription provider. They are merged over the yaml. LLM profiles and routing saved there replace `llm.profiles` and `llm.routing` in the yaml as a whole and apply without a restart. Keys come only from the environment (`LLM_API_KEY`, `LLM_API_KEY_<NAME>`).
 
 The full key list with defaults is on the [intelligence page](../addons/intelligence.md#configuration-reference).
+
+### features.image_ocr
+
+Reads the text in pictures with a local engine and stores it as the picture's text, so search and Ask find the words in a screenshot, a slide or a photo of a sign. The values are `"false"` (never), `"manual"` (only when a picture is queued for a reading by hand) and `"on_index"` (as each picture is indexed, with existing pictures read in the background). Default `"on_index"`. It needs no LLM, and a change takes effect after an intelligence restart. Turning it off keeps the text already stored. See [text in pictures](../addons/intelligence.md#text-in-pictures).
 
 ---
 

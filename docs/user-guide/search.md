@@ -74,6 +74,7 @@ With the intelligence addon enabled for the drive, results found by meaning are 
 
 - The badges also show matches in **Transcript**, **Content**, **Visual**, **Thumbnail** and **Metadata**.
 - Pictures and video frames found by how they look (**Thumbnail**, **Visual**) can be only loosely related to your words. In relevance order they usually come after other matches.
+- Text inside pictures, such as screenshots, slides and photos of signs, is found by its words in search and Ask, and a match shows the recognised text as its quote. A reading can contain single-character errors.
 - A match in speech or in a scene shows up to three timestamps. Click one to play from that moment. `+N` says how many more there were.
 - A match in a PDF lists the pages, as `p.N`. Click one to open the PDF at that page.
 - A match in an EPUB book lists the chapters by title. Click one to open the book at the start of that chapter.
