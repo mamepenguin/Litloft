@@ -17,6 +17,7 @@ import "react-pdf/dist/Page/TextLayer.css";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 
 import { getStreamUrl } from "@/lib/api";
+import type { DocumentController } from "@/lib/documentController";
 import { rasterCacheFor, type RasterRequest } from "@/lib/pdfRasterCache";
 import { declaredReadingDirection } from "@/lib/pdfReadingDirection";
 import { usePdfPageProgress } from "@/lib/pdfPageProgress";
@@ -96,6 +97,7 @@ export function PdfPreview({
   initialPage,
   onDocumentCaptureController,
   onPdfController,
+  onDocumentController,
   documentSlotProps,
 }: {
   fileId: string;
@@ -107,6 +109,7 @@ export function PdfPreview({
     controller: DocumentCaptureController | null,
   ) => void;
   onPdfController?: (controller: PdfController | null) => void;
+  onDocumentController?: (controller: DocumentController | null) => void;
 }) {
   const t = useTranslations("file");
   const rootRef = useRef<HTMLDivElement>(null);
@@ -180,6 +183,19 @@ export function PdfPreview({
   }, []);
   const src = getStreamUrl(fileId);
   const pdfStore = useMemo(() => new PdfDocumentStore(), []);
+  const documentController = useMemo<DocumentController>(
+    () => ({
+      goTo: (target) => {
+        if ("page" in target) pdfStore.goToPage(target.page);
+      },
+    }),
+    [pdfStore],
+  );
+
+  useEffect(() => {
+    onDocumentController?.(documentController);
+    return () => onDocumentController?.(null);
+  }, [documentController, onDocumentController]);
 
   /**
    * The reset below must not run on the first pass: `<Document>` reports

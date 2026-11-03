@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import type { FileItem } from "@/types";
 import type { MediaController } from "@/lib/mediaController";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
+import type { DocumentController } from "@/lib/documentController";
 import { playerKind } from "@/lib/playerKind";
 import {
   ridesFileDetailShell,
@@ -23,7 +24,14 @@ import { useCompanionMetrics } from "./hooks/useCompanionMetrics";
 import { useFileDetailData } from "./hooks/useFileDetailData";
 import { FileDetailSkeleton } from "./FileDetailSkeleton";
 import { usePlainTextDocument } from "./hooks/usePlainTextDocument";
-import { useSlotAvailability } from "./hooks/useSlotAvailability";
+import {
+  slotAvailabilityKey,
+  useSlotAvailability,
+} from "./hooks/useSlotAvailability";
+import {
+  LowerInspectorProvider,
+  useLowerInspectorRegistry,
+} from "./lowerInspector";
 
 export interface FileDetailContentProps {
   fileId: string;
@@ -70,6 +78,9 @@ export function FileDetailContainer({
     useState<MediaController | null>(null);
   const [documentCaptureController, setDocumentCaptureController] =
     useState<DocumentCaptureController | null>(null);
+  const [documentController, setDocumentController] =
+    useState<DocumentController | null>(null);
+  const lowerInspector = useLowerInspectorRegistry();
 
   // Drive-scope policy lookup for the Knowledge editor. `usePolicy` is
   // fail-open: during the initial load AND during the 30s-TTL background
@@ -156,7 +167,7 @@ export function FileDetailContainer({
   const companionOccupied =
     data.chaptersPresent ||
     getSlotEntries("player-side").some((entry) =>
-      slotAvailability.isAvailable(entry.id),
+      slotAvailability.isAvailable(slotAvailabilityKey("player-side", entry.id)),
     );
 
   const isHtmlPreview = file.mime_type === "text/html";
@@ -211,8 +222,10 @@ export function FileDetailContainer({
     fileType: file.file_type,
     mimeType: file.mime_type,
     documentCaptureController,
+    documentController,
     trustTier: file.trust_tier,
     trustReviewedAt: file.trust_reviewed_at,
+    lowerInspector: lowerInspector.lower,
     onFileChange: setFile,
   };
 
@@ -275,47 +288,51 @@ export function FileDetailContainer({
     ) : undefined;
 
   return (
-    <FileDetailPresenter
-      file={file}
-      fileId={fileId}
-      drive={drive}
-      isMobile={isMobile}
-      ridesShell={ridesShell}
-      isHtmlPreview={isHtmlPreview}
-      hasPlayer={hasPlayer}
-      usesCanvasViewer={usesCanvasViewer}
-      plainTextDocument={plainTextDocument}
-      descriptionInCanvas={descriptionInCanvas}
-      playerFramed={playerFramed}
-      companionKind={companionKind}
-      railEligible={railEligible}
-      companionMountable={companionMountable}
-      companionOccupied={companionOccupied}
-      slotAvailability={slotAvailability}
-      isTimedMedia={isTimedMedia}
-      chaptersPresent={data.chaptersPresent}
-      chaptersVersion={data.chaptersVersion}
-      onChaptersResolved={data.onChaptersResolved}
-      metrics={metrics}
-      addonSlotProps={addonSlotProps}
-      mediaController={mediaController}
-      onMediaController={handleMediaController}
-      onDocumentCaptureController={setDocumentCaptureController}
-      videoRef={videoRef}
-      initialTime={initialTime}
-      initialPage={initialPage}
-      initialSection={initialSection}
-      highlight={highlight}
-      miniPlayerRoot={scrollRoot}
-      onScrollRootChange={setShellScrollRoot}
-      onEnded={onEnded}
-      autoPlay={autoPlay}
-      markdownReloadKey={data.tagSaveVersion}
-      onMarkdownTagsSaved={data.onTagsSaved}
-      onRename={data.rename}
-      onBack={onBack}
-      meta={meta}
-      sheetPeek={sheetPeek}
-    />
+    <LowerInspectorProvider registry={lowerInspector}>
+      <FileDetailPresenter
+        file={file}
+        fileId={fileId}
+        drive={drive}
+        isMobile={isMobile}
+        ridesShell={ridesShell}
+        isHtmlPreview={isHtmlPreview}
+        hasPlayer={hasPlayer}
+        usesCanvasViewer={usesCanvasViewer}
+        plainTextDocument={plainTextDocument}
+        hasInspector={surface === "canonical"}
+        descriptionInCanvas={descriptionInCanvas}
+        playerFramed={playerFramed}
+        companionKind={companionKind}
+        railEligible={railEligible}
+        companionMountable={companionMountable}
+        companionOccupied={companionOccupied}
+        slotAvailability={slotAvailability}
+        isTimedMedia={isTimedMedia}
+        chaptersPresent={data.chaptersPresent}
+        chaptersVersion={data.chaptersVersion}
+        onChaptersResolved={data.onChaptersResolved}
+        metrics={metrics}
+        addonSlotProps={addonSlotProps}
+        mediaController={mediaController}
+        onMediaController={handleMediaController}
+        onDocumentCaptureController={setDocumentCaptureController}
+        onDocumentController={setDocumentController}
+        videoRef={videoRef}
+        initialTime={initialTime}
+        initialPage={initialPage}
+        initialSection={initialSection}
+        highlight={highlight}
+        miniPlayerRoot={scrollRoot}
+        onScrollRootChange={setShellScrollRoot}
+        onEnded={onEnded}
+        autoPlay={autoPlay}
+        markdownReloadKey={data.tagSaveVersion}
+        onMarkdownTagsSaved={data.onTagsSaved}
+        onRename={data.rename}
+        onBack={onBack}
+        meta={meta}
+        sheetPeek={sheetPeek}
+      />
+    </LowerInspectorProvider>
   );
 }

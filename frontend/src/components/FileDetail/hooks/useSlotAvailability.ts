@@ -11,8 +11,18 @@ import { useCallback, useRef, useState } from "react";
  */
 export interface SlotAvailability {
   isAvailable: (entryId: string) => boolean;
+  /** What the entry reported, or `undefined` while it has not reported. */
+  reportedValue: (entryId: string) => boolean | undefined;
   /** The callback to hand that entry. Stable across renders. */
   reporterFor: (entryId: string) => (available: boolean) => void;
+}
+
+/**
+ * Availability, tab ids and DOM ids are per slot because two slots may each
+ * hold an entry with the same id.
+ */
+export function slotAvailabilityKey(slotId: string, entryId: string): string {
+  return `${slotId}:${entryId}`;
 }
 
 export function useSlotAvailability(fileId: string): SlotAvailability {
@@ -34,6 +44,11 @@ export function useSlotAvailability(fileId: string): SlotAvailability {
     [reports],
   );
 
+  const reportedValue = useCallback(
+    (entryId: string) => reports[entryId],
+    [reports],
+  );
+
   const reporterFor = useCallback((entryId: string) => {
     const cached = reporters.current.get(entryId);
     if (cached) return cached;
@@ -45,5 +60,5 @@ export function useSlotAvailability(fileId: string): SlotAvailability {
     return fn;
   }, []);
 
-  return { isAvailable, reporterFor };
+  return { isAvailable, reportedValue, reporterFor };
 }
