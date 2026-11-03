@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2-1",
+      "status": "confirmed",
+      "note": "refine.py:695 initialises drive=None. If _snapshot raises, the except branch at refine.py:698-709 emits intelligence.refine.failed with drive None. If the IndexedFile row is missing, _snapshot returns drive None (refine.py:692). Every later emit uses that same variable (lines 717, 728, 820, 853, 868). _emit_ws_event calls post_addon_event(event, data) (refine.py:627), and post_addon_event returns False without posting when _scoped_drive is None (addon_events.py:63-66). So in both cases the job posts no event at all. refine.started now comes after the snapshot (refine.py:711-721)."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2-2",
+      "status": "confirmed",
+      "note": "whisper.py:1584-1590 calls emit_processing_updated once per drive after the session block. processing_events.py:40 calls post_addon_event_sync, which opens httpx.Client with _TIMEOUT_SECONDS=3.0 (addon_events.py:28, 91). main.py:161 awaits asyncio.to_thread(fail_orphaned_running_jobs), so startup waits for every post. The posts are sequential, so a core that does not answer costs about 3 s per affected drive."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "deep-r2-1",
+      "status": "confirmed",
+      "note": "files_processing.py:152 sends headers={\"X-Lit-Drive\": drive}. The drive is the raw name taken from the core's DB (file_drives, files_processing.py:193-208). It is not percent-encoded. requirements.txt:9 pins httpx==0.28.1. That version's header normalisation encodes str values with 'ascii' when no encoding is given, so a non-ASCII drive name raises UnicodeEncodeError. The broad except at files_processing.py:160 catches it and returns None, which becomes the unavailable stage. The addon side expects a percent-encoded value: drive_context.py:30 calls unquote, and the processing route uses require_drive (intelligence routers/files.py:137). The proxy comment at addon_proxy.py:496-498 confirms that non-ASCII drive names are expected. I did not read the httpx source; this rests on knowledge of httpx 0.28's _normalize_header_value."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "deep-r2-2",
+      "status": "confirmed",
+      "note": "useUpload.ts:233-237: when processingInFlight is set, the call sets processingRefreshQueued only if fileIds === undefined, then returns. handleProcessingUpdated (useUpload.ts:285-288) always passes fileIds, so an event that arrives during any in-flight request (a tick, an entry-driven call or another event) is discarded without being queued. The re-run in the finally block (lines 244-247) only happens for queued undefined calls. The entry then waits for the next tick, which contradicts I8's fetch on an event naming its id."
+    }
+  ],
+  "specification_compliance": [
+    "I14: drive-less posts are refused in addon_events.py:63-66 as specified, but this silences refine events when the IndexedFile row is missing (R2-1).",
+    "I8 (r2): an event that names an entry is not guaranteed to trigger a fetch when another request is in flight (deep-r2-2).",
+    "I2/I3: for non-ASCII drives, the processing call to intelligence fails on the client side and the files get the unavailable stage (deep-r2-1)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "A drive name containing a literal '%' sequence would be decoded by the addon's unquote even though the core sends it raw, so the addon would see the wrong drive name."
+  ],
+  "regression_risks": [
+    "Intelligence startup can take an extra 3 s per drive with orphaned jobs when the core is unreachable at startup."
+  ],
+  "test_coverage": [
+    "I did not see a test that uses a non-ASCII drive name for the processing call.",
+    "I did not see a test for an event arriving while a processing request is in flight."
+  ],
+  "not_verified": [
+    "I could not run httpx to observe the UnicodeEncodeError; this rests on knowledge of httpx 0.28.1's header normalisation.",
+    "I did not diff against origin/develop to confirm which of these behaviours this branch introduced.",
+    "I did not read tests/test_addon_event_drive.py to confirm what it covers."
+  ],
+  "confidence": 85
+}
