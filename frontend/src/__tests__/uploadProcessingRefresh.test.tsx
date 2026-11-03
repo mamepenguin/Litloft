@@ -17,7 +17,12 @@ const wsState = vi.hoisted(() => ({
 vi.mock("@/hooks/useWebSocket", () => ({ useWebSocket: () => wsState.lastEvent }));
 
 import { mockedApi, type UploadApi } from "@/__tests__/helpers/uploadApiMock";
-import { dropOn, flush, initResult } from "@/__tests__/helpers/uploadQueue";
+import {
+  deferred,
+  dropOn,
+  flush,
+  initResult,
+} from "@/__tests__/helpers/uploadQueue";
 
 type StageState = "pending" | "running" | "done" | "failed";
 
@@ -208,6 +213,46 @@ describe("SPEC-CORE-037 I8 — when an entry asks again", () => {
     await flush(5);
 
     expect(api.getFilesProcessing.mock.calls.length).toBe(before + 1);
+    expect(screen.getByText("Ready")).toBeInTheDocument();
+  });
+
+  it("SPEC-CORE-037 I8 refreshes after a request ends when its event arrives mid-request", async () => {
+    const api = await mockedApi();
+    const first = deferred<Answer>();
+    const second = deferred<Answer>();
+    let calls = 0;
+    api.getFilesProcessing.mockImplementation(() => {
+      calls += 1;
+      return calls === 1 ? first.promise : second.promise;
+    });
+
+    const { view, Drawer } = await renderCompleted(api);
+    await advance(1);
+    expect(api.getFilesProcessing).toHaveBeenCalledTimes(1);
+
+    wsState.lastEvent = {
+      event: "processing.updated",
+      data: { file_ids: ["file_a"], drive: "main" },
+    };
+    await act(async () => {
+      view.rerender(<Drawer />);
+    });
+    await flush(5);
+
+    expect(api.getFilesProcessing).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      first.resolve(inProgress());
+    });
+    await flush(5);
+
+    expect(api.getFilesProcessing).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      second.resolve(ready());
+    });
+    await flush(5);
+
     expect(screen.getByText("Ready")).toBeInTheDocument();
   });
 

@@ -231,9 +231,9 @@ function applyProcessingAnswer(
 
 async function refreshProcessing(fileIds?: string[]) {
   if (processingInFlight) {
-    // An answer already being assembled was computed before the newest entry
-    // entered the view, so it cannot cover that entry.
-    if (fileIds === undefined) processingRefreshQueued = true;
+    // The in-flight answer may predate the change that asked for this one,
+    // so a call made now earns one more request after it ends.
+    processingRefreshQueued = true;
     return;
   }
   processingInFlight = true;
