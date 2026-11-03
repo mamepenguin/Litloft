@@ -15,6 +15,7 @@ export function apiMock() {
     uploadChunk: vi.fn().mockResolvedValue({}),
     completeUpload: vi.fn().mockResolvedValue({}),
     cancelUpload: vi.fn().mockResolvedValue(undefined),
+    getFilesProcessing: vi.fn().mockResolvedValue({ files: {} }),
     lock: vi.fn().mockResolvedValue(undefined),
     getDriveFiles: vi.fn().mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 12 } }),
     getFolders: vi.fn().mockResolvedValue([]),
