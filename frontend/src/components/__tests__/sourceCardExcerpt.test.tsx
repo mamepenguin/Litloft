@@ -124,6 +124,7 @@ const rows: Row[] = [
   ["other + application/json", { file_type: "other", mime_type: "application/json", filename: "a.json" }, false],
   ["other + octet-stream", { file_type: "other", mime_type: "application/octet-stream", filename: "a.bin" }, false],
   ["other + docx", { file_type: "other", mime_type: DOCX, filename: "a.docx" }, false],
+  ["subtitle + text/vtt", { file_type: "subtitle", mime_type: "text/vtt", filename: "a.vtt" }, false],
   ["audio + text/plain", { file_type: "audio", mime_type: "text/plain", filename: "a.txt" }, false],
   ["archive + text/plain", { file_type: "archive", mime_type: "text/plain", filename: "a.txt" }, false],
   ["audio + audio/mpeg", { file_type: "audio", mime_type: "audio/mpeg", filename: "a.mp3" }, false],
