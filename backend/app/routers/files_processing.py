@@ -7,6 +7,7 @@ import logging
 import re
 import time
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 from fastapi import APIRouter, Depends
@@ -149,7 +150,9 @@ async def _call_addon(
                 client.post(
                     f"{target}{path}",
                     json={"file_ids": file_ids},
-                    headers={"X-Lit-Drive": drive},
+                    # httpx encodes header values as ASCII, and the addon
+                    # percent-decodes this one as the proxy does.
+                    headers={"X-Lit-Drive": quote(drive, safe="")},
                 ),
                 timeout=_ADDON_TIMEOUT_SEC,
             )

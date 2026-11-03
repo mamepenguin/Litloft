@@ -14,6 +14,7 @@ import time
 from datetime import UTC, datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
+from urllib.parse import unquote
 
 import pytest
 
@@ -307,24 +308,28 @@ def test_spec_core_031_i2_each_call_carries_one_drives_ids_and_its_name(
 ):
     c, session, _drive_dir, _data_dir = client
     _add_drive(monkeypatch, tmp_path, "other-drive")
+    _add_drive(monkeypatch, tmp_path, "写真 2026")
     first = _add_file(session, "file00000001")
     second = _add_file(session, "file00000002")
     elsewhere = _add_file(session, "file00000003", drive="other-drive")
+    japanese = _add_file(session, "file00000004", drive="写真 2026")
 
     addon = stub()
     addon.respond("/files/processing", body={"files": {}})
     register_addon("sorter", target=addon.url)
 
-    response = _post(c, [first, second, elsewhere])
+    response = _post(c, [first, second, elsewhere, japanese])
 
     assert response.status_code == 200
-    assert len(addon.calls) == 2
+    assert len(addon.calls) == 3
     by_drive = {
-        call["drive"]: set(call["body"]["file_ids"]) for call in addon.calls
+        unquote(call["drive"]): set(call["body"]["file_ids"])
+        for call in addon.calls
     }
     assert by_drive == {
         TEST_DRIVE: {first, second},
         "other-drive": {elsewhere},
+        "写真 2026": {japanese},
     }
 
 
