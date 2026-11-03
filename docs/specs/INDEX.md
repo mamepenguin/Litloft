@@ -102,5 +102,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-032 | draft | docs/specs/inbox.md | |
 | SPEC-CORE-033 | draft | docs/specs/share-target.md | |
 | SPEC-ADDON-053 | draft | docs/specs/ask-about-this-file.md | |
+| SPEC-ADDON-056 | draft | docs/specs/ask-about-this-file.md | |
+| SPEC-CORE-036 | draft | docs/specs/ask-about-this-file.md | |
 | SPEC-CORE-034 | draft | docs/specs/source-sets.md | |
 | SPEC-ADDON-054 | draft | docs/specs/ask-source-set.md | |
