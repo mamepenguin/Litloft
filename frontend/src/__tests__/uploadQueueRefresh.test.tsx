@@ -71,6 +71,7 @@ const SEARCH = (p: Record<string, unknown>) => p.search === "lentil";
 beforeEach(async () => {
   vi.useFakeTimers();
   vi.resetModules();
+  vi.clearAllMocks();
   localStorage.clear();
   sessionStorage.clear();
 });

@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The diff adds a new module, `frontend/src/lib/bottomChrome.ts`, which the touch-point list does not name. It is a second app-wide store, and it hard-codes the mini-player's 180 px height and 16 px gap separately from `MiniPlayerContainer`.",
+      "impact": "If the mini-player's `h-[180px]` class or its bottom gap changes, the drawer's offset in `bottomChromeOffset` stays at 196 px and the drawer can overlap the mini-player again (I13). No test ties the constants to the component's classes.",
+      "evidence": "`frontend/src/lib/bottomChrome.ts:17-20` declares `MINI_PLAYER_HEIGHT_PX = 180` and `MINI_PLAYER_GAP_PX = 16`, with only the comment \"Must stay in step\" to link them. A grep for `bottomChrome`, `setMiniPlayerShown` and `setInspectorSheetState` under `frontend/` finds only the module and its three callers (UploadProgress, MiniPlayerContainer, MobileInspectorSheet), and no test file. The touch points only say that MiniPlayerContainer and MobileInspectorSheet \"expose their shown state or height\".",
+      "repro": "Mutation: change `MINI_PLAYER_HEIGHT_PX` to 100, or delete the `if (chrome.miniPlayer)` branch of `bottomChromeOffset`. Reading the tests, no unit or e2e-layout test imports this module, so the mutant would survive. Not executed.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is an unlisted place that breaks no invariant today; the risk is that the duplicated constants drift later and nothing catches it.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add `frontend/src/lib/bottomChrome.ts` to the touch points. Add a unit test for `bottomChromeOffset`, and have the e2e-layout spec check `MINI_PLAYER_HEIGHT_PX` and `MINI_PLAYER_GAP_PX` against MiniPlayerContainer's class and style."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The diff adds `frontend/e2e-layout/fixtures/upload-drawer.html` and `frontend/e2e-layout/upload-drawer.spec.ts` and edits `frontend/e2e-layout/spec-viewport.spec.ts`, none of which the touch-point list names. The I13 measurement in those files checks the fixture's own offset arithmetic, not the component's.",
+      "impact": "A change in `bottomChromeOffset` or in UploadProgress's `style.bottom` that puts the drawer over the mini-player or the peek bar would still pass the automated I13 check. Only the one-time manual run recorded in decisions.md covered the real component.",
+      "evidence": "`upload-drawer.html` `window.arrange` computes `drawer.style.bottom = Math.max(abovePlayer, aboveStrip)` itself and hides the drawer for half or full. `upload-drawer.spec.ts:183-196` checks only that the fixture's positioning classes include the component's root `className` tokens and that `peekHeightPx === SHEET_PEEK_PX`. It never reads `bottomChromeOffset`, `MINI_PLAYER_HEIGHT_PX`, or UploadProgress's half/full early return (`UploadProgress.tsx`, `if (chrome.sheet === \"half\" || ...) return null`). The touch-point line about R-5 names a real-browser measurement but no file.",
+      "repro": "Mutation: remove `style={{ bottom: bottomChromeOffset(chrome) }}` from UploadProgress, or remove its half/full early return. By reading, neither the e2e-layout spec nor any vitest test would fail. Not executed.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The I13 check is a test that would let an I13 regression through. The current code looks right on reading and matches the manual R-5 measurements, so no invariant is broken today.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "List the e2e-layout files as touch points. Either build the fixture's offset from `bottomChromeOffset` and the exported constants, or add a vitest test that renders UploadProgress after `setMiniPlayerShown` and `setInspectorSheetState`, and checks the bottom style and the half/full null render."
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "The diff adds new test files and helpers that the touch-point list does not name: `frontend/src/__tests__/helpers/uploadApiMock.ts`, `frontend/src/__tests__/helpers/uploadQueue.ts`, `frontend/src/__tests__/uploadLock.test.tsx`, `frontend/src/__tests__/uploadMessages.test.ts`, `frontend/src/__tests__/uploadQueueRefresh.test.tsx` and `frontend/src/hooks/__tests__/uploadQueue.test.tsx`. It also adds a new case to `uploadZoneHosts.test.tsx`, where the touch points said existing tests are adapted with their assertions unchanged.",
+      "impact": "None for a user. The planned surface of the change is understated: a reader of the touch points would not expect new acceptance suites or shared test helpers.",
+      "evidence": "The diff headers for the six new files. `uploadZoneHosts.test.tsx` gains `it.each(SCREENS)(\"%s hands its destination and the folder check past the view's unmount\")`. The only test touch points are the four adapted files and `backend/tests/test_upload.py`.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "These are unlisted places, but test-only; no behaviour changes.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add the acceptance test files and helpers to the touch-point list."
+    },
+    {
+      "id": "F4",
+      "origin": "reviewer",
+      "claim": "`UploadProgress.tsx` now owns the window `beforeunload` handler that implements I5. The touch-point entry for that file describes only rendering once and the bottom offset, and no touch point says where the leave-page handler lives.",
+      "impact": "The leave-page guard lives in the drawer component, so it exists only while `UploadProgress` is mounted. It is mounted in the root layout today, but a later change that conditionally mounts or moves the drawer would silently drop I5. Also, if `lockApi()` rejects, `performLock` has already called `disarmLeaveConfirmation()` and nothing re-arms it, so later unfinished uploads get no leave-page prompt for the rest of the session.",
+      "evidence": "`UploadProgress.tsx` adds a `useEffect` that registers `beforeunload` and calls `leaveConfirmationArmed()`. In `Sidebar.tsx` `performLock`, `disarmLeaveConfirmation()` runs before `await lockApi()`. `useUpload.ts` sets `leaveSuppressed = true` and resets it only in `resetUploadStore`.",
+      "repro": "not_reproduced. By reading: make `lockApi` reject after confirming. `window.location` does not change, `leaveSuppressed` stays true, and `leavePage().defaultPrevented` is false while an upload is still uploading.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "I5 explicitly allows no prompt after a confirmed Lock, and a failed lock request is outside normal use on a home LAN. This is an unlisted responsibility rather than an invariant break.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Name the `beforeunload` handler's home in the touch points. Disarm only after `lockApi()` resolves, or re-arm when it fails."
+    }
+  ],
+  "specification_compliance": [
+    "Every touch point that names a file maps to a diff hunk, except AddButton.tsx, useFilePicker.tsx and directoryReader.ts. Those three are absent from the diff, which fits their 'behaviour unchanged' note.",
+    "Unlisted places in the diff: frontend/src/lib/bottomChrome.ts (new store module); frontend/e2e-layout/fixtures/upload-drawer.html, frontend/e2e-layout/upload-drawer.spec.ts and frontend/e2e-layout/spec-viewport.spec.ts (FIXTURE_COUNT 12 to 13); the frontend/src/__tests__/helpers/uploadApiMock.ts and uploadQueue.ts helpers; and the new tests uploadLock.test.tsx, uploadMessages.test.ts, uploadQueueRefresh.test.tsx and hooks/__tests__/uploadQueue.test.tsx.",
+    "The backend's complete_upload change is covered by the 'folder check at init and at complete' touch point, although that touch point names only `init_upload` as the function.",
+    "The `fetchUploadJSON` helper in api.ts is inside the listed `initUpload`/`completeUpload` touch point. Its fallback message is identical to `fetchJSON` (`API error: ${status} ${statusText}`), so I11's 'today's text' holds.",
+    "layout.tsx mounts only `<UploadProgress />`, not an 'upload provider'. This is consistent with the spec's module-store design.",
+    "docs/specs/*, INDEX.md and docs/process/reviews/* are implicit touch points and were not reported."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "`disarmLeaveConfirmation()` runs before `lockApi()` resolves. If the lock request fails, the leave-page confirmation stays disarmed for the rest of the page session.",
+    "`bottomChromeOffset` adds `env(safe-area-inset-bottom)` to the peek offset. The e2e fixture ignores safe-area, so behaviour on notched devices is unmeasured.",
+    "The `beforeunload` guard is registered by the drawer component rather than by the store, so I5 depends on UploadProgress staying mounted."
+  ],
+  "regression_risks": [
+    "The 180 px and 16 px mini-player constants are duplicated in bottomChrome.ts with no test linking them to MiniPlayerContainer's classes.",
+    "Both bottomChrome and the upload store are module-level singletons. Tests that do not call `vi.resetModules()` or `resetUploadStore()` can leak state between cases; bottomChrome has no reset function.",
+    "FolderBrowser is a search view when `isSearch` is true: it still subscribes via `useUploadCompleted`, and only its callback filters the refresh out."
+  ],
+  "test_coverage": [
+    "I13: the e2e-layout spec measures a hand-written fixture whose offset is computed in the fixture's own script. `bottomChromeOffset` and UploadProgress's half/full early return have no automated test.",
+    "I10: the backend TestRequireFolder covers a missing folder, a nested missing folder, a file in place of a folder, the drive root, an existing folder with a subfolder, an absent or false field, and a folder deleted or renamed before complete.",
+    "I3, I4, I5, I9, I11 and I12 and the collapsed state are covered in hooks/__tests__/uploadQueue.test.tsx. I7 is covered in uploadLock.test.tsx; I8 and I12 (no refresh) in uploadQueueRefresh.test.tsx.",
+    "The I7 lock path was not run in the real app (decisions.md, pending)."
+  ],
+  "not_verified": [
+    "I did not run any test, and no mutation was executed; each mutant's outcome is my prediction from reading the tests.",
+    "I did not check whether commit 9285b20 alone contains only docs changes. I reviewed the supplied diff as the change.",
+    "I did not read the .claude/rules frontend or backend convention files in full.",
+    "I did not check whether MiniPlayerContainer's `isMini` exactly matches the mini-player being visible on screen."
+  ],
+  "confidence": 78
+}

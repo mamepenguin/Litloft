@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "frontend/src/lib/bottomChrome.ts exists and is a module-level store (state, listeners, publish, useSyncExternalStore at lines 22-74). Lines 17-20 hard-code MINI_PLAYER_HEIGHT_PX = 180 and MINI_PLAYER_GAP_PX = 16. The only link to the component is the comment 'Must stay in step'. MiniPlayerContainer.tsx:61 separately carries the literal class `h-[180px]`. A grep for bottomChrome, setMiniPlayerShown and setInspectorSheetState under frontend/ finds only bottomChrome.ts, UploadProgress.tsx, MiniPlayerContainer.tsx and MobileInspectorSheet.tsx. No test imports it. The touch-point list does not name the module."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "Both files exist. In fixtures/upload-drawer.html, window.arrange (lines 84-96) sets drawer.style.bottom = Math.max(abovePlayer, aboveStrip) and drawer.hidden = expanded on its own, using hard-coded class strings (lines 31-36). In upload-drawer.spec.ts, the only check that ties the fixture to the component (lines 184-197) compares the positioning tokens in UploadProgress.tsx's root className with the fixture's tokens, and compares SPEC.peekHeightPx with SHEET_PEEK_PX. It never exercises bottomChromeOffset, MINI_PLAYER_HEIGHT_PX/GAP_PX, or the half/full early return at UploadProgress.tsx:38. The overlap assertions therefore measure only the fixture's arithmetic. I did not check whether spec-viewport.spec.ts was edited in the diff, because I cannot run git."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "All six files exist: src/__tests__/helpers/uploadApiMock.ts, helpers/uploadQueue.ts, uploadLock.test.tsx, uploadMessages.test.ts, uploadQueueRefresh.test.tsx and src/hooks/__tests__/uploadQueue.test.tsx. uploadZoneHosts.test.tsx:100 holds the case it.each(SCREENS)(\"%s hands its destination and the folder check past the view's unmount\"). The test touch points name only the four adapted files and backend/tests/test_upload.py. I could not confirm through git diff that these files are new in this range, since I cannot run commands. I inferred it from their content, which targets the new store."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F4",
+      "status": "confirmed",
+      "note": "UploadProgress.tsx:22-28 registers a window beforeunload listener that calls event.preventDefault() when leaveConfirmationArmed() is true. Sidebar.tsx:57-61 performLock calls disarmLeaveConfirmation() before await lockApi(). useUpload.ts:263-265 sets leaveSuppressed = true, and the flag is cleared only in resetUploadStore (useUpload.ts:278), which is documented as test-only. No touch point says where the leave-page handler lives."
+    }
+  ],
+  "specification_compliance": [
+    "I5: the beforeunload handler is armed while an entry is unfinished (leaveConfirmationArmed = !leaveSuppressed && hasUnfinished) and is disarmed before a confirmed Lock. This matches the invariant as written.",
+    "I13: UploadProgress returns null for sheet half/full (UploadProgress.tsx:38). The bottom offset is the max of the peek strip and the mini-player offsets (bottomChromeOffset)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "If lockApi() rejects after a confirmed Lock (Sidebar.tsx:57-61), leaveSuppressed stays true for the rest of the session. The leave-page confirmation then never arms again, even though the app stays unlocked and uploads continue. The rejection is also unhandled. I5 says that after a confirmed Lock the handler does not cancel, so this is arguably in spec. Recovery after a failed lock is unspecified."
+  ],
+  "regression_risks": [
+    "MINI_PLAYER_HEIGHT_PX/GAP_PX in bottomChrome.ts are duplicated from the class literals in MiniPlayerContainer.tsx. If one changes without the other, the drawer will overlap the mini-player, and neither a unit test nor the e2e fixture would catch it."
+  ],
+  "test_coverage": [
+    "The upload-drawer e2e test measures a hand-written fixture. It does not cover bottomChromeOffset or the half/full early return in UploadProgress.",
+    "No unit test imports bottomChrome.ts."
+  ],
+  "not_verified": [
+    "I could not run git diff, so I did not confirm that the files named in F2/F3 were added or edited in this commit range, or that spec-viewport.spec.ts was modified.",
+    "MobileInspectorSheet.tsx's calls to setInspectorSheetState: I did not read them.",
+    "Backend require_folder behaviour (I10).",
+    "I did not run any test."
+  ],
+  "confidence": 85
+}
