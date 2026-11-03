@@ -369,8 +369,9 @@ to the upload drawer. Declare a top-level key in `manifest.json`:
 The key is ignored on an in-process addon. When the file's drive has the
 addon's `index` feature on, the core calls `POST <target><path>` directly,
 where `<target>` is the same URL the proxy resolves. The request carries
-`X-Lit-Drive: <drive>` and `{ "file_ids": [...] }` (at most 100), with no
-secret.
+`X-Lit-Drive` with the percent-encoded drive name, decoded as the proxy
+decodes the [Drive context header (`X-Lit-Drive`)](#drive-context-header-x-lit-drive),
+and `{ "file_ids": [...] }` (at most 100), with no secret.
 
 Answer with the stages of each requested file:
 
