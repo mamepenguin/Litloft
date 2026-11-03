@@ -89,11 +89,9 @@ describe("the OOXML mime list", () => {
       .map((file) => relative(REPO_ROOT, file))
       .sort();
     expect(importers).toEqual([
-      "frontend/src/components/FileCard.tsx",
-      "frontend/src/components/FileListRow.tsx",
-      "frontend/src/components/JustifiedFileCell.tsx",
       "frontend/src/components/OfficeExcerpt.tsx",
       "frontend/src/components/TextThumbnail.tsx",
+      "frontend/src/lib/textExcerpt.ts",
     ]);
   });
 });

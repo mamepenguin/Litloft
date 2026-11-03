@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "frontend/src/components/TextThumbnail.tsx:85 calls `raw.trim()` when `isOffice || showsRaw`. In the rows table of frontend/src/components/__tests__/sourceCardExcerptText.test.tsx:129-184, every other + text/* body (rows at lines 133, 139, 145, 151, 157, 163, 169, 175) starts and ends with a non-blank character, and each `expected` is byte-identical to `body`. So mutating line 85 to `showsRaw ? raw : ...` leaves every row passing. TextThumbnail.test.tsx:102-167 only uses `note()` and never draws an other + text/* file, so it does not catch the mutant either. behavior.md:34-35 explicitly requires 'only leading and trailing blank space trimmed', so this is a stated requirement that no test checks."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "frontend/src/lib/textExcerpt.ts:17-18 (`mime startsWith text/` and then `document || other`) and textExcerpt.ts:23-26 (`other && mime startsWith text/`) state the other+text/* condition separately, and no shared helper connects them. Surfaces gate on showsTextExcerpt (FileCard.tsx:75, FileListRow.tsx:87, JustifiedFileCell.tsx:63), while TextThumbnail.tsx:71 chooses the transform on its own through showsRawExcerpt, which skips the hasThumbnail check. Today they agree, because TextThumbnail only renders after the gate passes. The claim is a maintainability coupling, not a present wrong result."
+    }
+  ],
+  "specification_compliance": [
+    "behavior.md:34-38 (other + text/* shown verbatim): TextThumbnail.tsx:85 skips stripPreviewText for showsRaw and only trims, which matches the spec.",
+    "behavior.md:39-40 (document + text/* keeps cleanup): the showsRaw check is false for document, so stripPreviewText still runs. The markdown row in sourceCardExcerptText.test.tsx:178-183 covers this.",
+    "behavior.md:35 trimming of leading and trailing blank space is implemented but no test covers it (F1)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The excerpt <p> uses `whitespace-pre-line` (TextThumbnail.tsx:112), which collapses runs of spaces, so source-code indentation is not drawn on screen even though textContent keeps it. behavior.md says the characters appear 'as they are'. The tests compare textContent, so they cannot see this."
+  ],
+  "regression_risks": [
+    "If showsTextExcerpt and showsRawExcerpt drift apart (F2), a file could pass the excerpt gate yet get the wrong transform, and no single test ties the two predicates together."
+  ],
+  "test_coverage": [
+    "sourceCardExcerptText.test.tsx covers the 8 verbatim other + text/* rows and 1 document markdown row on all three surfaces.",
+    "No row has leading or trailing whitespace on the raw path (F1).",
+    "TextThumbnail.test.tsx covers stripPreviewText and the fetch window only for document notes."
+  ],
+  "not_verified": [
+    "Did not run the test suite or the mutation; F1 survival is inferred by reading the rows.",
+    "Did not inspect the git diff against origin/develop to classify whether the duplicated predicate was introduced by this commit or the whitespace-pre-line styling predates it.",
+    "Did not check the Office fetch path (getPreviewTextUrl) behavior."
+  ],
+  "confidence": 88
+}

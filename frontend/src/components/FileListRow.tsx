@@ -10,7 +10,7 @@ import { useFileCardLink } from "@/hooks/useFileCardLink";
 import { formatDuration } from "@/lib/format";
 import { hasKnownLength, primaryMetaText } from "@/lib/primaryMeta";
 import type { FileItem, FileItemWithMatch } from "@/types";
-import { OFFICE_MIMES } from "@/lib/officeFiles";
+import { hasThumbnail, showsTextExcerpt } from "@/lib/textExcerpt";
 
 import { MoreVertical } from "lucide-react";
 
@@ -83,13 +83,8 @@ function FileListRowImpl({
     sortQuery,
   });
 
-  const hasThumbnail =
-    file.has_thumbnail || file.file_type === "video" || file.file_type === "image";
-  const isTextPreviewable =
-    !hasThumbnail &&
-    file.file_type === "document" &&
-    ((file.mime_type?.startsWith("text/") ?? false) ||
-      OFFICE_MIMES.has(file.mime_type ?? ""));
+  const drawsThumbnail = hasThumbnail(file);
+  const drawsExcerpt = showsTextExcerpt(file);
   const hasDuration = hasKnownLength(file);
   const isCutFile = clipboard.isCut(file.id);
   const primaryText = primaryMetaText(file);
@@ -125,14 +120,14 @@ function FileListRowImpl({
         data-file-thumb=""
         className="relative h-14 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-bg-elevated sm:h-14 sm:w-24"
       >
-        {hasThumbnail ? (
+        {drawsThumbnail ? (
           <img
             src={getThumbnailUrl(file.id)}
             alt={file.title}
             className="h-full w-full object-cover"
             loading="lazy"
           />
-        ) : isTextPreviewable ? (
+        ) : drawsExcerpt ? (
           <TextThumbnail file={file} />
         ) : (
           <div className="flex h-full w-full items-center justify-center">
