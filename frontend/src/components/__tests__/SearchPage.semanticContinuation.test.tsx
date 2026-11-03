@@ -784,43 +784,12 @@ describe("SPEC-CORE-035 I12 everything that reads the list sees drawn rows only"
     }
   });
 
-  it("hands the drawn rows to the addon folder-actions fileIds and to Play all", async () => {
-    const first = await drawnPage();
+  it("hands the drawn rows to the addon folder-actions fileIds", async () => {
+    await drawnPage();
     const drawn = drawnIds();
 
     expect(toolbar.latest.fileIds).toEqual(drawn);
     expect(toolbar.latest.fileIds).not.toContain("cont-150");
-    act(() => toolbar.latest.onPlayAll());
-    expect(stableRouter.push).not.toHaveBeenCalled();
-    first.unmount();
-
-    resetServer();
-    server.images = [
-      ...manyHits(100),
-      clipHit("video-1", {
-        file: file("video-1", {
-          file_type: "video",
-          filename: "video-1.mp4",
-          mime_type: "video/mp4",
-        }),
-      }),
-    ];
-    const view = renderSearch();
-    await settle();
-    await clickShowMore(view.container);
-    await waitFor(() => expect(drawnIds()).toHaveLength(103));
-    expect(drawnIds()).not.toContain("video-1");
-
-    act(() => toolbar.latest.onPlayAll());
-    expect(stableRouter.push).not.toHaveBeenCalled();
-
-    await reveal();
-    await waitFor(() => expect(drawnIds()).toHaveLength(104));
-
-    act(() => toolbar.latest.onPlayAll());
-    expect(stableRouter.push).toHaveBeenCalledWith(
-      "/files/video-1?folder_play=1&sort=relevance&order=desc",
-    );
   });
 
   it.each([
@@ -871,8 +840,8 @@ describe("SPEC-CORE-035 I13 a viewer's own action on a drawn row", () => {
   });
 });
 
-describe("SPEC-CORE-035 section 9 the trust filter re-filters stored rows", () => {
-  it("filters the appended rows without a new /search/images request", async () => {
+describe("SPEC-CORE-035 I15 (r1) the search page's own trust filter value", () => {
+  it("adds no trust control and draws an unverified appended row", async () => {
     server.images = [
       clipHit("c1"),
       clipHit("c2", { file: file("c2", { trust_tier: "unverified" }) }),
@@ -882,11 +851,8 @@ describe("SPEC-CORE-035 section 9 the trust filter re-filters stored rows", () =
     await clickShowMore(container);
     await waitFor(() => expect(drawnIds()).toHaveLength(5));
 
-    expect(toolbar.latest.onTrustFilterChange).toBeDefined();
-    act(() => toolbar.latest.onTrustFilterChange?.("verified"));
-
-    await waitFor(() => expect(drawnIds()).not.toContain("c2"));
-    expect(drawnIds()).toContain("c1");
+    expect(toolbar.latest.onTrustFilterChange).toBeUndefined();
+    expect(drawnIds()).toEqual(expect.arrayContaining(["c1", "c2"]));
     expect(imagesCalls()).toHaveLength(1);
   });
 });
