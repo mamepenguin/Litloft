@@ -39,6 +39,7 @@ def init_upload(
         folder_path=body.folder_path,
         chunk_size=body.chunk_size,
         relative_path=body.relative_path,
+        require_folder=body.require_folder,
     )
     return UploadInitResponse(
         upload_id=session.upload_id,

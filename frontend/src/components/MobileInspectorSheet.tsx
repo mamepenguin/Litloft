@@ -2,6 +2,7 @@
 
 import {
   useCallback,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -12,6 +13,8 @@ import {
 } from "react";
 import { useTranslations } from "next-intl";
 import { Drawer } from "vaul";
+
+import { setInspectorSheetState } from "@/lib/bottomChrome";
 
 import {
   SHEET_PEEK_PX,
@@ -107,6 +110,12 @@ export function MobileInspectorSheet({
   const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const expanded = isSheetExpanded(state);
+
+  useEffect(() => {
+    setInspectorSheetState(state);
+  }, [state]);
+
+  useEffect(() => () => setInspectorSheetState("none"), []);
 
   // Read by the toolbar menus' bottom sheets, which are portalled and so
   // cannot see this component from where they sit.

@@ -1,13 +1,15 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { LockOpen } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useShortcuts } from "@/hooks/useShortcuts";
+import { disarmLeaveConfirmation, useUpload } from "@/hooks/useUpload";
 
 import { addonNavEntries } from "@/lib/addonNavigation";
 import { lock as lockApi } from "@/lib/api";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { useAddonSlots } from "./AddonSlotsProvider";
 import { useSidebar } from "./SidebarProvider";
 import { useCurrentDrive, useCurrentFolderPath, useSetOverrideDrive } from "./CurrentDriveProvider";
@@ -39,10 +41,24 @@ type ReorderableSectionId = (typeof REORDERABLE_SECTIONS)[number];
 
 function SidebarNav() {
   const t = useTranslations("sidebar");
+  const tUpload = useTranslations("upload");
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
   const { isOverlay, close, refreshKey } = useSidebar();
+  const { uploads } = useUpload();
+  const [confirmLockOpen, setConfirmLockOpen] = useState(false);
+  const hasUnfinishedUploads = uploads.some(
+    (upload) =>
+      upload.status === "pending" ||
+      upload.status === "uploading" ||
+      upload.status === "processing",
+  );
+  const performLock = useCallback(async () => {
+    disarmLeaveConfirmation();
+    await lockApi();
+    window.location.href = "/";
+  }, []);
   // In inline mode the sidebar stays open across navigations.
   // In overlay mode each nav click dismisses the overlay.
   const closeIfOverlay = useCallback(() => {
@@ -227,9 +243,12 @@ function SidebarNav() {
       {authStatus?.has_protected_drives && authStatus.unlocked_groups.length > 0 && (
         <div className="mt-4 px-3">
           <button
-            onClick={async () => {
-              await lockApi();
-              window.location.href = "/";
+            onClick={() => {
+              if (hasUnfinishedUploads) {
+                setConfirmLockOpen(true);
+                return;
+              }
+              void performLock();
             }}
             className="flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-xs text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
           >
@@ -238,6 +257,18 @@ function SidebarNav() {
           </button>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmLockOpen}
+        title={tUpload("lockConfirmTitle")}
+        message={tUpload("lockConfirmMessage")}
+        confirmLabel={t("lock")}
+        onConfirm={() => {
+          setConfirmLockOpen(false);
+          void performLock();
+        }}
+        onCancel={() => setConfirmLockOpen(false)}
+      />
     </nav>
   );
 }

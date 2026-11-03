@@ -421,11 +421,30 @@ export async function deleteFolder(drive: string, path: string): Promise<void> {
   if (!res.ok) throw new Error(`API error: ${res.status}`);
 }
 
+async function fetchUploadJSON<T>(url: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(url, { credentials: "include", ...options });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { detail?: unknown } | null;
+    if (body?.detail === "destination_folder_not_found") {
+      throw new Error("destination_folder_not_found");
+    }
+    throw new Error(`API error: ${res.status} ${res.statusText}`);
+  }
+  return res.json();
+}
+
 export async function initUpload(
   drive: string,
-  params: { filename: string; file_size: number; folder_path: string; chunk_size: number; relative_path?: string }
+  params: {
+    filename: string;
+    file_size: number;
+    folder_path: string;
+    chunk_size: number;
+    relative_path?: string;
+    require_folder?: boolean;
+  }
 ): Promise<UploadInitResponse> {
-  return fetchJSON<UploadInitResponse>(
+  return fetchUploadJSON<UploadInitResponse>(
     `${API_BASE}/drives/${encodeURIComponent(drive)}/upload/init`,
     {
       method: "POST",
@@ -462,7 +481,7 @@ export async function completeUpload(
   drive: string,
   uploadId: string
 ): Promise<FileItem | SidecarUploadResult> {
-  return fetchJSON<FileItem | SidecarUploadResult>(
+  return fetchUploadJSON<FileItem | SidecarUploadResult>(
     `${API_BASE}/drives/${encodeURIComponent(drive)}/upload/${uploadId}/complete`,
     { method: "POST" }
   );

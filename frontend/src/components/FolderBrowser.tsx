@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ClipboardPaste, FolderTree, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useShortcuts } from "@/hooks/useShortcuts";
+import { useUploadCompleted } from "@/hooks/useUpload";
 
 import type { FileItem, FileKind, SortField, SortOrder, TrustFilter, ViewMode } from "@/types";
 import { Breadcrumb } from "@/components/Breadcrumb";
@@ -94,6 +95,12 @@ export function FolderBrowser({
   const [selectable, setSelectable] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
+  // Search results are not a listing of the drive, so an upload finishing
+  // must not re-run the query they show.
+  const refreshAfterUpload = useCallback(() => {
+    if (!isSearch) refresh();
+  }, [isSearch, refresh]);
+  useUploadCompleted(driveName, refreshAfterUpload);
 
   const refreshTree = useTreeRefresh();
   const prevRefreshKeyRef = useRef(refreshKey);
@@ -742,7 +749,7 @@ export function FolderBrowser({
 
   if (isSearch) return inner;
   return (
-    <UploadZone drive={driveName} folderPath={folderPath ?? ""} onUploadComplete={refresh} className="flex-1 flex flex-col">
+    <UploadZone drive={driveName} folderPath={folderPath ?? ""} className="flex-1 flex flex-col">
       {inner}
     </UploadZone>
   );

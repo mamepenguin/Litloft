@@ -17,6 +17,7 @@ import { ProfileProvider } from "@/components/ProfileProvider";
 import { AddonSlotsProvider } from "@/components/AddonSlotsProvider";
 import { SetupRedirector } from "@/components/SetupRedirector";
 import { NavigationCommitSignal } from "@/components/NavigationCommitSignal";
+import { UploadProgress } from "@/components/UploadProgress";
 
 export const metadata: Metadata = {
   title: "Litloft",
@@ -81,6 +82,7 @@ export default async function RootLayout({
                         <SidebarProvider>
                           <SetupRedirector />
                           <AppShell>{children}</AppShell>
+                          <UploadProgress />
                           <DirtyBlocker />
                         </SidebarProvider>
                       </ClipboardProvider>

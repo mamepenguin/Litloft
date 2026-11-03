@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "Reproduced by reading the test. In frontend/src/__tests__/uploadQueueRefresh.test.tsx:98-106 the test builds `before` with four counts but asserts `toBeGreaterThan(0)` only for recipes (104), series (105) and search (106). It never checks `before.other`. Line 121 then asserts `listingsFor(api, \"other\", DRIVE_ROOT)` toBe `before.other`. If the other-drive view never fetched, or if the DRIVE_ROOT predicate (line 68, `!p.path`) stopped matching the call's shape, both counts would be 0 and line 121 would pass without testing anything. In the current code, FolderBrowser with no folderPath reaches useFolderFiles.ts:204-210 with `path: folderPath`, which is undefined, so the predicate should match and the count is probably above 0. Nothing in the test enforces that. The I12 test (lines 146-158) has the same gap for `before.other`."
+    }
+  ],
+  "specification_compliance": [
+    "The I8 test covers same-drive refresh with lower bounds. Its negative check for another drive is not guarded against a zero baseline."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "If FolderBrowser's listing-call shape for the drive root changes, for example to `path: \"\"`, DRIVE_ROOT would still match. If it skips the fetch altogether, the other-drive assertion would pass without testing anything."
+  ],
+  "test_coverage": [
+    "uploadQueueRefresh.test.tsx I8: same-drive refresh is asserted with lower bounds. The other-drive non-refresh lacks a positive baseline (line 101 is never asserted). The search non-refresh has a baseline (line 106)."
+  ],
+  "not_verified": [
+    "Did not run the test suite, so whether before.other is actually above 0 at runtime is unverified.",
+    "Did not review the rest of the commit's diff beyond the finding."
+  ],
+  "confidence": 90
+}

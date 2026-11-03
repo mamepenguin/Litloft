@@ -375,7 +375,10 @@
     "statusProcessing": "処理中",
     "statusComplete": "完了",
     "statusError": "エラー",
-    "statusCancelled": "キャンセル済み"
+    "statusCancelled": "キャンセル済み",
+    "destinationFolderNotFound": "送り先のフォルダが見つかりません",
+    "lockConfirmTitle": "アップロード中です",
+    "lockConfirmMessage": "ロックすると、実行中のアップロードは中断されます。"
   },
   "collection": {
     "addToCollection": "コレクションに追加",

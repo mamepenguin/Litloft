@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef, type ReactNode, type RefObject } from "react";
+import { useEffect, useRef, type ReactNode, type RefObject } from "react";
 import { useTranslations } from "next-intl";
 import { X, CornerUpLeft } from "lucide-react";
 import { useMiniPlayer } from "@/hooks/useMiniPlayer";
+import { setMiniPlayerShown } from "@/lib/bottomChrome";
 import type { MediaController } from "@/lib/mediaController";
 
 interface MiniPlayerContainerProps {
@@ -39,6 +40,12 @@ export function MiniPlayerContainer({
     mediaEl,
     root,
   });
+
+  useEffect(() => {
+    setMiniPlayerShown(isMini);
+  }, [isMini]);
+
+  useEffect(() => () => setMiniPlayerShown(false), []);
 
   return (
     <div

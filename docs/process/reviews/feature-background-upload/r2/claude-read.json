@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The new placement test sets the bottomChrome store through its setters, so no test checks that MiniPlayerContainer and MobileInspectorSheet actually publish their state to it, or that their unmount cleanups reset it.",
+      "impact": "Suppose a later edit removes or breaks `setInspectorSheetState(state)` or its `() => setInspectorSheetState(\"none\")` cleanup. Every test still passes, and the drawer can end up on top of the peek bar. In the cleanup case, it can stay hidden on every page after the viewer leaves a mobile file page with the sheet at half. A wiring regression in MiniPlayerContainer would likewise put the drawer over the mini-player with nothing failing (I13).",
+      "evidence": "The only references to `setMiniPlayerShown`, `setInspectorSheetState` and `bottomChrome` are in bottomChrome.ts, UploadProgress.tsx, MiniPlayerContainer.tsx:44-48, MobileInspectorSheet.tsx:114-118 and uploadDrawerPlacement.test.tsx. That test calls the setters directly in `arrange()` (lines 43-48) and never renders MiniPlayerContainer, MobileInspectorSheet or FileDetailShell.",
+      "repro": "Mutation (by reading, not run): delete the `useEffect(() => { setInspectorSheetState(state); }, [state])` at MobileInspectorSheet.tsx:114-116, or the unmount cleanup at line 118. No vitest test and no e2e-layout fixture renders the sheet next to the drawer, so the mutant survives. The same applies to MiniPlayerContainer.tsx:44-48.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The current wiring is correct on reading, so no invariant is broken today. The gap is a test that would let an I13 regression through.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Add a vitest case that renders MobileInspectorSheet at peek, half and full, then unmounts it, and checks `getBottomChrome().sheet` each time. Add a matching case for MiniPlayerContainer with `useMiniPlayer` mocked to return `isMini` true and then false."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The placement test's offset assertions only check that the string contains a substring. As a result, dropping `env(safe-area-inset-bottom)` from either offset survives. The constant-sync check matches `+ 16px)` anywhere in MiniPlayerContainer.tsx, not in the mini-player's bottom style.",
+      "impact": "On a device with a bottom safe-area inset (iPhone PWA or iOS app), the peek bar is `56px + env(safe-area-inset-bottom)` tall (MobileInspectorSheet.tsx:57, 211). A regression that removes the env term from `PEEK_OFFSET` would overlap the drawer with the bar by the inset height, and no test would fail (I13). The e2e fixture ignores the safe area too.",
+      "evidence": "uploadDrawerPlacement.test.tsx:52-69 checks `expect(bottom).toContain(\"196px\")`, `toContain(\"56px\")` and `\"max(\"`. bottomChrome.ts builds `PEEK_OFFSET = calc(56px + env(safe-area-inset-bottom, 0px))` and `calc(env(...) + 196px)`. Line 81 is `expect(source).toMatch(/\\+ 16px\\)/)` against the whole file text.",
+      "repro": "Mutation (by reading, not run): change `PEEK_OFFSET` to `${SHEET_PEEK_PX}px`. The 'inspector bar' case still contains `56px`, and 'both' still contains `max(`, so the mutant survives.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The current code includes the safe-area term, so I13 holds today. The weakness is in a test only.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Assert the exact offset strings, and compare `PEEK_OFFSET` with `SHEET_PEEK_HEIGHT` exported from MobileInspectorSheet. For the gap, match the mini-player's `bottom:` style expression itself."
+    }
+  ],
+  "specification_compliance": [
+    "The fix commit 89b738ec6 adds only frontend/src/__tests__/uploadDrawerPlacement.test.tsx. No production code changes.",
+    "It addresses r1 F2 in part: it renders the real UploadProgress and checks its inline bottom style, and its null render while the sheet is at half or full. Removing the `style` prop or the half/full early return now fails the test.",
+    "It addresses r1 F1 in part: the test checks that MiniPlayerContainer's source contains `h-[${MINI_PLAYER_HEIGHT_PX}px]` and a `+ 16px)` literal. The touch-point list still does not name bottomChrome.ts or the new test files (r1 F1 and F3 prose).",
+    "r1 F4 (`disarmLeaveConfirmation()` runs before `await lockApi()`) is not touched by this round. Sidebar.tsx is unchanged.",
+    "MobileInspectorSheet is mounted only when `isMobile` (FileDetailShell.tsx:187). Its cleanup therefore resets the sheet state to `none` when the layout switches to desktop."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "If a lock request fails after the viewer confirms, the leave-page confirmation stays disarmed for the rest of the session (r1 F4; still present, Sidebar.tsx performLock)."
+  ],
+  "regression_risks": [
+    "bottomChrome is a module singleton with no reset function. The new test relies on afterEach `arrange(false, \"none\")` and on Vitest's per-file isolation. A test file that sets the state and fails before afterEach could leak only within that file.",
+    "The publishing effects in MiniPlayerContainer and MobileInspectorSheet have no test (F1).",
+    "The safe-area terms in bottomChromeOffset have no test (F2)."
+  ],
+  "test_coverage": [
+    "I13, component level: uploadDrawerPlacement.test.tsx covers four arrangements (none, player, peek, both) and the half/full hiding. These cases kill mutants that remove the style, remove the early return, swap max for min, drop a branch, or change MINI_PLAYER_HEIGHT_PX.",
+    "I13, wiring: not covered. Neither MiniPlayerContainer nor MobileInspectorSheet is rendered against the store.",
+    "I13, real browser: the e2e-layout fixture still computes its own offset and does not include the safe-area inset.",
+    "Half/full hiding is tested only with the mini-player hidden. The early return does not depend on the mini-player, so the risk is low."
+  ],
+  "not_verified": [
+    "I did not run the new test. I did not check whether jsdom 25's CSSStyleDeclaration accepts `calc(env(...))` or `max(calc(...), calc(...))` as a `bottom` value. If it rejects them, `style.bottom` would be empty and the mini-player and 'both' cases would fail rather than pass.",
+    "I did not read the .claude/rules convention files in full.",
+    "I did not check that `useMiniPlayer`'s `isMini` matches what is visible on screen.",
+    "I executed no mutants. Every survived or killed outcome is a prediction from reading the tests."
+  ],
+  "confidence": 80,
+  "trajectory": "There has been one fix round since r1, commit 89b738ec6. It adds a test file only. It adds no production branch, state or prediction, and it removes none, so it does not repeat anything an earlier round added. Nothing here suggests the design is being patched. The round strengthens the I13 checks against the real UploadProgress. It leaves r1 F4 (disarm before lockApi) and the touch-point omissions untouched."
+}

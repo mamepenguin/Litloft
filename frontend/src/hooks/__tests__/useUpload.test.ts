@@ -1,6 +1,6 @@
 import { renderHook, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { useUpload, type UploadFileEntry } from "../useUpload";
+import { useUpload, resetUploadStore, type UploadFileEntry } from "../useUpload";
 
 vi.mock("@/lib/api", () => ({
   initUpload: vi.fn().mockResolvedValue({ upload_id: "u1", total_chunks: 1 }),
@@ -12,14 +12,15 @@ vi.mock("@/lib/api", () => ({
 describe("useUpload", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetUploadStore();
   });
 
   it("addFiles creates uploads with empty relativePath", () => {
-    const { result } = renderHook(() => useUpload("drive1", "/path"));
+    const { result } = renderHook(() => useUpload());
 
     const file = new File(["data"], "test.txt", { type: "text/plain" });
     act(() => {
-      result.current.addFiles([file]);
+      result.current.addFiles("drive1", "/path", [file]);
     });
 
     expect(result.current.uploads).toHaveLength(1);
@@ -28,7 +29,7 @@ describe("useUpload", () => {
   });
 
   it("addFileEntries creates uploads with relative paths", () => {
-    const { result } = renderHook(() => useUpload("drive1", "/path"));
+    const { result } = renderHook(() => useUpload());
 
     const file1 = new File(["data1"], "a.txt", { type: "text/plain" });
     const file2 = new File(["data2"], "b.txt", { type: "text/plain" });
@@ -38,7 +39,7 @@ describe("useUpload", () => {
     ];
 
     act(() => {
-      result.current.addFileEntries(entries);
+      result.current.addFileEntries("drive1", "/path", entries);
     });
 
     expect(result.current.uploads).toHaveLength(2);
@@ -51,7 +52,7 @@ describe("useUpload", () => {
   it("addFileEntries passes relative_path to initUpload", async () => {
     const { initUpload } = await import("@/lib/api");
 
-    const { result } = renderHook(() => useUpload("drive1", "/path"));
+    const { result } = renderHook(() => useUpload());
 
     const file = new File(["data"], "a.txt", { type: "text/plain" });
     const entries: UploadFileEntry[] = [
@@ -59,7 +60,7 @@ describe("useUpload", () => {
     ];
 
     act(() => {
-      result.current.addFileEntries(entries);
+      result.current.addFileEntries("drive1", "/path", entries);
     });
 
     await vi.waitFor(() => {
@@ -72,11 +73,11 @@ describe("useUpload", () => {
   it("addFiles passes empty relative_path to initUpload", async () => {
     const { initUpload } = await import("@/lib/api");
 
-    const { result } = renderHook(() => useUpload("drive1", "/path"));
+    const { result } = renderHook(() => useUpload());
 
     const file = new File(["data"], "test.txt", { type: "text/plain" });
     act(() => {
-      result.current.addFiles([file]);
+      result.current.addFiles("drive1", "/path", [file]);
     });
 
     await vi.waitFor(() => {

@@ -375,7 +375,10 @@
     "statusProcessing": "Processing",
     "statusComplete": "Complete",
     "statusError": "Error",
-    "statusCancelled": "Cancelled"
+    "statusCancelled": "Cancelled",
+    "destinationFolderNotFound": "The destination folder was not found",
+    "lockConfirmTitle": "Uploads in progress",
+    "lockConfirmMessage": "Locking interrupts the uploads in progress."
   },
   "collection": {
     "addToCollection": "Add to collection",

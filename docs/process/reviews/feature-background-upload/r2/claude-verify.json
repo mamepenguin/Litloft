@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "Reproduced. A grep for setMiniPlayerShown, setInspectorSheetState and bottomChrome finds them only in bottomChrome.ts, UploadProgress.tsx:12,59, MiniPlayerContainer.tsx:7,45,48, MobileInspectorSheet.tsx:17,115,118 and uploadDrawerPlacement.test.tsx:15-18,44-45. The placement test drives the store only through the setters in arrange() (lines 42-47), and it renders nothing but <UploadProgress /> (lines 64, 74). MobileInspectorSheet.test.tsx and the fixture-parity tests do render MobileInspectorSheet, but none of them imports getBottomChrome or useBottomChrome or renders UploadProgress. No test renders MiniPlayerContainer. If someone deleted either publishing effect, or either unmount cleanup (MiniPlayerContainer.tsx:44-48, MobileInspectorSheet.tsx:114-118), no unit test would fail."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "Reproduced. uploadDrawerPlacement.test.tsx:69 uses only toContain(part), and the parts are '196px', '56px' (SHEET_PEEK_PX) and 'max(' (lines 54-60). bottomChromeOffset (bottomChrome.ts:51, 59-61) builds 'calc(56px + env(safe-area-inset-bottom, 0px))' and 'calc(env(safe-area-inset-bottom, 0px) + 196px)'. If the env(...) term were removed, the string would still contain those substrings, so the test would still pass. Line 81 runs the regex /\\+ 16px\\)/ against the whole text of MiniPlayerContainer.tsx. Today the only match is the mini-player's bottom style at line 70, but the check is not tied to that style: any other '+ 16px)' anywhere in the file would satisfy it even if the bottom style changed."
+    }
+  ],
+  "specification_compliance": [
+    "I13: the offset logic in bottomChromeOffset uses max() of the peek bar offset and the mini-player offset, and UploadProgress is not drawn at half or full (tests lines 72-76). This matches the invariant as written. Pixel non-overlap depends on the R-5 browser measurement, which I did not inspect."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "MobileInspectorSheet publishes its state whenever it is mounted. If it is mounted at desktop widths and hidden only by CSS, the drawer may get a raised offset there. That causes no overlap, but the drawer could sit higher than needed. Not verified."
+  ],
+  "regression_risks": [
+    "If the publishing effects in MiniPlayerContainer or MobileInspectorSheet are removed or broken, no unit test catches it (F1).",
+    "Dropping the safe-area inset from the drawer offset would pass the unit tests (F2)."
+  ],
+  "test_coverage": [
+    "uploadDrawerPlacement.test.tsx covers how bottomChromeOffset and UploadProgress map store states to offsets. It does not cover the producers that publish those states, and it checks the offsets only by substring."
+  ],
+  "not_verified": [
+    "I did not run the test suite. I could not confirm that jsdom keeps env() values in style.bottom.",
+    "I did not inspect the R-5 real-browser measurement (Playwright or other e2e) for whether it exercises the producers end to end.",
+    "I did not check where MobileInspectorSheet is mounted at desktop widths."
+  ],
+  "confidence": 88
+}

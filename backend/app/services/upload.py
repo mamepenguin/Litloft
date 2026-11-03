@@ -72,6 +72,8 @@ class UploadSession:
     received_chunks: set[int] = field(default_factory=set)
     temp_dir: Path = field(default_factory=Path)
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    require_folder: bool = False
+    required_folder_path: str = ""
 
 
 def _merge_relative_into_folder(folder_path: str, relative_path: str) -> str:
@@ -112,6 +114,13 @@ def _check_disk_capacity(drive_path: Path, file_size: int) -> None:
         )
 
 
+def _require_destination_folder(drive_path: Path, folder_path: str) -> None:
+    target = drive_path / folder_path if folder_path else drive_path
+    validate_within_drive(target, drive_path)
+    if not target.is_dir():
+        raise HTTPException(status_code=404, detail="destination_folder_not_found")
+
+
 def init_upload(
     drive: str,
     filename: str,
@@ -119,16 +128,19 @@ def init_upload(
     folder_path: str,
     chunk_size: int,
     relative_path: str = "",
+    require_folder: bool = False,
 ) -> UploadSession:
-    resolve_drive_path(drive)
+    drive_path = resolve_drive_path(drive)
     filename = validate_filename(filename)
     folder_path = validate_path_safe(folder_path)
     relative_path = validate_path_safe(relative_path) if relative_path else ""
+    destination_folder = folder_path
+    if require_folder:
+        _require_destination_folder(drive_path, destination_folder)
     folder_path = _merge_relative_into_folder(folder_path, relative_path)
 
     _validate_upload_sizes(file_size, chunk_size)
 
-    drive_path = config.get_drive_path(drive)
     target_rel = f"{folder_path}/{filename}" if folder_path else filename
     target_full = drive_path / target_rel
     validate_within_drive(target_full, drive_path)
@@ -152,6 +164,8 @@ def init_upload(
         chunk_size=chunk_size,
         total_chunks=total_chunks,
         temp_dir=temp_dir,
+        require_folder=require_folder,
+        required_folder_path=destination_folder,
     )
     _upload_sessions[upload_id] = session
     logger.info("Upload initiated: %s (%s, %d bytes, %d chunks)", upload_id, filename, file_size, total_chunks)
@@ -203,6 +217,17 @@ def complete_upload(
     upload_id: str, db: Session
 ) -> tuple[File | SubtitleUploadResponse, bool]:
     session = get_session(upload_id)
+
+    if session.require_folder:
+        try:
+            _require_destination_folder(
+                config.get_drive_path(session.drive),
+                session.required_folder_path,
+            )
+        except HTTPException:
+            shutil.rmtree(session.temp_dir, ignore_errors=True)
+            del _upload_sessions[upload_id]
+            raise
 
     if len(session.received_chunks) != session.total_chunks:
         missing = session.total_chunks - len(session.received_chunks)

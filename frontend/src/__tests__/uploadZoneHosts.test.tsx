@@ -51,6 +51,7 @@ vi.mock("@/lib/api", () => ({
 
 import { DriveHome } from "@/components/DriveHome";
 import { FolderBrowser } from "@/components/FolderBrowser";
+import { resetUploadStore } from "@/hooks/useUpload";
 
 const SCREENS: [string, () => React.ReactElement, string][] = [
   ["the drive home", () => <DriveHome driveName="main" />, ""],
@@ -72,6 +73,7 @@ const SCREENS: [string, () => React.ReactElement, string][] = [
 describe("screens that can upload mount exactly one zone", () => {
   beforeEach(() => {
     localStorage.clear();
+    resetUploadStore();
     initUpload.mockReset();
     initUpload.mockResolvedValue({ upload_id: "upload-1" });
   });
@@ -93,6 +95,30 @@ describe("screens that can upload mount exactly one zone", () => {
     const [drive, body] = initUpload.mock.calls[0] as [string, { folder_path: string }];
     expect(drive).toBe("main");
     expect(body.folder_path).toBe(destination);
+  });
+
+  it.each(SCREENS)("%s hands its destination and the folder check past the view's unmount", async (_name, screen, destination) => {
+    const { container, unmount } = render(screen());
+    const zone = container.querySelector("[data-upload-zone]")!;
+
+    zone.dispatchEvent(
+      new CustomEvent("upload-files", { detail: [new File(["x"], "note.txt")] }),
+    );
+    unmount();
+
+    await waitFor(() =>
+      expect(
+        initUpload.mock.calls.some(
+          ([, body]) => (body as { filename: string }).filename === "note.txt",
+        ),
+      ).toBe(true),
+    );
+    const [drive, body] = initUpload.mock.calls.find(
+      ([, b]) => (b as { filename: string }).filename === "note.txt",
+    ) as [string, { folder_path: string; require_folder?: boolean }];
+    expect(drive).toBe("main");
+    expect(body.folder_path).toBe(destination);
+    expect(body.require_folder).toBe(true);
   });
 
   it("covers nine screens, so a deleted row is not a silent narrowing", () => {
