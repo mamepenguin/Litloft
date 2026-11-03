@@ -192,6 +192,14 @@ An upload session belongs to the drive it was opened on; using it under another 
 
 `require_folder: true` makes `init` check that `folder_path` is an existing directory of the drive. If it is not, `init` answers `404` with `{"detail": "destination_folder_not_found"}` and creates no directory, temp directory or session; otherwise it creates the dropped folder's subfolders as usual. The session remembers the request, and `complete` repeats the check before writing: if the folder has gone by then, `complete` answers the same `404`, deletes the session and its chunks, and writes nothing. Without `require_folder`, both requests behave as before and a missing folder is created.
 
+### Processing status
+
+`POST /api/files/processing` takes `{ "file_ids": [...] }`, 1 to 100 ids, and answers `{ "files": { "<file_id>": { "stages": [...], "ready": bool } } }` for the ids the caller can access. Ids that are unknown, trashed, missing or in a drive the caller cannot open are absent.
+
+Each stage is `{ "addon", "key", "i18n_key", "state", "required" }`, with `state` one of `pending`, `running`, `done` or `failed`. The list starts with `{ "addon": null, "key": "saved", "i18n_key": "upload.stageSaved", "state": "done", "required": true }`, then the stages of each external addon that declares [`processing_status`](../ADDON-DEVELOPMENT.md#processing_status) and has its `index` feature on for the file's drive, in addon-name order. An addon that fails, takes longer than 3 seconds, answers a malformed body or leaves a file out contributes `{ "addon": "<name>", "key": "unavailable", "i18n_key": "upload.stageUnavailable", "state": "pending", "required": true }` for that file.
+
+`ready` is true exactly when every required stage is `done`. A file with no addon declaring `processing_status` answers with the `saved` stage only and `ready: true`. The core writes nothing.
+
 ## Viewer identity and watch progress
 
 There is no profile or account API. The nickname in the `lit_viewer` cookie or `X-Lit-Viewer` header is hashed into a `viewer_id`, and watch history and comment ownership are keyed by it. Requests without a nickname are accepted: progress writes do nothing and return `204`, and history reads come back empty.

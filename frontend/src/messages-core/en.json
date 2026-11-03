@@ -378,7 +378,11 @@
     "statusCancelled": "Cancelled",
     "destinationFolderNotFound": "The destination folder was not found",
     "lockConfirmTitle": "Uploads in progress",
-    "lockConfirmMessage": "Locking interrupts the uploads in progress."
+    "lockConfirmMessage": "Locking interrupts the uploads in progress.",
+    "stageSaved": "Saved",
+    "stageUnavailable": "Not available right now",
+    "ready": "Ready",
+    "someStepsFailed": "Some steps failed"
   },
   "collection": {
     "addToCollection": "Add to collection",

@@ -1,15 +1,90 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, ChevronRight, X } from "lucide-react";
+import { AlertCircle, Check, ChevronRight, Loader2, Minus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   DESTINATION_FOLDER_NOT_FOUND,
+  handleProcessingUpdated,
   leaveConfirmationArmed,
   useUpload,
   type UploadState,
 } from "@/hooks/useUpload";
+import { useWebSocket } from "@/hooks/useWebSocket";
 import { bottomChromeOffset, useBottomChrome } from "@/lib/bottomChrome";
+import type { ProcessingStage } from "@/lib/api";
+import type { WebSocketEvent } from "@/types";
+
+function stageLabel(
+  t: (key: string) => string,
+  stage: ProcessingStage,
+): string {
+  const label = t(stage.i18n_key);
+  return label === stage.i18n_key ? stage.key : label;
+}
+
+function StageIcon({
+  stage,
+  stopped,
+}: {
+  stage: ProcessingStage;
+  stopped: boolean;
+}) {
+  if (stage.state === "done") {
+    return <Check size={12} className="text-accent-teal" />;
+  }
+  if (stage.state === "failed") {
+    return <AlertCircle size={12} className="text-danger" />;
+  }
+  if (stopped) {
+    return <Minus size={12} className="text-text-muted" />;
+  }
+  return <Loader2 size={12} className="animate-spin text-text-muted" />;
+}
+
+function ProcessingLine({ upload }: { upload: UploadState }) {
+  const t = useTranslations();
+  const processing = upload.processing;
+  if (!processing || processing.state === "waiting" || processing.state === "gone") {
+    return null;
+  }
+
+  const hasFailed = processing.stages.some((stage) => stage.state === "failed");
+
+  if (processing.state === "ready") {
+    return (
+      <div className="mt-1 flex items-center gap-1 text-xs text-accent-teal">
+        <Check size={14} />
+        <span>{t("upload.ready")}</span>
+        {hasFailed && <AlertCircle size={14} className="text-danger" />}
+      </div>
+    );
+  }
+
+  if (processing.stages.length === 0) return null;
+
+  const stopped = processing.state === "stopped";
+  return (
+    <>
+      {hasFailed && (
+        <p className="mt-1 text-xs text-danger">
+          {t("upload.someStepsFailed")}
+        </p>
+      )}
+      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-muted">
+        {processing.stages.map((stage, index) => (
+          <span
+            key={`${stage.addon ?? "core"}-${stage.key}-${index}`}
+            className="inline-flex items-center gap-1"
+          >
+            <StageIcon stage={stage} stopped={stopped} />
+            <span>{stageLabel(t, stage)}</span>
+          </span>
+        ))}
+      </div>
+    </>
+  );
+}
 
 export function UploadProgress() {
   const t = useTranslations("upload");
@@ -18,6 +93,19 @@ export function UploadProgress() {
   const chrome = useBottomChrome();
   const [collapsed, setCollapsed] = useState(false);
   const previousCount = useRef(uploads.length);
+  const lastEvent = useWebSocket();
+  const handledEvent = useRef<WebSocketEvent | null>(null);
+
+  useEffect(() => {
+    if (!lastEvent || lastEvent === handledEvent.current) return;
+    handledEvent.current = lastEvent;
+    if (lastEvent.event !== "processing.updated") return;
+    const fileIds = lastEvent.data.file_ids;
+    if (!Array.isArray(fileIds)) return;
+    handleProcessingUpdated(
+      fileIds.filter((fileId): fileId is string => typeof fileId === "string"),
+    );
+  }, [lastEvent]);
 
   useEffect(() => {
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -131,6 +219,8 @@ export function UploadProgress() {
                     )}
                   </div>
                 </div>
+
+                <ProcessingLine upload={upload} />
 
                 {(upload.status === "uploading" ||
                   upload.status === "processing") && (

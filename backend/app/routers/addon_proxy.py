@@ -9,7 +9,6 @@ Route pattern: /api/addons/{addon_name}/{path}
 
 import asyncio
 import logging
-import os
 import re
 from typing import Annotated, Any
 from urllib.parse import unquote
@@ -36,17 +35,11 @@ from app.database import get_db
 from app.models import File, active_file_filter
 from sqlalchemy.orm import Session
 from app.services import addon_registry
+from app.services.addon_registry import resolve_target_url
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["addon-proxy"])
-
-
-def _resolve_target_url(proxy_config: dict) -> str | None:
-    """Resolve the target URL from env var or default."""
-    env_name = proxy_config.get("target_env", "")
-    default_url = proxy_config.get("target_default", "")
-    return os.environ.get(env_name, default_url) or None
 
 
 def _accessible_drives(unlocked_groups: list[str]) -> set[str]:
@@ -489,7 +482,7 @@ async def addon_proxy(
         raise HTTPException(status_code=404, detail="Addon not found")
 
     proxy_config = meta["proxy"]
-    target_url = _resolve_target_url(proxy_config)
+    target_url = resolve_target_url(proxy_config)
     if not target_url:
         raise HTTPException(status_code=503, detail="Addon target not configured")
 
