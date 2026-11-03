@@ -194,7 +194,7 @@ An upload session belongs to the drive it was opened on; using it under another 
 
 ### Processing status
 
-`POST /api/files/processing` takes `{ "file_ids": [...] }`, 1 to 100 ids, and answers `{ "files": { "<file_id>": { "stages": [...], "ready": bool } } }` for the ids the caller can access. Ids that are unknown, trashed, missing or in a drive the caller cannot open are absent.
+`POST /api/files/processing` takes `{ "file_ids": [...] }`, 1 to 100 ids, and answers `{ "files": { "<file_id>": { "stages": [...], "ready": bool } } }` for the ids the caller can access. An empty list or more than 100 ids is `422`. Ids that are unknown, trashed, missing or in a drive the caller cannot open are absent.
 
 Each stage is `{ "addon", "key", "i18n_key", "state", "required" }`, with `state` one of `pending`, `running`, `done` or `failed`. The list starts with `{ "addon": null, "key": "saved", "i18n_key": "upload.stageSaved", "state": "done", "required": true }`, then the stages of each external addon that declares [`processing_status`](../ADDON-DEVELOPMENT.md#processing_status) and has its `index` feature on for the file's drive, in addon-name order. An addon that fails, takes longer than 3 seconds, answers a malformed body or leaves a file out contributes `{ "addon": "<name>", "key": "unavailable", "i18n_key": "upload.stageUnavailable", "state": "pending", "required": true }` for that file.
 
