@@ -164,6 +164,10 @@ Meaning-based results are mixed into the ordinary search results. What a viewer 
 
 The query is embedded with `models.text_embedding`, matched against the vectors and against keyword indexes, and the two are blended with `search.alpha` (0 = keywords only, 1 = vectors only). Results are capped by `search.default_limit` and `search.max_limit`.
 
+`GET /search?q=&limit=` accepts `limit` from 1 to 1000. With Scene search off, the image channel takes as many of the drive's nearest representative frames as the effective limit (never fewer than its previous 50) before the score cutoff applies, so a subject with many pictures is listed past the first fifty.
+
+`GET /search/images?q=&type=` ranks every active file of the request drive by how closely its representative frame matches the query and returns the first 2000, with no score cutoff. `type` takes the same values as `/search`, the drive comes from `X-Lit-Drive`, and it needs the `search` policy. The response has `/search`'s shape (`results`, `total`, `indexed_files`, `service_version`), and each result is the single `clip_thumbnail` match with the score and segments `/search` would give that frame. The search page uses it for **Show more by similarity**.
+
 Search drops results scoring below half the top result, except those with a CLIP match: image cosines sit far below keyword scores, so the rule would hide every picture as soon as one document mentions the word.
 
 ### Scene search
@@ -548,7 +552,7 @@ Other Whisper models: `openai/whisper-small` (smaller, less accurate), `openai/w
 search:
   alpha: 0.7                              # 0 = keywords only, 1 = vectors only
   default_limit: 20
-  max_limit: 100
+  max_limit: 1000                         # upper bound for a request's limit
   min_score_clip: 0.05                    # 0.20 for CLIP-family models
   min_score_clip_thumbnail: 0.05
 ```

@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2-1",
+      "status": "confirmed",
+      "note": "Confirmed by reading the code. FolderBrowser.tsx:729-736 calls removeContinuationFiles(cleared) only when `removed` is truthy. When every selected id is a continuation row, it skips refresh() (onlyContinuation). updateContinuationFile is referenced only at FolderBrowser.tsx:418 (handleFavoriteToggle). In SelectionBar.tsx, handleBatchTag (:158), handleRenameComplete (:178) and handleBatchMove (:141) all call onComplete() with no argument. So the stored continuation answer (useFolderFiles.ts:322, rows built from continuationResults at :335-347) keeps the file data from /search/images. When the selection also includes non-continuation rows, refresh() runs. It reaches useFolderFiles.ts:573-585 (reset of the filename pages only) but never touches `continuation`. The semantic hits effect (:280-320) does not depend on refreshKey, so the semantic rows above are just as stale (pre-existing behaviour). Both tag and rename are offered on the non-trash bar (SelectionBar.tsx:201-214), so in normal use the drawn row keeps its old filename or tags."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2-2",
+      "status": "confirmed",
+      "note": "Confirmed. SearchPage.semanticContinuation.test.tsx:844-864 (one describe block, one `it`) exercises only the Tagging path. Grepping every test under frontend/src for continuation, cont- or /search/images finds only this file and semanticContinuationLabel.test.ts, and neither covers rename or move. SelectionBar.test.tsx declares onComplete as vi.fn() (:54) but never asserts how it is called. So changing onComplete() to onComplete(true) in handleRenameComplete (:178) or handleBatchMove (:141) would make FolderBrowser.tsx:734 drop the selected continuation rows, and no test would fail. The trash test at :825-841 does pin the delete path. With onComplete() at SelectionBar.tsx:130, removeContinuationFiles is never called, and because onlyContinuation is true refresh() is skipped as well, so c1 stays drawn and the assertion at :838 fails. That mutant is killed."
+    }
+  ],
+  "specification_compliance": [
+    "I8/I13: favorite and trash on continuation rows are handled (FolderBrowser.tsx:418, :734). Tag, rename and move keep the row but leave its displayed file data stale (R2-1)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "After a bulk move, the continuation row keeps the stale folder_path from the /search/images answer. No invariant states what a moved continuation row should show."
+  ],
+  "regression_risks": [
+    "A change to the onComplete argument in SelectionBar's rename or move handlers would silently drop or keep continuation rows, and no test pins this (R2-2)."
+  ],
+  "test_coverage": [
+    "Continuation tests cover favorite, trash and tag. They do not cover rename, move, or whether the displayed file data stays current after these actions."
+  ],
+  "not_verified": [
+    "I did not run the test suite or the mutants. The mutant outcomes come from reading the code.",
+    "I did not check whether FileGrid actually renders tags on a card. I verified only that the filename is stale data in the stored hit.",
+    "I did not review the addon (Python) side of the commit."
+  ],
+  "confidence": 88
+}

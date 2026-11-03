@@ -18,6 +18,7 @@ const SRC_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const CALLERS: Record<string, number> = {
   "app/drive/[name]/search/page.tsx": 2,
   "components/FolderBrowser.tsx": 1,
+  "components/folder/FolderContent.tsx": 1,
   "components/GlobalSearch.tsx": 7,
   // Two each: the badge words come from `MATCH_BADGES`, and `matchedPages`
   // and `matchedSectionNumber` are the lines that are not a badge.
@@ -88,7 +89,7 @@ describe("the search vocabulary core draws", () => {
     ].sort();
     // The check below is true of no keys at all, so the population is
     // asserted first.
-    expect(used.length).toBe(40);
+    expect(used.length).toBe(41);
     const missing = used.filter((key) => !(key in namespaces[locale]));
     // Named, not counted: a failure should say which word is missing.
     expect(missing).toEqual([]);

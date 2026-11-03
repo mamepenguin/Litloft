@@ -79,6 +79,8 @@ With the intelligence addon enabled for the drive, results found by meaning are 
 - A match in an EPUB book lists the chapters by title. Click one to open the book at the start of that chapter.
 - A match in text shows one quote from the file. With the [Knowledge addon](../addons/knowledge.md), a button beside it adds the quote to the capture basket for a note.
 
+At the end of the results, **Show more by similarity** adds more pictures from the drive in order of how closely they look like what you asked for; click it once, then keep scrolling as the rest arrive a hundred at a time.
+
 ### Scene search
 
 To find a moment inside a video (*the part where the cat jumps off the table*), turn on **Scene search** above the results. It is off by default because it adds noise to ordinary searches.

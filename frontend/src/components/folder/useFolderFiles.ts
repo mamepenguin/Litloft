@@ -17,6 +17,7 @@ import {
 import { parseSearchQuery, resolveKinds } from "@/lib/searchQuery";
 import {
   fetchSemanticHits,
+  fetchSemanticImages,
   isSemanticSearchAvailable,
 } from "@/lib/semanticSearch";
 import {
@@ -34,10 +35,30 @@ import type {
 } from "@/types";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { useWebSocketRefresh } from "@/hooks/useWebSocketRefresh";
+import { useScrollContainer } from "@/lib/scrollContainer";
 
 // A content write can change a title or a thumbnail, which is visible here
 // even though the set of files did not change.
 const STRUCTURE_EVENTS = ["drive.structure_changed", "drive.file_updated"];
+
+const SEMANTIC_LIMIT = 1000;
+const CONTINUATION_PAGE = 100;
+
+export type ContinuationUiState =
+  | "hidden"
+  | "offered"
+  | "loading"
+  | "open"
+  | "done";
+
+interface ContinuationAnswer {
+  key: string;
+  status: "idle" | "loading" | "answered";
+  results: SemanticHit[];
+  revealed: number;
+}
+
+const NO_HITS: SemanticHit[] = [];
 
 interface UseFolderFilesParams {
   driveName: string;
@@ -72,6 +93,12 @@ interface UseFolderFilesReturn {
   hasProfile: boolean;
   snapshotKey: string;
   hydratedScrollY: number | null;
+  continuationState: ContinuationUiState;
+  onShowMore: () => void;
+  continuationSentinelRef: React.RefObject<HTMLDivElement | null>;
+  continuationDrawnIds: ReadonlySet<string>;
+  updateContinuationFile: (file: FileItem) => void;
+  removeContinuationFiles: (ids: readonly string[]) => void;
 }
 
 export function matchesTrustFilter(
@@ -247,6 +274,8 @@ export function useFolderFiles({
     () => hydration.searchCache?.semanticHits ?? [],
   );
   const [semanticLoading, setSemanticLoading] = useState(false);
+  const [semanticAvailable, setSemanticAvailable] = useState(false);
+  const [semanticArrived, setSemanticArrived] = useState(false);
 
   useEffect(() => {
     // Semantic hits cannot be narrowed by tag, kind operator or flag, so a
@@ -254,22 +283,28 @@ export function useFolderFiles({
     if (!isSearch || parsed.hasOperators) {
       setSemanticHits([]);
       setSemanticLoading(false);
+      setSemanticAvailable(false);
+      setSemanticArrived(false);
       return;
     }
     const trimmed = searchQuery!.trim();
     if (!trimmed) return;
     const ctrl = new AbortController();
     setSemanticLoading(true);
+    setSemanticArrived(false);
     (async () => {
       const available = await isSemanticSearchAvailable(driveName);
       if (ctrl.signal.aborted) return;
       if (!available) {
         setSemanticHits([]);
+        setSemanticAvailable(false);
         setSemanticLoading(false);
+        setSemanticArrived(true);
         return;
       }
+      setSemanticAvailable(true);
       const hits = await fetchSemanticHits(trimmed, driveName, {
-        limit: 50,
+        limit: SEMANTIC_LIMIT,
         type: typeFilter,
         includeSceneClip,
         signal: ctrl.signal,
@@ -277,11 +312,118 @@ export function useFolderFiles({
       if (ctrl.signal.aborted) return;
       setSemanticHits(hits);
       setSemanticLoading(false);
+      setSemanticArrived(true);
     })();
     return () => {
       ctrl.abort();
     };
   }, [isSearch, parsed.hasOperators, searchQuery, driveName, typeFilter, includeSceneClip]);
+
+  const [continuation, setContinuation] = useState<ContinuationAnswer | null>(null);
+  const continuationKey = [
+    parsed.text,
+    driveName,
+    typeFilter ?? "",
+    includeSceneClip ? "scene" : "",
+    sort,
+    order,
+  ].join("\u0000");
+  const continuationKeyRef = useRef(continuationKey);
+  continuationKeyRef.current = continuationKey;
+  const activeContinuation =
+    continuation && continuation.key === continuationKey ? continuation : null;
+  const continuationResults =
+    activeContinuation?.status === "answered" ? activeContinuation.results : NO_HITS;
+  const continuationRows = useMemo(
+    () =>
+      continuationResults.length === 0
+        ? []
+        : mergeResults({
+            filenameMatches: [],
+            semanticHits: continuationResults,
+            filenameTotal: 0,
+            nameMatched: false,
+          }).files,
+    [continuationResults],
+  );
+  const continuationSentinelRef = useRef<HTMLDivElement | null>(null);
+  const revealMore = useCallback(() => {
+    setContinuation((prev) =>
+      prev && prev.key === continuationKeyRef.current && prev.status === "answered"
+        ? { ...prev, revealed: prev.revealed + CONTINUATION_PAGE }
+        : prev,
+    );
+  }, []);
+
+  const updateContinuationFile = useCallback((file: FileItem) => {
+    setContinuation((prev) =>
+      prev && prev.key === continuationKeyRef.current && prev.status === "answered"
+        ? {
+            ...prev,
+            results: prev.results.map((hit) =>
+              hit.file_id === file.id ? { ...hit, file } : hit,
+            ),
+          }
+        : prev,
+    );
+  }, []);
+
+  const removeContinuationFiles = useCallback((ids: readonly string[]) => {
+    if (ids.length === 0) return;
+    const dropped = new Set(ids);
+    setContinuation((prev) =>
+      prev && prev.key === continuationKeyRef.current
+        ? {
+            ...prev,
+            results: prev.results.filter((hit) => !dropped.has(hit.file_id)),
+          }
+        : prev,
+    );
+  }, []);
+
+  const canOfferContinuation =
+    isSearch &&
+    parsed.text !== "" &&
+    !parsed.hasOperators &&
+    semanticAvailable &&
+    !includeSceneClip &&
+    sort === "relevance" &&
+    !hasMore &&
+    !paginatedLoading &&
+    !loadingMore &&
+    semanticArrived &&
+    semanticHits.some((hit) => hit.match_types?.includes("clip_thumbnail"));
+
+  const onShowMore = useCallback(() => {
+    if (!canOfferContinuation) return;
+    if (activeContinuation && activeContinuation.status !== "idle") return;
+    const key = continuationKey;
+    const query = parsed.text;
+    setContinuation({ key, status: "loading", results: [], revealed: 0 });
+    (async () => {
+      const answer = await fetchSemanticImages(query, driveName, {
+        type: typeFilter,
+      });
+      if (continuationKeyRef.current !== key) return;
+      if (!answer.ok) {
+        setContinuation({ key, status: "idle", results: [], revealed: 0 });
+        return;
+      }
+      setContinuation({
+        key,
+        status: "answered",
+        results: answer.results,
+        revealed: CONTINUATION_PAGE,
+      });
+    })();
+  }, [
+    canOfferContinuation,
+    activeContinuation,
+    continuationKey,
+    parsed.text,
+    driveName,
+    typeFilter,
+  ]);
 
   const [recentFiles, setRecentFiles] = useState<FileItem[]>([]);
   const [recentLoading, setRecentLoading] = useState(false);
@@ -326,10 +468,55 @@ export function useFolderFiles({
     };
   }, [isSearch, parsed.text, paginatedFiles, semanticHits, paginatedTotal, sort, order, trustFilter]);
 
+  const aboveContinuationIds = useMemo(
+    () => new Set((mergedSearch?.files ?? []).map((f) => f.id)),
+    [mergedSearch],
+  );
+  const drawableContinuation = useMemo(
+    () =>
+      continuationRows.filter(
+        (f) => !aboveContinuationIds.has(f.id) && matchesTrustFilter(f, trustFilter),
+      ),
+    [continuationRows, aboveContinuationIds, trustFilter],
+  );
+  const revealedContinuation = activeContinuation?.revealed ?? 0;
+  const filenameComplete = !hasMore && !paginatedLoading && !loadingMore;
+  const drawnContinuation = filenameComplete
+    ? drawableContinuation.slice(0, revealedContinuation)
+    : [];
+  const continuationDrawnIds = new Set(drawnContinuation.map((f) => f.id));
+  const continuationState: ContinuationUiState =
+    activeContinuation?.status === "loading"
+      ? "loading"
+      : activeContinuation?.status === "answered"
+        ? filenameComplete
+          ? drawableContinuation.length > revealedContinuation
+            ? "open"
+            : "done"
+          : "hidden"
+        : canOfferContinuation
+          ? "offered"
+          : "hidden";
+
+  const scrollContainer = useScrollContainer();
+  useEffect(() => {
+    if (continuationState !== "open") return;
+    const el = continuationSentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) revealMore();
+      },
+      { root: scrollContainer?.current ?? null, rootMargin: "0px 0px 400px 0px" },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [continuationState, revealMore, scrollContainer, revealedContinuation]);
+
   const files: FileItemWithMatch[] = isRecent
     ? (recentFiles as FileItemWithMatch[])
     : mergedSearch
-      ? mergedSearch.files
+      ? [...mergedSearch.files, ...drawnContinuation]
       : (paginatedFiles as FileItemWithMatch[]);
   const total = isRecent
     ? recentFiles.length
@@ -402,5 +589,11 @@ export function useFolderFiles({
     reset, setFiles, setPaginatedTotal, setFolders, isRecent, hasProfile,
     snapshotKey,
     hydratedScrollY: hydration.scrollY,
+    continuationState,
+    onShowMore,
+    continuationSentinelRef,
+    continuationDrawnIds,
+    updateContinuationFile,
+    removeContinuationFiles,
   };
 }

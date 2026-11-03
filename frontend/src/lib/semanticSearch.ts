@@ -55,3 +55,40 @@ export async function fetchSemanticHits(
     return [];
   }
 }
+
+export interface SemanticImagesResult {
+  ok: boolean;
+  results: SemanticHit[];
+}
+
+export async function fetchSemanticImages(
+  query: string,
+  drive: string,
+  options?: {
+    type?: FileKind | null;
+    signal?: AbortSignal;
+  },
+): Promise<SemanticImagesResult> {
+  if (!query.trim() || !drive) return { ok: false, results: [] };
+  const params = new URLSearchParams({ q: query.trim() });
+  if (options?.type) params.set("type", options.type);
+  try {
+    const res = await fetch(
+      `${API_BASE}/addons/intelligence/search/images?${params.toString()}`,
+      {
+        credentials: "include",
+        headers: driveHeaders(drive),
+        signal: options?.signal,
+      },
+    );
+    if (!res.ok) return { ok: false, results: [] };
+    const data = (await res.json()) as {
+      available?: boolean;
+      results?: SemanticHit[];
+    };
+    if (!data?.available) return { ok: false, results: [] };
+    return { ok: true, results: Array.isArray(data.results) ? data.results : [] };
+  } catch {
+    return { ok: false, results: [] };
+  }
+}

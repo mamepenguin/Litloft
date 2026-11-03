@@ -269,6 +269,7 @@
     "sceneSearchToggle": "Scene search",
     "sceneSearchHint": "Find specific moments inside videos",
     "semanticPending": "Also searching by meaning…",
+    "showMoreBySimilarity": "Show more by similarity",
     "scopeRemove": "Remove the {label} scope",
     "scopeSeeAll": "See all {label} matching “{query}”",
     "hintSelect": "Select",
