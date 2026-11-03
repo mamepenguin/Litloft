@@ -5,6 +5,7 @@ import type { ReactNode, RefObject } from "react";
 import type { FileItem } from "@/types";
 import type { MediaController } from "@/lib/mediaController";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
+import type { DocumentController } from "@/lib/documentController";
 import { AddonSlot } from "../AddonSlot";
 import { ChaptersPanel } from "../ChaptersPanel";
 import { MediaPlayerBlock } from "./MediaPlayerBlock";
@@ -21,6 +22,7 @@ interface FileDetailCanvasProps {
   highlight?: string;
   onMediaController: (mc: MediaController | null) => void;
   onDocumentCaptureController: (c: DocumentCaptureController | null) => void;
+  onDocumentController?: (c: DocumentController | null) => void;
   markdownReloadKey: number;
   onMarkdownTagsSaved: () => void;
   miniPlayerRoot?: Element | null;
@@ -55,6 +57,7 @@ export function FileDetailCanvas({
   highlight,
   onMediaController,
   onDocumentCaptureController,
+  onDocumentController,
   markdownReloadKey,
   onMarkdownTagsSaved,
   miniPlayerRoot,
@@ -84,6 +87,7 @@ export function FileDetailCanvas({
       highlight={highlight}
       onMediaController={onMediaController}
       onDocumentCaptureController={onDocumentCaptureController}
+      onDocumentController={onDocumentController}
       markdownReloadKey={markdownReloadKey}
       onMarkdownTagsSaved={onMarkdownTagsSaved}
       miniPlayerRoot={miniPlayerRoot}

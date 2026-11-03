@@ -21,6 +21,7 @@ import { getStreamUrl, getThumbnailUrl } from "@/lib/api";
 import { playerKind } from "@/lib/playerKind";
 import type { MediaController } from "@/lib/mediaController";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
+import type { DocumentController } from "@/lib/documentController";
 import type { PdfController } from "@/lib/pdfController";
 import type { ArchiveController } from "@/lib/archiveController";
 import { ImageCanvas } from "./ImageCanvas";
@@ -71,6 +72,7 @@ interface FilePreviewProps {
   ) => void;
   onPdfController?: (controller: PdfController | null) => void;
   onArchiveController?: (controller: ArchiveController | null) => void;
+  onDocumentController?: (controller: DocumentController | null) => void;
   markdownReloadKey?: number;
   onMarkdownTagsSaved?: (tags: string[]) => void;
   /**
@@ -94,6 +96,7 @@ export function FilePreview({
   onDocumentCaptureController,
   onPdfController,
   onArchiveController,
+  onDocumentController,
   markdownReloadKey,
   onMarkdownTagsSaved,
   miniPlayerRoot,
@@ -201,6 +204,7 @@ export function FilePreview({
         initialPage={initialPage}
         onDocumentCaptureController={onDocumentCaptureController}
         onPdfController={onPdfController}
+        onDocumentController={onDocumentController}
         documentSlotProps={{
           fileId: file.id,
           drive: file.drive,
@@ -218,6 +222,7 @@ export function FilePreview({
         key={`${file.id}:${initialSection ?? ""}`}
         file={file}
         initialSection={initialSection}
+        onDocumentController={onDocumentController}
       />
     );
   }

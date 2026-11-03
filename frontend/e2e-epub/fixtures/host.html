@@ -23,6 +23,7 @@
   let seekId = 0;
   window.seek = (fraction, id = ++seekId) => send({ type: "seek", fraction, id });
   window.goToToc = (index) => send({ type: "goToToc", index });
+  window.goToSection = (section) => send({ type: "goToSection", section });
   window.setTypography = (typography) => send({ type: "typography", typography });
   const COLORS = {
     light: { bg: "#ffffff", fg: "#211922", link: "#d63031" },

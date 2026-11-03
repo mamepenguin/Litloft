@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "FileDetailPresenter.tsx:30 declares `hasInspector`, :46 declares `onDocumentController`, and :123/:138 pass them to ShellLayout, with :188 passing onDocumentController on to the canvas. The Core touch-point list names FileDetailContainer, FileDetailCanvas, MediaCanvas and MediaPlayerBlock but not FileDetailPresenter. The edit is needed plumbing between Container and ShellLayout/Canvas."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "frontend/src/components/FileDetail/lowerInspector.tsx exists and defines useLowerInspectorRegistry (:20), LowerInspectorProvider (:29) and useRegisterLowerInspector (:44). FileDetailContainer.tsx:291 wraps the presenter in LowerInspectorProvider. FileDetailShell.tsx:144-150 registers lowerInspector. MobileInspectorSheet.tsx has no reference to lower/Lower, which fits the claim that it was not touched. The new module is not in the touch-point list."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "These files exist in the worktree: frontend/e2e-epub/goToSection.spec.ts, and FileDetail/__tests__/DocumentController.test.tsx, LowerInspector.test.tsx and InspectorTabsSlot.test.tsx. harness.tsx:36 adds slotPropsByNode and :169 adds data-addon. None is in the touch-point list, which names only i18n-keys.test.ts and the e2e-epub host fixture's message list."
+    }
+  ],
+  "specification_compliance": [
+    "The touch-point drift is real: FileDetailPresenter.tsx, the new lowerInspector.tsx and several new or edited test files fall outside the Core (PR 1) list. MobileInspectorSheet.tsx is listed but not touched."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The lowerInspector registry holds a single impl in a ref. If more than one FileDetailShell registers under the same provider, the last one wins and unregistering clears it for all of them (lowerInspector.tsx:23-25, :47-48). Today only one shell is expected."
+  ],
+  "test_coverage": [
+    "New tests exist for DocumentController, LowerInspector, InspectorTabsSlot and EPUB goToSection. I did not read their contents in detail."
+  ],
+  "not_verified": [
+    "I could not run git, so I could not view the exact diff against origin/develop. I inferred which files were changed from what exists in the worktree and from the symbols in them.",
+    "I did not run any tests.",
+    "I did not check invariants I1-I12 beyond the touch-point findings."
+  ],
+  "confidence": 85
+}
