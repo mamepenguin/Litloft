@@ -46,6 +46,8 @@ export type ReaderCommand =
   | { type: "turn"; direction: "next" | "prev" | "left" | "right" }
   | { type: "seek"; fraction: number; id: number }
   | { type: "goToToc"; index: number }
+  /** 1-based, the numbering `?section=` uses. */
+  | { type: "goToSection"; section: number }
   | { type: "theme"; theme: "light" | "dark"; colors: ReaderColors }
   | { type: "mode"; fullscreen: boolean };
 

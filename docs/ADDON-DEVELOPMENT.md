@@ -782,10 +782,11 @@ entries renders nothing.
 ### Available slots
 
 Every file-page slot (`file-detail-sections`, `file-detail-actions`,
-`file-actions-menu`, `file-relations`, `player-side`, `file-preview-actions`)
-receives `{ fileId, drive, filename, fileType, mimeType, videoRef,
-mediaController, subtitles, documentCaptureController, trustTier,
-trustReviewedAt, onFileChange }` plus what its row lists.
+`file-actions-menu`, `file-relations`, `player-side`, `inspector-tabs`,
+`file-preview-actions`) receives `{ fileId, drive, filename, fileType, mimeType,
+videoRef, mediaController, subtitles, documentCaptureController,
+documentController, lowerInspector, trustTier, trustReviewedAt, onFileChange }`
+plus what its row lists.
 
 | Slot ID | Location | Props / contract |
 |---------|----------|------------------|
@@ -795,6 +796,7 @@ trustReviewedAt, onFileChange }` plus what its row lists.
 | `file-detail-sections` | File detail inspector, **Info** tab | File props. The entries with id `detailed-summary` and `knowledge-edit` are placed outside the tab by the core (the canvas or the sheet). Not for a transcript (`player-side`) or derived relations (`file-relations`); an entry in two slots renders twice |
 | `file-relations` | Inspector **Related** tab, after the core's own relation lists | File props. See [below](#contributing-to-the-related-tab) |
 | `player-side` | Beside a media player as an inspector tab, or in a box under the description, as the viewer chooses | File props plus `fillHeight`, `labelledByHost`, `onAvailability`. See [Occupying the player-side slot](#occupying-the-player-side-slot) |
+| `inspector-tabs` | File detail inspector, as a tab after the core tabs and after any `player-side` tabs, on every file page with an inspector (including the HTML preview; not the collection surface) | File props plus `fillHeight`, `labelledByHost`, `onAvailability`, and a required `i18n_key`. See [Occupying the inspector-tabs slot](#occupying-the-inspector-tabs-slot) |
 | `file-preview-actions` | Under the media player, right-aligned | File props. Inline buttons |
 | `loft-metadata` | Beside the player, `.loft` (external URL) files only | `{ fileId, drive }` |
 | `file-detail-actions` | The file page's action row, before the `[...]` menu | File props. See [Contributing to the file action row](#contributing-to-the-file-action-row) |
@@ -826,6 +828,10 @@ The key is resolved against the merged catalogue and belongs in your addon's
 (`.claude/rules/frontend-conventions.md`). Keep `label`: it is shown when
 there is no key or the key does not resolve. The backend passes the field
 through, so no core change is needed.
+
+An `inspector-tabs` entry must declare `i18n_key`: its label is the tab
+button, and falling back to the English `label` in a Japanese strip is the
+failure the field exists to prevent.
 
 ### Occupying the `player-side` slot
 
@@ -867,6 +873,36 @@ tab strip.
   yourself.
 - If every entry answers `false` and the file has no chapters, the core also
   hides the beside/below toggle.
+
+### Occupying the `inspector-tabs` slot
+
+One entry is one tab on any file page that has an inspector: a PDF, an EPUB,
+media, a Markdown note or the HTML preview. The collection surface has no
+inspector and draws no `inspector-tabs` entry.
+
+The entry receives the same `fillHeight`, `labelledByHost` and `onAvailability`
+as a [player-side](#occupying-the-player-side-slot) entry, and must declare an
+`i18n_key` for its tab label. The tab is drawn after the core tabs and after
+any `player-side` tabs.
+
+- **Silence means unavailable.** Unlike `player-side`, an entry that has not
+  called `onAvailability` gets no tab button. Report `false` when you mount,
+  before your fetch settles, and `true` once you have something for this file.
+- Reporting `false` keeps you mounted and takes only the button away, so you
+  can report `true` later.
+- Availability, tab ids and DOM ids are keyed by slot and entry id. An entry
+  may share an id with a `player-side` entry or a core tab without taking its
+  button or panel.
+
+### Moving the open viewer and lowering the sheet
+
+Two more file props are for controls that act on the page rather than on the
+file:
+
+| Prop | Meaning |
+|---|---|
+| `documentController: { goTo(location) } \| null` | Non-null while the PDF viewer is mounted or the EPUB reader has finished opening, and `null` otherwise and after it unmounts. `goTo({ page })` on a PDF lands where the **Pages** panel lands and does nothing for a page out of range. `goTo({ section })` on an EPUB moves to the start of that spine section, the 1-based numbering `?section=` uses, and writes no reading progress; an out-of-range section does nothing. `{ page }` on an EPUB and `{ section }` on a PDF do nothing. Its identity changes only when the viewer mounts, becomes ready or unmounts. |
+| `lowerInspector(): void` | A stable function. On a phone with the inspector sheet at half or full height it drops the sheet to its bar; at the bar, closed, or on desktop it does nothing. Use it after moving the viewer, so the page underneath becomes visible. |
 
 ### Contributing to the Related tab
 

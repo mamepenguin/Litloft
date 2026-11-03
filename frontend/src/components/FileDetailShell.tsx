@@ -17,6 +17,7 @@ import { useShortcuts } from "@/hooks/useShortcuts";
 import { inspectorOpenStore } from "@/lib/inspectorOpenStore";
 import { FileDetailChrome } from "./FileDetail/FileDetailChrome";
 import { useInspectorFit } from "./FileDetail/hooks/useInspectorFit";
+import { useRegisterLowerInspector } from "./FileDetail/lowerInspector";
 import { InspectorPane } from "./InspectorPane";
 import { SHEET_SNAP_HALF_FALLBACK } from "@/lib/sheetSnap";
 import {
@@ -139,6 +140,14 @@ export function FileDetailShell({
       );
     } else toggle();
   }, [isMobile, toggle]);
+
+  const lowerInspector = useCallback(() => {
+    if (!isMobile) return;
+    setSheetState((prev) =>
+      isSheetExpanded(prev) ? SHEET_STATE_PEEK : prev,
+    );
+  }, [isMobile]);
+  useRegisterLowerInspector(lowerInspector);
 
   return (
     <div

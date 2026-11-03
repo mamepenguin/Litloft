@@ -1,0 +1,120 @@
+{
+  "risk": "HIGH",
+  "score": 7,
+  "base": 3,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "docs/ADDON-DEVELOPMENT.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/ask-about-this-file.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/e2e-epub/fixtures/host.html",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-epub/goToSection.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/public/epub-reader/reader.js",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/i18n-keys.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FileDetailCanvas.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FileDetailContainer.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FileDetailPresenter.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/MediaPlayerBlock.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/ShellLayout.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/DocumentController.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/InspectorTabsSlot.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/LowerInspector.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/harness.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/hooks/useSlotAvailability.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/inspector/tabs.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/lowerInspector.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetailShell.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FilePreview.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/PdfPreview.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/epub/EpubPreview.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/epub/useEpubReader.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/documentController.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/epubReaderChannel.ts",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}

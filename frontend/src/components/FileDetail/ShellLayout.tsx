@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import type { FileItem } from "@/types";
 import type { MediaController } from "@/lib/mediaController";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
+import type { DocumentController } from "@/lib/documentController";
 import type { PdfController } from "@/lib/pdfController";
 import type { ArchiveController } from "@/lib/archiveController";
 import { PdfPagesTab } from "./pdf/PdfPagesTab";
@@ -33,6 +34,7 @@ import { InspectorShell } from "./inspector/InspectorShell";
 import { buildInspectorTabs } from "./inspector/tabs";
 import type { CompanionMetrics } from "./hooks/useCompanionMetrics";
 import type { SlotAvailability } from "./hooks/useSlotAvailability";
+import { slotAvailabilityKey } from "./hooks/useSlotAvailability";
 import { useSheetHalfSnap } from "./hooks/useSheetHalfSnap";
 import { RelatedPanel } from "./related/RelatedPanel";
 import { useFileRelations } from "./related/useFileRelations";
@@ -46,6 +48,7 @@ export interface ShellLayoutProps {
   hasPlayer: boolean;
   usesCanvasViewer: boolean;
   plainTextDocument: boolean;
+  hasInspector: boolean;
   descriptionInCanvas: boolean;
   companionMountable: boolean;
   companionOccupied: boolean;
@@ -60,6 +63,7 @@ export interface ShellLayoutProps {
   mediaController: MediaController | null;
   onMediaController: (mc: MediaController | null) => void;
   onDocumentCaptureController: (c: DocumentCaptureController | null) => void;
+  onDocumentController: (c: DocumentController | null) => void;
   videoRef: RefObject<HTMLVideoElement | null>;
   initialTime?: number;
   initialPage?: number;
@@ -86,6 +90,7 @@ export function ShellLayout({
   hasPlayer,
   usesCanvasViewer,
   plainTextDocument,
+  hasInspector,
   descriptionInCanvas,
   companionMountable,
   companionOccupied,
@@ -100,6 +105,7 @@ export function ShellLayout({
   mediaController,
   onMediaController,
   onDocumentCaptureController,
+  onDocumentController,
   videoRef,
   initialTime,
   initialPage,
@@ -167,12 +173,21 @@ export function ShellLayout({
 
   const playerSideEntries = hasPlayer ? getSlotEntries("player-side") : [];
 
-  const playerSideProps = (entryId: string, labelledByHost: boolean) => ({
+  const entryProps = (
+    slotId: "player-side" | "inspector-tabs",
+    entryId: string,
+    labelledByHost: boolean,
+  ) => ({
     ...addonSlotProps,
     fillHeight: true,
     labelledByHost,
-    onAvailability: slotAvailability.reporterFor(entryId),
+    onAvailability: slotAvailability.reporterFor(
+      slotAvailabilityKey(slotId, entryId),
+    ),
   });
+
+  const playerSideProps = (entryId: string, labelledByHost: boolean) =>
+    entryProps("player-side", entryId, labelledByHost);
 
   /**
    * Built here rather than by `AddonSlot` inside the canvas because the
@@ -186,6 +201,10 @@ export function ShellLayout({
       props={playerSideProps(entry.id, false)}
     />
   ));
+
+  const inspectorTabEntries = hasInspector
+    ? getSlotEntries("inspector-tabs")
+    : [];
 
   /**
    * The inspector excludes exactly these, so a section lands in one
@@ -281,7 +300,9 @@ export function ShellLayout({
         ? playerSideEntries.map((entry) => ({
             entry,
             label: slotEntryLabel(entry, tGlobal),
-            available: slotAvailability.isAvailable(entry.id),
+            available: slotAvailability.isAvailable(
+              slotAvailabilityKey("player-side", entry.id),
+            ),
             // In the desktop pane (`buildTabs(false)`) the panel is the
             // height budget, so this continues the flex chain and the
             // occupant fills it and scrolls inside itself. Without it the
@@ -302,6 +323,22 @@ export function ShellLayout({
             ),
           }))
         : [],
+      inspectorTabs: inspectorTabEntries.map((entry) => ({
+        entry,
+        label: slotEntryLabel(entry, tGlobal),
+        available:
+          slotAvailability.reportedValue(
+            slotAvailabilityKey("inspector-tabs", entry.id),
+          ) === true,
+        content: (
+          <div className="flex h-full min-h-0 flex-col">
+            <SlotEntryRenderer
+              entry={entry}
+              props={entryProps("inspector-tabs", entry.id, true)}
+            />
+          </div>
+        ),
+      })),
     });
 
   const inspector = (
@@ -383,6 +420,7 @@ export function ShellLayout({
           highlight={highlight}
           onMediaController={onMediaController}
           onDocumentCaptureController={onDocumentCaptureController}
+          onDocumentController={onDocumentController}
           onPdfController={setPdfController}
           onArchiveController={setArchiveController}
           markdownReloadKey={markdownReloadKey}
