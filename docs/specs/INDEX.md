@@ -98,9 +98,9 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-051 | draft | docs/specs/extraction-corrections.md | |
 | SPEC-ADDON-052 | draft | docs/specs/figure-aware-reading.md | |
 | SPEC-CORE-030 | implemented | docs/specs/background-upload.md | sha256:ffe09b32450a1f43cf6e5aaec2211505c8508836e1a38857b51bc8b161bf5211 |
-| SPEC-CORE-031 | draft | docs/specs/ingest-progress.md | |
-| SPEC-CORE-037 | draft | docs/specs/ingest-progress.md | |
-| SPEC-ADDON-057 | draft | docs/specs/ingest-progress.md | |
+| SPEC-CORE-031 | approved | docs/specs/ingest-progress.md | sha256:de18030f6fb3fe7172d2ef5474e6349e04ecb055520a610d4e780e8648bcfefd |
+| SPEC-CORE-037 | approved | docs/specs/ingest-progress.md | sha256:de18030f6fb3fe7172d2ef5474e6349e04ecb055520a610d4e780e8648bcfefd |
+| SPEC-ADDON-057 | approved | docs/specs/ingest-progress.md | sha256:de18030f6fb3fe7172d2ef5474e6349e04ecb055520a610d4e780e8648bcfefd |
 | SPEC-CORE-032 | draft | docs/specs/inbox.md | |
 | SPEC-CORE-033 | draft | docs/specs/share-target.md | |
 | SPEC-ADDON-053 | draft | docs/specs/ask-about-this-file.md | |
