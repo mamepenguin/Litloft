@@ -726,12 +726,12 @@ export function FolderBrowser({
             selection.clear();
             setSelectable(false);
           }}
-          onComplete={() => {
+          onComplete={(removed) => {
             const cleared = clearedSelectionRef.current;
             clearedSelectionRef.current = [];
             const onlyContinuation =
               cleared.length > 0 && cleared.every((id) => continuationDrawnIds.has(id));
-            removeContinuationFiles(cleared);
+            if (removed) removeContinuationFiles(cleared);
             if (!onlyContinuation) refresh();
           }}
         />

@@ -302,6 +302,7 @@ const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   }
 
   if (url.pathname === "/api/files/batch/delete") return json({ deleted: 1, errors: [] });
+  if (url.pathname === "/api/files/batch/tags") return json({ updated: 1, errors: [] });
 
   return json({}, 404);
 });
@@ -835,6 +836,28 @@ describe("SPEC-CORE-035 I13 a viewer's own action on a drawn row", () => {
     fireEvent.click(confirm[confirm.length - 1]);
 
     await waitFor(() => expect(drawnIds()).not.toContain("c1"));
+    expect(drawnIds()).toContain("c2");
+    expect(imagesCalls()).toHaveLength(1);
+  });
+});
+
+describe("SPEC-CORE-035 I8 a bulk action that keeps the file in the results", () => {
+  it("keeps a drawn row on the page after tagging it", async () => {
+    server.images = [clipHit("c1"), clipHit("c2")];
+    const { container } = renderSearch();
+    await settle();
+    await clickShowMore(container);
+    await waitFor(() => expect(drawnIds()).toHaveLength(5));
+
+    fireEvent.click(screen.getByRole("button", { name: "select c1" }));
+    await screen.findByText("1 selected");
+    fireEvent.click(screen.getByRole("button", { name: "Tagging" }));
+    fireEvent.change(screen.getByPlaceholderText("tag1, tag2..."), { target: { value: "x" } });
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+
+    await waitFor(() => expect(server.calls.some((c) => c.path === "/api/files/batch/tags")).toBe(true));
+    await waitFor(() => expect(screen.queryByText("1 selected")).toBeNull());
+    expect(drawnIds()).toContain("c1");
     expect(drawnIds()).toContain("c2");
     expect(imagesCalls()).toHaveLength(1);
   });
