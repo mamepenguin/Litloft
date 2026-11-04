@@ -1,0 +1,112 @@
+{
+  "risk": "CRITICAL",
+  "score": 13,
+  "base": 3,
+  "zone_max": "HIGH",
+  "modifiers": [
+    "persistence",
+    "schema"
+  ],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": ".claude/rules/internal-api-policy.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "addons/intelligence",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/database.py",
+      "level": "HIGH"
+    },
+    {
+      "path": "backend/app/routers/internal.py",
+      "level": "HIGH"
+    },
+    {
+      "path": "backend/app/services/fileops.py",
+      "level": "HIGH"
+    },
+    {
+      "path": "backend/tests/test_database_collection_drive_cleanup.py",
+      "level": "LOW"
+    },
+    {
+      "path": "backend/tests/test_internal_collection_file_ids.py",
+      "level": "LOW"
+    },
+    {
+      "path": "backend/tests/test_move_removes_collection_items.py",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/ADDON-DEVELOPMENT.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/reference/api.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/source-sets.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/playlists-favorites.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/upload-and-fileops.md",
+      "level": "LOW"
+    },
+    {
+      "path": "mcp-server/README.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/__tests__/collections.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/__tests__/toolMetadata.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/server.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/tools/batch.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/tools/collections.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/tools/index.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/tools/read.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/tools/write.ts",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone HIGH (8 points)",
+    "modifiers: persistence schema"
+  ]
+}

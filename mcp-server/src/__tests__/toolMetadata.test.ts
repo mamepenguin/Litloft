@@ -16,12 +16,14 @@ const expectedToolNames = [
   "create_folder",
   "create_playlist",
   "edit_file_content",
+  "get_collection",
   "get_file",
   "get_file_by_path",
   "get_file_content",
   "get_transcript",
   "get_video_frame",
   "get_watch_history",
+  "list_collections",
   "list_comments",
   "list_drives",
   "list_folders",
@@ -47,12 +49,14 @@ const expectedToolNames = [
 ];
 
 const readOnlyTools = new Set([
+  "get_collection",
   "get_file",
   "get_file_by_path",
   "get_file_content",
   "get_transcript",
   "get_video_frame",
   "get_watch_history",
+  "list_collections",
   "list_comments",
   "list_drives",
   "list_folders",
@@ -161,6 +165,12 @@ describe("advertised tool safety metadata", () => {
   it("SPEC-CORE-019: the server instructions name read_document", () => {
     const instructions = client.getInstructions() ?? "";
     expect(instructions).toContain("read_document");
+  });
+
+  it("SPEC-CORE-038 I12: the server instructions name both collection tools", () => {
+    const instructions = client.getInstructions() ?? "";
+    expect(instructions).toContain("list_collections");
+    expect(instructions).toContain("get_collection");
   });
 
   it("discloses Ask's possible file-excerpt transfer to the configured LLM provider", () => {
