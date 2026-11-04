@@ -129,7 +129,7 @@ const SUMMARY_FIELDS = [
   "match_source",
 ];
 
-function summarizeFile(item: Record<string, unknown>): Record<string, unknown> {
+export function summarizeFile(item: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(SUMMARY_FIELDS.filter((k) => k in item).map((k) => [k, item[k]]));
 }
 
