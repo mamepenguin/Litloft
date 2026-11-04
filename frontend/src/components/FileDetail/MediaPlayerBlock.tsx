@@ -5,6 +5,7 @@ import type { RefObject } from "react";
 import type { FileItem } from "@/types";
 import type { MediaController } from "@/lib/mediaController";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
+import type { DocumentController } from "@/lib/documentController";
 import type { PdfController } from "@/lib/pdfController";
 import type { ArchiveController } from "@/lib/archiveController";
 import { playerKind } from "@/lib/playerKind";
@@ -35,6 +36,7 @@ export interface MediaPlayerBlockProps {
   onDocumentCaptureController: (c: DocumentCaptureController | null) => void;
   onPdfController?: (c: PdfController | null) => void;
   onArchiveController?: (c: ArchiveController | null) => void;
+  onDocumentController?: (c: DocumentController | null) => void;
   markdownReloadKey: number;
   onMarkdownTagsSaved: () => void;
   miniPlayerRoot?: Element | null;
@@ -63,6 +65,7 @@ export function MediaPlayerBlock({
   onDocumentCaptureController,
   onPdfController,
   onArchiveController,
+  onDocumentController,
   markdownReloadKey,
   onMarkdownTagsSaved,
   miniPlayerRoot,
@@ -100,6 +103,7 @@ export function MediaPlayerBlock({
           onDocumentCaptureController={onDocumentCaptureController}
           onPdfController={onPdfController}
           onArchiveController={onArchiveController}
+          onDocumentController={onDocumentController}
           markdownReloadKey={markdownReloadKey}
           onMarkdownTagsSaved={onMarkdownTagsSaved}
           miniPlayerRoot={miniPlayerRoot}

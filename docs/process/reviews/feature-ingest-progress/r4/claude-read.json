@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "R4-1",
+      "origin": "reviewer",
+      "claim": "The new tests for a mid-request event use a single drawer entry, so they cannot tell an id-scoped follow-up request apart from a follow-up for every entry. The I8 (r2) property that 77314cd1f adds, that only the named entries are fetched again, has no test that would fail if it regressed.",
+      "impact": "If the follow-up went back to `refreshProcessing()` with no ids (the r3 behaviour), entries in processing view that the event did not name would fetch again after an in-flight request. That is the I8 violation r3 reported. With two or more drawer entries a user would see extra core and addon requests during bulk indexing, and no test would catch it. The code is correct today. Only the guard is missing.",
+      "evidence": "frontend/src/hooks/useUpload.ts:264-268 replays `refreshProcessing([...queued.ids])` for an id queue. frontend/src/__tests__/uploadProcessingRefresh.test.tsx (the it.each 'follows a mid-request event naming $label') uses renderCompleted, which uploads only file_a, and asserts `callsSoFar[1]` equals `[[\"file_a\"]]`. With one entry, an id-less follow-up also requests `[\"file_a\"]`, so the assertion holds under both behaviours.",
+      "repro": "Mutation, reasoned and not executed: in useUpload.ts:267 replace `else void refreshProcessing([...queued.ids]);` with `else void refreshProcessing();`. The 'a held id' case still passes because the only entry is file_a, and the 'a foreign id' case still passes because queueProcessingRefresh returns before queuing. The mutant survives.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The implementation keeps I8. The gap is in the tests: a regression of I8 would pass them. No invariant is broken by the code as written.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add a case with two completed entries (file_a and file_b, both in progress), deliver a mid-request event naming only file_a, and assert that the follow-up call is exactly [[\"file_a\"]]."
+    }
+  ],
+  "specification_compliance": [
+    "r3 deep-r3-1 (A, I8) is resolved in code. queueProcessingRefresh (useUpload.ts:232-250) queues nothing for an event that names no held entry still needing a fetch. It keeps a union of the held ids, and an id-less call (tick or immediate fetch) upgrades the queue to {all:true}. The finally block (264-268) replays only the queued ids. refreshProcessingOnce still filters those ids through needsProcessingFetch, so an entry that the in-flight answer turned ready, gone or stopped does not fetch again. That satisfies I8's 'never after ready, gone, removed or the deadline'.",
+    "The new 'a foreign id' test kills the r3 behaviour. Under the unconditional boolean queue, a second call would follow first.resolve, and the test expects exactly one call.",
+    "r3 R3-1 (B) is resolved. docs/ADDON-DEVELOPMENT.md:371-373 now says X-Lit-Drive carries the percent-encoded drive name and links to the Drive context header section at :721, whose anchor slug matches. That agrees with files_processing.py, which sends quote(drive, safe=\"\"), and with the addon's unquote.",
+    "The commit under review, 29a2054c9, is the docs-only change. The code reviewed for this round is 77314cd1f. dbfcfb3ad is a review record.",
+    "r3 deep-r3-2 (B, INFO, no addon-side test of the encoded header) was not addressed, and the record shows no fix for it. r2 R2-1 and R2-2 likewise remain as recorded."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Whether an event is 'held' is decided when the event arrives (queueProcessingRefresh checks needsProcessingFetch at that moment). An event naming a file whose upload has not yet received its file id is dropped. The immediate fetch on Complete covers that case."
+  ],
+  "regression_risks": [
+    "resetUploadStore (useUpload.ts:488) still does not clear processingInFlight or processingRefreshQueued. The queue now holds a Set of ids, which a test that resets the store mid-request could carry into the next case. This is test-only.",
+    "Only the multi-entry id scoping is untested (R4-1). A later simplification of the queue back to a boolean would pass the suite."
+  ],
+  "test_coverage": [
+    "uploadProcessingRefresh.test.tsx now covers a foreign-id event and a held-id event that arrive mid-request, each with one entry.",
+    "No test covers two entries with an event naming only one of them while a request is in flight (R4-1).",
+    "No test covers an event arriving mid-request for an entry that the in-flight answer makes ready. By reading the code, the queued follow-up for that entry is filtered to no request.",
+    "No test covers a tick arriving mid-request after an id queue was set, which upgrades the queue to all."
+  ],
+  "not_verified": [
+    "I ran no tests or mutations. The survival of the R4-1 mutant is reasoned, not executed.",
+    "I did not re-read the truncated tail of the submodule diff or re-check the addon-side files, which were not changed in this round.",
+    "I did not verify how GitHub or the docs renderer slugs the heading behind the #drive-context-header-x-lit-drive anchor beyond the standard slug rule."
+  ],
+  "confidence": 82,
+  "trajectory": "This round has one code fix (77314cd1f) and one docs fix (29a2054c9), plus the record dbfcfb3ad. 77314cd1f touches the frontend refresh queue for the third consecutive round. r2's fix queued only id-less calls. r3's fix (aee93a7) collapsed every call into an unconditional boolean. This round replaces the boolean with a tri-state queue: null, {all}, or {ids: Set}. That adds state and a new prediction (that only held, still-fetching ids deserve a follow-up) to the same mechanism the two previous rounds patched, so the refresh scheduling is still being patched incrementally rather than settled. The new state is what r3's reviewer proposed, though, and it supersedes the earlier boolean rather than stacking a parallel branch next to it. 29a2054c9 adds no branch or state. It aligns the prose with the encoding r3 introduced."
+}

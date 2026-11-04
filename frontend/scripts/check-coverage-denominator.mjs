@@ -31,6 +31,7 @@ const NO_INSTRUMENTABLE_CODE = [
   "src/components/player/MediaControls/types.ts",
   "src/components/player/NativeSettingsRows/index.ts",
   "src/components/quick-note/index.ts",
+  "src/lib/documentController.ts",
   "src/types/index.ts",
   "src/types/smartFolder.ts",
 ];

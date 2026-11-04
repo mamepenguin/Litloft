@@ -306,6 +306,27 @@ class ChunkResponse(BaseModel):
     total_chunks: int
 
 
+class FilesProcessingRequest(BaseModel):
+    file_ids: list[str] = Field(min_length=1, max_length=100)
+
+
+class ProcessingStageResponse(BaseModel):
+    addon: str | None
+    key: str
+    i18n_key: str
+    state: Literal["pending", "running", "done", "failed"]
+    required: bool
+
+
+class FileProcessingResponse(BaseModel):
+    stages: list[ProcessingStageResponse]
+    ready: bool
+
+
+class FilesProcessingResponse(BaseModel):
+    files: dict[str, FileProcessingResponse]
+
+
 class FolderCreateRequest(BaseModel):
     path: str = ""
     name: str

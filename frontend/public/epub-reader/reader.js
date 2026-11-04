@@ -390,6 +390,14 @@ window.addEventListener("message", (e) => {
       turn((v) => v.goTo(href));
       return;
     }
+    case "goToSection": {
+      const sections = state.view?.book?.sections;
+      if (!state.ready || !sections) return;
+      const index = d.section - 1;
+      if (!Number.isInteger(d.section) || index < 0 || index >= sections.length) return;
+      state.view.renderer.goTo({ index, anchor: 0 }).catch(() => {});
+      return;
+    }
     case "seek":
       if (!state.ready || !isValidSeek(d)) return;
       state.pendingSeek = { fraction: d.fraction, id: d.id };

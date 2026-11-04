@@ -56,6 +56,8 @@ export interface EpubReader {
   turn: (direction: TurnDirection) => void;
   seek: (fraction: number) => void;
   goToToc: (index: number) => void;
+  /** 1-based, the numbering `?section=` uses. */
+  goToSection: (section: number) => void;
   typography: Typography;
   setTypography: (typography: Typography) => void;
   setFullscreen: (fullscreen: boolean) => void;
@@ -207,6 +209,10 @@ export function useEpubReader(
     postToReader(frameRef.current?.contentWindow ?? null, { type: "goToToc", index });
   }, []);
 
+  const goToSection = useCallback((section: number) => {
+    postToReader(frameRef.current?.contentWindow ?? null, { type: "goToSection", section });
+  }, []);
+
   const setTypography = useCallback((next: Typography) => {
     setTypographyState(next);
     writeStoredTypography(next);
@@ -229,6 +235,7 @@ export function useEpubReader(
     turn,
     seek,
     goToToc,
+    goToSection,
     typography,
     setTypography,
     setFullscreen,

@@ -378,7 +378,11 @@
     "statusCancelled": "キャンセル済み",
     "destinationFolderNotFound": "送り先のフォルダが見つかりません",
     "lockConfirmTitle": "アップロード中です",
-    "lockConfirmMessage": "ロックすると、実行中のアップロードは中断されます。"
+    "lockConfirmMessage": "ロックすると、実行中のアップロードは中断されます。",
+    "stageSaved": "保存済み",
+    "stageUnavailable": "確認できません",
+    "ready": "使えます",
+    "someStepsFailed": "一部の処理に失敗しました"
   },
   "collection": {
     "addToCollection": "コレクションに追加",

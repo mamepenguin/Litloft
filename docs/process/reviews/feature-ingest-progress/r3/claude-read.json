@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "R3-1",
+      "origin": "reviewer",
+      "claim": "docs/ADDON-DEVELOPMENT.md documents the core-to-addon processing call as carrying `X-Lit-Drive: <drive>`. Since 7e28bdc the core sends `quote(drive, safe=\"\")`, so the value an addon receives is percent-encoded.",
+      "impact": "An addon author who follows this section and reads the header literally, without percent-decoding it, gets the wrong drive name for any drive whose name is non-ASCII or contains reserved characters. That addon then matches no rows and leaves every such file out, so the file shows the unavailable stage and is never Ready. Intelligence itself is unaffected because drive_context.py:30 unquotes the header. Litloft has only first-party addons, so the risk is limited to a future addon.",
+      "evidence": "docs/ADDON-DEVELOPMENT.md:371-373 says 'The request carries `X-Lit-Drive: <drive>`'. backend/app/routers/files_processing.py sends headers={\"X-Lit-Drive\": quote(drive, safe=\"\")}. addons/intelligence/app/drive_context.py:30 returns unquote(x_hv_drive). The proxy section at ADDON-DEVELOPMENT.md:350 and :722 describes the browser path as percent-encoded, but the processing section does not.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is broken, and the first-party addon decodes the header correctly. The prose would lead a third-party addon author to write a non-decoding reader.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Change the line to say the header carries the percent-encoded drive name (as `encodeURIComponent(drive)` does for the proxy), or remove `<drive>` and point to the Drive context header section."
+    }
+  ],
+  "specification_compliance": [
+    "The commit under review, a51507602, is a docs/process record. The behaviour reviewed is the branch diff, together with the fix commits 7e28bdc and aee93a7 made since r2.",
+    "r2 deep-r2-1 (I2: non-ASCII drive names) is resolved. files_processing.py now percent-encodes X-Lit-Drive and the addon unquotes it (drive_context.py:30). The extended test test_spec_core_031_i2_each_call_carries_one_drives_ids_and_its_name adds a '写真 2026' drive and asserts three calls with the decoded drive. If the quote() fix were reverted, httpx would raise on the header, the call would be swallowed and only two calls would be recorded, so the test would fail. The fix also corrects r2-verify's concern about a drive name containing a literal '%': the name now round-trips through quote and unquote.",
+    "r2 deep-r2-2 (I8 r2: an event arriving during an in-flight request) is resolved. refreshProcessing now sets processingRefreshQueued unconditionally, and the finally block re-runs one full refresh. The new test 'refreshes after a request ends when its event arrives mid-request' would fail if the old `fileIds === undefined` guard were restored: the first fetch is the immediate fetch with no ids, the event passes ids, so under the old guard the call count would stay at 1.",
+    "The queued re-run calls refreshProcessing() with no ids, so it refreshes every entry still in the processing view, a superset of the event's ids. It still filters out ready, gone, stopped and removed entries through needsProcessingFetch, so I8's 'never after ready/gone/removed/deadline' holds.",
+    "r2 R2-1 (refine events dropped when the snapshot has no drive) and R2-2 (synchronous startup posts) were not changed. Both were bucket B, and the record shows no fix for them."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Any number of processing.updated events that arrive during one in-flight request now collapse into a single extra full refresh after it ends, not one refresh per event."
+  ],
+  "regression_risks": [
+    "resetUploadStore does not clear processingInFlight or processingRefreshQueued. If a test resets the store while a request is still pending, the flags can carry over into the next case. This is test-only, not app behaviour.",
+    "Any other core-to-addon caller that later sends X-Lit-Drive raw would reintroduce the ASCII failure, because the encoding is applied at this one call site only."
+  ],
+  "test_coverage": [
+    "The core test now covers a non-ASCII drive name in the processing call. It unquotes on the stub side, so it does not exercise the addon's own decoding.",
+    "The frontend test covers one event arriving during an in-flight request. No test covers several events during one request, or an event that arrives during the queued re-run itself.",
+    "No core test sends a drive name containing '%' or '/' to confirm the quote/unquote round-trip on those characters."
+  ],
+  "not_verified": [
+    "I ran no tests, gates or mutations. The killed or survived judgements above are reasoned, not executed.",
+    "I did not confirm the exact file list of a51507602 or 37a930af4. I assume from their subjects that they are docs-only.",
+    "I did not check whether an intelligence-side test exercises require_drive with a percent-encoded non-ASCII header on POST /files/processing.",
+    "I did not re-check the truncated remainder of the submodule diff."
+  ],
+  "confidence": 80,
+  "trajectory": "The two code fixes in this round do not add a branch, state or prediction of the kind earlier rounds added. 7e28bdc adds one encoding step at the existing call site (quote on X-Lit-Drive). It reuses the decoding the addon already performed, so it adds no new branch. aee93a7 removes a branch: the `fileIds === undefined` condition, which predicted that only tick or entry-driven calls could be stale, is gone, and every in-flight call is now queued. 37a930af4 and a51507602 are review records only. Earlier rounds patched app/addon_events.py one step at a time (first the secret header, then the drive refusal). This round touches other code (the core router and the frontend store) and simplifies rather than stacks. The one new seam is documentation: the processing_status section of ADDON-DEVELOPMENT.md still describes the header as raw (R3-1)."
+}

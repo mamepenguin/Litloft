@@ -26,6 +26,16 @@ export interface BuildInspectorTabsInput {
     content: ReactNode;
     available?: boolean;
   }>;
+  /**
+   * Drawn after `addonTabs` whatever the priorities say. Here an entry
+   * that has not answered is unlisted: only `true` gives it a button.
+   */
+  inspectorTabs?: Array<{
+    entry: SlotEntry;
+    label: string;
+    content: ReactNode;
+    available?: boolean;
+  }>;
 }
 
 /** Nothing here knows an addon's id or name: no core-to-addon dependencies. */
@@ -33,6 +43,7 @@ export function buildInspectorTabs({
   info,
   coreTabs = [],
   addonTabs = [],
+  inspectorTabs = [],
 }: BuildInspectorTabsInput): InspectorTab[] {
   return [
     { id: "info", label: info.label, content: info.content, listed: true },
@@ -58,6 +69,16 @@ export function buildInspectorTabs({
         content: tab.content,
         listed: tab.available !== false,
       })),
+    ...sortSlotEntries(
+      inspectorTabs.map((tab) => ({ ...tab, priority: tab.entry.priority })),
+    ).map((tab) => ({
+      // Keyed by slot: an entry may share its id with a `player-side`
+      // entry or a core tab.
+      id: `inspector-tabs:${tab.entry.id}`,
+      label: tab.label,
+      content: tab.content,
+      listed: tab.available === true,
+    })),
   ];
 }
 

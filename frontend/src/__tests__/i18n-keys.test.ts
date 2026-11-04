@@ -1,7 +1,16 @@
 import { describe, it, expect } from "vitest";
-import { readdirSync, existsSync, readFileSync } from "node:fs";
+import {
+  readdirSync,
+  existsSync,
+  readFileSync,
+  mkdtempSync,
+  mkdirSync,
+  writeFileSync,
+  rmSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
-import { resolve, dirname } from "node:path";
+import { resolve, dirname, join } from "node:path";
 import jaMessages from "../messages-core/ja.json";
 import enMessages from "../messages-core/en.json";
 
@@ -212,21 +221,37 @@ function manifestSlotKeys(): { addon: string; entry: string; key: string }[] {
   return out;
 }
 
-function tabEntries(): { addon: string; entry: string; key?: string }[] {
-  if (!existsSync(ADDONS_DIR)) return [];
+function tabEntries(dir = ADDONS_DIR): { addon: string; entry: string; key?: string }[] {
+  if (!existsSync(dir)) return [];
   const out: { addon: string; entry: string; key?: string }[] = [];
-  for (const dirent of readdirSync(ADDONS_DIR, { withFileTypes: true })) {
+  for (const dirent of readdirSync(dir, { withFileTypes: true })) {
     if (!dirent.isDirectory()) continue;
-    const manifestPath = resolve(ADDONS_DIR, dirent.name, "manifest.json");
+    const manifestPath = resolve(dir, dirent.name, "manifest.json");
     if (!existsSync(manifestPath)) continue;
     const manifest = JSON.parse(readFileSync(manifestPath, "utf-8")) as {
       slots?: Record<string, { id: string; i18n_key?: string }[]>;
     };
-    for (const entry of manifest.slots?.["player-side"] ?? []) {
-      out.push({ addon: dirent.name, entry: entry.id, key: entry.i18n_key });
+    for (const slot of TAB_SLOTS) {
+      for (const entry of manifest.slots?.[slot] ?? []) {
+        out.push({ addon: dirent.name, entry: entry.id, key: entry.i18n_key });
+      }
     }
   }
   return out;
+}
+
+/** The slots whose entries become tab buttons, and so need a label key. */
+const TAB_SLOTS = ["player-side", "inspector-tabs"] as const;
+
+/** A manifest tree to run {@link tabEntries} against, outside the repo. */
+function fixtureAddons(manifest: unknown): string {
+  const root = mkdtempSync(join(tmpdir(), "litloft-addons-"));
+  mkdirSync(join(root, "fixture"));
+  writeFileSync(
+    join(root, "fixture", "manifest.json"),
+    JSON.stringify(manifest),
+  );
+  return root;
 }
 
 describe("addon slot labels", () => {
@@ -234,7 +259,7 @@ describe("addon slot labels", () => {
   const catalogues = new Map(addonCatalogues().map((c) => [c.addon, c]));
 
   it.skipIf(!existsSync(ADDONS_DIR))(
-    "every player-side entry names a translation for its tab",
+    "every tab entry names a translation for its tab",
     () => {
       // A manifest that declares no key makes `slotEntryLabel` fall back to
       // the English literal, silently.
@@ -243,6 +268,36 @@ describe("addon slot labels", () => {
       expect(
         entries.filter((e) => !e.key).map((e) => `${e.addon}/${e.entry}`),
       ).toEqual([]);
+    },
+  );
+
+  it("scans every slot that draws a tab", () => {
+    // The list, not the addons checked out today: none of them declares an
+    // `inspector-tabs` entry yet, so a scan limited to `player-side` would
+    // pass while missing the tabs the slot exists for.
+    expect([...TAB_SLOTS]).toEqual(["player-side", "inspector-tabs"]);
+  });
+
+  it.each([...TAB_SLOTS])(
+    "reports a %s entry that declares no key",
+    (slot) => {
+      const root = fixtureAddons({
+        slots: {
+          [slot]: [
+            { id: "keyed", label: "Keyed", i18n_key: "addon.label" },
+            { id: "bare", label: "Bare" },
+          ],
+        },
+      });
+      try {
+        expect(
+          tabEntries(root)
+            .filter((entry) => !entry.key)
+            .map((entry) => `${entry.addon}/${entry.entry}`),
+        ).toEqual(["fixture/bare"]);
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
     },
   );
 
