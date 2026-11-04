@@ -275,7 +275,22 @@
     "hintSelect": "Select",
     "hintOpen": "Open",
     "hintRemoveScope": "Remove scope",
-    "driveRoot": "Drive root"
+    "driveRoot": "Drive root",
+    "queryField": "Search query",
+    "filters": "Filters",
+    "removeFilter": "Remove {label} {value}",
+    "removeFilterOnly": "Remove {label}",
+    "addFilter": "Add filter",
+    "addFilterWord": "Filter",
+    "filterTag": "Tag",
+    "filterKind": "Type",
+    "filterFavorite": "Favorites",
+    "filterBack": "Back",
+    "filterTagSearch": "Filter tags",
+    "filterTagsLoading": "Loading tags…",
+    "filterTagsFailed": "Could not load tags",
+    "filterTagsNone": "This drive has no tags",
+    "filterTagsNoMatch": "No matching tags"
   },
   "smartFolder": {
     "sectionTitle": "Smart Folders",

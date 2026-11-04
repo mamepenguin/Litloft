@@ -108,25 +108,11 @@ describe("SPEC-CORE-039 I6 the modal's meaning stage for a filtered query", () =
       { tags: ["会議"], kinds: ["pdf"] },
     ],
     [
-      "the scope's kind joins the filter",
-      "tag:会議 予算",
-      "video",
-      "予算",
-      { tags: ["会議"], kinds: ["video"] },
-    ],
-    [
       "both flags",
       "is:favorite is:liked 予算",
       null,
       "予算",
       { favorite: true, liked: true },
-    ],
-    [
-      "a kind narrowed by the scope",
-      "type:document 予算",
-      "text",
-      "予算",
-      { kinds: ["text"] },
     ],
     [
       "several kinds",

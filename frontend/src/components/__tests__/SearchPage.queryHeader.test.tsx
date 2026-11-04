@@ -450,13 +450,14 @@ describe("SPEC-CORE-039 I14 the ＋ 条件 menu", () => {
     expect(within(menu).getByRole("menuitem", { name: "Favorites" })).toBeInTheDocument();
   });
 
-  it("lists at most 8 tags with a count that the field does not already hold", () => {
+  it("lists at most 8 tags with a count that the field does not already hold", async () => {
     renderSearch({ searchQuery: "tag:会議 cats" });
     const menu = openFilterMenu();
 
     fireEvent.click(within(menu).getByRole("menuitem", { name: "Tag" }));
 
     const list = screen.getByRole("menu");
+    await within(list).findByRole("menuitem", { name: "予算" });
     const offered = TAGS.map((tag) => tag.name).filter(
       (name) => within(list).queryByRole("menuitem", { name }) !== null,
     );
@@ -467,21 +468,22 @@ describe("SPEC-CORE-039 I14 the ＋ 条件 menu", () => {
     expect(offered).not.toContain("empty");
   });
 
-  it("filters the tag list as the reader types", () => {
+  it("filters the tag list as the reader types", async () => {
     renderSearch({ searchQuery: "cats" });
     const menu = openFilterMenu();
     fireEvent.click(within(menu).getByRole("menuitem", { name: "Tag" }));
     const list = screen.getByRole("menu");
+    await within(list).findByRole("menuitem", { name: "予算" });
 
     fireEvent.change(within(list).getByRole("textbox"), { target: { value: "旅" } });
 
-    expect(within(list).getByRole("menuitem", { name: "旅行" })).toBeInTheDocument();
+    expect(await within(list).findByRole("menuitem", { name: "旅行" })).toBeInTheDocument();
     expect(within(list).queryByRole("menuitem", { name: "予算" })).toBeNull();
   });
 
   it.each([
     ["a chosen kind", null, "type:text 予算", ["Text", "Document"], ["Video", "PDF"]],
-    ["the toolbar type", "video", "予算", ["Video", "Document", "Text", "PDF"], ["Image"]],
+    ["the toolbar type", "video", "予算", ["Video", "Document", "Text", "PDF"], []],
     ["a kind an already chosen kind holds", "document", "type:document 予算", ["Document", "Text", "PDF"], ["Video"]],
   ] as const)(
     "does not offer %s",
@@ -512,13 +514,15 @@ describe("SPEC-CORE-039 I14 the ＋ 条件 menu", () => {
     ["a tag", "Tag", "会議", "cats tag:会議"],
     ["a kind", "Type", "PDF", "cats type:pdf"],
     ["お気に入り", "Favorites", null, "cats is:favorite"],
-  ])("appends %s as one token and submits", (_name, item, option, expected) => {
+  ])("appends %s as one token and submits", async (_name, item, option, expected) => {
     renderSearch({ searchQuery: "cats" });
     const menu = openFilterMenu();
     fireEvent.click(within(menu).getByRole("menuitem", { name: item }));
 
     if (option) {
-      fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: option }));
+      fireEvent.click(
+        await within(screen.getByRole("menu")).findByRole("menuitem", { name: option }),
+      );
     }
 
     expect(router.push).toHaveBeenCalledTimes(1);

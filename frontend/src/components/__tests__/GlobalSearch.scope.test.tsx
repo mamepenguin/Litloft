@@ -169,7 +169,7 @@ describe("GlobalSearch with a scope", () => {
     mockGetDriveTags.mockResolvedValue([]);
     mockGetFolderTree.mockResolvedValue([]);
     mockGetDriveFiles.mockResolvedValue(page([]));
-    mockFetchSemanticHits.mockResolvedValue([]);
+    mockFetchSemanticHits.mockResolvedValue({ ok: true, results: [] });
     mockIsSemanticSearchAvailable.mockResolvedValue(true);
     mockReadSearchCache.mockReturnValue(null);
   });

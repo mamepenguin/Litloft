@@ -426,7 +426,7 @@ describe("SPEC-CORE-039 I19 Show more by similarity keeps the filter", () => {
     expect(call.query.q).toBe("予算");
     expect(JSON.parse(call.query.filter)).toEqual({
       tags: ["会議"],
-      kinds: ["document"],
+      kinds: ["pdf"],
     });
     expect(call.query.type).toBeUndefined();
     expect(call.query.include_scene_clip).toBeUndefined();

@@ -35,6 +35,7 @@ const TEXT_FIELD_ENTER = [
   "components/folder/FolderToolbar.tsx",
   "components/settings/ProfileSection.tsx",
   "components/sidebar/SidebarCollectionsSection.tsx",
+  "components/search/SearchQueryHeader.tsx",
 ];
 
 /**
@@ -96,7 +97,7 @@ function enterFiles(root: string): string[] {
 describe("core files handling Enter", () => {
   it("are all declared as a text field or not", () => {
     const declared = [...TEXT_FIELD_ENTER, ...NOT_A_TEXT_FIELD_ENTER].sort();
-    expect(declared).toHaveLength(18);
+    expect(declared).toHaveLength(19);
     expect(enterFiles(SRC)).toEqual(declared);
   });
 

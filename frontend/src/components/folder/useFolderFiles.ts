@@ -14,7 +14,12 @@ import {
   sortMerged,
   type SemanticHit,
 } from "@/lib/searchMerge";
-import { parseSearchQuery, resolveKinds } from "@/lib/searchQuery";
+import {
+  filterFromParsed,
+  filterQueryParam,
+  parseSearchQuery,
+  resolveKinds,
+} from "@/lib/searchQuery";
 import {
   fetchSemanticHits,
   fetchSemanticImages,
@@ -277,18 +282,34 @@ export function useFolderFiles({
   const [semanticAvailable, setSemanticAvailable] = useState(false);
   const [semanticArrived, setSemanticArrived] = useState(false);
 
+  const filter = useMemo(
+    () => filterFromParsed(parsed, typeFilter ?? null),
+    [parsed, typeFilter],
+  );
+  const filterSignature = parsed.hasOperators ? filterQueryParam(filter) : "";
+  const meaningEligible =
+    isSearch && parsed.text !== "" && !searchKinds.impossible;
+  const previousSemanticRef = useRef<{
+    key: string;
+    filtered: boolean;
+  } | null>(null);
+
   useEffect(() => {
-    // Semantic hits cannot be narrowed by tag, kind operator or flag, so a
-    // filtered search shows none, including any left from the previous query.
-    if (!isSearch || parsed.hasOperators) {
+    if (!meaningEligible) {
       setSemanticHits([]);
       setSemanticLoading(false);
       setSemanticAvailable(false);
       setSemanticArrived(false);
+      previousSemanticRef.current = null;
       return;
     }
-    const trimmed = searchQuery!.trim();
-    if (!trimmed) return;
+    const filtered = parsed.hasOperators;
+    const semanticKey = `${parsed.text}\u0000${filterSignature}\u0000${includeSceneClip ? 1 : 0}\u0000${typeFilter ?? ""}`;
+    const previous = previousSemanticRef.current;
+    previousSemanticRef.current = { key: semanticKey, filtered };
+    if (previous && previous.key !== semanticKey && (previous.filtered || filtered)) {
+      setSemanticHits([]);
+    }
     const ctrl = new AbortController();
     setSemanticLoading(true);
     setSemanticArrived(false);
@@ -303,21 +324,32 @@ export function useFolderFiles({
         return;
       }
       setSemanticAvailable(true);
-      const hits = await fetchSemanticHits(trimmed, driveName, {
+      const answer = await fetchSemanticHits(parsed.text, driveName, {
         limit: SEMANTIC_LIMIT,
-        type: typeFilter,
-        includeSceneClip,
+        ...(filtered
+          ? { filter }
+          : { type: typeFilter, includeSceneClip }),
         signal: ctrl.signal,
       });
       if (ctrl.signal.aborted) return;
-      setSemanticHits(hits);
+      setSemanticHits(answer.ok ? answer.results : []);
       setSemanticLoading(false);
       setSemanticArrived(true);
     })();
     return () => {
       ctrl.abort();
     };
-  }, [isSearch, parsed.hasOperators, searchQuery, driveName, typeFilter, includeSceneClip]);
+  }, [
+    meaningEligible,
+    parsed,
+    filter,
+    filterSignature,
+    searchQuery,
+    driveName,
+    typeFilter,
+    includeSceneClip,
+    searchKinds.impossible,
+  ]);
 
   const [continuation, setContinuation] = useState<ContinuationAnswer | null>(null);
   const continuationKey = [
@@ -327,6 +359,7 @@ export function useFolderFiles({
     includeSceneClip ? "scene" : "",
     sort,
     order,
+    filterSignature,
   ].join("\u0000");
   const continuationKeyRef = useRef(continuationKey);
   continuationKeyRef.current = continuationKey;
@@ -384,9 +417,8 @@ export function useFolderFiles({
   const canOfferContinuation =
     isSearch &&
     parsed.text !== "" &&
-    !parsed.hasOperators &&
     semanticAvailable &&
-    !includeSceneClip &&
+    (!includeSceneClip || parsed.hasOperators) &&
     sort === "relevance" &&
     !hasMore &&
     !paginatedLoading &&
@@ -402,7 +434,7 @@ export function useFolderFiles({
     setContinuation({ key, status: "loading", results: [], revealed: 0 });
     (async () => {
       const answer = await fetchSemanticImages(query, driveName, {
-        type: typeFilter,
+        ...(parsed.hasOperators ? { filter } : { type: typeFilter }),
       });
       if (continuationKeyRef.current !== key) return;
       if (!answer.ok) {
@@ -421,6 +453,8 @@ export function useFolderFiles({
     activeContinuation,
     continuationKey,
     parsed.text,
+    parsed.hasOperators,
+    filter,
     driveName,
     typeFilter,
   ]);
@@ -523,10 +557,12 @@ export function useFolderFiles({
     : mergedSearch
       ? mergedSearch.total
       : paginatedTotal;
+  // A filtered query's meaning stage is an enhancement over the listing: the
+  // listing rows stay visible while the addon ranks within the filter.
   const loading = isRecent
     ? recentLoading
     : isSearch
-      ? paginatedLoading || semanticLoading
+      ? paginatedLoading || (semanticLoading && !parsed.hasOperators)
       : paginatedLoading;
   const setFiles = isRecent ? setRecentFiles : setPaginatedFiles;
 

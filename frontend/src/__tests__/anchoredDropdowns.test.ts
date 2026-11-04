@@ -72,6 +72,7 @@ const DIRECTION_ROLES = {
   "frontend/src/components/archive/ArchiveToolbar.tsx": "takes-the-surface",
   "frontend/src/components/folder/FilterMenu.tsx": "takes-the-surface",
   "frontend/src/components/folder/FolderToolbar.tsx": "takes-the-surface",
+  "frontend/src/components/search/SearchQueryHeader.tsx": "takes-the-surface",
 
   "frontend/src/components/SelectionBar.tsx": "pinned",
   "frontend/src/components/epub/EpubPositionBar.tsx": "pinned",
@@ -119,7 +120,7 @@ describe("every anchored dropdown in core", () => {
       "frontend/src/hooks/useAnchoredDirection.ts",
     ]);
     expect(byRole.measures).toHaveLength(8);
-    expect(byRole["takes-the-surface"]).toHaveLength(5);
+    expect(byRole["takes-the-surface"]).toHaveLength(6);
   });
 
   it.each(Object.entries(DIRECTION_ROLES))(
