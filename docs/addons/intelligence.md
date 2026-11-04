@@ -17,6 +17,7 @@ The `intelligence` addon adds meaning-based search, Ask (question answering over
 | **Transcript refine** | Corrects transcripts with an LLM | off | yes |
 | **Vision describe** | Image descriptions | manual | yes, with `llm.vision_model` |
 | **Visual index** | A list of described scenes in a video, each one seekable | off | yes, with `llm.vision_model` |
+| **Text in pictures** | Reads the words in pictures with a local OCR engine so search and Ask find them | on | no |
 | **Transcription** | Local faster-Whisper, the local Japanese-only Haas engine, or a cloud provider | local | no |
 | **Pickup** | A feed of files you have never opened, ranked by your watch history | always | no |
 
@@ -29,6 +30,7 @@ The addon can send your file content to outside services. Whether it does depend
 - Which [LLM profile](#llm-profiles-and-routing) a feature uses. A profile on your own machine (ollama, or another model on your network) keeps content at home. A profile marked **External server** sends it to that server, and only on drives that allow it (`llm_cloud` below).
 - **Ask** (`features.rag`) sends transcripts and text of the files it retrieves on every question.
 - Vision describe and the visual index send image bytes (and, for the visual index, nearby transcript text) to the vision model.
+- **Text in pictures** reads each picture inside the container with a local engine; nothing leaves the machine for the reading itself. The recognised text is then handled like a document's text (see [text in pictures](#text-in-pictures)).
 - `transcription.provider`: `"whisper_local"` and `"haas_local"` keep audio local; every other provider sends audio to the cloud.
 
 ### Per-drive policy
@@ -155,6 +157,7 @@ Every hour (`indexing.reconciliation_interval`) the addon looks for files it has
 - Audio and video are transcribed, split into chunks and embedded. Keywords from the transcript are stored for **Similar files**.
 - For video, frames are picked at scene changes (`indexing.frame_extraction`) and embedded with CLIP.
 - Images are embedded with CLIP, and captioned with BLIP when `models.blip` is set.
+- Pictures are also read for the words in them with a local OCR engine when `features.image_ocr` is not off; see [text in pictures](#text-in-pictures).
 
 Re-indexing a file replaces its old index.
 
@@ -274,6 +277,28 @@ Refine replaces the transcript text, and there is no undo. To get the original b
 
 Modes (`features.transcript_refine`): `"false"` (default), `"manual"`, `"on_index"`.
 
+### Text in pictures
+
+Pictures are read for the words in them: screenshots, slides, photos of signs and documents. The engine is RapidOCR with its PP-OCRv6 small models, which ship inside the package, so the picture is read inside the container and nothing is downloaded or sent out for it. It reads JPEG, PNG, WebP, GIF, BMP, HEIC and HEIF files, taking the first frame of a GIF and applying the EXIF orientation.
+
+- A file over 50 MB or over 50 million pixels is not read; it is closed with no text.
+- Pictures are read one at a time, in about 1 to 2 seconds each.
+- The loaded engine adds about 65 MB; reading a 1600×1200 screenshot peaked at about 440 MB of resident memory in total. `memory.ocr_idle_unload` (default 300 seconds) releases it once it has been idle.
+
+The recognised lines are stored as the picture's text chunks, the same rows a document's text uses, so search, exact search and Ask find and quote them. From there the text follows a document's rules: Ask may send it to the routed LLM, and to an off-host profile only on drives whose `llm_cloud` policy allows it.
+
+Modes (`features.image_ocr`):
+
+- `"on_index"`: read when a picture is indexed. Default. Pictures already indexed with no reading are queued in the background at startup and after each hourly pass, behind new work.
+- `"manual"`: read only when it is queued from the reindex or prioritize path.
+- `"false"`: never read.
+
+With `"on_index"`, a new picture's OCR task shares the queue with CLIP at normal priority, while the backlog of existing pictures is queued lower so it runs after new work. A reindex runs ahead of both. The OCR worker honours the queue's **Pause**, like the others.
+
+In **Index details** a picture has a **Text in image** row (「画像の文字」 in the Japanese UI) while the mode is not `"false"`, with its status and **Regenerate**. The per-file reindex accepts `ocr` as a task, answering 422 when the mode is `"false"` or the file is not a picture, and prioritize queues OCR for a picture that has not been read.
+
+A change takes effect after an intelligence restart. Turning the mode off keeps the text already stored, which stays searchable until the picture is reindexed or leaves the index.
+
 ### Vision describe
 
 The vision model describes each image (including HEIC). The description is shown under **AI image description**, used for search, and fed to tag candidates.
@@ -374,9 +399,10 @@ features:
   retrieval_keywords: "false"         # false | manual | on_index
   chapter_suggestions: "false"        # false | manual | on_index
   video_visual_index: "false"         # false | manual | on_index
+  image_ocr: "on_index"               # false | manual | on_index
 ```
 
-Every flag except `indexing`, `search` and `auto_tags` does nothing while `llm.provider` is `"disabled"`.
+Every flag except `indexing`, `search`, `auto_tags` and `image_ocr` does nothing while `llm.provider` is `"disabled"`.
 
 ### LLM
 
@@ -643,9 +669,10 @@ memory:
   whisper_idle_unload: 300                # seconds; 0 = never
   blip_idle_unload: 300
   clip_concepts_idle_unload: 600
+  ocr_idle_unload: 300
 ```
 
-Whisper (or the `haas_local` recognizer, when that is the provider), BLIP and the tag vocabulary model are unloaded after this many idle seconds. CLIP and the text embedding model stay loaded because search uses them.
+Whisper (or the `haas_local` recognizer, when that is the provider), BLIP, the OCR engine and the tag vocabulary model are unloaded after this many idle seconds. CLIP and the text embedding model stay loaded because search uses them.
 
 ## UI surface
 
@@ -658,7 +685,7 @@ Whisper (or the `haas_local` recognizer, when that is the provider), BLIP and th
 - **Pickup** on the drive home.
 - **Index details** in the file's `…` menu (see below).
 - **AI** in the folder's `…` menu: **Create AI tag candidates…**, **Create AI summaries…** and **Create image descriptions…**. Each asks first and says how many files. That count is the files the folder has loaded so far, which may not be the whole folder.
-- On the admin dashboard, the **Index Status** widget (queues, models, **Pause** / **Resume**) and, when something failed, a **N failed jobs** band whose **View** opens the **Failed jobs** list, with **Retry** and **Exclude** per row.
+- On the admin dashboard, the **Index Status** widget (queues, models, **Pause** / **Resume**) and, when something failed, a **N failed jobs** band whose **View** opens the **Failed jobs** list, with **Retry** and **Exclude** per row. It counts OCR tasks in the queue and shows a **Text in image** progress bar.
 
 A section disappears on drives where its feature is off.
 
@@ -677,7 +704,7 @@ To keep one passage rather than the whole file, select it and add it to the Know
 
 There is no "reindex everything" button. Instead:
 
-- For one task on one file, choose **Index details** in the file's `…` menu, then **Regenerate** on a task (`metadata`, `clip`, `whisper` or `text`). The file is indexed again on the next pass.
+- For one task on one file, choose **Index details** in the file's `…` menu, then **Regenerate** on a task (`metadata`, `clip`, `whisper`, `text` or `ocr`). The file is indexed again on the next pass. A picture shows the `ocr` row while `features.image_ocr` is not `"false"`.
 - For failed jobs, on the admin dashboard press **View** on the **N failed jobs** band and **Retry** a row. Files skipped because their type is not supported are not listed.
 
 Changing the text embedding model in the browser (or `models.text_embedding` in the file) rebuilds the whole text index at the next restart. Ask and text search are unavailable until it finishes. Detailed-summary citations are not rebuilt; run `backfill_detailed_citations --force` for that.
