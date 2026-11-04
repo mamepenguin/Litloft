@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 import { FileDetailContent } from "@/components/FileDetailContent";
 import { FileDetailChrome } from "@/components/FileDetail/FileDetailChrome";
@@ -11,12 +12,14 @@ import {
   getCollectionOnEnded,
 } from "@/components/CollectionPanel";
 import { useSetOverrideDrive } from "@/components/CurrentDriveProvider";
+import { Button } from "@/components/Button";
+import { useToast } from "@/components/ToastProvider";
 import { usePolicy } from "@/hooks/usePolicy";
 import { ridesFileDetailShell } from "@/lib/fileDetailShell";
 import { usePlainTextDocument } from "./FileDetail/hooks/usePlainTextDocument";
 import { useOverlaySidebar } from "@/components/SidebarProvider";
 import { useFileNav } from "@/hooks/useFileNav";
-import { getFileShared } from "@/lib/api";
+import { getFileShared, markInboxDone, undoInboxDone } from "@/lib/api";
 import { peekFileSeed } from "@/lib/fileSeed";
 import { normalizeSortParam } from "@/lib/sortField";
 import type { FileItem } from "@/types";
@@ -31,7 +34,12 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const setOverrideDrive = useSetOverrideDrive();
+  const tInbox = useTranslations("inbox");
+  const tErrors = useTranslations("errors");
+  const toast = useToast();
 
+  const nav = searchParams.get("nav") ?? undefined;
+  const isInboxNav = nav === "inbox";
   const sort = normalizeSortParam(searchParams.get("sort"));
   const order = searchParams.get("order") || undefined;
   // `?playlist=` is accepted so bookmarks and external links keep working.
@@ -77,23 +85,53 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
       if (folderPlay) params.set("folder_play", "1");
       if (sort) params.set("sort", sort);
       if (order) params.set("order", order);
+      if (isInboxNav) params.set("nav", "inbox");
       const qs = params.toString();
       return `/files/${id}${qs ? `?${qs}` : ""}`;
     },
-    [collectionId, folderPlay, sort, order],
+    [collectionId, folderPlay, sort, order, isInboxNav],
   );
 
   // Plain `router.replace` rather than useGuardedRouter: the dirty editor
   // lives in the 2-pane host, not the fullscreen host.
-  useFileNav({
+  const fileNav = useFileNav({
     fileId: !hasCollection && file ? fileId : null,
     sort,
     order,
+    nav,
+    drive: file?.drive ?? null,
     fileType: file?.file_type ?? null,
     mimeType: file?.mime_type ?? null,
     enabled: !hasCollection,
     onNavigate: (id) => router.replace(buildNavUrl(id)),
   });
+
+  const inboxHref = useCallback(() => {
+    const drive = file?.drive ?? "";
+    return `/drive/${encodeURIComponent(drive)}?view=inbox`;
+  }, [file]);
+
+  const handleInboxDone = useCallback(async () => {
+    if (!file) return;
+    try {
+      const answer = await markInboxDone(file.drive, { file_ids: [fileId] });
+      if (answer.done > 0) {
+        toast.success(tInbox("markedDone", { count: answer.done }), {
+          action: {
+            label: tInbox("undo"),
+            onClick: () => {
+              void undoInboxDone(file.drive, answer.done_at);
+            },
+          },
+        });
+      }
+    } catch {
+      toast.error(tErrors("pageError"));
+      return;
+    }
+    if (fileNav.nextId) router.replace(buildNavUrl(fileNav.nextId));
+    else router.push(inboxHref());
+  }, [file, fileId, toast, tInbox, tErrors, fileNav.nextId, router, buildNavUrl, inboxHref]);
 
   const handleCollectionNavigate = useCallback(
     (nextFileId: string) => {
@@ -108,6 +146,10 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
   }, []);
 
   const handleBack = useCallback(() => {
+    if (isInboxNav) {
+      router.push(inboxHref());
+      return;
+    }
     if (typeof window !== "undefined" && window.history.length > 1) {
       router.back();
       return;
@@ -118,15 +160,19 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
         : `/drive/${encodeURIComponent(file.drive)}`;
       router.push(backPath);
     }
-  }, [router, file]);
+  }, [router, file, isInboxNav, inboxHref]);
 
   const handleAfterDelete = useCallback(() => {
     if (!file) return;
+    if (isInboxNav) {
+      router.push(inboxHref());
+      return;
+    }
     const backPath = file.folder_path
       ? `/drive/${encodeURIComponent(file.drive)}/${file.folder_path}`
       : `/drive/${encodeURIComponent(file.drive)}`;
     router.push(backPath);
-  }, [router, file]);
+  }, [router, file, isInboxNav, inboxHref]);
 
   // A Markdown note or an HTML preview rides `FileDetailShell`, which
   // draws the page row itself; drawing one here too would put two
@@ -172,6 +218,14 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
               className="h-12 border-b border-bg-border bg-bg-card"
             />
           )}
+        </div>
+      )}
+
+      {isInboxNav && file && (
+        <div className="mb-4 flex justify-end">
+          <Button variant="secondary" onClick={() => void handleInboxDone()}>
+            {tInbox("done")}
+          </Button>
         </div>
       )}
 

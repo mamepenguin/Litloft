@@ -442,6 +442,8 @@ export async function initUpload(
     chunk_size: number;
     relative_path?: string;
     require_folder?: boolean;
+    /** The upload store marks every upload it starts as an arrival. */
+    inbox_source?: "upload";
   }
 ): Promise<UploadInitResponse> {
   return fetchUploadJSON<UploadInitResponse>(
@@ -493,6 +495,82 @@ export async function cancelUpload(drive: string, uploadId: string): Promise<voi
     { method: "DELETE", credentials: "include" }
   );
   if (!res.ok) throw new Error(`Cancel upload failed: ${res.status}`);
+}
+
+export interface InboxItem {
+  file: FileItem;
+  arrived_at: string;
+  source: string;
+  source_i18n_key: string;
+}
+
+export interface InboxListResponse {
+  items: InboxItem[];
+  next: string | null;
+  open_count: number;
+}
+
+export interface InboxNeighbors {
+  prev_id: string | null;
+  next_id: string | null;
+  position: number | null;
+  total: number | null;
+}
+
+export async function getInbox(
+  drive: string,
+  params: { before?: string | null; limit?: number } = {},
+): Promise<InboxListResponse> {
+  const search = new URLSearchParams();
+  if (params.before) search.set("before", params.before);
+  if (params.limit !== undefined) search.set("limit", String(params.limit));
+  const qs = search.toString();
+  const answer = await fetchJSON<InboxListResponse>(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/inbox${qs ? `?${qs}` : ""}`,
+    { cache: "no-store" },
+  );
+  seedFiles(answer.items.map((item) => item.file));
+  return answer;
+}
+
+export async function getInboxCount(drive: string): Promise<number> {
+  const answer = await fetchJSON<{ open: number }>(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/inbox/count`,
+    { cache: "no-store" },
+  );
+  return answer.open;
+}
+
+export async function markInboxDone(
+  drive: string,
+  body: { file_ids: string[] } | { all: true; up_to: string },
+): Promise<{ done: number; done_at: string }> {
+  return fetchJSON(`${API_BASE}/drives/${encodeURIComponent(drive)}/inbox/done`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export async function undoInboxDone(
+  drive: string,
+  doneAt: string,
+): Promise<{ reopened: number }> {
+  return fetchJSON(`${API_BASE}/drives/${encodeURIComponent(drive)}/inbox/undo`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ done_at: doneAt }),
+  });
+}
+
+export async function getInboxNeighbors(
+  drive: string,
+  fileId: string,
+): Promise<InboxNeighbors> {
+  return fetchJSON<InboxNeighbors>(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/inbox/${encodeURIComponent(fileId)}/neighbors`,
+    { cache: "no-store" },
+  );
 }
 
 export type ProcessingStageState = "pending" | "running" | "done" | "failed";

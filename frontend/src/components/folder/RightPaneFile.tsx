@@ -74,6 +74,8 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
     fileId: file ? fileId : null,
     sort: navOrdering.sort,
     order: navOrdering.order,
+    nav: searchParams.get("nav") ?? undefined,
+    drive,
     countable: navOrdering.countable,
     fileType: file?.file_type ?? null,
     mimeType: file?.mime_type ?? null,
