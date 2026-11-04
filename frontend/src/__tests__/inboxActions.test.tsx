@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 
 import { ClipboardProvider } from "@/components/ClipboardProvider";
 import { ToastProvider } from "@/components/ToastProvider";
@@ -18,6 +18,7 @@ import {
   localMoment,
   type InboxItemWire,
 } from "./helpers/inboxData";
+import { renderInboxSettled } from "./helpers/inboxRender";
 
 const route = vi.hoisted(() => ({
   search: new URLSearchParams("view=inbox"),
@@ -131,11 +132,7 @@ function checkboxes() {
 
 async function open(items: InboxItemWire[]) {
   setup({ items });
-  render(tree());
-  await screen.findByRole("heading", { name: "Inbox" });
-  // The heading renders before the list answers; a test that reads a row
-  // right away would otherwise race the fetch.
-  await waitFor(() => items.forEach((item) => linkFor(item.file.id)));
+  return renderInboxSettled(tree, items);
 }
 
 beforeEach(() => {
@@ -187,8 +184,7 @@ describe("SPEC-CORE-032 done from a row", () => {
 
   it("SPEC-CORE-032 shows no toast when nothing was closed", async () => {
     setup({ items: [f1, f2], doneCount: 0 });
-    render(tree());
-    await screen.findByRole("heading", { name: "Inbox" });
+    await renderInboxSettled(tree, [f1, f2]);
     doneButtons()[0].click();
 
     await waitFor(() => expect(api.doneCalls()).toHaveLength(1));
@@ -204,8 +200,7 @@ describe("SPEC-CORE-032 I13 a done request that has not answered", () => {
       release = resolve;
     });
     setup({ items: [f1, f2], doneGate: gate });
-    const view = render(tree());
-    await screen.findByRole("heading", { name: "Inbox" });
+    const view = await renderInboxSettled(tree, [f1, f2]);
 
     doneButtons()[0].click();
     await waitFor(() => expect(api.doneCalls()).toHaveLength(1));
@@ -227,8 +222,7 @@ describe("SPEC-CORE-032 I13 a done request that has not answered", () => {
 
   it("SPEC-CORE-032 I13 shows the rows again when the request fails", async () => {
     setup({ items: [f1, f2], failDone: true });
-    render(tree());
-    await screen.findByRole("heading", { name: "Inbox" });
+    await renderInboxSettled(tree, [f1, f2]);
     doneButtons()[0].click();
 
     await waitFor(() => expect(api.doneCalls()).toHaveLength(1));
@@ -240,9 +234,9 @@ describe("SPEC-CORE-032 I13 a done request that has not answered", () => {
 
 describe("SPEC-CORE-032 Mark all done", () => {
   it("SPEC-CORE-032 closes everything up to the newest loaded arrival", async () => {
-    setup({ items: [f1, f2, inboxItem(inboxFile("f3"), older)], doneCount: 3 });
-    render(tree());
-    await screen.findByRole("heading", { name: "Inbox" });
+    const items = [f1, f2, inboxItem(inboxFile("f3"), older)];
+    setup({ items, doneCount: 3 });
+    await renderInboxSettled(tree, items);
 
     screen.getByRole("button", { name: "Mark all done" }).click();
 
@@ -324,8 +318,7 @@ describe("SPEC-CORE-032 the selection bar", () => {
       items,
       folders: [{ name: "archive", path: "archive" }],
     });
-    render(tree());
-    await screen.findByRole("heading", { name: "Inbox" });
+    await renderInboxSettled(tree, items);
     for (const box of checkboxes()) fireEvent.click(box);
 
     screen.getByRole("button", { name: "Move" }).click();
