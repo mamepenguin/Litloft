@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [],
+  "specification_compliance": [
+    "Every path the diff reaches maps to a declared touch point: backend/app/services/fileops.py, backend/app/database.py, backend/app/routers/internal.py, backend/tests/ (three new test files), mcp-server/src/tools/collections.ts + src/tools/index.ts (the 'new collections.ts registered in index.ts' option), mcp-server/src/tools/read.ts (summarizeFile exported; read.ts is itself named), mcp-server/src/server.ts, write.ts, batch.ts, mcp-server/src/__tests__/toolMetadata.test.ts and collections.test.ts, mcp-server/README.md, docs/reference/api.md, docs/ADDON-DEVELOPMENT.md, docs/user-guide/playlists-favorites.md, docs/user-guide/upload-and-fileops.md, .claude/rules/internal-api-policy.md, the addons/intelligence gitlink bump (named: the core PR carries it), and inside the submodule app/rag/collection_client.py and tests/test_rag_collection_client.py.",
+    "docs/specs/source-sets.md and docs/specs/INDEX.md are implicit touch points and are not reported.",
+    "The fileops.py change sits inside the existing try after the disk move and before db.commit(), guarded on dst_drive != src_drive and keyed on Collection.drive != dst_drive, as the touch point describes (fileops.py:492-498).",
+    "The database.py cleanup is the last step of _migrate and is gated on files/collections/collection_items all existing, so the hand-built migration schemas do not raise."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The read.ts change only adds an `export` to summarizeFile so collections.ts can reuse it. read.ts is in the touch-point list, so the diff does not reach an unplanned place, though the touch point offered read.ts and collections.ts as alternatives and the diff edits both."
+  ],
+  "regression_risks": [
+    "Exporting summarizeFile from read.ts couples collections.ts to SUMMARY_FIELDS, so a later change to search_files' summary also changes get_collection's output. The spec intends this."
+  ],
+  "test_coverage": [
+    "The move tests cover cross-drive single moves, within-drive moves (absent, same-name and empty target_drive), 409, 404 not on disk, a locked destination, a DB error after the disk move, and batch partial failure.",
+    "The cleanup tests cover exact deletion, clean data, idempotence, the playlists copy in the same start, an injected DB error, and hand-built schemas.",
+    "The endpoint tests cover ordering, filtering, every 4xx status, the secret set and unset, and the parity pins."
+  ],
+  "not_verified": [
+    "Did not run any test suite (read-only reviewer).",
+    "Did not inspect the addons/intelligence submodule checkout at 74b4682 beyond the diff shown; did not confirm the submodule commit exists on its remote.",
+    "Did not verify that `git show 7c7be412a` alone (rather than the branch against origin/develop) contains exactly the shown diff.",
+    "Did not read the review records under docs/process/reviews/ or the invariants.md revision file."
+  ],
+  "confidence": 88
+}

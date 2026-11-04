@@ -16,7 +16,7 @@ A collection is an ordered list of files from one drive.
 ![Collection editor with a row being reordered by drag and drop](../images/user-guide/playlist-reorder-drag.png)
 
 - Create one with **Create collection** in the sidebar, or with **Add to collection** on a file's page.
-- A file can be in several collections, but only in collections of its own drive.
+- A file can be in several collections, but only in collections of its own drive. Moving a file to another drive takes it out of this drive's collections.
 - Drag rows to reorder them. The list view numbers the rows from 01.
 - A collection chooses grid or list the same way a folder does ([file browsing](file-browsing.md#file-grid-and-list-modes)), and remembers what you choose.
 - To delete a collection, open `…` beside **Play** and choose **Delete collection**. The files themselves are not deleted.

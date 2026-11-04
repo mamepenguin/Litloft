@@ -12,7 +12,14 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 import app.config as config
-from app.models import EmptyFolder, File, FileExif, active_file_filter
+from app.models import (
+    Collection,
+    CollectionItem,
+    EmptyFolder,
+    File,
+    FileExif,
+    active_file_filter,
+)
 from app.nanoid import generate_nanoid
 from app.services.atomic_write import generating_file
 from app.services.heic import cleanup_heic_cache
@@ -488,6 +495,13 @@ def move_file(db: Session, file_id: str, target_drive: str | None, target_folder
         file.drive = dst_drive
         file.folder_path = target_folder
         file.file_path = new_rel
+        if dst_drive != src_drive:
+            db.query(CollectionItem).filter(
+                CollectionItem.file_id == file.id,
+                CollectionItem.collection_id.in_(
+                    db.query(Collection.id).filter(Collection.drive != dst_drive)
+                ),
+            ).delete(synchronize_session=False)
         if _is_markdown_file(file):
             content = _read_markdown_for_projection(new_full)
             if content is not None:

@@ -18,6 +18,8 @@ from app.auth import filter_drives, get_unlocked_groups
 from app.database import get_db
 from app.models import (
     TRUST_TIERS,
+    Collection,
+    CollectionItem,
     File,
     FileRelation,
     WatchHistory,
@@ -29,6 +31,7 @@ from app.schemas import (
     ChapterPromotionRequest,
     TagUpdate,
     TrustTierUpdate,
+    _NANOID_RE,
     file_to_response,
 )
 from app.services.chapters import replace_chapters
@@ -391,6 +394,49 @@ def viewer_history(
         )
     )
     return {"file_ids": [row.id for row in not_viewed_q.all()]}
+
+
+@router.get(
+    "/collections/{collection_id}/file-ids",
+    dependencies=[Depends(verify_internal_secret)],
+)
+def collection_file_ids(
+    collection_id: str,
+    drive: Annotated[str, Query(...)],
+    db=Depends(get_db),
+):
+    """Return the active file ids of a collection in its order.
+
+    The caller passes a drive it has already validated; answering only for a
+    collection of that same drive keeps the drive boundary intact even if a
+    caller holds a collection id from elsewhere.
+    """
+    if not _NANOID_RE.fullmatch(collection_id):
+        raise HTTPException(status_code=400, detail="Invalid collection_id")
+
+    if drive not in {d["name"] for d in config.load_drives()}:
+        raise HTTPException(status_code=404, detail="Drive not found")
+
+    collection = (
+        db.query(Collection.id)
+        .filter(Collection.id == collection_id, Collection.drive == drive)
+        .first()
+    )
+    if not collection:
+        raise HTTPException(status_code=404, detail="Collection not found")
+
+    rows = (
+        db.query(CollectionItem.file_id)
+        .join(File, CollectionItem.file_id == File.id)
+        .filter(
+            CollectionItem.collection_id == collection_id,
+            File.drive == drive,
+            active_file_filter(),
+        )
+        .order_by(CollectionItem.position, CollectionItem.id)
+        .all()
+    )
+    return {"file_ids": [row.file_id for row in rows]}
 
 
 class FilterFileIdsRequest(BaseModel):

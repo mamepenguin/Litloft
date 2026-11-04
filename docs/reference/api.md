@@ -115,7 +115,7 @@ File ids are 12-character nanoids and are validated as such in the path.
 | `DELETE` | `/api/files/{id}` | Move to trash. |
 | `DELETE` | `/api/files/{id}/purge` | Delete permanently, from disk too. Accepts a trashed or Missing file. |
 | `PUT` | `/api/files/{id}/rename` | Body `{ "new_filename": "..." }`. |
-| `PUT` | `/api/files/{id}/move` | Body `{ "target_drive": null, "target_folder_path": "..." }`. `null` or `""` means the file's current drive. A `target_drive` the caller cannot access is `404`, the same as one that does not exist. |
+| `PUT` | `/api/files/{id}/move` | Body `{ "target_drive": null, "target_folder_path": "..." }`. `null` or `""` means the file's current drive. A `target_drive` the caller cannot access is `404`, the same as one that does not exist. A move to another drive removes the file from the collections of the drive it leaves. |
 | `POST` | `/api/files/{id}/copy` | Same body and the same `404` as move. |
 
 ### Batch operations
@@ -126,7 +126,7 @@ Batch endpoints take `{ "ids": [...] }`, 1 to 100 ids, plus the fields named bel
 |---|---|---|
 | `POST` | `/api/files/batch/get` | The files the caller can access, as a list. |
 | `POST` | `/api/files/batch/delete` | Move to trash. `{ deleted, errors }`. |
-| `PUT` | `/api/files/batch/move` | Adds `target_drive` / `target_folder_path`. `{ moved, errors }`. An inaccessible `target_drive` fails the whole request with `404`. |
+| `PUT` | `/api/files/batch/move` | Adds `target_drive` / `target_folder_path`. `{ moved, errors }`. An inaccessible `target_drive` fails the whole request with `404`. A move to another drive removes each moved file from the collections of the drive it leaves. |
 | `PUT` | `/api/files/batch/tags` | Adds the given tags to each file. The single-file `PUT` replaces them instead. For Markdown the tags are appended to the frontmatter `tags:`, with the same refusals as the single-file `PUT`, plus `422` when an existing `tags:` is not a list. A file that is refused or cannot be written is listed in `errors` and the rest are still tagged. `{ updated, errors }`. |
 | `PUT` | `/api/files/batch/rename` | Adds `mode` (`template`, `regex` or `prefix_suffix`) and that mode's fields: `template`, `start_number`, `zero_pad`; `pattern`, `replacement`; `action`, `value`. `{ renamed, results: [{ id, old_name, new_name }] }`. Unlike the others, one inaccessible id fails the whole request with `404`. |
 | `POST` | `/api/files/batch/restore` | Restore from trash. `{ restored, errors }`. |

@@ -22,7 +22,7 @@ function withTargetDrive(body: Record<string, unknown>, drive: unknown): Record<
 const moveFiles: LitloftTool = {
   name: "move_files",
   description:
-    "Move up to 100 files into one folder, optionally on another drive. Files keep their names; a name already taken there is reported per file in `errors`. A move within the drive closes each file's inbox row; a move to another drive removes it.",
+    "Move up to 100 files into one folder, optionally on another drive. Files keep their names; a name already taken there is reported per file in `errors`. A move within the drive closes each file's inbox row; a move to another drive removes it, and removes the file from the collections of the drive it leaves.",
   inputSchema: { file_ids: fileIds, target_folder_path: targetFolderPath, target_drive: targetDrive },
   annotations: writeAnnotations({ destructive: true, idempotent: true }),
   handler: (args, client) =>
