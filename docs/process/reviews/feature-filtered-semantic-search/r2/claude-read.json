@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "R2-1",
+      "origin": "reviewer",
+      "claim": "The addon and the core still check the 200-character tag cap on different tags. The addon checks only the tags it keeps after deduplication. The core checks every stripped tag before deduplication. So when a duplicate whose lower() fold matches has a different length, the two validators disagree.",
+      "impact": "Take the filter tags ['İ'*101, 'i̇'*101]. 'İ'.lower() is 'i̇', two code points, so both tags have the same key. The addon keeps the first tag (101 characters), skips the second as a duplicate, accepts the filter and calls the core. The core sees the second tag at 202 characters and answers 422. The addon then answers 503, and the user silently gets no meaning hits where both sides should have answered 422 or both accepted. It is practically unreachable in normal use.",
+      "evidence": "addons/intelligence/app/file_matching.py:61-73: duplicates are skipped at :66-67, and the length check at :72 runs over the kept `tags` only. backend/app/routers/internal.py:633-641: the length check at :637 runs on every non-blank tag before `deduped.setdefault` at :641. The r1 verifier already noted this second divergence. The fix commit efbe71ff changed only the fold (casefold to lower) and left the length check alone.",
+      "repro": "not_reproduced. Reasoning from Python semantics: 'İ'.lower() == 'i̇'. The addon path gives seen={'i̇'*101} and tags=['İ'*101], all lengths ≤200, so it accepts. The core path gives len('i̇'*101)=202>200, so it raises ValueError and answers 422.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I10 requires the addon and core validators to accept and reject the same inputs, and here they do not. The input is far-fetched, but it is not adversarial.",
+        "invariant_ref": "I10"
+      },
+      "severity": "LOW",
+      "proposed_fix": "In the addon, check the length of every stripped tag before skipping duplicates, as the core does. Add a parity row with ['İ'*101, 'i̇'*101]."
+    },
+    {
+      "id": "R2-2",
+      "origin": "reviewer",
+      "claim": "The new parity row 'casefold-only-pair-is-two-tags' exists only in the addon's table. No core-side test pins the core's tag fold, so a change of the core's lower() to casefold() would pass every test while breaking I10.",
+      "impact": "A later edit to FileMatchingRequest.validate_tags could reintroduce the r1 divergence from the core side without any test failing. Users would then get silent 503s or no meaning hits near the 20-tag cap.",
+      "evidence": "addons/intelligence/tests/test_filtered_search_contract.py:176-179 adds the row on the addon side only. A grep of backend/tests for 'straße|casefold|VALID_FILTERS' finds nothing. backend/tests/test_internal_files_matching.py TestRequestCaps covers only ASCII deduplication ('T0').",
+      "repro": "Mutation: in backend/app/routers/internal.py:641, change `tag.lower()` to `tag.casefold()`. No backend test exercises a pair where casefold and lower differ, so the mutant is expected to survive. Not run.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "I10 currently holds for this pair. The problem is a test gap that would let a future break through.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add the same row (19 ASCII tags + 'straße', 'STRASSE' → 422) to backend/tests/test_internal_files_matching.py TestRequestCaps, or drive both sides from one shared table."
+    }
+  ],
+  "specification_compliance": [
+    "SCOPE-2 (r1, bucket A, I10): the addon's dedup fold now uses tag.lower() (file_matching.py:65), the same as the core (internal.py:641) and the listing's by_fold (drives.py apply_file_filters). The casefold/lower count divergence is closed.",
+    "SCOPE-3 (r1): docs/addons/intelligence.md now says 'at most 20 tags of up to 200 characters and 8 kinds', which matches TAG_MAX_COUNT/TAG_MAX_LENGTH/KIND_MAX_COUNT and the core's _MATCHING_MAX_*. The spec's own 'caps of 10' sentence in SPEC-ADDON-047 step 1 is unchanged, but section 10 of the spec states 20.",
+    "The fix commit touches only the addon gitlink (one line in file_matching.py plus one test row) and docs/addons/intelligence.md, so the core and frontend code are unchanged by this round.",
+    "The I10 length-check divergence remains (R2-1)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The addon still runs the count check before the length check, and the core runs them in the opposite order. Both raise 422, so the order changes only the error message, not the status."
+  ],
+  "regression_risks": [
+    "Switching from casefold to lower changes which tags the addon treats as duplicates. Pairs that are equal only under casefold (ß/SS, final sigma) are now forwarded as two tags, the same as the core and the listing do. No other addon caller uses SearchFilter's normalisation."
+  ],
+  "test_coverage": [
+    "The addon's INVALID_FILTERS now includes a casefold-only pair (19 + straße/STRASSE). It would kill a revert to casefold() on the addon side.",
+    "No core-side counterpart row exists (R2-2), and neither side has a row where a duplicate's length differs from the kept tag's (R2-1)."
+  ],
+  "not_verified": [
+    "No tests were run, so I did not confirm that the new addon parameter passes or that the R2-2 mutant survives.",
+    "I did not confirm that the worktree's submodule checkout is exactly 5d65c9d.",
+    "I did not re-read the scoped channel code in addons/intelligence/app/search.py, because this round did not touch it.",
+    "The 'İ' behaviour of str.lower() is stated from Python's Unicode semantics, not executed."
+  ],
+  "confidence": 82,
+  "trajectory": "There has been one fix round (efbe71ff) since r1. It adds no branch, state or prediction. It replaces the addon's fold function (casefold → lower) so it matches the core's, adds one parity test row, and corrects the documented tag cap from 10 to 20. Nothing was added that an earlier round had also added, so there is no sign of the design being patched. The round also did not remove the second validator divergence that the r1 verifier noted (length checked after dedup in the addon, before dedup in the core). It remains open as R2-1."
+}

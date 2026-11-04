@@ -165,8 +165,8 @@ exposes:
   the `initialize` response, describing the drive/file_id concepts, the
   trash-not-purge behavior, and the ETag-based content-edit workflow.
 - **Per-tool `description`, `inputSchema`, and safety annotations**
-  (`src/tools/read.ts`, `src/tools/write.ts`, `src/tools/folders.ts`,
-  `src/tools/batch.ts`, `src/tools/video.ts`): sent via `tools/list`. This is
+  (`src/tools/read.ts`, `src/tools/collections.ts`, `src/tools/write.ts`,
+  `src/tools/folders.ts`, `src/tools/batch.ts`, `src/tools/video.ts`): sent via `tools/list`. This is
   the only documentation an MCP client's model has for each individual tool,
   so tool descriptions carry the actual usage rules (e.g.
   `update_file_content`'s description explains the 412-conflict retry
@@ -198,6 +198,8 @@ When adding a new tool, put agent-facing behavior notes in its
 | `get_video_frame` | The frame of a video at a given time as an image; `large` (default, long edge up to 1280 px, enough to read on-screen text) or `small` (320 px wide); for a .loft, the error gives its URL |
 | `get_watch_history` | Continue-watching / watch history for a drive |
 | `list_comments` | List comments on a file |
+| `list_collections` | List a drive's collections (also called playlists) |
+| `get_collection` | Read a collection's active files in order, each as `{ item_id, position, file }`, with the trashed and missing ones counted in `inactive_count` |
 | `ask` | Ask Litloft Intelligence a question within one drive |
 
 ### Write

@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "The tree at HEAD has these entries. anchoredDropdowns.test.ts:75 has SearchQueryHeader.tsx as takes-the-surface and :123 has toHaveLength(6). core-search-vocabulary.test.ts:31 has SearchQueryHeader.tsx: 12 and :94 has used.length toBe(56). ime-enter-guard.test.ts:38 lists SearchQueryHeader.tsx and :100 has toHaveLength(19). popup-dismissal.test.ts:153-154 registers SearchQueryHeader.tsx. toolbarMenuHome.test.ts:88 lists SearchQueryHeader.tsx. None of these files is named in the touch points."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "frontend/e2e-layout/spec-viewport.spec.ts:33 lists \"search-header.html\" and :39 has FIXTURE_COUNT = 14."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "frontend/src/components/folder/useFolderFiles.ts:565 reads `paginatedLoading || (semanticLoading && !parsed.hasOperators)`. For a filtered query, loading no longer waits for the meaning stage. The touch-point description of this file does not mention loading."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "SCOPE-1",
+      "status": "confirmed",
+      "note": "This is the same evidence as F1 and F2 combined: the five guard inventories and spec-viewport.spec.ts:33,39 are edited, and none of them is named in the touch points."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "SCOPE-2",
+      "status": "confirmed",
+      "note": "addons/intelligence/app/file_matching.py:65 deduplicates with tag.casefold(), and backend/app/routers/internal.py:641 deduplicates with tag.lower(). Take 'Straße' and 'STRASSE': casefold() gives 'strasse' for both, but lower() gives 'straße' and 'strasse'. So for 21 such tags the addon counts 20 and accepts them, while the core counts 21 and answers 422. That breaks I10's 'accept and reject the same inputs'. There is a second divergence: the addon checks the 200-character length only on deduplicated tags (file_matching.py:72), while the core checks every raw tag (internal.py:637). No contract test covers a casefold-only pair: a grep of addons/intelligence/tests for casefold/ß finds only unrelated tests."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "SCOPE-3",
+      "status": "confirmed",
+      "note": "docs/addons/intelligence.md:172 says 'and at most 10 tags apply', and docs/specs/filtered-semantic-search.md:172 says 'the caps of 10 apply'. The code caps tags at 20: addons/intelligence/app/file_matching.py:27 has TAG_MAX_COUNT = 20 and backend/app/routers/internal.py:57 has _MATCHING_MAX_TAGS = 20."
+    }
+  ],
+  "specification_compliance": [
+    "I10: the addon and the core validators disagree on casefold-only tag pairs (confirmed under SCOPE-2).",
+    "The documentation of the tag cap (10) contradicts the code and I10 (20)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "useFolderFiles loading no longer waits for the filtered meaning stage (useFolderFiles.ts:565)."
+  ],
+  "regression_risks": [
+    "If the addon accepts a filter that the core rejects with 422, the addon may surface 503 instead of 422."
+  ],
+  "test_coverage": [
+    "No Layer 2 parity case covers a casefold-versus-lower tag pair or a tag over 200 characters that is a duplicate."
+  ],
+  "not_verified": [
+    "I read the working tree, not the diff against origin/develop, so the before-values (5, 41, 18, 13) are not verified.",
+    "How the addon maps a core 422 to its own response (503 or 422) is not verified.",
+    "No tests were run."
+  ],
+  "confidence": 88
+}

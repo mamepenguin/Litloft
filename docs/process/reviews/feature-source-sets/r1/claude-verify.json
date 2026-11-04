@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "I1: backend/app/services/fileops.py:492-498 deletes the moved file's CollectionItem rows whose collection drive != dst_drive. The delete is guarded on dst_drive != src_drive and runs before commit, so a move within one drive leaves items untouched.",
+    "I3: backend/app/database.py:561-584 runs the cleanup last in _migrate, after the playlists copy at :280-301. It runs only when files, collections and collection_items all exist, deletes only rows where files.drive <> collections.drive, logs INFO only when rowcount is non-zero, and catches exceptions so startup does not stop.",
+    "I4/I5/I6: backend/app/routers/internal.py:399-439 checks the nanoid (400), then the unknown drive (404 'Drive not found'), then the collection scoped to the drive (404 'Collection not found'). It filters on File.drive == drive and active_file_filter(), orders by position then id, and is gated by verify_internal_secret."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The cleanup's except branch logs at ERROR and continues. I3 does not say what should happen when the cleanup fails; the code comment argues that the read-side filters make the leftover rows harmless."
+  ],
+  "regression_risks": [
+    "Rows with a NULL files.drive or NULL collections.drive are not deleted by the startup cleanup, because the <> comparison yields NULL. This is likely harmless if both columns are NOT NULL in the schema."
+  ],
+  "test_coverage": [
+    "Did not inspect the backend or addon test files; no tests were run."
+  ],
+  "not_verified": [
+    "The MCP server tools (list_collections, get_collection), their metadata tests and the server instructions (I8, I12)",
+    "The intelligence addon collection_client.py and its Layer 1/Layer 2 tests (I11)",
+    "Batch move semantics across multiple files and failure paths (I2), beyond reading the single-move code region",
+    "I10 (collections.updated_at unchanged, positions not renumbered), beyond the absence of renumbering in the shown delete",
+    "Documentation updates (api.md, ADDON-DEVELOPMENT.md, user guides, internal-api-policy audit table)",
+    "Behaviour of the cleanup on the hand-built schemas of the migration tests"
+  ],
+  "confidence": 75
+}

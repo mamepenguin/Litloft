@@ -89,7 +89,8 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-046 | implemented | docs/specs/semantic-search-all-hits.md | sha256:c74146104d52b81c2e35a24ff0a67a7954d92a8d56997b89770b206553028c11 |
 | SPEC-ADDON-055 | implemented | docs/specs/semantic-search-all-hits.md | sha256:c74146104d52b81c2e35a24ff0a67a7954d92a8d56997b89770b206553028c11 |
 | SPEC-CORE-035 | implemented | docs/specs/semantic-search-all-hits.md | sha256:c74146104d52b81c2e35a24ff0a67a7954d92a8d56997b89770b206553028c11 |
-| SPEC-ADDON-047 | draft | docs/specs/filtered-semantic-search.md | |
+| SPEC-ADDON-047 | implemented | docs/specs/filtered-semantic-search.md | sha256:87c313b76e9348b5ef8fa0f81153a6e4c12fd7f5eca4b50ae072e50b11bdec28 |
+| SPEC-CORE-039 | implemented | docs/specs/filtered-semantic-search.md | sha256:87c313b76e9348b5ef8fa0f81153a6e4c12fd7f5eca4b50ae072e50b11bdec28 |
 | SPEC-ADDON-048 | approved | docs/specs/passage-results-view.md | sha256:1db0cb47d6ee07333751cbcb3926fede6eaefdccc1116ff27f45d6a8283667f5 |
 | SPEC-CORE-040 | approved | docs/specs/passage-results-view.md | sha256:1db0cb47d6ee07333751cbcb3926fede6eaefdccc1116ff27f45d6a8283667f5 |
 | SPEC-ADDON-049 | draft | docs/specs/image-query-search.md | |
@@ -107,5 +108,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-053 | implemented | docs/specs/ask-about-this-file.md | sha256:7da6124f365a0c64ce31532e5697fb68fbc14a639efa56394ad99bd09b8b5b6a |
 | SPEC-ADDON-056 | implemented | docs/specs/ask-about-this-file.md | sha256:7da6124f365a0c64ce31532e5697fb68fbc14a639efa56394ad99bd09b8b5b6a |
 | SPEC-CORE-036 | implemented | docs/specs/ask-about-this-file.md | sha256:7da6124f365a0c64ce31532e5697fb68fbc14a639efa56394ad99bd09b8b5b6a |
-| SPEC-CORE-034 | draft | docs/specs/source-sets.md | |
+| SPEC-CORE-034 | implemented | docs/specs/source-sets.md | sha256:2b59d8934e302fcf42e047581757acd70a7fcb10d2eabd9e9f70c5d47e3ed33b |
+| SPEC-ADDON-058 | implemented | docs/specs/source-sets.md | sha256:2b59d8934e302fcf42e047581757acd70a7fcb10d2eabd9e9f70c5d47e3ed33b |
+| SPEC-CORE-038 | implemented | docs/specs/source-sets.md | sha256:2b59d8934e302fcf42e047581757acd70a7fcb10d2eabd9e9f70c5d47e3ed33b |
 | SPEC-ADDON-054 | draft | docs/specs/ask-source-set.md | |

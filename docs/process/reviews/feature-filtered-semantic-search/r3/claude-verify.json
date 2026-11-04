@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "I10: core FileMatchingRequest.validate_tags (backend/app/routers/internal.py:629-644) strips each tag, drops blank ones, rejects a tag over 200 characters, dedupes by str.lower() and then caps at 20. Addon SearchFilter._normalise (addons/intelligence/app/file_matching.py:57-90) does the same steps in the same order, with the same caps, so the two accept and reject the same tag inputs. Kinds use the markdown->text alias, dedupe, and a cap of 8 on both sides.",
+    "I1/I18: list_drive_files (backend/app/routers/drives.py:748-755) and files_matching (internal.py:670-682) both go through apply_file_filters (drives.py:233-268). That helper folds tags over all Tag rows in Python, drops empty names and adds one File.tags.any clause per tag. files_matching also applies File.drive == drive and active_file_filter().",
+    "I12: files_matching answers 404 when body.drive is not in config.get_drive_names() (internal.py:667-668), and it has no viewer-credential dependency.",
+    "I2 (client side): fetch_matching_file_ids raises FilterUnavailable on a transport error, a non-200 answer, a body that is not JSON or a body without a list of string ids (file_matching.py:123-147). This path has no fallback to an unfiltered search."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The core endpoint strips tags before matching, but the listing's apply_file_filters only drops empty names and does not strip. A tag with leading or trailing whitespace would therefore match differently in the two. The frontend splits tokens on /\\s+/ (frontend/src/lib/searchQuery.ts:49), so normal use cannot produce such a tag, which keeps this outside the threat model."
+  ],
+  "regression_risks": [
+    "apply_file_filters is shared between the listing and the internal endpoint, so any later change to it shifts both of them at once. That is intended, but I18 is exposed through the listing."
+  ],
+  "test_coverage": [
+    "I did not read the test files in this pass. The coverage of the parity table and the endpoint tests is unverified."
+  ],
+  "not_verified": [
+    "Addon search.py scoped channels, exact/widened vector paths and cutoffs (I3, I4, I5, I11)",
+    "Frontend chip, menu, URL-sync, history and cache behaviour (I6-I9, I13-I17, I19-I22)",
+    "e2e-layout case at 390 px and desktop width (I15)",
+    "Backend and addon tests, including the Layer 1 and Layer 2 contract tests",
+    "The 422 and 503 mapping in the addon router for filter errors",
+    "Whether JS toLowerCase and Python str.lower differ on any character relevant to tag dedupe"
+  ],
+  "confidence": 75
+}

@@ -39,6 +39,7 @@ import { FolderContent } from "@/components/folder/FolderContent";
 import { buildWidenTagScope } from "@/components/folder/WidenTagScopeLink";
 import { Button } from "@/components/Button";
 import { parseSearchQuery } from "@/lib/searchQuery";
+import { SearchQueryHeader } from "@/components/search/SearchQueryHeader";
 
 /**
  * How long scrolling must be idle before the list snapshot is
@@ -549,6 +550,19 @@ export function FolderBrowser({
               : isLibraryRoot
                 ? tSidebar("library")
                 : undefined
+          }
+          titleField={
+            isSearch ? (
+              <SearchQueryHeader
+                drive={driveName}
+                query={searchQuery ?? ""}
+                typeFilter={typeFilter}
+                sort={sort}
+                order={order}
+                smartFolderId={smartFolderId ?? null}
+                includeSceneClip={!!includeSceneClip}
+              />
+            ) : undefined
           }
           // `settledTotal`, not `total`: a refetch sets `total` to 0 and
           // `loading` to true together, so neither raw value can be shown.

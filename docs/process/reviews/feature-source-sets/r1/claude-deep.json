@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [],
+  "specification_compliance": [
+    "Scope question: I mapped every path in the diff to the touch-point list, and each one is on it. .claude/rules/internal-api-policy.md (audit table), backend/app/services/fileops.py, backend/app/database.py, backend/app/routers/internal.py, the three new backend/tests files, docs/ADDON-DEVELOPMENT.md, docs/reference/api.md, docs/user-guide/playlists-favorites.md, docs/user-guide/upload-and-fileops.md, mcp-server/README.md, mcp-server/src/server.ts, mcp-server/src/tools/{write,batch}.ts, mcp-server/src/tools/collections.ts with its registration in src/tools/index.ts, mcp-server/src/tools/read.ts (only the export of summarizeFile; read.ts is named), mcp-server/src/__tests__/collections.test.ts and toolMetadata.test.ts (the named edit to expectedToolNames and readOnlyTools), the addons/intelligence gitlink bump with app/rag/collection_client.py and tests/test_rag_collection_client.py. docs/specs/source-sets.md and docs/specs/INDEX.md are implicit touch points.",
+    "The change in fileops.move_file (fileops.py:492-498) is inside the existing try, after shutil.move and before db.commit. It is guarded on dst_drive != src_drive, where dst_drive = target_drive or src_drive, so null and \"\" both mean the same drive. It is keyed on Collection.drive != dst_drive, which matches the touch-point note.",
+    "The startup cleanup is the last block in _migrate (database.py:561-584). It runs after the playlists copy (database.py:280-301), and init calls _backfill_mangled_titles afterwards (database.py:641-642). It is gated on all three tables existing, and its error is caught."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "internal.py imports the private name schemas._NANOID_RE. schemas.py is not edited, so this is not a new touch point, but it couples the router to a private symbol."
+  ],
+  "regression_risks": [
+    "The delete uses synchronize_session=False. CollectionItem objects already loaded in the same session would stay stale until commit. move_file commits right away, so I see no reader in normal use."
+  ],
+  "test_coverage": [
+    "backend/tests/test_move_removes_collection_items.py covers: single cross-drive moves, within-drive moves (absent, same-name and empty target_drive), 409, 404 not on disk, 404 locked destination, a DB error after the disk move, and a batch whose later file fails.",
+    "backend/tests/test_database_collection_drive_cleanup.py covers: exact deletion, a clean run with no log, idempotence, cleanup after the playlists copy, the error path, and hand-built partial schemas."
+  ],
+  "not_verified": [
+    "I could not run git, so I did not confirm that commit 7c7be412a touches only the paths in the supplied diff. I relied on the diff as given.",
+    "I did not read the contents of the intelligence submodule at 74b4682 beyond the diff shown, or check that it matches the intelligence PR.",
+    "I did not run any test suite."
+  ],
+  "confidence": 85,
+  "perspectives": [
+    {
+      "name": "scope",
+      "notes": "Every path in the diff maps to a declared touch point or an implicit one (the spec, INDEX.md, review records). No path is unplanned."
+    },
+    {
+      "name": "submodules",
+      "notes": "Only the addons/intelligence gitlink moves, and the touch points declare that bump. The only new files in the submodule are the declared client and its test."
+    },
+    {
+      "name": "persistence",
+      "notes": "The move-time delete is inside the move transaction, so a rollback restores it. The startup cleanup is one DELETE ... WHERE EXISTS statement in its own transaction, and its failure is logged without stopping startup."
+    },
+    {
+      "name": "concurrency",
+      "notes": "No new locking. The add-vs-move race is documented in the spec as accepted, and the read filters on File.drive."
+    }
+  ]
+}

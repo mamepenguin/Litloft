@@ -142,7 +142,7 @@ describe("GlobalSearch keeps include_scene_clip (SPEC-CORE-025)", () => {
     mockGetDriveTags.mockResolvedValue([]);
     mockGetFolderTree.mockResolvedValue([]);
     mockGetDriveFiles.mockResolvedValue(page([]));
-    mockFetchSemanticHits.mockResolvedValue([]);
+    mockFetchSemanticHits.mockResolvedValue({ ok: true, results: [] });
     mockIsSemanticSearchAvailable.mockResolvedValue(true);
     mockReadSearchCache.mockReturnValue(null);
   });
