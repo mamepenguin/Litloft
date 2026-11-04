@@ -73,23 +73,32 @@ SPEC-ADDON-048, `/search`:
    | `picture_text` | `text_content` of a file whose `file_type` is `image` | `chunk_index` | none |
    | `text` | any other `text_content` | `chunk_index` | none |
 
-   Matches of type `metadata`, `clip_thumbnail`, `vision_description`,
-   `retrieval_keywords` and `blip_caption`, a `transcript` match without a start time,
-   and a `text_content` match without a `chunk_index` make no passage. A passage is never
-   made from a file-level match.
+   The table is closed: a match of any type not in it (today `metadata`,
+   `clip_thumbnail`, `vision_description`, `retrieval_keywords`, `blip_caption`,
+   `tfidf_keywords`, and any type added later) makes no passage, nor does a `transcript`
+   match without a start time or a `text_content` match without a `chunk_index`.
 4. Matches of one hit with the same kind and the same place merge into one passage. A text
    vector match and a keyword match of the same transcript chunk carry the same start and
    end (both are written from the same chunk list in `workers/whisper.py`), and a text
    vector match and a keyword match of the same text chunk carry the same `chunk_index`
    (`workers/metadata.py`, `workers/ocr.py`).
-5. To make 3 and 4 possible, a keyword transcript match carries the transcript chunk's
-   `chunk_index` (the `fts_transcripts` row has it), and every keyword match keeps the
-   full stored text of its FTS row besides the 200-character `text` it has today. These are
-   internal fields; the wire `segments` are unchanged.
+5. To make 3 and 4 possible, `MatchInfo` gains three internal fields: `channel`
+   (`"vector"` or `"keyword"`, the retrieval channel that produced the match),
+   `chunk_index` filled for a keyword transcript match (`_TranscriptKeywordMatch` gains it
+   from the `fts_transcripts` row, which already selects it), and `full_text`, the FTS
+   row's stored text for a keyword match (null for vector matches), besides the
+   200-character `text` it has today. Both combiners, `_combine_scores_cosine` and
+   `_combine_scores_rrf`, fill them. They never reach the wire through `segments`, and
+   they change no score, no `match_types` and no segment grouping. Passages are built only
+   when `passages=true`, so Ask, Find and every other caller of `search()` do no extra
+   work.
 6. `SearchPassage` is
    `{ kind, start: float|null, end: float|null, page: int|null, section: int|null,
    section_title: str|null, chunk_index: int|null, text: str, score: float,
    keyword: bool, highlight_terms: [str], frame_url: str|null }`:
+   - `section`, `section_title`: set only on `section` passages, where `page` is always
+     null (an EPUB chunk's `page` is its section number, as `_segment_match` maps it);
+     `page` is set only on `page` passages.
    - `chunk_index`: the text chunk's index for `section` / `page` / `picture_text` /
      `text`; the transcript chunk's index for an `utterance` when a keyword match supplied
      it, else null; null for `scene`.
@@ -97,7 +106,8 @@ SPEC-ADDON-048, `/search`:
      file, applied to the passage's own matches: `v` the best vector score among them
      weighted by the same `type_weight_*` the file score uses, `k` the best keyword score
      among them, each 0 when absent. Rounded to 4 places like the other scores.
-   - `keyword`: true exactly when a keyword-channel match is among the passage's matches.
+   - `keyword`: true exactly when a match with `channel == "keyword"` is among the
+     passage's matches.
    - `highlight_terms`: for a keyword passage, the strings the FTS query was built from —
      each whitespace-separated query term with its hiragana and katakana variants, as
      `_build_fts_query` makes them, deduplicated; `[]` for every other passage.
@@ -129,14 +139,17 @@ SPEC-CORE-040, results page:
    any other value) is Files. Files is the default and is the view today.
 2. The results page's meaning search (`fetchSemanticHits` from `useFolderFiles`) always
    sends `passages=true`, in both views, so one request feeds both and switching sends
-   none. The search modal, Show more by similarity (`/search/images`) and every other
+   none. The only other request is 再試行 in the failed state (8), and its answer replaces
+   the hits of both views. The search modal, Show more by similarity (`/search/images`) and every other
    caller do not send it.
 3. The view control is a `SegmentedControl` labelled 「表示」 with the options 「ファイル」
    and 「箇所」, in a row of its own directly under A2's chip row (under the field when
    there are no chips). It is shown only while the page runs a meaning search: a query
    with non-blank text on a drive where `isSemanticSearchAvailable` is true and kinds are
    possible (A2's conditions). Otherwise the control is hidden and the page shows Files,
-   leaving `show` in the URL untouched.
+   leaving `show` in the URL untouched. While availability (`isSemanticSearchAvailable`)
+   is still unknown and `show=passages`, the page shows the control and Passages in its
+   loading state, never Files first.
 4. Choosing an option sets or deletes `show` with `router.replace`, keeping every other
    parameter, and scrolls the result list to the top. FolderBrowser's URL-sync effect
    (`router.replace` on `type` / `sort` / `order`) and A2's submission (`router.push` with
@@ -152,6 +165,10 @@ SPEC-CORE-040, results page:
      「このファイルの他の箇所 N 件 →」 with N = the group's passage count − 3 follows them.
    - Filename-only matches from the listing, and the Show more by similarity
      continuation, are not in this view.
+   - Hits the page hydrated from the modal's search cache (`readSearchCache`) carry no
+     `passages`, because the modal does not ask for them. Until the page's own
+     `passages=true` answer arrives, Passages shows its loading state and never lists or
+     counts those hits as having no passages.
 6. Each passage row shows, left to right: a 16:9 picture — `frame_url` with the start time
    overlaid (`formatDuration(start)`), else the file's `thumbnail_url`, else the file-type
    icon; then, stacked: the locator, the file name (from the hydrated file, else the
@@ -173,22 +190,32 @@ SPEC-CORE-040, results page:
    (`toLocaleLowerCase` on both sides); where occurrences overlap, the longer term wins and
    marks do not nest. A passage whose `keyword` is false gets no mark, even when its
    excerpt contains a query word.
-8. The 「他の箇所」 line is a link to `/files/{id}` (the file, opened at its start). When
+8. The 「他の箇所」 line is a link to `/files/{id}` with no other parameter (the file,
+   opened at its start), with the accessible name 「{file name} の他の箇所 N 件」. When
    find-in-file (B2) ships, that change points it at the file's find-in-file view with the
    query; until then it opens the file only (pending human confirmation).
 9. The count: in Passages, A2's scope position shows 「N ファイル・M 箇所」 on `sm` and
    wider, and 「M 箇所」 below `sm`, with N the number of groups and M the number of
-   passages in all groups, the hidden ones included. In Files it stays as today
-   (`common.items`).
+   passages in all groups, the hidden ones included. In the empty state it reads
+   「0 ファイル・0 箇所」 (「0 箇所」 below `sm`); in loading and failed it is hidden. In
+   Files it stays as today (`common.items`).
 10. In Passages, the toolbar keeps the type filter (it narrows the addon request as
-   today) and hides sort, view mode (grid / list), select and Play all, because none of
-   them applies to passages; `sort` and `order` stay in the URL and apply again in Files.
-   The `search-results-top` slot (Scene candidates) and the Scene search toggle stay where
-   and as they are in both views.
+   today) and hides sort, view mode (grid / list), select, Play all and the … menu,
+   because none of them applies to passages; `sort` and `order` stay in the URL and apply
+   again when Files is chosen again. Switching to Passages clears the selection and
+   leaves select mode (pending human confirmation).
+11. In Passages, the `search-results-top` slot (Scene candidates) and the Show more by
+   similarity offer are not rendered; with Scene search on, scenes appear as `scene` rows
+   in the list instead. The Scene search toggle stays where it is (pending human
+   confirmation).
+12. A search started from the modal (`GlobalSearch.tsx`, `searchPageHref`) while the
+   results page of the same drive is open keeps `show=passages`, as it keeps
+   `include_scene_clip` today (pending human confirmation).
 
 ### 2. Failure cases
 
-- The addon is unreachable, answers non-200, or the request fails: in Files nothing
+- The addon is unreachable, answers non-200, the request fails, or the addon proxy
+  answers 200 with `{available: false}` (its answer when the addon call raises): in Files nothing
   changes (name matches only, no message, as today). In Passages the list shows the
   failure state (see 8). This needs `fetchSemanticHits` to tell a failure from an empty
   answer, which A2 step 3a already requires; the results page reads that distinction too.
@@ -217,7 +244,8 @@ Passage list (Passages view only):
 
 | From | To | When |
 |---|---|---|
-| hidden | loading | Passages selected and a meaning search is pending |
+| hidden | loading | Passages selected and a meaning search is pending, or availability is unknown, or only cache-seeded hits without `passages` are held |
+| hidden | listed / empty / failed | Passages selected with the page's own answer already settled (no request) |
 | loading | listed | the addon answered 200 with at least one passage |
 | loading | empty | the addon answered 200 with no passage |
 | loading | failed | the addon answered non-200 or the request failed |
@@ -269,7 +297,8 @@ as for Scene candidates. No Internal API endpoint is added or changed.
 - Failed (Passages): the list area shows 「箇所を読み込めませんでした」 with a 「再試行」
   button that re-runs the meaning search; the count is hidden. Files shows nothing new.
 - Empty (Passages): `EmptyState` `no-results`, with a secondary action 「ファイルで表示」 that
-  switches to Files when the Files view has at least one row.
+  switches to Files while the Files view has at least one row. It is re-evaluated as the
+  listing pages arrive, so it can appear after the empty state first renders.
 - The addon logs nothing new; a failed search is logged as today (`Search failed`).
 
 ### 9. User-visible behavior
@@ -289,7 +318,8 @@ Layout (artifact; `DESIGN.md` values):
   text-text-muted`, aligned with the text column, `hover:text-text-primary`. Marks use
   `bg-highlight-bg` (§2.2). No accent fill anywhere in the view.
 - Below `sm` (390 px): the control and 「M 箇所」 share one row (control at the start,
-  count at the end); the picture is 64 × 36 px; the 「他の箇所」 line aligns with the text
+  count at the end), and A2's row under the chips keeps the actions without the count
+  (pending human confirmation); the picture is 64 × 36 px; the 「他の箇所」 line aligns with the text
   column. No horizontal scrolling at 390 px.
 - A section locator longer than the column is truncated to one line with the full title in
   `title`.
@@ -316,6 +346,7 @@ Layout (artifact; `DESIGN.md` values):
   Files / Passages switch; that Passages lists only places found inside files (speech,
   pages, chapters, picture text, and scenes with Scene search on), so files found only by
   name or thumbnail are in Files alone; that 「他の箇所」 opens the file.
+- Smart Folders do not save `show`; opening one shows Files.
   `docs/addons/intelligence.md`: `passages=true` on `/search` and the `SearchPassage`
   shape.
 - `DESIGN.md` §6 gains a short "Search passage rows" entry: a passage row shows its excerpt
@@ -328,7 +359,7 @@ Layout (artifact; `DESIGN.md` values):
   `passages=true` adds well under 100 KB to the 1000-hit results-page request.
 - Time: building passages is a pass over matches already in memory; `/search` with
   `passages=true` answers within 10 % of the same request without it.
-- Frames: each `<img>` is `loading="lazy"`, so a cache miss spawns ffmpeg only for rows
+- Frames: each frame `<img>` is `loading="lazy"` (a regression risk if dropped), so a cache miss spawns ffmpeg only for rows
   near the viewport, through the existing frame route and cache.
 - Rendering: all passages render at once, with no paging; the bound above keeps that to
   about 200 rows.
@@ -337,13 +368,19 @@ Layout (artifact; `DESIGN.md` values):
 ## Touch points
 
 Addon (intelligence):
-- `addons/intelligence/app/search.py`: `MatchInfo` gains the transcript `chunk_index` and
-  the FTS row's full text for keyword matches; `_keyword_search_transcripts` and
-  `_keyword_search_text_content` fill them; passage building (kind, merge, score,
+- `addons/intelligence/app/search.py`: `MatchInfo` gains `channel`, `chunk_index` for
+  keyword transcript matches and `full_text`; `_TranscriptKeywordMatch` and
+  `_TextContentKeywordMatch` carry them; `_keyword_search_transcripts`,
+  `_keyword_search_text_content`, `_combine_scores_cosine` and `_combine_scores_rrf` fill
+  them, leaving `segments`, scores and `match_types` unchanged (regression risk:
+  `_group_matches_into_segments` and `_segment_match` must not read the new fields);
+  passage building (kind, merge, score,
   `keyword`, `highlight_terms`, excerpt window, `frame_url`), reusing `_build_fts_query`'s
   variants and `_TYPE_WEIGHTS`.
 - `addons/intelligence/app/routers/search.py`: the `passages` parameter on `/search` only;
-  `_to_response_model` emits `passages` only when asked.
+  `_to_response_model` (shared with `/search/images` and `/search/compare`) emits
+  `passages` only when asked, and keeps every existing null field in every response (no
+  `exclude_none`-style change).
 - `addons/intelligence/app/schemas.py`: `SearchPassage`; `SearchResultItem.passages`
   omitted from the JSON when not requested.
 - `addons/intelligence/tests/`: kinds, merge of vector and keyword matches of one place,
@@ -363,10 +400,14 @@ Core:
 - `frontend/src/components/folder/useFolderFiles.ts`: send `passages=true`, expose the
   passage groups and a failure flag, retry.
 - `frontend/src/components/FolderBrowser.tsx`: the control row, the Passages body in
-  place of `FolderContent`, the count, `show` in the URL-sync effect.
+  place of `FolderContent`, the count, clearing selection on switching. Its URL-sync
+  effect builds the URL from scratch, so it must thread `show` or every type / sort change
+  silently drops the view.
 - `frontend/src/components/folder/FolderToolbar.tsx`: hiding sort, view mode, select and
   Play all in Passages.
-- `frontend/src/app/drive/[name]/search/page.tsx`: reading `show`; A2's submission keeps it.
+- `frontend/src/app/drive/[name]/search/page.tsx`: reading `show`, not rendering
+  `search-results-top` in Passages; A2's submission keeps it.
+- `frontend/src/components/GlobalSearch.tsx`: `searchPageHref` keeps `show=passages`.
 - `frontend/src/messages-core/ja.json`, `en.json`.
 - Frontend tests next to the existing search tests; a `frontend/e2e-layout/` case with a
   static fixture at 390 px and at desktop width.
@@ -382,19 +423,25 @@ chrome, §7. No Internal API endpoint, no HIGH zone and no protected path is tou
 
 ## Invariants
 
-I1. Without `passages=true`, `/search` returns the same JSON as before this change for the same request, with no `passages` key.
+I1. Without `passages=true`, `/search` returns the same JSON as before this change for the same request, with no `passages` key; `/search/images` and `/search/compare` never carry `passages` and their other fields, existing nulls included, are byte-identical to before.
 I2. With `passages=true`, the results, their order, `score`, `match_types` and `segments` are identical to the same request without it.
-I3. Each hit's `passages` holds exactly one entry per distinct (kind, place) among its matches of the kinds in the table, and none for `metadata`, `clip_thumbnail`, `vision_description`, `retrieval_keywords`, `blip_caption`, an untimed transcript match or a text match without `chunk_index`; a text vector match and a keyword match of the same chunk or the same transcript stretch are one passage.
+I3. Each hit's `passages` holds exactly one entry per distinct (kind, place) among its matches of the types in the closed kind table, and none for any other type (`tfidf_keywords` and `metadata` included), an untimed transcript match or a text match without `chunk_index`; a text vector match and a keyword match of the same chunk or the same transcript stretch are one passage.
 I4. A passage's `score` is `alpha × v + (1 − alpha) × k` over its own matches with the file score's type weights, and each hit's `passages` is sorted by it descending.
-I5. `keyword` is true exactly when a keyword-channel match is among the passage's matches, and `highlight_terms` is empty exactly when `keyword` is false; a non-keyword passage's `text` equals the stored `content_preview`.
-I6. A keyword passage whose stored FTS text contains a highlight term has an excerpt that contains one.
+I5. `keyword` is true exactly when a keyword-channel match is among the passage's matches; `highlight_terms` is empty exactly when `keyword` is false, and otherwise is the deduplicated set of each whitespace-separated query term and its hiragana and katakana variants as `_build_fts_query` builds them; a non-keyword passage's `text` equals the stored `content_preview`.
+I6. A keyword passage's excerpt is its keyword match's 200-character `text` when a highlight term lies wholly inside it, else the 200-character window of the stored FTS text starting 40 characters before the first occurrence (or at 0), prefixed `…` when it does not start at 0.
+I15. A `section` passage has `section` and `section_title` and a null `page`; a `page` passage has `page` and null `section`; `chunk_index` is the text chunk's index on `section`, `page`, `picture_text` and `text` passages, the transcript chunk's index or null on `utterance`, and null on `scene`.
 I7. `frame_url` is set exactly for `utterance` and `scene` passages of a non-`.loft` video, and no passage of kind `scene` exists unless `include_scene_clip=true`.
-I8. The results page makes one meaning request per query, type, filter and Scene search setting, and switching between Files and Passages sends no request.
+I8. The results page makes one meaning request per query, type, filter and Scene search setting, plus one per 再試行 press in the failed state, whose successful answer also replaces the Files view's hits; switching between Files and Passages sends no request.
 I9. The view is `passages` exactly when `show=passages` and a meaning search runs; choosing an option changes only `show`, with `router.replace`, and the URL-sync effect and A2's submission keep `show`.
+I16. The 「他の箇所」 line links to `/files/{id}` with no other parameter and is named 「{file name} の他の箇所 N 件」.
+I17. In Passages, sort, view mode, select, Play all and the … menu are hidden, while `sort` and `order` survive in the URL and apply again after switching back to Files; `search-results-top` and Show more by similarity are not rendered.
+I18. A row's picture is `frame_url` when set; when it is unset or fails to load, the file's thumbnail; when that is missing or fails, the file-type icon.
+I19. Saving a Smart Folder never stores `show`, and a hit hydrated from the modal's cache without `passages` keeps Passages in its loading state until the page's own `passages=true` answer arrives.
+I20. With `show=passages` and availability not yet known, the page renders Passages loading and never renders the Files list first.
 I10. Passages groups are ordered by their first passage's score, show at most three rows each in the addon's order, and the 「他の箇所 N 件」 line appears exactly when a group has more, with N the rest; the count's M equals the passages in all groups including the hidden ones, and N the number of groups.
 I11. Each row links to its file at `?t=<floor(start)>` for utterances and scenes, `?page=` for pages, `?section=` for sections, and with no locator for picture text and text.
-I12. A mark appears only in a passage whose `keyword` is true, and wraps exactly the case-insensitive occurrences of its `highlight_terms` in the excerpt, without nesting.
-I13. No row of a previous answer is shown once the query, type, filter or Scene search has changed, and a failed meaning request shows the failure state, never the empty state.
+I12. A mark appears only in a passage whose `keyword` is true, and wraps exactly the case-insensitive occurrences of its `highlight_terms` in the excerpt, without nesting; where occurrences overlap, the longer term is marked.
+I13. No row of a previous answer is shown once the query, type, filter or Scene search has changed, and a failed meaning request, including the proxy's 200 `{available: false}`, shows the failure state with 再試行, never the empty state; the empty state's count reads 「0 ファイル・0 箇所」.
 I14. At 390 px wide, measured in a real browser by `frontend/e2e-layout/`, the control and 「M 箇所」 share one row, rows do not overflow horizontally, and the picture is 64 px wide; at desktop width the picture is 88 px and the rows stay within `max-w-list-row`.
 
 ## Checked, no action
@@ -423,6 +470,8 @@ I14. At 390 px wide, measured in a real browser by `frontend/e2e-layout/`, the c
 - **Passages in the search modal.** The decision places the control on the results page.
 - **The `search-result-actions` slot (capture to a note) on passage rows.** Not decided;
   Files keeps it on its snippet.
+- **`tfidf_keywords` rows.** A file-level keyword bag, not a place; excluded by the closed
+  kind table.
 - **Moving the Scene search toggle into the control row**, as the artifact draws it on
   desktop. It stays above the header, where `search/page.tsx` renders it today, so this
   change does not move A2's header layout further.
@@ -433,11 +482,24 @@ I14. At 390 px wide, measured in a real browser by `frontend/e2e-layout/`, the c
 
 ## Pending human confirmation
 
-- The excerpt of a keyword passage is a 200-character window around the first match when
-  the match lies past the stored 200 characters (addon step 6, `text`). Without it, most
-  keyword matches in 1000-character PDF and text chunks would show an excerpt without the
-  word and so without a mark. It reads stored text only; nothing is reindexed.
-  Recommended.
+Each with the recommendation; the last three were recommended by the author and confirmed
+as a category earlier.
+
+- In Passages the Scene candidates strip (`search-results-top`) and the Show more by
+  similarity offer are not rendered; with Scene search on, scenes appear as rows in the
+  list instead (core step 11). Recommended: one list of places, not two.
+- Below `sm` in Passages, the control and 「M 箇所」 share one row; A2's row under the chips
+  keeps the actions (Smart Folder, `search-modes`) without the count. Recommended: the
+  artifact's phone layout.
+- In Passages the … menu is hidden, and switching to Passages clears the selection and
+  leaves select mode (core step 10). Recommended: no action in the menu applies to a
+  passage.
+- A search launched from the modal on the results page keeps `show=passages`, as it keeps
+  Scene search (core step 12). Recommended.
+- The excerpt of a keyword passage switches to a 200-character window around the match
+  when the term lies past the stored 200 characters (addon step 6). Recommended: without
+  it most keyword matches in 1000-character chunks show no word and no mark; it reads
+  stored text only.
 - Until find-in-file ships, 「このファイルの他の箇所 N 件 →」 opens the file at its start
   (core step 8). Recommended: an in-place expansion would contradict "at most 3 per file".
-- `DESIGN.md` §6 gains "Search passage rows" in this PR. Recommended.
+- `DESIGN.md` §6 gains a "Search passage rows" entry in this PR. Recommended.
