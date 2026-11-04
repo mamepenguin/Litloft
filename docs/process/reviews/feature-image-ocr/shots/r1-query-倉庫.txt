@@ -1,0 +1,8 @@
+count 15 api 15
+api ["clip_thumbnail"]
+row PNG
+Slide-budget
+1200 × 700
+·
+12 時間前
+サムネイル

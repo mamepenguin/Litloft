@@ -3,7 +3,7 @@
 decision:
 
 ran_in_app: yes
-at: 2e3829d078d1ae56d1d6573efc01370c248ee88e
+at: b480c193688f32879ffe6b5f956988800cbdc6fc
 by: agent
 evidence: |
   Environment: compose project litloft-r5-b1 (LITLOFT_PORT=3995), drive `scratch`,
@@ -36,6 +36,8 @@ evidence: |
     the response payload only. The Find page shows a one-line snippet, but for these
     results it was the title ("sign ferry Sign-ferry", "whiteboard Whiteboard",
     "receipt Receipt"), not the OCR text. 07/08/09-search-*.png, 34-find-*.png.
+    Superseded for the three queries that matched a picture by its text by the re-run of
+    checks 1 and 2 at the end of this file.
   - Exact search: the search UI offers no exact-match mode (filters: file type; more:
     選択モード only). The normal search found 1,000円 on receipt.png with
     match_types clip_thumbnail+text_content+text_content_keyword and badge 内容一致.
@@ -49,7 +51,8 @@ evidence: |
   quoting notes-winter.md, so retrieval+LLM work for documents. A third question,
   「請求書の合計金額は？」, answered 「金額を特定することはできません。」 with no
   citations although batch-c.png reads 「請求書 合計 38,500円 支払期限 12月5日」.
-  24-ask-answer.png.
+  24-ask-answer.png. The 「合宿の持ち物は？」 finding is superseded by the re-run of
+  checks 1 and 2 at the end of this file; the other questions were not re-run.
 
   3. Index details (1440x900), opened from the inspector's ファイル操作 → インデックス詳細:
   - receipt.png: メタデータ抽出 / 画像分析（CLIP） / 画像の文字, each インデックス済 with
@@ -103,4 +106,55 @@ evidence: |
   "app.workers.ocr: Releasing OCR engine (idle timeout)" at 16:58:25), which is the
   resident set with the other models loaded. No pending parts from agent_cannot_verify
   were exercised by these checks.
+
+  Re-run of checks 1 and 2 only, after the approved I11/I12 revision (a picture's
+  recognised text in Ask and single-file context, and as a picture's search excerpt).
+  This run is at b480c193688f32879ffe6b5f956988800cbdc6fc; the run above was at
+  2e3829d078d1ae56d1d6573efc01370c248ee88e. Same compose project (litloft-r5-b1),
+  LITLOFT_PORT=3995, drive `scratch`, 1440x900, UI ja, LLM default gemma4:e4b on the
+  host's ollama. The five pictures were already in scratch/inbox and OCR-read, so
+  nothing was uploaded; reconciliation reported added=0, resumed=0.
+
+  1. Search (results page, grid view, excerpts under the badge row).
+  - 倉庫 (15 results): slide-budget.png is in the list but matched clip_thumbnail only,
+    no 内容一致 badge and no excerpt; its row reads "PNG / Slide-budget / 1200 × 700 /
+    12 時間前 / サムネイル". 納期 and 雨具 (each 2 characters) still match no text for
+    notes-winter.md and whiteboard.heic either, so this is unchanged, not OCR-specific.
+    r1-query-倉庫.png. The earlier 倉庫 finding is not superseded. A longer query,
+    倉庫の移転費用 (4 results), finds the same picture with text_content +
+    text_content_keyword and the excerpt "2027年度予算会議 議題: 倉庫の移転費用
+    締切は12月15日" (r1-query-倉庫の移転費用.png).
+  - Kirishima (1 result): sign-ferry.jpg, サムネイル + 内容一致, excerpt
+    "Ferry to Kirishima Departs 08:40 daily Platform 3". r1-query-Kirishima.png.
+  - 那須高原 (14 results): whiteboard.heic first, サムネイル + 内容一致, excerpt
+    "ホワイトボード 次回の合宿は那須高原 持ち物: 雨具と懐中電灯".
+    r1-query-那須高原.png.
+  - チーズケーキ (1 result): receipt.png, サムネイル + 内容一致, excerpt
+    "喫茶ペンギン ブレンドコーヒー480円 チーズケーキ520円 合計1,000円".
+    r1-query-チーズケーキ.png.
+  - Control, the .md already in the drive (notes-winter.md, query 冬の備品発注,
+    14 results): badge 内容一致 and the excerpt "# 冬の備品発注メモ 会議メモ:
+    冬の備品発注について。納期は1月10日。担当は佐藤。" — the same plain-text shape as
+    before, and the card still shows the markdown body preview where a picture shows
+    its thumbnail. r1-query-冬の備品発注.png.
+  - Excerpts render as a two-line clamped paragraph below the badge row, with no page
+    locator, the same element a plain-text hit uses. The earlier "no recognised-text
+    excerpt is rendered" failure is superseded for the three pictures matched by text.
+    (Exact wording of each excerpt is in shots/r1-query-<query>.txt.)
+
+  2. Ask 「合宿の持ち物は？」 on the Ask page (質問 → Ask). Answer:
+  「次回の合宿に持っていくものは雨具と懐中電灯です。」 (6987 ms), one citation:
+  whiteboard.heic, "chunk 0", quote "ホワイトボード 次回の合宿は那須高原 持ち物:
+  雨具と懐中電灯". Source chips: batch-b.png, whiteboard.heic, batch-d.png,
+  load-b.png, trip-notice.png; the /ask stream reported 5 sources, all
+  clip_thumbnail + text_content. r1-ask-kishuku.png. The earlier Ask failure is
+  superseded.
+  receipt.png's file page (inspector): the tabs offered are 情報 and 関連 only; no
+  質問 tab, and the AI button opens 説明を作成 / AIタグ候補を作成 with no question box, so
+  「合計はいくら？」 was not asked. Recorded as instructed, not a failure of this check.
+  r1-receipt-filepage.png, r1-receipt-ai.png.
+
+  Verdict: check 1 fails on 倉庫 (the picture is listed by thumbnail similarity only,
+  with no excerpt); Kirishima, 那須高原, チーズケーキ and the .md control pass. Check 2
+  passes. Nothing else was re-walked.
 pending: none

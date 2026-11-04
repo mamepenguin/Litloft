@@ -1,0 +1,16 @@
+count 14 api 14
+api ["text_content","text_content_keyword"]
+row Notes-winter
+
+冬の備品発注メモ
+
+会議メモ: 冬の備品発注について。納期は1月10日。担当は佐藤。
+
+MD
+Notes-winter
+115 B
+·
+11 時間前
+内容一致
+
+# 冬の備品発注メモ 会議メモ: 冬の備品発注について。納期は1月10日。担当は佐藤。
