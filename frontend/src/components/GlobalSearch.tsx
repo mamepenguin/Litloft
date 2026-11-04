@@ -29,6 +29,7 @@ import { useFileSearch } from "./search/useFileSearch";
 import { useLauncherRows } from "./search/useLauncherRows";
 import { useRecentAndHistory } from "./search/useRecentAndHistory";
 import { SearchFooter } from "./search/SearchFooter";
+import { SearchFilterChips } from "./search/SearchFilterChips";
 import { SearchResultsList } from "./search/SearchResultsList";
 import { SearchEmptyState, type EmptyItem } from "./search/SearchEmptyState";
 import {
@@ -621,6 +622,15 @@ export function GlobalSearch() {
             </div>
           </div>
 
+            <div className="px-4 pb-2">
+              <SearchFilterChips
+                query={query}
+                onRemove={(next) => setQuery(next)}
+                focusAfterRemoval="fallback"
+                fallbackRef={mobileInputRef}
+              />
+            </div>
+
             <div className="flex-1 overflow-y-auto">
               {body(true)}
             </div>
@@ -658,6 +668,15 @@ export function GlobalSearch() {
               <kbd className="rounded-lg bg-bg-elevated px-1.5 py-0.5 text-[10px] text-text-muted">
                 ESC
               </kbd>
+            </div>
+
+            <div className="px-4 pb-2">
+              <SearchFilterChips
+                query={query}
+                onRemove={(next) => setQuery(next)}
+                focusAfterRemoval="fallback"
+                fallbackRef={desktopInputRef}
+              />
             </div>
 
             {body(false)}

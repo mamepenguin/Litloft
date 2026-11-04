@@ -8,7 +8,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
 from fastapi.responses import PlainTextResponse
-from pydantic import BaseModel, StringConstraints, field_validator
+from pydantic import BaseModel, Field, StrictBool, StringConstraints, field_validator
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
@@ -24,6 +24,12 @@ from app.models import (
     FileRelation,
     WatchHistory,
     active_file_filter,
+)
+from app.routers.drives import (
+    FileKind,
+    FileKindParam,
+    _normalize_kind,
+    apply_file_filters,
 )
 from app.routers.files import replace_file_tags
 from app.services.tagops import cleanup_orphan_tags
@@ -47,6 +53,10 @@ _CONTENT_READ_ALLOWED_MIMES = frozenset({"text/markdown", "text/plain"})
 _CONTENT_READ_MAX_BYTES = int(
     os.environ.get("CORE_INTERNAL_CONTENT_MAX_BYTES", 10 * 1024 * 1024)
 )
+
+_MATCHING_MAX_TAGS = 20
+_MATCHING_MAX_TAG_LENGTH = 200
+_MATCHING_MAX_KINDS = 8
 
 
 def verify_internal_secret(
@@ -606,6 +616,70 @@ def files_bulk(
     not_found = [fid for fid in body.file_ids if fid not in by_id]
 
     return {"files": files, "not_found": not_found}
+
+
+class FileMatchingRequest(BaseModel):
+    drive: str
+    tags: list[str] = Field(default_factory=list)
+    kinds: list[FileKindParam] = Field(default_factory=list)
+    # strict: the lax bool parser would read "yes" and 1 as True.
+    favorite: StrictBool | None = None
+    liked: StrictBool | None = None
+
+    @field_validator("tags")
+    @classmethod
+    def validate_tags(cls, tags: list[str]) -> list[str]:
+        deduped: dict[str, str] = {}
+        for raw in tags:
+            tag = raw.strip()
+            if not tag:
+                continue
+            if len(tag) > _MATCHING_MAX_TAG_LENGTH:
+                raise ValueError(
+                    f"Tag exceeds {_MATCHING_MAX_TAG_LENGTH} characters"
+                )
+            deduped.setdefault(tag.lower(), tag)
+        if len(deduped) > _MATCHING_MAX_TAGS:
+            raise ValueError(f"Maximum {_MATCHING_MAX_TAGS} tags")
+        return list(deduped.values())
+
+    @field_validator("kinds")
+    @classmethod
+    def validate_kinds(cls, kinds: list[FileKindParam]) -> list[FileKind]:
+        deduped: dict[FileKind, None] = {}
+        for kind in kinds:
+            deduped.setdefault(_normalize_kind(kind), None)
+        if len(deduped) > _MATCHING_MAX_KINDS:
+            raise ValueError(f"Maximum {_MATCHING_MAX_KINDS} kinds")
+        return list(deduped)
+
+
+@router.post("/files/matching")
+def files_matching(
+    body: FileMatchingRequest,
+    db=Depends(get_db),
+):
+    """Return the drive's active file ids matching a search filter.
+
+    No viewer access check: the addon proxy has already validated the drive
+    it forwards, and a locked drive answers here like any other.
+    """
+    if body.drive not in config.get_drive_names():
+        raise HTTPException(status_code=404, detail="Drive not found")
+
+    query = db.query(File.id).filter(
+        File.drive == body.drive,
+        active_file_filter(),
+    )
+    query = apply_file_filters(
+        query,
+        db,
+        tags=body.tags,
+        kinds=body.kinds,
+        favorite=body.favorite,
+        liked=body.liked,
+    )
+    return {"file_ids": [row.id for row in query.order_by(File.id).all()]}
 
 
 class FileRelationCreate(BaseModel):

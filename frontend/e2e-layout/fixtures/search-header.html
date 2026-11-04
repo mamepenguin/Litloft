@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!-- Without this, a context that sets `isMobile` lays the page out at
+         Chromium's mobile default instead of the viewport the spec asked for. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>search results header — layout fixture</title>
+    <!-- No <style> of its own: every declaration measured here has to come
+         out of the app's own stylesheet. -->
+    <link rel="stylesheet" href="./globals.built.css" />
+  </head>
+  <body>
+    <!--
+      The search results page's header. The case measures the subject row: the
+      query field, the chips, the count and the actions. At a phone width the
+      field takes the content width and the count sits on one line under the
+      chips; at desktop the field, count and actions share the row.
+    -->
+    <header id="header" class="flex flex-col gap-1 px-4 py-2">
+      <div id="subject-row" class="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:gap-3">
+        <div class="min-w-0 sm:flex-1">
+          <h1 class="sr-only text-2xl font-bold text-text-primary">Search: "cats tag:会議"</h1>
+          <div class="min-w-0">
+            <input
+              data-role="query-field"
+              type="text"
+              value="cats tag:会議"
+              aria-label="Search query"
+              class="w-full rounded-2xl border border-warm-silver/40 bg-bg-card px-3 py-1.5 text-lg text-text-primary outline-none focus:ring-2 focus:ring-[var(--focus-ring)]"
+            />
+            <div class="mt-2 flex flex-wrap items-center gap-2">
+              <div
+                data-role="filter-chips"
+                role="group"
+                aria-label="Filters"
+                class="flex flex-wrap items-center gap-2"
+              >
+                <span
+                  class="inline-flex items-center gap-1 rounded-full bg-sand py-0.5 pl-2 pr-1 text-xs text-text-primary"
+                >
+                  <span class="whitespace-nowrap">
+                    <span class="font-semibold">Tag</span> 会議
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Remove Tag 会議"
+                    class="rounded-full p-0.5 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+                  >
+                    ×
+                  </button>
+                </span>
+              </div>
+              <div class="relative">
+                <button
+                  type="button"
+                  aria-haspopup="menu"
+                  aria-expanded="false"
+                  aria-label="Add filter"
+                  class="inline-flex items-center gap-1 rounded-full border border-dashed border-warm-silver px-2.5 py-1 text-xs text-text-muted transition-colors hover:text-text-primary"
+                >
+                  <span aria-hidden="true">＋</span>
+                  <span class="hidden sm:inline">Filter</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="flex min-w-0 items-center gap-2 sm:contents">
+          <div id="count" class="text-sm text-text-muted">42 items</div>
+          <div id="actions" class="flex flex-shrink-0 flex-wrap items-center gap-2">
+            <button
+              type="button"
+              class="rounded-2xl bg-bg-elevated px-3 py-1.5 text-sm font-medium text-text-primary ring-1 ring-bg-border"
+            >
+              Save as Smart Folder
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <script>
+      window.measureHeader = function () {
+        const box = (el) => {
+          if (!el) return null;
+          const r = el.getBoundingClientRect();
+          return {
+            top: r.top,
+            bottom: r.bottom,
+            left: r.left,
+            right: r.right,
+            width: r.width,
+            height: r.height,
+          };
+        };
+        const header = document.getElementById("header");
+        const count = document.getElementById("count");
+        const style = getComputedStyle(header);
+        return {
+          viewport: { width: window.innerWidth, height: window.innerHeight },
+          documentWidth: document.documentElement.clientWidth,
+          documentScrollWidth: document.documentElement.scrollWidth,
+          header: box(header),
+          contentWidth:
+            header.clientWidth -
+            parseFloat(style.paddingLeft) -
+            parseFloat(style.paddingRight),
+          field: box(document.querySelector('[data-role="query-field"]')),
+          chips: box(document.querySelector('[data-role="filter-chips"]')),
+          count: box(count),
+          countLineHeight: parseFloat(getComputedStyle(count).lineHeight),
+          actions: box(document.getElementById("actions")),
+        };
+      };
+      document.body.dataset.ready = "1";
+    </script>
+  </body>
+</html>

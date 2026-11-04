@@ -566,6 +566,12 @@ One header for every screen with a subject, in up to three rows:
 - **The scope line is the drive and the screen's count.** An unknown count shows
   the drive alone, never `0`.
 - **The primary action ends the subject row.**
+- **The search results page's subject is an editable query field.** It takes the
+  title's place in the subject row, and the heading 「検索: "…"」 becomes a
+  visually hidden `<h1>` so the page still has one. The field is a §Inputs field;
+  its operator chips and 「＋ 条件」 button sit under it. At a phone width the
+  field takes the content width and the count and actions share the row under
+  the chips.
 
 ### Tabs
 
