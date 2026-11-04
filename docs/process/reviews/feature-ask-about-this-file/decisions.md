@@ -2,12 +2,14 @@
 
 decision:
 ran_in_app: yes
-at: f11bfeab7c18d8f5f9c6ab1d3b57f19cee7f48d6
+at: 28d2e1c70281dd4a8719ea497ac5fed34e69187d
 by: agent
 evidence: |
   Addon half (SPEC-ADDON-053, SPEC-ADDON-056) of `docs/specs/ask-about-this-file.md`.
-  `addons/intelligence` ran at b91346b8a84b29805a5996dfecf8072e9e3342ec, the commit the core HEAD pins
-  (Core SPEC-CORE-036 had already had its own R-5). Started with
+  The first pass ran at f11bfeab7c18d8f5f9c6ab1d3b57f19cee7f48d6 with `addons/intelligence` at
+  b91346b8a84b29805a5996dfecf8072e9e3342ec, the commit that core HEAD pinned; the video check 1
+  re-run in item 13 ran at 28d2e1c70281dd4a8719ea497ac5fed34e69187d with the addon at
+  61f3f8dfa4c595e15898571358c57c71dc8f4def. (Core SPEC-CORE-036 had already had its own R-5). Started with
   `LITLOFT_PORT=3993 docker compose -p litloft-r5-d1 -f docker-compose.yml -f .r5/override.yml up -d --build backend frontend intelligence`.
   Backend and intelligence came up healthy and indexed the drive (`/api/addons/intelligence/status`:
   4 files, text 3, whisper 1), and the app was driven at http://localhost:3993 with Chromium via
@@ -104,6 +106,8 @@ evidence: |
       (`addon-video-desktop-tabs-with-transcript.png`); at 390x844 the peek bar has no tabs and the
       sheet lists the same four (`addon-video-phone-tabs-with-transcript.png`). Shots
       addon-video-desktop-tabs-before.png and addon-video-desktop-tabs-after.png are identical.
+      **Check 1 of this item is superseded by item 13, the re-run after the event-delivery fix: the
+      tab then appeared on the open page without a reload.**
    10. Check 2, 1440x900: in the 質問 tab asked 「日本で最初の様式灯台は何年に点灯しましたか？」. The
       answer streamed into the pane with `[n]` shown as typed and ended as 「日本で最初の様式灯台は、
       観音先灯台というもので、1869年に点灯しました 0:13。」: one pill labelled `0:13` (`M:SS`), no
@@ -130,6 +134,31 @@ evidence: |
       whisper worker posts `/api/internal/addon-events` with no `X-Internal-Secret` while
       `CORE_INTERNAL_SECRET` is set, and `configure.py` generates that secret for the intelligence
       addon on a normal install.
+  13. Re-run of video check 1 (1440x900) after the event-delivery fix. `lecture-again.mp4`
+      (`vZ9j88Rfpt3S`, 39.48 s, the same 40 s Japanese lecture) was placed in drive `scratch` with no
+      transcript; the startup indexing transcribed it during the stack build, before a page could be
+      opened on it, so its index state was reset through the addon's own purge (`_purge_file`; its
+      `indexed_files` and `transcript_chunks` rows then counted 0) and the re-run made from there. No
+      code, config or model was changed. Script `.r5/addon-video3-1-appear.mjs`, shots
+      addon-video3-desktop-tabs-before.png, -after.png, -reload.png.
+      - 03:48:59.9Z page opened on `/drive/scratch?file=vZ9j88Rfpt3S` and never reloaded or navigated
+        after that (`framenavigated` stayed at 2 for the whole wait). The strip read 情報, 関連 — no
+        質問 — and `GET /api/addons/intelligence/files/vZ9j88Rfpt3S/ask` answered
+        `{"available": false}` at 03:49:02; the video player itself was up (0:00 / 0:39).
+      - 03:49:19.3Z transcription finished: the addon logged `transcription-event
+        intelligence.transcription.completed {'file_id': 'vZ9j88Rfpt3S', 'drive': 'scratch',
+        'provider': 'whisper_local', 'segments_count': 2, 'words_count': 146}`, the core answered its
+        `POST /api/internal/addon-events` **204** (the earlier pass got 403), and the open page's
+        WebSocket received
+        `{"event":"intelligence.transcription.completed","data":{"file_id":"vZ9j88Rfpt3S",
+        "drive":"scratch","provider":"whisper_local","segments_count":2,"words_count":146,
+        "has_diarization":false}}` — so the message arrives, and its `drive` is `scratch`.
+      - 03:49:19.3–03:49:20.3Z the same page called the availability route again (two
+        `GET …/files/vZ9j88Rfpt3S/ask` 200s within a second of the event, the 質問 tab's refetch among
+        them). At 03:49:20.0Z the strip on that page read 情報, 関連, 質問, with no reload. The core
+        文字起こし tab was not listed at that moment and appeared only after the reload.
+      - One reload, at the end of the run (03:49:23Z): the strip read 情報, 関連, 文字起こし, 質問.
+      Check 1 passes: absent first, listed without a reload once the transcript existed.
 
   Seen outside the checks: the knowledge addon's routes answered 502 (not part of this stack), the
   phone load logged minified React #418, and the Ask page issued two POSTs to `/ask` for one
