@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [],
+  "specification_compliance": [
+    "The fix removes the `_has_trashed_ghost` bypass and the `db` parameter of `init_upload` (backend/app/services/upload.py:126-152). Init again answers 409 whenever `target_full.exists()`, with or without `inbox_source`, which matches spec §2 ('Upload to a path that already holds a file: 409 at init as today'). This resolves r1 SCOPE-1 and F1.",
+    "backend/app/routers/uploads.py:28-49: init no longer takes a `db` dependency. In the change against origin/develop, the only init change left in uploads.py is passing `inbox_source`, which matches the touch point 'pass the field'. The `Session` and `get_db` imports are still used by `complete_upload` (uploads.py:78), so nothing is left dangling.",
+    "The comment at upload.py:293-296 ('init_upload's FS check ... guaranteed there was no live physical file at this path') is true again, so no stale prose remains.",
+    "The trashed-ghost branch of `complete_upload` (upload.py:317-326) still deletes a trashed row whose file is gone from disk, and the inbox row cascades with it. This is spec §1 step 3, branch three, and it is now reachable only when the trashed file is absent from disk.",
+    "The r1 touch-point gaps (SCOPE-2..5: useSelectedFile.ts, FileDetailChrome.tsx, ShellLayout.tsx, inboxGrouping.ts, inboxStage.ts, useInboxCount.ts) are untouched by this commit. They are list-incompleteness items, not code defects, and remain for a person to decide."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "None introduced by this commit. A pre-existing, unchanged race remains: init checks the disk, and a file created at the path between init and complete is replaced by `replacing_file` at upload.py:256. Develop behaves the same way."
+  ],
+  "regression_risks": [
+    "Low. The commit only deletes a branch and a parameter. Any caller that passed `db=` to `upload_service.init_upload` would now get a TypeError. I grepped the call site in routers/uploads.py, which no longer passes it; I did not grep MCP or other internal callers, but the parameter existed only in this branch."
+  ],
+  "test_coverage": [
+    "backend/tests/test_inbox_arrival.py `test_upload_over_a_trashed_file_still_on_disk_is_refused` is parametrized over inbox_source None and 'upload'. It asserts the 409, that the on-disk bytes are still 'old', and that the file id is still listed in /trash (the `data` key matches test_trash.py:138 and test_missing.py:225). Re-adding the bypass under either value would fail it, so it kills that mutant.",
+    "`test_trashed_ghost_is_replaced_and_gets_a_new_row` now unlinks the file before uploading, so it exercises the real ghost branch (upload.py:317-326) rather than the removed bypass. Removing the `db.delete(existing)` branch would fail it with an IntegrityError or an id mismatch.",
+    "The `upload` helper returns the init response when init does not answer 200 (inbox_helpers.py), so the 409 assertion reads init's status, not complete's."
+  ],
+  "not_verified": [
+    "I ran no tests and no commands.",
+    "I did not grep the MCP server or the knowledge submodule for direct Python callers of `init_upload(..., db=...)`. They talk over HTTP, so I expect none.",
+    "I did not re-review the truncated frontend part of the full diff; this round's commit touches only backend upload code and one test file.",
+    "I did not compare upload.py byte for byte with origin/develop. I relied on the full-change diff, which shows only the `inbox_source` additions in upload.py."
+  ],
+  "confidence": 88,
+  "trajectory": "One fix round (95d10b9c2). It removes a branch: the `_has_trashed_ghost` exemption in `init_upload`, the optional `db` parameter, and the router's `db` dependency for init. It adds no new production branch, state or prediction. The test layer gains one parametrized refusal test and corrects the ghost test to delete the on-disk file, which matches a real ghost. The design is not being patched; the round reverts unplanned scope back to develop's behavior.",
+  "perspectives": [
+    {
+      "name": "scope",
+      "notes": "The fix brings upload.py and routers/uploads.py back inside the declared touch points (session field, arrival in complete_upload, pass the field). The r1 frontend list gaps remain open and untouched."
+    },
+    {
+      "name": "submodules",
+      "notes": "The commit does not change the knowledge gitlink."
+    },
+    {
+      "name": "persistence",
+      "notes": "A trashed file on disk can no longer be overwritten or have its row deleted by an upload. The ghost-delete branch in complete_upload, with the inbox-row cascade, runs only when the file is absent from disk. The arrival is still recorded inside the try, before the single commit."
+    },
+    {
+      "name": "concurrency",
+      "notes": "No new concurrency surface. The TOCTOU window between the init disk check and the complete rename is the same as on develop."
+    }
+  ]
+}
