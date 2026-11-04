@@ -27,6 +27,18 @@ The search window also has a **Keyboard Shortcuts** button along its bottom edge
 | `←` or `Backspace` | While browsing, with the field empty: go up one level (from the drive root, stop browsing) |
 | `Enter` | While browsing, open the picked row, or the folder you are in when no row is picked |
 
+### On the search results page
+
+| Key | Action |
+|---|---|
+| `Enter` | Search for the field's text (nothing happens when it is blank or unchanged) |
+| `Esc` | Put the current query back in the field; with the condition menu open, close that first |
+| `Enter` or `Space` on a chip's `×` | Remove that operator and search again; focus moves to the next chip's `×`, else the previous, else the field |
+| `↑` / `↓` in the condition menu | Move through its items |
+| `Enter` in the condition menu | Choose the highlighted item |
+| `Esc` in the condition menu | Leave a value list for the first level, or close the menu |
+| `Tab` in the condition menu | Close it |
+
 ### Quick Note panel
 
 | Key | Action |
