@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [],
+  "specification_compliance": [
+    "r2 R2-1 (bucket A, I10) is fixed. addons/intelligence/app/file_matching.py:65-66 now checks the 200-character cap on every stripped, non-blank tag before the lower() dedup at :67-71. That is the same order as the core's FileMatchingRequest.validate_tags (backend/app/routers/internal.py:637-641). For ['İ'*101, 'i̇'*101], both sides now reject the second raw tag (202 code points) with 422.",
+    "r2 R2-2 is fixed. backend/tests/test_internal_files_matching.py TestRequestCaps.test_fold_sensitive_tags_match_the_addon_validator pins the core side of both fold-sensitive rows. A core mutation from lower() to casefold() at internal.py:641 now fails the 'casefold-only-pair-is-two-tags' row: 20 keys would answer 200, not 422. Moving the core length check after dedup now fails 'long-duplicate-checked-before-dedup': the kept 101-character tag would answer 200.",
+    "I compared the two validators side by side after the fix. Both strip, drop blanks, check length per raw tag, dedup on lower() keeping the first spelling, then cap at 20. For kinds, both map markdown to text, reject unknown names, dedup, then cap at 8. Both use StrictBool for the flags. I found no remaining input on which they disagree.",
+    "The fix commit touches only the addon gitlink (one moved check and one test row in the addon) and one core test file. No core production code changed in this round."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The addon now checks the length before the count, while the core still checks the length before the count as well. The orders now agree, so only the error message wording differs between the two sides; both answer 422."
+  ],
+  "regression_risks": [
+    "The Layer 2 parity is still two hand-maintained tables, the addon's INVALID_FILTERS and the core's TestRequestCaps. A new edge row added to one side only would again leave the other side unpinned."
+  ],
+  "test_coverage": [
+    "Core: the new parametrised test covers the casefold-only pair (19 ASCII tags + 'straße'/'STRASSE' → 422) and the length-before-dedup pair (['İ'*101, 'i̇'*101] → 422).",
+    "Addon: INVALID_FILTERS gains 'long-duplicate-checked-before-dedup'. Reverting file_matching.py to a length check after dedup would make the addon accept this input and call the core, so the 422 assertion would fail.",
+    "The r1/r2 needs-human items (filtered-query loading, available:false not cached, merged rows cleared) are not covered or changed by this round."
+  ],
+  "not_verified": [
+    "I ran no tests. The mutation outcomes above come from reading the code, not from running it.",
+    "I did not confirm that the worktree's addon checkout is exactly at d5795aaf9. I read file_matching.py as it is on disk.",
+    "I did not re-read the scoped search channels in addons/intelligence/app/search.py or the frontend, because this round did not touch them.",
+    "The behaviour of str.lower() on U+0130 is taken from Python's Unicode semantics, not executed."
+  ],
+  "confidence": 86,
+  "trajectory": "There have been two fix rounds. Round 1 (efbe71ff3) replaced the addon's casefold() with lower() and added one addon parity row. Round 2 (463ecfd7c) moved the addon's existing length check ahead of dedup and added a core-side twin of each fold-sensitive row. Neither round adds a branch, a state or a prediction that the round before it also added. Each round removed a divergence between the two validators by aligning the addon with the core's existing order and fold, rather than adding special cases. The design is not being patched. The two validators now apply identical steps in the same order."
+}

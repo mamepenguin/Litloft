@@ -89,8 +89,8 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-046 | implemented | docs/specs/semantic-search-all-hits.md | sha256:c74146104d52b81c2e35a24ff0a67a7954d92a8d56997b89770b206553028c11 |
 | SPEC-ADDON-055 | implemented | docs/specs/semantic-search-all-hits.md | sha256:c74146104d52b81c2e35a24ff0a67a7954d92a8d56997b89770b206553028c11 |
 | SPEC-CORE-035 | implemented | docs/specs/semantic-search-all-hits.md | sha256:c74146104d52b81c2e35a24ff0a67a7954d92a8d56997b89770b206553028c11 |
-| SPEC-ADDON-047 | approved | docs/specs/filtered-semantic-search.md | sha256:87c313b76e9348b5ef8fa0f81153a6e4c12fd7f5eca4b50ae072e50b11bdec28 |
-| SPEC-CORE-039 | approved | docs/specs/filtered-semantic-search.md | sha256:87c313b76e9348b5ef8fa0f81153a6e4c12fd7f5eca4b50ae072e50b11bdec28 |
+| SPEC-ADDON-047 | implemented | docs/specs/filtered-semantic-search.md | sha256:87c313b76e9348b5ef8fa0f81153a6e4c12fd7f5eca4b50ae072e50b11bdec28 |
+| SPEC-CORE-039 | implemented | docs/specs/filtered-semantic-search.md | sha256:87c313b76e9348b5ef8fa0f81153a6e4c12fd7f5eca4b50ae072e50b11bdec28 |
 | SPEC-ADDON-048 | draft | docs/specs/passage-results-view.md | |
 | SPEC-ADDON-049 | draft | docs/specs/image-query-search.md | |
 | SPEC-ADDON-050 | implemented | docs/specs/image-ocr.md | sha256:10d7b3560a941338b4c1e6ac6cf5b4d59bf3cae4d282e4269885a95d77a3598a |

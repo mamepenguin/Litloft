@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "R2-1",
+      "origin": "reviewer",
+      "claim": "The addon validator checks the 200-character tag cap only on the tags it keeps after lower()-deduplication, while the core request model checks it on every stripped raw tag before deduplication, so the two validators can still disagree on the same input.",
+      "impact": "A filter whose dropped duplicate is over 200 characters but whose kept spelling is not (possible only where lower() changes string length, e.g. U+0130 'İ' lowers to two code points) is accepted by the addon. The core then answers 422, the addon turns that into 503, and the frontend silently shows no meaning hits. Reaching this needs a tag over 200 characters made of length-changing capitals, which is crafted input that normal personal use does not produce.",
+      "evidence": "addons/intelligence/app/file_matching.py:61-73 deduplicates first (line 65-68) and runs the length check on the deduplicated list (line 72). backend/app/routers/internal.py:633-641 runs the length check on each raw tag (line 637) before setdefault (line 641). The r1 verifier recorded the same ordering divergence. The fix commit changed only the fold function, not this ordering.",
+      "repro": "not_reproduced. Reasoning: tags = ['İ'*101, 'i̇'*101]. Both lower() to the same 202-code-point string. The addon keeps the first (101 characters) and accepts. The core sees the second raw tag at 202 characters and answers 422.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This touches I10's 'accept and reject the same inputs', but it can only be reached with crafted input outside the declared threat model (a single user and no adversary).",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Check the length on every raw stripped tag before deduplicating in file_matching.py, in the same order as the core."
+    },
+    {
+      "id": "R2-2",
+      "origin": "reviewer",
+      "claim": "The casefold-only parity row was added only to the addon's INVALID_FILTERS table. The core's test_internal_files_matching.py has no row with a fold-sensitive pair, so nothing pins the core validator's fold.",
+      "impact": "Changing the core's validate_tags (or apply_file_filters' by_fold) from lower() to casefold() would reintroduce the r1 I10 divergence from the other side, and no core test would fail. The 'Layer 2 parity table' is two hand-maintained lists, not one table run against both models.",
+      "evidence": "addons/intelligence/tests/test_filtered_search_contract.py:176-179 is the only occurrence of 'straße'/'STRASSE' in any *.py test (Grep over the repository). The TestRequestCaps cases in backend/tests/test_internal_files_matching.py use ASCII tags only (t0..t20, 'x'*n).",
+      "repro": "Mutation (in thought): backend/app/routers/internal.py:641 `tag.lower()` -> `tag.casefold()`. The backend caps tests still pass (ASCII only), and the addon tests do not exercise the core model. Survives.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a test gap. The current code satisfies I10 for this input. The gap only lets a future regression through.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add to backend TestRequestCaps the same row: 19 ASCII tags + ['straße','STRASSE'] -> 422."
+    },
+    {
+      "id": "R2-3",
+      "origin": "reviewer",
+      "claim": "docs/specs/filtered-semantic-search.md:172 still says 'then the caps of 10 apply' (and section 2 says 'over the caps in 10'), while both validators and the now-corrected docs/addons/intelligence.md use 20 tags / 200 characters / 8 kinds.",
+      "impact": "A reader who treats the approved spec as the reference could lower TAG_MAX_COUNT or _MATCHING_MAX_TAGS to 10. That would break I10 parity and reject valid 11-20-tag queries. The fix commit corrected only the addon guide.",
+      "evidence": "docs/specs/filtered-semantic-search.md:172 'alias, then the caps of 10 apply.' versus addons/intelligence/app/file_matching.py:27 TAG_MAX_COUNT = 20, backend/app/routers/internal.py:57 _MATCHING_MAX_TAGS = 20, and spec section 10 itself ('at most 20 tags').",
+      "repro": "Read the lines cited above.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is prose contradicting code that could lead to a wrong code change. It breaks no invariant.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Delete 'of 10' / 'in 10' so the sentences refer to the caps in section 10. The spec is hash-approved, so this needs re-approval."
+    }
+  ],
+  "specification_compliance": [
+    "SCOPE-2 (r1, I10 fold) is fixed: addons/intelligence/app/file_matching.py:65 now uses tag.lower(), which matches backend/app/routers/internal.py:641 and the listing's by_fold in drives.py. Both validators now count 'straße'/'STRASSE' as two tags.",
+    "SCOPE-3 (r1) is fixed in docs/addons/intelligence.md: it now states 20 tags of up to 200 characters and 8 kinds. The same wrong number remains in the spec (R2-3).",
+    "The fix commit touches only the submodule's file_matching.py and its contract test, the gitlink and one doc line, all within the planned touch points. No core code changed in this round.",
+    "Kinds validation is unaffected by the fix: both sides map markdown->text, reject unknown names and deduplicate before the cap of 8."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The r1 needs-human items (filtered-query loading not waiting on semanticLoading; available:false treated as ok:false and therefore not cached; merged rows cleared when the old or the new query is filtered) are untouched by this round and still open for a human decision."
+  ],
+  "regression_risks": [
+    "Switching the addon from casefold() to lower() changes which spellings the addon treats as duplicates (for example ß/SS are no longer merged). The addon now forwards both spellings, and the core ANDs them as two tag clauses, which matches the listing. A filter that previously passed at 20 can now be 422 at 21, which is the intended parity."
+  ],
+  "test_coverage": [
+    "Addon: the new INVALID_FILTERS row 'casefold-only-pair-is-two-tags' (19 + 2 = 21 under lower(), 20 under casefold()) would kill a revert of file_matching.py:65 to casefold(). Under casefold() the addon would accept and call the core, and the test asserts 422 with no core call.",
+    "Core: no fold-sensitive row exists in backend/tests/test_internal_files_matching.py (R2-2).",
+    "Neither side has a row where a dropped duplicate exceeds 200 characters (R2-1)."
+  ],
+  "not_verified": [
+    "I ran no tests. The mutation outcomes above come from reading the code, not from running the tests.",
+    "I did not verify that the submodule checkout in this worktree is exactly at 5d65c9d9. I read the file as it is on disk.",
+    "I did not re-read the addon's scoped channel code in app/search.py. This round did not change it.",
+    "I did not check how the frontend parser's JavaScript toLowerCase() differs from Python lower() for tag deduplication before the request."
+  ],
+  "confidence": 82,
+  "trajectory": "There was one fix round (efbe71ff3). It adds no new branch, state or prediction. It replaced casefold() with lower() in the addon's tag deduplication, which removes a divergence instead of adding a special case, and it added one test row and corrected one doc sentence. The design is not being patched. One related divergence that r1's verifier noted (length checked after dedup in the addon, before dedup in the core) was not addressed in this round.",
+  "perspectives": [
+    {
+      "name": "scope",
+      "notes": "The fix commit is confined to file_matching.py, its contract test, the gitlink and docs/addons/intelligence.md. The same '10' remains in the spec text."
+    },
+    {
+      "name": "submodules",
+      "notes": "The gitlink moves ef5bc2e -> 5d65c9d. The submodule diff is one line of code plus one test row. No rag/ files were touched."
+    },
+    {
+      "name": "persistence",
+      "notes": "Nothing persisted changed in this round. The core endpoint stays read-only."
+    },
+    {
+      "name": "concurrency",
+      "notes": "This round changed no async or abort logic. The r1 findings on the ctrl.signal guards still stand."
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [],
+  "specification_compliance": [
+    "I10 (R2-1, length checked before or after dedup): fixed. addons/intelligence/app/file_matching.py:61-73 now checks each stripped, non-blank tag against TAG_MAX_LENGTH at :65 before the lower() dedup at :67-71. That is the order the core uses at backend/app/routers/internal.py:633-641 (length at :637, setdefault on tag.lower() at :641). For ['İ'*101, 'i̇'*101], both sides now see the second raw tag at 202 code points and reject the filter.",
+    "I10, other dimensions re-read for parity: both sides fold with lower(), drop tags that are blank after strip(), count the cap of 20 after dedup, accept the eight kinds plus 'markdown' as 'text' and match kinds exactly with no strip and no case fold (core FileKindParam Literal at drives.py:102-124; addon KINDS/_KIND_ALIASES at file_matching.py:31-34,78-80), dedup kinds before the cap of 8, and use StrictBool for both flags. I found no remaining input that one validator accepts and the other rejects.",
+    "R2-2 (core-side parity row): fixed. backend/tests/test_internal_files_matching.py TestRequestCaps.test_fold_sensitive_tags_match_the_addon_validator now holds the same two rows as the addon's INVALID_FILTERS (test_filtered_search_contract.py:176-183), with the same ids.",
+    "The fix commit stays inside the planned touch points: the addon gitlink (5d65c9d -> d5795aaf), the addon validator and its contract test, and a backend test. No core production code changed in this round."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The spec does not say whether the 200-character cap applies before or after dedup. Both validators now apply it before dedup, so a long spelling that would be dropped as a duplicate still makes the request fail with 422. This is consistent on both sides but is not written down anywhere.",
+    "The r1 needs-human items are still open and this round did not touch them: the filtered-query `loading` no longer waits for semanticLoading, `available:false` now counts as a failure and is not cached, and the modal clears merged rows on a filtered query change."
+  ],
+  "regression_risks": [
+    "The parity table is still two hand-copied lists, the addon's INVALID_FILTERS and the core's TestRequestCaps rows. A new rejection rule added on one side only would not be caught unless someone mirrors it by hand.",
+    "Moving the addon's length check ahead of dedup only changes which ValueError message is raised for inputs that break both caps. The status is 422 either way, so no response code changes."
+  ],
+  "test_coverage": [
+    "Mutation, in thought: revert the addon's length check to after dedup. The addon row 'long-duplicate-checked-before-dedup' would then accept the filter and call the core double, and test_spec_addon_047_i10_rejects_a_filter_the_core_request_model_rejects asserts 422 and core.matching_requests == []. Killed.",
+    "Mutation, in thought: move the core's length check after setdefault. The kept 'İ'*101 is 101 characters, so the core would answer 200 and the backend row 'long-duplicate-checked-before-dedup' expects 422. Killed.",
+    "Mutation, in thought: change internal.py:641 from lower() to casefold(). Under casefold, 19 + ['straße','STRASSE'] dedups to 20 and the core answers 200, but the backend row 'casefold-only-pair-is-two-tags' expects 422. Killed. The r2 R2-2 gap is closed.",
+    "Mutation, in thought: change the fold in drives.py apply_file_filters' by_fold. The validator rows do not catch this. Only the listing parity rows exercise that fold, and they use ASCII and Japanese tags only, so a fold-sensitive by_fold change would survive. This was out of scope for this round and is pre-existing coverage."
+  ],
+  "not_verified": [
+    "I ran no tests. All mutation outcomes above come from reading the code.",
+    "I read the files on disk. I did not confirm that the worktree's submodule checkout is exactly d5795aaf.",
+    "I did not re-read the addon's scoped channel code in app/search.py or the frontend, because this round did not change them.",
+    "I did not check whether the frontend's parseSearchQuery dedups tags before it sends `filter`. The JavaScript toLowerCase() and Python lower() behaviour for such tags was not compared."
+  ],
+  "confidence": 85,
+  "trajectory": "There have been two fix rounds. In efbe71ff3 the addon's tag-dedup fold changed from casefold() to lower() to match the core. In 463ecfd7c the addon's 200-character length check moved from after dedup to before it, the same order as the core, and the core gained the mirror test rows. Neither round adds a branch, a state or a prediction. Each one removes a difference between the addon and core validators by changing existing code to match the core, and the only additions are test rows. No round repeats something an earlier round added, so the design is not being patched. The second round closes the ordering difference that the r1 verifier noted and that r2 reported as R2-1, and it also closes R2-2.",
+  "perspectives": [
+    {
+      "name": "scope",
+      "notes": "The fix commit touches only file_matching.py, its contract test, the gitlink and backend/tests/test_internal_files_matching.py. It reaches no unplanned path."
+    },
+    {
+      "name": "submodules",
+      "notes": "The gitlink moves 5d65c9d -> d5795aaf. The submodule diff moves one length check and adds one test row. The rag/ callers are untouched."
+    },
+    {
+      "name": "persistence",
+      "notes": "Nothing persisted changed. The core endpoint stays read-only."
+    },
+    {
+      "name": "concurrency",
+      "notes": "This round has no async or abort changes, so the earlier ctrl.signal and continuation-key observations still stand."
+    }
+  ]
+}
