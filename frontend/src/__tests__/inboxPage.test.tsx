@@ -19,6 +19,7 @@ import {
   stage,
   type InboxItemWire,
 } from "./helpers/inboxData";
+import { renderInboxSettled } from "./helpers/inboxRender";
 
 const route = vi.hoisted(() => ({
   search: new URLSearchParams("view=inbox"),
@@ -50,6 +51,7 @@ import DrivePage from "@/app/drive/[name]/page";
 import { resetUploadStore } from "@/hooks/useUpload";
 
 let lastEvent: WebSocketEvent | null = null;
+let api: InboxApiHarness;
 
 function tree() {
   return (
@@ -64,7 +66,7 @@ function tree() {
 }
 
 function renderInbox() {
-  return render(tree());
+  return renderInboxSettled(tree, api.state.items);
 }
 
 function emitAndRerender(
@@ -75,8 +77,6 @@ function emitAndRerender(
   lastEvent = { event, data };
   view.rerender(tree());
 }
-
-let api: InboxApiHarness;
 
 function setup(state: Parameters<typeof installInboxFetch>[0]) {
   api = installInboxFetch(state);
@@ -133,7 +133,7 @@ afterEach(() => {
 describe("SPEC-CORE-032 the inbox page's header", () => {
   it("SPEC-CORE-032 names the screen and its drive", async () => {
     setup({ items: ALL_FOUR });
-    renderInbox();
+    await renderInbox();
 
     expect(await screen.findByRole("heading", { name: "Inbox" })).toBeInTheDocument();
     await waitFor(() =>
@@ -143,7 +143,7 @@ describe("SPEC-CORE-032 the inbox page's header", () => {
 
   it("SPEC-CORE-032 offers Mark all done while there is something to close", async () => {
     setup({ items: ALL_FOUR });
-    renderInbox();
+    await renderInbox();
 
     expect(
       await screen.findByRole("button", { name: "Mark all done" }),
@@ -152,7 +152,7 @@ describe("SPEC-CORE-032 the inbox page's header", () => {
 
   it("SPEC-CORE-032 shows the empty state, with no Mark all done", async () => {
     setup({ items: [] });
-    renderInbox();
+    await renderInbox();
 
     expect(await screen.findByText("Inbox is empty")).toBeInTheDocument();
     expect(screen.getByText("New arrivals appear here")).toBeInTheDocument();
@@ -164,7 +164,7 @@ describe("SPEC-CORE-032 the inbox page's header", () => {
 describe("SPEC-CORE-032 the page's rows", () => {
   it("SPEC-CORE-032 groups by the viewer's local date, in order", async () => {
     setup({ items: ALL_FOUR });
-    renderInbox();
+    await renderInbox();
     await screen.findByRole("heading", { name: "Inbox" });
 
     const text = document.body.textContent ?? "";
@@ -182,7 +182,7 @@ describe("SPEC-CORE-032 the page's rows", () => {
 
   it("SPEC-CORE-032 opens each row at the file detail with nav=inbox", async () => {
     setup({ items: ALL_FOUR });
-    renderInbox();
+    await renderInbox();
     await screen.findByRole("heading", { name: "Inbox" });
 
     for (const item of ALL_FOUR) {
@@ -199,7 +199,7 @@ describe("SPEC-CORE-032 the page's rows", () => {
         inboxItem(inboxFile("f1", { has_thumbnail: true }), today),
       ],
     });
-    renderInbox();
+    await renderInbox();
     await screen.findByRole("heading", { name: "Inbox" });
 
     expect(rowText("f1")).toContain("Arrival f1");
@@ -213,7 +213,7 @@ describe("SPEC-CORE-032 the page's rows", () => {
         inboxItem(inboxFile("f1", { file_type: "document", mime_type: "text/plain" }), today),
       ],
     });
-    renderInbox();
+    await renderInbox();
     await screen.findByRole("heading", { name: "Inbox" });
 
     expect(rowFor("f1").querySelector("img")).toBeNull();
@@ -222,7 +222,7 @@ describe("SPEC-CORE-032 the page's rows", () => {
 
   it("SPEC-CORE-032 shows today as HH:mm", async () => {
     setup({ items: [todayItem] });
-    renderInbox();
+    await renderInbox();
     await screen.findByRole("heading", { name: "Inbox" });
 
     expect(rowText("f1")).toContain(clockOf(today));
@@ -230,7 +230,7 @@ describe("SPEC-CORE-032 the page's rows", () => {
 
   it("SPEC-CORE-032 shows yesterday as Yesterday HH:mm", async () => {
     setup({ items: [yesterdayItem] });
-    renderInbox();
+    await renderInbox();
     await screen.findByRole("heading", { name: "Inbox" });
 
     expect(rowText("f3")).toContain(`Yesterday ${clockOf(yesterday)}`);
@@ -238,7 +238,7 @@ describe("SPEC-CORE-032 the page's rows", () => {
 
   it("SPEC-CORE-032 shows an older arrival as a date, not a time", async () => {
     setup({ items: [earlierItem] });
-    renderInbox();
+    await renderInbox();
     await screen.findByRole("heading", { name: "Inbox" });
 
     const text = rowText("f4");
@@ -249,7 +249,7 @@ describe("SPEC-CORE-032 the page's rows", () => {
 
   it("SPEC-CORE-032 translates the source label through its key", async () => {
     setup({ items: [todayItem] });
-    renderInbox();
+    await renderInbox();
     await screen.findByRole("heading", { name: "Inbox" });
 
     expect(rowText("f1")).not.toContain("inbox.sourceUpload");
@@ -257,7 +257,7 @@ describe("SPEC-CORE-032 the page's rows", () => {
 
   it("SPEC-CORE-032 falls back to the source when its key is unknown", async () => {
     setup({ items: [earlierItem] });
-    renderInbox();
+    await renderInbox();
     await screen.findByRole("heading", { name: "Inbox" });
 
     expect(rowText("f4")).toContain("web_clip");
@@ -265,7 +265,7 @@ describe("SPEC-CORE-032 the page's rows", () => {
 
   it("SPEC-CORE-032 gives a folder a trailing slash and the root its own word", async () => {
     setup({ items: [todayItem, earlierItem] });
-    renderInbox();
+    await renderInbox();
     await screen.findByRole("heading", { name: "Inbox" });
 
     expect(rowText("f1")).toContain("Root");
@@ -276,7 +276,7 @@ describe("SPEC-CORE-032 the page's rows", () => {
 describe("SPEC-CORE-032 the page's upload zone", () => {
   it("SPEC-CORE-032 mounts one zone that lands files in the drive root as arrivals", async () => {
     setup({ items: ALL_FOUR });
-    const view = renderInbox();
+    const view = await renderInbox();
     await screen.findByRole("heading", { name: "Inbox" });
 
     const zones = view.container.querySelectorAll("[data-upload-zone]");
@@ -304,7 +304,7 @@ describe("SPEC-CORE-032 reloading the list", () => {
     "SPEC-CORE-032 refetches from the top on %s for the current drive",
     async (event) => {
       setup({ items: ALL_FOUR });
-      const view = renderInbox();
+      const view = await renderInbox();
       await screen.findByRole("heading", { name: "Inbox" });
       const before = api.listCalls().length;
       expect(before).toBeGreaterThan(0);
@@ -322,7 +322,7 @@ describe("SPEC-CORE-032 reloading the list", () => {
 
   it("SPEC-CORE-032 ignores another drive's event", async () => {
     setup({ items: ALL_FOUR });
-    const view = renderInbox();
+    const view = await renderInbox();
     await screen.findByRole("heading", { name: "Inbox" });
     const before = api.listCalls().length;
 
@@ -336,7 +336,7 @@ describe("SPEC-CORE-032 reloading the list", () => {
 
   it("SPEC-CORE-032 keeps what it shows when a reload fails", async () => {
     setup({ items: ALL_FOUR });
-    const view = renderInbox();
+    const view = await renderInbox();
     await screen.findByRole("heading", { name: "Inbox" });
 
     api.state.failList = true;
@@ -359,7 +359,7 @@ describe("SPEC-CORE-032 I18 a row's stage", () => {
     processing: NonNullable<Parameters<typeof installInboxFetch>[0]["processing"]>,
   ) {
     setup({ items, processing });
-    const view = renderInbox();
+    const view = await renderInbox();
     await screen.findByRole("heading", { name: "Inbox" });
     await waitFor(() => expect(api.processingCalls().length).toBeGreaterThan(0));
     return view;
@@ -479,7 +479,7 @@ describe("SPEC-CORE-032 I18 a row's stage", () => {
         f3: { stages: [stage("statusPending", "running")], ready: false },
       },
     });
-    renderInbox();
+    await renderInbox();
     await screen.findByRole("heading", { name: "Inbox" });
     await waitFor(() => expect(api.processingCalls().length).toBe(1));
 
@@ -500,7 +500,7 @@ describe("SPEC-CORE-032 I18 a row's stage", () => {
         },
       },
     });
-    const view = renderInbox();
+    const view = await renderInbox();
     await screen.findByRole("heading", { name: "Inbox" });
     await waitFor(() => expect(api.processingCalls().length).toBe(1));
 
