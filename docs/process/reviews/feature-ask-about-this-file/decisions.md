@@ -2,7 +2,7 @@
 
 decision:
 ran_in_app: yes
-at: 28d2e1c70281dd4a8719ea497ac5fed34e69187d
+at: a77219f2d71f2212d7a2b211ccfa37f45d281d75
 by: agent
 evidence: |
   Addon half (SPEC-ADDON-053, SPEC-ADDON-056) of `docs/specs/ask-about-this-file.md`.
@@ -163,6 +163,64 @@ evidence: |
   Seen outside the checks: the knowledge addon's routes answered 502 (not part of this stack), the
   phone load logged minified React #418, and the Ask page issued two POSTs to `/ask` for one
   rendered answer (that page is not part of this change). No attempt was made to attribute them.
+
+  I11 re-check after revision (r1), `docs/process/reviews/feature-ask-about-this-file/invariants.md`.
+  Ran at core a77219f2d71f2212d7a2b211ccfa37f45d281d75 with `addons/intelligence` at
+  b82a5ec4d6286528a712082d934601c58c6ec3c9 (the core pins it there; the earlier runs' 61f3f8d…
+  pin is left in the text above). Same start command, drive `scratch`, `gemma4:e4b`, 390x844
+  (isMobile, hasTouch) and 1440x900, Japanese UI. `/api/addons/intelligence/status`: 6 files,
+  text 3, whisper 3. Cards: Lecture-again `vZ9j88Rfpt3S`, Lecture `tvT_hDTCFJ9f`, Clip
+  `khxFH7CZ_oTj`, `Litloft User Guide.pdf` `oM2PzgubAzbI`, `サッカーの神様をさがして.pdf`
+  `YSADIknHew2g`, `.epub` `w97skyzApJYy`. Scripts `.r5/r1-*.mjs`, logs `.r5/r1-*.log`, shots
+  `docs/process/reviews/feature-ask-about-this-file/shots/r1-*.png`.
+  1. 390x844: `/files/oM2PzgubAzbI` showed the peek bar; シートを開く opened the sheet at half
+     (top 506) with 情報, ページ, 関連, 質問. Asked 「メニューを閉じるにはどうすればいいですか？」;
+     the first answer text was in the panel 102 ms later and シートを下げる dropped the sheet to
+     its bar 1.2 s after the click. The `POST /api/addons/intelligence/files/oM2PzgubAzbI/ask`
+     was not aborted: it finished 13.1 s after the submit (`requestfailed` empty), its SSE body
+     (1,799 chars) ended `event: done` / `data: {}`. Reopening the sheet and selecting 質問 showed
+     the question, the whole answer ending 「…close these menus p.2.」 with its `p.2` pill, and
+     「ファイルの一部を読んで答えました」; no failure line (`role=alert` null), the box still held
+     the question and 質問する was enabled again. Shots r1-phone-first-words.png,
+     r1-phone-lowered.png, r1-phone-reopened-after-done.png.
+     Repeat with a longer question (「このファイルで説明されている機能をできるだけ詳しく教えて
+     ください」): first words at 3.8 s, lowered, reopened 0.4 s later while the POST was still open.
+     The reopened sheet selected 情報, but the Ask panel already held the text received so far
+     (231 chars) and it kept growing while sampled (285, 324, 410, 461, 573 … 2,531 by 11.5 s);
+     selecting 質問 at 11.9 s showed the same growing text, and the stream ended with `done` at
+     14.4 s (body 30,395 chars), the final panel text measured 2,957 chars (answer with pills) and
+     showed no failure line. Shots r1-phone-reopen-midstream.png, r1-phone-after-stream.png.
+  2. 1440x900: asked the long question, first words at 254 ms, switched to 情報 for 3 s (the ask
+     panel's text grew 1,127 → 1,500 chars while the tab was away), switched back to 質問 with the
+     button still disabled and the text growing; the request then ended with `done` (body 28,287
+     chars), `requestfailed` empty, and the finished answer was in the tab (panel text 2,719 chars,
+     pills, partial line). Then a second question (「ページを移動する方法を教えてください」, first words at
+     378 ms) was streaming when the 関連 tab's EPUB link was clicked: the PDF's POST failed with
+     `net::ERR_ABORTED` and never reached `requestfinished`, while a `window` marker and
+     `performance.getEntriesByType("navigation").length === 1` survived the switch, so the file
+     changed without a document reload. The EPUB (`?file=w97skyzApJYy`) then listed 情報, 関連, 質問
+     and its 質問 panel read only 「質問する」. Going back through 関連 to the PDF and selecting 質問
+     showed 「質問する」 only: no question, no answer, empty box, no alert. Shots
+     r1-desktop-ask-after-tab-switch.png, r1-desktop-answer1-done.png,
+     r1-desktop-epub-after-switch.png, r1-desktop-pdf-after-return.png.
+  3. 1440x900: asked 「メニューを閉じるにはどうすればいいですか？」 and let it finish (`done`; panel text
+     210 chars with the question, the answer, a `p.2` pill and the partial line), then ライブラリ → `/drive/scratch` (6 cards) and
+     the PDF's card again (`?file=oM2PzgubAzbI&sort=created_at&order=desc&nav=folder`). The 質問 tab
+     read 「質問する」 only, the box was empty, no alert, and neither the old question nor its answer
+     appeared. Shots r1-desktop-answer-before-leave.png, r1-desktop-drive-listing.png,
+     r1-desktop-ask-empty-after-return.png.
+  4. 390x844, long question: first words at 345 ms (101 chars), then `setViewportSize(1440x900)`
+     without reloading (innerWidth 1440, sheet gone, tabs 情報, ページ, 関連, 質問). The ask panel
+     still held the same answer (341 chars) and it kept growing after the resize (401, 464, 558 …
+     2,148 by 7.0 s; 情報 selected at first, 質問 selected at 7.7 s showed the question and the
+     growing answer). The stream ended with `done` at 9.0 s (body 24,911 chars), the final panel
+     text measured 2,386 chars (answer with `p.2`/`p.3` pills and the partial line), no alert, no
+     `requestfailed`; `framenavigated` did not change at the resize. Shots
+     r1-phone-streaming-before-resize.png, r1-desktop-after-resize-streaming.png,
+     r1-desktop-after-resize-done.png.
+     Seen outside the checks: the 390x844 page load logged minified React #418 again, as in the
+     earlier run. It did not affect any of the four checks.
+
 pending: The null-position/uncited-`[n]` case was not reachable: the drive holds PDFs, an EPUB and
   two videos, whose citations all carried a page, section or time position, and the `H:MM:SS` pill
   label was not exercised because the video is 39 s. Audio and video as heard and seen, the iOS app
