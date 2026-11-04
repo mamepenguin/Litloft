@@ -50,14 +50,17 @@ B5 and fix this cut instead.
    `margins=PAGE_MARGINS` explicitly, where `PAGE_MARGINS = (0, 50, 0, 50)` is a new
    constant in `app/extractors/pdf.py`. The library's output does not change; the constant
    only fixes the band to the one the recovery reads, whatever a later library default
-   becomes.
+   becomes. Passing it must not change today's output (a test compares a page converted
+   with and without it). `pages=list(range(MAX_PAGES))` and the `IndexError` retry stay as
+   they are.
 2. **Band lines.** A new function in `app/extractors/pdf.py` takes an open `fitz`
    document and returns, for each page up to `MAX_PAGES`, the page's *edge lines*. It
    reads `page.get_text("dict")`, keeps only text blocks, and takes each line whose box
    overlaps `y < 50` (top band) or `y > page.rect.height - 50` (bottom band). A line's
    text is its spans joined, with surrounding whitespace stripped. Empty lines are
    dropped.
-3. **Filtering.** The filter runs over the whole document's edge lines, in page order:
+3. **Filtering.** Two document-wide rules run over the edge lines only, in page order,
+   and need no Markdown:
    - A line with no character of a Unicode letter category (`L*`) is dropped. This removes
      page numbers such as `12`, `― 219 ―` or `3/40`.
    - A line's *key* is its NFKC form with all whitespace removed and each run of Unicode
@@ -65,9 +68,12 @@ B5 and fix this cut instead.
      is a *repeated* line. Only its first occurrence, on the lowest page, is kept; every
      later occurrence is dropped. This keeps a running header or a repeated source line
      once and drops the copies on other pages.
+
+   The lines left are the page's *recovered lines*. Then, per page and last, the
+   containment rule runs against that page's Markdown only:
    - A line whose normalised text (NFKC, whitespace and the Markdown characters `` *_`#|>- ``
      removed) is already contained in that page's normalised Markdown is dropped, so a
-     line the library kept is not repeated.
+     line the library kept appears once.
 4. **Placement.** For each page, the kept top-band lines go before the page's Markdown and
    the kept bottom-band lines after it, each group in the order of the line boxes (top to
    bottom, then left to right). Lines are joined by newlines, and a group is separated from
@@ -78,16 +84,25 @@ B5 and fix this cut instead.
    400 / 80 by default). They also land in `pdf_markdown`, which detailed summaries read.
    Edge-line extraction runs inside `extract()`'s existing `PYMUPDF_LOCK` hold, on the
    document the fallback would also open.
-6. **read_document and the single-file question surface.** `_pdf_range` computes the edge
-   lines once for the whole document (under the `PYMUPDF_LOCK` it already holds), then
-   gives each requested page its own kept lines, placed as in step 4. A requested page of
-   a document gets the same kept lines from indexing and from `read_document`. The
-   single-file question surface reads indexed chunks, so it gets them through step 5.
+6. **read_document and the single-file question surface.** `_pdf_range` runs the edge-line
+   pass and the two document-wide rules over pages 1 to `MAX_PAGES` (under the
+   `PYMUPDF_LOCK` it already holds), then converts only the requested pages, as today, and
+   applies containment to each against its own single-page Markdown. A page after
+   `MAX_PAGES` gets no recovered lines, matching indexing, which stops there. The 10-page
+   conversion limit of SPEC-ADDON-036 I5 holds: the pass reads the text layer and
+   converts nothing. The recovered lines of a page are the same set on both paths. The
+   single-page Markdown can differ from the whole-file one (heading levels, as
+   SPEC-ADDON-036 notes), so containment may drop a duplicate on one path only; I4
+   compares recovered lines before containment. A page whose conversion fell back to
+   `get_text("text")` gets no recovered lines, since its text already holds the bands. The
+   single-file question surface reads indexed chunks, so it gets the lines through step 5.
 7. **Existing PDFs.** A new `index_meta` key `pdf_text_rules` holds a version string.
-   At startup, in the lifespan, next to `check_idf_term_rules`, a check compares it with a
+   At startup, in the lifespan and before `index_manager.start()` (so the first reconcile
+   sees the reset; `check_idf_term_rules` runs after it today), a check compares it with a
    constant `PDF_TEXT_RULES_VERSION` in `app/extractors/pdf.py`. When they differ, one
-   transaction sets `text_indexed = 0` for every active row with mime type
-   `application/pdf` and records the new version. The next `_resume_incomplete` queues a
+   transaction sets `text_indexed = 0` for every row with mime type `application/pdf`,
+   active or not, so a PDF restored from trash later is re-extracted too, and records the
+   new version. The next `_resume_incomplete` queues a
    `TEXT_CONTENT` task for each of those files. When `INTELLIGENCE_SEARCH_DB_PATH` is set
    (the eval snapshot, which runs no indexer), nothing is reset and only the version is
    recorded, as `_migrate_embeddings_chunk_index` does.
@@ -95,18 +110,24 @@ B5 and fix this cut instead.
    a new upload's text task (queued at 0 by `_queue_file_tasks`) runs before the backlog,
    as the OCR backlog does. This applies to every resumed text task; a resumed task is
    backlog by definition.
-9. **Unchanged chunks.** In `index_text_content`, when a file's new chunks equal its
-   stored `fts_text_content` rows (same count and, in `chunk_index` order, the same
-   `page` and `text`), the embeddings and FTS rows are left as they are and only
-   `pdf_markdown`, `document_sections` and `text_indexed` are written. A PDF with nothing
+9. **Unchanged chunks (PDFs only).** In `index_text_content`, for a PDF whose new chunks
+   equal its stored `fts_text_content` rows (same count and, in `chunk_index` order, the
+   same `page` and `text`) and which has exactly one `text_content` embedding per stored
+   chunk (the same set of `chunk_index` values), the embeddings and FTS rows are left as
+   they are and only `pdf_markdown`, `document_sections` and `text_indexed` are written.
+   Other types are written as today. A PDF with nothing
    in its bands, which is most of the arXiv papers measured, then costs one extraction and
    no embedding.
-10. **Citations.** When `index_text_content` rewrites a file's chunks and the file has
+10. **Citations (PDFs only).** When `index_text_content` rewrites a PDF's chunks and it has
     `detailed_summary_citations` rows and an active `detailed_summary` insight, it
     recomputes them with `citations.calculate_and_store(file_id, <active content>)` after
     the write commits. Stored citations name chunks as `document:<chunk_index>`, and
     added lines move the chunk indices of every later page. Recomputing uses the embedder
-    only, with no LLM.
+    only, with no LLM, runs inline in the same text task after the commit, and then emits
+    `intelligence.detailed_summary.citations_ready` as the summaries worker does.
+    `detailed_summary_citations` is the only stored reference to a `document:<chunk_index>`
+    found in the addons; the implementer confirms this with a grep before writing step 10.
+    Other types keep today's behaviour on re-extraction.
 
 ### 2. Failure cases
 
@@ -122,7 +143,9 @@ B5 and fix this cut instead.
 - The embedding fails during the backlog: nothing is written, the earlier rows stay
   searchable, `text_indexed` stays false, and a later `_resume_incomplete` queues it again.
 - The citation recompute fails: the earlier citation rows stay, a WARNING names the file,
-  and the chunk write is not undone.
+  no event is emitted, and the chunk write is not undone.
+- The edge-line pass raises as a whole during `read_document`: the requested pages are
+  served with today's text.
 - The version check fails at startup: logged with its traceback, startup continues, and
   the next start checks again. The reset and the recorded version commit together.
 - A `read_document` call on a large PDF spends up to about 5.5 s (500 pages at the measured
@@ -165,8 +188,9 @@ path keeps its access checks.
 - Semantic search, exact search, Ask, the single-file question surface, search excerpts
   and `read_document` see the recovered lines as part of their page. A hit reports that
   page's number.
-- Detailed summaries generated after the re-extraction read `pdf_markdown` with the lines
-  in it. Existing summaries are not regenerated; their citations are recomputed (step 10).
+- `GET /files/{file_id}/pdf-markdown` returns the stored `pdf_markdown`, which now
+  includes the recovered lines. Detailed summaries generated after the re-extraction read
+  it with the lines in it. Existing summaries are not regenerated; their citations are recomputed (step 10).
 - Similar files, pickup, and the rarity and IDF statistics over `fts_text_content_word`
   include the recovered lines. The first occurrence of a running header on page 1 is
   included once per document.
@@ -220,12 +244,16 @@ keeps from the page edges and that the first start after the upgrade re-extracts
 - `addons/intelligence/app/document_text.py`: `_pdf_range`, `_pdf_page`.
 - `addons/intelligence/app/database.py`: the `pdf_text_rules` check (next to
   `check_idf_term_rules`, using `_read_index_meta` / `_upsert_index_meta`).
-- `addons/intelligence/app/main.py`: the lifespan call.
+- `addons/intelligence/app/main.py`: the lifespan call, placed before
+  `index_manager.start()`.
 - `addons/intelligence/app/indexer.py`: `_resume_incomplete`, which now queues
   `TEXT_CONTENT` at -10.
 - `addons/intelligence/app/workers/metadata.py`: `index_text_content` (unchanged-chunk
   skip, citation recompute).
-- `addons/intelligence/app/citations.py`: `calculate_and_store`, called, not changed.
+- `addons/intelligence/app/citations.py`: `calculate_and_store`, called, not changed; the
+  `citations_ready` emit follows `workers/summaries.py`'s `_recalculate_citations`.
+- `addons/intelligence/app/routers/files.py`: `GET /files/{file_id}/pdf-markdown`, not
+  changed; its content gains the recovered lines.
 - `addons/intelligence/tests/`: extractor, document-text, version-check, resume-priority,
   unchanged-chunk and citation tests, with small generated PDFs holding band text, a
   running header and footer, and page numbers.
@@ -238,14 +266,25 @@ keeps from the page edges and that the first start after the upgrade re-extracts
 ## Invariants
 
 I1. A PDF page with no line overlapping the top or bottom 50 points has exactly the text, chunks and `pdf_markdown` part it has today.
-I2. A line overlapping a band that has a letter, is not a later occurrence of a key found on 3 or more pages, and is not already in the page's Markdown appears in that page's text, so in a chunk with that page's number. Top-band lines come before the Markdown and bottom-band lines after it.
+I2. A line overlapping a band that has a letter, is not a later occurrence of a key found on 3 or more pages, and is not already in the page's Markdown appears in that page's text, so in a chunk with that page's number. Top-band lines come before the Markdown and bottom-band lines after it, each group ordered top to bottom, then left to right.
 I3. A band line with no letter, and every occurrence after the first of a key found on 3 or more distinct pages, appears in no chunk, `pdf_markdown` row or `read_document` text.
-I4. For a PDF on the primary path, the lines `read_document` adds to page N equal the lines indexing adds to page N of the same file.
+I4. For a PDF on the primary path and a page N up to `MAX_PAGES`, the recovered lines (before containment) `read_document` computes for page N equal those indexing computes for page N; a page after `MAX_PAGES`, or one that fell back to `get_text("text")`, gets none.
 I5. An error while reading edge lines leaves the library's Markdown in place and never makes extraction fall back to fitz; the fitz fallback's output is unchanged.
-I6. The first start with a new `PDF_TEXT_RULES_VERSION` sets `text_indexed` false for every active PDF and for no other file, in the same transaction that records the version. A later start with the same version changes nothing, and with `INTELLIGENCE_SEARCH_DB_PATH` set no flag is changed.
-I7. A file whose new chunks equal its stored `fts_text_content` rows keeps its embedding ids and FTS rows. A file whose chunks were rewritten and that has stored citations has them recomputed against the new chunks.
+I6. The first start with a new `PDF_TEXT_RULES_VERSION`, before the index manager starts, sets `text_indexed` false for every PDF row, active or not, and for no other file, in the same transaction that records the version. A later start with the same version changes nothing, and with `INTELLIGENCE_SEARCH_DB_PATH` set no flag is changed.
+I7. A PDF whose new chunks equal its stored `fts_text_content` rows, with one `text_content` embedding per stored chunk, keeps its embedding ids and FTS rows. A PDF whose chunks were rewritten and that has stored citations has them recomputed against the new chunks and `citations_ready` emitted; a failed recompute leaves the new chunks and the old citations.
 I8. Every PyMuPDF call added by this change runs while `PYMUPDF_LOCK` is held.
 I9. Text, Office, HTML, EPUB and picture files produce the same chunks as before, and OCR rows are never touched.
+I10. A band line the library already kept appears exactly once in its page's text.
+I11. A `TEXT_CONTENT` task queued by `_resume_incomplete` is queued at a lower priority than one queued by `_queue_file_tasks`.
+
+## Pending human confirmation
+
+- **429 from `read_document` during the backlog.** Recommended: accept it. The backlog
+  runs one PDF at a time and releases `PYMUPDF_LOCK` between PDFs, so a read waits at
+  most for one PDF's conversion; a read that waits over 10 s gets 429, as today when it
+  meets indexing. This lasts only for the one-time backlog.
+- **Production counts** (PDFs, pages, chunks to re-embed): to be filled from the
+  production query in §10 before approval.
 
 ## Revises
 
