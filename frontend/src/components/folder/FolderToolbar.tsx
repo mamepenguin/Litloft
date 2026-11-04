@@ -46,6 +46,8 @@ interface FolderToolbarProps {
    */
   isWriteDestination: boolean;
   isSearch?: boolean;
+  /** The Passages view: sort, view mode, select, Play all and the … menu do not apply. */
+  isPassages?: boolean;
   tagFilter?: string | null;
   hasPlayableFiles: boolean;
   sort: SortField;
@@ -90,7 +92,7 @@ interface FolderToolbarProps {
 }
 
 export function FolderToolbar({
-  isSpecialView, isWriteDestination, isSearch, tagFilter, hasPlayableFiles,
+  isSpecialView, isWriteDestination, isSearch, isPassages, tagFilter, hasPlayableFiles,
   sort, order, typeFilter, trustFilter, total, folderCount, selectable, scanning,
   creatingFolder, newFolderName, folderError, fileIds, drive, folderPath,
   viewMode, widenTagScope,
@@ -100,7 +102,7 @@ export function FolderToolbar({
   isPinned, onTogglePin,
 }: FolderToolbarProps) {
   const hideMutatingActions = !isWriteDestination;
-  const hidePlayAll = isSpecialView || !!tagFilter || !!isSearch;
+  const hidePlayAll = isSpecialView || !!tagFilter || !!isSearch || !!isPassages;
   // When a filter is what emptied the listing, the chip that produced the
   // empty result is also the way back out of it.
   const isFiltered =
@@ -255,15 +257,17 @@ export function FolderToolbar({
 
         {!hideArrangingControls && (
           <>
-            <ViewMenu mode={view.mode} onSelect={view.select} {...BAR_WIDE} />
-            <SortMenu
-              sort={sort}
-              order={order}
-              onChange={onSortChange}
-              allowRelevance={isSearch}
-              onReshuffle={sort === "random" ? onReshuffle : undefined}
-              {...BAR_WIDE}
-            />
+            {!isPassages && <ViewMenu mode={view.mode} onSelect={view.select} {...BAR_WIDE} />}
+            {!isPassages && (
+              <SortMenu
+                sort={sort}
+                order={order}
+                onChange={onSortChange}
+                allowRelevance={isSearch}
+                onReshuffle={sort === "random" ? onReshuffle : undefined}
+                {...BAR_WIDE}
+              />
+            )}
             <FilterMenu
               typeFilter={typeFilter}
               onTypeFilterChange={onTypeFilterChange}
@@ -273,6 +277,7 @@ export function FolderToolbar({
           </>
         )}
 
+        {!isPassages && (
         <div ref={moreSurface.wrapperRef} className="relative">
             <button
               ref={moreTriggerRef}
@@ -412,6 +417,7 @@ export function FolderToolbar({
               </DismissScrim>
             )}
         </div>
+        )}
 
         {createFolderRow}
       </div>

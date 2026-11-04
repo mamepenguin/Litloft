@@ -352,6 +352,7 @@ describe("SPEC-CORE-040 I18 the picture of a row", () => {
               kind: "utterance",
               start: 120,
               end: 150,
+              text: "the warehouse moved",
               frame_url: "/api/addons/intelligence/files/f1/frame?t=120",
             }),
           ],

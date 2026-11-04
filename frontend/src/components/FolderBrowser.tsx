@@ -36,6 +36,9 @@ import { useIsInternalDragging } from "@/hooks/useIsInternalDragging";
 import { useTreeRefresh } from "@/components/TreeRefreshContext";
 import { FolderToolbar } from "@/components/folder/FolderToolbar";
 import { FolderContent } from "@/components/folder/FolderContent";
+import { PassageList } from "@/components/search/PassageList";
+import { SegmentedControl } from "@/components/SegmentedControl";
+import { passageCounts } from "@/lib/searchPassages";
 import { buildWidenTagScope } from "@/components/folder/WidenTagScopeLink";
 import { Button } from "@/components/Button";
 import { parseSearchQuery } from "@/lib/searchQuery";
@@ -58,6 +61,8 @@ interface FolderBrowserProps {
   typeFilter?: FileKind | null;
   smartFolderId?: string | null;
   includeSceneClip?: boolean;
+  /** `passages` selects the Passages view; anything else is Files. */
+  show?: string | null;
 }
 
 export function FolderBrowser({
@@ -69,6 +74,7 @@ export function FolderBrowser({
   typeFilter: typeFilterProp,
   smartFolderId,
   includeSceneClip,
+  show,
 }: FolderBrowserProps) {
   const isSearch = !!(searchQuery && searchQuery.trim());
   const [initialSnapshot] = useState(() => {
@@ -153,7 +159,10 @@ export function FolderBrowser({
     reset, setFiles, setPaginatedTotal, isRecent, hasProfile,
     snapshotKey, hydratedScrollY, continuationState, onShowMore, continuationSentinelRef,
     continuationDrawnIds, updateContinuationFile, removeContinuationFiles,
+    passagesApplicable, passageGroups, passagesLoading, passagesFailed, retryPassages,
   } = useFolderFiles({ driveName, folderPath, view, tagFilter, typeFilter, trustFilter, sort, order, refreshKey, searchQuery, includeSceneClip, initialSnapshot });
+
+  const passagesView = isSearch && passagesApplicable && show === "passages";
 
   // Approximate the parent folder's dominant_kind from loaded files because the
   // listing endpoint only carries it for child folders.
@@ -295,6 +304,17 @@ export function FolderBrowser({
   const tSearch = useTranslations("search");
   const tFilter = useTranslations("filter");
   const tCommon = useTranslations("common");
+  const passageGroupList = passageGroups ?? [];
+  const passageTotals = passageCounts(passageGroupList);
+  const passageCountLabel = tSearch("passageCount", {
+    files: passageTotals.files,
+    passages: passageTotals.passages,
+  });
+  const passageCountShort = tSearch("passageCountShort", {
+    passages: passageTotals.passages,
+  });
+  const showPassageCount =
+    passagesView && !passagesLoading && !passagesFailed;
   const { pinnedPaths, handleTogglePin } = usePinnedFolders(driveName);
   const selection = useSelection();
   // `SelectionBar` clears before it reports a completed bulk action, so the
@@ -388,9 +408,10 @@ export function FolderBrowser({
     if (order !== "desc") params.set("order", order);
     if (smartFolderId) params.set("smart_folder_id", smartFolderId);
     if (includeSceneClip) params.set("include_scene_clip", "true");
+    if (show === "passages") params.set("show", "passages");
     const next = `/drive/${encodeURIComponent(driveName)}/search?${params.toString()}`;
     folderRouter.replace(next);
-  }, [isSearch, searchQuery, typeFilter, sort, order, smartFolderId, includeSceneClip, driveName, folderRouter]);
+  }, [isSearch, searchQuery, typeFilter, sort, order, smartFolderId, includeSceneClip, show, driveName, folderRouter]);
 
   const handleViewChange = useCallback(
     (mode: ViewMode) => {
@@ -405,6 +426,40 @@ export function FolderBrowser({
       folderRouter.push(url);
     },
     [folderRouter],
+  );
+
+  const handleShowChange = useCallback(
+    (next: "files" | "passages") => {
+      if (!isSearch) return;
+      if (next === "passages") {
+        selection.clear();
+        setSelectable(false);
+      }
+      const params = new URLSearchParams();
+      params.set("q", searchQuery ?? "");
+      if (typeFilter) params.set("type", typeFilter);
+      if (sort !== "relevance") params.set("sort", sort);
+      if (order !== "desc") params.set("order", order);
+      if (smartFolderId) params.set("smart_folder_id", smartFolderId);
+      if (includeSceneClip) params.set("include_scene_clip", "true");
+      if (next === "passages") params.set("show", "passages");
+      folderRouter.replace(
+        `/drive/${encodeURIComponent(driveName)}/search?${params.toString()}`,
+      );
+      window.scrollTo({ top: 0 });
+    },
+    [
+      isSearch,
+      selection,
+      searchQuery,
+      typeFilter,
+      sort,
+      order,
+      smartFolderId,
+      includeSceneClip,
+      driveName,
+      folderRouter,
+    ],
   );
 
   const handleFavoriteToggle = useCallback(
@@ -561,6 +616,7 @@ export function FolderBrowser({
                 order={order}
                 smartFolderId={smartFolderId ?? null}
                 includeSceneClip={!!includeSceneClip}
+                show={show}
               />
             ) : undefined
           }
@@ -571,7 +627,15 @@ export function FolderBrowser({
               ? countLabel === null
                 ? driveName
                 : tCommon("driveScope", { drive: driveName, detail: countLabel })
-              : (countLabel ?? undefined)
+              : passagesView
+                ? showPassageCount
+                  ? (
+                      <span data-testid="passage-count" className="hidden sm:inline">
+                        {passageCountLabel}
+                      </span>
+                    )
+                  : undefined
+                : (countLabel ?? undefined)
           }
           actions={
             isSearch ? (
@@ -602,6 +666,7 @@ export function FolderBrowser({
         isSpecialView={isSpecialView}
         isWriteDestination={isWriteDestination}
         isSearch={isSearch}
+        isPassages={passagesView}
         tagFilter={tagFilter}
         hasPlayableFiles={hasPlayableFiles}
         sort={sort}
@@ -645,6 +710,30 @@ export function FolderBrowser({
       />}
 
       <div className="px-4 pb-6 pt-1 sm:pb-8 sm:pt-4">
+      {isSearch && passagesApplicable && (
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2 sm:justify-start sm:gap-3">
+          <div className="w-48">
+            <SegmentedControl
+              label={tSearch("viewLabel")}
+              options={[
+                { value: "files", label: tSearch("viewFiles") },
+                { value: "passages", label: tSearch("viewPassages") },
+              ]}
+              value={passagesView ? "passages" : "files"}
+              onChange={handleShowChange}
+            />
+          </div>
+          {showPassageCount && (
+            <span
+              data-testid="passage-count"
+              className="text-xs text-text-muted sm:hidden"
+            >
+              {passageCountShort}
+            </span>
+          )}
+        </div>
+      )}
+
       {isWriteDestination && clipboard.clipboard && (
         <div className="mb-3 flex items-center gap-3 rounded-lg bg-accent/10 px-4 py-2.5 ring-1 ring-accent/20">
           <ClipboardPaste size={18} className="flex-shrink-0 text-accent" />
@@ -672,7 +761,7 @@ export function FolderBrowser({
         </div>
       )}
 
-      {isSearch && !loading && files.length === 0 && (
+      {!passagesView && isSearch && !loading && files.length === 0 && (
         <EmptyState
           variant="no-results"
           // No primary: the way out of a search that found nothing is a
@@ -694,6 +783,7 @@ export function FolderBrowser({
       )}
 
       {filePicker.input}
+      {!passagesView && (
       <FolderContent
         files={files}
         folders={folders}
@@ -733,6 +823,33 @@ export function FolderBrowser({
           ? { continuationState, onShowMore, continuationSentinelRef }
           : {})}
       />
+      )}
+
+      {passagesView && (
+        <PassageList
+          state={
+            passagesLoading
+              ? "loading"
+              : passagesFailed
+                ? "failed"
+                : passageGroupList.length === 0
+                  ? "empty"
+                  : "listed"
+          }
+          groups={passageGroupList}
+          filesCount={files.length}
+          onRetry={retryPassages}
+          onShowFiles={() => handleShowChange("files")}
+          onClearFilter={
+            typeFilter || trustFilter
+              ? () => {
+                  setTypeFilter(null);
+                  setTrustFilter(null);
+                }
+              : undefined
+          }
+        />
+      )}
 
       {selectable && (
         <SelectionBar

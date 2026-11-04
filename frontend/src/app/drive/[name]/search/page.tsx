@@ -72,7 +72,9 @@ export default function SearchPage() {
   const typeFilter = parseTypeFilter(searchParams.get("type"));
   const smartFolderId = searchParams.get("smart_folder_id");
   const includeSceneClip = searchParams.get("include_scene_clip") === "true";
+  const show = searchParams.get("show");
   const filtered = parseSearchQuery(q).hasOperators;
+  const showPassages = show === "passages" && q.trim() !== "";
 
   const handleToggle = useCallback(
     (next: boolean) => {
@@ -96,16 +98,18 @@ export default function SearchPage() {
           <div className="px-4 pt-3 pb-1 flex items-center">
             <SceneSearchToggle active={includeSceneClip} onToggle={handleToggle} />
           </div>
-          <AddonSlot
-            id="search-results-top"
-            props={{
-              query: q,
-              drive: driveName,
-              includeSceneClip,
-              typeFilter,
-              smartFolderId,
-            }}
-          />
+          {!showPassages && (
+            <AddonSlot
+              id="search-results-top"
+              props={{
+                query: q,
+                drive: driveName,
+                includeSceneClip,
+                typeFilter,
+                smartFolderId,
+              }}
+            />
+          )}
         </>
       )}
       <FolderBrowser
@@ -114,6 +118,7 @@ export default function SearchPage() {
         typeFilter={typeFilter}
         smartFolderId={smartFolderId}
         includeSceneClip={includeSceneClip}
+        show={show ?? undefined}
       />
     </>
   );
