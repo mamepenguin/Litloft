@@ -48,12 +48,15 @@ SPEC-CORE-032, recording from an upload:
 1. `POST /api/drives/{drive}/upload/init` accepts an optional `inbox_source`. The only
    value this unit accepts is `"upload"`; any other value is 422. The session keeps it.
 2. The frontend upload store (`useUpload.ts`) sends `inbox_source: "upload"` from every
-   entry point it serves: the upload zone, drag and drop, Add → Upload files, and folder
-   uploads with `relative_path` (one arrival per file). Every other caller of the upload
+   entry point it serves: the upload zone, drag and drop, Add → Upload files, folder
+   uploads with `relative_path` (one arrival per file), and the upload zone of the inbox
+   page itself, which lands files in the drive root like the other drive-wide views. Every other caller of the upload
    path sends nothing: the knowledge editor's attachment upload and MCP `upload_file`.
 3. `complete_upload`, for a session with `inbox_source` that produced a file row (not a
-   subtitle sidecar), writes the arrival before the same `db.commit()` that commits the
-   file row, so both commit or neither does. Its three branches:
+   subtitle sidecar, which produces no file row and no arrival), writes the arrival
+   inside the existing `try` that ends with the commit and the thumbnail cleanup on
+   failure, before the same `db.commit()` that commits the file row, so both commit or
+   neither does. Its three branches:
    - a new row: insert `(drive, file_id, arrived_at=now, source="upload",
      source_i18n_key="inbox.sourceUpload", done_at=NULL)`;
    - a reused row (a missing or vanished active row, id kept): if an inbox row exists,
@@ -69,7 +72,8 @@ SPEC-ADDON-059, recording from a created file:
 1. `TextFileCreateRequest` (`POST /api/drives/{drive}/files`) gains an optional
    `arrival: { "source": <str>, "i18n_key": <str> }`, with `source` matching
    `^[a-z][a-z0-9_.]{0,63}$` and `i18n_key` matching `^[A-Za-z][A-Za-z0-9_.]{0,127}$`,
-   no other keys (422 otherwise). When present, the handler writes the arrival as in
+   no other keys inside `arrival` (422 otherwise; the request model itself keeps
+   accepting what older callers send). When present, the handler writes the arrival as in
    step 3 above with the given values, in the same commit as the file (a new file, a
    suffix-renamed one, or a missing row recovered with its id), then broadcasts
    `inbox.updated`. The core does not interpret `source`. Quick Note, New file and
@@ -101,7 +105,9 @@ SPEC-CORE-032, the drive endpoints (all `check_drive_access`):
    inactive files are left alone and not counted. Answers `{ "done": <count>, "done_at":
    <timestamp> }`; broadcasts `inbox.updated` once when `done > 0`.
 4. `POST /api/drives/{drive}/inbox/undo` takes `{ "done_at": <timestamp> }` (422 if
-   unparsable) and clears `done_at` on that drive's rows whose `done_at` equals it;
+   unparsable) and clears `done_at` on that drive's rows whose `done_at` equals it and
+   whose file is still active (a row whose file was trashed or went missing since stays
+   done);
    `arrived_at` and `source` are untouched. Answers `{ "reopened": <count> }`; broadcasts
    `inbox.updated` once when `reopened > 0`.
 5. `GET /api/drives/{drive}/inbox/{file_id}/neighbors` answers `{ "prev_id", "next_id",
@@ -128,8 +134,9 @@ SPEC-CORE-032, file actions that close a row:
      strings with order ignored: `PUT /api/files/{id}/tags`, `PUT /api/files/batch/tags`,
      and `PUT /api/files/{id}/content` when the tags projected from the new frontmatter
      differ from the tags before the write (how chip edits of a `.md` reach the core
-     through `saveFileTags`). For the content PUT the close rides in the tag projection's
-     transaction: if the projection fails the close is skipped, and a failure to close
+     through `saveFileTags`). For every `.md` tag write (content PUT and the `.md` branch
+     of the two tag endpoints) the tag set before is read before the content is written,
+     and the close rides in the tag projection's commit: if the projection fails the close is skipped, and a failure to close
      never rolls back or fails the content write, which commits first as today. A tag
      write that leaves the set as it was closes nothing.
 3. Each of these requests broadcasts `inbox.updated` at most once per drive it changed
@@ -175,25 +182,36 @@ SPEC-CORE-032, the page:
    calls `/inbox/undo` and then reloads, so the rows come back in their order.
 6. Ingest stage: the page asks `POST /api/files/processing` for its loaded rows (batches
    of 100), on load, on a `processing.updated` event naming a loaded row, and every 30 s
-   while the page is visible and a loaded row is not ready. The row shows the label of
-   the first stage in order that is `running` or `pending` with a spinner; else, if
-   `ready`, **使えます** / **Ready** with a lucide `Check` in `accent-teal`; a `failed`
-   stage adds the `AlertCircle` mark in `danger`; `unavailable` shows **確認できません**.
-   A file the endpoint leaves out shows no stage.
-7. Clicking a row opens the file detail with `nav=inbox`; the row stays open. With
-   `nav=inbox` the detail's prev/next and position come from the inbox neighbors
-   endpoint, so the viewer can walk the arrivals one by one in list order.
+   while the page is visible and a loaded row is neither ready nor unavailable. Only
+   required stages decide what the row shows, in this order: an `unavailable` stage shows
+   **確認できません** without a spinner, and that row is no longer polled (an event still
+   refreshes it); else the label of the first required stage that is `running` or
+   `pending`, with a spinner; else, when `ready`, **使えます** / **Ready** with a lucide
+   `Check` in `accent-teal`. A `failed` stage (required or not) adds the `AlertCircle`
+   mark in `danger` beside whichever of these shows, **Ready** included. Labels, icons
+   and colours are the C2 drawer's stage rendering, reused. A file the endpoint leaves
+   out shows no stage.
+7. Clicking a row opens `/files/{id}?nav=inbox`; the row stays open. Every navigation
+   URL the detail builds (the canonical URL, prev/next in the right pane and in full
+   screen) keeps `nav=inbox`. With `nav=inbox` the detail's prev/next and position come
+   from the inbox neighbors endpoint, so the viewer walks the arrivals in list order;
+   the detail shows a **済み** / **Done** button that closes the row (same endpoint and
+   undo toast) and moves to the next arrival, or back to the inbox when there is none;
+   closing the detail returns to `/drive/{drive}?view=inbox`.
 8. Controls by pointer type, at any width:
    - fine pointer: a trailing **済み** / **Done** button (Row Actions: revealed on hover
      or focus, 32 px) and a selection checkbox on every row; right-click opens the usual
      file context menu;
-   - coarse pointer: swiping a row left by more than a third of its width marks it done;
-     a shorter swipe springs back over 200 ms `ease-out`; a 500 ms long-press selects the
-     row and enters selection mode, where taps toggle selection, and opens no context
-     menu; rows set `-webkit-touch-callout: none` so the iOS app shows no link preview;
+   - coarse pointer: a swipe left marks the row done when released past a third of the
+     row's width, with the same undo toast; released short of it, the row springs back
+     over 200 ms `ease-out`; a gesture that is mostly vertical is a scroll and moves no
+     row; a 500 ms long-press selects the row and enters selection mode, where taps
+     toggle selection, and opens no context menu; selection mode ends when the selection
+     becomes empty or through the selection bar's cancel control; rows set `-webkit-touch-callout: none` so the iOS app shows no link preview;
      the **済み** button is also shown, always visible at 44 px, when the viewport is at
      least 768 px wide.
-   Reduced motion moves nothing.
+   Under reduced motion the swipe still marks done, without the slide or spring
+   animation.
 9. With rows selected, the selection bar shows `N 件を選択` and **済み**, **移動**,
    **タグ**. **移動** opens the existing move dialog and **タグ** the selection bar's
    existing inline tag input; both send the existing batch endpoints in requests of at
@@ -201,8 +219,12 @@ SPEC-CORE-032, the page:
 10. **済み** on a row, on a selection, or **すべて済みにする** (`up_to` the newest loaded
     `arrived_at`) removes the rows (carried per DESIGN.md §7) and shows a toast
     **N 件を済みにしました** / **Marked N done** with **元に戻す** / **Undo** for the toast's
-    5 s. The toast gains an optional action; a toast without one renders and times out as
-    today.
+    5 s, N being the sum of `done` in the responses; no toast when it is 0. A selection
+    over 1000 is sent in requests of 1000, and Undo sends one undo per returned
+    `done_at`. The toast gains an optional action; a toast without one renders and times
+    out as today.
+12. Page jump (`lib/pageJump.ts`) gains a fixed **受信箱** / **Inbox** entry to
+    `/drive/{drive}?view=inbox`.
 11. Empty: **受信箱は空です** / **Inbox is empty**, and under it
     **新しく届いたものがここに並びます** / **New arrivals appear here**.
 
@@ -333,13 +355,15 @@ arrive in the inbox); `mcp-server/README.md` (`list_inbox`).
 ## Touch points
 
 Core backend:
-- `backend/app/models.py`: `InboxItem`.
+- `backend/app/models.py`: `InboxItem`, with no ORM relationship to `File` (one with
+  a default cascade would null `file_id` instead of letting the database cascade).
 - `backend/app/database.py` (HIGH): the table through `create_all`; no data migration.
 - `backend/app/schemas.py`: `UploadInitRequest.inbox_source`,
-  `TextFileCreateRequest.arrival`, inbox request/response models, cursor and timestamp
+  `TextFileCreateRequest.arrival` (`extra="forbid"` on the nested model only), inbox request/response models, cursor and timestamp
   parsing.
 - `backend/app/services/upload.py`: session field; the arrival in all three
-  `complete_upload` branches before its commit.
+  `complete_upload` branches, inside the `try` that ends with the commit and the
+  thumbnail cleanup on failure.
 - `backend/app/routers/uploads.py`: pass the field; broadcast after complete.
 - `backend/app/routers/drives.py`: `POST /{drive}/files` (`arrival`, every create
   branch including missing recovery) and `DELETE /{drive}/folders` (broadcast).
@@ -365,8 +389,15 @@ Core frontend:
 - `frontend/src/app/drive/[name]/page.tsx` and a new `frontend/src/components/inbox/`
   (Container / Presenter, rows, swipe, long-press, reload reconciliation).
 - `frontend/src/hooks/useFileNav.ts`, `frontend/src/lib/fileNavOrdering.ts`,
-  `frontend/src/lib/fileNavContext.tsx`, `frontend/src/components/FileDetail/FileNavControls.tsx`:
-  `nav=inbox`.
+  `frontend/src/lib/fileNavContext.tsx`, `frontend/src/components/FileDetail/FileNavControls.tsx`,
+  `frontend/src/components/folder/RightPaneFile.tsx`,
+  `frontend/src/components/FileDetailFullScreen.tsx` (`buildNavUrl`),
+  `frontend/src/lib/canonicalFileUrl.ts` (already carries `nav`): `nav=inbox`, the
+  detail's **済み** button, return to the inbox on close.
+- `frontend/src/lib/pageJump.ts`: the inbox entry.
+- The inbox page's upload zone: the existing drive-wide upload zone, root destination.
+- `frontend/src/lib/driveViews.ts`: `isLibraryRowActive` and `routeHidesTree` keep their
+  answers for `trash` and `missing`.
 - `frontend/src/components/SelectionBar.tsx`: inbox action set, 100-id request split.
 - `frontend/src/components/ToastProvider.tsx`: optional action, default unchanged.
 - `frontend/src/hooks/useUpload.ts`, `frontend/src/lib/api.ts`: `inbox_source`; inbox
@@ -399,12 +430,12 @@ drives answer 404; WS drive scoping), `.claude/rules/backend-conventions.md`,
 ## Invariants
 
 I1. An inbox row is created or renewed only by an upload whose init carried `inbox_source` or a text-file create carrying `arrival`; a scan, a copy, a quick note, a new note, an upload without `inbox_source`, MCP `upload_file` and media_import never create or renew one.
-I2. Every upload-store entry point (upload zone, drag and drop, Add → Upload files, folder upload) leaves one open row per uploaded file with source `upload`, and every clip entry point (`POST /clips`, `POST /clips/pasted`, MCP `clip_url`, `clip_pasted`) leaves one open row with source `web_clip`.
-I3. The file row and its inbox row commit in the same transaction: no committed arrival lacks its file, and no committed upload or create that carried a source lacks its row.
+I2. Every upload-store entry point (upload zone, the inbox page's upload zone, drag and drop, Add → Upload files, folder upload) leaves one open row per uploaded file that produced a file row (not a subtitle sidecar) with source `upload`, and every clip entry point (`POST /clips`, `POST /clips/pasted`, MCP `clip_url`, `clip_pasted`) leaves one open row with source `web_clip`.
+I3. The file row and its inbox row commit in the same transaction: no committed arrival lacks its file, and no committed upload or create that carried a source and produced a file row lacks its row; an upload or create's own frontmatter projection closes nothing.
 I4. A row's `drive` always equals its file's drive: a move to another drive deletes the row in the move's transaction, and a drive has at most one row per file.
 I5. The list, count and neighbors include only rows with `done_at` NULL whose file passes `active_file_filter()`, in that drive; a trashed or missing file's row is never listed or counted.
 I6. The list is ordered by `arrived_at` desc then file id desc, and following `next` from the first page visits every listed row exactly once.
-I7. **済み** sets `done_at` only on open rows of active files in the requested drive, and **すべて済みにする** only on those with `arrived_at` at or before `up_to`; closing a done row leaves its `done_at`; undo with the returned `done_at` reopens exactly those rows with `arrived_at` and `source` unchanged.
+I7. **済み** sets `done_at` only on open rows of active files in the requested drive, and **すべて済みにする** only on those with `arrived_at` at or before `up_to`; closing a done row leaves its `done_at`; undo with the returned `done_at` reopens exactly those rows whose file is still active, with `arrived_at` and `source` unchanged.
 I8. A same-drive move, a trash (file, batch or folder), or a tag write that changes the file's tag set as a set closes the row; opening, playback, rename, folder rename or move, copy, comment, like, favorite, a no-op tag write and the internal tags endpoint leave it as it was; a failed close never fails or rolls back a content write.
 I9. A new arrival for a file that already has a row, open or done, sets `arrived_at` to now, replaces the source and clears `done_at`; restoring from trash leaves the row done; a file that goes missing and recovers keeps its row unchanged.
 I10. For a drive the viewer cannot open, every inbox endpoint answers 404, and no `inbox.updated` for that drive reaches the viewer.
@@ -412,6 +443,10 @@ I11. A done row is deleted 30 days after `done_at`, and a retention failure leav
 I12. The sidebar shows the open count of the current drive only, nothing at 0 and `99+` above 99.
 I13. Rows hidden by a done request that fails are shown again; rows reopened by undo appear again in list order.
 I14. No MCP tool sets or clears `done_at` directly; `list_inbox` returns the same items as the list endpoint.
+I15. The neighbors endpoint uses the list's order and filter; a closed row is placed by its `arrived_at` and id with `position` null; a file with no row in the drive answers all four null; with `nav=inbox`, prev/next, and every URL the detail builds keeps `nav=inbox`.
+I16. `inbox.updated` is broadcast at most once per request per drive, only after the commit that changed rows, and never when no row changed.
+I17. A toast without an action renders and times out exactly as before this change.
+I18. A row's stage shows `unavailable` over any pending or running stage, counts only required stages for pending, running and ready, keeps the failure mark beside **Ready**, and an unavailable row is not polled.
 
 ## Checked, no action
 
@@ -461,3 +496,14 @@ Each is written into the spec as recommended above; approval of the spec confirm
    meaning per gesture.)
 5. A file opened from the inbox walks prev/next in inbox order (`nav=inbox`), so the
    viewer can work through arrivals one by one. (Recommended: triage is sequential.)
+6. Closing the detail opened from the inbox returns to the inbox. (Recommended: the
+   viewer came to triage, not to browse the folder.)
+7. A swipe-done shows the same 5 s undo toast; under reduced motion the swipe still marks
+   done, without the slide animation. (Recommended: a swipe is easy to make by mistake.)
+8. `?view=inbox` hosts an upload zone; files land in the drive root, like the other
+   drive-wide views, and arrive in the inbox. (Recommended: dropping onto the inbox
+   should work.)
+9. Page jump gets an inbox entry. (Recommended: every sidebar destination is jumpable.)
+10. The detail opened from the inbox (`nav=inbox`) shows a **済み** button that closes the
+    row and moves to the next arrival. (Recommended: triage one by one without going
+    back.)
