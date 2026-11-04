@@ -106,7 +106,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-053 | implemented | docs/specs/ask-about-this-file.md | sha256:7da6124f365a0c64ce31532e5697fb68fbc14a639efa56394ad99bd09b8b5b6a |
 | SPEC-ADDON-056 | implemented | docs/specs/ask-about-this-file.md | sha256:7da6124f365a0c64ce31532e5697fb68fbc14a639efa56394ad99bd09b8b5b6a |
 | SPEC-CORE-036 | implemented | docs/specs/ask-about-this-file.md | sha256:7da6124f365a0c64ce31532e5697fb68fbc14a639efa56394ad99bd09b8b5b6a |
-| SPEC-CORE-034 | approved | docs/specs/source-sets.md | sha256:2b59d8934e302fcf42e047581757acd70a7fcb10d2eabd9e9f70c5d47e3ed33b |
-| SPEC-ADDON-058 | approved | docs/specs/source-sets.md | sha256:2b59d8934e302fcf42e047581757acd70a7fcb10d2eabd9e9f70c5d47e3ed33b |
-| SPEC-CORE-038 | approved | docs/specs/source-sets.md | sha256:2b59d8934e302fcf42e047581757acd70a7fcb10d2eabd9e9f70c5d47e3ed33b |
+| SPEC-CORE-034 | implemented | docs/specs/source-sets.md | sha256:2b59d8934e302fcf42e047581757acd70a7fcb10d2eabd9e9f70c5d47e3ed33b |
+| SPEC-ADDON-058 | implemented | docs/specs/source-sets.md | sha256:2b59d8934e302fcf42e047581757acd70a7fcb10d2eabd9e9f70c5d47e3ed33b |
+| SPEC-CORE-038 | implemented | docs/specs/source-sets.md | sha256:2b59d8934e302fcf42e047581757acd70a7fcb10d2eabd9e9f70c5d47e3ed33b |
 | SPEC-ADDON-054 | draft | docs/specs/ask-source-set.md | |
