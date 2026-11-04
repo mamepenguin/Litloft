@@ -50,7 +50,7 @@ When an addon emits "candidates / guesses / suggestions" that the user can promo
 - **A concept owned by a specific addon** → promote into that addon (e.g. AI summary → knowledge note).
 - **Neither** → leave it in the addon DB as a candidate. Don't add a core write.
 
-## Audit of the existing 13 endpoints (2026-04-30)
+## Audit of the existing 14 endpoints (2026-04-30, row 14 added 2026-11-04)
 
 | # | Endpoint | Verdict | Notes |
 |---|---|---|---|
@@ -67,6 +67,7 @@ When an addon emits "candidates / guesses / suggestions" that the user can promo
 | 11 | `POST /addon-events` | KEEP | WS bridge, universal |
 | 12 | `POST /restart-pending` | KEEP | Phase 2D (2026-05-08): addons notify the core that user-visible config changed. Phase 1 R1 (sentinel is core's), R2 (generic source/reason), R3 (knowledge note_scanner GUI / media_import config UI / intelligence transcription UI), R4 (RestartBanner reads), R5 (addon intent → core sentinel) all pass. |
 | 13 | `PUT /files/{id}/chapters` | KEEP | Intelligence promotes user-approved transcript-derived candidates into the core-owned chapter rail. Media Import is the concrete second producer. Generic values only; core forces `curated` provenance and dense ordering. Strict secret required. Revisit request caps if the addon-container threat model expands beyond the personal-tool premise. |
+| 14 | `POST /files/matching` | KEEP (watch closely) | Returns a drive's active file ids for tag / kind / favourite / liked conditions, using the same predicates as `GET /api/drives/{name}/files`. Read-only, no secret. R3 exception: no concrete second addon uses it yet; re-evaluate when Ask/MCP scoping (D4) or a second addon does. |
 
 ## Decision flow for adding a new endpoint
 
