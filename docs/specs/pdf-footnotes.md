@@ -231,6 +231,10 @@ keeps from the page edges and that the first start after the upgrade re-extracts
   USING (file_id) WHERE e.embedding_type = 'text_content' AND f.mime_type =
   'application/pdf';"` (PDF count, pages for PDFs on the primary path, and chunks to
   re-embed at most).
+- Production, measured by the user on 2026-11-04: 30 active PDFs, 29 of them on the
+  primary path with 4,803 pages, and at most 7,534 `text_content` chunks to re-embed.
+  At about 0.2 s a page that is about 16 minutes of extraction, plus the re-embedding:
+  roughly 30 minutes in total, once.
 - Memory: one document's edge lines at a time, a few kilobytes a page.
 - No language-specific rule. The filters use Unicode categories (letters, decimal digits),
   NFKC and page geometry only, and none keys on a word such as 「注」 or "Note"
@@ -283,8 +287,8 @@ I11. A `TEXT_CONTENT` task queued by `_resume_incomplete` is queued at a lower p
   runs one PDF at a time and releases `PYMUPDF_LOCK` between PDFs, so a read waits at
   most for one PDF's conversion; a read that waits over 10 s gets 429, as today when it
   meets indexing. This lasts only for the one-time backlog.
-- **Production counts** (PDFs, pages, chunks to re-embed): to be filled from the
-  production query in §10 before approval.
+- **Backlog cost.** The one-time backlog (about 30 minutes on production) runs at
+  priority -10; accepted.
 
 ## Revises
 
