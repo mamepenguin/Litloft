@@ -95,6 +95,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-040 | implemented | docs/specs/passage-results-view.md | sha256:1db0cb47d6ee07333751cbcb3926fede6eaefdccc1116ff27f45d6a8283667f5 |
 | SPEC-ADDON-049 | draft | docs/specs/image-query-search.md | |
 | SPEC-ADDON-050 | implemented | docs/specs/image-ocr.md | sha256:10d7b3560a941338b4c1e6ac6cf5b4d59bf3cae4d282e4269885a95d77a3598a |
+| SPEC-ADDON-061 | draft | docs/specs/in-file-find.md | |
 | SPEC-CORE-028 | draft | docs/specs/in-file-find.md | |
 | SPEC-CORE-029 | draft | docs/specs/office-viewer.md | |
 | SPEC-ADDON-051 | draft | docs/specs/extraction-corrections.md | |
