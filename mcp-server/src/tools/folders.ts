@@ -69,7 +69,7 @@ const moveFolder: LitloftTool = {
 const trashFolder: LitloftTool = {
   name: "trash_folder",
   description:
-    "Move every file under the folder at `path` to trash (restorable for 30 days with restore_file / restore_files); nothing is deleted permanently. The folder stops being listed, but its directory stays on disk: creating a folder with the same name fails until it is gone, and it can reappear as an empty folder after the next scan.",
+    "Move every file under the folder at `path` to trash (restorable for 30 days with restore_file / restore_files); nothing is deleted permanently. It also closes the inbox row of every file it trashes. The folder stops being listed, but its directory stays on disk: creating a folder with the same name fails until it is gone, and it can reappear as an empty folder after the next scan.",
   inputSchema: {
     drive: z.string(),
     path: z.string().describe("Folder path"),
