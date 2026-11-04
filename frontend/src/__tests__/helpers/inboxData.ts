@@ -124,11 +124,22 @@ export function stage(
     i18nKey = `upload.${key}`,
   }: { required?: boolean; i18nKey?: string } = {},
 ): ProcessingStage {
+  // The core reports an unreachable addon as a stage keyed "unavailable"
+  // whose state stays "pending".
+  if (state === "unavailable") {
+    return {
+      addon: key,
+      key: "unavailable",
+      i18n_key: i18nKey,
+      state: "pending",
+      required,
+    };
+  }
   return {
     addon: null,
     key,
     i18n_key: i18nKey,
-    state: state as ProcessingStage["state"],
+    state,
     required,
   };
 }
