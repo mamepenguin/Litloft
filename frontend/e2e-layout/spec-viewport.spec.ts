@@ -31,6 +31,7 @@ const FIXTURES = [
   "pseudo-fullscreen.html",
   "related-files.html",
   "scene-candidates.html",
+  "search-header.html",
   "sidebar-shell.html",
   "toolbar-menu.html",
   "upload-drawer.html",

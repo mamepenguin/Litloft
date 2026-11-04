@@ -50,7 +50,7 @@ When an addon emits "candidates / guesses / suggestions" that the user can promo
 - **A concept owned by a specific addon** → promote into that addon (e.g. AI summary → knowledge note).
 - **Neither** → leave it in the addon DB as a candidate. Don't add a core write.
 
-## Audit of the existing 13 endpoints (2026-04-30)
+## Audit of the existing 15 endpoints (2026-04-30, rows 14 and 15 added 2026-11-04)
 
 | # | Endpoint | Verdict | Notes |
 |---|---|---|---|
@@ -68,6 +68,7 @@ When an addon emits "candidates / guesses / suggestions" that the user can promo
 | 12 | `POST /restart-pending` | KEEP | Phase 2D (2026-05-08): addons notify the core that user-visible config changed. Phase 1 R1 (sentinel is core's), R2 (generic source/reason), R3 (knowledge note_scanner GUI / media_import config UI / intelligence transcription UI), R4 (RestartBanner reads), R5 (addon intent → core sentinel) all pass. |
 | 13 | `PUT /files/{id}/chapters` | KEEP | Intelligence promotes user-approved transcript-derived candidates into the core-owned chapter rail. Media Import is the concrete second producer. Generic values only; core forces `curated` provenance and dense ordering. Strict secret required. Revisit request caps if the addon-container threat model expands beyond the personal-tool premise. |
 | 14 | `GET /collections/{id}/file-ids` | KEEP (watch closely) | R1: collections are a core entity (sidebar, collection page, player queue). R2: the path and response name only a collection and file ids. R3 is not met yet: Ask's set-scoped question and the D4 scope field are both intelligence, and no second addon is planned; added as an approved exception, re-evaluated when D3/D4 lands or at the Phase 2 trigger if no second consumer has appeared. Read-only, so R4 and R5 are not engaged. |
+| 15 | `POST /files/matching` | KEEP (watch closely) | Returns a drive's active file ids for tag / kind / favourite / liked conditions, using the same predicates as `GET /api/drives/{name}/files`. Read-only, no secret. R3 exception: no concrete second addon uses it yet; re-evaluate when Ask/MCP scoping (D4) or a second addon does. |
 
 ## Decision flow for adding a new endpoint
 

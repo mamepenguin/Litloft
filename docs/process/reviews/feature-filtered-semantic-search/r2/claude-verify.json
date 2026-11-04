@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2-1",
+      "status": "confirmed",
+      "note": "Confirmed by reading the code. In addons/intelligence/app/file_matching.py:61-73 the addon strips each tag, skips any whose lower() key it has already seen (:65-67), and only then checks the length of the kept tags (:72). In backend/app/routers/internal.py:633-641 the core checks the length of every stripped non-blank tag (:637) before setdefault on tag.lower() (:641). A concrete input where they disagree: U+0130 'İ' is one character, but its lower() is 'i' plus U+0307, two characters. So tags=['İ'*150, 'i̇'*150] produce the same lower() key. The first tag is 150 characters and the second is 300. The addon keeps the first, drops the second as a duplicate, and accepts the filter. The core rejects the second tag for length and answers 422. This breaks I10's 'accept and reject the same inputs'. Reaching it needs unusual Unicode input."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2-2",
+      "status": "confirmed",
+      "note": "Confirmed. A Grep for straße|STRASSE|casefold across every test*.py finds the parity row only at addons/intelligence/tests/test_filtered_search_contract.py:177-178. backend/tests/test_internal_files_matching.py:228-273 (TestRequestCaps) uses only ASCII tags ('t0'..'t20', 'T0', 'x'*n). No core test checks a pair of tags that lower() and casefold() fold differently, so changing internal.py:641 to casefold() would still pass the core tests."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "R2-1",
+      "status": "confirmed",
+      "note": "Same defect as claude-read R2-1. The addon checks length after dedup at file_matching.py:65-73; the core checks it before dedup at internal.py:637-641. They disagree when two tags share a lower() key but have different lengths, for example 'İ'*150 and 'i̇'*150: the addon accepts the filter and the core answers 422."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "R2-2",
+      "status": "confirmed",
+      "note": "Confirmed by the same Grep. The fold-sensitive row exists only in the addon's INVALID_FILTERS (test_filtered_search_contract.py:176-179). The core's TestRequestCaps (backend/tests/test_internal_files_matching.py:228-273) uses ASCII tags only."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "R2-3",
+      "status": "rejected_with_evidence",
+      "note": "In docs/specs/filtered-semantic-search.md:172, 'the caps of 10' points to section 10, not to a cap value of 10. Line 359 is the heading '### 10. Non-functional', and line 361 in that section states 'Caps (core and addon, same values): at most 20 tags, each at most 200 characters'. Likewise, 'over the caps in 10' at :219 refers to section 10. These lines therefore agree with TAG_MAX_COUNT = 20 (file_matching.py:27) and the core's caps. The wording is terse but not wrong."
+    }
+  ],
+  "specification_compliance": [
+    "I10 is not fully met: the addon and core tag validators can disagree on inputs whose lower() fold changes the string's length (R2-1).",
+    "The spec's caps reference at :172 points to section 10, which states 20/200/8 and matches both validators."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Neither validator, nor the spec, says whether the 200-character tag cap applies before or after case-insensitive deduplication."
+  ],
+  "regression_risks": [
+    "If the core's fold drifts (for example lower() to casefold()), no core test fails; only the addon-side parity row would notice, and it does not run against the core."
+  ],
+  "test_coverage": [
+    "Core TestRequestCaps covers only ASCII deduplication and length caps.",
+    "The addon parity table has a casefold row; the core has no counterpart."
+  ],
+  "not_verified": [
+    "I did not run any test; the U+0130 divergence was derived by reading the code and from Python's str.lower semantics, not executed.",
+    "I did not check whether a FileKindParam enum mismatch exists between the addon and core kind validators beyond the markdown alias.",
+    "I did not review the frontend or the search channel changes."
+  ],
+  "confidence": 85
+}

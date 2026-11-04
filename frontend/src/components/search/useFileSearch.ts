@@ -6,7 +6,13 @@ import { getDriveFiles } from "@/lib/api";
 import { fetchSemanticHits, isSemanticSearchAvailable } from "@/lib/semanticSearch";
 import { mergeResults, sortMerged, type SemanticHit } from "@/lib/searchMerge";
 import { readSearchCache, writeSearchCache, type SearchCacheKey } from "@/lib/searchCache";
-import { parseSearchQuery, resolveKinds, type ParsedQuery } from "@/lib/searchQuery";
+import {
+  filterFromParsed,
+  parseSearchQuery,
+  resolveKinds,
+  type ParsedQuery,
+  type SearchFilter,
+} from "@/lib/searchQuery";
 import type { FileItemWithMatch, FileKind } from "@/types";
 
 const POPUP_LIMIT = 8;
@@ -46,11 +52,13 @@ export function useFileSearch({ open, drive, query, scopeType, browsing }: FileS
   const [loading, setLoading] = useState(false);
   const [semanticPending, setSemanticPending] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previousSearchRef = useRef<{ key: string; filtered: boolean } | null>(null);
 
   useEffect(() => {
     if (!open || !drive || browsing || !query.trim()) {
       setMerged([]);
       setTotal(0);
+      previousSearchRef.current = null;
       return;
     }
 
@@ -61,6 +69,7 @@ export function useFileSearch({ open, drive, query, scopeType, browsing }: FileS
       setMerged([]);
       setTotal(0);
       setLoading(false);
+      previousSearchRef.current = null;
       return;
     }
     const nameMatched = parsed.text !== "";
@@ -82,6 +91,13 @@ export function useFileSearch({ open, drive, query, scopeType, browsing }: FileS
       const sorted = sortMerged(m.files, "relevance", "desc");
       setMerged(sorted.slice(0, POPUP_LIMIT));
       setTotal(m.total);
+    }
+
+    const previous = previousSearchRef.current;
+    previousSearchRef.current = { key: trimmed, filtered: parsed.hasOperators };
+    if (previous && previous.key !== trimmed && (previous.filtered || parsed.hasOperators)) {
+      setMerged([]);
+      setTotal(0);
     }
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -136,30 +152,44 @@ export function useFileSearch({ open, drive, query, scopeType, browsing }: FileS
           if (!ctrl.signal.aborted) setLoading(false);
         });
 
-      // Semantic hits are not filtered by kind, tag or flag, so a scoped or
-      // filtered search has no second stage.
-      const semanticP = (scopeType || parsed.hasOperators
-        ? Promise.resolve(false)
-        : isSemanticSearchAvailable(drive))
+      // A scope's own page does not read operators, so a scoped search keeps
+      // its name-only behaviour here.
+      const filter: SearchFilter | null = parsed.hasOperators
+        ? filterFromParsed(parsed, scopeType)
+        : null;
+      const semanticEligible = !scopeType && parsed.text !== "";
+      let semanticOk = true;
+
+      const semanticP = (semanticEligible
+        ? isSemanticSearchAvailable(drive)
+        : Promise.resolve(false))
         .then((available) => {
-          if (!available || ctrl.signal.aborted) return [] as SemanticHit[];
+          if (!available || ctrl.signal.aborted) {
+            return { ok: true, results: [] as SemanticHit[] };
+          }
           setSemanticPending(true);
-          return fetchSemanticHits(trimmed, drive, {
+          return fetchSemanticHits(parsed.text, drive, {
             limit: POPUP_LIMIT,
+            ...(filter ? { filter } : {}),
             signal: ctrl.signal,
           });
         })
-        .then((hits) => {
-          semanticHits = hits;
+        .then((answer) => {
+          if (ctrl.signal.aborted) return;
+          semanticHits = answer.results;
+          semanticOk = answer.ok;
           paint();
         })
-        .catch(onStageFailure)
+        .catch(() => {
+          semanticOk = false;
+          onStageFailure();
+        })
         .finally(() => {
           if (!ctrl.signal.aborted) setSemanticPending(false);
         });
 
       void Promise.all([filenameP, semanticP]).then(() => {
-        if (ctrl.signal.aborted || !filenameRes) return;
+        if (ctrl.signal.aborted || !filenameRes || !semanticOk) return;
         writeSearchCache(cacheKey, {
           filenameMatches: filenameRes.data,
           filenameTotal: filenameRes.meta.total,

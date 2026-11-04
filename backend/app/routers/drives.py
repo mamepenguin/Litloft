@@ -231,6 +231,44 @@ def _apply_kinds_filter(query, kinds: list[FileKind]):
     return query.filter(or_(*(_kind_predicate(kind) for kind in kinds)))
 
 
+def apply_file_filters(
+    query,
+    db: Session,
+    *,
+    tags: list[str] | None = None,
+    kinds: list[FileKindParam] | None = None,
+    favorite: bool | None = None,
+    liked: bool | None = None,
+):
+    """Shared by the listing and the Internal API's filter resolution.
+
+    One implementation, so the same conditions cannot answer two different
+    id sets.
+    """
+    if favorite is not None:
+        query = query.filter(File.is_favorite == favorite)
+    if liked is not None:
+        query = query.filter(
+            File.liked_at.is_not(None) if liked else File.liked_at.is_(None)
+        )
+    chosen = [name for name in tags or [] if name]
+    if chosen:
+        # Folded in Python: SQLite's lower() leaves non-ASCII capitals alone.
+        # Not narrowed to this drive's rows: a file moved before tags followed
+        # their drive links to its old drive's row, and File.drive on the
+        # caller's query already bounds what is listed.
+        by_fold: dict[str, list[int]] = defaultdict(list)
+        for tag_id, tag_name in db.query(Tag.id, Tag.name):
+            by_fold[tag_name.lower()].append(tag_id)
+        for name in chosen:
+            query = query.filter(
+                File.tags.any(Tag.id.in_(by_fold[name.lower()]))
+            )
+    return _apply_kinds_filter(
+        query, [_normalize_kind(kind) for kind in kinds or []]
+    )
+
+
 def _kind_predicate(kind: FileKind):
     mimes = _KIND_MIMES.get(kind)
     if mimes is None:
@@ -708,26 +746,14 @@ def list_drive_files(
             File.title.ilike(pattern, escape="\\"),
             File.folder_path.ilike(pattern, escape="\\"),
         ))
-    if favorite is not None:
-        query = query.filter(File.is_favorite == favorite)
-    if liked is not None:
-        query = query.filter(
-            File.liked_at.is_not(None) if liked else File.liked_at.is_(None)
-        )
-    chosen = [name for name in tag or [] if name]
-    if chosen:
-        # Folded in Python: SQLite's lower() leaves non-ASCII capitals alone.
-        # Not narrowed to this drive's rows: a file moved before tags followed
-        # their drive links to its old drive's row, and File.drive above already
-        # bounds what is listed.
-        by_fold: dict[str, list[int]] = defaultdict(list)
-        for tag_id, tag_name in db.query(Tag.id, Tag.name):
-            by_fold[tag_name.lower()].append(tag_id)
-        for name in chosen:
-            query = query.filter(
-                File.tags.any(Tag.id.in_(by_fold[name.lower()]))
-            )
-    query = _apply_kinds_filter(query, [_normalize_kind(kind) for kind in type or []])
+    query = apply_file_filters(
+        query,
+        db,
+        tags=tag,
+        kinds=type,
+        favorite=favorite,
+        liked=liked,
+    )
     if trust == "unreviewed":
         # Not a tier: the review queue is "nobody has ruled on this", which
         # spans both tiers. Bulk-migrated rows are verified but unjudged, and

@@ -26,7 +26,9 @@ const CALLERS: Record<string, number> = {
   "components/search/MergedResultItem.tsx": 2,
   "components/search/ScopedSearchParts.tsx": 6,
   "components/search/SearchEmptyState.tsx": 4,
+  "components/search/SearchFilterChips.tsx": 5,
   "components/search/SearchFooter.tsx": 2,
+  "components/search/SearchQueryHeader.tsx": 12,
   "components/search/SearchResultsList.tsx": 2,
   "components/search/useLauncherRows.ts": 1,
   // None by name: the legend draws every word it shows out of
@@ -89,7 +91,7 @@ describe("the search vocabulary core draws", () => {
     ].sort();
     // The check below is true of no keys at all, so the population is
     // asserted first.
-    expect(used.length).toBe(41);
+    expect(used.length).toBe(56);
     const missing = used.filter((key) => !(key in namespaces[locale]));
     // Named, not counted: a failure should say which word is missing.
     expect(missing).toEqual([]);

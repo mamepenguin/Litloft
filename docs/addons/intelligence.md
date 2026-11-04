@@ -161,6 +161,12 @@ Every hour (`indexing.reconciliation_interval`) the addon looks for files it has
 
 Re-indexing a file replaces its old index.
 
+#### PDF page edges
+
+A PDF page keeps the text inside the page, plus the lines that overlap the top and bottom 50 points of the page. From those two bands, page numbers (a line with no letter) and later copies of a line that repeats on three or more pages — a running header or footer — are left out; the first copy is kept. A line the PDF converter already kept is not added a second time. The kept lines join the page's own text, the top ones before it and the bottom ones after it, so semantic search, exact search, Ask, excerpts and `read_document` find them and report that page.
+
+The first start after the addon is upgraded to these rules re-extracts every PDF once, in the background and at a lower priority than new uploads. Until its turn comes, a PDF keeps the text it already had. A later start with the same rules changes nothing.
+
 ### Semantic search
 
 Meaning-based results are mixed into the ordinary search results. What a viewer sees is described in [searching by meaning](../user-guide/search.md#searching-by-meaning-intelligence-addon).
@@ -168,6 +174,8 @@ Meaning-based results are mixed into the ordinary search results. What a viewer 
 The query is embedded with `models.text_embedding`, matched against the vectors and against keyword indexes, and the two are blended with `search.alpha` (0 = keywords only, 1 = vectors only). Results are capped by `search.default_limit` and `search.max_limit`.
 
 `GET /search?q=&limit=` accepts `limit` from 1 to 1000. With Scene search off, the image channel takes as many of the drive's nearest representative frames as the effective limit (never fewer than its previous 50) before the score cutoff applies, so a subject with many pictures is listed past the first fifty.
+
+Both routes accept an optional `filter` query parameter: one JSON object with optional `tags` (strings), `kinds` (the eight kinds, with `markdown` accepted as `text`), `favorite` and `liked` (booleans). The addon resolves it to the request drive's file ids through `POST /api/internal/files/matching` and ranks only within them; every channel and every relative cutoff sees the filtered set only. Empty tag strings are dropped, tags and kinds are deduplicated case-insensitively (kinds after the `markdown` alias); at most 20 tags of up to 200 characters and 8 kinds apply. `filter` cannot be combined with `type`, `include_scene_clip=true` or `mode=recall` on `/search`, or with `type` on `/search/images` (422). If the core cannot resolve the filter, the route answers 503 and runs no unfiltered search. Without `filter`, both routes behave exactly as before.
 
 `GET /search/images?q=&type=` ranks every active file of the request drive by how closely its representative frame matches the query and returns the first 2000, with no score cutoff. `type` takes the same values as `/search`, the drive comes from `X-Lit-Drive`, and it needs the `search` policy. The response has `/search`'s shape (`results`, `total`, `indexed_files`, `service_version`), and each result is the single `clip_thumbnail` match with the score and segments `/search` would give that frame. The search page uses it for **Show more by similarity**.
 
