@@ -61,7 +61,9 @@ SPEC-CORE-034:
    renumbered, as `DELETE .../items/{item_id}` does not renumber either.
 4. A move within one drive (`target_drive` absent or equal to the file's drive) touches no
    collection item.
-5. At startup, in `database.py`'s migrations, every `collection_items` row whose file's
+5. At startup, as the last step of `database.py`'s `_migrate` (after every existing
+   migration, the `playlists` → `collections` copy included, and before
+   `_backfill_mangled_titles`), every `collection_items` row whose file's
    `drive` differs from its collection's `drive` is deleted, with one INFO log line giving
    the count when it is non-zero. On a database with no such row it deletes nothing and
    logs nothing; it runs on every start.
@@ -71,7 +73,9 @@ SPEC-ADDON-058:
 1. An addon calls `GET /api/internal/collections/{collection_id}/file-ids?drive=<drive>`
    with `X-Internal-Secret` when it has one.
 2. The core checks the secret with `verify_internal_secret` (the optional gate
-   `/viewer-history` uses), then:
+   `/viewer-history` uses; a mismatch when `CORE_INTERNAL_SECRET` is set → 403
+   `"Invalid internal secret"`), then:
+   - `drive` omitted → 422 (FastAPI's required query parameter, as `/viewer-history`);
    - `collection_id` not matching `^[A-Za-z0-9_-]{12}$` (the core's nanoid shape,
      `schemas._NANOID_RE`) → 400 `"Invalid collection_id"`;
    - `drive` not a configured drive → 404 `"Drive not found"`;
@@ -83,15 +87,19 @@ SPEC-ADDON-058:
    missing, answers `{"file_ids": []}`.
 4. Intelligence gets `app/rag/collection_client.py` with
    `async fetch_collection_file_ids(*, collection_id: str, drive: str) -> list[str]`:
-   - it checks `collection_id` against the same pattern before sending and raises
-     `CollectionNotFound` without a request when it does not match;
+   - it checks `collection_id` against the same pattern before sending; an id that fails
+     it raises `CollectionNotFound` and sends no request;
    - it sends `GET {HOMEVAULT_INTERNAL_API_URL}/collections/{collection_id}/file-ids`
      with `drive` as a query parameter and `x-internal-secret` only when
      `CORE_INTERNAL_SECRET` is set, with a 5 s timeout, as `history_client.py` does;
    - 200 with `{"file_ids": [str, ...]}` → that list, in order;
    - 400 or 404 → raises `CollectionNotFound`;
-   - any other status, a network error, a body that is not JSON, or a body without a list
-     `file_ids` of strings → raises `CollectionLookupFailed`.
+   - any other status (403, 422, 5xx included), a network error or timeout, a body that
+     is not JSON, a body without a list `file_ids`, or a list holding any non-string
+     entry → raises `CollectionLookupFailed` (a non-string entry fails the whole call; it
+     is not dropped);
+   - both exceptions subclass `CollectionLookupError`, so a caller that treats every
+     failure alike catches one type.
    It never returns `[]` for a failure: `[]` means an empty set.
 5. Nothing in intelligence calls the client in this unit. D3 is expected to resolve a scope
    value such as `{"kind": "collection", "id": "..."}` into a list of file ids and pass it
@@ -107,20 +115,26 @@ SPEC-CORE-038:
    `description`, `drive`, `item_count`, `first_file_id`, `created_at`, `updated_at`,
    most recently updated first. `item_count` counts every item, trashed and missing ones
    included, as the sidebar does.
-2. `get_collection { drive, collection_id, fields? }` sends
-   `GET /api/drives/{drive}/collections/{collection_id}` and returns
+2. `get_collection { drive, collection_id, fields? }`, with `fields` the enum
+   `"summary" | "full"` defaulting to `"summary"` and never sent to the core (as
+   `search_files`), sends `GET /api/drives/{drive}/collections/{collection_id}` and
+   returns
    `{ id, name, description, drive, created_at, updated_at, items, inactive_count }`:
    - `items`: the items whose file has `deleted_at` and `missing_since` both null, in the
      order the core returned them, each `{ item_id, position, file }`, where `file` is the
      summary `search_files` returns (its `SUMMARY_FIELDS`), or the whole file object with
      `fields: "full"`;
    - `inactive_count`: how many items were left out because their file is trashed or
-     missing.
+     missing. An item whose `file` lacks `deleted_at` or `missing_since` counts the
+     missing key as null, so it is listed.
 3. Both tools carry `readOnlyAnnotations`. Their descriptions say a collection is also
    called a playlist, that it holds files of one drive, and that the ids in `items` can be
-   passed to the other file tools. The server instructions gain one line saying an agent
+   passed to the other file tools. `get_collection`'s description also says trashed and
+   missing items are left out and counted in `inactive_count`. The server instructions gain one line saying an agent
    can read the files a viewer gathered with `list_collections` and `get_collection`.
 4. `create_playlist` and `add_to_playlist` keep their names and behaviour.
+5. The descriptions of `move_file` and `move_files` gain one sentence: moving a file to
+   another drive removes it from the collections of the drive it leaves.
 
 ### 2. Failure cases
 
@@ -132,7 +146,7 @@ SPEC-CORE-038:
   old-drive items and the ones that failed keep them.
 - The startup cleanup fails (a database error) → the error propagates as the other
   migrations' errors do; nothing is half-applied because it is one statement.
-- SPEC-ADDON-058: as in 1, step 2. A file that left the drive before the startup cleanup
+- SPEC-ADDON-058: as in 1, step 2 (403, 422, 400, 404). A file that left the drive before the startup cleanup
   ran is still never returned, because the endpoint also checks `File.drive`.
 - The client: as in 1, step 4. A slow core ends at the 5 s timeout as
   `CollectionLookupFailed`.
@@ -188,8 +202,10 @@ None. The Internal API is a call inside the Docker network; its failure modes ar
 - **R3 Multi-addon viability.** Ask's set-scoped question (D3) is the first consumer, and
   the D4 scope field (`/find` and Ask narrowed to a set) the second use, both in
   intelligence. A second addon is not planned; the knowledge addon making a note from a
-  set is the nearest named one. This is the same standing as `GET /viewer-history`: keep,
-  watch closely, and re-check when D3 lands.
+  set is the nearest named one. R3 is not met, and the endpoint is added as an approved
+  exception: its audit-table row reads `KEEP (watch closely)`, and it is re-evaluated when
+  D3/D4 lands, or at the Phase 2 trigger if no second consumer has appeared by then (see
+  Pending human confirmation).
 - **R4 Write asymmetry.** Not engaged: the endpoint only reads.
 - **R5 Promotion target.** Not engaged: no addon output is promoted.
 
@@ -208,16 +224,17 @@ None. The Internal API is a call inside the Docker network; its failure modes ar
 - Moves: as today; no new message.
 - Startup cleanup: `Removed N collection item(s) whose file is in another drive` at INFO
   when N > 0.
-- Endpoint: the 400 and 404 details in 1. Nothing is logged.
+- Endpoint: 403 `"Invalid internal secret"`, 422 for an omitted `drive`, and the 400 and
+  404 details in 1. Nothing is logged.
 - Client: `collection-client: ...` at WARNING with the drive and the status or the error
-  type, never the file ids, on `CollectionLookupFailed`; nothing on `CollectionNotFound`.
+  type, never a file id, on `CollectionLookupFailed`; nothing on `CollectionNotFound`.
 - MCP: the core's error detail, as every other tool.
 
 ### 9. User-visible behavior
 
 - A file moved to another drive disappears from the old drive's collections, and is in
-  none of the new drive's collections. A file moved within its drive stays in its
-  collections.
+  none of the new drive's collections. Moving it back (A → B → A) does not restore its
+  membership. A file moved within its drive stays in its collections.
 - After the first start with this change, collections that held a file from another drive
   no longer list it.
 - An MCP agent sees two more tools. `get_collection` lists the active files of a
@@ -252,7 +269,8 @@ Core:
   moves), the cleanup, the endpoint (Layer 1 on the core side: each status and the
   ordering and filtering).
 - `mcp-server/src/tools/read.ts` (or a new `collections.ts` registered in
-  `src/tools/index.ts`), `mcp-server/src/server.ts` (instructions),
+  `src/tools/index.ts`), `mcp-server/src/server.ts` (instructions), `mcp-server/src/tools/write.ts` and
+  `batch.ts` (the `move_file` / `move_files` descriptions),
   `mcp-server/src/__tests__/toolMetadata.test.ts` (the expected tool list, a named edit),
   `mcp-server/src/__tests__/` for the two tools, `mcp-server/README.md`.
 - `docs/ADDON-DEVELOPMENT.md`, `docs/user-guide/playlists-favorites.md`,
@@ -276,13 +294,16 @@ No protected path is edited.
 
 I1. After a successful move of a file to another drive, no collection of any drive other than the destination holds an item for that file; a move within one drive leaves every item of that file in place with its position.
 I2. A move that fails, before or after the file is moved on disk, leaves every collection item of that file as it was.
-I3. After startup, no `collection_items` row references a file whose `drive` differs from its collection's `drive`, and every other row is unchanged.
+I3. After startup, including on a database whose `playlists` were copied into `collections` in the same start, no `collection_items` row references a file whose `drive` differs from its collection's `drive`, and every other row is unchanged.
 I4. `GET /api/internal/collections/{id}/file-ids?drive=` returns exactly the ids of that collection's items whose file is active and in `drive`, in `position` order; a trashed, missing or other-drive file never appears.
 I5. The endpoint answers 404 for a collection that exists in another drive, the same as for one that does not exist, and 404 for an unknown drive, so it never returns a file id of a drive other than `drive`.
-I6. The client returns a list only for a 200 with a list of string ids, and raises on every failure; it never turns a failure into an empty list.
-I7. `get_collection` lists exactly the items whose file is neither trashed nor missing, in the core's order, and `inactive_count` plus the number of listed items equals the collection's item count.
+I6. The client returns a list only for a 200 with a list of string ids, in the core's order, and raises on every failure; it never turns a failure into an empty list.
+I7. `get_collection` lists exactly the items whose file is neither trashed nor missing (a missing state key counts as null), in the core's order, and `inactive_count` plus the number of listed items equals the collection's item count.
 I8. Neither MCP tool lists or reads a collection of a drive the server's credentials cannot open.
-I9. Collection endpoints, `create_playlist`, `add_to_playlist`, `retarget_file_tags` and the other Internal API endpoints return the same responses for the same requests as before.
+I9. On data where every item's file and collection share a drive, the public collection endpoints, `create_playlist`, `add_to_playlist`, `retarget_file_tags` and the other Internal API endpoints return the same responses for the same requests as before.
+I10. A cross-drive move leaves the other items of the affected collections with their `position` values unchanged (not renumbered) and leaves `collections.updated_at` unchanged; moving the file back does not recreate any removed item.
+I11. The client sends no request for an id that fails the nanoid pattern; 400 and 404 raise `CollectionNotFound`; every other status, a network error or timeout, and a malformed body (non-JSON, no list `file_ids`, any non-string entry) raise `CollectionLookupFailed`; both subclass `CollectionLookupError`; its WARNING log never contains a file id.
+I12. `list_collections` and `get_collection` carry `readOnlyAnnotations`; `get_collection` never sends `fields` to the core; the server instructions name both tools; the `move_file` and `move_files` descriptions say a cross-drive move removes the file from the old drive's collections.
 
 ## Checked, no action
 
@@ -315,9 +336,23 @@ I9. Collection endpoints, `create_playlist`, `add_to_playlist`, `retarget_file_t
 - **`file_relations` across drives after a move.** The same move also leaves relations
   whose two ends are in different drives, which the relation rules forbid. A separate gap,
   not part of source sets.
+- **The web move dialog.** Not changed; it does not warn that a cross-drive move removes
+  the file from the old drive's collections. The user guide states it instead.
 - **A WebSocket event for collection changes.** None exists; an open collection page of
   the old drive shows the moved file until it is reloaded, as today after any change made
   elsewhere.
 - **A cap on the endpoint's answer.** Collections are hand-built lists; see 10.
 - **Copying a file to another drive.** The copy is a new row in no collection; the original
   keeps its items.
+
+## Pending human confirmation
+
+1. **R3 exception.** The endpoint is added as an approved exception to R3, audit-table row
+   `KEEP (watch closely)`, re-evaluated when D3/D4 lands or at the Phase 2 trigger if no
+   second consumer has appeared.
+2. **Moving back does not restore membership.** A → B → A leaves the file in none of A's
+   collections it was in.
+3. **How the removal is told.** The MCP `move_file` / `move_files` descriptions and one
+   user-guide sentence say a cross-drive move removes the file from that drive's
+   collections; the web move dialog is unchanged.
+4. **The startup cleanup deletes existing cross-drive collection items.** Recommended: yes.
