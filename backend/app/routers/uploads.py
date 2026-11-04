@@ -29,7 +29,6 @@ def _validate_session_drive(upload_id: str, drive_name: str) -> None:
 def init_upload(
     drive_name: str,
     body: UploadInitRequest,
-    db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     check_drive_access(drive_name, unlocked_groups)
@@ -42,7 +41,6 @@ def init_upload(
         relative_path=body.relative_path,
         require_folder=body.require_folder,
         inbox_source=body.inbox_source,
-        db=db,
     )
     return UploadInitResponse(
         upload_id=session.upload_id,

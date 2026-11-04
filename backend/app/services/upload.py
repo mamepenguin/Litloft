@@ -123,21 +123,6 @@ def _require_destination_folder(drive_path: Path, folder_path: str) -> None:
         raise HTTPException(status_code=404, detail="destination_folder_not_found")
 
 
-def _has_trashed_ghost(db: Session | None, drive: str, file_path: str) -> bool:
-    if db is None:
-        return False
-    return (
-        db.query(File.id)
-        .filter(
-            File.drive == drive,
-            File.file_path == file_path,
-            File.deleted_at.isnot(None),
-        )
-        .first()
-        is not None
-    )
-
-
 def init_upload(
     drive: str,
     filename: str,
@@ -147,7 +132,6 @@ def init_upload(
     relative_path: str = "",
     require_folder: bool = False,
     inbox_source: str | None = None,
-    db: Session | None = None,
 ) -> UploadSession:
     drive_path = resolve_drive_path(drive)
     filename = validate_filename(filename)
@@ -165,10 +149,7 @@ def init_upload(
     validate_within_drive(target_full, drive_path)
 
     if target_full.exists():
-        # A trashed row still owns its path on disk; a re-upload supersedes
-        # the delete intent and complete_upload purges the ghost.
-        if not _has_trashed_ghost(db, drive, target_rel):
-            raise HTTPException(status_code=409, detail="File already exists")
+        raise HTTPException(status_code=409, detail="File already exists")
 
     _check_disk_capacity(drive_path, file_size)
 

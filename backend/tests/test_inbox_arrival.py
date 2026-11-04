@@ -132,6 +132,7 @@ class TestUploadArrival:
         file_id = create(c, "note.md", "old", arrival=CLIP).json()["id"]
         assert c.delete(f"/api/files/{file_id}").status_code == 200
         assert row(db, file_id)["done_at"] is not None
+        (drive_dir / "note.md").unlink()
 
         r = upload(c, "note.md", b"new", inbox_source="upload")
 
@@ -141,6 +142,22 @@ class TestUploadArrival:
         assert rows(db, file_id=file_id) == []
         assert row(db, new_id)["done_at"] is None
         assert row(db, new_id)["source"] == "upload"
+
+    @pytest.mark.parametrize("inbox_source", [None, "upload"])
+    def test_upload_over_a_trashed_file_still_on_disk_is_refused(
+        self, client, inbox_source
+    ):
+        """SPEC-CORE-032 §2: the trashed copy is not overwritten; init answers 409."""
+        c, db, drive_dir, _ = client
+        file_id = create(c, "keep.md", "old").json()["id"]
+        assert c.delete(f"/api/files/{file_id}").status_code == 200
+
+        r = upload(c, "keep.md", b"new", inbox_source=inbox_source)
+
+        assert r.status_code == 409
+        assert (drive_dir / "keep.md").read_text() == "old"
+        trashed = c.get(f"/api/drives/{TEST_DRIVE}/trash").json()
+        assert file_id in [item["id"] for item in trashed["data"]]
 
     def test_upload_without_inbox_source_leaves_an_existing_row_unchanged(self, client):
         """SPEC-CORE-032 I1: a re-upload that says nothing renews no row."""
