@@ -22,7 +22,7 @@ function withTargetDrive(body: Record<string, unknown>, drive: unknown): Record<
 const moveFiles: LitloftTool = {
   name: "move_files",
   description:
-    "Move up to 100 files into one folder, optionally on another drive. Files keep their names; a name already taken there is reported per file in `errors`. Moving a file to another drive removes it from the collections of the drive it leaves.",
+    "Move up to 100 files into one folder, optionally on another drive. Files keep their names; a name already taken there is reported per file in `errors`. A move within the drive closes each file's inbox row; a move to another drive removes it, and removes the file from the collections of the drive it leaves.",
   inputSchema: { file_ids: fileIds, target_folder_path: targetFolderPath, target_drive: targetDrive },
   annotations: writeAnnotations({ destructive: true, idempotent: true }),
   handler: (args, client) =>
@@ -60,7 +60,7 @@ const copyFiles: LitloftTool = {
 const trashFiles: LitloftTool = {
   name: "trash_files",
   description:
-    "Move up to 100 files to trash (restorable for 30 days with restore_files). Nothing is deleted permanently.",
+    "Move up to 100 files to trash (restorable for 30 days with restore_files). Nothing is deleted permanently. It also closes each file's inbox row.",
   inputSchema: { file_ids: fileIds },
   annotations: writeAnnotations({ destructive: true, idempotent: true }),
   handler: (args, client) =>
@@ -87,7 +87,7 @@ const restoreFiles: LitloftTool = {
 const addTags: LitloftTool = {
   name: "add_tags",
   description:
-    "Add tags to up to 100 files, keeping their existing tags (update_tags replaces one file's tags instead). For Markdown files the tags are written to the frontmatter.",
+    "Add tags to up to 100 files, keeping their existing tags (update_tags replaces one file's tags instead). For Markdown files the tags are written to the frontmatter. Adding a tag also closes each file's inbox row.",
   inputSchema: {
     file_ids: fileIds,
     tags: z.array(z.string()).min(1).max(10).describe("1 to 10 tags to add"),

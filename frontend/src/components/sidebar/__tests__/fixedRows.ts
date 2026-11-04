@@ -5,6 +5,7 @@
  */
 export const FIXED_SIDEBAR_ROWS: readonly { label: string; view: string | null }[] = [
   { label: "Home", view: "home" },
+  { label: "Inbox", view: "inbox" },
   { label: "Library", view: null },
   { label: "Favorites", view: "favorites" },
   { label: "Liked", view: "liked" },

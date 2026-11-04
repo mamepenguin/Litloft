@@ -26,6 +26,7 @@ interface MarkdownDocumentLayoutProps {
   drive: string;
   folderPath?: string;
   title: string;
+  fileId?: string;
   onRename?: (newFilename: string) => Promise<void>;
   onBack?: () => void;
   inspector: ReactNode;
@@ -43,6 +44,7 @@ export function MarkdownDocumentLayout({
   drive,
   folderPath,
   title,
+  fileId,
   onRename,
   onBack,
   inspector,
@@ -108,6 +110,7 @@ export function MarkdownDocumentLayout({
         drive={drive}
         folderPath={folderPath}
         title={title}
+        fileId={fileId}
         onBack={onBack}
         titleNode={
           onRename && !previewOnly ? (

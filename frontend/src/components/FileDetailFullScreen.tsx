@@ -11,11 +11,13 @@ import {
   getCollectionOnEnded,
 } from "@/components/CollectionPanel";
 import { useSetOverrideDrive } from "@/components/CurrentDriveProvider";
-import { usePolicy } from "@/hooks/usePolicy";
 import { ridesFileDetailShell } from "@/lib/fileDetailShell";
 import { usePlainTextDocument } from "./FileDetail/hooks/usePlainTextDocument";
 import { useOverlaySidebar } from "@/components/SidebarProvider";
 import { useFileNav } from "@/hooks/useFileNav";
+import { FileNavProvider } from "@/lib/fileNavContext";
+import { InboxDetailHostProvider } from "@/components/inbox/inboxDetailHost";
+import { usePolicy } from "@/hooks/usePolicy";
 import { getFileShared } from "@/lib/api";
 import { peekFileSeed } from "@/lib/fileSeed";
 import { normalizeSortParam } from "@/lib/sortField";
@@ -32,6 +34,8 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
   const searchParams = useSearchParams();
   const setOverrideDrive = useSetOverrideDrive();
 
+  const nav = searchParams.get("nav") ?? undefined;
+  const isInboxNav = nav === "inbox";
   const sort = normalizeSortParam(searchParams.get("sort"));
   const order = searchParams.get("order") || undefined;
   // `?playlist=` is accepted so bookmarks and external links keep working.
@@ -77,23 +81,31 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
       if (folderPlay) params.set("folder_play", "1");
       if (sort) params.set("sort", sort);
       if (order) params.set("order", order);
+      if (isInboxNav) params.set("nav", "inbox");
       const qs = params.toString();
       return `/files/${id}${qs ? `?${qs}` : ""}`;
     },
-    [collectionId, folderPlay, sort, order],
+    [collectionId, folderPlay, sort, order, isInboxNav],
   );
 
   // Plain `router.replace` rather than useGuardedRouter: the dirty editor
   // lives in the 2-pane host, not the fullscreen host.
-  useFileNav({
+  const fileNav = useFileNav({
     fileId: !hasCollection && file ? fileId : null,
     sort,
     order,
+    nav,
+    drive: file?.drive ?? null,
     fileType: file?.file_type ?? null,
     mimeType: file?.mime_type ?? null,
     enabled: !hasCollection,
     onNavigate: (id) => router.replace(buildNavUrl(id)),
   });
+
+  const inboxHref = useCallback(() => {
+    const drive = file?.drive ?? "";
+    return `/drive/${encodeURIComponent(drive)}?view=inbox`;
+  }, [file]);
 
   const handleCollectionNavigate = useCallback(
     (nextFileId: string) => {
@@ -108,6 +120,10 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
   }, []);
 
   const handleBack = useCallback(() => {
+    if (isInboxNav) {
+      router.push(inboxHref());
+      return;
+    }
     if (typeof window !== "undefined" && window.history.length > 1) {
       router.back();
       return;
@@ -118,15 +134,19 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
         : `/drive/${encodeURIComponent(file.drive)}`;
       router.push(backPath);
     }
-  }, [router, file]);
+  }, [router, file, isInboxNav, inboxHref]);
 
   const handleAfterDelete = useCallback(() => {
     if (!file) return;
+    if (isInboxNav) {
+      router.push(inboxHref());
+      return;
+    }
     const backPath = file.folder_path
       ? `/drive/${encodeURIComponent(file.drive)}/${file.folder_path}`
       : `/drive/${encodeURIComponent(file.drive)}`;
     router.push(backPath);
-  }, [router, file]);
+  }, [router, file, isInboxNav, inboxHref]);
 
   // A Markdown note or an HTML preview rides `FileDetailShell`, which
   // draws the page row itself; drawing one here too would put two
@@ -149,93 +169,103 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
   const isAudioSide = hasCollection && file?.file_type !== "video";
 
   return (
-    <div
-      className={`mx-auto w-full flex-1 px-4 py-6 ${hasCollection ? "max-w-6xl" : "max-w-5xl"}`}
-    >
-      {/* The back control keeps this route's own handler: "back" from a
-          collection means the collection you were playing, not the
-          folder the current track happens to live in. */}
-      {!contentBringsItsOwnRow && (
-        <div className="mb-4 -mx-4 -mt-6">
-          {file ? (
-            <FileDetailChrome
-              drive={file.drive}
-              folderPath={file.folder_path}
-              title={file.title || file.filename}
-              onBack={handleBack}
-            />
-          ) : (
-            // Holds the row's place so the page does not step down when
-            // the fetch lands.
-            <div
-              aria-hidden
-              className="h-12 border-b border-bg-border bg-bg-card"
-            />
+    <FileNavProvider value={fileNav}>
+      <InboxDetailHostProvider
+        value={{
+          onNext: handleCollectionNavigate,
+          onClose: () => router.push(inboxHref()),
+        }}
+      >
+        <div
+          className={`mx-auto w-full flex-1 px-4 py-6 ${hasCollection ? "max-w-6xl" : "max-w-5xl"}`}
+        >
+          {/* The back control keeps this route's own handler: "back" from a
+              collection means the collection you were playing, not the
+              folder the current track happens to live in. */}
+          {!contentBringsItsOwnRow && (
+            <div className="mb-4 -mx-4 -mt-6">
+              {file ? (
+                <FileDetailChrome
+                  drive={file.drive}
+                  folderPath={file.folder_path}
+                  title={file.title || file.filename}
+                  fileId={fileId}
+                  onBack={handleBack}
+                />
+              ) : (
+                // Holds the row's place so the page does not step down when
+                // the fetch lands.
+                <div
+                  aria-hidden
+                  className="h-12 border-b border-bg-border bg-bg-card"
+                />
+              )}
+            </div>
           )}
-        </div>
-      )}
 
-      <div className={isAudioSide ? "flex flex-col gap-4 md:flex-row" : ""}>
-        <div className={isAudioSide ? "min-w-0 flex-1" : ""}>
-          <FileDetailContent
-            fileId={fileId}
-            drive={file?.drive ?? ""}
-            initialTime={initialTime}
-            initialPage={initialPage}
-            initialSection={initialSection}
-            highlight={highlight}
-            onEnded={hasCollection ? handleMediaEnded : undefined}
-            autoPlay={hasCollection}
-            onRequestImageGallery={() => setGalleryOpen(true)}
-            onAfterDelete={handleAfterDelete}
-            onBack={handleBack}
-            surface="collection"
-          />
+          <div className={isAudioSide ? "flex flex-col gap-4 md:flex-row" : ""}>
+            <div className={isAudioSide ? "min-w-0 flex-1" : ""}>
+              <FileDetailContent
+                fileId={fileId}
+                drive={file?.drive ?? ""}
+                initialTime={initialTime}
+                initialPage={initialPage}
+                initialSection={initialSection}
+                highlight={highlight}
+                onEnded={hasCollection ? handleMediaEnded : undefined}
+                autoPlay={hasCollection}
+                onRequestImageGallery={() => setGalleryOpen(true)}
+                onAfterDelete={handleAfterDelete}
+                onBack={handleBack}
+                surface="collection"
+              />
 
-          {isVideoTheater && (
-            <CollectionPanel
-              collectionId={collectionId}
-              folderPlay={folderPlay}
-              currentFileId={fileId}
-              currentFileType={file!.file_type}
-              drive={file!.drive}
-              folderPath={file!.folder_path}
+              {isVideoTheater && (
+                <CollectionPanel
+                  collectionId={collectionId}
+                  folderPlay={folderPlay}
+                  currentFileId={fileId}
+                  currentFileType={file!.file_type}
+                  drive={file!.drive}
+                  folderPath={file!.folder_path}
+                  sort={sort}
+                  order={order}
+                  onNavigate={handleCollectionNavigate}
+                />
+              )}
+            </div>
+
+            {isAudioSide && file && (
+              <CollectionPanel
+                collectionId={collectionId}
+                folderPlay={folderPlay}
+                currentFileId={fileId}
+                currentFileType={file.file_type}
+                drive={file.drive}
+                folderPath={file.folder_path}
+                sort={sort}
+                order={order}
+                onNavigate={handleCollectionNavigate}
+              />
+            )}
+          </div>
+
+          {file && (
+            <ImageGallery
+              open={galleryOpen}
+              file={file}
               sort={sort}
               order={order}
-              onNavigate={handleCollectionNavigate}
+              onClose={(currentFileId) => {
+                setGalleryOpen(false);
+                if (currentFileId && currentFileId !== fileId) {
+                  router.replace(buildNavUrl(currentFileId));
+                }
+              }}
             />
           )}
         </div>
-
-        {isAudioSide && file && (
-          <CollectionPanel
-            collectionId={collectionId}
-            folderPlay={folderPlay}
-            currentFileId={fileId}
-            currentFileType={file.file_type}
-            drive={file.drive}
-            folderPath={file.folder_path}
-            sort={sort}
-            order={order}
-            onNavigate={handleCollectionNavigate}
-          />
-        )}
-      </div>
-
-      {file && (
-        <ImageGallery
-          open={galleryOpen}
-          file={file}
-          sort={sort}
-          order={order}
-          onClose={(currentFileId) => {
-            setGalleryOpen(false);
-            if (currentFileId && currentFileId !== fileId) {
-              router.replace(buildNavUrl(currentFileId));
-            }
-          }}
-        />
-      )}
-    </div>
+      </InboxDetailHostProvider>
+    </FileNavProvider>
   );
 }

@@ -110,6 +110,7 @@ describe("addon destinations in the sidebar", () => {
     render(<Sidebar />);
     expect(rowLabels()).toEqual([
       "Home",
+      "Inbox",
       "Library",
       "Ask",
       "Notes",
@@ -164,6 +165,7 @@ describe("addon destinations in the sidebar", () => {
     render(<Sidebar />);
     expect(rowLabels()).toEqual([
       "Home",
+      "Inbox",
       "Library",
       "Favorites",
       "Liked",

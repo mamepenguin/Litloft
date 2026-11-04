@@ -334,6 +334,7 @@ async function processUpload(id: string, internal: InternalUpload) {
       chunk_size: chunkSize,
       relative_path: internal.relativePath,
       require_folder: true,
+      inbox_source: "upload",
     });
 
     internal.uploadId = initResult.upload_id;

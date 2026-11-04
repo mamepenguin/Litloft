@@ -117,16 +117,26 @@ const UNNAMED_GROUPS = [
   "frontend/src/components/sidebar/SectionDragHandle.tsx",
 ];
 
+/**
+ * An inbox row's Done button is revealed by swipe below `md` on a coarse
+ * pointer; showing it as well would put a second way to triage on a phone
+ * that already has the gesture.
+ */
+const COARSE_HIDDEN_UNTIL_MD = [
+  "frontend/src/components/inbox/InboxRow.tsx",
+];
+
 describe("a row action revealed by hover is revealed by focus too", () => {
   const reveals = hoverReveals();
 
   it("finds the reveals it is meant to be checking", () => {
-    expect(reveals.length).toBe(13);
+    expect(reveals.length).toBe(14);
     for (const named of [
       "frontend/src/components/trash/TrashFileGrid.tsx",
       "frontend/src/components/trash/TrashFileList.tsx",
       "frontend/src/components/missing/MissingFileGrid.tsx",
       "frontend/src/components/missing/MissingFileList.tsx",
+      "frontend/src/components/inbox/InboxRow.tsx",
     ]) {
       expect(reveals.map((r) => r.where)).toContain(named);
     }
@@ -160,7 +170,11 @@ describe("a row action revealed by hover is revealed by focus too", () => {
     // has a coarse pointer.
     const offenders = reveals
       .filter((r) => !/\bpointer-coarse:opacity-100\b/.test(r.classes))
-      .filter((r) => !FOCUS_AND_TOUCH_EXEMPT.includes(r.where))
+      .filter(
+        (r) =>
+          !FOCUS_AND_TOUCH_EXEMPT.includes(r.where) &&
+          !COARSE_HIDDEN_UNTIL_MD.includes(r.where),
+      )
       .map((r) => r.where);
     expect(offenders).toEqual([]);
   });

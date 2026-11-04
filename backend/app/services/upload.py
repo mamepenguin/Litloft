@@ -33,6 +33,7 @@ from app.services.fileops import (
     validate_within_drive,
 )
 from app.services.subtitle import is_subtitle_file
+from app.services import inbox as inbox_service
 from app.services.thumbnail import (
     get_thumbnail_generator,
     get_video_duration,
@@ -74,6 +75,7 @@ class UploadSession:
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     require_folder: bool = False
     required_folder_path: str = ""
+    inbox_source: str | None = None
 
 
 def _merge_relative_into_folder(folder_path: str, relative_path: str) -> str:
@@ -129,6 +131,7 @@ def init_upload(
     chunk_size: int,
     relative_path: str = "",
     require_folder: bool = False,
+    inbox_source: str | None = None,
 ) -> UploadSession:
     drive_path = resolve_drive_path(drive)
     filename = validate_filename(filename)
@@ -166,6 +169,7 @@ def init_upload(
         temp_dir=temp_dir,
         require_folder=require_folder,
         required_folder_path=destination_folder,
+        inbox_source=inbox_source,
     )
     _upload_sessions[upload_id] = session
     logger.info("Upload initiated: %s (%s, %d bytes, %d chunks)", upload_id, filename, file_size, total_chunks)
@@ -393,6 +397,14 @@ def complete_upload(
                 pass
         probe_file_chapters(db, file_record, target_full)
         untrack_empty_folder(db, session.drive, session.folder_path)
+        if session.inbox_source:
+            inbox_service.record_arrival(
+                db,
+                session.drive,
+                file_record.id,
+                session.inbox_source,
+                inbox_service.UPLOAD_I18N_KEY,
+            )
         db.commit()
     except Exception:
         if not reused_row:
@@ -408,6 +420,8 @@ def complete_upload(
         "file_id": file_record.id,
         "filename": file_record.filename,
     }, drive=session.drive)
+    if session.inbox_source:
+        inbox_service.notify_from_thread(session.drive)
 
     return file_record, recovered_missing
 

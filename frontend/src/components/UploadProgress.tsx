@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AlertCircle, Check, ChevronRight, Loader2, Minus, X } from "lucide-react";
+import { AlertCircle, Check, ChevronRight, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   DESTINATION_FOLDER_NOT_FOUND,
@@ -12,35 +12,11 @@ import {
 } from "@/hooks/useUpload";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { bottomChromeOffset, useBottomChrome } from "@/lib/bottomChrome";
-import type { ProcessingStage } from "@/lib/api";
 import type { WebSocketEvent } from "@/types";
-
-function stageLabel(
-  t: (key: string) => string,
-  stage: ProcessingStage,
-): string {
-  const label = t(stage.i18n_key);
-  return label === stage.i18n_key ? stage.key : label;
-}
-
-function StageIcon({
-  stage,
-  stopped,
-}: {
-  stage: ProcessingStage;
-  stopped: boolean;
-}) {
-  if (stage.state === "done") {
-    return <Check size={12} className="text-accent-teal" />;
-  }
-  if (stage.state === "failed") {
-    return <AlertCircle size={12} className="text-danger" />;
-  }
-  if (stopped) {
-    return <Minus size={12} className="text-text-muted" />;
-  }
-  return <Loader2 size={12} className="animate-spin text-text-muted" />;
-}
+import {
+  ProcessingStageIcon,
+  processingStageLabel,
+} from "./ProcessingStageMark";
 
 function ProcessingLine({ upload }: { upload: UploadState }) {
   const t = useTranslations();
@@ -77,8 +53,8 @@ function ProcessingLine({ upload }: { upload: UploadState }) {
             key={`${stage.addon ?? "core"}-${stage.key}-${index}`}
             className="inline-flex items-center gap-1"
           >
-            <StageIcon stage={stage} stopped={stopped} />
-            <span>{stageLabel(t, stage)}</span>
+            <ProcessingStageIcon stage={stage} stopped={stopped} />
+            <span>{processingStageLabel(t, stage)}</span>
           </span>
         ))}
       </div>

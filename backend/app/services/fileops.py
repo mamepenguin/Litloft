@@ -24,6 +24,7 @@ from app.nanoid import generate_nanoid
 from app.services.atomic_write import generating_file
 from app.services.heic import cleanup_heic_cache
 from app.services.markdown_images import project_markdown_thumbnail
+from app.services import inbox as inbox_service
 from app.services.subtitle import move_sidecar_subtitles
 from app.services.thumbnail import (
     prune_empty_dirs,
@@ -453,7 +454,7 @@ def rename_file(db: Session, file_id: str, new_filename: str) -> File:
     return file
 
 
-def move_file(db: Session, file_id: str, target_drive: str | None, target_folder: str) -> File:
+def move_file(db: Session, file_id: str, target_drive: str | None, target_folder: str) -> tuple[File, bool]:
     # A pure move preserves ``file.filename``, so the wiki-link basename never
     # changes and no rewrite hook is needed here.
     file = db.query(File).filter(File.id == file_id).first()
@@ -482,9 +483,14 @@ def move_file(db: Session, file_id: str, target_drive: str | None, target_folder
     new_full.parent.mkdir(parents=True, exist_ok=True)
     shutil.move(str(old_full), str(new_full))
 
+    inbox_changed = False
     try:
         old_drive = file.drive
         old_folder = file.folder_path
+        if dst_drive == src_drive:
+            inbox_changed = inbox_service.close(db, src_drive, file_id)
+        else:
+            inbox_changed = inbox_service.remove(db, src_drive, file_id)
         retarget_file_tags(db, file, old_drive, dst_drive)
         file.drive = dst_drive
         file.folder_path = target_folder
@@ -519,7 +525,7 @@ def move_file(db: Session, file_id: str, target_drive: str | None, target_folder
     _carry_sidecars(file, old_full, new_full)
 
     db.refresh(file)
-    return file
+    return file, inbox_changed
 
 
 def _update_pinned_folders(
@@ -682,7 +688,7 @@ def physical_delete(db: Session, file: File) -> None:
     _ensure_empty_folder_tracked(db, drive, folder_path)
 
 
-def delete_file(db: Session, file_id: str) -> None:
+def delete_file(db: Session, file_id: str) -> bool:
     """Soft delete: set deleted_at, keep file on disk.
 
     Missing files cannot be moved to trash (the file is not on disk to
@@ -696,9 +702,11 @@ def delete_file(db: Session, file_id: str) -> None:
     file.deleted_at = datetime.now(UTC)
     drive = file.drive
     folder_path = file.folder_path
+    closed = inbox_service.close(db, drive, file_id)
     db.flush()
     _ensure_empty_folder_tracked(db, drive, folder_path)
     db.commit()
+    return closed
 
 
 def restore_file(db: Session, file_id: str) -> File:
@@ -871,7 +879,7 @@ def rename_folder(drive: str, path: str, new_name: str, db: Session) -> dict:
     }
 
 
-def delete_folder(drive: str, path: str, db: Session) -> None:
+def delete_folder(drive: str, path: str, db: Session) -> bool:
     path = validate_path_safe(path)
     if not path:
         raise HTTPException(status_code=400, detail="Cannot delete drive root")
@@ -884,20 +892,30 @@ def delete_folder(drive: str, path: str, db: Session) -> None:
         raise HTTPException(status_code=404, detail="Folder not found")
 
     now = datetime.now(UTC)
+    folder_condition = (File.folder_path == path) | File.folder_path.like(path + "/%")
+    affected_ids = [
+        row[0]
+        for row in db.query(File.id)
+        .filter(File.drive == drive, active_file_filter(), folder_condition)
+        .all()
+    ]
     # Only active files (not trashed, not missing) get soft-deleted.
     # Missing files stay as-is; they already have no on-disk presence
     # and must be purged individually from the Missing view.
     db.query(File).filter(
         File.drive == drive,
         active_file_filter(),
-        (File.folder_path == path) | File.folder_path.like(path + "/%"),
+        folder_condition,
     ).update({"deleted_at": now}, synchronize_session="fetch")
+
+    closed = inbox_service.close_files(db, drive, affected_ids, now=now)
 
     db.query(EmptyFolder).filter(
         EmptyFolder.drive == drive,
         (EmptyFolder.path == path) | EmptyFolder.path.like(path + "/%"),
     ).delete(synchronize_session="fetch")
     db.commit()
+    return closed
 
 
 def _compute_new_stem_template(

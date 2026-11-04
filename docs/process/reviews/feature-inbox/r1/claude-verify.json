@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "Reproduced by reading. upload.py:126-138 defines _has_trashed_ghost. At upload.py:167-171, init_upload raises 409 only when no trashed row owns target_rel, and that check does not depend on inbox_source. routers/uploads.py:32,45 inject db and pass it in. complete_upload overwrites the path through replacing_file at upload.py:275 and deletes the trashed row at upload.py:336-345. delete_file (fileops.py:691-709) leaves the file on disk, so the trashed content is lost. The comment at upload.py:312-315 still describes the old 409 guarantee. test_inbox_arrival.py:129-143 covers this only with inbox_source='upload'. The only 409 test in test_upload.py is at line 108, and the file has no trash case."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "FileDetailChrome.tsx:10 imports InboxDetailActions, and FileDetailChrome.tsx:135 renders it when fileId is set. ShellLayout.tsx:128 defines inboxWalk, and ShellLayout.tsx:388 gates the image FileNavControls on !inboxWalk. FileDetailShell.tsx:169 and MarkdownDocumentLayout.tsx:113 pass fileId. The gate is at InboxDetailActions.tsx:31 (nav=inbox, host and nav state). None of these four files is in the touch-point list."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "useSelectedFile.ts:58-61: with nav=inbox, clearFile replaces the URL with `${driveBase}?view=inbox`. The file is not in the touch-point list. classification.json:290 lists it as touched."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F4",
+      "status": "confirmed",
+      "note": "ProcessingStageMark.tsx:1-31 exports processingStageLabel and ProcessingStageIcon. UploadProgress.tsx:16-19 imports them and uses them at lines 56-57. InboxRow.tsx:10-12 also imports them, and InboxRow.tsx:316-317 uses them. Neither file is in the touch points. classification.json:174 lists ProcessingStageMark.tsx."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F5",
+      "status": "confirmed",
+      "note": "All three files exist. classification.json lists useInboxCount.ts at line 270, inboxGrouping.ts at line 322 and inboxStage.ts at line 326. The touch points name only sidebar/SidebarLibrarySection.tsx, components/inbox/ and specific lib files, so none of the three is covered."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "SCOPE-1",
+      "status": "confirmed",
+      "note": "Same evidence as F1. upload.py:167-171 skips the 409 for any upload whose path is owned by a trashed row, with or without inbox_source. upload.py:275 overwrites the on-disk file. upload.py:336-345 deletes the trashed row inside the try. routers/uploads.py:32,44-45 add db. The comment at upload.py:312-315 is stale. No test covers an upload without inbox_source over a trashed path."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "SCOPE-2",
+      "status": "confirmed",
+      "note": "useSelectedFile.ts:58-61 confirmed. classification.json:278 lists the test useSelectedFile.inboxClose.test.tsx."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "SCOPE-3",
+      "status": "confirmed",
+      "note": "FileDetailChrome.tsx:10 has the import, and FileDetailChrome.tsx:135 renders the component when fileId is set. InboxDetailActions.tsx:31 returns null unless nav=inbox."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "SCOPE-4",
+      "status": "confirmed",
+      "note": "ShellLayout.tsx:128 defines inboxWalk = nav==='inbox', and ShellLayout.tsx:388 renders the image FileNavControls only when !inboxWalk. The file is not in the touch points."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "SCOPE-5",
+      "status": "confirmed",
+      "note": "Glob finds all three modules at frontend/src/lib/inboxGrouping.ts, frontend/src/lib/inboxStage.ts and frontend/src/components/sidebar/useInboxCount.ts. None of them is in the touch-point list."
+    }
+  ],
+  "specification_compliance": [
+    "Several touched files are outside the declared touch points: upload.py's init conflict check, routers/uploads.py's db dependency for init, the FileDetail chrome and shell files, useSelectedFile.ts, ProcessingStageMark.tsx and UploadProgress.tsx, and three new lib/sidebar modules."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "An upload to a path held by a trashed file now succeeds for every upload, with or without inbox_source. It overwrites the trashed content on disk and deletes the trashed row."
+  ],
+  "regression_risks": [
+    "Users who relied on the 409 to keep a trashed file restorable lose that file's content after a re-upload to the same path.",
+    "If the upload fails after replacing_file (upload.py:275) has renamed the new content into place, the trashed row stays but its on-disk content is already replaced."
+  ],
+  "test_coverage": [
+    "test_inbox_arrival.py:129 covers the trashed-ghost replacement only with inbox_source set.",
+    "test_upload.py has a 409 test at line 108 but no trash case."
+  ],
+  "not_verified": [
+    "Whether the init_upload trashed-ghost bypass is new in this change: I could not run git diff against origin/develop. I inferred it is new from the stale comment and the new db dependency.",
+    "I did not inspect the knowledge addon, the MCP server or the e2e-layout tests.",
+    "I did not check runtime behavior or run tests."
+  ],
+  "confidence": 88
+}

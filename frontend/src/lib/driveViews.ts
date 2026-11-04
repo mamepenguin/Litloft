@@ -12,7 +12,7 @@ const CROSS_FOLDER_VIEWS = new Set([
   "liked",
 ]);
 
-const STANDALONE_VIEWS = new Set(["trash", "missing"]);
+const STANDALONE_VIEWS = new Set(["trash", "missing", "inbox"]);
 
 export function isCrossFolderView(view: string | null): boolean {
   return view !== null && CROSS_FOLDER_VIEWS.has(view);

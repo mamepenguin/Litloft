@@ -7,12 +7,14 @@ import { ChevronLeft, PanelRight, PanelRightClose } from "lucide-react";
 
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { Breadcrumb } from "../Breadcrumb";
+import { InboxDetailActions } from "../inbox/InboxDetailActions";
 
 interface FileDetailChromeProps {
   drive: string;
   folderPath?: string;
   title: string;
   titleNode?: ReactNode;
+  fileId?: string;
   onBack?: () => void;
   children?: ReactNode;
   inspector?: {
@@ -26,6 +28,7 @@ export function FileDetailChrome({
   folderPath,
   title,
   titleNode,
+  fileId,
   onBack,
   children,
   inspector,
@@ -128,6 +131,8 @@ export function FileDetailChrome({
       </div>
 
       {children}
+
+      {fileId && <InboxDetailActions fileId={fileId} drive={drive} />}
 
       {inspector && (
         <button

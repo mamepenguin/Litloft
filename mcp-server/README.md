@@ -200,6 +200,7 @@ When adding a new tool, put agent-facing behavior notes in its
 | `list_comments` | List comments on a file |
 | `list_collections` | List a drive's collections (also called playlists) |
 | `get_collection` | Read a collection's active files in order, each as `{ item_id, position, file }`, with the trashed and missing ones counted in `inactive_count` |
+| `list_inbox` | List a drive's open inbox (files that arrived by upload or web clip and are not yet done, filed, tagged or trashed), newest first, with a cursor for the next page |
 | `ask` | Ask Litloft Intelligence a question within one drive |
 
 ### Write
@@ -228,6 +229,8 @@ When adding a new tool, put agent-facing behavior notes in its
 | `trash_files` | Move up to 100 files to trash |
 | `restore_files` | Restore up to 100 files out of trash |
 | `add_tags` | Add tags to up to 100 files, keeping their existing tags |
+
+`move_file`, `trash_file`, `update_tags`, `update_file_content`, `edit_file_content`, `move_files`, `trash_files`, `add_tags` and `trash_folder` also close the affected files' inbox rows; a move to another drive removes them instead. `upload_file` does not create an inbox row.
 
 Every write tool call maps onto one existing Litloft API endpoint, except
 `edit_file_content`, which reads the file, replaces the string locally and

@@ -9,6 +9,7 @@ import { FileDetailChrome } from "@/components/FileDetail/FileDetailChrome";
 import { ImageGallery } from "@/components/ImageGallery";
 import { useFileNav } from "@/hooks/useFileNav";
 import { FileNavProvider } from "@/lib/fileNavContext";
+import { InboxDetailHostProvider } from "@/components/inbox/inboxDetailHost";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
 import { getFileShared } from "@/lib/api";
 import { peekFileSeed } from "@/lib/fileSeed";
@@ -74,6 +75,8 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
     fileId: file ? fileId : null,
     sort: navOrdering.sort,
     order: navOrdering.order,
+    nav: searchParams.get("nav") ?? undefined,
+    drive,
     countable: navOrdering.countable,
     fileType: file?.file_type ?? null,
     mimeType: file?.mime_type ?? null,
@@ -114,17 +117,24 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
         {/* The hook has to stay with the host because only the host
             knows what "navigate" means in its URL model. */}
         <FileNavProvider value={fileNav}>
-          <FileDetailContent
-            fileId={fileId}
-            drive={drive}
-            initialTime={initialTime}
-            initialPage={initialPage}
-            initialSection={initialSection}
-            highlight={highlight}
-            miniPlayerRoot={scrollRoot}
-            onRequestImageGallery={() => setGalleryOpen(true)}
-            onAfterDelete={clearFile}
-          />
+          <InboxDetailHostProvider
+            value={{ onNext: selectFile, onClose: clearFile }}
+          >
+            <FileDetailContent
+              fileId={fileId}
+              drive={drive}
+              initialTime={initialTime}
+              initialPage={initialPage}
+              initialSection={initialSection}
+              highlight={highlight}
+              miniPlayerRoot={scrollRoot}
+              onRequestImageGallery={() => setGalleryOpen(true)}
+              onAfterDelete={clearFile}
+              onBack={
+                searchParams.get("nav") === "inbox" ? clearFile : undefined
+              }
+            />
+          </InboxDetailHostProvider>
         </FileNavProvider>
       </PaneShell>
       {file && (

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FilePlus, Files, FolderTree, History, Home, Star, ThumbsUp } from "lucide-react";
+import { FilePlus, Files, FolderTree, History, Home, Inbox, Star, ThumbsUp } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { AddonSlot } from "@/components/AddonSlot";
 import type { AddonNavEntry } from "@/lib/addonNavigation";
@@ -8,6 +8,7 @@ import { driveHref } from "@/lib/driveViews";
 import { AddonNavRows } from "./AddonNavRows";
 import { SidebarDriveSwitcher } from "./SidebarDriveSwitcher";
 import { SidebarSectionHeading } from "./SidebarSectionHeading";
+import { useInboxCount } from "./useInboxCount";
 
 interface SidebarLibrarySectionProps {
   driveBase: string | null;
@@ -29,8 +30,12 @@ interface SidebarLibrarySectionProps {
 
 export function SidebarLibrarySection({ driveBase, currentDrive, drives = [], linkClass, close, primaryAddons = [], sourceAddons = [], libraryActive }: SidebarLibrarySectionProps) {
   const t = useTranslations("sidebar");
+  const inboxCount = useInboxCount(currentDrive);
   const homeHref = currentDrive ? driveHref(currentDrive, "home") : "/";
+  const inboxHref = currentDrive && driveBase ? `${driveBase}?view=inbox` : null;
   const libraryHref = currentDrive ? driveHref(currentDrive, "library") : null;
+  const inboxBadge =
+    inboxCount > 99 ? "99+" : inboxCount > 0 ? String(inboxCount) : null;
 
   return (
     <>
@@ -44,6 +49,17 @@ export function SidebarLibrarySection({ driveBase, currentDrive, drives = [], li
         <Home size={16} />
         {t("home")}
       </Link>
+      {inboxHref && (
+        <Link href={inboxHref} onClick={close} className={linkClass(inboxHref)}>
+          <Inbox size={16} />
+          {t("inbox")}
+          {inboxBadge && (
+            <span className="ml-auto text-xs tabular-nums text-text-muted">
+              {inboxBadge}
+            </span>
+          )}
+        </Link>
+      )}
       {libraryHref && (
         <Link href={libraryHref} onClick={close} className={linkClass(libraryHref, libraryActive)}>
           <FolderTree size={16} />
