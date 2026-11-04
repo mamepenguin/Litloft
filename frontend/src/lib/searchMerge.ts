@@ -7,6 +7,30 @@ import type {
   SortOrder,
 } from "@/types";
 
+export type PassageKind =
+  | "utterance"
+  | "scene"
+  | "page"
+  | "section"
+  | "picture_text"
+  | "text";
+
+/** One place inside a file, as `/search?passages=true` reports it. */
+export interface SearchPassage {
+  kind: PassageKind;
+  start: number | null;
+  end: number | null;
+  page: number | null;
+  section: number | null;
+  section_title: string | null;
+  chunk_index: number | null;
+  text: string;
+  score: number;
+  keyword: boolean;
+  highlight_terms: string[];
+  frame_url: string | null;
+}
+
 export interface SemanticHit {
   file_id: string;
   drive: string;
@@ -14,6 +38,7 @@ export interface SemanticHit {
   file_type: string;
   score: number;
   match_types: string[];
+  passages?: SearchPassage[];
   segments: Array<{
     time_range: [number, number] | null;
     matches: Array<{

@@ -14,6 +14,7 @@ import {
   sortMerged,
   type SemanticHit,
 } from "@/lib/searchMerge";
+import { groupPassages, type PassageGroup } from "@/lib/searchPassages";
 import {
   filterFromParsed,
   filterQueryParam,
@@ -104,6 +105,12 @@ interface UseFolderFilesReturn {
   continuationDrawnIds: ReadonlySet<string>;
   updateContinuationFile: (file: FileItem) => void;
   removeContinuationFiles: (ids: readonly string[]) => void;
+  /** True while the page runs a meaning search the Passages view can show. */
+  passagesApplicable: boolean;
+  passageGroups: PassageGroup[];
+  passagesLoading: boolean;
+  passagesFailed: boolean;
+  retryPassages: () => void;
 }
 
 export function matchesTrustFilter(
@@ -280,7 +287,9 @@ export function useFolderFiles({
   );
   const [semanticLoading, setSemanticLoading] = useState(false);
   const [semanticAvailable, setSemanticAvailable] = useState(false);
+  const [availabilityKnown, setAvailabilityKnown] = useState(false);
   const [semanticArrived, setSemanticArrived] = useState(false);
+  const [semanticFailed, setSemanticFailed] = useState(false);
 
   const filter = useMemo(
     () => filterFromParsed(parsed, typeFilter ?? null),
@@ -289,67 +298,85 @@ export function useFolderFiles({
   const filterSignature = parsed.hasOperators ? filterQueryParam(filter) : "";
   const meaningEligible =
     isSearch && parsed.text !== "" && !searchKinds.impossible;
-  const previousSemanticRef = useRef<{
-    key: string;
-    filtered: boolean;
-  } | null>(null);
+  const previousSemanticRef = useRef<{ key: string } | null>(null);
+  const semanticRequestId = useRef(0);
+
+  const runMeaningSearch = useCallback(
+    (signal?: AbortSignal) => {
+      const requestId = ++semanticRequestId.current;
+      const filtered = parsed.hasOperators;
+      setAvailabilityKnown(false);
+      setSemanticLoading(true);
+      setSemanticArrived(false);
+      setSemanticFailed(false);
+      (async () => {
+        const available = await isSemanticSearchAvailable(driveName);
+        if (signal?.aborted || requestId !== semanticRequestId.current) return;
+        setAvailabilityKnown(true);
+        setSemanticAvailable(available);
+        if (!available) {
+          setSemanticHits([]);
+          setSemanticLoading(false);
+          setSemanticArrived(true);
+          return;
+        }
+        const answer = await fetchSemanticHits(parsed.text, driveName, {
+          limit: SEMANTIC_LIMIT,
+          passages: true,
+          ...(filtered
+            ? { filter }
+            : { type: typeFilter, includeSceneClip }),
+          signal,
+        });
+        if (signal?.aborted || requestId !== semanticRequestId.current) return;
+        setSemanticHits(answer.ok ? answer.results : []);
+        setSemanticFailed(!answer.ok);
+        setSemanticLoading(false);
+        setSemanticArrived(true);
+      })();
+    },
+    [parsed, driveName, typeFilter, includeSceneClip, filter],
+  );
 
   useEffect(() => {
     if (!meaningEligible) {
+      semanticRequestId.current += 1;
       setSemanticHits([]);
       setSemanticLoading(false);
       setSemanticAvailable(false);
+      setAvailabilityKnown(false);
       setSemanticArrived(false);
+      setSemanticFailed(false);
       previousSemanticRef.current = null;
       return;
     }
-    const filtered = parsed.hasOperators;
     const semanticKey = `${parsed.text}\u0000${filterSignature}\u0000${includeSceneClip ? 1 : 0}\u0000${typeFilter ?? ""}`;
     const previous = previousSemanticRef.current;
-    previousSemanticRef.current = { key: semanticKey, filtered };
-    if (previous && previous.key !== semanticKey && (previous.filtered || filtered)) {
+    previousSemanticRef.current = { key: semanticKey };
+    if (previous && previous.key !== semanticKey) {
       setSemanticHits([]);
     }
     const ctrl = new AbortController();
-    setSemanticLoading(true);
-    setSemanticArrived(false);
-    (async () => {
-      const available = await isSemanticSearchAvailable(driveName);
-      if (ctrl.signal.aborted) return;
-      if (!available) {
-        setSemanticHits([]);
-        setSemanticAvailable(false);
-        setSemanticLoading(false);
-        setSemanticArrived(true);
-        return;
-      }
-      setSemanticAvailable(true);
-      const answer = await fetchSemanticHits(parsed.text, driveName, {
-        limit: SEMANTIC_LIMIT,
-        ...(filtered
-          ? { filter }
-          : { type: typeFilter, includeSceneClip }),
-        signal: ctrl.signal,
-      });
-      if (ctrl.signal.aborted) return;
-      setSemanticHits(answer.ok ? answer.results : []);
-      setSemanticLoading(false);
-      setSemanticArrived(true);
-    })();
+    runMeaningSearch(ctrl.signal);
     return () => {
       ctrl.abort();
     };
   }, [
     meaningEligible,
     parsed,
-    filter,
     filterSignature,
     searchQuery,
     driveName,
     typeFilter,
     includeSceneClip,
     searchKinds.impossible,
+    runMeaningSearch,
   ]);
+
+  const retryPassages = useCallback(() => {
+    if (!meaningEligible) return;
+    runMeaningSearch();
+  }, [meaningEligible, runMeaningSearch]);
 
   const [continuation, setContinuation] = useState<ContinuationAnswer | null>(null);
   const continuationKey = [
@@ -620,6 +647,17 @@ export function useFolderFiles({
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally triggered only by combinedRefreshKey
   }, [combinedRefreshKey]);
 
+  const passagesApplicable =
+    meaningEligible && (!availabilityKnown || semanticAvailable);
+  const passagesLoading =
+    meaningEligible &&
+    (semanticLoading || !semanticArrived || !availabilityKnown);
+  const passagesFailed = meaningEligible && semanticFailed;
+  const passageGroups = useMemo(
+    () => (passagesLoading ? [] : groupPassages(semanticHits)),
+    [passagesLoading, semanticHits],
+  );
+
   return {
     files, folders, total, loading, loadingMore, hasMore, pagesLoaded, sentinelRef,
     reset, setFiles, setPaginatedTotal, setFolders, isRecent, hasProfile,
@@ -631,5 +669,10 @@ export function useFolderFiles({
     continuationDrawnIds,
     updateContinuationFile,
     removeContinuationFiles,
+    passagesApplicable,
+    passageGroups,
+    passagesLoading,
+    passagesFailed,
+    retryPassages,
   };
 }

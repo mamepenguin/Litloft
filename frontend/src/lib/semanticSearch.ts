@@ -34,12 +34,14 @@ export async function fetchSemanticHits(
     type?: FileKind | null;
     includeSceneClip?: boolean;
     filter?: SearchFilter | null;
+    passages?: boolean;
     signal?: AbortSignal;
   },
 ): Promise<SemanticHitsResult> {
   if (!query.trim() || !drive) return { ok: false, results: [] };
   const params = new URLSearchParams({ q: query.trim() });
   if (options?.limit) params.set("limit", String(options.limit));
+  if (options?.passages) params.set("passages", "true");
   if (options?.filter) {
     params.set("filter", filterQueryParam(options.filter));
   } else {

@@ -48,7 +48,7 @@ function isModified(e: React.KeyboardEvent): boolean {
  * the header would re-render it on every URL change, and a value captured at
  * render goes stale between the toggle and the next submit.
  */
-function keepsSceneSearch(drive: string): boolean {
+function onThisDrivesSearchPage(drive: string): boolean {
   if (typeof window === "undefined") return false;
   const match = /^\/drive\/([^/]+)\/search\/?$/.exec(window.location.pathname);
   if (!match) return false;
@@ -58,14 +58,28 @@ function keepsSceneSearch(drive: string): boolean {
   } catch {
     return false;
   }
-  if (current !== drive) return false;
-  return new URLSearchParams(window.location.search).get("include_scene_clip") === "true";
+  return current === drive;
+}
+
+function keepsSceneSearch(drive: string): boolean {
+  return (
+    onThisDrivesSearchPage(drive) &&
+    new URLSearchParams(window.location.search).get("include_scene_clip") === "true"
+  );
+}
+
+function keepsShowPassages(drive: string): boolean {
+  return (
+    onThisDrivesSearchPage(drive) &&
+    new URLSearchParams(window.location.search).get("show") === "passages"
+  );
 }
 
 function searchPageHref(drive: string, term: string, type?: FileKind): string {
   let href = `/drive/${encodeURIComponent(drive)}/search?q=${encodeURIComponent(term)}`;
   if (type) href += `&type=${type}`;
   if (keepsSceneSearch(drive)) href += "&include_scene_clip=true";
+  if (keepsShowPassages(drive)) href += "&show=passages";
   return href;
 }
 

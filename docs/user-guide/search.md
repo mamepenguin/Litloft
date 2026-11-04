@@ -84,6 +84,19 @@ With the intelligence addon enabled for the drive, results found by meaning are 
 - A match in an EPUB book lists the chapters by title. Click one to open the book at the start of that chapter.
 - A match in text shows one quote from the file. With the [Knowledge addon](../addons/knowledge.md), a button beside it adds the quote to the capture basket for a note.
 
+### Files and passages
+
+While a meaning search runs, a **ファイル / 箇所** switch sits under the query field. **ファイル** lists the files that matched, as before. **箇所** lists the places where the search found something, in order of relevance, with a count of files and places above the list.
+
+- Each row shows a frame or the file's thumbnail, the place (a time range, page or chapter), the file name and the matched text in full. A picture's recognised text and a plain text match are labelled accordingly.
+- Click a row to open the file at that time, page or chapter.
+- **箇所** shows only places inside files: speech, PDF pages, chapters, text in a picture, and scenes when **Scene search** is on. A file found only by its name or thumbnail appears only under **ファイル**.
+- A file shows up to three places. When it has more, **このファイルの他の箇所 →** opens the file.
+- The list holds the best-matching passages the search kept, not every occurrence of your words in a file.
+- If nothing was found inside files, **ファイルで表示** switches back to the files that matched.
+
+The switch is part of the address, so a link can open the results straight in **箇所**. A search started from the modal on the same page keeps the view.
+
 At the end of the results, **Show more by similarity** adds more pictures from the drive in order of how closely they look like what you asked for; click it once, then keep scrolling as the rest arrive a hundred at a time. When the query has operators, the extra pictures are filtered by them too, and Scene search stays off.
 
 ### Scene search

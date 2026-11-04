@@ -291,7 +291,21 @@
     "filterTagsLoading": "タグを読み込んでいます…",
     "filterTagsFailed": "タグを読み込めませんでした",
     "filterTagsNone": "このドライブにタグはありません",
-    "filterTagsNoMatch": "一致するタグはありません"
+    "filterTagsNoMatch": "一致するタグはありません",
+    "viewLabel": "表示",
+    "viewFiles": "ファイル",
+    "viewPassages": "箇所",
+    "passageCount": "{files} ファイル・{passages} 箇所",
+    "passageCountShort": "{passages} 箇所",
+    "passageList": "箇所",
+    "passagePictureText": "画像の文字",
+    "passageText": "本文",
+    "moreInFile": "このファイルの他の箇所 →",
+    "moreInFileName": "{file} の他の箇所",
+    "passagesFailed": "箇所を読み込めませんでした",
+    "showFiles": "ファイルで表示",
+    "clearFilter": "フィルタを解除",
+    "retry": "再試行"
   },
   "smartFolder": {
     "sectionTitle": "スマートフォルダ",

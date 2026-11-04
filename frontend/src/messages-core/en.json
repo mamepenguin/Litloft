@@ -291,7 +291,21 @@
     "filterTagsLoading": "Loading tags…",
     "filterTagsFailed": "Could not load tags",
     "filterTagsNone": "This drive has no tags",
-    "filterTagsNoMatch": "No matching tags"
+    "filterTagsNoMatch": "No matching tags",
+    "viewLabel": "Show",
+    "viewFiles": "Files",
+    "viewPassages": "Passages",
+    "passageCount": "{files, plural, one {# file} other {# files}} · {passages, plural, one {# passage} other {# passages}}",
+    "passageCountShort": "{passages, plural, one {# passage} other {# passages}}",
+    "passageList": "Passages",
+    "passagePictureText": "Text in picture",
+    "passageText": "Text",
+    "moreInFile": "More in this file →",
+    "moreInFileName": "More passages in {file}",
+    "passagesFailed": "Couldn't load passages",
+    "showFiles": "Show files",
+    "clearFilter": "Clear filters",
+    "retry": "Retry"
   },
   "smartFolder": {
     "sectionTitle": "Smart Folders",

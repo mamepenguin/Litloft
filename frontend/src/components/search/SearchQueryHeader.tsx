@@ -34,6 +34,8 @@ interface SearchQueryHeaderProps {
   order: SortOrder;
   smartFolderId: string | null;
   includeSceneClip: boolean;
+  /** `passages` while the page shows the Passages view. */
+  show?: string | null;
 }
 
 export function SearchQueryHeader({
@@ -44,6 +46,7 @@ export function SearchQueryHeader({
   order,
   smartFolderId,
   includeSceneClip,
+  show,
 }: SearchQueryHeaderProps) {
   const t = useTranslations("search");
   const tFilter = useTranslations("filter");
@@ -70,6 +73,7 @@ export function SearchQueryHeader({
     if (order !== "desc") params.set("order", order);
     if (smartFolderId) params.set("smart_folder_id", smartFolderId);
     if (includeSceneClip) params.set("include_scene_clip", "true");
+    if (show === "passages") params.set("show", "passages");
     return `/drive/${encodeURIComponent(drive)}/search?${params.toString()}`;
   };
 

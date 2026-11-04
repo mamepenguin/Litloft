@@ -895,6 +895,21 @@ row's hover state.
 - **One snippet per hit.**
 - Row actions follow §Row Actions, and revealing them never reflows the excerpt.
 
+### Search passage rows
+
+A row in the search page's Passages view: one picture, one place in one file.
+
+- **The excerpt is shown in full.** This is not the §Search Snippet: no
+  `line-clamp`, and there is one row per place rather than one per hit.
+- **The picture is 16:9**: a frame from the video with its start time over it
+  (§Over-video chrome), else the file's thumbnail, else the file-type icon.
+- **Only a keyword match is marked**, with `bg-highlight-bg`, and only the terms
+  the keyword channel actually matched.
+- **No accent fill**: the 「ファイル / 箇所」 control follows §Selected-state
+  controls, and a row is flat with a `hover:bg-accent/5` wash.
+- A file's name and a section's title truncate to one line with the full value
+  in `title`; the row measure is §3.6's.
+
 ### Row Actions
 
 A control repeated on every row — a capture button on a snippet, a `⋮` on a list
