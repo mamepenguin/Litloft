@@ -61,6 +61,10 @@ function isPlainText(file: FileItemWithMatch): boolean {
   );
 }
 
+function isPicture(file: FileItemWithMatch): boolean {
+  return file.mime_type.startsWith("image/");
+}
+
 /**
  * Only text-bearing evidence qualifies. A CLIP scene match carries no words,
  * so quoting it would produce a locator with an empty body.
@@ -91,7 +95,9 @@ export function buildSearchSnippet(
   }
 
   const pdf = isPdf(file);
-  if (pdf || isPlainText(file)) {
+  // A picture's recognised text quotes like a plain text body: it has no
+  // page to link back to, so a page on the match is ignored.
+  if (pdf || isPlainText(file) || isPicture(file)) {
     for (const match of meta.content_matches ?? []) {
       const quote = quotable(match.text);
       if (!quote) continue;
