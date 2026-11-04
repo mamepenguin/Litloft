@@ -85,7 +85,7 @@ describe("list_collections", () => {
     expect(client.calls[0].path).toBe("/api/drives/media/collections");
     expect(client.calls[0].options?.query).toBeUndefined();
     expect(result.isError).toBeUndefined();
-    expect(JSON.parse(result.content[0].text)).toEqual(coreList);
+    expect(JSON.parse((result.content[0] as { text: string }).text)).toEqual(coreList);
   });
 
   it("SPEC-CORE-038 I12: percent-encodes the drive name in the path", async () => {
@@ -124,7 +124,7 @@ describe("get_collection", () => {
       client
     );
 
-    const parsed = JSON.parse(result.content[0].text);
+    const parsed = JSON.parse((result.content[0] as { text: string }).text);
     expect(parsed.items).toEqual([
       { item_id: 11, position: 0, file: SUMMARY_OF_A },
     ]);
@@ -141,7 +141,7 @@ describe("get_collection", () => {
       client
     );
 
-    const parsed = JSON.parse(result.content[0].text);
+    const parsed = JSON.parse((result.content[0] as { text: string }).text);
     expect(parsed.items).toEqual([{ item_id: 11, position: 0, file: full }]);
   });
 
@@ -166,7 +166,7 @@ describe("get_collection", () => {
       client
     );
 
-    const parsed = JSON.parse(result.content[0].text);
+    const parsed = JSON.parse((result.content[0] as { text: string }).text);
     expect(parsed.items.map((entry: { item_id: number }) => entry.item_id)).toEqual(
       [11, 13]
     );
@@ -187,7 +187,7 @@ describe("get_collection", () => {
       client
     );
 
-    const parsed = JSON.parse(result.content[0].text);
+    const parsed = JSON.parse((result.content[0] as { text: string }).text);
     expect(parsed.items.map((entry: { item_id: number }) => entry.item_id)).toEqual(
       [11]
     );
@@ -234,7 +234,7 @@ describe("SPEC-CORE-038 I8", () => {
       const result = await findTool(tool).handler(args, client);
 
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain("Litloft API error (404)");
+      expect((result.content[0] as { text: string }).text).toContain("Litloft API error (404)");
     }
   );
 });
