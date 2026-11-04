@@ -49,7 +49,8 @@ const renameFile: LitloftTool = {
 
 const moveFile: LitloftTool = {
   name: "move_file",
-  description: "Move a file to a different folder path, optionally to a different drive.",
+  description:
+    "Move a file to a different folder path, optionally to a different drive. Moving it to another drive removes it from the collections of the drive it leaves.",
   inputSchema: {
     file_id: z.string(),
     target_folder_path: z.string(),
