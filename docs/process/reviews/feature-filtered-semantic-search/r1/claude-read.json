@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The diff edits five repository-wide frontend inventory/guard tests that the touch-point list does not name: frontend/src/__tests__/anchoredDropdowns.test.ts, frontend/src/__tests__/core-search-vocabulary.test.ts, frontend/src/__tests__/ime-enter-guard.test.ts, frontend/src/__tests__/popup-dismissal.test.ts and frontend/src/components/__tests__/toolbarMenuHome.test.ts.",
+      "impact": "Nothing a user can hit. These registries pin conventions (anchored-dropdown direction roles, the search i18n key population, IME Enter guards, popup dismissal homes, ToolbarMenu importers), and the change raises their counts (5->6 takes-the-surface, 41->56 keys, 18->19 Enter files) to register SearchQueryHeader/SearchFilterChips. A reviewer working only from the touch-point list would not expect convention-guard edits. The list says only 'Frontend tests next to the existing search tests', which does not cover them.",
+      "evidence": "Diff hunks: anchoredDropdowns.test.ts adds SearchQueryHeader.tsx as 'takes-the-surface' and changes toHaveLength(5) to 6; core-search-vocabulary.test.ts adds SearchFilterChips.tsx:5 and SearchQueryHeader.tsx:12 and changes used.length 41 to 56; ime-enter-guard.test.ts adds SearchQueryHeader.tsx to TEXT_FIELD_ENTER, 18 to 19; popup-dismissal.test.ts registers SearchQueryHeader.tsx; toolbarMenuHome.test.ts adds SearchQueryHeader.tsx to the ToolbarMenu importers.",
+      "repro": "Compare the diff's file list with the touch-point list. None of the five paths, and no 'convention registry' entry, appears in the list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Registering new components in the existing guard tests is what those tests require and breaks no invariant. It is only an unplanned touch point.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add 'core convention registries under frontend/src/__tests__/ and toolbarMenuHome.test.ts (new SearchQueryHeader / SearchFilterChips entries)' to the touch-point list."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The diff edits the e2e-layout fixture registry frontend/e2e-layout/spec-viewport.spec.ts (it adds search-header.html and changes FIXTURE_COUNT from 13 to 14). The touch-point list names only 'a frontend/e2e-layout/ case for the header'.",
+      "impact": "Nothing a user can hit. The new fixture is also subjected to the shared viewport-meta check, which is wider than the single layout case the list planned.",
+      "evidence": "frontend/e2e-layout/spec-viewport.spec.ts diff: FIXTURES gains \"search-header.html\" and FIXTURE_COUNT goes from 13 to 14.",
+      "repro": "Compare the diff's file list with the touch-point list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a required registration for a new fixture and breaks no invariant.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Name spec-viewport.spec.ts's fixture registry next to the e2e-layout case in the touch-point list."
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "useFolderFiles.ts changes the results page's `loading` for filtered queries: `loading` no longer waits for the meaning stage when `parsed.hasOperators` is true. The touch-point description of this file (meaning stage, q/filter, drop previous hits, continuation key) does not cover this.",
+      "impact": "On the results page, a filtered query's listing rows and count now settle before the meaning hits arrive, and the hits then merge in later. Unfiltered queries still hold `loading` until the meaning stage settles. The two kinds of query therefore show different loading behaviour, which no invariant or touch point plans for.",
+      "evidence": "frontend/src/components/folder/useFolderFiles.ts (diff tail): `? paginatedLoading || (semanticLoading && !parsed.hasOperators)`, with the comment 'A filtered query's meaning stage is an enhancement over the listing'.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant governs the `loading` flag. I7 still holds because previous hits are dropped. This is an unlisted behavioural reach inside a listed file.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Record the filtered-query loading rule in the touch-point description of useFolderFiles.ts, or drop the condition so both kinds of query load the same way."
+    }
+  ],
+  "specification_compliance": [
+    "Most changed paths are named touch points: internal.py, drives.py, the backend tests, internal-api-policy.md, DESIGN.md, PageHeader.tsx, FolderBrowser.tsx, GlobalSearch.tsx, searchQuery.ts, semanticSearch.ts, useFileSearch.ts, useFolderFiles.ts, the new search components, the messages files, the user guides, ADDON-DEVELOPMENT.md, docs/addons/intelligence.md, the e2e-layout case and the addon gitlink.",
+    "The fetchSemanticHits return-shape migration reaches every test mock in the diff (AppShell, GlobalSearch.*, useFolderFiles.test.ts), as the touch points require.",
+    "Addon side: file_matching.py (the new client), routers/search.py, app/search.py and the tests (test_filtered_search_contract/scope/unchanged, matching_core_double.py) are all within the addon touch points. No rag/ file mentions the new constraint.",
+    "frontend/src/app/drive/[name]/search/page.tsx is a touch point but does not appear in the diff. It is only imported by SearchPage.filteredSlots.test.tsx. This is not an unplanned reach.",
+    "The internal-api-policy touch point says 'row 14', but the diff adds row 15 because row 14 already exists (GET /collections/{id}/file-ids). This is a numbering difference, not an unplanned place."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "useFolderFiles.ts: for a filtered query, `loading` no longer includes `semanticLoading` (F3).",
+    "semanticSearch.ts: `available: false` and blank query now return ok:false. For unfiltered queries, the modal therefore no longer caches an addon-unavailable answer as an empty stage, which is a small change for unfiltered behaviour.",
+    "file_matching.py deduplicates tags with str.casefold() while the core uses str.lower(). For tags such as 'ß'/'ss' the two validators count differently near the 20-tag cap (relevant to I10, outside this question)."
+  ],
+  "regression_risks": [
+    "The count assertions in the inventory tests (41->56 keys, 5->6, 18->19, 13->14) were raised together with the feature. If a later change removes a key or registration, the counts will flag it, so these tests now encode the new components as baseline."
+  ],
+  "test_coverage": [
+    "The unlisted registry tests are themselves tests. No production code outside the touch points was found in the visible diff."
+  ],
+  "not_verified": [
+    "The submodule portion of the diff was truncated. I found the addon files the change reaches by grepping the worktree, not from the diff, so an addon file changed without mentioning file_matching/filter (for example a CHANGELOG or config) could be missed.",
+    "I could not confirm that the worktree's submodule checkout is at ef5bc2e.",
+    "I did not run any test."
+  ],
+  "confidence": 78
+}

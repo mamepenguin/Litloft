@@ -38,7 +38,7 @@ vi.mock("@/lib/api", () => ({
 }));
 
 vi.mock("@/lib/semanticSearch", () => ({
-  fetchSemanticHits: () => Promise.resolve([]),
+  fetchSemanticHits: () => Promise.resolve({ ok: true, results: [] }),
   isSemanticSearchAvailable: () => Promise.resolve(false),
 }));
 

@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "SCOPE-1",
+      "origin": "reviewer",
+      "claim": "The diff edits six frontend files that the touch-point list does not name: the repository guard inventories frontend/src/__tests__/anchoredDropdowns.test.ts, core-search-vocabulary.test.ts, ime-enter-guard.test.ts, popup-dismissal.test.ts, frontend/src/components/__tests__/toolbarMenuHome.test.ts, and the fixture registry frontend/e2e-layout/spec-viewport.spec.ts.",
+      "impact": "No user-facing effect. Each edit adds SearchQueryHeader.tsx / SearchFilterChips.tsx / search-header.html to an allow-list and raises its count (takes-the-surface 5->6, vocabulary keys 41->56, Enter files 18->19, fixtures 13->14, a new popup entry, a new useMenuSurface importer). These follow mechanically from the new components using an anchored dropdown, Enter handling, a popup dismissal, the shared ToolbarMenu surface and a new layout fixture. They were not planned, though, and a reviewer reading only the touch points would not expect them.",
+      "evidence": "Diff hunks: anchoredDropdowns.test.ts:75,122; core-search-vocabulary.test.ts:29-31,94; ime-enter-guard.test.ts:38,100; popup-dismissal.test.ts:153-156; toolbarMenuHome.test.ts:88; spec-viewport.spec.ts:33,39. The touch points name only 'Frontend tests next to the existing search tests' and 'a frontend/e2e-layout/ case'.",
+      "repro": "Compare the diff's file list with the Touch points section of docs/specs/filtered-semantic-search.md. None of these six paths, and none of the guard tests they hold, is named there.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An unplanned reach that breaks no invariant. The edits are registrations required by existing guard tests for the new components.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Record the guard-inventory registrations as implicit touch points of any new search component, or list them in the spec's touch points."
+    },
+    {
+      "id": "SCOPE-2",
+      "origin": "reviewer",
+      "claim": "The addon's filter validator folds tags with str.casefold() for deduplication, and the core request model folds with str.lower(). For tags such as 'straße' and 'STRASSE', the two validators count a different number of distinct tags at the 20-tag cap.",
+      "impact": "A query with 20 distinct tags plus a casefold-only duplicate (for example ß/SS, or Greek final sigma) passes the addon's validator. The core then answers 422, the addon answers 503 'Filter unavailable', and the frontend silently shows no meaning hits instead of a 422. The reverse fold difference can also send the core a different tag list than the one the listing ANDs. This is unlikely in practice because it needs more than 20 tags with special casing.",
+      "evidence": "addons/intelligence/app/file_matching.py:65 `key = tag.casefold()`. backend/app/routers/internal.py, FileMatchingRequest.validate_tags: `deduped.setdefault(tag.lower(), tag)`. apply_file_filters in drives.py also folds with lower(). addons/intelligence/tests/test_filtered_search_contract.py has no case with a casefold-only pair (grep for casefold/ß found none).",
+      "repro": "not_reproduced. Reasoning: tags = 20 distinct ASCII names + ['straße','STRASSE']. lower() gives 22 keys, so the core answers 422. casefold() gives 21 keys, so the addon also rejects that list. With 19 names + the pair, the addon dedups to 20 (accepted) and forwards one of the pair; the core lowercases the remaining tag and matches only the 'straße' spelling. The listing ANDs both spellings as separate clauses, so the meaning scope and the listing can differ.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I10 requires the addon and core validators to accept and reject the same inputs. The fold functions differ.",
+        "invariant_ref": "I10"
+      },
+      "severity": "LOW",
+      "proposed_fix": "Use the same fold in both validators: lower(), matching the listing's by_fold. Add a Layer 2 parity row with a casefold-only pair."
+    },
+    {
+      "id": "SCOPE-3",
+      "origin": "reviewer",
+      "claim": "docs/addons/intelligence.md says 'at most 10 tags apply', and the spec's SPEC-ADDON-047 step 1 says 'the caps of 10 apply'. Both the addon (TAG_MAX_COUNT = 20) and the core (_MATCHING_MAX_TAGS = 20) cap tags at 20.",
+      "impact": "A reader who trusts the addon documentation could 'fix' one validator to 10. That would break the I10 parity and reject valid filtered queries of 11-20 tags with 422.",
+      "evidence": "docs/addons/intelligence.md (diff line added after line 170): 'and at most 10 tags apply'. addons/intelligence/app/file_matching.py:27 TAG_MAX_COUNT = 20. backend/app/routers/internal.py _MATCHING_MAX_TAGS = 20. docs/ADDON-DEVELOPMENT.md correctly says 20.",
+      "repro": "Read the three locations above and compare the numbers.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "A prose/code disagreement that could lead to a wrong code change. It breaks no invariant by itself.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Delete the 'at most 10 tags apply' clause from docs/addons/intelligence.md, or replace it with the 20-tag, 200-character and 8-kind caps."
+    }
+  ],
+  "specification_compliance": [
+    "Each changed file was checked against the touch-point list. Every path is named or implicit (spec, INDEX, review records) except the six guard/registry test files in SCOPE-1: .claude/rules/internal-api-policy.md, DESIGN.md, the addons/intelligence gitlink, drives.py, internal.py, backend/tests, docs/ADDON-DEVELOPMENT.md, docs/addons/intelligence.md, the user guides, the e2e-layout case, FolderBrowser, PageHeader, GlobalSearch, SearchFilterChips/SearchQueryHeader, useFileSearch, useFolderFiles, searchQuery.ts, semanticSearch.ts, messages and the test-mock migrations.",
+    "Reverse direction: the touch point frontend/src/app/drive/[name]/search/page.tsx is not in the diff. I21's slot hiding is tested against that page, which apparently already hid them for operator queries.",
+    "Inside the addon submodule, the changed code is limited to app/file_matching.py (the new client), app/routers/search.py and app/search.py, plus the new tests (test_filtered_search_contract/scope/unchanged.py and matching_core_double.py). rag/retriever.py and rag/service.py do not reference file_id_constraint, which matches 'read, not changed'.",
+    "The internal-api-policy row is numbered 15 rather than the 'row 14' in the touch points, because row 14 already exists. The content matches the planned KEEP (watch closely) R3 exception.",
+    "No protected path is edited. internal.py now imports apply_file_filters and the private _normalize_kind from routers/drives.py, a router-to-router import within core."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "useFolderFiles changes `loading` for filtered queries to ignore semanticLoading, so the listing rows (and settledTotal) show before the meaning stage answers. The touch-point description for useFolderFiles does not mention this. Spec section 9's count rule is still satisfied, but the count can change when hits merge in.",
+    "fetchSemanticHits now reports `available: false` as ok:false. An addon answering available:false is therefore never cached in the modal's search cache, where it previously was cached as empty hits.",
+    "useFileSearch clears the merged rows when the old or the new query is filtered. This also drops listing rows, not only meaning hits, before the debounced refetch."
+  ],
+  "regression_risks": [
+    "The shared helper apply_file_filters is now used by both the listing and the Internal API. A future change to it moves both, which is intended but couples a HIGH-zone endpoint to drives.py internals (_normalize_kind).",
+    "The addon/core validator fold mismatch (casefold vs lower) can surface as 503/no hits at the tag cap; see SCOPE-2.",
+    "Guard-test counts were raised by hand. A later component that also registers must keep these numbers consistent."
+  ],
+  "test_coverage": [
+    "backend/tests/test_api_drive_listing_filters.py covers I18 (fold across drives, empty tag, markdown, repeated tag, combined filters).",
+    "backend/tests/test_internal_files_matching.py covers I1 parity against the listing, the caps, an unknown drive and a password-protected drive. It has no casefold-only tag pair.",
+    "The addon contract test asserts the sent tags only after lower(). No parity row covers casefold/lower divergence.",
+    "The guard inventory tests were updated rather than left failing, so they still enforce their registries."
+  ],
+  "not_verified": [
+    "The full addon diff (truncated at 200 KB). I read only file_matching.py and routers/search.py, plus grep hits; the scoped channel code in app/search.py was not read line by line.",
+    "Whether any other addon file (schemas, docs inside the submodule) changed in the gitlink range. Without git I could only search for new symbols.",
+    "Whether frontend/src/app/drive/[name]/search/page.tsx needed a change for I21. I inferred that it did not from the diff and the test.",
+    "I ran no tests and executed nothing."
+  ],
+  "confidence": 74,
+  "perspectives": [
+    {
+      "name": "scope",
+      "notes": "Compared every diff path with the touch points. Six guard/registry test files were not planned (SCOPE-1), and the listed page.tsx was not touched."
+    },
+    {
+      "name": "submodules",
+      "notes": "The gitlink bump is planned. The addon changes are confined to file_matching.py, routers/search.py, search.py and new tests, and the rag callers are untouched. Validator fold divergence: SCOPE-2."
+    },
+    {
+      "name": "persistence",
+      "notes": "The core endpoint is read-only. Failed meaning stages are not written to searchCache (semanticOk guard) in useFileSearch."
+    },
+    {
+      "name": "concurrency",
+      "notes": "The modal keeps the ctrl.signal.aborted guard and now also checks it before applying semantic results. On the results page, the continuation key includes filterSignature."
+    }
+  ]
+}

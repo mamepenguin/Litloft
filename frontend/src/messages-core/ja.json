@@ -275,7 +275,22 @@
     "hintSelect": "選ぶ",
     "hintOpen": "開く",
     "hintRemoveScope": "範囲を外す",
-    "driveRoot": "ドライブ直下"
+    "driveRoot": "ドライブ直下",
+    "queryField": "検索語",
+    "filters": "条件",
+    "removeFilter": "{label} {value} を外す",
+    "removeFilterOnly": "{label} を外す",
+    "addFilter": "条件を追加",
+    "addFilterWord": "条件",
+    "filterTag": "タグ",
+    "filterKind": "種類",
+    "filterFavorite": "お気に入り",
+    "filterBack": "戻る",
+    "filterTagSearch": "タグを絞り込む",
+    "filterTagsLoading": "タグを読み込んでいます…",
+    "filterTagsFailed": "タグを読み込めませんでした",
+    "filterTagsNone": "このドライブにタグはありません",
+    "filterTagsNoMatch": "一致するタグはありません"
   },
   "smartFolder": {
     "sectionTitle": "スマートフォルダ",

@@ -467,7 +467,6 @@ describe("SPEC-CORE-035 I7 the button is drawn only while every condition in sec
       },
       {},
     ],
-    ["the query has an operator", () => {}, { searchQuery: "penguin tag:bird" }],
     ["Scene search is on", () => {}, { includeSceneClip: true }],
     [
       "the semantic results hold no clip_thumbnail match",

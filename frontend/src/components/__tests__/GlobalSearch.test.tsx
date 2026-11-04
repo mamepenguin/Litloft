@@ -165,7 +165,7 @@ describe("GlobalSearch", () => {
       data: [],
       meta: { total: 0, page: 1, limit: 100 },
     });
-    mockFetchSemanticHits.mockResolvedValue([]);
+    mockFetchSemanticHits.mockResolvedValue({ ok: true, results: [] });
     mockIsSemanticSearchAvailable.mockResolvedValue(true);
     mockReadSearchCache.mockReturnValue(null);
     mockSearchCacheKey.mockImplementation(
@@ -862,7 +862,7 @@ describe("GlobalSearch", () => {
         data: [makeFile({ id: "f1", title: "video1" })],
         meta: { total: 1, page: 1, limit: 8 },
       });
-      mockFetchSemanticHits.mockResolvedValue([]);
+      mockFetchSemanticHits.mockResolvedValue({ ok: true, results: [] });
 
       render(<GlobalSearch />);
       fireEvent.click(screen.getByLabelText("Search"));
@@ -884,7 +884,6 @@ describe("GlobalSearch", () => {
     });
 
     it.each([
-      ["tags and text", "tag:旅行 京都", { search: "京都", limit: 8, tag: ["旅行"] }],
       ["operators only", "is:favorite", { search: "", limit: 8, favorite: true }],
     ])("with %s, lists through the filters and asks no semantic search", async (_, q, params) => {
       render(<GlobalSearch />);
@@ -914,7 +913,7 @@ describe("GlobalSearch", () => {
         data: [makeFile({ id: "f1", title: "filename-hit" })],
         meta: { total: 1, page: 1, limit: 8 },
       });
-      mockFetchSemanticHits.mockResolvedValue([
+      mockFetchSemanticHits.mockResolvedValue({ ok: true, results: [
         makeHit({
           file_id: "f2",
           filename: "semantic-hit.mp4",
@@ -923,7 +922,7 @@ describe("GlobalSearch", () => {
             { time_range: [90, 99], matches: [{ type: "transcript", score: 0.6 }] },
           ],
         }),
-      ]);
+      ] });
 
       render(<GlobalSearch />);
       fireEvent.click(screen.getByLabelText("Search"));
@@ -942,7 +941,7 @@ describe("GlobalSearch", () => {
         data: [makeFile({ id: "f1", title: "filename-hit" })],
         meta: { total: 1, page: 1, limit: 8 },
       });
-      mockFetchSemanticHits.mockResolvedValue([]);
+      mockFetchSemanticHits.mockResolvedValue({ ok: true, results: [] });
 
       render(<GlobalSearch />);
       fireEvent.click(screen.getByLabelText("Search"));
@@ -966,13 +965,13 @@ describe("GlobalSearch", () => {
         data: [makeFile({ id: "f1", title: "filename-hit" })],
         meta: { total: 1, page: 1, limit: 8 },
       });
-      mockFetchSemanticHits.mockResolvedValue([
+      mockFetchSemanticHits.mockResolvedValue({ ok: true, results: [
         makeHit({
           file_id: "f2",
           filename: "semantic-hit.mp4",
           score: 0.9,
         }),
-      ]);
+      ] });
 
       render(<GlobalSearch />);
       fireEvent.click(screen.getByLabelText("Search"));
@@ -1036,7 +1035,7 @@ describe("GlobalSearch", () => {
         });
         let release: (hits: SemanticHit[]) => void = () => {};
         mockFetchSemanticHits.mockImplementation(
-          () => new Promise<SemanticHit[]>((r) => (release = r)),
+          () => new Promise<{ ok: boolean; results: SemanticHit[] }>((r) => { release = (hits) => r({ ok: true, results: hits }); }),
         );
 
         render(<GlobalSearch />);
@@ -1097,7 +1096,7 @@ describe("GlobalSearch", () => {
       it("does not let a stage from an abandoned query paint over the current one", async () => {
         const releases: Array<(hits: SemanticHit[]) => void> = [];
         mockFetchSemanticHits.mockImplementation(
-          () => new Promise<SemanticHit[]>((r) => releases.push(r)),
+          () => new Promise<{ ok: boolean; results: SemanticHit[] }>((r) => { releases.push((hits) => r({ ok: true, results: hits })); }),
         );
         mockGetDriveFiles.mockResolvedValueOnce({
           data: [makeFile({ id: "old", title: "old-query-row" })],
@@ -1142,7 +1141,7 @@ describe("GlobalSearch", () => {
         });
         let release: (hits: SemanticHit[]) => void = () => {};
         mockFetchSemanticHits.mockImplementation(
-          () => new Promise<SemanticHit[]>((r) => (release = r)),
+          () => new Promise<{ ok: boolean; results: SemanticHit[] }>((r) => { release = (hits) => r({ ok: true, results: hits }); }),
         );
 
         render(<GlobalSearch />);
@@ -1169,7 +1168,7 @@ describe("GlobalSearch", () => {
           data: [],
           meta: { total: 0, page: 1, limit: 8 },
         });
-        mockFetchSemanticHits.mockResolvedValue([]);
+        mockFetchSemanticHits.mockResolvedValue({ ok: true, results: [] });
 
         render(<GlobalSearch />);
         fireEvent.click(screen.getByLabelText("Search"));
@@ -1207,7 +1206,7 @@ describe("GlobalSearch", () => {
         });
         let release: (hits: SemanticHit[]) => void = () => {};
         mockFetchSemanticHits.mockImplementation(
-          () => new Promise<SemanticHit[]>((r) => (release = r)),
+          () => new Promise<{ ok: boolean; results: SemanticHit[] }>((r) => { release = (hits) => r({ ok: true, results: hits }); }),
         );
 
         render(<GlobalSearch />);
@@ -1242,7 +1241,7 @@ describe("GlobalSearch", () => {
       });
 
       it("does not let an abandoned name stage paint over the current one", async () => {
-        mockFetchSemanticHits.mockResolvedValue([]);
+        mockFetchSemanticHits.mockResolvedValue({ ok: true, results: [] });
         const releases: Array<(res: unknown) => void> = [];
         mockGetDriveFiles.mockImplementationOnce(
           () => new Promise((r) => releases.push(r)),
@@ -1327,7 +1326,7 @@ describe("GlobalSearch", () => {
         });
         let release: (hits: SemanticHit[]) => void = () => {};
         mockFetchSemanticHits.mockImplementation(
-          () => new Promise<SemanticHit[]>((r) => (release = r)),
+          () => new Promise<{ ok: boolean; results: SemanticHit[] }>((r) => { release = (hits) => r({ ok: true, results: hits }); }),
         );
         return { release: (hits: SemanticHit[]) => release(hits) };
       };
@@ -1413,7 +1412,7 @@ describe("GlobalSearch", () => {
           data: [makeFile({ id: "f1", title: "filename-hit" })],
           meta: { total: 1, page: 1, limit: 8 },
         });
-        mockFetchSemanticHits.mockResolvedValue([]);
+        mockFetchSemanticHits.mockResolvedValue({ ok: true, results: [] });
 
         render(<GlobalSearch />);
         fireEvent.click(screen.getByLabelText("Search"));
@@ -1443,7 +1442,7 @@ describe("GlobalSearch", () => {
         });
         let release: (hits: SemanticHit[]) => void = () => {};
         mockFetchSemanticHits.mockImplementation(
-          () => new Promise<SemanticHit[]>((r) => (release = r)),
+          () => new Promise<{ ok: boolean; results: SemanticHit[] }>((r) => { release = (hits) => r({ ok: true, results: hits }); }),
         );
 
         render(<GlobalSearch />);
@@ -1508,7 +1507,7 @@ describe("GlobalSearch", () => {
           data: [makeFile({ id: "f1", title: "filename-hit" })],
           meta: { total: 1, page: 1, limit: 8 },
         });
-        mockFetchSemanticHits.mockResolvedValue([strongHit("s0")]);
+        mockFetchSemanticHits.mockResolvedValue({ ok: true, results: [strongHit("s0")] });
 
         render(<GlobalSearch />);
         fireEvent.click(screen.getByLabelText("Search"));
@@ -1528,7 +1527,7 @@ describe("GlobalSearch", () => {
         data: [makeFile({ id: "f1" })],
         meta: { total: 1, page: 1, limit: 8 },
       });
-      mockFetchSemanticHits.mockResolvedValue([makeHit({ file_id: "f2" })]);
+      mockFetchSemanticHits.mockResolvedValue({ ok: true, results: [makeHit({ file_id: "f2" })] });
 
       render(<GlobalSearch />);
       fireEvent.click(screen.getByLabelText("Search"));
@@ -1574,7 +1573,7 @@ describe("GlobalSearch", () => {
           return { data: [], meta: { total: 0, page: 1, limit: 8 } };
         },
       );
-      mockFetchSemanticHits.mockResolvedValue([]);
+      mockFetchSemanticHits.mockResolvedValue({ ok: true, results: [] });
 
       render(<GlobalSearch />);
       fireEvent.click(screen.getByLabelText("Search"));

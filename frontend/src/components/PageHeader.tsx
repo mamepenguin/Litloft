@@ -16,6 +16,11 @@ export interface PageHeaderProps {
    * repeating the last segment is one subject stated twice.
    */
   title?: ReactNode;
+  /**
+   * A field that takes the title's place in the subject row. With it, `title`
+   * is the page's heading but is drawn visually hidden.
+   */
+  titleField?: ReactNode;
   scope?: ReactNode;
   actions?: ReactNode;
   tabs?: ReactNode;
@@ -30,11 +35,13 @@ export function PageHeader({
   leading,
   titleIcon: TitleIcon,
   title,
+  titleField,
   scope,
   actions,
   tabs,
 }: PageHeaderProps) {
   const hasTitle = given(title);
+  const hasTitleField = given(titleField);
 
   const scopeOnTrail = !hasTitle && given(scope);
   const actionsOnTrail = !hasTitle && given(actions);
@@ -47,6 +54,16 @@ export function PageHeader({
     scopeOnTrail ||
     actionsOnTrail ||
     (given(leading) && !hasTitle);
+
+  const heading = hasTitle ? (
+    <h1
+      className={`text-2xl font-bold text-text-primary ${
+        hasTitleField ? "sr-only" : "truncate"
+      }`}
+    >
+      {title}
+    </h1>
+  ) : null;
 
   return (
     <header className="flex flex-col gap-1 px-4 py-2">
@@ -67,8 +84,8 @@ export function PageHeader({
         </div>
       )}
 
-      {hasTitle && (
-        <div className="flex min-w-0 items-start gap-3">
+      {hasTitleField && (
+        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:gap-3">
           {!hasTrailRow && leading}
           {/* `aria-hidden` is written explicitly even though lucide-react
               would supply the same attribute on its own. */}
@@ -77,10 +94,33 @@ export function PageHeader({
               <TitleIcon size={20} aria-hidden="true" />
             </div>
           )}
+          <div className="min-w-0 sm:flex-1">
+            {heading}
+            {titleField}
+          </div>
+          <div className="flex min-w-0 items-center gap-2 sm:contents">
+            {given(scope) && (
+              <div className="text-sm text-text-muted">{scope}</div>
+            )}
+            {given(actions) && (
+              <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
+                {actions}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {hasTitle && !hasTitleField && (
+        <div className="flex min-w-0 items-start gap-3">
+          {!hasTrailRow && leading}
+          {TitleIcon && (
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-bg-elevated text-text-primary">
+              <TitleIcon size={20} aria-hidden="true" />
+            </div>
+          )}
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-2xl font-bold text-text-primary">
-              {title}
-            </h1>
+            {heading}
             {given(scope) && (
               <div className="mt-1 text-sm text-text-muted">{scope}</div>
             )}

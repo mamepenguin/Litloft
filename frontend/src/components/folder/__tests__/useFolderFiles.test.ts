@@ -72,7 +72,7 @@ vi.mock("@/lib/searchCache", () => ({
   clearSearchCache: (...args: unknown[]) => mockClearSearchCache(...args),
 }));
 
-const mockFetchSemanticHits = vi.fn().mockResolvedValue([]);
+const mockFetchSemanticHits = vi.fn().mockResolvedValue({ ok: true, results: [] });
 const mockIsSemanticSearchAvailable = vi.fn().mockResolvedValue(false);
 
 vi.mock("@/lib/semanticSearch", () => ({
@@ -90,7 +90,7 @@ describe("useFolderFiles", () => {
     });
     mockGetFolders.mockResolvedValue([mockFolder("photos")]);
     mockReadSearchCache.mockReturnValue(null);
-    mockFetchSemanticHits.mockResolvedValue([]);
+    mockFetchSemanticHits.mockResolvedValue({ ok: true, results: [] });
     mockIsSemanticSearchAvailable.mockResolvedValue(false);
   });
 
@@ -555,7 +555,7 @@ describe("useFolderFiles", () => {
         ts: Date.now(),
       });
       mockIsSemanticSearchAvailable.mockResolvedValue(true);
-      mockFetchSemanticHits.mockResolvedValue([]);
+      mockFetchSemanticHits.mockResolvedValue({ ok: true, results: [] });
 
       const { result } = renderHook(() =>
         useFolderFiles({
@@ -885,7 +885,6 @@ describe("useFolderFiles with search operators", () => {
     );
 
   it.each([
-    ["tags and text", "tag:旅行 tag:2024 京都", null, { search: "京都", tag: ["旅行", "2024"] }],
     ["operators only", "is:favorite type:video type:image", null, { search: "", favorite: true, type: ["video", "image"] }],
     ["the toolbar kind narrows the operators", "type:text type:video", "document", { search: "", type: "text" }],
   ] as const)("sends %s to the listing and asks no semantic search", async (_, q, typeFilter, expected) => {
@@ -906,18 +905,23 @@ describe("useFolderFiles with search operators", () => {
   });
 
   it("drops semantic hits left from the previous query once operators appear", async () => {
-    mockFetchSemanticHits.mockResolvedValue([
-      {
-        file_id: "s1",
-        drive: "main",
-        filename: "s1.mp4",
-        file_type: "video",
-        score: 0.9,
-        match_types: ["transcript"],
-        segments: [],
-        file: null,
-      },
-    ]);
+    mockFetchSemanticHits
+      .mockResolvedValueOnce({
+        ok: true,
+        results: [
+          {
+            file_id: "s1",
+            drive: "main",
+            filename: "s1.mp4",
+            file_type: "video",
+            score: 0.9,
+            match_types: ["transcript"],
+            segments: [],
+            file: null,
+          },
+        ],
+      })
+      .mockResolvedValue({ ok: true, results: [] });
     const { result, rerender } = renderHook(
       ({ q }: { q: string }) =>
         useFolderFiles({
