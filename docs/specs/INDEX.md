@@ -102,6 +102,8 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-037 | implemented | docs/specs/ingest-progress.md | sha256:de18030f6fb3fe7172d2ef5474e6349e04ecb055520a610d4e780e8648bcfefd |
 | SPEC-ADDON-057 | implemented | docs/specs/ingest-progress.md | sha256:de18030f6fb3fe7172d2ef5474e6349e04ecb055520a610d4e780e8648bcfefd |
 | SPEC-CORE-032 | draft | docs/specs/inbox.md | |
+| SPEC-ADDON-059 | draft | docs/specs/inbox.md | |
+| SPEC-CORE-041 | draft | docs/specs/inbox.md | |
 | SPEC-CORE-033 | draft | docs/specs/share-target.md | |
 | SPEC-ADDON-053 | implemented | docs/specs/ask-about-this-file.md | sha256:7da6124f365a0c64ce31532e5697fb68fbc14a639efa56394ad99bd09b8b5b6a |
 | SPEC-ADDON-056 | implemented | docs/specs/ask-about-this-file.md | sha256:7da6124f365a0c64ce31532e5697fb68fbc14a639efa56394ad99bd09b8b5b6a |
