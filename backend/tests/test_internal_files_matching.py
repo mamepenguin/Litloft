@@ -252,6 +252,23 @@ class TestRequestCaps:
 
         assert res.status_code == 200, res.text
 
+    @pytest.mark.parametrize(
+        "tags",
+        [
+            [f"t{i}" for i in range(19)] + ["stra\u00dfe", "STRASSE"],
+            ["\u0130" * 101, "i\u0307" * 101],
+        ],
+        ids=["casefold-only-pair-is-two-tags", "long-duplicate-checked-before-dedup"],
+    )
+    def test_fold_sensitive_tags_match_the_addon_validator(
+        self, client, corpus, tags
+    ):
+        c, _db, _drive_dir, _data_dir = client
+
+        res = _match(c, tags=tags)
+
+        assert res.status_code == 422
+
     def test_empty_tag_names_do_not_count_towards_the_cap(self, client, corpus):
         c, _db, _drive_dir, _data_dir = client
         tags = [""] * 5 + [f"t{i}" for i in range(20)]
