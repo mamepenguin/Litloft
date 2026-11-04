@@ -59,8 +59,14 @@ SPEC-CORE-039, Internal API:
    applies for `tag`, `type`, `favorite` and `liked`, moved into one helper in
    `routers/drives.py` that both routes call, so for the same conditions the endpoint's
    ids are exactly the ids that listing returns with no `search`, `path` or `trust`.
-3. It needs no secret (a read of ids, like `POST /files/bulk`), and checks no caller
-   credential: the drive is the one the addon proxy already validated as `X-Lit-Drive`.
+   The helper keeps the listing's details: the tag fold over all `Tag` rows (not narrowed
+   to the drive), dropping empty tag names, `markdown` read as `text`, and one
+   `File.tags.any(...)` clause per tag in the given order.
+3. It needs no secret (a read of ids, like `POST /files/bulk`), and checks no viewer
+   access: the addon's call carries no cookie, and the drive is the one the addon proxy
+   already validated as `X-Lit-Drive`. A drive is unknown when it is not in
+   `config.get_drive_names()` (404); a password-protected drive returns its ids like any
+   other.
 
 SPEC-CORE-039, frontend (modal and results page):
 
@@ -69,17 +75,22 @@ SPEC-CORE-039, frontend (modal and results page):
    listing with the operators (unchanged) and the meaning search with `q` = the text (not
    the whole query) and `filter` = the filter as one JSON query parameter,
    `{"tags":[…],"kinds":[…],"favorite":true,"liked":true}`, with empty lists and false
-   flags left out. `type` and `include_scene_clip` are not sent with `filter`; the kinds
-   travel inside it.
+   flags left out. `type`, `include_scene_clip` and `mode` are not sent with `filter`;
+   the kinds travel inside it.
 2. The hits are merged into the list as today (`mergeResults`, `sortMerged`); trust
    filtering stays on the client as today.
 3. A filtered query with blank text runs no meaning search and shows the listing only,
    as today. A filter whose kinds are impossible (`resolveKinds(...).impossible`)
    requests nothing, as today.
+3a. Modal: the generation guard stays `ctrl.signal.aborted`. A meaning stage that failed
+   (non-200 or network) is not written to the search cache, so the 60 s cache never serves
+   a failed stage as "no hits"; `fetchSemanticHits` reports failure apart from an empty
+   answer for this (how is the implementer's).
 4. In the modal, a scoped search (a scope's `type` is set) keeps today's behaviour: no
    meaning search, with or without operators.
 5. Results page: "Show more by similarity" is offered under the same conditions as today
-   except that a filtered query no longer rules it out, and its request
+   except that a filtered query no longer rules it out, nor does `include_scene_clip=true`
+   in the URL for a filtered query (its meaning search ran without scene clip); its request
    (`/search/images`) carries the same `filter` and `q` = the text. The continuation's key
    includes the filter, so a changed filter never shows the previous filter's
    continuation.
@@ -91,8 +102,10 @@ SPEC-CORE-039, frontend (modal and results page):
 SPEC-CORE-039, results page header:
 
 1. The static heading 「検索: "…"」 is replaced by a text field holding the URL's `q`,
-   spanning the header's subject row. The heading text stays as a visually hidden `<h1>`
-   so the page keeps its heading. The scope line (the count) and the actions (Smart
+   spanning the header's subject row. The heading text 「検索: "<q>"」 (the URL's `q`) stays
+   as a visually hidden `<h1>` so the page keeps its heading. `PageHeader` gains an
+   optional slot for a field in the title's place; with the slot set, `title` renders
+   only as that hidden `<h1>`. Without the slot, `PageHeader` renders exactly as today. The scope line (the count) and the actions (Smart
    Folder button, and the `search-modes` slot when shown) keep their places in the
    subject row on `sm` and wider; below `sm` the field takes the full content width and
    the count and actions sit in one row under the chips, so the phone header no longer
@@ -102,10 +115,16 @@ SPEC-CORE-039, results page header:
    `filter.type.*`), 「お気に入り」 for `is:favorite`, 「Liked」 for `is:liked` (labels
    from `sidebar.favorites` / `sidebar.liked`). Chips are derived from the field's
    current text, so typing an operator shows its chip at once.
-3. ✕ on a chip removes from the field text every token that produced it (each `tag:` token
-   whose value equals the chip's case-insensitively; each `type:` token whose value
+3. ✕ on a chip removes from the field text every token that produced it, recognised
+   exactly as `parseSearchQuery` recognises operators (half- or full-width colon, NFKC
+   and case folding of the name, the same value rules) and nothing else: each `tag:`
+   token whose value equals the chip's case-insensitively; each `type:` token whose value
    resolves to the chip's kind, `markdown` included for `text`; each `is:` token for that
-   flag), joins the remaining tokens with single spaces, and submits.
+   flag. A token parsed as text (`type:foo`) is never removed. The remaining tokens are
+   joined with single spaces, and the result is submitted. When nothing is left (the
+   only operator of a query with no text), it navigates to the drive's library view
+   `/drive/<drive>` instead (pending human confirmation). Focus then moves to the next
+   chip's ✕, else the previous, else the field.
 4. After the chips, a 「＋ 条件」 button (「＋」 alone below `sm`) opens a menu of 「タグ」,
    「種類」 and 「お気に入り」. 「タグ」 and 「種類」 replace the menu's content with a value
    list in the same popup: tags come from `getDriveTags(drive)` ranked by
@@ -114,11 +133,13 @@ SPEC-CORE-039, results page header:
    is disabled when `is:favorite` is already present. Choosing a value appends
    `tag:<value>`, `type:<kind>` or `is:favorite` to the field text and submits.
 5. Submitting (Enter in the field, ✕, or a menu choice) navigates with `router.push` to
-   `/drive/<drive>/search?q=<text>`, keeping `type`, `smart_folder_id` and
-   `include_scene_clip` as they are, so each submission is one history entry and Back
+   `/drive/<drive>/search?q=<text>`, keeping `type`, `sort`, `order`, `smart_folder_id`
+   and `include_scene_clip` as they are, so each submission is one history entry and Back
    returns to the previous query. Submitting text that equals the current `q` (after
-   trimming) does not navigate. Blank text does not navigate: the field stays empty and
-   focused and the list keeps the current query.
+   trimming) does not navigate. Enter on blank text does not navigate: the field stays
+   empty and focused and the list keeps the current query. FolderBrowser's URL-sync
+   effect (`router.replace` on `type` / `sort` / `order`) must not add or replace a
+   second entry for the same submission: one submission is exactly one history entry.
 6. Whenever the URL's `q` changes (submission, Back, Forward), the field's text becomes
    the new `q`, discarding unsubmitted edits. Escape in the field restores the URL's `q`.
 
@@ -134,7 +155,10 @@ SPEC-ADDON-047:
 1. `GET /search` and `GET /search/images` accept an optional `filter` query parameter: a
    JSON object with optional `tags` (list of strings), `kinds` (list of the eight kinds,
    `markdown` accepted as `text`), `favorite` and `liked` (bools). Without `filter` both
-   routes behave exactly as today.
+   routes behave exactly as today. The channel constraint is a new argument of
+   `search()` that only the `filter` path sets; `file_id_scope` keeps its meaning (a
+   post-filter in `_build_results`) for its existing callers, Ask and Find in
+   `rag/retriever.py` and `rag/service.py`.
 2. With `filter`, the route calls `POST /api/internal/files/matching` with the request
    drive (from `X-Lit-Drive`) and the filter, once per request, uncached. An empty
    `file_ids` answers `results: []` (`total: 0`) without embedding the query or running
@@ -149,10 +173,13 @@ SPEC-ADDON-047:
      reads (`embeddings` by `file_id`, `vector_table` and `embedding_type`). At most
      20,000 rows: exact ranking — read those rows' vectors by `embedding_id` in batches
      of 500, convert each L2 distance with `_l2_to_cosine_similarity`, and take the
-     nearest rows up to the channel's candidate count. Over 20,000 rows: KNN without the
+     nearest rows up to the channel's candidate count (`candidates` for text,
+     `clip_depth` for CLIP). Over 20,000 rows: KNN without the
      id constraint, widened as `_drive_thumbnail_neighbours` widens (k =
      min(candidates × f, 4096) for f in 4, 16, 64, then 4096), keeping in-scope rows,
-     until the candidate count is reached or a fetch returns fewer rows than asked.
+     until the candidate count is reached or a fetch returns fewer rows than asked. The
+     text channel keeps excluding `video_visual_scene` rows from the count, the top N and
+     the gap and CV checks, as the unscoped channel does today.
    - The channel's existing stages (absolute floors `min_score_text` /
      `min_score_clip_thumbnail`, the text channel's gap and CV checks, the margin cutoff)
      then run on the in-scope candidates only, so "the top score" each relative cutoff
@@ -160,7 +187,8 @@ SPEC-ADDON-047:
      `file_id_scope`, so its ratio cutoff is also measured within the scope.
 4. `/search/images` reads only the scope's `clip_thumbnail` rows of the drive (the scope
    joins the query it already runs) and is otherwise unchanged (no cutoff, at most 2000).
-5. `filter` with `include_scene_clip=true` is answered with 422.
+5. `filter` with `include_scene_clip=true`, with `type`, or with `mode=recall` is answered
+   with 422. The frontend sends none of them with `filter`.
 
 ### 2. Failure cases
 
@@ -193,11 +221,17 @@ Meaning search of a search view:
 | any | off | the text becomes blank, the query becomes scoped, or the kinds impossible |
 | any | pending | the query text or the filter changes (previous hits dropped first) |
 
+Forbidden: `off` to `pending` for blank text, impossible kinds or a scoped modal search;
+`answered` keeping hits after the text or filter changed; `failed` written to the cache.
+
 Field of the results page: *in sync* (text equals the URL's `q`) and *edited*. Typing moves
 to edited; submission, Escape, or any change of the URL's `q` returns to in sync.
+Forbidden: a change of the URL's `q` leaving the field edited; a submission without a
+navigation leaving it edited, except Enter on blank text.
 
 Continuation ("Show more by similarity"): `hidden`, `offered`, `loading`, `open`, `done`
-as today; a change of the filter is a change of its key.
+as today; a change of the filter is a change of its key. Forbidden: `open` or `done`
+showing results fetched under another key; `offered` while the text is blank.
 
 ### 4. Data read and written
 
@@ -320,9 +354,13 @@ Core:
 - `backend/app/routers/internal.py` (HIGH zone): `POST /api/internal/files/matching`
   with its request model and caps.
 - `backend/app/routers/drives.py`: the tag / kind / favourite / liked predicates move
-  into one helper used by `list_drive_files` and the new endpoint.
+  into one helper used by `list_drive_files` and the new endpoint, keeping the tag fold
+  over all `Tag` rows, the empty-name drop, `markdown` as `text`, and the order and number
+  of `File.tags.any(...)` clauses.
 - `backend/tests/`: endpoint tests (conditions, AND/OR, case folding, active only, drive
-  boundary, unknown drive, caps) and the listing-parity test.
+  boundary, unknown drive, a password-protected drive, caps) and the listing-parity test.
+- `.claude/rules/internal-api-policy.md`: row 14 of the audit table,
+  `POST /files/matching`, KEEP, with the R1-R5 rationale of 6.
 - `frontend/src/lib/semanticSearch.ts`: `filter` on `fetchSemanticHits` and
   `fetchSemanticImages`.
 - `frontend/src/lib/searchQuery.ts`: the filter from a parsed query; operator chips with
@@ -331,7 +369,9 @@ Core:
   `frontend/src/components/folder/useFolderFiles.ts`: run the meaning stage for filtered
   queries, send `q` = text and `filter`, drop previous hits on change, continuation key.
 - `frontend/src/components/FolderBrowser.tsx`, `frontend/src/components/PageHeader.tsx`:
-  the field in the title's place with a visually hidden `<h1>`, the phone layout.
+  the field in the title's place with a visually hidden `<h1>` (a new optional
+  `PageHeader` slot), the phone layout, the URL-sync effect's interplay with
+  `router.push`.
 - New components for the chip row and the 「＋ 条件」 menu (under
   `frontend/src/components/search/`), used by the results page and
   `frontend/src/components/GlobalSearch.tsx`.
@@ -339,13 +379,19 @@ Core:
 - `frontend/src/messages-core/ja.json`, `en.json`.
 - Frontend tests next to the existing search tests; a `frontend/e2e-layout/` case for
   the header at 390 px and at desktop width.
+- `frontend/src/lib/searchCache.ts` callers: a failed meaning stage is not cached.
+- `DESIGN.md` §Page Header: a rule that on the search results page the editable query
+  field is the subject in place of the visible title, with a visually hidden `<h1>`
+  (pending human confirmation).
 - `docs/user-guide/search.md`, `docs/ADDON-DEVELOPMENT.md`, `docs/addons/intelligence.md`.
 
 Addon (intelligence):
 - `addons/intelligence/app/routers/search.py`: `filter` on `/search` and
   `/search/images`, 422 and 503 paths.
 - `addons/intelligence/app/search.py`: scope-constrained FTS channels, the exact and
-  widened vector paths, `search_images` scope, `file_id_scope` into `_build_results`.
+  widened vector paths, `search_images` scope, `file_id_scope` into `_build_results`;
+  the constraint is a new argument, so `rag/retriever.py` and `rag/service.py` (the
+  `file_id_scope` callers) are read, not changed.
 - A new Internal API client module beside `app/file_hydrate.py` for
   `POST /files/matching`.
 - `addons/intelligence/tests/`: channel constraint, threshold, cutoff-within-scope,
@@ -368,12 +414,19 @@ I1. For any conditions, `POST /api/internal/files/matching` returns exactly the 
 I2. With `filter`, every result of `/search` and `/search/images` is a file id the core endpoint returned for the request drive; no result outside it is ever returned, including when the core call fails, in which case the route answers 503 and runs no channel.
 I3. With `filter`, a file in the scope that clears a channel's absolute floor is not dropped because files outside the scope score higher: every candidate limit and relative cutoff (text gap and CV checks, margin, `_build_results` ratio) is computed over in-scope candidates only.
 I4. A vector channel whose scope holds at most 20,000 rows of its types ranks them exactly, and above that uses the widened KNN; both paths give the same candidates on a scope where the widened KNN reaches the candidate count.
-I5. Without `filter`, `/search` and `/search/images` return the same results as before this change.
+I5. Without `filter`, `/search` and `/search/images` return the same results, in the same order with the same scores, as before this change.
 I6. A filtered query with non-blank text sends the meaning search `q` equal to the text without operator tokens and a `filter` equal to the parsed operators (kinds resolved with the toolbar type), never `include_scene_clip` or `type`; a filtered query with blank text, impossible kinds, or a scoped modal search sends no meaning search.
 I7. No row from a meaning answer of a previous query or filter is shown once the query or filter has changed, on either surface, and "Show more by similarity" never shows a continuation fetched for a different filter.
-I8. ✕ on a chip removes every token that produced that chip and no other token; on the results page it pushes exactly one history entry with the new `q` and keeps `type`, `smart_folder_id` and `include_scene_clip`; in the modal it navigates nowhere.
+I8. ✕ on a chip removes every token that produced that chip and no other token, recognising operators exactly as `parseSearchQuery` does; on the results page it pushes exactly one history entry with the new `q` and keeps `type`, `sort`, `order`, `smart_folder_id` and `include_scene_clip`; in the modal it navigates nowhere.
 I9. The results page field shows the URL's `q` after every change of `q`, including Back and Forward, and a blank or unchanged submission navigates nowhere.
 I10. More than 20 tags, a tag over 200 characters, or an unknown kind is answered 422 by both the addon and the core endpoint, and their validators accept and reject the same inputs.
+I11. Ask and Find retrieval (`rag/retriever.py`, `rag/service.py`, through `file_id_scope`) returns the same results as before this change.
+I12. `POST /api/internal/files/matching` answers 404 exactly for a drive not in `config.get_drive_names()`, and returns a password-protected drive's ids without any viewer credential.
+I13. The chips are one per distinct operator of the current text, in the order of first appearance, and update on every keystroke without a request; after ✕, focus is on the next chip's ✕, else the previous, else the field.
+I14. The 「＋ 条件」 menu offers タグ, 種類 and お気に入り; its tag list holds at most 8 of the drive's tags with a count that are not already in the query; its kinds are those not already chosen; お気に入り is disabled while `is:favorite` is present; a choice appends one operator token and submits.
+I15. At 390 px wide, measured in a real browser by `frontend/e2e-layout/`, the field spans the content width with the full query reachable, and the count sits on one line under the chips; at desktop width the field, the count and the actions share the subject row.
+I16. The results page has exactly one `<h1>`, visually hidden, whose text is 「検索: "<q>"」 for the URL's `q`; every other `PageHeader` user renders exactly as before.
+I17. A failed meaning stage is never written to the modal's search cache, and the modal never applies a stage whose `ctrl.signal` was aborted.
 
 ## Checked, no action
 
@@ -406,3 +459,12 @@ I10. More than 20 tags, a tag over 200 characters, or an unknown kind is answere
 - **A secret on the new endpoint.** Normal read endpoints need none
   (`.claude/rules/design-decisions.md`, Internal API); only integrity-changing writes use
   the strict gate.
+
+## Pending human confirmation
+
+- ✕ on the only operator of a query with no text navigates to the drive's library view
+  `/drive/<drive>` (where clearing a search leads), since nothing is left to search;
+  Escape and Back keep their usual meaning. Recommended.
+- `DESIGN.md` §Page Header gains a rule in this PR: on the search results page the
+  editable query field is the page's subject in place of the visible title, with a
+  visually hidden `<h1>`. Recommended.
