@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R4-1",
+      "status": "confirmed",
+      "note": "frontend/src/__tests__/uploadProcessingRefresh.test.tsx:74-89 renderCompleted drops only a.txt (file_a). The it.each at :259-307 asserts callsSoFar[1] equals [[\"file_a\"]] (:299). The only queued follow-up is replayed at frontend/src/hooks/useUpload.ts:264-268. If it instead queued {all:true} (useUpload.ts:234), refreshProcessingOnce (:280-292) would choose every entry that needsProcessingFetch, and with one entry that is still [\"file_a\"]. The assertion passes either way. The other tests that touch mid-request or processing (uploadProcessingView.test.tsx, uploadLock.test.tsx) do not exercise a mid-request event with several entries, so nothing would catch that regression."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "deep-r4-1",
+      "status": "confirmed",
+      "note": "This is the same gap as R4-1. The 'a held id' case (uploadProcessingRefresh.test.tsx:261) runs with a single entry from renderCompleted (:86), and :299 expects [\"file_a\"]. A mutation of queueProcessingRefresh (useUpload.ts:237-249) that sets processingRefreshQueued = { all: true } whenever held.length > 0 would replay refreshProcessing() with no ids (:267). That still requests only file_a, because it is the only entry needing a fetch (:281-285), so the test would pass."
+    }
+  ],
+  "specification_compliance": [
+    "The code follows I8 (r2) id scoping for queued mid-request refreshes. queueProcessingRefresh keeps only held ids that still need a fetch, and the follow-up replays only those ids (useUpload.ts:237-249, 264-268). What is missing is a test with more than one entry."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "A mid-request follow-up that widens to every entry would go unnoticed, because no test drives a mid-request event with two or more entries."
+  ],
+  "test_coverage": [
+    "The it.each in uploadProcessingRefresh.test.tsx:259-307 covers a foreign id (no follow-up) and a held id (one follow-up), each with one entry only. It does not cover id narrowing among several entries."
+  ],
+  "not_verified": [
+    "I did not run the test suite or a mutation; the claims were checked by reading the code only.",
+    "I did not review test files outside frontend/src/__tests__ for multi-entry mid-request coverage."
+  ],
+  "confidence": 90
+}

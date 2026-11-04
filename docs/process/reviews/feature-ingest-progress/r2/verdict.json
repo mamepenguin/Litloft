@@ -1,0 +1,1 @@
+{"verdict":"FAIL","reasons":["open finding claude-deep:deep-r2-1 is bucket A or BLOCKER"],"findings":[{"reviewer":"claude-read","id":"R2-1","state":"open"},{"reviewer":"claude-read","id":"R2-2","state":"open"},{"reviewer":"claude-deep","id":"deep-r2-1","state":"open"},{"reviewer":"claude-deep","id":"deep-r2-2","state":"open"}],"needs_human":[]}

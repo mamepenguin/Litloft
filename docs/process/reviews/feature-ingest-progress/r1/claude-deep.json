@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "scope-1",
+      "origin": "reviewer",
+      "claim": "The gitlink bump rewrites the event emitters of five intelligence workers that are not in the touch-point list (chapter_suggestions.py, refine.py, summaries.py, video_visual.py, vision.py), plus whisper's generic _emit_ws_event, by routing them through a new unlisted module app/addon_events.py. This changes how events that have nothing to do with processing.updated get delivered.",
+      "impact": "In production, CORE_INTERNAL_SECRET is set and /api/internal/addon-events rejects any request without the header (backend/app/routers/internal.py:62-65, 731). Before this change, the refine, summaries, vision and whisper emitters posted without the header, so their events were dropped. Now they arrive and are broadcast. Vision's events carry no drive (vision.py:763-808: data is {file_id, model|reason}), so the core broadcasts them with drive=None (internal.py:740) to every connected viewer. That includes viewers who cannot open the file's drive, which breaks the design-decisions rule on the drive boundary for locked drives. Frontend handlers for refine, summary, vision and transcription events, which effectively never fired before, now fire in normal use.",
+      "evidence": "addons/intelligence/app/addon_events.py (new) adds X-Internal-Secret, trust_env=False and raise_for_status. The old refine.py, summaries.py, vision.py and whisper.py _emit_ws_event bodies sent no secret header, and vision.py sent no top-level drive. The new vision.py:473-476 calls post_addon_event(event, data), and _payload lifts a drive only from data['drive'], which vision never sets. The spec's touch points name only metadata.py, whisper.py (for processing.updated), indexer.py, routers/files.py, the manifest, the messages and the tests.",
+      "repro": "Read-only. With CORE_INTERNAL_SECRET set, trace one vision event: the old body posted {event, data} with no secret, which verify_internal_secret rejects with 403. The new body posts with the secret, and broadcast is called with drive=None. Not executed.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is outside the declared touch points, and the drive-leak consequence breaks a project design rule (design-decisions: drive boundary) rather than one of I1–I13. I6 covers only processing.updated.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Either keep the shared helper limited to the processing.updated poster and leave the other workers alone, or add the five workers and addon_events.py to the touch points through a spec revision and make vision events carry drive before they become deliverable."
+    },
+    {
+      "id": "scope-2",
+      "origin": "reviewer",
+      "claim": "The diff adds addons/intelligence/app/processing_events.py, a new module that the touch-point list does not name.",
+      "impact": "It contains the 100-id splitting and the swallow-on-failure policy that I6 depends on, so a reader who works from the touch points would miss where I6 is actually enforced.",
+      "evidence": "addons/intelligence/app/processing_events.py (new). It is imported by metadata.py, whisper.py and indexer.py.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a supporting helper for listed writers. No invariant is broken; only the touch-point list is incomplete.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "scope-3",
+      "origin": "reviewer",
+      "claim": "The diff changes addons/intelligence/app/schemas.py (it adds ProcessingRequest, ProcessingStage, ProcessingFile and ProcessingResponse), and the touch-point list does not name that file.",
+      "impact": "There is no user-visible effect. The touch-point list is incomplete for the addon's request/response models, even though the core-side schemas.py is listed.",
+      "evidence": "addons/intelligence/app/schemas.py at the hunk at line 266.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An unlisted file with no invariant impact.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "scope-4",
+      "origin": "reviewer",
+      "claim": "whisper.py changes go beyond posting processing.updated: _record_failed_job gains a required drive parameter, and the generic transcription event emitter is replaced.",
+      "impact": "Any other caller of _record_failed_job that does not pass drive raises TypeError. That error is not caught by the function's own best-effort wrapper, because it happens at the call site. intelligence.transcription.* events now reach browsers in production; before, the missing secret dropped them.",
+      "evidence": "whisper.py, in the hunks around lines 1001-1035 (signature) and 61-77 (_emit_ws_event). In the diff, only the two index_whisper call sites were updated. I did not grep for other callers.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "whisper.py is listed, but only for processing.updated. This part changes generic behavior that no invariant declares.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    }
+  ],
+  "specification_compliance": [
+    "Core side: main.py, the new files_processing.py router, addon_proxy.py, addon_registry.py, schemas.py and backend/tests all fall within the touch points ('or a new router registered in main.py' covers files_processing.py).",
+    "Frontend: useUpload.ts, UploadProgress.tsx, api.ts, the ja/en messages, the new tests and the uploadApiMock test helper are within the touch points ('Frontend tests next to the existing upload tests').",
+    "Docs: api.md, websocket-events.md, ADDON-DEVELOPMENT.md and user-guide/upload-and-fileops.md are listed. docs/addons/intelligence.md is a listed touch point but this diff does not reach it (a grep for 'processing' in that file finds nothing). It is under-delivered, not unplanned.",
+    "Addon: routers/files.py, workers/metadata.py, workers/whisper.py, indexer.py, manifest.json, the frontend messages and the tests are listed. addon_events.py, processing_events.py, schemas.py, chapter_suggestions.py, refine.py, summaries.py, video_visual.py and vision.py are not."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Vision, refine, summaries and transcription events now pass the core's secret gate and are broadcast. Vision events without a drive go to every viewer.",
+    "chapter_suggestions and video_visual now swallow every exception, where before they caught only httpx.HTTPError."
+  ],
+  "regression_risks": [
+    "Frontend listeners for intelligence.* events that were silently dropped in production now receive them, which may surface UI behavior nobody has exercised.",
+    "A sync HTTP post (up to 3 s) now runs inside fail_orphaned_running_jobs at startup and inside worker write paths."
+  ],
+  "test_coverage": [
+    "test_addon_event_secret.py checks the header and that no module other than the helper posts to addon-events. Nothing checks that drive scoping is preserved for the refactored emitters (vision has no drive).",
+    "There is no test for the behavior change of the refine, summaries and vision emitters."
+  ],
+  "not_verified": [
+    "I did not grep for other callers of whisper._record_failed_job.",
+    "I did not check which frontend handlers consume intelligence.vision_describe, refine or summary events.",
+    "I ran no tests and did not run the gates.",
+    "I did not check the full set of submodule commits between bb0b6aa and c1d2c57 beyond the diff shown."
+  ],
+  "confidence": 80
+}

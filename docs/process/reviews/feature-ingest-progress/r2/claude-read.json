@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "R2-1",
+      "origin": "reviewer",
+      "claim": "A refine job whose file row cannot be read posts no events at all. When the snapshot raises, `drive` stays None and the `intelligence.refine.failed` event is refused by the new drive gate. When the row is missing, `refine.started` and `refine.completed` are refused too, because `refine.started` now waits for the snapshot that supplies the drive.",
+      "impact": "Before the fix, refine.started always went out first and refine.failed followed on a snapshot error (whenever the secret check let the post through). Now a client gets no lifecycle event for these jobs, and a warning is logged instead. A grep of the frontend found no consumer of intelligence.refine.*, so the user-visible effect today is nil. A future listener would wait forever on a job that failed at snapshot.",
+      "evidence": "addons/intelligence/app/workers/refine.py:695-710: `drive` is initialised to None, and the except branch emits refine.failed with drive=None. refine.py:713 moves refine.started after the snapshot. addon_events.py:62-65 returns False without posting when no drive is given. tests/test_addon_event_drive.py covers refine only with a present IndexedFile row.",
+      "repro": "not_reproduced. Read-only trace: make the `_snapshot` call raise, then follow `_emit_ws_event`, which calls `post_addon_event`, where `_scoped_drive` returns None, the warning is logged and nothing is posted.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "I14 (r3) says a post without a drive is not sent, so dropping this event is exactly what I14 specifies and no invariant is broken. The changed lifecycle of the refine events is not described anywhere.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Pass the drive into start_refine_job from the drive-scoped route that starts the job, so that started and failed can name a drive without depending on the snapshot."
+    },
+    {
+      "id": "R2-2",
+      "origin": "reviewer",
+      "claim": "fail_orphaned_running_jobs, which runs at container startup, now makes one synchronous HTTP post to the core per drive, with a 3 s timeout each, before startup continues.",
+      "impact": "When the intelligence container restarts with orphaned running jobs while the core is down or still starting, startup is delayed by up to 3 s per affected drive, and the processing.updated event is lost. The drawer recovers on its next tick, so the user sees no wrong result.",
+      "evidence": "addons/intelligence/app/workers/whisper.py:1584-1590 calls emit_processing_updated synchronously after the session closes. processing_events.py:40 calls post_addon_event_sync, and addon_events.py:28 sets _TIMEOUT_SECONDS = 3.0.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Operational latency only. I6 requires the post, and the lost event is covered by the tick.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "Commit 30a9962a2 records the R-5 process note. The behaviour under review is the branch diff given in the prompt, and the fix commits are 9f90576f2 (I14 revision), 13dc9688a (gitlink bump to bf2a994) and 30a9962a2.",
+    "r1 TP-2 and scope-1 (drive-less vision events broadcast to every viewer) are resolved. Every vision_describe emit now carries `drive` (vision.py:763-919), and `drive` is read before the first emit (vision.py:740-749).",
+    "I14 holds in the code I read. Every intelligence emitter goes through app/addon_events.py: chapter_suggestions.py:239, refine.py:627, summaries.py:53, video_visual.py:372, vision.py:476, whisper.py:77 and processing_events.py:40. post_addon_event and post_addon_event_sync both refuse when there is no drive (addon_events.py:62-65 and 86-89). All emit sites I checked set data['drive']: whisper.py:928/1120/1139/1170, chapter_suggestions.py:395/437/455/484, video_visual.py:826/842/873/1106/1182, routers/summaries.py:1017/1096 and workers/summaries.py:84.",
+    "r1 TP-1 and TP-3 (unlisted modules) are covered by the I14 revision, which adds addon_events.py and the refine, summaries, vision, chapter_suggestions and video_visual workers to the touch points.",
+    "I6: the processing.updated posts carry the drive and are split into chunks of at most 100 ids (processing_events.py:33-42). The flag-moving writes in metadata.py, whisper.py and indexer.py check the false-to-true transition before posting. The JobRecord job_kind is only ever 'transcription', so the orphaned-job hook posting for every running row matches I6.",
+    "Core endpoint (I1-I4, I11, I13): files_processing.py filters by accessible drive and active_file_filter before calling an addon, groups ids by drive, and builds the unavailable stage for an addon failure, a malformed body or an omitted file. resolve_target_url treats an empty env value as unset."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Refine lifecycle events are now emitted only after the IndexedFile snapshot, and a refine job whose row is missing or unreadable emits nothing (R2-1)."
+  ],
+  "regression_risks": [
+    "Any future intelligence event that forgets to set data['drive'] is silently dropped, with only a WARNING log. That is safe for the drive boundary, but the event is lost.",
+    "test_ws_event_drive_scope.py changed meaning: it previously asserted that a drive-less post is sent without a drive and now asserts that nothing is posted. Any external expectation of global intelligence events is gone."
+  ],
+  "test_coverage": [
+    "tests/test_addon_event_drive.py checks the refusal of a drive-less post (sync and async), the lifting of the drive to the top level, and the drive on refine (success and failure), citations_ready and vision (success and load failure) at the wire level.",
+    "No test covers a refine snapshot failure or a missing row, which are the paths where drive is None (R2-1).",
+    "No wire-level test covers chapter_suggestions or video_visual events. Their drive comes from the existing payloads, which I read but did not exercise.",
+    "tests/test_addon_event_secret.py still guards against posters outside addon_events.py, and its calls were updated to pass a drive, so they do not pass vacuously."
+  ],
+  "not_verified": [
+    "I ran no tests and no gates.",
+    "I did not read the exact file list of commit 30a9962a2 itself. I assume from its subject that it touches only docs/process.",
+    "I did not check the core frontend for consumers of intelligence.refine.*, transcription.* or vision_describe.* events beyond a grep of .ts/.tsx files for refine event names.",
+    "I did not verify the frontend processing view (useUpload.ts and UploadProgress.tsx) beyond the earlier reviews' scope, because the fix commits do not touch it."
+  ],
+  "confidence": 80,
+  "trajectory": "Round 1 (97bb1070f, before r1) added a shared poster with a secret header, so events that had been 403-dropped started to be delivered. That newly exposed the drive-less broadcast. Round 2 (9f90576f2 spec I14, then 13dc9688a code) did not add a parallel branch for the same prediction. It removed the 'global broadcast when there is no drive' state from addon_events._payload, replaced it with a single refusal branch, and threaded an explicit drive through the refine, summaries and vision emitters. 30a9962a2 is a record only. Each round did fix a consequence the previous round exposed (secret, then drive scope), so the poster is still being patched incrementally. But round 2 removed a state rather than stacking one, and it moved refine.started after the snapshot, which created the drop described in R2-1."
+}
