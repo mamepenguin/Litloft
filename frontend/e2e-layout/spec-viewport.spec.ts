@@ -37,7 +37,7 @@ const FIXTURES = [
   "upload-drawer.html",
 ] as const;
 
-const FIXTURE_COUNT = 14;
+const FIXTURE_COUNT = 15;
 
 /**
  * On the far side of `sm` from Chromium's mobile default, so a page that
