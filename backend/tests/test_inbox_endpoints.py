@@ -534,6 +534,8 @@ class TestInboxEndpointBroadcasts:
         c, db, drive_dir, _ = client
         first = seed(c, db, "first.md")
         second = seed(c, db, "second.md")
+        flush(c)
+        broadcasts.clear()
 
         _done(c, {"file_ids": [first, second]})
         flush(c)

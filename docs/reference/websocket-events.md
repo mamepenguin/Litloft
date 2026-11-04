@@ -13,7 +13,7 @@ Litloft pushes live updates to browsers over one WebSocket. It also POSTs lifecy
 
 ## Browser events
 
-The core broadcasts these five events.
+The core broadcasts these six events.
 
 `drive.structure_changed`
 - When: files or folders in a drive were created, trashed, moved, renamed, restored, recovered, found missing or purged, or a scan or upload finished.
@@ -23,7 +23,11 @@ The core broadcasts these five events.
 - When: a file's content, title, description, tags, favourite, like or trust tier changed.
 - Payload: `{ "drive": "..." }`.
 
-Both are derived from the [webhook events](#event-hook-webhooks) below: `files.updated` becomes `drive.file_updated`, and every other webhook event becomes `drive.structure_changed`. They are sent once per affected drive, with no file ids. When the drive cannot be determined, nothing is sent.
+The two `drive.*` events are derived from the [webhook events](#event-hook-webhooks) below: `files.updated` becomes `drive.file_updated`, and every other webhook event becomes `drive.structure_changed`. They are sent once per affected drive, with no file ids. When the drive cannot be determined, nothing is sent.
+
+`inbox.updated`
+- When: a drive's inbox changed — an upload or create recorded an arrival, or a row was marked done, undone, or closed by a move, trash or tag write.
+- Payload: `{ "drive": "..." }`. At most once per request per drive, and only when a row changed.
 
 `scan:progress`
 - When: during a scan, every 50 files or at least once per second.

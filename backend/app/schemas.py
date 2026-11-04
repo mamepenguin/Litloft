@@ -3,7 +3,7 @@ import re
 from datetime import UTC, datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.models import TRUST_TIERS
 from app.services.chapters import ChapterRow, normalise_chapters
@@ -284,6 +284,7 @@ class UploadInitRequest(BaseModel):
     relative_path: str = ""
     chunk_size: int = 5_242_880
     require_folder: bool = False
+    inbox_source: Literal["upload"] | None = None
 
 
 class UploadInitResponse(BaseModel):
@@ -332,10 +333,18 @@ class FolderCreateRequest(BaseModel):
     name: str
 
 
+class ArrivalRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source: str = Field(pattern=r"^[a-z][a-z0-9_.]{0,63}$")
+    i18n_key: str = Field(pattern=r"^[A-Za-z][A-Za-z0-9_.]{0,127}$")
+
+
 class TextFileCreateRequest(BaseModel):
     path: str
     content: str = ""
     conflict_mode: Literal["rename", "error"] = "rename"
+    arrival: ArrivalRequest | None = None
 
 
 class FolderRenameRequest(BaseModel):
@@ -369,6 +378,73 @@ def _validate_batch_ids(v: list[str]) -> list[str]:
         if not _NANOID_RE.match(fid):
             raise ValueError(f"Invalid file ID: {fid}")
     return v
+
+
+class InboxDoneRequest(BaseModel):
+    file_ids: list[str] | None = None
+    all: bool = False
+    up_to: datetime | None = None
+
+    @field_validator("file_ids")
+    @classmethod
+    def validate_file_ids(cls, v: list[str] | None) -> list[str] | None:
+        if v is None:
+            return v
+        if not 1 <= len(v) <= 1000:
+            raise ValueError("Choose between 1 and 1000 file IDs")
+        for file_id in v:
+            if not _NANOID_RE.match(file_id):
+                raise ValueError(f"Invalid file ID: {file_id}")
+        return v
+
+    @model_validator(mode="after")
+    def validate_shape(self):
+        has_ids = self.file_ids is not None
+        wants_all = self.all
+        if has_ids == wants_all:
+            raise ValueError("Send either file_ids or all with up_to")
+        if wants_all and self.up_to is None:
+            raise ValueError("up_to is required with all")
+        if not wants_all and self.up_to is not None:
+            raise ValueError("up_to only applies with all")
+        return self
+
+
+class InboxUndoRequest(BaseModel):
+    done_at: datetime
+
+
+class InboxItemResponse(BaseModel):
+    file: FileResponse
+    arrived_at: str
+    source: str
+    source_i18n_key: str
+
+
+class InboxListResponse(BaseModel):
+    items: list[InboxItemResponse]
+    next: str | None
+    open_count: int
+
+
+class InboxCountResponse(BaseModel):
+    open: int
+
+
+class InboxDoneResponse(BaseModel):
+    done: int
+    done_at: str
+
+
+class InboxUndoResponse(BaseModel):
+    reopened: int
+
+
+class InboxNeighborsResponse(BaseModel):
+    prev_id: str | None
+    next_id: str | None
+    position: int | None
+    total: int | None
 
 
 class BatchIdsRequest(BaseModel):

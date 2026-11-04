@@ -38,6 +38,7 @@ from app.schemas import (
     file_to_response,
 )
 from app.services import fileops
+from app.services import inbox as inbox_service
 from app.services.tagops import cleanup_orphan_tags, project_frontmatter_tags
 from app.services.file_versions import record_version
 from app.services.filetype import classify
@@ -1012,9 +1013,19 @@ async def create_text_file(
         existing_missing.folder_path = folder_path
         _record_created_file_version(db, existing_missing, content_bytes)
         _project_created_markdown_tags(db, existing_missing, body.content)
+        if body.arrival is not None:
+            inbox_service.record_arrival(
+                db,
+                drive_name,
+                existing_missing.id,
+                body.arrival.source,
+                body.arrival.i18n_key,
+            )
         db.commit()
         db.refresh(existing_missing)
         _sync_created_markdown_relations(db, existing_missing, body.content)
+        if body.arrival is not None:
+            await inbox_service.notify(drive_name)
         # Recovered-from-missing reuses the existing row; emit
         # files.recovered (mirroring scanner / upload paths) rather than
         # files.created so subscribers can distinguish if needed. Both
@@ -1098,6 +1109,14 @@ async def create_text_file(
             db.flush()
             _record_created_file_version(db, new_file, content_bytes)
             _project_created_markdown_tags(db, new_file, body.content)
+            if body.arrival is not None:
+                inbox_service.record_arrival(
+                    db,
+                    drive_name,
+                    new_file.id,
+                    body.arrival.source,
+                    body.arrival.i18n_key,
+                )
             db.commit()
         except IntegrityError:
             db.rollback()
@@ -1116,6 +1135,9 @@ async def create_text_file(
         raise HTTPException(status_code=409, detail="Too many naming conflicts")
 
     _sync_created_markdown_relations(db, new_file, body.content)
+
+    if body.arrival is not None:
+        await inbox_service.notify(drive_name)
 
     await event_hooks.emit("files.created", {"file_ids": [new_file.id]})
 
@@ -1173,8 +1195,10 @@ async def delete_folder(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     _validate_drive(drive_name, unlocked_groups)
-    fileops.delete_folder(drive_name, path, db)
+    closed = fileops.delete_folder(drive_name, path, db)
     await event_hooks.emit("folders.deleted", {"drive": drive_name, "path": path})
+    if closed:
+        await inbox_service.notify(drive_name)
     return {"status": "deleted"}
 
 

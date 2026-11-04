@@ -9,6 +9,7 @@ from tests.conftest import TEST_DRIVE
 from tests.inbox_helpers import (
     SECOND_DRIVE,
     broadcasts,
+    clear_missing,
     configure_drives,
     drives_for,
     flush,
@@ -57,6 +58,8 @@ class TestMoveCloses:
         """SPEC-CORE-032 I16: the move notifies its drive once."""
         c, db, drive_dir, _ = client
         file_id = seed(c, db, "note.md")
+        flush(c)
+        broadcasts.clear()
 
         c.put(f"/api/files/{file_id}/move", json={"target_folder_path": "filed"})
         flush(c)
@@ -85,6 +88,8 @@ class TestMoveCloses:
         """SPEC-CORE-032 I16: the source drive is told, the destination is not."""
         c, db, drive_dir, second_dir = two_drives
         file_id = seed(c, db, "note.md")
+        flush(c)
+        broadcasts.clear()
 
         c.put(
             f"/api/files/{file_id}/move",

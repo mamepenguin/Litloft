@@ -33,6 +33,7 @@ from app.services.fileops import (
     validate_within_drive,
 )
 from app.services.subtitle import is_subtitle_file
+from app.services import inbox as inbox_service
 from app.services.thumbnail import (
     get_thumbnail_generator,
     get_video_duration,
@@ -74,6 +75,7 @@ class UploadSession:
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     require_folder: bool = False
     required_folder_path: str = ""
+    inbox_source: str | None = None
 
 
 def _merge_relative_into_folder(folder_path: str, relative_path: str) -> str:
@@ -121,6 +123,21 @@ def _require_destination_folder(drive_path: Path, folder_path: str) -> None:
         raise HTTPException(status_code=404, detail="destination_folder_not_found")
 
 
+def _has_trashed_ghost(db: Session | None, drive: str, file_path: str) -> bool:
+    if db is None:
+        return False
+    return (
+        db.query(File.id)
+        .filter(
+            File.drive == drive,
+            File.file_path == file_path,
+            File.deleted_at.isnot(None),
+        )
+        .first()
+        is not None
+    )
+
+
 def init_upload(
     drive: str,
     filename: str,
@@ -129,6 +146,8 @@ def init_upload(
     chunk_size: int,
     relative_path: str = "",
     require_folder: bool = False,
+    inbox_source: str | None = None,
+    db: Session | None = None,
 ) -> UploadSession:
     drive_path = resolve_drive_path(drive)
     filename = validate_filename(filename)
@@ -146,7 +165,10 @@ def init_upload(
     validate_within_drive(target_full, drive_path)
 
     if target_full.exists():
-        raise HTTPException(status_code=409, detail="File already exists")
+        # A trashed row still owns its path on disk; a re-upload supersedes
+        # the delete intent and complete_upload purges the ghost.
+        if not _has_trashed_ghost(db, drive, target_rel):
+            raise HTTPException(status_code=409, detail="File already exists")
 
     _check_disk_capacity(drive_path, file_size)
 
@@ -166,6 +188,7 @@ def init_upload(
         temp_dir=temp_dir,
         require_folder=require_folder,
         required_folder_path=destination_folder,
+        inbox_source=inbox_source,
     )
     _upload_sessions[upload_id] = session
     logger.info("Upload initiated: %s (%s, %d bytes, %d chunks)", upload_id, filename, file_size, total_chunks)
@@ -393,6 +416,14 @@ def complete_upload(
                 pass
         probe_file_chapters(db, file_record, target_full)
         untrack_empty_folder(db, session.drive, session.folder_path)
+        if session.inbox_source:
+            inbox_service.record_arrival(
+                db,
+                session.drive,
+                file_record.id,
+                session.inbox_source,
+                inbox_service.UPLOAD_I18N_KEY,
+            )
         db.commit()
     except Exception:
         if not reused_row:
@@ -408,6 +439,8 @@ def complete_upload(
         "file_id": file_record.id,
         "filename": file_record.filename,
     }, drive=session.drive)
+    if session.inbox_source:
+        inbox_service.notify_from_thread(session.drive)
 
     return file_record, recovered_missing
 
