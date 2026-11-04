@@ -817,7 +817,9 @@ describe("SPEC-CORE-035 I13 a viewer's own action on a drawn row", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add c1 to favorites" }));
 
     expect(await screen.findByRole("button", { name: "Remove c1 from favorites" })).toBeInTheDocument();
-    expect(screen.getByTestId("row-c1").getAttribute("data-favorite")).toBe("true");
+    await waitFor(() =>
+      expect(screen.getByTestId("row-c1").getAttribute("data-favorite")).toBe("true"),
+    );
     expect(imagesCalls()).toHaveLength(1);
   });
 
