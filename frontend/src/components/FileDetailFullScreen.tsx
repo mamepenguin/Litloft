@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
 
 import { FileDetailContent } from "@/components/FileDetailContent";
 import { FileDetailChrome } from "@/components/FileDetail/FileDetailChrome";
@@ -12,14 +11,14 @@ import {
   getCollectionOnEnded,
 } from "@/components/CollectionPanel";
 import { useSetOverrideDrive } from "@/components/CurrentDriveProvider";
-import { Button } from "@/components/Button";
-import { useToast } from "@/components/ToastProvider";
-import { usePolicy } from "@/hooks/usePolicy";
 import { ridesFileDetailShell } from "@/lib/fileDetailShell";
 import { usePlainTextDocument } from "./FileDetail/hooks/usePlainTextDocument";
 import { useOverlaySidebar } from "@/components/SidebarProvider";
 import { useFileNav } from "@/hooks/useFileNav";
-import { getFileShared, markInboxDone, undoInboxDone } from "@/lib/api";
+import { FileNavProvider } from "@/lib/fileNavContext";
+import { InboxDetailHostProvider } from "@/components/inbox/inboxDetailHost";
+import { usePolicy } from "@/hooks/usePolicy";
+import { getFileShared } from "@/lib/api";
 import { peekFileSeed } from "@/lib/fileSeed";
 import { normalizeSortParam } from "@/lib/sortField";
 import type { FileItem } from "@/types";
@@ -34,9 +33,6 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const setOverrideDrive = useSetOverrideDrive();
-  const tInbox = useTranslations("inbox");
-  const tErrors = useTranslations("errors");
-  const toast = useToast();
 
   const nav = searchParams.get("nav") ?? undefined;
   const isInboxNav = nav === "inbox";
@@ -111,28 +107,6 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
     return `/drive/${encodeURIComponent(drive)}?view=inbox`;
   }, [file]);
 
-  const handleInboxDone = useCallback(async () => {
-    if (!file) return;
-    try {
-      const answer = await markInboxDone(file.drive, { file_ids: [fileId] });
-      if (answer.done > 0) {
-        toast.success(tInbox("markedDone", { count: answer.done }), {
-          action: {
-            label: tInbox("undo"),
-            onClick: () => {
-              void undoInboxDone(file.drive, answer.done_at);
-            },
-          },
-        });
-      }
-    } catch {
-      toast.error(tErrors("pageError"));
-      return;
-    }
-    if (fileNav.nextId) router.replace(buildNavUrl(fileNav.nextId));
-    else router.push(inboxHref());
-  }, [file, fileId, toast, tInbox, tErrors, fileNav.nextId, router, buildNavUrl, inboxHref]);
-
   const handleCollectionNavigate = useCallback(
     (nextFileId: string) => {
       router.replace(buildNavUrl(nextFileId));
@@ -195,101 +169,103 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
   const isAudioSide = hasCollection && file?.file_type !== "video";
 
   return (
-    <div
-      className={`mx-auto w-full flex-1 px-4 py-6 ${hasCollection ? "max-w-6xl" : "max-w-5xl"}`}
-    >
-      {/* The back control keeps this route's own handler: "back" from a
-          collection means the collection you were playing, not the
-          folder the current track happens to live in. */}
-      {!contentBringsItsOwnRow && (
-        <div className="mb-4 -mx-4 -mt-6">
-          {file ? (
-            <FileDetailChrome
-              drive={file.drive}
-              folderPath={file.folder_path}
-              title={file.title || file.filename}
-              onBack={handleBack}
-            />
-          ) : (
-            // Holds the row's place so the page does not step down when
-            // the fetch lands.
-            <div
-              aria-hidden
-              className="h-12 border-b border-bg-border bg-bg-card"
-            />
+    <FileNavProvider value={fileNav}>
+      <InboxDetailHostProvider
+        value={{
+          onNext: handleCollectionNavigate,
+          onClose: () => router.push(inboxHref()),
+        }}
+      >
+        <div
+          className={`mx-auto w-full flex-1 px-4 py-6 ${hasCollection ? "max-w-6xl" : "max-w-5xl"}`}
+        >
+          {/* The back control keeps this route's own handler: "back" from a
+              collection means the collection you were playing, not the
+              folder the current track happens to live in. */}
+          {!contentBringsItsOwnRow && (
+            <div className="mb-4 -mx-4 -mt-6">
+              {file ? (
+                <FileDetailChrome
+                  drive={file.drive}
+                  folderPath={file.folder_path}
+                  title={file.title || file.filename}
+                  fileId={fileId}
+                  onBack={handleBack}
+                />
+              ) : (
+                // Holds the row's place so the page does not step down when
+                // the fetch lands.
+                <div
+                  aria-hidden
+                  className="h-12 border-b border-bg-border bg-bg-card"
+                />
+              )}
+            </div>
           )}
-        </div>
-      )}
 
-      {isInboxNav && file && (
-        <div className="mb-4 flex justify-end">
-          <Button variant="secondary" onClick={() => void handleInboxDone()}>
-            {tInbox("done")}
-          </Button>
-        </div>
-      )}
+          <div className={isAudioSide ? "flex flex-col gap-4 md:flex-row" : ""}>
+            <div className={isAudioSide ? "min-w-0 flex-1" : ""}>
+              <FileDetailContent
+                fileId={fileId}
+                drive={file?.drive ?? ""}
+                initialTime={initialTime}
+                initialPage={initialPage}
+                initialSection={initialSection}
+                highlight={highlight}
+                onEnded={hasCollection ? handleMediaEnded : undefined}
+                autoPlay={hasCollection}
+                onRequestImageGallery={() => setGalleryOpen(true)}
+                onAfterDelete={handleAfterDelete}
+                onBack={handleBack}
+                surface="collection"
+              />
 
-      <div className={isAudioSide ? "flex flex-col gap-4 md:flex-row" : ""}>
-        <div className={isAudioSide ? "min-w-0 flex-1" : ""}>
-          <FileDetailContent
-            fileId={fileId}
-            drive={file?.drive ?? ""}
-            initialTime={initialTime}
-            initialPage={initialPage}
-            initialSection={initialSection}
-            highlight={highlight}
-            onEnded={hasCollection ? handleMediaEnded : undefined}
-            autoPlay={hasCollection}
-            onRequestImageGallery={() => setGalleryOpen(true)}
-            onAfterDelete={handleAfterDelete}
-            onBack={handleBack}
-            surface="collection"
-          />
+              {isVideoTheater && (
+                <CollectionPanel
+                  collectionId={collectionId}
+                  folderPlay={folderPlay}
+                  currentFileId={fileId}
+                  currentFileType={file!.file_type}
+                  drive={file!.drive}
+                  folderPath={file!.folder_path}
+                  sort={sort}
+                  order={order}
+                  onNavigate={handleCollectionNavigate}
+                />
+              )}
+            </div>
 
-          {isVideoTheater && (
-            <CollectionPanel
-              collectionId={collectionId}
-              folderPlay={folderPlay}
-              currentFileId={fileId}
-              currentFileType={file!.file_type}
-              drive={file!.drive}
-              folderPath={file!.folder_path}
+            {isAudioSide && file && (
+              <CollectionPanel
+                collectionId={collectionId}
+                folderPlay={folderPlay}
+                currentFileId={fileId}
+                currentFileType={file.file_type}
+                drive={file.drive}
+                folderPath={file.folder_path}
+                sort={sort}
+                order={order}
+                onNavigate={handleCollectionNavigate}
+              />
+            )}
+          </div>
+
+          {file && (
+            <ImageGallery
+              open={galleryOpen}
+              file={file}
               sort={sort}
               order={order}
-              onNavigate={handleCollectionNavigate}
+              onClose={(currentFileId) => {
+                setGalleryOpen(false);
+                if (currentFileId && currentFileId !== fileId) {
+                  router.replace(buildNavUrl(currentFileId));
+                }
+              }}
             />
           )}
         </div>
-
-        {isAudioSide && file && (
-          <CollectionPanel
-            collectionId={collectionId}
-            folderPlay={folderPlay}
-            currentFileId={fileId}
-            currentFileType={file.file_type}
-            drive={file.drive}
-            folderPath={file.folder_path}
-            sort={sort}
-            order={order}
-            onNavigate={handleCollectionNavigate}
-          />
-        )}
-      </div>
-
-      {file && (
-        <ImageGallery
-          open={galleryOpen}
-          file={file}
-          sort={sort}
-          order={order}
-          onClose={(currentFileId) => {
-            setGalleryOpen(false);
-            if (currentFileId && currentFileId !== fileId) {
-              router.replace(buildNavUrl(currentFileId));
-            }
-          }}
-        />
-      )}
-    </div>
+      </InboxDetailHostProvider>
+    </FileNavProvider>
   );
 }

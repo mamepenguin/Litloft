@@ -377,6 +377,21 @@ describe("SPEC-CORE-032 I18 a row's stage", () => {
     expect(rowFor("f1").querySelector("svg.lucide-loader-circle")).not.toBeNull();
   });
 
+  it("SPEC-CORE-032 I18 translates an addon stage through its global key", async () => {
+    const answer = {
+      stages: [
+        stage("search", "running", {
+          i18nKey: "intelligence.processing.search",
+        }),
+      ],
+      ready: false,
+    };
+    await renderStaged([todayItem], { f1: answer });
+
+    expect(rowText("f1")).toContain("Search index");
+    expect(rowText("f1")).not.toContain("intelligence.processing.search");
+  });
+
   it("SPEC-CORE-032 I18 shows the first required stage that is pending or running", async () => {
     const answer = {
       stages: [

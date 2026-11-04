@@ -14,7 +14,7 @@ import { getThumbnailUrl, type InboxItem } from "@/lib/api";
 import type { InboxStageDisplay } from "@/lib/inboxStage";
 
 const ROW_CLASS =
-  "group/inbox-row relative flex items-center gap-3 rounded-2xl px-3 py-2 [-webkit-touch-callout:none]";
+  "group/inbox-row relative flex touch-pan-y items-center gap-3 rounded-2xl px-3 py-2 [-webkit-touch-callout:none]";
 const LINK_CLASS = "flex min-w-0 flex-1 items-center gap-3";
 const THUMB_CLASS = "h-12 w-12 shrink-0 rounded-lg bg-sand";
 const NAME_CLASS = "block truncate text-sm font-medium text-text-primary";
@@ -58,6 +58,7 @@ export interface InboxRowProps {
   stage: InboxStageDisplay;
   selected: boolean;
   selectionMode: boolean;
+  showDone: boolean;
   onToggle: (id: string) => void;
   onDone: (id: string) => void;
   onLongPress: (id: string) => void;
@@ -72,13 +73,14 @@ export function InboxRow({
   stage,
   selected,
   selectionMode,
+  showDone,
   onToggle,
   onDone,
   onLongPress,
   onContextMenu,
 }: InboxRowProps) {
   const t = useTranslations("inbox");
-  const tu = useTranslations("upload");
+  const tGlobal = useTranslations();
   const file = item.file;
   const name = file.title || file.filename;
   const linkRef = useRef<HTMLAnchorElement | null>(null);
@@ -195,14 +197,17 @@ export function InboxRow({
   }
 
   function handleClick(event: MouseEvent<HTMLAnchorElement>) {
-    if (selectionMode) {
-      event.preventDefault();
-      onToggle(file.id);
-      return;
-    }
+    // The press that produced a long press still ends in a click. Swallow
+    // it before selection mode can read it as a tap and undo the selection
+    // that press just made.
     if (suppressClick.current) {
       suppressClick.current = false;
       event.preventDefault();
+      return;
+    }
+    if (selectionMode) {
+      event.preventDefault();
+      onToggle(file.id);
     }
   }
 
@@ -251,7 +256,7 @@ export function InboxRow({
             <span>{sourceLabel}</span>
             <span>{timeLabel}</span>
             <span>{folderLabel}</span>
-            <StageMark stage={stage} tu={tu} />
+            <StageMark stage={stage} t={tGlobal} />
           </span>
         </span>
       </Link>
@@ -264,31 +269,33 @@ export function InboxRow({
         className={CHECKBOX_CLASS}
       />
 
-      <button
-        type="button"
-        onClick={() => onDone(file.id)}
-        aria-label={`${t("done")} ${name}`}
-        className={DONE_CLASS}
-      >
-        {t("done")}
-      </button>
+      {showDone && (
+        <button
+          type="button"
+          onClick={() => onDone(file.id)}
+          aria-label={`${t("done")} ${name}`}
+          className={DONE_CLASS}
+        >
+          {t("done")}
+        </button>
+      )}
     </li>
   );
 }
 
 function StageMark({
   stage,
-  tu,
+  t,
 }: {
   stage: InboxStageDisplay;
-  tu: (key: string) => string;
+  t: (key: string) => string;
 }) {
   if (stage.kind === "none") return null;
 
   if (stage.kind === "unavailable") {
     return (
       <span className="inline-flex items-center gap-1">
-        <span>{tu("stageUnavailable")}</span>
+        <span>{t("upload.stageUnavailable")}</span>
         {stage.failed && <AlertCircle size={12} className="text-danger" />}
       </span>
     );
@@ -298,7 +305,7 @@ function StageMark({
     return (
       <span className="inline-flex items-center gap-1 text-accent-teal">
         <Check size={12} />
-        <span>{tu("ready")}</span>
+        <span>{t("upload.ready")}</span>
         {stage.failed && <AlertCircle size={12} className="text-danger" />}
       </span>
     );
@@ -307,7 +314,7 @@ function StageMark({
   return (
     <span className="inline-flex items-center gap-1">
       <ProcessingStageIcon stage={stage.stage} />
-      <span>{processingStageLabel(tu, stage.stage)}</span>
+      <span>{processingStageLabel(t, stage.stage)}</span>
       {stage.failed && <AlertCircle size={12} className="text-danger" />}
     </span>
   );

@@ -27,6 +27,7 @@ export interface InboxPresenterProps {
   stages: Record<string, FileProcessing | null | undefined>;
   selectedIds: ReadonlySet<string>;
   selectionMode: boolean;
+  showRowDone: boolean;
   sentinelRef: RefObject<HTMLDivElement | null>;
   onToggle: (id: string) => void;
   onDone: (id: string) => void;
@@ -53,6 +54,7 @@ export function InboxPresenter({
   stages,
   selectedIds,
   selectionMode,
+  showRowDone,
   sentinelRef,
   onToggle,
   onDone,
@@ -141,6 +143,7 @@ export function InboxPresenter({
                         }
                         selected={selectedIds.has(item.file.id)}
                         selectionMode={selectionMode}
+                        showDone={showRowDone}
                         onToggle={onToggle}
                         onDone={onDone}
                         onLongPress={onLongPress}

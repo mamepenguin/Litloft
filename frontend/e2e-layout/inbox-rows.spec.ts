@@ -31,6 +31,7 @@ interface Box {
 interface Measurement {
   row: Box;
   link: Box;
+  touchAction: string;
   name: Box & { truncated: boolean };
   done: Box & { opacity: number; display: string; visibility: string };
   checkbox: Box & { display: string };
@@ -128,22 +129,34 @@ test.describe("fine pointer on a phone width", () => {
 });
 
 test.describe("coarse pointer below the visible button's width", () => {
-  test.use({ viewport: { width: 375, height: 667 }, hasTouch: true });
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
 
   test("the context really reports a coarse pointer", async ({ page }) => {
     await open(page);
     expect(await page.evaluate(() => window.pointerIsCoarse())).toBe(true);
   });
 
-  test("Done is out of the way and the checkbox is gone", async ({ page }) => {
+  test("Done is not rendered at all and the checkbox is gone", async ({ page }) => {
     await open(page);
-    const measured = await measure(page);
 
-    expect(measured.done.opacity).toBe(0);
-    expect(measured.done.height).toBe(COARSE_DONE_PX);
-    expect(measured.checkbox.display).toBe("none");
+    expect(await page.locator("[data-done]").count()).toBe(0);
+    expect(
+      await page
+        .locator(`${ROW} [data-checkbox]`)
+        .evaluate((el) => getComputedStyle(el).display),
+    ).toBe("none");
   });
 
+  test("the row claims horizontal pans so the swipe reaches the handler", async ({
+    page,
+  }) => {
+    await open(page);
+    expect(
+      await page
+        .locator(ROW)
+        .evaluate((el) => getComputedStyle(el).touchAction),
+    ).toBe("pan-y");
+  });
 });
 
 test.describe("coarse pointer at the tablet width", () => {

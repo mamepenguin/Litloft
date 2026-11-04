@@ -6,7 +6,9 @@ import { useTranslations } from "next-intl";
 import { FileContextMenu } from "@/components/FileContextMenu";
 import { UploadZone } from "@/components/UploadZone";
 import { useToast } from "@/components/ToastProvider";
+import { usePointerMode } from "@/components/player/hooks/usePointerMode";
 import { useContextMenu } from "@/hooks/useContextMenu";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { useSelection } from "@/hooks/useSelection";
 import {
   markInboxDone,
@@ -43,6 +45,11 @@ export function InboxView({ driveName }: { driveName: string }) {
 
   const data = useInboxData(driveName, onError);
   const stages = useInboxStages(data.items);
+  const pointerMode = usePointerMode();
+  const isMobile = useIsMobile();
+  // A coarse pointer below md triages by swipe and long press; the row's
+  // button is not in the DOM there.
+  const showRowDone = !(pointerMode === "coarse" && isMobile);
 
   useEffect(() => {
     if (selection.count === 0) setSelectionMode(false);
@@ -150,6 +157,7 @@ export function InboxView({ driveName }: { driveName: string }) {
         stages={stages}
         selectedIds={selection.selectedIds}
         selectionMode={selectionMode}
+        showRowDone={showRowDone}
         sentinelRef={data.sentinelRef}
         onToggle={handleToggle}
         onDone={(id) => {

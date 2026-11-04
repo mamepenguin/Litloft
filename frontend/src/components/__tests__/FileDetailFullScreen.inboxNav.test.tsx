@@ -172,6 +172,11 @@ describe("SPEC-CORE-032 I15 the detail's Done button", () => {
     expect(screen.queryByText("Done")).toBeNull();
   });
 
+  it("SPEC-CORE-032 I15 shows the inbox arrows beside it", async () => {
+    await renderAt("nav=inbox");
+    expect(screen.getByTestId("file-nav-controls")).toBeInTheDocument();
+  });
+
   it("SPEC-CORE-032 I15 marks this arrival done", async () => {
     await renderAt("nav=inbox");
     (await screen.findByText("Done")).click();

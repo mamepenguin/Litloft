@@ -38,7 +38,9 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
-vi.mock("@/hooks/useIsMobile", () => ({ useIsMobile: () => false }));
+vi.mock("@/hooks/useIsMobile", () => ({
+  useIsMobile: () => window.innerWidth < 768,
+}));
 vi.mock("@/components/SidebarProvider", () => ({
   useSidebar: () => ({ isOpen: false, isOverlay: false, close: vi.fn(), refreshKey: 0 }),
   useOverlaySidebar: vi.fn(),
@@ -380,6 +382,18 @@ describe("SPEC-CORE-032 the pointer-type controls", () => {
     vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(width);
   }
 
+  function viewport(width: number) {
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      writable: true,
+      value: width,
+    });
+  }
+
+  afterEach(() => {
+    viewport(1024);
+  });
+
   function point(element: HTMLElement, type: string, x: number, y: number) {
     fireEvent.pointerDown(element, {
       pointerId: 1,
@@ -537,5 +551,44 @@ describe("SPEC-CORE-032 the pointer-type controls", () => {
 
     screen.getByRole("button", { name: "Deselect" }).click();
     expect(screen.queryByText("2 selected")).toBeNull();
+  });
+
+  it("SPEC-CORE-032 keeps a long-pressed row selected through the click on release", async () => {
+    pointer(true);
+    rect(300);
+    await open([f1, f2]);
+    const link = linkFor("f1");
+
+    fireEvent.pointerDown(link, {
+      pointerId: 1,
+      pointerType: "touch",
+      isPrimary: true,
+      clientX: 100,
+      clientY: 100,
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 600));
+    });
+    expect(screen.getByText("1 selected")).toBeInTheDocument();
+
+    fireEvent.pointerUp(link, {
+      pointerId: 1,
+      pointerType: "touch",
+      isPrimary: true,
+      clientX: 100,
+      clientY: 100,
+    });
+    fireEvent.click(link);
+
+    expect(screen.getByText("1 selected")).toBeInTheDocument();
+  });
+
+  it("SPEC-CORE-032 renders no row Done button on a coarse phone", async () => {
+    pointer(true);
+    viewport(390);
+    await open([f1, f2]);
+
+    expect(screen.queryByRole("button", { name: "Done Arrival f1" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Done Arrival f2" })).toBeNull();
   });
 });

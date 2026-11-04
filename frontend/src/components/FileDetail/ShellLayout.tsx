@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState, type ReactNode, type RefObject } from "react";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import type { FileItem } from "@/types";
@@ -123,6 +124,8 @@ export function ShellLayout({
   sheetPeek,
 }: ShellLayoutProps) {
   const tabLabels = useTranslations("inspector.tabs");
+  const searchParams = useSearchParams();
+  const inboxWalk = searchParams.get("nav") === "inbox";
 
   /**
    * On a phone the player is stuck to the top of the canvas, so a sheet
@@ -364,6 +367,7 @@ export function ShellLayout({
         drive={drive}
         folderPath={file.folder_path}
         title={file.title || file.filename}
+        fileId={fileId}
         onBack={onBack}
         onScrollRootChange={onScrollRootChange}
         canvasFloor={viewerTakesCanvasFloor(file.file_type, file.mime_type)}
@@ -379,8 +383,9 @@ export function ShellLayout({
             {/* Images only. The arrow keys walk the folder for archives,
                 PDFs and text as well, but those are surfaces for reading
                 into a file, and a pair of arrows in their page row reads
-                as the viewer's own paging instead. */}
-            {file.file_type === "image" && <FileNavControls />}
+                as the viewer's own paging instead. The inbox's row is the
+                exception: there every kind walks the arrivals. */}
+            {file.file_type === "image" && !inboxWalk && <FileNavControls />}
           </>
         }
         inspector={inspector}
@@ -439,6 +444,7 @@ export function ShellLayout({
       drive={drive}
       folderPath={file.folder_path}
       title={file.filename}
+      fileId={fileId}
       onRename={isHtmlPreview ? undefined : onRename}
       onBack={onBack}
       onScrollRootChange={onScrollRootChange}
