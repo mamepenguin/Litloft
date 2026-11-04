@@ -158,9 +158,10 @@ describe("SPEC-CORE-032 I12 the inbox row in the sidebar", () => {
     [99, "Inbox99"],
     [100, "Inbox99+"],
     [2140, "Inbox99+"],
-  ])("SPEC-CORE-032 I12 shows %i as %s", (open, text) => {
+  ])("SPEC-CORE-032 I12 shows %i as %s", async (open, text) => {
     count = open;
     renderSidebar();
+    await act(async () => {});
     expect(rowText(inboxRow())).toBe(text);
   });
 
