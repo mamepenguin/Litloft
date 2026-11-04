@@ -3,7 +3,7 @@
  * URL says the file was opened there, and the URL keeps saying it.
  */
 
-import { cleanup, render, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, screen, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/api", () => ({
@@ -35,8 +35,19 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/components/FileDetailContent", () => ({
-  FileDetailContent: ({ fileId }: { fileId: string }) => (
-    <div data-testid="file-detail-content">detail:{fileId}</div>
+  FileDetailContent: ({
+    fileId,
+    onBack,
+  }: {
+    fileId: string;
+    onBack?: () => void;
+  }) => (
+    <div data-testid="file-detail-content">
+      detail:{fileId}
+      {onBack && (
+        <button type="button" data-testid="detail-back" onClick={onBack} />
+      )}
+    </div>
   ),
 }));
 
@@ -138,6 +149,15 @@ describe("SPEC-CORE-032 I15 the right pane walks the inbox", () => {
 
     lastNavOpts().onNavigate("def");
     expect(mockSelectFile).toHaveBeenCalledWith("def");
+  });
+
+  it("SPEC-CORE-032 I15 closes back to the inbox from the detail's back control", async () => {
+    render(<RightPaneFile fileId="abc123" drive="main" />);
+    const back = await screen.findByTestId("detail-back");
+
+    fireEvent.click(back);
+
+    expect(mockClearFile).toHaveBeenCalledTimes(1);
   });
 
   it("SPEC-CORE-032 I15 publishes the inbox place to the controls", async () => {

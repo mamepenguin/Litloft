@@ -130,6 +130,9 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
               miniPlayerRoot={scrollRoot}
               onRequestImageGallery={() => setGalleryOpen(true)}
               onAfterDelete={clearFile}
+              onBack={
+                searchParams.get("nav") === "inbox" ? clearFile : undefined
+              }
             />
           </InboxDetailHostProvider>
         </FileNavProvider>
