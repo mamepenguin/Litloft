@@ -109,6 +109,66 @@ describe("buildSearchSnippet", () => {
     }
   });
 
+  it.each([
+    ["image/png", "scan.png"],
+    ["image/jpeg", "scan.jpg"],
+    ["image/heic", "scan.heic"],
+  ])(
+    "SPEC-ADDON-050 I12: quotes the best recognised-text line of a %s picture",
+    (mimeType, filename) => {
+      const snippet = buildSearchSnippet(file({
+        filename,
+        file_type: "image",
+        mime_type: mimeType,
+        match_meta: {
+          clip_thumbnail: { score: 1 },
+          content: { score: 0.9 },
+          content_matches: [
+            { score: 0.4, text: "weaker line" },
+            { score: 0.9, text: "Ferry to Kirishima" },
+          ],
+        },
+      }));
+
+      expect(snippet?.excerpt).toBe("Ferry to Kirishima");
+      expect(snippet?.capture).toEqual(expect.objectContaining({
+        kind: "document_selection",
+        quote: "Ferry to Kirishima",
+      }));
+      expect(snippet?.capture.locator).toBeUndefined();
+    },
+  );
+
+  it("SPEC-ADDON-050 I12: leaves a picture with only scene or caption evidence without an excerpt", () => {
+    expect(buildSearchSnippet(file({
+      filename: "beach.heic",
+      file_type: "image",
+      mime_type: "image/heic",
+      match_meta: {
+        clip_thumbnail: { score: 1 },
+        metadata: { score: 0.8 },
+        clip: [{ time_range: [0, 1], score: 0.7 }],
+      },
+    }))).toBeNull();
+  });
+
+  it("SPEC-ADDON-050 I12: keeps a picture's page-bearing match free of a page locator", () => {
+    const snippet = buildSearchSnippet(file({
+      filename: "scan.png",
+      file_type: "image",
+      mime_type: "image/png",
+      match_meta: {
+        content_matches: [{ score: 0.9, page: 3, text: "recognised line" }],
+      },
+    }));
+
+    expect(snippet?.capture).toEqual(expect.objectContaining({
+      kind: "document_selection",
+      quote: "recognised line",
+    }));
+    expect(snippet?.capture.locator).toBeUndefined();
+  });
+
   it("ignores evidence that carries no text of its own", () => {
     // A CLIP scene hit has no words to quote, and the timestamp pills
     // already offer a way into that moment.
