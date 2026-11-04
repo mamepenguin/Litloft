@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R3-1",
+      "origin": "reviewer",
+      "claim": "Every time the Ask tab remounts (reopening the mobile sheet from its bar, or crossing the breakpoint), it reports itself unavailable and fetches availability again. While that fetch runs, the tab holding the kept question and answer is unlisted, and it stays unlisted if the fetch fails.",
+      "impact": "On a phone, a user asks a question, lowers the sheet and reopens it. The Ask button disappears, then comes back once the fetch returns. If that fetch fails (a transient proxy error or a brief network drop), the answer kept in the store cannot be reached until the file is reopened, and the answer that file has is gone at that point.",
+      "evidence": "addons/intelligence/frontend/AskTab.tsx: a layout effect keyed on [fileId, drive] calls `availabilityRef.current?.(false)` on every mount, and an effect then refetches. MobileInspectorSheet mounts its children only while expanded (r2 verifier: MobileInspectorSheet.tsx:206-219), so every reopen remounts the tab. inspector/tabs.ts:80 lists an inspector-tabs entry only when `available === true`, and InspectorShell.tsx:42-61 drops a selection whose tab is unlisted. Separately, InspectorShell.tsx:43-44 initialises a remounted shell to the first listed tab, so the Ask tab is never the one shown on reopen.",
+      "repro": "not_reproduced. By reading: in AskTab.test.tsx, ask and settle an answer, unmount, set `net.availability = () => Promise.reject(new TypeError())`, and re-render. `onAvailability` is last called with false, so the host would unlist the tab even though `getAskEntry` still holds the answer.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "I7 holds: the tab is listed only after true. I11 (r1) holds for the store, which keeps the entry. The defect is that the kept entry can become unreachable, and that the strip flickers on every reopen.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Skip the reset to false and the refetch when the store already holds a known availability for this fileId and drive, for example by caching the last availability per file next to the ask entry and dropping it on file-page-closed."
+    }
+  ],
+  "specification_compliance": [
+    "ASK-1 (r2, bucket A) is fixed. releaseAskEntry is gone (grep finds no reference in addons/intelligence/frontend), so a tab unmount neither aborts nor deletes the entry. The ask loop keeps writing to the module store by fileId after the tab unmounts, and a remount reads it back through useSyncExternalStore.",
+    "ASK-2 (r2) is fixed. FileDetailContent.tsx dispatches `litloft:file-page-closed` with the old fileId from an effect cleanup keyed on props.fileId. That covers both a file change and an unmount. askStore.ts registers a window listener at module load that aborts and drops the entry.",
+    "The only hosts are FileDetailFullScreen and RightPaneFile (drive layout and TwoPaneLayout are mutually exclusive branches), and both render FileDetailContent. No other file page bypasses the event. The collection surface (FileDetailFullScreen) has no inspector-tabs entry.",
+    "FileDetailContainer is keyed by fileId, so in production a file change always remounts AskTab. The previousFileRef drop in AskTab is a redundant second path, and running it twice is harmless.",
+    "The event is not sent on a breakpoint crossing, a sheet open or close, or a tab change, because FileDetailContent's effect depends only on fileId. FilePageClosedEvent.test.tsx covers each case.",
+    "ASK-3 (the `\\d{1,3}` citation regex in file_question.py) and ASK-4 (the availability EXISTS counts empty-text rows) are unchanged in this commit and remain open bucket-B items."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Under React StrictMode in development, FileDetailContent's mount effect runs its cleanup once at mount, which dispatches file-page-closed for the file just opened. This is harmless in production, but a dev session can see an entry dropped right at mount.",
+    "A stream that ends with profile_unavailable after its tab unmounted calls refetchChoices from an unmounted hook. Nothing visible happens, and the choices are refetched only once the tab mounts again."
+  ],
+  "regression_risks": [
+    "Entries now live as long as the file page rather than the tab. Any future file-page host that renders FileDetailContainer directly instead of FileDetailContent would never send file-page-closed, so streams would leak along with their semaphore slots.",
+    "The store listener is registered when the lazily loaded askStore module is evaluated. If another addon module ever imports askStore before the event exists, the order does not matter, but a test that resets modules (vi.resetModules) would register a second listener."
+  ],
+  "test_coverage": [
+    "FilePageClosedEvent.test.tsx: one event with the old id on a file change, one on unmount, and none on a breakpoint crossing, a sheet open or close, or a tab change. Mutating the cleanup to send the new id, or to depend on more than fileId, would fail these tests.",
+    "AskTab.test.tsx adds tests for unmount mid-stream with a remount after done, a remount mid-stream that continues, file-page-closed aborting and forgetting the entry, an event for another file being ignored, and a settled answer forgotten on close. Removing the store listener would fail the abort and forget tests.",
+    "Gap: no test remounts the tab with a failing availability fetch while an entry is held (R3-1).",
+    "Gap: no integration test connects the core FileDetailContent event to the addon store. Each side is tested against the string or constant alone."
+  ],
+  "not_verified": [
+    "I did not run any vitest or pytest suite.",
+    "I did not verify that an aborted browser fetch makes the core proxy cancel its upstream stream, which is what actually frees the addon's semaphore slot (pre-existing /ask path).",
+    "I did not check whether next.config enables reactStrictMode.",
+    "I did not read the truncated tail of the fix diffs past 200,000 bytes."
+  ],
+  "confidence": 80,
+  "trajectory": "Most of the commits since r2 are unrelated: the image-OCR spec, its docs, the search excerpt for pictures and the gitlink bumps, plus ingest-progress merged from develop. The fixes for this feature are a77219f2d and the addon gitlink bump. They take out a branch r2 had flagged: releaseAskEntry, with its split between streaming and settled entries on tab unmount. In its place they add one page-level signal, litloft:file-page-closed. The invariant revision I11 (r1) states the same lifetime. No round adds again a branch, a state or a prediction that an earlier round added. The round removes one mechanism and replaces it with a simpler lifetime rule rather than patching on top of it. ASK-3 and ASK-4 were left unchanged."
+}

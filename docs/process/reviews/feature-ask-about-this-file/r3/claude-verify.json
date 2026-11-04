@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R3-1",
+      "status": "confirmed",
+      "note": "Traced through the code. On mobile, MobileInspectorSheet.tsx:206-219 returns only the peek bar when the sheet is not expanded. Its children are not rendered then, so reopening the sheet remounts InspectorShell and AskTab; FileDetailShell.tsx:196-204 renders the sheet as the inspector's only mobile surface. Crossing the breakpoint also remounts the tab, because the inspector moves between InspectorPane (FileDetailShell.tsx:194) and the sheet. Availability state lives above both surfaces, in useSlotAvailability(fileId) called at FileDetailContainer.tsx:71. Its reporter (useSlotAvailability.ts:52-61) stores whatever value it is given. On every mount, the layout effect at AskTab.tsx:206-209 calls availabilityRef.current?.(false), so the stored value for `inspector-tabs:<id>` becomes false. ShellLayout.tsx:329-332 then passes available=false, and tabs.ts:80 lists the entry only when available===true, so the tab drops out of the strip. The effect at AskTab.tsx:211-225 refetches availability. fetchFileAskAvailability (askStream.ts:45-55) returns false on a non-OK response or any exception, so a failed fetch leaves the tab unlisted. The kept askStore entry is still there, but nothing shows it until a successful refetch (or a transcription event bumps availabilityGeneration). The secondary point is also correct: a remounted InspectorShell starts at listed[0] (InspectorShell.tsx:42-44), which is always 'info'. Ask is unlisted at that moment anyway, and InspectorShell.tsx:55-61 moves the selection away from any unlisted tab, so after reopening the sheet the user is never on the Ask tab. This works against I11(r1): when the tab returns, it should show the kept question, answer or stream."
+    }
+  ],
+  "specification_compliance": [
+    "I11(r1): the question, answer and stream are kept in askStore across remounts, but the tab that shows them is unlisted after each remount until the availability refetch succeeds (R3-1 confirmed).",
+    "I7/I10: an inspector-tabs entry is listed only when available===true (tabs.ts:80; ShellLayout.tsx:329-332), as these invariants require."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The spec does not say whether a remount of the same file's Ask tab should re-fetch availability or reuse the last answer for that file."
+  ],
+  "regression_risks": [
+    "If the fix makes AskTab skip its mount-time false report, it must still report false first when the file changes without a remount (I7)."
+  ],
+  "test_coverage": [
+    "I found no test that remounts AskTab for the same fileId with a kept askStore entry and asserts that the tab stays listed. I did not run any tests."
+  ],
+  "not_verified": [
+    "I did not run the app or any tests. The flicker and the stuck-unlisted state on a failed refetch were traced statically, not observed in a browser.",
+    "I did not check whether the desktop InspectorPane also unmounts when the pane is closed and reopened (inspectorOpenOnDesktop), which would cause the same remount on desktop.",
+    "I did not check the timing of the vaul Drawer portal's mount relative to the layout effects."
+  ],
+  "confidence": 88
+}
