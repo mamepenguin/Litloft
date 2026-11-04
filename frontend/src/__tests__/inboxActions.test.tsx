@@ -158,7 +158,7 @@ describe("SPEC-CORE-032 done from a row", () => {
 
     await waitFor(() => expect(screen.queryByText("Arrival f1")).toBeNull());
     expect(screen.getByText("Arrival f2")).toBeInTheDocument();
-    expect(screen.getByText("Marked 1 done")).toBeInTheDocument();
+    expect(await screen.findByText("Marked 1 done")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Undo" })).toBeInTheDocument();
   });
 
@@ -248,7 +248,7 @@ describe("SPEC-CORE-032 Mark all done", () => {
       all: true,
       up_to: f1.arrived_at,
     });
-    expect(screen.getByText("Marked 3 done")).toBeInTheDocument();
+    expect(await screen.findByText("Marked 3 done")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Undo" })).toBeInTheDocument();
   });
 });
@@ -274,7 +274,7 @@ describe("SPEC-CORE-032 the selection bar", () => {
 
     await waitFor(() => expect(api.doneCalls()).toHaveLength(1));
     expect(api.doneCalls()[0].body).toEqual({ file_ids: ["f1", "f2"] });
-    expect(screen.getByText("Marked 2 done")).toBeInTheDocument();
+    expect(await screen.findByText("Marked 2 done")).toBeInTheDocument();
   });
 
   it("SPEC-CORE-032 clears the selection from its cancel control", async () => {
@@ -428,7 +428,7 @@ describe("SPEC-CORE-032 the pointer-type controls", () => {
 
     await waitFor(() => expect(api.doneCalls()).toHaveLength(1));
     expect(api.doneCalls()[0].body).toEqual({ file_ids: ["f1"] });
-    expect(screen.getByText("Marked 1 done")).toBeInTheDocument();
+    expect(await screen.findByText("Marked 1 done")).toBeInTheDocument();
   });
 
   it("SPEC-CORE-032 leaves the row alone when the swipe is short", async () => {
