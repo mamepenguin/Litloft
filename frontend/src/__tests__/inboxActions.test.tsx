@@ -133,6 +133,9 @@ async function open(items: InboxItemWire[]) {
   setup({ items });
   render(tree());
   await screen.findByRole("heading", { name: "Inbox" });
+  // The heading renders before the list answers; a test that reads a row
+  // right away would otherwise race the fetch.
+  await waitFor(() => items.forEach((item) => linkFor(item.file.id)));
 }
 
 beforeEach(() => {
