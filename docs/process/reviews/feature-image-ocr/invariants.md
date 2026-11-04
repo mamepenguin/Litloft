@@ -1,0 +1,8 @@
+spec: docs/specs/image-ocr.md
+
+## Revisions
+
+I11. (r1) When Ask or the single-file question builds context for a picture, it includes the picture's recognised-text chunks that match the question, chosen as for a document, together with the caption and metadata it already sends; a picture with no OCR rows gets the caption and metadata only, as before. Touch points add `addons/intelligence/app/rag/context.py` (`build_file_context`, `_collect_image_snippets`).
+I12. (r1) A search hit on a picture whose evidence includes recognised-text matches shows the best match as its excerpt, the way a plain-text file does, with no page locator. Touch points add `frontend/src/lib/searchCapture.ts` (`buildSearchSnippet`) in the core; the summary's "the core is untouched except docs and the gitlink" no longer holds.
+I4. (r2) A reindex request that names `ocr` is refused as a whole with 422 when the mode is `false` or the file is not a picture; no task in it is reset.
+I13. (r2) The index-details response carries `image_ocr`, the current mode, and the dialog shows the 画像の文字 row only for a picture while that mode is not `false`. Touch points add `IndexDetailsResponse` and `get_index_details` (`app/schemas.py`, `app/routers/files.py`, `frontend/api.ts`), `reindex_file` and `_get_indexed_file_or_404` in `app/routers/files.py`, `assemble_contexts` in `app/rag/context.py`, `addons/intelligence/Dockerfile.test`, the addon's frontend tests, and the core's `frontend/src/lib/__tests__/searchCapture.test.ts`. The engine's dependencies are pinned in `requirements.txt`, `opencv-python-headless` included; the Dockerfile needs no change.

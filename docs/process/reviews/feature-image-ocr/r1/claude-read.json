@@ -1,0 +1,133 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The diff changes addons/intelligence/Dockerfile.test, which is not in the touch-point list. It installs pillow-heif==0.22.0 into the test image and copies search-config.yml.example into it.",
+      "impact": "The test image now differs from what the touch points describe. The HEIC fixture and the example-config test depend on this file. Nothing changes for a user at run time.",
+      "evidence": "addons/intelligence/Dockerfile.test:44 (`pip install pillow pillow-heif==0.22.0`) and :60-61 (`COPY search-config.yml.example .`). The touch points list only `addons/intelligence/Dockerfile`. That file is unchanged in this diff, and I read its current content: it has no libgl1 or libglib2.0-0.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An unlisted place the diff reaches. It breaks no invariant.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add Dockerfile.test to the touch-point list."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The diff adds a new API field that the touch points do not name. `IndexDetailsResponse.image_ocr` is added in app/schemas.py and set by `get_index_details`, and `IndexDetailsResponse.image_ocr` and `IndexDetailsStatus.ocr` are added in frontend/api.ts. The schemas.py list names only StatusResponse, FeaturesStatus and FeaturesUpdate.",
+      "impact": "The index-details endpoint's response shape changes. The dialog now hides or shows the OCR row based on this field, and on `undefined` (an older backend) it hides the row.",
+      "evidence": "app/schemas.py IndexDetailsResponse adds `image_ocr: Literal[...] = \"on_index\"`. app/routers/files.py get_index_details passes `image_ocr=settings.features.image_ocr`. frontend/api.ts IndexDetailsResponse adds `image_ocr?: string`. IndexDetailsDialog.tsx isTaskApplicable returns false when imageOcr is undefined.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An unlisted response field. It breaks no invariant.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add IndexDetailsResponse (schemas.py and api.ts) and get_index_details's `image_ocr` to the touch points."
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "The diff changes parts of app/routers/files.py beyond the three items the touch points name (`_REINDEX_ALLOWED_TASKS`, `_REINDEX_FLAG_COLUMN` and the index-details `status`). The `_get_indexed_file_or_404` result dict gains `ocr_indexed`, and the `reindex_file` handler gains a new 422 gate that reads the row's mime type.",
+      "impact": "A reindex request that includes `ocr` together with other tasks (for example [\"metadata\",\"ocr\"] on a document) is now refused as a whole with 422, where before it would have reset the other tasks. It also does this for a picture while the mode is `false`.",
+      "evidence": "app/routers/files.py: `_get_indexed_file_or_404` adds `\"ocr_indexed\": indexed.ocr_indexed`. In reindex_file, `indexed = await asyncio.to_thread(_get_indexed_file_or_404, ...)` is followed by `if \"ocr\" in tasks and (...): raise HTTPException(422)`.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The behaviour matches spec §1.6 and I4. The gap is only that the function is not in the touch-point list.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Name `reindex_file` and `_get_indexed_file_or_404` in the files.py touch point."
+    },
+    {
+      "id": "TP-4",
+      "origin": "reviewer",
+      "claim": "The diff changes `assemble_contexts` in app/rag/context.py, which r1 does not list: r1 adds only `build_file_context` and `_collect_image_snippets`. `_needs_vector` now also holds when any candidate has file_type `image`.",
+      "impact": "Every Ask that returns any picture now embeds the query once, even when no picture has OCR rows. This adds a text-embedding call per such question. The result is unchanged.",
+      "evidence": "app/rag/context.py assemble_contexts: `any(c.file_type in (\"document\", \"text\", \"image\") for c in candidates)`. The test TestAssembleContextsPictureOcr pins it.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An unlisted function reached. The effect is extra work, not a wrong result.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add `assemble_contexts` to the I11 touch points."
+    },
+    {
+      "id": "TP-5",
+      "origin": "reviewer",
+      "claim": "Test files outside the listed `addons/intelligence/tests/` are reached. Three are new: addons/intelligence/frontend/AdminFeaturesSettingsSectionOcr.test.tsx, IndexDetailsDialogOcr.test.tsx and IndexStatusWidgetOcr.test.tsx. Two existing ones are modified: AdminFeaturesSettingsSection.test.tsx (combobox count 11→12) and the core frontend/src/lib/__tests__/searchCapture.test.ts.",
+      "impact": "None for users. The touch-point list understates where tests live, and in particular it does not name the core test file.",
+      "evidence": "The diff headers for these five files.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Unlisted test locations.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "List the frontend test files and the core searchCapture test as touch points."
+    },
+    {
+      "id": "TP-6",
+      "origin": "reviewer",
+      "claim": "The touch points say the engine and its system libraries are pinned in requirements.txt and the Dockerfile, but `opencv-python-headless` is added unpinned and the Dockerfile is not changed.",
+      "impact": "A later image rebuild can pull an opencv-python-headless release that does not work with numpy==2.2.4 or rapidocr 3.10.0. Engine creation would then fail, OCR would log a single ERROR, and every picture would stay pending, without any test catching it.",
+      "evidence": "addons/intelligence/requirements.txt has `opencv-python-headless` with no version, next to `rapidocr==3.10.0`. addons/intelligence/Dockerfile is unchanged: base python:3.12-slim, with no libglib2.0-0 or libgl1.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant covers pinning. This is reproducibility risk.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Pin opencv-python-headless to the version measured on production."
+    }
+  ],
+  "specification_compliance": [
+    "The diff reaches these unlisted places: Dockerfile.test; IndexDetailsResponse.image_ocr in schemas.py and api.ts; reindex_file and _get_indexed_file_or_404 in files.py; assemble_contexts in rag/context.py; the frontend test files and the core searchCapture.test.ts.",
+    "The listed addons/intelligence/Dockerfile is not changed by the diff.",
+    "Every other changed file maps to a listed touch point, to the r1 revisions (rag/context.py, core searchCapture.ts) or to the implicit spec, INDEX and review records."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "A reindex request that mixes `ocr` with valid tasks is refused as a whole with 422, not split per task.",
+    "isPicture in core searchCapture.ts matches any `image/*` mime, not just the OCR set. Only text_content rows produce content_matches, so in practice it affects only pictures with OCR rows.",
+    "IndexDetailsDialog keeps its own copy of the OCR mime set (OCR_MIME_TYPES), so it can drift from the backend's OCR_IMAGE_TYPES."
+  ],
+  "regression_risks": [
+    "opencv-python-headless is unpinned, so a rebuild can break engine creation, and the tests use a fake engine and would not notice.",
+    "The real RapidOCR param keys (`Det.lang_type`, `EngineConfig.onnxruntime.intra_op_num_threads`) and compatibility with the pinned onnxruntime==1.21.0 are never exercised by tests.",
+    "Ask now embeds the query whenever a picture is among the candidates."
+  ],
+  "test_coverage": [
+    "The worker, queueing, status, migration, admin and RAG tests use a FakeEngine and a SearchDB double, so the real engine is not covered.",
+    "The core searchCapture tests cover the picture excerpt and the absence of a page locator.",
+    "Frontend tests cover the dialog row gating, the widget bar and card, and the admin select."
+  ],
+  "not_verified": [
+    "I did not run any test or build an image.",
+    "I did not check whether rapidocr 3.10.0 accepts the params used in _create_engine, or whether it runs on onnxruntime 1.21.0.",
+    "I did not check whether opencv-python-headless needs libglib2.0-0 on python:3.12-slim.",
+    "I did not check core consumers of a `document_selection` capture without a locator on a picture (for example, adding it to the Knowledge base).",
+    "I did not verify that upsert_fts_text_content with an empty list deletes the earlier FTS rows."
+  ],
+  "confidence": 78
+}
