@@ -20,7 +20,7 @@ import app.setup_token as setup_token
 import app.config as config
 from app.models import File
 from app.routers import admin, admin_markdown_images, auth, collections, comments, drives, files, progress, uploads, ws
-from app.routers import addon_proxy, admin_config, drive_policies, internal, smart_folders
+from app.routers import addon_proxy, admin_config, drive_policies, files_processing, internal, smart_folders
 from app.services.fileops import physical_delete
 from app.services.scanner import scan_all_drives
 from app.services import addon_registry, drive_seed, event_hooks
@@ -317,6 +317,7 @@ app.include_router(admin_config.router)
 app.include_router(auth.router)
 app.include_router(comments.router)
 app.include_router(files.router)
+app.include_router(files_processing.router)
 app.include_router(drives.router)
 app.include_router(drive_policies.router)
 app.include_router(uploads.router)

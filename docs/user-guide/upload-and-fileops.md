@@ -8,6 +8,8 @@ Drop files or a folder onto any folder listing, or choose **Files** or **Folder*
 
 The drawer at the bottom of the screen shows each file's progress. You can cancel a file that has not finished, **Clear** the finished ones, and collapse the drawer. Two files upload at a time.
 
+When a file finishes uploading, its entry stays in the drawer while Litloft finishes preparing it. Its steps are listed under the file name, such as making the file findable by search. **Ready** appears when the file is fully usable. The list stops updating after 30 minutes, and **Clear** removes the entry at any time.
+
 Things to plan around:
 
 - Uploads keep going while you move around the app. Open a file, another folder, another drive, search or Settings, and the drawer stays on screen with its progress, cancel and **Clear**. Each file goes to the folder it was added to.

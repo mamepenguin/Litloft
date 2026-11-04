@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "chapter_suggestions.py:21,239, refine.py:36,627, summaries.py:25,53, video_visual.py:35,372, vision.py:46,476 and whisper.py:28,77 all import and call app.addon_events.post_addon_event. The touch-point list at docs/specs/ingest-progress.md:243-255 names only metadata.py, whisper.py (for processing.updated) and indexer.py among the workers. internal.py:62-66 returns 403 when CORE_INTERNAL_SECRET is set and the header does not match, and internal.py:728-731 applies that gate to /addon-events. addon_events.py:28-30 now sends X-Internal-Secret. I could not read the pre-change bodies because I have no git access, so 'the removed code posted without headers' rests on the reviewer's diff and on the docstring at addon_events.py:3-7."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "The vision.py calls at 763-766, 786-789, 805-808, 842-845, 866-871 and 914-919 all build data with file_id and no drive. vision.py:476 calls post_addon_event(event, data) without drive=. addon_events.py:37-40 adds the top-level drive only from the drive argument or data['drive'], so these payloads carry no drive. internal.py:740 passes drive=body.drive (None) to ws.py:51, where access_group becomes None, and ws.py:57-61 then sends to every connection. With the secret set, the shared poster now delivers these events, so they reach every viewer unscoped. Without the secret, the same unscoped broadcast would already have happened before this change."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "addons/intelligence/app/addon_events.py and app/processing_events.py exist, and processing_events.py:16 imports post_addon_event_sync. addons/intelligence/app/schemas.py:272, 278, 292 and 296 define ProcessingRequest, ProcessingStage, ProcessingFile and ProcessingResponse. The touch-point list (spec:232, 243-255) names only the core backend/app/schemas.py and none of these intelligence modules. That these files are new in this diff rests on the reviewer's diff, since I have no git access."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "scope-1",
+      "status": "confirmed",
+      "note": "This is the same evidence as TP-1 and TP-2. addon_events.py:28-30 adds the secret header, :54 and :70 set trust_env=False, :59 and :74 call raise_for_status, and :37-40 lifts the drive only from data['drive']. vision.py:473-476 never passes a drive. None of the five workers is in spec:243-255. I did not read the old bodies, because I have no git access."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "scope-2",
+      "status": "confirmed",
+      "note": "addons/intelligence/app/processing_events.py exists and imports from app.addon_events at line 16. whisper.py:1035 calls emit_processing_updated. The module does not appear in the touch-point list at spec:243-255."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "scope-3",
+      "status": "confirmed",
+      "note": "addons/intelligence/app/schemas.py:272-296 defines the four Processing* models. The spec at :232 names only backend/app/schemas.py."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "scope-4",
+      "status": "confirmed",
+      "note": "whisper.py:1001-1007 shows _record_failed_job with a keyword-only drive: str parameter that has no default, and whisper.py:1035 posts processing.updated after the row commits. whisper.py:61-77 now delegates to post_addon_event. A grep over addons/intelligence finds only two callers, whisper.py:918-923 and whisper.py:966-968, and both pass drive=drive. No test or other module calls it, so no caller is left broken."
+    }
+  ],
+  "specification_compliance": [
+    "The touch-point list (docs/specs/ingest-progress.md:243-255) does not name addon_events.py, processing_events.py, intelligence app/schemas.py, chapter_suggestions.py, refine.py, summaries.py, video_visual.py or vision.py. All of them are present and wired to the new shared poster.",
+    "Commit 97bb1070f ('point intelligence at the addon-event secret fix') and the decisions.md evidence (all 21 addon-events posts answered 204, none 403) show that the secret-header change was deliberate, but no spec revision covers it."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Unscoped intelligence events (vision_describe.*, and possibly others that do not set data['drive']) are now delivered to every connected viewer when CORE_INTERNAL_SECRET is set. Before this change they were presumably dropped with a 403."
+  ],
+  "regression_risks": [
+    "Before this change, events from refine, summaries, vision, chapter_suggestions and video_visual were rejected with a 403 in production. They are now broadcast, so frontend handlers that were never exercised in production will start firing."
+  ],
+  "test_coverage": [
+    "addons/intelligence/tests/test_addon_event_secret.py exists. According to the addon_events.py docstring, it guards against posters outside the shared module. I did not read it."
+  ],
+  "not_verified": [
+    "The pre-change bodies of the worker emitters, because I have no git or diff access. Whether they lacked the secret header is taken from the reviewers.",
+    "Whether refine, summaries, chapter_suggestions and video_visual events set data['drive'].",
+    "The contents of test_addon_event_secret.py, and whether any test exercises the delivery of drive-less vision events.",
+    "Frontend handling of intelligence.vision_describe.* events."
+  ],
+  "confidence": 80
+}

@@ -256,7 +256,8 @@ calls back into the core through the [Internal API](#internal-api).
 | `slots` | No | UI slot entries (see [UI Slot System](#ui-slot-system)) |
 | `policy_features` | No | Per-drive feature toggles in the admin GUI |
 | `event_hooks` | No | Lifecycle webhooks (see [Event Hooks](#event-hooks)) |
-| `proxy` | Yes for a proxied service | `target_env`, `target_default`, `routes`. The target URL is the value of `target_env`, or `target_default` when it is unset. No URL: the proxy answers 503. An addon without `proxy` gets no proxy routes |
+| `proxy` | Yes for a proxied service | `target_env`, `target_default`, `routes`. The target URL is the value of `target_env`, or `target_default` when it is unset or empty. No URL: the proxy answers 503. An addon without `proxy` gets no proxy routes |
+| `processing_status` | No | `{ "path": "/files/processing" }`. Makes the addon part of the upload drawer's stage list (see [`processing_status`](#processing_status)) |
 
 #### `navigation`
 
@@ -355,6 +356,55 @@ What the proxy does with a request:
   or an unreachable service is 502.
 - JSON object responses get `"available": true` added when absent.
   Non-JSON responses (for example `text/vtt`) pass through unfiltered.
+
+### processing_status
+
+An external-service addon that prepares uploaded files can report their stages
+to the upload drawer. Declare a top-level key in `manifest.json`:
+
+```json
+"processing_status": { "path": "/files/processing" }
+```
+
+The key is ignored on an in-process addon. When the file's drive has the
+addon's `index` feature on, the core calls `POST <target><path>` directly,
+where `<target>` is the same URL the proxy resolves. The request carries
+`X-Lit-Drive` with the percent-encoded drive name, decoded as the proxy
+decodes the [Drive context header (`X-Lit-Drive`)](#drive-context-header-x-lit-drive),
+and `{ "file_ids": [...] }` (at most 100), with no secret.
+
+Answer with the stages of each requested file:
+
+```json
+{
+    "files": {
+        "<file_id>": {
+            "stages": [
+                {"key": "search", "i18n_key": "myService.processing.search", "state": "pending", "required": true}
+            ]
+        }
+    }
+}
+```
+
+| Field | Meaning |
+|-------|---------|
+| `key` | Stage identifier, matching `^[a-z][a-z0-9_.]*$` |
+| `i18n_key` | Translation key in the addon's own catalogue |
+| `state` | `pending`, `running`, `done` or `failed` |
+| `required` | Boolean. The file is ready only when every required stage is `done` |
+
+Stages are listed in display order. A file id the addon does not hold in that
+drive may be left out. An empty `stages` list contributes no stage. A stage
+list that breaks this shape counts as that file left out; a body that is not
+this shape counts as every requested file left out. Ids the core did not ask
+for are dropped. A file left out gets one required, `pending` stage saying it
+cannot be checked, and the addon is called again on the drawer's next request.
+
+An addon that reports stages also posts `processing.updated` with
+`{ "file_ids": [...] }` and `drive` through `POST /api/internal/addon-events`
+whenever a stage changes, so the drawer refreshes before its next 30-second
+request.
 
 ### Response filters
 

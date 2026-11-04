@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "deep-r4-1",
+      "origin": "reviewer",
+      "claim": "The new mid-request test pins the follow-up to the event's ids with only one entry in the drawer, so it cannot tell an id-narrowed follow-up from a full one. A regression that queues `{ all: true }` whenever a held id is named would still pass.",
+      "impact": "No current defect. queueProcessingRefresh at frontend/src/hooks/useUpload.ts:232-250 keeps the union of held ids, and the follow-up at :268 asks only for those. If a later change widened the follow-up again, every other entry in processing view would fetch on an event that does not name it (the r3 I8 issue), and no test would fail.",
+      "evidence": "frontend/src/__tests__/uploadProcessingRefresh.test.tsx: in the it.each case 'a held id', renderCompleted drops one file (file_a) and asserts `callsSoFar[1]` equals `[\"file_a\"]`. With one entry, a refresh with no ids and a refresh for file_a produce the same request.",
+      "repro": "Mutation, reasoned and not executed: in queueProcessingRefresh, replace the ids branch with `processingRefreshQueued = { all: true }` after the `held.length === 0` check. Both it.each cases still pass: the foreign case still has 1 call, and the held case's second call is still [\"file_a\"]. The mutant survives.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The code satisfies I8 (r2). This is only a coverage gap in the test that guards the r3 fix.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add a case with two entries in processing view where the mid-request event names one of them, and assert that the follow-up request lists only that id."
+    }
+  ],
+  "specification_compliance": [
+    "r3 deep-r3-1 (A, I8) is resolved in code. queueProcessingRefresh (useUpload.ts:232-250) drops an event whose ids name no held entry that still needs a fetch. It keeps a union of held ids, and an id-less call (tick or immediate entry fetch) escalates to `{ all: true }`. The finally block (:263-269) re-runs with exactly the queued ids or with all entries. refreshProcessingOnce (:280-285) filters again through needsProcessingFetch, so an entry that turned ready, gone or stopped between queueing and the follow-up is not fetched.",
+    "A new entry that completes while a request is in flight still gets its first fetch: scheduleImmediateProcessingFetch calls refreshProcessing() with no ids, which queues `{ all: true }`. So I8 (r2)'s 'fetches once as soon as it enters the processing view' holds across the in-flight path.",
+    "The foreign-id it.each case kills the r3 behaviour (an unconditional boolean queue would make a second call). The held-id case keeps the r2 mid-request fix covered.",
+    "r3 R3-1 is resolved. docs/ADDON-DEVELOPMENT.md:371-374 now says X-Lit-Drive carries the percent-encoded drive name and points to the drive-context section. That matches files_processing.py's quote(drive, safe='') and the addon's unquote in drive_context.py. The proxy also percent-decodes before validating (addon_proxy.py:495-498), so 'decoded as the proxy decodes' is accurate.",
+    "The reviewed commit 29a2054c9 itself is docs only, and its text describes the code correctly. I found no prose that would lead a reader to a wrong code change.",
+    "r2 R2-1 (refine events dropped when the snapshot has no drive), R2-2 (synchronous startup posts) and r3 deep-r3-2 (no end-to-end test of the encoding) were not touched by these fixes. All three are bucket B and remain as recorded."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Held ids are filtered when the event arrives, not when the follow-up runs. An entry whose fileId is set after the event (because its complete response arrives later) is not added from that event, but its own immediate fetch covers it."
+  ],
+  "regression_risks": [
+    "resetUploadStore (useUpload.ts:488-497) still does not reset processingInFlight or processingRefreshQueued. This affects tests only, since the suites use vi.resetModules, and it is unchanged from r3.",
+    "A queued `{ all: true }` follow-up issued just before a tick can still produce two requests close together, which is the same behaviour as before."
+  ],
+  "test_coverage": [
+    "Foreign-id event mid-request: covered, and it kills the r3 unconditional-queue behaviour.",
+    "Held-id event mid-request: covered with one entry only, so the narrowing of the follow-up to the named ids is not pinned (deep-r4-1).",
+    "No test covers several events merging into one queued id set, or an id-less call escalating a queued id set to all.",
+    "Docs change: no test applies."
+  ],
+  "not_verified": [
+    "I ran no frontend or backend tests. Mutant results are reasoned, not executed.",
+    "I did not check that the proxy forwards the original percent-encoded header to upstream services rather than the decoded one. I relied on the drive-context section and drive_context.py's unquote.",
+    "I did not re-read the truncated remainder of the submodule diff or docs/addons/intelligence.md.",
+    "I did not check the exact file list of dbfcfb3ad, beyond its subject saying it is a review record."
+  ],
+  "confidence": 82,
+  "trajectory": "The frontend refresh queue has now been changed in three consecutive rounds, each in the same spot (refreshProcessing's in-flight branch). First came a boolean set only for id-less calls. Then (aee93a7) a boolean set unconditionally, which removed that branch. Now (77314cd) a tagged state `{ all } | { ids: Set } | null` with a held-id filter. This round adds a state and a branch, the id set plus the held filter, that neither earlier round had. It replaces the boolean instead of stacking on it, but the repeated rework of one queue means this part of the design is being patched round by round rather than settled. This version tracks pending ids, which is what r3 proposed, so it looks like the end state. 29a2054c9 is a docs-only correction that adds no branch or state. dbfcfb3ad is a review record."
+}

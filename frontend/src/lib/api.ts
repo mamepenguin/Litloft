@@ -495,6 +495,35 @@ export async function cancelUpload(drive: string, uploadId: string): Promise<voi
   if (!res.ok) throw new Error(`Cancel upload failed: ${res.status}`);
 }
 
+export type ProcessingStageState = "pending" | "running" | "done" | "failed";
+
+export interface ProcessingStage {
+  addon: string | null;
+  key: string;
+  i18n_key: string;
+  state: ProcessingStageState;
+  required: boolean;
+}
+
+export interface FileProcessing {
+  stages: ProcessingStage[];
+  ready: boolean;
+}
+
+export interface FilesProcessingResponse {
+  files: Record<string, FileProcessing>;
+}
+
+export async function getFilesProcessing(
+  fileIds: string[]
+): Promise<FilesProcessingResponse> {
+  return fetchJSON<FilesProcessingResponse>(`${API_BASE}/files/processing`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ file_ids: fileIds }),
+  });
+}
+
 export async function batchGetFiles(ids: string[]): Promise<FileItem[]> {
   const files = await fetchJSON<FileItem[]>(`${API_BASE}/files/batch/get`, {
     method: "POST",

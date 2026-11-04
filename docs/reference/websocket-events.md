@@ -52,6 +52,8 @@ Events in use (each addon's page describes its payloads):
 - intelligence: `intelligence.transcription.completed` / `.failed`; `intelligence.refine.started` / `.progress` / `.completed` / `.failed`; `intelligence.vision_describe.started` / `.succeeded` / `.failed` / `.unsupported`; `intelligence.video_visual.started` / `.progress` / `.partial` / `.succeeded` / `.failed`; `intelligence.chapter_suggestions.ready` / `.failed`; `intelligence.detailed_summary.updated` / `.citations_ready`. `intelligence.vision_describe.failed` carries a `reason`: `load`, `decode`, `model_missing`, `image_rejected`, `vision_rejected`, `token_budget`, `malformed`, `empty` or `request_failed`. See [Vision describe](../addons/intelligence.md#vision-describe).
 - knowledge: `knowledge.active_summary.changed`, `knowledge.note.created`, `knowledge.distilled.created`, `knowledge.clip.ready` / `.failed`.
 
+An addon that declares [`processing_status`](../ADDON-DEVELOPMENT.md#processing_status) sends `processing.updated` with `{ "file_ids": [...] }` (at most 100) and `drive`, through `POST /api/internal/addon-events`. The upload drawer refreshes those entries. A lost event is picked up by the drawer's next 30-second request.
+
 ## Event-hook webhooks
 
 These are HTTP POSTs to addon services, not browser events. Listeners are registered in `event-hooks.json`.

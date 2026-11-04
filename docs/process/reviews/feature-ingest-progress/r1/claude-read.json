@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The intelligence diff changes five event-posting workers that are not in the touch-point list (app/workers/chapter_suggestions.py, refine.py, summaries.py, video_visual.py, vision.py), and also rewrites whisper.py's general _emit_ws_event; the list names whisper.py only for processing.updated posts.",
+      "impact": "Every intelligence WebSocket event (refine, summaries, transcription, vision_describe, video_visual, chapter_suggestions) now goes through app.addon_events.post_addon_event, which adds X-Internal-Secret and trust_env=False. Before this change, refine, summaries, whisper and vision posted with no secret. With CORE_INTERNAL_SECRET set, verify_internal_secret rejected those posts with 403 and the events were silently dropped. They are now delivered. That is a user-visible change in which progress and completion events reach the browser, and the spec does not plan or describe it.",
+      "evidence": "addons/intelligence/app/workers/refine.py:627, summaries.py:53, whisper.py:77 and vision.py:476 now call post_addon_event; the removed code posted json without headers. backend/app/routers/internal.py:62-66 returns 403 when a secret is set and the header is missing; internal.py:729-731 applies that gate to /addon-events. The touch-point list (docs/specs/ingest-progress.md, Touch points, Addon) names only metadata.py, whisper.py and indexer.py among the workers.",
+      "repro": "Read the diff: chapter_suggestions.py, refine.py, summaries.py, video_visual.py and vision.py appear in the submodule diff and are absent from the touch-point list. decisions.md records 21 addon-events posts answering 204 after the change.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant covers these events. The change is outside the planned scope and is not recorded in the spec, so a reader of the spec would not expect these events to start arriving.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Either add the shared-poster refactor and its effect (non-processing events now delivered when the secret is set) to the spec's touch points and section 7, or split it into its own change."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "vision.py's events carry no drive, so now that the shared poster delivers them, the core broadcasts intelligence.vision_describe.* with file_id to every connected viewer, including viewers who cannot open the file's drive.",
+      "impact": "A viewer without a locked drive's group receives vision_describe started/failed/succeeded events naming a file id from that drive. The design rule 'drive boundary and absence for locked drives' says such viewers should not see these. Before the change the events were dropped with 403 whenever the secret was set, so the leak could not happen in production.",
+      "evidence": "addons/intelligence/app/workers/vision.py:763-766, 786-789 and 914-918 build data with file_id and no drive. addon_events.py:_payload sets the top-level drive only when drive or data['drive'] is given. backend/app/services/ws.py:51-59: when drive is None, access_group is None and the message goes to every connection.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This breaks none of the declared invariants (I6 covers processing.updated only). Under the single-user threat model, exposure to another viewer is outside scope, but the change sits in a place the list does not name.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Pass the file's drive to vision's _emit_ws_event, or record that vision events stay drive-less."
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "Three intelligence modules not in the touch-point list are added or changed: app/addon_events.py (new shared poster), app/processing_events.py (new processing.updated emitter) and app/schemas.py (intelligence request and response models). The list names only the core backend/app/schemas.py.",
+      "impact": "These are supporting code for listed behaviour. A user cannot hit anything beyond TP-1. The list does not describe the module boundary that now owns every addon-event post, and tests/test_addon_event_secret.py enforces that boundary.",
+      "evidence": "Submodule diff: new addons/intelligence/app/addon_events.py and app/processing_events.py; addons/intelligence/app/schemas.py:269-297 adds ProcessingRequest, ProcessingStage, ProcessingFile and ProcessingResponse.",
+      "repro": "Compare the submodule file list in the diff with the spec's Addon touch points.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "These files are unplanned in the list but needed by listed behaviour, and they break no invariant.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "Core files in the diff all match the touch points. The new router backend/app/routers/files_processing.py is registered in main.py, which the list allows ('or a new router registered in backend/app/main.py').",
+    "addon_proxy.py changes only the import and call of resolve_target_url, as the touch point requires.",
+    "frontend/src/__tests__/helpers/uploadApiMock.ts is a test helper, and the list already covers frontend tests.",
+    "Reverse gap, not asked but noted: docs/addons/intelligence.md is listed as a touch point ('with the gitlink bump') and does not appear in the diff."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Non-processing intelligence events (refine, summaries, transcription, vision) now reach the browser when CORE_INTERNAL_SECRET is set; before this change they were dropped with 403.",
+    "refine, summaries, whisper and vision posts now use trust_env=False, so a proxy set through the environment is no longer used for the core call.",
+    "chapter_suggestions and video_visual now swallow every exception, not only httpx.HTTPError."
+  ],
+  "regression_risks": [
+    "Frontend listeners for intelligence.refine.* and similar events may now fire in production where they never did before.",
+    "vision_describe events go to all viewers because they carry no drive scope."
+  ],
+  "test_coverage": [
+    "tests/test_addon_event_secret.py checks that the secret header is sent and that no module outside addon_events.py posts to addon-events itself.",
+    "No test covers the drive scoping of the refactored refine, summaries, vision or video_visual events."
+  ],
+  "not_verified": [
+    "I took the supplied diff, which is the branch against origin/develop, as the change. I did not confirm which of these files commit ce7f9f4fe itself touches; its subject says it is docs-only.",
+    "I did not check whether the frontend subscribes to vision_describe or refine events and how it shows them.",
+    "I did not run any test."
+  ],
+  "confidence": 80
+}

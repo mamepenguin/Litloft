@@ -9,6 +9,7 @@ Provides a unified view of all addons including their slots and proxy config.
 
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Any
 
@@ -143,6 +144,28 @@ def get_external_addons() -> dict[str, dict[str, Any]]:
         for name, meta in _registry.items()
         if meta.get("type") == "external_service" and "proxy" in meta
     }
+
+
+def resolve_target_url(proxy_config: dict[str, Any]) -> str | None:
+    """Resolve the target URL from env var or default."""
+    env_name = proxy_config.get("target_env", "")
+    default_url = proxy_config.get("target_default", "")
+    if env_name:
+        configured = os.environ.get(env_name)
+        if configured:
+            return configured
+    return default_url or None
+
+
+def get_processing_addons() -> list[tuple[str, dict[str, Any]]]:
+    """External addons that declare a processing-status path, in name order."""
+    addons = [
+        (name, meta)
+        for name, meta in get_external_addons().items()
+        if isinstance(meta.get("processing_status"), dict)
+        and isinstance(meta["processing_status"].get("path"), str)
+    ]
+    return sorted(addons, key=lambda item: item[0])
 
 
 def get_all_slots() -> dict[str, list[dict[str, Any]]]:
