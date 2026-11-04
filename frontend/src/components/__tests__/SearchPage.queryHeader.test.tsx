@@ -483,7 +483,7 @@ describe("SPEC-CORE-039 I14 the ＋ 条件 menu", () => {
 
   it.each([
     ["a chosen kind", null, "type:text 予算", ["Text", "Document"], ["Video", "PDF"]],
-    ["the toolbar type", "video", "予算", ["Video", "Document", "Text", "PDF"], []],
+    ["the toolbar type", "video", "予算", ["Video", "Document", "Text", "PDF", "Image"], []],
     ["a kind an already chosen kind holds", "document", "type:document 予算", ["Document", "Text", "PDF"], ["Video"]],
   ] as const)(
     "does not offer %s",
