@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!-- Without this, a context that sets `isMobile` lays the page out at
+         Chromium's mobile default instead of the viewport the spec asked for. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>search results header — layout fixture</title>
+    <!-- No <style> of its own: every declaration measured here has to come
+         out of the app's own stylesheet. -->
+    <link rel="stylesheet" href="./globals.built.css" />
+  </head>
+  <body>
+    <!--
+      The search results page's header as it stands. The case measures the
+      subject row: the query field, the count and the actions. A field has to
+      be added to this header for the phone layout to exist at all, so this
+      fixture is the artifact the change rewrites.
+    -->
+    <header id="header" class="flex flex-col gap-1 px-4 py-2">
+      <div id="subject-row" class="flex min-w-0 items-start gap-3">
+        <div class="min-w-0 flex-1">
+          <h1 id="heading" class="truncate text-2xl font-bold text-text-primary">
+            Search: "cats tag:会議"
+          </h1>
+          <div id="count" class="mt-1 text-sm text-text-muted">42 items</div>
+        </div>
+        <div id="actions" class="flex flex-shrink-0 flex-wrap items-center gap-2">
+          <button
+            type="button"
+            class="rounded-2xl bg-bg-elevated px-3 py-1.5 text-sm font-medium text-text-primary ring-1 ring-bg-border"
+          >
+            Save as Smart Folder
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <script>
+      window.measureHeader = function () {
+        const box = (el) => {
+          if (!el) return null;
+          const r = el.getBoundingClientRect();
+          return {
+            top: r.top,
+            bottom: r.bottom,
+            left: r.left,
+            right: r.right,
+            width: r.width,
+            height: r.height,
+          };
+        };
+        const header = document.getElementById("header");
+        const count = document.getElementById("count");
+        const style = getComputedStyle(header);
+        return {
+          viewport: { width: window.innerWidth, height: window.innerHeight },
+          documentWidth: document.documentElement.clientWidth,
+          documentScrollWidth: document.documentElement.scrollWidth,
+          header: box(header),
+          contentWidth:
+            header.clientWidth -
+            parseFloat(style.paddingLeft) -
+            parseFloat(style.paddingRight),
+          field: box(document.querySelector('[data-role="query-field"]')),
+          chips: box(document.querySelector('[data-role="filter-chips"]')),
+          count: box(count),
+          countLineHeight: parseFloat(getComputedStyle(count).lineHeight),
+          actions: box(document.getElementById("actions")),
+        };
+      };
+      document.body.dataset.ready = "1";
+    </script>
+  </body>
+</html>
