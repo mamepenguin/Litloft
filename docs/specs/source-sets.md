@@ -55,16 +55,19 @@ SPEC-CORE-034:
    (`fileops.py`, beside `retarget_file_tags`). `move_folder` and `rename_folder` take one
    drive and never change it; the scanner, uploads and copies create or revive rows in a
    drive and never move one.
-3. In the same transaction that sets `file.drive = dst_drive`, `move_file` deletes every
-   `CollectionItem` of that file whose collection's `drive` is not `dst_drive`. The other
+3. Inside the same `try` block and transaction that sets `file.drive = dst_drive`, so a
+   failure rolls it back with the move, `move_file` deletes every `CollectionItem` of
+   that file whose own collection's `drive` is not `dst_drive`, keyed on the collection's
+   drive, not on the file's old drive. The other
    items of those collections keep their positions; the gap left in `position` is not
    renumbered, as `DELETE .../items/{item_id}` does not renumber either.
 4. A move within one drive (`target_drive` absent or equal to the file's drive) touches no
    collection item.
 5. At startup, as the last step of `database.py`'s `_migrate` (after every existing
    migration, the `playlists` → `collections` copy included, and before
-   `_backfill_mangled_titles`), every `collection_items` row whose file's
-   `drive` differs from its collection's `drive` is deleted, with one INFO log line giving
+   `_backfill_mangled_titles`), every `collection_items` row whose file's `drive` differs from the `drive` of that
+   item's own collection (`files.drive <> collections.drive` joined on the item's
+   `file_id` and `collection_id`, nothing broader) is deleted, with one INFO log line giving
    the count when it is non-zero. On a database with no such row it deletes nothing and
    logs nothing; it runs on every start.
 
@@ -142,8 +145,9 @@ SPEC-CORE-038:
   `move_file` rolls back, which restores the deleted items with the rest of the
   transaction, and moves the file back as today. A move that fails before the
   transaction (409 target exists, 404 not on disk, 404 target drive locked) touches no
-  item. In a batch move each file commits on its own, so the files that moved lose their
-  old-drive items and the ones that failed keep them.
+  item. In a batch move each file commits on its own: the files that moved lose their old-drive
+  items, the ones that failed keep them, and a later file's failure does not undo an
+  earlier file's removal.
 - The startup cleanup fails (a database error) → the error propagates as the other
   migrations' errors do; nothing is half-applied because it is one statement.
 - SPEC-ADDON-058: as in 1, step 2 (403, 422, 400, 404). A file that left the drive before the startup cleanup
@@ -271,13 +275,17 @@ Core:
 - `mcp-server/src/tools/read.ts` (or a new `collections.ts` registered in
   `src/tools/index.ts`), `mcp-server/src/server.ts` (instructions), `mcp-server/src/tools/write.ts` and
   `batch.ts` (the `move_file` / `move_files` descriptions),
-  `mcp-server/src/__tests__/toolMetadata.test.ts` (the expected tool list, a named edit),
+  `mcp-server/src/__tests__/toolMetadata.test.ts` (`expectedToolNames` and `readOnlyTools`,
+  from which `idempotentTools` derives; a named edit),
   `mcp-server/src/__tests__/` for the two tools, `mcp-server/README.md`.
 - `docs/ADDON-DEVELOPMENT.md`, `docs/user-guide/playlists-favorites.md`,
   `docs/user-guide/upload-and-fileops.md`, `.claude/rules/internal-api-policy.md` (audit
   table).
 
-Intelligence (its own PR, then the gitlink bump in core):
+Intelligence (its own PR). The client imports nothing new from the core, only HTTP, so
+the intelligence PR merges first and the core PR carries the gitlink bump to it.
+SPEC-ADDON-058 becomes `implemented` only once both the intelligence PR and the core
+gitlink bump have landed.
 - `addons/intelligence/app/rag/collection_client.py`.
 - `addons/intelligence/tests/`: Layer 1 wire-shape tests with `httpx.MockTransport` (URL,
   method, `drive` parameter, secret header present and absent, response parse, each
@@ -293,13 +301,13 @@ No protected path is edited.
 ## Invariants
 
 I1. After a successful move of a file to another drive, no collection of any drive other than the destination holds an item for that file; a move within one drive leaves every item of that file in place with its position.
-I2. A move that fails, before or after the file is moved on disk, leaves every collection item of that file as it was.
-I3. After startup, including on a database whose `playlists` were copied into `collections` in the same start, no `collection_items` row references a file whose `drive` differs from its collection's `drive`, and every other row is unchanged.
-I4. `GET /api/internal/collections/{id}/file-ids?drive=` returns exactly the ids of that collection's items whose file is active and in `drive`, in `position` order; a trashed, missing or other-drive file never appears.
-I5. The endpoint answers 404 for a collection that exists in another drive, the same as for one that does not exist, and 404 for an unknown drive, so it never returns a file id of a drive other than `drive`.
+I2. A move that fails (409 target exists, 404 not on disk, 404 locked destination, or a database error after the disk move) leaves every collection item of that file as it was; in a batch move only the files that moved lose items, and a later failure does not restore an earlier file's removed items.
+I3. The startup cleanup deletes only rows whose file's `drive` differs from the `drive` of the item's own collection; with no such row it deletes and logs nothing, otherwise it logs one INFO line with the count. After startup, including on a database whose `playlists` were copied into `collections` in the same start, no `collection_items` row references a file whose `drive` differs from its collection's `drive`, and every other row is unchanged.
+I4. `GET /api/internal/collections/{id}/file-ids?drive=` returns exactly the ids of that collection's items whose file is active and in `drive`, in `position` then item-id order, and `[]` when none is active; a trashed, missing or other-drive file never appears.
+I5. The endpoint answers 404 `"Collection not found"` for a collection that exists in another drive, the same as for one that does not exist, 404 `"Drive not found"` for an unknown drive, 400 for a malformed id and 403 for a secret mismatch when the secret is set, so it never returns a file id of a drive other than `drive`.
 I6. The client returns a list only for a 200 with a list of string ids, in the core's order, and raises on every failure; it never turns a failure into an empty list.
 I7. `get_collection` lists exactly the items whose file is neither trashed nor missing (a missing state key counts as null), in the core's order, and `inactive_count` plus the number of listed items equals the collection's item count.
-I8. Neither MCP tool lists or reads a collection of a drive the server's credentials cannot open.
+I8. Neither MCP tool lists or reads a collection of a drive the server's credentials cannot open; for a locked or unknown drive both return `isError` with `Litloft API error (404)`.
 I9. On data where every item's file and collection share a drive, the public collection endpoints, `create_playlist`, `add_to_playlist`, `retarget_file_tags` and the other Internal API endpoints return the same responses for the same requests as before.
 I10. A cross-drive move leaves the other items of the affected collections with their `position` values unchanged (not renumbered) and leaves `collections.updated_at` unchanged; moving the file back does not recreate any removed item.
 I11. The client sends no request for an id that fails the nanoid pattern; 400 and 404 raise `CollectionNotFound`; every other status, a network error or timeout, and a malformed body (non-JSON, no list `file_ids`, any non-string entry) raise `CollectionLookupFailed`; both subclass `CollectionLookupError`; its WARNING log never contains a file id.
