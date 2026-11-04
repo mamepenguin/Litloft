@@ -7,3 +7,9 @@ export const FILE_CHAPTERS_UPDATED_EVENT = "litloft:chapters-updated";
 export interface FileChaptersUpdatedDetail {
   fileId: string;
 }
+
+export const FILE_PAGE_CLOSED_EVENT = "litloft:file-page-closed";
+
+export interface FilePageClosedDetail {
+  fileId: string;
+}

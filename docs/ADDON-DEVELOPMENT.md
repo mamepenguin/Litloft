@@ -670,6 +670,7 @@ Chapter events addons use:
 | `intelligence.chapter_suggestions.ready` | `POST /addon-events` | `{file_id, drive, created_at}` | A new candidate set is stored; the Intelligence UI reloads it. |
 | `intelligence.chapter_suggestions.failed` | `POST /addon-events` | `{file_id, drive, reason}` | Generation ended without a usable candidate set; the UI stops its progress state and keeps any existing chapters. `reason` is diagnostic. |
 | `litloft:chapters-updated` | Browser `CustomEvent` | `{fileId}` | An addon UI promoted a chapter set. Dispatch it with `FILE_CHAPTERS_UPDATED_EVENT` from `frontend/src/lib/addonEvents.ts`; core's chapter panel refetches on it. |
+| `litloft:file-page-closed` | Browser `CustomEvent` | `{fileId}` | Core's file page stopped showing that file: it moved to another file or unmounted, and never for a sheet, tab or breakpoint change. Core dispatches it with `FILE_PAGE_CLOSED_EVENT` from `frontend/src/lib/addonEvents.ts`; in-flight work an addon holds for that file is the addon's to abort and drop. |
 
 #### Drive policy shape
 
