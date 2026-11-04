@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "addons/intelligence/Dockerfile.test:44 runs `pip install --no-cache-dir pillow pillow-heif==0.22.0`, and :60-61 has `COPY search-config.yml.example .`. Dockerfile.test is not in the touch-point list. addons/intelligence/Dockerfile (lines 1-36) contains no OCR-related change and no libgl1 or libglib2.0-0."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "app/schemas.py:253 IndexDetailsResponse has `image_ocr: Literal[\"on_index\", \"manual\", \"false\"] = \"on_index\"`. app/routers/files.py:538 passes `image_ocr=settings.features.image_ocr`. frontend/api.ts:1763 has `ocr: boolean` (status) and :1772 has `image_ocr?: string`. IndexDetailsDialog.tsx:147 returns false when imageOcr is undefined. None of these are named in the touch points."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "app/routers/files.py:77 adds `\"ocr_indexed\": indexed.ocr_indexed` to the _get_indexed_file_or_404 dict. Lines 408-418 add a 422 gate when `\"ocr\" in tasks` and either image_ocr == \"false\" or indexed[\"mime_type\"] is not in OCR_IMAGE_TYPES. The touch points name neither change."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-4",
+      "status": "confirmed",
+      "note": "app/rag/context.py:1055-1058 sets _needs_vector from `c.file_type in (\"document\", \"text\", \"image\")` inside assemble_contexts. r1 lists only build_file_context and _collect_image_snippets."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-5",
+      "status": "confirmed",
+      "note": "Three files exist under addons/intelligence/frontend/: AdminFeaturesSettingsSectionOcr.test.tsx, IndexDetailsDialogOcr.test.tsx and IndexStatusWidgetOcr.test.tsx. AdminFeaturesSettingsSection.test.tsx:81 expects 12 comboboxes. frontend/src/lib/__tests__/searchCapture.test.ts has 3 OCR-related occurrences. None of these is under addons/intelligence/tests/. The diff headers were not inspected directly (no git access); this was checked from file content."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-6",
+      "status": "confirmed",
+      "note": "addons/intelligence/requirements.txt:11 is `opencv-python-headless` with no version, after `rapidocr==3.10.0` at :10. addons/intelligence/Dockerfile:1-36 has no OCR system libraries (apt installs only ffmpeg, build-essential, git, gettext-base and libsqlite3-dev). This contradicts the touch point's 'pinned' wording."
+    }
+  ],
+  "specification_compliance": [
+    "Requirements pin rapidocr==3.10.0 and pillow-heif==0.22.0, but opencv-python-headless is unpinned, contrary to the touch point's 'pinned'."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "IndexDetailsResponse.image_ocr is a new API field that the touch points do not name.",
+    "reindex_file returns 422 for an ocr task on a non-picture file, which no invariant names (I4 names only mode false)."
+  ],
+  "regression_risks": [
+    "An unpinned opencv-python-headless may resolve to a different version on a rebuild."
+  ],
+  "test_coverage": [
+    "Frontend OCR tests exist in addons/intelligence/frontend/*Ocr.test.tsx, outside addons/intelligence/tests/."
+  ],
+  "not_verified": [
+    "The diff itself (git diff against origin/develop); file contents at the worktree were read instead, assuming the worktree matches d850b31e0.",
+    "Whether opencv-python-headless needs libglib2.0-0 on python:3.12-slim at run time.",
+    "No test was run."
+  ],
+  "confidence": 88
+}

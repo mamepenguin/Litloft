@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship. The user approved the recommendation on 2026-11-04 ("B1は推奨通り"): pin opencv-python-headless, record the unspecified behaviour and the missing touch points as revision r2, keep the 422 refusals, and leave the image/* excerpt test and the dialog's own mime set as they are.
 
 ran_in_app: yes
 at: b480c193688f32879ffe6b5f956988800cbdc6fc
