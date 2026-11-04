@@ -67,6 +67,7 @@ When an addon emits "candidates / guesses / suggestions" that the user can promo
 | 11 | `POST /addon-events` | KEEP | WS bridge, universal |
 | 12 | `POST /restart-pending` | KEEP | Phase 2D (2026-05-08): addons notify the core that user-visible config changed. Phase 1 R1 (sentinel is core's), R2 (generic source/reason), R3 (knowledge note_scanner GUI / media_import config UI / intelligence transcription UI), R4 (RestartBanner reads), R5 (addon intent → core sentinel) all pass. |
 | 13 | `PUT /files/{id}/chapters` | KEEP | Intelligence promotes user-approved transcript-derived candidates into the core-owned chapter rail. Media Import is the concrete second producer. Generic values only; core forces `curated` provenance and dense ordering. Strict secret required. Revisit request caps if the addon-container threat model expands beyond the personal-tool premise. |
+| 14 | `GET /collections/{id}/file-ids` | KEEP (watch closely) | R1: collections are a core entity (sidebar, collection page, player queue). R2: the path and response name only a collection and file ids. R3 is not met yet: Ask's set-scoped question and the D4 scope field are both intelligence, and no second addon is planned; added as an approved exception, re-evaluated when D3/D4 lands or at the Phase 2 trigger if no second consumer has appeared. Read-only, so R4 and R5 are not engaged. |
 
 ## Decision flow for adding a new endpoint
 
