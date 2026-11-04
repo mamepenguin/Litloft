@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "ASK-1",
+      "origin": "reviewer",
+      "claim": "When the Ask tab unmounts while an answer is streaming, the stream is aborted and the file's question and partial answer are deleted. Closing the mobile sheet to its bar, and crossing the mobile breakpoint, both unmount the tab.",
+      "impact": "On a phone, a user asks a question and then lowers the sheet to watch the video or read the page while the answer streams. The request is cancelled and the work is lost. Reopening the sheet shows an empty Ask tab with no question, no answer and no failure line.",
+      "evidence": "MobileInspectorSheet.tsx:82 and :206-219: the drawer, and with it the children (the InspectorShell and every inspector-tabs entry), is mounted only while expanded. At peek only the strip renders. addons/intelligence/frontend/AskTab.tsx: `useEffect(() => () => releaseAskEntry(fileId), [fileId])`. askStore.ts releaseAskEntry aborts the controller and, when `entry.status === \"streaming\"`, calls `entries.delete(fileId)`. Spec 056 step 6 and I11 say closing the mobile sheet keeps the question and answer, and that an in-flight stream belongs to the file while the file page is mounted.",
+      "repro": "Mutation reasoning: in AskTab.test.tsx, start a stream (ask + push an answer_chunk), call `view.unmount()`, re-render `<AskTab {...view.props}/>`, and expect the question box to hold the question. Under the current releaseAskEntry the entry is deleted, so the box is empty. The existing test 'keeps the question and the answer across a tab switch or a closed sheet' unmounts only after `done`, so it does not exercise this path. The test 'aborts the stream when the file page unmounts' asserts the behaviour that breaks I11 for a sheet close, because the tab cannot tell the two apart.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I11 requires that closing the mobile sheet keeps the question and answer. The tab's unmount, which a sheet close causes, drops a streaming entry and aborts it.",
+        "invariant_ref": "I11"
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Tie the entry's lifetime to the file page rather than to the tab's mount. For example, let the stream continue in the module store across a tab unmount, and abort and drop the entry only on a fileId change or a page-level unmount signal. Alternatively, keep the inspector-tabs entries mounted at peek. Add a test that unmounts mid-stream and remounts."
+    },
+    {
+      "id": "ASK-2",
+      "origin": "reviewer",
+      "claim": "A settled question and answer stay in the module-level store after the file page is left, so returning to the same file later shows the old conversation.",
+      "impact": "A user leaves a file page (back to the drive listing) and later opens the same file. The previous question and answer are still shown, where the spec says returning shows an empty tab. The map also grows by one entry per file asked about for the life of the browser tab.",
+      "evidence": "askStore.ts:`const entries = new Map` at module scope. releaseAskEntry keeps any non-streaming entry and only clears its controller. dropAskEntry runs only from AskTab's layout effect, when fileId changes within the same mount. Nothing drops an entry on a page unmount.",
+      "repro": "not_reproduced. By reading: answer a question, unmount the tab, then render a new AskTab with the same fileId. `getAskEntry` returns the settled entry, which is the behaviour the 'keeps ... across a closed sheet' test depends on.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant requires dropping on page leave (I11 covers aborting only, and I5 concerns storage). The behaviour contradicts spec 056 step 6 and would surprise the user.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Have the file page (or a provider at its level) clear the ask store when it unmounts, separately from the tab's own unmount."
+    },
+    {
+      "id": "ASK-3",
+      "origin": "reviewer",
+      "claim": "The citation parser matches only one- to three-digit markers, so a valid citation of chunk 1000 or above is silently dropped, and the tab then deletes the marker from the answer.",
+      "impact": "With `rag.file_question_max_chars` set high (up to 200,000) and short transcript chunks, more than 999 chunks can be sent. The model's `[1234]` citations then lose their pills and vanish from the text, with no error.",
+      "evidence": "app/rag/file_question.py: `_CITATION_MARKER = re.compile(r\"\\[(\\d{1,3})\\]\")`. The prompt numbers passages with `loop.index`, which is unbounded. AskTab.tsx AnswerText splits on `\\[\\d+\\]` and returns null when the number is not in the citations map.",
+      "repro": "not_reproduced. By reading: `citations(\"see [1000]\", chunks_of_length_1200)` returns [], because the regex does not match four digits.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "I3 still holds, because only sent numbers appear. A sent chunk's citation is lost, which is a silent wrong result at a configured budget.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Use `\\[(\\d+)\\]`; the existing `1 <= number <= len(chunks)` check already bounds it."
+    },
+    {
+      "id": "ASK-4",
+      "origin": "reviewer",
+      "claim": "The availability route counts chunk rows whose text is empty, while load_material skips them. A file whose only chunks have empty text therefore shows the Ask tab, and every question about it answers 404.",
+      "impact": "An edge case: the tab appears, and asking shows the generic 'Could not answer' line on every try.",
+      "evidence": "file_question.py available(): `EXISTS(SELECT 1 FROM transcript_chunks WHERE file_id = :fid)` with no text filter. load_material skips rows with `if not text: continue` and returns None when no rows remain. The router turns None into 404.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "I6 says 'at least one text chunk'. Whether an empty-text row counts is ambiguous, and the route and the question disagree.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add `AND text <> ''` (or `length(text) > 0`) to both EXISTS clauses."
+    }
+  ],
+  "specification_compliance": [
+    "The routes match 053: the GET availability route uses only the drive and the active indexed row. The POST route gates through _require_rag_enabled (resolve(drive, 'rag') with the requested profile) before reading material, reads material before taking a semaphore slot, and streams answer_chunk, citations, meta and done.",
+    "The budget logic matches I2: all chunks are sent when the sum is within the budget. Otherwise rows are ranked by cosine, embedded rows come before unembedded ones in file order, an overflow is skipped, the best-ranked row is cut when none fits, file order is the fallback when the question cannot be embedded, and the chosen rows are re-sorted to file order.",
+    "Citations are deduplicated, bounded to 1..len(chunks) and carry the position of the sent chunk (I3).",
+    "Logs carry the exception type and the file id, never the question text (I5).",
+    "Manifest: both routes have file_access pre_check, addon_feature rag and response_filter null; POST has stream true and no timeout.",
+    "Config: file_question_max_chars is validated to 1,000-200,000, excluding bool; anything else warns and falls back."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "_cosine is not inside the try blocks in _rank. A question embedding whose dimension differs from the stored vec_text vectors (after an embedding-model change) would raise from np.dot and turn a partial-budget question into a 500 instead of falling back to file order.",
+    "When the Ask sheet remounts, AskTab reports onAvailability(false) in the layout phase, so the Ask button disappears until the availability fetch returns again. A reopened sheet therefore always lands on Info."
+  ],
+  "regression_risks": [
+    "The file-question route shares the Ask semaphore with the same StreamingResponse ownership pattern as /ask. If the client disconnects before the body generator first runs, the generator's finally never runs and a slot could leak. The pattern is pre-existing in /ask, and the new route inherits it.",
+    "The isMedia re-check effect fires on a stale transcription event whose file_id matches a newly opened file. It only causes an extra availability fetch."
+  ],
+  "test_coverage": [
+    "test_file_question.py covers availability cases, 404 for non-askable files, routing arguments, gates, length validation, event order, citation filtering, a mid-stream error, log content, no writes, semaphore release (end, failure, pre-stream error, disconnect), budget fitting, ranking, fallback, numbering across transcript and document chunks, and positions per mime.",
+    "AskTab.test.tsx covers availability reporting and re-check, the question box, the model select, pill rendering and actions, failure lines, abort on a fileId change or unmount, single-flight and no browser storage.",
+    "Gap: no test unmounts the tab mid-stream and expects the question and answer to survive (ASK-1). The 'closed sheet' test only covers a settled answer.",
+    "Gap: no test leaves the page and returns to the same file expecting an empty tab (ASK-2).",
+    "Gap: no test of a citation number of 1000 or above (ASK-3), and none of an empty-text chunk for availability (ASK-4)."
+  ],
+  "not_verified": [
+    "Did not run any Python or vitest test.",
+    "Did not confirm that vec_text exposes an `embedding_id` column that is queryable with IN, or that the EPUB `page` in fts_text_content is the 1-based ?section= number.",
+    "Did not check whether the desktop InspectorPane unmounts its content when the inspector is collapsed (which would extend ASK-1 to desktop).",
+    "Did not read the truncated part of the fix diffs (ingest-progress implementation) beyond the cut-off.",
+    "Did not check that docs/addons/intelligence.md and docs/user-guide/search.md were updated in the core repo."
+  ],
+  "confidence": 78,
+  "trajectory": "The commits since r1 are not fixes to the r1 findings: those were three touch-point-list findings in bucket B, and no commit edits the list. The commits are the merge of the core PR (#506, the inspector-tabs slot, documentController and lowerInspector, as reviewed in r1), an unrelated ingest-progress feature (its spec, tests, the core endpoint, the drawer, and merges from develop) and this commit's addon gitlink bump. No round re-adds a branch, a state or a prediction that an earlier round added, and none removes one. The design of this feature is not being patched round over round."
+}
