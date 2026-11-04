@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The change reaches addons/intelligence/app/addon_events.py (workers/metadata.py newly imports and calls post_addon_event_sync to emit citations_ready), which is not in the touch-point list; the list names workers/summaries.py's _recalculate_citations as the pattern, and that one uses the async post_addon_event through _emit_ws_event.",
+      "impact": "None user-visible. The sync twin has the same drive scoping and swallows errors in the same way (addon_events.py:82-100), so citations_ready is still drive-scoped and best-effort. The only effect is that the touch-point list does not record a module the text task now depends on, so a later change to addon_events' sync path would not be traced back to SPEC-ADDON-060.",
+      "evidence": "addons/intelligence/app/workers/metadata.py:20 `from app.addon_events import post_addon_event_sync`; metadata.py:517-526 calls it with drive=drive. summaries.py:53 and :80 use `await post_addon_event` via `_emit_ws_event`. addon_events.py is not changed by the diff.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a dependency that the touch-point list does not record. It is not changed, and it does not break any declared invariant, because the sync twin behaves the same as the async path for scoping and failure handling.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add `app/addon_events.py: post_addon_event_sync, called, not changed` to the touch points, or leave the list as is and accept the gap."
+    }
+  ],
+  "specification_compliance": [
+    "Every file the diff changes in the submodule (extractors/pdf.py, document_text.py, database.py, main.py, indexer.py, workers/metadata.py, and tests under addons/intelligence/tests/, including the shared tests/document_fixtures.py) is covered by a listed touch point.",
+    "Core repository changes are limited to docs/addons/intelligence.md, the gitlink, and the implicit spec, INDEX and review paths.",
+    "citations.py and routers/files.py are reached but not changed, as the list declares.",
+    "main.py:379-383 runs check_pdf_text_rules before index_manager.start(), as the touch point requires.",
+    "indexer.py:854 is the only indexer edit, and it is inside _resume_incomplete."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The priority change in _resume_incomplete moves every resumed TEXT_CONTENT task to -10, not only PDFs. The spec states this, but it also changes the order in which non-PDF text tasks are resumed."
+  ],
+  "regression_risks": [
+    "Unlike summaries.py, which runs calculate_and_store in an executor, _recompute_citations runs it inline in the text task, so a PDF with a detailed summary holds up the text worker for the length of a citation embedding pass during the backlog."
+  ],
+  "test_coverage": [
+    "Tests cover each touch point: extractor, document-text, version check, resume priority, unchanged chunks, citations, and non-PDF types.",
+    "No test exercises the real post_addon_event_sync. tests/test_pdf_text_unchanged_chunks.py patches it out, so a scoping regression in addon_events would not be caught by these tests."
+  ],
+  "not_verified": [
+    "I could not run git, so I did not check what the merge commit 340bea8 itself brings in from origin/develop compared with its first parent. I relied on the diff provided against the base.",
+    "I did not run the tests.",
+    "I did not check .claude/rules/* or the docs/process conventions in full.",
+    "I did not confirm whether other addons hold document:<chunk_index> references besides detailed_summary_citations."
+  ],
+  "confidence": 78
+}
