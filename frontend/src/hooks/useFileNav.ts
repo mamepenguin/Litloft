@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 
-import { getFileNeighbors } from "@/lib/api";
+import { getFileNeighbors, getInboxNeighbors } from "@/lib/api";
 import { playerKind } from "@/lib/playerKind";
 import type { FileItem, Neighbors } from "@/types";
 import { useShortcuts } from "./useShortcuts";
@@ -21,6 +21,9 @@ interface UseFileNavOpts {
   fileId: string | null;
   sort?: string;
   order?: string;
+  /** `inbox` walks the drive's arrivals instead of the file's folder. */
+  nav?: string;
+  drive?: string | null;
   fileType?: FileItem["file_type"] | null;
   mimeType?: string | null;
   enabled?: boolean;
@@ -46,6 +49,8 @@ export function useFileNav({
   fileId,
   sort,
   order,
+  nav,
+  drive,
   fileType,
   mimeType,
   enabled = true,
@@ -54,15 +59,19 @@ export function useFileNav({
 }: UseFileNavOpts): UseFileNavResult {
   const tsc = useTranslations("shortcuts");
   const [neighbors, setNeighbors] = useState<Neighbors | null>(null);
+  const inboxWalk = nav === "inbox";
 
   useEffect(() => {
-    if (!enabled || !fileId) {
+    if (!enabled || !fileId || (inboxWalk && !drive)) {
       setNeighbors(null);
       return;
     }
     let cancelled = false;
     setNeighbors(null);
-    getFileNeighbors(fileId, sort, order)
+    const request = inboxWalk
+      ? getInboxNeighbors(drive!, fileId)
+      : getFileNeighbors(fileId, sort, order);
+    request
       .then((n) => {
         if (!cancelled) setNeighbors(n);
       })
@@ -72,7 +81,7 @@ export function useFileNav({
     return () => {
       cancelled = true;
     };
-  }, [fileId, sort, order, enabled]);
+  }, [fileId, sort, order, enabled, inboxWalk, drive]);
 
   const shortcutsEnabled =
     enabled &&

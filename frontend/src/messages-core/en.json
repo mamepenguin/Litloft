@@ -37,6 +37,7 @@
   },
   "sidebar": {
     "home": "Home",
+    "inbox": "Inbox",
     "library": "Library",
     "views": "Views",
     "sources": "Sources",
@@ -1278,10 +1279,29 @@
     "filterUnreviewedHint": "Nobody has ruled on these, migrated files included",
     "filterLabel": "Verification"
   },
+  "inbox": {
+    "title": "Inbox",
+    "scope": "{drive} · {count} items",
+    "scopeOne": "{drive} · 1 item",
+    "markAllDone": "Mark all done",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "yesterdayAt": "Yesterday {time}",
+    "earlier": "Earlier",
+    "root": "Root",
+    "done": "Done",
+    "markedDone": "Marked {count} done",
+    "undo": "Undo",
+    "emptyTitle": "Inbox is empty",
+    "emptyDescription": "New arrivals appear here",
+    "sourceUpload": "Upload",
+    "selectArrival": "Select {name}"
+  },
   "pageJump": {
     "section": "Go to",
     "aliases": {
       "home": "start",
+      "inbox": "arrivals,new",
       "library": "folders",
       "favorites": "favourites,star,starred",
       "liked": "like,thumbs up",

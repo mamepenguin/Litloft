@@ -55,11 +55,16 @@ export function useSelectedFile(): SelectedFileApi {
   const clearFile = useCallback(() => {
     if (!searchParams.has(FILE_PARAM)) return;
     navigationGuard.request(() => {
+      if (searchParams.get("nav") === "inbox") {
+        const driveBase = pathname.split("/").slice(0, 3).join("/");
+        router.replace(`${driveBase}?view=inbox`, { scroll: false });
+        return;
+      }
       const params = new URLSearchParams(searchParams.toString());
       params.delete(FILE_PARAM);
       router.replace(buildHref(params), { scroll: false });
     });
-  }, [router, searchParams, buildHref]);
+  }, [router, searchParams, buildHref, pathname]);
 
   return { fileId, selectFile, clearFile };
 }

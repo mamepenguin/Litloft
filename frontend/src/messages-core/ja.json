@@ -37,6 +37,7 @@
   },
   "sidebar": {
     "home": "ホーム",
+    "inbox": "受信箱",
     "library": "ライブラリ",
     "views": "ビュー",
     "sources": "ソース",
@@ -1278,10 +1279,29 @@
     "filterUnreviewedHint": "誰も判定していないもの（移行分を含む）",
     "filterLabel": "検証状態"
   },
+  "inbox": {
+    "title": "受信箱",
+    "scope": "{drive} · {count} 件",
+    "scopeOne": "{drive} · 1 件",
+    "markAllDone": "すべて済みにする",
+    "today": "今日",
+    "yesterday": "昨日",
+    "yesterdayAt": "昨日 {time}",
+    "earlier": "それ以前",
+    "root": "ルート",
+    "done": "済み",
+    "markedDone": "{count} 件を済みにしました",
+    "undo": "元に戻す",
+    "emptyTitle": "受信箱は空です",
+    "emptyDescription": "新しく届いたものがここに並びます",
+    "sourceUpload": "アップロード",
+    "selectArrival": "{name} を選択"
+  },
   "pageJump": {
     "section": "移動",
     "aliases": {
       "home": "ほーむ,home,start",
+      "inbox": "受信箱,新着,arrivals,new",
       "library": "フォルダ,library,folders",
       "favorites": "おきにいり,favorites,favourites,star",
       "liked": "いいね,like,liked",

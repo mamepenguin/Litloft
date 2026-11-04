@@ -29,6 +29,7 @@ Two exceptions:
 
 ### Organise
 
+- **受信箱** / **Inbox** lists files that just arrived and are still waiting for you. See [inbox](inbox.md).
 - Tags, collections, favourites, likes and pinned folders. See [tags and relations](tags-and-relations.md).
 - Comments on any file.
 

@@ -420,6 +420,59 @@ const listComments: LitloftTool = {
     ),
 };
 
+interface InboxWireItem {
+  file: {
+    id: string;
+    filename: string;
+    folder_path: string;
+  };
+  arrived_at: string;
+  source: string;
+  source_i18n_key: string;
+}
+
+const listInbox: LitloftTool = {
+  name: "list_inbox",
+  description:
+    "List a drive's open inbox: files that arrived on purpose (an upload or a web clip) and have not been marked done, filed, tagged or thrown away, newest first. Each item has file_id, filename, folder_path, source and arrived_at; pass the returned `next` cursor as `before` to read the next page. Read-only: no tool marks an inbox row done or undoes it.",
+  inputSchema: {
+    drive: z.string().describe("Drive name"),
+    limit: z.number().int().min(1).max(100).optional().describe("Items per page (default 100)"),
+    before: z.string().optional().describe("Cursor from a previous call's `next`"),
+  },
+  annotations: readOnlyAnnotations,
+  handler: (args, client) =>
+    runTool(async () => {
+      const { drive, limit, before } = args as {
+        drive: string;
+        limit?: number;
+        before?: string;
+      };
+      const query: Record<string, string | number | undefined> = {};
+      if (limit !== undefined) query.limit = limit;
+      if (before !== undefined) query.before = before;
+      const res = await client.request<{
+        items: InboxWireItem[];
+        next: string | null;
+        open_count: number;
+      }>(
+        "GET",
+        `/api/drives/${encodeURIComponent(drive)}/inbox`,
+        Object.keys(query).length ? { query } : undefined
+      );
+      return textResult({
+        items: res.items.map((item) => ({
+          file_id: item.file.id,
+          filename: item.file.filename,
+          folder_path: item.file.folder_path,
+          source: item.source,
+          arrived_at: item.arrived_at,
+        })),
+        next: res.next,
+      });
+    }),
+};
+
 export const readTools: LitloftTool[] = [
   listDrives,
   listFolders,
@@ -431,4 +484,5 @@ export const readTools: LitloftTool[] = [
   getTranscript,
   getWatchHistory,
   listComments,
+  listInbox,
 ];

@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "init_upload no longer answers 409 when the target path holds a trashed file on disk, for every upload whether or not it carries inbox_source; this behaviour change is outside the touch points, which name only the session field and the arrival in complete_upload for upload.py.",
+      "impact": "A user who trashes `report.pdf` and later uploads a new `report.pdf` to the same folder now has the trashed bytes overwritten in place by replacing_file and the trashed row purged in complete_upload. The trashed version disappears from Trash with no prompt, well before the 30-day purge, and cannot be restored. Before this change the same upload got a 409 at init. The spec's own failure list says 'Upload to a path that already holds a file: 409 at init as today', and its 'Checked, no action' list says re-uploading over a file on disk is already a 409.",
+      "evidence": "backend/app/services/upload.py:126-138 adds _has_trashed_ghost. backend/app/services/upload.py:167-171 skips the 409 when a trashed row owns the path. backend/app/routers/uploads.py:32 adds a db dependency so the check runs on every HTTP init. complete_upload then writes over the path at upload.py:275 (replacing_file(target_full)) and deletes the ghost row at upload.py:336-345. The comment at upload.py:312-315 still says init guarantees no live physical file is at the path. backend/tests/test_inbox_arrival.py::test_trashed_ghost_is_replaced_and_gets_a_new_row exercises the new path only with inbox_source set. No test covers an upload without inbox_source over a trashed path, and backend/tests/test_upload.py has no trash case.",
+      "repro": "Create note.md, DELETE /api/files/{id} (soft delete: the file stays on disk), then POST /api/drives/{drive}/upload/init for note.md without inbox_source. Before the change: 409. After: 200, and complete overwrites the on-disk bytes and removes the trashed row. Traced by reading the code, not run.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant covers the init 409 rule, but the change reaches all uploads, contradicts the spec's failure cases, and is not in the touch-point list.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Either drop the _has_trashed_ghost bypass and keep the 409 at init, or add it to the spec and touch points as a deliberate change, with a test for an upload without inbox_source over a trashed path and a decision on whether the trashed content may be destroyed."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The detail's inbox controls are mounted from shared detail chrome files that are not in the touch-point list: FileDetail/FileDetailChrome.tsx, FileDetail/ShellLayout.tsx, FileDetailShell.tsx and markdown/MarkdownDocumentLayout.tsx.",
+      "impact": "Every detail host (2-pane, full screen, Markdown, HTML preview, canvas viewers) now renders InboxDetailActions, and ShellLayout hides the image-only FileNavControls when nav=inbox. A regression in the gate (nav=inbox, a host provider and a nav state) would show 済み or duplicate arrows on ordinary file pages. Reviewers working from the touch-point list would not look at these files.",
+      "evidence": "frontend/src/components/FileDetail/FileDetailChrome.tsx:10,135 imports and renders InboxDetailActions whenever fileId is set. frontend/src/components/FileDetail/ShellLayout.tsx:128,388 adds `!inboxWalk` to the image FileNavControls condition. FileDetailShell.tsx:169-170 and MarkdownDocumentLayout.tsx:113-114 now pass fileId to the chrome. The gate is at frontend/src/components/inbox/InboxDetailActions.tsx:31.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "These are unplanned reach into shared detail chrome; no invariant is broken as far as I read.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "Returning to the inbox when the 2-pane detail closes is implemented in frontend/src/hooks/useSelectedFile.ts, which is not in the touch-point list.",
+      "impact": "clearFile is the generic close path for every 2-pane detail. With nav=inbox it now replaces the URL with `/drive/{drive}?view=inbox` (the drive is taken from the first two path segments) wherever the detail is open. A user who keeps nav=inbox while on a folder route is sent to the inbox rather than back to the folder.",
+      "evidence": "frontend/src/hooks/useSelectedFile.ts:58-61",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is an unplanned touch on a shared hook; it matches the spec's 'closing the detail returns to the inbox'.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "F4",
+      "origin": "reviewer",
+      "claim": "The existing C2 upload drawer was refactored: its stage label and icon were extracted into a new frontend/src/components/ProcessingStageMark.tsx, and frontend/src/components/UploadProgress.tsx now imports them. Neither file is in the touch-point list.",
+      "impact": "The upload drawer is an existing feature, and the spec says the drawer is unchanged. Any difference between the extracted rule and the drawer's old inline rendering (the label fallback to stage.key, or the stopped/Minus icon) would change what users see in the drawer, and no touch point flags the drawer for review.",
+      "evidence": "frontend/src/components/ProcessingStageMark.tsx:1-31 (new). frontend/src/components/UploadProgress.tsx:16-19,56-57. frontend/src/components/inbox/InboxRow.tsx:12 is the second consumer.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is unplanned reach into an existing feature; I could not compare it with the pre-change drawer code.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "F5",
+      "origin": "reviewer",
+      "claim": "New production modules outside the listed paths carry inbox logic: frontend/src/lib/inboxGrouping.ts, frontend/src/lib/inboxStage.ts (the I18 stage rule) and frontend/src/components/sidebar/useInboxCount.ts (the I12 count fetch).",
+      "impact": "The logic behind I12 and I18 lives in files the touch points do not name. The list names only SidebarLibrarySection.tsx and components/inbox/, so a reviewer following the list would miss them.",
+      "evidence": "docs/process/reviews/feature-inbox/r1/classification.json lists these three files among the touched zones; the touch-point list has no entry for them.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is an incomplete touch-point list, not a behaviour defect.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "The commit touches backend/app/services/upload.py and routers/uploads.py beyond the listed scope (the init 409 relaxation for trashed paths; see F1). This contradicts spec §2, '409 at init as today'.",
+    "The detail chrome files (FileDetailChrome, ShellLayout, FileDetailShell, MarkdownDocumentLayout), useSelectedFile.ts, ProcessingStageMark.tsx, UploadProgress.tsx, lib/inboxGrouping.ts, lib/inboxStage.ts and sidebar/useInboxCount.ts are reached but not listed.",
+    "Touch points listed but absent from this commit's file list: backend/app/database.py, backend/app/services/ws.py, frontend/src/lib/fileNavContext.tsx, FileDetail/FileNavControls.tsx and lib/canonicalFileUrl.ts. These are plausibly unchanged by design (create_all picks up the model; the existing broadcast is used).",
+    "Docs named in spec §9 do not appear in the commit's file list: docs/ADDON-DEVELOPMENT.md (arrival on create) and docs/addons/knowledge.md (clips arrive in the inbox).",
+    "Existing test files changed under the generic 'Frontend tests' and MCP 'tests' entries: row-action-reveal.test.ts, SidebarAddonNav.test.tsx, SidebarDriveSwitcher.test.tsx, sidebar/__tests__/fixedRows.ts, pageJump.test.ts and mcp toolMetadata.test.ts."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "An upload without inbox_source over a trashed file's path now overwrites the trashed bytes and purges the trashed row, instead of returning 409 (F1).",
+    "FileDetailFullScreen.handleAfterDelete sends the user back to the inbox after a delete from a nav=inbox detail (frontend/src/components/FileDetailFullScreen.tsx:139-144). The spec only defines close.",
+    "The detail toast's Undo calls undoInboxDone without awaiting it and without error handling (InboxDetailActions.tsx:46), so a failed undo from the detail is silent."
+  ],
+  "regression_risks": [
+    "Existing upload behaviour for trashed paths changed for all callers of POST /upload/init.",
+    "The C2 upload drawer's stage rendering was refactored into a shared module.",
+    "Shared detail chrome now mounts inbox controls in every host; correctness depends on the nav=inbox and host gate."
+  ],
+  "test_coverage": [
+    "Only one test exercises the trashed-ghost bypass at init, and it carries inbox_source. No test covers an upload without inbox_source over a trashed path, or that the trashed content's loss is intended.",
+    "No test was found for the UploadProgress drawer after the ProcessingStageMark extraction; I did not read the full test tree.",
+    "Detail-chrome inbox gating is covered by the FileDetailInboxNav, FileDetailFullScreen.inboxNav and RightPaneFile.inboxNav tests (by name; contents not read)."
+  ],
+  "not_verified": [
+    "The truncated part of the diff (frontend and MCP hunks) was not read; the file list comes from docs/process/reviews/feature-inbox/r1/classification.json.",
+    "Did not compare UploadProgress.tsx with its pre-change version.",
+    "Did not check whether MCP upload_file goes through /upload/init and so also gets the trashed-path bypass.",
+    "Did not open the knowledge addon submodule changes.",
+    "Ran no tests."
+  ],
+  "confidence": 78
+}

@@ -59,6 +59,7 @@ describe("visibleFixedJumps", () => {
   it("lists every fixed destination when there are missing files and the viewer is admin", () => {
     expect(keys({ missingCount: 2, isAdmin: true })).toEqual([
       "home",
+      "inbox",
       "library",
       "favorites",
       "liked",

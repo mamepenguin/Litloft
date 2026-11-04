@@ -76,6 +76,18 @@ Runs at backend startup and then every 24 hours. The 30-day period is fixed; the
 
 Manual purge (`DELETE /api/files/{id}/purge`, `POST /api/files/batch/purge`, `POST /api/drives/{drive}/trash/empty`) emits `files.purged` for the purged files. Purging cannot be undone.
 
+## Inbox rows
+
+A file may also have one inbox row (`inbox_items`, unique per drive and file) recording that it arrived on purpose and has not been dealt with. The row is not a file state: it never changes which state the file is in.
+
+- **Active**: an open row is listed and counted in the drive's inbox. Trashing or moving closes it; a tag-set change on an active file also closes it. Closing leaves a done row in place for 30 days.
+- **Trash**: the row stays attached and done. Restoring the file does not reopen it. Purging the file deletes the row through the foreign-key cascade.
+- **Missing**: the row is kept as it was and hidden by the inbox filter. When the file recovers, the same row reappears unchanged — including when `resolve_db_path_conflict` retires a missing row to a placeholder path.
+- **Cross-drive move**: the row is deleted in the move's transaction before the file's drive is rewritten; a row never travels to another drive. A same-drive move closes it instead.
+- **Retention**: done rows are deleted 30 days after `done_at`; open rows are never deleted by retention.
+
+A new arrival for a file that already has a row updates that row in place: `arrived_at` becomes now, the source is replaced, and `done_at` is cleared.
+
 ## Version history
 
 Text and Markdown files keep an edit history, written on every content save.

@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "SCOPE-1",
+      "origin": "reviewer",
+      "claim": "`init_upload` now accepts an upload to a path whose on-disk file belongs to a trashed row, a change to the init conflict check that is outside the declared touch points (upload.py is listed only for the session field and the arrival in `complete_upload`), and it applies to every upload, with or without `inbox_source`.",
+      "impact": "In normal use, a user who trashes `report.pdf` and later uploads a different `report.pdf` to the same folder no longer gets a 409. `replacing_file` renames the new bytes over the trashed file, and `complete_upload` deletes the trashed row. The trashed version vanishes from Trash with no purge and no confirmation, although the trash otherwise keeps a file for 30 days and only a manual purge is irreversible. If `complete_upload` then fails after the rename (for example a commit error), the rollback keeps the trashed row but its path now holds the new bytes, so a restore brings back the wrong content. The spec's failure list still says 'Upload to a path that already holds a file: 409 at init as today'.",
+      "evidence": "backend/app/services/upload.py:126-138 `_has_trashed_ghost`; upload.py:167-171 skips the 409 when a trashed row owns the path; upload.py:275 `replacing_file(target_full)` overwrites the on-disk file before the try; upload.py:336-345 `db.delete(existing)` for the trashed row. backend/app/routers/uploads.py:32,44-45 add a `db` dependency to init only to feed this check. The comment at upload.py:312-315 still says init's FS check guaranteed no live physical file at the path. backend/tests/test_inbox_arrival.py `test_trashed_ghost_is_replaced_and_gets_a_new_row` asserts the new behavior, but no test covers an upload without `inbox_source`, the lost trashed content, or a failure after the rename.",
+      "repro": "Read only: create `note.md`, DELETE /api/files/{id} (the file stays on disk), then init+chunk+complete an upload of `note.md` with no `inbox_source`. Before this change init answered 409. Now it answers 200, the old row is gone and GET /api/drives/{drive}/trash no longer lists it. Not executed.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant covers trashed-file preservation (I11 covers only open rows, and a trashed row is already done), but this is an unplanned behavior change outside the touch points, with silent data loss in normal use.",
+        "invariant_ref": null
+      },
+      "severity": "HIGH",
+      "proposed_fix": "Restore the unconditional 409 at init when the target exists on disk, and drop the `db` parameter from init. Alternatively, a person adds this behavior to the spec and touch points explicitly, with a test for an upload without `inbox_source` and for a failure after the rename."
+    },
+    {
+      "id": "SCOPE-2",
+      "origin": "reviewer",
+      "claim": "`frontend/src/hooks/useSelectedFile.ts` is changed but is not in the touch-point list: with `nav=inbox`, `clearFile` now replaces the URL with `/drive/{drive}?view=inbox`.",
+      "impact": "Closing a file in the right pane (the in-page `?file=` selection) under `nav=inbox` drops every other search parameter and navigates away. A pathname that is not `/drive/{name}` gives the wrong base, because `pathname.split('/').slice(0,3)` hard-codes the prefix shape.",
+      "evidence": "frontend/src/hooks/useSelectedFile.ts:58-61; covered by frontend/src/hooks/__tests__/useSelectedFile.inboxClose.test.tsx.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This implements spec item 7 ('closing the detail returns to the inbox') in a file the touch-point list does not name, so it is a list gap, not a broken invariant.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add `frontend/src/hooks/useSelectedFile.ts` to the touch points."
+    },
+    {
+      "id": "SCOPE-3",
+      "origin": "reviewer",
+      "claim": "`frontend/src/components/FileDetail/FileDetailChrome.tsx` is changed but is not in the touch-point list: it renders `InboxDetailActions` in every file detail's chrome whenever `fileId` is set.",
+      "impact": "Every file detail header now mounts the inbox action component. Whether it renders nothing outside `nav=inbox` depends on `InboxDetailActions` gating itself, which the touch list never routes a reviewer to.",
+      "evidence": "frontend/src/components/FileDetail/FileDetailChrome.tsx:10,135.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Unlisted reach into a shared detail component; no invariant broken.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add the file to the touch points."
+    },
+    {
+      "id": "SCOPE-4",
+      "origin": "reviewer",
+      "claim": "`frontend/src/components/FileDetail/ShellLayout.tsx` is changed but is not in the touch-point list: it hides the image viewer's `FileNavControls` when `nav=inbox`.",
+      "impact": "For images opened from the inbox, the shell's own prev/next overlay is suppressed, so navigation depends on `InboxDetailActions` alone. This changes a shared layout that the list never names.",
+      "evidence": "frontend/src/components/FileDetail/ShellLayout.tsx:127-128,386-388.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Unlisted reach into a shared detail layout; no invariant broken.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add the file to the touch points."
+    },
+    {
+      "id": "SCOPE-5",
+      "origin": "reviewer",
+      "claim": "New modules outside the listed locations: `frontend/src/lib/inboxGrouping.ts`, `frontend/src/lib/inboxStage.ts` (holds the I18 stage logic) and `frontend/src/components/sidebar/useInboxCount.ts` (holds the I12 count fetch and refetch).",
+      "impact": "A reviewer following the touch list to check I12 and I18 would not open the files where that logic lives.",
+      "evidence": "frontend/src/lib/inboxStage.ts:1; frontend/src/lib/inboxGrouping.ts:1; frontend/src/components/sidebar/useInboxCount.ts:3-6.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "List incompleteness only.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add the three files to the touch points."
+    }
+  ],
+  "specification_compliance": [
+    "Backend files in the diff (main.py, models.py, schemas.py, routers/inbox.py, routers/uploads.py, routers/drives.py, routers/files.py, services/inbox.py, services/upload.py, services/fileops.py) are all listed; the init_upload ghost bypass in upload.py and the db dependency in uploads.py init go beyond what the list assigns to those files.",
+    "services/ws.py and database.py are listed but no change to them is visible; the table comes through create_all on the model.",
+    "The knowledge gitlink bump reaches clips.py, internal_client.py, the messages and the tests, as listed; the other knowledge 'inbox' matches (captures.py, CaptureBasket) are pre-existing uses of the 'Inbox.md' default name.",
+    "The MCP files (read.ts, write.ts, batch.ts, folders.ts, README, tests) match the list.",
+    "The frontend reaches useSelectedFile.ts, FileDetailChrome.tsx, ShellLayout.tsx, lib/inboxGrouping.ts, lib/inboxStage.ts and sidebar/useInboxCount.ts, none of them listed."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Uploading over a trashed file's path now succeeds for every caller of the upload route and destroys the trashed copy.",
+    "Closing the right-pane file under nav=inbox discards all other query parameters."
+  ],
+  "regression_risks": [
+    "Trash no longer protects a file from being superseded by a same-name upload; a failure after `replacing_file` leaves a trashed row pointing at new bytes.",
+    "Shared FileDetail chrome and layout now carry inbox-specific branches."
+  ],
+  "test_coverage": [
+    "test_trashed_ghost_is_replaced_and_gets_a_new_row covers the ghost replacement only with inbox_source set; no test covers an upload without inbox_source over a trashed path, or a complete failing after the on-disk rename.",
+    "useSelectedFile.inboxClose.test.tsx covers the close redirect; FileDetailInboxNav.test.tsx covers the chrome actions."
+  ],
+  "not_verified": [
+    "The full diff beyond the 200000-byte truncation; I inferred the changed frontend files from repository grep for 'inbox', so files changed without that word (for example useWebSocketRefresh, ToastProvider, the upload drawer) may be missed.",
+    "Whether useWebSocketRefresh.ts or the upload drawer components were modified.",
+    "I did not run any test or command.",
+    "The knowledge submodule diff between the two gitlink SHAs."
+  ],
+  "confidence": 72
+}

@@ -34,6 +34,7 @@ interface FileDetailShellProps {
   folderPath?: string;
   title: string;
   titleNode?: ReactNode;
+  fileId?: string;
   chromeControls?: ReactNode;
   canvasFloor?: boolean;
   onBack?: () => void;
@@ -67,6 +68,7 @@ export function FileDetailShell({
   folderPath,
   title,
   titleNode,
+  fileId,
   chromeControls,
   canvasFloor,
   onBack,
@@ -164,6 +166,7 @@ export function FileDetailShell({
         folderPath={folderPath}
         title={title}
         titleNode={titleNode}
+        fileId={fileId}
         onBack={onBack}
         inspector={{
           open: isMobile ? sheetExpanded : open,

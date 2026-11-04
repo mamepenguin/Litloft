@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "Reproduced by reading the code. addons/intelligence/app/workers/metadata.py:20 imports post_addon_event_sync from app.addon_events. The new _recompute_citations (metadata.py:490-528) calls it at :517-526 to emit intelligence.detailed_summary.citations_ready with drive=drive. workers/summaries.py:38-53 and :80-88, the pattern the touch-point list names, emit through the async post_addon_event wrapped in _emit_ws_event. addon_events.py is called, not edited, and does not appear in the touch-point list. The deviation is small and in substance it is correct. index_text_content (metadata.py:329) is a synchronous function, so the sync twin (addon_events.py:82-100) is the right choice. The twin does the same drive scoping and secret header as the async one, and it already has a precedent at processing_events.py:16/40. Because it was called directly, the summaries.py pattern was not followed exactly: no _emit_ws_event that tests could monkeypatch, and no logger.info. I could not see the diff, so I did not verify that line 20 is new to this commit. It is inferred from _recompute_citations being the new citation-recompute code."
+    }
+  ],
+  "specification_compliance": [
+    "Touch-point list: the citations_ready emit in workers/metadata.py goes through app/addon_events.post_addon_event_sync. addon_events.py is not in the list, and the call is not the summaries.py _emit_ws_event/post_addon_event pattern the list names. The payload (file_id, drive, citation_count, no_citation_count) and the event name match summaries.py."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "metadata._recompute_citations calls calculate_and_store synchronously inside index_text_content, while summaries.py runs it in an executor. Whether this blocks a worker event loop depends on how index_text_content is dispatched. I did not verify that."
+  ],
+  "regression_risks": [
+    "Tests that monkeypatch summaries._emit_ws_event to capture citations_ready will not see the event emitted from metadata.py. They would need to patch metadata.post_addon_event_sync instead."
+  ],
+  "test_coverage": [
+    "I did not check whether a test asserts the citations_ready emit from the metadata path."
+  ],
+  "not_verified": [
+    "Git diff or history confirming that the metadata.py:20 import was introduced by commit 340bea894 (no git access)",
+    "How index_text_content is dispatched (thread vs event loop)",
+    "Invariants I1-I11 beyond this finding"
+  ],
+  "confidence": 88
+}

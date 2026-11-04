@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>inbox rows — layout fixture</title>
+    <link rel="stylesheet" href="./globals.built.css" />
+  </head>
+  <body>
+    <!--
+      The row's trailing controls belong to the inbox row shape: the Done
+      button takes the 32px fine box and the 44px coarse floor, the
+      checkbox is the fine pointer's way to select, and a coarse pointer
+      selects by long press instead. Below 768px a coarse pointer has no
+      Done button at all: it is not in the DOM, not merely invisible. The
+      fixture names the utilities it measures as the rules they emit, so a
+      class renamed in the component leaves this file measuring a shape the
+      app no longer draws.
+    -->
+    <script type="application/json" id="fixture-markup">
+      {
+        "row": "group relative flex touch-pan-y items-center gap-3 rounded-2xl px-3 py-2 [-webkit-touch-callout:none]",
+        "link": "flex min-w-0 flex-1 items-center gap-3",
+        "thumb": "h-12 w-12 shrink-0 rounded-lg bg-sand",
+        "name": "block truncate text-sm font-medium text-text-primary",
+        "meta": "mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-text-muted",
+        "checkbox": "h-4 w-4 shrink-0 rounded border border-warm-silver/40 pointer-coarse:hidden",
+        "done": "flex h-8 shrink-0 items-center rounded-2xl px-3 text-sm text-text-primary bg-sand opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 pointer-coarse:h-11 pointer-coarse:px-4 pointer-coarse:md:opacity-100",
+        "label": "Done",
+        "rowName": "A very long arrival name that has to truncate before it reaches the controls",
+        "metaText": ["Upload", "10:05", "recipes/"]
+      }
+    </script>
+
+    <div id="frame"></div>
+
+    <script>
+      const SPEC = JSON.parse(
+        document.getElementById("fixture-markup").textContent,
+      );
+
+      window.buildRows = () => {
+        const frame = document.getElementById("frame");
+        frame.innerHTML = "";
+        // A phone-sized row at every viewport: the controls are what this
+        // fixture measures, and a 1440px-wide name would never truncate.
+        frame.style.maxWidth = "420px";
+
+        for (const id of ["r1", "r2"]) {
+          const row = document.createElement("div");
+          row.className = SPEC.row;
+          row.setAttribute("data-row", id);
+          row.setAttribute("role", "listitem");
+
+          const link = document.createElement("a");
+          link.className = SPEC.link;
+          link.href = "#";
+          link.setAttribute("data-link", "");
+
+          const thumb = document.createElement("div");
+          thumb.className = SPEC.thumb;
+          thumb.setAttribute("aria-hidden", "true");
+
+          const text = document.createElement("span");
+          text.className = "min-w-0 flex-1";
+
+          const name = document.createElement("span");
+          name.className = SPEC.name;
+          name.setAttribute("data-name", "");
+          name.textContent = id === "r1" ? SPEC.rowName : "Second arrival";
+
+          const meta = document.createElement("span");
+          meta.className = SPEC.meta;
+          for (const part of SPEC.metaText) {
+            const bit = document.createElement("span");
+            bit.textContent = part;
+            meta.append(bit);
+          }
+
+          text.append(name, meta);
+          link.append(thumb, text);
+
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.className = SPEC.checkbox;
+          checkbox.setAttribute("data-checkbox", "");
+          checkbox.setAttribute("aria-label", "Select this arrival");
+
+          const done = document.createElement("button");
+          done.type = "button";
+          done.className = SPEC.done;
+          done.setAttribute("data-done", "");
+          done.setAttribute("aria-label", SPEC.label);
+          done.textContent = SPEC.label;
+
+          row.append(link, checkbox);
+          // Mirrors `showRowDone`: a coarse pointer below md has the swipe
+          // and the long press, and no row button.
+          if (
+            !(
+              window.matchMedia("(pointer: coarse)").matches &&
+              window.innerWidth < 768
+            )
+          ) {
+            row.append(done);
+          }
+          frame.append(row);
+        }
+      };
+
+      window.measureRow = () => {
+        const row = document.querySelector('[data-row="r1"]');
+        const link = row.querySelector("[data-link]");
+        const name = row.querySelector("[data-name]");
+        const done = row.querySelector("[data-done]");
+        const checkbox = row.querySelector("[data-checkbox]");
+
+        const box = (el) => {
+          const rect = el.getBoundingClientRect();
+          return { width: rect.width, height: rect.height, top: rect.top, left: rect.left };
+        };
+
+        const doneStyle = getComputedStyle(done);
+        const checkboxStyle = getComputedStyle(checkbox);
+
+        return {
+          row: box(row),
+          link: box(link),
+          touchAction: getComputedStyle(row).touchAction,
+          name: {
+            ...box(name),
+            truncated: name.scrollWidth > name.clientWidth,
+          },
+          done: {
+            ...box(done),
+            opacity: Number(doneStyle.opacity),
+            display: doneStyle.display,
+            visibility: doneStyle.visibility,
+          },
+          checkbox: {
+            ...box(checkbox),
+            display: checkboxStyle.display,
+          },
+        };
+      };
+
+      window.pointerIsCoarse = () =>
+        window.matchMedia("(pointer: coarse)").matches;
+    </script>
+  </body>
+</html>

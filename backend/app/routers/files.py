@@ -65,6 +65,7 @@ from app.schemas import (
 )
 from app.services import file_versions as file_version_service
 from app.services import fileops
+from app.services import inbox as inbox_service
 from app.services.filetype import classify
 from app.services.frontmatter import (
     compose as compose_frontmatter,
@@ -321,11 +322,14 @@ def batch_delete(
 ):
     deleted = 0
     deleted_ids = []
+    inbox_drives: set[str] = set()
     errors = []
     for file_id in body.ids:
         try:
-            _get_file_or_404(db, file_id, unlocked_groups)
-            fileops.delete_file(db, file_id)
+            file = _get_file_or_404(db, file_id, unlocked_groups)
+            drive = file.drive
+            if fileops.delete_file(db, file_id):
+                inbox_drives.add(drive)
             deleted += 1
             deleted_ids.append(file_id)
         except HTTPException as e:
@@ -334,6 +338,8 @@ def batch_delete(
         event_hooks.emit_from_thread(
             "files.deleted", {"file_ids": deleted_ids, "type": "soft_delete"}
         )
+    for drive in sorted(inbox_drives):
+        inbox_service.notify_from_thread(drive)
     return {"deleted": deleted, "errors": errors}
 
 
@@ -347,6 +353,7 @@ async def batch_move(
     moved = 0
     moved_ids: list[str] = []
     touched_drives: set[str] = set()
+    inbox_drives: set[str] = set()
     errors = []
     if body.target_drive:
         touched_drives.add(body.target_drive)
@@ -358,7 +365,11 @@ async def batch_move(
                 # ``File.drive``, so afterwards only the destination is
                 # visible and a tab on the source drive is never told.
                 touched_drives.add(source.drive)
-                fileops.move_file(db, file_id, body.target_drive, body.target_folder_path)
+                _file, closed = fileops.move_file(
+                    db, file_id, body.target_drive, body.target_folder_path
+                )
+                if closed:
+                    inbox_drives.add(source.drive)
                 moved += 1
                 moved_ids.append(file_id)
             except HTTPException as e:
@@ -380,6 +391,8 @@ async def batch_move(
             await event_hooks.emit(
                 "files.moved", {"file_ids": moved_ids}, drives=sorted(touched_drives)
             )
+    for drive in sorted(inbox_drives):
+        await inbox_service.notify(drive)
     return {"moved": moved, "errors": errors}
 
 
@@ -391,15 +404,22 @@ async def batch_tags(
 ):
     updated = 0
     updated_ids = []
+    inbox_drives: set[str] = set()
     errors = []
     for file_id in body.ids:
         try:
             file = _get_file_or_404(db, file_id, unlocked_groups)
+            drive = file.drive
+            before = {tag.name for tag in file.tags}
             if _is_markdown_file(file):
-                await _write_md_tags(db, file, body.tags, merge=True)
+                closed = await _write_md_tags(db, file, body.tags, merge=True)
             else:
                 merge_file_tags(db, file, body.tags)
+                changed = {tag.name for tag in file.tags} != before
+                closed = changed and inbox_service.close(db, drive, file.id)
                 db.commit()
+            if closed:
+                inbox_drives.add(drive)
             updated += 1
             updated_ids.append(file_id)
         except HTTPException as e:
@@ -410,6 +430,8 @@ async def batch_tags(
             errors.append({"id": file_id, "error": "Could not write file"})
     if updated_ids:
         asyncio.create_task(event_hooks.emit("files.updated", {"file_ids": updated_ids}))
+    for drive in sorted(inbox_drives):
+        await inbox_service.notify(drive)
     return {"updated": updated, "errors": errors}
 
 
@@ -693,7 +715,7 @@ def _merged_tag_list(existing: object, added: list[str]) -> list:
     return existing + [t for t in added if t.lower() not in present]
 
 
-async def _write_md_tags(db: Session, file: File, tags: list[str], *, merge: bool) -> None:
+async def _write_md_tags(db: Session, file: File, tags: list[str], *, merge: bool) -> bool:
     """Write ``tags`` into a Markdown file's frontmatter and project ``File.tags``.
 
     Never falls back to writing ``File.tags`` alone: the next content write
@@ -701,6 +723,7 @@ async def _write_md_tags(db: Session, file: File, tags: list[str], *, merge: boo
     """
     drive_path = config.get_drive_path(file.drive)
     file_path = _validate_path(str(drive_path / file.file_path), drive_path)
+    before = {tag.name for tag in file.tags}
 
     async with _text_write_locks[file.id]:
         try:
@@ -753,13 +776,18 @@ async def _write_md_tags(db: Session, file: File, tags: list[str], *, merge: boo
                 raise HTTPException(status_code=409, detail="File changed during tag write")
 
         try:
-            replace_file_tags(db, file, extract_valid_tags(parse_frontmatter(new_text).metadata))
+            projected = extract_valid_tags(parse_frontmatter(new_text).metadata)
+            replace_file_tags(db, file, projected)
             cleanup_orphan_tags(db, file.drive)
+            closed = set(projected) != before and inbox_service.close(
+                db, file.drive, file.id
+            )
             db.commit()
         except Exception:
             db.rollback()
             logger.exception("tags: projection failed for %s", file.id)
             raise HTTPException(status_code=500, detail="Tag projection failed")
+        return closed
 
 
 @router.put("/{file_id}/tags", response_model=FileResponse)
@@ -770,14 +798,21 @@ async def update_file_tags(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     file = _get_file_or_404(db, file_id, unlocked_groups)
+    drive = file.drive
+    before = {tag.name for tag in file.tags}
     if _is_markdown_file(file):
-        await _write_md_tags(db, file, update.tags, merge=False)
+        closed = await _write_md_tags(db, file, update.tags, merge=False)
     else:
         replace_file_tags(db, file, update.tags)
         cleanup_orphan_tags(db, file.drive)
+        closed = {tag.name for tag in file.tags} != before and inbox_service.close(
+            db, drive, file.id
+        )
         db.commit()
     db.refresh(file)
     asyncio.create_task(event_hooks.emit("files.updated", {"file_ids": [file_id]}))
+    if closed:
+        await inbox_service.notify(drive)
     return _to_response(file)
 
 
@@ -1390,12 +1425,16 @@ async def move_file_endpoint(
     source = _get_file_or_404(db, file_id, unlocked_groups)
     source_drive = source.drive  # captured before move_file rewrites it
     _check_target_drive_access(body.target_drive, unlocked_groups)
-    file = fileops.move_file(db, file_id, body.target_drive, body.target_folder_path)
+    file, closed = fileops.move_file(
+        db, file_id, body.target_drive, body.target_folder_path
+    )
     await event_hooks.emit(
         "files.moved",
         {"file_ids": [file.id]},
         drives=sorted({source_drive, file.drive}),
     )
+    if closed:
+        await inbox_service.notify(source_drive)
     return _to_response(file)
 
 
@@ -1419,11 +1458,14 @@ def delete_file_endpoint(
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
-    _get_file_or_404(db, file_id, unlocked_groups)
-    fileops.delete_file(db, file_id)
+    file = _get_file_or_404(db, file_id, unlocked_groups)
+    drive = file.drive
+    closed = fileops.delete_file(db, file_id)
     event_hooks.emit_from_thread(
         "files.deleted", {"file_ids": [file_id], "type": "soft_delete"}
     )
+    if closed:
+        inbox_service.notify_from_thread(drive)
     return {"status": "deleted"}
 
 
@@ -1545,6 +1587,9 @@ async def put_file_content(
 
     drive_path = config.get_drive_path(file.drive)
     file_path = _validate_path(str(drive_path / file.file_path), drive_path)
+    drive = file.drive
+    before_tags = {tag.name for tag in file.tags} if _is_markdown_file(file) else set()
+    inbox_closed = False
 
     lock = _text_write_locks[file.id]
     async with lock:
@@ -1614,8 +1659,11 @@ async def put_file_content(
             try:
                 parsed = parse_frontmatter(body.decode("utf-8"))
                 tags = extract_valid_tags(parsed.metadata)
+                changed = set(tags) != before_tags
                 replace_file_tags(db, file, tags)
                 cleanup_orphan_tags(db, file.drive)
+                if changed:
+                    inbox_closed = inbox_service.close(db, drive, file.id)
                 db.commit()
             except UnicodeDecodeError:
                 db.rollback()
@@ -1696,6 +1744,8 @@ async def put_file_content(
     asyncio.create_task(
         event_hooks.emit("files.updated", {"file_ids": [file_id]})
     )
+    if inbox_closed:
+        await inbox_service.notify(drive)
     return Response(
         status_code=200,
         headers={

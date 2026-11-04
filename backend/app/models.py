@@ -134,6 +134,30 @@ class File(Base):
     )
 
 
+class InboxItem(Base):
+    __tablename__ = "inbox_items"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    drive: Mapped[str] = mapped_column(String, nullable=False)
+    file_id: Mapped[str] = mapped_column(
+        String(12), ForeignKey("files.id", ondelete="CASCADE"), nullable=False
+    )
+    arrived_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    source: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_i18n_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    done_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, default=None)
+
+    __table_args__ = (
+        UniqueConstraint("drive", "file_id", name="uq_inbox_items_drive_file"),
+        Index(
+            "idx_inbox_items_drive_done_arrived",
+            "drive",
+            "done_at",
+            "arrived_at",
+        ),
+    )
+
+
 class EmptyFolder(Base):
     __tablename__ = "empty_folders"
 

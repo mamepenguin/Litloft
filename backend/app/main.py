@@ -20,7 +20,8 @@ import app.setup_token as setup_token
 import app.config as config
 from app.models import File
 from app.routers import admin, admin_markdown_images, auth, collections, comments, drives, files, progress, uploads, ws
-from app.routers import addon_proxy, admin_config, drive_policies, files_processing, internal, smart_folders
+from app.routers import addon_proxy, admin_config, drive_policies, files_processing, inbox, internal, smart_folders
+from app.services import inbox as inbox_service
 from app.services.fileops import physical_delete
 from app.services.scanner import scan_all_drives
 from app.services import addon_registry, drive_seed, event_hooks
@@ -150,6 +151,10 @@ async def purge_expired_trash() -> None:
                 )
             )
         await asyncio.to_thread(_cleanup_empty_folders_after_purge, folders_to_check)
+        try:
+            await asyncio.to_thread(inbox_service.purge_done_rows)
+        except Exception:
+            logger.warning("Inbox retention failed; retrying on the next pass", exc_info=True)
         await asyncio.sleep(_PURGE_INTERVAL_SECONDS)
 
 
@@ -318,6 +323,7 @@ app.include_router(auth.router)
 app.include_router(comments.router)
 app.include_router(files.router)
 app.include_router(files_processing.router)
+app.include_router(inbox.router)
 app.include_router(drives.router)
 app.include_router(drive_policies.router)
 app.include_router(uploads.router)

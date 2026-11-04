@@ -6,6 +6,7 @@ import { FolderBrowser } from "@/components/FolderBrowser";
 import { DriveHome } from "@/components/DriveHome";
 import { TrashView } from "@/components/trash/TrashView";
 import { MissingView } from "@/components/missing/MissingView";
+import { InboxView } from "@/components/inbox";
 import { normaliseDriveView } from "@/lib/driveViews";
 
 export default function DrivePage() {
@@ -21,6 +22,10 @@ export default function DrivePage() {
 
   if (view === "missing") {
     return <MissingView driveName={driveName} />;
+  }
+
+  if (view === "inbox") {
+    return <InboxView driveName={driveName} />;
   }
 
   // Ahead of the tag and pass-through branches: reached after them, Home would

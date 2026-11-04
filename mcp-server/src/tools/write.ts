@@ -50,7 +50,7 @@ const renameFile: LitloftTool = {
 const moveFile: LitloftTool = {
   name: "move_file",
   description:
-    "Move a file to a different folder path, optionally to a different drive. Moving it to another drive removes it from the collections of the drive it leaves.",
+    "Move a file to a different folder path, optionally to a different drive. A move within the drive closes the file's inbox row; a move to another drive removes it, and removes the file from the collections of the drive it leaves.",
   inputSchema: {
     file_id: z.string(),
     target_folder_path: z.string(),
@@ -71,7 +71,7 @@ const moveFile: LitloftTool = {
 const trashFile: LitloftTool = {
   name: "trash_file",
   description:
-    "Move a file to trash (soft delete). Recoverable for 30 days via restore_file; this does not permanently delete anything.",
+    "Move a file to trash (soft delete). Recoverable for 30 days via restore_file; this does not permanently delete anything. It also closes the file's inbox row.",
   inputSchema: { file_id: z.string() },
   annotations: writeAnnotations({ destructive: true, idempotent: true }),
   handler: (args, client) =>
@@ -104,7 +104,7 @@ const restoreFile: LitloftTool = {
 const updateTags: LitloftTool = {
   name: "update_tags",
   description:
-    "Replace the full tag list on a file (max 10 tags). This overwrites existing tags rather than appending to them.",
+    "Replace the full tag list on a file (max 10 tags). This overwrites existing tags rather than appending to them. Changing the tag set also closes the file's inbox row.",
   inputSchema: { file_id: z.string(), tags: z.array(z.string()).max(10) },
   annotations: writeAnnotations({ destructive: true, idempotent: true }),
   handler: (args, client) =>
@@ -122,7 +122,7 @@ const updateTags: LitloftTool = {
 const updateFileContent: LitloftTool = {
   name: "update_file_content",
   description:
-    "Replace a text/markdown file's whole content. `content` is plain text, not base64 (unlike upload_file's content_base64). Requires the ETag of a full get_file_content read (a ranged read returns none) as an optimistic-lock guard; a 412 conflict means the file changed since you last read it, so read it again before retrying. To change part of a file, use edit_file_content instead.",
+    "Replace a text/markdown file's whole content. `content` is plain text, not base64 (unlike upload_file's content_base64). Requires the ETag of a full get_file_content read (a ranged read returns none) as an optimistic-lock guard; a 412 conflict means the file changed since you last read it, so read it again before retrying. To change part of a file, use edit_file_content instead. Changing a Markdown file's frontmatter tags also closes its inbox row.",
   inputSchema: { file_id: z.string(), content: z.string(), etag: z.string() },
   annotations: writeAnnotations({ destructive: true, idempotent: true }),
   handler: (args, client) =>
@@ -154,7 +154,7 @@ function countOccurrences(text: string, needle: string): number {
 const editFileContent: LitloftTool = {
   name: "edit_file_content",
   description:
-    "Change part of a Markdown or plain-text file (at most 1 MB) by exact string replacement, without sending the whole file. old_string must occur exactly once in the current file (include surrounding text to make it unique), or pass replace_all to replace every occurrence. Both strings are literal. The tool reads the file itself, so no ETag is needed; it applies to the file as it is now.",
+    "Change part of a Markdown or plain-text file (at most 1 MB) by exact string replacement, without sending the whole file. old_string must occur exactly once in the current file (include surrounding text to make it unique), or pass replace_all to replace every occurrence. Both strings are literal. The tool reads the file itself, so no ETag is needed; it applies to the file as it is now. Changing a Markdown file's frontmatter tags also closes its inbox row.",
   inputSchema: {
     file_id: z.string(),
     old_string: z.string().describe("Exact text to replace"),

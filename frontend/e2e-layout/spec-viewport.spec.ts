@@ -23,6 +23,7 @@ const FIXTURES = [
   "addon-policy.html",
   "button-touch-floor.html",
   "file-actions-menu.html",
+  "inbox-rows.html",
   "justified-grid.html",
   "list-row-furniture.html",
   "mobile-inspector-sheet.html",
