@@ -31,7 +31,7 @@ describe("SPEC-CORE-044 1.1 the value is NFKC-normalised before it is read", () 
     expect(sizes("size:＞１ＧＢ")).toEqual(["gt:1073741824"]);
     expect(sizes("size:＞＝１ＧＢ")).toEqual(["gte:1073741824"]);
     expect(sizes("size:＜１ＧＢ")).toEqual(["lt:1073741824"]);
-    expect(sizes("duration:＞＝３０ｍ")).toEqual(["gte:1800"]);
+    expect(durations("duration:＞＝３０ｍ")).toEqual(["gte:1800"]);
   });
 
   it("reads a full-width colon as the operator colon", () => {
@@ -288,7 +288,7 @@ describe("SPEC-CORE-044 I9 removing a chip removes exactly its own tokens", () =
     const next = removeOperatorChip(q, chipOf(q, 2));
 
     expect(next).toBe('tag:"two words" duration:>=30m');
-    expect(parseSearchQuery(next)).toMatchObject({
+    expect(filterOf(next)).toMatchObject({
       tags: ["two words"],
       durations: ["gte:1800"],
       sizes: [],

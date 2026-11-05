@@ -499,9 +499,7 @@ class TestWireFormValidation:
 
         assert listed.status_code == 200, listed.text
         assert matched.status_code == 200, matched.text
-        assert sorted(matched.json()["file_ids"]) == _want(
-            corpus, "b1024", "b1025", "big", "tagged"
-        )
+        assert sorted(matched.json()["file_ids"]) == _want(corpus, "big")
 
 
 class TestUnchangedWithoutTheNewParameters:

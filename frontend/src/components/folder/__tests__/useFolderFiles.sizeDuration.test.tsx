@@ -131,7 +131,7 @@ describe("SPEC-CORE-044 I6 useFolderFiles sends the same wire forms to both stag
 
   it("sends several comparisons and collapses equal ones", async () => {
     renderSearch(
-      "size:>100MB size:>104857600B duration:<5m duration:>=30m 予算",
+      "size:>100MB size:>104857600B duration:>=5m duration:<30m 予算",
     );
 
     await waitFor(() => expect(api.getDriveFiles).toHaveBeenCalled());
@@ -140,12 +140,12 @@ describe("SPEC-CORE-044 I6 useFolderFiles sends the same wire forms to both stag
     const params = api.getDriveFiles.mock.calls[0][1];
     expect(params).toMatchObject({
       size: ["gt:104857600"],
-      duration: ["lt:300", "gte:1800"],
+      duration: ["gte:300", "lt:1800"],
     });
 
     const filter = semantic.fetchHits.mock.calls[0][2].filter;
     expect(filterQueryParam(filter)).toBe(
-      '{"sizes":["gt:104857600"],"durations":["lt:300","gte:1800"]}',
+      '{"sizes":["gt:104857600"],"durations":["gte:300","lt:1800"]}',
     );
   });
 

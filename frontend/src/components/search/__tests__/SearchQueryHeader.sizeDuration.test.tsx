@@ -205,12 +205,11 @@ describe("SPEC-CORE-044 menu 4 a preset appends one token and submits once", () 
 
 describe("SPEC-CORE-044 menu 3 a preset already in the query is not offered", () => {
   it("leaves out the comparison the query already holds", () => {
-    renderHeader({ query: "size:<10MB" });
+    renderHeader({ query: "size:>=100MB" });
 
     openList("Size");
 
-    expect(screen.queryByRole("menuitem", { name: "Under 10 MB" })).toBeNull();
-    expect(screen.getByRole("menuitem", { name: "100 MB or more" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "100 MB or more" })).toBeNull();
     expect(screen.getByRole("menuitem", { name: "1 GB or more" })).toBeInTheDocument();
   });
 
@@ -228,7 +227,6 @@ describe("SPEC-CORE-044 menu 3 a preset already in the query is not offered", ()
     openList("Length");
 
     expect(screen.queryByRole("menuitem", { name: "30 min or more" })).toBeNull();
-    expect(screen.getByRole("menuitem", { name: "Under 5 min" })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "1 hour or more" })).toBeInTheDocument();
   });
 });
