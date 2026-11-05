@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { runTool } from "./runTool.js";
-import { textResult, writeAnnotations, type LitloftTool } from "./types.js";
+import {
+  errorResult,
+  textResult,
+  writeAnnotations,
+  type LitloftTool,
+} from "./types.js";
 
 const ASK_TIMEOUT_MS = 120_000;
 const ASK_MAX_SSE_EVENTS = 4096;
@@ -8,12 +13,33 @@ const ASK_MAX_SSE_EVENTS = 4096;
 const ask: LitloftTool = {
   name: "ask",
   description:
-    "Ask Litloft Intelligence a question within one drive and return the synthesized answer with source events. Retrieved file excerpts may be sent to the LLM provider configured in Litloft Intelligence.",
+    "Ask Litloft Intelligence a question within one drive and return the synthesized answer with source events. Retrieved file excerpts may be sent to the LLM provider configured in Litloft Intelligence. Pass scope to answer only from files in those folders (and below), collections (by name), tags and kinds of the drive; conditions combine with AND. An empty scope answers with no answer and matched_file_count 0.",
   inputSchema: {
     drive: z.string(),
     query: z.string().min(1).max(1000),
     top_k: z.number().int().min(1).max(20).optional(),
     file_type: z.string().optional(),
+    scope: z
+      .object({
+        folders: z.array(z.string()).optional(),
+        collections: z.array(z.string()).optional(),
+        tags: z.array(z.string()).optional(),
+        kinds: z
+          .array(
+            z.enum([
+              "video",
+              "image",
+              "audio",
+              "document",
+              "archive",
+              "other",
+              "text",
+              "pdf",
+            ])
+          )
+          .optional(),
+      })
+      .optional(),
   },
   annotations: writeAnnotations({
     destructive: false,
@@ -23,6 +49,7 @@ const ask: LitloftTool = {
   handler: (args, client) =>
     runTool(async () => {
       const { drive, ...body } = args as { drive: string } & Record<string, unknown>;
+      const sentScope = body.scope !== undefined;
       const events = await client.requestSse(
         "POST",
         "/api/addons/intelligence/ask",
@@ -38,6 +65,7 @@ const ask: LitloftTool = {
       let sources: unknown = undefined;
       let citations: unknown = undefined;
       let done: unknown = undefined;
+      let scope: unknown = undefined;
       for (const event of events) {
         const data = event.data as Record<string, unknown>;
         if (event.event === "answer_chunk" && typeof data.delta === "string") {
@@ -48,6 +76,8 @@ const ask: LitloftTool = {
           citations = data;
         } else if (event.event === "done") {
           done = data;
+        } else if (event.event === "scope") {
+          scope = data;
         }
       }
       if (
@@ -57,12 +87,21 @@ const ask: LitloftTool = {
       ) {
         throw new Error(`Litloft ask failed: ${String((done as { error: unknown }).error)}`);
       }
+      // A server older than this tool ignores `scope` and answers from the
+      // whole drive. Its missing scope event is the only signal, so fail
+      // rather than return an answer asked with a narrowing it did not apply.
+      if (sentScope && scope === undefined) {
+        return errorResult(
+          "This Litloft server does not support Ask scope"
+        );
+      }
 
       return textResult({
         answer: chunks.join(""),
         sources,
         citations,
         done,
+        ...(sentScope ? { scope } : {}),
       });
     }),
 };
