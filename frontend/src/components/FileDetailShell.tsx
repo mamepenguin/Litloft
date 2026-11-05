@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactElement,
   type ReactNode,
@@ -11,9 +12,13 @@ import {
 import { useTranslations } from "next-intl";
 
 import { useCanvasFloor } from "./FileDetail/hooks/useCanvasFloor";
+import { useFind } from "./FileDetail/find/FindContext";
 import { useInspectorOpen } from "@/hooks/useInspectorOpen";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useShortcuts } from "@/hooks/useShortcuts";
+import { useShortcutsContext } from "./ShortcutsProvider";
+import { canTakeFindShortcut } from "@/lib/findShortcut";
+import { orderContexts } from "@/lib/shortcuts";
 import { inspectorOpenStore } from "@/lib/inspectorOpenStore";
 import { FileDetailChrome } from "./FileDetail/FileDetailChrome";
 import { useInspectorFit } from "./FileDetail/hooks/useInspectorFit";
@@ -56,6 +61,7 @@ interface FileDetailShellProps {
    */
   onScrollRootChange?: (node: HTMLElement | null) => void;
   resetKey?: string;
+  findEnabled?: boolean;
 }
 
 /**
@@ -79,10 +85,14 @@ export function FileDetailShell({
   children,
   onScrollRootChange,
   resetKey,
+  findEnabled = false,
 }: FileDetailShellProps): ReactElement {
   const t = useTranslations("inspector");
+  const tFind = useTranslations("find");
   const { open, setOpen } = useInspectorOpen(drive);
   const isMobile = useIsMobile();
+  const find = useFind();
+  const { stack } = useShortcutsContext();
 
   // Not on a phone: the player is `position: sticky` under
   // `[data-sheet-snap]`, so a floor would pin 70% of the screen to the
@@ -101,12 +111,44 @@ export function FileDetailShell({
   // the viewport and with the player, so a stored number would name a
   // snap point that is no longer in the list vaul was handed.
   const [sheetState, setSheetState] = useState<SheetState>(SHEET_STATE_PEEK);
-  const sheetExpanded = isSheetExpanded(sheetState);
+  const [inspectorOverride, setInspectorOverride] = useState<boolean | null>(null);
+  const [sheetOverride, setSheetOverride] = useState<SheetState | null>(null);
+  const [layoutTouched, setLayoutTouched] = useState(false);
+  const rememberedInspector = useRef(open);
+  const rememberedSheet = useRef(sheetState);
+  const previousFindOpen = useRef(false);
+  const sheetExpanded = isSheetExpanded(sheetOverride ?? sheetState);
+  const desktopInspectorOpen = inspectorOverride ?? open;
   const attachInspectorFitHost = useInspectorFit();
 
   useEffect(() => {
     setSheetState(SHEET_STATE_PEEK);
   }, [resetKey]);
+
+  // The bar borrows the inspector and the sheet without writing either
+  // preference: it remembers what it replaced and hands it back on close.
+  useEffect(() => {
+    if (find.open === previousFindOpen.current) return;
+    previousFindOpen.current = find.open;
+    if (find.open) {
+      rememberedInspector.current = open;
+      rememberedSheet.current = sheetState;
+      setLayoutTouched(false);
+      setInspectorOverride(isMobile ? null : true);
+      setSheetOverride(
+        isMobile
+          ? isSheetExpanded(sheetState)
+            ? sheetState
+            : SHEET_STATE_HALF
+          : null,
+      );
+      return;
+    }
+    if (!layoutTouched) setSheetState(rememberedSheet.current);
+    setInspectorOverride(null);
+    setSheetOverride(null);
+    setLayoutTouched(false);
+  }, [find.open, isMobile, open, sheetState, layoutTouched]);
 
   // Without this, resizing across the viewport boundary leaves
   // `useInspectorOpen` reading a stale viewport-derived snapshot when
@@ -119,7 +161,19 @@ export function FileDetailShell({
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const toggle = useCallback(() => setOpen(!open), [open, setOpen]);
+  const toggle = useCallback(
+    () => setOpen(!desktopInspectorOpen),
+    [desktopInspectorOpen, setOpen],
+  );
+
+  const stackRef = useRef(stack);
+  stackRef.current = stack;
+  const canTakeFind = useCallback(() => {
+    if (!canTakeFindShortcut()) return false;
+    return orderContexts(stackRef.current).some(
+      (context) => context.id === "file-detail-find",
+    );
+  }, []);
 
   const shortcuts = useMemo(
     () => [
@@ -134,22 +188,62 @@ export function FileDetailShell({
   );
   useShortcuts("file-detail-shell", "Inspector", shortcuts, !isMobile);
 
-  const inspectorOpenOnDesktop = !isMobile && open;
+  const findShortcuts = useMemo(
+    () => [
+      {
+        key: "ctrl+f",
+        label: tFind("shortcutLabel"),
+        handler: () => {
+          find.openFindByShortcut();
+        },
+        when: canTakeFind,
+      },
+    ],
+    [canTakeFind, find, tFind],
+  );
+  useShortcuts(
+    "file-detail-find",
+    "Find",
+    findShortcuts,
+    findEnabled && !isMobile,
+  );
+
+  const inspectorOpenOnDesktop = !isMobile && desktopInspectorOpen;
   const handleInspectorButton = useCallback(() => {
+    if (find.open) {
+      setLayoutTouched(true);
+      if (isMobile) setSheetOverride(null);
+      else setInspectorOverride(null);
+    }
     if (isMobile) {
       setSheetState((prev) =>
         isSheetExpanded(prev) ? SHEET_STATE_PEEK : SHEET_STATE_HALF,
       );
     } else toggle();
-  }, [isMobile, toggle]);
+  }, [find.open, isMobile, toggle]);
 
   const lowerInspector = useCallback(() => {
     if (!isMobile) return;
+    if (find.open) {
+      setLayoutTouched(true);
+      setSheetOverride(null);
+    }
     setSheetState((prev) =>
       isSheetExpanded(prev) ? SHEET_STATE_PEEK : prev,
     );
-  }, [isMobile]);
+  }, [find.open, isMobile]);
   useRegisterLowerInspector(lowerInspector);
+
+  const handleSheetStateChange = useCallback(
+    (next: SheetState) => {
+      if (find.open) {
+        setLayoutTouched(true);
+        setSheetOverride(null);
+      }
+      setSheetState(next);
+    },
+    [find.open],
+  );
 
   return (
     <div
@@ -169,7 +263,7 @@ export function FileDetailShell({
         fileId={fileId}
         onBack={onBack}
         inspector={{
-          open: isMobile ? sheetExpanded : open,
+          open: isMobile ? sheetExpanded : desktopInspectorOpen,
           onToggle: handleInspectorButton,
         }}
       >
@@ -198,8 +292,8 @@ export function FileDetailShell({
       </div>
       {isMobile && (
         <MobileInspectorSheet
-          state={sheetState}
-          onStateChange={setSheetState}
+          state={sheetOverride ?? sheetState}
+          onStateChange={handleSheetStateChange}
           halfSnap={halfSnap}
           peek={sheetPeek}
         >

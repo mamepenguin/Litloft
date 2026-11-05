@@ -8,6 +8,7 @@ import {
   type WikiResolveResult,
 } from "@/lib/api";
 import { MarkdownPreview } from "@/components/MarkdownPreview";
+import { FindTextBodyProvider } from "@/components/FileDetail/find/FindContext";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
 
 /**
@@ -110,13 +111,15 @@ export function MarkdownFileViewer({
     : undefined;
 
   return (
-    <MarkdownPreview
-      source={source}
-      editable={edit}
-      onTagsSaved={onTagsSaved}
-      highlight={highlight}
-      wikiResolution={wikiResolution}
-      onDocumentCaptureController={onDocumentCaptureController}
-    />
+    <FindTextBodyProvider>
+      <MarkdownPreview
+        source={source}
+        editable={edit}
+        onTagsSaved={onTagsSaved}
+        highlight={highlight}
+        wikiResolution={wikiResolution}
+        onDocumentCaptureController={onDocumentCaptureController}
+      />
+    </FindTextBodyProvider>
   );
 }

@@ -155,3 +155,16 @@ describe("parseReaderMessage", () => {
     expect(parseReaderMessage(event(data), frame)).toBeNull();
   });
 });
+
+describe("SPEC-CORE-028 I7 the reader's find-shortcut message", () => {
+  it("is accepted from the reader frame, with no fields of its own", () => {
+    expect(parseReaderMessage(event({ type: "find-shortcut", extra: 1 }), frame)).toEqual({
+      type: "find-shortcut",
+    });
+  });
+
+  it("is dropped from any other window", () => {
+    expect(parseReaderMessage(event({ type: "find-shortcut" }, { source: other }), frame)).toBeNull();
+    expect(parseReaderMessage(event({ type: "find-shortcut" }), frame)).not.toBeNull();
+  });
+});

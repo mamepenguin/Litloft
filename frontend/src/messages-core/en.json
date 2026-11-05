@@ -988,6 +988,7 @@
     },
     "tabs": {
       "info": "Info",
+      "find": "Find",
       "chapters": "Chapters",
       "pages": "Pages",
       "related": "Related"
@@ -1007,6 +1008,37 @@
     "tablistLabel": "Inspector sections",
     "collapseSheet": "Collapse the sheet",
     "expandSheet": "Open the sheet"
+  },
+  "find": {
+    "button": "Find in this file",
+    "shortcutLabel": "Find in this file",
+    "inputLabel": "Search term",
+    "inputPlaceholder": "Find in this file",
+    "previous": "Previous occurrence",
+    "next": "Next occurrence",
+    "close": "Close find",
+    "count": "{count} found",
+    "countTruncated": "{count}+ found",
+    "current": "{index} / {total}",
+    "currentTruncated": "{index} / {total}+",
+    "truncatedList": "Showing the first 2000 matches",
+    "listLabel": "Matches",
+    "notIndexed": "This file has not been indexed for search yet",
+    "noHits": "No matches",
+    "unavailable": "This file cannot be searched",
+    "failed": "Search failed",
+    "retry": "Retry",
+    "category": {
+      "all": "All",
+      "utterance": "Utterance",
+      "scene": "On-screen text",
+      "text": "Body text",
+      "picture_text": "Text in image"
+    },
+    "locator": {
+      "page": "p. {page}",
+      "section": "Section {section}"
+    }
   },
   "comments": {
     "title": "Comments",

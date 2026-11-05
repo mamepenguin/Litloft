@@ -22,6 +22,7 @@ export interface FileDetailPresenterProps {
   drive: string;
   isMobile: boolean;
   ridesShell: boolean;
+  findEnabled: boolean;
   isHtmlPreview: boolean;
   companionKind: string | null;
   hasPlayer: boolean;
@@ -71,6 +72,7 @@ export function FileDetailPresenter({
   drive,
   isMobile,
   ridesShell,
+  findEnabled,
   isHtmlPreview,
   companionKind,
   hasPlayer,
@@ -116,6 +118,7 @@ export function FileDetailPresenter({
         fileId={fileId}
         drive={drive}
         isMobile={isMobile}
+        findEnabled={findEnabled}
         isHtmlPreview={isHtmlPreview}
         hasPlayer={hasPlayer}
         usesCanvasViewer={usesCanvasViewer}

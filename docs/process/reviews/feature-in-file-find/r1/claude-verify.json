@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "frontend/src/components/ShortcutsProvider.tsx:107 has `if (s.when && !s.when()) return false;` inside the matcher. frontend/src/lib/shortcuts.ts:17 declares `when?: () => boolean`. FileDetailShell.tsx:171-199 defines `canTakeFind` and passes `when: canTakeFind`. The touch-point list does not name ShortcutsProvider.tsx."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "MarkdownDocumentLayout.tsx:21 imports FindButton, :42/:60 add the `findEnabled` prop, :129 and :132 draw `<FindButton />` (in both branches), and :147 passes `findEnabled` to FileDetailShell. The other place that draws `<FindButton` is ShellLayout.tsx:397. FileDetailChrome.tsx has no FindButton or find reference. MarkdownDocumentLayout.tsx is not in the touch points."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "frontend/src/lib/documentCapture.ts:97-114 defines `clearSelectionWithin`, which clears only when the selection's start or end is inside the root. PdfPreview.tsx:52 imports it and :243 calls `clearSelectionWithin(root, window.getSelection())`. documentCapture.ts is not in the touch points. I could not run git to see the earlier `removeAllRanges()` call itself."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-4",
+      "status": "confirmed",
+      "note": "frontend/src/hooks/useFindMarksIn.ts, frontend/src/lib/findMarks.ts and frontend/src/lib/findShortcut.ts all exist at this commit, beside the declared client frontend/src/lib/fileFind.ts. FileDetailShell.tsx:20 imports `canTakeFindShortcut` from '@/lib/findShortcut'. None of the three is listed in the touch points."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-5",
+      "status": "confirmed",
+      "note": "docs/user-guide/search.md:94-95 hold two bullets about 「このファイルの他の箇所 →」 and finding in the file. The docs touch points name only the file-page guide and keyboard-shortcuts.md. I confirmed the content, but I could not run a diff to see the change."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-6",
+      "status": "confirmed",
+      "note": "frontend/src/__tests__/ime-enter-guard.test.ts:39 lists 'components/FileDetail/find/useFindInFile.ts', and :101 has `toHaveLength(20)`. frontend/e2e-epub/findShortcut.spec.ts exists. frontend/e2e-epub/fixtures/host.html:28 defines `window.setFindIntercept`, which sends `{type: 'set-find-intercept', interceptFind}`. The touch points list tests only for the addon."
+    }
+  ],
+  "specification_compliance": [
+    "The six findings are touch-point drift only. Every file they name exists at the commit, with the content the readers described.",
+    "host.html sends set-find-intercept with the field `interceptFind`, which matches the clarification."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "PdfPreview's page-change effect now clears the selection only when it lies inside the viewer root, which is a behaviour change to selection clearing on page change."
+  ],
+  "regression_risks": [
+    "The `when` predicate in the ShortcutsProvider matcher applies to every registered shortcut. It is a no-op when `when` is absent."
+  ],
+  "test_coverage": [
+    "The EPUB e2e spec findShortcut.spec.ts and the host fixture cover set-find-intercept.",
+    "ime-enter-guard declares useFindInFile.ts."
+  ],
+  "not_verified": [
+    "I could not run git diff against origin/develop, so the claims that these files are new or changed in this range (and the earlier removeAllRanges call) were inferred from the current content.",
+    "I did not run any tests.",
+    "I did not check the addon submodule."
+  ],
+  "confidence": 85
+}

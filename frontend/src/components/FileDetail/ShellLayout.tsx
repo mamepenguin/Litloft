@@ -33,6 +33,10 @@ import { FileNavControls } from "./FileNavControls";
 import { MediaCanvas } from "./MediaCanvas";
 import { InspectorShell } from "./inspector/InspectorShell";
 import { buildInspectorTabs } from "./inspector/tabs";
+import { FindBar } from "./find/FindBar";
+import { FindButton } from "./find/FindButton";
+import { FindTab } from "./find/FindTab";
+import { FindTextBodyProvider, useFind } from "./find/FindContext";
 import type { CompanionMetrics } from "./hooks/useCompanionMetrics";
 import type { SlotAvailability } from "./hooks/useSlotAvailability";
 import { slotAvailabilityKey } from "./hooks/useSlotAvailability";
@@ -45,6 +49,7 @@ export interface ShellLayoutProps {
   fileId: string;
   drive: string;
   isMobile: boolean;
+  findEnabled: boolean;
   isHtmlPreview: boolean;
   hasPlayer: boolean;
   usesCanvasViewer: boolean;
@@ -87,6 +92,7 @@ export function ShellLayout({
   fileId,
   drive,
   isMobile,
+  findEnabled,
   isHtmlPreview,
   hasPlayer,
   usesCanvasViewer,
@@ -126,6 +132,7 @@ export function ShellLayout({
   const tabLabels = useTranslations("inspector.tabs");
   const searchParams = useSearchParams();
   const inboxWalk = searchParams.get("nav") === "inbox";
+  const find = useFind();
 
   /**
    * On a phone the player is stuck to the top of the canvas, so a sheet
@@ -264,6 +271,11 @@ export function ShellLayout({
       },
       coreTabs: [
         {
+          id: "find",
+          label: tabLabels("find"),
+          content: find.open ? <FindTab /> : null,
+        },
+        {
           id: "pages",
           label: tabLabels("pages"),
           content: pdfController ? (
@@ -345,7 +357,13 @@ export function ShellLayout({
     });
 
   const inspector = (
-    <InspectorShell header={meta} tabs={buildTabs(false)} resetKey={fileId} />
+    <InspectorShell
+      header={meta}
+      tabs={buildTabs(false)}
+      resetKey={fileId}
+      selectRequest={find.selectRequest}
+      onSelect={(tabId) => find.reportTab("pane", tabId)}
+    />
   );
 
   // Only when actually on mobile, so the sections inside mount exactly
@@ -358,6 +376,8 @@ export function ShellLayout({
       tabs={buildTabs(true)}
       resetKey={fileId}
       scroll="column"
+      selectRequest={find.selectRequest}
+      onSelect={(tabId) => find.reportTab("sheet", tabId)}
     />
   ) : undefined;
 
@@ -370,9 +390,11 @@ export function ShellLayout({
         fileId={fileId}
         onBack={onBack}
         onScrollRootChange={onScrollRootChange}
+        findEnabled={findEnabled}
         canvasFloor={viewerTakesCanvasFloor(file.file_type, file.mime_type)}
         chromeControls={
           <>
+            {findEnabled && <FindButton />}
             {/* `!isMobile` is not only about space: `onBeside` opens the
                 desktop pane, and a phone's sheet is `FileDetailShell`'s own
                 state, not this store. Rendering the toggle on a phone would
@@ -394,6 +416,7 @@ export function ShellLayout({
         halfSnap={sheetHalfSnap}
         resetKey={fileId}
       >
+        {findEnabled && find.open && <FindBar />}
         <MediaCanvas
           showDescription={descriptionInCanvas}
           file={file}
@@ -454,6 +477,7 @@ export function ShellLayout({
       resetKey={fileId}
       previewOnly={isHtmlPreview}
       plainText={plainTextDocument}
+      findEnabled={findEnabled}
     >
       {/* The canvas is at least as tall as the scroll viewport (`flex-1`
           against the layout's scrolling <main>), and the editor region
@@ -461,21 +485,24 @@ export function ShellLayout({
           ended at its own content height and the sections under it
           floated in the middle of the screen with dead space below. */}
       <div className="flex flex-1 flex-col">
+        {findEnabled && find.open && <FindBar />}
         <div className="relative isolate flex flex-1 flex-col bg-bg-primary">
           {isHtmlPreview ? (
             <FilePreview file={file} />
           ) : (
-            <AddonSlot
-              id="file-detail-sections"
-              layout="stack"
-              includeIds={["knowledge-edit"]}
-              props={{
-                ...addonSlotProps,
-                fillHeight: true,
-                highlight,
-                ...(plainTextDocument ? { plainTextDocument: true } : {}),
-              }}
-            />
+            <FindTextBodyProvider>
+              <AddonSlot
+                id="file-detail-sections"
+                layout="stack"
+                includeIds={["knowledge-edit"]}
+                props={{
+                  ...addonSlotProps,
+                  fillHeight: true,
+                  highlight,
+                  ...(plainTextDocument ? { plainTextDocument: true } : {}),
+                }}
+              />
+            </FindTextBodyProvider>
           )}
         </div>
         {!isMobile && !isHtmlPreview && (

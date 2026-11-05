@@ -18,6 +18,7 @@ import {
   type MarkdownViewMode,
 } from "@/lib/markdownChromeContext";
 import { FileDetailShell } from "../FileDetailShell";
+import { FindButton } from "../FileDetail/find/FindButton";
 import { MarkdownViewModeToggle } from "../MarkdownViewModeToggle";
 import { EditableTitle } from "./EditableTitle";
 import { SaveDot } from "./SaveDot";
@@ -38,6 +39,7 @@ interface MarkdownDocumentLayoutProps {
   previewOnly?: boolean;
   /** Read and Edit only: there is no rendering that differs from the source. */
   plainText?: boolean;
+  findEnabled?: boolean;
 }
 
 export function MarkdownDocumentLayout({
@@ -55,6 +57,7 @@ export function MarkdownDocumentLayout({
   resetKey,
   previewOnly = false,
   plainText = false,
+  findEnabled = false,
 }: MarkdownDocumentLayoutProps): ReactElement {
   const searchParams = useSearchParams();
   const isMobile = useIsMobile();
@@ -122,8 +125,11 @@ export function MarkdownDocumentLayout({
           ) : undefined
         }
         chromeControls={
-          previewOnly ? undefined : (
+          previewOnly ? (
+            findEnabled ? <FindButton /> : undefined
+          ) : (
             <>
+              {findEnabled && <FindButton />}
               <SaveDot state={saveState} />
               <MarkdownViewModeToggle
                 mode={viewMode}
@@ -138,6 +144,7 @@ export function MarkdownDocumentLayout({
         sheetPeek={sheetPeek}
         onScrollRootChange={onScrollRootChange}
         resetKey={resetKey}
+        findEnabled={findEnabled}
       >
         {children}
       </FileDetailShell>

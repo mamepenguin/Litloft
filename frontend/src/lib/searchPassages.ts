@@ -87,6 +87,24 @@ export function passageHref(fileId: string, passage: SearchPassage): string {
   }
 }
 
+/**
+ * The longest term a keyword passage of the group matched, earliest passage
+ * first on a tie. Find matches exact text, so the whole search query would
+ * often open on 「見つかりません」.
+ */
+export function findTermForGroup(group: PassageGroup): string | null {
+  let best: string | null = null;
+  for (const passage of group.passages) {
+    if (!passage.keyword) continue;
+    for (const term of passage.highlight_terms) {
+      if (term.length > 0 && (best === null || term.length > best.length)) {
+        best = term;
+      }
+    }
+  }
+  return best;
+}
+
 export interface HighlightSegment {
   text: string;
   mark: boolean;

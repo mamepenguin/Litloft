@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { FileTypeIcon } from "@/components/FileTypeIcon";
 import { formatDuration } from "@/lib/format";
 import {
+  findTermForGroup,
   highlightSegments,
   passageHref,
   passageLocator,
@@ -19,6 +20,13 @@ import type { FileType } from "@/types";
 const MAX_ROWS_PER_FILE = 3;
 
 export type PassageListState = "loading" | "listed" | "empty" | "failed";
+
+function moreInFileHref(group: PassageGroup): string {
+  const term = findTermForGroup(group);
+  return term
+    ? `/files/${group.fileId}?find=${encodeURIComponent(term)}`
+    : `/files/${group.fileId}`;
+}
 
 interface PassageListProps {
   state: PassageListState;
@@ -242,7 +250,7 @@ export function PassageList({
           </ol>
           {group.passages.length > MAX_ROWS_PER_FILE && (
             <a
-              href={`/files/${group.fileId}`}
+              href={moreInFileHref(group)}
               aria-label={t("moreInFileName", { file: group.filename })}
               className="ml-1 block py-1 text-xs text-text-muted hover:text-text-primary"
             >

@@ -437,3 +437,64 @@ describe("SPEC-CORE-040 the states of the passage list", () => {
     expect(onClearFilter).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("SPEC-CORE-028 I9 the rest-of-file link opens the find bar on the group's keyword term", () => {
+  const restOf = () =>
+    screen.getByRole("link", { name: "More passages in lecture.mp4" }).getAttribute("href")!;
+  const parsed = (href: string) => new URL(href, "http://litloft.local");
+
+  it("carries the longest highlight term of the keyword passages, a hidden one included", () => {
+    render(
+      listed([
+        group({
+          passages: [
+            passage({ text: "one", keyword: true, highlight_terms: ["倉庫"] }),
+            passage({ text: "two" }),
+            passage({ text: "three", keyword: true, highlight_terms: ["move"] }),
+            passage({ text: "four" }),
+            passage({ text: "five", keyword: true, highlight_terms: ["倉庫 の移転", "倉"] }),
+          ],
+        }),
+      ]),
+    );
+
+    const url = parsed(restOf());
+    expect(url.pathname).toBe("/files/f1");
+    expect(url.searchParams.get("find")).toBe("倉庫 の移転");
+    expect([...url.searchParams.keys()]).toEqual(["find"]);
+  });
+
+  it("takes the term of the earliest passage when two are equally long", () => {
+    render(
+      listed([
+        group({
+          passages: [
+            passage({ text: "one" }),
+            passage({ text: "two", keyword: true, highlight_terms: ["abcd"] }),
+            passage({ text: "three", keyword: true, highlight_terms: ["wxyz"] }),
+            passage({ text: "four", keyword: true, highlight_terms: ["efgh"] }),
+          ],
+        }),
+      ]),
+    );
+
+    expect(parsed(restOf()).searchParams.get("find")).toBe("abcd");
+  });
+
+  it("ignores the terms of a passage whose keyword is false", () => {
+    render(
+      listed([
+        group({
+          passages: [
+            passage({ text: "one", keyword: false, highlight_terms: ["a much longer term"] }),
+            passage({ text: "two", keyword: true, highlight_terms: ["short"] }),
+            passage({ text: "three" }),
+            passage({ text: "four" }),
+          ],
+        }),
+      ]),
+    );
+
+    expect(parsed(restOf()).searchParams.get("find")).toBe("short");
+  });
+});

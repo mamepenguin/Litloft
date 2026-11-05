@@ -9,6 +9,12 @@ export interface ShortcutDef {
   //               should work everywhere, like cycling a view mode)
   //   undefined → fires ONLY when no editing element has focus
   editingOnly?: boolean
+  /**
+   * Evaluated at keypress time, before the provider claims the key. A false
+   * answer lets the browser have it, which a handler alone cannot do once
+   * `preventDefault` has run.
+   */
+  when?: () => boolean
 }
 
 export interface ShortcutContextDef {

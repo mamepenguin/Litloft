@@ -270,6 +270,7 @@ Addon endpoints live under `/api/addons/<name>/`. An in-process addon (cloud-syn
 Examples:
 
 - `GET /api/addons/intelligence/search?q=...`
+- `GET /api/addons/intelligence/files/{id}/find?q=...`
 - `POST /api/addons/intelligence/ask`
 - `POST /api/addons/intelligence/refine/files/{id}`
 - `POST /api/addons/knowledge/clips`

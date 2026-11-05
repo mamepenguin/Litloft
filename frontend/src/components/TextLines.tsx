@@ -4,6 +4,8 @@ import { useMemo, useRef } from "react";
 import { useTranslations } from "next-intl";
 import hljs from "highlight.js";
 import { useHighlightPassage } from "@/hooks/useHighlightPassage";
+import { useFindMarksIn } from "@/hooks/useFindMarksIn";
+import { isTextFindRow } from "@/lib/findMarks";
 import { codeLanguageFor } from "@/lib/codeLanguage";
 import { splitHighlightedLines, splitPlainLines } from "@/lib/codeLines";
 import { useDocumentCapturePublisher } from "@/hooks/useDocumentCapturePublisher";
@@ -87,6 +89,12 @@ export function TextLines({
   const decorated = useMemo(
     () => decorate(content, filename),
     [content, filename],
+  );
+  useFindMarksIn(
+    () => preRef.current,
+    isTextFindRow,
+    decorated.lines !== null,
+    { text: decorated.text, bodyStartLine: 0, mode: "plain" },
   );
 
   const preClass =

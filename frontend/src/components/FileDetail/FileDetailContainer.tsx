@@ -18,6 +18,8 @@ import { usePolicy } from "@/hooks/usePolicy";
 import { useAddonSlots } from "../AddonSlotsProvider";
 import { MarkdownAwareTagChips } from "../MarkdownAwareTagChips";
 import { FileDetailPresenter } from "./FileDetailPresenter";
+import { FindProvider } from "./find/FindContext";
+import { useFindInFile } from "./find/useFindInFile";
 import { FileActionRow } from "./FileActionRow";
 import { FileMetaBlock } from "./FileMetaBlock";
 import { useCompanionMetrics } from "./hooks/useCompanionMetrics";
@@ -40,6 +42,7 @@ export interface FileDetailContentProps {
   initialPage?: number;
   initialSection?: number;
   highlight?: string;
+  initialFind?: string;
   onMediaController?: (mc: MediaController | null) => void;
   miniPlayerRoot?: Element | null;
   onRequestImageGallery?: () => void;
@@ -57,6 +60,7 @@ export function FileDetailContainer({
   initialPage,
   initialSection,
   highlight,
+  initialFind,
   onMediaController,
   miniPlayerRoot,
   onRequestImageGallery,
@@ -67,7 +71,7 @@ export function FileDetailContainer({
   surface = "canonical",
 }: FileDetailContentProps) {
   const tPane = useTranslations("rightPane");
-  const { getSlotEntries, hasSlot } = useAddonSlots();
+  const { getSlotEntries, hasSlot, addons, catalogueDrive } = useAddonSlots();
   const slotAvailability = useSlotAvailability(fileId);
   const isMobile = useIsMobile();
   const data = useFileDetailData(fileId);
@@ -81,6 +85,19 @@ export function FileDetailContainer({
   const [documentController, setDocumentController] =
     useState<DocumentController | null>(null);
   const lowerInspector = useLowerInspectorRegistry();
+
+  const addonCatalogue = catalogueDrive === drive ? addons : {};
+  const findEnabled =
+    surface === "canonical" && Boolean(addonCatalogue["intelligence"]);
+  const find = useFindInFile({
+    fileId,
+    drive,
+    enabled: findEnabled,
+    isMobile,
+    initialFind,
+    mediaController,
+    documentController,
+  });
 
   // Drive-scope policy lookup for the Knowledge editor. `usePolicy` is
   // fail-open: during the initial load AND during the 30s-TTL background
@@ -288,13 +305,15 @@ export function FileDetailContainer({
     ) : undefined;
 
   return (
-    <LowerInspectorProvider registry={lowerInspector}>
-      <FileDetailPresenter
-        file={file}
-        fileId={fileId}
-        drive={drive}
-        isMobile={isMobile}
-        ridesShell={ridesShell}
+    <FindProvider value={find}>
+      <LowerInspectorProvider registry={lowerInspector}>
+        <FileDetailPresenter
+          file={file}
+          fileId={fileId}
+          drive={drive}
+          isMobile={isMobile}
+          ridesShell={ridesShell}
+          findEnabled={findEnabled}
         isHtmlPreview={isHtmlPreview}
         hasPlayer={hasPlayer}
         usesCanvasViewer={usesCanvasViewer}
@@ -333,6 +352,7 @@ export function FileDetailContainer({
         meta={meta}
         sheetPeek={sheetPeek}
       />
-    </LowerInspectorProvider>
+      </LowerInspectorProvider>
+    </FindProvider>
   );
 }
