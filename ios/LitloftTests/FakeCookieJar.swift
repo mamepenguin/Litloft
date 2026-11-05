@@ -7,6 +7,19 @@ import Testing
 final class FakeCookieJar: CookieJar {
     private(set) var cookies: [HTTPCookie]
     private(set) var calls: [String] = []
+    private var observers: [CookieJarObserver] = []
+
+    var observerCount: Int {
+        observers.count
+    }
+
+    func addObserver(_ observer: CookieJarObserver) {
+        observers.append(observer)
+    }
+
+    func removeObserver(_ observer: CookieJarObserver) {
+        observers.removeAll { $0 === observer }
+    }
 
     init(_ cookies: [HTTPCookie] = []) {
         self.cookies = cookies
@@ -16,6 +29,7 @@ final class FakeCookieJar: CookieJar {
         calls.append("set:\(cookie.name)")
         cookies.removeAll { $0.name == cookie.name && $0.domain == cookie.domain }
         cookies.append(cookie)
+        observers.forEach { $0.cookiesDidChange() }
     }
 
     func allCookies() async -> [HTTPCookie] {
@@ -25,6 +39,7 @@ final class FakeCookieJar: CookieJar {
     func deleteCookie(_ cookie: HTTPCookie) async {
         calls.append("delete:\(cookie.name)")
         cookies.removeAll { $0.name == cookie.name && $0.domain == cookie.domain }
+        observers.forEach { $0.cookiesDidChange() }
     }
 }
 

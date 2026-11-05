@@ -10,4 +10,9 @@ protocol CookieJar: AnyObject {
     func deleteCookie(_ cookie: HTTPCookie) async
 }
 
+@MainActor
+protocol CookieJarObserver: AnyObject {
+    func cookiesDidChange()
+}
+
 extension WKHTTPCookieStore: CookieJar {}
