@@ -1,16 +1,18 @@
 "use client";
 
 import { type DragEvent, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import { Upload } from "lucide-react";
+import { ImagePlus, Upload } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useUpload, type UploadFileEntry } from "@/hooks/useUpload";
 import { readDirectoryEntries } from "@/lib/directoryReader";
+import { classifyDrag, type DragClass } from "@/lib/imageQuery";
 
 interface UploadZoneProps {
   drive: string;
   folderPath: string;
   children: ReactNode;
   className?: string;
+  onImageQuery?: (file: File) => void;
 }
 
 export function UploadZone({
@@ -18,10 +20,14 @@ export function UploadZone({
   folderPath,
   children,
   className,
+  onImageQuery,
 }: UploadZoneProps) {
   const t = useTranslations("upload");
+  const tSearch = useTranslations("search");
   const [isDragging, setIsDragging] = useState(false);
+  const [dragClass, setDragClass] = useState<DragClass | null>(null);
   const dragCounterRef = useRef(0);
+  const dragClassRef = useRef<DragClass | null>(null);
   const zoneRef = useRef<HTMLDivElement>(null);
   const { addFiles, addFileEntries } = useUpload();
 
@@ -46,10 +52,14 @@ export function UploadZone({
     e.preventDefault();
     e.stopPropagation();
     dragCounterRef.current += 1;
-    if (e.dataTransfer.types.includes("Files")) {
+    if (dragClassRef.current === null) {
+      dragClassRef.current = onImageQuery ? classifyDrag(e.dataTransfer) : "upload";
+      setDragClass(dragClassRef.current);
+    }
+    if (onImageQuery || dragClassRef.current === "one_image" || e.dataTransfer.types.includes("Files")) {
       setIsDragging(true);
     }
-  }, []);
+  }, [onImageQuery]);
 
   const handleDragLeave = useCallback((e: DragEvent) => {
     e.preventDefault();
@@ -57,20 +67,36 @@ export function UploadZone({
     dragCounterRef.current -= 1;
     if (dragCounterRef.current === 0) {
       setIsDragging(false);
+      dragClassRef.current = null;
+      setDragClass(null);
     }
   }, []);
 
   const handleDragOver = useCallback((e: DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (dragClassRef.current === "one_image") {
+      e.dataTransfer.dropEffect = "copy";
+    }
   }, []);
 
   const handleDrop = useCallback(
     async (e: DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
+      const dropped = dragClassRef.current;
       setIsDragging(false);
       dragCounterRef.current = 0;
+      dragClassRef.current = null;
+      setDragClass(null);
+
+      if (dropped === "one_image" && onImageQuery) {
+        const files = Array.from(e.dataTransfer.files);
+        if (files.length === 1 && files[0].type.startsWith("image/")) {
+          onImageQuery(files[0]);
+        }
+        return;
+      }
 
       try {
         const items = e.dataTransfer.items;
@@ -115,7 +141,7 @@ export function UploadZone({
         addFiles(drive, folderPath, files);
       }
     },
-    [addFiles, addFileEntries, drive, folderPath]
+    [addFiles, addFileEntries, drive, folderPath, onImageQuery]
   );
 
   return (
@@ -133,12 +159,33 @@ export function UploadZone({
       {/* No `pointer-events-none` so drop events fire on this element
           and bubble up to the parent's onDrop handler. */}
       {isDragging && (
-        <div className="select-none fixed inset-0 z-50 flex items-center justify-center bg-accent/10 backdrop-blur-sm">
-          <div className="flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-accent bg-bg-card/90 px-12 py-10">
-            <Upload size={48} className="text-accent" />
-            <p className="text-lg font-medium text-text-primary">
-              {t("dropToUpload")}
-            </p>
+        <div
+          className={`select-none fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm ${
+            dragClass === "one_image" ? "bg-bg-primary/75" : "bg-accent/10"
+          }`}
+        >
+          <div
+            className={`flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed px-12 py-10 ${
+              dragClass === "one_image"
+                ? "border-warm-silver bg-bg-card/90"
+                : "border-accent bg-bg-card/90"
+            }`}
+          >
+            {dragClass === "one_image" ? (
+              <>
+                <ImagePlus size={48} className="text-text-muted" />
+                <p className="text-lg font-medium text-text-primary">
+                  {tSearch("dropToSearchByImage")}
+                </p>
+              </>
+            ) : (
+              <>
+                <Upload size={48} className="text-accent" />
+                <p className="text-lg font-medium text-text-primary">
+                  {t("dropToUpload")}
+                </p>
+              </>
+            )}
           </div>
         </div>
       )}
