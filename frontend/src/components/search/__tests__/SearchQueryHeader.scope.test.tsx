@@ -258,6 +258,7 @@ describe("SPEC-CORE-043 I11 the folder list's ranking", () => {
     fireEvent.change(screen.getByLabelText("Filter folders"), {
       target: { value: "photos" },
     });
+    await waitFor(() => expect(menuRows().length).toBeGreaterThan(0));
 
     const rows = menuRows();
     expect(rows[0]).toContain("Photos");
@@ -275,6 +276,7 @@ describe("SPEC-CORE-043 I11 the folder list's ranking", () => {
     fireEvent.change(screen.getByLabelText("Filter folders"), {
       target: { value: "photos" },
     });
+    await waitFor(() => expect(menuRows().length).toBeGreaterThan(0));
 
     expect(menuRows().some((row) => row.includes("ＰＨＯＴＯＳ"))).toBe(true);
   });
@@ -293,6 +295,7 @@ describe("SPEC-CORE-043 I11 the collection list's ranking", () => {
     fireEvent.change(screen.getByLabelText("Filter collections"), {
       target: { value: "tr" },
     });
+    await waitFor(() => expect(menuRows().length).toBeGreaterThan(0));
 
     const rows = menuRows();
     expect(rows[0]).toContain("trip");

@@ -382,7 +382,7 @@ describe("SPEC-CORE-043 item 6 the writer quotes a value with whitespace", () =>
   });
 
   it("keeps the text before the token being typed", () => {
-    expect(completeOperator("予算 ", active, "two words")).toBe(
+    expect(completeOperator("予算 tw", { ...active, replaceFrom: 3 }, "two words")).toBe(
       '予算 tag:"two words" ',
     );
   });

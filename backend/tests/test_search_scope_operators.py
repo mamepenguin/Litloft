@@ -135,7 +135,7 @@ class TestFolderScope:
 
     ROWS = [
         ("exact folder", "Photos/2024", ["photo_a", "photo_b"]),
-        ("a parent folder holds its descendants", "Photos", ["photo_a", "photo_b", "photo_e"]),
+        ("a parent folder holds its descendants", "Photos", ["photo_a", "photo_b", "photo_x", "photo_e"]),
         ("a longer sibling name is not the folder", "Photos/2024", ["photo_a", "photo_b"]),
         ("a case-variant folder is a different folder", "photos/2024", ["photo_lower"]),
         ("the drive root is not a folder value", "Café", ["cafe"]),
@@ -222,7 +222,7 @@ class TestUnionsAndAnd:
         res = _listing(c, [("folder", "Photos"), ("folder", "Trips")])
 
         assert sorted(_ids(res)) == _want(
-            corpus, "photo_a", "photo_b", "photo_e", "kyoto"
+            corpus, "photo_a", "photo_b", "photo_x", "photo_e", "kyoto"
         )
 
     def test_several_collections_are_the_union_of_their_items(self, client, corpus):
@@ -259,8 +259,8 @@ class TestParagraphParity:
     ROWS = [
         ("no conditions", {}, [], ("root", "photo_a", "photo_b", "photo_x", "photo_lower", "photo_e", "budget", "minutes", "kyoto", "cafe", "meeting")),
         ("a folder", {"folders": ["Photos/2024"]}, [("folder", "Photos/2024")], ("photo_a", "photo_b")),
-        ("an outer folder", {"folders": ["Photos"]}, [("folder", "Photos")], ("photo_a", "photo_b", "photo_e")),
-        ("two folders", {"folders": ["Photos", "Trips"]}, [("folder", "Photos"), ("folder", "Trips")], ("photo_a", "photo_b", "photo_e", "kyoto")),
+        ("an outer folder", {"folders": ["Photos"]}, [("folder", "Photos")], ("photo_a", "photo_b", "photo_x", "photo_e")),
+        ("two folders", {"folders": ["Photos", "Trips"]}, [("folder", "Photos"), ("folder", "Trips")], ("photo_a", "photo_b", "photo_x", "photo_e", "kyoto")),
         ("a collection", {"collections": ["Trip"]}, [("collection", "Trip")], ("photo_a", "budget")),
         ("a collection by another case", {"collections": ["trip"]}, [("collection", "trip")], ("photo_a", "budget")),
         ("two collections", {"collections": ["Trip", "資料"]}, [("collection", "Trip"), ("collection", "資料")], ("photo_a", "budget", "minutes")),
@@ -374,7 +374,7 @@ class TestNormalisation:
 
         res = _listing(c, [("folder", "Photos"), ("folder", "/Photos/")])
 
-        assert sorted(_ids(res)) == _want(corpus, "photo_a", "photo_b", "photo_e")
+        assert sorted(_ids(res)) == _want(corpus, "photo_a", "photo_b", "photo_x", "photo_e")
 
     def test_duplicate_collections_count_once_case_insensitively(self, client, corpus):
         c, _db, _drive_dir, _data_dir = client
