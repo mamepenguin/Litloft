@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "ios/Litloft/Share/ServerAddress.swift:3 defines `enum ServerAddress`. project.pbxproj:321 compiles it in a Sources phase (the extension's, per the finding), and ServerSettings.swift:17 and ShareSheetModel.swift:72 use it. The touch points do not list this file. The move is an unlisted but behaviour-neutral refactor needed so the extension can share the parser."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "Shared.xcconfig:17 defines LITLOFT_KEYCHAIN_GROUP. Both entitlements files contain keychain-access-groups. Litloft-Info.plist:18 and LitloftShare/Info.plist:25 hold the LITLOFTKeychainGroup key. These are unlisted surfaces. Litloft-Info.plist has no NSLocalNetworkUsageDescription, as claimed. However, project.pbxproj:404 and :434 set INFOPLIST_KEY_NSLocalNetworkUsageDescription for the app, so the app does get the key, through build settings instead of the plist file. The literal claim is true; the functional impact is nil."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "frontend/src/__tests__/inboxPage.test.tsx:23 imports `@/messages-core/ja.json`, and lines 261-272 add a shared-arrival test that checks the ja `inbox.sourceShare` label. The file is not in the touch-point list. The change only adds tests for the listed SPEC-CORE-033 behaviour."
+    }
+  ],
+  "specification_compliance": [
+    "I1/I2 backend and frontend label wiring appeared consistent where sampled (inboxPage test covers the Shared label). The other invariants were not checked in depth."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "ServerAddress.swift moved into Share/ and compiled into the extension.",
+    "LITLOFT_KEYCHAIN_GROUP, keychain-access-groups and LITLOFTAppGroup/LITLOFTKeychainGroup Info.plist keys, none of them in the touch points.",
+    "NSLocalNetworkUsageDescription for the app is set through INFOPLIST_KEY build settings instead of Litloft-Info.plist.",
+    "inboxPage.test.tsx was edited without being a listed touch point."
+  ],
+  "regression_risks": [
+    "Moving ServerAddress changes the file layout. The project builds only if both targets keep the pbxproj entries.",
+    "Keychain access group misconfiguration would silently break the session mirror on device. This could not be tested here."
+  ],
+  "test_coverage": [
+    "Only grep-level inspection of the three findings. No tests were run, since the verifier has no execution tools."
+  ],
+  "not_verified": [
+    "Invariants I3-I10 behaviour in the extension code",
+    "Whether ServerAddress.swift is in the app target's Sources phase as well (only the compile entry at pbxproj:321 was seen)",
+    "The full diff",
+    "Backend changes and tests",
+    "Keychain behaviour on a real device"
+  ],
+  "confidence": 80
+}
