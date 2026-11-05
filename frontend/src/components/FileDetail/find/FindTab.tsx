@@ -10,7 +10,7 @@ import {
   presentCategories,
   showsCategoryChips,
 } from "./categories";
-import { FindTabPresenter, type FindChip } from "./FindTabPresenter";
+import { FindTabPresenter, type FindChip, type FindLocator } from "./FindTabPresenter";
 import type { FindCategory } from "./types";
 
 const PAGE_SIZE = 200;
@@ -90,19 +90,21 @@ function formatTime(seconds: number): string {
 function locatorText(
   t: ReturnType<typeof useTranslations>,
   row: FindRow,
-): string {
+): FindLocator {
   switch (row.kind) {
     case "utterance":
-      return `${formatTime(row.start ?? 0)} ${t("category.utterance")}`;
+      return { place: formatTime(row.start ?? 0), kind: t("category.utterance") };
     case "scene":
-      return `${formatTime(row.start ?? 0)} ${t("category.scene")}`;
+      return { place: formatTime(row.start ?? 0), kind: t("category.scene") };
     case "page":
-      return t("locator.page", { page: row.page ?? 0 });
+      return { place: t("locator.page", { page: row.page ?? 0 }) };
     case "section":
-      return row.section_title || t("locator.section", { section: row.section ?? 0 });
+      return {
+        place: row.section_title || t("locator.section", { section: row.section ?? 0 }),
+      };
     case "picture_text":
-      return t("category.picture_text");
+      return { place: t("category.picture_text") };
     case "text":
-      return t("category.text");
+      return { place: t("category.text") };
   }
 }

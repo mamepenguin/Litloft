@@ -404,14 +404,19 @@ function selectedTab(): string | null {
   return selected[0]?.textContent?.trim() ?? null;
 }
 
+// A place in the list is a button too, and its locator can start with a
+// chip's label.
+const queryChip = (name: RegExp) =>
+  screen
+    .queryAllByRole("button")
+    .filter((b) => !b.closest("li") && name.test(b.textContent?.trim() ?? ""));
+
 function chip(name: RegExp): HTMLElement {
-  const [found] = screen.queryAllByRole("button").filter((b) => name.test(b.textContent?.trim() ?? ""));
+  const [found] = queryChip(name);
   if (!found) throw new Error(`no chip ${name}`);
   return found;
 }
 
-const queryChip = (name: RegExp) =>
-  screen.queryAllByRole("button").filter((b) => name.test(b.textContent?.trim() ?? ""));
 
 function statusWith(text: string): HTMLElement | null {
   return (exactly(text)[0]?.closest('[role="status"]') as HTMLElement | null) ?? null;

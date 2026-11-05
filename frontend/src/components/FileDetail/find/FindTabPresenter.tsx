@@ -5,6 +5,11 @@ import { useTranslations } from "next-intl";
 
 import type { FindRow } from "@/lib/fileFind";
 
+export interface FindLocator {
+  place: string;
+  kind?: string;
+}
+
 export interface FindChip {
   id: string;
   label: string;
@@ -21,7 +26,7 @@ interface FindTabPresenterProps {
   onScroll: (event: UIEvent<HTMLDivElement>) => void;
   onSelectRow: (row: FindRow) => void;
   onSelectFilter: (id: string) => void;
-  onFormatLocator: (row: FindRow) => string;
+  onFormatLocator: (row: FindRow) => FindLocator;
   rowKey: (row: FindRow, index: number) => string;
 }
 
@@ -83,21 +88,32 @@ export function FindTabPresenter({
         <ul className="space-y-1" aria-label={t("listLabel")}>
           {rows.map((row, index) => {
             const current = row === currentRow;
+            const locator = onFormatLocator(row);
             return (
               <li key={rowKey(row, index)}>
                 <button
                   type="button"
                   onClick={() => onSelectRow(row)}
                   data-find-current={current ? "true" : undefined}
-                  className={`flex w-full flex-col rounded-xl px-2.5 py-2 text-left text-sm transition-colors hover:bg-bg-elevated ${
-                    current ? "bg-bg-elevated" : ""
+                  className={`grid w-full grid-cols-[4.75rem_minmax(0,1fr)] gap-2.5 rounded-xl px-2.5 py-2 text-left transition-colors ${
+                    current
+                      ? "bg-accent/[0.07] shadow-[inset_2px_0_0_var(--accent)]"
+                      : "hover:bg-accent/5"
                   }`}
                 >
-                  <span className="text-text-primary [line-break:strict]">
-                    <Snippet row={row} />
+                  <span className="flex min-w-0 flex-col">
+                    <span
+                      className="truncate text-[13px] font-semibold tabular-nums text-text-primary"
+                      title={locator.place}
+                    >
+                      {locator.place}
+                    </span>
+                    {locator.kind && (
+                      <span className="text-[11px] text-text-muted">{locator.kind}</span>
+                    )}
                   </span>
-                  <span className="text-xs text-text-muted">
-                    {onFormatLocator(row)}
+                  <span className="text-[13px] text-text-primary [line-break:strict]">
+                    <Snippet row={row} />
                   </span>
                 </button>
               </li>
