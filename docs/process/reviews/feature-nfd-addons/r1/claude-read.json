@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The intelligence reconcile drift check changes semantics for every file, not only NFD files: a stored-path difference now counts as drift only when the path core points at exists on disk, and the check runs in asyncio.to_thread via the new helper `_drifted_file_ids`. Neither the existence condition nor the thread offload is a touch point.",
+      "impact": "A file whose core path moved to a location that does not exist yet (offline drive, a file not yet on disk) no longer gets its indexed path repaired on that pass. Non-NFD rows are affected too. Reconcile now does one lexists/scandir walk per active row on a worker thread.",
+      "evidence": "addons/intelligence/app/indexer.py `_drifted_file_ids` (path_drift = snap[file_path] != expected_path and os.path.exists(expected_path)) and the `await asyncio.to_thread(_drifted_file_ids, to_compare)` call in reconcile. The existing test tests/test_reconcile_drift.py had to be edited to create a real file so the old drift assertion still passes.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Matches I14's 'unreadable drive does not change the stored path' intent but the scope is wider than the declared touch points; no invariant is broken.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Name the drift existence condition and the thread offload in the touch-point list, or restrict the existence condition to rows whose unresolved path differs from the resolved one only by normalization."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "Existing tests outside the listed test set are edited: addons/intelligence/tests/test_listing_call_inventory.py (new INVENTORY entry for app/diskpath.py os.scandir) and tests/test_reconcile_drift.py (expectation rewritten with monkeypatched resolve_file_path and a real file).",
+      "impact": "The listing-call inventory now permanently allows a scandir with 'stored-name' use in diskpath.py. The rewritten drift test no longer checks the original behavior of the unrelated-path drift case.",
+      "evidence": "addons/intelligence/tests/test_listing_call_inventory.py:22; addons/intelligence/tests/test_reconcile_drift.py test_drift_in_file_path_triggers_repair.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Test edits outside the declared test touch points; no invariant is broken.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "cloud-sync changes the sync run path itself (the code that computes `source` before calling `_source_usable`, now `await asyncio.to_thread(self._on_disk, ...)` inside the try block) and adds a new helper `_on_disk`. The touch points name only `_source_usable` and `_folder_inside_drive`.",
+      "impact": "Resolution errors now fall into the existing exception handling of the sync run. The path handed to rclone changes for every mapping. The addon also imports core `app.services.diskpath` directly.",
+      "evidence": "addons/cloud-sync/backend/service.py around lines 183-190 and 260-266 in the diff.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Scope extension within the same I15 intent; no invariant is broken.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "F4",
+      "origin": "reviewer",
+      "claim": "media_import and core now share API beyond `resolve_on_disk` (`name_taken`, `AmbiguousPath`), and media_import gained new refusals: loft creation (`create_loft_sync`) and `_allocate_loft_path` raise ValueError for an ambiguous folder. The touch points do not list these behaviors, and I7/I12 declare ambiguity handling only for core mutating sites.",
+      "impact": "A subscription sync whose folder has two non-byte-equal NFD-variant matches now fails in `_allocate_loft_path` with a ValueError instead of creating a loft. How the subscription manager reports this to the user was not checked.",
+      "evidence": "addons/media_import/backend/subscription/manager.py `_allocate_loft_path`; addons/media_import/backend/service.py create_loft_sync; the corresponding tests are in test_nfd_failure_states.py.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Unlisted new behavior; no declared I14-I16 invariant covers it.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "F5",
+      "origin": "reviewer",
+      "claim": "The intelligence `resolve_stored_path` resolves from filesystem root '/' over arbitrary absolute paths, and `document_text._checked_path` and the frame endpoint call it before `validate_file_path`, so the listing walks ancestors outside any drive mount.",
+      "impact": "Extra scandir calls on non-drive ancestors, and path validation sees the resolved spelling instead of the stored one. Benign in a single-user model.",
+      "evidence": "addons/intelligence/app/config.py resolve_stored_path (`resolve_on_disk('/', path.lstrip('/'))`); app/document_text.py `_checked_path`; routers/files.py get_frame.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Outside the threat model and not an invariant violation; it only widens what the resolver reads.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "Addon changes cover the listed I14 sites (indexer's three callers, drift check, _loft_needs_reset, thumbnail leg, frame endpoint, document_text), I15 sites (media_import service/router/manager, cloud-sync _source_usable/_folder_inside_drive) and I16 (parity JSON present for the intelligence copy).",
+    "The touch-point path 'routers/document_text.py' does not exist; the change edits app/document_text.py. This is a naming slip in the list, not an unplanned place.",
+    "Places reached outside the touch-point list: the reconcile drift semantics and thread offload (F1), edits to existing tests (F2), the cloud-sync run path (F3), new ambiguity refusals and shared helpers in media_import (F4), and resolution from '/' (F5)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Drift is no longer reported when the core-side path does not exist on disk, for all files.",
+    "Ambiguous folder names now abort loft creation in media_import.",
+    "The intelligence resolver walks ancestors from '/'."
+  ],
+  "regression_risks": [
+    "Reconcile no longer repairs rows pointing at a not-yet-existing target.",
+    "Per-row filesystem listing in reconcile on slow bind mounts.",
+    "Behavior drift between the three resolver copies (core, intelligence, and the core one imported by addons)."
+  ],
+  "test_coverage": [
+    "Intelligence has indexer, worker, parity and inventory tests, including a seeded-site detector test.",
+    "media_import and cloud-sync have NFD tests and an inventory test in media_import. I did not see a cloud-sync inventory test in this diff, although the touch points ask for one in each addon tree.",
+    "NFD tests skip on folding filesystems, so they run only on Linux."
+  ],
+  "not_verified": [
+    "I did not read the core backend/app/services/diskpath.py or the core tests; I judged only from the diff text.",
+    "I did not check whether cloud-sync has other joins of the drive path, or whether the intelligence listed modules (frame_cache, providers, workers) still open unresolved paths.",
+    "I did not check how SubscriptionManager reports the new ValueError.",
+    "I did not run any tests."
+  ],
+  "confidence": 72
+}
