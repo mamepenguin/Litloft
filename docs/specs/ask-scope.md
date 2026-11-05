@@ -33,9 +33,20 @@ The scope has the shape of the search `filter` (SPEC-CORE-039 / SPEC-ADDON-047) 
 SPEC-CORE-043 / SPEC-ADDON-063 extend it: `folders`, `collections` (by name), `tags`,
 `kinds`. It is resolved by the one Internal API call that already resolves that filter,
 `POST /api/internal/files/matching`, so a scope and a search filter with the same values
-name the same files. **This change depends on SPEC-CORE-043 and SPEC-ADDON-063 being
-merged first** (the `folders` and `collections` keys, `path:` / `in:` tokens, the
-quoting writer and the folder and collection value lists).
+name the same files.
+
+Delivery, in this order:
+
+1. **SPEC-CORE-043 and SPEC-ADDON-063 merged first** (approved, not yet merged when this
+   spec was written). They provide the `folders` and `collections` keys on
+   `/files/matching` and in intelligence's `SearchFilter`, the `path:` / `in:` tokens,
+   the quoting writer, and the folder and collection value lists this change reuses.
+2. **Core PR, SPEC-CORE-044**: `ConditionMenu`, the `collection-actions` slot, its
+   `docs/ADDON-DEVELOPMENT.md` row and the `frontend/e2e-layout/` fixtures.
+3. **Addon PR, SPEC-ADDON-054 and SPEC-ADDON-064**, in `addons/intelligence`.
+4. **Core PR**: the `addons/intelligence` pointer bump to the merged addon commit,
+   SPEC-CORE-045 (MCP `ask`), the notes of Internal API rows 14 and 15, and the docs
+   under `docs/addons/`, `docs/user-guide/` and `mcp-server/README.md`.
 
 The human decided on 2026-11-05: the three scope kinds (folder subtree, collection, tags
 and kinds as in the A2 filter), AND between kinds; the entry points 「ここに質問」 on
@@ -62,6 +73,8 @@ Checked, no action:
 - **H7.** A note saved from a scoped answer records the scope in its frontmatter.
 - **H8.** The scope survives Ask → Find → Ask: `ModeTabs` carries `?scope=` on both
   links, and the Find page passes it through without applying it.
+- **H9.** The Find page's header shows the drive's count, as today, even when its URL
+  carries `?scope=`.
 
 ## Required items
 
@@ -82,8 +95,11 @@ SPEC-ADDON-054, request and resolution:
    forbids unknown keys (`favorite` and `liked` included), and normalises, deduplicates
    and caps each list exactly as SPEC-ADDON-063 step 2 and SPEC-ADDON-047 state for the
    search `filter`, by the same validator code (`markdown` is accepted as `text`). A
-   scope with all four lists empty after normalisation is rejected
-   (422 `"scope has no condition"`).
+   scope with all four lists empty after normalisation is rejected by an `AskScope`
+   model validator, so the answer is FastAPI's standard validation body: 422
+   `{"detail": [{"type": "value_error", "loc": ["body", "scope"],
+   "msg": "Value error, scope has no condition", ...}]}`. Every other scope or body
+   defect, an unknown top-level key included, is also FastAPI's list-shaped 422.
 2. After the existing checks (`rag` enabled, query length, drive mismatch) and before the
    concurrency slot is taken, the route resolves the scope with
    `fetch_matching_file_ids(drive, filter)` where `filter` holds the scope's four lists
@@ -119,29 +135,37 @@ SPEC-ADDON-054, retrieval (legacy and hierarchical paths):
      SPEC-ADDON-047, `_scoped_vector_rows`), not the drive's top `coarse_top_k` projected
      onto E;
    - the small-corpus bypass compares the number of indexed active files in E with
-     `min_drive_files_for_shortlist`, and the `shortlist` event's `drive_file_count`
-     carries that number;
+     `min_drive_files_for_shortlist`, also when E came from personal history (today a
+     history pre-scope skips that guard), and the `shortlist` event's
+     `drive_file_count` carries that number;
    - the exact-match addition counts, for each token, the files *in E* that hold it,
      against `exact_match_max_files`, and adds only files in E.
-3. Sources, the access filter (`filter-file-ids` and the drive check), the
+3. For a scoped request, `pre_scope_file_ids` and every `file_id_scope` argument are
+   `None`: E travels only as `file_id_constraint` (which `search()` also applies as its
+   post-filter), and H is used only to compute E. The coarse shortlist is ranked within
+   E (step 2) instead of being projected onto a pre-scope.
+4. Sources, the access filter (`filter-file-ids` and the drive check), the
    anti-hallucination citation filter and the answer prompt are unchanged; because every
    candidate is in E, every source and citation is.
+5. `answer_question` (the non-streaming path the evals use) takes no scope and is
+   unchanged.
 
 SPEC-ADDON-054, personal history (H4):
 
 1. Stage A (`decompose_query`) and Stage B (`fetch_viewer_history`) run as today. When
    they yield H and the request is scoped, E = S ∩ H, and the `history_filter` event's
    `matched_file_count` is `len(E)`.
-2. When S ∩ H is empty: with `fallback_when_empty: "strict"` the stream short-circuits
-   as today's strict path (no answer); with `"graceful"` E = S and no `history_filter`
-   event is emitted, as for today's graceful empty history. A scoped request never
-   falls back to the drive.
+2. When S ∩ H is empty: with `fallback_when_empty: "strict"` the stream emits
+   `history_filter` with `matched_file_count: 0`, then short-circuits as today's strict
+   path (`citations: []`, `done` without `scope_empty`, no answer); with `"graceful"`
+   E = S and no `history_filter` event is emitted, as for today's graceful empty
+   history. A scoped request never falls back to the drive.
 3. Without a personal signal, E = S.
 
 SPEC-ADDON-054, agentic branch:
 
 1. The agentic loop runs no personal history, so its E is S. `_stream_agentic` and
-   `_maybe_run_agentic` receive it, and `ToolContext` gains
+   `_run_agentic` receive it, and `ToolContext` gains
    `file_id_constraint: frozenset[str] | None`.
 2. `search_files` passes it to `retrieve_with_keywords` as `file_id_constraint`.
 3. `get_file_chunks`, `get_file_detail` and `get_related_files` answer a `file_id`
@@ -153,16 +177,19 @@ SPEC-ADDON-054, agentic branch:
 5. The `scope` event precedes the agentic `keywords` event; an empty S answers as in
    resolution step 5 without entering the loop.
 
-SPEC-ADDON-054, logs: no log line written while handling a scoped request contains the
-question, a scope value (folder, collection name, tag) or a file id. Sizes (`len(S)`,
-`len(E)`) may appear in the existing retrieval INFO lines.
+SPEC-ADDON-054, logs: the log lines this change adds (resolution failure, scope sizes,
+agentic out-of-scope refusals) carry at most the drive and counts (`len(S)`, `len(E)`),
+never the question, a scope value (folder, collection name, tag) or a file id. Existing
+lines are not changed; see Checked, no action.
 
 SPEC-ADDON-064, the Ask page:
 
-1. The URL carries the scope string as `?scope=` beside `?q=`. The page derives its scope
-   from the URL on every change of the URL's search parameters, Back and Forward
-   included: tokens that parse as text and `is:` tokens are dropped, and what remains is
-   the scope.
+1. The URL carries the scope string as `?scope=` beside `?q=`. The page reads both from
+   `window.location` at exactly two moments: on mount and on a `popstate` event (Back or
+   Forward). It does not react to `useSearchParams` changes, so the page's own
+   `history.replaceState` writes (step 4 and `runAsk`'s `?q=` write) never start a read.
+   On a read, tokens that parse as text and `is:` tokens are dropped, and what remains
+   is the scope.
 2. The request body's `scope` is `filterFromParsed(parseSearchQuery(scopeString))`
    restricted to the four keys; a scope string with no operator sends no `scope`.
 3. Under the header, the page draws the scope string's chips with the core
@@ -172,7 +199,11 @@ SPEC-ADDON-064, the Ask page:
    sets it to the chip row's `next`. Neither sends a question.
 4. A change of the scope string by a chip or the menu aborts a streaming answer, clears
    the shown answer and its sources, keeps the question in the input, and writes the new
-   `?scope=` with `history.replaceState` (no history entry).
+   `?scope=` and removes `?q=` with one `history.replaceState` (no history entry), so a
+   reload never fires the kept question under a scope it was not asked with.
+   Stop (the existing abort button) aborts the stream and returns to idle as today:
+   the answer, sources and citations received so far are cleared, the question stays in
+   the input, and the chips, the scope line and the URL are unchanged.
 5. The header's scope line is the drive and the scope's file count:
    `GET /api/drives/{drive}/files` with the scope's `folder`, `collection`, `tag` and
    `type` parameters (SPEC-CORE-043) and `limit=1`, read from `meta.total`. Unscoped,
@@ -182,11 +213,15 @@ SPEC-ADDON-064, the Ask page:
    `drive:` + the JSON of the normalised scope (keys in the order folders, collections,
    tags, kinds) + `:` + question for a scoped one. A scoped entry also stores
    `matchedFileCount`; restoring it shows that count on the scope line. A scoped entry
-   without a numeric `matchedFileCount` is treated as a miss.
-7. When the URL has `?q=`, the page restores the cached answer for (drive, scope, q) or,
-   on a miss, fires the question with that scope, as `?q=` alone does today. So Back or
-   Forward to an entry with another `?scope=` shows the answer for that pair, never the
-   previous pair's.
+   without a numeric `matchedFileCount` is treated as a miss. A `scope_empty` outcome is
+   not cached: restoring it re-runs the request, which calls no LLM and shows the
+   empty-scope state again (or an answer, if the scope has gained files).
+7. On a read (step 1) whose URL has `?q=`, the page restores the cached answer for
+   (drive, scope, q) or, on a miss, fires the question with that scope, as `?q=` alone
+   does today; a read without `?q=` leaves the page idle with the read scope. So Back or
+   Forward to an entry with another `?scope=` shows the state for that pair, never the
+   previous pair's. Nothing else fires a question except the Ask button, Enter and the
+   retry.
 8. Error display: a 503 whose `detail.code` is `scope_unavailable` shows
    「範囲を読み込めませんでした」 / "Could not load the scope" with a retry; any other
    error keeps today's text. `askQuestionStream` exposes `detail.code` on the error it
@@ -198,7 +233,8 @@ SPEC-ADDON-064, the Ask page:
     otherwise.
 11. `ModeTabs` (H8) takes an optional `scope` and appends `&scope=` (or `?scope=`) to
     both links when it is non-empty. The Find page reads `?scope=` only to pass it to
-    `ModeTabs`; it draws no chips and sends no scope.
+    `ModeTabs`; it draws no chips, sends no scope, and its header shows the drive's
+    count as today (H9).
 
 SPEC-ADDON-064, entry points:
 
@@ -292,8 +328,9 @@ The Ask page holds two values: the scope string and the question state.
 | idle or streaming | error (scope unavailable) | 503 with `detail.code` `scope_unavailable` |
 | idle or streaming | error (other) | 422, the concurrency 503, any other failure, a broken stream |
 | answered, scope-empty, error | streaming | the viewer asks again or retries |
-| streaming, answered, scope-empty, error | idle (question kept) | the scope string changes by a chip or the menu |
-| any | the state for the new (scope, q) | Back or Forward changes `?scope=` or `?q=` |
+| streaming | idle (question kept, chips and URL unchanged) | Stop |
+| streaming, answered, scope-empty, error | idle (question kept, `?q=` removed) | the scope string changes by a chip or the menu |
+| any | the state for the URL's (scope, q) | mount, or `popstate` (Back or Forward) |
 
 The scope line has its own states: count loading (drive alone), count shown, count
 failed (drive alone), and after a scoped answer the `matched_file_count`.
@@ -394,7 +431,7 @@ Internal API policy, the re-evaluation rows 14 and 15 ask for:
 - Privacy: the scope never leaves the Docker network; folder and collection names are
   not added to any LLM prompt.
 - Layout: the collection header's actions row and the Ask page's chip row fit 390 px and
-  desktop widths (I10).
+  desktop widths (I11).
 
 ## Touch points
 
@@ -436,16 +473,17 @@ No protected path and no HIGH zone (`internal.py`, `addon_proxy.py`) is edited.
 
 ## Invariants
 
-I1. For a scoped request, every `search()` call made while answering it, in the legacy, hierarchical, personal-history, category-expansion and agentic paths, receives `file_id_constraint` equal to E, where E is S, or S ∩ H when history yields H and S ∩ H is non-empty, or S when S ∩ H is empty under `graceful` (under `strict` the stream short-circuits); with 60 out-of-scope files scoring 0.99 and one in-scope file at 0.50, the in-scope file is retrieved.
+I1. For a scoped request, every `search()` call made while answering it, in the legacy, hierarchical, personal-history, category-expansion and agentic paths, receives `file_id_constraint` equal to E and `file_id_scope` `None`, where E is S, or S ∩ H when history yields H and S ∩ H is non-empty, or S when S ∩ H is empty under `graceful` (under `strict` the stream emits `history_filter` with 0 and short-circuits); with 60 out-of-scope files scoring 0.99 and one in-scope file at 0.50, the in-scope file is retrieved.
 I2. For a scoped request, every file in `sources`, `citations`, the `shortlist` event and every agentic tool payload is in E, no citation outside E is emitted, and no agentic tool makes an Internal API or database call for a `file_id` outside E.
-I3. `AskRequest` and `AskScope` answer 422 for an unknown key, a scope with no condition, and every value the search `filter` validator rejects, and accept every value it accepts with the same normalisation; a failed resolution answers 503 with `detail.code` `scope_unavailable` before any stream byte and before the Ask semaphore is taken, leaving its free count unchanged.
+I3. `/ask` answers FastAPI's list-shaped 422 for an unknown key at the top level or inside `scope`, for a scope with no condition (`msg` "Value error, scope has no condition"), and for every value the search `filter` validator rejects, and accepts every value it accepts with the same normalisation; a failed resolution answers 503 with `detail.code` `scope_unavailable` before any stream byte and before the Ask semaphore is taken, leaving its free count unchanged, while the concurrency 503 keeps its string `detail`.
 I4. An `/ask` request without `scope` produces the same event kinds in the same order, and calls `search()` with the same keyword arguments, as before this change; `tests/test_filtered_search_unchanged.py` passes unmodified.
-I5. A scoped request emits exactly one `scope` event, first, carrying all four normalised keys and `matched_file_count` = len(S); when S is empty it is followed only by `citations: []` and `done` with `scope_empty: true`, with no LLM call; no log line written for a scoped request contains the question, a scope value or a file id.
-I6. On the Ask page, a chip or menu change of the scope aborts any open `/ask` stream, leaves no answer, source, citation, empty-scope message or error on screen, keeps the question text, and writes `?scope=` without a history entry; the cache never restores an answer for a different scope, keeps the unscoped key unchanged, and restores a scoped answer with its `matched_file_count`; Back or Forward to a URL with another `?scope=` shows the answer or state for that (scope, q) pair.
-I7. 「ここに質問」 from a folder at a non-root path P (with or without files of its own) opens the Ask page whose only chip is the folder P, and from a collection named N opens it with the only chip the collection N, including names with spaces; neither sends a question; at the drive root the folder row is not drawn.
-I8. The MCP `ask` tool forwards `scope` in the body unchanged, returns `isError` when it sent `scope` and the stream has no `scope` event, and returns a non-error result with an empty `answer` and `matched_file_count: 0` when `done` has `scope_empty: true`.
-I9. `SearchQueryHeader` offers the same entries in the same order, with the same exclusions and submit, as before `ConditionMenu` was extracted; the Ask page's menu offers 「フォルダ」, 「コレクション」, 「タグ」, 「種類」 and never 「お気に入り」, and a choice there sends no request to `/ask`; the collection page with no `collection-actions` entry renders the same DOM as before.
-I10. In a real browser at 390 px and 1280 px (`frontend/e2e-layout/`), the collection header's actions (再生, 「ここに質問」, `…`) stay within the content width with no horizontal scroll, and on the Ask chip row a 200-character folder chip is no wider than the row with its ✕ visible.
+I5. A scoped request emits exactly one `scope` event, first, carrying all four normalised keys and `matched_file_count` = len(S); `done` carries `scope_empty: true` exactly when S is empty, and then only `citations: []` precedes it and no LLM is called, while a non-empty S that retrieves nothing (a `file_type` matching no in-scope file included) gives the existing empty-retrieval answer; no log line this change adds contains the question, a scope value or a file id.
+I6. On the Ask page, the URL is read only on mount and on `popstate`, and a question is fired only by the Ask button, Enter, the retry, or such a read with `?q=` that misses the cache; a chip or menu change aborts any open stream, leaves no answer, source, citation, empty-scope message or error on screen, keeps the question text, and replaces the URL with the new `?scope=` and no `?q=`; the cache never restores an answer for a different scope, keeps the unscoped key unchanged, restores a scoped answer with its `matched_file_count`, and never stores a `scope_empty` outcome.
+I7. The Ask page's scope line shows the listing's `meta.total` for the scope (the drive alone while it loads or after it fails) and the `scope` event's count after a scoped answer; a `scope_unavailable` 503 shows 「範囲を読み込めませんでした」 and any other failure today's text; a note saved from a scoped answer has a `scope:` frontmatter line with the scope string and one from an unscoped answer has none; both `ModeTabs` links carry `?scope=` when the scope is non-empty, and the Find page sends no scope, draws no chips and shows the drive's count.
+I8. 「ここに質問」 from a folder at a non-root path P (with or without files of its own) opens the Ask page whose only chip is the folder P, and from a collection named N opens it with the only chip the collection N, including names with spaces; neither sends a question; no entry is drawn at the drive root or for a path or name containing `"` or `＂`.
+I9. The MCP `ask` tool forwards `scope` in the body unchanged, returns `isError` when it sent `scope` and the stream has no `scope` event, and returns a non-error result with an empty `answer` and `matched_file_count: 0` when `done` has `scope_empty: true`.
+I10. `SearchQueryHeader` offers the same entries in the same order, with the same exclusions and submit, as before `ConditionMenu` was extracted; the Ask page's menu offers 「フォルダ」, 「コレクション」, 「タグ」, 「種類」 and never 「お気に入り」, and a choice there sends no request to `/ask`; the collection page with no `collection-actions` entry renders the same DOM as before.
+I11. In a real browser at 390 px and 1280 px (`frontend/e2e-layout/`), the collection header's actions (再生, 「ここに質問」, `…`) stay within the content width with no horizontal scroll, and on the Ask chip row a 200-character folder chip is no wider than the row with its ✕ visible.
 
 ## Revises
 
@@ -453,6 +491,15 @@ SPEC-ADDON-047 I11. Ask and Find retrieval (`rag/retriever.py`, `rag/service.py`
 
 ## Checked, no action
 
+- **Existing log lines on the Ask path.** Some already carry what the new rule keeps out
+  of new lines: the agentic dispatch INFO line logs tool arguments (the model's search
+  query and file ids), and the retriever and context WARNING lines log file ids. They
+  predate this change and apply to unscoped Ask alike, so gating them only for scoped
+  requests would protect nothing; changing them for every request is a separate change.
+- **Scope on `answer_question`.** The non-streaming path serves the evals only; no
+  eval needs a scope, so it stays unscoped and unchanged.
+- **The scope count on the Find page (H9 alternative).** Find applies no scope, so a
+  scope count there would describe a narrowing that does not happen.
 - **Collections by id (H1 alternative).** Row 14 and `collection_client.py` resolve by id,
   stable under rename and unambiguous between names that differ by case. Rejected as the
   default because it adds a second resolver with its own failure mapping, the chips and
