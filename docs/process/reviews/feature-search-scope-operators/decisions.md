@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: r1 HUMAN_REVIEW_REQUIRED → continue (user, 2026-11-05): "ミューテーションテストは専用ツールを使って行い、機械的にできないポイントだけOpusに作らせてください。" Tool run (StrykerJS, mutmut) + Opus triage and semantic mutants in extra/mutation-r1.md; killing tests added. R-5 not rerun after the rebase (user: やり直さない).
 ran_in_app: yes
 at: af285330da8e6d6884dafd1dedf020e80e0340d1
 by: agent

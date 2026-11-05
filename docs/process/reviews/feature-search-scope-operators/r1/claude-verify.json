@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "frontend/e2e-layout/build-fixture-css.ts:114-117 lists .max-w-full, .min-w-0, .truncate and .shrink-0 in REQUIRED. The file is not named in the touch points. It supports I14, so this is a scope-list gap and not a defect."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "frontend/src/__tests__/coarseNeedleSources.test.ts:155 now expects REQUIRED length 68, which matches the four added classes. The file is not in the touch points. I could not read the old value because I have no diff tool."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "semanticSearch.passages.test.ts:52-53 has folders: [] and collections: [] in a filter literal. searchQuery.test.ts:32-33 has the same two keys in the empty-parse expectation. Neither file is in the touch points. The edits are mechanical type updates."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F4",
+      "status": "confirmed",
+      "note": "SearchFilterChips.tsx:75-105 applies min-w-0, max-w-full, title={value ?? undefined} and a shrink-0 ✕ button to every chip. The container and the chip class are shared, so the existing tag, type and is chips change too. I did not re-read the choose() rewrite in SearchQueryHeader. I14 requires the shared styling, so this is a scope-list gap."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F5",
+      "status": "needs_human",
+      "note": "addons/intelligence/tests/test_search_scope_filter.py exists, so the new-file part holds. I cannot read the diff, so I could not check that matching_core_double.py is unchanged. A human should run git diff --stat on the addon."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "build-fixture-css.ts:114-117, coarseNeedleSources.test.ts:155 (68) and semanticSearch.passages.test.ts:52-53 all carry the described changes. None of the three paths is in the touch points."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "SearchFilterChips.tsx:83-105 changes every chip, as in claude-read F4. I did not re-check the tokenizer rewrite in searchQuery.ts, or that GlobalSearch, SearchResultsList and the other callers call parseSearchQuery. The claim is plausible, and I14 and I8 are the invariants that cover it."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "internal.py:635 sets ConfigDict(extra=\"forbid\"). apply_file_filters is called only from drives.py:863 and internal.py:701. drives.py:356 checks drive is None. So an unknown key now gets 422 for every caller of /files/matching. The spec requires that (I7), and the only known caller is the intelligence addon. This is a reach-beyond-touch-points observation, not a defect."
+    }
+  ],
+  "specification_compliance": [
+    "I7: internal.py:635 sets extra=forbid on FileMatchingRequest. I did not check the addon SearchFilter.",
+    "I14: the chip styling in SearchFilterChips.tsx:75-105 has min-w-0, max-w-full, overflow ellipsis and a shrink-0 ✕. I did not run the browser test."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Restyling and title attribute on all existing chips",
+    "Test and build files edited outside the touch-point list",
+    "extra=forbid on /files/matching rejects unknown keys from any caller"
+  ],
+  "regression_risks": [
+    "Existing tag, type and is chips render differently under the shared chip class",
+    "Any non-intelligence client of /files/matching that sends extra keys now gets 422"
+  ],
+  "test_coverage": [
+    "searchScopeOperators.test.ts exists and covers parsing, chip removal and over-cap values. I did not run it.",
+    "The addon has a new test_search_scope_filter.py. I did not read it."
+  ],
+  "not_verified": [
+    "The diff itself: I could not read it, so I could not tell what was added or removed.",
+    "Whether matching_core_double.py is unchanged.",
+    "The tokenizer logic in searchQuery.ts against I5 and I12.",
+    "The choose() rewrite in SearchQueryHeader.tsx.",
+    "Backend normalisation parity between the listing and /files/matching.",
+    "Test execution and the e2e-layout browser run."
+  ],
+  "confidence": 75
+}
