@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 import app.config as config
 from app.services.atomic_write import replace_file_contents
+from app.services.diskpath import resolve_on_disk
 from app.models import File, FileRelation, active_file_filter
 
 logger = logging.getLogger(__name__)
@@ -528,7 +529,7 @@ def _resolve_md_file_path(file_record: File) -> Path | None:
         drive_path = config.get_drive_path(file_record.drive)
     except (KeyError, FileNotFoundError, ValueError):
         return None
-    candidate = drive_path / file_record.file_path
+    candidate = resolve_on_disk(drive_path, file_record.file_path, cached=True)
     real_base = Path(os.path.realpath(drive_path))
     real_target = Path(os.path.realpath(candidate))
     base_str = str(real_base)

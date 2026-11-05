@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "Bulk purge (purge_all_trash, and each batch of purge_all_missing) still calls the strict physical_delete in a loop with a single commit after the loop, so a 409 on a later ambiguous file leaves earlier files unlinked on disk while their row deletions roll back.",
+      "impact": "After one ambiguous entry, Trash or Missing rows remain for files already removed from disk, until the user purges again; the second purge succeeds because the unlink is skipped for an absent file. No data beyond the already-purged files is lost.",
+      "evidence": "backend/app/services/fileops.py:756-759 (loop of physical_delete, then one db.commit) and :811-814 (per-batch commit); physical_delete at :670 raises through existing_or_409 before the unlink at :673. No fix commit since the previous review touched this.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "I12 requires 409 and no change for the ambiguous file itself; it does not define the partial state of a batch. Recoverable by repeating the purge.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Catch the 409 per file in the bulk loops and skip that file, or commit per row."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The new parity table covers only the non-strict resolver: it has no case for several matching entries, the sorted-bytes tie rule, an empty or absolute component, or an unreadable directory.",
+      "impact": "Addon resolver copies could diverge from core on ambiguity or empty-component handling while still passing the table, so I16 gives less protection than its wording suggests.",
+      "evidence": "backend/tests/fixtures/diskpath_parity.json lists 8 cases (exact, nfd leaf/ancestor/both, twin, nothing, real ancestor, dot-dot) and backend/tests/test_diskpath_parity.py calls only resolve_on_disk with strict off.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "I16 is met for the inputs the table holds; the gap is in what it holds, not a broken invariant.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add cases for the sorted-bytes tie and empty components."
+    }
+  ],
+  "specification_compliance": [
+    "I16 core copy: the parity fixture and a table-driven test now exist (commit 675fa188), which answers the earlier finding that none existed. Addon copies are not in this commit.",
+    "I3/I4/I12: _walk checks the exact name first, treats empty, '.' and '..' as matching nothing, falls back to an NFC-equal scandir match and writes nothing.",
+    "I5-I8, I12: mutators use existing_or_409 and new_or_409 and never the cache; name_taken covers the other spelling.",
+    "I11: the cache hit is confirmed by lexists and dropped otherwise; mutators skip it.",
+    "I13: the AST inventory test has a seeded-detector self-check; LISTING_DERIVED is empty.",
+    "I14, I15: addon work, out of this commit."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Several handlers (folder operations, batch_move, batch_rename, rename/move, complete_upload, empty_trash, purge_all_missing) now run in worker threads with the request Session.",
+    "start_import is split into prepare_import and launch_import, with prepare_import run in a worker thread.",
+    "physical_delete can now raise 409 partway through a bulk purge."
+  ],
+  "regression_risks": [
+    "Cross-thread use of the request SQLAlchemy Session in the to_thread handlers; calls are sequential per request, so I saw no concrete race.",
+    "markdown_image_import module globals (_jobs, _current_job_id) are mutated from a worker thread in prepare_import.",
+    "Mutators refuse an ambiguous pair while readers pick the first by sorted bytes.",
+    "One extra lexists per resolve and a scandir per unresolved component on hot read paths."
+  ],
+  "test_coverage": [
+    "Strong HTTP coverage of I1-I12 over leaf, ancestor and both layouts, including 409 on ambiguity, failed batch rename rollback, scan stability and symlink rejection.",
+    "The parity test now runs 8 table cases against the core resolver.",
+    "No test covers a bulk purge that meets an ambiguous entry, the complete_upload leaf resolve, or the thread offloading.",
+    "The inventory detector depends on the DRIVE_PART name regex, so a join with an unusual variable name can be missed."
+  ],
+  "not_verified": [
+    "I ran no tests; the tools are read-only.",
+    "I did not check SQLAlchemy Session thread-safety under asyncio.to_thread.",
+    "I did not read the main.py purge job exception handling or the scanner change in full.",
+    "I did not inspect the addon repositories or compare resolver copies.",
+    "I did not check whether the inventory regex misses real joins."
+  ],
+  "confidence": 72,
+  "trajectory": "The two fix commits since the previous review do not patch the design. The first adds the parity JSON fixture and a table-driven test, which only adds test coverage and no new branch, state or prediction in the resolver. The second records the review in docs. No round added a branch, state or prediction that an earlier round also added, and no round removed one."
+}

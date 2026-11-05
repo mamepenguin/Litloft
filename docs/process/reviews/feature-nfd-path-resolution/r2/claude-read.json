@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "physical_delete now raises HTTP 409 for an ambiguous name, so a bulk purge (purge_all_trash, purge_all_missing, the trash purge job) can abort after earlier files were already unlinked and before their rows were committed.",
+      "impact": "Rows stay in Trash or Missing for files that are already gone from disk until the user purges again. A repeat purge succeeds because the unlink is skipped for an absent file. This is a rare state and not data loss.",
+      "evidence": "backend/app/services/fileops.py physical_delete (existing_or_409 before unlink); the purge_all_* loops commit after the loop. Read from the diff only; the loop bodies were not opened.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "I12 requires 409 and no change for the ambiguous file itself. It does not define batch partial-state behaviour, and no test covers a bulk purge that meets an ambiguous entry.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Catch the 409 per file in the bulk loops and skip that file, or resolve every file before unlinking any."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The commit has no JSON parity-table fixture, and the core resolver is tested only by hand-written cases.",
+      "impact": "I16 cannot be checked from core, and the addon copies have nothing in core to be compared against.",
+      "evidence": "The diff adds backend/tests/test_diskpath*.py and no JSON fixture file.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "SPEC-ADDON-062 covers I16 in separate addon pull requests. The core copy of the table may still be expected in this commit, and a person must decide that.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    }
+  ],
+  "specification_compliance": [
+    "I1/I2: the read handlers go through _on_disk_path or resolve_on_disk(cached=True), and the tests cover the leaf, ancestor and both layouts.",
+    "I3/I4/I12: _walk tries the exact component first and then an NFC-equal scandir match. It treats '', '.' and '..' as matching nothing, and it writes nothing.",
+    "I5-I8: the mutating sites use existing_or_409 and new_or_409 without the cache, and name_taken covers the other spelling.",
+    "I13: the AST inventory test has a seeded-detector self-check and an empty LISTING_DERIVED.",
+    "I14-I16: out of scope for this core commit."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Many handlers were moved onto asyncio.to_thread with the request Session, including admin_markdown_images and uploads, which the touch-point list does not name.",
+    "start_import was split into prepare_import and launch_import.",
+    "physical_delete can now raise 409 in the middle of a batch."
+  ],
+  "regression_risks": [
+    "Cross-thread use of the SQLAlchemy Session in the to_thread handlers.",
+    "Module globals in markdown_image_import (_jobs, _current_job_id) are now mutated from a worker thread.",
+    "A bulk purge can stop at one ambiguous entry.",
+    "Every resolve costs one extra lexists, and every miss costs a scandir on hot read paths."
+  ],
+  "test_coverage": [
+    "Good coverage of I1-I12 through the layout matrix, including ambiguity 409, batch rollback, scanner stability and symlink rejection.",
+    "No test covers a bulk purge that meets an ambiguous entry, the complete_upload leaf resolve, or the thread offloading.",
+    "The inventory detector depends on the DRIVE_PART name regex, so a join with an unusual variable name can be missed.",
+    "There is no parity-table test."
+  ],
+  "trajectory": "There are no fix commits since round 1: the reviewed commit 15073bcfd is the same change, and only the review records were added. No round added a branch, state or prediction, and none removed one. I see no sign that the design is being patched.",
+  "not_verified": [
+    "I ran no tests, because the tools are read-only.",
+    "I did not open the purge_all_* loop bodies or the main.py purge job exception handling.",
+    "I did not check Session thread-safety under to_thread.",
+    "I did not read the addon repositories.",
+    "I did not check whether the inventory regex misses real joins.",
+    "I read the code mainly through the diff and did not open surrounding files."
+  ],
+  "confidence": 72
+}

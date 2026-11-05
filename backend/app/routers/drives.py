@@ -1,3 +1,4 @@
+import asyncio
 import unicodedata
 import logging
 from collections import defaultdict
@@ -44,7 +45,8 @@ from app.services.file_versions import record_version
 from app.services.filetype import classify
 from app.services.markdown_relations import sync_markdown_file_relations
 from app.services.atomic_write import replace_file_contents
-from app.services.safepath import resolve_safe_path
+from app.services.diskpath import existing_or_409, name_taken, new_or_409
+from app.services.safepath import _contains_symlink, resolve_safe_path
 from app.services.scanner import scan_drive
 
 logger = logging.getLogger(__name__)
@@ -902,11 +904,35 @@ async def create_folder(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     _validate_drive(drive_name, unlocked_groups)
-    result = fileops.create_folder(drive_name, body.path, body.name, db)
+    result = await asyncio.to_thread(fileops.create_folder, drive_name, body.path, body.name, db)
     await event_hooks.emit(
         "folders.created", {"drive": drive_name, "path": result["path"]}
     )
     return FolderResponse(**result)
+
+
+def _checked_inside(target, drive_root):
+    """Re-run ``resolve_safe_path``'s symlink and containment rejections on the on-disk spelling."""
+    import os as _os
+    from pathlib import Path as _Path
+
+    if _contains_symlink(target, drive_root):
+        raise HTTPException(status_code=400, detail="Symbolic links in path not allowed")
+    real = _Path(_os.path.realpath(target))
+    try:
+        real.relative_to(drive_root)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Path escapes drive root")
+    return real
+
+
+def _on_disk_new_target(resolved, drive_root):
+    rel = resolved.relative_to(drive_root).as_posix()
+    return _checked_inside(new_or_409(drive_root, rel), drive_root)
+
+
+def _on_disk_existing_target(rel, drive_root):
+    return _checked_inside(existing_or_409(drive_root, rel), drive_root)
 
 
 _TEXT_CREATE_MAX_BYTES = 1 * 1024 * 1024  # 1 MB
@@ -983,6 +1009,7 @@ async def create_text_file(
     normalized_rel = unicodedata.normalize(
         "NFC", str(resolved.relative_to(drive_root))
     )
+    resolved = await asyncio.to_thread(_on_disk_new_target, resolved, drive_root)
 
     if body.conflict_mode == "error":
         path_row = (
@@ -990,7 +1017,7 @@ async def create_text_file(
             .filter(File.drive == drive_name, File.file_path == normalized_rel)
             .first()
         )
-        if path_row is not None or resolved.exists():
+        if path_row is not None or await asyncio.to_thread(name_taken, resolved):
             raise HTTPException(status_code=409, detail="Path already exists")
 
     # Missing-state precedence: if a row exists with missing_since set,
@@ -1012,6 +1039,7 @@ async def create_text_file(
         # Use os.replace via a same-dir tmp for atomic content swap.
         import tempfile as _tempfile
 
+        resolved = await asyncio.to_thread(_on_disk_existing_target, normalized_rel, drive_root)
         resolved.parent.mkdir(parents=True, exist_ok=True)
         filename = resolved.name
         file_type, mime_type = classify(filename)
@@ -1079,11 +1107,20 @@ async def create_text_file(
         if attempt > 0:
             candidate_rel = f"{base} ({attempt}){ext}"
             try:
-                candidate_resolved = resolve_safe_path(drive_name, candidate_rel)
+                candidate_resolved = await asyncio.to_thread(
+                    _on_disk_new_target,
+                    resolve_safe_path(drive_name, candidate_rel),
+                    drive_root,
+                )
             except HTTPException:
                 continue
 
         if _row_taken(candidate_rel):
+            if body.conflict_mode == "error":
+                raise HTTPException(status_code=409, detail="Path already exists")
+            continue
+
+        if await asyncio.to_thread(name_taken, candidate_resolved):
             if body.conflict_mode == "error":
                 raise HTTPException(status_code=409, detail="Path already exists")
             continue
@@ -1182,7 +1219,7 @@ async def rename_folder(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     _validate_drive(drive_name, unlocked_groups)
-    result = fileops.rename_folder(drive_name, body.path, body.new_name, db)
+    result = await asyncio.to_thread(fileops.rename_folder, drive_name, body.path, body.new_name, db)
     file_ids = result.get("file_ids") or []
     if file_ids:
         await event_hooks.emit("files.moved", {"file_ids": file_ids})
@@ -1202,7 +1239,7 @@ async def move_folder(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     _validate_drive(drive_name, unlocked_groups)
-    result = fileops.move_folder(drive_name, body.path, body.target_path, db)
+    result = await asyncio.to_thread(fileops.move_folder, drive_name, body.path, body.target_path, db)
     file_ids = result.get("file_ids") or []
     if file_ids:
         await event_hooks.emit("files.moved", {"file_ids": file_ids})
@@ -1221,7 +1258,7 @@ async def delete_folder(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     _validate_drive(drive_name, unlocked_groups)
-    closed = fileops.delete_folder(drive_name, path, db)
+    closed = await asyncio.to_thread(fileops.delete_folder, drive_name, path, db)
     await event_hooks.emit("folders.deleted", {"drive": drive_name, "path": path})
     if closed:
         await inbox_service.notify(drive_name)
@@ -1474,7 +1511,7 @@ async def empty_trash(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     _validate_drive(drive_name, unlocked_groups)
-    purged_ids = fileops.purge_all_trash(db, drive_name)
+    purged_ids = await asyncio.to_thread(fileops.purge_all_trash, db, drive_name)
     if purged_ids:
         # The rows are gone, so the drive cannot be looked up afterwards.
         await event_hooks.emit(
@@ -1526,7 +1563,7 @@ async def purge_all_missing_endpoint(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     _validate_drive(drive_name, unlocked_groups)
-    purged_ids = fileops.purge_all_missing(db, drive_name)
+    purged_ids = await asyncio.to_thread(fileops.purge_all_missing, db, drive_name)
     if purged_ids:
         await event_hooks.emit(
             "files.purged", {"file_ids": purged_ids}, drives=[drive_name]

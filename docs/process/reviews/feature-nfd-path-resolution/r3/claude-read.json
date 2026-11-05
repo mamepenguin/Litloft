@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "physical_delete now raises 409 for an ambiguous name inside purge_all_trash, whose single commit comes after the loop, so earlier files in the loop are already unlinked when the exception rolls the session back.",
+      "impact": "After Empty Trash meets one ambiguous entry, earlier trashed files are gone from disk but their rows stay in Trash. Every later Empty Trash hits the same entry again and returns 409 until the user purges that file by hand. Repeating the purge does clear the stale rows, so no data is lost beyond the files the user already trashed.",
+      "evidence": "backend/app/services/fileops.py:670 (existing_or_409 before unlink at 673), :756-759 (loop with one db.commit after it). purge_all_missing (:811-814) commits per batch, but missing rows have no on-disk match, so they are not ambiguous in practice.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "I12 requires 409 and no change for the ambiguous file itself; it does not define batch behaviour. The disk and DB are left out of step only for already-trashed files, and a repeat purge repairs it.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "In purge_all_trash, resolve every file with existing_or_409 before unlinking any, or catch the 409 per file and skip it."
+    }
+  ],
+  "specification_compliance": [
+    "I16: the core copy of the parity table (backend/tests/fixtures/diskpath_parity.json) and a table-driven test (test_diskpath_parity.py) now exist. All 8 cases run resolve_on_disk against a real tree. The expected values agree with the walk for exact, NFD leaf, NFD ancestor, both, exact-wins-over-twin, no match, real ancestor with stored leaf, and the '..' case. The addon copies are outside this commit.",
+    "I3/I4/I12: _walk checks the exact component first, then an NFC-equal scandir match. It treats '', '.' and '..' as matching nothing, and it never writes.",
+    "I5-I8, I12: the mutating sites use the strict, uncached resolvers existing_or_409 and new_or_409. name_taken covers the other spelling.",
+    "I13: the AST inventory test exists with a seeded-detector self-check.",
+    "I14, I15: addon work, not in this commit."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Handlers moved onto asyncio.to_thread with the request Session, including routers/uploads.py and routers/admin_markdown_images.py, which the touch-point list does not name.",
+    "start_import was split into prepare_import and launch_import.",
+    "physical_delete can raise 409 mid-batch in purge_all_trash."
+  ],
+  "regression_risks": [
+    "Cross-thread use of the SQLAlchemy Session in the to_thread handlers.",
+    "Module globals _jobs and _current_job_id in markdown_image_import are now touched from a worker thread.",
+    "A persistent ambiguous trashed file makes Empty Trash fail with 409 every time.",
+    "Readers pick the first match by sorted bytes, while mutating sites refuse, so the two can disagree on a twin pair.",
+    "An extra lexists per resolve, and a scandir on every miss, on hot read paths."
+  ],
+  "test_coverage": [
+    "Strong coverage of I1-I12 through the leaf, ancestor and both layouts, with ambiguity 409, batch rename rollback, scan stability and symlink rejection.",
+    "The new parity test runs 8 table cases against the core resolver.",
+    "No test covers a bulk purge that meets an ambiguous entry, the complete_upload leaf resolve, or the thread offloading.",
+    "The inventory detector depends on the DRIVE_PART name regex, so a join with an unusual variable name could be missed."
+  ],
+  "not_verified": [
+    "I ran no tests, because the tools are read-only.",
+    "I did not check SQLAlchemy Session thread-safety under to_thread.",
+    "I did not read the addon repositories or their resolver copies.",
+    "I did not open the main.py trash purge job to check its commit and exception handling.",
+    "I did not check whether the inventory regex misses real joins."
+  ],
+  "confidence": 76,
+  "trajectory": "The two commits since r2 are a parity table plus its table-driven test, and a docs record of review round 2. The parity commit adds only a fixture and a test. It adds no branch, state or prediction to the resolver or to any handler, and it removes none. It closes the I16 core-copy gap that r2 raised, and I see no sign the design is being patched. The bulk-purge partial state from r1 and r2 is still unchanged."
+}

@@ -1,3 +1,4 @@
+import asyncio
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -80,7 +81,9 @@ async def complete_upload(
 ):
     check_drive_access(drive_name, unlocked_groups)
     _validate_session_drive(upload_id, drive_name)
-    file_record, was_recovered = upload_service.complete_upload(upload_id, db)
+    file_record, was_recovered = await asyncio.to_thread(
+        upload_service.complete_upload, upload_id, db
+    )
     if isinstance(file_record, SubtitleUploadResponse):
         await event_hooks.emit("scan.complete", {
             "drive": drive_name,

@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "The handlers do run in asyncio.to_thread: drives.py:907, 1222, 1242, 1261, 1514, 1566; uploads.py:84; files.py:459, 1412, 1427. The touch-point list does not name them. It is a scope observation only, since the offloaded handlers call the sync resolver."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "routers/admin_markdown_images.py:73 calls asyncio.to_thread on prepare_import, which is the split of start_import. That router is not in the touch-point list. I did not read the service split itself."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "files.py:731, 1307 and 1587 call _on_disk_path through to_thread. These are the subtitle, wiki-resolution and related handlers. The 'markdown resolution handlers' wording is loose, so they are only partly covered."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F4",
+      "status": "confirmed",
+      "note": "drives.py:49 imports the private safepath._contains_symlink. drives.py:914-935 defines _checked_inside and the two target helpers. docs/ADDON-DEVELOPMENT.md:581 is edited. I did not check the edit to test_listing_call_inventory.py."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F5",
+      "status": "confirmed",
+      "note": "Glob finds backend/tests/test_diskpath.py, test_diskpath_cache.py, test_diskpath_inventory.py and test_diskpath_walk.py, and no JSON parity fixture. test_diskpath.py has zero 'json' matches. So the parity table that the touch-point list requires (I16) is absent from core. I did not check for addon changes or a pointer bump."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "Same as claude-read F1. The to_thread calls and the unlisted routers (uploads.py:84, admin_markdown_images.py:73) are present."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "docs/ADDON-DEVELOPMENT.md:581 documents the NFC-to-NFD resolution in the Internal API content row. The file is not in the touch-point list."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "fileops.py:670 calls existing_or_409 inside physical_delete. purge_all_trash (756-759) commits only after the loop. Earlier files are unlinked at line 673, and their rows are deleted in the session. When a later file raises 409, nothing is committed, so rows remain for files already gone from disk. purge_all_missing commits per batch of 200, so it only affects the current batch. The Missing rows self-heal on the next scan, but the trash rows are left pointing at deleted files. The 409 is new with this change."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F4",
+      "status": "confirmed",
+      "note": "upload.py:247-248 resolves the parent strictly with new_or_409, then resolves the leaf with non-strict resolve_on_disk. An NFD twin created after init_upload is therefore replaced in place. This matches the I7 'in-place replacement' answer for a same-spelling collision. It needs a race between init and complete, so impact is small under the single-user threat model."
+    }
+  ],
+  "specification_compliance": [
+    "I16 (parity table) is not met in core: no JSON fixture was found.",
+    "I3 to I12 were not checked individually. Only the purge path (I12) and the upload leaf (I7) were read."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Handlers moved onto worker threads that are not in the touch-point list.",
+    "Refactor of start_import into prepare_import and launch_import.",
+    "The new 409 mid-batch in physical_delete."
+  ],
+  "regression_risks": [
+    "purge_all_trash can leave rows for files already unlinked when a later file is ambiguous (409).",
+    "Running the DB-session handlers on worker threads relies on db session thread-safety, which I did not verify."
+  ],
+  "test_coverage": [
+    "The diskpath tests, including an AST inventory test, are present. No parity JSON fixture was found. I did not run any test."
+  ],
+  "not_verified": [
+    "Addon repositories and the pointer bump",
+    "Whether the SQLAlchemy session is safe across to_thread",
+    "Invariants I1 to I11 and I13 to I15 in detail",
+    "The test_listing_call_inventory.py edit"
+  ],
+  "confidence": 75
+}

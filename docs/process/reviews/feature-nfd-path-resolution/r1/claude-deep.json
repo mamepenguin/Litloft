@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The diff changes routers/admin_markdown_images.py and routers/uploads.py, and it moves many handlers onto asyncio.to_thread (drive folder handlers, batch_move, rename/move endpoints, batch_rename, empty_trash, purge_all_missing). None of these files or handlers is in the touch-point list.",
+      "impact": "The admin Markdown image-import endpoint now splits start_import into prepare_import and launch_import and runs prepare_import in a worker thread. uploads.complete_upload also runs in a thread. These are behaviour and concurrency changes beyond path resolution. In particular, a SQLAlchemy Session and the module-global _current_job_id are now touched from worker threads.",
+      "evidence": "backend/app/routers/admin_markdown_images.py:70-80 (asyncio.to_thread(prepare_import ...) then launch_import); backend/app/routers/uploads.py:84; backend/app/routers/drives.py (to_thread on create_folder, rename_folder, move_folder, delete_folder, purge_all_trash, purge_all_missing); backend/app/routers/files.py (batch_move, batch_rename, rename_file_endpoint, move_file_endpoint).",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant is broken. The spec section 10 says no scandir may run on the event loop, which motivates the threading, but the touch-point list does not name these files. Unplanned scope.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Add these files to the touch-point list, or revert the thread offloading where it is not needed."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "docs/ADDON-DEVELOPMENT.md is edited but is not in the touch-point list. The spec text mentions it only in the user-visible behavior section.",
+      "impact": "Documentation scope only.",
+      "evidence": "docs/ADDON-DEVELOPMENT.md:581",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Not an invariant. Unplanned touch point.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "physical_delete now raises HTTPException 409 for an ambiguous name partway through a batch loop. In purge_all_trash and purge_all_missing, files earlier in the loop are already unlinked from disk but their rows are not yet committed.",
+      "impact": "One ambiguous file aborts the batch. Earlier files are gone from disk while their rows stay in Trash or Missing until the user purges again. The re-purge succeeds because the unlink is skipped when the file is absent. The trash purge job in main.py has the same exposure, depending on how it handles the exception.",
+      "evidence": "backend/app/services/fileops.py:667-673, 756-760, 811-814; backend/app/main.py:96",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "I12 requires 409 and no change for the ambiguous file itself. It does not cover batch partial-state behaviour.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "F4",
+      "origin": "reviewer",
+      "claim": "complete_upload resolves the leaf with a non-strict resolve_on_disk. If an NFD twin of the target appeared after init_upload, the upload replaces that existing file in place.",
+      "impact": "This is a rare race. The spec's step 6 allows replacement in place, so it is probably intended, but no test covers the complete step.",
+      "evidence": "backend/app/services/upload.py:247-248",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Probably matches spec step 6. Edge case with no test.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "Touch-point question answered: the diff reaches routers/admin_markdown_images.py, routers/uploads.py, the to_thread offloading of the drives.py folder and trash handlers, and the files.py batch_move, batch_rename, rename and move endpoints. It also reaches docs/ADDON-DEVELOPMENT.md. None of these is in the list. tests/test_listing_call_inventory.py is a test and is treated as implicit.",
+    "The resolver contract in diskpath.py matches I3, I4 and I12 on a read of the code: exact path first, dot and empty components match nothing, strict raises AmbiguousPath, and nothing is written.",
+    "The addon invariants I14 to I16 and the parity table are out of this commit's scope. I did not find a parity fixture in this diff."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "start_import is split into prepare_import and launch_import, with the preparation run in a worker thread.",
+    "Handlers that previously ran on the event loop now run in worker threads, using the shared SQLAlchemy session.",
+    "_checked_inside in drives.py imports the private safepath._contains_symlink, which the spec says is intended."
+  ],
+  "regression_risks": [
+    "The db Session is passed into worker threads. Sequential use is probably fine, but any code still on the loop that touches the same session concurrently could race.",
+    "A cached read path is confirmed by lexists only. A replacement file at the same spelling is fine, but the cache is shared by all readers.",
+    "Non-strict readers pick the first match while mutating sites refuse. The two can disagree on a twin pair."
+  ],
+  "test_coverage": [
+    "Strong coverage of I1 to I12 through a layout matrix (leaf, ancestor, both), including ambiguity 409 and batch rollback.",
+    "The inventory test has a seeded-detector self-check, but LISTING_DERIVED is empty and the DRIVE_PART regex is heuristic, so a join with an unusual variable name can be missed.",
+    "No tests for the thread offloading, for batch purge partial failure, or for the complete_upload resolve."
+  ],
+  "not_verified": [
+    "I did not run any tests. The tools are read-only.",
+    "I did not read the full bodies of the fileops mutators, the main.py purge job exception handling, or the scanner change.",
+    "I did not inspect the addon repositories or the parity fixture.",
+    "I did not check the thread-safety of SQLAlchemy session use under the to_thread calls."
+  ],
+  "confidence": 70
+}

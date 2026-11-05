@@ -13,6 +13,7 @@ from app.services.atomic_write import replace_file_contents
 from app.database import SessionLocal
 from app.models import EmptyFolder, File, FileExif, active_file_filter
 from app.services.chapters import probe_file_chapters
+from app.services.diskpath import resolve_on_disk
 from app.services.exif import extract_exif
 from app.services.filetype import (
     classify,
@@ -800,7 +801,7 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
             and not markdown_file.filename.lower().endswith(".md")
         ):
             continue
-        markdown_path = drive_path / markdown_file.file_path
+        markdown_path = resolve_on_disk(drive_path, markdown_file.file_path, cached=True)
         try:
             if markdown_path.stat().st_size > _MD_READ_MAX_BYTES:
                 continue
