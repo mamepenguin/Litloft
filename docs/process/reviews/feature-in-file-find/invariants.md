@@ -17,6 +17,15 @@ I5. (r4, human) While the bar is open with rows, every occurrence of the term (A
 - A `page` row (PDF) keeps the score of r3 without any extra guard: the top score of at least 10, unique, else `ordinal`, else the first.
 This replaces the r3 revision of I5.
 
+I5. (r5, human) Find marks are as in r4. The current mark of a `text` row is chosen by position first and by score only where position cannot decide:
+- Locate: the row is located in the source the viewer renders from (in the knowledge editor this is the note body without frontmatter) by finding the snippet there (without its 「…」, whitespace runs compared as one space; nearest to `ordinal` when it repeats). When the whole snippet is not found, characters are dropped from its start, never from the term onwards, until the rest is found; the remainder must still contain the term and everything after it in the snippet.
+- MarkdownPreview: the innermost block whose source lines contain the located occurrence is taken. When that block's source and its rendered text hold the same number of occurrences, its k-th rendered occurrence carries the current mark (k counted in the block's source). When the counts differ, the occurrence is chosen within that block by the r3 score (letters and digits agreeing within 20 before and after, top score at least 10 and unique).
+- TextLines: the occurrence at the located position carries it.
+- When the snippet cannot be located at all (for example a file the addon indexed from cleaned text, such as CSV, JSON, SRT or VTT), the occurrence is chosen over the whole rendered text by the same r3 score.
+- Otherwise no current mark, and nothing scrolls. An occurrence located inside the frontmatter of a source that includes it gets no current mark.
+- PDF `page` rows are unchanged from r4.
+This replaces the r4 revision of I5.
+
 ## Clarifications
 
 Settled with the human on 2026-11-05, while the acceptance tests were written. These fill gaps in the approved spec and change no invariant.
