@@ -1524,7 +1524,7 @@ const BEACON_NOTE = [
 const BEACON_TERM = "beacon";
 
 const BACKEND_DEV_NOTE = readFileSync(
-  path.resolve(process.cwd(), "../docs/developer-guide/backend-dev.md"),
+  path.resolve(__dirname, "fixtures/backend-dev.md"),
   "utf8",
 );
 
