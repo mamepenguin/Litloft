@@ -145,7 +145,8 @@ The human decided the requirements on 2026-11-05 and 2026-11-06 (hako `p_XmkcHJM
    - each chunk carrying its segment's `start_time` and `end_time`;
    - and `frame_ocr_read` set true.
 6. **Building the search rows.** The chunk texts are embedded outside any lock. Then, in a
-   second transaction, only if the file is still an active row:
+   second transaction, only if the file is still an active row and its `frame_ocr_read` is
+   still true (a manual reindex in between makes it write nothing):
    - any `text_content` embeddings and `fts_text_content` rows are removed (none after A5;
      the earlier build's on a rebuild);
    - one `text_content` embedding per chunk is stored in `vec_text`, with `page` null,
@@ -174,7 +175,10 @@ The human decided the requirements on 2026-11-05 and 2026-11-06 (hako `p_XmkcHJM
    - `indexed` (today `whisper_indexed` for a video, `_stage_done`, `file_find.py:40-50`) is also true when `frame_ocr_indexed` is true.
 8. **Ask.**
    - For a video, the context builder (`rag/context.py:951-1000`) adds the frame text
-     after the transcript snippets: the document chunk selection
+     after the transcript snippets, or before them when the candidate's matches include
+     a `text_content` match and no transcript match (a video found only by its frame
+     text). The per-file budget (`max_context_chars_per_file`, `_cap_snippets`) still
+     applies, so frame text placed after a long transcript excerpt can be cut: the document chunk selection
      (`_collect_document_snippets`, `:788`) over the video's `text_content` matches, each
      snippet located by its segment's start as `m:ss`. A timed frame-text vector match
      also still brings in the transcript window around its time
@@ -333,6 +337,12 @@ The human decided the requirements on 2026-11-05 and 2026-11-06 (hako `p_XmkcHJM
 - **The process stops during a read**: nothing was written; the flags are false and the
   next `_resume_incomplete` queues the file, which is read from the start.
 - **The drive's `index` policy is off**: no indexing task exists for its files, as today.
+- **A `search.db` write raises** (for example a busy database): the transaction rolls back.
+  At A5 the read is discarded and nothing changes; at A6 it is as an embedding failure. An
+  ERROR names the file id.
+- **Retries** of the cases above come from `_resume_incomplete`, so a full read is retried
+  only under `on_index`. Under `manual`, a failed or interrupted read leaves the video
+  pending until the next manual run, as picture OCR does under `manual`.
 
 **Scanned pages**
 
@@ -350,7 +360,9 @@ The human decided the requirements on 2026-11-05 and 2026-11-06 (hako `p_XmkcHJM
 - **The file is trashed, missing or purged while it is read**: nothing is written.
 - **The engine is lost partway**: as for video; nothing written, retried.
 - **The process stops during a read**: nothing was written; `page_ocr_indexed` is false and
-  the next `_resume_incomplete` queues the file again.
+  the next `_resume_incomplete` queues the file again (under `on_index`, as for video).
+- **The B5 write raises**: nothing is stored, no text task is queued, an ERROR names the
+  file id, and the file is retried as an unreachable one is.
 
 **Both**
 
@@ -373,10 +385,12 @@ The human decided the requirements on 2026-11-05 and 2026-11-06 (hako `p_XmkcHJM
 | (true, true) | (true, false) | a text-embedding model change |
 | any | (false, false) | a manual `frame_ocr` reindex |
 
-A task for a video at (true, true) does nothing. A manual reindex while a read is running
-does not stop it: that read stores its result and the re-queued task then finds (true,
-true) or (true, false) and does not read again. The running read is a read of the file
-as it is, so the request is met by it.
+A task for a video at (true, true) does nothing. A manual reindex while a task is running
+does not stop it. If the reset lands before that task's A5 commit, the read stores its
+result and the re-queued task finds (true, false) or (true, true) and does not read
+again: the running read is a read of the file as it is, so the request is met by it. If
+the reset lands after A5, A6 writes nothing and the re-queued task finds (false, false)
+and reads again.
 
 Not allowed: `frame_ocr_indexed` true with `frame_ocr_read` false; any change on a mode
 switch; any change for a file that is no longer an active row; a change on an unreachable
@@ -455,8 +469,10 @@ is no per-drive switch for either OCR.
   (`auto_tags.py:603-606`) and retrieval keywords read the PDF's text, so they now see the
   page OCR text. These passes are queued from the metadata batch (`indexer.py:1424-1459`),
   which for a new scanned PDF runs before its pages are read, finds too little text and
-  writes nothing. So when a forced text task queued by B5 completes, the text worker
-  re-queues the PDF's summary and auto-tag passes whose mode is `on_index`, with the gates
+  writes nothing. So whenever a text task completes for a PDF that has a non-empty
+  `pdf_page_ocr_texts` row, whichever path queued it (and so also after a failure or a
+  restart), the text worker re-queues the PDF's summary and auto-tag passes whose mode is
+  `on_index`, with the gates
   `requeue_after_whisper` (`indexer.py:1103-1183`) applies: only when `metadata_indexed`
   is true, a summary only when the file has no `file_summaries` row with a short summary,
   tags only when it has no `suggested_tags` row. A partly scanned PDF that already has a
@@ -612,11 +628,11 @@ I2. After a successful read and build, a video has `frame_ocr_read` and `frame_o
 I3. A failed embedding keeps the stored read and sets no `frame_ocr_indexed`, and the next run builds the rows from `video_frame_texts` without calling the OCR engine; a text-embedding model change sets `frame_ocr_indexed` false and leaves `frame_ocr_read`, `video_frame_texts` and `pdf_page_ocr_texts` as they were, and the rows are rebuilt from them under every mode. The migration adding the three columns can run twice without changing existing rows.
 I4. An unreachable file (checked before reading and again after an ffmpeg error or stall, or a render error), or an engine that cannot be created at the start or partway, writes nothing and leaves every flag as it was; a file that is no longer an active row at write time gets nothing written; neither reader sends anything over the network or writes or removes another file's rows; purging a file deletes its `video_frame_texts` and `pdf_page_ocr_texts` rows.
 I5. A PDF page is read only when its text layer is empty after stripping whitespace, and its stored text is used, by indexing and by `document-text` alike, only for a page whose text layer is empty by that same test; the pages with a text layer keep the same sequence of (page, text) chunks as before this change, `chunk_index` free to shift.
-I6. After a page read that stores or removes non-empty text, a `TEXT_CONTENT` task for the file starts after that write, and under every mode the file's `text_content` rows for each scanned page with non-empty stored text are that text chunked with `indexing.text_chunking`, with `page` set, the page's part of `pdf_markdown` holds it, and `document-text` returns it for that page; a read that stores no text leaves `text_indexed` as it was. When that forced task completes, summary and auto-tag passes in `on_index` mode are queued for the PDF under `requeue_after_whisper`'s gates.
-I7. With `on_index`, a new file's frame or page task is queued at priority 0, backlog tasks at -10 and a reindex at 100; with `manual` only reindex or prioritize queue it; with `false` never, and reindex answers 422 for `frame_ocr` or `page_ocr`, as it does for a task on a file of the wrong type; a mode change takes effect only after a restart and removes no stored text. A file that is not a video never gets a frame task and one that is not a PDF never gets a page task, and neither counts as pending. `pending.frame_ocr` and `pending.page_ocr` count only under `on_index`, and only then join `pending.total`.
+I6. After a page read that stores or removes non-empty text, a `TEXT_CONTENT` task for the file starts after that write, and under every mode the file's `text_content` rows for each scanned page with non-empty stored text are that text chunked with `indexing.text_chunking`, with `page` set, the page's part of `pdf_markdown` holds it, and `document-text` returns it for that page; a read that stores no text leaves `text_indexed` as it was. Whenever a text task completes for a PDF with a non-empty stored page text, summary and auto-tag passes in `on_index` mode are queued for the PDF under `requeue_after_whisper`'s gates.
+I7. With `on_index`, a new file's frame or page task is queued at priority 0, backlog tasks at -10 and a reindex at 100; with `manual` only reindex or prioritize queue it; with `false` never, and reindex answers 422 for `frame_ocr` or `page_ocr`, as it does for a task on a file of the wrong type; a mode change takes effect only after a restart and removes no stored text. A file that is not a video never gets a frame task and one that is not a PDF never gets a page task, and neither counts as pending. `pending.frame_ocr` and `pending.page_ocr` count only under `on_index`, and only then join `pending.total`. The rebuild-only frame task, which calls no engine, is the exception: `_resume_incomplete` queues it under every mode.
 I8. No two OCR engine calls run at the same time; each reader holds no `search.db` lock while decoding, rendering or reading, holds `PYMUPDF_LOCK` only for PyMuPDF calls, and makes no engine call while the indexing queue is paused.
 I9. The find answer for a video includes one `scene` row per occurrence in each frame-text segment, with the segment's `start` and `end`, whether or not the drive's Visual Index is open, ordered by `start` with utterance, then Visual Index scene, then frame text at an equal start; the answer's `indexed` is true for a video whose `frame_ocr_indexed` is true; for a scanned PDF it includes `page` rows for the stored page text.
-I10. A `text_content` match on a video becomes a `screen_text` passage with its segment's `start` and `end`, `frame_url` at `floor(start)`, and a link to `?t=<floor(start)>`, shown as 「mm:ss」 over 「画面内の文字」 with its excerpt; no video becomes a `text` or `picture_text` passage, search by image returns no video, a video's text hit in `/search/exact` carries its segment's `start_time` and `end_time`, and no detailed-summary citation of a video points at its `text_content` rows; Ask's context for a video includes its frame text after the transcript snippets, an Ask citation of frame text carries its segment's `m:ss`, and the single-file question gives it `{"seconds": start_time}`.
+I10. A `text_content` match on a video becomes a `screen_text` passage with its segment's `start` and `end`, `frame_url` at `floor(start)`, and a link to `?t=<floor(start)>`, shown as 「mm:ss」 over 「画面内の文字」 with its excerpt; no video becomes a `text` or `picture_text` passage, search by image returns no video, a video's text hit in `/search/exact` carries its segment's `start_time` and `end_time`, and no detailed-summary citation of a video points at its `text_content` rows; Ask's context for a video places its frame text after the transcript snippets, or first when only frame text matched, an Ask citation of frame text carries its segment's `m:ss`, and the single-file question gives it `{"seconds": start_time}`.
 
 ## Revises
 
