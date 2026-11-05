@@ -51,6 +51,8 @@ describe("SPEC-CORE-040 I22 passages are asked for by the results page only", ()
         liked: false,
         folders: [],
         collections: [],
+        sizes: [],
+        durations: [],
       },
     });
 

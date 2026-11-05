@@ -115,7 +115,7 @@ describe("SPEC-CORE-043 I9 the menu's first level", () => {
       within(screen.getByRole("menu"))
         .getAllByRole("menuitem")
         .map((row) => row.textContent?.trim()),
-    ).toEqual(["Tag", "Type", "Folder", "Collection", "Favorites"]);
+    ).toEqual(["Tag", "Type", "Folder", "Collection", "Size", "Length", "Favorites"]);
   });
 });
 

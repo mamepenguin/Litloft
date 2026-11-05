@@ -327,6 +327,8 @@ describe("SPEC-CORE-043 combining: the filter the meaning stage receives", () =>
       liked: false,
       folders: ["My Photos", "Work"],
       collections: ["旅行", "資料"],
+      sizes: [],
+      durations: [],
     });
   });
 
@@ -338,6 +340,8 @@ describe("SPEC-CORE-043 combining: the filter the meaning stage receives", () =>
       liked: true,
       folders: ["My Photos"],
       collections: ["旅行"],
+      sizes: [],
+      durations: [],
     };
 
     expect(filterQueryParam(filter)).toBe(

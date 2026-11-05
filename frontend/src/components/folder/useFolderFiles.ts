@@ -16,8 +16,10 @@ import {
 } from "@/lib/searchMerge";
 import { groupPassages, type PassageGroup } from "@/lib/searchPassages";
 import {
+  comparisonWireForm,
   filterFromParsed,
   filterQueryParam,
+  hasImpossibleRange,
   parseSearchQuery,
   resolveKinds,
 } from "@/lib/searchQuery";
@@ -149,6 +151,7 @@ export function useFolderFiles({
     () => resolveKinds(typeFilter ?? null, parsed.types),
     [typeFilter, parsed],
   );
+  const rangeImpossible = useMemo(() => hasImpossibleRange(parsed), [parsed]);
   const isFavorites = view === "favorites";
   const isRecent = view === "recent" && !isSearch;
   const isRecentAdded = view === "recent-added";
@@ -224,7 +227,7 @@ export function useFolderFiles({
         // `sortMerged` reorders by hybrid score on the client.
         const backendSort: SortField = sort === "relevance" ? "created_at" : sort;
         const backendOrder: SortOrder = sort === "relevance" ? "desc" : order;
-        if (searchKinds.impossible) return { data: [], total: 0 };
+        if (searchKinds.impossible || rangeImpossible) return { data: [], total: 0 };
         const kinds = searchKinds.kinds;
         const res = await getDriveFiles(driveName, {
           search: parsed.text,
@@ -234,6 +237,12 @@ export function useFolderFiles({
           liked: parsed.liked ? true : undefined,
           folder: parsed.folders.length > 0 ? parsed.folders : undefined,
           collection: parsed.collections.length > 0 ? parsed.collections : undefined,
+          ...(parsed.sizes.length > 0
+            ? { size: parsed.sizes.map(comparisonWireForm) }
+            : {}),
+          ...(parsed.durations.length > 0
+            ? { duration: parsed.durations.map(comparisonWireForm) }
+            : {}),
           trust: trustFilter || undefined,
           sort: backendSort,
           order: backendOrder,
@@ -262,7 +271,7 @@ export function useFolderFiles({
       });
       return { data: res.data, total: res.meta.total };
     },
-    [isSearch, parsed, searchKinds, driveName, folderPath, sort, order, isFavorites, isSpecialView, isRecentAdded, isLiked, tagFilter, typeFilter, trustFilter],
+    [isSearch, parsed, searchKinds, rangeImpossible, driveName, folderPath, sort, order, isFavorites, isSpecialView, isRecentAdded, isLiked, tagFilter, typeFilter, trustFilter],
   );
 
   const {
@@ -299,7 +308,7 @@ export function useFolderFiles({
   );
   const filterSignature = parsed.hasOperators ? filterQueryParam(filter) : "";
   const meaningEligible =
-    isSearch && parsed.text !== "" && !searchKinds.impossible;
+    isSearch && parsed.text !== "" && !searchKinds.impossible && !rangeImpossible;
   const previousSemanticRef = useRef<{ key: string } | null>(null);
   const semanticRequestId = useRef(0);
 
@@ -372,6 +381,7 @@ export function useFolderFiles({
     typeFilter,
     includeSceneClip,
     searchKinds.impossible,
+    rangeImpossible,
     runMeaningSearch,
   ]);
 
@@ -446,6 +456,8 @@ export function useFolderFiles({
   const canOfferContinuation =
     isSearch &&
     parsed.text !== "" &&
+    !searchKinds.impossible &&
+    !rangeImpossible &&
     semanticAvailable &&
     (!includeSceneClip || parsed.hasOperators) &&
     sort === "relevance" &&

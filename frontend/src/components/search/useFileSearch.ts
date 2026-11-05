@@ -7,7 +7,9 @@ import { fetchSemanticHits, isSemanticSearchAvailable } from "@/lib/semanticSear
 import { mergeResults, sortMerged, type SemanticHit } from "@/lib/searchMerge";
 import { readSearchCache, writeSearchCache, type SearchCacheKey } from "@/lib/searchCache";
 import {
+  comparisonWireForm,
   filterFromParsed,
+  hasImpossibleRange,
   parseSearchQuery,
   resolveKinds,
   type ParsedQuery,
@@ -28,6 +30,12 @@ function listingParams(parsed: ParsedQuery, kinds: FileKind[]) {
     ...(parsed.liked ? { liked: true } : {}),
     ...(parsed.folders.length > 0 ? { folder: parsed.folders } : {}),
     ...(parsed.collections.length > 0 ? { collection: parsed.collections } : {}),
+    ...(parsed.sizes.length > 0
+      ? { size: parsed.sizes.map(comparisonWireForm) }
+      : {}),
+    ...(parsed.durations.length > 0
+      ? { duration: parsed.durations.map(comparisonWireForm) }
+      : {}),
   };
 }
 
@@ -67,7 +75,7 @@ export function useFileSearch({ open, drive, query, scopeType, browsing }: FileS
     const trimmed = query.trim();
     const parsed = parseSearchQuery(trimmed);
     const kinds = resolveKinds(scopeType, parsed.types);
-    if (kinds.impossible) {
+    if (kinds.impossible || hasImpossibleRange(parsed)) {
       setMerged([]);
       setTotal(0);
       setLoading(false);
