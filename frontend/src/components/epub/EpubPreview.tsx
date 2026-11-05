@@ -6,6 +6,7 @@ import { BookX, X } from "lucide-react";
 import type { FileItem } from "@/types";
 import { DismissScrim } from "@/components/DismissScrim";
 import { EmptyState } from "@/components/EmptyState";
+import { useFind } from "@/components/FileDetail/find/FindContext";
 import { useFullscreen } from "@/components/player/hooks/useFullscreen";
 import { useAutoHidingChrome } from "@/hooks/useAutoHidingChrome";
 import { useFocusScope } from "@/hooks/useFocusScope";
@@ -77,6 +78,11 @@ export function EpubPreview({
   });
   const [scrubbing, setScrubbing] = useState(false);
   const [openPanel, setOpenPanel] = useState<Panel>(null);
+  const find = useFind();
+  const interceptFind = find.shortcutEnabled && !fullscreen.isFullscreen;
+  const openFindFromReader = useCallback(() => {
+    find.openFindByShortcut();
+  }, [find]);
   const typographyPanelRef = useRef<HTMLDivElement | null>(null);
   const chrome = useAutoHidingChrome({
     enabled: fullscreen.isFullscreen,
@@ -88,7 +94,14 @@ export function EpubPreview({
     (kind: ReaderActivity) => (kind === "tap" ? toggleChrome() : showChrome()),
     [showChrome, toggleChrome],
   );
-  const reader = useEpubReader(file.id, theme, onActivity, initialSection);
+  const reader = useEpubReader(
+    file.id,
+    theme,
+    onActivity,
+    initialSection,
+    interceptFind,
+    openFindFromReader,
+  );
   const ready = reader.status.kind === "ready";
   const { setFullscreen, book, location, seeking } = reader;
   const goToSection = reader.goToSection;

@@ -23,6 +23,8 @@ interface InspectorShellProps {
   tabs: InspectorTab[];
   resetKey?: string;
   scroll?: InspectorScroll;
+  selectRequest?: { tabId: string; seq: number } | null;
+  onSelect?: (tabId: string) => void;
 }
 
 /**
@@ -34,6 +36,8 @@ export function InspectorShell({
   tabs,
   resetKey,
   scroll = "panel",
+  selectRequest = null,
+  onSelect,
 }: InspectorShellProps) {
   const t = useTranslations("inspector");
   // Only a listed tab can be selected. An unlisted one is mounted so it
@@ -59,6 +63,20 @@ export function InspectorShell({
   useEffect(() => {
     if (active && active.id !== activeId) setActiveId(active.id);
   }, [active, activeId]);
+
+  useEffect(() => {
+    if (!selectRequest) return;
+    if (listed.some((tab) => tab.id === selectRequest.tabId)) {
+      setActiveId(selectRequest.tabId);
+    }
+    // Only a new request moves the selection; the strip's own composition
+    // must not re-apply the previous one.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectRequest?.seq]);
+
+  useEffect(() => {
+    if (active) onSelect?.(active.id);
+  }, [active, onSelect]);
   const strip = showsTabStrip(tabs);
 
   const onKeyDown = useCallback(

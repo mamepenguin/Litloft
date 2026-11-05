@@ -988,6 +988,7 @@
     },
     "tabs": {
       "info": "情報",
+      "find": "検索",
       "chapters": "チャプター",
       "pages": "ページ",
       "related": "関連"
@@ -1007,6 +1008,37 @@
     "tablistLabel": "インスペクタのセクション",
     "collapseSheet": "シートを下げる",
     "expandSheet": "シートを開く"
+  },
+  "find": {
+    "button": "このファイル内を検索",
+    "shortcutLabel": "このファイル内を検索",
+    "inputLabel": "検索語",
+    "inputPlaceholder": "このファイル内を検索",
+    "previous": "前の箇所",
+    "next": "次の箇所",
+    "close": "検索を閉じる",
+    "count": "{count} 件",
+    "countTruncated": "{count}+ 件",
+    "current": "{index} / {total}",
+    "currentTruncated": "{index} / {total}+",
+    "truncatedList": "最初の 2000 件を表示しています",
+    "listLabel": "見つかった箇所",
+    "notIndexed": "このファイルはまだ検索用に読み込まれていません",
+    "noHits": "見つかりません",
+    "unavailable": "このファイルの中は検索できません",
+    "failed": "検索できませんでした",
+    "retry": "再試行",
+    "category": {
+      "all": "すべて",
+      "utterance": "発話",
+      "scene": "画面内の文字",
+      "text": "本文",
+      "picture_text": "画像の文字"
+    },
+    "locator": {
+      "page": "p. {page}",
+      "section": "第 {section} 節"
+    }
   },
   "comments": {
     "title": "コメント",
