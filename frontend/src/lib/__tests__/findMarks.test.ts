@@ -9,8 +9,14 @@ import {
 
 const TERM = "needle";
 
-function row(snippet: string, ordinal: number, term = TERM) {
+function row(
+  snippet: string,
+  ordinal: number,
+  kind: "page" | "text" = "page",
+  term = TERM,
+) {
   return {
+    kind,
     snippet,
     match_start: snippet.toLowerCase().indexOf(term.toLowerCase()),
     match_length: term.length,
@@ -18,15 +24,27 @@ function row(snippet: string, ordinal: number, term = TERM) {
   };
 }
 
+const contextChar = /[\p{L}\p{N}]/u;
+
 /** The windows `markFindOccurrences` hands the selection function. */
 function windows(text: string, term = TERM): FindOccurrenceContext[] {
   const folded = text.replace(/[A-Z]/g, (c) => c.toLowerCase());
   const needle = term.replace(/[A-Z]/g, (c) => c.toLowerCase());
+  const chars: string[] = [];
+  const at = new Array<number>(folded.length + 1);
+  for (let i = 0; i < folded.length; i += 1) {
+    at[i] = chars.length;
+    if (contextChar.test(folded[i])) chars.push(folded[i]);
+  }
+  at[folded.length] = chars.length;
+  const projected = chars.join("");
   const out: FindOccurrenceContext[] = [];
-  for (let at = folded.indexOf(needle); at >= 0; at = folded.indexOf(needle, at + needle.length)) {
+  for (let raw = folded.indexOf(needle); raw >= 0; raw = folded.indexOf(needle, raw + needle.length)) {
+    const start = at[raw];
+    const end = at[raw + needle.length];
     out.push({
-      before: folded.slice(Math.max(0, at - 20), at),
-      after: folded.slice(at + needle.length, at + needle.length + 20),
+      before: projected.slice(Math.max(0, start - 20), start),
+      after: projected.slice(end, end + 20),
     });
   }
   return out;
@@ -60,7 +78,7 @@ describe("chooseCurrentOccurrence", () => {
   });
 
   it("takes the context match nearest the ordinal when several match", () => {
-    const context = { before: "same ", after: " tail" };
+    const context = { before: "same", after: "tail" };
     const occurrences = [context, context, context, context];
     const snippet = "same needle tail";
     expect(chooseCurrentOccurrence(occurrences, row(snippet, 2))).toBe(1);
@@ -68,34 +86,44 @@ describe("chooseCurrentOccurrence", () => {
   });
 
   it("prefers the earlier occurrence when two context matches are equally near", () => {
-    const context = { before: "same ", after: " tail" };
+    const context = { before: "same", after: "tail" };
     const occurrences = [context, { before: "x", after: "y" }, context];
     expect(chooseCurrentOccurrence(occurrences, row("same needle tail", 2))).toBe(0);
   });
 
-  it("falls back to the ordinal when no context matches", () => {
+  it("falls back to the ordinal on a page row when no context matches", () => {
     const occurrences: FindOccurrenceContext[] = [
       { before: "aaa ", after: " bbb" },
       { before: "ccc ", after: " ddd" },
       { before: "eee ", after: " fff" },
     ];
-    expect(chooseCurrentOccurrence(occurrences, row("zzz needle www", 2))).toBe(1);
-    expect(chooseCurrentOccurrence(occurrences, row("zzz needle www", 3))).toBe(2);
+    expect(chooseCurrentOccurrence(occurrences, row("zzz needle www", 2, "page"))).toBe(1);
+    expect(chooseCurrentOccurrence(occurrences, row("zzz needle www", 3, "page"))).toBe(2);
   });
 
-  it("falls back to the first occurrence when the ordinal is past the end", () => {
+  it("falls back to the first occurrence on a page row when the ordinal is past the end", () => {
     const occurrences: FindOccurrenceContext[] = [
       { before: "aaa ", after: " bbb" },
       { before: "ccc ", after: " ddd" },
     ];
-    expect(chooseCurrentOccurrence(occurrences, row("zzz needle www", 9))).toBe(0);
+    expect(chooseCurrentOccurrence(occurrences, row("zzz needle www", 9, "page"))).toBe(0);
+  });
+
+  it("answers null for a text row when no context matches", () => {
+    const occurrences: FindOccurrenceContext[] = [
+      { before: "aaa ", after: " bbb" },
+      { before: "ccc ", after: " ddd" },
+      { before: "eee ", after: " fff" },
+    ];
+    expect(chooseCurrentOccurrence(occurrences, row("zzz needle www", 2, "text"))).toBeNull();
+    expect(chooseCurrentOccurrence(occurrences, row("zzz needle www", 9, "text"))).toBeNull();
   });
 
   it("answers null when the unit holds no occurrence", () => {
     expect(chooseCurrentOccurrence([], row("nothing here", 1))).toBeNull();
   });
 
-  it("collapses whitespace before taking the windows, so a paragraph break still matches", () => {
+  it("drops whitespace, punctuation and Markdown syntax before taking the windows", () => {
     const stored = [
       "First para ends here.",
       "",
@@ -106,11 +134,23 @@ describe("chooseCurrentOccurrence", () => {
     const rendered = stored.replace(/\n\n/g, "\n");
     const layer = textLayer(`<span>${rendered}</span>`);
 
-    markFindOccurrences(layer, TERM, row(stored, 2));
+    markFindOccurrences(layer, TERM, row(stored, 2, "text"));
 
     const current = layer.querySelector("mark.find-mark-current");
     expect(current).not.toBeNull();
     expect(current!.nextSibling?.textContent ?? "").toMatch(/^ starts/);
+  });
+
+  it("matches a Markdown snippet to the rendered text it stands for", () => {
+    const stored = "First para ends here.\n\n- needle starts the list.\n- second item.";
+    const rendered = "First para ends here.\nneedle starts the list.\nsecond item.";
+    const layer = textLayer(`<span>${rendered}</span>`);
+
+    markFindOccurrences(layer, TERM, row(stored, 2, "text"));
+
+    const current = layer.querySelector("mark.find-mark-current");
+    expect(current).not.toBeNull();
+    expect(current!.nextSibling?.textContent ?? "").toMatch(/^ starts the list/);
   });
 });
 
@@ -151,7 +191,7 @@ describe("markFindOccurrences in a pdf.js text layer", () => {
     const text = "charlie charlie charlie Needle delta delta delta.";
     const layer = textLayer(`<span>unrelated </span><span>${text}</span>`);
 
-    markFindOccurrences(layer, TERM, row(text, 3));
+    markFindOccurrences(layer, TERM, row(text, 3, "text"));
 
     const marks = marked(layer);
     const current = marks.filter((mark) => mark.classList.contains("find-mark-current"));

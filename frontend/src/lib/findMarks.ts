@@ -17,7 +17,7 @@ export function foldFindText(text: string): string {
 export const isTextFindRow = (row: FindRow): boolean => row.kind === "text";
 
 export interface FindOccurrenceContext {
-  /** Up to 20 characters immediately before the match, as rendered. */
+  /** Up to 20 letters and digits immediately before the match, as rendered. */
   before: string;
   /** The same, immediately after it. */
   after: string;
@@ -26,40 +26,35 @@ export interface FindOccurrenceContext {
 /** What the selection needs from a row, and all a viewer has to carry. */
 export type FindMarkRow = Pick<
   FindRow,
-  "snippet" | "match_start" | "match_length" | "ordinal"
+  "kind" | "snippet" | "match_start" | "match_length" | "ordinal"
 >;
 
-function collapseWhitespace(text: string): string {
-  return text.replace(/\s+/g, " ");
-}
+const CONTEXT_CHAR = /[\p{L}\p{N}]/u;
 
-function contextOf(text: string): string {
-  return collapseWhitespace(foldFindText(text));
-}
-
-interface CollapsedText {
+interface ContextText {
   text: string;
-  /** The collapsed index of the character at each raw index, plus the end. */
+  /** The context-text index of the character at each raw index, plus the end. */
   at: number[];
 }
 
-function collapseWithOffsets(text: string): CollapsedText {
+/**
+ * Letters and digits only. Whitespace, punctuation and Markdown syntax are
+ * dropped before the windows are taken, so the stored source and the
+ * rendered text can be compared.
+ */
+function contextText(text: string): ContextText {
   const chars: string[] = [];
   const at = new Array<number>(text.length + 1);
-  let inWhitespace = false;
-  for (let i = 0; i < text.length; i += 1) {
-    const ch = text[i];
-    if (/\s/.test(ch)) {
-      at[i] = inWhitespace ? chars.length - 1 : chars.length;
-      if (!inWhitespace) {
-        chars.push(" ");
-        inWhitespace = true;
-      }
-    } else {
-      at[i] = chars.length;
-      chars.push(ch);
-      inWhitespace = false;
+  for (let i = 0; i < text.length; ) {
+    const codePoint = text.codePointAt(i);
+    if (codePoint === undefined) break;
+    const char = String.fromCodePoint(codePoint);
+    at[i] = chars.length;
+    if (CONTEXT_CHAR.test(char)) chars.push(char);
+    for (let offset = 1; offset < char.length; offset += 1) {
+      at[i + offset] = chars.length;
     }
+    i += char.length;
   }
   at[text.length] = chars.length;
   return { text: chars.join(""), at };
@@ -67,8 +62,9 @@ function collapseWithOffsets(text: string): CollapsedText {
 
 /**
  * Which occurrence of the term in the rendered unit is the current one:
- * the context match nearest `ordinal`, then `ordinal`, then the first.
- * Returns a 0-based index, or null when the unit holds no occurrence.
+ * the context match nearest `ordinal`; failing that, a page row takes
+ * `ordinal` or the first, and a text row takes none. Returns a 0-based
+ * index, or null when no occurrence carries the mark.
  */
 export function chooseCurrentOccurrence(
   occurrences: readonly FindOccurrenceContext[],
@@ -79,12 +75,16 @@ export function chooseCurrentOccurrence(
   // The amount of context the snippet itself carries: fewer than 20 at the
   // unit's start and wherever the snippet ends. Comparing more than the
   // snippet offers would measure the stored text's tail against nothing.
-  const snippet = collapseWithOffsets(foldFindText(row.snippet));
+  const snippet = contextText(foldFindText(row.snippet));
   const snippetStart =
     snippet.at[Math.max(0, row.match_start)] ?? snippet.text.length;
   const snippetEnd =
-    snippet.at[Math.max(0, row.match_start + row.match_length)] ??
-    snippetStart;
+    snippet.at[
+      Math.min(
+        row.snippet.length,
+        Math.max(0, row.match_start + row.match_length),
+      )
+    ] ?? snippetStart;
   const before = snippet.text.slice(
     Math.max(0, snippetStart - CONTEXT_CHARS),
     snippetStart,
@@ -95,12 +95,11 @@ export function chooseCurrentOccurrence(
   let nearest: number | null = null;
   for (let i = 0; i < occurrences.length; i += 1) {
     const occurrence = occurrences[i];
-    const occurrenceContext = contextOf(occurrence.before);
     const occurrenceBefore =
       before.length === 0
         ? ""
-        : occurrenceContext.slice(-before.length);
-    const occurrenceAfter = contextOf(occurrence.after).slice(0, after.length);
+        : occurrence.before.slice(-before.length);
+    const occurrenceAfter = occurrence.after.slice(0, after.length);
     if (occurrenceBefore !== before || occurrenceAfter !== after) continue;
     if (nearest === null || Math.abs(i - target) < Math.abs(nearest - target)) {
       nearest = i;
@@ -108,8 +107,12 @@ export function chooseCurrentOccurrence(
   }
   if (nearest !== null) return nearest;
 
-  if (row.ordinal >= 1 && row.ordinal <= occurrences.length) return row.ordinal - 1;
-  return 0;
+  if (row.kind === "page") {
+    return row.ordinal >= 1 && row.ordinal <= occurrences.length
+      ? row.ordinal - 1
+      : 0;
+  }
+  return null;
 }
 
 interface TextEntry {
@@ -190,19 +193,19 @@ export function markFindOccurrences(
 
   const index = indexText(container);
   const folded = foldFindText(index.text);
-  const collapsed = collapseWithOffsets(folded);
+  const context = contextText(folded);
   const starts: number[] = [];
   const contexts: FindOccurrenceContext[] = [];
   for (let at = folded.indexOf(needle); at >= 0; at = folded.indexOf(needle, at + needle.length)) {
     starts.push(at);
-    const position = collapsed.at[at] ?? 0;
-    const end = collapsed.at[at + needle.length] ?? position + needle.length;
+    const position = context.at[at] ?? 0;
+    const end = context.at[at + needle.length] ?? context.text.length;
     contexts.push({
-      before: collapsed.text.slice(
+      before: context.text.slice(
         Math.max(0, position - CONTEXT_CHARS),
         position,
       ),
-      after: collapsed.text.slice(end, end + CONTEXT_CHARS),
+      after: context.text.slice(end, end + CONTEXT_CHARS),
     });
   }
 

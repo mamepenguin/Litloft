@@ -20,6 +20,7 @@ const shared = vi.hoisted(() => ({
   documentController: null as unknown,
   markdown: null as string | null,
   plainText: null as string | null,
+  knowledgeMarkdown: null as string | null,
   citation: undefined as string | undefined,
   intelligenceInSlots: true,
   pdfViewer: false,
@@ -242,7 +243,46 @@ vi.mock("../../AddonSlotsProvider", async () => {
 });
 vi.mock("../../AddonSlot", async () => {
   const harness = await import("./harness");
-  return { AddonSlot: harness.AddonSlotStub, SlotEntryRenderer: harness.SlotEntryRendererStub };
+  const { MarkdownPreview } = await import("../../MarkdownPreview");
+  // The knowledge editor's own Editor component is not mounted in these
+  // tests; this stands in for its preview so the shell's body provider has
+  // something to mark.
+  function AddonSlot({
+    id,
+    includeIds,
+    excludeIds,
+    props,
+  }: {
+    id: string;
+    includeIds?: string[];
+    excludeIds?: string[];
+    props?: Record<string, unknown>;
+  }) {
+    if (
+      id === "file-detail-sections" &&
+      includeIds?.includes("knowledge-edit") &&
+      shared.knowledgeMarkdown !== null
+    ) {
+      return (
+        <div data-testid="knowledge-edit-slot">
+          <MarkdownPreview
+            source={shared.knowledgeMarkdown}
+            chrome={false}
+            mermaid={false}
+          />
+        </div>
+      );
+    }
+    return (
+      <harness.AddonSlotStub
+        id={id}
+        includeIds={includeIds}
+        excludeIds={excludeIds}
+        props={props}
+      />
+    );
+  }
+  return { AddonSlot, SlotEntryRenderer: harness.SlotEntryRendererStub };
 });
 vi.mock("@/hooks/usePolicy", async () => ({
   usePolicy: (await import("./harness")).usePolicyMock,
@@ -401,6 +441,14 @@ const PDF = makeFile({
   duration: null,
 });
 const BARE_VIDEO = makeFile({ id: "bare00000001", filename: "talk.mp4", drive: BARE_DRIVE });
+const MARKDOWN = makeFile({
+  id: "md0000000001",
+  filename: "note.md",
+  drive: DRIVE,
+  file_type: "document",
+  mime_type: "text/markdown",
+  duration: null,
+});
 
 function fakeMediaController() {
   return {
@@ -533,6 +581,7 @@ beforeEach(() => {
   shared.documentController = documentNav;
   shared.markdown = null;
   shared.plainText = null;
+  shared.knowledgeMarkdown = null;
   shared.citation = undefined;
   shared.intelligenceInSlots = true;
   shared.pdfViewer = false;
@@ -540,7 +589,8 @@ beforeEach(() => {
   shared.push = vi.fn();
   shared.selectFile = vi.fn();
   shared.getFile = async (id: string) =>
-    [VIDEO, PDF, BARE_VIDEO].find((f) => f.id === id) ?? makeFile({ id, drive: DRIVE });
+    [VIDEO, PDF, BARE_VIDEO, MARKDOWN].find((f) => f.id === id) ??
+    makeFile({ id, drive: DRIVE });
   relationMocks.value = [];
   usePolicyMock.mockReturnValue({ enabled: true, isLoading: false });
   window.localStorage.clear();
@@ -1448,6 +1498,59 @@ const NOTE_ROWS = () => [
   row("text", "echo echo echo echo needle foxtrot foxtrot foxtrot.", { ordinal: 3 }),
 ];
 
+const BEACON_NOTE = [
+  "---",
+  "id: '20261105044627'",
+  "title: Beacon maintenance notes",
+  "tags:",
+  "- beacon",
+  "- harbor",
+  "---",
+  "",
+  "# Beacon maintenance",
+  "",
+  "The beacon on the north pier was cleaned on Monday. The keeper replaced one lamp.",
+  "",
+  "The harbor master asked for a second check of the beacon after the storm.",
+  "",
+  "- Inspect the beacon lens for salt.",
+  "- Record the beacon hours in the log.",
+  "",
+  "A final note: the south beacon needs paint before winter.",
+].join("\n");
+
+const BEACON_TERM = "beacon";
+const BEACON_BODY = BEACON_NOTE.slice(BEACON_NOTE.indexOf("# Beacon maintenance"));
+
+function beaconRow(text: string, at: number, ordinal: number) {
+  const start = Math.max(0, at - 80);
+  const head = start > 0 ? "…" : "";
+  return {
+    kind: "text" as const,
+    ordinal,
+    snippet:
+      head +
+      text.slice(start, Math.min(text.length, at + BEACON_TERM.length + 80)),
+    match_start: at - start + head.length,
+    match_length: BEACON_TERM.length,
+  };
+}
+
+/** The 8 occurrences of the term in the stored note: title, tag, then 6 in the body. */
+function beaconRows() {
+  const titleAt = BEACON_NOTE.toLowerCase().indexOf("beacon maintenance notes");
+  const tagAt = BEACON_NOTE.toLowerCase().indexOf(BEACON_TERM, titleAt + 1);
+  const rows = [
+    beaconRow(BEACON_NOTE, titleAt, 1),
+    beaconRow(BEACON_NOTE, tagAt, 2),
+  ];
+  let at = -1;
+  while ((at = BEACON_BODY.toLowerCase().indexOf(BEACON_TERM, at + 1)) >= 0) {
+    rows.push(beaconRow(BEACON_BODY, at, rows.length + 1));
+  }
+  return rows;
+}
+
 describe("SPEC-CORE-028 I5 find marks in a rendered MarkdownPreview", () => {
   it("marks every occurrence, ASCII case folded, while the answer has rows, and none after closing", async () => {
     shared.markdown = NOTE;
@@ -1484,13 +1587,12 @@ describe("SPEC-CORE-028 I5 find marks in a rendered MarkdownPreview", () => {
     expect(occurrences(body, TERM)).toEqual([null, null, null]);
   });
 
-  it.each([
-    ["the occurrence whose context matches the snippet, over the ordinal", "charlie charlie charlie Needle delta delta delta.", 3, 1],
-    ["the ordinal when no context matches", "unrelated words then needle and more unrelated words", 3, 2],
-    ["the first when neither matches", "unrelated words then needle and more unrelated words", 9, 0],
-  ])("puts the current mark on %s", async (_n, snippet, ordinal, expected) => {
+  it("puts the current mark on the occurrence whose context matches the snippet, over the ordinal", async () => {
     shared.markdown = NOTE;
-    reply = () => answer([row("text", snippet, { ordinal })]);
+    reply = () =>
+      answer([
+        row("text", "charlie charlie charlie Needle delta delta delta.", { ordinal: 3 }),
+      ]);
     const scrolled: Element[] = [];
     const original = Element.prototype.scrollIntoView;
     Element.prototype.scrollIntoView = function scrollIntoView(this: Element) {
@@ -1509,7 +1611,39 @@ describe("SPEC-CORE-028 I5 find marks in a rendered MarkdownPreview", () => {
         const marks = occurrences(body, TERM);
         expect(marks.every((el) => el !== null)).toBe(true);
         const inBody = scrolled.filter((el) => body.contains(el));
-        expect(inBody.at(-1)).toBe(marks[expected]);
+        expect(inBody.at(-1)).toBe(marks[1]);
+      });
+    } finally {
+      Element.prototype.scrollIntoView = original;
+    }
+  });
+
+  it.each([
+    ["the ordinal", 3],
+    ["the first", 9],
+  ])("puts no current mark on a text row when no context matches, whatever the row would fall back to (%s)", async (_n, ordinal) => {
+    shared.markdown = NOTE;
+    reply = () =>
+      answer([
+        row("text", "unrelated words then needle and more unrelated words", { ordinal }),
+      ]);
+    const scrolled: Element[] = [];
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function scrollIntoView(this: Element) {
+      scrolled.push(this);
+    };
+    try {
+      await openPage(PDF);
+      const body = await screen.findByTestId("markdown-body");
+      const input = await openBar();
+      typeInto(input, TERM);
+      await findCount("1 件");
+
+      enter(input);
+
+      await waitFor(() => {
+        expect(body.querySelector("mark.find-mark-current")).toBeNull();
+        expect(scrolled.filter((el) => body.contains(el))).toEqual([]);
       });
     } finally {
       Element.prototype.scrollIntoView = original;
@@ -1557,6 +1691,86 @@ describe("SPEC-CORE-028 I5 find marks in a rendered MarkdownPreview", () => {
         expect(current).not.toBeNull();
         expect(current!.nextSibling?.textContent ?? "").toMatch(/^ starts/);
         expect(scrolled.filter((el) => body.contains(el)).at(-1)).toBe(current);
+      });
+    } finally {
+      Element.prototype.scrollIntoView = original;
+    }
+  });
+
+  it("marks each body row's own occurrence and gives the title and tag rows none", async () => {
+    const expected = [
+      null,
+      null,
+      "Beacon maintenance",
+      "The beacon on the north pier",
+      "The harbor master asked for a second check of the beacon",
+      "Inspect the beacon lens for salt.",
+      "Record the beacon hours in the log.",
+      "A final note: the south beacon needs paint before winter.",
+    ];
+    shared.markdown = BEACON_NOTE;
+    reply = () => answer(beaconRows(), { query: BEACON_TERM });
+    const scrolled: Element[] = [];
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function scrollIntoView(this: Element) {
+      scrolled.push(this);
+    };
+    try {
+      await openPage(PDF);
+      const body = await screen.findByTestId("markdown-body");
+      await waitFor(() => expect(body.textContent).toContain("south beacon"));
+      const input = await openBar();
+      typeInto(input, BEACON_TERM);
+      await findCount("8 件");
+      await waitFor(() => expect(body.querySelectorAll("mark.find-mark")).toHaveLength(6));
+
+      for (let place = 0; place < expected.length; place += 1) {
+        const blockText = expected[place];
+        scrolled.length = 0;
+        enter(input);
+        await findCount(`${place + 1} / 8`);
+        if (blockText === null) {
+          await waitFor(() => {
+            expect(body.querySelector("mark.find-mark-current")).toBeNull();
+            expect(scrolled.filter((el) => body.contains(el))).toEqual([]);
+          });
+        } else {
+          await waitFor(() => {
+            const currents = body.querySelectorAll("mark.find-mark-current");
+            expect(currents).toHaveLength(1);
+            expect(currents[0].closest("h1, p, li")?.textContent ?? "").toContain(blockText);
+            expect(scrolled.filter((el) => body.contains(el)).at(-1)).toBe(currents[0]);
+          });
+        }
+      }
+    } finally {
+      Element.prototype.scrollIntoView = original;
+    }
+  });
+});
+
+describe("SPEC-CORE-028 I5 the knowledge editor's preview", () => {
+  it("gets the current mark from the shell's own body provider", async () => {
+    shared.knowledgeMarkdown = "alpha needle bravo";
+    reply = () => answer([row("text", "alpha needle bravo", { ordinal: 1 })]);
+    const scrolled: Element[] = [];
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function scrollIntoView(this: Element) {
+      scrolled.push(this);
+    };
+    try {
+      await openPage(MARKDOWN);
+      const slot = await screen.findByTestId("knowledge-edit-slot");
+      const input = await openBar();
+      typeInto(input, TERM);
+      await findCount("1 件");
+
+      enter(input);
+
+      await waitFor(() => {
+        const current = slot.querySelector("mark.find-mark-current");
+        expect(current).not.toBeNull();
+        expect(scrolled.filter((el) => slot.contains(el))).toContain(current);
       });
     } finally {
       Element.prototype.scrollIntoView = original;
