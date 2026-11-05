@@ -6,7 +6,7 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { FileItem } from "@/types";
+import type { FileItem, FileKind } from "@/types";
 
 import { useFileSearch } from "../useFileSearch";
 
@@ -69,7 +69,7 @@ const base = {
   open: true,
   drive: "main",
   query: 'path:"My Photos" in:旅行 京都',
-  scopeType: null,
+  scopeType: null as FileKind | null,
   browsing: false,
 };
 
