@@ -25,12 +25,12 @@ const text = (name = "notes.txt") => new File(["x"], name, { type: "text/plain" 
 
 function renderZone(onImageQuery?: (file: File) => void) {
   const view = render(
-    <>
+    <div data-page-frame="full">
       <ImageQueryDropTarget onImageQuery={onImageQuery} />
       <div data-testid="inside" />
-    </>,
+    </div>,
   );
-  return { ...view, zone: document.body };
+  return { ...view, zone: view.container.querySelector("[data-page-frame]")! };
 }
 
 async function settle() {

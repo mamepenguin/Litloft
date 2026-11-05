@@ -19,7 +19,9 @@ function hasFiles(dt: DataTransfer | null): boolean {
 /**
  * The text-query results page's own drop target. It renders no wrapper and no
  * DOM until a drag classed one image is over the page, so the results subtree
- * does not change shape when availability resolves.
+ * does not change shape when availability resolves. It listens on the page
+ * frame rather than the document, so a drag on the search modal, which is
+ * portalled outside the frame, does not reach it.
  */
 export function ImageQueryDropTarget({ onImageQuery }: ImageQueryDropTargetProps) {
   const t = useTranslations("search");
@@ -27,6 +29,8 @@ export function ImageQueryDropTarget({ onImageQuery }: ImageQueryDropTargetProps
 
   useEffect(() => {
     if (!onImageQuery) return;
+    const frame = document.querySelector<HTMLElement>("[data-page-frame]");
+    if (!frame) return;
 
     let depth = 0;
     let dragClass: "one_image" | "upload" | null = null;
@@ -38,31 +42,34 @@ export function ImageQueryDropTarget({ onImageQuery }: ImageQueryDropTargetProps
 
     const onDragEnter = (event: DragEvent) => {
       if (!hasFiles(event.dataTransfer)) return;
-      event.preventDefault();
-      depth += 1;
       if (dragClass === null) {
         dragClass = classifyDrag(event.dataTransfer);
-        setOverlay(dragClass === "one_image");
       }
+      if (dragClass !== "one_image") return;
+      event.preventDefault();
+      depth += 1;
+      setOverlay(true);
     };
 
     const onDragOver = (event: DragEvent) => {
-      if (!hasFiles(event.dataTransfer)) return;
+      if (!hasFiles(event.dataTransfer) || dragClass !== "one_image") return;
       event.preventDefault();
       if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
     };
 
     const onDragLeave = (event: DragEvent) => {
-      if (!hasFiles(event.dataTransfer)) return;
+      if (!hasFiles(event.dataTransfer) || dragClass !== "one_image") return;
       depth -= 1;
       if (depth <= 0) reset();
     };
 
     const onDrop = (event: DragEvent) => {
       if (!hasFiles(event.dataTransfer)) return;
-      event.preventDefault();
       const kept = dragClass;
       const files = Array.from(event.dataTransfer?.files ?? []);
+      if (kept === "one_image") {
+        event.preventDefault();
+      }
       reset();
       if (
         kept === "one_image" &&
@@ -73,16 +80,16 @@ export function ImageQueryDropTarget({ onImageQuery }: ImageQueryDropTargetProps
       }
     };
 
-    document.addEventListener("dragenter", onDragEnter);
-    document.addEventListener("dragover", onDragOver);
-    document.addEventListener("dragleave", onDragLeave);
-    document.addEventListener("drop", onDrop);
+    frame.addEventListener("dragenter", onDragEnter);
+    frame.addEventListener("dragover", onDragOver);
+    frame.addEventListener("dragleave", onDragLeave);
+    frame.addEventListener("drop", onDrop);
     return () => {
       reset();
-      document.removeEventListener("dragenter", onDragEnter);
-      document.removeEventListener("dragover", onDragOver);
-      document.removeEventListener("dragleave", onDragLeave);
-      document.removeEventListener("drop", onDrop);
+      frame.removeEventListener("dragenter", onDragEnter);
+      frame.removeEventListener("dragover", onDragOver);
+      frame.removeEventListener("dragleave", onDragLeave);
+      frame.removeEventListener("drop", onDrop);
     };
   }, [onImageQuery]);
 
