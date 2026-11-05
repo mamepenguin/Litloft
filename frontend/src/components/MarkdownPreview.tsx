@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import { useHighlightPassage } from "@/hooks/useHighlightPassage";
+import { useFindMarksIn } from "@/hooks/useFindMarksIn";
+import { isTextFindRow } from "@/lib/findMarks";
 import { useDocumentCapturePublisher } from "@/hooks/useDocumentCapturePublisher";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
 import MarkdownIt from "markdown-it";
@@ -418,12 +420,16 @@ export function MarkdownPreview({
   );
 
   const containerRef = useRef<HTMLDivElement>(null);
+  // React compares this object, not its string: a fresh one on each render
+  // resets the body's innerHTML, dropping the citation and find marks.
+  const bodyHtml = useMemo(() => ({ __html: html }), [html]);
   useDocumentCapturePublisher(
     containerRef,
     onDocumentCaptureController,
     { includeHeading: true },
   );
   useHighlightPassage(containerRef, highlight, html.length > 0);
+  useFindMarksIn(() => containerRef.current, isTextFindRow);
 
   // Deliberately does NOT depend on [html]: React may re-apply
   // dangerouslySetInnerHTML when the parent re-renders, wiping out
@@ -481,7 +487,7 @@ export function MarkdownPreview({
     <div
       ref={containerRef}
       className={bodyClass}
-      dangerouslySetInnerHTML={{ __html: html }}
+      dangerouslySetInnerHTML={bodyHtml}
     />
   );
 

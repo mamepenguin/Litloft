@@ -717,6 +717,18 @@ div[data-citation-section-path]:not(tr) {
   box-shadow: 0 0 0 1px var(--highlight-bg);
 }
 
+/* No padding: inside a pdf.js text layer a padded mark would move the
+   transparent text away from the glyphs the canvas drew underneath it. */
+mark.find-mark {
+  background-color: var(--highlight-bg);
+  color: inherit;
+  padding: 0;
+}
+
+mark.find-mark-current {
+  outline: 2px solid var(--accent);
+}
+
 /* A passage that crosses an element boundary is several <mark>s. The
    attribute raises the specificity over `.markdown-body mark`, which
    otherwise supplies the padding inside a rendered note. */
