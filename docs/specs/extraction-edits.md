@@ -72,8 +72,9 @@ Terms used below:
   its `idf_doc_terms` freshness (`addons/intelligence/app/idf_backfill.py:59-73`).
 - **busy**: for one file, a Refine job for it accepted by the route and not yet ended
   (the route claims it before answering, as `_reindex_in_flight` does,
-  `routers/files.py:331-333`), a confirmed redo of it queued or running (C8), or a
-  restore of it in progress. Queued and running are read from the index queue and the
+  `routers/files.py:331-333`), a "redo confirmed" mark set on it (C8; from
+  acceptance until the run stores a result, fails or the addon restarts, whether or not
+  a task is in the queue at that moment), or a restore of it in progress. Queued and running are read from the index queue and the
   indexer's in-progress set (`_processing_by_type`, `indexer.py:967`). A transcription or
   OCR task that is not a confirmed redo does not make a file busy: a correction saved
   while it runs wins, because its write re-checks (C7). A pending follow-up item is not
@@ -94,8 +95,7 @@ Terms used below:
   (`addons/intelligence/app/workers/aligner.py:251-320`). Its pending items are stored, so
   it resumes them at start, after the start-up migrations (the embedding-model rebuild
   included) have run; an item that failed is tried again 10 minutes later and at every
-  start. It does not stop while the indexing queue is paused. Loading the alignment model
-  inside one item is given at most 10 minutes; past that the attempt counts as failed.
+  start. It does not stop while the indexing queue is paused.
   The parts of an item (embedding and keyword vector; realignment) commit separately, and
   a retry redoes only the parts not yet done. An item for a file in the trash or missing
   waits until the file is active again; a purge deletes it.
@@ -165,23 +165,31 @@ Terms used below:
    success the aligned units become the utterance's words (each with the utterance's
    language and `speaker_id`), and the pending mark is cleared. When the language is one
    WhisperX has no alignment model for, when alignment runs and returns nothing, when the
-   audio is reached but cannot be decoded, or when the file is a `.loft` reference (its chunks come from a
-   VTT and it has no word rows, `whisper.py:1778-1890`), the utterance keeps its start and
+   audio is reached but cannot be decoded, or when the file is a `.loft` reference (it has
+   no audio to align against: its chunks come from a VTT, or from Media Import's temporary
+   audio, which is deleted after transcription, `whisper.py:994-998`), the utterance keeps its start and
    end, has **no words**, and the pending mark is cleared. Word times are never estimated
    in proportion to time or text length (design-decisions.md §"Transcript Refine").
 10. When the alignment model cannot be loaded (the first use of a language downloads it,
-    `aligner.py:48-85`; or memory runs out; or loading passes 10 minutes), or the audio
-    file cannot be reached (the drive is not mounted), the utterance
+    `aligner.py:48-85`; or memory runs out), or the audio file cannot be reached (the
+    drive is not mounted), the utterance
     stays realignment pending with no words and the item is tried again. After the third
-    failed attempt the utterance ends as no word timings, like a failed alignment.
+    failed attempt the utterance ends as no word timings, like a failed alignment. To
+    tell these apart, the aligner reports one of: aligned units; `unsupported` (WhisperX
+    has no alignment model for the language, which `whisperx.load_align_model` signals
+    with `ValueError`); `load_failed` (any other error while loading); `no_result`
+    (alignment ran and returned nothing or raised). Only `load_failed` and an unreachable
+    file are retried.
 11. When an item finishes, the addon emits `intelligence.transcript.updated`
     `{file_id, drive, reason: "corrected"}` (drive-scoped through
     `post_addon_event`, `addons/intelligence/app/addon_events.py:53`). An open transcript
     panel for that file refetches the transcript and the subtitles; its subtitles fetch
     does not use a cached copy. The same event is emitted with `reason: "replaced"` when
     a Refine job completes or a transcription result is stored for the file, and with
-    `reason: "rebuilt"` when a rebuild item (C7) finishes, so an open panel's rows and
-    busy state follow those too; a rebuild that sets a flag true also calls
+    `reason: "rebuilt"` when a rebuild item (C7) finishes, and with `reason: "ended"`
+    when a Refine job fails or a confirmed regenerate ends without a result, so an open
+    panel's rows and busy state follow every change; `intelligence.picture_text.updated`
+    likewise carries `replaced` (a stored OCR result), `rebuilt` and `ended`; a rebuild that sets a flag true also calls
     `emit_processing_updated`, like every other flag change.
 12. **Subtitles for a corrected utterance without words.** `subtitles.vtt`
     (`routers/files.py:240-307`) and the 「字幕」 view show a corrected utterance that has
@@ -191,8 +199,8 @@ Terms used below:
     (`addons/intelligence/app/subtitle_builder.py:487-536`) but not split in time. This
     applies only to a file that has word rows, or whose kept original has word rows. An
     utterance that is not corrected and has no words is treated as today (no cue), and a
-    `.loft` file or a file transcribed before word rows existed (no word rows in the file
-    or its original) keeps answering 404 whatever is corrected. The VTT's language is
+    file with no word rows in it or in its original (a VTT-based `.loft`, a file
+    transcribed before word rows existed) keeps answering 404 whatever is corrected. The VTT's language is
     chosen as today from the first word row (`routers/files.py:290`), and from the first
     utterance only when the file has no word row left. `subtitles.vtt` is served with
     `Cache-Control: private, no-cache` instead of `max-age=300` (`routers/files.py:304`),
@@ -307,7 +315,13 @@ Terms used below:
    (`whisper.py:1395-1528`), the `.loft` VTT path (`whisper.py:1778-1890`) and OCR's
    `_write` (`ocr.py:183-219`) check again inside their own write transaction: if the file
    is now corrected without a confirmed redo, they write nothing (the result is
-   discarded, the flag is left false) and queue a rebuild item.
+   discarded, the flag is left false) and queue a rebuild item. The zero-segment branch
+   of `_persist_transcript` (`whisper.py:1408-1432`) re-checks the same way before it
+   sets the flag. For a discarded transcription the job record ends `skipped` with the
+   reason `corrected` (the shape `_record_skipped_job` writes, `whisper.py:1038`), no
+   `intelligence.transcription.completed` is emitted, and the task returns False, so
+   summaries and suggested tags are not re-queued and no keyword vector is computed from
+   the discarded result; a discarded OCR result likewise returns False.
 8. **Explicit redo.** These requests replace a corrected file's text:
    - `POST /files/{file_id}/reindex` with `whisper` or `ocr` in `tasks`
      (`routers/files.py:336-478`), sent from **Index details → 再生成**
@@ -351,8 +365,10 @@ Terms used below:
    - When the run ends with a failure, the corrected text, the marks and the original
      stay as they were, the "redo confirmed" mark is cleared, and the file is protected
      again (a later regenerate needs a new confirmation). For transcription: the provider
-     fails (any error class, recorded as a failed job as today, so it appears in the
-     failed jobs list), it returns no segments, or an admin marks the failed job resolved
+     or the provider set-up fails (any error class, recorded as a failed job as today,
+     so it appears in the failed jobs list); it returns no segments (the job ends
+     `succeeded` as today); a confirmed `.loft` run finds no VTT, an empty one or no
+     chunks; or an admin marks the failed job resolved
      (`routers/admin.py:1234-1293`). For OCR: the file is unreadable, the engine fails, or
      it reads no line; in each case OCR's own empty write (`ocr.py:254-267`) does not run
      for a corrected picture.
@@ -361,6 +377,11 @@ Terms used below:
      fails validation (`:905-907`), an OCR engine that cannot be created or a file that
      cannot be reached (`ocr.py:229-250`) — the mark stays and the retry is still the
      confirmed run.
+   - After a failure, the corrected file's flag is set true by a rebuild item, which the
+     failure queues (the corrected rows are intact, so it only adds what is missing). An
+     admin's resolve of a failed job on a corrected file (`routers/admin.py:1278-1282`)
+     queues the same rebuild instead of setting `whisper_indexed` and
+     `tfidf_keywords_indexed` true itself.
    - When a confirmed regenerate ends without a result, Index details shows
      「再生成できませんでした。修正はそのまま残っています。」 on that task's row the next time
      it is opened.
@@ -369,15 +390,17 @@ Terms used below:
      there.
 10. **What a confirmed Refine does.** It runs on the corrected text, with these
     differences from today's Refine:
-    - it is refused with 409 `busy` while any utterance of the file is realignment
-      pending;
+    - it is refused with 409 `busy` while any follow-up item of the file is queued or
+      running (which covers every realignment-pending utterance);
     - a corrected utterance without words is left out of the LLM windows
       (`refine.py:757-814`): its text is neither sent nor written;
     - re-chunking (`rechunk_from_words`, `refine.py:307-415`) keeps every corrected
       utterance without words exactly as it is (text, start, end, marks) and builds the
       new utterances only from the words outside those utterances' spans, so no text is
       lost; then every utterance of the file, kept or rebuilt, is renumbered `0..n-1` by
-      start time, and the keyword rows are rewritten from the renumbered rows;
+      start time, the keyword rows are rewritten from the renumbered rows, and the kept
+      utterances are re-embedded together with the rebuilt ones (`rechunk_from_words`
+      deletes every `whisper` embedding of the file, `refine.py:372-385`);
     - the file stays corrected and keeps its original (C1); utterances rebuilt from words
       do not carry the per-utterance 修正済み mark;
     - each window write and the re-chunk increment the generation, and the re-chunk drops
@@ -460,6 +483,10 @@ Allowed transitions:
 - Corrected → Corrected, redo confirmed: a confirmed regenerate is accepted (C8).
 - Corrected, redo confirmed → Machine: the confirmed run stores a non-empty result (C9).
 - Refined → Refined: another Refine (the original stays).
+- Refined → Refined, no utterances: the startup clean-up deletes the transcript of a
+  re-transcription cut by a restart (C12). Restore through the API is allowed and puts
+  the original back; the panel is not shown, so the UI does not offer it. A stored
+  result moves it to Machine and deletes the original.
 - Corrected, redo confirmed → Corrected: the confirmed run ends any other way, or the
   addon starts again before it stored a result (C9).
 - Any → (no rows): the file is purged (`files.purged`, or the startup purge of a drive
@@ -469,8 +496,9 @@ Refused: a correction, restore or Refine while the file is busy (409 `busy`), so
 correction cannot be saved while a confirmed run is queued or running; restore without
 an original (404); Refine of picture text (no such feature); a regenerate of a corrected
 file without the flag (409 `corrected`); a Refine while an utterance is realignment
-pending (409 `busy`); emptying the only remaining utterance (422). There is no
-"Machine, redo confirmed" state: the flag on a kind that is not corrected sets no mark.
+pending (409 `busy`); emptying the only remaining utterance (422). A deferred confirmed run keeps the file in Corrected, redo confirmed, and busy, until it
+stores a result, fails or the addon restarts; a correction or restore cannot be saved in
+between. There is no "Machine, redo confirmed" state: the flag on a kind that is not corrected sets no mark.
 
 Per utterance:
 
@@ -703,13 +731,13 @@ scanner, file operations, core database, Dockerfile, compose or gate file.
 
 I1. Saving a correction to one utterance changes only that utterance and its words: every other utterance's text, start, end and index, every word outside the utterance's words (a zero-duration word at the boundary it shares with the previous utterance included), and the corrected utterance's start, end, index, language and speaker are byte-for-byte unchanged, through the save and its follow-up.
 I2. After a correction or a restore commits, keyword search, exact search and find in this file return the file for a term that occurs only in the new text and not for a term that occurred only in the replaced text; no `whisper`, `tfidf_keywords` or `text_content` embedding, vector or `content_preview` holding the replaced text survives the commit; a stale follow-up item writes nothing, while a correction of another utterance never makes an item stale; the file's term set is marked stale and `tfidf_keywords_indexed` is false from the commit until the keyword vector is rebuilt; and pending items and realignment-pending marks survive a restart and are run again after it.
-I3. After a corrected utterance's follow-up, its words are exactly the units WhisperX forced alignment returned for the saved text within its span, or there are none; no code path writes a word time derived from length or position; `subtitles.vtt`, served with `Cache-Control: private, no-cache`, shows a corrected utterance without words as exactly one cue with its text from its start to its end in a file that has, or whose original has, word rows, while a file with no correction gets exactly today's cues and status.
+I3. After a corrected utterance's follow-up, its words are exactly the units `align_segment` returned for the saved text within its span (its midpoint placement of untimed punctuation included), or there are none; no code path writes a word time derived from length or position; `subtitles.vtt`, served with `Cache-Control: private, no-cache`, shows a corrected utterance without words as exactly one cue with its text from its start to its end in a file that has, or whose original has, word rows, while a file with no correction gets exactly today's cues and status.
 I4. A file has at most one kept original per kind; it is stored in the same transaction as the first correction or the first applied Refine window, equals the file's chunk and word rows (or picture text) as they were immediately before that write, and no later correction or Refine changes it; on a file that is not corrected, a stored transcription or OCR result with at least one utterance or line deletes that kind's original in the same transaction, and the zero-segment path deletes nothing.
 I5. Restore makes the file's chunk and word rows (or picture text) equal to the kept original, clears every correction, pending and redo mark, deletes the original, and leaves the keyword rows matching the restored text; a restore that raises before commit changes nothing.
 I6. For a corrected file without a confirmed redo, no automatic path — the embedding-model rebuild, the `.loft` reset, `_resume_incomplete`, reconcile, a transcription or OCR task (including one that was already running when the correction was saved, whose result is discarded), or the startup clean-up of running jobs — calls the transcription provider or the OCR engine for it, or changes or deletes its chunk rows, word rows, picture text, marks or original; it only adds search rows built from the stored text, and does so under every `features.image_ocr` mode.
 I7. Reindex with `whisper` or `ocr`, and per-file Refine, on a corrected file answer 409 and change no flag, queue no task and start no job unless the body has `overwrite_corrections: true`; the frontend sends that flag only after the viewer confirms a dialog for that file; and folder Refine starts no job for a corrected file and lists exactly the corrected files it skipped in `skipped_corrected`.
 I8. A confirmed regenerate removes the corrections and the original only in the transaction that stores its non-empty result; when it fails, finds nothing, is marked resolved, or the addon restarts before it stored a result, the corrected text, marks and original are as before and the file is protected again.
-I9. A Refine is refused while any utterance of the file is realignment pending; a confirmed Refine of a corrected file sends no corrected utterance without words to the LLM and leaves its text, start and end unchanged, and the file stays corrected with its original unchanged.
+I9. A Refine of a file is refused with 409 while another Refine of it is accepted and not yet ended (the claim exists before the route answers) and while any follow-up item of the file is queued or running; a confirmed Refine re-embeds every utterance it leaves, kept or rebuilt; a confirmed Refine of a corrected file sends no corrected utterance without words to the LLM and leaves its text, start and end unchanged, and the file stays corrected with its original unchanged.
 I10. Every correction and restore route answers 404 and writes nothing for a file outside `X-Lit-Drive`, missing, trashed or not indexed, answers 409 and writes nothing while the file is busy or when the expected text or start does not match, and touches no row of any other file; the two new events carry the file's drive so a viewer without access to it does not receive them; and after `files.purged` or a drive purge no original, picture text, mark or follow-up item of a purged file remains.
 I11. The OCR worker stores, in the same transaction as its rows, exactly the joined text it chunked as the picture text; a picture read before this change gets, on first read, the text rebuilt from its `fts_text_content` rows by the find-in-file merge, and that text is what is kept as its original.
 
@@ -757,6 +785,8 @@ Each states the answer this spec assumes.
 12. **Media Import's speech-to-text audio on a corrected `.loft`.** A correction wins over
     a later `*.stt_temp.m4a`: the reference is not re-transcribed unless the owner
     confirms a regenerate (C6). Assumed: yes.
+13. **Keys in the edit fields.** Enter / Escape and Cmd/Ctrl+Enter act only inside the
+    field and are not added to `docs/user-guide/keyboard-shortcuts.md`. Assumed: yes.
 
 ## Checked, no action
 
