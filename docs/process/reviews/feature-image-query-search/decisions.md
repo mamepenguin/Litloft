@@ -3,7 +3,7 @@
 decision: continue (human, 2026-11-06, r3). The human chose 「続ける：専用の受け口に作り直す」 — revert every change to `UploadZone`, and give the search page its own drop target for a one-image drop, so the folder pages' upload path is unchanged.
 
 ran_in_app: yes
-at: 5addec5e175a9da6b6efb158328603558dee23de
+at: 1c8638cb1532768e66e4eacad7252d5a07e04bfb
 by: agent
 evidence: |
   Environment: compose project litloft-r5-a4 on port 3994; intelligence built from
@@ -102,6 +102,54 @@ above used 77d5f83:
   clientWidth (390). 05-modal-phone.png, 06-image-query-phone.png (refreshed).
   7. Reload of an answered image URL showed "Choose the image again" and the image
   button. r5b-07-gone.png.
+
+Third R-5 after the separate drop target (1c8638c); the earlier runs above used 5addec5 and
+77d5f83:
+
+  1. Text results page. On /drive/scratch/search?q=litloft a text-file drag showed no
+  "Drop files to upload" and no "Drop to search by this image", and its drop left the URL
+  unchanged. A two-image drag showed no overlay and its drop also left the URL unchanged.
+  A one-image drag showed "Drop to search by this image" and its drop opened
+  /search?img=9095e7896b23. r5c-01-text-drop.png.
+  2. Folder page unchanged. On /drive/scratch a text-file drag showed "Drop files to
+  upload", and the drop uploaded r5c-upload-check-2.txt: the file appeared in the
+  listing and on the host. r5c-02-folder-upload.png. This is the origin/develop
+  UploadZone path, byte-identical.
+  3. Availability transition. With the availability route delayed 1.5 s and answering
+  200 {}, no [data-upload-zone] and no wrapper were present before it resolved; the <h1>
+  node marked before was still connected after, window.scrollY was still 160, the image
+  button changed false to true, and there was still no [data-upload-zone]. 16-b3-search-page.png.
+  4. Modal unchanged. slide-budget.png gave "Documents with this text 1" and "Similar
+  pictures 1"; frame.png gave "Similar pictures 1" and "Similar scenes in videos 1"; a
+  browser-level CDP drag of two images still reached drop and showed "Choose one image".
+  5. View and phone. On an absent image URL, one image dropped on the view started a new
+  query (0123456789ab -> 4cb0ed80cd19); a text-file drop left the URL unchanged. At
+  390x844 both pills measured 44 px and document.scrollWidth equalled clientWidth (390).
+  6. Reload of an answered image URL showed "Choose the image again" and the image
+  button.
+
+Third R-5 after the separate drop target (1c8638c), same scratch stack and drive; the
+earlier runs above used 77d5f83 and 5addec5:
+
+  1. Text results page, available. /drive/scratch/search?q=litloft: a one-image drag
+  showed "Drop to search by this image" and its drop opened
+  ?img=6ef048ca6b76; a text-file drag and a two-image drag each showed no overlay, left
+  the URL unchanged and started no query. r5c-01-text-drop.png.
+  2. Folder page unchanged. /drive/scratch: a text-file drag showed "Drop files to
+  upload"; its drop uploaded, the file appeared in the drive and on the host
+  (r5c-upload-check-2.txt). r5c-02-folder-upload.png.
+  3. Availability transition. The availability route was delayed 1.5 s and answered
+  200 {}. There was no [data-upload-zone] and no wrapper before it resolved; the marked
+  <h1> stayed connected, window.scrollY stayed 160, and the image button appeared
+  afterwards. No remount, no wrapper in the unavailable state.
+  4. Modal unchanged. slide-budget.png gave "Documents with this text 1" and "Similar
+  pictures 1"; frame.png gave "Similar pictures 1" and "Similar scenes in videos 1".
+  A browser-level two-file drag on the modal reached drop and showed "Choose one image".
+  5. View and phone. A one-image drop on an absent image URL started a new query
+  (0123456789ab -> 4cb0ed80cd19); a text drop left it unchanged. At 390x844 both pills
+  measured 44 px and document.scrollWidth equalled clientWidth (390).
+  6. Reload of an answered image URL showed "Choose the image again" and the image
+  button.
 
 pending: |
   - The iOS photo picker and camera on a real device (agent_cannot_verify); the picker's
