@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: continue (human, 2026-11-06, r3). The human chose 「続ける：専用の受け口に作り直す」 — revert every change to `UploadZone`, and give the search page its own drop target for a one-image drop, so the folder pages' upload path is unchanged.
 
 ran_in_app: yes
 at: 5addec5e175a9da6b6efb158328603558dee23de
