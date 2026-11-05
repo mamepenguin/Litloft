@@ -7,8 +7,18 @@ It is not on the App Store. You build it from `ios/` in this repository.
 ## Building and installing
 
 1. Open `ios/Litloft.xcodeproj` in Xcode.
-2. To install on a phone, copy `ios/Config/Local.xcconfig.example` to `ios/Config/Local.xcconfig` and fill in your Apple Developer team id and a bundle id that team owns. The simulator builds without it.
+2. To install on a phone, copy `ios/Config/Local.xcconfig.example` to `ios/Config/Local.xcconfig` and fill in your Apple Developer team id and a bundle id that team owns. A paid Apple Developer Program team is required: the app and its share extension both use App Groups, which a free Personal Team cannot provision. The simulator builds without it.
 3. Select your phone and run.
+
+## Sharing to Litloft
+
+Litloft appears in the iPhone share menu. What you share becomes:
+
+- a web page → a **Web クリップ** when the knowledge addon is installed and on for the drive, otherwise a **link note** (a Markdown file holding the title and the URL);
+- text → a Markdown note, named from its first line;
+- photos, movies and files → uploads in their original format.
+
+Everything goes to the drive and folder shown in the sheet, by default the last pair you saved to, in that drive's `Inbox` folder. Change either before pressing **保存**. Keep the sheet open until it finishes: uploads run while the sheet is open, and closing it early abandons the items that have not been sent. A locked drive is not offered; unlock it in Litloft first. On the first share, iOS may ask for local network access — allow it, or the sheet says **ローカルネットワークへのアクセスが許可されていません** / **Local network access is off for Litloft** and offers **設定を開く** / **Open Settings**.
 
 ## Connecting
 
