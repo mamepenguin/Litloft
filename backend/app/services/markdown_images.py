@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 import app.config as config
 from app.models import File, active_file_filter
 from app.services.atomic_write import generating_file
+from app.services.diskpath import resolve_on_disk
 from app.services.thumbnail import (
     generate_image_thumbnail,
     write_thumbnail_atomically,
@@ -289,9 +290,10 @@ def replace_image_destination(
     )
 
 
-def _resolve_within(base: Path, relative: str) -> Path | None:
+def _resolve_within(base: Path, relative: str, *, stored: bool = False) -> Path | None:
     base_resolved = base.resolve()
-    candidate = (base / relative).resolve()
+    joined = resolve_on_disk(base, relative, cached=True) if stored else base / relative
+    candidate = joined.resolve()
     try:
         candidate.relative_to(base_resolved)
     except ValueError:
@@ -383,7 +385,7 @@ def project_markdown_thumbnail(
         return _clear_projection(markdown_file)
 
     drive_path = config.get_drive_path(markdown_file.drive)
-    source_file = _resolve_within(drive_path, source.file_path)
+    source_file = _resolve_within(drive_path, source.file_path, stored=True)
     if source_file is None or not source_file.is_file():
         return _clear_projection(markdown_file)
 

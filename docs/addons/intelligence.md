@@ -736,6 +736,7 @@ Changing `models.clip` rebuilds CLIP embeddings at restart only if the new model
 - The first indexing of a full drive can take hours. Transcription and frame extraction take most of it.
 - Everything the addon stores is in `data/addons/intelligence/` (its database `search.db`, the models, the settings saved in the browser). It never writes to the core database.
 - The addon's log: `docker compose logs -f intelligence`.
+- Files copied onto a drive from outside Litloft (for example from an iOS device) can carry the decomposed form of a name such as `が`. The addon opens such files under the name they have on disk, and corrects the path it stored for a file it indexed earlier on the next pass. A file whose earlier attempts failed with "Cannot stat audio file" is picked up again by that pass.
 - In the first 60 seconds after the addon starts, a job that cannot reach the core is retried instead of recorded as failed.
 - If the addon hangs (stops responding while its container still runs), `docker compose ps` shows it `unhealthy` (from the healthcheck), and the log contains a stack dump of every thread once it has been stuck for 120 seconds (`INTELLIGENCE_WATCHDOG_THRESHOLD`). Nothing restarts it automatically: run `docker compose restart intelligence`.
 

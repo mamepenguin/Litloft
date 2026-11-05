@@ -41,6 +41,7 @@ from app.schemas import (
     file_to_response,
 )
 from app.services.chapters import replace_chapters
+from app.services.diskpath import resolve_on_disk
 from app.services.ws import manager as ws_manager
 
 logger = logging.getLogger(__name__)
@@ -223,7 +224,8 @@ def _resolve_text_content_path(file: File) -> Path:
     FastAPI surface into this module.
     """
     drive_path = config.get_drive_path(file.drive)
-    real_path = Path(os.path.realpath(str(drive_path / file.file_path)))
+    on_disk = resolve_on_disk(drive_path, file.file_path, cached=True)
+    real_path = Path(os.path.realpath(str(on_disk)))
     real_base = Path(os.path.realpath(drive_path))
     base_str = str(real_base)
     if not (

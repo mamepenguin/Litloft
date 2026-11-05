@@ -22,6 +22,7 @@ from app.models import File
 from app.routers import admin, admin_markdown_images, auth, collections, comments, drives, files, progress, uploads, ws
 from app.routers import addon_proxy, admin_config, drive_policies, files_processing, inbox, internal, smart_folders
 from app.services import inbox as inbox_service
+from app.services.diskpath import resolve_on_disk
 from app.services.fileops import physical_delete
 from app.services.scanner import scan_all_drives
 from app.services import addon_registry, drive_seed, event_hooks
@@ -165,7 +166,7 @@ def _cleanup_empty_folders_after_purge(
     for drive_name, folder_path in folders:
         try:
             drive_root = config.get_drive_path(drive_name)
-            target = drive_root / folder_path
+            target = resolve_on_disk(drive_root, folder_path, strict=True)
             _rmdir_up_to_root(target, drive_root)
         except Exception:
             logger.exception(
