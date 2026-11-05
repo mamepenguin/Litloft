@@ -41,10 +41,11 @@ struct ShareSheetView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     if model.state == .saved {
                         EmptyView()
-                    } else if model.state == .stopped(.driveNotAvailable)
-                        || model.state == .finishedWithFailures {
-                        Button("share.retry") {
-                            Task { await model.retry() }
+                    } else if model.hasQueue {
+                        if model.state != .sending && model.state != .closed {
+                            Button("share.retry") {
+                                Task { await model.retry() }
+                            }
                         }
                     } else {
                         Button("share.save") {
@@ -129,7 +130,7 @@ struct ShareSheetView: View {
             } label: {
                 LabeledContent("share.drive", value: model.destination.drive ?? "")
             }
-            .disabled(model.state == .sending)
+            .disabled(!model.canPickDrive)
             Button {
                 showingFolders = true
             } label: {
@@ -138,7 +139,7 @@ struct ShareSheetView: View {
                     value: model.destination.folder.isEmpty ? String(localized: "share.root") : "\(model.destination.folder)/"
                 )
             }
-            .disabled(model.state == .sending || model.destination.drive == nil)
+            .disabled(!model.canPickFolder)
         } header: {
             Text("share.destination")
         } footer: {
@@ -200,7 +201,7 @@ struct ShareSheetView: View {
             Section {
                 Label("share.saved", systemImage: "checkmark.circle.fill")
                     .foregroundStyle(.teal)
-                Text("\(model.destination.drive ?? "") · \(model.destination.folder)/")
+                Text("\(model.savedDestination.drive ?? "") · \(model.savedDestination.folder)/")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

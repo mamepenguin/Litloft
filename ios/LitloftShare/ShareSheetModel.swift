@@ -52,7 +52,27 @@ final class ShareSheetModel {
     }
 
     var canSave: Bool {
-        state == .ready && destination.drive != nil
+        queue == nil && state == .ready && destination.drive != nil
+    }
+
+    var hasQueue: Bool {
+        queue != nil
+    }
+
+    /// Once a queue exists, only a stopped drive can be changed: everything
+    /// after the stop goes to the new drive under Retry.
+    var canPickDrive: Bool {
+        guard let queue else { return state != .sending }
+        return queue.state == .stopped(.driveNotAvailable)
+    }
+
+    var canPickFolder: Bool {
+        queue == nil && state != .sending && destination.drive != nil
+    }
+
+    /// The destination the items were sent to, not a later selection.
+    var savedDestination: ShareDestination {
+        queue?.destination ?? destination
     }
 
     var statuses: [ShareItemStatus] {
@@ -117,6 +137,10 @@ final class ShareSheetModel {
 
     func pickDrive(_ drive: String) async {
         guard drives.contains(drive) else { return }
+        if queue != nil {
+            pickDriveForQueue(drive)
+            return
+        }
         destination = ShareDestination(
             drive: drive,
             folder: ShareDestinationResolver.folder(for: drive, origin: origin, defaults: session.defaults)
@@ -129,7 +153,7 @@ final class ShareSheetModel {
     }
 
     func pickFolder(_ folder: String) {
-        guard QuickNoteFolder.isValid(folder) else { return }
+        guard queue == nil, QuickNoteFolder.isValid(folder) else { return }
         destination.folder = folder
     }
 
@@ -200,10 +224,11 @@ final class ShareSheetModel {
         state = .closed
     }
 
-    func pickDriveForQueue(_ drive: String) {
-        queue?.pickDrive(drive)
-        destination = queue?.destination ?? destination
-        state = .sending
+    private func pickDriveForQueue(_ drive: String) {
+        guard let queue else { return }
+        queue.pickDrive(drive)
+        destination = queue.destination
+        state = .stopped(.driveNotAvailable)
     }
 
     private func state(after queue: ShareSendQueue) -> ShareSheetState {

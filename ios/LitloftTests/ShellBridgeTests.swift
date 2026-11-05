@@ -239,7 +239,7 @@ struct ShellBridgeTests {
 @MainActor
 struct WebViewModelTests {
     private func model() -> WebViewModel {
-        WebViewModel(serverURL: URL(string: "http://litloft.local:3000")!)
+        WebViewModel(serverURL: URL(string: "http://litloft.local:3000")!, sharedSession: FakeSharedSession())
     }
 
     @Test("an unreachable server raises the retry screen")

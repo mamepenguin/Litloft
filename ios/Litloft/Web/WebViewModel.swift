@@ -36,14 +36,14 @@ final class WebViewModel {
         serverURL: URL,
         idiom: UIUserInterfaceIdiom = UIDevice.current.userInterfaceIdiom,
         jar: CookieJar? = nil,
-        sharedSession: SharedSession? = nil
+        sharedSession: SharedSession
     ) {
         self.serverURL = serverURL
         self.idiom = idiom
         sessionMirror = SessionMirror(
             server: serverURL,
             jar: jar ?? WKWebsiteDataStore.default().httpCookieStore,
-            store: sharedSession ?? GroupSharedSession()
+            store: sharedSession
         )
     }
 

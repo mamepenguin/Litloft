@@ -675,6 +675,45 @@ struct ShareSendQueueTests {
         #expect(harness.queue.state == .closed)
     }
 
+    @Test("SPEC-IOS-002 I6 I7: the bar's retry sends an unknown file with its original name")
+    func barRetryUnknownUsesOriginalName() async throws {
+        let tally = Tally()
+        let (item, _) = try fileItem("photo.jpg")
+        let harness = try await Harness.make([item], answer: Answers.server { request in
+            if request.path.hasSuffix("/complete") { return .never }
+            if request.path.hasSuffix("/upload/init"), tally.next("init") > 1 { return Answers.exists }
+            return nil
+        })
+        defer { harness.server.stop() }
+        await harness.queue.send()
+        #expect(harness.queue.statuses.map(\.state) == [.unknown])
+        let chunksBefore = harness.server.requests("POST", "/chunk").count
+
+        await harness.queue.retry()
+
+        #expect(harness.server.requests("POST", "/upload/init").compactMap { $0.json?["filename"] as? String }
+            == ["photo.jpg", "photo.jpg"])
+        #expect(harness.server.requests("POST", "/chunk").count == chunksBefore)
+        #expect(harness.queue.statuses.map(\.state) == [.saved])
+    }
+
+    @Test("SPEC-IOS-002 I6: a complete that loses the connection is polled like an unanswered one")
+    func completeConnectionLostPolls() async throws {
+        let (item, _) = try fileItem("photo.jpg")
+        let harness = try await Harness.make([item], answer: Answers.server { request in
+            if request.path.hasSuffix("/complete") { return .drop }
+            if request.path.hasSuffix("/files/by-path") { return .json(200, #"{"id":"f1"}"#) }
+            return nil
+        })
+        defer { harness.server.stop() }
+
+        await harness.queue.send()
+
+        #expect(harness.server.requests("POST", "/complete").count == 1)
+        #expect(!harness.server.requests("GET", "/files/by-path").isEmpty)
+        #expect(harness.queue.statuses.map(\.state) == [.saved])
+    }
+
     // MARK: constants
 
     @Test("SPEC-IOS-002: the timeouts and the polling window are the spec's")

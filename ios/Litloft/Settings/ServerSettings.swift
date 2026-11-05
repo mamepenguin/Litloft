@@ -8,9 +8,9 @@ final class ServerSettings {
     private(set) var serverURL: URL?
     private(set) var lastAddress = ""
 
-    init(defaults: UserDefaults = .standard, sharedSession: SharedSession? = nil) {
+    init(defaults: UserDefaults = .standard, sharedSession: SharedSession) {
         self.defaults = defaults
-        self.sharedSession = sharedSession ?? GroupSharedSession()
+        self.sharedSession = sharedSession
         // Through the same gate as typed input: a value stored by an older
         // build, or edited by hand, is not trusted.
         if let stored = defaults.string(forKey: Self.key) {

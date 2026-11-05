@@ -102,6 +102,21 @@ struct SessionMirrorTests {
         #expect(await eventually { store.item == session(token: nil, viewer: "me") })
     }
 
+    @Test("SPEC-IOS-001 I5: a subdomain or suffix-sharing domain's cookie is not mirrored")
+    func foreignCookieDomainsAreNotMirrored() async {
+        let jar = FakeCookieJar([
+            makeCookie(name: "access_token", value: "sub", domain: "sub.litloft.local"),
+            makeCookie(name: "lit_viewer", value: "suffix", domain: "notlitloft.local"),
+            makeCookie(name: "lit_viewer", value: "me", domain: "litloft.local")
+        ])
+        let store = FakeSharedSession()
+        let mirror = SessionMirror(server: server, jar: jar, store: store)
+
+        mirror.arm()
+
+        #expect(await eventually { store.item == session(token: nil, viewer: "me") })
+    }
+
     @Test("SPEC-IOS-001: a second arm does nothing")
     func secondArmIsIgnored() async {
         let jar = FakeCookieJar([makeCookie(name: "access_token", value: "jwt-1")])

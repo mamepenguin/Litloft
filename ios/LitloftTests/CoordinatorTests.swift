@@ -35,7 +35,7 @@ extension SharedMediaState {
         /// teardown never runs; this is the only place left to stop it.
         @Test("a full navigation stops what the shell is playing")
         func navigationStopsThePlayer() async throws {
-            let model = WebViewModel(serverURL: URL(string: "http://litloft.local:3000")!)
+            let model = WebViewModel(serverURL: URL(string: "http://litloft.local:3000")!, sharedSession: FakeSharedSession())
             let coordinator = WebView.Coordinator(model: model)
             let webView = WKWebView(frame: .zero, configuration: WKWebViewConfiguration())
             coordinator.attachBridge(to: webView)
@@ -58,7 +58,7 @@ extension SharedMediaState {
         /// never replaces the page, so what the viewer is listening to stays.
         @Test("a navigation that never arrives leaves the player alone")
         func downloadKeepsThePlayer() async throws {
-            let model = WebViewModel(serverURL: URL(string: "http://litloft.local:3000")!)
+            let model = WebViewModel(serverURL: URL(string: "http://litloft.local:3000")!, sharedSession: FakeSharedSession())
             let coordinator = WebView.Coordinator(model: model)
             let webView = WKWebView(frame: .zero, configuration: WKWebViewConfiguration())
             coordinator.attachBridge(to: webView)
@@ -79,7 +79,7 @@ extension SharedMediaState {
 
         private func openShell(active: Bool, opener: URLOpener = SystemURLOpener()) async throws -> OpenShell {
             try await LocalLitloft.require()
-            let model = WebViewModel(serverURL: URL(string: "http://localhost:3000/")!)
+            let model = WebViewModel(serverURL: URL(string: "http://localhost:3000/")!, sharedSession: FakeSharedSession())
             let coordinator = WebView.Coordinator(model: model, opener: opener)
             coordinator.isActive = { active }
             let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
@@ -164,7 +164,7 @@ extension SharedMediaState {
             defer { server.stop() }
             let address = try await server.start()
             let opener = RecordingOpener()
-            let model = WebViewModel(serverURL: address)
+            let model = WebViewModel(serverURL: address, sharedSession: FakeSharedSession())
             let coordinator = WebView.Coordinator(model: model, opener: opener)
             let offered = Offered()
             coordinator.downloads.offer = { offered.files.append($0) }

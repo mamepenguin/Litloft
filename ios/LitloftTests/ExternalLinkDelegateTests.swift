@@ -31,7 +31,7 @@ private struct Rig {
 
     init() {
         let opener = opener
-        coordinator = WebView.Coordinator(model: WebViewModel(serverURL: server), opener: opener)
+        coordinator = WebView.Coordinator(model: WebViewModel(serverURL: server, sharedSession: FakeSharedSession()), opener: opener)
     }
 
     func newWindow(_ address: String) {

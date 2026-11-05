@@ -173,7 +173,7 @@ final class ShareSendQueue {
             break
         }
         if statuses.allSatisfy({ $0.state == .saved }) { return }
-        await run(statuses.indices.filter { statuses[$0].state != .saved }, attempt: .first)
+        await run(statuses.indices.filter { statuses[$0].state != .saved })
     }
 
     func retry() async {
@@ -183,13 +183,12 @@ final class ShareSendQueue {
         default:
             break
         }
-        await run(statuses.indices.filter { statuses[$0].state != .saved }, attempt: .first)
+        await run(statuses.indices.filter { statuses[$0].state != .saved })
     }
 
     func retryItem(at index: Int) async {
         guard statuses.indices.contains(index), state != .closing, state != .closed else { return }
-        let attempt: Attempt = statuses[index].state == .unknown ? .again : .first
-        await run([index], attempt: attempt)
+        await run([index])
     }
 
     func saveAsLink(at index: Int) async {
@@ -197,7 +196,7 @@ final class ShareSendQueue {
         items[index] = .linkNote(url, title: title)
         statuses[index].state = .waiting
         statuses[index].offers = []
-        await run([index], attempt: .first)
+        await run([index])
     }
 
     func pickDrive(_ drive: String) {
@@ -223,7 +222,7 @@ final class ShareSendQueue {
         statuses.indices.contains(index) ? items[index] : nil
     }
 
-    private func run(_ indices: [Int], attempt: Attempt) async {
+    private func run(_ indices: [Int]) async {
         state = .sending
         for index in indices {
             if cancelling {
@@ -231,6 +230,9 @@ final class ShareSendQueue {
                 return
             }
             guard statuses[index].state != .saved else { continue }
+            // An unknown item may already have landed; its retry must ask the
+            // server under the original name rather than take a suffix.
+            let attempt: Attempt = statuses[index].state == .unknown ? .again : .first
             let outcome = await sendItem(at: index, attempt: attempt)
             switch outcome {
             case .saved:
@@ -446,16 +448,14 @@ final class ShareSendQueue {
             if (200...299).contains(response.status) { return .saved }
             if response.status == 403 || response.status == 404 { return .stopped(.driveNotAvailable) }
             return .failed(.genericFailure)
-        } catch let error as ShareAPIError {
+        } catch is ShareAPIError {
             if cancelling { return .cancelled }
-            if case .transport(let code) = error, Self.isUnreachable(code) {
-                return .stopped(.cannotReach)
-            }
         } catch {
             return .failed(.genericFailure)
         }
 
-        // The server received `/complete` but no answer came back.
+        // The server may have received `/complete` without answering: every
+        // transport error lands here, and by-path decides what happened.
         if Self.isSidecar(filename) { return .unknown }
         if cancelling { return .cancelled }
         return await pollForFile(drive: drive, path: target, size: prepared.size, index: index)

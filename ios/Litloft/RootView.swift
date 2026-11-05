@@ -2,7 +2,7 @@ import SwiftUI
 import WebKit
 
 struct RootView: View {
-    @State private var settings = ServerSettings()
+    @State private var settings = ServerSettings(sharedSession: GroupSharedSession())
 
     var body: some View {
         if let serverURL = settings.serverURL {

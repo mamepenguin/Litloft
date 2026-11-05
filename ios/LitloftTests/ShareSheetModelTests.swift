@@ -135,6 +135,67 @@ struct ShareSheetModelTests {
         }
     }
 
+    @Test("SPEC-IOS-002 I5: a mirrored viewer without a token is still sent and still makes a clip")
+    func viewerWithoutToken() async throws {
+        var script = Script()
+        script.addons = .json(200, #"{"addons":{"knowledge":{}},"slots":{}}"#)
+        let sheet = try await Sheet.make(.text("hi"), script: script, token: nil, viewer: "me")
+        defer { sheet.server.stop() }
+
+        await sheet.model.load()
+
+        #expect(sheet.model.canSave)
+        for request in sheet.server.requests {
+            #expect(request.header("Authorization") == nil)
+            #expect(request.header("X-Lit-Viewer") == "me")
+        }
+
+        let link = try await Sheet.make(
+            .link(URL(string: "https://example.com/a")!, title: nil),
+            script: script,
+            token: nil,
+            viewer: "me"
+        )
+        defer { link.server.stop() }
+        await link.model.load()
+        #expect(await eventually { link.model.state == .ready })
+        #expect(link.model.linkKind == .webClip)
+    }
+
+    @Test("SPEC-IOS-002 I5: an item mirrored for another port of the same host is not sent")
+    func otherPortOfTheSameHostIsNotSent() async throws {
+        let sheet = try await Sheet.make(.text("hi"), itemOrigin: { origin in
+            origin.replacingOccurrences(of: "http://127.0.0.1:", with: "http://127.0.0.1:1")
+        })
+        defer { sheet.server.stop() }
+
+        await sheet.model.load()
+
+        #expect(sheet.model.state == .ready)
+        #expect(!sheet.server.requests.isEmpty)
+        for request in sheet.server.requests {
+            #expect(request.header("Authorization") == nil)
+            #expect(request.header("X-Lit-Viewer") == nil)
+        }
+    }
+
+    @Test("SPEC-IOS-002 I5: an item mirrored for another scheme of the same host is not sent")
+    func otherSchemeOfTheSameHostIsNotSent() async throws {
+        let sheet = try await Sheet.make(.text("hi"), itemOrigin: { origin in
+            origin.replacingOccurrences(of: "http://", with: "https://")
+        })
+        defer { sheet.server.stop() }
+
+        await sheet.model.load()
+
+        #expect(sheet.model.state == .ready)
+        #expect(!sheet.server.requests.isEmpty)
+        for request in sheet.server.requests {
+            #expect(request.header("Authorization") == nil)
+            #expect(request.header("X-Lit-Viewer") == nil)
+        }
+    }
+
     @Test("SPEC-IOS-002: no drive to save to blocks the sheet")
     func noDrives() async throws {
         var script = Script()
@@ -251,5 +312,51 @@ struct ShareSheetModelTests {
 
         #expect(sheet.server.requests("GET", "/api/addons/status").compactMap { $0.query["drive"] }
             == ["Photos", "Notes"])
+    }
+
+    @Test("SPEC-IOS-002 I4: after a stop the drive row changes the queue, keeps Retry, and never re-offers Save")
+    func driveAfterStop() async throws {
+        let server = try ScriptedServer { request in
+            switch request.path {
+            case "/api/drives": return .json(200, drivesBody(["Gone", "Notes"]))
+            case "/api/auth/status": return .json(200, authBody(protected: false, groups: []))
+            case "/api/drives/Gone/files": return .json(404, "{}")
+            case "/api/drives/Notes/files": return .json(201, #"{"id":"n1"}"#)
+            default: return .status(404)
+            }
+        }
+        let url = try await server.start()
+        defer { server.stop() }
+        let origin = "http://127.0.0.1:\(url.port!)"
+        let session = FakeSharedSession(item: SessionItem(origin: origin, accessToken: "jwt-1", viewer: "me"))
+        session.defaults.set(url.absoluteString, forKey: "share.server")
+        session.defaults.set("Clips", forKey: "share.folder.\(origin).Notes")
+        let model = ShareSheetModel(payload: .text("one"), session: session, timeouts: quickTimeouts)
+        await model.load()
+        #expect(model.state == .needsDrive)
+
+        await model.pickDrive("Gone")
+        #expect(model.state == .ready)
+        await model.save()
+        #expect(model.state == .stopped(.driveNotAvailable))
+        #expect(!model.canSave)
+        #expect(model.hasQueue)
+        #expect(model.canPickDrive)
+        #expect(!model.canPickFolder)
+
+        // The folder is fixed once the queue exists.
+        model.pickFolder("Other")
+        #expect(model.savedDestination.folder == "Inbox")
+
+        await model.pickDrive("Notes")
+        #expect(model.state == .stopped(.driveNotAvailable))
+        #expect(!model.canSave)
+        #expect(model.destination == ShareDestination(drive: "Notes", folder: "Clips"))
+
+        await model.retry()
+
+        #expect(model.state == .saved)
+        #expect(server.requests("POST", "/files").count == 2)
+        #expect(model.savedDestination == ShareDestination(drive: "Notes", folder: "Clips"))
     }
 }
