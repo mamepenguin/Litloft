@@ -264,8 +264,10 @@ The human decided the requirements on 2026-11-05 and 2026-11-06 (hako `p_XmkcHJM
    The rest of the text task is unchanged: chunk ids `txt_…`, the unchanged-chunk check
    (`metadata.py:451`), the citation recompute and the `pdf_markdown` row.
 7. **Reading a document by unit.** `GET /files/{file_id}/document-text` (`read_document`
-   over MCP) gives a scanned page its stored OCR text when the page's own text is empty
-   (`document_text.py:164-190`), with `extractor` `"ocr"` for that unit.
+   over MCP) gives a page that B3 calls scanned its stored non-empty OCR text, on both its
+   paths (PyMuPDF4LLM and the plain-text fallback, `document_text.py:164-190`), so the unit
+   text stays what indexing builds for the page (SPEC-ADDON-036 I3). The unit's
+   `extractor` is the path's, as today.
 8. **Find in file.** Nothing changes in the route: the page's chunks are `page` units, and
    a hit is a 「p. N」 row. Choosing it opens the page (`useFindInFile.ts:113-117`). The
    page's pdf.js text layer is empty, so no find mark and no current mark is drawn there:
@@ -320,7 +322,8 @@ The human decided the requirements on 2026-11-05 and 2026-11-06 (hako `p_XmkcHJM
 - **The engine cannot be created**: as for pictures (`ocr.py:72-104`). One ERROR, every
   frame task that needs a read is dropped without changing a flag, and the next process
   start tries again. A rebuild-only task (A6, `frame_ocr_read` true) needs no engine and
-  still runs.
+  still runs. If the engine is lost partway (released while paused and not re-created),
+  the frames read so far are discarded, nothing is written, and the file is retried.
 - **The text embedding fails**: the read stays stored, `frame_ocr_read` stays true and
   `frame_ocr_indexed` false. The next `_resume_incomplete` queues the file, and the task
   builds the rows from the stored text without reading frames again. An ERROR names the
@@ -345,6 +348,9 @@ The human decided the requirements on 2026-11-05 and 2026-11-06 (hako `p_XmkcHJM
   the next `_resume_incomplete` queues `TEXT_CONTENT` (`indexer.py:871-875`), which uses
   the stored page texts. OCR is not run again.
 - **The file is trashed, missing or purged while it is read**: nothing is written.
+- **The engine is lost partway**: as for video; nothing written, retried.
+- **The process stops during a read**: nothing was written; `page_ocr_indexed` is false and
+  the next `_resume_incomplete` queues the file again.
 
 **Both**
 
@@ -367,6 +373,11 @@ The human decided the requirements on 2026-11-05 and 2026-11-06 (hako `p_XmkcHJM
 | (true, true) | (true, false) | a text-embedding model change |
 | any | (false, false) | a manual `frame_ocr` reindex |
 
+A task for a video at (true, true) does nothing. A manual reindex while a read is running
+does not stop it: that read stores its result and the re-queued task then finds (true,
+true) or (true, false) and does not read again. The running read is a read of the file
+as it is, so the request is met by it.
+
 Not allowed: `frame_ocr_indexed` true with `frame_ocr_read` false; any change on a mode
 switch; any change for a file that is no longer an active row; a change on an unreachable
 file or a missing engine. A file that is not a video: (false, false) → (true, true) once,
@@ -387,7 +398,7 @@ a rebuild-pending video outside `on_index` is queued (A2) but not counted.
 
 **A replaced file** is not detected (intelligence has no content-change signal for any
 task). A manual reindex reads it again. A PDF that gains a text layer uses it: the stored
-OCR text is used only for a page whose own text is empty.
+OCR text is used only for a page whose fitz text layer is empty.
 
 ### 4. Data read and written
 
@@ -444,9 +455,12 @@ is no per-drive switch for either OCR.
   (`auto_tags.py:603-606`) and retrieval keywords read the PDF's text, so they now see the
   page OCR text. These passes are queued from the metadata batch (`indexer.py:1424-1459`),
   which for a new scanned PDF runs before its pages are read, finds too little text and
-  writes nothing. So when the forced text task (B5) stores chunks for a PDF that had no
-  text chunk before, the passes whose mode is `on_index` are queued for it, as
-  `requeue_after_whisper` (`indexer.py:1103-1183`) does for a new transcript.
+  writes nothing. So when a forced text task queued by B5 completes, the text worker
+  re-queues the PDF's summary and auto-tag passes whose mode is `on_index`, with the gates
+  `requeue_after_whisper` (`indexer.py:1103-1183`) applies: only when `metadata_indexed`
+  is true, a summary only when the file has no `file_summaries` row with a short summary,
+  tags only when it has no `suggested_tags` row. A partly scanned PDF that already has a
+  summary keeps it. Retrieval keywords are not re-queued; they follow their own sweep.
 - **Auto tags, summaries and detailed summaries for videos** read the transcript and are
   unchanged. A scanned PDF's summary now has text to read.
 - **The upload drawer's processing stages** (SPEC-ADDON-057): neither OCR is a stage and
@@ -536,7 +550,8 @@ failures are the WARNING and ERROR lines.
 - `addons/intelligence/app/indexer.py`: `TaskType.FRAME_OCR` and `TaskType.PAGE_OCR`,
   their workers, `_TASK_NAME_TO_TYPE`, `_queue_file_tasks`, `_resume_incomplete`,
   `prioritize`, `IndexStatus` / `get_index_status`, `_purge_file`, the forced
-  `TEXT_CONTENT` enqueue.
+  `TEXT_CONTENT` enqueue, and the text worker's re-queue of summary and auto-tag passes
+  after it.
 - `addons/intelligence/app/extractors/pdf.py` and `app/workers/metadata.py`
   (`index_text_content`): stored page texts for empty pages.
 - `addons/intelligence/app/document_text.py`: stored page texts for empty pages.
@@ -546,8 +561,8 @@ failures are the WARNING and ERROR lines.
 - `addons/intelligence/app/file_find.py`: video frame-text units, their order and
   `indexed`.
 - `addons/intelligence/app/search.py`: `_passage_kind`, `_finish_passage`, `_frame_url`,
-  `_drive_text_neighbours`; `SearchPassage.kind` and the schema's kind literal
-  (`schemas.py:468`).
+  `_drive_text_neighbours`; the `SearchPassage` kind literal
+  (`search.py:140`). `FileFindRow.kind` (`schemas.py:468`) is not changed.
 - `addons/intelligence/app/rag/context.py`, `app/rag/file_question.py`: frame text for
   videos.
 - `addons/intelligence/app/exact_search.py`: times on a video's text hits.
@@ -594,16 +609,18 @@ failures are the WARNING and ERROR lines.
 
 I1. A video is read only at its first decoded frame and at frames whose 256-bit difference hash differs from the last read frame's by at least 16 bits and that come at least 10 seconds after it, so no two read frames of a video are less than 10 seconds apart.
 I2. After a successful read and build, a video has `frame_ocr_read` and `frame_ocr_indexed` true, one `video_frame_texts` row per chunk of its segments — a segment starting at a read frame with non-empty text unequal to the open segment's, continued by read frames with equal text, ending at the next read frame that does not continue it or at the last decoded frame plus 1 s — chunked at 1000/200 with `chunk_index` in time order, and exactly those chunks as its `text_content` embeddings (ids `txt_<file_id>_<chunk_index>_<hex>`, `page` null, the segment's start and end) and `fts_text_content` rows, with no earlier rows; between A5 and A6 the video has no `text_content` rows at all.
-I3. A failed embedding keeps the stored read and sets no `frame_ocr_indexed`, and the next run builds the rows from `video_frame_texts` without calling the OCR engine; a text-embedding model change sets `frame_ocr_indexed` false and leaves `frame_ocr_read`, `video_frame_texts` and `pdf_page_ocr_texts` as they were, and the rows are rebuilt from them under every mode.
-I4. An unreachable file, an ffmpeg stalled for 120 s, or an engine that cannot be created writes nothing and leaves every flag as it was; a file that is no longer an active row at write time gets nothing written; neither reader sends anything over the network or writes or removes another file's rows; purging a file deletes its `video_frame_texts` and `pdf_page_ocr_texts` rows.
-I5. A PDF page is read only when its text layer is empty after stripping whitespace, and its stored text is used only for a page whose own extracted text is empty; the pages with a text layer keep the same sequence of (page, text) chunks as before this change, `chunk_index` free to shift.
-I6. After a page read that stores or removes non-empty text, a `TEXT_CONTENT` task for the file starts after that write, and under every mode the file's `text_content` rows for each scanned page with non-empty stored text are that text chunked with `indexing.text_chunking`, with `page` set, the page's part of `pdf_markdown` holds it, and `document-text` returns it for that page; a read that stores no text leaves `text_indexed` as it was.
-I7. With `on_index`, a new file's frame or page task is queued at priority 0, backlog tasks at -10 and a reindex at 100; with `manual` only reindex or prioritize queue it; with `false` never, and reindex answers 422 for `frame_ocr` or `page_ocr`, as it does for a task on a file of the wrong type; a mode change takes effect only after a restart and removes no stored text. A file that is not a video never gets a frame task and one that is not a PDF never gets a page task, and neither counts as pending.
+I3. A failed embedding keeps the stored read and sets no `frame_ocr_indexed`, and the next run builds the rows from `video_frame_texts` without calling the OCR engine; a text-embedding model change sets `frame_ocr_indexed` false and leaves `frame_ocr_read`, `video_frame_texts` and `pdf_page_ocr_texts` as they were, and the rows are rebuilt from them under every mode. The migration adding the three columns can run twice without changing existing rows.
+I4. An unreachable file (checked before reading and again after an ffmpeg error or stall, or a render error), or an engine that cannot be created at the start or partway, writes nothing and leaves every flag as it was; a file that is no longer an active row at write time gets nothing written; neither reader sends anything over the network or writes or removes another file's rows; purging a file deletes its `video_frame_texts` and `pdf_page_ocr_texts` rows.
+I5. A PDF page is read only when its text layer is empty after stripping whitespace, and its stored text is used, by indexing and by `document-text` alike, only for a page whose text layer is empty by that same test; the pages with a text layer keep the same sequence of (page, text) chunks as before this change, `chunk_index` free to shift.
+I6. After a page read that stores or removes non-empty text, a `TEXT_CONTENT` task for the file starts after that write, and under every mode the file's `text_content` rows for each scanned page with non-empty stored text are that text chunked with `indexing.text_chunking`, with `page` set, the page's part of `pdf_markdown` holds it, and `document-text` returns it for that page; a read that stores no text leaves `text_indexed` as it was. When that forced task completes, summary and auto-tag passes in `on_index` mode are queued for the PDF under `requeue_after_whisper`'s gates.
+I7. With `on_index`, a new file's frame or page task is queued at priority 0, backlog tasks at -10 and a reindex at 100; with `manual` only reindex or prioritize queue it; with `false` never, and reindex answers 422 for `frame_ocr` or `page_ocr`, as it does for a task on a file of the wrong type; a mode change takes effect only after a restart and removes no stored text. A file that is not a video never gets a frame task and one that is not a PDF never gets a page task, and neither counts as pending. `pending.frame_ocr` and `pending.page_ocr` count only under `on_index`, and only then join `pending.total`.
 I8. No two OCR engine calls run at the same time; each reader holds no `search.db` lock while decoding, rendering or reading, holds `PYMUPDF_LOCK` only for PyMuPDF calls, and makes no engine call while the indexing queue is paused.
-I9. The find answer for a video includes one `scene` row per occurrence in each frame-text segment, with the segment's `start` and `end`, whether or not the drive's Visual Index is open, ordered by `start` with utterance, then Visual Index scene, then frame text at an equal start; for a scanned PDF it includes `page` rows for the stored page text.
+I9. The find answer for a video includes one `scene` row per occurrence in each frame-text segment, with the segment's `start` and `end`, whether or not the drive's Visual Index is open, ordered by `start` with utterance, then Visual Index scene, then frame text at an equal start; the answer's `indexed` is true for a video whose `frame_ocr_indexed` is true; for a scanned PDF it includes `page` rows for the stored page text.
 I10. A `text_content` match on a video becomes a `screen_text` passage with its segment's `start` and `end`, `frame_url` at `floor(start)`, and a link to `?t=<floor(start)>`, shown as 「mm:ss」 over 「画面内の文字」 with its excerpt; no video becomes a `text` or `picture_text` passage, search by image returns no video, a video's text hit in `/search/exact` carries its segment's `start_time` and `end_time`, and no detailed-summary citation of a video points at its `text_content` rows; Ask's context for a video includes its frame text after the transcript snippets, an Ask citation of frame text carries its segment's `m:ss`, and the single-file question gives it `{"seconds": start_time}`.
 
 ## Revises
+
+SPEC-ADDON-060 I1. A PDF page with no line overlapping the top or bottom 50 points has exactly the text, chunks and `pdf_markdown` part it has today, except that a page whose text layer is empty takes its stored non-empty OCR text (SPEC-ADDON-069).
 
 SPEC-ADDON-061 I1. The find answer's `total` equals the number of non-overlapping occurrences of the folded term within the file's text units (a video's units being its frame-text segments), transcript chunks that have a start, and — only while the drive's Visual Index is open — scene `visible_text` (never `scene_label`); an occurrence inside the overlap of two adjacent text chunks of one unit counts once; `rows` is the first `min(total, 2000)` of them in position order, `truncated` is true exactly when `total > 2000`, and each row's `snippet[match_start:match_start+match_length]` folds to the term.
 SPEC-CORE-040 I3. Each hit's `passages` holds exactly one entry per distinct (kind, place) among its matches of the types in the closed kind table, `screen_text` included, and none for any other type (`tfidf_keywords` and `metadata` included), an untimed transcript match, a text match without `chunk_index` or a video's text match with no stored segment; a text vector match and a keyword match of the same chunk or the same transcript stretch are one passage.
@@ -634,6 +651,11 @@ SPEC-CORE-040 I23. Locators and excerpts follow the per-kind table: a `section` 
 - **The core find kind.** Find rows for frame text use the existing `scene` kind, so B2's
   core needs no change. The passage view needs a distinct kind because there `scene`
   means a picture match with no text.
+- **The Files-view card's badge.** A video found by its frame text shows 「内容一致」
+  (`buildMatchMeta`, `frontend/src/lib/searchMerge.ts:113-119`; `MatchOverlay.tsx:71`),
+  whose help text 「ファイルの中の文章に入っています。」 is true of text shown in the video,
+  and no time pill, since the pills read transcript and scene matches only. Not changed:
+  the passage view carries the time.
 - **Search result cards** (`frontend/src/lib/searchCapture.ts:96-118`) quote
   `content_matches` only for PDFs, plain text and pictures; a video card keeps quoting its
   transcript. Not changed.
