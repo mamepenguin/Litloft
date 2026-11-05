@@ -231,7 +231,13 @@ export function SearchQueryHeader({
 
   return (
     <div className="min-w-0">
-      <div className="relative flex min-w-0 items-center gap-2">
+      <div
+        className={`relative flex min-w-0 items-center gap-2${
+          imageSrc
+            ? " rounded-2xl border border-warm-silver/40 bg-bg-card px-2 py-1"
+            : ""
+        }`}
+      >
         {imageSrc && (
           <span className="flex shrink-0 items-center gap-1 rounded-full bg-sand py-1 pl-1 pr-1.5">
             <img src={imageSrc} alt="" className="h-7 w-7 rounded-lg object-cover" />

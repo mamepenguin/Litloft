@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { prepareImage, storeImage } from "@/lib/imageQuery";
 
@@ -11,6 +11,10 @@ export function useImageInput(onReady: (id: string) => void) {
   const [preparing, setPreparing] = useState(false);
   const [error, setError] = useState<ImageInputError | null>(null);
   const token = useRef(0);
+
+  useEffect(() => () => {
+    token.current += 1;
+  }, []);
 
   const cancel = useCallback(() => {
     token.current += 1;

@@ -16,7 +16,7 @@ import en from "@/messages-core/en.json";
 const SRC_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 const CALLERS: Record<string, number> = {
-  "app/drive/[name]/search/page.tsx": 5,
+  "app/drive/[name]/search/page.tsx": 2,
   "components/FolderBrowser.tsx": 9,
   "components/folder/FolderContent.tsx": 1,
   "components/GlobalSearch.tsx": 12,

@@ -74,7 +74,6 @@ export default function SearchPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const t = useTranslations("search");
   const driveName = decodeURIComponent(params.name as string);
   const availability = useImageAvailability(driveName);
   const img = searchParams.get("img");
@@ -94,15 +93,6 @@ export default function SearchPage() {
     const id = storeImage(prepared.blob, prepared.type);
     router.push(`/drive/${encodeURIComponent(driveName)}/search?img=${id}`);
   };
-
-  const errorMessage =
-    imageError === "too_large"
-      ? t("imageTooLarge")
-      : imageError === "unreadable"
-        ? t("imageUnreadable")
-        : imageError === "one_image"
-          ? t("imageOneOnly")
-          : null;
 
   const q = searchParams.get("q") ?? "";
   const typeFilter = parseTypeFilter(searchParams.get("type"));
@@ -139,11 +129,6 @@ export default function SearchPage() {
 
   return (
     <>
-      {errorMessage && (
-        <p role="alert" className="px-4 pt-2 text-xs text-text-muted">
-          {errorMessage}
-        </p>
-      )}
       {!filtered && (
         <>
           <div className="px-4 pt-3 pb-1 flex items-center">

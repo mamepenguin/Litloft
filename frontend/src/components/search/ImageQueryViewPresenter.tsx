@@ -62,6 +62,28 @@ function documentLocator(
   return t("passageText");
 }
 
+function DocumentThumb({ document }: { document: ImageAnswer["documents"][number] }) {
+  const [stage, setStage] = useState<"thumb" | "icon">(
+    document.file !== null ? "thumb" : "icon",
+  );
+  if (stage === "icon") {
+    return (
+      <span className="flex h-full w-full items-center justify-center text-text-muted">
+        <FileTypeIcon fileType={document.file_type as FileType} size={18} />
+      </span>
+    );
+  }
+  return (
+    <img
+      src={`/api/files/${document.file_id}/thumbnail`}
+      alt=""
+      loading="lazy"
+      className="h-full w-full object-cover"
+      onError={() => setStage("icon")}
+    />
+  );
+}
+
 function DocumentRows({
   documents,
 }: {
@@ -79,18 +101,7 @@ function DocumentRows({
               className="grid grid-cols-[auto_1fr] gap-3 rounded-xl px-1.5 py-2.5 transition-colors hover:bg-accent/5"
             >
               <span className="relative h-9 w-16 shrink-0 overflow-hidden rounded-lg bg-bg-elevated sm:h-[50px] sm:w-[88px]">
-                {document.file !== null ? (
-                  <img
-                    src={`/api/files/${document.file_id}/thumbnail`}
-                    alt=""
-                    loading="lazy"
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <span className="flex h-full w-full items-center justify-center text-text-muted">
-                    <FileTypeIcon fileType={document.file_type as FileType} size={18} />
-                  </span>
-                )}
+                <DocumentThumb document={document} />
               </span>
               <span className="min-w-0">
                 <span className="block text-xs font-semibold text-text-primary">
@@ -112,14 +123,25 @@ function DocumentRows({
 }
 
 function SceneFrame({ hit }: { hit: SceneHit }) {
-  const [source, setSource] = useState(hit.frame_url);
+  const [stage, setStage] = useState<"frame" | "thumb" | "icon">("frame");
+  if (stage === "icon") {
+    return (
+      <span className="flex h-full w-full items-center justify-center text-text-muted">
+        <FileTypeIcon fileType="video" size={18} />
+      </span>
+    );
+  }
   return (
     <img
-      src={source}
+      src={
+        stage === "frame"
+          ? hit.frame_url
+          : `/api/files/${hit.file_id}/thumbnail`
+      }
       alt=""
       loading="lazy"
       className="h-full w-full object-cover"
-      onError={() => setSource(`/api/files/${hit.file_id}/thumbnail`)}
+      onError={() => setStage(stage === "frame" ? "thumb" : "icon")}
     />
   );
 }
