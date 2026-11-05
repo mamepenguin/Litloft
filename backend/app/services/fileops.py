@@ -22,6 +22,7 @@ from app.models import (
 )
 from app.nanoid import generate_nanoid
 from app.services.atomic_write import generating_file
+from app.services.diskpath import existing_or_409, name_taken, new_or_409, resolve_on_disk
 from app.services.heic import cleanup_heic_cache
 from app.services.markdown_images import project_markdown_thumbnail
 from app.services import inbox as inbox_service
@@ -147,7 +148,7 @@ def _ensure_empty_folder_tracked(db: Session, drive: str, folder_path: str) -> N
     if already_tracked:
         return
     drive_path = config.get_drive_path(drive)
-    full_path = drive_path / folder_path
+    full_path = resolve_on_disk(drive_path, folder_path)
     if full_path.exists() and full_path.is_dir():
         db.add(EmptyFolder(drive=drive, path=folder_path))
 
@@ -205,20 +206,20 @@ def _rename_thumbnail_owner(db: Session, owner: File, thumb_rel: str) -> None:
 
 def _resolve_copy_filename(target_dir: Path, original_filename: str) -> str:
     """Generate a unique filename for copy, adding _copy, _copy_2, etc. on collision."""
-    if not (target_dir / original_filename).exists():
+    if not name_taken(target_dir / original_filename):
         return original_filename
 
     stem = Path(original_filename).stem
     ext = Path(original_filename).suffix
 
     candidate = f"{stem}_copy{ext}"
-    if not (target_dir / candidate).exists():
+    if not name_taken(target_dir / candidate):
         return candidate
 
     counter = 2
     while counter <= 1000:
         candidate = f"{stem}_copy_{counter}{ext}"
-        if not (target_dir / candidate).exists():
+        if not name_taken(target_dir / candidate):
             return candidate
         counter += 1
     raise HTTPException(status_code=409, detail="Too many copies of this file exist")
@@ -236,11 +237,11 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
     src_drive_path = config.get_drive_path(src_drive)
     dst_drive_path = resolve_drive_path(dst_drive)
 
-    old_full = src_drive_path / source.file_path
+    old_full = existing_or_409(src_drive_path, source.file_path)
     if not old_full.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
 
-    target_dir = dst_drive_path / target_folder if target_folder else dst_drive_path
+    target_dir = existing_or_409(dst_drive_path, target_folder) if target_folder else dst_drive_path
     validate_within_drive(target_dir, dst_drive_path)
     target_dir.mkdir(parents=True, exist_ok=True)
 
@@ -397,12 +398,12 @@ def rename_file(db: Session, file_id: str, new_filename: str) -> File:
     old_filename = file.filename
     old_drive = file.drive
 
-    old_full = drive_path / file.file_path
+    old_full = existing_or_409(drive_path, file.file_path)
     new_rel = f"{file.folder_path}/{new_filename}" if file.folder_path else new_filename
-    new_full = drive_path / new_rel
+    new_full = new_or_409(drive_path, new_rel)
     validate_within_drive(new_full, drive_path)
 
-    if new_full.exists():
+    if name_taken(new_full):
         raise HTTPException(status_code=409, detail="File already exists")
     if not old_full.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
@@ -468,12 +469,12 @@ def move_file(db: Session, file_id: str, target_drive: str | None, target_folder
     src_drive_path = resolve_drive_path(src_drive)
     dst_drive_path = resolve_drive_path(dst_drive) if dst_drive != src_drive else src_drive_path
 
-    old_full = src_drive_path / file.file_path
+    old_full = existing_or_409(src_drive_path, file.file_path)
     new_rel = f"{target_folder}/{file.filename}" if target_folder else file.filename
-    new_full = dst_drive_path / new_rel
+    new_full = new_or_409(dst_drive_path, new_rel)
     validate_within_drive(new_full, dst_drive_path)
 
-    if new_full.exists():
+    if name_taken(new_full):
         raise HTTPException(status_code=409, detail="File already exists at target")
     if not old_full.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
@@ -625,16 +626,16 @@ def move_folder(drive: str, path: str, target_path: str, db: Session) -> dict:
         raise HTTPException(status_code=400, detail="Folder is already in this location")
 
     drive_path = resolve_drive_path(drive)
-    old_full = drive_path / path
+    old_full = existing_or_409(drive_path, path)
     validate_within_drive(old_full, drive_path)
 
     if not old_full.exists() or not old_full.is_dir():
         raise HTTPException(status_code=404, detail="Folder not found")
 
-    new_full = drive_path / new_path
+    new_full = new_or_409(drive_path, new_path)
     validate_within_drive(new_full, drive_path)
 
-    if new_full.exists():
+    if name_taken(new_full):
         raise HTTPException(status_code=409, detail="Target folder already exists")
 
     new_full.parent.mkdir(parents=True, exist_ok=True)
@@ -666,7 +667,7 @@ def move_folder(drive: str, path: str, target_path: str, db: Session) -> dict:
 def physical_delete(db: Session, file: File) -> None:
     """Remove file from filesystem, caches, and DB. Caller must commit."""
     drive_path = config.get_drive_path(file.drive)
-    full_path = drive_path / file.file_path
+    full_path = existing_or_409(drive_path, file.file_path)
 
     if full_path.exists():
         full_path.unlink()
@@ -716,7 +717,7 @@ def restore_file(db: Session, file_id: str) -> File:
         raise HTTPException(status_code=404, detail="File not found in trash")
 
     drive_path = config.get_drive_path(file.drive)
-    full_path = drive_path / file.file_path
+    full_path = existing_or_409(drive_path, file.file_path)
     if not full_path.exists():
         raise HTTPException(status_code=404, detail="File no longer exists on disk")
 
@@ -820,10 +821,10 @@ def create_folder(drive: str, parent_path: str, name: str, db: Session) -> dict:
     drive_path = resolve_drive_path(drive)
 
     folder_path = f"{parent_path}/{name}" if parent_path else name
-    full_path = drive_path / folder_path
+    full_path = new_or_409(drive_path, folder_path)
     validate_within_drive(full_path, drive_path)
 
-    if full_path.exists():
+    if name_taken(full_path):
         raise HTTPException(status_code=409, detail="Folder already exists")
 
     full_path.mkdir(parents=True)
@@ -842,7 +843,7 @@ def rename_folder(drive: str, path: str, new_name: str, db: Session) -> dict:
         raise HTTPException(status_code=400, detail="Cannot rename drive root")
 
     drive_path = resolve_drive_path(drive)
-    old_full = drive_path / path
+    old_full = existing_or_409(drive_path, path)
     validate_within_drive(old_full, drive_path)
 
     if not old_full.exists() or not old_full.is_dir():
@@ -850,10 +851,10 @@ def rename_folder(drive: str, path: str, new_name: str, db: Session) -> dict:
 
     parent = str(Path(path).parent)
     new_path = f"{parent}/{new_name}" if parent != "." else new_name
-    new_full = drive_path / new_path
+    new_full = new_or_409(drive_path, new_path)
     validate_within_drive(new_full, drive_path)
 
-    if new_full.exists():
+    if name_taken(new_full):
         raise HTTPException(status_code=409, detail="Target folder already exists")
 
     old_full.rename(new_full)
@@ -885,7 +886,7 @@ def delete_folder(drive: str, path: str, db: Session) -> bool:
         raise HTTPException(status_code=400, detail="Cannot delete drive root")
 
     drive_path = resolve_drive_path(drive)
-    full_path = drive_path / path
+    full_path = existing_or_409(drive_path, path)
     validate_within_drive(full_path, drive_path)
 
     if not full_path.exists() or not full_path.is_dir():
@@ -1000,7 +1001,9 @@ def _validate_no_duplicates(rename_plan: list[tuple[File, str]], drive_path: Pat
     for file, new_name in rename_plan:
         folder_key = unicodedata.normalize("NFC", file.folder_path or "")
         if folder_key not in held_by_folder:
-            folder_dir = drive_path / file.folder_path if file.folder_path else drive_path
+            folder_dir = (
+                existing_or_409(drive_path, file.folder_path) if file.folder_path else drive_path
+            )
             held_by_folder[folder_key] = (
                 {_fold_name(p.name) for p in folder_dir.iterdir() if p.is_file()}
                 if folder_dir.exists()
@@ -1063,11 +1066,11 @@ def batch_rename(
                 results.append({"id": file.id, "old_name": old_name, "new_name": new_name})
                 continue
 
-            old_full = drive_path / file.file_path
+            old_full = existing_or_409(drive_path, file.file_path)
             new_rel = (
                 f"{file.folder_path}/{new_name}" if file.folder_path else new_name
             )
-            new_full = drive_path / new_rel
+            new_full = new_or_409(drive_path, new_rel)
             validate_within_drive(new_full, drive_path)
 
             if not old_full.exists():
@@ -1103,7 +1106,7 @@ def _carry_batch_sidecars(
     by_new_path = {new: old for new, old in completed_fs}
     for file, _ in rename_plan:
         try:
-            new_full = resolve_drive_path(file.drive) / file.file_path
+            new_full = new_or_409(resolve_drive_path(file.drive), file.file_path)
             old_full = by_new_path.get(new_full)
             if old_full is not None:
                 _carry_sidecars(file, old_full, new_full)

@@ -13,6 +13,7 @@ import app.config as config
 from app.models import TRUST_UNVERIFIED, File, FileExif
 from app.nanoid import generate_nanoid
 from app.services.atomic_write import replacing_file
+from app.services.diskpath import name_taken, new_or_409, resolve_on_disk
 from app.services.chapters import probe_file_chapters
 from app.services.exif import extract_exif
 from app.services.filetype import (
@@ -117,7 +118,7 @@ def _check_disk_capacity(drive_path: Path, file_size: int) -> None:
 
 
 def _require_destination_folder(drive_path: Path, folder_path: str) -> None:
-    target = drive_path / folder_path if folder_path else drive_path
+    target = resolve_on_disk(drive_path, folder_path) if folder_path else drive_path
     validate_within_drive(target, drive_path)
     if not target.is_dir():
         raise HTTPException(status_code=404, detail="destination_folder_not_found")
@@ -145,10 +146,10 @@ def init_upload(
     _validate_upload_sizes(file_size, chunk_size)
 
     target_rel = f"{folder_path}/{filename}" if folder_path else filename
-    target_full = drive_path / target_rel
+    target_full = new_or_409(drive_path, target_rel)
     validate_within_drive(target_full, drive_path)
 
-    if target_full.exists():
+    if name_taken(target_full):
         raise HTTPException(status_code=409, detail="File already exists")
 
     _check_disk_capacity(drive_path, file_size)
@@ -243,7 +244,8 @@ def complete_upload(
         if session.folder_path
         else session.filename
     )
-    target_full = drive_path / target_rel
+    parent_full = new_or_409(drive_path, target_rel)
+    target_full = resolve_on_disk(parent_full.parent, parent_full.name)
 
     # Assembled beside the destination and renamed, not written into it. The
     # chunks live under `UPLOAD_DIR`, which may be another filesystem — that is
