@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "SearchQueryHeader.tsx:207-214 builds tagOptions from suggestValues with no hasQuote filter. Folders (line 225) and collections (line 253) are filtered with hasQuote. The spec (item 6, line 75, and lines 384-385) says folder, collection and tag names containing a quote are not offered by the menu. A tag with a quote can therefore be offered and written as an unparsable token. Under the personal-tool threat model it is a rare edge case."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "The claim is true. The frontend uses trim() (searchQuery.ts:131) and toLowerCase() (e.g. lines 204, 257), while the core uses Python strip() and lower(). The two differ for rare characters. Python strip removes \\x1c-\\x1f and JS trim does not. JS trim removes U+FEFF and Python strip does not. A few Unicode special-casing lowercase mappings also differ. It matters only for exotic collection names, so I rate it low and in practice bucket B. I did not read the backend file."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "The code matches the claim. searchQuery.ts:427 returns null only when the last token has an open quote. Line 429 still cuts at the last space, tab or ideographic space, ignoring the tokenizer. After a closed quoted value such as tag:\"x is:\", the tail is is:\" and PARTIAL (line 420) matches it with partial '\"'. Impact is very small. The partial always ends with the closing quote, so suggestValues finds essentially no match and shows no suggestions. The spec's wording only requires null while inside a quoted value. This is a latent inconsistency, not a visible wrong result."
+    }
+  ],
+  "specification_compliance": [
+    "Spec item 6 (quote-containing values not offered by the menu) is violated for tags (F1).",
+    "Spec item 7 (activeOperatorValue null inside an open quote) is met for the unterminated case."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "activeOperatorValue still splits on raw whitespace rather than on tokens, so it can disagree with the tokenizer after a closed quoted value."
+  ],
+  "test_coverage": [
+    "I did not inspect the tests. The reader's claim is that searchScopeOperators.test.ts covers only the unterminated-quote case for activeOperatorValue."
+  ],
+  "not_verified": [
+    "Backend normalize_collections, since I only read the frontend and the spec",
+    "Invariants I1-I4, I7, I10 and I14, and the e2e layout",
+    "Test contents and whether they pass",
+    "Addon file_matching.py"
+  ],
+  "confidence": 80
+}

@@ -6,24 +6,51 @@ import { useTranslations } from "next-intl";
 
 import { DismissScrim } from "@/components/DismissScrim";
 import { useMenuSurface } from "@/components/ToolbarMenu";
-import { getDriveTags } from "@/lib/api";
+import { getCollections, getDriveTags, getFolderTree } from "@/lib/api";
 import { useImeKeyGuard } from "@/lib/ime";
 import {
   FILE_KINDS,
+  closeOpenQuote,
+  formatOperatorToken,
   kindHolds,
   parseSearchQuery,
   resolveKinds,
   suggestValues,
 } from "@/lib/searchQuery";
-import type { FileKind, SortField, SortOrder } from "@/types";
+import type {
+  CollectionSummary,
+  FileKind,
+  FolderTreeNode,
+  SortField,
+  SortOrder,
+} from "@/types";
 
 import { SearchFilterChips } from "./SearchFilterChips";
 
-type Level = "closed" | "root" | "tag" | "kind";
+type Level = "closed" | "root" | "tag" | "kind" | "folder" | "collection";
 
 interface TagState {
   status: "loading" | "ready" | "failed";
   items: { name: string; count: number }[];
+}
+
+interface ListState<T> {
+  status: "loading" | "ready" | "failed";
+  items: T[];
+}
+
+const OPTION_LIMIT = 8;
+
+function fold(value: string): string {
+  return value.normalize("NFKC").toLowerCase();
+}
+
+function hasQuote(value: string): boolean {
+  return value.includes('"') || value.includes("＂");
+}
+
+function comparePaths(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
 }
 
 interface SearchQueryHeaderProps {
@@ -57,6 +84,16 @@ export function SearchQueryHeader({
   const [level, setLevel] = useState<Level>("closed");
   const [tagFilterText, setTagFilterText] = useState("");
   const [tags, setTags] = useState<TagState>({ status: "loading", items: [] });
+  const [folderFilterText, setFolderFilterText] = useState("");
+  const [folders, setFolders] = useState<ListState<FolderTreeNode>>({
+    status: "loading",
+    items: [],
+  });
+  const [collectionFilterText, setCollectionFilterText] = useState("");
+  const [collections, setCollections] = useState<ListState<CollectionSummary>>({
+    status: "loading",
+    items: [],
+  });
   const surface = useMenuSurface(level !== "closed", "start");
   const triggerRef = useRef<HTMLButtonElement>(null);
 
@@ -111,8 +148,28 @@ export function SearchQueryHeader({
     setLevel("kind");
   };
 
-  const choose = (token: string) => {
-    const next = text.trim() ? `${text.trim()} ${token}` : token;
+  const openFolders = () => {
+    setLevel("folder");
+    setFolderFilterText("");
+    setFolders({ status: "loading", items: [] });
+    getFolderTree(drive, { flat: true })
+      .then((items) => setFolders({ status: "ready", items }))
+      .catch(() => setFolders({ status: "failed", items: [] }));
+  };
+
+  const openCollections = () => {
+    setLevel("collection");
+    setCollectionFilterText("");
+    setCollections({ status: "loading", items: [] });
+    getCollections(drive)
+      .then((items) => setCollections({ status: "ready", items }))
+      .catch(() => setCollections({ status: "failed", items: [] }));
+  };
+
+  const choose = (operator: string, value: string) => {
+    const closed = closeOpenQuote(text);
+    const token = formatOperatorToken(operator, value);
+    const next = closed.trim() ? `${closed.trim()} ${token}` : token;
     closeMenu(false);
     setText(next);
     submit(next);
@@ -156,6 +213,58 @@ export function SearchQueryHeader({
     );
   }, [tags, tagFilterText, parsed.tags]);
 
+  const folderOptions = useMemo(() => {
+    if (folders.status !== "ready") return [];
+    const needle = fold(folderFilterText);
+    const used = new Set(parsed.folders);
+    return folders.items
+      .filter(
+        (node): node is Extract<FolderTreeNode, { kind: "folder" }> =>
+          node.kind === "folder",
+      )
+      .filter((node) => node.path !== "" && !used.has(node.path) && !hasQuote(node.path))
+      .map((node) => {
+        const path = fold(node.path);
+        const last = fold(node.path.split("/").at(-1) ?? "");
+        return {
+          node,
+          group: last.startsWith(needle) ? 0 : path.includes(needle) ? 1 : -1,
+          depth: node.path.split("/").length,
+        };
+      })
+      .filter(({ group }) => group >= 0)
+      .sort(
+        (a, b) =>
+          a.group - b.group ||
+          a.depth - b.depth ||
+          comparePaths(a.node.path, b.node.path),
+      )
+      .slice(0, OPTION_LIMIT)
+      .map(({ node }) => node);
+  }, [folders, folderFilterText, parsed.folders]);
+
+  const collectionOptions = useMemo(() => {
+    if (collections.status !== "ready") return [];
+    const needle = fold(collectionFilterText);
+    const used = new Set(parsed.collections.map((name) => name.toLowerCase()));
+    return collections.items
+      .filter(
+        (collection) =>
+          !used.has(collection.name.toLowerCase()) && !hasQuote(collection.name),
+      )
+      .map((collection) => {
+        const name = fold(collection.name);
+        return {
+          collection,
+          group: name.startsWith(needle) ? 0 : name.includes(needle) ? 1 : -1,
+        };
+      })
+      .filter(({ group }) => group >= 0)
+      .sort((a, b) => a.group - b.group)
+      .slice(0, OPTION_LIMIT)
+      .map(({ collection }) => collection);
+  }, [collections, collectionFilterText, parsed.collections]);
+
   function handleMenuKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
     if (e.key === "Escape") {
       e.preventDefault();
@@ -189,6 +298,11 @@ export function SearchQueryHeader({
 
   const rootItemClass =
     "flex w-full items-center px-3 py-2 text-left text-sm text-text-primary transition-colors hover:bg-bg-elevated disabled:opacity-50 disabled:hover:bg-transparent";
+  const backItemClass =
+    "flex w-full items-center px-3 py-2 text-left text-sm text-text-muted hover:bg-bg-elevated hover:text-text-primary";
+  const filterInputClass =
+    "mx-2 my-1 w-[calc(100%-1rem)] rounded-lg border border-bg-border bg-bg-card px-2 py-1 text-sm text-text-primary outline-none focus:ring-2 focus:ring-[var(--focus-ring)]";
+  const stateRowClass = "flex items-center gap-2 px-3 py-2 text-sm text-text-muted";
 
   return (
     <div className="min-w-0">
@@ -268,9 +382,27 @@ export function SearchQueryHeader({
                       <button
                         type="button"
                         role="menuitem"
-                        disabled={parsed.favorite}
                         className={rootItemClass}
-                        onClick={() => choose("is:favorite")}
+                        disabled={parsed.folders.length >= 10}
+                        onClick={openFolders}
+                      >
+                        {t("filterPath")}
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className={rootItemClass}
+                        disabled={parsed.collections.length >= 10}
+                        onClick={openCollections}
+                      >
+                        {t("filterCollection")}
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className={rootItemClass}
+                        disabled={parsed.favorite}
+                        onClick={() => choose("is", "favorite")}
                       >
                         {t("filterFavorite")}
                       </button>
@@ -282,7 +414,7 @@ export function SearchQueryHeader({
                       <button
                         type="button"
                         onClick={() => setLevel("root")}
-                        className="flex w-full items-center px-3 py-2 text-left text-sm text-text-muted hover:bg-bg-elevated hover:text-text-primary"
+                        className={backItemClass}
                       >
                         ← {t("filterBack")}
                       </button>
@@ -292,21 +424,19 @@ export function SearchQueryHeader({
                         aria-label={t("filterTagSearch")}
                         onChange={(e) => setTagFilterText(e.target.value)}
                         placeholder={t("filterTagSearch")}
-                        className="mx-2 my-1 w-[calc(100%-1rem)] rounded-lg border border-bg-border bg-bg-card px-2 py-1 text-sm text-text-primary outline-none focus:ring-2 focus:ring-[var(--focus-ring)]"
+                        className={filterInputClass}
                       />
                       {tags.status === "loading" && (
-                        <div className="flex items-center gap-2 px-3 py-2 text-sm text-text-muted">
+                        <div className={stateRowClass}>
                           <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-accent border-t-transparent" />
                           {t("filterTagsLoading")}
                         </div>
                       )}
                       {tags.status === "failed" && (
-                        <div className="px-3 py-2 text-sm text-text-muted">
-                          {t("filterTagsFailed")}
-                        </div>
+                        <div className={stateRowClass}>{t("filterTagsFailed")}</div>
                       )}
                       {tags.status === "ready" && tagOptions.length === 0 && (
-                        <div className="px-3 py-2 text-sm text-text-muted">
+                        <div className={stateRowClass}>
                           {tags.items.length === 0
                             ? t("filterTagsNone")
                             : t("filterTagsNoMatch")}
@@ -319,9 +449,113 @@ export function SearchQueryHeader({
                             type="button"
                             role="menuitem"
                             className={rootItemClass}
-                            onClick={() => choose(`tag:${option.value}`)}
+                            onClick={() => choose("tag", option.value)}
                           >
                             {option.value}
+                          </button>
+                        ))}
+                    </>
+                  )}
+
+                  {level === "folder" && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setLevel("root")}
+                        className={backItemClass}
+                      >
+                        ← {t("filterBack")}
+                      </button>
+                      <input
+                        type="text"
+                        value={folderFilterText}
+                        aria-label={t("filterFolderSearch")}
+                        onChange={(e) => setFolderFilterText(e.target.value)}
+                        placeholder={t("filterFolderSearch")}
+                        className={filterInputClass}
+                      />
+                      {folders.status === "loading" && (
+                        <div className={stateRowClass}>
+                          <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+                          {t("filterFoldersLoading")}
+                        </div>
+                      )}
+                      {folders.status === "failed" && (
+                        <div className={stateRowClass}>{t("filterFoldersFailed")}</div>
+                      )}
+                      {folders.status === "ready" && folderOptions.length === 0 && (
+                        <div className={stateRowClass}>
+                          {folders.items.length === 0
+                            ? t("filterFoldersNone")
+                            : t("filterFoldersNoMatch")}
+                        </div>
+                      )}
+                      {folders.status === "ready" &&
+                        folderOptions.map((node) => (
+                          <button
+                            key={node.path}
+                            type="button"
+                            role="menuitem"
+                            className={`${rootItemClass} min-w-0 gap-2`}
+                            onClick={() => choose("path", node.path)}
+                          >
+                            <span className="truncate">
+                              {node.path.split("/").at(-1)}
+                            </span>
+                            <span className="min-w-0 truncate text-xs text-text-muted">
+                              {node.path}
+                            </span>
+                          </button>
+                        ))}
+                    </>
+                  )}
+
+                  {level === "collection" && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setLevel("root")}
+                        className={backItemClass}
+                      >
+                        ← {t("filterBack")}
+                      </button>
+                      <input
+                        type="text"
+                        value={collectionFilterText}
+                        aria-label={t("filterCollectionSearch")}
+                        onChange={(e) => setCollectionFilterText(e.target.value)}
+                        placeholder={t("filterCollectionSearch")}
+                        className={filterInputClass}
+                      />
+                      {collections.status === "loading" && (
+                        <div className={stateRowClass}>
+                          <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+                          {t("filterCollectionsLoading")}
+                        </div>
+                      )}
+                      {collections.status === "failed" && (
+                        <div className={stateRowClass}>
+                          {t("filterCollectionsFailed")}
+                        </div>
+                      )}
+                      {collections.status === "ready" &&
+                        collectionOptions.length === 0 && (
+                          <div className={stateRowClass}>
+                            {collections.items.length === 0
+                              ? t("filterCollectionsNone")
+                              : t("filterCollectionsNoMatch")}
+                          </div>
+                        )}
+                      {collections.status === "ready" &&
+                        collectionOptions.map((collection) => (
+                          <button
+                            key={collection.id}
+                            type="button"
+                            role="menuitem"
+                            className={`${rootItemClass} min-w-0`}
+                            onClick={() => choose("in", collection.name)}
+                          >
+                            <span className="truncate">{collection.name}</span>
                           </button>
                         ))}
                     </>
@@ -334,7 +568,7 @@ export function SearchQueryHeader({
                         type="button"
                         role="menuitem"
                         className={rootItemClass}
-                        onClick={() => choose(`type:${kind}`)}
+                        onClick={() => choose("type", kind)}
                       >
                         {tFilter(`type.${kind}`)}
                       </button>

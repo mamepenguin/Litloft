@@ -29,6 +29,8 @@ describe("parseSearchQuery", () => {
       types: [],
       favorite: false,
       liked: false,
+      folders: [],
+      collections: [],
       hasOperators: false,
     });
   });
