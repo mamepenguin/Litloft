@@ -44,7 +44,9 @@ Terms. *Image query*: one image the viewer gave the search. *Query id*: 12 lower
 characters from `crypto.getRandomValues` (the app is served over plain HTTP on the LAN,
 where `crypto.randomUUID` does not exist). *Image store*: a module-level, in-memory map in
 the browser tab from query id to `{ blob, objectUrl, answer | null }`, holding at most 5
-entries; adding a sixth drops the least recently used and revokes its object URL. *Read
+entries; adding a sixth drops the least recently used and revokes its object URL. An
+entry counts as used when it is created and each time the image query view is entered
+for its id, so the image the viewer is looking at is never the one dropped. *Read
 text*: the OCR engine's recognised lines joined with `\n`. *Read length*: the number of
 non-whitespace characters in the read text.
 
@@ -54,27 +56,35 @@ SPEC-CORE-046, giving an image:
    feature through, and `/api/addons/status` does not report that feature (it filters
    addons on `index`). So the frontend asks the route's own gate: `GET
    /api/addons/intelligence/search/by-image/available` with `X-Lit-Drive` (addon step
-   9a). *Image search is available* for a drive exactly when that request answered 200.
+   9a). *Image search is available* for a drive exactly when that request answered 200
+   and its body is not `{available: false}` (the proxy answers 200 `{available: false}`
+   when the addon call raises).
    It is asked once per drive per page load and the answer is kept in module memory for
-   that drive. While the answer is pending, failed or not 200, image search is
-   unavailable, and the modal and the results page behave exactly as before this change:
+   that drive. While the answer is pending, failed, not 200, or `{available: false}`,
+   image search is unavailable, and the modal and the results page behave exactly as
+   before this change:
    - no image button or pill is rendered;
    - a paste is left to today's handling (text inserts as today; an image-only paste
      inserts nothing);
    - the modal registers no drop handler;
    - every drop on the results page goes to the upload zone as today.
-1. **Modal.** While the modal has a drive (`drive` set) and image search is available for
-   it, it accepts an image in three ways:
+1. **Modal.** While the modal has a drive (`drive` set), image search is available for
+   it, and the modal is neither scoped (a scope chip is shown) nor browsing a folder (the
+   browse chip is shown) (pending human confirmation), it accepts an image in three ways;
+   while scoped or browsing it behaves as when image search is unavailable (step 0):
    - Paste in the modal's input: when the paste's `clipboardData` holds a file whose type
      starts with `image/` and holds no non-blank `text/plain`, the image is taken and the
      paste inserts no text. When it also holds non-blank `text/plain` (copying text from an
      office app puts a picture of it on the clipboard too), the paste inserts the text as
-     today and the image is ignored.
+     today and the image is ignored. A paste with no non-blank text and more than one
+     image file starts nothing and shows 「画像は1枚だけ選んでください」 where the size
+     message goes (pending human confirmation).
    - Drop on the modal panel (desktop) or sheet (phone). The modal's drop handler calls
      `preventDefault` and `stopPropagation` on every `dragenter`, `dragover` and `drop`
      inside it, so no drop on the modal reaches an upload zone or the browser's default.
      The drag is classified as in step 2; a drop classified *one image* starts an image
-     query, and any other drop on the modal does nothing.
+     query; a drop of several files shows 「画像は1枚だけ選んでください」 (pending human
+     confirmation); any other drop on the modal does nothing.
    - The image button in the input row (desktop: a 32 px icon button named 「画像で探す」;
      phone: a labelled pill 「画像で探す」 in the row under the input, before the operator
      chips), which opens `<input type="file" accept="image/*">`.
@@ -82,17 +92,25 @@ SPEC-CORE-046, giving an image:
    and navigates with `router.push` to `/drive/<drive>/search?img=<id>` with no other
    parameter (no `q`, `type`, `sort`, `order`, `show`, `smart_folder_id` or
    `include_scene_clip`). The text the input held is dropped, and nothing is added to the
-   search history. When step 3 refuses the file, the modal stays open and the size message
-   appears in one muted line under the input row (`role="alert"`); it clears on the next
-   image given, the next edit of the input, or closing the modal.
+   search history.
+   *Preparation*: from the moment an image is given until the navigation, the modal stays
+   open, the image button (desktop) or pill (phone) shows a 16 px spinner in place of its
+   icon with `aria-busy="true"`, and the input stays editable. Only the latest image is
+   prepared: a later image given, closing the modal, or Enter on text (a text search as
+   today) cancels the pending one, which then neither navigates nor enters the store.
+   When step 3 refuses the file, the modal stays open and the size message appears in one
+   muted line under the input row (`role="alert"`); it clears on the next image given, the
+   next edit of the input, or closing the modal.
 2. **Results page with a text query (`FolderBrowser`).** While image search is available
    for the drive, the same three ways:
    - Paste while focus is in the query field, as in 1.
-   - Drop on the page. `FolderBrowser` renders the page's `UploadZone`. `search/page.tsx`
-     passes `FolderBrowser` an `onImageQuery(file)` callback only while image search is
-     available, and `FolderBrowser` passes it on to `UploadZone` as a new optional prop.
-     Without the prop (every other page, and the search page while image search is
-     unavailable) `UploadZone` behaves exactly as today.
+   - Drop on the page. `FolderBrowser` renders the page's `UploadZone` and the header's
+     `SearchQueryHeader`. `search/page.tsx` passes `FolderBrowser` an
+     `onImageQuery(file)` callback only while image search is available, and
+     `FolderBrowser` passes it on to both: to `UploadZone` as a new optional prop (the
+     drop) and to `SearchQueryHeader` (the image button and the field's paste). Without
+     the prop (every other page, and the search page while image search is unavailable)
+     both behave exactly as today.
      *Classification*: on the first `dragenter`, the drag is classified once from
      `dataTransfer.items` and the class is kept until the drag leaves or drops: *one
      image* when there is exactly one item, of kind `file`, whose reported type starts
@@ -106,8 +124,10 @@ SPEC-CORE-046, giving an image:
    - The image button at the field's trailing edge (desktop: 32 px icon button named
      「画像で探す」; phone: a labelled pill 「画像で探す」 in the row under the field).
    Each navigates with `router.push` to `/drive/<drive>/search?img=<new id>` with no other
-   parameter. A refused file (step 3) shows the size message in one muted line under the
-   field (`role="alert"`), cleared by the next image given or the next edit of the field.
+   parameter. Preparation is as in step 1, on the field's image button or pill: a later
+   image or Enter on text cancels the pending image. A refused file (step 3) shows the
+   size message in one muted line under the field (`role="alert"`), cleared by the next
+   image given or the next edit of the field.
 3. **Before sending.** The limit is 20,971,520 bytes (20 × 1024 × 1024), the number the
    addon enforces (step 9). A file of at most that many bytes is sent byte for byte, so a
    screenshot keeps the resolution its small text needs. A larger file is decoded with
@@ -115,7 +135,10 @@ SPEC-CORE-046, giving an image:
    most 4096 px; a phone photo of 48 MP saved as JPEG is the case this is for. If the
    browser cannot decode it (HEIC in a browser without HEIC support), or the re-encoded
    bytes still exceed the limit, the file is refused with the size message (8): nothing is
-   sent and nothing navigates.
+   sent and nothing navigates. A file whose type is empty or not one of the seven types the
+   addon accepts (step 9; for example AVIF, TIFF) is decoded with `createImageBitmap` and
+   re-encoded as JPEG the same way whatever its size; if the browser cannot decode it,
+   it is refused with 「この画像は読み込めませんでした」 (pending human confirmation).
 
 SPEC-CORE-046, the results page with `img`:
 
@@ -136,6 +159,18 @@ SPEC-CORE-046, the results page with `img`:
    overlay, sets `dropEffect` to `none`, calls `preventDefault` so the browser does not
    open the file, and does nothing on drop (pending human confirmation: no upload is
    offered on this view). Paste in the field and the image button work as in step 2.
+   All three are gated on availability (step 0) like the other entry points: while image
+   search is unavailable for the drive, the view renders no image button, leaves paste to
+   today's handling, and its drop handler only calls `preventDefault` (the browser does not
+   open the file) and shows no overlay. The *gone* state then shows
+   「このドライブでは画像で探せません」 with no button instead of 「画像をもう一度選んでください」;
+   while availability is still pending it shows the gone message without the button.
+   *Overlay*, on the text-query page and on this view alike (§Search passage rows' rule of
+   no accent fill): a full-viewport `fixed inset-0 z-50` layer of `bg-bg-primary/75` with
+   `backdrop-blur-sm`, holding a centred box `rounded-2xl border-2 border-dashed
+   border-warm-silver bg-bg-card/90 px-12 py-10` with a 48 px lucide `ImagePlus` in
+   `text-text-muted` above 「ドロップして画像で探す」 (`text-lg font-medium
+   text-text-primary`). The upload overlay keeps its current look.
 7. **The request and its life.** Each image store entry carries a *state*: `pending`
    (never sent, or its request was aborted), `loading`, `answered` (with the answer) or
    `failed` (with the HTTP status or `network`).
@@ -165,32 +200,55 @@ SPEC-CORE-046, the results page with `img`:
 
 SPEC-ADDON-049, `POST /search/by-image`:
 
-9. The route reads `X-Lit-Drive` through `require_drive`. It accepts a `Content-Type`
-   (parameters ignored) of `image/jpeg`, `image/png`, `image/webp`, `image/gif`,
-   `image/bmp`, `image/heic` or `image/heif`; any other is 415. It reads the body as a
+9. The route reads `X-Lit-Drive` through `require_drive`. Before it reads any of the
+   body, it checks the `Content-Type` (parameters ignored): `image/jpeg`, `image/png`,
+   `image/webp`, `image/gif`, `image/bmp`, `image/heic` or `image/heif`; any other is 415.
+   It then waits for the image query semaphore (11). Holding it, it reads the body as a
    stream and answers 413 as soon as more than 20,971,520 bytes (20 × 1024 × 1024) have
-   arrived. The body is never written to disk.
+   arrived. The body is held in memory only; nothing of the request is written to any
+   file, temporary files included (Starlette's `request.stream()` does not spool, and the
+   decode reads from a `BytesIO`).
    9a. `GET /search/by-image/available` reads `X-Lit-Drive` and answers 200 `{}`. It does
    nothing else; its manifest entry carries the same `pre_check` as the POST route
    (step 14), so the proxy answers it exactly when it would let the POST through.
-10. It decodes the bytes in memory with Pillow (HEIC and HEIF through `pillow_heif`, which
-    the OCR worker already registers), checks `width × height` against 50,000,000 before
+10. It decodes the bytes in memory with Pillow. HEIC and HEIF need `pillow_heif`'s opener,
+    which the OCR worker registers only inside its own `_load_picture`; the new module
+    `app/image_query.py` registers it itself (`pillow_heif.register_heif_opener()`, once,
+    at import) so the route decodes HEIC whether or not OCR indexing has run. It checks `width × height` against 50,000,000 before
     loading the pixels (413 above it), applies the EXIF orientation, takes the first frame
     of an animated image, and converts to RGB with transparency flattened onto white (the
     OCR worker's `_to_rgb`). Undecodable bytes are 422.
-11. At most one image query runs at a time in the process (an `asyncio.Semaphore(1)`); a
-    second waits, and its wait counts toward the timeouts (10).
+11. **One at a time.** An `asyncio.Semaphore(1)` per process covers everything after the
+    `Content-Type` check: reading the body, the decode, the embedding, both parts and the
+    hydration. So at most one body (20 MB) and one decoded image (at most 50 MP, about
+    150 MB as RGB) are in memory for image queries at any time; a second request waits
+    with its body unread. The wait counts toward the proxy's 28 s (14).
+    **Disconnects.** The browser aborting does not reach the addon: the core proxy keeps
+    its upstream request open until the addon answers. The core proxy's own 28 s timeout
+    does: httpx closes the connection. So right after acquiring the semaphore, and again
+    after the embedding, the route checks `await request.is_disconnected()`; when true it
+    releases the semaphore and returns without reading further, running nothing more and
+    logging one INFO line `image query skipped: client gone`. A request already inside a
+    part runs that part to its end.
 12. Order of work, after the decode:
     1. `clip.embed_image(image)` on a worker thread gives one L2-normalised SigLIP vector.
        If it raises, the route answers 503 `Embedding unavailable`; nothing else has run
        (no OCR, no KNN, no hydration).
-    2. Then two parts run concurrently on worker threads:
+    2. Then two parts run concurrently on worker threads. A failure is handled per part:
+       an exception in the images or the scenes ranking fails the whole request with 500
+       `Search failed` (the visual groups are the answer's core, and a half answer would
+       read as "nothing similar"); an exception anywhere in the text part (OCR, the text
+       embedding, the documents KNN or its grouping) sets `text.status = "failed"` and
+       leaves `documents` empty, and the visual groups answer as usual.
     - **Visual part**, on the vector:
       - *Images*: `search_images(vector, file_type="image", drive=drive, floor=F, limit=24)`,
         where `floor` and `limit` are new keyword arguments of `search_images` whose
         defaults are today's values (`min_score_clip_thumbnail`, `_IMAGE_SEARCH_LIMIT`), so
         every existing caller is unchanged. `F` is `search.min_score_image_query`, a new
-        setting, default 0.70 (pending human confirmation; see 10).
+        setting, default 0.70 (pending human confirmation; see 10). An `ImageHit.score` is
+        the cosine similarity (`_l2_to_cosine_similarity` of the L2 distance) between the
+        query vector and the file's `clip_thumbnail` vector, unrounded when compared with
+        the floor and rounded to 4 places on the wire.
       - *Scenes*: when `scene_segments.count_frames(drive)` is not 0,
         `find_segments(vector, "", drive, 20, frames, floor=F)`, where `floor` is a new
         keyword argument, default `None` (today's behaviour), that drops every seed scoring
@@ -198,11 +256,20 @@ SPEC-ADDON-049, `POST /search/by-image`:
         `floor` set, `partial` is true exactly when the KNN returned all
         `_CLIP_DRIVE_FETCH_MAX` (4096) rows and its last row scored at or above `floor`,
         that is, when frames of this drive above the floor may lie beyond the global
-        cap; the answer carries it as `scenes_partial` (pending human confirmation).
+        cap; the answer carries it as `scenes_partial` (pending human confirmation). A
+        `SceneHit.score` is the segment's peak frame's cosine similarity, compared with
+        the floor unrounded and rounded to 4 places on the wire, as `find_segments`
+        already rounds it. This is one KNN fetch of 4096 rows (`_seeds`), as today.
     - **Text part**, on the decoded image. Skipped, with `text.status = "off"`, when
       `features.image_ocr` is `"false"` (pending human confirmation). Otherwise the OCR
       engine (`ocr._get_engine()`, the process's shared engine, created on demand and
-      released by the existing idle release) reads the image. With no engine, `text.status
+      released by the existing idle release) reads the image. The engine object is shared
+      with OCR indexing, and nothing shows that RapidOCR's wrapper is safe to call from two
+      threads at once, so `ocr.py` gains a `run_engine(engine, image, timeout)` that holds
+      a new `threading.Lock` around `engine(image)`; indexing calls it with no timeout,
+      this route with 10 s. The route therefore waits for at most the picture the indexer
+      is reading (0.5–1.6 s measured) and gives up after 10 s with `text.status =
+      "failed"`; the wait counts toward the 28 s. With no engine, `text.status
       = "failed"`. With a read length under 20 (pending human confirmation; see 10),
       `text.status = "too_short"` and no text search runs. Otherwise `text.status =
       "read"` and the documents group is ranked:
@@ -264,11 +331,15 @@ SPEC-CORE-046, the result groups:
 16. The groups render in this order: **同じ文字を含む文書** first when it has at least one
     hit, then **似ている画像**, then **似ている場面**; with no document hit, 画像 then 場面
     (pending human confirmation). A group with no hit is not rendered, with two
-    exceptions: when `text.status` is `failed`, the documents slot shows its heading and
-    the muted line 「画像の文字を読み取れませんでした」; when `scenes_partial` is true, the
-    scenes slot shows its heading even with no hit.
-17. Each group has an `<h2>` heading with its count after it in `text-text-muted`: 「同じ文字を
-    含む文書 3」, 「似ている画像 12」, 「似ている場面 8」.
+    exceptions, each a *slot without hits*: when `text.status` is `failed`, the documents
+    slot shows its heading and the muted line 「画像の文字を読み取れませんでした」; when
+    `scenes_partial` is true, the scenes slot shows its heading and the partial line (17).
+    A documents slot without hits sits last, after images and scenes (the "documents
+    first" rule needs a hit); a scenes slot without hits sits in the scenes position.
+17. Each group has an `<h2>` heading. A group with hits has its count after the heading in
+    `text-text-muted`: documents count files, images count pictures, scenes count
+    segments (「同じ文字を含む文書 3」, 「似ている画像 12」, 「似ている場面 8」). A slot without
+    hits shows the heading with no number.
     - **Documents**: under the heading, the read text's `excerpt` in one muted line,
       truncated with the full excerpt in `title`, in 「」. Then one block per file: its
       passages as A3 passage rows (the 88 × 50 picture is the file's thumbnail, else the
@@ -285,8 +356,10 @@ SPEC-CORE-046, the result groups:
       thumbnail, then the icon. When `scenes_partial` is true, a muted line under the
       heading reads Scene candidates' existing sentence 「このドライブのシーンを見逃している
       可能性があります」 (pending human confirmation).
-18. The scope line (A2's count position) reads 「文書 N・画像 M・場面 K」 counting the
-    rendered groups only, in the rendered order; it is hidden while loading and failed.
+18. The scope line (A2's count position) lists the groups that have hits, in the rendered
+    order, each with the count of 17: 「文書 2・画像 8・場面 3」. Slots without hits are not
+    in it. With no group with hits (the empty state, or only slots without hits) it reads
+    「0 件」. It is hidden while loading, failed and gone.
 19. Nothing of an image query is written to the search history (`searchHistory.ts`), the
     modal's search cache (`searchCache.ts`), `localStorage`, `sessionStorage` or
     IndexedDB, and no Smart Folder can be saved from it.
@@ -319,6 +392,13 @@ SPEC-CORE-046, the result groups:
 - **The OCR engine is missing** (`_get_engine()` returns None) **or raises on this
   image**, or **the text embedding fails**: `text.status = "failed"`; the visual groups
   still answer.
+- **The images or scenes ranking raises**: 500 `Search failed`; the failed state with
+  再試行. **The documents ranking raises**: `text.status = "failed"`; the documents slot
+  without hits and its line; the other groups as usual.
+- **The OCR engine is busy with indexing for more than 10 s**: `text.status = "failed"`.
+- **The viewer leaves while the request waits for the semaphore**: the browser aborts, but
+  the addon still runs the request when its turn comes, unless the core proxy's 28 s
+  timeout closed the connection first, in which case the route skips it (11).
 - **Hydration fails**: hits keep `file` null and render with `filename` and the
   `/api/files/{id}/thumbnail` fallback, as A3's rows do.
 - **The drive has no scene frames**: no scene group, no KNN, `scenes_partial` false.
@@ -425,7 +505,9 @@ Viewer-facing strings (ja / en, in `messages-core`):
 | 500, 502, 503, network, `{available: false}` | 「画像で探せませんでした」 / "Couldn't search by this image" | 「再試行」 |
 | Gone | 「画像をもう一度選んでください」 / "Choose the image again" | the image button, and the view accepts paste and drop |
 | Empty | `EmptyState` `no-results` with 「似ているものは見つかりませんでした」 / "Nothing similar was found" | none |
-| OCR failed (in the documents slot) | 「画像の文字を読み取れませんでした」 / "Couldn't read the text in this image" | none |
+| Text part failed (`text.status` `failed`; in the documents slot) | 「画像の文字を読み取れませんでした」 / "Couldn't read the text in this image" | none |
+| Several images (paste or modal drop) | 「画像は1枚だけ選んでください」 / "Choose one image" | none |
+| Unavailable, in the gone state | 「このドライブでは画像で探せません」 | none |
 
 The failure messages are `role="alert"`. The size message before sending sits under the
 modal's input row or the results page's field, as steps 1 and 2 say, and clears as they
@@ -482,6 +564,9 @@ Layout (mockup `a4-design/index.html`; `DESIGN.md` values):
   `docs/addons/intelligence.md`: `POST /search/by-image` (body, types, limits, answer)
   and `GET /search/by-image/available`,
   `search.min_score_image_query`, `memory.clip_image_idle_unload`.
+  `docs/reference/configuration.md`: the `memory` row names the image model's idle
+  release, and `features.image_ocr` says it also decides whether a searched image is
+  read.
 - `DESIGN.md` §6 gains a short "Image query chip" entry beside §Page Header's search-field
   rule (pending human confirmation).
 
@@ -531,14 +616,16 @@ Layout (mockup `a4-design/index.html`; `DESIGN.md` values):
   holds it in tab memory only. The answer carries at most 200 characters of the read text
   back to the viewer who gave the image.
 - **Cost**: per request one image embedding, at most one OCR pass, at most one text
-  embedding, the existing exact `clip_thumbnail` scan of the drive, at most four scene KNN
-  and four text KNN fetches of up to 4096 rows.
+  embedding, the existing exact `clip_thumbnail` scan of the drive, one scene KNN fetch of
+  4096 rows, and at most four text KNN fetches of up to 4096 rows.
 
 ## Touch points
 
 Addon (`addons/intelligence`, its own PR, then the pointer bump):
-- `app/routers/search.py`: `POST /search/by-image` (body cap, type check, decode, the
-  semaphore, both parts, the answer).
+- `app/routers/search.py`: `POST /search/by-image` and `GET /search/by-image/available`.
+- `app/image_query.py` (new): the HEIF opener registration at import, the semaphore, the
+  disconnect checks, the body cap, the decode, the order of work and per-part failure
+  handling, the answer.
 - `app/schemas.py`: `ImageQueryResponse`, `ImageHit`, `SceneHit`, `DocumentHit`,
   `ImageQueryText`.
 - `app/search.py`: `search_images` gains `floor` and `limit`; the drive-scoped widened KNN
@@ -547,17 +634,26 @@ Addon (`addons/intelligence`, its own PR, then the pointer bump):
 - `app/scene_segments.py`: `find_segments` gains `floor`.
 - `app/workers/clip.py`: the in-flight count in `embed_image`, `unload_full_model`,
   `check_idle_unload`.
-- `app/workers/ocr.py`: called (`_get_engine`, `_to_rgb`), not changed.
+- `app/workers/ocr.py`: `run_engine` with a lock around `engine(image)` and an optional
+  timeout; `index_ocr` calls it in place of `engine(image)`. `_get_engine` and `_to_rgb`
+  are called, not changed.
 - `app/workers/embedder.py`: `embed_texts` called with the query prefix, not changed.
 - `app/indexer.py`: `_idle_unload_worker` calls `clip.check_idle_unload`.
 - `app/config.py`: `SearchConfig.min_score_image_query`,
   `MemoryConfig.clip_image_idle_unload`; `search-config.yml.example`.
 - `manifest.json`: both routes (step 14).
-- `tests/`: route limits (415, 413 by bytes and by pixels, 422), the answer shape, drive
-  scoping of all three groups, the floors, `features.image_ocr = "false"`, the read-length
-  gate, no write to any table, no log of the read text, the idle release and its in-flight
-  guard, `search_images` and `find_segments` unchanged without the new arguments.
-- `docs/addons/intelligence.md` (in the core repository).
+- `tests/`: route limits (415 before the body is read, 413 by bytes and by pixels, 422),
+  HEIC decoding without OCR having run, the answer shape and scores, drive scoping of all
+  three groups, the floors, `scenes_partial`, `features.image_ocr = "false"`, the
+  read-length gate, per-part failures (500 for the visual part, `failed` for the text
+  part), the semaphore (one body and one decode at a time) and the disconnect skip, the
+  OCR lock's 10 s give-up, no write to any table or file, no log of the read text, no LRU
+  cache entry, the idle release and its in-flight guard, `search_images` and
+  `find_segments` unchanged without the new arguments, and a manifest check that both
+  routes carry the same `pre_check`.
+- `docs/addons/intelligence.md` and `docs/reference/configuration.md` (in the core
+  repository; the latter's `memory` row gains the image model, and its
+  `features.image_ocr` section says the setting also governs reading a searched image).
 - The gitlink bump of `addons/intelligence` in the core repository.
 
 Core:
@@ -574,19 +670,17 @@ Core:
 - `frontend/src/components/GlobalSearch.tsx`: the image button, paste, drop on the panel
   and sheet, the navigation.
 - `frontend/src/app/drive/[name]/search/page.tsx`: `img` selects the image query view.
-- `frontend/src/components/UploadZone.tsx`: on the search results page, a drag of exactly
-  one image shows the search overlay and is handed to image search; everything else as
-  today.
 - `frontend/src/components/FolderBrowser.tsx`: passes `onImageQuery` from the page to its
-  `UploadZone`.
+  `UploadZone` (the drop) and to its `SearchQueryHeader` (the image button and paste).
 - `frontend/src/components/UploadZone.tsx`: the optional `onImageQuery` prop, the
-  drag-time classification and the overlay text; without the prop, unchanged.
+  drag-time classification and the one-image overlay; without the prop, unchanged.
 - `frontend/src/lib/imageQuery.ts` also holds the per-drive availability answer (step 0).
 - `frontend/src/messages-core/ja.json`, `en.json`.
 - Frontend tests beside the existing search tests; a `frontend/e2e-layout/` fixture of the
   image query view and the modal's phone row at 390 px and at desktop width.
-- `docs/user-guide/search.md`, `docs/user-guide/keyboard-shortcuts.md`, `DESIGN.md` §6
-  (pending human confirmation).
+- `docs/user-guide/search.md`, `docs/user-guide/keyboard-shortcuts.md`,
+  `docs/reference/configuration.md` (see the addon list), `DESIGN.md` §6 (pending human
+  confirmation).
 
 Rules passed through: `.claude/rules/design-decisions.md` (the drive boundary; the addon
 reads `X-Lit-Drive` and does not validate it; the proxy's two-layer policy; SPA navigation
@@ -600,18 +694,19 @@ existing behaviour that must not change (I7, I8).
 
 ## Invariants
 
-I1. `POST /search/by-image` answers 415 for a `Content-Type` outside the seven image types, 413 once the body passes 20,971,520 bytes or the image passes 50,000,000 pixels, 422 for bytes Pillow cannot decode, and 503 when `embed_image` fails; in none of these cases does it run OCR, a KNN or hydration.
-I2. Nothing of an image query is kept: a request writes no row to any table of the addon's database, no file under its data directory, and no log line containing the read text or the image's bytes; it adds no entry to `embed_query`'s or `embed_text_clip`'s LRU cache; in the browser no image, id, read text or answer is written to the search history, the search cache, `localStorage`, `sessionStorage` or IndexedDB, and the image store never holds more than 5 entries.
+I1. `POST /search/by-image` answers 415 for a `Content-Type` outside the seven image types before reading the body, 413 once the body passes 20,971,520 bytes or the image passes 50,000,000 pixels, 422 for bytes Pillow cannot decode, and 503 when `embed_image` fails, and in none of these cases runs OCR, a KNN or hydration; an exception in the images or scenes ranking answers 500, and one in the text part answers 200 with `text.status` `failed`, empty `documents` and the visual groups unchanged; HEIC and HEIF decode whether or not OCR indexing has run.
+I2. Nothing of an image query is kept: a request writes no row to any table of the addon's database, creates no file on any filesystem (temporary files included), and writes no log line containing the read text or the image's bytes; it adds no entry to `embed_query`'s or `embed_text_clip`'s LRU cache; in the browser no image, id, read text or answer is written to the search history, the search cache, `localStorage`, `sessionStorage` or IndexedDB, and the image store never holds more than 5 entries.
 I3. Every hit in `images`, `scenes` and `documents` is a file of the request drive, active in the index, and `documents` never holds a file whose `file_type` is `image`.
-I4. Images and scenes below `min_score_image_query` are never returned; documents below `min_score_text`, or more than `score_cutoff_margin` below the best document row, are never returned; at most 24 images, 20 scene segments and 10 documents with at most 3 passages each are returned; `scenes_partial` is true exactly when the scene KNN returned 4096 rows and its last row scored at or above the floor.
+I4. Every `ImageHit.score` and `SceneHit.score` is the raw cosine similarity rounded to 4 places, and the unrounded value of every returned image and scene is at or above `min_score_image_query`; documents below `min_score_text`, or more than `score_cutoff_margin` below the best document row, are never returned; at most 24 images, 20 scene segments and 10 documents with at most 3 passages each are returned; `scenes_partial` is true exactly when the scene KNN returned 4096 rows and its last row scored at or above the floor.
 I5. With `features.image_ocr` `"false"` the OCR engine is not called and `text.status` is `off`; with a read length under 20 no text embedding or text KNN runs and `text.status` is `too_short`; a failure of the text part never removes or changes the visual groups.
 I6. `search_images` and `find_segments` called without the new arguments return the same results, in the same order with the same scores, as before this change, and `/search`, `/search/images` and `/search/scene-segments` answer exactly as before; the SigLIP full model is released after `clip_image_idle_unload` idle seconds and never while an `embed_image` call runs, the next `embed_image` after a release returns a vector equal to the one before it for the same image, and the text encoder is never released by it.
-I7. While image search is not available for the drive (the availability request pending, failed or not 200), no image entry point is rendered and paste, drop and upload behave exactly as before this change; while it is available, a paste whose clipboard holds non-blank `text/plain` inserts that text and starts no image query, a paste of an image with no plain text starts one image query and inserts nothing, and no drop or paste in the modal ever starts an upload.
+I7. `GET /search/by-image/available` and `POST /search/by-image` carry the same `pre_check` in the manifest, so the first answers 200 for a drive exactly when the proxy would let the second through. While image search is not available for the drive (the availability request pending, failed, not 200, or `{available: false}`), on the modal, the text-query page and the image query view, no image entry point is rendered and paste, drop and upload behave exactly as before this change; while it is available, a paste whose clipboard holds non-blank `text/plain` inserts that text and starts no image query, a paste of exactly one image with no plain text starts one image query and inserts nothing, a later image, closing the modal or Enter on text cancels an image still being prepared, and no drop or paste in the modal ever starts an upload.
 I8. On the results page with a text query and on the image query view, the action of a drop is the class the drag was given at `dragenter`: a drag classed *upload* uploads exactly as before this change on the text-query page and does nothing on the image query view; a drag classed *one image* starts an image query when the drop holds exactly one image file and otherwise does nothing, and never uploads.
 I9. For one query id the view sends a request only when the entry is `pending` or on 再試行 of a retryable failure; entering an `answered`, `failed` or `loading` entry sends nothing; leaving the view aborts its in-flight request and returns the entry to `pending`; an answer is written only to the entry it was sent for and never after its abort; an absent id shows the gone state and sends nothing.
-I10. A file of at most 20,971,520 bytes is sent byte for byte; a larger one is re-encoded to JPEG with a long edge of at most 4096 px; a file still over that limit, or undecodable while over it, sends no request and navigates nowhere, and shows the size message under the modal's input row or the results page's field until the next image given, the next edit of the input or field, or the modal closing.
-I11. The groups render in the order documents (when it has a hit), images, scenes; a group without hits is not rendered, except the documents slot when `text.status` is `failed` and the scenes slot when `scenes_partial` is true; the scope line counts exactly the rendered groups and is hidden while loading and failed; Enter on non-blank text pushes `/drive/<drive>/search?q=<text>` with no other parameter, and ✕ on the image chip pushes `/drive/<drive>` with none.
-I12. At 390 px wide, measured in a real browser by `frontend/e2e-layout/`, the modal's 「画像で探す」 pill and the results page's pill are at least 44 px tall, the image chip and the field fit the content width, and nothing scrolls horizontally; at desktop width the image button sits inside the field's row.
+I10. A file of one of the seven types and at most 20,971,520 bytes is sent byte for byte; a file of another or no type is re-encoded to JPEG; a larger one is re-encoded to JPEG with a long edge of at most 4096 px; a file still over that limit, or undecodable while over it, sends no request and navigates nowhere, and shows the size message under the modal's input row or the results page's field until the next image given, the next edit of the input or field, or the modal closing.
+I11. The groups render in the order documents (when it has a hit), images, scenes; a group without hits is not rendered, except the documents slot when `text.status` is `failed` (then last) and the scenes slot when `scenes_partial` is true; heading counts and the scope line count only groups with hits (files, pictures, segments), the scope line reads 「0 件」 when none has hits and is hidden while loading, failed and gone; Enter on non-blank text pushes `/drive/<drive>/search?q=<text>` with no other parameter, and ✕ on the image chip pushes `/drive/<drive>` with none.
+I12. At most one image query per addon process holds a body, a decoded image or an embedding at a time, a second waiting with its body unread; a request whose connection is closed when it takes the semaphore, or after its embedding, runs nothing further; the route's OCR call waits for the indexer's at most 10 s and then reports `text.status` `failed`.
+I13. At 390 px wide, measured in a real browser by `frontend/e2e-layout/`, the modal's 「画像で探す」 pill and the results page's pill are at least 44 px tall, the image chip and the field fit the content width, and nothing scrolls horizontally; at desktop width the image button sits inside the field's row.
 
 ## Checked, no action
 
@@ -718,5 +813,15 @@ Each with the recommendation.
 - **The Next.js rewrite's 30 s cut stays**, and the route's proxy timeout is 28 s.
   Recommended: raising `experimental.proxyTimeout` changes every rewrite of the app; the
   cold path measured about 10 s.
+- **No image entry points while the modal is scoped or browsing a folder.** Recommended:
+  an image query ignores the scope, so offering it there would silently drop the scope;
+  the viewer removes the chip first, as a scoped modal has no meaning search today either.
+- **A paste or modal drop of several images starts nothing** and shows 「画像は1枚だけ選んで
+  ください」. Recommended: picking one of them by order would search an image the viewer
+  may not have meant.
+- **A file of an empty or unlisted type (AVIF, TIFF and the like) is re-encoded to JPEG**
+  in the browser, and refused with 「この画像は読み込めませんでした」 when the browser cannot
+  decode it. Recommended: the addon keeps its seven types, and anything the browser can
+  show still works.
 - **No MCP tool in this change.** Recommended: its own spec when an agent workflow needs it.
 - **`DESIGN.md` §6 gains an "Image query chip" entry** in this change. Recommended.
