@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship (the user chose "ship" on 2026-11-05 for review round 1: the reconcile drift existence condition, media_import refusing an ambiguous folder, cloud-sync resolving its source in a thread, and the intelligence resolver walking from the filesystem root are accepted; to be stated in the PR body)
 ran_in_app: yes
 at: b4d855f15ee03ebc5b5df7258a43ea26b3b07121
 by: agent
