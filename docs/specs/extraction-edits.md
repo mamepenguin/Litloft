@@ -86,7 +86,8 @@ Terms used below:
 - **stale item**: a follow-up item writes nothing, checked inside its own write
   transaction, when the file's generation has moved past the one it was queued at, when
   (for an utterance or picture item) the stored text is no longer the text it was
-  queued for, or when the file is no longer an active indexed file.
+  queued for, or when the file's row has been purged. An item for a file that is in the
+  trash or missing is not stale: it waits (see below).
 - **the follow-up worker**: one new background worker for the whole addon. It takes one
   item at a time, across all files, in the order queued: an utterance's embedding,
   keyword vector and realignment (A8-A10), a picture's embeddings (B7), a restore's
@@ -177,7 +178,7 @@ Terms used below:
     failed attempt the utterance ends as no word timings, like a failed alignment. To
     tell these apart, the aligner reports one of: aligned units; `unsupported` (WhisperX
     has no alignment model for the language, which `whisperx.load_align_model` signals
-    with `ValueError`); `load_failed` (any other error while loading); `no_result`
+    with `ValueError`, and an empty language, which is never sent to it); `load_failed` (any other error while loading); `no_result`
     (alignment ran and returned nothing or raised). Only `load_failed` and an unreachable
     file are retried.
 11. When an item finishes, the addon emits `intelligence.transcript.updated`
@@ -188,7 +189,8 @@ Terms used below:
     a Refine job completes or a transcription result is stored for the file, and with
     `reason: "rebuilt"` when a rebuild item (C7) finishes, and with `reason: "ended"`
     when a Refine job fails or a confirmed regenerate ends without a result, so an open
-    panel's rows and busy state follow every change; `intelligence.picture_text.updated`
+    panel's rows and busy state follow every change that ends; the start of busy is not
+    announced, so a control can stay enabled until its request answers 409 `busy`; `intelligence.picture_text.updated`
     likewise carries `replaced` (a stored OCR result), `rebuilt` and `ended`; a rebuild that sets a flag true also calls
     `emit_processing_updated`, like every other flag change.
 12. **Subtitles for a corrected utterance without words.** `subtitles.vtt`
@@ -259,8 +261,9 @@ Terms used below:
    Once stored, no correction and no Refine changes it. A file has at most one original
    per kind. A file refined before this change has no machine text left to keep; for it,
    the transcript as stored at its first correction or next Refine is the original.
-2. **Restore.** When a file has an original, the transcript panel's header (next to
-   Refine, `TranscriptSection.tsx:722-734`) and the 画像の文字 section offer
+2. **Restore.** When a file has an original, the transcript panel's header in the 「発話」
+   view (where Refine sits, `TranscriptSection.tsx:722-734`, shown whether or not Refine
+   is enabled) and the 画像の文字 section offer
    **元の結果に戻す** (disabled while the file is busy). For a picture whose current text
    is empty and whose original is not, the section stays visible so restore can be
    reached. **元の結果に戻す** opens a confirmation (「修正をすべて取り消し、機械が出した元の結果に
@@ -274,7 +277,8 @@ Terms used below:
    correction mark and realignment-pending mark and drops the file's queued follow-up
    items; rewrites the file's keyword rows (for a picture, the `fts_text_content` rows
    from the original chunked as in B6); removes its `whisper` and `tfidf_keywords` (or
-   `text_content`) embeddings and vectors; marks its term set stale; increments its file
+   `text_content`) embeddings and vectors; sets `tfidf_keywords_indexed` false; leaves `whisper_indexed` and
+   `ocr_indexed` as they are; marks its term set stale; increments its file
    generation; deletes the original; and queues a
    follow-up item that embeds the restored texts and recomputes `tfidf_keywords`. The
    answer is 200; the addon emits `intelligence.transcript.updated` or
@@ -332,8 +336,9 @@ Terms used below:
      `{ "overwrite_corrections": bool }`. Its checks run in this order: the existing
      feature gate (400), drive policy (403) and LLM gate (`require_llm`), then the file
      (404), then corrected (409 `corrected`), then busy (409 `busy`, which also refuses a
-     second Refine of the same file while one is running). Folder Refine treats files that
-     are busy but not corrected as it does today.
+     second Refine of the same file while one is running). Folder Refine claims each file it
+     queues before answering, and skips (without listing) a file that already has a Refine
+     claimed, so a file never has two Refine jobs at once.
 
    For a corrected file each is refused with 409 `corrected`, with nothing reset, queued
    or started, unless the body carries `"overwrite_corrections": true`. The flag on a kind
@@ -374,9 +379,11 @@ Terms used below:
      for a corrected picture.
    - When the run is deferred without a result — a transient cloud-policy error
      (`whisper.py:946-952`), the `index` policy off at dequeue (`:974-979`), a path that
-     fails validation (`:905-907`), an OCR engine that cannot be created or a file that
-     cannot be reached (`ocr.py:229-250`) — the mark stays and the retry is still the
-     confirmed run.
+     fails validation (`:905-907`), a file that cannot be reached (`ocr.py:229-250`) — the mark stays and the retry is still
+     the confirmed run. A deferred confirmed OCR run is re-queued by the follow-up worker's
+     10-minute retry whatever `features.image_ocr` is. An OCR engine that cannot be
+     created stays failed for the life of the process (`ocr.py:71-103`), so it, and a
+     failed embedding of the confirmed run's text (`ocr.py:269-273`), count as failures.
    - After a failure, the corrected file's flag is set true by a rebuild item, which the
      failure queues (the corrected rows are intact, so it only adds what is missing). An
      admin's resolve of a failed job on a corrected file (`routers/admin.py:1278-1282`)
@@ -391,7 +398,8 @@ Terms used below:
 10. **What a confirmed Refine does.** It runs on the corrected text, with these
     differences from today's Refine:
     - it is refused with 409 `busy` while any follow-up item of the file is queued or
-      running (which covers every realignment-pending utterance);
+      running (which covers every realignment-pending utterance); this applies to every
+      per-file Refine, corrected or not, and folder Refine skips such files as busy;
     - a corrected utterance without words is left out of the LLM windows
       (`refine.py:757-814`): its text is neither sent nor written;
     - re-chunking (`rechunk_from_words`, `refine.py:307-415`) keeps every corrected
@@ -671,8 +679,17 @@ What the owner sees is in the failure table (§2). The texts are in the addon's
   `POST /files/{id}/reindex` gains `overwrite_corrections` and the check order of C8
   (`:336-478`); `GET /files/{id}/subtitles.vtt` (`:240-307`): cues for corrected
   utterances without words and `Cache-Control: private, no-cache`.
+- `addons/intelligence/app/rag/tools/get_file_chunks.py`: ranges by `chunk_index`, not by
+  list position.
+- `addons/intelligence/app/main.py` lifespan: clear every redo mark at start, after
+  `fail_orphaned_running_jobs` and before the indexer and the follow-up worker take work.
+- Every embedding the follow-up worker writes keeps today's id shapes (`wh_<file>_<chunk
+  index>_<hex>`, `ocr_<file>_<index>_<hex>`), because citations parse them.
+- `addons/intelligence/app/workers/refine.py` `realign_words_for_chunk`: treats every
+  non-success outcome of the aligner as today's `None` (keeps the old words).
 - `addons/intelligence/app/routers/admin.py`: marking a failed transcription job resolved
-  (`:1234-1293`) clears the transcript redo mark (C9). OCR writes no job record, so it has
+  (`:1234-1293`) clears the transcript redo mark and, on a corrected file, queues a
+  rebuild instead of setting `whisper_indexed` / `tfidf_keywords_indexed` true (C9). OCR writes no job record, so it has
   no such path.
 - `addons/intelligence/app/schemas.py`: `TranscriptChunkResponse` (`:218`),
   `TranscriptResponse` (`:235`), the new request and response models.
@@ -704,7 +721,8 @@ What the owner sees is in the failure table (§2). The texts are in the addon's
 - `addons/intelligence/app/addon_events.py`: the two new events, drive-scoped.
 - `addons/intelligence/manifest.json`: proxy routes for the new paths; the
   `file-detail-sections` entry `picture-text`, priority 10.
-- `addons/intelligence/frontend/TranscriptSection.tsx`, `IndexDetailsDialog.tsx`,
+- `addons/intelligence/frontend/TranscriptSection.tsx` (also: the playback highlight
+  compares positions with positions, not with `chunk_index`), `IndexDetailsDialog.tsx`,
   `FailedJobsModal.tsx`, `FolderRefineButton.tsx` (reports `skipped_corrected`),
   `api.ts`, a new picture-text section and its `slots.ts` entry,
   `messages/{ja,en}.json`.
@@ -787,6 +805,16 @@ Each states the answer this spec assumes.
     confirms a regenerate (C6). Assumed: yes.
 13. **Keys in the edit fields.** Enter / Escape and Cmd/Ctrl+Enter act only inside the
     field and are not added to `docs/user-guide/keyboard-shortcuts.md`. Assumed: yes.
+14. **Media Import temp audio beside a corrected `.loft`.** The temp audio is left on
+    disk and ignored while the file is corrected; a confirmed regenerate uses it if it is
+    still there (as today, temp audio wins over the VTT), and its outcomes are those of
+    C9's transcription branch. Assumed: yes.
+15. **Processing drawer after a failed confirmed regenerate.** The drawer's transcript
+    stage reads `failed` (latest job failed, `routers/files.py:108-133`) until the failed
+    job is resolved, although the corrected transcript is intact. Assumed: leave it; the
+    alternative changes SPEC-ADDON-057 I5.
+16. **Where 元の結果に戻す shows.** In the transcript panel header in the 「発話」 view,
+    whether or not Refine is enabled; not in the 「字幕」 or external views. Assumed: yes.
 
 ## Checked, no action
 
@@ -822,8 +850,11 @@ Each states the answer this spec assumes.
   of its overlapping chunks (B8), a heuristic that can differ slightly from the engine's
   joined lines; a restore then chunks that merged text. Re-running OCR to get the exact
   text is not done, because it would be a re-process.
-- **Gaps in `chunk_index`.** After an empty save the indexes have a gap. Readers order by
-  `chunk_index` or time and join `fts_transcripts` by the index, which is rewritten from
-  the chunk rows (A6); nothing found assumes the indexes are contiguous.
+- **Gaps in `chunk_index`.** After an empty save the indexes have a gap, which keeps every
+  other utterance's index and its `wh_<file>_<index>_…` embedding id (read by
+  `citations.py:117-124`) unchanged. Two readers treat the index as a list position and
+  are changed (Touch points): the panel's playback highlight (`TranscriptSection.tsx:387-388`
+  compares a list position with `cue.index`) and Ask's `get_file_chunks`
+  (`rag/tools/get_file_chunks.py:144, 227-251`, which slices by position).
 - **The SPEC-ADDON-050 invariants I4 and I9** (OCR queueing by mode, `pending.ocr`) hold
   as written: the rebuild of C7 is a follow-up item, not an OCR task.
