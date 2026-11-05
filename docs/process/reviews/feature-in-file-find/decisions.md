@@ -1,6 +1,6 @@
 # Decisions
 
-decision: continue (human, 2026-11-05, r1). The human's words: 「1. 受け入れる 2. continue」 — the two unspecified behaviours in r1 are accepted (a PDF page turn clears only a selection inside the PDF; a shortcut whose `when()` is false lets lower contexts match the key), and the work continues.
+decision: continue (human, 2026-11-05, r1). The human's words: 「1. 受け入れる 2. continue」 — the two unspecified behaviours in r1 are accepted (a PDF page turn clears only a selection inside the PDF; a shortcut whose `when()` is false lets lower contexts match the key), and the work continues. | ship (human, 2026-11-05, r2). The human's words: 「一番受け入れます。2番出荷で良い。」 — R2-3 (an overlap merge in periodic text can drop an occurrence) is accepted as a known limit, and the change ships after R2-2 (the test reading a live docs page) is fixed.
 ran_in_app: yes
 at: 7ad2c1a3929cda102c5ac63f772a28db06e7eef4
 by: agent

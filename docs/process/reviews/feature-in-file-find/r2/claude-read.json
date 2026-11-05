@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "trajectory": "Yes, the design is being patched. Each fix round after r2 adds a branch, state or prediction on top of the previous one, and no round removes one.\n\n- 197f6ff and 9cf7cc9 first collapsed whitespace and then switched to letters-and-digits context windows. Both are predictions about how rendered text relates to indexed text.\n- 08745ca replaced exact window equality with a score. It added a threshold of 10, a uniqueness rule, code-point offsets, and a special \"partial window\" penalty for frontmatter rows.\n- b8a77c9 abandoned the rendered-text guess for position. It added `locateTextRow`, `data-source-lines` tokens in markdown-it, a `FindTextSource` mode and a frontmatter offset. The score logic stayed for PDF page rows, and the partial-window penalty was deleted.\n- 7ad2c1a (r5) re-added the score as a fallback inside the position path. It added three more branches: dropping leading snippet characters when the snippet is not found, a count-mismatch test per block, and a plain-text whole-file scoring path for cleaned sources such as CSV, VTT and SRT. Each branch has its own tests.\n\nEvery round exists because the addon stores chunk text without offsets, so the client must infer a position in rendered text. Each patch covers one more observed mismatch: frontmatter, links, list markers, cleaned sources. The test lists grow by adding fixture notes, for example 40 notes in the `it.each`. The mapping is still a heuristic, which means the next mismatch will need another branch. The addon could return a source offset instead.\n\nOn the addon side, the overlap fix (f7f1160) does narrow one prediction. It caps the overlap per extractor instead of using a fixed 200. This is a reduction rather than an addition.",
+  "findings": [
+    {
+      "id": "R2-1",
+      "origin": "reviewer",
+      "claim": "`locateTextRow` drops leading characters from the snippet until the remainder is found, and a short remainder that holds the term can match an unrelated body occurrence, so a frontmatter (title or tag) row can receive the current mark on a body occurrence.",
+      "impact": "In the knowledge editor (body rendered without frontmatter), stepping to a title or tag row can outline and scroll to a body occurrence instead of giving no current mark, which r5 says it must not do. It needs a snippet whose trailing context after the term is short or also appears in the body.",
+      "evidence": "frontend/src/lib/findMarks.ts locateTextRow: the loop `for (; dropFrom <= matchIndex; dropFrom += 1)` accepts any remainder that contains the term and the text after it. The remainder is not required to be anchored to the rendered body.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This depends on specific content, namely a title row whose after-term snippet is short or repeated in the body. The tests 'leaves a title or tag row unlocated' only cover a case where it does not match.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Require the remainder to be longer than the term plus a minimum context, or keep rows that start in the frontmatter unlocated."
+    },
+    {
+      "id": "R2-2",
+      "origin": "reviewer",
+      "claim": "A test reads the live file docs/developer-guide/backend-dev.md and asserts hard-coded mark indices 4 and 5 for rows 6 and 7.",
+      "impact": "Any edit to that documentation page changes the occurrence structure and fails an unrelated frontend test. It also does not guard the behaviour if the page is edited.",
+      "evidence": "FindInFile.test.tsx: BACKEND_DEV_NOTE = readFileSync(path.resolve(process.cwd(), '../docs/developer-guide/backend-dev.md')) and `const expected = { 6: 4, 7: 5 }`.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is test fragility. It breaks no declared invariant.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Copy the relevant excerpt into a fixture constant."
+    },
+    {
+      "id": "R2-3",
+      "origin": "reviewer",
+      "claim": "The overlap merge still takes the longest suffix-prefix match up to the replay limit, so in periodic text a match longer than the true replay can drop occurrences, while I12 says no occurrence is dropped.",
+      "impact": "A file with identical repeated lines near a chunk boundary can show one place too few. The repeated-line tests pass for three shapes, but they do not cover every period and phase.",
+      "evidence": "addons/intelligence/app/file_find.py `_overlap` scans from `min(limit, len(text), len(chunk))` downwards and returns the first suffix-prefix match. The spec's own 'Checked, no action' section records periodic text as a known limit.",
+      "repro": "not_reproduced",
+      "introduced": "pre-existing",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a documented limitation of the approach, and the tests cover the reported cases. It is not shown to break I1 on a realistic file.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    }
+  ],
+  "specification_compliance": [
+    "The r5 locate rule is implemented: the snippet loses its ellipsis, whitespace runs compare as one space, and the nearest occurrence to `ordinal` wins when it repeats. Leading characters are dropped up to the term, so the remainder always keeps the term and what follows.",
+    "Markdown blocks are chosen by `data-source-lines` (innermost block). The k-th occurrence is used when the source and rendered counts agree, and the score is used when they differ.",
+    "A plain-text snippet that cannot be located is scored over the whole text, as r5 describes.",
+    "PDF page rows keep the r3/r4 score with ordinal then first as fallback.",
+    "The overlap cap follows I12: 200 for Office and image kinds, and the configured overlap otherwise.",
+    "The `find-shortcut` and `set-find-intercept` messages are implemented and covered by an e2e spec. I did not run it."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "markdown-it now adds `data-source-lines` to every block token, so the rendered HTML of every Markdown preview changes. This includes previews that never use find, and the attributes may reach HTML capture or copy paths.",
+    "`MarkdownFileViewer` now wraps its preview in `FindTextBodyProvider`, so only the body owns the current mark. Any other host of `MarkdownPreview` that should own it must add the provider.",
+    "`useFindMarksIn` now takes a text source object. Its dependency handling when `source` changes was not checked."
+  ],
+  "test_coverage": [
+    "FindInFile.test.tsx walks each row for about 40 Markdown fixtures, and findMarks.position.test.ts covers `locateTextRow`, the CSV/VTT cleaned sources and the block-count mismatch. This is broad.",
+    "There is no test where a frontmatter row's remainder matches a body occurrence in the knowledge-editor mode with a short trailing context (R2-1).",
+    "The PDF `textLayerPageRef` timing is covered only by a mocked react-pdf page that simulates the one-commit delay.",
+    "The addon tests cover repeated-line chunking for three shapes. There is no property test over line periods."
+  ],
+  "not_verified": [
+    "I did not read the full source of findMarks.ts, useFindMarksIn.ts or MarkdownPreview.tsx at the commit. I relied on the diff, and the main diff was truncated at 200000 bytes.",
+    "I ran no tests and could not run the e2e EPUB spec.",
+    "I did not check the addon route, the manifest or the addon proxy behaviour in this round beyond the file_find.py diff.",
+    "I did not check whether `data-source-lines` survives DOMPurify in every configuration or reaches capture and copy code.",
+    "I did not check that i18n keys are present in en.json and ja.json."
+  ],
+  "confidence": 70
+}

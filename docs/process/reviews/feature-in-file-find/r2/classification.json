@@ -1,0 +1,260 @@
+{
+  "risk": "HIGH",
+  "score": 7,
+  "base": 3,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "DESIGN.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "addons/intelligence",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "docs/addons/intelligence.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/reference/api.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/in-file-find.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/keyboard-shortcuts.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/search.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/viewers-and-players.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/e2e-epub/findShortcut.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-epub/fixtures/host.html",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/public/epub-reader/core.js",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/public/epub-reader/reader.js",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/ime-enter-guard.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/globals.css",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FileDetailContainer.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FileDetailPresenter.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/ShellLayout.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/FindInFile.epub.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/FindInFile.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/FindMarksRender.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/find/FindBar.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/find/FindBarPresenter.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/find/FindButton.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/find/FindContext.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/find/FindTab.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/find/FindTabPresenter.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/find/categories.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/find/types.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/find/useFindInFile.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/inspector/InspectorShell.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetailShell.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/MarkdownFileViewer.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/MarkdownPreview.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/PdfPreview.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/ShortcutsProvider.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/TextLines.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/MarkdownFileViewer.find.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/epub/EpubPreview.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/epub/useEpubReader.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/folder/RightPaneFile.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/markdown/MarkdownDocumentLayout.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/search/PassageList.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/PassageList.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/hooks/__tests__/useSelectedFile.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/hooks/useFindMarksIn.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/hooks/useSelectedFile.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/__tests__/canonicalFileUrl.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/__tests__/epubReaderChannel.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/__tests__/findMarks.position.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/__tests__/findMarks.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/canonicalFileUrl.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/documentCapture.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/epubReaderChannel.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/fileFind.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/findMarks.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/findShortcut.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/searchPassages.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/shortcuts.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}
