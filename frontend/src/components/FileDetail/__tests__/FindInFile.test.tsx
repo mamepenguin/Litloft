@@ -486,10 +486,20 @@ describe("SPEC-CORE-028 I7 I10 the find button exists only on the file page of a
   });
 
   it("has no button and no shortcut on the collection surface", async () => {
-    setUrl(VIDEO);
+    // HTML rides the shared shell on every surface, so the collection
+    // surface draws a page row here and the absence of the button is
+    // the surface rule, not a missing row.
+    const page = makeFile({
+      id: "html00000001",
+      filename: "page.html",
+      mime_type: "text/html",
+      drive: DRIVE,
+    });
+    shared.getFile = async () => page;
+    setUrl(page);
     const canonical = render(
       <ShortcutsProvider>
-        <FileDetailContent fileId={VIDEO.id} drive={DRIVE} />
+        <FileDetailContent fileId={page.id} drive={DRIVE} />
       </ShortcutsProvider>,
     );
     expect(await findButton()).toBeInTheDocument();
@@ -497,7 +507,7 @@ describe("SPEC-CORE-028 I7 I10 the find button exists only on the file page of a
 
     render(
       <ShortcutsProvider>
-        <FileDetailContent fileId={VIDEO.id} drive={DRIVE} surface="collection" />
+        <FileDetailContent fileId={page.id} drive={DRIVE} surface="collection" />
       </ShortcutsProvider>,
     );
     await shellLoaded();
