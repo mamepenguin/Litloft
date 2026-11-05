@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship (the user chose "ship" on 2026-11-05 for review round 3: handlers moved onto worker threads, start_import split into prepare_import and launch_import, and a 409 partway through a bulk purge are accepted; to be stated in the PR body)
 ran_in_app: yes (backend API only; the web UI was not run)
 at: fa027aec5e476b51390e42cbd7ee836a3557b7e4
 by: agent
