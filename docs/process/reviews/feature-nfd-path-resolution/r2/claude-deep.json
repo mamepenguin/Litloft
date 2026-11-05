@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "Bulk purge (purge_all_trash, purge_all_missing) calls physical_delete, which now raises 409 for an ambiguous name after earlier files in the same loop were already unlinked and before the single commit.",
+      "impact": "One ambiguous entry aborts the batch. Files processed earlier are gone from disk while their rows stay in Trash or Missing until a second purge. A second purge succeeds because the unlink is skipped for an absent file. The main.py trash purge job commits per row, so it is not affected.",
+      "evidence": "backend/app/services/fileops.py physical_delete (existing_or_409 then unlink); purge_all_trash loop commits once after the loop; backend/app/main.py:96 commits per row.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "I12 requires 409 and no change for the ambiguous file itself. It does not cover a batch partial state. Recoverable by repeating the purge.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Commit per row in the bulk purges, or skip and report an ambiguous file."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The commit adds no parity-table JSON fixture, and the core resolver has no table-driven test.",
+      "impact": "I16 cannot be checked for the core copy; the touch-point list requires the table in each tree that holds a resolver.",
+      "evidence": "Glob for parity files finds only older unrelated parity tests; no fixture for the resolver exists.",
+      "repro": "Glob **/*parity*: no resolver fixture.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I16 states every resolver copy returns the table's results; with no table the invariant is unchecked in core.",
+        "invariant_ref": "I16"
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add the JSON fixture and a test that runs the core resolver against it, or state that it ships with the addon PR."
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "Many handlers were moved to asyncio.to_thread and start_import was split into prepare_import and launch_import. These routers (admin_markdown_images, uploads) and handlers are not in the touch-point list.",
+      "impact": "Scope and concurrency change beyond path resolution. The request Session and the module globals _jobs and _current_job_id are used on worker threads. The calls are sequential per request, so I found no concrete race.",
+      "evidence": "backend/app/routers/admin_markdown_images.py:70-80; backend/app/routers/uploads.py:84; backend/app/routers/drives.py to_thread calls.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant is broken. Section 10 motivates the threading, but the touch-point list omits these files.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "List these files and handlers in the touch points."
+    },
+    {
+      "id": "F4",
+      "origin": "reviewer",
+      "claim": "complete_upload resolves the leaf non-strictly, so a twin of the target that appeared after init_upload is replaced in place.",
+      "impact": "Rare race. It matches the in-place replacement of spec step 6. No test covers the complete step.",
+      "evidence": "backend/app/services/upload.py:247-248",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Likely the intended behavior; only the test is missing.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "I1 to I12: reads go through _on_disk_path or resolve_on_disk(cached=True). Mutators use existing_or_409 and new_or_409 without the cache. The walk checks the exact name first, treats dot and empty components as matching nothing, and writes nothing.",
+    "I13: the AST inventory test exists with a seeded-detector self-check and an empty LISTING_DERIVED.",
+    "I16: no core parity fixture found.",
+    "I14 and I15: addon work, outside this commit."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Handlers moved onto worker threads.",
+    "start_import split into prepare_import and launch_import.",
+    "physical_delete raises 409 mid-batch."
+  ],
+  "regression_risks": [
+    "Session use across to_thread.",
+    "Mutators refuse an ambiguous pair while readers pick the first by sorted bytes.",
+    "An extra lexists and a scandir on a miss on hot read paths."
+  ],
+  "test_coverage": [
+    "Good coverage of I1 to I12 through the leaf, ancestor and both layouts, with ambiguity 409, batch rollback, scan stability and symlink cases.",
+    "No test covers a bulk purge that hits an ambiguous entry, complete_upload resolution, or the thread offloading.",
+    "No parity-table test."
+  ],
+  "not_verified": [
+    "I ran no tests; the tools are read-only.",
+    "I did not read the full fileops mutator bodies.",
+    "I did not inspect the addons.",
+    "I did not verify SQLAlchemy Session thread-safety."
+  ],
+  "confidence": 72,
+  "trajectory": "There are no fix commits since r1; the only commit after r1 records the review. No round added or removed a branch, state or prediction, so I see no sign the design is being patched."
+}

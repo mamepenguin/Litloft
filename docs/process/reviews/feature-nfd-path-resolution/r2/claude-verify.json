@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "fileops.py:667-673 physical_delete calls existing_or_409 (strict). That raises HTTP 409 on an ambiguous name. In purge_all_trash (fileops.py:756-759) the loop unlinks and db.delete+flush each file, and the one commit comes after the loop. A 409 on a later file leaves earlier files unlinked on disk while their rows roll back, so the DB points at deleted files. Before the change nothing raised here. purge_all_missing (786-815) is batched, so the exposure is one batch of 200."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "backend/tests/fixtures has only addon_policy, classify_golden, filename_title and filename_validation JSON. No diskpath/resolver parity fixture exists, and no test file name matches diskpath parity. I16 requires the table."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "Same as claude-read F1. purge_all_trash commits once after the loop (fileops.py:759) while physical_delete unlinks at 672-673 after the strict resolve at 670. I did not open main.py:96, so the per-row commit claim for the purge job is unchecked."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "No resolver parity JSON fixture under backend/tests/fixtures or elsewhere (glob for *parity* and tests JSON). I16 is not met by a table."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "The facts hold: uploads.py:84 uses asyncio.to_thread, and markdown_image_import.py:552-592 now has prepare_import and launch_import beside start_import. It is a scope and process observation, not a defect, and the touch-point scope rule covers sites the inventory reports. Not checked: whether behaviour changed. Low risk."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F4",
+      "status": "rejected_with_evidence",
+      "note": "upload.py:247-248 uses new_or_409 (strict) on the parent and resolve_on_disk non-strict on the leaf. This is the in-place replacement that I7 specifies for a destination existing in the other spelling. I12's 409 rule lists only rename, move, delete, purge and restore, not upload. Replacement goes through replacing_file (upload.py:258), which is atomic. Under the single-user threat model this is not a defect."
+    }
+  ],
+  "specification_compliance": [
+    "I12: purge refuses with 409 as specified, but the bulk purge loop is not atomic against it (see F1).",
+    "I16: no parity fixture, so not met.",
+    "I7: upload in-place replacement matches the spec."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Bulk purge can now fail midway with disk and DB out of step (unlink done, commit rolled back).",
+    "The single-commit purge_all_trash is the exposed path."
+  ],
+  "test_coverage": [
+    "No table-driven parity test for the resolver.",
+    "I did not look for a test of a 409 during a bulk purge."
+  ],
+  "not_verified": [
+    "main.py trash purge job commit behaviour",
+    "Addon repositories and their resolver copies",
+    "Inventory test content",
+    "Whether any test covers a 409 in bulk purge",
+    "Runtime behaviour (read-only tools)"
+  ],
+  "confidence": 80
+}
