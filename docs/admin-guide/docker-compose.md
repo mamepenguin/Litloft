@@ -40,6 +40,7 @@ The slug is a path identifier, not the display name. On a fresh install the back
 
 - Add `:ro` to a mount to keep Litloft from writing to that drive. It is optional.
 - On macOS and Windows, bind mounts of very large directories are slower than on Linux.
+- Files copied to a drive from outside Litloft keep their on-disk names. Litloft finds them whichever Unicode form the name uses, so they play, show previews and can be renamed, moved and trashed like any other file.
 
 ## Passwords file
 

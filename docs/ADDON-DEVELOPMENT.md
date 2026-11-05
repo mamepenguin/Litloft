@@ -578,7 +578,7 @@ Secrets are compared in constant time.
 
 | Endpoint | Description |
 |----------|-------------|
-| `GET /files/{file_id}/content` | The file's UTF-8 text as `text/plain; charset=utf-8`. Ignores drive locks. Only `text/markdown` and `text/plain` files (415 otherwise); 413 above `CORE_INTERNAL_CONTENT_MAX_BYTES` (default 10 MB); 415 when not valid UTF-8; 404 when the file is not active or not on disk. |
+| `GET /files/{file_id}/content` | The file's UTF-8 text as `text/plain; charset=utf-8`. Ignores drive locks. Only `text/markdown` and `text/plain` files (415 otherwise); 413 above `CORE_INTERNAL_CONTENT_MAX_BYTES` (default 10 MB); 415 when not valid UTF-8; 404 when the file is not active or not on disk. The stored path is resolved to the on-disk name first, so a file whose name is stored in NFC but written to disk in NFD is found. |
 | `POST /files/{file_id}/tags` | Body `{tags: []}` → 204. Replaces the file's tags with the validation of `PUT /api/files/{id}/tags` (at most 10, each at most 30 word characters or `-`, case-insensitive dedup; 422 otherwise). 404 for a file that is not active. Used by the knowledge scanner to project frontmatter tags. |
 | `POST /file_relations` | Body `{file_id_a, file_id_b, kind, viewer_id?}` → 201 with the relation. `kind` matches `^[a-z][a-z0-9_.-]*$`, 1–32 characters; `viewer_id` is 16 hex characters and is stored as `created_by`. 400 when the two ids are equal or in different drives, 404 when either file does not exist, 409 for a duplicate. The core's Markdown link sync never removes or rewrites a relation created here. |
 | `DELETE /file_relations/{relation_id}` | 204, or 404 for an unknown id. |
