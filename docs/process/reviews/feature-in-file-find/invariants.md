@@ -13,3 +13,14 @@ Settled with the human on 2026-11-05, while the acceptance tests were written. T
 - The bar's buttons are named 「前の箇所」, 「次の箇所」 and 「検索を閉じる」.
 - A chip reads its label, a space and its count (「発話 6」), and 「発話 6+」 when `truncated` is true.
 - `set-find-intercept` is `{type: "set-find-intercept", interceptFind: boolean}`, the same field name as on `open`.
+
+## Places reached outside the touch-point list (r1)
+
+Found by r1 (TP-1 to TP-6) and recorded here because the approved spec is not edited. Each is in this change:
+
+- `frontend/src/components/ShortcutsProvider.tsx`: shortcuts gain an optional `when()`, and a binding whose `when()` is false lets lower contexts match the key. The human accepted this in r1.
+- `frontend/src/components/markdown/MarkdownDocumentLayout.tsx`: the page row of Markdown and plain-text documents hosts the find button and passes `findEnabled` to `FileDetailShell`.
+- `frontend/src/lib/documentCapture.ts` (`clearSelectionWithin`) with `PdfPreview.tsx`: a PDF page turn clears only a selection inside the PDF. The human accepted this in r1.
+- `frontend/src/hooks/useFindMarksIn.ts`, `frontend/src/lib/findMarks.ts`, `frontend/src/lib/findShortcut.ts`: the I5 mark logic and the I7 suppression test.
+- `docs/user-guide/search.md`: the passages link.
+- `frontend/src/__tests__/ime-enter-guard.test.ts`, `frontend/e2e-epub/findShortcut.spec.ts`, `frontend/e2e-epub/fixtures/host.html`: tests and fixtures.

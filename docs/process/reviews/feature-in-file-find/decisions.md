@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: continue (human, 2026-11-05, r1). The human's words: 「1. 受け入れる 2. continue」 — the two unspecified behaviours in r1 are accepted (a PDF page turn clears only a selection inside the PDF; a shortcut whose `when()` is false lets lower contexts match the key), and the work continues.
 ran_in_app: yes
 at: 5e9749de7eabe44a174ff535f5c6d611c350c6f3
 by: agent

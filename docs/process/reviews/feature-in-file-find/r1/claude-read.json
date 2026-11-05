@@ -1,0 +1,126 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The global shortcut dispatcher frontend/src/components/ShortcutsProvider.tsx is edited, but the touch-point list names only `frontend/src/lib/shortcuts.ts` and `useShortcuts`.",
+      "impact": "Every shortcut on every page goes through this dispatcher. The new `when` gate (`if (s.when && !s.when()) return false;`) changes which context matches a key: when `when()` returns false, the search falls through to lower contexts instead of stopping. This is a cross-app behaviour change in a file the plan did not name. Today the only `when` user is the find binding, so no existing shortcut changes behaviour.",
+      "evidence": "frontend/src/components/ShortcutsProvider.tsx:107 adds the `when` predicate inside the matcher. frontend/src/lib/shortcuts.ts:17 adds `when?: () => boolean`. FileDetailShell.tsx passes `when: canTakeFind` for `ctrl+f`.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is broken; I7 relies on this gate. The place is simply missing from the declared touch points.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add ShortcutsProvider.tsx to the touch points, or move the gate into useShortcuts/shortcuts.ts."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "frontend/src/components/markdown/MarkdownDocumentLayout.tsx is edited to draw the FindButton in its page row and to pass `findEnabled` to FileDetailShell, but it is not in the touch-point list.",
+      "impact": "Markdown and plain-text files have their own page row. That row now holds the find button, and through `findEnabled` it decides whether the Cmd/Ctrl+F shortcut is registered for those files. So I7 and I10 depend on a host that the plan does not list as one: the list names only FileDetailChrome.tsx for the button.",
+      "evidence": "MarkdownDocumentLayout.tsx draws `{findEnabled && <FindButton />}` in chromeControls, also in the `previewOnly` branch, and passes `findEnabled={findEnabled}` to FileDetailShell. ShellLayout.tsx passes `findEnabled` into MarkdownDocumentLayout. FileDetailChrome.tsx, the listed host for the button, is not in the visible diff.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant breaks, since `findEnabled` is still gated by surface === 'canonical' in FileDetailContainer. The host is missing from the plan.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "List MarkdownDocumentLayout.tsx as a host of the button and the shortcut flag."
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "frontend/src/lib/documentCapture.ts gains `clearSelectionWithin`, and PdfPreview's page-change effect now uses it instead of `window.getSelection()?.removeAllRanges()`. Neither documentCapture.ts nor this behaviour change is in the touch points.",
+      "impact": "Turning a PDF page used to clear any selection in the document. Now it clears only a selection inside the PDF root, so a selection elsewhere on the page survives a page turn. The touch points describe the PdfPreview change only as find marks and the current mark, and the spec says selection is unchanged.",
+      "evidence": "frontend/src/lib/documentCapture.ts:102-114 (new `clearSelectionWithin`). frontend/src/components/PdfPreview.tsx:240-244 (effect on `[page, store]` now calls `clearSelectionWithin(root, window.getSelection())`).",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "It supports I10 (the query stays selected on a PDF opened with ?find=) and breaks no declared invariant. It is an unplanned change to a shared capture library and to selection behaviour.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add documentCapture.ts and the selection-clearing scope to the touch points."
+    },
+    {
+      "id": "TP-4",
+      "origin": "reviewer",
+      "claim": "New shared modules outside the declared places were added: frontend/src/hooks/useFindMarksIn.ts, frontend/src/lib/findMarks.ts and frontend/src/lib/findShortcut.ts. The plan lists only 'a new find client beside semanticSearch.ts' in lib/, which is fileFind.ts.",
+      "impact": "These modules carry the I5 mark and current-mark logic and the I7 suppression test: `aria-modal`, fullscreenElement and `data-player-fullscreen`. A reviewer working from the plan would not look for the I5/I7 logic there.",
+      "evidence": "frontend/src/hooks/useFindMarksIn.ts is imported by MarkdownPreview.tsx, TextLines.tsx and PdfPreview.tsx. frontend/src/lib/findMarks.ts holds `isTextFindRow`. frontend/src/lib/findShortcut.ts:8-14 holds `canTakeFindShortcut`.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The places are missing from the plan; no invariant breaks because of that alone.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "List these modules in the touch points."
+    },
+    {
+      "id": "TP-5",
+      "origin": "reviewer",
+      "claim": "docs/user-guide/search.md is edited, but the docs touch points name only the file-page guide and keyboard-shortcuts.md.",
+      "impact": "Documentation only. The Passages view guide now says the link opens the file with find already searching.",
+      "evidence": "In the diff, docs/user-guide/search.md changes two bullets about 「このファイルの他の箇所 →」.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An unlisted documentation place; no code invariant is involved.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "TP-6",
+      "origin": "reviewer",
+      "claim": "Core test and fixture files outside any declared place are edited: frontend/src/__tests__/ime-enter-guard.test.ts (the declared count goes from 19 to 20, and useFindInFile.ts is added), frontend/e2e-epub/findShortcut.spec.ts and frontend/e2e-epub/fixtures/host.html. The touch points list tests only for the addon.",
+      "impact": "A repository-wide guard test is edited to admit the new Enter handler. A reader of the plan would not expect a project-wide lint-style test to change.",
+      "evidence": "ime-enter-guard.test.ts adds 'components/FileDetail/find/useFindInFile.ts' and `toHaveLength(20)`. host.html adds `setFindIntercept` and the `find` query parameter on `open`.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Test places are missing from the plan; this is not a defect.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "Every listed core touch point that appears in the visible diff stays inside its stated role: FileDetailContainer/Presenter, ShellLayout, InspectorShell, FileDetailShell, MarkdownPreview, TextLines, PdfPreview, epub/*, public/epub-reader/*, RightPaneFile, PassageList, globals.css, DESIGN.md and the addon docs.",
+    "The visible diff does not edit backend/app/routers/addon_proxy.py, which matches 'read only'."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "A PDF page turn no longer clears a document selection that lies outside the PDF viewer root (documentCapture.clearSelectionWithin).",
+    "A shortcut whose `when()` is false now lets lower shortcut contexts match the same key, rather than ending the search at that context."
+  ],
+  "regression_risks": [
+    "The ShortcutsProvider dispatcher change applies to every page. Any future `when` user changes which context a key falls through to.",
+    "The scope of selection clearing on a PDF page turn changed in the shared documentCapture library."
+  ],
+  "test_coverage": [
+    "FindInFile.test.tsx covers Ctrl+F suppression for aria-modal, fullscreenElement, editable fields and the phone layout. It does not cover a blocksLower overlay or the data-player-fullscreen pseudo-fullscreen.",
+    "FindInFile.test.tsx asserts that the query stays selected on a PDF opened with ?find=, which exercises clearSelectionWithin. No test asserts that a selection inside the PDF is still cleared on a page turn."
+  ],
+  "not_verified": [
+    "The diff was truncated at 200000 bytes. Files after PassageList.tsx were not seen in the diff: messages-core, canonicalFileUrl.ts, useSelectedFile.ts, searchPassages.ts, epubReaderChannel.ts, FileDetailContent.tsx, FileDetailChrome.tsx, pdfController/documentController, and possibly others. Any unlisted place among them is not reported.",
+    "The contents of the addons/intelligence submodule at 53b9e1072 were not checked for places outside the addon touch points.",
+    "I did not compare the single commit f5e18f786 against the branch diff. Without git, I reviewed the diff as provided.",
+    "Whether frontend/pnpm-lock.yaml or other config files changed."
+  ],
+  "confidence": 72
+}
