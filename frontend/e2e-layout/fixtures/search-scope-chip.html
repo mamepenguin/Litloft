@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!-- Without this, a context that sets `isMobile` lays the page out at
+         Chromium's mobile default instead of the viewport the spec asked for. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>long folder chip — layout fixture</title>
+    <!-- No <style> of its own: every declaration measured here has to come
+         out of the app's own stylesheet. -->
+    <link rel="stylesheet" href="./globals.built.css" />
+  </head>
+  <body>
+    <!--
+      The search results header with one folder chip whose value is a
+      200-character path, built from the same classes SearchFilterChips draws.
+    -->
+    <header id="header" class="flex flex-col gap-1 px-4 py-2">
+      <div class="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:gap-3">
+        <div class="min-w-0 sm:flex-1">
+          <div class="min-w-0">
+            <div class="mt-2 flex flex-wrap items-center gap-2">
+              <div
+                id="chips"
+                data-role="filter-chips"
+                role="group"
+                aria-label="Filters"
+                class="flex min-w-0 max-w-full flex-wrap items-center gap-2"
+              >
+                <span
+                  id="chip"
+                  class="inline-flex min-w-0 max-w-full items-center gap-1 rounded-full bg-sand py-0.5 pl-2 pr-1 text-xs text-text-primary"
+                >
+                  <span
+                    id="chip-text"
+                    class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap"
+                  >
+                    <span class="font-semibold">Folder</span>
+                    <span id="chip-value"></span>
+                  </span>
+                  <button
+                    id="dismiss"
+                    type="button"
+                    class="shrink-0 rounded-full p-0.5 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+                  >
+                    ×
+                  </button>
+                </span>
+              </div>
+              <div class="relative">
+                <button
+                  type="button"
+                  aria-haspopup="menu"
+                  aria-expanded="false"
+                  aria-label="Add filter"
+                  class="inline-flex items-center gap-1 rounded-full border border-dashed border-warm-silver px-2.5 py-1 text-xs text-text-muted transition-colors hover:text-text-primary"
+                >
+                  <span aria-hidden="true">＋</span>
+                  <span class="hidden sm:inline">Filter</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <script>
+      const value = ["Photos", "W".repeat(193)].join("/");
+      document.getElementById("chip-value").textContent = ` ${value}`;
+      document.getElementById("chip").title = value;
+      document.getElementById("dismiss").setAttribute(
+        "aria-label",
+        `Remove Folder ${value}`,
+      );
+
+      window.measureScopeChip = function () {
+        const box = (el) => {
+          if (!el) return null;
+          const r = el.getBoundingClientRect();
+          return {
+            top: r.top,
+            bottom: r.bottom,
+            left: r.left,
+            right: r.right,
+            width: r.width,
+            height: r.height,
+          };
+        };
+        const header = document.getElementById("header");
+        const style = getComputedStyle(header);
+        return {
+          viewport: { width: window.innerWidth, height: window.innerHeight },
+          documentWidth: document.documentElement.clientWidth,
+          documentScrollWidth: document.documentElement.scrollWidth,
+          contentWidth:
+            header.clientWidth -
+            parseFloat(style.paddingLeft) -
+            parseFloat(style.paddingRight),
+          row: box(document.getElementById("chips")),
+          chip: box(document.getElementById("chip")),
+          value: document.getElementById("chip").title,
+          dismiss: box(document.getElementById("dismiss")),
+        };
+      };
+      document.body.dataset.ready = "1";
+    </script>
+  </body>
+</html>

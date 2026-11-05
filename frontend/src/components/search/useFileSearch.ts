@@ -26,6 +26,8 @@ function listingParams(parsed: ParsedQuery, kinds: FileKind[]) {
     ...(parsed.tags.length > 0 ? { tag: parsed.tags } : {}),
     ...(parsed.favorite ? { favorite: true } : {}),
     ...(parsed.liked ? { liked: true } : {}),
+    ...(parsed.folders.length > 0 ? { folder: parsed.folders } : {}),
+    ...(parsed.collections.length > 0 ? { collection: parsed.collections } : {}),
   };
 }
 

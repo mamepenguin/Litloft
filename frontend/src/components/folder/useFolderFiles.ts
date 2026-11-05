@@ -232,6 +232,8 @@ export function useFolderFiles({
           tag: parsed.tags.length > 0 ? parsed.tags : undefined,
           favorite: parsed.favorite ? true : undefined,
           liked: parsed.liked ? true : undefined,
+          folder: parsed.folders.length > 0 ? parsed.folders : undefined,
+          collection: parsed.collections.length > 0 ? parsed.collections : undefined,
           trust: trustFilter || undefined,
           sort: backendSort,
           order: backendOrder,

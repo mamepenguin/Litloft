@@ -8,7 +8,14 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
 from fastapi.responses import PlainTextResponse
-from pydantic import BaseModel, Field, StrictBool, StringConstraints, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StrictBool,
+    StringConstraints,
+    field_validator,
+)
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
@@ -30,6 +37,8 @@ from app.routers.drives import (
     FileKindParam,
     _normalize_kind,
     apply_file_filters,
+    normalize_collections,
+    normalize_folders,
 )
 from app.routers.files import replace_file_tags
 from app.services.tagops import cleanup_orphan_tags
@@ -621,12 +630,18 @@ def files_bulk(
 
 
 class FileMatchingRequest(BaseModel):
+    # An addon that sends a field this core does not know must fail rather
+    # than be answered as if the field were absent.
+    model_config = ConfigDict(extra="forbid")
+
     drive: str
     tags: list[str] = Field(default_factory=list)
     kinds: list[FileKindParam] = Field(default_factory=list)
     # strict: the lax bool parser would read "yes" and 1 as True.
     favorite: StrictBool | None = None
     liked: StrictBool | None = None
+    folders: list[str] = Field(default_factory=list)
+    collections: list[str] = Field(default_factory=list)
 
     @field_validator("tags")
     @classmethod
@@ -655,6 +670,16 @@ class FileMatchingRequest(BaseModel):
             raise ValueError(f"Maximum {_MATCHING_MAX_KINDS} kinds")
         return list(deduped)
 
+    @field_validator("folders")
+    @classmethod
+    def validate_folders(cls, folders: list[str]) -> list[str]:
+        return normalize_folders(folders)
+
+    @field_validator("collections")
+    @classmethod
+    def validate_collections(cls, collections: list[str]) -> list[str]:
+        return normalize_collections(collections)
+
 
 @router.post("/files/matching")
 def files_matching(
@@ -680,6 +705,9 @@ def files_matching(
         kinds=body.kinds,
         favorite=body.favorite,
         liked=body.liked,
+        folders=body.folders,
+        collections=body.collections,
+        drive=body.drive,
     )
     return {"file_ids": [row.id for row in query.order_by(File.id).all()]}
 
