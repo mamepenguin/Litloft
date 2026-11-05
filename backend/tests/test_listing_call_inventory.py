@@ -21,6 +21,7 @@ LISTING_ONLY = "listing-only"
 INVENTORY: dict[tuple[str, str, str], tuple[int, str]] = {
     ("app/routers/admin.py", "_get_directory_size", "rglob"): (1, LISTING_ONLY),
     ("app/services/addon_registry.py", "_iter_manifest_files", "glob"): (1, LISTING_ONLY),
+    ("app/services/diskpath.py", "_matching_entries", "os.scandir"): (1, STORED_NAME),
     ("app/services/drive_seed.py", "seed_drives_from_mounts", "iterdir"): (1, LISTING_ONLY),
     ("app/services/fileops.py", "_validate_no_duplicates", "iterdir"): (1, STORED_NAME),
     ("app/services/markdown_image_import.py", "initialize_interrupted_jobs", "glob"): (1, LISTING_ONLY),
