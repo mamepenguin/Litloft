@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "V1",
+      "origin": "verifier",
+      "claim": "The spec (step 2, I8, and the pending item at line 794) assumes the text-query search page already has an UploadZone and that an upload-class drop 'uploads as today'. In the code before this change the search branch returned `inner` with no UploadZone. The change adds one, so the search page gains a new upload-into-drive-root behaviour. This also contradicts the spec's own regression note (lines 484-486), which says the page is unchanged for every drag except a one-image drag.",
+      "impact": "With image search available, dropping several files, a folder or a non-image on the text-query page now starts an upload into the drive root. The page never did that before. I8's wording 'uploads exactly as before' is false for that page. The spec's premise is wrong and the human's confirmation of the item at line 794 rested on it.",
+      "evidence": "frontend/src/components/FolderBrowser.tsx:903-915: `if (isSearch) { if (!onImageQuery) return inner; return <UploadZone ... onImageQuery={onImageQuery}>`. The `return inner` line shows the earlier no-zone branch. frontend/src/components/UploadZone.tsx:101-142: the upload-class path calls addFiles/addFileEntries. docs/specs/image-query-search.md:107 and :794 assume an existing zone.",
+      "repro": "Reading only: with image search available, open /drive/<d>/search?q=x and drop two files. UploadZone classifies the drag as 'upload' and handleDrop reaches addFiles(drive, '', files). Before this change the search page had no drop target for that.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "Behaviour change to an existing page that the invariant text describes incorrectly. The spec premise should be corrected, or upload-class drops on the search page should do nothing.",
+        "invariant_ref": "I8"
+      },
+      "severity": "MEDIUM"
+    }
+  ],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "FolderBrowser.tsx:903-915 wraps the search page in UploadZone only when onImageQuery is set. The earlier code returned `inner` with no zone. UploadZone.tsx:101-142 runs the normal upload for an 'upload'-class drop. The spec at lines 107 and 794 assumes the zone already existed. See V1."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "UploadZone.tsx:59 reads `if (onImageQuery || dragClassRef.current === 'one_image' || e.dataTransfer.types.includes('Files'))`. With onImageQuery set, the overlay shows for any drag, including text or link drags that carry no 'Files'. The 'Files' check is no longer needed. The effect is limited to the overlay, because a drop with no files reaches addFiles only when files.length > 0. Without the prop the behaviour is unchanged."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "All four paths exist: frontend/src/components/search/ImageQueryViewPresenter.tsx, frontend/e2e-layout/spec-viewport.spec.ts, frontend/src/__tests__/core-search-vocabulary.test.ts and frontend/src/__tests__/helpers/imageQuery.ts. None is named in the touch list by path. The presenter is the Container/Presenter split the rules require, and the other three are test or fixture bookkeeping, so the reach is low-risk."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F4",
+      "status": "needs_human",
+      "note": "This is a statement about the review input, which I cannot see. It is not a statement about the code. The files it lists do exist in the repository. I read only the frontend UploadZone and FolderBrowser code, so I cannot say whether the truncated parts reach outside the touch list."
+    }
+  ],
+  "specification_compliance": [
+    "I8 is not met as written: upload-class drops on the text-query page are a new behaviour, not 'as before' (V1).",
+    "The spec's regression note at lines 484-486 is inaccurate for the same reason.",
+    "Drag classification at dragenter and the drop action following the kept class are implemented at UploadZone.tsx:55-99. A one-image drop never falls through to upload."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The upload zone is now active on the text-query page whenever image search is available.",
+    "The drag overlay appears for non-file drags whenever onImageQuery is set."
+  ],
+  "regression_risks": [
+    "Accidental uploads into the drive root from the search page.",
+    "A drag overlay with upload text over non-file drags."
+  ],
+  "test_coverage": [
+    "UploadZone.imageQuery.test.tsx covers the zone alone (as reported by claude-read; I did not read it). I found no check that the search page had no zone before."
+  ],
+  "not_verified": [
+    "Addon Python code (routes, semaphore, OCR lock, floors).",
+    "Whether the review diff was truncated.",
+    "Frontend tests and e2e-layout measurements.",
+    "Messages and docs."
+  ],
+  "confidence": 78
+}
