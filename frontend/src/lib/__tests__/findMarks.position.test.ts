@@ -54,8 +54,56 @@ function textLayer(text: string): HTMLDivElement {
   return layer;
 }
 
+function markdownBlockLayer(rendered: string, sourceLines: string): HTMLDivElement {
+  const layer = document.createElement("div");
+  const block = document.createElement("p");
+  block.setAttribute("data-source-lines", sourceLines);
+  block.textContent = rendered;
+  layer.appendChild(block);
+  return layer;
+}
+
 const marksIn = (root: ParentNode) =>
   Array.from(root.querySelectorAll("mark.find-mark"));
+
+function currentMarkIndex(layer: HTMLElement): number | null {
+  const marks = marksIn(layer);
+  const current = marks.filter((mark) =>
+    mark.classList.contains("find-mark-current"),
+  );
+  return current.length === 1 ? marks.indexOf(current[0]) : null;
+}
+
+const CSV_TERM = "budget";
+const CSV_LINES = Array.from(
+  { length: 20 },
+  (_, index) =>
+    `${index + 1},${CSV_TERM} item ${index + 1},note ${String.fromCharCode(
+      97 + index,
+    )} marker`,
+);
+const CSV_RAW = ["id,item,note", ...CSV_LINES].join("\n");
+const CSV_CLEANED = CSV_RAW.replace(/,/g, " ");
+
+const VTT_CUES = Array.from(
+  { length: 10 },
+  (_, index) =>
+    `Cue ${index + 1} explains the annual ${CSV_TERM} for the ${
+      ["north", "south", "east", "west", "harbor", "river", "hill", "bay", "pier", "gate"][index]
+    } team before the ${["spring", "summer", "autumn", "winter", "annual", "quarterly", "monthly", "weekly", "final", "first"][index]} review.`,
+);
+const VTT_RAW = [
+  "WEBVTT",
+  "",
+  ...VTT_CUES.flatMap((cue, index) => [
+    `00:00:${String(index * 2).padStart(2, "0")}.000 --> 00:00:${String(
+      index * 2 + 1,
+    ).padStart(2, "0")}.000`,
+    cue,
+    "",
+  ]),
+].join("\n");
+const VTT_CLEANED = VTT_CUES.join(" ");
 
 describe("locateTextRow", () => {
   it("compares whitespace runs as one space and returns the source offset", () => {
@@ -102,6 +150,90 @@ describe("locateTextRow", () => {
   });
 });
 
+const KNOWLEDGE_NOTE = [
+  "---",
+  "id: '20261105044628'",
+  "title: Beacon maintenance notes",
+  "tags:",
+  "- beacon",
+  "---",
+  "",
+  "# Beacon maintenance",
+  "",
+  "The beacon on the north pier was cleaned on Monday.",
+].join("\n");
+
+function bodyOf(note: string): string {
+  const lines = note.split("\n");
+  if (lines[0] !== "---") return note;
+  const close = lines.indexOf("---", 1);
+  return close < 0 ? note : lines.slice(close + 1).join("\n");
+}
+
+describe("locateTextRow when the rendered source starts at the body", () => {
+  it("drops the front of a snippet that reaches into the frontmatter", () => {
+    const body = bodyOf(KNOWLEDGE_NOTE);
+    const positions = termPositions(KNOWLEDGE_NOTE, "beacon");
+    const bodyPositions = termPositions(body, "beacon");
+    for (const ordinal of [3, 4]) {
+      const row = addonRow(KNOWLEDGE_NOTE, positions[ordinal - 1], ordinal, "beacon");
+      expect(locateTextRow(body, row)).toBe(bodyPositions[ordinal - 3]);
+    }
+  });
+
+  it("leaves a title or tag row unlocated", () => {
+    const body = bodyOf(KNOWLEDGE_NOTE);
+    const positions = termPositions(KNOWLEDGE_NOTE, "beacon");
+    for (const ordinal of [1, 2]) {
+      const row = addonRow(KNOWLEDGE_NOTE, positions[ordinal - 1], ordinal, "beacon");
+      expect(locateTextRow(body, row)).toBeNull();
+    }
+  });
+});
+
+describe("markFindOccurrences in a Markdown block", () => {
+  it("scores each visible row on its own occurrence when the source hides one", () => {
+    const source =
+      "[docs](https://example.com/budget/x) then budget and budget again";
+    const rendered = "docs then budget and budget again";
+    const positions = termPositions(source, "budget");
+    const current: (number | null)[] = [];
+    for (let ordinal = 1; ordinal <= positions.length; ordinal += 1) {
+      const layer = markdownBlockLayer(rendered, "0-1");
+      const row = addonRow(source, positions[ordinal - 1], ordinal, "budget");
+      markFindOccurrences(layer, "budget", row, {
+        text: source,
+        bodyStartLine: 0,
+        mode: "markdown",
+      });
+      current.push(currentMarkIndex(layer));
+    }
+    expect(current).toEqual([null, 0, 1]);
+  });
+});
+
+describe("markFindOccurrences with a snippet cut from different text", () => {
+  it.each([
+    ["CSV", CSV_RAW, CSV_CLEANED],
+    ["VTT", VTT_RAW, VTT_CLEANED],
+  ])("lands every %s row on its own occurrence", (_name, rendered, cleaned) => {
+    const positions = termPositions(cleaned, CSV_TERM);
+    const landed: number[] = [];
+    for (let ordinal = 1; ordinal <= positions.length; ordinal += 1) {
+      const layer = textLayer(rendered);
+      const row = addonRow(cleaned, positions[ordinal - 1], ordinal, CSV_TERM);
+      markFindOccurrences(layer, CSV_TERM, row, {
+        text: rendered,
+        bodyStartLine: 0,
+        mode: "plain",
+      });
+      const index = currentMarkIndex(layer);
+      if (index !== null) landed.push(index);
+    }
+    expect(landed).toEqual(positions.map((_, index) => index));
+  });
+});
+
 describe("markFindOccurrences in a plain text source", () => {
   it("puts the current mark on the occurrence at the located source position", () => {
     const line = "check the beacon lamp every morning";
@@ -144,7 +276,27 @@ describe("markFindOccurrences in a plain text source", () => {
     }
   });
 
-  it("gives no current mark when the snippet is not in the source", () => {
+  it("scores the whole text when the snippet is not in the source", () => {
+    const source = "alpha needle bravo";
+    const layer = textLayer(source);
+    const row: FindMarkRow = {
+      kind: "text",
+      ordinal: 2,
+      snippet: "alpha needle bravo!",
+      match_start: "alpha ".length,
+      match_length: "needle".length,
+    };
+
+    markFindOccurrences(layer, "needle", row, {
+      text: source,
+      bodyStartLine: 0,
+      mode: "plain",
+    });
+
+    expect(currentMarkIndex(layer)).toBe(0);
+  });
+
+  it("gives no current mark when a not-found snippet's context matches nothing", () => {
     const source = "alpha needle bravo";
     const layer = textLayer(source);
     const row: FindMarkRow = {

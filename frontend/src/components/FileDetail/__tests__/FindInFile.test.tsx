@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useEffect, useState, type ReactNode } from "react";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 
 import { RightPaneFile } from "../../folder/RightPaneFile";
 import { FileDetailContent } from "../../FileDetailContent";
@@ -1521,6 +1523,11 @@ const BEACON_NOTE = [
 
 const BEACON_TERM = "beacon";
 
+const BACKEND_DEV_NOTE = readFileSync(
+  path.resolve(process.cwd(), "../docs/developer-guide/backend-dev.md"),
+  "utf8",
+);
+
 const foldAscii = (text: string) =>
   text.replace(/[A-Z]/g, (character) => character.toLowerCase());
 
@@ -1568,6 +1575,13 @@ function bodyStartLine(note: string): number {
   if (lines[0] !== "---") return 0;
   const close = lines.indexOf("---", 1);
   return close < 0 ? 0 : close + 1;
+}
+
+function noteBody(note: string): string {
+  const lines = note.split("\n");
+  if (lines[0] !== "---") return note;
+  const close = lines.indexOf("---", 1);
+  return close < 0 ? note : lines.slice(close + 1).join("\n");
 }
 
 function lineOfCodePoint(note: string, at: number): number {
@@ -1630,6 +1644,38 @@ async function walkFindRows(
     }
   } finally {
     Element.prototype.scrollIntoView = original;
+  }
+}
+
+async function walkKnowledgeRows(note: string, term: string) {
+  const rows = addonRows(note, term);
+  const positions = termPositions(note, term);
+  const start = bodyStartLine(note);
+  shared.knowledgeMarkdown = noteBody(note);
+  reply = () => answer(rows, { query: term });
+  await openPage(MARKDOWN);
+  const slot = await screen.findByTestId("knowledge-edit-slot");
+  const input = await openBar();
+  typeInto(input, term);
+  await findCount(`${rows.length} 件`);
+  let bodyOrdinal = 0;
+  for (let index = 0; index < rows.length; index += 1) {
+    enter(input);
+    await findCount(`${index + 1} / ${rows.length}`);
+    if (lineOfCodePoint(note, positions[index]) < start) {
+      await waitFor(() =>
+        expect(slot.querySelector("mark.find-mark-current")).toBeNull(),
+      );
+      continue;
+    }
+    const expected = bodyOrdinal;
+    bodyOrdinal += 1;
+    await waitFor(() => {
+      const current = slot.querySelector("mark.find-mark-current");
+      expect(current).not.toBeNull();
+      const marks = Array.from(slot.querySelectorAll("mark.find-mark"));
+      expect(marks.indexOf(current as Element)).toBe(expected);
+    });
   }
 }
 
@@ -2041,7 +2087,7 @@ describe("SPEC-CORE-028 I5 the current mark follows the row's source position", 
     ["task list", TASK_NOTE, BEACON_TERM, []],
     ["links", LINK_NOTE, BEACON_TERM, []],
     ["link whose URL holds the term", LINK_URL_NOTE, BEACON_TERM, [1]],
-    ["list link whose URL holds the term", LINK_URL_LIST_NOTE, BEACON_TERM, [1]],
+    ["list link whose URL holds the term", LINK_URL_LIST_NOTE, BEACON_TERM, []],
     ["fence with a language name", FENCE_NOTE, BEACON_TERM, []],
     ["entity", ENTITY_NOTE, BEACON_TERM, []],
     ["emoji", EMOJI_NOTE, BEACON_TERM, []],
@@ -2067,6 +2113,33 @@ describe("SPEC-CORE-028 I5 the current mark follows the row's source position", 
       await walkFindRows(note, term, addonRows(note, term), noMarkRows);
     },
   );
+
+  it("puts rows 6 and 7 of backend-dev.md on the occurrences their context matches", async () => {
+    const term = "backend";
+    const rows = addonRows(BACKEND_DEV_NOTE, term);
+    shared.markdown = BACKEND_DEV_NOTE;
+    reply = () => answer(rows, { query: term });
+    await openPage(PDF);
+    const body = await screen.findByTestId("markdown-body");
+    const input = await openBar();
+    typeInto(input, term);
+    await findCount(`${rows.length} 件`);
+    const marks = () => Array.from(body.querySelectorAll("mark.find-mark"));
+    // Rows 1-5 are visible occurrences before the paragraph; row 6 is the
+    // hidden link URL and row 7 is the visible use it precedes.
+    const expected: Record<number, number> = { 6: 4, 7: 5 };
+    for (let step = 1; step <= 7; step += 1) {
+      enter(input);
+      await findCount(`${step} / ${rows.length}`);
+      const index = expected[step];
+      if (index === undefined) continue;
+      await waitFor(() => {
+        const current = body.querySelector("mark.find-mark-current");
+        expect(current).not.toBeNull();
+        expect(marks().indexOf(current as Element)).toBe(index);
+      });
+    }
+  });
 });
 
 describe("SPEC-CORE-028 I5 find marks with an emoji before the term", () => {
@@ -2100,6 +2173,16 @@ describe("SPEC-CORE-028 I5 find marks with an emoji before the term", () => {
 });
 
 describe("SPEC-CORE-028 I5 the knowledge editor's preview", () => {
+  it.each([
+    ["rows within 80 characters after the frontmatter", BEACON_NOTE, BEACON_TERM],
+    ["a short note", SHORT_FM_NOTE, BEACON_TERM],
+  ])(
+    "places each body row on its own occurrence when it renders the body without frontmatter: %s",
+    async (_name, note, term) => {
+      await walkKnowledgeRows(note, term);
+    },
+  );
+
   it("gets the current mark from the shell's own body provider", async () => {
     shared.knowledgeMarkdown = "alpha needle bravo";
     reply = () => answer([row("text", "alpha needle bravo", { ordinal: 1 })]);

@@ -129,6 +129,23 @@ describe("chooseCurrentOccurrence", () => {
     expect(chooseCurrentOccurrence(occurrences, row(snippet, 2, "page"))).toBe(0);
   });
 
+  it("takes a text row's occurrence whose context agrees on exactly ten letters", () => {
+    const snippet = `${"a".repeat(10)} needle`;
+    const occurrences: FindOccurrenceContext[] = [
+      { before: "a".repeat(10), after: "" },
+      { before: "b".repeat(20), after: "z".repeat(20) },
+    ];
+    expect(chooseCurrentOccurrence(occurrences, row(snippet, 1, "text"))).toBe(0);
+  });
+
+  it("withholds a text row's occurrence when its context agrees on only nine", () => {
+    const snippet = `${"a".repeat(9)} needle`;
+    const occurrences: FindOccurrenceContext[] = [
+      { before: "a".repeat(9), after: "" },
+    ];
+    expect(chooseCurrentOccurrence(occurrences, row(snippet, 1, "text"))).toBeNull();
+  });
+
   it("falls back to the ordinal on a page row when no context matches", () => {
     const occurrences: FindOccurrenceContext[] = [
       { before: "aaa ", after: " bbb" },

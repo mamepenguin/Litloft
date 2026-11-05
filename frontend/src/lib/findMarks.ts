@@ -163,7 +163,8 @@ function termStarts(text: string, term: string): number[] {
 /**
  * The UTF-16 index in `source` of the term the row's snippet surrounds, or
  * null when the snippet is not there. When the snippet repeats, the
- * occurrence nearest the row's ordinal wins.
+ * occurrence nearest the row's ordinal wins. When it is not found, leading
+ * characters are dropped, never reaching the term.
  */
 export function locateTextRow(
   source: string,
@@ -188,22 +189,32 @@ export function locateTextRow(
   if (matchIndex >= snippet.text.length) return null;
 
   const sourceText = normalizeWhitespace(source);
-  const hits: number[] = [];
-  for (
-    let at = sourceText.text.indexOf(snippet.text);
-    at >= 0;
-    at = sourceText.text.indexOf(snippet.text, at + 1)
-  ) {
-    hits.push(at);
+  let hits: number[] = [];
+  let dropFrom = 0;
+  for (; dropFrom <= matchIndex; dropFrom += 1) {
+    const needle = snippet.text.slice(dropFrom);
+    const found: number[] = [];
+    for (
+      let at = sourceText.text.indexOf(needle);
+      at >= 0;
+      at = sourceText.text.indexOf(needle, at + 1)
+    ) {
+      found.push(at);
+    }
+    if (found.length > 0) {
+      hits = found;
+      break;
+    }
   }
   if (hits.length === 0) return null;
 
+  const remainderIndex = matchIndex - dropFrom;
   let chosen = hits[0];
   if (hits.length > 1) {
     const positions = termStarts(source, term);
     let bestDistance = Number.POSITIVE_INFINITY;
     for (const hit of hits) {
-      const at = sourceText.toSource[hit + matchIndex];
+      const at = sourceText.toSource[hit + remainderIndex];
       if (at === undefined) continue;
       let ordinal = 1;
       for (const position of positions) {
@@ -218,7 +229,7 @@ export function locateTextRow(
     }
   }
 
-  const located = sourceText.toSource[chosen + matchIndex];
+  const located = sourceText.toSource[chosen + remainderIndex];
   return located === undefined ? null : located;
 }
 
@@ -326,6 +337,27 @@ export function chooseCurrentOccurrence(
   return null;
 }
 
+function occurrenceContexts(
+  foldedText: string,
+  starts: readonly number[],
+  needleLength: number,
+  indices?: readonly number[],
+): FindOccurrenceContext[] {
+  const context = contextText(foldedText);
+  return (indices ?? starts.map((_, index) => index)).map((index) => {
+    const at = starts[index];
+    const position = context.at[at] ?? 0;
+    const end = context.at[at + needleLength] ?? context.text.length;
+    return {
+      before: context.text.slice(
+        Math.max(0, position - CONTEXT_CHARS),
+        position,
+      ),
+      after: context.text.slice(end, end + CONTEXT_CHARS),
+    };
+  });
+}
+
 interface TextEntry {
   node: Text;
   start: number;
@@ -387,13 +419,23 @@ function elementTextRange(
 function chooseTextOccurrence(
   container: HTMLElement,
   index: TextIndex,
+  foldedText: string,
   starts: readonly number[],
   row: FindMarkRow,
   term: string,
   source: FindTextSource,
 ): number | null {
   const located = locateTextRow(source.text, row);
-  if (located === null) return null;
+  if (located === null) {
+    // Only the plain viewer renders text the addon may have indexed from a
+    // cleaned copy; in Markdown the source is what is rendered, so a missing
+    // snippet has no occurrence to score.
+    if (source.mode !== "plain") return null;
+    return chooseCurrentOccurrence(
+      occurrenceContexts(foldedText, starts, term.length),
+      row,
+    );
+  }
   const startsByLine = lineStarts(source.text);
   const line = lineOf(startsByLine, located);
   if (line < source.bodyStartLine) return null;
@@ -434,18 +476,33 @@ function chooseTextOccurrence(
   const blockFrom = startsByLine[blockStart] ?? source.text.length;
   const blockTo = startsByLine[blockEnd] ?? source.text.length;
 
-  let k = 0;
-  for (const position of termStarts(source.text, term)) {
-    if (position > located) break;
-    if (position >= blockFrom && position < blockTo) k += 1;
+  const blockOccurrences: number[] = [];
+  for (let i = 0; i < starts.length; i += 1) {
+    if (starts[i] >= range.start && starts[i] < range.end) {
+      blockOccurrences.push(i);
+    }
   }
-  if (k === 0) return null;
+  if (blockOccurrences.length === 0) return null;
 
-  const first = starts.findIndex((start) => start >= range.start);
-  if (first < 0) return null;
-  const current = first + k - 1;
-  if (current >= starts.length || starts[current] >= range.end) return null;
-  return current;
+  const sourceTerms = termStarts(source.text, term);
+  const sourceCount = sourceTerms.filter(
+    (position) => position >= blockFrom && position < blockTo,
+  ).length;
+  if (sourceCount === blockOccurrences.length) {
+    let k = 0;
+    for (const position of sourceTerms) {
+      if (position > located) break;
+      if (position >= blockFrom && position < blockTo) k += 1;
+    }
+    if (k === 0) return null;
+    return blockOccurrences[k - 1] ?? null;
+  }
+
+  const winner = chooseCurrentOccurrence(
+    occurrenceContexts(foldedText, starts, term.length, blockOccurrences),
+    row,
+  );
+  return winner === null ? null : (blockOccurrences[winner] ?? null);
 }
 
 function wrap(node: Text, start: number, end: number, current: boolean): HTMLElement {
@@ -491,23 +548,17 @@ export function markFindOccurrences(
   let current: number | null = null;
   if (currentRow !== null) {
     if (currentRow.kind === "page") {
-      const context = contextText(folded);
-      const contexts: FindOccurrenceContext[] = starts.map((at) => {
-        const position = context.at[at] ?? 0;
-        const end = context.at[at + needle.length] ?? context.text.length;
-        return {
-          before: context.text.slice(
-            Math.max(0, position - CONTEXT_CHARS),
-            position,
-          ),
-          after: context.text.slice(end, end + CONTEXT_CHARS),
-        };
-      });
+      const contexts: FindOccurrenceContext[] = occurrenceContexts(
+        folded,
+        starts,
+        needle.length,
+      );
       current = chooseCurrentOccurrence(contexts, currentRow);
     } else if (currentRow.kind === "text" && textSource) {
       current = chooseTextOccurrence(
         container,
         index,
+        folded,
         starts,
         currentRow,
         needle,
