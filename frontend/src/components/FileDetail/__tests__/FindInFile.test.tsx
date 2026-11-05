@@ -1520,36 +1520,185 @@ const BEACON_NOTE = [
 ].join("\n");
 
 const BEACON_TERM = "beacon";
-const BEACON_BODY = BEACON_NOTE.slice(BEACON_NOTE.indexOf("# Beacon maintenance"));
 
-function beaconRow(text: string, at: number, ordinal: number) {
+const foldAscii = (text: string) =>
+  text.replace(/[A-Z]/g, (character) => character.toLowerCase());
+
+/** The code-point indices of `term` in `note`, as the addon finds them. */
+function termPositions(note: string, term: string): number[] {
+  const chars = Array.from(foldAscii(note));
+  const needle = Array.from(foldAscii(term));
+  const found: number[] = [];
+  for (let at = 0; at + needle.length <= chars.length; ) {
+    if (needle.every((character, offset) => chars[at + offset] === character)) {
+      found.push(at);
+      at += needle.length;
+    } else {
+      at += 1;
+    }
+  }
+  return found;
+}
+
+/** One row as the addon builds it, in code points: 80 either side, 「…」 where cut. */
+function addonRow(note: string, at: number, ordinal: number, term: string) {
+  const chars = Array.from(note);
+  const length = Array.from(term).length;
   const start = Math.max(0, at - 80);
+  const end = Math.min(chars.length, at + length + 80);
   const head = start > 0 ? "…" : "";
+  const tail = end < chars.length ? "…" : "";
   return {
     kind: "text" as const,
     ordinal,
-    snippet:
-      head +
-      text.slice(start, Math.min(text.length, at + BEACON_TERM.length + 80)),
+    snippet: `${head}${chars.slice(start, end).join("")}${tail}`,
     match_start: at - start + head.length,
-    match_length: BEACON_TERM.length,
+    match_length: length,
   };
+}
+
+function addonRows(note: string, term: string) {
+  return termPositions(note, term).map((at, index) =>
+    addonRow(note, at, index + 1, term),
+  );
 }
 
 /** The 8 occurrences of the term in the stored note: title, tag, then 6 in the body. */
 function beaconRows() {
-  const titleAt = BEACON_NOTE.toLowerCase().indexOf("beacon maintenance notes");
-  const tagAt = BEACON_NOTE.toLowerCase().indexOf(BEACON_TERM, titleAt + 1);
-  const rows = [
-    beaconRow(BEACON_NOTE, titleAt, 1),
-    beaconRow(BEACON_NOTE, tagAt, 2),
-  ];
-  let at = -1;
-  while ((at = BEACON_BODY.toLowerCase().indexOf(BEACON_TERM, at + 1)) >= 0) {
-    rows.push(beaconRow(BEACON_BODY, at, rows.length + 1));
-  }
-  return rows;
+  return addonRows(BEACON_NOTE, BEACON_TERM);
 }
+
+async function walkFindRows(
+  note: string,
+  term: string,
+  rows: FindRow[],
+  bodyStart: number,
+  expected: (string | null)[],
+) {
+  shared.markdown = note;
+  reply = () => answer(rows, { query: term });
+  const scrolled: Element[] = [];
+  const original = Element.prototype.scrollIntoView;
+  Element.prototype.scrollIntoView = function scrollIntoView(this: Element) {
+    scrolled.push(this);
+  };
+  try {
+    await openPage(PDF);
+    const body = await screen.findByTestId("markdown-body");
+    const input = await openBar();
+    typeInto(input, term);
+    await findCount(`${rows.length} 件`);
+    const marks = () => Array.from(body.querySelectorAll("mark.find-mark"));
+    for (let index = 0; index < rows.length; index += 1) {
+      scrolled.length = 0;
+      enter(input);
+      await findCount(`${index + 1} / ${rows.length}`);
+      if (index < bodyStart) {
+        await waitFor(() => {
+          expect(body.querySelector("mark.find-mark-current")).toBeNull();
+          expect(scrolled.filter((element) => body.contains(element))).toEqual([]);
+        });
+        continue;
+      }
+      await waitFor(() => {
+        const current = body.querySelector("mark.find-mark-current");
+        expect(current).not.toBeNull();
+        expect(marks().indexOf(current as Element)).toBe(index - bodyStart);
+        const block = expected[index];
+        if (block !== null) {
+          expect(
+            current!.closest("h1, p, li, pre")?.textContent ?? "",
+          ).toContain(block);
+        }
+        expect(scrolled.filter((element) => body.contains(element)).at(-1)).toBe(
+          current,
+        );
+      });
+    }
+  } finally {
+    Element.prototype.scrollIntoView = original;
+  }
+}
+
+const TODAI_NOTE = [
+  "---",
+  "id: '20261105044628'",
+  "title: 灯台めぐりの記録",
+  "tags:",
+  "- 灯台",
+  "---",
+  "",
+  "# 灯台の点検",
+  "",
+  "北の灯台は月曜に清掃した。南の灯台は木曜に見回る。",
+  "",
+  "- 灯台の扉を点検する。",
+  "- 灯台の記録を残す。",
+  "",
+  "最後に、古い灯台の写真を撮っておく。",
+].join("\n");
+
+const TODAI_TERM = "灯台";
+
+const ORDERED_NOTE = [
+  "---",
+  "title: Field notes",
+  "---",
+  "",
+  "1. Check the beacon lamp.",
+  "2. Close the beacon door.",
+  "3. Log the beacon hours.",
+].join("\n");
+
+const TASK_NOTE = [
+  "---",
+  "title: Field notes",
+  "---",
+  "",
+  "- [x] fix beacon cable",
+  "- [ ] log beacon hours",
+  "- [x] paint beacon door",
+  "",
+  "Keep this page for the next inspection.",
+].join("\n");
+
+const LINK_NOTE = [
+  "---",
+  "title: Field notes",
+  "---",
+  "",
+  "Read the manual about the [beacon](https://example.com/x) today.",
+  "",
+  "Check the checklist for the [beacon](https://example.com/y) tonight.",
+].join("\n");
+
+const FENCE_NOTE = [
+  "---",
+  "title: Field notes",
+  "---",
+  "",
+  "Before the fence the beacon waits.",
+  "",
+  "```python",
+  'print("the beacon inside")',
+  "```",
+  "",
+  "After the fence the beacon returns.",
+].join("\n");
+
+const AMP_NOTE = [
+  "---",
+  "title: Field notes",
+  "---",
+  "",
+  "Tom &amp; Jerry found the beacon in the hall.",
+  "",
+  "Later the beacon was moved next to the sign.",
+].join("\n");
+
+const EMOJI_NOTE = ["🚨 alert 🚨 the beacon failed", "", "Later the beacon was fixed."].join(
+  "\n",
+);
 
 describe("SPEC-CORE-028 I5 find marks in a rendered MarkdownPreview", () => {
   it("marks every occurrence, ASCII case folded, while the answer has rows, and none after closing", async () => {
@@ -1746,6 +1895,93 @@ describe("SPEC-CORE-028 I5 find marks in a rendered MarkdownPreview", () => {
     } finally {
       Element.prototype.scrollIntoView = original;
     }
+  });
+});
+
+describe("SPEC-CORE-028 I5 find marks with frontmatter and Markdown syntax", () => {
+  it("marks every body row of a Japanese note on its own occurrence and gives the title and tag rows none", async () => {
+    await walkFindRows(TODAI_NOTE, TODAI_TERM, addonRows(TODAI_NOTE, TODAI_TERM), 2, [
+      null,
+      null,
+      "灯台の点検",
+      "北の灯台は月曜に清掃した",
+      "南の灯台は木曜に見回る",
+      "灯台の扉を点検する",
+      "灯台の記録を残す",
+      "古い灯台の写真",
+    ]);
+  });
+
+  it.each([
+    [
+      "a numbered list",
+      ORDERED_NOTE,
+      BEACON_TERM,
+      ["Check the beacon lamp", "Close the beacon door", "Log the beacon hours"],
+    ],
+    [
+      "a task list",
+      TASK_NOTE,
+      BEACON_TERM,
+      ["fix beacon cable", "log beacon hours", "paint beacon door"],
+    ],
+    [
+      "a link",
+      LINK_NOTE,
+      BEACON_TERM,
+      ["Read the manual about the", "Check the checklist for the"],
+    ],
+    [
+      "a fenced code block with a language name",
+      FENCE_NOTE,
+      BEACON_TERM,
+      [
+        "Before the fence the beacon waits",
+        "the beacon inside",
+        "After the fence the beacon returns",
+      ],
+    ],
+    [
+      "an entity",
+      AMP_NOTE,
+      BEACON_TERM,
+      ["Tom & Jerry found the beacon", "Later the beacon was moved next to the sign"],
+    ],
+  ] as [string, string, string, string[]][])(
+    "lands every body row on its own occurrence in %s",
+    async (_name, note, term, blocks) => {
+      await walkFindRows(note, term, addonRows(note, term), 0, blocks);
+    },
+  );
+});
+
+describe("SPEC-CORE-028 I5 find marks with an emoji before the term", () => {
+  it("marks the term itself in the list and lands the current mark on its occurrence", async () => {
+    const rows = addonRows(EMOJI_NOTE, BEACON_TERM);
+    shared.markdown = EMOJI_NOTE;
+    reply = () => answer(rows, { query: BEACON_TERM });
+    await openPage(PDF);
+    const body = await screen.findByTestId("markdown-body");
+    const input = await openBar();
+    typeInto(input, BEACON_TERM);
+    await findCount(`${rows.length} 件`);
+
+    for (const answerRow of rows) {
+      const snippet = rowWith(answerRow.snippet);
+      const term = Array.from(snippet.querySelectorAll("mark")).find((element) =>
+        element.className.includes("bg-highlight-bg"),
+      );
+      expect(term?.textContent).toBe(BEACON_TERM);
+    }
+
+    enter(input);
+
+    await waitFor(() => {
+      const current = body.querySelector("mark.find-mark-current");
+      expect(current).not.toBeNull();
+      expect(current!.textContent).toBe(BEACON_TERM);
+      expect(current!.closest("p")?.textContent ?? "").toContain("beacon failed");
+    });
   });
 });
 

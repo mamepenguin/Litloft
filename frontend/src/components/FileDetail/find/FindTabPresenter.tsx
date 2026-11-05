@@ -4,6 +4,7 @@ import type { RefObject, UIEvent } from "react";
 import { useTranslations } from "next-intl";
 
 import type { FindRow } from "@/lib/fileFind";
+import { codePointOffsetToIndex } from "@/lib/findMarks";
 
 export interface FindLocator {
   place: string;
@@ -31,9 +32,17 @@ interface FindTabPresenterProps {
 }
 
 function Snippet({ row }: { row: FindRow }) {
-  const start = row.match_start;
-  const end = start + row.match_length;
-  if (start < 0 || row.match_length <= 0 || end > row.snippet.length) {
+  const start = codePointOffsetToIndex(row.snippet, row.match_start);
+  const end = codePointOffsetToIndex(
+    row.snippet,
+    row.match_start + row.match_length,
+  );
+  if (
+    row.match_start < 0 ||
+    row.match_length <= 0 ||
+    start >= row.snippet.length ||
+    end > row.snippet.length
+  ) {
     return <span>{row.snippet}</span>;
   }
   return (

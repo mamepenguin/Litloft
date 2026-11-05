@@ -77,18 +77,74 @@ describe("chooseCurrentOccurrence", () => {
     expect(windows(text)).toHaveLength(1);
   });
 
-  it("takes the context match nearest the ordinal when several match", () => {
-    const context = { before: "same", after: "tail" };
-    const occurrences = [context, context, context, context];
-    const snippet = "same needle tail";
-    expect(chooseCurrentOccurrence(occurrences, row(snippet, 2))).toBe(1);
-    expect(chooseCurrentOccurrence(occurrences, row(snippet, 4))).toBe(3);
+  it("takes the only occurrence with the highest score over the ordinal", () => {
+    const best = { before: "b".repeat(20), after: "c".repeat(20) };
+    const other = { before: "x".repeat(20), after: "y".repeat(20) };
+    const snippet = `${"b".repeat(20)} needle ${"c".repeat(20)}`;
+    expect(chooseCurrentOccurrence([other, other, best, other], row(snippet, 1))).toBe(2);
   });
 
-  it("prefers the earlier occurrence when two context matches are equally near", () => {
-    const context = { before: "same", after: "tail" };
-    const occurrences = [context, { before: "x", after: "y" }, context];
-    expect(chooseCurrentOccurrence(occurrences, row("same needle tail", 2))).toBe(0);
+  it("falls back to the ordinal when two occurrences share the highest score", () => {
+    const context = { before: "s".repeat(20), after: "t".repeat(20) };
+    const occurrences = [
+      context,
+      { before: "x".repeat(20), after: "y".repeat(20) },
+      context,
+    ];
+    const snippet = `${"s".repeat(20)} needle ${"t".repeat(20)}`;
+    expect(chooseCurrentOccurrence(occurrences, row(snippet, 2))).toBe(1);
+  });
+
+  it("sums both sides rather than letting one side alone decide", () => {
+    const before = "b".repeat(20);
+    const after = "c".repeat(20);
+    const snippet = `${before} needle ${after}`;
+    const beforeOnly = { before, after: "z".repeat(20) };
+    const afterOnly = { before: "z".repeat(20), after };
+    const neither = { before: "x".repeat(20), after: "y".repeat(20) };
+    expect(
+      chooseCurrentOccurrence([beforeOnly, afterOnly, neither], row(snippet, 3)),
+    ).toBe(2);
+  });
+
+  it("counts twenty letters on each side, not ten", () => {
+    const snippetBefore = `${"a".repeat(10)}${"b".repeat(10)}`;
+    const snippetAfter = `${"c".repeat(10)}${"d".repeat(10)}`;
+    const snippet = `${snippetBefore} needle ${snippetAfter}`;
+    const tenOnly = {
+      before: `${"z".repeat(10)}${"b".repeat(10)}`,
+      after: `${"c".repeat(10)}${"z".repeat(10)}`,
+    };
+    const full = { before: snippetBefore, after: snippetAfter };
+    expect(chooseCurrentOccurrence([tenOnly, full], row(snippet, 1))).toBe(1);
+  });
+
+  it("needs the whole window on the other side when the rendered text starts at the occurrence", () => {
+    const snippet = `${"a".repeat(20)} needle ${"b".repeat(20)}`;
+    const atStart = { before: "", after: `${"b".repeat(11)}${"z".repeat(9)}` };
+    expect(
+      chooseCurrentOccurrence(
+        [atStart, { before: "x", after: "y" }],
+        row(snippet, 1, "text"),
+      ),
+    ).toBeNull();
+  });
+
+  it("reads match_start and match_length as code points", () => {
+    const before = "🚨 alert 🚨 the ";
+    const snippet = `${before}needle failed later on`;
+    expect(
+      chooseCurrentOccurrence(
+        [{ before: "alertthe", after: "failedlateron" }],
+        {
+          kind: "text",
+          snippet,
+          match_start: Array.from(before).length,
+          match_length: TERM.length,
+          ordinal: 1,
+        },
+      ),
+    ).toBe(0);
   });
 
   it("falls back to the ordinal on a page row when no context matches", () => {
