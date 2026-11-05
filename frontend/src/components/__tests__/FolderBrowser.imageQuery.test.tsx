@@ -25,11 +25,11 @@ vi.mock("@/components/Breadcrumb", () => ({
   Breadcrumb: () => <nav aria-label="Breadcrumb">trail</nav>,
 }));
 vi.mock("@/components/SelectionBar", () => ({ SelectionBar: () => null }));
-const zone = vi.hoisted(() => ({ props: [] as Array<Record<string, unknown>> }));
-vi.mock("@/components/UploadZone", () => ({
-  UploadZone: (props: { children?: React.ReactNode } & Record<string, unknown>) => {
-    zone.props.push(props);
-    return <>{props.children}</>;
+const drop = vi.hoisted(() => ({ props: [] as Array<Record<string, unknown>> }));
+vi.mock("@/components/search/ImageQueryDropTarget", () => ({
+  ImageQueryDropTarget: (props: Record<string, unknown>) => {
+    drop.props.push(props);
+    return null;
   },
 }));
 vi.mock("@/components/AddButton", () => ({ AddButton: () => <button>Add</button> }));
@@ -140,15 +140,15 @@ beforeEach(() => {
   router.push.mockClear();
   getDriveTags.mockReset();
   getDriveTags.mockResolvedValue([]);
-  zone.props = [];
+  drop.props = [];
 });
 
 describe("SPEC-CORE-046 step 2 with onImageQuery", () => {
-  it("passes it to the UploadZone", () => {
+  it("passes it to the page's own drop target", () => {
     const onImageQuery = vi.fn();
     renderSearch(onImageQuery);
 
-    expect(zone.props.at(-1)?.onImageQuery).toBe(onImageQuery);
+    expect(drop.props.at(-1)?.onImageQuery).toBe(onImageQuery);
   });
 
   it("renders the image button in the field's header, opening an image picker whose file goes to onImageQuery", () => {
@@ -194,7 +194,7 @@ describe("SPEC-CORE-046 step 2 without onImageQuery", () => {
   it("renders no image button and passes the zone no onImageQuery, where with it the button shows", () => {
     const view = renderSearch();
     expect(screen.queryByRole("button", { name: BUTTON })).toBeNull();
-    expect(zone.props.at(-1)?.onImageQuery).toBeUndefined();
+    expect(drop.props.at(-1)?.onImageQuery).toBeUndefined();
     view.unmount();
 
     renderSearch(vi.fn());

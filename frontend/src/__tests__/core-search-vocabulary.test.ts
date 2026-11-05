@@ -23,6 +23,7 @@ const CALLERS: Record<string, number> = {
   // Two each: the badge words come from `MATCH_BADGES`, and `matchedPages`
   // and `matchedSectionNumber` are the lines that are not a badge.
   "components/MatchOverlay.tsx": 2,
+  "components/search/ImageQueryDropTarget.tsx": 1,
   "components/search/ImageQueryViewPresenter.tsx": 24,
   "components/search/MergedResultItem.tsx": 2,
   "components/search/PassageList.tsx": 12,
@@ -33,7 +34,6 @@ const CALLERS: Record<string, number> = {
   "components/search/SearchQueryHeader.tsx": 15,
   "components/search/SearchResultsList.tsx": 2,
   "components/search/useLauncherRows.ts": 1,
-  "components/UploadZone.tsx": 1,
   // None by name: the legend draws every word it shows out of
   // `MATCH_BADGES`.
   "components/search/MatchLegend.tsx": 0,

@@ -2,11 +2,11 @@
  * SPEC-CORE-046 step 2 / I8: on the results page with a text query, a drag is
  * classed once at dragenter and its drop does what the overlay said.
  */
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { dataTransfer, imageFile } from "@/__tests__/helpers/imageQuery";
-import { UploadZone } from "@/components/UploadZone";
+import { ImageQueryDropTarget } from "@/components/search/ImageQueryDropTarget";
 import { resetUploadStore } from "@/hooks/useUpload";
 
 const initUpload = vi.hoisted(() => vi.fn());
@@ -25,12 +25,12 @@ const text = (name = "notes.txt") => new File(["x"], name, { type: "text/plain" 
 
 function renderZone(onImageQuery?: (file: File) => void) {
   const view = render(
-    <UploadZone drive="main" folderPath="" onImageQuery={onImageQuery}>
+    <>
+      <ImageQueryDropTarget onImageQuery={onImageQuery} />
       <div data-testid="inside" />
-    </UploadZone>,
+    </>,
   );
-  const zone = view.container.querySelector("[data-upload-zone]")!;
-  return { ...view, zone };
+  return { ...view, zone: document.body };
 }
 
 async function settle() {
@@ -55,7 +55,7 @@ beforeEach(() => {
   resetUploadStore();
 });
 
-describe("SPEC-CORE-046 I8 with onImageQuery", () => {
+describe("SPEC-CORE-046 I8: the results page drop target", () => {
   it("classes one image as a search: the search overlay, then onImageQuery with the file and no upload", async () => {
     const onImageQuery = vi.fn();
     const { zone } = renderZone(onImageQuery);
@@ -78,17 +78,18 @@ describe("SPEC-CORE-046 I8 with onImageQuery", () => {
     ["several images", { files: [imageFile("a.png"), imageFile("b.png")] }],
     ["an item whose type is not reported", { items: [{ kind: "file" as const, type: "" }], files: [imageFile()] }],
     ["a string item", { items: [{ kind: "string" as const, type: "image/png" }], files: [imageFile()] }],
-  ])("classes %s as an upload: today's overlay and today's upload, where one image searches", async (_name, drag) => {
+  ])("classes %s as an upload: no overlay, no upload, where one image searches", async (_name, drag) => {
     const onImageQuery = vi.fn();
     const { zone } = renderZone(onImageQuery);
     await searchOnce(zone, onImageQuery);
 
     fireEvent.dragEnter(zone, { dataTransfer: dataTransfer(drag) });
-    expect(screen.getByText(UPLOAD_OVERLAY)).toBeInTheDocument();
+    expect(screen.queryByText(UPLOAD_OVERLAY)).toBeNull();
     expect(screen.queryByText(SEARCH_OVERLAY)).toBeNull();
 
     fireEvent.drop(zone, { dataTransfer: dataTransfer(drag) });
-    await waitFor(() => expect(initUpload).toHaveBeenCalled());
+    await settle();
+    expect(initUpload).not.toHaveBeenCalled();
     expect(onImageQuery).toHaveBeenCalledTimes(1);
   });
 
@@ -104,7 +105,7 @@ describe("SPEC-CORE-046 I8 with onImageQuery", () => {
     expect(initUpload).not.toHaveBeenCalled();
   });
 
-  it("does not re-derive the class on drop: a drag classed upload that drops one image uploads it", async () => {
+  it("does not re-derive the class on drop: a drag classed upload that drops one image starts nothing", async () => {
     const onImageQuery = vi.fn();
     const { zone } = renderZone(onImageQuery);
     await searchOnce(zone, onImageQuery);
@@ -112,8 +113,9 @@ describe("SPEC-CORE-046 I8 with onImageQuery", () => {
 
     fireEvent.dragEnter(zone, { dataTransfer: dataTransfer({ items: [{ kind: "file", type: "" }], files: [file] }) });
     fireEvent.drop(zone, { dataTransfer: dataTransfer({ files: [file] }) });
+    await settle();
 
-    await waitFor(() => expect(initUpload).toHaveBeenCalled());
+    expect(initUpload).not.toHaveBeenCalled();
     expect(onImageQuery).toHaveBeenCalledTimes(1);
   });
 
@@ -136,7 +138,7 @@ describe("SPEC-CORE-046 I8 with onImageQuery", () => {
     fireEvent.dragLeave(zone, { dataTransfer: dataTransfer({ files: [imageFile()] }) });
     fireEvent.dragEnter(zone, { dataTransfer: dataTransfer({ files: [text()] }) });
 
-    expect(screen.getByText(UPLOAD_OVERLAY)).toBeInTheDocument();
+    expect(screen.queryByText(UPLOAD_OVERLAY)).toBeNull();
     expect(screen.queryByText(SEARCH_OVERLAY)).toBeNull();
   });
 });

@@ -43,6 +43,7 @@ import { buildWidenTagScope } from "@/components/folder/WidenTagScopeLink";
 import { Button } from "@/components/Button";
 import { parseSearchQuery } from "@/lib/searchQuery";
 import { SearchQueryHeader } from "@/components/search/SearchQueryHeader";
+import { ImageQueryDropTarget } from "@/components/search/ImageQueryDropTarget";
 
 /**
  * How long scrolling must be idle before the list snapshot is
@@ -902,25 +903,14 @@ export function FolderBrowser({
 
   if (isSearch) {
     return (
-      <UploadZone
-        drive={driveName}
-        folderPath={folderPath ?? ""}
-        className="flex-1 flex flex-col"
-        onImageQuery={onImageQuery}
-        acceptUpload={false}
-        enabled={!!onImageQuery}
-      >
+      <>
         {inner}
-      </UploadZone>
+        <ImageQueryDropTarget onImageQuery={onImageQuery} />
+      </>
     );
   }
   return (
-    <UploadZone
-      drive={driveName}
-      folderPath={folderPath ?? ""}
-      className="flex-1 flex flex-col"
-      onImageQuery={onImageQuery}
-    >
+    <UploadZone drive={driveName} folderPath={folderPath ?? ""} className="flex-1 flex flex-col">
       {inner}
     </UploadZone>
   );
