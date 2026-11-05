@@ -528,3 +528,23 @@ describe("SPEC-CORE-043 I13 a choice while a quoted value is open", () => {
     });
   });
 });
+
+describe("SPEC-CORE-043 rule 7 a menu choice on an empty field", () => {
+  it("appends the chosen folder without touching an empty query", async () => {
+    api.getFolderTree.mockResolvedValue([folder("Work")]);
+    renderHeader({ query: "" });
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Search query" }), {
+      target: { value: "" },
+    });
+
+    openFolderList();
+    fireEvent.click(await screen.findByRole("menuitem", { name: /Work/ }));
+
+    expect(pushed().q).toBe("path:Work");
+    expect(parseSearchQuery("path:Work")).toMatchObject({
+      folders: ["Work"],
+      text: "",
+    });
+  });
+});

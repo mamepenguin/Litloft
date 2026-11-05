@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDriveFiles } from "../api";
 import {
   activeOperatorValue,
+  closeOpenQuote,
   completeOperator,
   filterFromParsed,
   filterQueryParam,
@@ -419,5 +420,136 @@ describe("SPEC-CORE-043 listing 1 getDriveFiles writes the new parameters", () =
     expect(url.searchParams.getAll("collection")).toEqual(["旅行", "資料"]);
     expect(url.searchParams.has("path")).toBe(false);
     expect(url.searchParams.has("recursive")).toBe(false);
+  });
+});
+
+describe("SPEC-CORE-043 I12 removing a chip removes exactly its own tokens", () => {
+  it("removing the favorites chip leaves an is:liked token and the text", () => {
+    expect(
+      removeOperatorChip("is:favorite is:liked tag:x 京都", {
+        operator: "is",
+        flag: "favorite",
+      }),
+    ).toBe("is:liked tag:x 京都");
+  });
+
+  it("removing one folder chip leaves the other path: token", () => {
+    expect(
+      removeOperatorChip("path:A path:B", { operator: "path", folder: "A" }),
+    ).toBe("path:B");
+  });
+
+  it("removing a collection chip leaves another operator's tokens", () => {
+    expect(
+      removeOperatorChip("in:Trip tag:x path:a", {
+        operator: "collection",
+        collection: "trip",
+      }),
+    ).toBe("tag:x path:a");
+  });
+
+  it("keeps every other token's raw string, case and spacing unchanged", () => {
+    expect(
+      removeOperatorChip('TAG：x path:"a" in:Trip', {
+        operator: "collection",
+        collection: "Trip",
+      }),
+    ).toBe('TAG：x path:"a"');
+  });
+});
+
+describe("SPEC-CORE-043 rule 7 a menu choice closes an open quote only", () => {
+  it("an empty or whitespace-only field has nothing to close", () => {
+    expect(closeOpenQuote("")).toBe("");
+    expect(closeOpenQuote("  ")).toBe("  ");
+  });
+});
+
+describe("SPEC-CORE-043 I10 repeated slashes at either end are trimmed", () => {
+  it("path://Work// is the folder Work", () => {
+    expect(parseSearchQuery("path://Work//").folders).toEqual(["Work"]);
+    expect(parseSearchQuery("path://Work//").text).toBe("");
+  });
+});
+
+describe("SPEC-CORE-043 rule 8 the cap counts distinct values in order", () => {
+  it("a duplicate before the tenth distinct folder does not spend the cap", () => {
+    const q = [
+      "path:f0",
+      "path:f0",
+      ...Array.from({ length: 9 }, (_, i) => `path:f${i + 1}`),
+    ].join(" ");
+
+    const parsed = parseSearchQuery(q);
+
+    expect(parsed.folders).toEqual(Array.from({ length: 10 }, (_, i) => `f${i}`));
+    expect(parsed.text).toBe("");
+  });
+
+  it("a duplicate before the tenth distinct collection does not spend the cap", () => {
+    const q = [
+      "in:C0",
+      "in:c0",
+      ...Array.from({ length: 9 }, (_, i) => `in:c${i + 1}`),
+    ].join(" ");
+
+    const parsed = parseSearchQuery(q);
+
+    expect(parsed.collections).toEqual(["C0", ...Array.from({ length: 9 }, (_, i) => `c${i + 1}`)]);
+    expect(parsed.text).toBe("");
+  });
+});
+
+describe("SPEC-CORE-043 I5 a repeated is: value is one chip", () => {
+  it("is:favorite is:favorite produces a single chip", () => {
+    expect(operatorChips("is:favorite is:favorite")).toHaveLength(1);
+  });
+});
+
+describe("SPEC-CORE-043 item 1 a token that starts with a colon is text", () => {
+  it("keeps the raw string and does not open a quote", () => {
+    expect(parseSearchQuery(':"a  b" tag:x').text).toBe(':"a b"');
+    expect(parseSearchQuery(':"a  b" tag:x').folders).toEqual([]);
+    expect(parseSearchQuery(':"a  b" tag:x').tags).toEqual(["x"]);
+    expect(closeOpenQuote(':"abc')).toBe(':"abc');
+  });
+});
+
+describe("SPEC-CORE-043 I5 rule 1 mixed half- and full-width quotes pair", () => {
+  it("a full-width quote closes on a half-width one", () => {
+    expect(parseSearchQuery('path:＂My Photos" tag:x')).toMatchObject({
+      folders: ["My Photos"],
+      tags: ["x"],
+      text: "",
+    });
+  });
+
+  it("a half-width quote closes on a full-width one", () => {
+    expect(parseSearchQuery('in:"読書 メモ＂ 京都')).toMatchObject({
+      collections: ["読書 メモ"],
+      text: "京都",
+    });
+  });
+});
+
+describe("SPEC-CORE-043 I2 case-variant folders stay distinct in chips and removal", () => {
+  it("path:Photos and path:photos are two chips and removal is case-sensitive", () => {
+    expect(operatorChips("path:Photos path:photos")).toHaveLength(2);
+    expect(
+      removeOperatorChip("path:Photos path:photos", {
+        operator: "path",
+        folder: "Photos",
+      }),
+    ).toBe("path:photos");
+  });
+});
+
+describe("SPEC-CORE-043 item 3 a quote inside free text is an ordinary character", () => {
+  it("does not group free text and keeps the bare value of a name-form token", () => {
+    const parsed = parseSearchQuery('"budget tag:x"');
+
+    expect(parsed.text).toBe('"budget');
+    expect(parsed.tags).toEqual(['x"']);
+    expect(parseSearchQuery('path:a "foo  bar"').text).toBe('"foo bar"');
   });
 });

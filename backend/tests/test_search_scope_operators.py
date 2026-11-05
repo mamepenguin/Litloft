@@ -15,6 +15,7 @@ from datetime import UTC, datetime
 import pytest
 
 from app.models import Collection, CollectionItem, File, Tag
+from app.routers.drives import normalize_folder
 from tests.conftest import TEST_DRIVE
 
 URL = "/api/internal/files/matching"
@@ -506,3 +507,152 @@ class TestUnchangedWithoutTheNewParameters:
         assert res.status_code == 200, res.text
         assert len(res.json()["file_ids"]) == 11
         assert list(res.json()) == ["file_ids"]
+
+
+class TestFolderNamesThatEndInALetter:
+    """SPEC-CORE-043 I2/I10: trimming removes only slashes, never a letter."""
+
+    def test_the_normaliser_keeps_the_letters_at_either_end(self):
+        assert normalize_folder("/X/Box X/") == "X/Box X"
+
+    def test_a_folder_that_ends_in_x_keeps_its_file(self, client):
+        c, db, _drive_dir, _data_dir = client
+        file = _file(
+            db,
+            "proposal.md",
+            folder_path="Project X",
+            file_type="document",
+            mime_type="text/markdown",
+        )
+
+        res = _listing(c, [("folder", "Project X")])
+
+        assert _ids(res) == [file.id]
+
+
+class TestDuplicateCollectionBeforeADistinctOne:
+    """SPEC-CORE-043 I10: a duplicate is skipped, the names after it are kept."""
+
+    def test_a_duplicate_before_a_distinct_name_keeps_the_later_one(self, client, corpus):
+        c, _db, _drive_dir, _data_dir = client
+
+        listed = _listing(
+            c,
+            [
+                ("collection", "Trip"),
+                ("collection", "trip"),
+                ("collection", "資料"),
+            ],
+        )
+        matched = _match(c, collections=["Trip", "trip", "資料"])
+
+        expected = _want(corpus, "photo_a", "budget", "minutes")
+        assert sorted(_ids(listed)) == expected
+        assert sorted(matched.json()["file_ids"]) == expected
+
+
+class TestTheListingPathCombinesWithFolder:
+    """SPEC-CORE-043 listing 2: `path`/`recursive` combine with `folder` as AND."""
+
+    def test_path_recursive_and_folder_are_and(self, client, corpus):
+        c, _db, _drive_dir, _data_dir = client
+
+        res = _listing(
+            c,
+            [("path", "Work"), ("recursive", "true"), ("folder", "Work/2024")],
+        )
+
+        assert _ids(res) == _want(corpus, "budget")
+
+
+class TestCollectionDriveScopeStaysDecisive:
+    """SPEC-CORE-043 I3: another drive's collection contributes nothing."""
+
+    def test_an_other_drives_collection_linking_this_drives_file_contributes_nothing(
+        self, client, corpus
+    ):
+        c, db, _drive_dir, _data_dir = client
+        other = (
+            db.query(Collection)
+            .filter(Collection.drive == OTHER_DRIVE, Collection.name == "Trip")
+            .one()
+        )
+        db.add(
+            CollectionItem(
+                collection_id=other.id, file_id=corpus["root"].id, position=0
+            )
+        )
+        db.commit()
+
+        listed = _listing(c, [("collection", "Trip")])
+        matched = _match(c, collections=["Trip"])
+
+        expected = _want(corpus, "photo_a", "budget")
+        assert sorted(_ids(listed)) == expected
+        assert sorted(matched.json()["file_ids"]) == expected
+        assert corpus["root"].id not in _ids(listed)
+
+
+class TestNonAsciiCaseFolding:
+    """SPEC-CORE-043 I3: names fold with `lower()`, as `tag:` does."""
+
+    def test_a_collection_named_strasse_matches_its_lower_case(self, client, corpus):
+        c, db, _drive_dir, _data_dir = client
+        _collection(db, "Straße", [corpus["photo_e"]])
+
+        listed = _listing(c, [("collection", "straße")])
+        matched = _match(c, collections=["straße"])
+
+        assert _ids(listed) == [corpus["photo_e"].id]
+        assert matched.json()["file_ids"] == [corpus["photo_e"].id]
+
+
+class TestCaseVariantFoldersStayDistinct:
+    """SPEC-CORE-043 I2/I10: a case variant is a different folder, not a duplicate."""
+
+    def test_two_case_variant_folders_keep_both_subtrees(self, client, corpus):
+        c, _db, _drive_dir, _data_dir = client
+
+        listed = _listing(
+            c, [("folder", "Photos/2024"), ("folder", "photos/2024")]
+        )
+        matched = _match(c, folders=["Photos/2024", "photos/2024"])
+
+        expected = _want(corpus, "photo_a", "photo_b", "photo_lower")
+        assert sorted(_ids(listed)) == expected
+        assert sorted(matched.json()["file_ids"]) == expected
+
+
+class TestTheCapCountsAfterDedupeWhenTheRawListIsLonger:
+    """SPEC-CORE-043 I10: eleven raw values with one duplicate are ten values."""
+
+    @pytest.mark.parametrize(
+        ("field", "values", "query_field", "expected"),
+        [
+            (
+                "folders",
+                ["Photos/2024", *[f"f{i}" for i in range(9)], "/Photos/2024/"],
+                "folder",
+                ("photo_a", "photo_b"),
+            ),
+            (
+                "collections",
+                ["Trip", *[f"c{i}" for i in range(9)], "trip"],
+                "collection",
+                ("photo_a", "budget"),
+            ),
+        ],
+        ids=["folder-raw-count-eleven", "collection-raw-count-eleven"],
+    )
+    def test_eleven_raw_values_with_one_duplicate_are_accepted(
+        self, client, corpus, field, values, query_field, expected
+    ):
+        c, _db, _drive_dir, _data_dir = client
+
+        listing = _listing(c, [(query_field, value) for value in values])
+        matching = _match(c, **{field: values})
+
+        assert listing.status_code == 200, listing.text
+        assert matching.status_code == 200, matching.text
+        assert sorted(_ids(listing)) == _want(corpus, *expected)
+        assert matching.json()["file_ids"] == _want(corpus, *expected)
