@@ -136,6 +136,9 @@ final class ShareSendQueue {
 
     private var phase: Phase = .idle
     private var cancelling = false
+    /// Items whose earlier attempt may have landed, even if a later retry
+    /// failed before init could answer. A retry must check the original name.
+    private var mayHaveLanded: Set<Int> = []
     private let chunkSize = 5 * 1_024 * 1_024
     private let temporaryDirectory = FileManager.default.temporaryDirectory
         .appendingPathComponent("LitloftShare", isDirectory: true)
@@ -193,6 +196,7 @@ final class ShareSendQueue {
 
     func saveAsLink(at index: Int) async {
         guard case .webClip(let url, let title)? = item(at: index) else { return }
+        mayHaveLanded.remove(index)
         items[index] = .linkNote(url, title: title)
         statuses[index].state = .waiting
         statuses[index].offers = []
@@ -230,15 +234,18 @@ final class ShareSendQueue {
                 return
             }
             guard statuses[index].state != .saved else { continue }
-            // An unknown item may already have landed; its retry must ask the
-            // server under the original name rather than take a suffix.
-            let attempt: Attempt = statuses[index].state == .unknown ? .again : .first
+            // An item that was ever unknown may already have landed; its retry
+            // must ask the server under the original name, even if a later
+            // attempt failed before init could answer.
+            let attempt: Attempt = mayHaveLanded.contains(index) ? .again : .first
             let outcome = await sendItem(at: index, attempt: attempt)
             switch outcome {
             case .saved:
+                mayHaveLanded.remove(index)
                 statuses[index].state = .saved
                 statuses[index].offers = []
             case .unknown:
+                mayHaveLanded.insert(index)
                 statuses[index].state = .unknown
                 statuses[index].offers = [.saveAgain]
             case .failed(let message):
@@ -395,6 +402,9 @@ final class ShareSendQueue {
             }
 
             if (200...299).contains(response.status) {
+                // Init accepted the original name, so nothing of this item is
+                // there yet; a later retry may take a suffix again.
+                mayHaveLanded.remove(index)
                 guard let id = uploadSessionID(from: response) else { return .failed(.genericFailure) }
                 uploadID = id
                 break

@@ -697,6 +697,33 @@ struct ShareSendQueueTests {
         #expect(harness.queue.statuses.map(\.state) == [.saved])
     }
 
+    @Test("SPEC-IOS-002 I6 I7: a retry that fails after an unknown still checks the original name")
+    func retryAfterUnknownKeepsOriginalName() async throws {
+        let tally = Tally()
+        let (item, _) = try fileItem("photo.jpg")
+        let harness = try await Harness.make([item], answer: Answers.server { request in
+            if request.path.hasSuffix("/complete") { return .never }
+            if request.path.hasSuffix("/upload/init") {
+                let count = tally.next("init")
+                if count == 2 { return .json(500, "{}") }
+                if count >= 3 { return Answers.exists }
+            }
+            return nil
+        })
+        defer { harness.server.stop() }
+        await harness.queue.send()
+        #expect(harness.queue.statuses.map(\.state) == [.unknown])
+
+        await harness.queue.retry()
+        #expect(harness.queue.statuses.map(\.state) == [.failed(.genericFailure)])
+
+        await harness.queue.retry()
+        #expect(harness.queue.statuses.map(\.state) == [.saved])
+        #expect(harness.server.requests("POST", "/upload/init").compactMap { $0.json?["filename"] as? String }
+            == ["photo.jpg", "photo.jpg", "photo.jpg"])
+        #expect(harness.server.requests("POST", "/chunk").count == 1)
+    }
+
     @Test("SPEC-IOS-002 I6: a complete that loses the connection is polled like an unanswered one")
     func completeConnectionLostPolls() async throws {
         let (item, _) = try fileItem("photo.jpg")
