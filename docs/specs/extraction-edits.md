@@ -326,7 +326,13 @@ Terms used below:
    not processed: the task queues a rebuild item for the follow-up worker and returns
    without changing the flag. At start the follow-up worker also queues a rebuild item for
    every corrected file whose `whisper_indexed` or `ocr_indexed` is false, whatever the OCR
-   mode. A rebuild item creates the file's missing search rows from the stored text only
+   mode, and, on the start on which the text-embedding model rebuild ran, for every picture
+   that is not corrected, has stored picture text and has `ocr_indexed` false, whatever the
+   OCR mode (decision 18): the stored text is what the engine produced, so the section and
+   search agree again without running OCR. `_resume_incomplete` does not queue an OCR task
+   for a picture with a pending rebuild item, under `on_index` included. A picture whose
+   flag a reindex reset is not swept, so an explicit reindex still reads the picture. A
+   rebuild item creates the file's missing search rows from the stored text only
    (the chunk rows for a transcript; the stored picture text, chunked as in B6, for a
    picture), and then sets the flag true. "Missing" is judged by what is stored, not by
    the flags: for a transcript it also computes the `tfidf_keywords` embedding when none
@@ -411,7 +417,9 @@ Terms used below:
    - When the run is deferred without a result — a transient cloud-policy error
      (`whisper.py:946-952`), the `index` policy off at dequeue (`:974-979`), a file that cannot be reached (`ocr.py:229-250`) — the mark stays and the retry is still
      the confirmed run. A deferred confirmed OCR run is re-queued by the follow-up worker's
-     10-minute retry whatever `features.image_ocr` is. An OCR engine that cannot be
+     10-minute retry when `features.image_ocr` is `on_index` or `manual`; when it is
+     `false` at the retry, the run ends as a failure (as above), as reindex already
+     refuses `ocr` under `false` (decision 17). An OCR engine that cannot be
      created stays failed for the life of the process (`ocr.py:71-103`), so it, and a
      failed embedding of the confirmed run's text (`ocr.py:269-273`), count as failures.
    - After a failure, the corrected file's flag is set true by a rebuild item, which the
@@ -639,7 +647,8 @@ may Refine it today. Checks:
 - **OCR worker** (`ocr.py`): stores the picture text (B8), the corrected-file guard
   (C7), original deletion (C12).
 - **Embedding-model rebuild** (`database.py:546-734`): unchanged; its flag resets now
-  lead corrected files into C7.
+  lead corrected files, and pictures that are not corrected but have stored picture text,
+  into the C7 rebuild instead of a new OCR run.
 - **Index details and the failed jobs list** (`IndexDetailsDialog.tsx`,
   `FailedJobsModal.tsx`): the C8 confirmation and the flag.
 - **Derived LLM output** — summaries, detailed summaries and their citations, suggested
@@ -760,7 +769,8 @@ What the owner sees is in the failure table (§2). The texts are in the addon's
 - `addons/intelligence/app/indexer.py`: `_reset_loft_refs_with_new_vtt` (`:666-740`) and
   `_resume_incomplete` (`:742-840`) reach corrected files only through the guard;
   `_resume_incomplete` leaves `tfidf_keywords_indexed` false for a corrected file or one
-  with a pending follow-up item (`:806-808`);
+  with a pending follow-up item (`:806-808`), and queues no OCR task for a picture with a
+  pending rebuild item;
   `_purge_file` (`:2304`) deletes the new rows.
 - `addons/intelligence/app/purge.py`: the per-drive purge covers the new tables (via
   `_purge_file`).
@@ -814,7 +824,8 @@ I13. A save whose text equals the stored text writes nothing; emptying the only 
 SPEC-ADDON-050 I1. After a successful OCR run on an active picture that is not corrected, it has `ocr_indexed` true, the engine's kept lines joined by newlines stored as its picture text, and exactly those lines chunked at 1000/200 as its `text_content` embeddings and `fts_text_content` rows with `page` null, and no earlier OCR rows.
 SPEC-ADDON-050 I2. A reached picture that is not corrected, with no recognised text, one that cannot be decoded, or one over 50 MB or 50 million pixels (checked before decoding) ends with `ocr_indexed` true and no OCR rows, and no sweep queues it again; for a corrected picture under a confirmed redo the same outcomes leave its corrected text and rows as they were.
 SPEC-ADDON-050 I3. For a picture that is not corrected, a failed text embedding, an unreachable file, or an engine that cannot be created writes nothing, keeps earlier OCR rows, and leaves `ocr_indexed` false, so the next `_resume_incomplete` queues the picture again; for a corrected picture under a confirmed redo, an engine that cannot be created or a failed embedding of the run's text is a failure that keeps the corrected text and rows, clears the redo mark and queues a rebuild that sets `ocr_indexed` true, and an unreachable file defers the run with the mark kept; a corrected picture without a confirmed redo is never queued for OCR; other indexing continues.
-SPEC-ADDON-050 I6. A picture's `text_content` and `fts_text_content` rows are removed only by its own OCR write, a correction or restore of its picture text, the rebuild of a corrected picture's search rows from its stored text, a text-embedding model purge, a file purge, or the startup purge of a drive whose `index` policy is off; none of these writes or removes another file's rows.
+SPEC-ADDON-050 I4. With `on_index`, a new picture's OCR task is queued at priority 0 and backlog tasks at -10, and a reindex at 100, except that no OCR task is queued for a corrected picture without a confirmed redo or for a picture with a pending rebuild item; with `manual`, OCR is queued only by reindex or prioritize, or by the follow-up worker's retry of a deferred confirmed OCR run; with `false`, never, reindex answers 422 for `ocr`, and a deferred confirmed OCR run ends as a failure at its retry; HEIC, HEIF and a GIF's first frame are read like the others, after EXIF orientation is applied.
+SPEC-ADDON-050 I6. A picture's `text_content` and `fts_text_content` rows are removed only by its own OCR write, a correction or restore of its picture text, the rebuild of a picture's search rows from its stored text, a text-embedding model purge, a file purge, or the startup purge of a drive whose `index` policy is off; none of these writes or removes another file's rows.
 
 ## Decisions by the owner
 
@@ -868,33 +879,20 @@ stated, and the body of this spec follows it.
 16. **Where 元の結果に戻す shows.** In the transcript panel header in the 「発話」 view,
     whether or not Refine is enabled; not in the 「字幕」 or external views. Decided: yes.
 
-## Open questions for the owner
+Points 17–19 were raised by the spec review and confirmed by the owner on 2026-11-06
+(「3 つとも推奨どおり」).
 
-Raised by the spec review of 2026-11-06, after the decisions above. Each states the
-recommended answer. The body above does not yet carry these answers; the decided answers
-are written into it, and this section removed, before approval.
-
-17. **A deferred confirmed OCR run and SPEC-ADDON-050 I4.** C9 re-queues a deferred
-    confirmed OCR run from the follow-up worker whatever `features.image_ocr` is, which is
-    a third source of OCR tasks that SPEC-ADDON-050 I4 does not allow (with `manual` only
-    reindex or prioritize queue OCR; with `false`, never). Recommended: add a `## Revises`
-    line for SPEC-ADDON-050 I4 allowing this retry under `manual`, and end a deferred
-    confirmed run as a failure (C9) when the mode is `false` at the retry, since reindex
-    already refuses `ocr` under `false`.
-18. **Stored picture text after the embedding-model rebuild.** The rebuild deletes every
-    `fts_text_content` row and resets `ocr_indexed`; under `manual` or `false` an
-    uncorrected picture is not read again, so its 画像の文字 section shows text that search
-    no longer finds. Recommended: the follow-up worker's start-up sweep (C7) also rebuilds
-    the search rows of every uncorrected picture that has stored text and `ocr_indexed`
-    false, from that text, under every mode, and OCR is not re-run for it; the stored text
-    is what the same engine produced, so section and search agree without engine cost.
-    This also needs a SPEC-ADDON-050 I4 revision for `on_index`, where such a picture would
-    otherwise be queued for OCR again.
-19. **Folder Refine skips that are not corrected files.** Folder Refine also skips files
-    that are busy (a follow-up item pending, a redo confirmed) or already have a Refine
-    claimed (C8, C10), and these drop out of `queued` without being reported. Recommended:
-    do not report them; they are transient, and running folder Refine again picks them up.
-    The alternative is a second count next to 「手で直したファイル {n} 件は対象外にしました」.
+17. **A deferred confirmed OCR run.** The follow-up worker's retry re-queues it under
+    `on_index` and `manual`; under `false` it ends as a failure, since reindex already
+    refuses `ocr` there (C9). SPEC-ADDON-050 I4 is revised to allow the retry. Decided:
+    yes.
+18. **Stored picture text after the embedding-model rebuild.** The follow-up worker's
+    start-up sweep, on the start on which that rebuild ran, also rebuilds the search rows
+    of every uncorrected picture with stored text and `ocr_indexed` false, from that text, under every mode, and OCR is not re-run
+    for it (C7); SPEC-ADDON-050 I4 is revised for `on_index`. Decided: yes.
+19. **Folder Refine skips that are not corrected files.** Files skipped as busy or as
+    already claimed by a Refine are not reported; they are transient, and running folder
+    Refine again picks them up. Decided: yes.
 
 ## Checked, no action
 
@@ -948,5 +946,7 @@ are written into it, and this section removed, before approval.
   with the corrections intact); the order in `main.py` (Touch points) is how it is reached.
 - **The follow-up worker's one-item-at-a-time and its not pausing with the index queue**
   are limits of §10, not behaviour a viewer can tell apart.
-- **The SPEC-ADDON-050 invariants I4 and I9** (OCR queueing by mode, `pending.ocr`) hold
-  as written: the rebuild of C7 is a follow-up item, not an OCR task.
+- **The SPEC-ADDON-050 invariant I9** (`pending.ocr`) holds as written: the rebuild of C7
+  is a follow-up item, not an OCR task. I4 is revised (`## Revises`).
+- **Folder Refine skips that are not corrected files** (busy, or a Refine already
+  claimed) are not reported, by decision 19.
