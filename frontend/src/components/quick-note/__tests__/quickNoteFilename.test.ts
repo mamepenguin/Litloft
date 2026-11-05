@@ -4,6 +4,7 @@ import {
   deriveQuickNoteFilename,
   deriveQuickNoteStem,
 } from "../quickNoteFilename";
+import filenameFixture from "./fixtures/quick-note-filenames.json";
 
 const FIXED_NOW = new Date(2026, 7, 13, 9, 4, 5); // local time, 2026-08-13 09:04:05
 
@@ -98,6 +99,33 @@ describe("deriveQuickNoteStem", () => {
     expect(deriveQuickNoteFilename("   ", new Date(2026, 0, 2, 3, 4, 5))).toBe(
       "note-20260102-030405.md",
     );
+  });
+});
+
+interface FilenameFixtureRow {
+  body: string;
+  local: { year: number; month: number; day: number; hour: number; minute: number; second: number };
+  stem: string;
+}
+
+const FIXTURE = filenameFixture as FilenameFixtureRow[];
+
+describe("SPEC-IOS-002 I9 the shared Quick Note filename table", () => {
+  it.each(FIXTURE.map((row) => [JSON.stringify(row.body).slice(0, 40), row] as const))(
+    "derives the stem of %s",
+    (_label, row) => {
+      const { year, month, day, hour, minute, second } = row.local;
+      const now = new Date(year, month - 1, day, hour, minute, second);
+      expect(deriveQuickNoteStem(row.body, now)).toBe(row.stem);
+    },
+  );
+
+  it("holds a row cut at each length cap", () => {
+    const capped = FIXTURE.filter(
+      (row) => !row.body.includes("\n") && Array.from(row.body).length > Array.from(row.stem).length,
+    ).map((row) => [Array.from(row.stem).length, new TextEncoder().encode(row.stem).length]);
+    expect(capped).toContainEqual([80, 240]);
+    expect(capped).toContainEqual([60, 240]);
   });
 });
 

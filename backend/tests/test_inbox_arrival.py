@@ -1,4 +1,4 @@
-"""Recording an arrival: SPEC-CORE-032 and SPEC-ADDON-059.
+"""Recording an arrival: SPEC-CORE-032, SPEC-CORE-033 and SPEC-ADDON-059.
 
 An upload says so at init; a text-file create says so in the body. Nothing
 else creates or renews a row.
@@ -25,6 +25,8 @@ OLD_ARRIVAL = "2026-01-01 00:00:00.000000"
 
 CLIP = {"source": "web_clip", "i18n_key": "knowledge.inbox.sourceWebClip"}
 
+SHARE_I18N_KEY = "inbox.sourceShare"
+
 
 class TestUploadArrival:
     def test_upload_with_inbox_source_records_one_open_row(self, client):
@@ -50,9 +52,11 @@ class TestUploadArrival:
         assert r.status_code == 200
         assert rows(db) == []
 
-    @pytest.mark.parametrize("value", ["", "web_clip", "Upload", 1])
+    @pytest.mark.parametrize(
+        "value", ["", "web_clip", "Upload", 1, "Share", "shared", "share "]
+    )
     def test_upload_rejects_any_other_inbox_source(self, client, value):
-        """SPEC-CORE-032 §2: the only accepted value is "upload"; anything else is 422."""
+        """SPEC-CORE-033 I2: only "upload" and "share" are accepted; anything else is 422."""
         c, db, drive_dir, _ = client
 
         r = upload(c, "rejected.txt", b"hello", inbox_source=value)
@@ -61,15 +65,47 @@ class TestUploadArrival:
         assert list(drive_dir.iterdir()) == []
         assert rows(db) == []
 
-    def test_subtitle_sidecar_is_not_an_arrival(self, client):
-        """SPEC-CORE-032 I2: a subtitle produces no file row, so no inbox row."""
+    @pytest.mark.parametrize(
+        ("source", "i18n_key"),
+        [("upload", UPLOAD_I18N_KEY), ("share", SHARE_I18N_KEY)],
+    )
+    def test_each_accepted_source_records_its_own_key(self, client, source, i18n_key):
+        """SPEC-CORE-033 I2: each accepted source is stored with its own i18n key."""
+        c, db, drive_dir, _ = client
+
+        r = upload(c, f"{source}.txt", b"hello", inbox_source=source)
+
+        assert r.status_code == 200
+        recorded = row(db, r.json()["id"])
+        assert recorded is not None
+        assert recorded["drive"] == TEST_DRIVE
+        assert recorded["source"] == source
+        assert recorded["source_i18n_key"] == i18n_key
+        assert recorded["done_at"] is None
+        assert (drive_dir / f"{source}.txt").read_bytes() == b"hello"
+
+    def test_shared_upload_into_a_folder_records_the_row(self, client):
+        """SPEC-CORE-033 I1: a shared file saved into Inbox/ arrives with the share label."""
+        c, db, drive_dir, _ = client
+
+        r = upload(c, "IMG_4021.HEIC", b"heic", inbox_source="share", folder_path="Inbox")
+
+        assert r.status_code == 200
+        assert (drive_dir / "Inbox" / "IMG_4021.HEIC").exists()
+        recorded = row(db, r.json()["id"])
+        assert recorded["source"] == "share"
+        assert recorded["source_i18n_key"] == SHARE_I18N_KEY
+
+    @pytest.mark.parametrize("source", ["upload", "share"])
+    def test_subtitle_sidecar_is_not_an_arrival(self, client, source):
+        """SPEC-CORE-032 I2, SPEC-CORE-033 §1: a subtitle produces no file row, so no inbox row."""
         c, db, drive_dir, _ = client
 
         r = upload(
             c,
             "movie.srt",
             b"1\n00:00:01,000 --> 00:00:02,000\nhi\n",
-            inbox_source="upload",
+            inbox_source=source,
         )
 
         assert r.status_code == 200
@@ -383,6 +419,17 @@ class TestArrivalBroadcasts:
         c, db, drive_dir, _ = client
 
         upload(c, "arrived.txt", b"hello", inbox_source="upload")
+        flush(c)
+
+        assert only_inbox_events(broadcasts) == [
+            ("inbox.updated", {"drive": TEST_DRIVE}, TEST_DRIVE)
+        ]
+
+    def test_shared_upload_broadcasts_once_for_the_drive(self, client, broadcasts):
+        """SPEC-CORE-033 §1: a shared arrival notifies the drive like an upload."""
+        c, db, drive_dir, _ = client
+
+        upload(c, "shared.txt", b"hello", inbox_source="share")
         flush(c)
 
         assert only_inbox_events(broadcasts) == [
