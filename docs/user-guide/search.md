@@ -34,7 +34,7 @@ Each result has a small badge saying where it matched, such as **Filename** or *
 
 The top of the page is also the query field. It holds what you searched for, and you can edit it and press `Enter` to search again; `Esc` puts the current query back. Each operator in the field gets a chip underneath it, and `×` on a chip removes that operator from the query and searches again. Typing an operator shows its chip at once, before you submit.
 
-After the chips, **＋ 条件** (**＋** on a phone) adds an operator without typing the syntax: **タグ** (tag), **種類** (type), **フォルダ** (folder), **コレクション** (collection) or **お気に入り** (favourites). Tag, folder and collection open a list of values; each list has a filter box, and a value already in the query is not offered. Picking a value adds it to the query and searches.
+After the chips, **＋ 条件** (**＋** on a phone) adds an operator without typing the syntax: **タグ** (tag), **種類** (type), **フォルダ** (folder), **コレクション** (collection), **サイズ** (size), **長さ** (length) or **お気に入り** (favourites). Tag, folder and collection open a list of values; each list has a filter box, and a value already in the query is not offered. Size and length open fixed presets such as **1 GB 以上** and **30 分以上**; a preset already in the query, or one that would contradict it, is not offered. Picking a value adds it to the query and searches.
 
 Above the results:
 
@@ -53,7 +53,11 @@ Words of the form `name:value`, typed in the search window or on the search page
 | `type:video` | files of that kind: `video`, `image`, `audio`, `document`, `text`, `pdf`, `archive`, `other` | any of the kinds |
 | `path:Work/2024` | files in that folder and its subfolders, comparing the folder name case-sensitively | any of the folders |
 | `in:trip` | files in the collection named `trip`, ignoring case | any of the collections |
+| `size:>1GB` | files larger than 1 GB, in binary units: `B`, `KB`, `MB`, `GB`, `TB`, where `1KB` is 1024 bytes | every comparison must hold |
+| `duration:>=30m` | video and audio at least 30 minutes long: `s`, `m`, `h`, `1h30m`, `1:30` or `1:05:00` | every comparison must hold |
 | `is:favorite`, `is:liked` | favourites, liked files | both |
+
+A size and a length need a comparison: `>`, `>=`, `<` or `<=`. Write a range as two comparisons side by side, such as `size:>100MB size:<1GB` or `duration:>=5m duration:<1h`. A value without a comparison, or one that does not parse, is searched as ordinary text. A file with no duration, such as a document or a picture, never matches a `duration:` comparison.
 
 `tag:trip type:image kyoto` finds images tagged `trip` whose name or folder contains "kyoto". Operators alone, such as `tag:trip`, list every file that passes them, newest first. A word that is not one of these operators, or a value that is not one of these values, is searched as ordinary text. Put a value with spaces in quotes: `path:"My Photos/2024"`, `in:"読書 メモ"`, `tag:"two words"`. In the search window, typing `tag:`, `type:` or `is:` lists the values you can use, the drive's most used tags first; pick one with the arrow keys and `Enter` to complete it.
 
