@@ -56,6 +56,33 @@ beforeEach(() => {
 });
 
 describe("SPEC-CORE-046 I8: the results page drop target", () => {
+  it("with no onImageQuery a one-image drag shows no overlay and is not prevented", () => {
+    const { zone } = renderZone(undefined);
+
+    const entered = fireEvent.dragEnter(zone, {
+      dataTransfer: dataTransfer({ files: [imageFile()] }),
+    });
+    expect(entered).toBe(true);
+    expect(screen.queryByText(SEARCH_OVERLAY)).toBeNull();
+
+    const dropped = fireEvent.drop(zone, {
+      dataTransfer: dataTransfer({ files: [imageFile()] }),
+    });
+    expect(dropped).toBe(true);
+  });
+
+  it("while image search is unavailable, a one-image drag shows nothing and is not prevented", () => {
+    const { zone } = renderZone(undefined);
+    const file = imageFile();
+
+    const enter = fireEvent.dragEnter(zone, { dataTransfer: dataTransfer({ files: [file] }) });
+    expect(enter).toBe(true);
+    expect(screen.queryByText(SEARCH_OVERLAY)).toBeNull();
+
+    const drop = fireEvent.drop(zone, { dataTransfer: dataTransfer({ files: [file] }) });
+    expect(drop).toBe(true);
+  });
+
   it("classes one image as a search: the search overlay, then onImageQuery with the file and no upload", async () => {
     const onImageQuery = vi.fn();
     const { zone } = renderZone(onImageQuery);
@@ -63,6 +90,7 @@ describe("SPEC-CORE-046 I8: the results page drop target", () => {
 
     fireEvent.dragEnter(zone, { dataTransfer: dataTransfer({ files: [file] }) });
     expect(screen.getByText(SEARCH_OVERLAY)).toBeInTheDocument();
+    expect(screen.getByText(SEARCH_OVERLAY).closest(".pointer-events-none")).not.toBeNull();
     expect(screen.queryByText(UPLOAD_OVERLAY)).toBeNull();
 
     fireEvent.drop(zone, { dataTransfer: dataTransfer({ files: [file] }) });

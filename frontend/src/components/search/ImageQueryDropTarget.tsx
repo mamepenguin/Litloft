@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ImagePlus } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -13,7 +13,9 @@ interface ImageQueryDropTargetProps {
 }
 
 function hasFiles(dt: DataTransfer | null): boolean {
-  return !!dt && (dt.types.includes("Files") || dt.files.length > 0);
+  if (!dt) return false;
+  if (dt.types.includes("Files") || dt.files.length > 0) return true;
+  return Array.from(dt.items ?? []).some((item) => item.kind === "file");
 }
 
 /**
@@ -26,9 +28,12 @@ function hasFiles(dt: DataTransfer | null): boolean {
 export function ImageQueryDropTarget({ onImageQuery }: ImageQueryDropTargetProps) {
   const t = useTranslations("search");
   const [overlay, setOverlay] = useState(false);
+  const callback = useRef(onImageQuery);
+  callback.current = onImageQuery;
+  const enabled = !!onImageQuery;
 
   useEffect(() => {
-    if (!onImageQuery) return;
+    if (!enabled) return;
     const frame = document.querySelector<HTMLElement>("[data-page-frame]");
     if (!frame) return;
 
@@ -76,7 +81,7 @@ export function ImageQueryDropTarget({ onImageQuery }: ImageQueryDropTargetProps
         files.length === 1 &&
         files[0].type.startsWith("image/")
       ) {
-        onImageQuery(files[0]);
+        callback.current?.(files[0]);
       }
     };
 
@@ -91,12 +96,12 @@ export function ImageQueryDropTarget({ onImageQuery }: ImageQueryDropTargetProps
       frame.removeEventListener("dragleave", onDragLeave);
       frame.removeEventListener("drop", onDrop);
     };
-  }, [onImageQuery]);
+  }, [enabled]);
 
   if (!overlay || typeof document === "undefined") return null;
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-bg-primary/75 backdrop-blur-sm"
+      className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-bg-primary/75 backdrop-blur-sm"
       aria-live="polite"
     >
       <div className="flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-warm-silver bg-bg-card/90 px-12 py-10">

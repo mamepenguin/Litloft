@@ -52,6 +52,7 @@ import jaMessages from "@/messages-core/ja.json";
 import { QuickNotePresenter } from "@/components/quick-note/QuickNotePresenter";
 import { CurrentDriveProvider } from "@/components/CurrentDriveProvider";
 import { GlobalSearch } from "@/components/GlobalSearch";
+import { ImageQueryDropTarget } from "@/components/search/ImageQueryDropTarget";
 import {
   GlobalSearchProvider,
   useGlobalSearch,
@@ -996,6 +997,19 @@ function ImageSearch(): ReactElement {
           </GlobalSearchProvider>
         </CurrentDriveProvider>
       </ShortcutsProvider>
+    </NextIntlClientProvider>
+  );
+}
+
+
+function ImageDropTarget(): ReactElement {
+  const [hit, setHit] = useState("");
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <div data-page-frame="full" style={{ minHeight: 600 }}>
+        <ImageQueryDropTarget onImageQuery={(file) => setHit(file.name)} />
+        <p data-testid="image-drop-hit">{hit}</p>
+      </div>
     </NextIntlClientProvider>
   );
 }
@@ -1969,6 +1983,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "scoped-search-ja": ScopedSearchJa,
   "scoped-search-en": ScopedSearchEn,
   "image-search": ImageSearch,
+  "image-drop-target": ImageDropTarget,
   "player-seek-bar": PlayerSeekBar,
   "player-hairline": PlayerHairline,
   "player-captions": PlayerCaptions,
