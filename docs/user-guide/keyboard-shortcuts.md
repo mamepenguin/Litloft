@@ -70,6 +70,19 @@ The inbox lists files that just arrived in the drive. See [inbox](inbox.md).
 
 With a mouse, hover a row to reveal **Done** and right-click for the file menu. On a touch screen 768 px wide or wider, the **Done** button stays visible.
 
+## Finding in a file
+
+On a file's page, with the intelligence addon. See [finding in this file](viewers-and-players.md#finding-in-this-file).
+
+| Key | Action |
+|---|---|
+| `Cmd/Ctrl+F` | Open the find bar (press again in the bar for the browser's find) |
+| `Enter` | Next place |
+| `Shift+Enter` | Previous place |
+| `Esc` | Close the find bar |
+
+`Cmd/Ctrl+F` stays the browser's find while you type in another field, while a dialog or a full-screen viewer is open, and on a phone.
+
 ## Renaming
 
 | Key | Action |

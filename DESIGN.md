@@ -910,6 +910,26 @@ A row in the search page's Passages view: one picture, one place in one file.
 - A file's name and a section's title truncate to one line with the full value
   in `title`; the row measure is §3.6's.
 
+### Find in file
+
+The find bar over a file's canvas, and its places in the inspector's **検索** tab.
+
+- **The bar is a strip, not a card**: `bg-card` with a bottom border, under the page
+  row at the top of the canvas. Field, count, previous, next, then close at the far
+  end, with the status line under them. The count is `tabular-nums` so stepping does
+  not shift the buttons.
+- **The places live in the inspector**, not under the bar: the inspector already has
+  a desktop form and a phone sheet, and the bar stays one row on a phone.
+- **Kind chips sit at the top of the tab** and follow §Selected-state controls: an
+  accent border, never a fill. Each reads its label and count (「発話 6」).
+- **A row is a locator over its kind beside the snippet**: the time or page in
+  `tabular-nums` at `font-semibold`, the kind under it in `text-[11px]
+  text-text-muted`. The current row carries a 2px accent rule on its leading edge
+  and a faint accent wash; hover is the §Search passage rows wash.
+- **Two marks, no new colour**: every occurrence is `bg-highlight-bg`; the current
+  one adds a 2px `--accent` outline. A citation mark from Ask is a separate element
+  and keeps its own look.
+
 ### Row Actions
 
 A control repeated on every row — a capture button on a snippet, a `⋮` on a list

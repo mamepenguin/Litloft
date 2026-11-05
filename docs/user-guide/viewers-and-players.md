@@ -21,6 +21,7 @@ Below it are tabs, shown only when there is more than one:
 - **Chapters**: on media with chapters.
 - **Transcript**: on media that has one (intelligence addon).
 - **Pages**: the contents and page thumbnails of a PDF, or an index of an archive.
+- **検索**: the places found by [finding in this file](#finding-in-this-file), while the find bar is open.
 
 A tab appears only when it has something in it, so a video that was never transcribed has no Transcript tab.
 
@@ -37,6 +38,21 @@ The inspector is a bottom sheet. While it rests, a strip along the bottom shows 
 - On a video, the sheet first rises only to the bottom of the player, so the whole picture stays visible.
 - The tab strip sticks to the top of the sheet once you scroll down to it.
 - The video player sticks to the top of the page as you scroll.
+
+## Finding in this file
+
+With the intelligence addon, the search button in the page row (or `Cmd/Ctrl+F` on a computer) opens a find bar over the file. Type a word, and the **検索** tab lists every place it occurs in this file, in order: speech with its time, text on screen in a video, PDF pages, EPUB chapters, body text and the text in a picture. Click a place, or press `Enter` / `Shift+Enter`, to go there.
+
+- A video or audio file seeks to that moment and keeps playing or stays paused.
+- A PDF opens that page with the word marked. Markdown and text files mark the word too.
+- An EPUB opens the chapter, without marking the word inside it.
+- Office files and the text in a picture are listed, but there is no place to go to.
+
+The chips at the top of the tab narrow the list to one kind. Matching is exact text; case is ignored for Latin letters only.
+
+Only what the addon has already read is found. A file that has not been indexed yet says so instead of showing no results, and the text inside video frames and scanned PDF pages is not read yet.
+
+`Cmd/Ctrl+F` a second time, while the find bar has focus, opens the browser's own find. `Esc` closes the bar and puts the inspector back as it was.
 
 ## Chapters and the transcript, beside or below
 

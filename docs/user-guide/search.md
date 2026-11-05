@@ -91,8 +91,8 @@ While a meaning search runs, a **ファイル / 箇所** switch sits under the q
 - Each row shows a frame or the file's thumbnail, the place (a time range, page or chapter), the file name and the matched text in full. A picture's recognised text and a plain text match are labelled accordingly.
 - Click a row to open the file at that time, page or chapter.
 - **箇所** shows only places inside files: speech, PDF pages, chapters, text in a picture, and scenes when **Scene search** is on. A file found only by its name or thumbnail appears only under **ファイル**.
-- A file shows up to three places. When it has more, **このファイルの他の箇所 →** opens the file.
-- The list holds the best-matching passages the search kept, not every occurrence of your words in a file.
+- A file shows up to three places. When it has more, **このファイルの他の箇所 →** opens the file with [finding in this file](viewers-and-players.md#finding-in-this-file) already searching for the word that matched there.
+- The list holds the best-matching passages the search kept, not every occurrence of your words in a file. Finding in the file lists every occurrence.
 - If nothing was found inside files, **ファイルで表示** switches back to the files that matched.
 
 The switch is part of the address, so a link can open the results straight in **箇所**. A search started from the modal on the same page keeps the view.
