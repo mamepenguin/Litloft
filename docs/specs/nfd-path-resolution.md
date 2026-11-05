@@ -3,7 +3,7 @@
 SPEC-ID: SPEC-CORE-042
 SPEC-ID: SPEC-ADDON-062
 
-Approval:
+Approval: sha256:c8ede99437f15a3e16577af66225fa4bd3cc3ef87669a1939ae9acf2ce743680 Yuichi Senga 2026-11-05
 
 <!--
 Leave the Approval line empty. After a human approves this spec, the approval step
