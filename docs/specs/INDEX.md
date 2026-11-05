@@ -108,6 +108,8 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-059 | implemented | docs/specs/inbox.md | sha256:f45f9a5d405e187b7402a6b9812c0af748e56ba4c749f8220f9fb72f9ed8cd0f |
 | SPEC-CORE-041 | implemented | docs/specs/inbox.md | sha256:f45f9a5d405e187b7402a6b9812c0af748e56ba4c749f8220f9fb72f9ed8cd0f |
 | SPEC-CORE-033 | draft | docs/specs/share-target.md | |
+| SPEC-IOS-001 | draft | docs/specs/share-target.md | |
+| SPEC-IOS-002 | draft | docs/specs/share-target.md | |
 | SPEC-ADDON-053 | implemented | docs/specs/ask-about-this-file.md | sha256:7da6124f365a0c64ce31532e5697fb68fbc14a639efa56394ad99bd09b8b5b6a |
 | SPEC-ADDON-056 | implemented | docs/specs/ask-about-this-file.md | sha256:7da6124f365a0c64ce31532e5697fb68fbc14a639efa56394ad99bd09b8b5b6a |
 | SPEC-CORE-036 | implemented | docs/specs/ask-about-this-file.md | sha256:7da6124f365a0c64ce31532e5697fb68fbc14a639efa56394ad99bd09b8b5b6a |
