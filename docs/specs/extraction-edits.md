@@ -126,9 +126,17 @@ Terms used below:
 4. The addon checks, in order: the file is active, in `X-Lit-Drive` and has a transcript
    (else 404); the file is not busy (else 409 `busy`); an utterance with that `index`
    exists and its stored text and start equal `expected_text` and `expected_start` (else
-   409 `changed`); the text is at most 2,000 characters (else 422); an empty text is not
-   for the file's only remaining utterance (else 422 `last_utterance`, 「最後の発話は空に
-   できません」).
+   409 `changed`); the text contains no line break (else 422 `line_break`); the text is at
+   most 2,000 characters (else 422 `too_long`); an empty text is not for the file's only
+   remaining utterance (else 422 `last_utterance`, 「最後の発話は空にできません」).
+
+   **Normalisation and error bodies (all new and changed routes).** The server applies the
+   normalisation of A3 / B3 itself before any check, and the length caps, the no-op
+   comparison of A5 / B5 and the stored text use the normalised text; lengths are counted
+   in Unicode code points. A coded error is answered as `{"detail": {"code": "<code>"}}`
+   with the codes `busy`, `changed`, `corrected` (409) and `line_break`, `too_long`,
+   `last_utterance` (422); the route checks these itself, so a too-long text is never a
+   validation-model 422. The frontend branches on `detail.code`.
 5. If the new text equals the stored text, nothing is written and the answer is 200 with
    the row unchanged.
 6. Otherwise, in one transaction:
@@ -171,7 +179,9 @@ Terms used below:
    `[timestamp_start, timestamp_end]` of that utterance only, with the utterance's
    language. It decodes only that span of the file's audio, not the whole file. On
    success the aligned units become the utterance's words (each with the utterance's
-   language and `speaker_id`), and the pending mark is cleared. When the language is one
+   language and `speaker_id`), with times on the file's timeline (the span's offset added
+   back), a time outside `[timestamp_start, timestamp_end]` clamped to that range, and the
+   pending mark is cleared. When the language is one
    WhisperX has no alignment model for, when alignment runs and returns nothing, when the
    audio is reached but cannot be decoded, or when the file is a `.loft` reference (it has
    no audio to align against: its chunks come from a VTT, or from Media Import's temporary
@@ -232,7 +242,7 @@ Terms used below:
 4. The addon checks, in order: the file is an active picture in `X-Lit-Drive` whose
    stored picture text is non-empty or that is corrected (else 404); it is not busy (else
    409 `busy`); the stored picture text equals `expected_text` (else 409 `changed`); the
-   text is at most 100,000 characters (else 422).
+   text is at most 100,000 characters (else 422 `too_long`).
 5. If the new text equals the stored text, nothing is written (200).
 6. Otherwise the new text is chunked with `ContentExtractor.chunk_text` at its defaults,
    as OCR does (`ocr.py:262`), and, in one transaction: the original is stored if the
@@ -318,7 +328,11 @@ Terms used below:
    every corrected file whose `whisper_indexed` or `ocr_indexed` is false, whatever the OCR
    mode. A rebuild item creates the file's missing search rows from the stored text only
    (the chunk rows for a transcript; the stored picture text, chunked as in B6, for a
-   picture), and then sets the flag true. It embeds outside the write lock, so inside its
+   picture), and then sets the flag true. "Missing" is judged by what is stored, not by
+   the flags: for a transcript it also computes the `tfidf_keywords` embedding when none
+   is stored and sets `tfidf_keywords_indexed` true. `_resume_incomplete`
+   (`indexer.py:806-808`) no longer sets `tfidf_keywords_indexed` true for a corrected
+   file or a file with a pending follow-up item. It embeds outside the write lock, so inside its
    write transaction it stores an embedding only for a chunk (or picture text) whose
    current text still equals the text it embedded; a chunk that changed or was deleted
    meanwhile gets none from it (a changed utterance has its own item, A6). If its embedding
@@ -350,7 +364,8 @@ Terms used below:
      feature gate (400), drive policy (403) and LLM gate (`require_llm`), then the file
      (404), then corrected (409 `corrected`), then busy (409 `busy`, which also refuses a
      second Refine of the same file while one is running). Folder Refine claims each file it
-     queues before answering, and skips (without listing) a file that already has a Refine
+     queues before answering (its `MAX_FOLDER_FILES` cap counts the files before any
+     skip, as today), and skips (without listing) a file that already has a Refine
      claimed, so a file never has two Refine jobs at once.
 
    For a corrected file each is refused with 409 `corrected`, with nothing reset, queued
@@ -411,7 +426,8 @@ Terms used below:
      it is opened.
    - At every start of the addon, every "redo confirmed" mark is cleared before any task
      runs, so a confirmed run that was queued or running when the container stopped ends
-     there.
+     there. This counts as ending without a result: it sets the kind's
+     `redo_ended_without_result` and queues a rebuild item for the kind.
 10. **What a confirmed Refine does.** It runs on the corrected text, with these
     differences from today's Refine:
     - it is refused with 409 `busy` while any follow-up item of the file is queued or
@@ -484,7 +500,10 @@ Terms used below:
 | A8, B7, C4, C7 | Embedding fails or the embedder is unavailable | The stored text and keyword rows stay; the item is tried again (follow-up worker). Until then semantic search has no vector for that utterance or file. |
 | A8, B7 | The text changed again before the item ran | The item writes nothing; the newer item does the work. |
 | A9 | Alignment fails or does not apply | The utterance keeps start and end and has no words; subtitles show it as in A12. |
-| A10 | The alignment model cannot be loaded | The utterance stays realignment pending, subtitles show it as in A12, and the item is tried again. |
+| A10 | The alignment model cannot be loaded, or the audio cannot be reached (drive not mounted) | The utterance stays realignment pending, subtitles show it as in A12, and the item is tried again; after the third such attempt it has no word timings. |
+| C3 | Restore answers 409 `busy` | Nothing is written; the confirmation closes and the busy text is shown. |
+| B8 | Rebuilding a legacy picture's text inside `GET /picture-text` fails | 500; nothing is stored; the section is not shown, and the next open tries again. |
+| C8 | The confirmed redo request fails on the network or with 5xx | Nothing is reset, queued or started; the confirmation closes and the surface shows the failure it shows for that request today. |
 | A8, C7 | Container restarts before an item ran | Items and marks are stored; the worker resumes them at start. |
 | C6 | An automatic path reaches a corrected file | It queues a rebuild item only (C7); the provider and the engine are not called and nothing stored is changed. |
 | C8 | A redo request without the flag reaches a corrected file (an old tab, the failed jobs list, the MCP server, a script) | 409 `corrected`; nothing is reset, queued or started; the frontend shows the C8 confirmation. |
@@ -740,6 +759,8 @@ What the owner sees is in the failure table (§2). The texts are in the addon's
   `addons/intelligence/app/main.py` / `app/indexer.py`.
 - `addons/intelligence/app/indexer.py`: `_reset_loft_refs_with_new_vtt` (`:666-740`) and
   `_resume_incomplete` (`:742-840`) reach corrected files only through the guard;
+  `_resume_incomplete` leaves `tfidf_keywords_indexed` false for a corrected file or one
+  with a pending follow-up item (`:806-808`);
   `_purge_file` (`:2304`) deletes the new rows.
 - `addons/intelligence/app/purge.py`: the per-drive purge covers the new tables (via
   `_purge_file`).
@@ -774,7 +795,7 @@ scanner, file operations, core database, Dockerfile, compose or gate file.
 
 I1. Saving a correction to one utterance changes only that utterance and its words: every other utterance's text, start, end and index, every word outside the utterance's words (a zero-duration word at the boundary it shares with the previous utterance included), and the corrected utterance's start, end, index, language and speaker are byte-for-byte unchanged, through the save and its follow-up.
 I2. After a correction or a restore commits, keyword search, exact search and find in this file return the file for a term that occurs only in the new text and not for a term that occurred only in the replaced text; no `whisper`, `tfidf_keywords` or `text_content` embedding, vector or `content_preview` holding the replaced text survives the commit; a stale follow-up item writes nothing, while a correction of another utterance never makes an item stale; the file's term set is marked stale and `tfidf_keywords_indexed` is false from the commit until the keyword vector is rebuilt; and pending items and realignment-pending marks survive a restart and are run again after it.
-I3. After a corrected utterance's follow-up, its words are exactly the units `align_segment` returned for the saved text within its span (its midpoint placement of untimed punctuation included), or there are none; no code path writes a word time derived from length or position; `subtitles.vtt`, served with `Cache-Control: private, no-cache`, shows a corrected utterance without words as exactly one cue with its text from its start to its end in a file that has, or whose original has, word rows, while a file with no correction gets exactly today's cues and status.
+I3. After a corrected utterance's follow-up, its words are exactly the units `align_segment` returned for the saved text within its span (its midpoint placement of untimed punctuation included), with every word time on the file's timeline and inside the utterance's `[timestamp_start, timestamp_end]`, or there are none; no code path writes a word time derived from length or position; `subtitles.vtt`, served with `Cache-Control: private, no-cache`, shows a corrected utterance without words as exactly one cue with its text from its start to its end in a file that has, or whose original has, word rows, while a file with no correction gets exactly today's cues and status.
 I4. A file has at most one kept original per kind; it is stored in the same transaction as the first correction or the first applied Refine window, equals the file's chunk and word rows (or picture text) as they were immediately before that write, and no later correction or Refine changes it; on a file that is not corrected, a stored transcription or OCR result with at least one utterance or line deletes that kind's original in the same transaction, and the zero-segment path deletes nothing.
 I5. Restore makes the file's chunk and word rows (or picture text) equal to the kept original, clears every correction, pending and redo mark, deletes the original, and leaves the keyword rows matching the restored text; a restore that raises before commit changes nothing.
 I6. For a corrected file without a confirmed redo, no automatic path — the embedding-model rebuild, the `.loft` reset, `_resume_incomplete`, reconcile, a transcription or OCR task (including one that was already running when the correction was saved, whose result is discarded), or the startup clean-up of running jobs — calls the transcription provider or the OCR engine for it, or changes or deletes its chunk rows, word rows, picture text, marks or original; it only adds search rows built from the stored text, and does so under every `features.image_ocr` mode.
@@ -784,12 +805,15 @@ I9. A Refine of a file is refused with 409 while another Refine of it is accepte
 I10. Every correction and restore route answers 404 and writes nothing for a file outside `X-Lit-Drive`, missing, trashed or not indexed, answers 409 and writes nothing while the file is busy or when the expected text or start does not match, and touches no row of any other file; the two new events carry the file's drive so a viewer without access to it does not receive them; and after `files.purged` or a drive purge no original, picture text, mark or follow-up item of a purged file remains.
 I11. The OCR worker stores, in the same transaction as its rows, exactly the joined text it chunked as the picture text; a picture read before this change gets, on first read, the text rebuilt from its `fts_text_content` rows by the find-in-file merge, and that text is what is kept as its original.
 I12. Every embedding the change writes has today's id shape (`wh_<file>_<chunk index>_<hex>`, `ocr_<file>_<index>_<hex>`), so citations resolve it; after an empty save leaves a gap in `chunk_index`, the playback highlight, Ask's `get_file_chunks` and the citation excerpt's neighbours select by `chunk_index` and return the same utterances they would for the same rows without the gap.
+I14. A Refine window whose alignment ends in any non-success outcome (`unsupported`, `load_failed`, `no_result`, or an error) leaves that utterance's word rows exactly as they were.
+I15. Each ending names its event exactly once with the stated `reason`: `corrected` after an utterance's or picture's follow-up item, `replaced` for a completed Refine job or a stored transcription or OCR result, `rebuilt` after a rebuild item, `ended` for a failed Refine job or a confirmed regenerate that ended without a result, `restored` after a restore; and a rebuild that sets a flag true also emits `processing.updated`.
 I13. A save whose text equals the stored text writes nothing; emptying the only remaining utterance answers 422 `last_utterance` and writes nothing; an utterance whose alignment model cannot be loaded or whose audio cannot be reached ends with no word timings after its third failed attempt and is not tried again; `GET /files/{id}/index-details` reports `corrected` per kind and `redo_ended_without_result` true from a confirmed regenerate that ended without a result until the next correction, restore or confirmed regenerate of that kind; and the migrations, run twice, leave every existing row's values unchanged.
 
 ## Revises
 
 SPEC-ADDON-050 I1. After a successful OCR run on an active picture that is not corrected, it has `ocr_indexed` true, the engine's kept lines joined by newlines stored as its picture text, and exactly those lines chunked at 1000/200 as its `text_content` embeddings and `fts_text_content` rows with `page` null, and no earlier OCR rows.
 SPEC-ADDON-050 I2. A reached picture that is not corrected, with no recognised text, one that cannot be decoded, or one over 50 MB or 50 million pixels (checked before decoding) ends with `ocr_indexed` true and no OCR rows, and no sweep queues it again; for a corrected picture under a confirmed redo the same outcomes leave its corrected text and rows as they were.
+SPEC-ADDON-050 I3. For a picture that is not corrected, a failed text embedding, an unreachable file, or an engine that cannot be created writes nothing, keeps earlier OCR rows, and leaves `ocr_indexed` false, so the next `_resume_incomplete` queues the picture again; for a corrected picture under a confirmed redo, an engine that cannot be created or a failed embedding of the run's text is a failure that keeps the corrected text and rows, clears the redo mark and queues a rebuild that sets `ocr_indexed` true, and an unreachable file defers the run with the mark kept; a corrected picture without a confirmed redo is never queued for OCR; other indexing continues.
 SPEC-ADDON-050 I6. A picture's `text_content` and `fts_text_content` rows are removed only by its own OCR write, a correction or restore of its picture text, the rebuild of a corrected picture's search rows from its stored text, a text-embedding model purge, a file purge, or the startup purge of a drive whose `index` policy is off; none of these writes or removes another file's rows.
 
 ## Decisions by the owner
@@ -847,7 +871,8 @@ stated, and the body of this spec follows it.
 ## Open questions for the owner
 
 Raised by the spec review of 2026-11-06, after the decisions above. Each states the
-recommended answer; the spec text follows the recommendation until the owner decides.
+recommended answer. The body above does not yet carry these answers; the decided answers
+are written into it, and this section removed, before approval.
 
 17. **A deferred confirmed OCR run and SPEC-ADDON-050 I4.** C9 re-queues a deferred
     confirmed OCR run from the follow-up worker whatever `features.image_ocr` is, which is
@@ -865,6 +890,11 @@ recommended answer; the spec text follows the recommendation until the owner dec
     is what the same engine produced, so section and search agree without engine cost.
     This also needs a SPEC-ADDON-050 I4 revision for `on_index`, where such a picture would
     otherwise be queued for OCR again.
+19. **Folder Refine skips that are not corrected files.** Folder Refine also skips files
+    that are busy (a follow-up item pending, a redo confirmed) or already have a Refine
+    claimed (C8, C10), and these drop out of `queued` without being reported. Recommended:
+    do not report them; they are transient, and running folder Refine again picks them up.
+    The alternative is a second count next to 「手で直したファイル {n} 件は対象外にしました」.
 
 ## Checked, no action
 
