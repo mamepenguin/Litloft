@@ -83,6 +83,16 @@ describe("useSelectedFile", () => {
     expect(mockReplace).toHaveBeenCalledWith(want, { scroll: false });
   });
 
+  it.each([
+    ["file=A&find=needle&sort=name", "B", "/drive/work/Q1?file=B&sort=name"],
+    ["file=A&find=needle&t=42&highlight=x&view=liked", "B", "/drive/work/Q1?file=B&view=liked"],
+  ])("SPEC-CORE-028 I9 from ?%s, selecting another file %s drops find: %s", (query, id, want) => {
+    mockSearchParams = new URLSearchParams(query);
+    const { result } = renderHook(() => useSelectedFile());
+    act(() => result.current.selectFile(id));
+    expect(mockReplace).toHaveBeenCalledWith(want, { scroll: false });
+  });
+
   it("clearFile uses router.replace", () => {
     mockSearchParams = new URLSearchParams("file=abc&tag=foo");
     const { result } = renderHook(() => useSelectedFile());
