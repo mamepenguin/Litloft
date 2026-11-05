@@ -72,7 +72,7 @@ const DIRECTION_ROLES = {
   "frontend/src/components/archive/ArchiveToolbar.tsx": "takes-the-surface",
   "frontend/src/components/folder/FilterMenu.tsx": "takes-the-surface",
   "frontend/src/components/folder/FolderToolbar.tsx": "takes-the-surface",
-  "frontend/src/components/search/SearchQueryHeader.tsx": "takes-the-surface",
+  "frontend/src/components/search/ConditionMenu.tsx": "takes-the-surface",
 
   "frontend/src/components/SelectionBar.tsx": "pinned",
   "frontend/src/components/epub/EpubPositionBar.tsx": "pinned",
