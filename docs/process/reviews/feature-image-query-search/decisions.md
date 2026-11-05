@@ -3,7 +3,7 @@
 decision: continue (human, 2026-11-06, r3). The human chose 「続ける：専用の受け口に作り直す」 — revert every change to `UploadZone`, and give the search page its own drop target for a one-image drop, so the folder pages' upload path is unchanged.
 
 ran_in_app: yes
-at: c9d9900aa3c3dcd425af5525a212a72fd5d3e16d
+at: e2362169682ce7300761ee0cfe107d1d39bcd7ff
 by: agent
 evidence: |
   Environment: compose project litloft-r5-a4 on port 3994; intelligence built from
@@ -165,6 +165,19 @@ are unchanged by this fix, which only moves the text-page listeners to [data-pag
   the CDP two-file drag still showed "Choose one image". A drag started on the modal
   showed the modal's own overlay; the page target listens on [data-page-frame], outside
   the modal's portal, so it is not a page-level hit.
+
+Fifth R-5 after the r7 fix (e236216, code 9480c98), same scratch stack and drive:
+
+  - Text page: one image -> search overlay and ?img=04387971110c; a text drag and a
+  two-image drag showed no overlay and left the URL unchanged.
+  - Folder page: the upload overlay appeared and r5c-upload-check-2.txt was uploaded
+  (listing and host).
+  - Availability transition: no [data-upload-zone] and no wrapper before or after; the
+  marked h1 stayed connected, scroll 160, image button present.
+  - The real-browser e2e-components `image-drop-target-desktop.spec.ts` passed in the
+  full 243-test suite: after the overlay appears, elementFromPoint at the drop point is
+  inside [data-page-frame], and the drop starts the query. This is the pointer-events
+  fix the r7 reviewer asked for.
 
 pending: |
   - The iOS photo picker and camera on a real device (agent_cannot_verify); the picker's
