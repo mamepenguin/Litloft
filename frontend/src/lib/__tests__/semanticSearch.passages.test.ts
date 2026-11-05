@@ -44,7 +44,14 @@ describe("SPEC-CORE-040 I22 passages are asked for by the results page only", ()
   it("keeps passages alongside a filtered query", async () => {
     await fetchSemanticHits("予算", "main", {
       passages: true,
-      filter: { tags: ["会議"], kinds: ["pdf"], favorite: false, liked: false },
+      filter: {
+        tags: ["会議"],
+        kinds: ["pdf"],
+        favorite: false,
+        liked: false,
+        folders: [],
+        collections: [],
+      },
     });
 
     expect(calls[0].searchParams.get("passages")).toBe("true");

@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "trajectory": "The two fix commits since r1 add no production branch, state or prediction. f6a756b6f adds only tests (backend normalisation, cap, drive-scope and case tests; frontend chip-removal, quote and cap tests). fe2c93839 adds addon tests and moves the submodule pointer to the commit that holds them. Nothing is patched into the design and nothing was removed. The r1 findings were scope-list notes, so no code fix was owed.",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "activeOperatorValue finds the token being typed by cutting at the last space, tab or ideographic space. It does not use the tokenizer, so a closed quoted value that contains whitespace and an operator-looking word can be read as a live partial value.",
+      "impact": "In the modal, a closed token such as tag:\"x tag:y\" followed by the caret at the end can offer suggestions. Accepting one rewrites from the last space and corrupts the quoted token. This needs a quoted value that itself contains a space and an operator name, so it is rare for a single user.",
+      "evidence": "frontend/src/lib/searchQuery.ts activeOperatorValue: the new guard only returns null when the last token has an open quote. replaceFrom still comes from lastIndexOf on space characters, and PARTIAL is matched against the text after that point. The added tests in searchScopeOperators.test.ts cover only the unterminated-quote case.",
+      "repro": "not_reproduced (read-only review; derived from reading the code)",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant covers the modal's completion. I9 and I13 concern the results-page menu, and the spec says the modal keeps value suggestions for tag:, type: and is: only.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Derive the active token from tokenize(): take the last token only when it is not closed and has the name form, and compute replaceFrom from its start offset."
+    }
+  ],
+  "specification_compliance": [
+    "I1/I10: the listing and /files/matching both go through apply_file_filters with the same normalisers (normalize_folders, normalize_collections). Dedup comes before the cap, and the listing answers 400 where the endpoint answers 422. This matches the code. Tests cover the 10/11, 1024/1025 and 100/101 boundaries.",
+    "I2: _folder_subtree uses an equality test plus a substr prefix test, not LIKE, so it is case-sensitive and compares whole segments. Tests cover 2024x and the lowercase variant.",
+    "I3: collection ids are resolved from Collection.drive == drive and folded with lower() in Python. A test links another drive's collection to a file of this drive and expects no match.",
+    "I7: extra=forbid is set on FileMatchingRequest and on the addon SearchFilter. Unknown-key tests exist on both sides.",
+    "I5/I12/I13: parse, chips and removal all go through interpret(), which runs tokenize(). Removal keeps the raw string of every other token. closeOpenQuote runs before the new token is appended.",
+    "I8: filterQueryParam writes folders and collections only when they are non-empty, so a query without them produces the same filter as before.",
+    "I14: the layout fixture and spec exist. I did not run them."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The menu's openFolders and openCollections have no stale-response guard. A slow earlier request can settle after a reopen and set the state to ready or failed while the newer request is still in flight."
+  ],
+  "regression_risks": [
+    "JS trim and toLowerCase differ from Python strip and lower for a few exotic characters, for example U+FEFF and the dotted capital I. A collection name made of such characters could be normalised differently by the frontend and the core.",
+    "If File.folder_path ever gets a case-insensitive column collation, the equality half of the folder predicate would stop being case-sensitive. I did not check the model."
+  ],
+  "test_coverage": [
+    "Backend: parametrised parity tables for the listing and the endpoint, case, sibling and drive scope, normalisation, caps with dedup before the cap, malformed folders and unknown keys. The tests added in f6a756b6f close mutants around trimming, dedup-before-cap and lower().",
+    "Frontend: tokenizer, chips, removal, caps in code points, the menu lists and I13 are tested. The modal's activeOperatorValue is tested only for the open-quote case (see F1).",
+    "I read the tests and ran none of them."
+  ],
+  "not_verified": [
+    "I ran no tests, no mutation run and no browser layout spec.",
+    "I did not read the addon source on disk, only the diff.",
+    "I did not check the File.folder_path column collation or whether stored paths are always NFC.",
+    "I did not read callers of parseSearchQuery outside the diff.",
+    "I did not exercise the menu's concurrent-load behaviour."
+  ],
+  "confidence": 72
+}

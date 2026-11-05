@@ -26,6 +26,8 @@ function chipValue(
 ): string | null {
   if (chip.operator === "tag") return chip.tag;
   if (chip.operator === "type") return kindLabel(chip.kind);
+  if (chip.operator === "path") return chip.folder;
+  if (chip.operator === "collection") return chip.collection;
   return null;
 }
 
@@ -59,6 +61,8 @@ export function SearchFilterChips({
   const labelFor = (chip: OperatorChip): string => {
     if (chip.operator === "tag") return t("filterTag");
     if (chip.operator === "type") return t("filterKind");
+    if (chip.operator === "path") return t("filterPath");
+    if (chip.operator === "collection") return t("filterCollection");
     return chip.flag === "favorite" ? tSidebar("favorites") : tSidebar("liked");
   };
   const kindLabel = (kind: string) => tFilter(`type.${kind}`);
@@ -68,7 +72,7 @@ export function SearchFilterChips({
       role="group"
       aria-label={t("filters")}
       data-role="filter-chips"
-      className="flex flex-wrap items-center gap-2"
+      className="flex min-w-0 max-w-full flex-wrap items-center gap-2"
     >
       {chips.map((chip, index) => {
         const label = labelFor(chip);
@@ -76,9 +80,10 @@ export function SearchFilterChips({
         return (
           <span
             key={`${chip.operator}:${value ?? (chip.operator === "is" ? chip.flag : "")}`}
-            className="inline-flex items-center gap-1 rounded-full bg-sand py-0.5 pl-2 pr-1 text-xs text-text-primary"
+            title={value ?? undefined}
+            className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-full bg-sand py-0.5 pl-2 pr-1 text-xs text-text-primary"
           >
-            <span className="whitespace-nowrap">
+            <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
               <span className="font-semibold">{label}</span>
               {value && <> {value}</>}
             </span>
@@ -97,7 +102,7 @@ export function SearchFilterChips({
                 pendingFocus.current = index;
                 onRemove(next, index);
               }}
-              className="rounded-full p-0.5 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+              className="shrink-0 rounded-full p-0.5 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
             >
               ×
             </button>
