@@ -3,7 +3,7 @@
 decision:
 
 ran_in_app: yes
-at: 77d5f83fd03a6afe837ac0f2e89a7efae5e5de82
+at: 5addec5e175a9da6b6efb158328603558dee23de
 by: agent
 evidence: |
   Environment: compose project litloft-r5-a4 on port 3994; intelligence built from
@@ -74,6 +74,34 @@ evidence: |
   the three ways in, the three groups and their order, the image not being saved, the
   20 MB/50 MP limit, the documents group depending on readable text and Text in pictures,
   and no Smart Folder save. No mismatch found.
+
+Second R-5 after the B-2/B-3 fix (5addec5), same scratch stack and drive; the first run
+above used 77d5f83:
+
+  1. Normal flow still works. The modal's slide-budget.png gave
+  /drive/scratch/search?img=26be5cce042b, the chip and hidden h1, and "Documents with
+  this text 1" then "Similar pictures 1"; the documents row links
+  budget-review-memo.md. frame.png gave "Similar pictures 1" then "Similar scenes in
+  videos 1" (clip.mp4, 0:00–0:14). r5b-01-documents.png, r5b-02-scenes.png.
+  2. Text-query page. On /drive/scratch/search?q=litloft a text-file drag showed neither
+  "Drop files to upload" nor "Drop to search by this image" (0 and 0) and its drop left
+  the URL unchanged. A one-image drag showed "Drop to search by this image" and its drop
+  went to ?img=36e59616fb2f. r5b-03-text-page.png.
+  3. Availability transition. With the availability route delayed 1.5 s and answering
+  200 {}, the <h1> node marked before it resolved was still connected and present after
+  (no remount), window.scrollY was still 160, and the upload zone/image button had
+  appeared. 16-b3-search-page.png.
+  4. Several-file drag. A browser-level CDP drag of two image files
+  (Input.dispatchDragEvent, dragOperationsMask: 1) reached drop: "Choose one image"
+  appeared and the URL stayed /drive/scratch. 17-several-real-drag.png; the committed
+  e2e-components/image-search-drag-desktop.spec.ts runs the same drag.
+  5. View drops. On an absent image URL one image dropped on the view started a new query
+  (0123456789ab → d8880ffaea47); a text-file drop left the URL unchanged.
+  r5b-05-view-drop.png.
+  6. Phone at 390x844: both pills measured 44 px high and document.scrollWidth equalled
+  clientWidth (390). 05-modal-phone.png, 06-image-query-phone.png (refreshed).
+  7. Reload of an answered image URL showed "Choose the image again" and the image
+  button. r5b-07-gone.png.
 
 pending: |
   - The iOS photo picker and camera on a real device (agent_cannot_verify); the picker's
