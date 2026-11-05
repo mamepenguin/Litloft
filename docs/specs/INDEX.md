@@ -98,7 +98,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-061 | implemented | docs/specs/in-file-find.md | sha256:73aa8f34f99d39d7e66c4b9a670d4c68290c95cd3f0424ca9c1c0ba8777768db |
 | SPEC-CORE-028 | implemented | docs/specs/in-file-find.md | sha256:73aa8f34f99d39d7e66c4b9a670d4c68290c95cd3f0424ca9c1c0ba8777768db |
 | SPEC-CORE-029 | draft | docs/specs/office-viewer.md | |
-| SPEC-ADDON-051 | draft | docs/specs/extraction-corrections.md | |
+| SPEC-ADDON-051 | superseded | docs/specs/extraction-corrections.md | |
 | SPEC-ADDON-052 | draft | docs/specs/figure-aware-reading.md | |
 | SPEC-CORE-030 | implemented | docs/specs/background-upload.md | sha256:ffe09b32450a1f43cf6e5aaec2211505c8508836e1a38857b51bc8b161bf5211 |
 | SPEC-CORE-031 | implemented | docs/specs/ingest-progress.md | sha256:de18030f6fb3fe7172d2ef5474e6349e04ecb055520a610d4e780e8648bcfefd |
@@ -120,6 +120,6 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-062 | implemented | docs/specs/nfd-path-resolution.md | sha256:c8ede99437f15a3e16577af66225fa4bd3cc3ef87669a1939ae9acf2ce743680 |
 | SPEC-CORE-043 | implemented | docs/specs/search-scope-operators.md | sha256:d8241feb82371ba3f7cd552cdaa3efb30009fcb1e1bf5677781257c47320341d |
 | SPEC-ADDON-063 | implemented | docs/specs/search-scope-operators.md | sha256:d8241feb82371ba3f7cd552cdaa3efb30009fcb1e1bf5677781257c47320341d |
-| SPEC-ADDON-065 | draft | docs/specs/extraction-edits.md | |
-| SPEC-ADDON-067 | draft | docs/specs/extraction-edits.md | |
-| SPEC-ADDON-068 | draft | docs/specs/extraction-edits.md | |
+| SPEC-ADDON-065 | approved | docs/specs/extraction-edits.md | sha256:102bdbc5e45b3ebc79e32e90028a613b29d5eae0d3121a3bc16df6b1ae288783 |
+| SPEC-ADDON-067 | approved | docs/specs/extraction-edits.md | sha256:102bdbc5e45b3ebc79e32e90028a613b29d5eae0d3121a3bc16df6b1ae288783 |
+| SPEC-ADDON-068 | approved | docs/specs/extraction-edits.md | sha256:102bdbc5e45b3ebc79e32e90028a613b29d5eae0d3121a3bc16df6b1ae288783 |
