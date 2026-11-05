@@ -116,4 +116,4 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-054 | draft | docs/specs/ask-source-set.md | |
 | SPEC-ADDON-060 | implemented | docs/specs/pdf-footnotes.md | sha256:12530badbd476c63dba375a305a0f2a5416ce35ff70bca2c65e360c2fa58c902 |
 | SPEC-CORE-042 | implemented | docs/specs/nfd-path-resolution.md | sha256:c8ede99437f15a3e16577af66225fa4bd3cc3ef87669a1939ae9acf2ce743680 |
-| SPEC-ADDON-062 | approved | docs/specs/nfd-path-resolution.md | sha256:c8ede99437f15a3e16577af66225fa4bd3cc3ef87669a1939ae9acf2ce743680 |
+| SPEC-ADDON-062 | implemented | docs/specs/nfd-path-resolution.md | sha256:c8ede99437f15a3e16577af66225fa4bd3cc3ef87669a1939ae9acf2ce743680 |
