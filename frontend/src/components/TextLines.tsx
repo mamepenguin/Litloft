@@ -90,7 +90,12 @@ export function TextLines({
     () => decorate(content, filename),
     [content, filename],
   );
-  useFindMarksIn(() => preRef.current, isTextFindRow, decorated.lines !== null);
+  useFindMarksIn(
+    () => preRef.current,
+    isTextFindRow,
+    decorated.lines !== null,
+    { text: decorated.text, bodyStartLine: 0, mode: "plain" },
+  );
 
   const preClass =
     "p-4 text-sm leading-relaxed text-text-primary font-mono whitespace-pre-wrap break-words";

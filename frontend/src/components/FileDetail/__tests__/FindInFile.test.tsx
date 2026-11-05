@@ -1563,20 +1563,34 @@ function addonRows(note: string, term: string) {
   );
 }
 
-/** The 8 occurrences of the term in the stored note: title, tag, then 6 in the body. */
-function beaconRows() {
-  return addonRows(BEACON_NOTE, BEACON_TERM);
+function bodyStartLine(note: string): number {
+  const lines = note.split("\n");
+  if (lines[0] !== "---") return 0;
+  const close = lines.indexOf("---", 1);
+  return close < 0 ? 0 : close + 1;
+}
+
+function lineOfCodePoint(note: string, at: number): number {
+  return Array.from(note).slice(0, at).join("").split("\n").length - 1;
+}
+
+function sourceLinesOf(element: Element): [number, number] {
+  const [from, to] = (element.getAttribute("data-source-lines") ?? "")
+    .split("-")
+    .map(Number);
+  return [from, to];
 }
 
 async function walkFindRows(
   note: string,
   term: string,
   rows: FindRow[],
-  bodyStart: number,
-  expected: (string | null)[],
+  noMarkRows: number[] = [],
 ) {
   shared.markdown = note;
   reply = () => answer(rows, { query: term });
+  const positions = termPositions(note, term);
+  const start = bodyStartLine(note);
   const scrolled: Element[] = [];
   const original = Element.prototype.scrollIntoView;
   Element.prototype.scrollIntoView = function scrollIntoView(this: Element) {
@@ -1588,12 +1602,13 @@ async function walkFindRows(
     const input = await openBar();
     typeInto(input, term);
     await findCount(`${rows.length} 件`);
-    const marks = () => Array.from(body.querySelectorAll("mark.find-mark"));
     for (let index = 0; index < rows.length; index += 1) {
       scrolled.length = 0;
       enter(input);
       await findCount(`${index + 1} / ${rows.length}`);
-      if (index < bodyStart) {
+      const line = lineOfCodePoint(note, positions[index]);
+      const expectNone = line < start || noMarkRows.includes(index);
+      if (expectNone) {
         await waitFor(() => {
           expect(body.querySelector("mark.find-mark-current")).toBeNull();
           expect(scrolled.filter((element) => body.contains(element))).toEqual([]);
@@ -1603,13 +1618,11 @@ async function walkFindRows(
       await waitFor(() => {
         const current = body.querySelector("mark.find-mark-current");
         expect(current).not.toBeNull();
-        expect(marks().indexOf(current as Element)).toBe(index - bodyStart);
-        const block = expected[index];
-        if (block !== null) {
-          expect(
-            current!.closest("h1, p, li, pre")?.textContent ?? "",
-          ).toContain(block);
-        }
+        const block = current!.closest("[data-source-lines]");
+        expect(block).not.toBeNull();
+        const [from, to] = sourceLinesOf(block!);
+        expect(from).toBeLessThanOrEqual(line);
+        expect(line).toBeLessThan(to);
         expect(scrolled.filter((element) => body.contains(element)).at(-1)).toBe(
           current,
         );
@@ -1686,19 +1699,254 @@ const FENCE_NOTE = [
   "After the fence the beacon returns.",
 ].join("\n");
 
-const AMP_NOTE = [
+const EMOJI_NOTE = ["🚨 alert 🚨 the beacon failed", "", "Later the beacon was fixed."].join(
+  "\n",
+);
+
+const BEACON_PLAIN_NOTE = [
   "---",
-  "title: Field notes",
+  "title: Beacon notes",
+  "tags:",
+  "- beacon",
   "---",
+  "",
+  "The beacon on the north pier was cleaned on Monday.",
+  "",
+  "The beacon lens is clear after the storm.",
+  "",
+  "The harbor beacon spins at night.",
+  "",
+  "A final beacon note for the keeper.",
+].join("\n");
+
+const TITLE_EQUALS_HEADING_NOTE = [
+  "---",
+  "title: Beacon maintenance",
+  "---",
+  "",
+  "# Beacon maintenance",
+  "",
+  "The beacon on the pier was cleaned.",
+  "",
+  "Another beacon line follows.",
+].join("\n");
+
+const PLAN_TASK_NOTE = [
+  "---",
+  "title: Harbor",
+  "---",
+  "",
+  "# Beacon maintenance plan",
+  "",
+  "- [x] Approve the beacon maintenance plan by Friday",
+].join("\n");
+
+const HEADING_TASK_NOTE = [
+  "---",
+  "title: Beacon maintenance plan",
+  "---",
+  "",
+  "# Beacon maintenance plan",
+  "",
+  "- [x] check the lamp",
+  "- [ ] paint the beacon",
+].join("\n");
+
+const HEADING_LINK_NOTE = [
+  "# Beacon manual",
+  "",
+  "See [the guide](https://example.com/guide) for the beacon.",
+].join("\n");
+
+const FIRST_PARA_LINK_NOTE = [
+  "Beacon lamps cleaned, see [log](https://example.com/a) and notes.",
+  "",
+  "The beacon was checked again.",
+].join("\n");
+
+const SHORT_FM_NOTE = ["---", "title: Beacon", "---", "", "Beacon", ""].join("\n");
+
+const SHORT_NOTE = "Beacon lit at dusk.";
+
+const LAST_WORD_NOTE =
+  "The keeper checked the lens and left the light on the beacon";
+
+const LAST_WORD_REF_NOTE = [
+  "The keeper left the light on the beacon[1]",
+  "",
+  "[1]: https://example.com/keeper",
+].join("\n");
+
+const LAST_WORD_COMMENT_NOTE = [
+  "The keeper left the light on the beacon",
+  "",
+  "<!-- todo later -->",
+].join("\n");
+
+const K2_NOTE = [
+  "---",
+  "title: 灯台の点検記録",
+  "---",
+  "",
+  "# 灯台の点検記録",
+  "",
+  "北の灯台を清掃した。",
+].join("\n");
+
+const K3_NOTE = ["# 灯台", "", "1. レンズを拭く", "2. 灯台の記録をつける"].join("\n");
+
+const SHORT_ORDER_NOTE = [
+  "# Field notes",
+  "",
+  "1. Check beacon",
+  "2. Paint beacon",
+  "3. Log beacon",
+].join("\n");
+
+const LINK_URL_NOTE = [
+  "# Field notes",
+  "",
+  "See the [beacon](https://example.com/beacon-manual) for detail.",
+  "",
+  "The beacon manual is on the shelf.",
+].join("\n");
+
+const LINK_URL_LIST_NOTE = [
+  "# Field notes",
+  "",
+  "- [beacon](https://example.com/beacon) first",
+  "- beacon second",
+].join("\n");
+
+const ENTITY_NOTE = [
+  "# Field notes",
   "",
   "Tom &amp; Jerry found the beacon in the hall.",
   "",
   "Later the beacon was moved next to the sign.",
 ].join("\n");
 
-const EMOJI_NOTE = ["🚨 alert 🚨 the beacon failed", "", "Later the beacon was fixed."].join(
-  "\n",
-);
+const EMOJI_FM_NOTE = [
+  "---",
+  "title: Field notes",
+  "---",
+  "",
+  "# Beacon alert",
+  "",
+  "🚨 the beacon failed",
+].join("\n");
+
+const REPEAT_NOTE = [
+  "# Repeats",
+  "",
+  ...Array.from({ length: 10 }, () => "check the beacon"),
+].join("\n");
+
+const CAPTURE_NOTE = [
+  "# Beacon",
+  "",
+  "## Captures",
+  "",
+  "- [log.pdf](loft://abcdefghijkl?page=3) - p. 3",
+  "",
+  "> see beacon captures log pdf",
+].join("\n");
+
+const CAPTURE_MAINT_NOTE = [
+  "# Beacon maintenance",
+  "",
+  "## Captures",
+  "",
+  "- [log.pdf](loft://abcdefghijkl?page=3) - p. 3",
+].join("\n");
+
+const DISTILL_NOTE = [
+  "# Beacon upkeep",
+  "",
+  "- Clean the lens",
+  "- Check the beacon",
+].join("\n");
+
+const DISTILL_LINK_NOTE = [
+  "# Beacon upkeep",
+  "",
+  "See [the map](https://example.com/map) for the beacon.",
+].join("\n");
+
+const V_NOTE = [
+  "---",
+  "title: 港",
+  "---",
+  "",
+  "# 灯台の点検と清掃の記録",
+  "",
+  "[地図](https://example.com/map) を見て灯台へ行く。",
+].join("\n");
+
+const LONG_ORDER_NOTE = [
+  "# Field notes",
+  "",
+  "1. Walk to the north pier and check the beacon every morning.",
+  "2. Then record the beacon hours in the log after lunch.",
+  "3. Finally paint the beacon door before the winter storm.",
+].join("\n");
+
+const SHORT_MEMO_NOTE = "Call the beacon guy";
+
+const WEB_CLIP_NOTE = [
+  "---",
+  "title: Beacon Maintenance Guide",
+  "url: https://example.com/blog/beacon-maintenance-guide",
+  "---",
+  "",
+  "# Beacon Maintenance Guide",
+  "",
+  "The beacon needs care.",
+].join("\n");
+
+const WEB_CLIP_LINK_NOTE = [
+  "---",
+  "title: Beacon Maintenance Guide",
+  "url: https://example.com/blog/beacon-maintenance-guide",
+  "---",
+  "",
+  "# Beacon Maintenance Guide",
+  "",
+  "By [Jane](https://example.com/jane)",
+  "",
+  "The beacon needs care.",
+].join("\n");
+
+const WEB_CLIP_PARA_NOTE = [
+  "---",
+  "title: Beacon history",
+  "url: https://example.com/blog/beacon-history",
+  "---",
+  "",
+  "Beacon history begins at the north pier.",
+  "",
+  "The beacon was rebuilt later.",
+].join("\n");
+
+const FIRST_LINE_NOTE = [
+  "---",
+  "title: First line log",
+  "id: '20261105044628'",
+  "---",
+  "",
+  "Beacon checks start here and continue on the pier.",
+].join("\n");
+
+const FRONTMATTER_BODY_NOTE = [
+  "---",
+  "title: needle notes",
+  "---",
+  "The opening paragraph runs long enough that the snippet starts below the frontmatter and ends here.",
+  "",
+  "needle starts the second paragraph.",
+  "",
+  "Later text needle end.",
+].join("\n");
 
 describe("SPEC-CORE-028 I5 find marks in a rendered MarkdownPreview", () => {
   it("marks every occurrence, ASCII case folded, while the answer has rows, and none after closing", async () => {
@@ -1736,45 +1984,11 @@ describe("SPEC-CORE-028 I5 find marks in a rendered MarkdownPreview", () => {
     expect(occurrences(body, TERM)).toEqual([null, null, null]);
   });
 
-  it("puts the current mark on the occurrence whose context matches the snippet, over the ordinal", async () => {
+  it("gives no current mark when the snippet is not found in the source", async () => {
     shared.markdown = NOTE;
     reply = () =>
       answer([
-        row("text", "charlie charlie charlie Needle delta delta delta.", { ordinal: 3 }),
-      ]);
-    const scrolled: Element[] = [];
-    const original = Element.prototype.scrollIntoView;
-    Element.prototype.scrollIntoView = function scrollIntoView(this: Element) {
-      scrolled.push(this);
-    };
-    try {
-      await openPage(PDF);
-      const body = await screen.findByTestId("markdown-body");
-      const input = await openBar();
-      typeInto(input, TERM);
-      await findCount("1 件");
-
-      enter(input);
-
-      await waitFor(() => {
-        const marks = occurrences(body, TERM);
-        expect(marks.every((el) => el !== null)).toBe(true);
-        const inBody = scrolled.filter((el) => body.contains(el));
-        expect(inBody.at(-1)).toBe(marks[1]);
-      });
-    } finally {
-      Element.prototype.scrollIntoView = original;
-    }
-  });
-
-  it.each([
-    ["the ordinal", 3],
-    ["the first", 9],
-  ])("puts no current mark on a text row when no context matches, whatever the row would fall back to (%s)", async (_n, ordinal) => {
-    shared.markdown = NOTE;
-    reply = () =>
-      answer([
-        row("text", "unrelated words then needle and more unrelated words", { ordinal }),
+        row("text", "unrelated words then needle and more unrelated words", { ordinal: 3 }),
       ]);
     const scrolled: Element[] = [];
     const original = Element.prototype.scrollIntoView;
@@ -1798,159 +2012,59 @@ describe("SPEC-CORE-028 I5 find marks in a rendered MarkdownPreview", () => {
       Element.prototype.scrollIntoView = original;
     }
   });
-
-  it("takes the body occurrence when the frontmatter holds the term too", async () => {
-    const note = [
-      "---",
-      "title: needle notes",
-      "---",
-      "The opening paragraph runs long enough that the snippet starts below the frontmatter and ends here.",
-      "",
-      "needle starts the second paragraph.",
-      "",
-      "Later text needle end.",
-    ].join("\n");
-    shared.markdown = note;
-    const at = note.indexOf(`${TERM} starts`);
-    const snippet = note.slice(Math.max(0, at - 80), at + TERM.length + 80);
-    const bodyRow = {
-      kind: "text" as const,
-      ordinal: 2,
-      snippet,
-      match_start: at - Math.max(0, at - 80),
-      match_length: TERM.length,
-    };
-    reply = () => answer([bodyRow]);
-    const scrolled: Element[] = [];
-    const original = Element.prototype.scrollIntoView;
-    Element.prototype.scrollIntoView = function scrollIntoView(this: Element) {
-      scrolled.push(this);
-    };
-    try {
-      await openPage(PDF);
-      const body = await screen.findByTestId("markdown-body");
-      const input = await openBar();
-      typeInto(input, TERM);
-      await findCount("1 件");
-
-      enter(input);
-
-      await waitFor(() => {
-        const current = body.querySelector("mark.find-mark-current");
-        expect(current).not.toBeNull();
-        expect(current!.nextSibling?.textContent ?? "").toMatch(/^ starts/);
-        expect(scrolled.filter((el) => body.contains(el)).at(-1)).toBe(current);
-      });
-    } finally {
-      Element.prototype.scrollIntoView = original;
-    }
-  });
-
-  it("marks each body row's own occurrence and gives the title and tag rows none", async () => {
-    const expected = [
-      null,
-      null,
-      "Beacon maintenance",
-      "The beacon on the north pier",
-      "The harbor master asked for a second check of the beacon",
-      "Inspect the beacon lens for salt.",
-      "Record the beacon hours in the log.",
-      "A final note: the south beacon needs paint before winter.",
-    ];
-    shared.markdown = BEACON_NOTE;
-    reply = () => answer(beaconRows(), { query: BEACON_TERM });
-    const scrolled: Element[] = [];
-    const original = Element.prototype.scrollIntoView;
-    Element.prototype.scrollIntoView = function scrollIntoView(this: Element) {
-      scrolled.push(this);
-    };
-    try {
-      await openPage(PDF);
-      const body = await screen.findByTestId("markdown-body");
-      await waitFor(() => expect(body.textContent).toContain("south beacon"));
-      const input = await openBar();
-      typeInto(input, BEACON_TERM);
-      await findCount("8 件");
-      await waitFor(() => expect(body.querySelectorAll("mark.find-mark")).toHaveLength(6));
-
-      for (let place = 0; place < expected.length; place += 1) {
-        const blockText = expected[place];
-        scrolled.length = 0;
-        enter(input);
-        await findCount(`${place + 1} / 8`);
-        if (blockText === null) {
-          await waitFor(() => {
-            expect(body.querySelector("mark.find-mark-current")).toBeNull();
-            expect(scrolled.filter((el) => body.contains(el))).toEqual([]);
-          });
-        } else {
-          await waitFor(() => {
-            const currents = body.querySelectorAll("mark.find-mark-current");
-            expect(currents).toHaveLength(1);
-            expect(currents[0].closest("h1, p, li")?.textContent ?? "").toContain(blockText);
-            expect(scrolled.filter((el) => body.contains(el)).at(-1)).toBe(currents[0]);
-          });
-        }
-      }
-    } finally {
-      Element.prototype.scrollIntoView = original;
-    }
-  });
 });
 
-describe("SPEC-CORE-028 I5 find marks with frontmatter and Markdown syntax", () => {
-  it("marks every body row of a Japanese note on its own occurrence and gives the title and tag rows none", async () => {
-    await walkFindRows(TODAI_NOTE, TODAI_TERM, addonRows(TODAI_NOTE, TODAI_TERM), 2, [
-      null,
-      null,
-      "灯台の点検",
-      "北の灯台は月曜に清掃した",
-      "南の灯台は木曜に見回る",
-      "灯台の扉を点検する",
-      "灯台の記録を残す",
-      "古い灯台の写真",
-    ]);
-  });
+const INLINE_TAG_NOTE = [
+  "# Beacon notes",
+  "",
+  "Some text with #beacon and #harbor tags.",
+].join("\n");
 
+describe("SPEC-CORE-028 I5 the current mark follows the row's source position", () => {
   it.each([
-    [
-      "a numbered list",
-      ORDERED_NOTE,
-      BEACON_TERM,
-      ["Check the beacon lamp", "Close the beacon door", "Log the beacon hours"],
-    ],
-    [
-      "a task list",
-      TASK_NOTE,
-      BEACON_TERM,
-      ["fix beacon cable", "log beacon hours", "paint beacon door"],
-    ],
-    [
-      "a link",
-      LINK_NOTE,
-      BEACON_TERM,
-      ["Read the manual about the", "Check the checklist for the"],
-    ],
-    [
-      "a fenced code block with a language name",
-      FENCE_NOTE,
-      BEACON_TERM,
-      [
-        "Before the fence the beacon waits",
-        "the beacon inside",
-        "After the fence the beacon returns",
-      ],
-    ],
-    [
-      "an entity",
-      AMP_NOTE,
-      BEACON_TERM,
-      ["Tom & Jerry found the beacon", "Later the beacon was moved next to the sign"],
-    ],
-  ] as [string, string, string, string[]][])(
-    "lands every body row on its own occurrence in %s",
-    async (_name, note, term, blocks) => {
-      await walkFindRows(note, term, addonRows(note, term), 0, blocks);
+    ["beacon-note", BEACON_NOTE, BEACON_TERM, []],
+    ["beacon-plain", BEACON_PLAIN_NOTE, BEACON_TERM, []],
+    ["title equal to the heading", TITLE_EQUALS_HEADING_NOTE, BEACON_TERM, []],
+    ["heading then task list", HEADING_TASK_NOTE, BEACON_TERM, []],
+    ["heading then link", HEADING_LINK_NOTE, BEACON_TERM, []],
+    ["first paragraph with a link", FIRST_PARA_LINK_NOTE, BEACON_TERM, []],
+    ["short note with frontmatter", SHORT_FM_NOTE, BEACON_TERM, []],
+    ["short memo", SHORT_NOTE, BEACON_TERM, []],
+    ["last word", LAST_WORD_NOTE, BEACON_TERM, []],
+    ["last word with a reference definition", LAST_WORD_REF_NOTE, BEACON_TERM, []],
+    ["last word with a trailing comment", LAST_WORD_COMMENT_NOTE, BEACON_TERM, []],
+    ["Japanese note", TODAI_NOTE, TODAI_TERM, []],
+    ["Japanese title equal to the heading", K2_NOTE, TODAI_TERM, []],
+    ["Japanese numbered list", K3_NOTE, TODAI_TERM, []],
+    ["numbered list", ORDERED_NOTE, BEACON_TERM, []],
+    ["short numbered list", SHORT_ORDER_NOTE, BEACON_TERM, []],
+    ["task list", TASK_NOTE, BEACON_TERM, []],
+    ["links", LINK_NOTE, BEACON_TERM, []],
+    ["link whose URL holds the term", LINK_URL_NOTE, BEACON_TERM, [1]],
+    ["list link whose URL holds the term", LINK_URL_LIST_NOTE, BEACON_TERM, [1]],
+    ["fence with a language name", FENCE_NOTE, BEACON_TERM, []],
+    ["entity", ENTITY_NOTE, BEACON_TERM, []],
+    ["emoji", EMOJI_NOTE, BEACON_TERM, []],
+    ["emoji under a heading with frontmatter", EMOJI_FM_NOTE, BEACON_TERM, []],
+    ["identical lines at the end", REPEAT_NOTE, BEACON_TERM, []],
+    ["capture note", CAPTURE_NOTE, BEACON_TERM, []],
+    ["capture maintenance note", CAPTURE_MAINT_NOTE, BEACON_TERM, []],
+    ["distill note", DISTILL_NOTE, BEACON_TERM, []],
+    ["distill note with a link", DISTILL_LINK_NOTE, BEACON_TERM, []],
+    ["Japanese note with a link", V_NOTE, TODAI_TERM, []],
+    ["long numbered items", LONG_ORDER_NOTE, BEACON_TERM, []],
+    ["short memo with ten letters after", SHORT_MEMO_NOTE, BEACON_TERM, []],
+    ["web clip", WEB_CLIP_NOTE, BEACON_TERM, []],
+    ["web clip with a byline link", WEB_CLIP_LINK_NOTE, BEACON_TERM, []],
+    ["web clip with the first paragraph as the body", WEB_CLIP_PARA_NOTE, BEACON_TERM, []],
+    ["maintenance plan with a task item", PLAN_TASK_NOTE, BEACON_TERM, []],
+    ["first body line", FIRST_LINE_NOTE, BEACON_TERM, []],
+    ["frontmatter holds the term too", FRONTMATTER_BODY_NOTE, TERM, []],
+    ["inline tags", INLINE_TAG_NOTE, BEACON_TERM, []],
+  ] as [string, string, string, number[]][])(
+    "%s: each row lands on its own source line, or gets no mark in the frontmatter",
+    async (_name, note, term, noMarkRows) => {
+      await walkFindRows(note, term, addonRows(note, term), noMarkRows);
     },
   );
 });
@@ -2074,6 +2188,27 @@ describe("SPEC-CORE-028 I5 find marks in the inline PDF viewer", () => {
       Element.prototype.scrollIntoView = original;
     }
   });
+
+  it("falls back to the row's ordinal when a page row's snippet does not match", async () => {
+    shared.pdfViewer = true;
+    shared.pdfText = ["page one has a needle here and a needle there"];
+    reply = () => answer([row("page", "zzz needle www", { page: 1, ordinal: 2 })]);
+
+    await openPage(PDF);
+    const input = await openBar();
+    typeInto(input, TERM);
+    await findCount("1 件");
+
+    enter(input);
+    await findCount("1 / 1");
+
+    await waitFor(() => {
+      const layer = textLayerOf(1);
+      const current = marksIn(layer, true);
+      expect(current).toHaveLength(1);
+      expect(current[0].nextSibling?.textContent ?? "").toMatch(/^\s+there/);
+    });
+  });
 });
 
 describe("SPEC-CORE-028 I5 find marks in other viewers and beside other marks", () => {
@@ -2098,6 +2233,31 @@ describe("SPEC-CORE-028 I5 find marks in other viewers and beside other marks", 
     fireEvent.click(screen.getByRole("button", { name: "検索を閉じる" }));
 
     await waitFor(() => expect(occurrences(body, TERM)).toEqual([null, null]));
+  });
+
+  it.each([
+    ["identical lines", Array.from({ length: 6 }, () => "check the beacon").join("\n")],
+    ["the first and last word", "beacon first line\nmiddle\nlast line beacon"],
+  ])("puts each row's current mark on its own line in %s", async (_name, text) => {
+    shared.plainText = text;
+    const rows = addonRows(text, BEACON_TERM);
+    reply = () => answer(rows, { query: BEACON_TERM });
+    await openPage(PDF);
+    const body = await screen.findByTestId("text-lines-body");
+    const input = await openBar();
+    typeInto(input, BEACON_TERM);
+    await findCount(`${rows.length} 件`);
+    const allMarks = () => Array.from(body.querySelectorAll("mark.find-mark"));
+    for (let index = 0; index < rows.length; index += 1) {
+      enter(input);
+      await findCount(`${index + 1} / ${rows.length}`);
+      await waitFor(() => {
+        const current = body.querySelector("mark.find-mark-current");
+        expect(current).not.toBeNull();
+        expect(allMarks().indexOf(current as Element)).toBe(index);
+        expect(current!.closest(".code-line")?.textContent ?? "").toContain("beacon");
+      });
+    }
   });
 
   it("marks a match that spans two text nodes in each of them", async () => {

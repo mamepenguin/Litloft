@@ -119,32 +119,14 @@ describe("chooseCurrentOccurrence", () => {
     expect(chooseCurrentOccurrence([tenOnly, full], row(snippet, 1))).toBe(1);
   });
 
-  it("needs the whole window on the other side when the rendered text starts at the occurrence", () => {
-    const snippet = `${"a".repeat(20)} needle ${"b".repeat(20)}`;
-    const atStart = { before: "", after: `${"b".repeat(11)}${"z".repeat(9)}` };
-    expect(
-      chooseCurrentOccurrence(
-        [atStart, { before: "x", after: "y" }],
-        row(snippet, 1, "text"),
-      ),
-    ).toBeNull();
-  });
-
-  it("reads match_start and match_length as code points", () => {
-    const before = "🚨 alert 🚨 the ";
-    const snippet = `${before}needle failed later on`;
-    expect(
-      chooseCurrentOccurrence(
-        [{ before: "alertthe", after: "failedlateron" }],
-        {
-          kind: "text",
-          snippet,
-          match_start: Array.from(before).length,
-          match_length: TERM.length,
-          ordinal: 1,
-        },
-      ),
-    ).toBe(0);
+  it("does not withhold a score from an occurrence at the unit's start", () => {
+    const before = "x".repeat(20);
+    const snippet = `${before} needle ${"a".repeat(15)}b`;
+    const occurrences: FindOccurrenceContext[] = [
+      { before: "", after: "a".repeat(15) },
+      { before: "q".repeat(20), after: "z".repeat(20) },
+    ];
+    expect(chooseCurrentOccurrence(occurrences, row(snippet, 2, "page"))).toBe(0);
   });
 
   it("falls back to the ordinal on a page row when no context matches", () => {
@@ -165,48 +147,8 @@ describe("chooseCurrentOccurrence", () => {
     expect(chooseCurrentOccurrence(occurrences, row("zzz needle www", 9, "page"))).toBe(0);
   });
 
-  it("answers null for a text row when no context matches", () => {
-    const occurrences: FindOccurrenceContext[] = [
-      { before: "aaa ", after: " bbb" },
-      { before: "ccc ", after: " ddd" },
-      { before: "eee ", after: " fff" },
-    ];
-    expect(chooseCurrentOccurrence(occurrences, row("zzz needle www", 2, "text"))).toBeNull();
-    expect(chooseCurrentOccurrence(occurrences, row("zzz needle www", 9, "text"))).toBeNull();
-  });
-
   it("answers null when the unit holds no occurrence", () => {
     expect(chooseCurrentOccurrence([], row("nothing here", 1))).toBeNull();
-  });
-
-  it("drops whitespace, punctuation and Markdown syntax before taking the windows", () => {
-    const stored = [
-      "First para ends here.",
-      "",
-      "needle starts para two.",
-      "",
-      "Other text needle end.",
-    ].join("\n");
-    const rendered = stored.replace(/\n\n/g, "\n");
-    const layer = textLayer(`<span>${rendered}</span>`);
-
-    markFindOccurrences(layer, TERM, row(stored, 2, "text"));
-
-    const current = layer.querySelector("mark.find-mark-current");
-    expect(current).not.toBeNull();
-    expect(current!.nextSibling?.textContent ?? "").toMatch(/^ starts/);
-  });
-
-  it("matches a Markdown snippet to the rendered text it stands for", () => {
-    const stored = "First para ends here.\n\n- needle starts the list.\n- second item.";
-    const rendered = "First para ends here.\nneedle starts the list.\nsecond item.";
-    const layer = textLayer(`<span>${rendered}</span>`);
-
-    markFindOccurrences(layer, TERM, row(stored, 2, "text"));
-
-    const current = layer.querySelector("mark.find-mark-current");
-    expect(current).not.toBeNull();
-    expect(current!.nextSibling?.textContent ?? "").toMatch(/^ starts the list/);
   });
 });
 
@@ -247,7 +189,7 @@ describe("markFindOccurrences in a pdf.js text layer", () => {
     const text = "charlie charlie charlie Needle delta delta delta.";
     const layer = textLayer(`<span>unrelated </span><span>${text}</span>`);
 
-    markFindOccurrences(layer, TERM, row(text, 3, "text"));
+    markFindOccurrences(layer, TERM, row(text, 3, "page"));
 
     const marks = marked(layer);
     const current = marks.filter((mark) => mark.classList.contains("find-mark-current"));

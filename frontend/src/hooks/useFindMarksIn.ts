@@ -4,7 +4,11 @@ import { useEffect, useRef } from "react";
 
 import { useFindMarks } from "@/components/FileDetail/find/FindContext";
 import type { FindRow } from "@/lib/fileFind";
-import { clearFindMarks, markFindOccurrences } from "@/lib/findMarks";
+import {
+  clearFindMarks,
+  markFindOccurrences,
+  type FindTextSource,
+} from "@/lib/findMarks";
 
 /**
  * Applies the find marks to the text under `getContainer`. The scroll is
@@ -16,6 +20,7 @@ export function useFindMarksIn(
   getContainer: () => HTMLElement | null,
   isCurrentUnit: (row: FindRow) => boolean,
   active = true,
+  textSource?: FindTextSource,
 ): void {
   const { term, currentRow } = useFindMarks();
   const scrolledFor = useRef<FindRow | null>(null);
@@ -28,7 +33,7 @@ export function useFindMarksIn(
 
     const current = currentRow && isCurrentUnit(currentRow) ? currentRow : null;
     const shouldScroll = current !== null && scrolledFor.current !== current;
-    const mark = markFindOccurrences(container, term, current);
+    const mark = markFindOccurrences(container, term, current, textSource);
     if (mark && shouldScroll) {
       scrolledFor.current = current;
       mark.scrollIntoView({ block: "center", behavior: "smooth" });

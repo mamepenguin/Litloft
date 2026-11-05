@@ -29,6 +29,17 @@ export type FindMarkRow = Pick<
   "kind" | "snippet" | "match_start" | "match_length" | "ordinal"
 >;
 
+/**
+ * The text a text row is located in: the full source the viewer renders
+ * from, and enough about it to tell a block from the frontmatter above it.
+ */
+export interface FindTextSource {
+  text: string;
+  /** The 0-based source line the rendered body starts on. */
+  bodyStartLine: number;
+  mode: "markdown" | "plain";
+}
+
 const CONTEXT_CHAR = /[\p{L}\p{N}]/u;
 
 interface ContextText {
@@ -78,6 +89,163 @@ export function codePointOffsetToIndex(text: string, offset: number): number {
   return index;
 }
 
+interface NormalizedText {
+  /** Every whitespace run folded to one space. */
+  text: string;
+  /** The UTF-16 index in the original text of each normalized character. */
+  toSource: number[];
+}
+
+function normalizeWhitespace(text: string): NormalizedText {
+  const chars: string[] = [];
+  const toSource: number[] = [];
+  let previousSpace = false;
+  for (let index = 0; index < text.length; ) {
+    const codePoint = text.codePointAt(index);
+    if (codePoint === undefined) break;
+    const char = String.fromCodePoint(codePoint);
+    if (/\s/u.test(char)) {
+      if (!previousSpace) {
+        chars.push(" ");
+        toSource.push(index);
+        previousSpace = true;
+      }
+    } else {
+      chars.push(char);
+      toSource.push(index);
+      previousSpace = false;
+    }
+    index += char.length;
+  }
+  return { text: chars.join(""), toSource };
+}
+
+/** The first normalized index whose source offset reaches `sourceIndex`. */
+function normalizedIndexAt(
+  toSource: readonly number[],
+  sourceIndex: number,
+): number {
+  let low = 0;
+  let high = toSource.length;
+  while (low < high) {
+    const middle = (low + high) >> 1;
+    if (toSource[middle] < sourceIndex) low = middle + 1;
+    else high = middle;
+  }
+  return low;
+}
+
+function stripEllipsis(snippet: string): { text: string; leading: number } {
+  const leading = snippet.startsWith("…") ? 1 : 0;
+  const trailing = snippet.endsWith("…") ? 1 : 0;
+  return {
+    text: snippet.slice(leading, snippet.length - trailing),
+    leading,
+  };
+}
+
+/** The UTF-16 offsets of every non-overlapping occurrence of `term`. */
+function termStarts(text: string, term: string): number[] {
+  const foldedText = foldFindText(text);
+  const needle = foldFindText(term);
+  if (needle.length === 0) return [];
+  const starts: number[] = [];
+  for (
+    let at = foldedText.indexOf(needle);
+    at >= 0;
+    at = foldedText.indexOf(needle, at + needle.length)
+  ) {
+    starts.push(at);
+  }
+  return starts;
+}
+
+/**
+ * The UTF-16 index in `source` of the term the row's snippet surrounds, or
+ * null when the snippet is not there. When the snippet repeats, the
+ * occurrence nearest the row's ordinal wins.
+ */
+export function locateTextRow(
+  source: string,
+  row: FindMarkRow,
+): number | null {
+  const stripped = stripEllipsis(row.snippet);
+  if (stripped.text.length === 0) return null;
+  const snippet = normalizeWhitespace(stripped.text);
+  if (snippet.text.length === 0) return null;
+
+  const matchStart = Math.max(0, row.match_start - stripped.leading);
+  const matchLength = Math.max(0, row.match_length);
+  const term = Array.from(stripped.text)
+    .slice(matchStart, matchStart + matchLength)
+    .join("");
+  if (term.length === 0) return null;
+
+  const matchIndex = normalizedIndexAt(
+    snippet.toSource,
+    codePointOffsetToIndex(stripped.text, matchStart),
+  );
+  if (matchIndex >= snippet.text.length) return null;
+
+  const sourceText = normalizeWhitespace(source);
+  const hits: number[] = [];
+  for (
+    let at = sourceText.text.indexOf(snippet.text);
+    at >= 0;
+    at = sourceText.text.indexOf(snippet.text, at + 1)
+  ) {
+    hits.push(at);
+  }
+  if (hits.length === 0) return null;
+
+  let chosen = hits[0];
+  if (hits.length > 1) {
+    const positions = termStarts(source, term);
+    let bestDistance = Number.POSITIVE_INFINITY;
+    for (const hit of hits) {
+      const at = sourceText.toSource[hit + matchIndex];
+      if (at === undefined) continue;
+      let ordinal = 1;
+      for (const position of positions) {
+        if (position < at) ordinal += 1;
+        else break;
+      }
+      const distance = Math.abs(ordinal - row.ordinal);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        chosen = hit;
+      }
+    }
+  }
+
+  const located = sourceText.toSource[chosen + matchIndex];
+  return located === undefined ? null : located;
+}
+
+function lineStarts(text: string): number[] {
+  const starts = [0];
+  for (let at = text.indexOf("\n"); at >= 0; at = text.indexOf("\n", at + 1)) {
+    starts.push(at + 1);
+  }
+  return starts;
+}
+
+function lineOf(starts: readonly number[], index: number): number {
+  let low = 0;
+  let high = starts.length - 1;
+  let line = 0;
+  while (low <= high) {
+    const middle = (low + high) >> 1;
+    if (starts[middle] <= index) {
+      line = middle;
+      low = middle + 1;
+    } else {
+      high = middle - 1;
+    }
+  }
+  return line;
+}
+
 /** How many letters and digits agree, reading away from the term. */
 function agreeingLetters(
   snippet: string,
@@ -102,10 +270,10 @@ function agreeingLetters(
 }
 
 /**
- * Which occurrence of the term in the rendered unit is the current one:
- * the only occurrence with the highest context score of at least 10; failing
- * that, a page row takes `ordinal` or the first, and a text row takes none.
- * Returns a 0-based index, or null when no occurrence carries the mark.
+ * Which occurrence of the term in a PDF page's text layer is the current
+ * one: the only occurrence with the highest context score of at least 10;
+ * failing that, `ordinal` or the first. Returns a 0-based index, or null when
+ * the unit holds no occurrence.
  */
 export function chooseCurrentOccurrence(
   occurrences: readonly FindOccurrenceContext[],
@@ -137,27 +305,9 @@ export function chooseCurrentOccurrence(
   let bestCount = 0;
   for (let i = 0; i < occurrences.length; i += 1) {
     const occurrence = occurrences[i];
-    const beforeAgree = agreeingLetters(before, occurrence.before, -1);
-    const afterAgree = agreeingLetters(after, occurrence.after, 1);
-    let score = beforeAgree + afterAgree;
-    // A row in the frontmatter's title or tags has no rendered occurrence.
-    // Such a row can share a word with a body occurrence (a title and the
-    // heading below it); only a full window on the one populated side keeps
-    // that partial match from winning.
-    if (
-      occurrence.before.length === 0 &&
-      before.length > 0 &&
-      afterAgree < after.length
-    ) {
-      score = -1;
-    }
-    if (
-      occurrence.after.length === 0 &&
-      after.length > 0 &&
-      beforeAgree < before.length
-    ) {
-      score = -1;
-    }
+    const score =
+      agreeingLetters(before, occurrence.before, -1) +
+      agreeingLetters(after, occurrence.after, 1);
     if (score > best) {
       best = score;
       bestCount = 1;
@@ -220,6 +370,84 @@ function segmentsFor(index: TextIndex, start: number, end: number): Segment[] {
   return segments;
 }
 
+function elementTextRange(
+  index: TextIndex,
+  element: HTMLElement,
+): { start: number; end: number } | null {
+  let start = Number.POSITIVE_INFINITY;
+  let end = -1;
+  for (const entry of index.entries) {
+    if (!element.contains(entry.node)) continue;
+    start = Math.min(start, entry.start);
+    end = Math.max(end, entry.start + (entry.node.nodeValue?.length ?? 0));
+  }
+  return end >= start ? { start, end } : null;
+}
+
+function chooseTextOccurrence(
+  container: HTMLElement,
+  index: TextIndex,
+  starts: readonly number[],
+  row: FindMarkRow,
+  term: string,
+  source: FindTextSource,
+): number | null {
+  const located = locateTextRow(source.text, row);
+  if (located === null) return null;
+  const startsByLine = lineStarts(source.text);
+  const line = lineOf(startsByLine, located);
+  if (line < source.bodyStartLine) return null;
+
+  if (source.mode === "plain") {
+    const at = starts.indexOf(located);
+    return at >= 0 ? at : null;
+  }
+
+  let block: HTMLElement | null = null;
+  let blockDepth = -1;
+  for (const element of Array.from(
+    container.querySelectorAll<HTMLElement>("[data-source-lines]"),
+  )) {
+    const [from, to] = (element.dataset.sourceLines ?? "").split("-").map(Number);
+    if (!Number.isFinite(from) || !Number.isFinite(to)) continue;
+    if (line < from || line >= to) continue;
+    let depth = 0;
+    for (
+      let node: Element | null = element;
+      node && node !== container;
+      node = node.parentElement
+    ) {
+      depth += 1;
+    }
+    if (depth > blockDepth) {
+      blockDepth = depth;
+      block = element;
+    }
+  }
+  if (!block) return null;
+
+  const range = elementTextRange(index, block);
+  if (!range) return null;
+  const [blockStart, blockEnd] = (block.dataset.sourceLines ?? "")
+    .split("-")
+    .map(Number);
+  const blockFrom = startsByLine[blockStart] ?? source.text.length;
+  const blockTo = startsByLine[blockEnd] ?? source.text.length;
+
+  let k = 0;
+  for (const position of termStarts(source.text, term)) {
+    if (position > located) break;
+    if (position >= blockFrom && position < blockTo) k += 1;
+  }
+  if (k === 0) return null;
+
+  const first = starts.findIndex((start) => start >= range.start);
+  if (first < 0) return null;
+  const current = first + k - 1;
+  if (current >= starts.length || starts[current] >= range.end) return null;
+  return current;
+}
+
 function wrap(node: Text, start: number, end: number, current: boolean): HTMLElement {
   if (end < node.length) node.splitText(end);
   const target = start > 0 ? node.splitText(start) : node;
@@ -248,30 +476,45 @@ export function markFindOccurrences(
   container: HTMLElement,
   term: string,
   currentRow: FindMarkRow | null,
+  textSource?: FindTextSource,
 ): HTMLElement | null {
   const needle = foldFindText(term);
   if (needle.length === 0) return null;
 
   const index = indexText(container);
   const folded = foldFindText(index.text);
-  const context = contextText(folded);
   const starts: number[] = [];
-  const contexts: FindOccurrenceContext[] = [];
   for (let at = folded.indexOf(needle); at >= 0; at = folded.indexOf(needle, at + needle.length)) {
     starts.push(at);
-    const position = context.at[at] ?? 0;
-    const end = context.at[at + needle.length] ?? context.text.length;
-    contexts.push({
-      before: context.text.slice(
-        Math.max(0, position - CONTEXT_CHARS),
-        position,
-      ),
-      after: context.text.slice(end, end + CONTEXT_CHARS),
-    });
   }
 
-  const current =
-    currentRow === null ? null : chooseCurrentOccurrence(contexts, currentRow);
+  let current: number | null = null;
+  if (currentRow !== null) {
+    if (currentRow.kind === "page") {
+      const context = contextText(folded);
+      const contexts: FindOccurrenceContext[] = starts.map((at) => {
+        const position = context.at[at] ?? 0;
+        const end = context.at[at + needle.length] ?? context.text.length;
+        return {
+          before: context.text.slice(
+            Math.max(0, position - CONTEXT_CHARS),
+            position,
+          ),
+          after: context.text.slice(end, end + CONTEXT_CHARS),
+        };
+      });
+      current = chooseCurrentOccurrence(contexts, currentRow);
+    } else if (currentRow.kind === "text" && textSource) {
+      current = chooseTextOccurrence(
+        container,
+        index,
+        starts,
+        currentRow,
+        needle,
+        textSource,
+      );
+    }
+  }
 
   let currentMark: HTMLElement | null = null;
   // Back to front: splitting a later occurrence leaves the offsets of an
