@@ -121,6 +121,8 @@ To ask about one file, open it and use the **Ask** tab beside its details; the a
 
 Ask sends parts of your files to the language model. An administrator can use a local model, or turn Ask off for a drive. See the [intelligence addon](../addons/intelligence.md#ask-rag).
 
+**Ask within a folder, a collection, tags or kinds.** The folder `…` menu's **ここに質問** and the collection page's **ここに質問** open Ask already narrowed to that folder (and everything under it) or that collection. Under the Ask field the narrowing appears as chips; **＋ 範囲** adds another folder, collection, tag or kind, and a chip's `×` removes one. Ask answers only from those files, and says **この範囲にはファイルがありません** when the scope holds none. The chips travel with you to **Find** and back, though Find itself is not narrowed. The folder menu entry is absent at the drive root and for a name containing a double quote, which the query syntax cannot express.
+
 ## Duplicate files
 
 The admin dashboard has a **Duplicate Files** section. Pick a drive to see files with identical content. Choose the copy to keep, and the others go to the [trash](trash-and-missing.md).
