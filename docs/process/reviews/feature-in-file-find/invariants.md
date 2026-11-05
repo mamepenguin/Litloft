@@ -8,6 +8,8 @@ I11. (r0, R-5) The find answer's `indexed` is true exactly when the stage that f
 
 I12. (r1-extra, human) When the addon rebuilds a text unit, the overlap it removes between two adjacent chunks is the longest suffix–prefix match of at least 20 characters and at most the replay the chunk's extractor uses — `chunk_text`'s default of 200 for Office and picture OCR, `indexing.text_chunking.overlap` for every other kind — never longer, so a line repeated near a chunk boundary is not taken for replay and no occurrence is dropped. This replaces the fixed 200-character cap of the addon's Normal flow step 3.
 
+I5. (r2, R-5, human) While the bar is open with rows, every occurrence of the term (ASCII-only case folding) in each rendered text layer of the inline PDF viewer, in the rendered `MarkdownPreview` of the file's own body (the knowledge editor's preview included) and in a decorated `TextLines` carries the find mark. When a `page` or `text` row is current, at most one occurrence in its unit carries the current mark. It is the occurrence whose context matches the row's snippet, where the context is compared on letters and digits only (Unicode letter and number characters; whitespace, punctuation and Markdown syntax are dropped before the windows are taken). When no occurrence matches: on a `page` row the occurrence numbered `ordinal`, else the first, carries it; on a `text` row none does, and nothing scrolls. This replaces I5 and the order of core step 10.
+
 ## Clarifications
 
 Settled with the human on 2026-11-05, while the acceptance tests were written. These fill gaps in the approved spec and change no invariant.
