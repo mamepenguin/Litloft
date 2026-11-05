@@ -1327,6 +1327,7 @@
     "emptyTitle": "受信箱は空です",
     "emptyDescription": "新しく届いたものがここに並びます",
     "sourceUpload": "アップロード",
+    "sourceShare": "共有",
     "selectArrival": "{name} を選択"
   },
   "pageJump": {

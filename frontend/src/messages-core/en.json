@@ -1327,6 +1327,7 @@
     "emptyTitle": "Inbox is empty",
     "emptyDescription": "New arrivals appear here",
     "sourceUpload": "Upload",
+    "sourceShare": "Shared",
     "selectArrival": "Select {name}"
   },
   "pageJump": {

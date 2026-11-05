@@ -13,6 +13,13 @@ from app.models import File, InboxItem, active_file_filter
 
 UPLOAD_SOURCE = "upload"
 UPLOAD_I18N_KEY = "inbox.sourceUpload"
+SHARE_SOURCE = "share"
+SHARE_I18N_KEY = "inbox.sourceShare"
+
+I18N_KEYS = {
+    UPLOAD_SOURCE: UPLOAD_I18N_KEY,
+    SHARE_SOURCE: SHARE_I18N_KEY,
+}
 
 RETENTION_DAYS = 30
 
