@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { useEffect } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { RightPaneFile } from "../../folder/RightPaneFile";
 import { FileDetailContent } from "../../FileDetailContent";
@@ -22,6 +22,7 @@ const shared = vi.hoisted(() => ({
   plainText: null as string | null,
   citation: undefined as string | undefined,
   intelligenceInSlots: true,
+  pdfViewer: false,
 }));
 
 vi.mock("next-intl", async () => {
@@ -86,14 +87,45 @@ vi.mock("@/components/TreeToggle", () => ({
 }));
 vi.mock("@/components/ImageGallery", () => ({ ImageGallery: () => null }));
 
+vi.mock("react-pdf", () => ({
+  pdfjs: { GlobalWorkerOptions: {} },
+  Document: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
+  Page: () => <div data-testid="pdf-page" />,
+}));
+
 vi.mock("../../FilePreview", async () => {
   const { MarkdownPreview } = await import("../../MarkdownPreview");
   const { TextLines } = await import("../../TextLines");
+  const { PdfPreview } = await import("../../PdfPreview");
+  // The real viewer is lazily loaded, so it lands after the bar has opened
+  // and selected its query.
+  function DeferredPdf({
+    file,
+    onDocumentController,
+  }: {
+    file: FileItem;
+    onDocumentController?: (c: DocumentController | null) => void;
+  }) {
+    const [ready, setReady] = useState(false);
+    useEffect(() => {
+      setReady(true);
+    }, []);
+    if (!ready) return null;
+    return (
+      <PdfPreview
+        fileId={file.id}
+        title={file.filename}
+        onDocumentController={onDocumentController}
+      />
+    );
+  }
   return {
     FilePreview: ({
+      file,
       onMediaController,
       onDocumentController,
     }: {
+      file?: FileItem;
       onMediaController?: (c: MediaController | null) => void;
       onDocumentController?: (c: DocumentController | null) => void;
     }) => {
@@ -109,6 +141,9 @@ vi.mock("../../FilePreview", async () => {
       }, [onDocumentController]);
       return (
         <div data-testid="file-preview">
+          {shared.pdfViewer && file?.mime_type === "application/pdf" && (
+            <DeferredPdf file={file} onDocumentController={onDocumentController} />
+          )}
           {shared.markdown !== null && (
             <div data-testid="markdown-body">
               <MarkdownPreview
@@ -445,6 +480,7 @@ beforeEach(() => {
   shared.plainText = null;
   shared.citation = undefined;
   shared.intelligenceInSlots = true;
+  shared.pdfViewer = false;
   shared.replace = vi.fn();
   shared.push = vi.fn();
   shared.selectFile = vi.fn();
@@ -1041,6 +1077,33 @@ describe("SPEC-CORE-028 I3 stepping through the places", () => {
     expect(player.seek).toHaveBeenLastCalledWith(3665);
   });
 
+  it("steps exactly once per Enter when 60 presses arrive with no gap", async () => {
+    const rows = Array.from({ length: 180 }, (_, i) =>
+      row("text", `line ${i} needle`, { ordinal: i + 1 }),
+    );
+    shared.plainText = rows.map((r) => r.snippet).join("\n");
+    reply = () => answer(rows);
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      await openPage(PDF);
+      await screen.findByTestId("text-lines-body");
+      const input = await openBar();
+      typeInto(input, TERM);
+      await findCount("180 件");
+
+      act(() => {
+        for (let i = 0; i < 60; i += 1) {
+          input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+        }
+      });
+
+      await findCount("60 / 180");
+      expect(error).not.toHaveBeenCalled();
+    } finally {
+      error.mockRestore();
+    }
+  });
+
   it("makes a chosen row current", async () => {
     reply = () => answer(THREE_UTTERANCES());
     await openPage(VIDEO);
@@ -1236,6 +1299,19 @@ describe("SPEC-CORE-028 I9 ?find= opens the page with the bar open on the query"
     expect(findCalls.map((c) => c.q)).toEqual([TERM]);
     expect(player.seek).not.toHaveBeenCalled();
     expect(selectedTab()).toBe("検索");
+  });
+
+  it("selects the query on a PDF, as on every other kind", async () => {
+    shared.pdfViewer = true;
+    reply = () => answer(THREE_UTTERANCES());
+    await openPage(PDF, `&find=${TERM}`);
+
+    const input = (await screen.findByDisplayValue(TERM)) as HTMLInputElement;
+    await waitFor(() => expect(input).toHaveFocus());
+    expect([input.selectionStart, input.selectionEnd]).toEqual([0, TERM.length]);
+    const selection = window.getSelection();
+    expect(selection?.rangeCount).toBe(1);
+    expect(input.contains(selection!.getRangeAt(0).commonAncestorContainer)).toBe(true);
   });
 
   it("strips the value and cuts it to 200 characters", async () => {

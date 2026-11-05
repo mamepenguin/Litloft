@@ -56,6 +56,7 @@ export function useFindInFile({
   const [status, setStatus] = useState<FindStatus>({ kind: "idle" });
   const [filter, setFilter] = useState<FindCategory>("all");
   const [currentRow, setCurrentRow] = useState<FindRow | null>(null);
+  const currentRowRef = useRef<FindRow | null>(null);
   const [focusNonce, setFocusNonce] = useState(0);
   const [selectRequest, setSelectRequest] = useState<FindTabRequest | null>(null);
 
@@ -99,6 +100,7 @@ export function useFindInFile({
     pendingStepRef.current = null;
     setStatus({ kind: "idle" });
     setFilter("all");
+    currentRowRef.current = null;
     setCurrentRow(null);
   }, [clearTimer]);
 
@@ -125,6 +127,7 @@ export function useFindInFile({
 
   const makeCurrent = useCallback(
     (row: FindRow) => {
+      currentRowRef.current = row;
       setCurrentRow(row);
       jump(row);
     },
@@ -145,6 +148,7 @@ export function useFindInFile({
         latestSeqRef.current += 1;
         fetchingRef.current = false;
         setStatus({ kind: "idle" });
+        currentRowRef.current = null;
         setCurrentRow(null);
         return;
       }
@@ -155,6 +159,7 @@ export function useFindInFile({
       fetchingRef.current = true;
       setStatus({ kind: "pending" });
       setFilter("all");
+      currentRowRef.current = null;
       setCurrentRow(null);
 
       void fetchFileFind(fileId, term, drive, controller.signal).then((result) => {
@@ -302,7 +307,8 @@ export function useFindInFile({
       if (status.kind !== "hits") return;
       const visible = rowsForCategory(status.answer.rows, filter);
       if (visible.length === 0) return;
-      const at = currentRow ? visible.indexOf(currentRow) : -1;
+      const current = currentRowRef.current;
+      const at = current ? visible.indexOf(current) : -1;
       let nextIndex: number;
       if (at < 0) nextIndex = direction === "next" ? 0 : visible.length - 1;
       else
@@ -310,7 +316,7 @@ export function useFindInFile({
           (at + (direction === "next" ? 1 : -1) + visible.length) % visible.length;
       makeCurrent(visible[nextIndex]);
     },
-    [currentRow, filter, makeCurrent, status],
+    [filter, makeCurrent, status],
   );
 
   const selectRow = useCallback(
@@ -323,11 +329,11 @@ export function useFindInFile({
   const selectFilter = useCallback(
     (category: FindCategory) => {
       setFilter(category);
-      setCurrentRow((current) => {
-        if (!current) return current;
-        if (category === "all") return current;
-        return categoryOf(current.kind) === category ? current : null;
-      });
+      const current = currentRowRef.current;
+      if (current && category !== "all" && categoryOf(current.kind) !== category) {
+        currentRowRef.current = null;
+        setCurrentRow(null);
+      }
     },
     [],
   );

@@ -49,6 +49,7 @@ import {
   type PdfController,
 } from "@/lib/pdfController";
 import {
+  clearSelectionWithin,
   DocumentCaptureStore,
   readDocumentSelection,
   type DocumentCaptureController,
@@ -238,7 +239,8 @@ export function PdfPreview({
 
   useEffect(() => {
     store.setCapture({ kind: "page", locator: { page } });
-    window.getSelection()?.removeAllRanges();
+    const root = rootRef.current;
+    if (root) clearSelectionWithin(root, window.getSelection());
   }, [page, store]);
 
   useEffect(() => {

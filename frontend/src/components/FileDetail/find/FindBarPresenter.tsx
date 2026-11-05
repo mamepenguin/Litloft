@@ -42,7 +42,7 @@ export function FindBarPresenter({
   return (
     <div
       data-testid="find-bar"
-      className="flex shrink-0 flex-col gap-1 border-b border-bg-border bg-bg-card px-4 py-2"
+      className="sticky top-0 z-20 flex shrink-0 flex-col gap-1 border-b border-bg-border bg-bg-card px-4 py-2"
     >
       <div className="flex items-center gap-2">
         <Search size={16} className="shrink-0 text-text-muted" aria-hidden="true" />

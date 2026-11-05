@@ -729,6 +729,13 @@ mark.find-mark-current {
   outline: 2px solid var(--accent);
 }
 
+/* In the pdf.js text layer the glyphs are transparent and the words are
+   drawn on the canvas underneath, so an opaque mark hides the word it
+   marks. */
+.textLayer mark.find-mark {
+  background-color: color-mix(in srgb, var(--highlight-bg) 55%, transparent);
+}
+
 /* A passage that crosses an element boundary is several <mark>s. The
    attribute raises the specificity over `.markdown-body mark`, which
    otherwise supplies the padding inside a rendered note. */
