@@ -92,6 +92,9 @@ struct ShareSheetView: View {
                 Text("share.nothingToSave")
             case .text(let text):
                 VStack(alignment: .leading, spacing: 6) {
+                    Text("share.note")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                     Text(text.prefix(6 * 80))
                         .lineLimit(6)
                         .font(.body)
@@ -264,6 +267,7 @@ private struct StatusRow: View {
 
 private struct FilePreview: View {
     let providers: [NSItemProvider]
+    @State private var total: Int64?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -274,9 +278,56 @@ private struct FilePreview: View {
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
             }
-            Text("share.items \(providers.count)")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+            HStack(spacing: 4) {
+                Text("share.itemsCount \(providers.count)")
+                if let total {
+                    Text("·")
+                    Text(ByteCountFormatter.string(fromByteCount: total, countStyle: .file))
+                }
+            }
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+        }
+        .task { total = await ProviderSize.total(of: providers) }
+    }
+}
+
+@MainActor
+private enum ProviderSize {
+    static func total(of providers: [NSItemProvider]) async -> Int64? {
+        var sum: Int64 = 0
+        for provider in providers {
+            guard let size = await size(of: provider) else { return nil }
+            sum += size
+        }
+        return sum
+    }
+
+    private static func size(of provider: NSItemProvider) async -> Int64? {
+        guard let type = provider.registeredTypeIdentifiers.first(where: { identifier in
+            guard let type = UTType(identifier) else { return false }
+            return !type.conforms(to: .text) && !type.conforms(to: .url)
+        }) else { return nil }
+        return await withCheckedContinuation { continuation in
+            func finish(_ url: URL?) {
+                guard let url,
+                      let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
+                      let size = attributes[.size] as? NSNumber
+                else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                continuation.resume(returning: size.int64Value)
+            }
+            provider.loadInPlaceFileRepresentation(forTypeIdentifier: type) { url, isInPlace, _ in
+                if isInPlace, let url {
+                    finish(url)
+                } else {
+                    provider.loadFileRepresentation(forTypeIdentifier: type) { url, _ in
+                        finish(url)
+                    }
+                }
+            }
         }
     }
 }
