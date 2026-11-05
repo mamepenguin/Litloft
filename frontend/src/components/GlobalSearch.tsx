@@ -509,8 +509,7 @@ export function GlobalSearch() {
     if (!imageEnabled) return;
     event.preventDefault();
     event.stopPropagation();
-    event.dataTransfer.dropEffect =
-      dragClassRef.current === "one_image" ? "copy" : "none";
+    event.dataTransfer.dropEffect = "copy";
   };
 
   const handleDragLeave = (event: React.DragEvent) => {

@@ -275,6 +275,7 @@ describe("the component fixture's page", () => {
       "quick-note-footer-en",
       "scoped-search-ja",
       "scoped-search-en",
+      "image-search",
       "player-seek-bar",
       "player-hairline",
       "player-captions",

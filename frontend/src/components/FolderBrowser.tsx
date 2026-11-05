@@ -901,7 +901,6 @@ export function FolderBrowser({
   );
 
   if (isSearch) {
-    if (!onImageQuery) return inner;
     return (
       <UploadZone
         drive={driveName}
@@ -909,6 +908,7 @@ export function FolderBrowser({
         className="flex-1 flex flex-col"
         onImageQuery={onImageQuery}
         acceptUpload={false}
+        enabled={!!onImageQuery}
       >
         {inner}
       </UploadZone>

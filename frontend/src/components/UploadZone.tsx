@@ -15,6 +15,8 @@ interface UploadZoneProps {
   onImageQuery?: (file: File) => void;
   /** A drop classed upload writes here; a search page that never uploaded passes false. */
   acceptUpload?: boolean;
+  /** False keeps the element (and its children) mounted without taking drags. */
+  enabled?: boolean;
 }
 
 export function UploadZone({
@@ -24,6 +26,7 @@ export function UploadZone({
   className,
   onImageQuery,
   acceptUpload = true,
+  enabled = true,
 }: UploadZoneProps) {
   const t = useTranslations("upload");
   const tSearch = useTranslations("search");
@@ -35,6 +38,7 @@ export function UploadZone({
   const { addFiles, addFileEntries } = useUpload();
 
   useEffect(() => {
+    if (!enabled) return;
     const el = zoneRef.current;
     if (!el) return;
     function handleUploadFiles(e: Event) {
@@ -49,7 +53,7 @@ export function UploadZone({
     }
     el.addEventListener("upload-files", handleUploadFiles);
     return () => el.removeEventListener("upload-files", handleUploadFiles);
-  }, [addFiles, addFileEntries, drive, folderPath]);
+  }, [addFiles, addFileEntries, drive, folderPath, enabled]);
 
   const handleDragEnter = useCallback((e: DragEvent) => {
     e.preventDefault();
@@ -157,12 +161,12 @@ export function UploadZone({
   return (
     <div
       ref={zoneRef}
-      data-upload-zone
+      data-upload-zone={enabled || undefined}
       className={`relative${className ? ` ${className}` : ""}`}
-      onDragEnter={handleDragEnter}
-      onDragLeave={handleDragLeave}
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
+      onDragEnter={enabled ? handleDragEnter : undefined}
+      onDragLeave={enabled ? handleDragLeave : undefined}
+      onDragOver={enabled ? handleDragOver : undefined}
+      onDrop={enabled ? handleDrop : undefined}
     >
       {children}
 

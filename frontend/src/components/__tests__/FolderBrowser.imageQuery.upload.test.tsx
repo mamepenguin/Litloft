@@ -16,9 +16,18 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/drive/main/search",
 }));
 
-vi.mock("@/components/folder/FolderContent", () => ({
-  FolderContent: () => <div data-testid="folder-content" />,
-}));
+const content = vi.hoisted(() => ({ mounts: 0 }));
+vi.mock("@/components/folder/FolderContent", async () => {
+  const { useEffect } = await import("react");
+  return {
+    FolderContent: () => {
+      useEffect(() => {
+        content.mounts += 1;
+      }, []);
+      return <div data-testid="folder-content" />;
+    },
+  };
+});
 vi.mock("@/components/Breadcrumb", () => ({
   Breadcrumb: () => <nav aria-label="Breadcrumb">trail</nav>,
 }));
@@ -143,6 +152,18 @@ describe("SPEC-CORE-046 I8: the search page takes no upload", () => {
     renderSearch(vi.fn());
 
     expect(zone.props.at(-1)?.acceptUpload).toBe(false);
+  });
+
+  it("keeps the results subtree mounted when availability resolves", () => {
+    content.mounts = 0;
+    const view = render(<FolderBrowser driveName="main" searchQuery="cats" />);
+    expect(content.mounts).toBe(1);
+
+    view.rerender(
+      <FolderBrowser driveName="main" searchQuery="cats" onImageQuery={vi.fn()} />,
+    );
+
+    expect(content.mounts).toBe(1);
   });
 
   it("keeps uploads on a folder page", () => {
