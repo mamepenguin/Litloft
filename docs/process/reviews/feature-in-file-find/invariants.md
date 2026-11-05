@@ -6,6 +6,8 @@ I10. (r0) Opening the bar by any route — the button, Cmd/Ctrl+F, `?find=` or `
 
 I11. (r0, R-5) The find answer's `indexed` is true exactly when the stage that fills the file's kind has finished — `whisper_indexed` for a video or audio file, `ocr_indexed` for an image, `text_indexed` for every other kind — or when the file has an active Visual Index run while the drive's Visual Index is open; a file whose stage has not finished answers `indexed: false`, so it shows the not-yet-indexed text and never 「見つかりません」. This replaces the "any flag" rule of the addon's Normal flow step 6.
 
+I12. (r1-extra, human) When the addon rebuilds a text unit, the overlap it removes between two adjacent chunks is the longest suffix–prefix match of at least 20 characters and at most the replay the chunk's extractor uses — `chunk_text`'s default of 200 for Office and picture OCR, `indexing.text_chunking.overlap` for every other kind — never longer, so a line repeated near a chunk boundary is not taken for replay and no occurrence is dropped. This replaces the fixed 200-character cap of the addon's Normal flow step 3.
+
 ## Clarifications
 
 Settled with the human on 2026-11-05, while the acceptance tests were written. These fill gaps in the approved spec and change no invariant.
