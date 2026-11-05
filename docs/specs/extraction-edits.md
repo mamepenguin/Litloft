@@ -17,7 +17,7 @@ file.
 This change lets the owner correct:
 
 - **one utterance of a transcript at a time** (SPEC-ADDON-065): the rows of the
-  transcript panel's 「発話」 view, which are `transcript_chunks` rows
+  transcript panel's 「分割テキスト」 view, which are `transcript_chunks` rows
   (`addons/intelligence/app/models.py:193-231`);
 - **the text read from one picture** (SPEC-ADDON-067): the OCR text that B1 stores as the
   picture's `text_content` chunks (`addons/intelligence/app/workers/ocr.py:183-219`).
@@ -51,7 +51,7 @@ The owner's decisions on the points this spec could not settle alone are listed 
 
 Terms used below:
 
-- **utterance**: one `transcript_chunks` row. The transcript panel's 「発話」 view
+- **utterance**: one `transcript_chunks` row. The transcript panel's 「分割テキスト」 view
   (`source === "chunks"`, `addons/intelligence/frontend/TranscriptSection.tsx:366-370`)
   draws one row per utterance with its start time (`TranscriptSection.tsx:765-877`).
 - **an utterance's words**: the `transcript_words` rows of the file with
@@ -108,10 +108,10 @@ Terms used below:
 
 #### A. Correct one utterance (SPEC-ADDON-065)
 
-1. On a video or audio file's page, the owner opens the transcript panel and the 「発話」
+1. On a video or audio file's page, the owner opens the transcript panel and the 「分割テキスト」
    view. Each utterance row offers **修正** (revealed like the quote button: on row hover,
    on focus inside the row, and always on a coarse pointer, as at
-   `TranscriptSection.tsx:865-874`). The 「字幕」 (words) and external-subtitle views offer
+   `TranscriptSection.tsx:865-874`). The 「単語」 and external-subtitle views offer
    no edit. While the file is busy, **修正** is shown disabled.
 2. **修正** turns that row's text into a single-line text field holding the utterance's
    current text, with **保存** and **キャンセル**. While a field is open, the panel stops
@@ -211,7 +211,7 @@ Terms used below:
     likewise carries `replaced` (a stored OCR result), `rebuilt` and `ended`; a rebuild that sets a flag true also calls
     `emit_processing_updated`, like every other flag change.
 12. **Subtitles for a corrected utterance without words.** `subtitles.vtt`
-    (`routers/files.py:240-307`) and the 「字幕」 view show a corrected utterance that has
+    (`routers/files.py:240-307`) and the 「単語」 view show a corrected utterance that has
     no words (pending, or alignment failed) as exactly one cue: its text, from its
     `timestamp_start` to its `timestamp_end` (its end cut at the next cue's start by the
     existing no-overlap rule, SPEC-ADDON-018, when they overlap), broken into lines by the existing line rules
@@ -278,7 +278,7 @@ Terms used below:
    Once stored, no correction and no Refine changes it. A file has at most one original
    per kind. A file refined before this change has no machine text left to keep; for it,
    the transcript as stored at its first correction or next Refine is the original.
-2. **Restore.** When a file has an original, the transcript panel's header in the 「発話」
+2. **Restore.** When a file has an original, the transcript panel's header in the 「分割テキスト」
    view (where Refine sits, `TranscriptSection.tsx:722-734`, shown whether or not Refine
    is enabled) and the 画像の文字 section offer
    **元の結果に戻す** (disabled while the file is busy). For a picture whose current text
@@ -395,7 +395,7 @@ Terms used below:
    confirms when an answer is 409 `corrected`; every surface does the same on such an
    answer. The texts: 「このファイルには手で直した箇所があります。再生成すると、修正と保存して
    ある元の結果は消えます。」 (Index details, failed jobs) or 「このファイルには手で直した箇所が
-   あります。AI 補正は修正後の文章を書き換えます。」 (Refine), with **続ける** /
+   あります。AIで整えると、修正後の文章も書き換わります。」 (Refine), with **続ける** /
    **キャンセル**; the request is (re)sent with the flag only after **続ける**.
 9. **What a confirmed regenerate does.** The "redo confirmed" mark lets exactly one
    transcription (or OCR) run replace the file:
@@ -673,11 +673,11 @@ What the owner sees is in the failure table (§2). The texts are in the addon's
 
 ### 9. User-visible behavior
 
-- Transcript panel, 「発話」 view: **修正** per row (hover, focus, coarse pointer;
+- Transcript panel, 「分割テキスト」 view: **修正** per row (hover, focus, coarse pointer;
   disabled while busy); single-line field; **保存** / **キャンセル**; Enter / Escape; a
-  **修正済み** mark on corrected rows, next to the existing AI 補正 mark when both apply;
+  **修正済み** mark on corrected rows, next to the existing **AI整形済み** badge when both apply;
   an emptied row disappears. **元の結果に戻す** in the header when an original exists.
-- 「字幕」 view and `subtitles.vtt`: a corrected utterance's new words once its item
+- 「単語」 view and `subtitles.vtt`: a corrected utterance's new words once its item
   finishes; before that, or when alignment failed, the utterance's text as one cue over
   its own span (A12). The player's subtitle track shows corrections the next time the
   file's page is opened.
@@ -876,8 +876,8 @@ stated, and the body of this spec follows it.
     stage reads `failed` (latest job failed, `routers/files.py:108-133`) until the failed
     job is resolved, although the corrected transcript is intact. Decided: leave it; the
     alternative changes SPEC-ADDON-057 I5.
-16. **Where 元の結果に戻す shows.** In the transcript panel header in the 「発話」 view,
-    whether or not Refine is enabled; not in the 「字幕」 or external views. Decided: yes.
+16. **Where 元の結果に戻す shows.** In the transcript panel header in the 「分割テキスト」 view,
+    whether or not Refine is enabled; not in the 「単語」 or external views. Decided: yes.
 
 Points 17–19 were raised by the spec review and confirmed by the owner on 2026-11-06
 (「3 つとも推奨どおり」).
