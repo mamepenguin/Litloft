@@ -1,7 +1,7 @@
 # Search by an image
 
 SPEC-ID: SPEC-ADDON-049
-SPEC-ID: SPEC-CORE-044
+SPEC-ID: SPEC-CORE-046
 
 Approval:
 
@@ -26,7 +26,7 @@ browser keeps it in the tab's memory only, and nothing derived from it is writte
   the raw request body and answers the three groups and what the text reading found. The
   SigLIP image model it needs, which the indexer already loads and never releases, gains
   an idle release shared by indexing and this route.
-- **SPEC-CORE-044**: the search modal and the results page accept an image (paste, drop,
+- **SPEC-CORE-046**: the search modal and the results page accept an image (paste, drop,
   choose, the phone button), the results page shows an image query as a chip in the query
   field and the three groups below it, and the URL carries only a short id that points at
   the image held in the tab.
@@ -48,7 +48,7 @@ entries; adding a sixth drops the least recently used and revokes its object URL
 text*: the OCR engine's recognised lines joined with `\n`. *Read length*: the number of
 non-whitespace characters in the read text.
 
-SPEC-CORE-044, giving an image:
+SPEC-CORE-046, giving an image:
 
 1. **Modal.** While the modal has a drive (`drive` set), it accepts an image in three ways:
    - Paste in the modal's input: when the paste's `clipboardData` holds a file whose type
@@ -84,7 +84,7 @@ SPEC-CORE-044, giving an image:
    small text needs. A file over 20 MB that the browser cannot decode (HEIC in a browser
    without HEIC support) is refused with the size message (8) without a request.
 
-SPEC-CORE-044, the results page with `img`:
+SPEC-CORE-046, the results page with `img`:
 
 4. `search/page.tsx` renders the image query view when the URL has `img`, whatever `q`
    says; `q`, `type`, `show` and `include_scene_clip` are ignored and left in the URL
@@ -189,7 +189,7 @@ SPEC-ADDON-049, the image model's memory:
     the count is above 0. The next `embed_image` loads the model again. The open_clip
     backend (non-SigLIP models) is unchanged.
 
-SPEC-CORE-044, the result groups:
+SPEC-CORE-046, the result groups:
 
 16. The groups render in this order: **同じ文字を含む文書** first when it has at least one
     hit, then **似ている画像**, then **似ている場面**; with no document hit, 画像 then 場面
