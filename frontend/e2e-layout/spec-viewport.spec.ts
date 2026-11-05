@@ -33,12 +33,13 @@ const FIXTURES = [
   "related-files.html",
   "scene-candidates.html",
   "search-header.html",
+  "search-scope-chip.html",
   "sidebar-shell.html",
   "toolbar-menu.html",
   "upload-drawer.html",
 ] as const;
 
-const FIXTURE_COUNT = 16;
+const FIXTURE_COUNT = 17;
 
 /**
  * On the far side of `sm` from Chromium's mobile default, so a page that
