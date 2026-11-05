@@ -70,6 +70,8 @@ final class SlowCookieJar: CookieJar {
 
     func setCookie(_ cookie: HTTPCookie) async {}
     func deleteCookie(_ cookie: HTTPCookie) async {}
+    func addObserver(_ observer: CookieJarObserver) {}
+    func removeObserver(_ observer: CookieJarObserver) {}
 
     func allCookies() async -> [HTTPCookie] {
         try? await Task.sleep(nanoseconds: delayNanoseconds)
@@ -99,6 +101,8 @@ final class FakeAudioSession: AudioSession {
 final class StallingCookieJar: CookieJar {
     func setCookie(_ cookie: HTTPCookie) async {}
     func deleteCookie(_ cookie: HTTPCookie) async {}
+    func addObserver(_ observer: CookieJarObserver) {}
+    func removeObserver(_ observer: CookieJarObserver) {}
 
     func allCookies() async -> [HTTPCookie] {
         try? await Task.sleep(for: .seconds(60))

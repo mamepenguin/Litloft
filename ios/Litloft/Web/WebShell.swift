@@ -44,7 +44,10 @@ struct WebShell: View {
                 ConnectionErrorView(
                     message: message,
                     onRetry: { model.retry() },
-                    onChangeServer: onChangeServer
+                    onChangeServer: {
+                        model.sessionMirror.disarm()
+                        onChangeServer()
+                    }
                 )
             }
         }
