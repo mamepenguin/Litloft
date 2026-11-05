@@ -3,7 +3,7 @@
 decision: continue (human, 2026-11-06, r3). The human chose 「続ける：専用の受け口に作り直す」 — revert every change to `UploadZone`, and give the search page its own drop target for a one-image drop, so the folder pages' upload path is unchanged.
 
 ran_in_app: yes
-at: 1c8638cb1532768e66e4eacad7252d5a07e04bfb
+at: c9d9900aa3c3dcd425af5525a212a72fd5d3e16d
 by: agent
 evidence: |
   Environment: compose project litloft-r5-a4 on port 3994; intelligence built from
@@ -150,6 +150,21 @@ earlier runs above used 77d5f83 and 5addec5:
   measured 44 px and document.scrollWidth equalled clientWidth (390).
   6. Reload of an answered image URL showed "Choose the image again" and the image
   button.
+
+Fourth R-5 after the drop-target review fix (c9d9900). The text-page, folder-page and
+availability checks were repeated on the rebuilt stack (the modal/view/phone/reload paths
+are unchanged by this fix, which only moves the text-page listeners to [data-page-frame]):
+
+  - Text page: one image -> search overlay and ?img=172179cb4f15; a text drag and a
+  two-image drag -> no overlay, URL unchanged. r5c-01-text-drop.png.
+  - Folder page: the upload overlay appeared and r5c-upload-check-2.txt was uploaded
+  (visible in the listing and on the host). r5c-02-folder-upload.png.
+  - Availability transition: no [data-upload-zone] and no wrapper before or after; the
+  marked h1 stayed connected, scroll 160, and the image button appeared.
+  - Modal: slide-budget.png gave documents+pictures and frame.png gave pictures+scenes;
+  the CDP two-file drag still showed "Choose one image". A drag started on the modal
+  showed the modal's own overlay; the page target listens on [data-page-frame], outside
+  the modal's portal, so it is not a page-level hit.
 
 pending: |
   - The iOS photo picker and camera on a real device (agent_cannot_verify); the picker's
