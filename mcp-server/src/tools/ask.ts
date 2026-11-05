@@ -39,6 +39,9 @@ const ask: LitloftTool = {
           )
           .optional(),
       })
+      // The server owns the scope contract; keep a key this tool does not
+      // know so the server's 422 can say so instead of the tool dropping it.
+      .passthrough()
       .optional(),
   },
   annotations: writeAnnotations({
