@@ -32,7 +32,8 @@ units `B`, `KB`, `MB`, `GB`, `TB` and the short forms `K`, `M`, `G`, `T`, case-i
 decimals allowed, no unit meaning bytes; length units `s`, `m`, `h` and their
 combinations (`1h30m`), the displayed forms `m:ss` / `h:mm:ss`, no unit meaning seconds;
 files without a duration (everything but video and audio) never pass a `duration:`
-comparison; the menu offers presets. `added:` and the other candidates stay rejected
+comparison; a duration is compared in the whole seconds the UI shows (the fraction
+dropped), a size in exact bytes; the menu offers presets. `added:` and the other candidates stay rejected
 (SPEC-CORE-043, Checked, no action).
 
 ## Required items
@@ -93,15 +94,20 @@ SPEC-CORE-044, sending:
    parsed comparisons. `filterQueryParam` writes them only when non-empty, after the
    existing keys (`…,"folders":…,"collections":…,"sizes":[…],"durations":[…]`).
    Everything SPEC-CORE-039 and SPEC-CORE-043 say about a filtered query applies
-   unchanged.
+   unchanged, including "Show more by similarity" (`/search/images`), which carries the
+   same `filter`. The impossible-range check applies wherever the impossible-kinds check
+   applies today: the listing request, the meaning search's eligibility, and the
+   continuation.
 2. The results page (`useFolderFiles`, search branch) and the modal (`useFileSearch`) send
    each size wire form as a repeated `size` parameter and each duration wire form as a
    repeated `duration` parameter of `getDriveFiles`.
 3. `GET /api/drives/{name}/files` accepts `size: list[str]` and `duration: list[str]` in
    the wire form. Both go through `apply_file_filters`: every comparison must hold
-   (AND); `size` compares `File.file_size`, `duration` compares `File.duration`, and a row
-   whose `duration` is NULL never passes a duration comparison. The existing parameters
-   are unchanged and combine as AND.
+   (AND); `size` compares `File.file_size` in bytes as stored; `duration` compares the
+   whole seconds the UI shows, that is `File.duration` with its fraction dropped (90.4
+   seconds is compared as 90, as `formatDuration` shows it as 「1:30」); a row whose
+   `duration` is NULL never passes a duration comparison. The existing parameters are
+   unchanged and combine as AND.
 4. `POST /api/internal/files/matching` gains `sizes: [str]` and `durations: [str]`,
    default `[]`, resolved by `apply_file_filters` as in the listing.
 5. Validation, identical on the listing (400), on `/files/matching` (422) and in the addon
@@ -271,6 +277,7 @@ I8. The parser turns into text every value the core or the addon would reject (n
 I9. Removing a size or length chip removes exactly the tokens whose comparison equals the chip's and leaves every other token's raw string unchanged.
 I10. The menu's size and length lists never offer a preset already in the query or one that would make the range impossible, and a choice appends exactly one token that parses back as that comparison and submits once.
 I11. A query with no `size:` or `duration:` token sends the same listing parameters and the same `filter` as before this change.
+I12. A duration comparison uses the stored duration with its fraction dropped: a 90.4-second file is kept by `duration:<=1:30` and `duration:>=90`, and not by `duration:>1:30` or `duration:<90`, on the listing and on `/files/matching`.
 
 ## Checked, no action
 
