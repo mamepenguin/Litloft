@@ -88,6 +88,7 @@ from app.services.content_write import (
     compute_content_etag,
     write_text_content,
 )
+from app.services.diskpath import resolve_on_disk
 from app.services.heic import HEIC_MIME_TYPES, convert_heic_to_jpeg
 from app.services.subtitle import convert_srt_to_vtt, detect_subtitles
 from app.services.tagops import cleanup_orphan_tags, load_tag_index, replace_file_tags
@@ -198,6 +199,12 @@ def _validate_path(file_path: str, base_dir: Path) -> Path:
     if not (str(real_path) == base_str or str(real_path).startswith(base_str + os.sep)):
         raise HTTPException(status_code=403, detail="Access denied")
     return real_path
+
+
+def _on_disk_path(drive: str, rel: str) -> Path:
+    """The existing on-disk path of a stored path, checked to stay inside the drive."""
+    drive_path = config.get_drive_path(drive)
+    return _validate_path(str(resolve_on_disk(drive_path, rel, cached=True)), drive_path)
 
 
 _to_response = file_to_response
@@ -365,8 +372,8 @@ async def batch_move(
                 # ``File.drive``, so afterwards only the destination is
                 # visible and a tab on the source drive is never told.
                 touched_drives.add(source.drive)
-                _file, closed = fileops.move_file(
-                    db, file_id, body.target_drive, body.target_folder_path
+                _file, closed = await asyncio.to_thread(
+                    fileops.move_file, db, file_id, body.target_drive, body.target_folder_path
                 )
                 if closed:
                     inbox_drives.add(source.drive)
@@ -449,7 +456,7 @@ async def batch_rename(
         exclude={"ids", "mode"},
         exclude_none=True,
     )
-    results = fileops.batch_rename(db, files, body.mode, **kwargs)
+    results = await asyncio.to_thread(fileops.batch_rename, db, files, body.mode, **kwargs)
     renamed_ids = [
         r["id"] for r in results if r.get("old_name") != r.get("new_name")
     ]
@@ -721,8 +728,7 @@ async def _write_md_tags(db: Session, file: File, tags: list[str], *, merge: boo
     Never falls back to writing ``File.tags`` alone: the next content write
     re-projects the frontmatter and would silently drop such tags.
     """
-    drive_path = config.get_drive_path(file.drive)
-    file_path = _validate_path(str(drive_path / file.file_path), drive_path)
+    file_path = await asyncio.to_thread(_on_disk_path, file.drive, file.file_path)
     before = {tag.name for tag in file.tags}
 
     async with _text_write_locks[file.id]:
@@ -855,10 +861,7 @@ def stream_file(
     if file.missing_since is not None and file.deleted_at is None:
         raise HTTPException(status_code=410, detail="File is missing")
 
-    drive_path = config.get_drive_path(file.drive)
-    file_path = _validate_path(
-        str(drive_path / file.file_path), drive_path
-    )
+    file_path = _on_disk_path(file.drive, file.file_path)
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
 
@@ -1035,8 +1038,7 @@ def render_file(
     if (file.mime_type or "") != "text/html":
         raise HTTPException(status_code=404, detail="Not an HTML file")
 
-    drive_path = config.get_drive_path(file.drive)
-    file_path = _validate_path(str(drive_path / file.file_path), drive_path)
+    file_path = _on_disk_path(file.drive, file.file_path)
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
 
@@ -1134,8 +1136,7 @@ def get_preview_text(
     if file.missing_since is not None and file.deleted_at is None:
         raise HTTPException(status_code=410, detail="File is missing")
 
-    drive_path = config.get_drive_path(file.drive)
-    file_path = _validate_path(str(drive_path / file.file_path), drive_path)
+    file_path = _on_disk_path(file.drive, file.file_path)
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
 
@@ -1247,8 +1248,7 @@ def get_archive_contents(
     if file.file_type != "archive":
         raise HTTPException(status_code=404, detail="File is not an archive")
 
-    drive_path = config.get_drive_path(file.drive)
-    file_path = _validate_path(str(drive_path / file.file_path), drive_path)
+    file_path = _on_disk_path(file.drive, file.file_path)
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
 
@@ -1304,8 +1304,7 @@ async def get_archive_entry(
     if file.file_type != "archive":
         raise HTTPException(status_code=404, detail="File is not an archive")
 
-    drive_path = config.get_drive_path(file.drive)
-    file_path = _validate_path(str(drive_path / file.file_path), drive_path)
+    file_path = await asyncio.to_thread(_on_disk_path, file.drive, file.file_path)
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
 
@@ -1382,7 +1381,7 @@ def get_subtitle(
         raise HTTPException(status_code=404, detail="Subtitle not found")
 
     sub = raw[index]
-    sub_path = _validate_path(str(drive_path / sub["path"]), drive_path)
+    sub_path = _on_disk_path(file.drive, sub["path"])
     if not sub_path.exists():
         raise HTTPException(status_code=404, detail="Subtitle file not found on disk")
 
@@ -1410,7 +1409,7 @@ async def rename_file_endpoint(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     _get_file_or_404(db, file_id, unlocked_groups)
-    file = fileops.rename_file(db, file_id, body.new_filename)
+    file = await asyncio.to_thread(fileops.rename_file, db, file_id, body.new_filename)
     await event_hooks.emit("files.moved", {"file_ids": [file.id]})
     return _to_response(file)
 
@@ -1425,8 +1424,8 @@ async def move_file_endpoint(
     source = _get_file_or_404(db, file_id, unlocked_groups)
     source_drive = source.drive  # captured before move_file rewrites it
     _check_target_drive_access(body.target_drive, unlocked_groups)
-    file, closed = fileops.move_file(
-        db, file_id, body.target_drive, body.target_folder_path
+    file, closed = await asyncio.to_thread(
+        fileops.move_file, db, file_id, body.target_drive, body.target_folder_path
     )
     await event_hooks.emit(
         "files.moved",
@@ -1585,8 +1584,7 @@ async def put_file_content(
             detail=f"Mime type not writable via this endpoint: {file.mime_type}",
         )
 
-    drive_path = config.get_drive_path(file.drive)
-    file_path = _validate_path(str(drive_path / file.file_path), drive_path)
+    file_path = await asyncio.to_thread(_on_disk_path, file.drive, file.file_path)
     drive = file.drive
     before_tags = {tag.name for tag in file.tags} if _is_markdown_file(file) else set()
     inbox_closed = False
@@ -1901,8 +1899,7 @@ def get_wiki_resolutions(
     if not _is_markdown_file(file):
         raise HTTPException(status_code=415, detail="Not a markdown file")
 
-    drive_path = config.get_drive_path(file.drive)
-    file_path = _validate_path(str(drive_path / file.file_path), drive_path)
+    file_path = _on_disk_path(file.drive, file.file_path)
     try:
         content = file_path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):

@@ -6,6 +6,8 @@ import shutil
 import unicodedata
 from pathlib import Path
 
+from app.services.diskpath import resolve_on_disk
+
 logger = logging.getLogger(__name__)
 
 _SUBTITLE_EXTENSIONS = frozenset({".srt", ".vtt"})
@@ -71,7 +73,7 @@ def detect_subtitles(video_file_path: str, drive_path: Path) -> list[dict]:
 
     Returns list of dicts: [{"path": "relative/path.srt", "language": "en", "format": "srt", "label": "English"}]
     """
-    video_path = drive_path / video_file_path
+    video_path = resolve_on_disk(drive_path, video_file_path, cached=True)
     if not video_path.exists():
         return []
 
@@ -129,7 +131,7 @@ def move_sidecar_subtitles(old_video: Path, new_video: Path) -> None:
         name = unicodedata.normalize("NFC", item.name)
         target = new_video.parent / (new_stem + name[len(old_stem):])
         try:
-            if target.exists():
+            if resolve_on_disk(target.parent, target.name).exists():
                 logger.warning(
                     "subtitle sidecar %s not moved: %s already exists", item, target
                 )

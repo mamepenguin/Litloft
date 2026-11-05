@@ -1,3 +1,4 @@
+import asyncio
 from datetime import timedelta
 from typing import Annotated
 
@@ -13,7 +14,8 @@ from app.services.markdown_image_import import (
     create_analysis,
     get_current_job,
     get_job,
-    start_import,
+    launch_import,
+    prepare_import,
 )
 
 router = APIRouter(
@@ -68,7 +70,10 @@ def analyse_markdown_images(
 @router.post("/imports", status_code=status.HTTP_202_ACCEPTED)
 async def start_markdown_image_import(request: ImportRequest):
     try:
-        job = start_import(request.analysis_id, request.allowed_hosts)
+        job, candidates = await asyncio.to_thread(
+            prepare_import, request.analysis_id, request.allowed_hosts
+        )
+        launch_import(job, candidates)
     except MaintenanceBusyError as exc:
         raise HTTPException(
             status_code=409, detail={"code": "maintenance_busy", "message": str(exc)}
