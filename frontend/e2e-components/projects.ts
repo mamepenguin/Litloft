@@ -13,6 +13,8 @@ export const DESKTOP_ONLY = [
   "**/segmented-control-desktop.spec.ts",
   "**/epub-bar-desktop.spec.ts",
   "**/justified-hold-desktop.spec.ts",
+  "**/image-search-drag-desktop.spec.ts",
+  "**/image-drop-target-desktop.spec.ts",
 ];
 
 /** Literals rather than a device preset, which can change under it. */

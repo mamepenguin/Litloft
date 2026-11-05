@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "ImageQueryDropTarget.tsx:83-86 attaches listeners to the [data-page-frame] element. :97-109 portals the overlay to document.body as 'fixed inset-0 z-50' with no pointer-events-none. Once the overlay appears under the cursor, the browser fires dragleave on the frame element and dragenter/dragover/drop on the overlay, which lies outside the frame. The frame handler's dragleave brings depth to 0 and calls reset(), so the overlay disappears and flickers. A drop on the overlay never reaches the frame's onDrop. This follows from the code and DOM semantics; I did not run it in a browser. The jsdom tests dispatch on the frame, so they cannot show it. This puts I8 (a one-image drop starts a query) at risk."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "In ImageQueryDropTarget.test.tsx, renderZone takes an optional argument (:26), but every call passes a vi.fn (:61, 83, 98, 110, 124, 134). The case with onImageQuery undefined, and the 'if (!frame) return' branch at component :33, are untested."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "search/page.tsx:83 defines handleImageQuery inline, unmemoized, and :158 passes it as onImageQuery. The effect at ImageQueryDropTarget.tsx:30-94 depends on [onImageQuery], so every SearchPage render re-runs the cleanup. The cleanup calls reset(), which clears the overlay and the drag class, and then re-adds the listeners. Any parent re-render during a drag (for example the availability resolving, or setImageError/setImagePreparing) drops dragClass. The next dragenter then reclassifies from the new event, and an in-flight drag loses its overlay. The effect also reruns after a drop, since the handler sets state. This is a real but narrow race."
+    }
+  ],
+  "specification_compliance": [
+    "I8: a one-image drop on the text-query page is at risk because of the overlay interception (F1) and the listener churn (F3). The code correctly gives no drop to upload, per the Clarifications.",
+    "I7: onImageQuery is passed only when availability is 'available' (page.tsx:158), and the component adds no listeners without it. This is compliant."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Overlay flicker and an unreliable drop on the text-query page (F1).",
+    "Wrapping handleImageQuery in useCallback, or holding it in a ref, changes the effect dependencies and the drag-state lifetime."
+  ],
+  "test_coverage": [
+    "ImageQueryDropTarget.test.tsx covers one-image, upload and multi-file drops on the frame element only. It has no real-browser test for the portalled overlay, no test with onImageQuery absent, and no test for a re-render mid-drag."
+  ],
+  "not_verified": [
+    "Real browser drag-event ordering. I reasoned from the DOM spec and did not run it.",
+    "The e2e-layout fixtures.",
+    "The addon (backend) side of the commit.",
+    "Whether FolderBrowser.tsx:908 renders the frame/data-page-frame as expected."
+  ],
+  "confidence": 80
+}

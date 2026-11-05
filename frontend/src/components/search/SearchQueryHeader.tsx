@@ -3,11 +3,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { ImagePlus, X } from "lucide-react";
 
 import { DismissScrim } from "@/components/DismissScrim";
 import { useMenuSurface } from "@/components/ToolbarMenu";
 import { getCollections, getDriveTags, getFolderTree } from "@/lib/api";
 import { useImeKeyGuard } from "@/lib/ime";
+import { classifyClipboard } from "@/lib/imageQuery";
 import {
   FILE_KINDS,
   closeOpenQuote,
@@ -63,6 +65,17 @@ interface SearchQueryHeaderProps {
   includeSceneClip: boolean;
   /** `passages` while the page shows the Passages view. */
   show?: string | null;
+  /** The picture of an image query, shown as a chip at the field's leading edge. */
+  imageSrc?: string | null;
+  onRemoveImage?: () => void;
+  /** Opening the picker and handing over its file. */
+  onImagePick?: (file: File) => void;
+  /** A paste of exactly one image with no text. */
+  onImagePaste?: (file: File) => void;
+  /** A paste or drop that holds more than one image. */
+  onImageMany?: () => void;
+  onEdit?: () => void;
+  imagePreparing?: boolean;
 }
 
 export function SearchQueryHeader({
@@ -74,6 +87,13 @@ export function SearchQueryHeader({
   smartFolderId,
   includeSceneClip,
   show,
+  imageSrc,
+  onRemoveImage,
+  onImagePick,
+  onImagePaste,
+  onImageMany,
+  onEdit,
+  imagePreparing,
 }: SearchQueryHeaderProps) {
   const t = useTranslations("search");
   const tFilter = useTranslations("filter");
@@ -96,6 +116,17 @@ export function SearchQueryHeader({
   });
   const surface = useMenuSurface(level !== "closed", "start");
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const pickerRef = useRef<HTMLInputElement>(null);
+  const [isPhone, setIsPhone] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const media = window.matchMedia("(max-width: 639px)");
+    const apply = () => setIsPhone(media.matches);
+    apply();
+    media.addEventListener?.("change", apply);
+    return () => media.removeEventListener?.("change", apply);
+  }, []);
 
   useEffect(() => {
     setText(query);
@@ -304,35 +335,126 @@ export function SearchQueryHeader({
     "mx-2 my-1 w-[calc(100%-1rem)] rounded-lg border border-bg-border bg-bg-card px-2 py-1 text-sm text-text-primary outline-none focus:ring-2 focus:ring-[var(--focus-ring)]";
   const stateRowClass = "flex items-center gap-2 px-3 py-2 text-sm text-text-muted";
 
+  const imageButtonClass =
+    "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary";
+  const imagePillClass =
+    "inline-flex min-h-11 items-center gap-1 rounded-full bg-sand px-3 py-1.5 text-sm text-text-primary";
+  const spinner = (
+    <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+  );
+
   return (
     <div className="min-w-0">
-      <input
-        ref={inputRef}
-        type="text"
-        value={text}
-        aria-label={t("queryField")}
-        data-role="query-field"
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) => {
-          if (ime.isImeKeystroke(e)) return;
-          if (e.key === "Enter") {
-            e.preventDefault();
-            submit(text);
-          } else if (e.key === "Escape") {
-            e.preventDefault();
-            if (level !== "closed") closeMenu();
-            else setText(query);
+      <div
+        className={`relative flex min-w-0 items-center gap-2${
+          imageSrc
+            ? " rounded-2xl border border-warm-silver/40 bg-bg-card px-2 py-1"
+            : ""
+        }`}
+      >
+        {imageSrc && (
+          <span className="flex shrink-0 items-center gap-1 rounded-full bg-sand py-1 pl-1 pr-1.5">
+            <img src={imageSrc} alt="" className="h-7 w-7 rounded-lg object-cover" />
+            <span className="text-xs font-semibold text-text-primary">{t("image")}</span>
+            <button
+              type="button"
+              aria-label={t("removeImage")}
+              onClick={onRemoveImage}
+              className="rounded-full p-0.5 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+            >
+              <X size={14} />
+            </button>
+          </span>
+        )}
+        <input
+          ref={inputRef}
+          type="text"
+          value={text}
+          aria-label={t("queryField")}
+          data-role="query-field"
+          onChange={(e) => {
+            setText(e.target.value);
+            onEdit?.();
+          }}
+          onPaste={(e) => {
+            if (!onImagePaste) return;
+            const pasted = classifyClipboard(e.clipboardData);
+            if (pasted.kind === "one") {
+              e.preventDefault();
+              onImagePaste(pasted.file);
+            } else if (pasted.kind === "several") {
+              e.preventDefault();
+              onImageMany?.();
+            }
+          }}
+          onKeyDown={(e) => {
+            if (ime.isImeKeystroke(e)) return;
+            if (e.key === "Enter") {
+              e.preventDefault();
+              submit(text);
+            } else if (e.key === "Escape") {
+              e.preventDefault();
+              if (level !== "closed") closeMenu();
+              else setText(query);
+            }
+          }}
+          className={
+            imageSrc
+              ? "min-w-0 flex-1 bg-transparent px-1 py-1.5 text-lg text-text-primary outline-none"
+              : `w-full rounded-2xl border border-warm-silver/40 bg-bg-card px-3 py-1.5 text-lg text-text-primary outline-none focus:ring-2 focus:ring-[var(--focus-ring)]${onImagePick && !isPhone ? " pr-10" : ""}`
           }
-        }}
-        className="w-full rounded-2xl border border-warm-silver/40 bg-bg-card px-3 py-1.5 text-lg text-text-primary outline-none focus:ring-2 focus:ring-[var(--focus-ring)]"
-      />
-
-      <div className="mt-2 flex flex-wrap items-center gap-2">
-        <SearchFilterChips
-          query={text}
-          onRemove={(next) => removeChip(next)}
-          fallbackRef={inputRef}
         />
+        {onImagePick && !isPhone && (
+          <button
+            type="button"
+            aria-label={t("searchByImage")}
+            aria-busy={imagePreparing ? "true" : undefined}
+            onClick={() => pickerRef.current?.click()}
+            className={
+              imageSrc
+                ? imageButtonClass
+                : `${imageButtonClass} absolute right-1 top-1/2 -translate-y-1/2`
+            }
+          >
+            {imagePreparing ? spinner : <ImagePlus size={16} />}
+          </button>
+        )}
+      </div>
+
+      {imageSrc && onImagePick && isPhone && (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            aria-label={t("searchByImage")}
+            aria-busy={imagePreparing ? "true" : undefined}
+            onClick={() => pickerRef.current?.click()}
+            className={imagePillClass}
+          >
+            {imagePreparing ? spinner : <ImagePlus size={16} />}
+            {t("searchByImage")}
+          </button>
+        </div>
+      )}
+
+      {!imageSrc && (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          {onImagePick && isPhone && (
+            <button
+              type="button"
+              aria-label={t("searchByImage")}
+              aria-busy={imagePreparing ? "true" : undefined}
+              onClick={() => pickerRef.current?.click()}
+              className={imagePillClass}
+            >
+              {imagePreparing ? spinner : <ImagePlus size={16} />}
+              {t("searchByImage")}
+            </button>
+          )}
+          <SearchFilterChips
+            query={text}
+            onRemove={(next) => removeChip(next)}
+            fallbackRef={inputRef}
+          />
 
         <div ref={surface.wrapperRef} className="relative">
           <button
@@ -576,8 +698,23 @@ export function SearchQueryHeader({
                 </div>
               </DismissScrim>,
             )}
+          </div>
         </div>
-      </div>
+      )}
+
+      {onImagePick && (
+        <input
+          ref={pickerRef}
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) onImagePick(file);
+            e.target.value = "";
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "V1",
+      "origin": "verifier",
+      "claim": "On the text-query results page (isSearch true) with image search available, FolderBrowser wraps the page in UploadZone with acceptUpload={false}, so a drag classed 'upload' no longer uploads. This contradicts I8 ('uploads exactly as before this change on the text-query page') and the spec's confirmed item that every other drop still uploads.",
+      "impact": "A drop of non-image files, several files or a folder on the text-query page does nothing while image search is available. Uploads still work while it is unavailable, because inner is returned without a zone. The behaviour differs by availability state, and the overlay (isDragging) is also suppressed for upload-class drags.",
+      "evidence": "frontend/src/components/FolderBrowser.tsx:88 (isSearch = non-blank searchQuery, i.e. the text-query page) and :903-915 (isSearch with onImageQuery renders UploadZone acceptUpload={false}); frontend/src/components/UploadZone.tsx:109 (`if (!acceptUpload) return;`) and :64-69 (overlay shown only for one_image or acceptUpload). docs/specs/image-query-search.md:793-795 and I8 say the upload still happens.",
+      "repro": "Read the code path: with onImageQuery set and a text query, drop a PDF. classifyDrag gives upload, dropped !== 'one_image', acceptUpload is false, and handleDrop returns before addFiles.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "Violates declared invariant I8 and I7 (upload behaviour must be unchanged on the text-query page) in normal single-user use.",
+        "invariant_ref": "I8"
+      },
+      "severity": "HIGH",
+      "proposed_fix": "Pass acceptUpload (default true) on the text-query page. Pass false only on the image query view, if that view uses this wrapper."
+    }
+  ],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "UploadZone.tsx:62-63 computes hasFiles = types.includes('Files') || files.length > 0. The added `files.length > 0` is new relative to the types-only check described, and it applies to every UploadZone use, including folder pages. In browsers, files is normally empty at dragenter and types already contains 'Files' whenever files exist, so a practical difference is unlikely. The textual change is real and untested."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "The spec text (step 0/2 and I8) says an upload-class drop on the text-query page uploads as before. The code does the opposite: FolderBrowser.tsx:903-915 passes acceptUpload={false} when isSearch (the text-query page, line 88), and UploadZone.tsx:109 returns without uploading. This is more than stale prose, because the code regresses declared behaviour; see V1. The spec could instead be revised if the human wants this, but the spec at lines 793-795 says every other drop still uploads."
+    }
+  ],
+  "specification_compliance": [
+    "I8: violated on the text-query page for upload-class drops (FolderBrowser.tsx:911, UploadZone.tsx:109).",
+    "I7: upload behaviour while image search is available is not the same as before the change."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Upload behaviour on the text-query page depends on whether image search is available for the drive.",
+    "UploadZone's hasFiles check now also accepts files.length > 0."
+  ],
+  "regression_risks": [
+    "Uploads by drag and drop onto the text-query page stop working once the availability request returns 200.",
+    "The overlay for upload-class drags is suppressed on that page."
+  ],
+  "test_coverage": [
+    "I did not inspect the frontend tests. The readers report no test of the folder-page overlay or of an upload-class drop on the text-query page with onImageQuery set."
+  ],
+  "not_verified": [
+    "Addon (Python) code and its tests",
+    "Whether the image query view uses FolderBrowser or another wrapper",
+    "classifyDrag behaviour in imageQuery.ts",
+    "Frontend tests and e2e-layout",
+    "Browser behaviour of dataTransfer.files at dragenter"
+  ],
+  "confidence": 80
+}

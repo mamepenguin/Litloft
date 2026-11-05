@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "ImageQueryDropTarget's document-level dragover handler sets dropEffect to copy for every file drag, including those classed upload, so the cursor offers a copy while the drop does nothing.",
+      "impact": "On the text-query page, with image search available, dragging a PDF or several files shows a copy cursor and no overlay, then the drop silently does nothing. The page showed nothing before this change.",
+      "evidence": "frontend/src/components/search/ImageQueryDropTarget.tsx onDragOver: sets dropEffect = 'copy' without checking the kept class.",
+      "repro": "not_reproduced (read only)",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant is broken: I8 requires only that an upload-class drop does nothing. It is a cosmetic mismatch.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Set dropEffect to none when the kept class is upload."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "When the modal is scoped or browsing, imageEnabled is false and the modal registers no drop handlers, so a file dropped on the modal over a text-query page reaches the page's document-level drop target and can start an image query.",
+      "impact": "A one-image drop on a scoped modal opened over the text results page navigates to an image query, which the modal is meant not to offer. Navigating also leaves the modal open. Rare.",
+      "evidence": "GlobalSearch.tsx handlers are attached only when imageEnabled; ImageQueryDropTarget.tsx listens on document and has no knowledge of the modal.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Spec step 1 says only that the modal behaves as when image search is unavailable. The cross-component path is not covered by I7 as written.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Have the drop target ignore events whose target is inside the modal, or always swallow drops in the modal."
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "The drop target's tests render it on document.body with no page around it, and nothing tests that it attaches no listener and calls no preventDefault when onImageQuery is absent.",
+      "impact": "If the guard 'if (!onImageQuery) return' were removed, no test would fail. The result would be that, while image search is unavailable, file drops on the text page would be preventDefault-ed and the browser would no longer open the file, which differs from the old behaviour that I7 says must be unchanged.",
+      "evidence": "ImageQueryDropTarget.test.tsx has no case that renders without onImageQuery and checks that a drop is not defaulted. The component guard is at ImageQueryDropTarget.tsx useEffect start.",
+      "repro": "Mutation: delete the 'if (!onImageQuery) return' guard. No test is expected to fail.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I7 requires drop to behave exactly as before while image search is unavailable, and no test guards that.",
+        "invariant_ref": "I7"
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add a test that a drop with no onImageQuery is not defaultPrevented."
+    }
+  ],
+  "specification_compliance": [
+    "I8 on the text-query page: the new component calls onImageQuery only for a drag classed one_image at dragenter that drops exactly one image file, and never uploads. UploadZone no longer takes onImageQuery, so folder pages are untouched.",
+    "The component renders no wrapper and no DOM before a one-image drag, so the results subtree is not remounted when availability resolves. This resolves the r3 F2 and F3 concerns.",
+    "The r3 F1 concern (hasFiles with files.length) is gone from UploadZone, which went back to its original form. A similar term was reintroduced inside ImageQueryDropTarget, which is new code and only gates its own handling.",
+    "Addon invariants I1 to I6 and I12 were not reviewed in this round."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "With image search available, the text page now calls preventDefault on every file drop. Before this change the browser's default would run (opening the file)."
+  ],
+  "regression_risks": [
+    "Document-level drag listeners can interact with other drop targets that mount on the same page, and with the modal when it is not swallowing drops.",
+    "If the drag leave and enter counters get out of step (children, iframes), the overlay may stay up. The reset on unmount and in dragleave limits this."
+  ],
+  "test_coverage": [
+    "ImageQueryDropTarget.test.tsx covers one image, an upload-class drag, a drag class that does not change on later dragenters, the class reset after leave, and no fallback to upload.",
+    "FolderBrowser.imageQuery.test.tsx checks that the prop reaches the drop target with the target mocked.",
+    "No test covers an absent onImageQuery (F3), and none covers dropEffect for the upload class (F1)."
+  ],
+  "not_verified": [
+    "Addon Python code, which this commit does not change.",
+    "Nothing was run; I read the diff and ran one grep of the usages.",
+    "Real-browser drag behaviour, including the files list at dragenter.",
+    "The full current UploadZone.tsx and FolderBrowser.tsx against origin/develop; I trusted that the diff reverts them."
+  ],
+  "confidence": 72,
+  "trajectory": "The earlier rounds each added a flag to UploadZone: acceptUpload in r2, and enabled plus conditional handlers, an attribute and an effect in r3. Each flag made the zone imitate 'no zone' on the search page. This round removes all of those flags and returns UploadZone to its original form. It adds one separate component with no wrapper and no state beyond the overlay. That is the simpler design the r3 reviewer suggested. The new component adds one drag class variable and one depth counter, which is the same drag logic that the zone used to hold, now moved. I do not see a patching trend in this round. The only new branches are the guards in the component itself. The cost is the F2 interaction with the modal, caused by document-level listeners."
+}

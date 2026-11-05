@@ -3,11 +3,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Search, X } from "lucide-react";
+import { ArrowLeft, ImagePlus, Search, X } from "lucide-react";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { MatchLegend } from "@/components/search/MatchLegend";
 import { useShortcutsContext } from "@/components/ShortcutsProvider";
 import { NESTED_OVERLAY_PRIORITY, OVERLAY_PRIORITY } from "@/lib/shortcuts";
+import {
+  classifyClipboard,
+  classifyDrag,
+  useImageAvailability,
+  type DragClass,
+} from "@/lib/imageQuery";
 
 import { useTranslations } from "next-intl";
 import { useImeKeyGuard } from "@/lib/ime";
@@ -37,6 +43,7 @@ import {
   useRegisterGlobalSearch,
 } from "./search/GlobalSearchProvider";
 import { ScopeChip, ScopedFooter } from "./search/ScopedSearchParts";
+import { useImageInput } from "./search/useImageInput";
 
 function isModified(e: React.KeyboardEvent): boolean {
   return e.metaKey || e.ctrlKey || e.altKey || e.shiftKey;
@@ -120,6 +127,9 @@ export function GlobalSearch() {
   const setOverrideDrive = useSetOverrideDrive();
   const browse = useFolderBrowse(open, drive, !scope);
   const browsing = browse.path !== null;
+  const availability = useImageAvailability(drive);
+  const imageEnabled =
+    availability === "available" && !scope && !browsing && !!drive;
   const { merged, total, loading, semanticPending, reset: resetResults } = useFileSearch({
     open,
     drive,
@@ -184,6 +194,22 @@ export function GlobalSearch() {
     setQuery("");
     resetResults();
   }, [resetResults]);
+
+  const imageInput = useImageInput((id) => {
+    if (!drive) return;
+    closeSearch();
+    router.push(`/drive/${encodeURIComponent(drive)}/search?img=${id}`);
+  });
+  const pickerRef = useRef<HTMLInputElement>(null);
+  const [dropOverlay, setDropOverlay] = useState(false);
+  const dragClassRef = useRef<DragClass | null>(null);
+  const dragDepthRef = useRef(0);
+
+  useEffect(() => {
+    if (open) return;
+    imageInput.cancel();
+    imageInput.clearError();
+  }, [open, imageInput.cancel, imageInput.clearError]);
 
   /**
    * Two overlays at once make Escape ambiguous: the reader would press Escape
@@ -440,6 +466,79 @@ export function GlobalSearch() {
     }
   }
 
+  const imageMessage =
+    imageInput.error === "too_large"
+      ? t("imageTooLarge")
+      : imageInput.error === "unreadable"
+        ? t("imageUnreadable")
+        : imageInput.error === "one_image"
+          ? t("imageOneOnly")
+          : null;
+
+  const handleImagePaste = (event: React.ClipboardEvent<HTMLInputElement>) => {
+    if (!imageEnabled) return;
+    const pasted = classifyClipboard(event.clipboardData);
+    if (pasted.kind === "text") return;
+    if (pasted.kind === "one") {
+      event.preventDefault();
+      imageInput.give(pasted.file);
+    } else if (pasted.kind === "several") {
+      event.preventDefault();
+      imageInput.setError("one_image");
+    }
+  };
+
+  const resetDrag = () => {
+    dragDepthRef.current = 0;
+    dragClassRef.current = null;
+    setDropOverlay(false);
+  };
+
+  const handleDragEnter = (event: React.DragEvent) => {
+    if (!imageEnabled) return;
+    event.preventDefault();
+    event.stopPropagation();
+    dragDepthRef.current += 1;
+    if (dragClassRef.current === null) {
+      dragClassRef.current = classifyDrag(event.dataTransfer);
+      setDropOverlay(dragClassRef.current === "one_image");
+    }
+  };
+
+  const handleDragOver = (event: React.DragEvent) => {
+    if (!imageEnabled) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = "copy";
+  };
+
+  const handleDragLeave = (event: React.DragEvent) => {
+    if (!imageEnabled) return;
+    event.preventDefault();
+    dragDepthRef.current -= 1;
+    if (dragDepthRef.current <= 0) resetDrag();
+  };
+
+  const handleDrop = (event: React.DragEvent) => {
+    if (!imageEnabled) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const kept = dragClassRef.current;
+    const files = Array.from(event.dataTransfer.files);
+    resetDrag();
+    if (files.length > 1) {
+      imageInput.setError("one_image");
+      return;
+    }
+    if (
+      kept === "one_image" &&
+      files.length === 1 &&
+      files[0].type.startsWith("image/")
+    ) {
+      imageInput.give(files[0]);
+    }
+  };
+
   const searchInput = (
     ref: React.RefObject<HTMLInputElement | null>,
     mobile: boolean,
@@ -450,6 +549,7 @@ export function GlobalSearch() {
       value={query}
       onChange={(e) => {
         const next = e.target.value;
+        imageInput.clearError();
         const composing = (e.nativeEvent as InputEvent).isComposing === true;
         if (!browsing && !scope && drive && !composing && startsRootBrowse(query, next)) {
           enterFolder("");
@@ -457,6 +557,7 @@ export function GlobalSearch() {
           setQuery(next);
         }
       }}
+      onPaste={handleImagePaste}
       onCompositionEnd={ime.onCompositionEnd}
       onKeyDown={(e) => {
         if (ime.isImeKeystroke(e)) return;
@@ -485,6 +586,7 @@ export function GlobalSearch() {
           e.preventDefault();
           moveHighlight((prev) => Math.max(-1, prev - 1));
         } else if (e.key === "Enter") {
+          imageInput.cancel();
           if (selectedIndex >= 0 && showEmptyState) {
             activateEmptyItem(emptyItems[selectedIndex]);
           } else if (selectedIndex >= 0 && selectedIndex < jumps.length) {
@@ -612,7 +714,23 @@ export function GlobalSearch() {
       {open &&
         isMobileViewport &&
         createPortal(
-          <div className="fixed inset-0 z-50 flex flex-col bg-bg-primary animate-fade-in">
+          <div
+            className="fixed inset-0 z-50 flex flex-col bg-bg-primary animate-fade-in"
+            onDragEnter={imageEnabled ? handleDragEnter : undefined}
+            onDragOver={imageEnabled ? handleDragOver : undefined}
+            onDragLeave={imageEnabled ? handleDragLeave : undefined}
+            onDrop={imageEnabled ? handleDrop : undefined}
+          >
+          {dropOverlay && (
+            <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-bg-primary/75 backdrop-blur-sm">
+              <div className="flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-warm-silver bg-bg-card/90 px-12 py-10">
+                <ImagePlus size={48} className="text-text-muted" />
+                <p className="text-lg font-medium text-text-primary">
+                  {t("dropToSearchByImage")}
+                </p>
+              </div>
+            </div>
+          )}
           <div className="flex items-center gap-2 border-b border-bg-border px-2 py-2">
             <button
               onClick={closeSearch}
@@ -635,6 +753,31 @@ export function GlobalSearch() {
               )}
             </div>
           </div>
+
+            {imageEnabled && (
+              <div className="px-4 pb-2">
+                <button
+                  type="button"
+                  aria-label={t("searchByImage")}
+                  aria-busy={imageInput.preparing ? "true" : undefined}
+                  onClick={() => pickerRef.current?.click()}
+                  className="inline-flex min-h-11 items-center gap-1 rounded-full bg-sand px-3 py-1.5 text-sm text-text-primary"
+                >
+                  {imageInput.preparing ? (
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  ) : (
+                    <ImagePlus size={16} />
+                  )}
+                  {t("searchByImage")}
+                </button>
+              </div>
+            )}
+
+            {imageMessage && (
+              <p role="alert" className="px-4 pb-2 text-xs text-text-muted">
+                {imageMessage}
+              </p>
+            )}
 
             <div className="px-4 pb-2">
               <SearchFilterChips
@@ -665,7 +808,23 @@ export function GlobalSearch() {
             className="fixed inset-0 bg-black/50 animate-fade-in"
             onClick={closeSearch}
           />
-          <div className="relative z-10 w-full max-w-3xl rounded-2xl border border-bg-border bg-bg-primary shadow-lg animate-fade-in-scale">
+          <div
+            className="relative z-10 w-full max-w-3xl rounded-2xl border border-bg-border bg-bg-primary shadow-lg animate-fade-in-scale"
+            onDragEnter={imageEnabled ? handleDragEnter : undefined}
+            onDragOver={imageEnabled ? handleDragOver : undefined}
+            onDragLeave={imageEnabled ? handleDragLeave : undefined}
+            onDrop={imageEnabled ? handleDrop : undefined}
+          >
+            {dropOverlay && (
+              <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-2xl bg-bg-primary/75 backdrop-blur-sm">
+                <div className="flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-warm-silver bg-bg-card/90 px-12 py-10">
+                  <ImagePlus size={48} className="text-text-muted" />
+                  <p className="text-lg font-medium text-text-primary">
+                    {t("dropToSearchByImage")}
+                  </p>
+                </div>
+              </div>
+            )}
             <div className="flex items-center gap-3 border-b border-bg-border px-4 py-3">
               <Search size={18} className="flex-shrink-0 text-text-muted" />
               {scope && <ScopeChip scope={scope} onRemove={removeScope} />}
@@ -679,10 +838,31 @@ export function GlobalSearch() {
                   <X size={16} />
                 </button>
               )}
+              {imageEnabled && (
+                <button
+                  type="button"
+                  aria-label={t("searchByImage")}
+                  aria-busy={imageInput.preparing ? "true" : undefined}
+                  onClick={() => pickerRef.current?.click()}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+                >
+                  {imageInput.preparing ? (
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  ) : (
+                    <ImagePlus size={16} />
+                  )}
+                </button>
+              )}
               <kbd className="rounded-lg bg-bg-elevated px-1.5 py-0.5 text-[10px] text-text-muted">
                 ESC
               </kbd>
             </div>
+
+            {imageMessage && (
+              <p role="alert" className="px-4 pt-2 text-xs text-text-muted">
+                {imageMessage}
+              </p>
+            )}
 
             <div className="px-4 pb-2">
               <SearchFilterChips
@@ -700,6 +880,20 @@ export function GlobalSearch() {
         </div>,
           document.body
         )}
+
+      {imageEnabled && (
+        <input
+          ref={pickerRef}
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) imageInput.give(file);
+            event.target.value = "";
+          }}
+        />
+      )}
     </>
   );
 }

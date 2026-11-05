@@ -181,6 +181,22 @@ Both routes accept an optional `filter` query parameter: one JSON object with op
 
 `GET /search/images?q=&type=` ranks every active file of the request drive by how closely its representative frame matches the query and returns the first 2000, with no score cutoff. `type` takes the same values as `/search`, the drive comes from `X-Lit-Drive`, and it needs the `search` policy. The response has `/search`'s shape (`results`, `total`, `indexed_files`, `service_version`), and each result is the single `clip_thumbnail` match with the score and segments `/search` would give that frame. The search page uses it for **Show more by similarity**.
 
+### Search by an image
+
+`POST /search/by-image` ranks a drive by a picture instead of words. The body is the image itself, with `Content-Type` one of `image/jpeg`, `image/png`, `image/webp`, `image/gif`, `image/bmp`, `image/heic` or `image/heif`; any other type answers 415 before the body is read. The body may be up to 20,971,520 bytes (413 past that) and the decoded picture up to 50,000,000 pixels (413), and bytes Pillow cannot decode answer 422. The drive comes from `X-Lit-Drive` and the route needs the `search` policy. It reads the body in memory and writes nothing: no table row, no temporary file, and no log line holds the image, its vector or the text read from it.
+
+The answer is `{images, scenes, scenes_partial, documents, text}`:
+
+- `images`: up to 24 pictures of the drive, best first, each `{file_id, drive, filename, file_type, score, match_types: ["clip_thumbnail"], file}`. `score` is the raw cosine similarity to the picture, rounded to four places; pictures below `search.min_score_image_query` are dropped.
+- `scenes`: up to 20 video segments, each `{file_id, drive, filename, start, end, peak, score, frame_url, file}`, from the stored scene frames that score at least `search.min_score_image_query`. `scenes_partial` is true when a full 4096-row scene search ended at or above the floor, so other drives may have pushed this drive's frames past the cap.
+- `documents`: up to 10 files whose text matches the words read from the picture, each with up to three `passages` in the same shape `/search?passages=true` returns. The text part is the OCR engine: with `features.image_ocr` `"false"` it is not run (`text.status` `"off"`), fewer than 20 non-whitespace characters read as `"too_short"`, a read text is embedded and searched through the text index (`"read"`), and a failure of the reading or of the text search is `"failed"` while the pictures and scenes still answer. `text.excerpt` is up to 200 characters of the recognised text.
+- `file` is the hydrated file from the core, or null when the core could not be reached.
+- An error in the picture or scene ranking answers 500; an error in the text part leaves `documents` empty and `text.status` `"failed"`.
+
+`GET /search/by-image/available` answers 200 `{}` and does nothing else. It carries the same `pre_check` as the POST route, so the search UI asks it once per drive to learn whether the route is served rather than reading `/api/addons/status`, which filters on `index`.
+
+One image query runs at a time per addon process; a second waits with its body unread. The route's proxy timeout is 28 seconds, inside the 30-second cut the core's Next.js rewrite applies to every `/api/*` request. The SigLIP vision tower is released after `memory.clip_image_idle_unload` idle seconds and loaded again on the next picture; the text encoder used by ordinary search stays resident.
+
 `GET /files/{file_id}/find?q=` lists every occurrence of `q` (1–200 characters, matched as `/search/exact` matches) in one file, for the file page's find bar. It needs file access and the `search` policy, and the drive comes from `X-Lit-Drive`. It reads the file's text chunks (overlapping chunks are merged so an occurrence counts once), its transcript, and its scene `visible_text` when the drive's Visual Index is on. The answer is `{query, indexed, total, truncated, rows}`. Each row has `kind` (`utterance`, `scene`, `page`, `section`, `picture_text` or `text`), `start`/`end`, `page`, `section`/`section_title`, `ordinal` (its number among the occurrences in its page, section, chunk or scene), `snippet`, and `match_start`/`match_length` inside the snippet. Rows are in position order, at most 2000; `total` counts them all and `truncated` says the list was cut. `indexed` is false when the file has nothing the route can search. It writes nothing.
 
 Search drops results scoring below half the top result, except those with a CLIP match: image cosines sit far below keyword scores, so the rule would hide every picture as soon as one document mentions the word.
@@ -421,7 +437,7 @@ features:
   image_ocr: "on_index"               # false | manual | on_index
 ```
 
-Every flag except `indexing`, `search`, `auto_tags` and `image_ocr` does nothing while `llm.provider` is `"disabled"`.
+Every flag except `indexing`, `search`, `auto_tags` and `image_ocr` does nothing while `llm.provider` is `"disabled"`. `features.image_ocr` also decides whether the text in a picture given to [search by an image](#search-by-an-image) is read.
 
 ### LLM
 
@@ -601,6 +617,7 @@ search:
   max_limit: 1000                         # upper bound for a request's limit
   min_score_clip: 0.05                    # 0.20 for CLIP-family models
   min_score_clip_thumbnail: 0.05
+  min_score_image_query: 0.70             # floor for similar pictures and scenes
 ```
 
 ### Transcription
@@ -690,9 +707,10 @@ memory:
   blip_idle_unload: 300
   clip_concepts_idle_unload: 600
   ocr_idle_unload: 300
+  clip_image_idle_unload: 600             # SigLIP vision tower; 0 = never
 ```
 
-Whisper (or the `haas_local` recognizer, when that is the provider), BLIP, the OCR engine and the tag vocabulary model are unloaded after this many idle seconds. CLIP and the text embedding model stay loaded because search uses them.
+Whisper (or the `haas_local` recognizer, when that is the provider), BLIP, the OCR engine and the tag vocabulary model are unloaded after this many idle seconds. CLIP's text encoder and the text embedding model stay loaded because search uses them; the SigLIP vision tower used to embed a picture is released after `clip_image_idle_unload`, shared by indexing and [search by an image](#search-by-an-image).
 
 ## UI surface
 
