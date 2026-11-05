@@ -50,9 +50,9 @@ export function ImageQueryDropTarget({ onImageQuery }: ImageQueryDropTargetProps
       if (dragClass === null) {
         dragClass = classifyDrag(event.dataTransfer);
       }
+      depth += 1;
       if (dragClass !== "one_image") return;
       event.preventDefault();
-      depth += 1;
       setOverlay(true);
     };
 
@@ -62,8 +62,8 @@ export function ImageQueryDropTarget({ onImageQuery }: ImageQueryDropTargetProps
       if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
     };
 
-    const onDragLeave = (event: DragEvent) => {
-      if (!hasFiles(event.dataTransfer) || dragClass !== "one_image") return;
+    const onDragLeave = () => {
+      if (dragClass === null) return;
       depth -= 1;
       if (depth <= 0) reset();
     };

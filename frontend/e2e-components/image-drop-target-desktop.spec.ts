@@ -52,7 +52,7 @@ test("a one-image drag reaches the frame through the overlay", async ({ page }) 
   await expect(page.getByText("Drop to search by this image")).toBeVisible();
   const hit = await page.evaluate(({ point }) => {
     const el = document.elementFromPoint(point.x, point.y);
-    return el?.closest("[data-page-frame]") !== null;
+    return el !== null && el.closest("[data-page-frame]") !== null;
   }, { point });
   expect(hit).toBe(true);
 

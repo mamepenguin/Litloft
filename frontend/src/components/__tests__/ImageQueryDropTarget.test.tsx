@@ -157,6 +157,24 @@ describe("SPEC-CORE-046 I8: the results page drop target", () => {
     expect(screen.getByText(SEARCH_OVERLAY)).toBeInTheDocument();
   });
 
+  it("reclassifies after an upload-class drag has left the page", async () => {
+    const onImageQuery = vi.fn();
+    const { zone } = renderZone(onImageQuery);
+    const textDrag = dataTransfer({ files: [text()] });
+
+    fireEvent.dragEnter(zone, { dataTransfer: textDrag });
+    fireEvent.dragLeave(zone, { dataTransfer: textDrag });
+
+    const file = imageFile();
+    const imageDrag = dataTransfer({ files: [file] });
+    fireEvent.dragEnter(zone, { dataTransfer: imageDrag });
+    expect(screen.getByText(SEARCH_OVERLAY)).toBeInTheDocument();
+    fireEvent.drop(zone, { dataTransfer: imageDrag });
+    await settle();
+
+    expect(onImageQuery).toHaveBeenCalledWith(file);
+  });
+
   it("classes again after the drag leaves", async () => {
     const onImageQuery = vi.fn();
     const { zone } = renderZone(onImageQuery);
