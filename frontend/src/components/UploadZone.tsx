@@ -13,6 +13,8 @@ interface UploadZoneProps {
   children: ReactNode;
   className?: string;
   onImageQuery?: (file: File) => void;
+  /** A drop classed upload writes here; a search page that never uploaded passes false. */
+  acceptUpload?: boolean;
 }
 
 export function UploadZone({
@@ -21,6 +23,7 @@ export function UploadZone({
   children,
   className,
   onImageQuery,
+  acceptUpload = true,
 }: UploadZoneProps) {
   const t = useTranslations("upload");
   const tSearch = useTranslations("search");
@@ -56,10 +59,15 @@ export function UploadZone({
       dragClassRef.current = onImageQuery ? classifyDrag(e.dataTransfer) : "upload";
       setDragClass(dragClassRef.current);
     }
-    if (onImageQuery || dragClassRef.current === "one_image" || e.dataTransfer.types.includes("Files")) {
+    const hasFiles =
+      e.dataTransfer.types.includes("Files") || e.dataTransfer.files.length > 0;
+    if (
+      dragClassRef.current === "one_image" ||
+      (acceptUpload && hasFiles)
+    ) {
       setIsDragging(true);
     }
-  }, [onImageQuery]);
+  }, [onImageQuery, acceptUpload]);
 
   const handleDragLeave = useCallback((e: DragEvent) => {
     e.preventDefault();
@@ -97,6 +105,8 @@ export function UploadZone({
         }
         return;
       }
+
+      if (!acceptUpload) return;
 
       try {
         const items = e.dataTransfer.items;
@@ -141,7 +151,7 @@ export function UploadZone({
         addFiles(drive, folderPath, files);
       }
     },
-    [addFiles, addFileEntries, drive, folderPath, onImageQuery]
+    [addFiles, addFileEntries, drive, folderPath, onImageQuery, acceptUpload]
   );
 
   return (

@@ -908,6 +908,7 @@ export function FolderBrowser({
         folderPath={folderPath ?? ""}
         className="flex-1 flex flex-col"
         onImageQuery={onImageQuery}
+        acceptUpload={false}
       >
         {inner}
       </UploadZone>
