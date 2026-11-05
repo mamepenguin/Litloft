@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useHighlightPassage } from "@/hooks/useHighlightPassage";
 import { useFindMarksIn } from "@/hooks/useFindMarksIn";
+import { useFindTextBody } from "@/components/FileDetail/find/FindContext";
 import { isTextFindRow } from "@/lib/findMarks";
 import { useDocumentCapturePublisher } from "@/hooks/useDocumentCapturePublisher";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
@@ -429,7 +430,11 @@ export function MarkdownPreview({
     { includeHeading: true },
   );
   useHighlightPassage(containerRef, highlight, html.length > 0);
-  useFindMarksIn(() => containerRef.current, isTextFindRow);
+  const ownsText = useFindTextBody();
+  useFindMarksIn(
+    () => containerRef.current,
+    (row) => ownsText && isTextFindRow(row),
+  );
 
   // Deliberately does NOT depend on [html]: React may re-apply
   // dangerouslySetInnerHTML when the parent re-renders, wiping out

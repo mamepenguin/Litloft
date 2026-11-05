@@ -37,6 +37,34 @@ function contextOf(text: string): string {
   return collapseWhitespace(foldFindText(text));
 }
 
+interface CollapsedText {
+  text: string;
+  /** The collapsed index of the character at each raw index, plus the end. */
+  at: number[];
+}
+
+function collapseWithOffsets(text: string): CollapsedText {
+  const chars: string[] = [];
+  const at = new Array<number>(text.length + 1);
+  let inWhitespace = false;
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    if (/\s/.test(ch)) {
+      at[i] = inWhitespace ? chars.length - 1 : chars.length;
+      if (!inWhitespace) {
+        chars.push(" ");
+        inWhitespace = true;
+      }
+    } else {
+      at[i] = chars.length;
+      chars.push(ch);
+      inWhitespace = false;
+    }
+  }
+  at[text.length] = chars.length;
+  return { text: chars.join(""), at };
+}
+
 /**
  * Which occurrence of the term in the rendered unit is the current one:
  * the context match nearest `ordinal`, then `ordinal`, then the first.
@@ -51,25 +79,28 @@ export function chooseCurrentOccurrence(
   // The amount of context the snippet itself carries: fewer than 20 at the
   // unit's start and wherever the snippet ends. Comparing more than the
   // snippet offers would measure the stored text's tail against nothing.
-  const snippetBefore = row.snippet.slice(
-    Math.max(0, row.match_start - CONTEXT_CHARS),
-    row.match_start,
+  const snippet = collapseWithOffsets(foldFindText(row.snippet));
+  const snippetStart =
+    snippet.at[Math.max(0, row.match_start)] ?? snippet.text.length;
+  const snippetEnd =
+    snippet.at[Math.max(0, row.match_start + row.match_length)] ??
+    snippetStart;
+  const before = snippet.text.slice(
+    Math.max(0, snippetStart - CONTEXT_CHARS),
+    snippetStart,
   );
-  const snippetAfter = row.snippet.slice(
-    row.match_start + row.match_length,
-    row.match_start + row.match_length + CONTEXT_CHARS,
-  );
-  const before = contextOf(snippetBefore);
-  const after = contextOf(snippetAfter);
+  const after = snippet.text.slice(snippetEnd, snippetEnd + CONTEXT_CHARS);
 
   const target = row.ordinal - 1;
   let nearest: number | null = null;
   for (let i = 0; i < occurrences.length; i += 1) {
     const occurrence = occurrences[i];
-    const occurrenceBefore = contextOf(
-      occurrence.before.slice(occurrence.before.length - snippetBefore.length),
-    );
-    const occurrenceAfter = contextOf(occurrence.after.slice(0, snippetAfter.length));
+    const occurrenceContext = contextOf(occurrence.before);
+    const occurrenceBefore =
+      before.length === 0
+        ? ""
+        : occurrenceContext.slice(-before.length);
+    const occurrenceAfter = contextOf(occurrence.after).slice(0, after.length);
     if (occurrenceBefore !== before || occurrenceAfter !== after) continue;
     if (nearest === null || Math.abs(i - target) < Math.abs(nearest - target)) {
       nearest = i;
@@ -159,13 +190,19 @@ export function markFindOccurrences(
 
   const index = indexText(container);
   const folded = foldFindText(index.text);
+  const collapsed = collapseWithOffsets(folded);
   const starts: number[] = [];
   const contexts: FindOccurrenceContext[] = [];
   for (let at = folded.indexOf(needle); at >= 0; at = folded.indexOf(needle, at + needle.length)) {
     starts.push(at);
+    const position = collapsed.at[at] ?? 0;
+    const end = collapsed.at[at + needle.length] ?? position + needle.length;
     contexts.push({
-      before: folded.slice(Math.max(0, at - CONTEXT_CHARS), at),
-      after: folded.slice(at + needle.length, at + needle.length + CONTEXT_CHARS),
+      before: collapsed.text.slice(
+        Math.max(0, position - CONTEXT_CHARS),
+        position,
+      ),
+      after: collapsed.text.slice(end, end + CONTEXT_CHARS),
     });
   }
 

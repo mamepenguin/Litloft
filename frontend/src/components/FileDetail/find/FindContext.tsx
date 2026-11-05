@@ -42,6 +42,7 @@ const EMPTY_MARKS: FindMarksValue = {
 
 const FindContext = createContext<FindContextValue>(EMPTY_FIND);
 const FindMarksContext = createContext<FindMarksValue>(EMPTY_MARKS);
+const FindTextBodyContext = createContext(false);
 
 export function FindProvider({
   value,
@@ -72,4 +73,21 @@ export function useFind(): FindContextValue {
 /** Read by the text viewers; the bar's own state is not their concern. */
 export function useFindMarks(): FindMarksValue {
   return useContext(FindMarksContext);
+}
+
+/** Marks the subtree that renders the file's own text, as opposed to a summary of it. */
+export function FindTextBodyProvider({
+  children,
+}: {
+  children: ReactNode;
+}): ReactElement {
+  return (
+    <FindTextBodyContext.Provider value={true}>
+      {children}
+    </FindTextBodyContext.Provider>
+  );
+}
+
+export function useFindTextBody(): boolean {
+  return useContext(FindTextBodyContext);
 }

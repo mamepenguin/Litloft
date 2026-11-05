@@ -36,7 +36,7 @@ import { buildInspectorTabs } from "./inspector/tabs";
 import { FindBar } from "./find/FindBar";
 import { FindButton } from "./find/FindButton";
 import { FindTab } from "./find/FindTab";
-import { useFind } from "./find/FindContext";
+import { FindTextBodyProvider, useFind } from "./find/FindContext";
 import type { CompanionMetrics } from "./hooks/useCompanionMetrics";
 import type { SlotAvailability } from "./hooks/useSlotAvailability";
 import { slotAvailabilityKey } from "./hooks/useSlotAvailability";
@@ -490,17 +490,19 @@ export function ShellLayout({
           {isHtmlPreview ? (
             <FilePreview file={file} />
           ) : (
-            <AddonSlot
-              id="file-detail-sections"
-              layout="stack"
-              includeIds={["knowledge-edit"]}
-              props={{
-                ...addonSlotProps,
-                fillHeight: true,
-                highlight,
-                ...(plainTextDocument ? { plainTextDocument: true } : {}),
-              }}
-            />
+            <FindTextBodyProvider>
+              <AddonSlot
+                id="file-detail-sections"
+                layout="stack"
+                includeIds={["knowledge-edit"]}
+                props={{
+                  ...addonSlotProps,
+                  fillHeight: true,
+                  highlight,
+                  ...(plainTextDocument ? { plainTextDocument: true } : {}),
+                }}
+              />
+            </FindTextBodyProvider>
           )}
         </div>
         {!isMobile && !isHtmlPreview && (

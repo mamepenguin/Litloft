@@ -23,6 +23,7 @@ const shared = vi.hoisted(() => ({
   citation: undefined as string | undefined,
   intelligenceInSlots: true,
   pdfViewer: false,
+  pdfText: [] as string[],
 }));
 
 vi.mock("next-intl", async () => {
@@ -87,16 +88,64 @@ vi.mock("@/components/TreeToggle", () => ({
 }));
 vi.mock("@/components/ImageGallery", () => ({ ImageGallery: () => null }));
 
-vi.mock("react-pdf", () => ({
-  pdfjs: { GlobalWorkerOptions: {} },
-  Document: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
-  Page: () => <div data-testid="pdf-page" />,
-}));
+vi.mock("react-pdf", async () => {
+  const React = await import("react");
+  function MockPage({
+    pageNumber,
+    onRenderTextLayerSuccess,
+  }: {
+    pageNumber: number;
+    onRenderTextLayerSuccess?: () => void;
+  }) {
+    // react-pdf keeps the previous page's text layer for the commit in which
+    // `pageNumber` changes, then swaps it once the new page has loaded.
+    const [textPage, setTextPage] = React.useState(pageNumber);
+    React.useEffect(() => {
+      setTextPage(pageNumber);
+    }, [pageNumber]);
+    React.useEffect(() => {
+      if (textPage === pageNumber) onRenderTextLayerSuccess?.();
+    }, [textPage, pageNumber, onRenderTextLayerSuccess]);
+    return (
+      <div
+        className="react-pdf__Page"
+        data-testid="pdf-page"
+        data-page-number={pageNumber}
+      >
+        <div className="react-pdf__Page__textContent textLayer">
+          <span>{shared.pdfText[textPage - 1] ?? ""}</span>
+        </div>
+      </div>
+    );
+  }
+  function MockDocument({
+    children,
+    onLoadSuccess,
+  }: {
+    children?: ReactNode;
+    onLoadSuccess?: (pdf: unknown) => void;
+  }) {
+    React.useEffect(() => {
+      onLoadSuccess?.({
+        numPages: Math.max(1, shared.pdfText.length),
+        getViewerPreferences: async () => null,
+        getOutline: async () => null,
+      });
+    }, [onLoadSuccess]);
+    return <div>{children}</div>;
+  }
+  return {
+    pdfjs: { GlobalWorkerOptions: {} },
+    Document: MockDocument,
+    Page: MockPage,
+  };
+});
 
 vi.mock("../../FilePreview", async () => {
   const { MarkdownPreview } = await import("../../MarkdownPreview");
   const { TextLines } = await import("../../TextLines");
   const { PdfPreview } = await import("../../PdfPreview");
+  const { FindTextBodyProvider } = await import("../find/FindContext");
   // The real viewer is lazily loaded, so it lands after the bar has opened
   // and selected its query.
   function DeferredPdf({
@@ -146,12 +195,14 @@ vi.mock("../../FilePreview", async () => {
           )}
           {shared.markdown !== null && (
             <div data-testid="markdown-body">
-              <MarkdownPreview
-                source={shared.markdown}
-                chrome={false}
-                mermaid={false}
-                highlight={shared.citation}
-              />
+              <FindTextBodyProvider>
+                <MarkdownPreview
+                  source={shared.markdown}
+                  chrome={false}
+                  mermaid={false}
+                  highlight={shared.citation}
+                />
+              </FindTextBodyProvider>
             </div>
           )}
           {shared.plainText !== null && (
@@ -224,7 +275,11 @@ vi.mock("@/lib/api", () => ({
   dislikeFile: async () => undefined,
   updateFile: async () => undefined,
 }));
-vi.mock("@/lib/recentlyPlayed", () => ({ addRecentlyPlayed: () => {} }));
+vi.mock("@/lib/recentlyPlayed", () => ({
+  addRecentlyPlayed: () => {},
+  getSavedProgress: () => null,
+  saveProgress: () => {},
+}));
 vi.mock("../../SidebarProvider", async () => {
   const harness = await import("./harness");
   return { useSidebar: harness.useSidebarStub, useOverlaySidebar: harness.overlaySidebarSpy };
@@ -1456,6 +1511,115 @@ describe("SPEC-CORE-028 I5 find marks in a rendered MarkdownPreview", () => {
         const inBody = scrolled.filter((el) => body.contains(el));
         expect(inBody.at(-1)).toBe(marks[expected]);
       });
+    } finally {
+      Element.prototype.scrollIntoView = original;
+    }
+  });
+
+  it("takes the body occurrence when the frontmatter holds the term too", async () => {
+    const note = [
+      "---",
+      "title: needle notes",
+      "---",
+      "The opening paragraph runs long enough that the snippet starts below the frontmatter and ends here.",
+      "",
+      "needle starts the second paragraph.",
+      "",
+      "Later text needle end.",
+    ].join("\n");
+    shared.markdown = note;
+    const at = note.indexOf(`${TERM} starts`);
+    const snippet = note.slice(Math.max(0, at - 80), at + TERM.length + 80);
+    const bodyRow = {
+      kind: "text" as const,
+      ordinal: 2,
+      snippet,
+      match_start: at - Math.max(0, at - 80),
+      match_length: TERM.length,
+    };
+    reply = () => answer([bodyRow]);
+    const scrolled: Element[] = [];
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function scrollIntoView(this: Element) {
+      scrolled.push(this);
+    };
+    try {
+      await openPage(PDF);
+      const body = await screen.findByTestId("markdown-body");
+      const input = await openBar();
+      typeInto(input, TERM);
+      await findCount("1 件");
+
+      enter(input);
+
+      await waitFor(() => {
+        const current = body.querySelector("mark.find-mark-current");
+        expect(current).not.toBeNull();
+        expect(current!.nextSibling?.textContent ?? "").toMatch(/^ starts/);
+        expect(scrolled.filter((el) => body.contains(el)).at(-1)).toBe(current);
+      });
+    } finally {
+      Element.prototype.scrollIntoView = original;
+    }
+  });
+});
+
+describe("SPEC-CORE-028 I5 find marks in the inline PDF viewer", () => {
+  function textLayerOf(pageNumber: number): HTMLElement {
+    const page = Array.from(
+      document.querySelectorAll<HTMLElement>(".react-pdf__Page"),
+    ).find((el) => el.dataset.pageNumber === String(pageNumber));
+    if (!page) throw new Error(`no rendered page ${pageNumber}`);
+    const layer = page.querySelector<HTMLElement>(
+      ".react-pdf__Page__textContent",
+    );
+    if (!layer) throw new Error(`page ${pageNumber} has no text layer`);
+    return layer;
+  }
+
+  const marksIn = (root: ParentNode, current = false) =>
+    Array.from(
+      root.querySelectorAll(
+        current ? "mark.find-mark-current" : "mark.find-mark",
+      ),
+    );
+
+  it("marks the text layer, outlines the row's own page, and clears on close", async () => {
+    shared.pdfViewer = true;
+    shared.pdfText = [
+      "page one has a needle here",
+      "page two has another needle there",
+    ];
+    const pageTwo = shared.pdfText[1];
+    reply = () => answer([row("page", pageTwo, { page: 2 })]);
+    const scrolled: Element[] = [];
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function scrollIntoView(this: Element) {
+      scrolled.push(this);
+    };
+    try {
+      await openPage(PDF);
+      const input = await openBar();
+      typeInto(input, TERM);
+      await findCount("1 件");
+
+      await waitFor(() => expect(marksIn(textLayerOf(1))).toHaveLength(1));
+      expect(marksIn(textLayerOf(1), true)).toHaveLength(0);
+
+      enter(input);
+      await findCount("1 / 1");
+
+      await waitFor(() => {
+        const layer = textLayerOf(2);
+        expect(marksIn(layer)).toHaveLength(1);
+        const current = marksIn(layer, true);
+        expect(current).toHaveLength(1);
+        expect(scrolled.at(-1)).toBe(current[0]);
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: "検索を閉じる" }));
+
+      await waitFor(() => expect(marksIn(textLayerOf(2))).toHaveLength(0));
     } finally {
       Element.prototype.scrollIntoView = original;
     }

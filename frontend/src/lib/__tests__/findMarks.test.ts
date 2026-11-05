@@ -94,6 +94,24 @@ describe("chooseCurrentOccurrence", () => {
   it("answers null when the unit holds no occurrence", () => {
     expect(chooseCurrentOccurrence([], row("nothing here", 1))).toBeNull();
   });
+
+  it("collapses whitespace before taking the windows, so a paragraph break still matches", () => {
+    const stored = [
+      "First para ends here.",
+      "",
+      "needle starts para two.",
+      "",
+      "Other text needle end.",
+    ].join("\n");
+    const rendered = stored.replace(/\n\n/g, "\n");
+    const layer = textLayer(`<span>${rendered}</span>`);
+
+    markFindOccurrences(layer, TERM, row(stored, 2));
+
+    const current = layer.querySelector("mark.find-mark-current");
+    expect(current).not.toBeNull();
+    expect(current!.nextSibling?.textContent ?? "").toMatch(/^ starts/);
+  });
 });
 
 function textLayer(html: string): HTMLDivElement {

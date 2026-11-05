@@ -128,6 +128,7 @@ export function PdfPreview({
   const pageBoxRef = useRef<HTMLDivElement>(null);
   const pageSectionRef = useRef<HTMLElement>(null);
   const [, setTextLayerRevision] = useState(0);
+  const textLayerPageRef = useRef<number | null>(null);
   const [pageBox, setPageBox] = useState<PageBox | null>(null);
   const [zoomMode, setZoomMode] = useState<PdfZoomMode>(DEFAULT_PDF_ZOOM_MODE);
   const [renderFailed, setRenderFailed] = useState(false);
@@ -374,6 +375,10 @@ export function PdfPreview({
   );
 
   const handleTextLayerRendered = useCallback(() => {
+    // The layer that just rendered is the page currently in the DOM. A page
+    // turn keeps the previous layer mounted for one commit, so the current
+    // mark must wait for this signal rather than trust `page`.
+    textLayerPageRef.current = pageRef.current;
     setTextLayerRevision((value) => value + 1);
   }, []);
 
@@ -538,7 +543,10 @@ export function PdfPreview({
       pageSectionRef.current?.querySelector<HTMLElement>(
         ".react-pdf__Page__textContent",
       ) ?? null,
-    (row) => row.kind === "page" && row.page === page,
+    (row) =>
+      row.kind === "page" &&
+      row.page === page &&
+      row.page === textLayerPageRef.current,
   );
 
   return (
