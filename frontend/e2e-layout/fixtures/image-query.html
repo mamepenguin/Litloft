@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>image query — layout fixture</title>
+    <link rel="stylesheet" href="./globals.built.css" />
+  </head>
+  <body>
+    <!-- The image query view's header: the image chip and the field share the
+         content width at a phone width; the image button sits in the field's
+         row at desktop width. -->
+    <header id="header" class="flex flex-col gap-1 px-4 py-2">
+      <div class="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:gap-3">
+        <div class="min-w-0 sm:flex-1">
+          <h1 class="sr-only text-2xl font-bold text-text-primary">Image search</h1>
+          <div id="field-row" class="relative flex min-w-0 items-center gap-2">
+            <span id="chip" class="flex shrink-0 items-center gap-1 rounded-full bg-sand py-1 pl-1 pr-1.5">
+              <span class="h-7 w-7 rounded-lg bg-bg-elevated"></span>
+              <span class="text-xs font-semibold text-text-primary">Image</span>
+              <button
+                type="button"
+                aria-label="Remove image"
+                class="rounded-full p-0.5 text-text-muted"
+              >
+                ×
+              </button>
+            </span>
+            <input
+              id="field"
+              type="text"
+              aria-label="Search query"
+              class="min-w-0 flex-1 bg-transparent px-1 py-1.5 text-lg text-text-primary outline-none"
+            />
+            <button
+              id="desktop-button"
+              type="button"
+              aria-label="Search by image"
+              class="hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg text-text-muted sm:flex"
+            >
+              +
+            </button>
+          </div>
+          <div id="phone-row" class="mt-2 flex flex-wrap items-center gap-2 sm:hidden">
+            <button
+              id="phone-pill"
+              type="button"
+              class="inline-flex min-h-11 items-center gap-1 rounded-full bg-sand px-3 py-1.5 text-sm text-text-primary"
+            >
+              Search by image
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- The modal's phone row: the image pill starts the row under the input. -->
+    <div id="modal" class="px-4 py-2">
+      <div class="flex items-center gap-2">
+        <input
+          id="modal-input"
+          type="text"
+          aria-label="Search"
+          class="w-full rounded-full bg-sand px-4 py-2 text-base text-text-primary outline-none"
+        />
+      </div>
+      <div class="px-4 pb-2">
+        <button
+          id="modal-pill"
+          type="button"
+          class="inline-flex min-h-11 items-center gap-1 rounded-full bg-sand px-3 py-1.5 text-sm text-text-primary"
+        >
+          Search by image
+        </button>
+      </div>
+    </div>
+
+    <script>
+      window.measureImageQuery = function () {
+        const box = (el) => {
+          if (!el) return null;
+          const r = el.getBoundingClientRect();
+          return {
+            top: r.top,
+            bottom: r.bottom,
+            left: r.left,
+            right: r.right,
+            width: r.width,
+            height: r.height,
+          };
+        };
+        const header = document.getElementById("header");
+        const style = getComputedStyle(header);
+        return {
+          viewport: { width: window.innerWidth, height: window.innerHeight },
+          documentWidth: document.documentElement.clientWidth,
+          documentScrollWidth: document.documentElement.scrollWidth,
+          header: box(header),
+          contentWidth:
+            header.clientWidth -
+            parseFloat(style.paddingLeft) -
+            parseFloat(style.paddingRight),
+          fieldRow: box(document.getElementById("field-row")),
+          chip: box(document.getElementById("chip")),
+          field: box(document.getElementById("field")),
+          phonePill: box(document.getElementById("phone-pill")),
+          modalPill: box(document.getElementById("modal-pill")),
+          desktopButton: box(document.getElementById("desktop-button")),
+          desktopButtonDisplay: getComputedStyle(
+            document.getElementById("desktop-button"),
+          ).display,
+        };
+      };
+      document.body.dataset.ready = "1";
+    </script>
+  </body>
+</html>

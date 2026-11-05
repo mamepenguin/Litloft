@@ -16,22 +16,24 @@ import en from "@/messages-core/en.json";
 const SRC_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 const CALLERS: Record<string, number> = {
-  "app/drive/[name]/search/page.tsx": 2,
-  "components/FolderBrowser.tsx": 6,
+  "app/drive/[name]/search/page.tsx": 5,
+  "components/FolderBrowser.tsx": 9,
   "components/folder/FolderContent.tsx": 1,
-  "components/GlobalSearch.tsx": 7,
+  "components/GlobalSearch.tsx": 12,
   // Two each: the badge words come from `MATCH_BADGES`, and `matchedPages`
   // and `matchedSectionNumber` are the lines that are not a badge.
   "components/MatchOverlay.tsx": 2,
+  "components/search/ImageQueryViewPresenter.tsx": 24,
   "components/search/MergedResultItem.tsx": 2,
   "components/search/PassageList.tsx": 12,
   "components/search/ScopedSearchParts.tsx": 6,
   "components/search/SearchEmptyState.tsx": 4,
   "components/search/SearchFilterChips.tsx": 5,
   "components/search/SearchFooter.tsx": 2,
-  "components/search/SearchQueryHeader.tsx": 12,
+  "components/search/SearchQueryHeader.tsx": 15,
   "components/search/SearchResultsList.tsx": 2,
   "components/search/useLauncherRows.ts": 1,
+  "components/UploadZone.tsx": 1,
   // None by name: the legend draws every word it shows out of
   // `MATCH_BADGES`.
   "components/search/MatchLegend.tsx": 0,
@@ -92,7 +94,7 @@ describe("the search vocabulary core draws", () => {
     ].sort();
     // The check below is true of no keys at all, so the population is
     // asserted first.
-    expect(used.length).toBe(70);
+    expect(used.length).toBe(93);
     const missing = used.filter((key) => !(key in namespaces[locale]));
     // Named, not counted: a failure should say which word is missing.
     expect(missing).toEqual([]);
