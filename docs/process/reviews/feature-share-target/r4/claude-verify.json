@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "No findings were listed, so there was nothing to verify. I did not independently audit invariants I1 to I10 against the code."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Not assessed. No code was read in this verification pass."
+  ],
+  "test_coverage": [
+    "Not assessed. No tests were read."
+  ],
+  "not_verified": [
+    "I did not read any code at commit 93c76a0a1.",
+    "I did not check invariants I1 to I10 against the implementation.",
+    "I did not look for defects the other reviewers missed, because the findings list was empty and I did not review the diff independently."
+  ],
+  "confidence": 70
+}

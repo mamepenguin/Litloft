@@ -13,5 +13,9 @@
 	<array>
 		<string>audio</string>
 	</array>
+	<key>LITLOFTAppGroup</key>
+	<string>$(LITLOFT_APP_GROUP)</string>
+	<key>LITLOFTKeychainGroup</key>
+	<string>$(LITLOFT_KEYCHAIN_GROUP)</string>
 </dict>
 </plist>

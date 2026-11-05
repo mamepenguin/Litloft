@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "ShareSendQueue.swift:235 derives .again only when the current state is .unknown. On an .again retry, an init transport error that is not 'unreachable' returns .failed(.genericFailure) (line 386, via outcome(for:unanswered:)). An unreachable or local-network-denied error returns .stopped, which run() maps to .failed at lines 244-249 and 247-249. Either way the state becomes .failed and the 'may have landed' knowledge is lost. The next retry()/retryItem() then uses .first. A 409 at line 402-413 takes a ' (N)' suffix, so a second copy of the file is uploaded. This breaks I6/I7 ('a retry never takes a suffix'). The test only covers unknown to saved in one retry."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "needs_human",
+      "note": "The behaviour is as described: ShareSendQueue.swift:451-452 catches every ShareAPIError on /complete (including .transport(.notConnectedToInternet) and .cannotConnectToHost) and goes to pollForFile (line 461). byPath errors are swallowed by try? (line 533), so the loop runs for the whole window (at least 120 s) and ends in .unknown. Neither .stopped(.cannotReach) nor localNetworkDenied is applied there, unlike init and chunk (outcome(for:) at line 542 and line 511). Whether this is a defect depends on whether the spec's 'unanswered /complete' includes unreachable transport errors; I6 can be read both ways (the request may have reached the server before the link dropped). The spec text does not settle it, so the human should decide."
+    }
+  ],
+  "specification_compliance": [
+    "I6/I7: a retry after an unknown item whose retry init fails loses the original-name rule (F1).",
+    "I6 stop rule for unreachable/denied is not applied at /complete (F2, spec ambiguous)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Fixing F1 requires carrying an 'unknown' flag across failed states in ShareItemStatus or the queue; the retry/offers logic and tests depend on the current state."
+  ],
+  "test_coverage": [
+    "Only the single-step unknown to saved retry was checked as described by the reader. I did not read the test files myself."
+  ],
+  "not_verified": [
+    "I did not read the tests, so I could not check the claim that barRetryUnknownUsesOriginalName covers only one retry.",
+    "I did not read the rest of the spec's section 8 table beyond the grep hits.",
+    "I did not check the other invariants (I1-I5, I8-I10) or any non-queue file."
+  ],
+  "confidence": 80
+}

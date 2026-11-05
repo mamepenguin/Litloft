@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The `ServerAddress` enum was moved out of `ios/Litloft/Settings/ServerSettings.swift` into a new file `ios/Litloft/Share/ServerAddress.swift`, and that file is compiled into the extension target. Neither the move nor the new file is in the touch-point list.",
+      "impact": "Every caller of `ServerAddress.parse` now depends on a file shared with the extension, and a change to it affects the app's address validation and the extension's read of `share.server`. A reader of the touch-point list would not expect to look there.",
+      "evidence": "The diff deletes about 40 lines of `enum ServerAddress` from ServerSettings.swift. It adds Litloft/Share/ServerAddress.swift with the same body. pbxproj adds ServerAddress.swift (AA...56/57) to the LitloftShare Sources phase. The touch points name only SharedSession, the destination resolver, the folder validator and the filename port under `Share/`.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Behaviour is unchanged (a verbatim move) and no declared invariant is broken. The spec list is incomplete.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The change reaches build-configuration surfaces that the touch points do not list: a new `LITLOFT_KEYCHAIN_GROUP` xcconfig variable, `keychain-access-groups` in both entitlements files, and custom Info.plist keys `LITLOFTAppGroup` and `LITLOFTKeychainGroup` in both the app and the extension. The listed `NSLocalNetworkUsageDescription` is not added to `Litloft-Info.plist`.",
+      "impact": "The keychain access group and the App Group lookup now depend on Info.plist values expanded at build time. A build without a team falls back silently to the bare group (`configured` returns nil), so the mirror and the extension could use different keychain scopes. The app has no local-network usage string, though the spec lists one.",
+      "evidence": "Shared.xcconfig adds LITLOFT_KEYCHAIN_GROUP. Litloft.entitlements and LitloftShare.entitlements add keychain-access-groups. The Litloft-Info.plist diff adds only LITLOFTAppGroup and LITLOFTKeychainGroup, and has no NSLocalNetworkUsageDescription. LitloftShare/Info.plist has it.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Not covered by a declared invariant. I5's behaviour is not shown to break, and the missing app usage string is a spec/plist mismatch.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "The frontend test `frontend/src/__tests__/inboxPage.test.tsx` was edited (a Shared label test and a ja.json key check) but is not in the touch-point list. Only `quickNoteFilename` tests and the fixture are listed for the frontend.",
+      "impact": "This is test-only, with no runtime effect. The touch-point list undercounts the files a reviewer must read.",
+      "evidence": "The diff adds `SPEC-CORE-033 labels a shared arrival Shared` and a ja key assertion, and imports `@/messages-core/ja.json` in inboxPage.test.tsx.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The test supports I1 and the label, and breaks no invariant. Only the list is incomplete.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "SPEC-CORE-033 backend: the Literal, the I18N_KEYS lookup and the complete_upload change match I2, and the tests cover 422 values, both keys, the sidecar and the broadcast.",
+    "The frontend sourceShare keys and the fixture match the touch points.",
+    "Litloft-Info.plist lacks the listed NSLocalNetworkUsageDescription (see F2).",
+    "Outside the touch points: ServerAddress move (F1), the keychain-group build plumbing (F2), and the inboxPage test (F3)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "`CookieStoreObserverRegistry` is a process-global singleton keyed by ObjectIdentifier; it is not in the spec.",
+    "`ShareSendQueue` treats a `.networkConnectionLost` on `/complete` as an unanswered request and polls, but treats `.notConnectedToInternet` as unreachable and stops. In the latter case the item is marked failed although the server may have received `/complete`."
+  ],
+  "regression_risks": [
+    "Moving ServerAddress could change which target compiles it. The app picks it up through the synchronized Litloft group, while the extension lists it explicitly.",
+    "`forget()` now enumerates and deletes `share.` keys on every call, and its `GroupSharedSession()` default is built in `ServerSettings.init`. The existing ServerSettings tests may now touch the real group defaults and keychain."
+  ],
+  "test_coverage": [
+    "Backend arrival tests cover the accepted and rejected values and the share key. The frontend label and the fixture are covered. I did not see the iOS tests, because the diff was truncated."
+  ],
+  "not_verified": [
+    "The diff was cut at 200000 bytes, so I did not read the rest of ShareSheetView.swift, ShareViewController.swift, ShareStrings.swift or the iOS tests. Further unplanned files may exist there.",
+    "I did not check that the pbxproj compiles. I did not check the LitloftTests target membership (the diff shows odd PBXBuildFile entries) or the Xcode synchronized-group behaviour.",
+    "I did not run any tests or the app."
+  ],
+  "confidence": 72
+}

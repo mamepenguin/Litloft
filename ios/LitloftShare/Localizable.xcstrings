@@ -1,0 +1,228 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "share.cancel" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Cancel" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "キャンセル" } }
+      }
+    },
+    "share.cannotReach" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Can't reach Litloft" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Litloft に接続できません" } }
+      }
+    },
+    "share.checking" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Checking" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "確認しています" } }
+      }
+    },
+    "share.clipUnavailable" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Couldn't make a web clip" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Web クリップを作れません" } }
+      }
+    },
+    "share.close" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Close" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "閉じる" } }
+      }
+    },
+    "share.connectFirst" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Open Litloft and connect to your server" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Litloft を開いてサーバーに接続してください" } }
+      }
+    },
+    "share.destination" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Save to" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "保存先" } }
+      }
+    },
+    "share.diskFull" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Not enough space on the server" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "空き容量が足りません" } }
+      }
+    },
+    "share.drive" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Drive" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ドライブ" } }
+      }
+    },
+    "share.driveNotAvailable" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Can't save to this drive" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "このドライブには保存できません" } }
+      }
+    },
+    "share.fileTooLarge" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "File is too large" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ファイルが大きすぎます" } }
+      }
+    },
+    "share.fileTooLargeLimit %lld" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "File is too large (limit %lld GB)" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ファイルが大きすぎます（上限 %lld GB）" } }
+      }
+    },
+    "share.folder" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Folder" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "フォルダ" } }
+      }
+    },
+    "share.foldersNotLoaded" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Couldn't load folders" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "フォルダを読み込めません" } }
+      }
+    },
+    "share.genericFailure" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Couldn't save" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "保存できませんでした" } }
+      }
+    },
+    "share.itemsCount %lld" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "%lld items" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "%lld 件" } }
+      }
+    },
+    "share.linkNote" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Link note" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "リンクのメモ" } }
+      }
+    },
+    "share.localNetworkDenied" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Local network access is off for Litloft" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ローカルネットワークへのアクセスが許可されていません" } }
+      }
+    },
+    "share.lockedHint" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Unlock locked drives in Litloft to choose them" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "鍵のかかったドライブは Litloft で解錠すると選べます" } }
+      }
+    },
+    "share.noDrives" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "No drive to save to" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "保存先のドライブがありません" } }
+      }
+    },
+    "share.nothingToSave" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Nothing here can be saved" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "保存できるものがありません" } }
+      }
+    },
+    "share.note" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Note" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "メモ" } }
+      }
+    },
+    "share.openSettings" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Open Settings" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "設定を開く" } }
+      }
+    },
+    "share.preparing" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Preparing" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "準備しています" } }
+      }
+    },
+    "share.retry" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Retry" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "再試行" } }
+      }
+    },
+    "share.root" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Root" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ルート" } }
+      }
+    },
+    "share.save" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Save" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "保存" } }
+      }
+    },
+    "share.saveAgain" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Save again" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "もう一度保存" } }
+      }
+    },
+    "share.saveAsLink" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Save as link" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "リンクとして保存" } }
+      }
+    },
+    "share.saveHere" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Save here" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ここに保存" } }
+      }
+    },
+    "share.saved" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Saved" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "保存しました" } }
+      }
+    },
+    "share.textTooLarge" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Text is too long (up to 1 MB)" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "テキストが大きすぎます（1 MB まで）" } }
+      }
+    },
+    "share.tooManyWithThisName" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Too many files with this name" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "同じ名前のファイルが多すぎます" } }
+      }
+    },
+    "share.unknown" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Couldn't confirm it was saved" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "保存されたか確認できません" } }
+      }
+    },
+    "share.up" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Up" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "上へ" } }
+      }
+    },
+    "share.waiting" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Waiting" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "待機中" } }
+      }
+    },
+    "share.webClip" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Web clip" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Web クリップ" } }
+      }
+    }
+  },
+  "version" : "1.0"
+}

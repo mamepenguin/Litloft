@@ -287,6 +287,11 @@ struct WebView: UIViewRepresentable {
             pageOnScreen = true
             model.setImmersive(false)
             player?.stopForNavigation()
+            // A commit means the default store has loaded its cookies, so the
+            // mirror can copy them without erasing a session still loading.
+            if let url = webView.url, SessionItem.origin(of: url) == model.sessionMirror.origin {
+                model.sessionMirror.arm()
+            }
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {

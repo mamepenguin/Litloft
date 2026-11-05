@@ -6,6 +6,28 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		AA00000000000000000041 /* SharedSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000031 /* SharedSession.swift */; };
+		AA00000000000000000042 /* ShareDestination.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000032 /* ShareDestination.swift */; };
+		AA00000000000000000043 /* QuickNoteFilename.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000033 /* QuickNoteFilename.swift */; };
+		AA00000000000000000057 /* ServerAddress.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000056 /* ServerAddress.swift */; };
+		AA00000000000000000044 /* ShareClassifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000034 /* ShareClassifier.swift */; };
+		AA00000000000000000045 /* ShareNote.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000035 /* ShareNote.swift */; };
+		AA00000000000000000046 /* ShareAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000036 /* ShareAPIClient.swift */; };
+		AA00000000000000000047 /* ShareSendQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000037 /* ShareSendQueue.swift */; };
+		AA00000000000000000048 /* ShareSheetModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000038 /* ShareSheetModel.swift */; };
+		AA00000000000000000049 /* ShareSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000039 /* ShareSheetView.swift */; };
+		AA0000000000000000004A /* ShareStrings.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003A /* ShareStrings.swift */; };
+		AA0000000000000000004B /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003B /* ShareViewController.swift */; };
+		AA0000000000000000004C /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003C /* Localizable.xcstrings */; };
+		AA00000000000000000051 /* ShareClassifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000034 /* ShareClassifier.swift */; };
+		AA00000000000000000052 /* ShareNote.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000035 /* ShareNote.swift */; };
+		AA00000000000000000053 /* ShareAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000036 /* ShareAPIClient.swift */; };
+		AA00000000000000000054 /* ShareSendQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000037 /* ShareSendQueue.swift */; };
+		AA00000000000000000055 /* ShareSheetModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000038 /* ShareSheetModel.swift */; };
+		AA0000000000000000002C /* LitloftShare.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = AA00000000000000000021 /* LitloftShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		AA00000000000000000018 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -14,6 +36,13 @@
 			remoteGlobalIDString = AA00000000000000000004;
 			remoteInfo = Litloft;
 		};
+		AA00000000000000000029 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AA00000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AA00000000000000000022;
+			remoteInfo = LitloftShare;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
@@ -21,6 +50,20 @@
 		AA00000000000000000010 /* Litloft-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Litloft-Info.plist"; sourceTree = "<group>"; };
 		AA00000000000000000012 /* LitloftTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LitloftTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA00000000000000000020 /* Shared.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Shared.xcconfig; path = Config/Shared.xcconfig; sourceTree = "<group>"; };
+		AA00000000000000000021 /* LitloftShare.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = LitloftShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA00000000000000000031 /* SharedSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Litloft/Share/SharedSession.swift; sourceTree = "<group>"; };
+		AA00000000000000000032 /* ShareDestination.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Litloft/Share/ShareDestination.swift; sourceTree = "<group>"; };
+		AA00000000000000000033 /* QuickNoteFilename.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Litloft/Share/QuickNoteFilename.swift; sourceTree = "<group>"; };
+		AA00000000000000000034 /* ShareClassifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LitloftShare/ShareClassifier.swift; sourceTree = "<group>"; };
+		AA00000000000000000035 /* ShareNote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LitloftShare/ShareNote.swift; sourceTree = "<group>"; };
+		AA00000000000000000036 /* ShareAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LitloftShare/ShareAPIClient.swift; sourceTree = "<group>"; };
+		AA00000000000000000037 /* ShareSendQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LitloftShare/ShareSendQueue.swift; sourceTree = "<group>"; };
+		AA00000000000000000038 /* ShareSheetModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LitloftShare/ShareSheetModel.swift; sourceTree = "<group>"; };
+		AA00000000000000000039 /* ShareSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LitloftShare/ShareSheetView.swift; sourceTree = "<group>"; };
+		AA0000000000000000003A /* ShareStrings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LitloftShare/ShareStrings.swift; sourceTree = "<group>"; };
+		AA0000000000000000003B /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LitloftShare/ShareViewController.swift; sourceTree = "<group>"; };
+		AA0000000000000000003C /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = LitloftShare/Localizable.xcstrings; sourceTree = "<group>"; };
+		AA00000000000000000056 /* ServerAddress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Litloft/Share/ServerAddress.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -35,6 +78,20 @@
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		AA0000000000000000002B /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				AA0000000000000000002C /* LitloftShare.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		AA00000000000000000007 /* Frameworks */ = {
@@ -51,6 +108,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AA00000000000000000024 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -59,16 +123,38 @@
 			children = (
 				AA00000000000000000009 /* Litloft */,
 				AA00000000000000000011 /* LitloftTests */,
+				AA0000000000000000003D /* LitloftShare */,
 				AA00000000000000000010 /* Litloft-Info.plist */,
 				AA00000000000000000020 /* Shared.xcconfig */,
 				AA00000000000000000003 /* Products */,
 			);
 			sourceTree = "<group>";
 		};
+		AA0000000000000000003D /* LitloftShare */ = {
+			isa = PBXGroup;
+			children = (
+				AA00000000000000000031 /* SharedSession.swift */,
+				AA00000000000000000032 /* ShareDestination.swift */,
+				AA00000000000000000033 /* QuickNoteFilename.swift */,
+				AA00000000000000000056 /* ServerAddress.swift */,
+				AA00000000000000000034 /* ShareClassifier.swift */,
+				AA00000000000000000035 /* ShareNote.swift */,
+				AA00000000000000000036 /* ShareAPIClient.swift */,
+				AA00000000000000000037 /* ShareSendQueue.swift */,
+				AA00000000000000000038 /* ShareSheetModel.swift */,
+				AA00000000000000000039 /* ShareSheetView.swift */,
+				AA0000000000000000003A /* ShareStrings.swift */,
+				AA0000000000000000003B /* ShareViewController.swift */,
+				AA0000000000000000003C /* Localizable.xcstrings */,
+			);
+			name = LitloftShare;
+			sourceTree = "<group>";
+		};
 		AA00000000000000000003 /* Products */ = {
 			isa = PBXGroup;
 			children = (
 				AA00000000000000000005 /* Litloft.app */,
+				AA00000000000000000021 /* LitloftShare.appex */,
 				AA00000000000000000012 /* LitloftTests.xctest */,
 			);
 			name = Products;
@@ -84,10 +170,12 @@
 				AA00000000000000000006 /* Sources */,
 				AA00000000000000000007 /* Frameworks */,
 				AA00000000000000000008 /* Resources */,
+				AA0000000000000000002B /* Embed App Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				AA0000000000000000002A /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				AA00000000000000000009 /* Litloft */,
@@ -118,6 +206,23 @@
 			productReference = AA00000000000000000012 /* LitloftTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		AA00000000000000000022 /* LitloftShare */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA00000000000000000026 /* Build configuration list for PBXNativeTarget "LitloftShare" */;
+			buildPhases = (
+				AA00000000000000000023 /* Sources */,
+				AA00000000000000000024 /* Frameworks */,
+				AA00000000000000000025 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = LitloftShare;
+			productName = LitloftShare;
+			productReference = AA00000000000000000021 /* LitloftShare.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -134,6 +239,9 @@
 					AA00000000000000000013 = {
 						CreatedOnToolsVersion = 26.5;
 						TestTargetID = AA00000000000000000004;
+					};
+					AA00000000000000000022 = {
+						CreatedOnToolsVersion = 26.5;
 					};
 				};
 			};
@@ -152,6 +260,7 @@
 			projectRoot = "";
 			targets = (
 				AA00000000000000000004 /* Litloft */,
+				AA00000000000000000022 /* LitloftShare */,
 				AA00000000000000000013 /* LitloftTests */,
 			);
 		};
@@ -172,6 +281,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AA00000000000000000025 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA0000000000000000004C /* Localizable.xcstrings in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -186,6 +303,30 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AA00000000000000000051 /* ShareClassifier.swift in Sources */,
+				AA00000000000000000052 /* ShareNote.swift in Sources */,
+				AA00000000000000000053 /* ShareAPIClient.swift in Sources */,
+				AA00000000000000000054 /* ShareSendQueue.swift in Sources */,
+				AA00000000000000000055 /* ShareSheetModel.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA00000000000000000023 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA00000000000000000041 /* SharedSession.swift in Sources */,
+				AA00000000000000000042 /* ShareDestination.swift in Sources */,
+				AA00000000000000000043 /* QuickNoteFilename.swift in Sources */,
+				AA00000000000000000057 /* ServerAddress.swift in Sources */,
+				AA00000000000000000044 /* ShareClassifier.swift in Sources */,
+				AA00000000000000000045 /* ShareNote.swift in Sources */,
+				AA00000000000000000046 /* ShareAPIClient.swift in Sources */,
+				AA00000000000000000047 /* ShareSendQueue.swift in Sources */,
+				AA00000000000000000048 /* ShareSheetModel.swift in Sources */,
+				AA00000000000000000049 /* ShareSheetView.swift in Sources */,
+				AA0000000000000000004A /* ShareStrings.swift in Sources */,
+				AA0000000000000000004B /* ShareViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -196,6 +337,11 @@
 			isa = PBXTargetDependency;
 			target = AA00000000000000000004 /* Litloft */;
 			targetProxy = AA00000000000000000018 /* PBXContainerItemProxy */;
+		};
+		AA0000000000000000002A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AA00000000000000000022 /* LitloftShare */;
+			targetProxy = AA00000000000000000029 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -248,6 +394,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS = NO;
 				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_ENTITLEMENTS = Litloft/Litloft.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "$(LITLOFT_DEVELOPMENT_TEAM)";
 				ENABLE_PREVIEWS = YES;
@@ -277,6 +424,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS = NO;
 				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_ENTITLEMENTS = Litloft/Litloft.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "$(LITLOFT_DEVELOPMENT_TEAM)";
 				ENABLE_PREVIEWS = YES;
@@ -332,6 +480,56 @@
 			};
 			name = Release;
 		};
+		AA00000000000000000027 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = LitloftShare/LitloftShare.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "$(LITLOFT_DEVELOPMENT_TEAM)";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = LitloftShare/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(LITLOFT_BUNDLE_ID)$(LITLOFT_BUNDLE_ID_SUFFIX).share";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited) SHARE_EXTENSION";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		AA00000000000000000028 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = LitloftShare/LitloftShare.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "$(LITLOFT_DEVELOPMENT_TEAM)";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = LitloftShare/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(LITLOFT_BUNDLE_ID)$(LITLOFT_BUNDLE_ID_SUFFIX).share";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "SHARE_EXTENSION";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -358,6 +556,15 @@
 			buildConfigurations = (
 				AA0000000000000000001A /* Debug */,
 				AA0000000000000000001B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AA00000000000000000026 /* Build configuration list for PBXNativeTarget "LitloftShare" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA00000000000000000027 /* Debug */,
+				AA00000000000000000028 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

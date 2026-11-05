@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "After a drive 404/403 stops the queue, the drive picker calls `ShareSheetModel.pickDrive`, not `pickDriveForQueue`, so the queue's destination is never changed and the sheet returns to `.ready` with the **保存** button.",
+      "impact": "The viewer picks another drive after the stop. The sheet goes back to ready and shows Save instead of Retry. Pressing Save builds a new queue of all items, including those already saved, to the new drive. Saved items are duplicated, and the retry of the unsaved items never goes through the stopped queue.",
+      "evidence": "ios/LitloftShare/ShareSheetView.swift:372 `await model.pickDrive(drive)`. ShareSheetModel.swift:203 `pickDriveForQueue` has no caller (grep). `pickDrive` sets `state = .ready` and never touches `queue`. The toolbar shows Save when the state is not stopped(.driveNotAvailable) or finishedWithFailures. `save()` at ShareSheetModel.swift builds a new queue from `shareItems()`.",
+      "repro": "Share 3 files. Item 2 gets 404 and the queue stops (item 1 saved). Tap the drive row, choose another drive. The sheet shows Save, not Retry. Tap Save: a new queue sends all 3 files, so item 1 is saved twice. Mutation: no test calls `pickDriveForQueue`, so the tests do not catch it. Not run.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I4 says a viewer-picked drive applies to the items not yet saved after a 404/403. I6 says no file-creating request is sent twice without a retry. Saving the saved items again breaks both.",
+        "invariant_ref": "I4"
+      },
+      "severity": "HIGH",
+      "proposed_fix": "In the drive picker, call `pickDriveForQueue` when the state is stopped(.driveNotAvailable). Add a test that goes through the view path."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The queue-level `retry()` and `send()` run every non-saved item with `Attempt.first`, including items in the `unknown` state, so an unknown file upload is retried with the 409 suffix path instead of the original-name check.",
+      "impact": "After an unanswered `/complete` leaves an item `unknown`, pressing the bar's Retry (finished with failures or stopped) re-inits it. If the earlier file did land, init answers 409 and the item is uploaded again as `<stem> (1).<ext>`. This is a duplicate, and the item is never marked saved by the 409 rule.",
+      "evidence": "ShareSendQueue.swift `retry()`: `await run(statuses.indices.filter { statuses[$0].state != .saved }, attempt: .first)`. Only `retryItem(at:)` picks `.again` for `.unknown`.",
+      "repro": "Item 1: `/complete` times out, polling ends, state is unknown. Item 2 fails. Press the toolbar Retry: item 1 re-inits with `.first`, gets a 409, and is uploaded as `name (1).ext`. Not run.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I7: a retry never takes a suffix. I6: after an unanswered `/complete`, the retry's init with the original name decides, and a 409 means saved.",
+        "invariant_ref": "I7"
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Choose the attempt per item: `.again` when the item's state is `.unknown`, else `.first`."
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "A `/complete` that ends with `.notConnectedToInternet` or a similar code is treated as the server being unreachable and the queue stops with the item failed, without the by-path polling.",
+      "impact": "The server may have received `/complete` and the file may have landed. The sheet shows a failure and stops the queue. A retry then uploads again, and the file can be duplicated under a suffix.",
+      "evidence": "ShareSendQueue.swift in `sendFile`, the `/complete` catch: `if case .transport(let code) = error, Self.isUnreachable(code) { return .stopped(.cannotReach) }` before the poll.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I6 says that after an unanswered `/complete` the item is saved exactly when by-path finds its target. Stopping skips that check.",
+        "invariant_ref": "I6"
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "F4",
+      "origin": "reviewer",
+      "claim": "`ShareSheetModel.cancel()` returns right after `queue.cancel()` sets a flag, and the view then calls `onCancel`, so the extension can complete before the in-flight init answer is awaited and the opened session is deleted.",
+      "impact": "If the extension is torn down, the session that init opened is not deleted and its chunks stay on the server until restart. No file or row is created.",
+      "evidence": "ShareSendQueue.swift `cancel()` does not wait for the running `run`. ShareSheetView.swift calls `await model.cancel(); onCancel()`.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant is broken, because no file or row results. It differs from the cancel behaviour in the spec's failure cases.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    }
+  ],
+  "specification_compliance": [
+    "SPEC-CORE-033 backend (Literal, I18N_KEYS lookup, tests for 422 values, both keys, sidecar, broadcast) matches I1/I2.",
+    "Frontend sourceShare keys and the filename fixture match the touch points.",
+    "I4: the drive pick after a 404/403 is wired to the wrong method (F1).",
+    "I6/I7: unknown items retried through the bar use the suffix path (F2); an unreachable code on `/complete` skips the polling (F3).",
+    "I5: the mirror's arm/disarm/forget logic reads consistent with the invariant in the visible diff."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "ShareSheetModel.retry after a stop does not use the new destination unless the drive is picked through the queue.",
+    "The group-wide Retry reuses `.first` for every non-saved item, so any later change to the retry rules must be made per item."
+  ],
+  "test_coverage": [
+    "ShareSheetModelTests call `pickDrive` directly, and none calls `pickDriveForQueue` or goes through the view path after a stop, so F1 passes the tests.",
+    "I did not read the send queue tests in detail. A test for the bar Retry with an unknown file item is not visible."
+  ],
+  "not_verified": [
+    "The diff was truncated at ShareSheetView.swift, so ShareViewController, ShareStrings and the iOS tests were not read.",
+    "Nothing was built or run, and the keychain and App Group behaviour on a device was not checked.",
+    "The pbxproj target membership was not checked in detail."
+  ],
+  "confidence": 74,
+  "trajectory": "There are no fix commits since r1 (the fix list is empty), so there are no fix diffs to read. No round has added or removed a branch, state or prediction, and there is no sign of patching yet. The three open r1 findings were bucket B, about the touch-point list only. This review found new defects in code that r1 did not reach because its diff was truncated."
+}

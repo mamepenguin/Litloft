@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The retry attempt kind is derived only from the item's current state being unknown, so an unknown upload whose original-name retry fails before init answers (state becomes failed) is retried next as Attempt.first and takes a (N) suffix.",
+      "impact": "If the first attempt had actually landed, the second retry's init answers 409 and the file is uploaded again as '<stem> (1).<ext>'. This is a duplicate file with a second inbox row, which I7 says a retry never creates.",
+      "evidence": "ios/LitloftShare/ShareSendQueue.swift run(): `let attempt: Attempt = statuses[index].state == .unknown ? .again : .first`. In sendFile the init catch returns outcome(for:unanswered:.failed(.genericFailure)) or .stopped(.cannotReach), and run() then sets state .failed, losing the 'may already have landed' knowledge. The next retry or retryItem evaluates state == .failed and uses .first. The new test barRetryUnknownUsesOriginalName covers only unknown to saved in one retry.",
+      "repro": "Unknown file item after an unanswered /complete. Press retry; the init request times out or returns 5xx, so the item becomes failed. Press retry again with the server healthy: init answers 409 for the original name and the item uploads as 'name (1).ext'. Mutation: a test with that sequence would fail. Not run.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I7: a retry never takes a suffix; I6: the retry's init with the original name decides after an unanswered /complete.",
+        "invariant_ref": "I7"
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Keep a per-item 'maybeLanded' flag set when an item becomes unknown and cleared only when init succeeds or answers 409. Choose .again from that flag, not from the displayed state."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "After the fix, any transport error on /complete, including notConnectedToInternet or cannotConnectToHost, is polled by-path for the whole window, and the local-network-denied or unreachable stop is not applied there.",
+      "impact": "With the server really gone, the viewer waits at least 2 minutes in 'checking' before the item turns unknown. The queue-stopped state appears only when the next item's init fails.",
+      "evidence": "ShareSendQueue.swift /complete catch: `catch is ShareAPIError { if cancelling { return .cancelled } }` then pollForFile.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "I6 favours the by-path check after an unanswered /complete, so no invariant is broken. The delay is a usability cost only.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    }
+  ],
+  "specification_compliance": [
+    "I4: the drive picked after a 404/403 now goes through the queue (pickDriveForQueue called from pickDrive when a queue exists), the Retry button is shown whenever a queue exists, and the new driveAfterStop test covers the path. The earlier duplicate-save problem looks fixed.",
+    "I6/I7: the attempt kind is now chosen per item in run(), which fixes the queue-level retry for items that are unknown at that moment. A residual gap remains when the item leaves the unknown state first (F1).",
+    "I6: transport errors on /complete are polled by-path, as the invariant says.",
+    "I5: the added tests cover foreign cookie domains, a viewer without a token, and other port/scheme origins. They look consistent with the code shown."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Moving the attempt choice into run() means every path into run() now reads the item's state. Any new intermediate state between unknown and the retry changes retry semantics silently.",
+    "ServerSettings and WebViewModel now require an explicit sharedSession. Any call site missed by the fix commit fails to compile, so the risk is a build break, not a behavior change."
+  ],
+  "test_coverage": [
+    "New tests: bar retry of an unknown file keeps the original name; a dropped /complete is polled; driveAfterStop covers drive change, fixed folder and retry; I5 origin tests. None covers unknown, then a failed retry before init answers, then another retry (F1).",
+    "Tests inject FakeSharedSession, so runs do not touch the real App Group or keychain."
+  ],
+  "not_verified": [
+    "I did not build or run anything, and I did not run the Swift tests.",
+    "I did not read ShareViewController, ShareStrings or the test support files beyond the fix diff.",
+    "I did not re-check the backend, frontend or the I8-I10 behaviour in this round.",
+    "Whether pickDrive during sending is truly blocked in the view (canPickDrive) on a device was not checked."
+  ],
+  "confidence": 72,
+  "trajectory": "The fix commit (97ce878) removed the `attempt` parameter from run() and the branch in retryItem, and put one per-item decision in run(), so one branch was moved, not added. It removed the isUnreachable branch from the /complete catch, so that is a removal. It added canPickDrive, canPickFolder, hasQueue and savedDestination, and it made pickDrive route to the queue (the dead pickDriveForQueue became private and used). Those are guards on one existing state, not a repeat of earlier rounds' additions. The two other fix commits are docs records. The remaining gap (F1) is the same kind as the r2 F2: retry semantics are inferred from a displayed state, not from a fact about the item. That is a small sign of patching, but it is not yet a repeated addition of branches or states."
+}

@@ -183,7 +183,7 @@ Keyword search is the `search` parameter of `GET /api/drives/{drive}/files`. Sem
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/api/drives/{drive}/upload/init` | Body `{ filename, file_size, folder_path, relative_path, chunk_size, require_folder, inbox_source }`; `chunk_size` defaults to 5 MiB and `require_folder` defaults to `false`. `inbox_source` is optional and the only accepted value is `"upload"`; any other value is `422`. Returns `{ upload_id, chunk_size, total_chunks }`. |
+| `POST` | `/api/drives/{drive}/upload/init` | Body `{ filename, file_size, folder_path, relative_path, chunk_size, require_folder, inbox_source }`; `chunk_size` defaults to 5 MiB and `require_folder` defaults to `false`. `inbox_source` is optional and accepts `"upload"` or `"share"`; any other value is `422`. Returns `{ upload_id, chunk_size, total_chunks }`. |
 | `POST` | `/api/drives/{drive}/upload/{upload_id}/chunk` | `multipart/form-data` with `chunk_index` and `chunk`. Returns the received and total chunk counts. |
 | `POST` | `/api/drives/{drive}/upload/{upload_id}/complete` | Finish and return the file. An upload to the path of a Missing file revives that record. An upload whose init carried `inbox_source` records an open inbox row in the same commit. A path still held by a trashed file is refused with 409 at init. A subtitle (`.srt`, `.vtt` and the other subtitle extensions) is a sidecar file and gets no record: the answer is `{ "status": "sidecar", "drive", "file_path" }`, and a record already at that path is removed. |
 | `DELETE` | `/api/drives/{drive}/upload/{upload_id}` | Cancel. |
