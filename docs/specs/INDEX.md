@@ -108,7 +108,9 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-032 | implemented | docs/specs/inbox.md | sha256:f45f9a5d405e187b7402a6b9812c0af748e56ba4c749f8220f9fb72f9ed8cd0f |
 | SPEC-ADDON-059 | implemented | docs/specs/inbox.md | sha256:f45f9a5d405e187b7402a6b9812c0af748e56ba4c749f8220f9fb72f9ed8cd0f |
 | SPEC-CORE-041 | implemented | docs/specs/inbox.md | sha256:f45f9a5d405e187b7402a6b9812c0af748e56ba4c749f8220f9fb72f9ed8cd0f |
-| SPEC-CORE-033 | draft | docs/specs/share-target.md | |
+| SPEC-CORE-033 | implemented | docs/specs/share-target.md | sha256:6213dcd55b969f6d6b4a2b0f8c68681c4176903a969da00f83cdd12ad493d763 |
+| SPEC-IOS-001 | implemented | docs/specs/share-target.md | sha256:6213dcd55b969f6d6b4a2b0f8c68681c4176903a969da00f83cdd12ad493d763 |
+| SPEC-IOS-002 | implemented | docs/specs/share-target.md | sha256:6213dcd55b969f6d6b4a2b0f8c68681c4176903a969da00f83cdd12ad493d763 |
 | SPEC-ADDON-053 | implemented | docs/specs/ask-about-this-file.md | sha256:7da6124f365a0c64ce31532e5697fb68fbc14a639efa56394ad99bd09b8b5b6a |
 | SPEC-ADDON-056 | implemented | docs/specs/ask-about-this-file.md | sha256:7da6124f365a0c64ce31532e5697fb68fbc14a639efa56394ad99bd09b8b5b6a |
 | SPEC-CORE-036 | implemented | docs/specs/ask-about-this-file.md | sha256:7da6124f365a0c64ce31532e5697fb68fbc14a639efa56394ad99bd09b8b5b6a |
@@ -119,3 +121,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-060 | implemented | docs/specs/pdf-footnotes.md | sha256:12530badbd476c63dba375a305a0f2a5416ce35ff70bca2c65e360c2fa58c902 |
 | SPEC-CORE-042 | implemented | docs/specs/nfd-path-resolution.md | sha256:c8ede99437f15a3e16577af66225fa4bd3cc3ef87669a1939ae9acf2ce743680 |
 | SPEC-ADDON-062 | implemented | docs/specs/nfd-path-resolution.md | sha256:c8ede99437f15a3e16577af66225fa4bd3cc3ef87669a1939ae9acf2ce743680 |
+| SPEC-CORE-043 | implemented | docs/specs/search-scope-operators.md | sha256:d8241feb82371ba3f7cd552cdaa3efb30009fcb1e1bf5677781257c47320341d |
+| SPEC-ADDON-063 | implemented | docs/specs/search-scope-operators.md | sha256:d8241feb82371ba3f7cd552cdaa3efb30009fcb1e1bf5677781257c47320341d |

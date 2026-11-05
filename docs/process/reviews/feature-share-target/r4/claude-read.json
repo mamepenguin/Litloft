@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "I6/I7: the attempt kind now comes from the mayHaveLanded set (a fact about the item), not from the displayed state. It is set on every .unknown outcome. It is cleared on .saved, on an init 2xx, and in saveAsLink. A retry that fails or stops before init answers keeps the flag, so the next retry still uses the original name. This closes r3 F1.",
+    "I7: with .again, a 409 'File already exists' returns .saved and never takes a suffix. With .first, the suffix loop (N <= 99) is unchanged.",
+    "The flag is also set for text, link-note and clip items that end .unknown. It is unused for them, because only sendFile reads `attempt`. saveAsLink clears it. I saw no behaviour change from this.",
+    "The r3 F2 point (transport errors on /complete are polled for the full window) is not touched by this commit. It stays an open bucket B question for a person."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "mayHaveLanded is keyed by item index. Today the items array is fixed and saveAsLink replaces an item at the same index, so the key is stable. Any future reordering or insertion of items would misattribute the flag.",
+    "Clearing the flag on init 2xx assumes a successful init means the earlier attempt did not land. That follows from the server answering 409 for an existing path, so it holds. A later failure (chunk, or /complete answered with an error) leaves the item without the flag, which is correct only if that /complete really did not land."
+  ],
+  "test_coverage": [
+    "New test retryAfterUnknownKeepsOriginalName covers unknown, then a retry whose init answers 500 (failed), then a retry whose init answers 409 (saved). It asserts all three init filenames are the original and that only one chunk was sent. Removing the `mayHaveLanded.insert` in the .unknown case, or making the attempt come from the displayed state, would make it fail.",
+    "No test covers the removal at init 2xx, or the removal in saveAsLink. Removing those two lines would pass the suite. I judge them low risk.",
+    "No test covers a stopped (unreachable) retry before init followed by another retry."
+  ],
+  "not_verified": [
+    "I did not build or run anything, and I did not run the Swift tests.",
+    "I read only the fix diff for ShareSendQueue.swift and its test, not the whole current file or the other tests.",
+    "I did not re-check the backend, the frontend, the iOS mirror (I5) or I8-I10 in this round.",
+    "I did not check that Harness, Tally and Answers.exists in the new test behave as the test assumes."
+  ],
+  "confidence": 74,
+  "trajectory": "There are two fix commits, 54b2c93 (code and test) and 93c76a0 (a docs record). Only the code commit counts. It adds one new piece of state, the mayHaveLanded set, with insert and remove points. It does not repeat the previous round's additions (canPickDrive, canPickFolder, hasQueue, savedDestination and the pickDrive routing). It also replaces the earlier inference of 'retry attempt = displayed state is unknown' with a stored fact, which is what the r3 finding asked for, so I read it as a root-cause fix and not a patch on top of a patch. Two rounds in a row have touched retry semantics, so the area deserves a watch. A branch or state was added in this round, none was removed, and no earlier addition was repeated."
+}

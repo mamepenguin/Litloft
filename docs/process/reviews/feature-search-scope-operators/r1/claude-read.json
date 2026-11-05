@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The diff edits frontend/e2e-layout/build-fixture-css.ts (four new REQUIRED stylesheet classes), a file that is not in the touch-point list.",
+      "impact": "This is the shared fixture-CSS builder used by every layout fixture. Its REQUIRED list is a build-time gate, so the added entries can break the build of other fixtures if a class is absent from the built CSS. The touch list names only the new fixture and spec.",
+      "evidence": "frontend/e2e-layout/build-fixture-css.ts adds \".max-w-full {\", \".min-w-0 {\", \".truncate {\", \".shrink-0 {\" to REQUIRED. The touch list names only \"frontend/e2e-layout/: a fixture with a long folder chip\".",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant is broken. I14 is served by this change, but the touch list is incomplete.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add the file to the touch-point list."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The diff edits frontend/src/__tests__/coarseNeedleSources.test.ts (REQUIRED length 64 to 68), which is not in the touch-point list.",
+      "impact": "The hard-coded count is coupled to the fixture-CSS builder's REQUIRED list. A later change to that list will fail this unrelated pointer-coarse test, and the coupling is invisible from the touch list.",
+      "evidence": "coarseNeedleSources.test.ts: expect(REQUIRED).toHaveLength(64) becomes 68. The touch list names only core-search-vocabulary.test.ts among the pinned-count tests.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant is broken. The listing is incomplete.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add the file to the touch-point list."
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "Several existing frontend test files are edited although the touch list does not name them: lib/__tests__/searchQuery.test.ts and lib/__tests__/semanticSearch.passages.test.ts, which is edited only so its SearchFilter literal gets the new required fields.",
+      "impact": "The type change that makes folders and collections required on SearchFilter reaches other tests and any other literal SearchFilter. A reader of the touch list would not expect these edits, and nothing lists them as callers to update.",
+      "evidence": "semanticSearch.passages.test.ts adds folders: [] and collections: [] to a filter literal. searchQuery.test.ts adds the two keys to the empty-parse expectation. lib/semanticSearch.ts consumes SearchFilter but is unchanged.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant is broken. The edits are mechanical and the listing is incomplete.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "List the existing tests that construct a SearchFilter or ParsedQuery."
+    },
+    {
+      "id": "F4",
+      "origin": "reviewer",
+      "claim": "The change reaches existing behaviour that the touch list does not mention. SearchFilterChips restyles every chip (tag, type and is) with min-w-0, max-w-full, a title attribute and a shrink-0 on the ✕. The shared choose() in SearchQueryHeader is also rewritten for the tag, type and favorite entries.",
+      "impact": "The layout of existing chips and the menu's existing tag and favorite choices change for queries that contain no new operator. The I8 no-change guarantee covers only the listing parameters and the filter, not these UI paths.",
+      "evidence": "SearchFilterChips.tsx: the chip class changes for all chips, and title={value ?? undefined} is added. SearchQueryHeader.tsx: choose(operator, value) now calls closeOpenQuote and formatOperatorToken for tag, type and is.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a side effect inside files that are listed. The spec accepts quoting for existing operators. The chip restyle for existing chips is not explicitly spelled out in the touch list.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "F5",
+      "origin": "reviewer",
+      "claim": "The diff adds a new addon test file, tests/test_search_scope_filter.py, and does not touch tests/matching_core_double.py. The touch list names matching_core_double.py as a changed file and does not name the new file.",
+      "impact": "The addon's parity tables are not extended as listed. The new file's pass-through test relies on the existing double.",
+      "evidence": "The addon diff touches test_filtered_search_contract.py and adds test_search_scope_filter.py. matching_core_double.py is absent from the diff.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant is broken. The touch list and the diff disagree.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "I did not trace each invariant against the code. This review answered only the touch-point question. Beyond the listed files, the diff also reaches build-fixture-css.ts, coarseNeedleSources.test.ts and two existing frontend test files."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Chip styling changes for tag, type and is chips: min-w-0, max-w-full and title on every chip.",
+    "Any later REQUIRED-class change in the fixture-CSS builder now has to adjust the hard-coded count in coarseNeedleSources.test.ts."
+  ],
+  "regression_risks": [
+    "Forbidding unknown keys on FileMatchingRequest affects every current and future caller of POST /files/matching.",
+    "apply_file_filters now raises ValueError when collections are given without drive. Both current callers pass drive.",
+    "Consumers of ParsedQuery, such as GlobalSearch, useLauncherRows and FolderBrowser, now see folders, collections and a changed text rule, and they are unchanged in the diff."
+  ],
+  "test_coverage": [
+    "I did not evaluate test strength. This review covered scope only."
+  ],
+  "not_verified": [
+    "Whether the invariants hold in the code (I1 to I14).",
+    "Whether the built stylesheet satisfies the four new REQUIRED classes.",
+    "Whether other fixtures or tests depend on REQUIRED beyond coarseNeedleSources.test.ts.",
+    "The addon submodule diff was read only as shown, not on disk.",
+    "The consumer files GlobalSearch, useLauncherRows, FolderBrowser and the search page were not read."
+  ],
+  "confidence": 78
+}

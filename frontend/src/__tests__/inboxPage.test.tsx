@@ -1,5 +1,5 @@
 /**
- * SPEC-CORE-032 — what the inbox page shows and when it asks again.
+ * SPEC-CORE-032, SPEC-CORE-033 — what the inbox page shows and when it asks again.
  * Selection, done and gestures live in `inboxActions.test.tsx`.
  */
 
@@ -20,6 +20,7 @@ import {
   type InboxItemWire,
 } from "./helpers/inboxData";
 import { renderInboxSettled } from "./helpers/inboxRender";
+import jaCore from "@/messages-core/ja.json";
 
 const route = vi.hoisted(() => ({
   search: new URLSearchParams("view=inbox"),
@@ -253,6 +254,23 @@ describe("SPEC-CORE-032 the page's rows", () => {
     await screen.findByRole("heading", { name: "Inbox" });
 
     expect(rowText("f1")).not.toContain("inbox.sourceUpload");
+  });
+
+  it("SPEC-CORE-033 labels a shared arrival Shared", async () => {
+    setup({
+      items: [inboxItem(inboxFile("f1"), today, "share", "inbox.sourceShare")],
+    });
+    await renderInbox();
+    await screen.findByRole("heading", { name: "Inbox" });
+
+    expect(rowText("f1")).toContain("Shared");
+    expect(rowText("f1")).not.toContain("inbox.sourceShare");
+  });
+
+  it("SPEC-CORE-033 labels a shared arrival 共有 in Japanese", () => {
+    expect(
+      (jaCore as { inbox: Record<string, string> }).inbox.sourceShare,
+    ).toBe("共有");
   });
 
   it("SPEC-CORE-032 falls back to the source when its key is unknown", async () => {

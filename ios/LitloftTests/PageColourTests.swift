@@ -12,12 +12,12 @@ struct PageColourTests {
 
     @Test("the shell has no page colour until the page sends one")
     func noColourAtFirst() {
-        #expect(WebViewModel(serverURL: server).pageColor == nil)
+        #expect(WebViewModel(serverURL: server, sharedSession: FakeSharedSession()).pageColor == nil)
     }
 
     @Test("the colour the page sends is the one the shell keeps, the latest winning")
     func pageColourReachesTheModel() async throws {
-        let model = WebViewModel(serverURL: server)
+        let model = WebViewModel(serverURL: server, sharedSession: FakeSharedSession())
         let coordinator = WebView.Coordinator(model: model)
         let configuration = WKWebViewConfiguration()
         coordinator.bridge.install(in: configuration)

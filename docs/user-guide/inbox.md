@@ -12,7 +12,9 @@ deleting a file still happens in its own folder.
 
 - Every upload made from Litloft: the upload zone, drag and drop, **Add → Upload files**,
   a dropped folder (one arrival per file), and the upload zone on the inbox page itself.
-- Every web clip saved by the knowledge addon.
+- Files, notes and links shared to Litloft from the iOS app's share menu, and web clips
+  saved by the knowledge addon. A share is labelled **共有** / **Shared**; a web clip is
+  **Web クリップ** / **Web clip**.
 
 Scans, copies, Quick Note, a new note, attachments uploaded from inside an editor, and
 files added outside Litloft do not arrive. On the inbox page, dropped files land in the

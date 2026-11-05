@@ -284,7 +284,7 @@ class UploadInitRequest(BaseModel):
     relative_path: str = ""
     chunk_size: int = 5_242_880
     require_folder: bool = False
-    inbox_source: Literal["upload"] | None = None
+    inbox_source: Literal["upload", "share"] | None = None
 
 
 class UploadInitResponse(BaseModel):

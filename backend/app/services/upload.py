@@ -405,7 +405,7 @@ def complete_upload(
                 session.drive,
                 file_record.id,
                 session.inbox_source,
-                inbox_service.UPLOAD_I18N_KEY,
+                inbox_service.I18N_KEYS[session.inbox_source],
             )
         db.commit()
     except Exception:

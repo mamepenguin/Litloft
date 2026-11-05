@@ -34,7 +34,7 @@ Each result has a small badge saying where it matched, such as **Filename** or *
 
 The top of the page is also the query field. It holds what you searched for, and you can edit it and press `Enter` to search again; `Esc` puts the current query back. Each operator in the field gets a chip underneath it, and `×` on a chip removes that operator from the query and searches again. Typing an operator shows its chip at once, before you submit.
 
-After the chips, **＋ 条件** (**＋** on a phone) adds an operator without typing the syntax: **タグ** (tag), **種類** (type) or **お気に入り** (favourites). Tag and type open a list of values; the tag list has a filter box, and a value already in the query is not offered. Picking a value adds it to the query and searches.
+After the chips, **＋ 条件** (**＋** on a phone) adds an operator without typing the syntax: **タグ** (tag), **種類** (type), **フォルダ** (folder), **コレクション** (collection) or **お気に入り** (favourites). Tag, folder and collection open a list of values; each list has a filter box, and a value already in the query is not offered. Picking a value adds it to the query and searches.
 
 Above the results:
 
@@ -51,9 +51,11 @@ Words of the form `name:value`, typed in the search window or on the search page
 |---|---|---|
 | `tag:trip` | files with the tag `trip` | every tag must be on the file |
 | `type:video` | files of that kind: `video`, `image`, `audio`, `document`, `text`, `pdf`, `archive`, `other` | any of the kinds |
+| `path:Work/2024` | files in that folder and its subfolders, comparing the folder name case-sensitively | any of the folders |
+| `in:trip` | files in the collection named `trip`, ignoring case | any of the collections |
 | `is:favorite`, `is:liked` | favourites, liked files | both |
 
-`tag:trip type:image kyoto` finds images tagged `trip` whose name or folder contains "kyoto". Operators alone, such as `tag:trip`, list every file that passes them, newest first. A word that is not one of these operators, or a value that is not one of these values, is searched as ordinary text. In the search window, typing `tag:`, `type:` or `is:` lists the values you can use, the drive's most used tags first; pick one with the arrow keys and `Enter` to complete it.
+`tag:trip type:image kyoto` finds images tagged `trip` whose name or folder contains "kyoto". Operators alone, such as `tag:trip`, list every file that passes them, newest first. A word that is not one of these operators, or a value that is not one of these values, is searched as ordinary text. Put a value with spaces in quotes: `path:"My Photos/2024"`, `in:"読書 メモ"`, `tag:"two words"`. In the search window, typing `tag:`, `type:` or `is:` lists the values you can use, the drive's most used tags first; pick one with the arrow keys and `Enter` to complete it.
 
 With the intelligence addon, operators also filter the files found by meaning: `tag:会議 type:pdf 予算の見直し` searches for the meaning of 「予算の見直し」 among files tagged 会議 and of kind PDF. Operators alone, with no other words, list files only and run no meaning search. Scene search is off while an operator is in the query. The type chosen in the toolbar still applies, together with any `type:`.
 

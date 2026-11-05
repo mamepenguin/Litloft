@@ -11,7 +11,18 @@ from sqlalchemy.orm import Session
 import app.config as config
 from app.auth import check_drive_access, filter_drives, get_unlocked_groups
 from app.database import get_db
-from app.models import TRUST_UNVERIFIED, EmptyFolder, File, PinnedFolder, Tag, WatchHistory, active_file_filter, file_tags
+from app.models import (
+    TRUST_UNVERIFIED,
+    Collection,
+    CollectionItem,
+    EmptyFolder,
+    File,
+    PinnedFolder,
+    Tag,
+    WatchHistory,
+    active_file_filter,
+    file_tags,
+)
 from app.routers.progress import get_viewer_id
 from app.services import event_hooks
 from app.schemas import (
@@ -90,6 +101,71 @@ def _validate_folder_path(path: str) -> str:
     if ".." in path.split("/") or path.startswith("/"):
         raise HTTPException(status_code=400, detail="Invalid folder path")
     return path
+
+
+MAX_SCOPE_FOLDERS = 10
+MAX_SCOPE_FOLDER_LENGTH = 1024
+MAX_SCOPE_COLLECTIONS = 10
+MAX_SCOPE_COLLECTION_LENGTH = 100
+
+
+def normalize_folder(value: str) -> str:
+    """A drive-relative folder as the listing and the Internal API take it.
+
+    Raises ``ValueError`` for a value that names no folder, so both surfaces
+    can turn it into the status code they owe their caller.
+    """
+    folder = unicodedata.normalize("NFC", value).strip("/")
+    if (
+        not folder
+        or "\x00" in folder
+        or any(segment in ("", ".", "..") for segment in folder.split("/"))
+    ):
+        raise ValueError("Invalid folder")
+    if len(folder) > MAX_SCOPE_FOLDER_LENGTH:
+        raise ValueError(f"Folder exceeds {MAX_SCOPE_FOLDER_LENGTH} characters")
+    return folder
+
+
+def normalize_folders(values: list[str]) -> list[str]:
+    folders: list[str] = []
+    for raw in values:
+        folder = normalize_folder(raw)
+        if folder not in folders:
+            folders.append(folder)
+    if len(folders) > MAX_SCOPE_FOLDERS:
+        raise ValueError(f"Maximum {MAX_SCOPE_FOLDERS} folders")
+    return folders
+
+
+def normalize_collections(values: list[str]) -> list[str]:
+    collections: list[str] = []
+    seen: set[str] = set()
+    for raw in values:
+        name = raw.strip()
+        if not name:
+            continue
+        if len(name) > MAX_SCOPE_COLLECTION_LENGTH:
+            raise ValueError(
+                f"Collection exceeds {MAX_SCOPE_COLLECTION_LENGTH} characters"
+            )
+        key = name.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        collections.append(name)
+    if len(collections) > MAX_SCOPE_COLLECTIONS:
+        raise ValueError(f"Maximum {MAX_SCOPE_COLLECTIONS} collections")
+    return collections
+
+
+def _folder_subtree(folder: str):
+    # substr, not LIKE: SQLite's LIKE folds ASCII case, and the decision is
+    # that `Photos` and `photos` are different folders.
+    return or_(
+        File.folder_path == folder,
+        func.substr(File.folder_path, 1, len(folder) + 1) == folder + "/",
+    )
 
 
 # The one vocabulary for "what kind of file is this", shared by the
@@ -241,11 +317,15 @@ def apply_file_filters(
     kinds: list[FileKindParam] | None = None,
     favorite: bool | None = None,
     liked: bool | None = None,
+    folders: list[str] | None = None,
+    collections: list[str] | None = None,
+    drive: str | None = None,
 ):
     """Shared by the listing and the Internal API's filter resolution.
 
     One implementation, so the same conditions cannot answer two different
-    id sets.
+    id sets. ``drive`` is required to resolve ``collections``: a collection
+    belongs to one drive, and only that drive's collections may match.
     """
     if favorite is not None:
         query = query.filter(File.is_favorite == favorite)
@@ -266,6 +346,31 @@ def apply_file_filters(
             query = query.filter(
                 File.tags.any(Tag.id.in_(by_fold[name.lower()]))
             )
+    chosen_folders = normalize_folders(folders or [])
+    if chosen_folders:
+        query = query.filter(
+            or_(*(_folder_subtree(folder) for folder in chosen_folders))
+        )
+    chosen_collections = normalize_collections(collections or [])
+    if chosen_collections:
+        if drive is None:
+            raise ValueError("drive is required to resolve collections")
+        # Folded in Python for the same reason as tags.
+        wanted = {name.lower() for name in chosen_collections}
+        collection_ids = [
+            collection_id
+            for collection_id, name in db.query(Collection.id, Collection.name).filter(
+                Collection.drive == drive
+            )
+            if name.lower() in wanted
+        ]
+        query = query.filter(
+            File.id.in_(
+                db.query(CollectionItem.file_id).filter(
+                    CollectionItem.collection_id.in_(collection_ids)
+                )
+            )
+        )
     return _apply_kinds_filter(
         query, [_normalize_kind(kind) for kind in kinds or []]
     )
@@ -706,6 +811,8 @@ def list_drive_files(
     liked: bool | None = None,
     tag: list[str] | None = Query(None),
     type: list[FileKindParam] | None = Query(None),
+    folder: list[str] | None = Query(None),
+    collection: list[str] | None = Query(None),
     trust: str | None = Query(None, pattern="^(verified|unverified|unreviewed)$"),
     sort: str = Query(
         "created_at", pattern="^(created_at|title|file_size|liked_at|updated_at|random)$"
@@ -722,6 +829,11 @@ def list_drive_files(
     _validate_drive(drive_name, unlocked_groups)
     if path is not None and path:
         path = _validate_folder_path(path)
+    try:
+        folder = normalize_folders(folder or [])
+        collection = normalize_collections(collection or [])
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     query = db.query(File).filter(File.drive == drive_name, active_file_filter())
 
@@ -755,6 +867,9 @@ def list_drive_files(
         kinds=type,
         favorite=favorite,
         liked=liked,
+        folders=folder,
+        collections=collection,
+        drive=drive_name,
     )
     if trust == "unreviewed":
         # Not a tier: the review queue is "nobody has ruled on this", which

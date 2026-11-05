@@ -10,5 +10,11 @@ LITLOFT_BUNDLE_ID_SUFFIX[config=Debug] = .dev
 LITLOFT_DISPLAY_NAME = Litloft
 LITLOFT_DISPLAY_NAME[config=Debug] = Litloft Dev
 
+// The App Group is the app's bundle id, never the extension's. The keychain
+// access group needs the provisioning prefix; a build without a team leaves
+// it empty and falls back to the bare group.
+LITLOFT_APP_GROUP = group.$(LITLOFT_BUNDLE_ID)$(LITLOFT_BUNDLE_ID_SUFFIX)
+LITLOFT_KEYCHAIN_GROUP = $(AppIdentifierPrefix)$(LITLOFT_APP_GROUP)
+
 // Optional, and not tracked. Copy Local.xcconfig.example to create it.
 #include? "Local.xcconfig"

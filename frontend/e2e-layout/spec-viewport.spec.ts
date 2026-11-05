@@ -34,6 +34,7 @@ const FIXTURES = [
   "related-files.html",
   "scene-candidates.html",
   "search-header.html",
+  "search-scope-chip.html",
   "sidebar-shell.html",
   "toolbar-menu.html",
   "upload-drawer.html",
