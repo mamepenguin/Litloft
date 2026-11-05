@@ -56,7 +56,7 @@ SPEC-CORE-043, tokenizer (`searchQuery.ts`):
 2. Each token keeps its *raw* string: the exact characters of the query it spans, quotes
    and inner whitespace included. A token that is not a recognised operator with a usable
    value (unknown name, unknown kind, a `path:` value that normalises to nothing, a value
-   over the caps of 10 below) is text, and contributes its raw string. When the query has
+   over the caps in 8) is text, and contributes its raw string. When the query has
    operators, `parsed.text` is the raw strings of the text tokens joined with single
    spaces; when it has none, `parsed.text` is `q.trim()`, exactly as today.
 3. Quotes are special only right after the colon of a name-form token. A `"` anywhere else
