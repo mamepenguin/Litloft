@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: r1 HUMAN_REVIEW_REQUIRED → ship (user, 2026-11-06: 「出荷」). B findings accepted: F1/R1-1 is behaviour-equivalent (the continuation already needs meaning hits, which an impossible query never fetches); F2, F3, R1-2 are touch-point omissions. Mutation not applied: no data loss, no security boundary, results visible to the user (impact ≤ 5).
 ran_in_app: yes
 at: 628a1d17d7a68ec6813cc83e4867cf2a0c4f8e1f
 by: agent
