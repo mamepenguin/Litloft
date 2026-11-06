@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship (r1, HUMAN_REVIEW_REQUIRED for unspecified_behavior: globals.css, spec-viewport.spec.ts, ocr_fixtures.py not in the touch points). The human chose 「出荷してよい（推奨）」 on 2026-11-07.
 ran_in_app: yes
 at: 8f13a48058f848832f365eaf65ab2e390aa9b610
 by: agent

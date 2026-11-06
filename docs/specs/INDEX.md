@@ -134,5 +134,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-070 | implemented | docs/specs/extraction-edits.md | sha256:e651a74cf4e0e80f37003a94017fed3f61d0c2242b6bdd6a2ce4995046234ae6 |
 | SPEC-ADDON-067 | implemented | docs/specs/extraction-edits.md | sha256:e651a74cf4e0e80f37003a94017fed3f61d0c2242b6bdd6a2ce4995046234ae6 |
 | SPEC-ADDON-068 | implemented | docs/specs/extraction-edits.md | sha256:e651a74cf4e0e80f37003a94017fed3f61d0c2242b6bdd6a2ce4995046234ae6 |
-| SPEC-ADDON-075 | approved | docs/specs/ocr-line-boxes.md | sha256:34e34c624bf5010e494acb27acd3d641490b7c3488504c1991d0e22a06f90414 |
-| SPEC-CORE-051 | approved | docs/specs/ocr-line-boxes.md | sha256:34e34c624bf5010e494acb27acd3d641490b7c3488504c1991d0e22a06f90414 |
+| SPEC-ADDON-075 | implemented | docs/specs/ocr-line-boxes.md | sha256:34e34c624bf5010e494acb27acd3d641490b7c3488504c1991d0e22a06f90414 |
+| SPEC-CORE-051 | implemented | docs/specs/ocr-line-boxes.md | sha256:34e34c624bf5010e494acb27acd3d641490b7c3488504c1991d0e22a06f90414 |
