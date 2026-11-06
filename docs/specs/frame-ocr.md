@@ -82,6 +82,27 @@ at least the frames the thinning kept for a change that stays on screen.
 The human decided the requirements on 2026-11-05 and 2026-11-06 (hako `p_XmkcHJMhBnNt-EPKhHJ`,
 `sp1Eo5RSgiFKB8oj87fqV`).
 
+### Owner decisions (2026-11-06)
+
+The owner answered the eight questions the draft raised with 「8 つとも推奨どおり」, and
+accepted the settings labels 「動画内の文字」 and 「スキャンしたページの文字」 as proposed, with
+no Design Artifact. The body below states each as decided:
+
+1. Both `features.video_frame_ocr` and `features.scanned_pdf_ocr` default to `on_index`.
+2. Resolution above 720p is measured as the first implementation step (1080p and 4K HEVC),
+   which stops and asks if either exceeds 5 minutes per video hour (Non-functional).
+3. The fixed 10-second gap stays. The worst case it allows, a dense-text screen changing
+   every 10 seconds (360 frames at about 2 s, about 12 minutes per video hour), is
+   accepted; there is no adaptive budget.
+4. The image query's text part failing more often during the backlog is accepted.
+5. The search passages gain the `screen_text` kind (SPEC-CORE-048).
+6. The pending window of a scanned PDF's `text` stage and find `indexed` during its forced
+   re-extraction is accepted.
+7. A partly scanned PDF that already has a summary keeps it: the re-queue uses
+   `requeue_after_whisper`'s gates.
+8. In find, Visual Index scene rows and frame-text rows are both listed; a word both found
+   can appear twice near the same time.
+
 ## Required items
 
 ### 1. Normal flow
@@ -476,7 +497,7 @@ is no per-drive switch for either OCR.
   `requeue_after_whisper` (`indexer.py:1103-1183`) applies: only when `metadata_indexed`
   is true, a summary only when the file has no `file_summaries` row with a short summary,
   tags only when it has no `suggested_tags` row. A partly scanned PDF that already has a
-  summary keeps it. Retrieval keywords are not re-queued; they follow their own sweep.
+  summary keeps it (owner decision 7). Retrieval keywords are not re-queued; they follow their own sweep.
 - **Auto tags, summaries and detailed summaries for videos** read the transcript and are
   unchanged. A scanned PDF's summary now has text to read.
 - **The upload drawer's processing stages** (SPEC-ADDON-057): neither OCR is a stage and
@@ -484,11 +505,11 @@ is no per-drive switch for either OCR.
   whose scanned pages gave text, so for the minute or so until the forced text task ends,
   that PDF's `text` stage (`routers/files.py:98-105`), its Index details `text` status
   and find's `indexed` read pending / false again. Its existing search rows stay
-  meanwhile.
+  meanwhile. The owner accepted this window (decision 6).
 - **Search by image** shares the engine (`image_query.py:59`, `:133`, a 10-second wait for
   the engine lock). During the backlog the three background readers keep the lock busy,
   so the image query's text part fails more often than today; the rest of its answer is
-  unaffected.
+  unaffected. The owner accepted this (decision 4).
 - **The admin status and queue views** count both as picture OCR is counted
   (`get_index_status`, `indexer.py:326`; `main.py:575-597`): `indexed.frame_ocr` and
   `indexed.page_ocr`, `pending.frame_ocr` and `pending.page_ocr` (counted only while the
@@ -544,10 +565,12 @@ failures are the WARNING and ERROR lines.
 
 - **Video**: at most one read frame per 10 seconds, so at most 360 frames per video hour.
   The target is 5 minutes of processing per video hour. Measured: 2.1 to 2.8 minutes per
-  hour with the gap on 720p lectures; selection alone about 1 minute.
+  hour with the gap on 720p lectures; selection alone about 1 minute. A dense-text screen
+  that changes every 10 seconds can take about 12 minutes per video hour; the owner
+  accepted that worst case (decision 3).
 - **Resolution beyond 720p** was not measured. The first implementation step measures one
   1080p video with dense on-screen text and one 4K HEVC phone video, and stops to ask if
-  either exceeds 5 minutes per video hour.
+  either exceeds 5 minutes per video hour (decision 2).
 - **Scanned PDF**: about 2.6 s per page (300 dpi, 2 threads); the target is 3 s. A
   500-page scanned PDF takes about 22 minutes.
 - **Memory**: one decoded frame or one rendered page at a time (a 300 dpi A4 page is about
@@ -663,7 +686,7 @@ SPEC-CORE-040 I23. Locators and excerpts follow the per-kind table: a `section` 
 - **Pages with a partial text layer**, such as a scanner's stamped line or a page number
   over a scanned picture. They are not read; the test is "no text at all".
 - **Merging Visual Index scene rows and frame-text rows in find.** Both are listed; a word
-  that both found appears twice near the same time.
+  that both found appears twice near the same time (owner decision 8).
 - **The core find kind.** Find rows for frame text use the existing `scene` kind, so B2's
   core needs no change. The passage view needs a distinct kind because there `scene`
   means a picture match with no text.
