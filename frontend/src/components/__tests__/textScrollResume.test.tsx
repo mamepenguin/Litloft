@@ -327,18 +327,17 @@ describe.each(DOCS)("SPEC-CORE-050 restore (%s)", (doc) => {
         resolve = r;
       }),
     );
+    vi.useFakeTimers();
     const host = makeHost(3000, 1000);
     await open(doc, host);
-    await settle();
 
     host.readerScrollTo(200);
     await act(async () => {
       resolve({ position: 800, duration: 1000 });
     });
-    await settle();
     expect(host.el.scrollTop).toBe(200);
+    expect(saveWatchProgress).not.toHaveBeenCalled();
 
-    vi.useFakeTimers();
     await debounceElapses();
     expect(saveWatchProgress).toHaveBeenCalledWith(FILE, 100, 1000);
   });

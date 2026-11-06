@@ -176,7 +176,6 @@ export function useTextScrollProgress({
             readRef.current = null;
             if (movedWhileReadingRef.current) {
               movedWhileReadingRef.current = false;
-              flush();
               return;
             }
             if (explicitTargetRef.current || window.location.hash !== "") return;
