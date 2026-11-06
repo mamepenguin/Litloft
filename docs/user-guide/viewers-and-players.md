@@ -50,7 +50,7 @@ With the intelligence addon, the search button in the page row (or `Cmd/Ctrl+F` 
 
 The chips at the top of the tab narrow the list to one kind. Matching is exact text; case is ignored for Latin letters only.
 
-Only what the addon has already read is found. A file that has not been indexed yet says so instead of showing no results, and the text inside video frames and scanned PDF pages is not read yet.
+Only what the addon has already read is found. A file that has not been indexed yet says so instead of showing no results. Text shown in a video and the text of a scanned PDF page are read too: a video's frame text is listed under 「画面内の文字」 with its time, and a scanned page's hits as 「p. N」, which opens the page (a scanned page has no text layer, so no word is marked on it).
 
 `Cmd/Ctrl+F` a second time, while the find bar has focus, opens the browser's own find. `Esc` closes the bar and puts the inspector back as it was.
 

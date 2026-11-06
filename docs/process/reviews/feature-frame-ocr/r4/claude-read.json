@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R1",
+      "origin": "reviewer",
+      "claim": "A key-frame video whose showinfo line has no parsable pts_time (for example pts_time:N/A on a stream without timestamps) sets times_failed, so nothing is written and the video stays pending.",
+      "impact": "Under on_index such a video is decoded and OCRed in full and discarded on every resume, and it never gets frame text. This needs an unusual stream with missing PTS, so it is rare in normal use.",
+      "evidence": "addons/intelligence/app/workers/frame_ocr.py: _showinfo_time returns None when the regex does not match, _drain_showinfo puts _BAD, and _read_video then sets times_failed and returns. index_frame_ocr returns False on times_failed.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant is broken. I4 allows writing nothing, but the video is retried indefinitely at full cost. This is a narrow stream case.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Fall back to the previous frame's time plus the median key-frame spacing, or close the video as read after the first failure, instead of retrying forever."
+    },
+    {
+      "id": "R2",
+      "origin": "reviewer",
+      "claim": "The only test of the showinfo reader that exercises the missing-time branch replaces Popen with a fake process fed by temp files, and no test runs a real large video through the new stderr-thread path with an odd-sized frame (needs_scale true).",
+      "impact": "A regression in the thread, queue and sentinel handling, or in the scale filter that is now added only for odd sizes, would be caught only by the existing real-clip tests for even sizes.",
+      "evidence": "tests/test_frame_page_ocr_readers.py: test_spec_addon_066_a4_a_missing_showinfo_time_writes_nothing uses _FakeProcess; the media fixtures have no odd-dimension clip.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a test gap and breaks no declared invariant.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add an odd-width clip to the media fixtures."
+    }
+  ],
+  "specification_compliance": [
+    "I1: both paths test the hash threshold and the 10 s gap against the last read frame. The key-frame path now takes each frame's time from showinfo in the same ffmpeg run, so the time and the frame cannot drift apart.",
+    "I4: an unparsable or missing time, a lost engine and an unreachable file all write nothing. A stall or an ffmpeg error partway now stores the early frames, because the post-loop count check is gone. That matches the spec's failure case, and the new tail-cut test covers it.",
+    "I8: the stderr thread only queues times and holds no lock. Pause is checked before every frame read.",
+    "I2 and I3: the segment, storage and rebuild code is unchanged by this commit."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The key-frame path now depends on `-fps_mode passthrough`, which needs ffmpeg 5.1 or newer, and on the showinfo log format at `-v info`. A different ffmpeg in the image would turn every large video into times_failed.",
+    "stderr is parsed at info level, so other messages share the pipe. The filter on Parsed_showinfo and pts_time keeps them apart.",
+    "The fps=1 path now scales only when a side is odd. Even-sized videos are no longer passed through the scale filter, which is a small behavior change."
+  ],
+  "test_coverage": [
+    "New tests cover _showinfo_time parsing, the missing-time path with a fake process, and a tail-truncated large clip that keeps its early frames with times from 0.",
+    "The stream-copied trim test from r3 still covers the negative leading-time case.",
+    "No test covers a stall on the key-frame path, an odd-sized frame, or a showinfo line arriving later than 10 s after its frame."
+  ],
+  "not_verified": [
+    "I ran no code or tests, so the behaviour of ffmpeg's showinfo and -fps_mode passthrough was reasoned, not observed.",
+    "I did not confirm the ffmpeg version installed in the image.",
+    "I did not re-read the whole diff, which was truncated, and I did not re-check the rest of the change against I5 to I10.",
+    "I did not measure the new single-decode cost on a 4K HEVC excerpt."
+  ],
+  "confidence": 72,
+  "trajectory": "This round removed state rather than adding it. The separate ffprobe frame listing, _keyframe_times, _is_float, _ProbeError and the post-loop frame/time count check are gone, and the times now come from the same ffmpeg run through showinfo. That removes the double key-frame decode and the discarded partial reads from r3. It adds a stderr thread, a queue and two sentinels (_BAD, _END), but these serve one source of times and replace the earlier prediction. The earlier rounds did patch the design, each adding a branch or state around the separately computed time list (_ProbeError and times_failed in r1/r2, the count check in r3). This round is the first that removed that prediction. times_failed remains for a missing or unparsable time, with the retry cost noted in R1."
+}

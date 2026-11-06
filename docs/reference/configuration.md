@@ -145,6 +145,14 @@ The full key list with defaults is on the [intelligence page](../addons/intellig
 
 Reads the text in pictures with a local engine and stores it as the picture's text, so search and Ask find the words in a screenshot, a slide or a photo of a sign. The values are `"false"` (never), `"manual"` (only when a picture is queued for a reading by hand) and `"on_index"` (as each picture is indexed, with existing pictures read in the background). Default `"on_index"`. It needs no LLM, and a change takes effect after an intelligence restart. Turning it off keeps the text already stored. It also decides whether the text in a picture given to an image search is read. See [text in pictures](../addons/intelligence.md#text-in-pictures).
 
+### features.video_frame_ocr
+
+Reads the text shown in a video — slides, terminal output, captions burned into the picture — at one frame per second with a 10-second minimum gap between read frames, and stores it as the video's text chunks so search, Ask and find-in-file find it. The values are `"false"` (never), `"manual"` (only when a video is queued by hand) and `"on_index"` (as each video is indexed, with existing videos read in the background). Default `"on_index"`. It needs no LLM. A change takes effect after an intelligence restart, and turning it off keeps the text already stored. Videos taller than 1080 lines decode only key frames and read at 1080 lines. See [text in videos and scanned pages](../addons/intelligence.md#text-in-videos-and-scanned-pages).
+
+### features.scanned_pdf_ocr
+
+Reads the pages of a PDF that have no text layer at 300 dpi with the same local OCR engine, and stores the text per page so the page's text is searchable, askable and readable through `read_document`. The values are `"false"`, `"manual"` and `"on_index"`, default `"on_index"`. A change takes effect after an intelligence restart, and turning it off keeps the text already stored. A page with any text layer, even a page number, is not read. See [text in videos and scanned pages](../addons/intelligence.md#text-in-videos-and-scanned-pages).
+
 ---
 
 ## data/addons/cloud-sync/sync-config.json

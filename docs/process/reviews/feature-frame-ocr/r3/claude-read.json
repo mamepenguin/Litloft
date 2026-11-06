@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R1",
+      "origin": "reviewer",
+      "claim": "The new post-loop check `if keyframes and result.frames != len(times): times_failed = True; return` also fires when ffmpeg stalled or exited with an error partway, so the partial read the spec says to store is discarded for videos taller than 1080 lines.",
+      "impact": "For a 4K/portrait-4K video whose ffmpeg run ends early (damaged tail, drive hiccup while still reachable, a stall kill), frames.count is smaller than the listed key frames, so nothing is written and the video stays pending. Under on_index it is fully decoded and OCRed again on every resume, so a persistently damaged large video repeats the most expensive path forever. The spec failure case says the frames decoded before the error are stored and the video is not retried; videos up to 1080p behave that way, large ones do not.",
+      "evidence": "addons/intelligence/app/workers/frame_ocr.py after the `finally` in _read_video (new lines ~310-312): the count comparison runs before the stalled/exit_status handling in index_frame_ocr, and index_frame_ocr treats times_failed as `return False` before reaching the 'keeping the frames read' branch.",
+      "repro": "not_reproduced. Mutation idea: truncate the tail of the large test clip; expect segments stored for early frames, observe no rows and flags false.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The unreachable/engine-lost invariants in I4 are not violated, and the spec's partial-read rule is in prose (Failure cases), not a declared invariant. It still gives a wrong result for a normal case on large videos.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Apply the count check only when ffmpeg exited 0 and did not stall; on an early end, use the first N listed times for the N frames decoded."
+    },
+    {
+      "id": "R2",
+      "origin": "reviewer",
+      "claim": "_keyframe_times now runs `ffprobe -skip_frame nokey -show_entries frame=pts_time`, which decodes every key frame of the video before the reader starts, with a 300 s timeout, whereas the cost measurement behind the 5-minutes-per-video-hour target was for the key-frame decode alone.",
+      "impact": "A long 4K HEVC video pays the key-frame decode twice. If the listing exceeds 300 s it raises _ProbeError, the read returns False with nothing written and is retried on each resume, so such a video may never get frame text. Total cost per video hour can exceed the accepted 5 minutes.",
+      "evidence": "frame_ocr.py _keyframe_times: subprocess.run([... '-skip_frame','nokey','-show_entries','frame=pts_time' ...], timeout=300); called from _read_video before Popen when keyframes is true.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant names the processing-time bound; it is a non-functional target in prose and was not measured for this listing.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Derive the times from the same ffmpeg run (for example `showinfo` or `-f image2pipe` with pts output) instead of a separate pass, or measure the double decode on the 4K HEVC excerpt."
+    }
+  ],
+  "specification_compliance": [
+    "I1 holds on both paths: the hash threshold and the 10 s gap are tested against the last read frame, and the key-frame path now stamps frames with the decoder's own times.",
+    "I4: a probe error, a time/frame count mismatch, a lost engine and an unreachable file all write nothing and leave the flags, as before. The new mismatch path is consistent with that part of I4 but overrides the spec's partial-read rule (R1).",
+    "I2/I3 are not touched by this commit: segments, store and rebuild code are unchanged."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "A large video whose ffprobe key-frame count differs from ffmpeg's decoded count (for example with -vsync 0 dropping or duplicating frames on odd streams) is never indexed and is retried on every resume under on_index, each time after a full OCR pass."
+  ],
+  "regression_risks": [
+    "Videos that previously produced a partial read on the key-frame path now produce nothing and are retried.",
+    "An extra full key-frame decode per read of every video taller than 1080 lines.",
+    "The mismatch test hard-codes equality between two separate tools' views of the stream; any ffmpeg/ffprobe version difference turns every large video into a permanent retry."
+  ],
+  "test_coverage": [
+    "New test for a stream-copied trim (large_trim) asserts stamped times 1.4 and 11.4 and the resulting rows, which covers the negative-leading-KD case that motivated the change.",
+    "Tests cover an unparsable pts_time (N/A) and a count mismatch (fake ffprobe returns 7 times) writing nothing with both flags at 0.",
+    "No test covers a large video whose ffmpeg ends early or stalls with fewer frames than listed times (R1), nor ffprobe timeout on the listing."
+  ],
+  "not_verified": [
+    "I did not run any code or tests; ffmpeg/ffprobe behavior of -skip_frame nokey with -vsync 0 was reasoned, not observed.",
+    "I did not open the repository files; findings come from the diff shown, and the truncated part of the diff was not seen.",
+    "I did not measure the cost of the new ffprobe frame listing on a 4K HEVC file.",
+    "I did not check whether the negative-time key frame case also affects the fps=1 path."
+  ],
+  "confidence": 70,
+  "trajectory": "Yes, the key-frame time design is being patched. r1/r2 added _ProbeError and times_failed to stop the reader from inventing times from the frame ordinal. This round replaces the packet listing with a frame listing (the packet list stamped frames one GOP early) and adds a third guard, the frame/time count check. Each round adds another branch or state around the same prediction, the key-frame time list computed apart from the decode, and each guard introduces its own gap: the new count check also discards partial reads (R1). A single source of times (taken from the decode itself) would remove the prediction, the probe error, the times_failed state and the count check together. None of the rounds removed a state, except the earlier lru_cache removal noted in r2."
+}
