@@ -292,7 +292,7 @@ Modes (`features.retrieval_keywords`):
 
 Refine writes numbers as digits (`2025年`, `1万5000円`) whichever engine transcribed the file. Keyword search, semantic search, the transcript and subtitles use the refined text. A file refined by an earlier version, before refine updated keyword search, keeps matching its text from before refine in keyword search until it is transcribed again.
 
-Refine replaces the transcript text, and there is no undo. To get the original back, transcribe the file again: **Index details** → **Regenerate** on the `whisper` task.
+The first Refine of a file stores the transcript as it was before that run, so **元の結果に戻す** (Restore original) is offered afterwards. See [correcting a transcript or a picture's text](#correcting-a-transcript-or-a-pictures-text). Refine never rewrites a corrected utterance that has no word timings, and a corrected file asks for confirmation before it is refined.
 
 Modes (`features.transcript_refine`): `"false"` (default), `"manual"`, `"on_index"`.
 
@@ -304,7 +304,7 @@ Pictures are read for the words in them: screenshots, slides, photos of signs an
 - Pictures are read one at a time, in about 1 to 2 seconds each.
 - The loaded engine adds about 65 MB; reading a 1600×1200 screenshot peaked at about 440 MB of resident memory in total. `memory.ocr_idle_unload` (default 300 seconds) releases it once it has been idle.
 
-The recognised lines are stored as the picture's text chunks, the same rows a document's text uses, so search, exact search and Ask find and quote them. From there the text follows a document's rules: Ask may send it to the routed LLM, and to an off-host profile only on drives whose `llm_cloud` policy allows it.
+The recognised lines are joined with newlines and stored as the picture's text, then chunked as its text chunks, the same rows a document's text uses, so search, exact search and Ask find and quote them. From there the text follows a document's rules: Ask may send it to the routed LLM, and to an off-host profile only on drives whose `llm_cloud` policy allows it.
 
 Modes (`features.image_ocr`):
 
@@ -317,6 +317,36 @@ With `"on_index"`, a new picture's OCR task shares the queue with CLIP at normal
 In **Index details** a picture has a **Text in image** row (「画像の文字」 in the Japanese UI) while the mode is not `"false"`, with its status and **Regenerate**. The per-file reindex accepts `ocr` as a task, answering 422 when the mode is `"false"` or the file is not a picture, and prioritize queues OCR for a picture that has not been read.
 
 A change takes effect after an intelligence restart. Turning the mode off keeps the text already stored, which stays searchable until the picture is reindexed or leaves the index.
+
+### Correcting a transcript or a picture's text
+
+The engine's text is not always right. A name or a term can be transcribed or read wrongly, and search then misses the word the file actually contains.
+
+**A transcript.** On a video or audio file's page, open the transcript and choose **分割テキスト** (Text chunks). Each row offers **修正** (Edit). Save with **保存** (Save) or Enter; cancel with Escape. An emptied row disappears, and at most one row is edited at a time. Corrected rows carry **修正済み** (Edited) next to **AI整形済み** (AI cleaned) when both apply. The **単語** and external-subtitle views are not editable.
+
+**A picture's text.** A picture with stored text shows a **画像の文字** (Text in image) section on its page, whatever `features.image_ocr` is. **修正** opens a multi-line field; Cmd/Ctrl+Enter saves and Escape cancels. The section keeps showing an emptied text so the original can be restored.
+
+**The original.** A file keeps exactly one machine-produced original per kind: the transcript or picture text as it was immediately before the first correction, or before the first Refine of a transcript, whichever came first. **元の結果に戻す** (Restore original) in the transcript header's 分割テキスト view or in the 画像の文字 section puts the whole file back to it. There is no edit history.
+
+**Protection.** A file with a saved correction is not transcribed or read again by the automatic paths: startup recovery, reconciliation, the `.loft` reset, the OCR backlog, the embedding-model rebuild and the startup clean-up of interrupted jobs. Their search rows are rebuilt from the stored text instead. Only an explicit **Index details** → **再生成** or **再試行**, or Refine, replaces a correction, and each asks for confirmation first and sends `overwrite_corrections`. Folder Refine skips corrected files and reports the count. A confirmed regenerate that fails, finds nothing or is cut by a restart keeps the correction.
+
+**Subtitles.** A corrected utterance whose word timings are still pending, or whose alignment failed, is shown as one cue over its own span. The player loads its subtitle file once per page, so it shows a correction the next time the page is opened.
+
+Routes, all with `X-Lit-Drive` and answering 404 for a file outside that drive:
+
+- `PUT /api/addons/intelligence/files/{id}/transcript/utterances/{index}` with `{text, expected_text, expected_start}` saves one utterance.
+- `POST /api/addons/intelligence/files/{id}/transcript/restore` restores the transcript.
+- `GET` / `PUT /api/addons/intelligence/files/{id}/picture-text` reads and saves a picture's text.
+- `POST /api/addons/intelligence/files/{id}/picture-text/restore` restores it.
+
+Coded errors arrive as `{"detail": {"code": "<code>"}}`: `busy`, `changed` and `corrected` (409), and `line_break`, `too_long` and `last_utterance` (422). `GET /files/{id}/transcript` and `/picture-text` carry `corrected`, `has_original` and `busy`; `/index-details` carries `corrected` and `redo_ended_without_result`.
+
+Events, drive-scoped:
+
+- `intelligence.transcript.updated` with `reason` `corrected`, `replaced`, `rebuilt`, `ended` or `restored`.
+- `intelligence.picture_text.updated` with `reason` `corrected`, `replaced`, `rebuilt`, `ended` or `restored`.
+
+Turning a drive's `index` policy off, and removing or renaming a drive, purges its corrections and kept originals with the rest of its intelligence data.
 
 ### Vision describe
 
