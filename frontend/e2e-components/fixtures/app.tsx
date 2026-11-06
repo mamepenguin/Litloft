@@ -53,6 +53,7 @@ import { QuickNotePresenter } from "@/components/quick-note/QuickNotePresenter";
 import { CurrentDriveProvider } from "@/components/CurrentDriveProvider";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { ImageQueryDropTarget } from "@/components/search/ImageQueryDropTarget";
+import { ConditionMenu } from "@/components/search/ConditionMenu";
 import {
   GlobalSearchProvider,
   useGlobalSearch,
@@ -938,6 +939,27 @@ function QuickNoteFooterJa(): ReactElement {
 
 function QuickNoteFooterEn(): ReactElement {
   return <QuickNoteFooter locale="en" />;
+}
+
+/**
+ * The 「＋ 条件」 menu alone. Its lists need no request: kinds are derived from
+ * the query, and the size and length presets are fixed.
+ */
+function ConditionMenuArrangement(): ReactElement {
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <div className="p-4">
+        <ConditionMenu
+          drive="fixture"
+          query="cats"
+          typeFilter={null}
+          entries={["kind", "size", "duration"]}
+          label="+ Filter"
+          onChoose={() => {}}
+        />
+      </div>
+    </NextIntlClientProvider>
+  );
 }
 
 function OpenScoped({ label }: { label: string }): null {
@@ -1978,6 +2000,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "measured-tree-pane": TreePaneColumn,
   "measured-picker-in-dialog": PickerInDialog,
   "add-menu": AddMenu,
+  "condition-menu": ConditionMenuArrangement,
   "quick-note-footer-ja": QuickNoteFooterJa,
   "quick-note-footer-en": QuickNoteFooterEn,
   "scoped-search-ja": ScopedSearchJa,
