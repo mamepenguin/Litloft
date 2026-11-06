@@ -48,9 +48,20 @@ Terms used below:
   box in the order the engine returns them, each divided by the width (x) or height (y) in
   pixels of the picture the engine read (oriented by EXIF, flattened to RGB, as
   `_load_picture` returns it) and clamped to `[0, 1]`.
-- **the picture's lines**: the one `picture_lines` row of a picture (Data), holding the
-  picture's pixel size and its kept lines in the engine's order, each with `text`, `quad`
-  and `score`.
+- **the picture's lines**: the one `picture_lines` row of a picture (Data), holding its kept
+  lines in the engine's order, each with `text`, `quad` and `score`. A kept line whose text
+  is empty is kept like any other, so that the joined text stays equal to the picture text.
+- **line range**: the characters a line's own `text` occupies in the joined text. Line `i`
+  occupies `[s_i, s_i + len(text_i))` with `s_0 = 0` and `s_(i+1) = s_i + len(text_i) + 1`;
+  the `\n` between two lines belongs to neither. A line whose text itself contains `\n`
+  keeps one range covering all of its characters. Lengths are counted in Unicode code
+  points, as `file_find.py` counts them.
+- **occurrence**: the range `[at, at + len(needle))` of one match in the merged text, where
+  `at` is what `_positions` yields for the row's `ordinal`. A line is **overlapped** by an
+  occurrence when `s_i < at + len(needle)` and `at < s_i + len(text_i)` and its text is not
+  empty; an occurrence that only touches a line's edge, or lies on a `\n`, does not overlap
+  it. A needle that contains `\n` is an occurrence like any other and overlaps every
+  non-empty line it covers.
 - **usable lines**: the picture's lines exist, and the stored picture text
   (`picture_texts.text`) equals their `text` values joined by `\n`, and the text rebuilt
   from the picture's `fts_text_content` chunks by find in this file's merge
@@ -58,13 +69,23 @@ Terms used below:
 
 #### A. Keeping the lines (SPEC-ADDON-075)
 
-1. The OCR worker reads a picture as today. When the engine returns a result, the worker
-   pairs each text with its box and score. If the result holds as many boxes as texts, the
-   lines are the pairs, in order; each quad is normalised as above.
-2. In the same transaction in which `_write` stores the picture text and its rows, the
-   picture's lines are replaced by these lines. A picture that ends with no lines, or whose
-   result's boxes and texts differ in number, has its lines row removed instead, and its
-   text is written exactly as before this change.
+1. The OCR worker reads a picture as today. From the engine's result it takes `txts`
+   (as today), `boxes` and `scores`. Each box is four points of two numbers; its quad is
+   the eight numbers in row-major order, normalised as above. The coordinates are in the
+   pixels of the picture the engine was given. The lines are the pairs of a text and its
+   quad, in order, when `boxes` is present, holds as many boxes as `txts` holds texts, and
+   every box has four points of two finite numbers. `score` is the engine's score for the
+   line when `scores` is present with as many entries as `txts` and the entry is a finite
+   number; otherwise it is null for every line of the picture.
+2. In the same transaction in which `_write` stores the picture text and its rows, and
+   only in the branch that stores text (after the active-row guard and the correction guard,
+   never in a branch that discards the write), the picture's lines are replaced by these
+   lines. A picture that ends with no lines, or whose `boxes` are absent or differ in
+   number from the texts, has its lines row removed instead, and its text is written
+   exactly as before this change.
+   If inserting the lines fails, the whole transaction fails as a failure of the text rows'
+   insert does today: nothing of this write is kept, `ocr_indexed` stays as it was and the
+   picture is read again by the next sweep.
 3. Nothing else changes how text is stored: the picture text, its chunks and embeddings are
    the same as they would have been without the lines.
 
@@ -72,9 +93,9 @@ Terms used below:
 
 1. `GET /files/{file_id}/find` answers as today. For a picture, each `picture_text` row
    gains a field `boxes` when the picture's lines are usable. `boxes` is the list of quads
-   of every kept line that the occurrence overlaps, in line order; an occurrence is the
-   character range the row's `ordinal` names in the stored picture text, and a line
-   occupies the range of its own text, the `\n` between two lines belonging to neither.
+   of every kept line that the occurrence overlaps, in line order, as defined above. Every
+   `picture_text` row has at least one overlapped line when the lines are usable, because
+   the merged text equals the joined lines; a row for which none is found has no `boxes`.
 2. When the lines are not usable, the row has no `boxes` field. Rows of every other kind
    never have it.
 3. Everything else in the answer (`total`, `truncated`, the rows, their order, snippets
@@ -84,9 +105,17 @@ Terms used below:
 
 1. The viewer opens a picture's page with find in this file open and a term answered with
    hits. `FindRow` gains an optional `boxes` field.
-2. The picture is drawn with a layer over it. For every row of the answer that has `boxes`,
-   one outline per quad is drawn at the quad's place over the displayed picture. The
-   current row's outlines use the current style, the others the mark style.
+2. The picture page of the file view (`ImageCanvas`, inside the find provider) reads the
+   answered rows from the find marks (`useFindMarks()`: `term`, `currentRow`, `rows`; empty
+   outside the provider) and draws a layer over the picture once the full picture has
+   decoded, never over the thumbnail held under it. The layer covers the **painted
+   picture**: the rectangle the picture occupies inside the `img` element after
+   `object-fit: contain`, computed from the element's box and the picture's natural size
+   (which the browser reports EXIF-oriented). For every row that has `boxes`, one outline
+   per quad is drawn at the quad's fractions of that rectangle. A quad that several rows
+   share is drawn once, in the current style when the current row has it and otherwise in
+   the mark style. A row whose `boxes` is not a list of lists of eight finite numbers
+   draws nothing; the other rows draw.
 3. Stepping to another row, changing the term, closing the bar or opening another file
    changes or removes the outlines as the marks of the other viewers change (SPEC-CORE-028
    I8).
@@ -98,9 +127,11 @@ Terms used below:
 | Step | Failure | What the system does |
 |---|---|---|
 | A1 | The result's boxes and texts differ in number | No lines are kept for this picture, an earlier lines row is removed, the text is stored as it is today, a warning is logged with the file id |
-| A1 | A box has fewer than four corners or a non-finite number | Same as above |
+| A1 | `boxes` is absent, a box has fewer than four points, or a number is not finite | Same as above |
+| A1 | `scores` is absent, differs in length from the texts, or holds a non-finite number | The lines are kept with a null `score` on every line |
 | A2 | The write is discarded (the picture is corrected without a confirmed redo, the row left the index, the embedding failed, the file is unreachable, the engine could not be created) | Lines are not written and the earlier lines row stays, exactly as the text rows do (SPEC-ADDON-050 I3, SPEC-ADDON-067 C6) |
 | A2 | The picture is unreadable, or has no recognised text | Ends read with no lines; an earlier lines row is removed |
+| A2 | Inserting the lines fails | The text write fails with it and is not kept; the picture stays pending and is read again |
 | B1 | Reading the lines row fails | The find answer is returned without `boxes`; a warning is logged with the file id; find does not fail |
 | B1 | The picture was read before this change | It has no lines row; its rows have no `boxes` until it is read again |
 | B1 | The picture is corrected | The stored text no longer equals the joined lines; rows have no `boxes` |
@@ -121,6 +152,10 @@ Transitions:
 - lines → lines: an OCR run replaces them (a reindex, a confirmed redo).
 - lines → no lines: an OCR run that ends with no lines, a result with mismatched counts, or
   a purge of the file or of its drive's index.
+- No other transition exists: the lines row is created, replaced or deleted only by the
+  text-storing branch of the OCR write and by the file purge. A correction, a restore, a
+  rebuild or follow-up item, a discarded OCR write and a text-embedding model purge are not
+  transitions of the lines.
 - usable ↔ unusable: no transition is made on the lines. A correction makes them unusable
   by changing the picture text, and a restore makes them usable again by putting the
   machine text back; neither writes the lines row.
@@ -129,7 +164,7 @@ Transitions:
 
 | Store | Access |
 |---|---|
-| `search.db` `picture_lines` (new): `file_id` (primary key, 12 chars), `image_width`, `image_height`, `lines_json`, `updated_at` | written by the OCR worker's `_write`; deleted with the file's other rows on a purge; read by the find route |
+| `search.db` `picture_lines` (new): `file_id` (primary key, 12 chars), `lines_json`, `updated_at` | written by the OCR worker's `_write`; deleted with the file's other rows on a purge; read by the find route |
 | `search.db` `picture_texts`, `fts_text_content`, `indexed_files` | read by the find route as today; written by the OCR worker as today |
 | `search.db` `kept_originals`, `followup_items` | not touched |
 | The picture file | read by the OCR worker as today; the browser reads it for display |
@@ -159,12 +194,16 @@ by `file_id` after that check.
 - **Reindex and confirmed redo**: an OCR run that stores a result replaces the lines with it.
 - **Find in this file**: rows of pictures gain an optional field; every other field and every
   other kind is unchanged (SPEC-ADDON-061 I1).
-- **Purges**: the file purge and the purge of a drive whose `index` policy is off remove the
-  lines row with the file's other rows (`indexer.py`, beside `PictureText`). The text-embedding
+- **Purges**: `_purge_file` removes the lines row beside `PictureText`. Every purge ends in
+  it: `_purge_files` (trash, missing and the startup purge of a drive whose `index` policy
+  is off) and the orphan purge. The text-embedding
   model purge does not remove it, because it does not remove `picture_texts` either.
 - **Search, Ask, summaries, tags**: none read the lines.
-- **Pictures read before this change**: no lines; marks appear after the picture is read
-  again by a reindex.
+- **Pictures read before this change**: no lines. Lines are written by every OCR run that
+  stores a result: a reindex, a confirmed redo, the `on_index` backlog and a resume of a
+  picture with no stored text. A text-embedding model rebuild rebuilds an uncorrected
+  picture's rows from its stored text without reading it (SPEC-ADDON-068 C7), so it adds no
+  lines.
 
 ### 8. Error behavior
 
@@ -190,6 +229,8 @@ a result (warning), and a failure to read the lines for a find answer (warning).
 
 ### 10. Non-functional
 
+- Layout: the outlines are placed by measurement in a real browser (Touch points), not by
+  jsdom.
 - Size: one row per picture, about 100 bytes per kept line; a picture with a thousand lines
   stores about 100 KB. The find answer adds one to a few quads (8 numbers each) per
   `picture_text` row, at most 2,000 rows.
@@ -206,15 +247,20 @@ a result (warning), and a failure to read the lines for a find answer (warning).
   normalise, write the lines in the text write's transaction, remove them when none).
 - `addons/intelligence/app/models.py`: the new `PictureLines` table; the table creation
   beside `PictureText`.
-- `addons/intelligence/app/indexer.py`: the file purge and the policy-off drive purge
-  (delete the lines row where `PictureText` is deleted).
+- `addons/intelligence/app/indexer.py`: `_purge_file` (delete the lines row where
+  `PictureText` is deleted).
 - `addons/intelligence/app/file_find.py`: `_text_occurrences` for pictures (the `boxes`
   field); `addons/intelligence/app/routers/files.py` find route and its response schema in
   `addons/intelligence/app/schemas.py`.
-- `frontend/src/lib/fileFind.ts` (`FindRow.boxes`, `readAnswer`), `frontend/src/lib/findMarks.ts`
-  or `frontend/src/hooks/useFindMarksIn.ts` (the find-marks context read by the overlay),
-  `frontend/src/components/ImageCanvas.tsx` (the overlay layer),
-  `frontend/src/messages-core/{ja,en}.json` only if a label is needed.
+- `frontend/src/lib/fileFind.ts` (`FindRow.boxes`, `readAnswer`) and
+  `frontend/src/components/ImageCanvas.tsx` (the layer, reading `useFindMarks()` from
+  `frontend/src/components/FileDetail/find/FindContext.tsx`, which is read and not edited;
+  `find/types.ts` is unchanged because `FindMarksValue` already carries `rows`).
+  `findMarks.ts` and `useFindMarksIn.ts` mark text and are not touched. `FilePreview.tsx`
+  renders `ImageCanvas` and is not touched. No label is added.
+- `frontend/e2e-layout/`: a new case with a static fixture that measures each outline's
+  rectangle against the painted picture's rectangle, for a landscape picture, a portrait
+  picture scaled by `max-h-[70vh]` and a picture whose EXIF orientation rotates it.
 - Rules passed through: `.claude/rules/design-decisions.md` (Drives: the lines row is
   keyed by `file_id` of one drive's file; Handling missing files; Addons),
   `.claude/rules/backend-conventions.md` (no language-dependent rule), `.claude/rules/frontend-conventions.md`,
@@ -231,16 +277,16 @@ a result (warning), and a failure to read the lines for a find answer (warning).
 
 ## Invariants
 
-I1. After a successful OCR run on an active picture, it has exactly one `picture_lines` row holding, for each kept line in the engine's order, the text, a quad whose eight numbers are the engine's box corners divided by the picture's width or height and clamped to `[0, 1]`, and the score, and the lines' texts joined by `\n` equal the stored picture text; it was written in the same transaction as the text rows and no earlier lines remain.
-I2. A picture read with no recognised text, one that cannot be decoded, one over the size limits, and one whose result holds a different number of boxes than texts end with no `picture_lines` row, and the picture text and its rows are written exactly as they were before this change.
-I3. A discarded or failed OCR write — an unreachable file, a failed embedding, an engine that cannot be created, a picture corrected without a confirmed redo, a row that left the index — writes no lines and leaves an earlier `picture_lines` row byte for byte as it was.
-I4. A correction save, a restore, a rebuild item, a follow-up item and a text-embedding model purge write, change and delete no `picture_lines` row, and the kept original holds no boxes.
-I5. A `picture_text` find row has `boxes` exactly when the picture's lines are usable (the stored picture text and the text merged from its `fts_text_content` chunks both equal the lines' texts joined by `\n`); then `boxes` is the quads, in line order, of exactly the lines whose character range the occurrence overlaps. A row of any other kind, and a row of a picture with unusable or no lines, has no `boxes`.
-I6. A find answer with the lines present equals the answer without them in every field except `boxes`: the same `total`, `truncated`, rows, order, snippets and offsets; and a find request writes nothing.
-I7. Purging a picture's file, or purging its drive's index, deletes its `picture_lines` row; the find route reads the lines of the requested `file_id` only, after the drive and access check, and a read failure returns the answer without `boxes` rather than an error.
-I8. While find in this file shows hits on a picture, one outline is drawn for every quad of every row that has `boxes`, at the quad's fractions of the displayed picture; the current row's outlines carry the current style and the others the mark style; and a new query, a state other than hits, closing the bar, or another file leaves none.
-I9. The outline layer takes no pointer events and does not change the picture's size, position or scroll; a picture with no rows with `boxes` is drawn exactly as without the layer.
-I10. The OCR of video frames and scanned PDF pages writes no `picture_lines` row, and their text and rows are unchanged.
+I1. After a successful OCR run on an active picture, it has exactly one `picture_lines` row holding, for each kept line in the engine's order, the text, a quad whose eight numbers are the engine's box corners divided by the width or height of the picture the engine was given and clamped to `[0, 1]`, and the engine's score or null; the lines' texts joined by `\n` equal the stored picture text; it was written in the same transaction as the text rows, and no earlier lines remain.
+I2. A picture read with no recognised text, one that cannot be decoded, one over the size limits, and one whose result has no `boxes`, a different number of boxes than texts, or a box that is not four points of two finite numbers end with no `picture_lines` row, and the picture text and its rows are written exactly as they were before this change.
+I3. A `picture_lines` row is created, replaced or deleted only by the text-storing branch of the OCR write, after its active-row and correction guards, and by the file purge `_purge_file`; a discarded or failed OCR write (an unreachable file, a failed embedding or lines insert, an engine that cannot be created, a picture corrected without a confirmed redo, a row that left the index), a correction save, a restore, a rebuild or follow-up item and a text-embedding model purge leave an existing row byte for byte as it was, and the kept original holds no boxes.
+I4. A `picture_text` find row has `boxes` exactly when the picture's lines are usable (the stored picture text and the text merged from its `fts_text_content` chunks both equal the lines' texts joined by `\n`) and at least one non-empty line is overlapped by its occurrence; then `boxes` holds the quads, in line order, of exactly the overlapped lines, with a touch of an edge or a `\n` overlapping nothing. A row of any other kind, and a row of a picture with unusable or no lines, has no `boxes`, and `boxes` is never an empty list.
+I5. A find answer with the lines present equals the answer without them in every field except `boxes`: the same `total`, `truncated`, rows, order, snippets and offsets; a find request writes nothing; and a failure to read the lines returns the answer without `boxes` rather than an error.
+I6. Purging a picture's file by any purge path deletes its `picture_lines` row, and the find route reads the lines of the requested `file_id` only, after the drive and access check.
+I7. The OCR of video frames and scanned PDF pages writes no `picture_lines` row, and its text and rows are unchanged.
+I8. While find in this file shows hits on a picture, and only after the full picture has decoded, one outline is drawn for each distinct quad of the rows that have `boxes`, at the quad's fractions of the painted picture (the contain-fitted rectangle of the picture inside its `img` element), in the current style when the current row has that quad and in the mark style otherwise; a row whose `boxes` is malformed draws nothing and the other rows still draw.
+I9. A new query, an answer that is not hits, closing the bar, and opening another file each leave no outline on the picture.
+I10. The outline layer takes no pointer events and does not change the picture's size, position or scroll; a picture with no row that has `boxes` is drawn exactly as without the layer.
 
 ## Checked, no action
 
@@ -284,3 +330,14 @@ I10. The OCR of video frames and scanned PDF pages writes no `picture_lines` row
 - **A new route for the lines.** Not added: the find answer already carries what the overlay
   needs, and a route would be a new surface to guard.
 - **Text selection or copy from the picture.** Not part of this change.
+- **Zoom and drag.** `ImageCanvas` has neither; the layer takes no pointer events so that
+  whatever the picture does today (click, context menu, long press, drag out) is unchanged.
+- **Other full-size viewers.** The find bar exists only on the file surface (SPEC-CORE-028
+  I7, I10), so the full-screen viewer and the gallery have no answered term and draw no
+  outline; the layer reads the same empty marks outside the provider.
+- **The picture's pixel size in the row.** It is not stored: the painted picture is
+  computed from the browser's natural size, which is oriented like the engine's picture.
+  A viewer whose picture differs in aspect from the engine's (a converted preview) is the
+  R-5 check above.
+- **Two rows on one line.** Both hold the same quad; it is drawn once, in the current style
+  when the current row has it. The exact look is for the Design Artifact.
