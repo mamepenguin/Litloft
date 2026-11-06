@@ -29,10 +29,10 @@ const CALLERS: Record<string, number> = {
   "components/search/PassageList.tsx": 13,
   "components/search/ScopedSearchParts.tsx": 6,
   "components/search/SearchEmptyState.tsx": 4,
-  "components/search/SearchFilterChips.tsx": 7,
+  "components/search/SearchFilterChips.tsx": 9,
   "components/search/SearchFooter.tsx": 2,
   "components/search/SearchQueryHeader.tsx": 6,
-  "components/search/ConditionMenu.tsx": 21,
+  "components/search/ConditionMenu.tsx": 30,
   "components/search/SearchResultsList.tsx": 2,
   "components/search/useLauncherRows.ts": 1,
   // None by name: the legend draws every word it shows out of
@@ -95,7 +95,7 @@ describe("the search vocabulary core draws", () => {
     ].sort();
     // The check below is true of no keys at all, so the population is
     // asserted first.
-    expect(used.length).toBe(106);
+    expect(used.length).toBe(115);
     const missing = used.filter((key) => !(key in namespaces[locale]));
     // Named, not counted: a failure should say which word is missing.
     expect(missing).toEqual([]);

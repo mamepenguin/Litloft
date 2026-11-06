@@ -1,11 +1,13 @@
 import asyncio
+import re
 import unicodedata
 import logging
 from collections import defaultdict
+from decimal import Decimal
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import case, func, or_
+from sqlalchemy import Integer, case, cast, func, or_
 from sqlalchemy.orm import Session
 
 import app.config as config
@@ -157,6 +159,104 @@ def normalize_collections(values: list[str]) -> list[str]:
     if len(collections) > MAX_SCOPE_COLLECTIONS:
         raise ValueError(f"Maximum {MAX_SCOPE_COLLECTIONS} collections")
     return collections
+
+
+MAX_RANGE_COMPARISONS = 4
+MAX_SIZE_BYTES = 2**53 - 1
+MAX_DURATION_SECONDS = Decimal("10000000")
+
+# Wire form: one of the four comparison words, a colon, a plain decimal.
+# `=` and `gt`/`GTE` spellings are not the form: the frontend writes exactly
+# these four, and the comparison is case-sensitive everywhere.
+_WIRE_FORM = re.compile(r"^(gt|gte|lt|lte):(.*)$")
+_SIZE_NUMBER = re.compile(r"^(0|[1-9]\d*)$")
+
+
+def _plain_decimal(text: str, places: int) -> str | None:
+    if not re.fullmatch(r"(0|[1-9]\d*)(\.\d+)?", text):
+        return None
+    if "." in text:
+        fraction = text.split(".", 1)[1]
+        if len(fraction) > places or fraction.endswith("0"):
+            return None
+    return text
+
+
+def parse_size_comparison(item: str) -> str:
+    """Rewrite one listing / ``/files/matching`` size item in the wire form."""
+    match = _WIRE_FORM.match(item)
+    if match is None:
+        raise ValueError(f"Invalid size comparison: {item!r}")
+    operator, amount = match.groups()
+    if not _SIZE_NUMBER.fullmatch(amount):
+        raise ValueError(f"Invalid size comparison: {item!r}")
+    number = int(amount)
+    if number > MAX_SIZE_BYTES:
+        raise ValueError(f"Invalid size comparison: {item!r}")
+    return f"{operator}:{number}"
+
+
+def parse_duration_comparison(item: str) -> str:
+    """Rewrite one listing / ``/files/matching`` duration item in the wire form."""
+    match = _WIRE_FORM.match(item)
+    if match is None:
+        raise ValueError(f"Invalid duration comparison: {item!r}")
+    operator, amount = match.groups()
+    text = _plain_decimal(amount, 3)
+    if text is None or Decimal(text) > MAX_DURATION_SECONDS:
+        raise ValueError(f"Invalid duration comparison: {item!r}")
+    return f"{operator}:{text}"
+
+
+def _normalise_comparisons(
+    values: list[str], parse, label: str
+) -> list[str]:
+    comparisons: list[str] = []
+    for raw in values:
+        comparison = parse(raw)
+        if comparison not in comparisons:
+            comparisons.append(comparison)
+    if len(comparisons) > MAX_RANGE_COMPARISONS:
+        raise ValueError(f"Maximum {MAX_RANGE_COMPARISONS} {label}")
+    return comparisons
+
+
+def normalize_sizes(values: list[str]) -> list[str]:
+    return _normalise_comparisons(values, parse_size_comparison, "sizes")
+
+
+def normalize_durations(values: list[str]) -> list[str]:
+    return _normalise_comparisons(values, parse_duration_comparison, "durations")
+
+
+_COMPARISONS = {
+    "gt": lambda column, number: column > number,
+    "gte": lambda column, number: column >= number,
+    "lt": lambda column, number: column < number,
+    "lte": lambda column, number: column <= number,
+}
+
+
+def _split_comparison(item: str) -> tuple[str, str]:
+    operator, number = item.split(":", 1)
+    return operator, number
+
+
+def _apply_range_filters(
+    query,
+    sizes: list[str] | None,
+    durations: list[str] | None,
+):
+    for item in normalize_sizes(sizes or []):
+        operator, number = _split_comparison(item)
+        query = query.filter(_COMPARISONS[operator](File.file_size, int(number)))
+    # CAST truncates toward zero, which is the whole second the UI shows for
+    # a non-negative duration; a NULL duration stays NULL and never passes.
+    whole_seconds = cast(File.duration, Integer)
+    for item in normalize_durations(durations or []):
+        operator, number = _split_comparison(item)
+        query = query.filter(_COMPARISONS[operator](whole_seconds, float(number)))
+    return query
 
 
 def _folder_subtree(folder: str):
@@ -319,6 +419,8 @@ def apply_file_filters(
     liked: bool | None = None,
     folders: list[str] | None = None,
     collections: list[str] | None = None,
+    sizes: list[str] | None = None,
+    durations: list[str] | None = None,
     drive: str | None = None,
 ):
     """Shared by the listing and the Internal API's filter resolution.
@@ -371,6 +473,7 @@ def apply_file_filters(
                 )
             )
         )
+    query = _apply_range_filters(query, sizes, durations)
     return _apply_kinds_filter(
         query, [_normalize_kind(kind) for kind in kinds or []]
     )
@@ -813,6 +916,8 @@ def list_drive_files(
     type: list[FileKindParam] | None = Query(None),
     folder: list[str] | None = Query(None),
     collection: list[str] | None = Query(None),
+    size: list[str] | None = Query(None),
+    duration: list[str] | None = Query(None),
     trust: str | None = Query(None, pattern="^(verified|unverified|unreviewed)$"),
     sort: str = Query(
         "created_at", pattern="^(created_at|title|file_size|liked_at|updated_at|random)$"
@@ -832,6 +937,8 @@ def list_drive_files(
     try:
         folder = normalize_folders(folder or [])
         collection = normalize_collections(collection or [])
+        size = normalize_sizes(size or [])
+        duration = normalize_durations(duration or [])
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -869,6 +976,8 @@ def list_drive_files(
         liked=liked,
         folders=folder,
         collections=collection,
+        sizes=size,
+        durations=duration,
         drive=drive_name,
     )
     if trust == "unreviewed":

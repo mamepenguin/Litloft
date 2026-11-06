@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "R2-1",
+      "origin": "reviewer",
+      "claim": "A core test, ConditionMenu.test.tsx, reads the file addons/intelligence/frontend/Page.tsx from the submodule checkout and extracts the Ask page's entries list from it with a regex.",
+      "impact": "The core frontend test run fails if the submodule is not checked out, if the addon moves or reformats that file, or if the addon changes its entries literal. A change in the addon, which has its own PR, can break the core suite. No user-visible effect.",
+      "evidence": "frontend/src/components/search/__tests__/ConditionMenu.test.tsx, the new test 'draws the Ask page's entries without Size or Length': readFileSync(ASK_PAGE) with the regex /<ConditionMenu[\\s\\S]*?entries=\\{(\\[[^\\]]*\\])\\}/.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "It breaks no declared invariant and fails only when the submodule layout changes. It is a fragile cross-repository coupling in a test.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Pin the Ask page's four entries in a core test that renders ConditionMenu with that literal list, and drop the file read."
+    }
+  ],
+  "specification_compliance": [
+    "I1, I8: the listing and /files/matching share normalize_sizes and normalize_durations from drives.py, and both go through apply_file_filters. The addon has its own copy of the parser with the same regexes and limits.",
+    "I2: _COMPARISONS applies gt, gte, lt and lte directly to File.file_size.",
+    "I3, I12: the SQL is CAST(duration AS INTEGER) compared with the number, so NULL never passes and 90.4 is compared as 90 on SQLite. This depends on SQLite's truncating CAST.",
+    "I7: hasImpossibleRange gates the listing, the meaning search and the continuation in useFolderFiles, and the listing and modal search in useFileSearch. For durations, the frontend impossible check works on real numbers while the backend compares whole seconds. When the frontend flags a range as impossible, the backend range is also empty, so the two cannot disagree in a harmful direction.",
+    "I10: the preset filters use comparisonsImpossible and comparison equality, and choose() goes through the shared writer.",
+    "I11: filterQueryParam omits empty lists, and getDriveFiles and the hooks add size and duration only when non-empty."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "CAST(duration AS INTEGER) truncation is SQLite behaviour; another database would behave differently. The project uses SQLite, so this is acceptable.",
+    "The Ask page's entries list lives in the addon, so a change there can break a core test (R2-1)."
+  ],
+  "test_coverage": [
+    "The backend tests cover the 1023/1024/1025 boundary, 90.4-second truncation, NULL durations, parity between the listing and /files/matching, caps with duplicates, impossible ranges, and rejected and accepted wire forms.",
+    "The frontend tests cover parsing and units, chips and chip removal, the hooks' request parameters and filter text, the impossible range, and the menu presets.",
+    "I did not see a test that the frontend's duration-impossible check agrees with the backend on fractional bounds. Both directions are safe by reasoning."
+  ],
+  "not_verified": [
+    "I ran no tests and could not read git history.",
+    "I did not read the full source files beyond the diff, so I did not check other callers of the changed functions.",
+    "The fix diffs in the record were truncated at 200000 bytes, so I did not see the later fix commits, including the ConditionMenu move and the restored menu entries, except through the final diff.",
+    "I did not diff the addon submodule against its own repository.",
+    "I did not check the contents of invariants.md or the other files in the r2 review directory."
+  ],
+  "confidence": 70,
+  "trajectory": "The fix-commit record I received is truncated. The visible part (the first commits) consists of spec drafts for unrelated features (Ask scope, share target, image query). Those add no branch or state to this change, so I cannot say from the record whether any round of this change added a branch, state or prediction that an earlier round also added. The final diff looks consistent: the size and length entries live in ConditionMenu with fixed preset lists, and the single shared parser covers the listing and the Internal API. The only new finding is a fragile test dependency on the addon file. I cannot confirm whether the design is being patched."
+}

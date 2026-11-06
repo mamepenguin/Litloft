@@ -186,6 +186,21 @@ describe("SPEC-CORE-044 ConditionMenu", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("draws only the entries its host passes, so the Ask page's list has no Size or Length", async () => {
+    const entries: ConditionEntry[] = ["folder", "collection", "tag", "kind"];
+
+    await renderMenu({ entries });
+    openRoot();
+
+    expect(
+      within(screen.getByRole("menu"))
+        .getAllByRole("menuitem")
+        .map((row) => row.textContent?.trim()),
+    ).toEqual(["Folder", "Collection", "Tag", "Type"]);
+    expect(screen.queryByRole("menuitem", { name: "Size" })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: "Length" })).toBeNull();
+  });
+
   it("submits nothing itself: a choice is only onChoose", async () => {
     api.getFolderTree.mockResolvedValue([folder("Photos")]);
     const { onChoose } = await renderMenu({ entries: ["folder"] });

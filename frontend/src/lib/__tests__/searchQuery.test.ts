@@ -31,6 +31,8 @@ describe("parseSearchQuery", () => {
       liked: false,
       folders: [],
       collections: [],
+      sizes: [],
+      durations: [],
       hasOperators: false,
     });
   });

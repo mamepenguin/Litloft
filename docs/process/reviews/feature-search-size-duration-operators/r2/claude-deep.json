@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "D1",
+      "origin": "reviewer",
+      "claim": "A core frontend test reads the addon submodule's Page.tsx from disk and extracts the ConditionMenu entries with a regex.",
+      "impact": "The core test suite depends on a submodule checkout and on the exact JSX shape of addons/intelligence/frontend/Page.tsx. It fails if the submodule is absent, or if the addon reformats that JSX, even though the menu is correct.",
+      "evidence": "frontend/src/components/search/__tests__/ConditionMenu.test.tsx: ASK_PAGE resolves to addons/intelligence/frontend/Page.tsx, and the regex /<ConditionMenu[\\s\\S]*?entries=\\{(\\[[^\\]]*\\])\\}/ parses it.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant is broken. The coupling is brittle, and it is in test code only.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Pin the Ask page's entries in an addon-side test, and keep the core test on an explicit entries list."
+    },
+    {
+      "id": "D2",
+      "origin": "reviewer",
+      "claim": "The frontend impossible-range check treats fractional-second duration ranges as possible, while the backend compares whole seconds, so some ranges that admit no stored value are still requested.",
+      "impact": "For example, a query with duration >=90.5 and duration <=90.9 is sent to both stages and returns an empty result, instead of requesting nothing as I7 describes for ranges that admit no value. The user sees an empty list either way.",
+      "evidence": "frontend/src/lib/searchQuery.ts comparisonsImpossible (duration branch) compares real numbers. backend/app/routers/drives.py _apply_range_filters casts File.duration to Integer before comparing.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The result is empty and correct. Only the request-avoidance in I7 is missed, for fractional bounds that the spec's own wire form allows. The effect is not user-visible.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "Backend: list_drive_files and files_matching both go through apply_file_filters and the shared normalize_sizes / normalize_durations, which supports I1 and I8.",
+    "SQL: size compares File.file_size directly (I2). Duration compares CAST(duration AS INTEGER) against a float, so NULL never passes (I3) and 90.4 is compared as 90 (I12), on SQLite.",
+    "The addon carries a duplicate of the wire parser with the same regexes and limits. The tests cover the same accepted and rejected lists on both sides.",
+    "Frontend: ParsedQuery, SearchFilter, filterQueryParam, listing params and the impossible-range gates are consistent across useFolderFiles and useFileSearch (I6, I7, I11).",
+    "Menu: presets are filtered for duplicates and impossibility, and the entry is disabled at 4 distinct comparisons (I10)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "canOfferContinuation also checks searchKinds.impossible (raised in r1).",
+    "hasOperators is now true for size and duration, which reaches GlobalSearch, FolderBrowser and SearchResultsList (raised in r1)."
+  ],
+  "regression_risks": [
+    "CAST truncation toward zero is SQLite behavior. Another dialect could round instead.",
+    "The addon's copy of the parser can drift from the core's. Only parallel test lists guard against it.",
+    "A plain word like size:>1GB is now an operator, as the spec declares."
+  ],
+  "test_coverage": [
+    "Backend tests cover 1023/1024/1025 boundaries, 90.4 s truncation, NULL durations, parity between listing and matching, caps, dedup and wire-form rejection (400 vs 422).",
+    "Frontend tests cover parsing, chips, chip removal, the menu presets, both hooks' parameters, and impossible ranges.",
+    "The addon has a separate acceptance file for the same wire forms.",
+    "No test covers a fractional-second duration range in the frontend impossible-range check."
+  ],
+  "not_verified": [
+    "I ran no tests, because I have no execution tool.",
+    "I did not read the full bodies of the changed source files beyond the diff shown.",
+    "I did not diff the addon submodule against its own repository.",
+    "The fix-commit diffs were truncated in the prompt. The visible ones are docs-only spec drafts for other features, so I could not check what the fixes since r1 did.",
+    "I did not verify the F2 consumers (GlobalSearch, FolderBrowser, SearchResultsList) by reading them again.",
+    "I did not check non-SQLite behavior of CAST."
+  ],
+  "confidence": 70,
+  "trajectory": "I could not judge this fully. The fix-commit diffs were cut off, and the visible ones (e1648ca through e2d6290) only draft or revise specs for other features: Ask scope, share target and image query. They add no branch, state or prediction to the size/duration change. The r1 findings were scope observations on canOfferContinuation and hasOperators. They did not call for a code change, so I see no sign of patching."
+}

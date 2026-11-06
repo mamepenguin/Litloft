@@ -1,5 +1,13 @@
 import type { FileKind } from "@/types";
 
+export type ComparisonOperator = "gt" | "gte" | "lt" | "lte";
+
+/** One comparison of a `size:` or `duration:` token: bytes or seconds. */
+export interface Comparison {
+  operator: ComparisonOperator;
+  value: number;
+}
+
 export interface ParsedQuery {
   /** What is left to match names and paths against. */
   text: string;
@@ -9,6 +17,8 @@ export interface ParsedQuery {
   liked: boolean;
   folders: string[];
   collections: string[];
+  sizes: Comparison[];
+  durations: Comparison[];
   hasOperators: boolean;
 }
 
@@ -43,6 +53,184 @@ const MAX_FOLDERS = 10;
 const MAX_FOLDER_CODE_POINTS = 1024;
 const MAX_COLLECTIONS = 10;
 const MAX_COLLECTION_CODE_POINTS = 100;
+const MAX_RANGE_COMPARISONS = 4;
+const MAX_SIZE_BYTES = BigInt(2) ** BigInt(53) - BigInt(1);
+const MAX_DURATION_MILLIS = 10_000_000_000;
+
+const COMPARISON_PREFIX = /^(>=|<=|>|<)(.*)$/;
+const COMPARISON_OPERATORS: Record<string, ComparisonOperator> = {
+  ">": "gt",
+  ">=": "gte",
+  "<": "lt",
+  "<=": "lte",
+};
+const SIZE_UNITS: Record<string, number> = {
+  "": 1,
+  B: 1,
+  K: 1024,
+  KB: 1024,
+  M: 1024 ** 2,
+  MB: 1024 ** 2,
+  G: 1024 ** 3,
+  GB: 1024 ** 3,
+  T: 1024 ** 4,
+  TB: 1024 ** 4,
+};
+const DURATION_UNITS: Record<string, number> = { h: 3600, m: 60, s: 1 };
+const SIZE_AMOUNT = /^(\d+)(?:\.(\d+))?([A-Za-z]*)$/;
+const NUMBER_WITH_UNIT = /(\d+(?:\.\d+)?)([hms])/gi;
+const CLOCK = /^(\d+):([0-5]\d)(?::([0-5]\d))?$/;
+
+function splitDecimal(text: string): { digits: bigint; places: number } {
+  const [whole, fraction = ""] = text.split(".");
+  return { digits: BigInt(whole + fraction), places: fraction.length };
+}
+
+/** Rounds a non-negative rational to an integer, halves away from zero. */
+function roundToInteger(numerator: bigint, denominator: bigint): bigint {
+  const quotient = numerator / denominator;
+  const remainder = numerator % denominator;
+  return remainder * BigInt(2) >= denominator ? quotient + BigInt(1) : quotient;
+}
+
+function parseSizeAmount(amount: string): number | null {
+  const match = SIZE_AMOUNT.exec(amount);
+  if (!match) return null;
+  const [, whole, fraction = "", unit] = match;
+  const multiplier = SIZE_UNITS[unit.toUpperCase()];
+  if (multiplier === undefined) return null;
+  const { digits, places } = splitDecimal(whole + (fraction ? `.${fraction}` : ""));
+  const bytes = roundToInteger(
+    digits * BigInt(multiplier),
+    BigInt(10) ** BigInt(places),
+  );
+  if (bytes > MAX_SIZE_BYTES) return null;
+  return Number(bytes);
+}
+
+function durationParts(amount: string): { numerator: bigint; denominator: bigint } | null {
+  if (/^\d+(?:\.\d+)?$/.test(amount)) {
+    const { digits, places } = splitDecimal(amount);
+    return { numerator: digits, denominator: BigInt(10) ** BigInt(places) };
+  }
+
+  const clock = CLOCK.exec(amount);
+  if (clock) {
+    const [, first, second, third] = clock;
+    const seconds = third === undefined
+      ? Number(first) * 60 + Number(second)
+      : Number(first) * 3600 + Number(second) * 60 + Number(third);
+    return { numerator: BigInt(seconds), denominator: BigInt(1) };
+  }
+
+  const parts: { digits: bigint; places: number; order: number }[] = [];
+  let cursor = 0;
+  NUMBER_WITH_UNIT.lastIndex = 0;
+  for (let match = NUMBER_WITH_UNIT.exec(amount); match; match = NUMBER_WITH_UNIT.exec(amount)) {
+    if (match.index !== cursor) return null;
+    cursor = match.index + match[0].length;
+    const order = ["h", "m", "s"].indexOf(match[2].toLowerCase());
+    parts.push({ ...splitDecimal(match[1]), order });
+  }
+  if (cursor !== amount.length || parts.length === 0) return null;
+
+  let maxPlaces = 0;
+  for (const part of parts) maxPlaces = Math.max(maxPlaces, part.places);
+  let numerator = BigInt(0);
+  let previousOrder = -1;
+  for (const part of parts) {
+    if (part.order <= previousOrder) return null;
+    previousOrder = part.order;
+    const unit = DURATION_UNITS[["h", "m", "s"][part.order]];
+    numerator +=
+      part.digits * BigInt(unit) * BigInt(10) ** BigInt(maxPlaces - part.places);
+  }
+  return { numerator, denominator: BigInt(10) ** BigInt(maxPlaces) };
+}
+
+function parseDurationAmount(amount: string): number | null {
+  const parts = durationParts(amount);
+  if (!parts) return null;
+  const millis = roundToInteger(parts.numerator * BigInt(1000), parts.denominator);
+  if (millis > BigInt(MAX_DURATION_MILLIS)) return null;
+  return Number(millis) / 1000;
+}
+
+function parseComparison(kind: "size" | "duration", value: string): Comparison | null {
+  const match = COMPARISON_PREFIX.exec(value);
+  if (!match) return null;
+  const [, prefix, amount] = match;
+  const number = kind === "size"
+    ? parseSizeAmount(amount)
+    : parseDurationAmount(amount);
+  if (number === null) return null;
+  return { operator: COMPARISON_OPERATORS[prefix], value: number };
+}
+
+export function comparisonWireForm(comparison: Comparison): string {
+  const value = Number.isInteger(comparison.value)
+    ? String(comparison.value)
+    : comparison.value.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
+  return `${comparison.operator}:${value}`;
+}
+
+function sameComparison(a: Comparison, b: Comparison): boolean {
+  return a.operator === b.operator && a.value === b.value;
+}
+
+/** True when comparisons of one kind admit no value. */
+export function comparisonsImpossible(
+  comparisons: readonly Comparison[],
+  kind: "size" | "duration",
+): boolean {
+  if (kind === "size") {
+    let low = 0;
+    let high = Number.POSITIVE_INFINITY;
+    for (const { operator, value } of comparisons) {
+      if (operator === "gt") low = Math.max(low, value + 1);
+      else if (operator === "gte") low = Math.max(low, value);
+      else if (operator === "lt") high = Math.min(high, value - 1);
+      else high = Math.min(high, value);
+    }
+    return high < low;
+  }
+
+  let lowest = 0;
+  let lowestInclusive = true;
+  let highest = Number.POSITIVE_INFINITY;
+  let highestInclusive = true;
+  const narrow = (
+    bound: number,
+    inclusive: boolean,
+    lower: boolean,
+  ): void => {
+    if (lower) {
+      if (bound > lowest || (bound === lowest && !inclusive)) {
+        lowest = bound;
+        lowestInclusive = inclusive;
+      }
+    } else if (bound < highest || (bound === highest && !inclusive)) {
+      highest = bound;
+      highestInclusive = inclusive;
+    }
+  };
+  for (const { operator, value } of comparisons) {
+    if (operator === "gt") narrow(value, false, true);
+    else if (operator === "gte") narrow(value, true, true);
+    else if (operator === "lt") narrow(value, false, false);
+    else narrow(value, true, false);
+  }
+  if (highest < lowest) return true;
+  return highest === lowest && !(lowestInclusive && highestInclusive);
+}
+
+/** True when one of a parsed query's operator ranges admits no value. */
+export function hasImpossibleRange(parsed: ParsedQuery): boolean {
+  return (
+    comparisonsImpossible(parsed.sizes, "size") ||
+    comparisonsImpossible(parsed.durations, "duration")
+  );
+}
 
 function codePoints(value: string): number {
   return [...value].length;
@@ -138,7 +326,9 @@ type AcceptedOperator =
   | { operator: "type"; kind: FileKind }
   | { operator: "is"; flag: "favorite" | "liked" }
   | { operator: "path"; folder: string }
-  | { operator: "collection"; collection: string };
+  | { operator: "collection"; collection: string }
+  | { operator: "size"; comparison: Comparison; value: string }
+  | { operator: "duration"; comparison: Comparison; value: string };
 
 interface InterpretedToken {
   raw: string;
@@ -153,6 +343,8 @@ interface InterpretedToken {
 function interpret(q: string): InterpretedToken[] {
   const folders: string[] = [];
   const collections: string[] = [];
+  const sizes: string[] = [];
+  const durations: string[] = [];
 
   return tokenize(q).map((token) => {
     const text = (): InterpretedToken => ({
@@ -214,6 +406,27 @@ function interpret(q: string): InterpretedToken[] {
       }
       return text();
     }
+    if (name === "size" || name === "duration") {
+      const value = token.value.normalize("NFKC").replace(/\s+/g, "");
+      const comparison = parseComparison(name, value);
+      if (comparison === null) return text();
+      const bucket = name === "size" ? sizes : durations;
+      const key = comparisonWireForm(comparison);
+      if (bucket.includes(key)) {
+        return {
+          raw: token.raw,
+          accepted: { operator: name, comparison, value },
+          openQuote: token.openQuote,
+        };
+      }
+      if (bucket.length >= MAX_RANGE_COMPARISONS) return text();
+      bucket.push(key);
+      return {
+        raw: token.raw,
+        accepted: { operator: name, comparison, value },
+        openQuote: token.openQuote,
+      };
+    }
     return text();
   });
 }
@@ -232,6 +445,8 @@ export function parseSearchQuery(q: string): ParsedQuery {
     liked: false,
     folders: [],
     collections: [],
+    sizes: [],
+    durations: [],
     hasOperators: false,
   };
   const words: string[] = [];
@@ -252,6 +467,14 @@ export function parseSearchQuery(q: string): ParsedQuery {
       parsed[accepted.flag] = true;
     } else if (accepted.operator === "path") {
       if (!parsed.folders.includes(accepted.folder)) parsed.folders.push(accepted.folder);
+    } else if (accepted.operator === "size") {
+      if (!parsed.sizes.some((held) => sameComparison(held, accepted.comparison))) {
+        parsed.sizes.push(accepted.comparison);
+      }
+    } else if (accepted.operator === "duration") {
+      if (!parsed.durations.some((held) => sameComparison(held, accepted.comparison))) {
+        parsed.durations.push(accepted.comparison);
+      }
     } else if (
       !parsed.collections.some(
         (collection) => collection.toLowerCase() === accepted.collection.toLowerCase(),
@@ -299,6 +522,8 @@ export interface SearchFilter {
   liked: boolean;
   folders: string[];
   collections: string[];
+  sizes: string[];
+  durations: string[];
 }
 
 /** The operators of a query as the meaning stage's `filter`. */
@@ -310,6 +535,8 @@ export function filterFromParsed(parsed: ParsedQuery, fixed: FileKind | null): S
     liked: parsed.liked,
     folders: [...parsed.folders],
     collections: [...parsed.collections],
+    sizes: parsed.sizes.map(comparisonWireForm),
+    durations: parsed.durations.map(comparisonWireForm),
   };
 }
 
@@ -322,6 +549,8 @@ export function filterQueryParam(filter: SearchFilter): string {
     ...(filter.liked ? { liked: true } : {}),
     ...(filter.folders.length > 0 ? { folders: filter.folders } : {}),
     ...(filter.collections.length > 0 ? { collections: filter.collections } : {}),
+    ...(filter.sizes.length > 0 ? { sizes: filter.sizes } : {}),
+    ...(filter.durations.length > 0 ? { durations: filter.durations } : {}),
   });
 }
 
@@ -330,7 +559,9 @@ export type OperatorChip =
   | { operator: "type"; kind: FileKind }
   | { operator: "is"; flag: "favorite" | "liked" }
   | { operator: "path"; folder: string }
-  | { operator: "collection"; collection: string };
+  | { operator: "collection"; collection: string }
+  | { operator: "size"; value: string; comparison: Comparison }
+  | { operator: "duration"; value: string; comparison: Comparison };
 
 /** One chip per distinct operator, in the order the operators first appear. */
 export function operatorChips(q: string): OperatorChip[] {
@@ -340,6 +571,8 @@ export function operatorChips(q: string): OperatorChip[] {
   const seenFlags = new Set<string>();
   const seenFolders = new Set<string>();
   const seenCollections = new Set<string>();
+  const seenSizes = new Set<string>();
+  const seenDurations = new Set<string>();
 
   for (const { accepted } of interpret(q)) {
     if (!accepted) continue;
@@ -368,6 +601,18 @@ export function operatorChips(q: string): OperatorChip[] {
       chips.push({ operator: "path", folder: accepted.folder });
       continue;
     }
+    if (accepted.operator === "size" || accepted.operator === "duration") {
+      const seen = accepted.operator === "size" ? seenSizes : seenDurations;
+      const key = comparisonWireForm(accepted.comparison);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      chips.push({
+        operator: accepted.operator,
+        value: accepted.value,
+        comparison: accepted.comparison,
+      });
+      continue;
+    }
     const key = accepted.collection.toLowerCase();
     if (seenCollections.has(key)) continue;
     seenCollections.add(key);
@@ -389,6 +634,12 @@ function chipMatches(accepted: AcceptedOperator | null, chip: OperatorChip): boo
   }
   if (chip.operator === "path") {
     return accepted.operator === "path" && accepted.folder === chip.folder;
+  }
+  if (chip.operator === "size" || chip.operator === "duration") {
+    return (
+      accepted.operator === chip.operator &&
+      sameComparison(accepted.comparison, chip.comparison)
+    );
   }
   return (
     accepted.operator === "collection" &&
