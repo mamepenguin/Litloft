@@ -150,8 +150,8 @@ const POPUPS: Record<string, PopupEntry> = {
     dismissedIn: "frontend/src/components/SmartFolderSaveButton.tsx",
     why: "the saved-search menu",
   },
-  "frontend/src/components/search/SearchQueryHeader.tsx": {
-    dismissedIn: "frontend/src/components/search/SearchQueryHeader.tsx",
+  "frontend/src/components/search/ConditionMenu.tsx": {
+    dismissedIn: "frontend/src/components/search/ConditionMenu.tsx",
     why: "the search page's add-filter menu",
   },
   "frontend/src/components/SortButton.tsx": {

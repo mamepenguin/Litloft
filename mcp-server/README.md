@@ -201,7 +201,7 @@ When adding a new tool, put agent-facing behavior notes in its
 | `list_collections` | List a drive's collections (also called playlists) |
 | `get_collection` | Read a collection's active files in order, each as `{ item_id, position, file }`, with the trashed and missing ones counted in `inactive_count` |
 | `list_inbox` | List a drive's open inbox (files that arrived by upload or web clip and are not yet done, filed, tagged or trashed), newest first, with a cursor for the next page |
-| `ask` | Ask Litloft Intelligence a question within one drive |
+| `ask` | Ask Litloft Intelligence a question within one drive. Pass `scope` (`folders`, `collections` by name, `tags`, `kinds`; AND between them) to answer only from those files; an empty scope answers with no answer and `matched_file_count: 0` |
 
 ### Write
 

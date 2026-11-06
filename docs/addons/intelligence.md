@@ -267,6 +267,8 @@ How an answer is built (keys under `rag.*`):
 
 Ask cites only files that are verified. See [unverified sources](#unverified-sources).
 
+**Narrowing Ask to a scope.** `POST /api/addons/intelligence/ask` accepts `scope`, an object with any of `folders` (a folder and everything under it), `collections` (by name), `tags`, and `kinds`; conditions combine with AND. It is resolved by the same core call as a semantic search filter (`POST /api/internal/files/matching`), so a scope and a search filter holding the same values name the same files. Every retrieval stage, the multi-step agentic loop included, ranks and cites only inside the resolved set. A scoped stream begins with one `scope` event carrying the four normalised lists and `matched_file_count`; an empty scope answers "no files" (`done.scope_empty: true`) without calling the LLM. A resolution failure answers HTTP 503 with `{"detail": {"code": "scope_unavailable", ...}}` before any stream byte. Unknown keys in the body or inside `scope` answer 422, so a field a later version adds fails closed. The Ask page's **＋ 範囲** menu and chips send it; the folder `…` menu's **ここに質問** and the collection page's **ここに質問** open the page with that folder or collection already in the scope. The scope is never written to an LLM prompt.
+
 Ask can also run as a multi-step loop with a tool-calling model: set `llm.agentic_mode: "auto"`, use `provider: "openai_compatible"`, and list the model in `llm.agentic_models` with its `context_window`. Any other model uses the single-step path. Default `"off"`.
 
 

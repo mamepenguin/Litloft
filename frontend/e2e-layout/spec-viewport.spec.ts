@@ -21,7 +21,9 @@ const FIXTURE_DIR = resolve(__dirname, "fixtures");
  */
 const FIXTURES = [
   "addon-policy.html",
+  "ask-scope-chips.html",
   "button-touch-floor.html",
+  "collection-actions.html",
   "file-actions-menu.html",
   "image-query.html",
   "inbox-rows.html",
@@ -40,7 +42,7 @@ const FIXTURES = [
   "upload-drawer.html",
 ] as const;
 
-const FIXTURE_COUNT = 18;
+const FIXTURE_COUNT = 20;
 
 /**
  * On the far side of `sm` from Chromium's mobile default, so a page that

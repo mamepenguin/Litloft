@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "No findings were listed for verification, so no per-finding check was made. I did not independently audit invariants I1-I11 against the code at d6394ec8f."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Not assessed. The change touches retrieval paths (file_id_constraint vs file_id_scope) and the shared SearchQueryHeader/ConditionMenu extraction, both of which carry regression risk that this verification did not examine."
+  ],
+  "test_coverage": [
+    "Not examined. I did not read the tests, and I could not run any."
+  ],
+  "not_verified": [
+    "The findings list was empty, so there was nothing to verify.",
+    "I did not read the code at commit d6394ec8f and did not check any of invariants I1-I11 independently.",
+    "I did not run any tests, e2e-layout fixtures or browser checks, because I only have read-only tools."
+  ],
+  "confidence": 70
+}
