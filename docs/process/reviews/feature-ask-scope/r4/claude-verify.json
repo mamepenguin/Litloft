@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "No findings were supplied to verify, so there were no verification records to produce.",
+    "I did not independently check invariants I1 to I11 against the code at this commit."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Not assessed: I did not read the code, so I cannot say whether the change carries regression risk."
+  ],
+  "test_coverage": [
+    "Not assessed: I did not read the tests."
+  ],
+  "not_verified": [
+    "All of invariants I1 to I11 were left unchecked against the code at commit 3860addb6.",
+    "I did not read any file in the repository, so I found no defects of my own.",
+    "The findings list was empty, so no claims were available to reproduce."
+  ],
+  "confidence": 70
+}
