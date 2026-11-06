@@ -128,3 +128,6 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-063 | implemented | docs/specs/search-scope-operators.md | sha256:d8241feb82371ba3f7cd552cdaa3efb30009fcb1e1bf5677781257c47320341d |
 | SPEC-CORE-047 | implemented | docs/specs/search-size-duration-operators.md | sha256:6536d3ac22dd7cee8cd0beef0fd992d9e5567f331c5365e1ba577094622ebc29 |
 | SPEC-ADDON-065 | implemented | docs/specs/search-size-duration-operators.md | sha256:6536d3ac22dd7cee8cd0beef0fd992d9e5567f331c5365e1ba577094622ebc29 |
+| SPEC-ADDON-066 | implemented | docs/specs/frame-ocr.md | sha256:e457ec6b9ade299f547a699c43f8ac27a4fef85449791c7f3dd9a9848549aeaf |
+| SPEC-ADDON-069 | implemented | docs/specs/frame-ocr.md | sha256:e457ec6b9ade299f547a699c43f8ac27a4fef85449791c7f3dd9a9848549aeaf |
+| SPEC-CORE-048 | implemented | docs/specs/frame-ocr.md | sha256:e457ec6b9ade299f547a699c43f8ac27a4fef85449791c7f3dd9a9848549aeaf |

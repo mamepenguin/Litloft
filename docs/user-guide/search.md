@@ -85,6 +85,7 @@ With the intelligence addon enabled for the drive, results found by meaning are 
 - The badges also show matches in **Transcript**, **Content**, **Visual**, **Thumbnail** and **Metadata**.
 - Pictures and video frames found by how they look (**Thumbnail**, **Visual**) can be only loosely related to your words. In relevance order they usually come after other matches.
 - Text inside pictures, such as screenshots, slides and photos of signs, is found by its words in search and Ask, and a match shows the recognised text as its quote. A reading can contain single-character errors.
+- Text shown in a video — a slide, terminal output, a caption burned into the picture — is found by its words too. A video found this way shows 内容一致; its time and 「画面内の文字」 appear under 箇所. The text on a scanned PDF page is found as that page's text.
 - A match in speech or in a scene shows up to three timestamps. Click one to play from that moment. `+N` says how many more there were.
 - A match in a PDF lists the pages, as `p.N`. Click one to open the PDF at that page.
 - A match in an EPUB book lists the chapters by title. Click one to open the book at the start of that chapter.
@@ -96,7 +97,7 @@ While a meaning search runs, a **ファイル / 箇所** switch sits under the q
 
 - Each row shows a frame or the file's thumbnail, the place (a time range, page or chapter), the file name and the matched text in full. A picture's recognised text and a plain text match are labelled accordingly.
 - Click a row to open the file at that time, page or chapter.
-- **箇所** shows only places inside files: speech, PDF pages, chapters, text in a picture, and scenes when **Scene search** is on. A file found only by its name or thumbnail appears only under **ファイル**.
+- **箇所** shows only places inside files: speech, PDF pages, chapters, text in a picture, text shown in a video (「画面内の文字」 with its time), and scenes when **Scene search** is on. A file found only by its name or thumbnail appears only under **ファイル**.
 - A file shows up to three places. When it has more, **このファイルの他の箇所 →** opens the file with [finding in this file](viewers-and-players.md#finding-in-this-file) already searching for the word that matched there.
 - The list holds the best-matching passages the search kept, not every occurrence of your words in a file. Finding in the file lists every occurrence.
 - If nothing was found inside files, **ファイルで表示** switches back to the files that matched.

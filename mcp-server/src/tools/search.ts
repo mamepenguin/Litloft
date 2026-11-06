@@ -27,7 +27,7 @@ export function intelligenceGet(
 const searchExact: LitloftTool = {
   name: "search_exact",
   description:
-    "List every place a string appears in one drive, like grep: document text (Markdown, plain text, HTML, PDF, Office, EPUB), video/audio transcripts, and Visual Index scenes (scene label, on-screen text). It does not search filenames (use search_files), file descriptions, tags or image descriptions. Matching is a plain substring, case-insensitive for ASCII letters only, with no wildcards. Each segment gives its position (PDF page, EPUB `section`, transcript or scene times), match_count and a snippet. Results are ordered and paged: `total` is the full count, page with offset. Document chunks overlap, so one occurrence can be listed in two consecutive text segments.",
+    "List every place a string appears in one drive, like grep: document text (Markdown, plain text, HTML, PDF, Office, EPUB), video/audio transcripts, text read from video frames (each hit carries its time), and Visual Index scenes (scene label, on-screen text). It does not search filenames (use search_files), file descriptions, tags or image descriptions. Matching is a plain substring, case-insensitive for ASCII letters only, with no wildcards. Each segment gives its position (PDF page, EPUB `section`, transcript, frame-text or scene times), match_count and a snippet. Results are ordered and paged: `total` is the full count, page with offset. Document chunks overlap, so one occurrence can be listed in two consecutive text segments.",
   inputSchema: {
     drive: z.string().describe("Drive name"),
     q: z.string().min(1).max(200).describe("Exact text to find"),

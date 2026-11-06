@@ -56,6 +56,8 @@ export function passageLocator(passage: SearchPassage): PassageLocator {
       return { kind: "timeRange", start: passage.start ?? 0, end: passage.end };
     case "scene":
       return { kind: "timeStartOnly", start: passage.start ?? 0 };
+    case "screen_text":
+      return { kind: "timeStartOnly", start: passage.start ?? 0 };
     case "page":
       return { kind: "page", page: passage.page ?? 0 };
     case "section":
@@ -76,6 +78,7 @@ export function passageHref(fileId: string, passage: SearchPassage): string {
   switch (passage.kind) {
     case "utterance":
     case "scene":
+    case "screen_text":
       return `${base}?t=${Math.floor(passage.start ?? 0)}`;
     case "page":
       return `${base}?page=${passage.page}`;

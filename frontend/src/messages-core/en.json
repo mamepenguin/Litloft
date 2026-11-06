@@ -321,6 +321,7 @@
     "passageList": "Passages",
     "passagePictureText": "Text in picture",
     "passageText": "Text",
+    "passageScreenText": "Text in video",
     "moreInFile": "More in this file →",
     "moreInFileName": "More passages in {file}",
     "passagesFailed": "Couldn't load passages",

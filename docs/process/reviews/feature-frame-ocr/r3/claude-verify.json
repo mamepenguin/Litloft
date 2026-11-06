@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "frame_ocr.py:310-312: after the finally block, `if keyframes and result.frames != len(times): result.times_failed = True; return result`. A stall (line 251-254 break) or an ffmpeg error exit stops decoding early, so frames < len(times) and the check fires. index_frame_ocr then hits `if result.times_failed: ... return False` (lines 490-496) before the stalled/exit_status branch at 504-516 that logs 'keeping the frames read'. So for videos over 1080 lines the partial read is discarded and the video stays pending, while videos up to 1080p keep the partial read. Traced by reading the code only; not executed."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2",
+      "status": "confirmed",
+      "note": "frame_ocr.py:138-143: `_keyframe_times` runs ffprobe with `-skip_frame nokey -show_entries frame=pts_time` and timeout=300. It is called at line 228 before Popen, only when keyframes is true. ffprobe's frame listing runs the decoder, which with skip_frame nokey still decodes every key frame. The reader then decodes the same key frames again with ffmpeg (line 208), so the key-frame decode is done twice. A timeout or nonzero exit raises _ProbeError, and index_frame_ocr returns False with nothing written (lines 467-473), so a long 4K video whose listing takes over 300 s stays pending on every run. The code facts hold. I could not check the measurement the claim compares against, because the measurement is outside the files I can read."
+    }
+  ],
+  "specification_compliance": [
+    "I1 and I2 are met in the code I read for videos up to 1080p. For videos over 1080 lines, R1 means the partial read that the code's own log message promises to keep is dropped.",
+    "I4 is met on the reachability and engine-lost paths: both return False before any write."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "A key-frame video with a stall or ffmpeg error partway stays pending and is re-read from the start on every run, with no partial result stored.",
+    "The 300 s ffprobe timeout is a hidden limit that stops long 4K videos from ever being indexed."
+  ],
+  "regression_risks": [
+    "Changing the frames != len(times) check to apply only when decoding finished cleanly would change which stalled key-frame videos get stored.",
+    "Pre-listing key-frame times adds up to double the decode time for videos over 1080 lines, which puts the 5-minutes-per-video-hour target at risk."
+  ],
+  "test_coverage": [
+    "I read only frame_ocr.py. I did not inspect the tests for a stall or error case on a key-frame video."
+  ],
+  "not_verified": [
+    "Did not run any code or ffprobe, so the extra decode cost in R2 is not measured.",
+    "Did not read the tests, the indexer wiring or the spec text beyond what the prompt quotes.",
+    "Did not check the rest of the commit outside frame_ocr.py."
+  ],
+  "confidence": 85
+}
