@@ -137,7 +137,7 @@ describe("SPEC-CORE-048 C2 a video's frame-text passage", () => {
   it("uses the screen-text label, not the plain-text one", () => {
     render(listed([group()]));
 
-    const link = screen.getByRole("link", { name: /0:12/ });
-    expect(link).not.toHaveTextContent("Text");
+    expect(screen.getByText("Text in video")).toBeInTheDocument();
+    expect(screen.queryByText("Text")).toBeNull();
   });
 });

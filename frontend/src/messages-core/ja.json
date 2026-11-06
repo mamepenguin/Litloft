@@ -312,6 +312,7 @@
     "passageList": "箇所",
     "passagePictureText": "画像の文字",
     "passageText": "本文",
+    "passageScreenText": "画面内の文字",
     "moreInFile": "このファイルの他の箇所 →",
     "moreInFileName": "{file} の他の箇所",
     "passagesFailed": "箇所を読み込めませんでした",

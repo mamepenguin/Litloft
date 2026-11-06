@@ -158,6 +158,7 @@ Every hour (`indexing.reconciliation_interval`) the addon looks for files it has
 - For video, frames are picked at scene changes (`indexing.frame_extraction`) and embedded with CLIP.
 - Images are embedded with CLIP, and captioned with BLIP when `models.blip` is set.
 - Pictures are also read for the words in them with a local OCR engine when `features.image_ocr` is not off; see [text in pictures](#text-in-pictures).
+- Videos are read for the words shown on screen, and scanned PDF pages for their text, while `features.video_frame_ocr` / `features.scanned_pdf_ocr` are not off; see [text in videos and scanned pages](#text-in-videos-and-scanned-pages).
 
 Re-indexing a file replaces its old index.
 
@@ -177,7 +178,7 @@ The query is embedded with `models.text_embedding`, matched against the vectors 
 
 Both routes accept an optional `filter` query parameter: one JSON object with optional `tags` (strings), `kinds` (the eight kinds, with `markdown` accepted as `text`), `favorite` and `liked` (booleans), `folders` (drive-relative folder paths) and `collections` (collection names). The addon resolves it to the request drive's file ids through `POST /api/internal/files/matching` and ranks only within them; every channel and every relative cutoff sees the filtered set only. Empty tag strings are dropped, tags and kinds are deduplicated case-insensitively (kinds after the `markdown` alias), folders are NFC-normalised and trimmed of `/`, collection names are trimmed with blanks dropped, and at most 20 tags of up to 200 characters, 8 kinds, 10 folders of up to 1024 characters and 10 collections of up to 100 characters apply. A key the addon does not know is `422`, and so is a malformed folder or a value outside these caps. `filter` cannot be combined with `type`, `include_scene_clip=true` or `mode=recall` on `/search`, or with `type` on `/search/images` (422). If the core cannot resolve the filter, the route answers 503 and runs no unfiltered search. Without `filter`, both routes behave exactly as before.
 
-`/search` also accepts `passages=true`. Each result then carries `passages`: the places in that file the search matched, one per place, sorted by their own score. Each passage has `kind` (`utterance`, `scene`, `page`, `section`, `picture_text` or `text`), a locator (`start`/`end` seconds, `page`, or `section` with `section_title`), `chunk_index`, `text` (the stored excerpt, or a 200-character window around a keyword match), `score`, `keyword` (a keyword match is among its matches), `highlight_terms` (the query terms and their kana variants, empty when `keyword` is false) and `frame_url` for video utterances and scenes. Scenes appear only with `include_scene_clip=true`. Without `passages=true` the response is unchanged and has no `passages` key; `/search/images` never carries it. The results page's 箇所 view is built on it.
+`/search` also accepts `passages=true`. Each result then carries `passages`: the places in that file the search matched, one per place, sorted by their own score. Each passage has `kind` (`utterance`, `scene`, `page`, `section`, `picture_text`, `text` or `screen_text`), a locator (`start`/`end` seconds, `page`, or `section` with `section_title`), `chunk_index`, `text` (the stored excerpt, or a 200-character window around a keyword match), `score`, `keyword` (a keyword match is among its matches), `highlight_terms` (the query terms and their kana variants, empty when `keyword` is false) and `frame_url` for video utterances, scenes and frame text. A video's frame text is `screen_text`: its `start`/`end` are the stored segment's, its `chunk_index` is the text chunk's, and a chunk with no stored segment makes no passage. Scenes appear only with `include_scene_clip=true`. Without `passages=true` the response is unchanged and has no `passages` key; `/search/images` never carries it. The results page's 箇所 view is built on it.
 
 `GET /search/images?q=&type=` ranks every active file of the request drive by how closely its representative frame matches the query and returns the first 2000, with no score cutoff. `type` takes the same values as `/search`, the drive comes from `X-Lit-Drive`, and it needs the `search` policy. The response has `/search`'s shape (`results`, `total`, `indexed_files`, `service_version`), and each result is the single `clip_thumbnail` match with the score and segments `/search` would give that frame. The search page uses it for **Show more by similarity**.
 
@@ -197,7 +198,7 @@ The answer is `{images, scenes, scenes_partial, documents, text}`:
 
 One image query runs at a time per addon process; a second waits with its body unread. The route's proxy timeout is 28 seconds, inside the 30-second cut the core's Next.js rewrite applies to every `/api/*` request. The SigLIP vision tower is released after `memory.clip_image_idle_unload` idle seconds and loaded again on the next picture; the text encoder used by ordinary search stays resident.
 
-`GET /files/{file_id}/find?q=` lists every occurrence of `q` (1–200 characters, matched as `/search/exact` matches) in one file, for the file page's find bar. It needs file access and the `search` policy, and the drive comes from `X-Lit-Drive`. It reads the file's text chunks (overlapping chunks are merged so an occurrence counts once), its transcript, and its scene `visible_text` when the drive's Visual Index is on. The answer is `{query, indexed, total, truncated, rows}`. Each row has `kind` (`utterance`, `scene`, `page`, `section`, `picture_text` or `text`), `start`/`end`, `page`, `section`/`section_title`, `ordinal` (its number among the occurrences in its page, section, chunk or scene), `snippet`, and `match_start`/`match_length` inside the snippet. Rows are in position order, at most 2000; `total` counts them all and `truncated` says the list was cut. `indexed` is false when the file has nothing the route can search. It writes nothing.
+`GET /files/{file_id}/find?q=` lists every occurrence of `q` (1–200 characters, matched as `/search/exact` matches) in one file, for the file page's find bar. It needs file access and the `search` policy, and the drive comes from `X-Lit-Drive`. It reads the file's text chunks (overlapping chunks are merged so an occurrence counts once), its transcript, a video's frame-text segments (each segment one unit, with its start and end), and its scene `visible_text` when the drive's Visual Index is on. The answer is `{query, indexed, total, truncated, rows}`. Each row has `kind` (`utterance`, `scene`, `page`, `section`, `picture_text` or `text`), `start`/`end`, `page`, `section`/`section_title`, `ordinal` (its number among the occurrences in its page, section, chunk or scene), `snippet`, and `match_start`/`match_length` inside the snippet. A video's frame text is a `scene` row with the segment's time, listed whether or not the Visual Index is open; at an equal start, utterances come first, then Visual Index scenes, then frame text. Rows are in position order, at most 2000; `total` counts them all and `truncated` says the list was cut. `indexed` is false when the file has nothing the route can search; for a video it is true when its transcript or its frame text is indexed. It writes nothing.
 
 Search drops results scoring below half the top result, except those with a CLIP match: image cosines sit far below keyword scores, so the rule would hide every picture as soon as one document mentions the word.
 
@@ -207,7 +208,7 @@ Search drops results scoring below half the top result, except those with a CLIP
 
 `GET /search/scene-segments?q=&limit=` returns time ranges of the drive's videos closest to a query, built from the same stored frame vectors without reading or writing anything else. `q` is 1 to 200 characters and `limit` is 1 to 50 (default 20). Each segment is `{file_id, filename, start, end, peak, score}`, ordered by score, at most two per file. It always returns the closest segments the drive has, so the score says how they compare with each other, not whether the scene exists. `partial` is true when other drives' frames filled the search and the drive's own frames may have been missed. It needs the `search` policy and takes the drive from `X-Lit-Drive`. The search page draws these as **Scene candidates** above the results while **Scene search** is on.
 
-An agent can also list every place a string appears in a drive's document text, transcripts and Visual Index scenes (`search_exact`, a plain substring match rather than a ranking), and rank Visual Index scenes by what they show (`search_video_scenes`); both need the `search` policy, and scenes also need the Visual index enabled for the drive.
+An agent can also list every place a string appears in a drive's document text, transcripts, text shown in video frames (each hit carries its time) and Visual Index scenes (`search_exact`, a plain substring match rather than a ranking), and rank Visual Index scenes by what they show (`search_video_scenes`); both need the `search` policy, and scenes also need the Visual index enabled for the drive.
 
 An agent can read the text of a PDF, Word, Excel, PowerPoint or EPUB file a page, slide, sheet or EPUB section at a time (`read_document`, backed by `GET /files/{file_id}/document-text`). The text is extracted from the file on each call with the same extractors indexing uses, and nothing is stored. A response stops at `max_chars` and returns a `next` cursor to continue. A PDF read covers at most 10 pages. At most two reads extract at once, and PDF conversions (reads and indexing) run one at a time; a read that cannot start within 10 seconds gets 429. The file must already be indexed by the addon.
 
@@ -334,6 +335,23 @@ In **Index details** a picture has a **Text in image** row (「画像の文字�
 
 A change takes effect after an intelligence restart. Turning the mode off keeps the text already stored, which stays searchable until the picture is reindexed or leaves the index.
 
+### Text in videos and scanned pages
+
+Two more local OCR passes use the same engine, settings and queue as text in pictures:
+
+- **Text in video** (`features.video_frame_ocr`): the words shown on screen — slides, terminal output, captions burned into the picture.
+- **Text in scanned pages** (`features.scanned_pdf_ocr`): the words on a PDF page that has no text layer.
+
+Both default to `"on_index"`, take `"manual"` and `"false"` the same way, and are set in `search-config.yml` or on the **Settings → Features** screen. A change takes effect after a restart and raises the restart banner. Turning either off keeps the text already stored, which stays searchable.
+
+**Video.** The video is decoded at one frame per second and the first frame is read. A later frame is read when its 256-bit difference hash differs from the last read frame by at least 16 bits and at least 10 seconds have passed. A video taller than 1080 lines decodes only key frames (no full decode of every frame) and reads a selected frame scaled down to 1080 lines; videos up to 1080p use the full-decode method. The recognised lines are kept in the engine's order. Consecutive frames with the same text form one segment, and a segment carries the time it was on screen. The segment text is chunked at 1000 characters with a 200-character overlap and stored as the video's `text_content` rows, so search, Ask, the single-file question and `/search/exact` find it. Find in file lists it under 「画面内の文字」 with its time, and a search passage of kind `screen_text` shows the time, the label and the frame, and opens the video at that second.
+
+What is missed: text that is being written or changed and is gone within the gap (recall about 0.5 on handwriting lectures), and a very dense screen that changes every 10 seconds is read about once every 10 seconds. The measured cost is 2.1–2.8 minutes per video hour on 720p lectures with the gap on; a 1080p excerpt measured 4.9 and a 4K HEVC excerpt 4.8–5.3 minutes per video hour (about 12 minutes per hour is the accepted worst case). Reading happens inside the container; the stored text is sent to the LLM only when Ask, a summary or another LLM feature uses it, under the drive's `llm_cloud` policy.
+
+**Scanned PDFs.** A page is read when `page.get_text("text")` is empty after stripping whitespace; a page with any text, even a page number, keeps its own text. A scanned page is rendered in RGB at 300 dpi (or the highest resolution within 50 megapixels) and read. The text is stored per page and a text-content task re-extracts the PDF with it, so the page behaves like any other page: search hits on it, find rows 「p. N」 open it, and Ask, summaries and `read_document` see it. A page that stores or removes non-empty text resets `text_indexed` until that text task finishes; its existing search rows stay meanwhile. Cost is about 2.6 seconds per page at 300 dpi, so a 500-page scanned PDF takes about 22 minutes. The pdf.js text layer of a scanned page is empty, so choosing a find row shows the page without a mark.
+
+**Index details** lists a **Text in video** row (「動画内の文字」) for a video while `features.video_frame_ocr` is not `"false"`, and a **Text in scanned pages** row (「スキャンしたページの文字」) for a PDF while `features.scanned_pdf_ocr` is not `"false"`, each with its status and **Regenerate**. The per-file reindex accepts `frame_ocr` and `page_ocr`; it answers 422 when the mode is `"false"` or the file is of the wrong type. `prioritize` queues them when they are pending.
+
 ### Vision describe
 
 The vision model describes each image (including HEIC). The description is shown under **AI image description**, used for search, and fed to tag candidates.
@@ -435,9 +453,11 @@ features:
   chapter_suggestions: "false"        # false | manual | on_index
   video_visual_index: "false"         # false | manual | on_index
   image_ocr: "on_index"               # false | manual | on_index
+  video_frame_ocr: "on_index"         # false | manual | on_index
+  scanned_pdf_ocr: "on_index"         # false | manual | on_index
 ```
 
-Every flag except `indexing`, `search`, `auto_tags` and `image_ocr` does nothing while `llm.provider` is `"disabled"`. `features.image_ocr` also decides whether the text in a picture given to [search by an image](#search-by-an-image) is read.
+Every flag except `indexing`, `search`, `auto_tags`, `image_ocr`, `video_frame_ocr` and `scanned_pdf_ocr` does nothing while `llm.provider` is `"disabled"`. `features.image_ocr` also decides whether the text in a picture given to [search by an image](#search-by-an-image) is read.
 
 ### LLM
 
@@ -723,7 +743,7 @@ Whisper (or the `haas_local` recognizer, when that is the provider), BLIP, the O
 - **Pickup** on the drive home.
 - **Index details** in the file's `…` menu (see below).
 - **AI** in the folder's `…` menu: **Create AI tag candidates…**, **Create AI summaries…** and **Create image descriptions…**. Each asks first and says how many files. That count is the files the folder has loaded so far, which may not be the whole folder.
-- On the admin dashboard, the **Index Status** widget (queues, models, **Pause** / **Resume**) and, when something failed, a **N failed jobs** band whose **View** opens the **Failed jobs** list, with **Retry** and **Exclude** per row. It counts OCR tasks in the queue and shows a **Text in image** progress bar.
+- On the admin dashboard, the **Index Status** widget (queues, models, **Pause** / **Resume**) and, when something failed, a **N failed jobs** band whose **View** opens the **Failed jobs** list, with **Retry** and **Exclude** per row. It counts OCR tasks in the queue and shows **Text in image**, **Text in video** and **Text in scanned pages** progress bars.
 
 A section disappears on drives where its feature is off.
 
@@ -742,7 +762,7 @@ To keep one passage rather than the whole file, select it and add it to the Know
 
 There is no "reindex everything" button. Instead:
 
-- For one task on one file, choose **Index details** in the file's `…` menu, then **Regenerate** on a task (`metadata`, `clip`, `whisper`, `text` or `ocr`). The file is indexed again on the next pass. A picture shows the `ocr` row while `features.image_ocr` is not `"false"`.
+- For one task on one file, choose **Index details** in the file's `…` menu, then **Regenerate** on a task (`metadata`, `clip`, `whisper`, `text`, `ocr`, `frame_ocr` or `page_ocr`). The file is indexed again on the next pass. A picture shows the `ocr` row while `features.image_ocr` is not `"false"`; a video shows `frame_ocr` while `features.video_frame_ocr` is not `"false"`, and a PDF shows `page_ocr` while `features.scanned_pdf_ocr` is not `"false"`.
 - For failed jobs, on the admin dashboard press **View** on the **N failed jobs** band and **Retry** a row. Files skipped because their type is not supported are not listed.
 
 Changing the text embedding model in the browser (or `models.text_embedding` in the file) rebuilds the whole text index at the next restart. Ask and text search are unavailable until it finishes. Detailed-summary citations are not rebuilt; run `backfill_detailed_citations --force` for that.

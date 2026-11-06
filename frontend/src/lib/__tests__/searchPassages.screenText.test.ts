@@ -29,6 +29,4 @@ describe("SPEC-CORE-048 C2/I23 a screen_text passage", () => {
   it("links to the video at the floored start second", () => {
     expect(passageHref("f1", screenText)).toBe("/files/f1?t=12");
   });
-
-});
 });

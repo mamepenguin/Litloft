@@ -13,7 +13,8 @@ export type PassageKind =
   | "page"
   | "section"
   | "picture_text"
-  | "text";
+  | "text"
+  | "screen_text";
 
 /** One place inside a file, as `/search?passages=true` reports it. */
 export interface SearchPassage {
