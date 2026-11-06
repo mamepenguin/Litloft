@@ -136,7 +136,7 @@ The documents group needs readable text in the image — about 20 characters —
 
 When more than one model is available, a select beside the **Ask** button picks the model for your questions; **Auto** uses the one the administrator assigned. It goes back to **Auto** when you reopen the page or switch drives. AI summaries have the same choice under the **▾** beside **Create again**.
 
-To ask about one file, open it and use the **Ask** tab beside its details; the answer cites times, pages or sections you can click to jump there. The tab appears once the file has been indexed, a little after upload.
+To ask about one file, open it and use the **Ask** tab beside its details; the answer cites times, pages or sections you can click to jump there. The tab appears once the file has been indexed, a little after upload. A picture that has no text can be asked about when a model that can read images is set up. While a video or audio file is playing, a question can be about that moment — for a video, what is on screen. When the answer was meant to use an image and could not, a line under the answer says the image could not be used and the answer is from the text only.
 
 Ask sends parts of your files to the language model. An administrator can use a local model, or turn Ask off for a drive. See the [intelligence addon](../addons/intelligence.md#ask-rag).
 

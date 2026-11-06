@@ -28,7 +28,7 @@ The LLM itself ships disabled (`llm.provider: "disabled"`), so a new install mak
 The addon can send your file content to outside services. Whether it does depends on:
 
 - Which [LLM profile](#llm-profiles-and-routing) a feature uses. A profile on your own machine (ollama, or another model on your network) keeps content at home. A profile marked **External server** sends it to that server, and only on drives that allow it (`llm_cloud` below).
-- **Ask** (`features.rag`) sends transcripts and text of the files it retrieves on every question.
+- **Ask** (`features.rag`) sends transcripts and text of the files it retrieves on every question. A question about one file sends that file's picture, or the frame of a playing video, when the model can read images.
 - Vision describe and the visual index send image bytes (and, for the visual index, nearby transcript text) to the vision model.
 - **Text in pictures** reads each picture inside the container with a local engine; nothing leaves the machine for the reading itself. The recognised text is then handled like a document's text (see [text in pictures](#text-in-pictures)).
 - `transcription.provider`: `"whisper_local"` and `"haas_local"` keep audio local; every other provider sends audio to the cloud.
@@ -272,10 +272,12 @@ Ask cites only files that are verified. See [unverified sources](#unverified-sou
 Ask can also run as a multi-step loop with a tool-calling model: set `llm.agentic_mode: "auto"`, use `provider: "openai_compatible"`, and list the model in `llm.agentic_models` with its `context_window`. Any other model uses the single-step path. Default `"off"`.
 
 
-**Ask about one file.** A file page shows an **Ask** tab in its inspector once the file has indexed text: a transcript, or text read from a document or picture. The question is answered from that file's indexed chunks only, through the core proxy, so a file the viewer cannot open, a trashed file and a drive with Ask off answer 404. Routes, both with `X-Lit-Drive`:
+**Ask about one file.** A file page shows an **Ask** tab in its inspector once the file has indexed text: a transcript, or text read from a document or picture. A picture with no text can be asked about too, when some profile has a `vision_model`. The question is answered from that file's indexed chunks only, through the core proxy, so a file the viewer cannot open, a trashed file and a drive with Ask off answer 404. Routes, both with `X-Lit-Drive`:
 
-- `GET /api/addons/intelligence/files/{file_id}/ask` returns `{"available": true}` when the file has at least one indexed chunk in that drive, `false` otherwise.
-- `POST /api/addons/intelligence/files/{file_id}/ask` with `{"question": "...", "profile": null}` streams the answer. Citations carry a position (`seconds`, `page`, or an EPUB `section`), and the tab turns them into links that move the open player or viewer.
+- `GET /api/addons/intelligence/files/{file_id}/ask` returns `{"available": true}` when the file has at least one indexed chunk in that drive, or when it is a picture and some profile has a `vision_model`, `false` otherwise.
+- `POST /api/addons/intelligence/files/{file_id}/ask` with `{"question": "...", "profile": null, "position_seconds": null}` streams the answer. The tab sends `position_seconds` while a video or audio file plays. Citations carry a position (`seconds`, `page`, or an EPUB `section`), and the tab turns them into links that move the open player or viewer.
+
+A question about a picture, or about a video while it plays, sends one image with the passages when the profile can read images. The image goes to the profile's `vision_model` instead of its `model`, only through the profile the question resolves to, and only where the drive's `llm_cloud` policy allows that profile. A profile without a `vision_model` cannot answer from a picture.
 
 When the file's chunk text exceeds `rag.file_question_max_chars` (default 16,000, from 1,000 to 200,000), the chunks closest to the question are sent and the answer says it read part of the file.
 ### Pickup
