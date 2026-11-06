@@ -1,6 +1,6 @@
 # Correct a transcript or a picture's text, and keep the original
 
-SPEC-ID: SPEC-ADDON-065
+SPEC-ID: SPEC-ADDON-070
 SPEC-ID: SPEC-ADDON-067
 SPEC-ID: SPEC-ADDON-068
 
@@ -16,7 +16,7 @@ file.
 
 This change lets the owner correct:
 
-- **one utterance of a transcript at a time** (SPEC-ADDON-065): the rows of the
+- **one utterance of a transcript at a time** (SPEC-ADDON-070): the rows of the
   transcript panel's 「分割テキスト」 view, which are `transcript_chunks` rows
   (`addons/intelligence/app/models.py:193-231`);
 - **the text read from one picture** (SPEC-ADDON-067): the OCR text that B1 stores as the
@@ -106,7 +106,7 @@ Terms used below:
   rebuild item per kind and at most one pending keyword-vector-only item; queuing another
   while one is pending adds nothing.
 
-#### A. Correct one utterance (SPEC-ADDON-065)
+#### A. Correct one utterance (SPEC-ADDON-070)
 
 1. On a video or audio file's page, the owner opens the transcript panel and the 「分割テキスト」
    view. Each utterance row offers **修正** (revealed like the quote button: on row hover,

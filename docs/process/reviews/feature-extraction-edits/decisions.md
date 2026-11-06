@@ -43,7 +43,7 @@ evidence: |
     (06-index-details-warning.png). **キャンセル** closed it and the
     **修正済み** mark remained.
 
-  2. Transcript (SPEC-ADDON-065) — PASS.
+  2. Transcript (SPEC-ADDON-070) — PASS.
   - `lecture.mp4` (`hmH46hucQLD-`) opened the **文字起こし** tab in the
     **分割テキスト** view; each of the 3 rows offered **修正**
     (11-transcript-open.png).
