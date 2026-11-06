@@ -26,6 +26,7 @@ The search window also has a **Keyboard Shortcuts** button along its bottom edge
 | `/` | In an empty field, browse from the drive root (typed directly, not through an input method) |
 | `←` or `Backspace` | While browsing, with the field empty: go up one level (from the drive root, stop browsing) |
 | `Enter` | While browsing, open the picked row, or the folder you are in when no row is picked |
+| `Cmd/Ctrl+V` with an image on the clipboard | Start an image search from the image (see [searching by an image](search.md#searching-by-an-image-intelligence-addon)) |
 
 ### On the search results page
 
@@ -38,6 +39,7 @@ The search window also has a **Keyboard Shortcuts** button along its bottom edge
 | `Enter` in the condition menu | Choose the highlighted item |
 | `Esc` in the condition menu | Leave a value list for the first level, or close the menu |
 | `Tab` in the condition menu | Close it |
+| `Cmd/Ctrl+V` with an image on the clipboard | Start an image search from the image (see [searching by an image](search.md#searching-by-an-image-intelligence-addon)) |
 
 ### Quick Note panel
 

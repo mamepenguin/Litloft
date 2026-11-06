@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "ImageQueryDropTarget.tsx:76-79 registers document-level listeners and has no check for an open modal. GlobalSearch.tsx:131-132 sets imageEnabled false when scoped or browsing. In that case lines 719-722 and 813-816 pass undefined for the drag handlers, so nothing stops the event. The handlers that do exist call stopPropagation (lines 497-525), which is why the unscoped modal is not affected. A one-image drop on a scoped or browsing modal therefore bubbles to document and calls onImageQuery (line 72) from the search page behind it. This is read from code only and was not run. It contradicts I7/I8, which say a drop in the modal never starts a query the modal did not offer."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "ImageQueryDropTarget.tsx:61-63 runs preventDefault for any event with files before the class check at line 68. Lines 49-52 do the same for dragover, with dropEffect set to copy. A repo-wide grep found no other non-test document drop or dragover listener, so an upload-class drop on the text-query page used to reach the browser default, which opens the file. With image search available, that drop is now swallowed with no feedback. This breaks I8's 'exactly as before' for that case. The effect is small: the old default only navigated away from the page."
+    }
+  ],
+  "specification_compliance": [
+    "I7 and I8: a drop in the scoped or browsing modal can start an image query through the document listener (F1).",
+    "I8: an upload-class drop on the text-query page is now preventDefault'ed, where before it fell through to the browser default (F2)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Document-level drag listeners on the text-query page change the default file-drop behaviour while image search is available.",
+    "When the modal is open on a search page and image search is available, a drop reaches the page-level target if the modal's own handlers are not active."
+  ],
+  "test_coverage": [
+    "I looked at the tests only by name: ImageQueryDropTarget.test.tsx and FolderBrowser.imageQuery.test.tsx exist. I did not read them, so I do not know whether they cover a drop while the modal is scoped or browsing."
+  ],
+  "not_verified": [
+    "I ran no code and no tests.",
+    "I did not read the addon (backend) changes.",
+    "I did not check whether the modal's z-index or overlay would block pointer events from the page in a real browser.",
+    "I did not read the ImageQueryDropTarget tests."
+  ],
+  "confidence": 80
+}

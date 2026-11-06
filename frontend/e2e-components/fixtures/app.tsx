@@ -52,6 +52,7 @@ import jaMessages from "@/messages-core/ja.json";
 import { QuickNotePresenter } from "@/components/quick-note/QuickNotePresenter";
 import { CurrentDriveProvider } from "@/components/CurrentDriveProvider";
 import { GlobalSearch } from "@/components/GlobalSearch";
+import { ImageQueryDropTarget } from "@/components/search/ImageQueryDropTarget";
 import {
   GlobalSearchProvider,
   useGlobalSearch,
@@ -77,6 +78,24 @@ import {
 } from "@/lib/viewTransitions";
 
 import "../../e2e-layout/fixtures/globals.built.css";
+
+// The fixture has no server: only the image-search availability gate is
+// answered, so the modal can offer the image entry point. Every other fetch
+// keeps its offline failure.
+const nativeFetch = window.fetch.bind(window);
+window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+  const url =
+    typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+  if (url.includes("/api/addons/intelligence/search/by-image/available")) {
+    return Promise.resolve(
+      new Response("{}", {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+  }
+  return nativeFetch(input, init);
+};
 
 /**
  * `onClick` is React's, delegated at the root container: the swallow stops
@@ -956,6 +975,43 @@ function ScopedSearchJa(): ReactElement {
 
 function ScopedSearchEn(): ReactElement {
   return <ScopedSearch locale="en" />;
+}
+
+function ImageSearchOpen(): null {
+  const search = useGlobalSearch();
+  useEffect(() => {
+    search.open();
+  }, [search]);
+  return null;
+}
+
+/** The modal open over the fixture drive, with image search available. */
+function ImageSearch(): ReactElement {
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <ShortcutsProvider>
+        <CurrentDriveProvider>
+          <GlobalSearchProvider>
+            <GlobalSearch />
+            <ImageSearchOpen />
+          </GlobalSearchProvider>
+        </CurrentDriveProvider>
+      </ShortcutsProvider>
+    </NextIntlClientProvider>
+  );
+}
+
+
+function ImageDropTarget(): ReactElement {
+  const [hit, setHit] = useState("");
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <div data-page-frame="full" style={{ minHeight: 600 }}>
+        <ImageQueryDropTarget onImageQuery={(file) => setHit(file.name)} />
+        <p data-testid="image-drop-hit">{hit}</p>
+      </div>
+    </NextIntlClientProvider>
+  );
 }
 
 /**
@@ -1926,6 +1982,8 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "quick-note-footer-en": QuickNoteFooterEn,
   "scoped-search-ja": ScopedSearchJa,
   "scoped-search-en": ScopedSearchEn,
+  "image-search": ImageSearch,
+  "image-drop-target": ImageDropTarget,
   "player-seek-bar": PlayerSeekBar,
   "player-hairline": PlayerHairline,
   "player-captions": PlayerCaptions,
