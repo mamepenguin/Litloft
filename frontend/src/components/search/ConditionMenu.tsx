@@ -9,7 +9,7 @@
  * caller's `onChoose`.
  */
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 
 import { DismissScrim } from "@/components/DismissScrim";
@@ -166,6 +166,7 @@ export function ConditionMenu({
     items: [],
   });
   const surface = useMenuSurface(level !== "closed", "start");
+  const panelRef = surface.panelRef;
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   const parsed = useMemo(() => parseSearchQuery(query), [query]);
@@ -179,6 +180,19 @@ export function ConditionMenu({
     setLevel("root");
     triggerRef.current?.focus();
   };
+
+  useEffect(() => {
+    if (level === "closed" || level === "root") return;
+    const panel = panelRef.current;
+    if (!panel) return;
+    // The row that opened this list unmounts, so focus would drop to the page
+    // and the menu would stop answering keys.
+    const target =
+      panel.querySelector<HTMLElement>("input") ??
+      panel.querySelector<HTMLElement>('[role="menuitem"]:not([disabled])') ??
+      panel;
+    target.focus();
+  }, [level, panelRef]);
 
   const openTags = () => {
     setLevel("tag");
@@ -315,11 +329,12 @@ export function ConditionMenu({
   );
 
   function handleMenuKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (level === "closed") return;
     if (e.key === "Escape") {
       e.preventDefault();
       e.stopPropagation();
       if (level === "root") closeMenu();
-      else setLevel("root");
+      else openRoot();
       return;
     }
     if (e.key === "Tab") {
@@ -374,7 +389,7 @@ export function ConditionMenu({
         type="button"
         role="menuitem"
         aria-label={t("filterBack")}
-        onClick={() => setLevel("root")}
+        onClick={openRoot}
         className={backItemClass}
       >
         ← {t("filterBack")}
@@ -398,7 +413,13 @@ export function ConditionMenu({
   );
 
   return (
-    <div ref={surface.wrapperRef} className="relative">
+    <div
+      ref={surface.wrapperRef}
+      className="relative"
+      // On the wrapper, not the panel: opening leaves focus on the trigger,
+      // which is outside the panel.
+      onKeyDown={handleMenuKeyDown}
+    >
       <button
         ref={triggerRef}
         type="button"
@@ -428,8 +449,8 @@ export function ConditionMenu({
               ref={surface.panelRef}
               role="menu"
               aria-label={ariaLabel ?? label}
+              tabIndex={-1}
               className={surface.className}
-              onKeyDown={handleMenuKeyDown}
             >
               {level === "root" && (
                 <>
@@ -536,7 +557,7 @@ export function ConditionMenu({
                 <>
                   <button
                     type="button"
-                    onClick={() => setLevel("root")}
+                    onClick={openRoot}
                     className={backItemClass}
                   >
                     ← {t("filterBack")}
@@ -584,7 +605,7 @@ export function ConditionMenu({
                 <>
                   <button
                     type="button"
-                    onClick={() => setLevel("root")}
+                    onClick={openRoot}
                     className={backItemClass}
                   >
                     ← {t("filterBack")}
@@ -637,7 +658,7 @@ export function ConditionMenu({
                 <>
                   <button
                     type="button"
-                    onClick={() => setLevel("root")}
+                    onClick={openRoot}
                     className={backItemClass}
                   >
                     ← {t("filterBack")}
