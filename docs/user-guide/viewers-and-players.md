@@ -121,6 +121,8 @@ Notes show highlighted code blocks, Mermaid diagrams, task lists, and the frontm
 
 With the [knowledge addon](../addons/knowledge.md) and its editor enabled for the drive, you can edit the note in the page with **Edit / Split / Preview**. Changes save as you type. Without it, notes are read-only apart from the chips.
 
+A note longer than two screens reopens where you left it, and one you read nearly to the end (the last tenth) opens at the top.
+
 ## PDF viewer
 
 - Select text as on any page. With the intelligence addon, Ask can quote the page you are on.
@@ -161,6 +163,8 @@ An archive opens as a listing of its contents, without extracting it on the serv
 ## Text files
 
 Text and source files are shown read-only, with line numbers. Copying the text leaves the numbers out. Source code is coloured when the file's extension names its language. Arriving from a search highlights the term you searched for.
+
+Like a long note, a long text or source file reopens where you left it.
 
 A file over 1 MB asks before it loads. A very large file is shown without numbers or colour.
 
