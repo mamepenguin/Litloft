@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The diff edits frontend/src/components/FileDetail/ShellLayout.tsx to wrap the knowledge-edit AddonSlot in TextScrollFileIdContext.Provider, a file the touch points do not list.",
+      "impact": "Every addon component rendered in the knowledge-edit slot of the full page now sees a file id through the context. Any core MarkdownPreview or TextLines inside that slot records and restores scroll under that id. Nothing in the touch points or invariants covers this path, so a future change to the slot could start recording by accident.",
+      "evidence": "frontend/src/components/FileDetail/ShellLayout.tsx:~492-507 (new Provider around AddonSlot); the test stub in FileDetail/__tests__/PlainTextDocument.test.tsx reads the context.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant is broken. The touch-point list is incomplete: the spec says no addons/* file is edited and that FilePreview passes props through, but it never names this slot wiring.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The diff edits frontend/src/components/TextLines.tsx to call useTextScrollProgress, and TextLines is not a listed touch point (only TextPreview, MarkdownFileViewer and MarkdownPreview are).",
+      "impact": "TextLines also renders archive text entries (ArchiveTextViewer) and other callers. It records only when a TextScrollFileIdContext is set, which is null by default. I7 (a text entry inside an archive writes nothing) therefore depends on the absence of a Provider above it, not on any check in TextLines itself.",
+      "evidence": "frontend/src/components/TextLines.tsx:~91-95 (hook call with useContext(TextScrollFileIdContext)); the default value is null in lib/textScrollProgress.ts.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The reach is not listed. The I7 behaviour holds today only through the context default.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "The real-browser check was placed in frontend/e2e-components/ (new fixture textResume.tsx, spec text-resume-desktop.spec.ts, and edits to fixtures/app.tsx, projects.ts and spec-viewport.spec.ts), but the touch points name frontend/e2e-layout/.",
+      "impact": "The shared fixture app.tsx routing changed: the arrangement id is now read from ?arrangement= and falls back to the hash, and data-arrangement follows. All existing arrangements go through this new selection logic, so a regression there would hit unrelated suites. The registered-arrangements parity test componentFixtureParity.test.tsx was also edited.",
+      "evidence": "frontend/e2e-components/fixtures/app.tsx App() and the last lines (URLSearchParams selection); projects.ts and spec-viewport.spec.ts lists; componentFixtureParity.test.tsx (\"text-resume\" added).",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The suite is different from the declared one and shared fixture code changed. No invariant is broken.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "F4",
+      "origin": "reviewer",
+      "claim": "The new lib modules import from the components layer (archiveProgress.ts imports ProfileProvider and components/archive/archiveUtils; textScrollProgress.ts imports ProfileProvider), and the touch points do not list archiveUtils as imported or ProfileProvider as read.",
+      "impact": "A lib to components dependency direction is created. archiveUtils is listed but not edited, so the archive-wide sequence lives in lib/archiveProgress.ts instead of archiveUtils.ts as declared.",
+      "evidence": "frontend/src/lib/archiveProgress.ts:1-8; frontend/src/lib/textScrollProgress.ts imports; frontend/src/components/archive/useArchiveNavigation.ts imports archiveImageSequence from @/lib.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a layout deviation from the declared touch points and affects no behaviour.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "The unplanned reaches are ShellLayout.tsx, TextLines.tsx, the e2e-components suite (instead of e2e-layout) and the lib to components imports. Everything else matches the touch points: no backend file and no addons/* file is edited, and the docs and messages changes are listed.",
+    "archiveUtils.ts is listed but unchanged; the sequence code is in lib/archiveProgress.ts."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Any core MarkdownPreview or TextLines rendered under the ShellLayout knowledge-edit slot Provider (including ones the addon draws for other purposes) would record scroll under the file id.",
+    "The fixture app now selects its arrangement by query string, with the hash as a fallback."
+  ],
+  "regression_risks": [
+    "The shared fixture app.tsx arrangement selection could affect other e2e-components specs.",
+    "The context Provider in ShellLayout changes what addon-rendered core components do.",
+    "TextLines now calls a hook, which affects archive text entries only if a Provider ever wraps them."
+  ],
+  "test_coverage": [
+    "I only did the touch-point comparison from the diff. I did not judge whether the tests cover the invariants.",
+    "PlainTextDocument.test.tsx covers the ShellLayout context wiring for .txt and .md."
+  ],
+  "not_verified": [
+    "I did not open the repository files; the answer comes from the diff alone.",
+    "I did not check whether other callers of MarkdownPreview or TextLines sit under the new Provider.",
+    "I did not check the behaviour of the invariants themselves (I1 to I10).",
+    "I did not check whether the repository's process documents allow e2e-components in place of e2e-layout."
+  ],
+  "confidence": 75
+}
