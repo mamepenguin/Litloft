@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "frame_ocr.py:232-234 starts ffmpeg with stdout=PIPE, stderr=PIPE. The loop (248-261) reads only process.stdout, and nothing reads stderr anywhere in _read_video. With -v error, a damaged stream that writes more than the pipe buffer (about 64 KB) of messages blocks ffmpeg on the stderr write. Mitigation: the no-data stall check (252-255, STALL_SECONDS=120) then kills ffmpeg and sets result.stalled, which line 502 handles. So it is not an infinite hang, but a damaged video can lose 2 minutes and have the read treated as a stall. Nothing was run; this is from reading the code."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2",
+      "status": "confirmed",
+      "note": "page_ocr.py:152 reads document.page_count and 199 calls document.close(), both outside PYMUPDF_LOCK. The lock is held only at 130-131 (open) and 158-162 (page access and render). The comment at extractors/pdf.py:62 says every PyMuPDF call holds the lock. The same pattern already exists in pdf.py:473-477 (_extract_with_fitz_fallback), so it is not new to this change. The practical risk is low, since close and the page_count read touch only this reader's own document handle, but the claim is accurate."
+    }
+  ],
+  "specification_compliance": [
+    "I8 (no search.db lock held while decoding or reading; PYMUPDF_LOCK only for PyMuPDF calls): page_ocr.py holds the lock only around PyMuPDF calls, but not around all of them (see R2).",
+    "I4 (unreachable file or lost engine writes nothing): the page reader returns False before _store_pages in those cases (page_ocr.py:111-119, 137-141, 168-174, 178-184), as required."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "A damaged video that floods ffmpeg's stderr can make a frame read take about 2 minutes (the stall timeout) before it is treated as an ffmpeg stall."
+  ],
+  "test_coverage": [
+    "I did not inspect the tests."
+  ],
+  "not_verified": [
+    "I did not run anything, so neither the stderr flood nor the PyMuPDF thread behaviour was reproduced.",
+    "I did not check the other invariants (I1-I10) or the rest of the diff.",
+    "I did not read the tests."
+  ],
+  "confidence": 80
+}
