@@ -18,12 +18,15 @@ import { getCollections, getDriveTags, getFolderTree } from "@/lib/api";
 import {
   FILE_KINDS,
   closeOpenQuote,
+  comparisonWireForm,
+  comparisonsImpossible,
   formatOperatorToken,
   kindHolds,
   parseSearchQuery,
   resolveKinds,
   suggestValues,
 } from "@/lib/searchQuery";
+import type { Comparison } from "@/lib/searchQuery";
 import type {
   CollectionSummary,
   FileKind,
@@ -35,6 +38,8 @@ export type ConditionEntry =
   | "kind"
   | "folder"
   | "collection"
+  | "size"
+  | "duration"
   | "favorite";
 
 interface ConditionMenuProps {
@@ -54,6 +59,63 @@ interface ConditionMenuProps {
 }
 
 type Level = "closed" | "root" | ConditionEntry;
+
+interface Preset {
+  labelKey:
+    | "filterSizeUnder10MB"
+    | "filterSize100MBOrMore"
+    | "filterSize1GBOrMore"
+    | "filterDurationUnder5Min"
+    | "filterDuration30MinOrMore"
+    | "filterDuration1HourOrMore";
+  value: string;
+  comparison: Comparison;
+}
+
+const SIZE_PRESETS: readonly Preset[] = [
+  {
+    labelKey: "filterSizeUnder10MB",
+    value: "<10MB",
+    comparison: { operator: "lt", value: 10 * 1024 ** 2 },
+  },
+  {
+    labelKey: "filterSize100MBOrMore",
+    value: ">=100MB",
+    comparison: { operator: "gte", value: 100 * 1024 ** 2 },
+  },
+  {
+    labelKey: "filterSize1GBOrMore",
+    value: ">=1GB",
+    comparison: { operator: "gte", value: 1024 ** 3 },
+  },
+];
+
+const LENGTH_PRESETS: readonly Preset[] = [
+  {
+    labelKey: "filterDurationUnder5Min",
+    value: "<5m",
+    comparison: { operator: "lt", value: 300 },
+  },
+  {
+    labelKey: "filterDuration30MinOrMore",
+    value: ">=30m",
+    comparison: { operator: "gte", value: 1800 },
+  },
+  {
+    labelKey: "filterDuration1HourOrMore",
+    value: ">=1h",
+    comparison: { operator: "gte", value: 3600 },
+  },
+];
+
+function includesComparison(
+  held: readonly Comparison[],
+  comparison: Comparison,
+): boolean {
+  return held.some(
+    (item) => comparisonWireForm(item) === comparisonWireForm(comparison),
+  );
+}
 
 interface TagState {
   status: "loading" | "ready" | "failed";
@@ -229,6 +291,29 @@ export function ConditionMenu({
       .map(({ collection }) => collection);
   }, [collections, collectionFilterText, parsed.collections]);
 
+  const sizePresets = useMemo(
+    () =>
+      SIZE_PRESETS.filter(
+        (preset) =>
+          !includesComparison(parsed.sizes, preset.comparison) &&
+          !comparisonsImpossible([...parsed.sizes, preset.comparison], "size"),
+      ),
+    [parsed.sizes],
+  );
+
+  const lengthPresets = useMemo(
+    () =>
+      LENGTH_PRESETS.filter(
+        (preset) =>
+          !includesComparison(parsed.durations, preset.comparison) &&
+          !comparisonsImpossible(
+            [...parsed.durations, preset.comparison],
+            "duration",
+          ),
+      ),
+    [parsed.durations],
+  );
+
   function handleMenuKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
     if (e.key === "Escape") {
       e.preventDefault();
@@ -269,6 +354,48 @@ export function ConditionMenu({
   const stateRowClass = "flex items-center gap-2 px-3 py-2 text-sm text-text-muted";
 
   const hasPlus = label.startsWith("＋") || label.startsWith("+");
+
+  const presetLabel = (key: Preset["labelKey"]): string => {
+    if (key === "filterSizeUnder10MB") return t("filterSizeUnder10MB");
+    if (key === "filterSize100MBOrMore") return t("filterSize100MBOrMore");
+    if (key === "filterSize1GBOrMore") return t("filterSize1GBOrMore");
+    if (key === "filterDurationUnder5Min") return t("filterDurationUnder5Min");
+    if (key === "filterDuration30MinOrMore") return t("filterDuration30MinOrMore");
+    if (key === "filterDuration1HourOrMore") return t("filterDuration1HourOrMore");
+    return "";
+  };
+
+  const presetList = (
+    presets: readonly Preset[],
+    operator: "size" | "duration",
+  ) => (
+    <>
+      <button
+        type="button"
+        role="menuitem"
+        aria-label={t("filterBack")}
+        onClick={() => setLevel("root")}
+        className={backItemClass}
+      >
+        ← {t("filterBack")}
+      </button>
+      {presets.length === 0 ? (
+        <div className={stateRowClass}>{t("filterNoPreset")}</div>
+      ) : (
+        presets.map((preset) => (
+          <button
+            key={preset.value}
+            type="button"
+            role="menuitem"
+            className={rootItemClass}
+            onClick={() => choose(operator, preset.value)}
+          >
+            {presetLabel(preset.labelKey)}
+          </button>
+        ))
+      )}
+    </>
+  );
 
   return (
     <div ref={surface.wrapperRef} className="relative">
@@ -358,6 +485,34 @@ export function ConditionMenu({
                           onClick={openCollections}
                         >
                           {t("filterCollection")}
+                        </button>
+                      );
+                    }
+                    if (entry === "size") {
+                      return (
+                        <button
+                          key={entry}
+                          type="button"
+                          role="menuitem"
+                          className={rootItemClass}
+                          disabled={parsed.sizes.length >= 4}
+                          onClick={() => setLevel("size")}
+                        >
+                          {t("filterSize")}
+                        </button>
+                      );
+                    }
+                    if (entry === "duration") {
+                      return (
+                        <button
+                          key={entry}
+                          type="button"
+                          role="menuitem"
+                          className={rootItemClass}
+                          disabled={parsed.durations.length >= 4}
+                          onClick={() => setLevel("duration")}
+                        >
+                          {t("filterLength")}
                         </button>
                       );
                     }
@@ -528,6 +683,10 @@ export function ConditionMenu({
                     ))}
                 </>
               )}
+
+              {level === "size" && presetList(sizePresets, "size")}
+
+              {level === "duration" && presetList(lengthPresets, "duration")}
 
               {level === "kind" &&
                 kindOptions.map((kind) => (

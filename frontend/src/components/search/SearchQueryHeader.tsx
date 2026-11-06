@@ -237,7 +237,15 @@ export function SearchQueryHeader({
             drive={drive}
             query={text}
             typeFilter={typeFilter}
-            entries={["tag", "kind", "folder", "collection", "favorite"]}
+            entries={[
+              "tag",
+              "kind",
+              "folder",
+              "collection",
+              "size",
+              "duration",
+              "favorite",
+            ]}
             label={t("addFilterWord")}
             ariaLabel={t("addFilter")}
             onChoose={(next) => {
