@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship (user, 2026-11-07, after r1 HUMAN_REVIEW_REQUIRED). The user chose the recommendation for each of three questions: the app-wide RequestValidationError handler in `addons/intelligence/app/main.py` stays and is recorded as a missing touch point (revision I11); `meta.image` stays omitted when no image applies and no profile can see, and I3 is revised to read an absent key as `"none"` (revision I3); the `has_vision_profile` extraction in `llm_routing.py` and the optional parameters added to `tests/file_question_doubles.py` are accepted as in scope and listed in the PR body (revision I12).
 ran_in_app: yes
 at: 6239362050c6e37bdbab564ccdf891ff3aac4849
 by: agent
