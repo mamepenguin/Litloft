@@ -317,3 +317,19 @@ describe("SPEC-CORE-049 a text entry is not a page", () => {
     expect(saveWatchProgress).toHaveBeenCalledWith(FILE, 2, 2);
   });
 });
+
+describe("SPEC-CORE-049 Resume button after reading to the end", () => {
+  it("does not offer the stored position once this visit has shown the last image", async () => {
+    stored(3);
+    mockSearchParams.set("archivePath", "chapter2");
+    render(ui());
+    await screen.findByRole("button", { name: "Resume (3 / 5)" });
+
+    fireEvent.click(await screen.findByAltText("001.jpg"));
+    await screen.findByRole("dialog");
+    fireEvent.keyDown(document, { key: "Escape" });
+    await screen.findByText("001.jpg");
+
+    expect(screen.queryByRole("button", { name: /Resume/ })).toBeNull();
+  });
+});

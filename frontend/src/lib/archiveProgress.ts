@@ -203,23 +203,21 @@ export function useArchiveProgress({
   const currentStored =
     stored?.source === source && stored.duration === imageCount ? stored : null;
 
-  let resume: ArchiveResume | null = null;
-  if (
+  // The visit's own save outranks the stored value, including when it leaves
+  // nothing to resume: falling back to the stored one would offer a place the
+  // reader has already read past.
+  const basis =
+    currentVisit !== null && currentVisit.total === imageCount
+      ? { position: currentVisit.position }
+      : currentStored;
+
+  const resume: ArchiveResume | null =
     imageCount !== null &&
-    currentVisit !== null &&
-    currentVisit.total === imageCount &&
-    currentVisit.position >= 2 &&
-    currentVisit.position < imageCount
-  ) {
-    resume = { position: currentVisit.position, total: imageCount };
-  } else if (
-    imageCount !== null &&
-    currentStored !== null &&
-    currentStored.position >= 2 &&
-    currentStored.position < imageCount
-  ) {
-    resume = { position: currentStored.position, total: imageCount };
-  }
+    basis !== null &&
+    basis.position >= 2 &&
+    basis.position < imageCount
+      ? { position: basis.position, total: imageCount }
+      : null;
 
   return { resume, imageShown, flush };
 }
