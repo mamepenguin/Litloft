@@ -4,7 +4,7 @@
  * recorder, so the props core hands the addon are observable without it.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useEffect, type ReactNode } from "react";
+import { useContext, useEffect, type ReactNode } from "react";
 import {
   act,
   cleanup,
@@ -17,6 +17,7 @@ import {
 import { FileDetailContent } from "../../FileDetailContent";
 import * as api from "@/lib/api";
 import { putFileTextContent } from "@/lib/fileContent";
+import { TextScrollFileIdContext } from "@/lib/textScrollProgress";
 import type { SlotEntry } from "@/lib/addons";
 import {
   makeFile,
@@ -78,9 +79,11 @@ vi.mock("../../AddonSlot", async () => {
       h.mounts.count += 1;
     }, []);
     h.slotRenders.push(props);
+    const textScrollFileId = useContext(TextScrollFileIdContext);
     return (
       <div
         data-testid="knowledge-edit-stub"
+        data-text-scroll-file-id={textScrollFileId ?? ""}
         data-plain-text={props.plainTextDocument === true ? "true" : "false"}
         data-highlight={
           typeof props.highlight === "string" ? props.highlight : ""
@@ -498,5 +501,26 @@ describe("SPEC-CORE-020 tag chips on a plain-text document (I3)", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Remove old" }));
     await waitFor(() => expect(api.updateFileTags).toHaveBeenCalledWith("f1", []));
     expect(putFileTextContent).not.toHaveBeenCalled();
+  });
+});
+
+describe("SPEC-CORE-050 the knowledge-edit slot knows its file", () => {
+  it.each([
+    ["a .txt", txtFile()],
+    [
+      "a .md note",
+      makeFile({
+        filename: "note.md",
+        mime_type: "text/markdown",
+        file_type: "document",
+      }),
+    ],
+  ])("renders under the file's id for %s", async (_name, file) => {
+    mount(file);
+    await waitFor(() =>
+      expect(screen.getByTestId("knowledge-edit-stub").dataset.textScrollFileId).toBe(
+        file.id,
+      ),
+    );
   });
 });
