@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R1",
+      "origin": "reviewer",
+      "claim": "frame_ocr._read_video starts ffmpeg with stderr=PIPE and never reads stderr, so a stream that writes more than the pipe buffer of error text blocks ffmpeg.",
+      "impact": "A damaged video that makes ffmpeg log many decode errors can stop producing frames. The reader then waits the full 120-second stall limit, kills ffmpeg and stores a partial read. Per the spec that partial read is not retried until a manual reindex, so the video's frame text is silently incomplete.",
+      "evidence": "addons/intelligence/app/workers/frame_ocr.py, _read_video: subprocess.Popen(command, stdout=PIPE, stderr=PIPE), and the loop only reads process.stdout.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant is broken, and the case needs a damaged file. The result is a partial read that is stored as complete.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Send stderr to DEVNULL, or to a temporary file, instead of an unread pipe."
+    },
+    {
+      "id": "R2",
+      "origin": "reviewer",
+      "claim": "page_ocr.index_page_ocr calls document.close() and reads document.page_count outside PYMUPDF_LOCK, although every other PyMuPDF call in that reader runs under it.",
+      "impact": "Closing a fitz document in the OCR thread while the text task or document-text uses PyMuPDF under the lock is a possible race in a library that is not thread safe. It is rare, but it can crash a worker thread.",
+      "evidence": "addons/intelligence/app/workers/page_ocr.py: the finally block calls document.close(), and range(min(document.page_count, MAX_PAGES)) runs outside any 'with PYMUPDF_LOCK'.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "I8 only forbids holding the lock outside PyMuPDF calls. The SPEC B4 sentence that every PyMuPDF call runs under the lock is prose, not a declared invariant.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Take PYMUPDF_LOCK around page_count and close()."
+    }
+  ],
+  "specification_compliance": [
+    "I1: the code reads the first frame, then a frame only when the hash differs by 16 or more bits and at least 10 seconds have passed since the last read frame. The hash and the read time are updated only on a read.",
+    "I2: a read starts a segment only for non-empty text unequal to the open segment. A read frame with different or empty text closes the segment at its time, and the last segment ends at last_time + 1. A5 removes the earlier text_content rows before A6 writes, so no text_content rows exist between them.",
+    "I3: _build_rows runs from the stored video_frame_texts rows without an engine call, and the model-change migration resets only frame_ocr_indexed. The column migration is idempotent.",
+    "I4/I8: unreachable files, a missing engine and inactive rows write nothing. Pause is checked before every frame, and the buffer read cannot hold more than one frame per pause check.",
+    "I5/I6: stored page text is used only for pages whose fitz text layer is empty, in the indexing path and in document-text. The text task is forced after the write, and a requeue happens after a text task completes for a PDF with stored page text.",
+    "I7/I9/I10: the mode gating, the pending counts, the find units, and the screen_text passage kind and place (chunk_index) match the declared text."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The passage view runs one extra search.db query per screen_text passage (_frame_segment). That adds to latency for videos with many hits.",
+    "citations._is_video now opens a DB read on every call after the lru_cache was removed. That is correct but costs a query for each citation pool call.",
+    "Rotation handling in _probe depends on the ffprobe JSON side_data_list or rotate tag. A container with another orientation field would be cut at the wrong size."
+  ],
+  "test_coverage": [
+    "The new reader tests use real ffmpeg clips with a colour-keyed fake engine. They cover landscape, portrait and key-frame paths, a corrupt file, an unreachable file, an inactive row, an embedding failure with rebuild, pause, and the page-store flag rules.",
+    "I did not see tests for the equal-text segment continuation, the 120-second stall, a nonzero ffmpeg exit with partial frames, an engine that disappears partway, or the 50-megapixel render cap.",
+    "The diff was truncated, so I could not see the remaining addon tests."
+  ],
+  "not_verified": [
+    "I did not run any code or tests.",
+    "The diff was truncated at 200000 bytes, so I did not read the remaining tests or fixtures.",
+    "I did not check requeue_after_whisper's gates against I6.",
+    "I did not check the real rotation metadata that ffprobe reports for phone videos.",
+    "I did not check the interplay of the forced TEXT_CONTENT enqueue with a text task that is running."
+  ],
+  "confidence": 70,
+  "trajectory": "The fixes since r1 are mostly branches for failure handling. The key-frame and rotation fixes add a _ProbeError class, a times_failed state and an _Unreadable branch, and the page reader gains unreachable checks. Each follows a spec failure case rather than a new design. One round removed state: the lru_cache on _is_video. So there is some patching of the failure branches, but I see no repeated pattern of a round adding a prediction that the round before it already added."
+}

@@ -39,6 +39,16 @@ interface PassageListProps {
 
 function Locator({ passage }: { passage: SearchPassage }) {
   const t = useTranslations("search");
+  if (passage.kind === "screen_text") {
+    return (
+      <>
+        <span className="block">{formatDuration(passage.start ?? 0)}</span>
+        <span className="block text-[11px] font-normal text-text-muted">
+          {t("passageScreenText")}
+        </span>
+      </>
+    );
+  }
   const locator = passageLocator(passage);
   switch (locator.kind) {
     case "timeRange":

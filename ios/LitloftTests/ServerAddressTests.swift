@@ -77,7 +77,7 @@ struct ServerSettingsTests {
         let defaults = makeDefaults()
         defaults.set("http://192.168.1.50:3000", forKey: "serverURL")
 
-        #expect(ServerSettings(defaults: defaults).serverURL?.absoluteString == "http://192.168.1.50:3000")
+        #expect(ServerSettings(defaults: defaults, sharedSession: FakeSharedSession()).serverURL?.absoluteString == "http://192.168.1.50:3000")
     }
 
     @Test("an address stored by an older build is not trusted")
@@ -85,13 +85,13 @@ struct ServerSettingsTests {
         let defaults = makeDefaults()
         defaults.set("http://localhost'3000", forKey: "serverURL")
 
-        #expect(ServerSettings(defaults: defaults).serverURL == nil)
+        #expect(ServerSettings(defaults: defaults, sharedSession: FakeSharedSession()).serverURL == nil)
     }
 
     @Test("the previous address is offered again after leaving a server")
     func forgetKeepsTheAddressForTheSetupScreen() {
         let defaults = makeDefaults()
-        let settings = ServerSettings(defaults: defaults)
+        let settings = ServerSettings(defaults: defaults, sharedSession: FakeSharedSession())
         settings.use(URL(string: "http://litloft.local:3000")!)
 
         settings.forget()
@@ -105,13 +105,13 @@ struct ServerSettingsTests {
         let defaults = makeDefaults()
         defaults.set("http://192.168.1.50:3000", forKey: "serverURL")
 
-        #expect(ServerSettings(defaults: defaults).lastAddress == "http://192.168.1.50:3000")
+        #expect(ServerSettings(defaults: defaults, sharedSession: FakeSharedSession()).lastAddress == "http://192.168.1.50:3000")
     }
 
     @Test("leaving a server clears both its session and its address")
     func leaveClearsSessionAndAddress() async {
         let defaults = makeDefaults()
-        let settings = ServerSettings(defaults: defaults)
+        let settings = ServerSettings(defaults: defaults, sharedSession: FakeSharedSession())
         let url = URL(string: "http://litloft.local:3000")!
         settings.use(url)
 
@@ -132,7 +132,7 @@ struct ServerSettingsTests {
     @Test("forgetting clears the stored address")
     func forget() {
         let defaults = makeDefaults()
-        let settings = ServerSettings(defaults: defaults)
+        let settings = ServerSettings(defaults: defaults, sharedSession: FakeSharedSession())
         settings.use(URL(string: "http://localhost:3000")!)
         #expect(defaults.string(forKey: "serverURL") == "http://localhost:3000")
 

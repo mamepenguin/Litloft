@@ -34,7 +34,7 @@ Each result has a small badge saying where it matched, such as **Filename** or *
 
 The top of the page is also the query field. It holds what you searched for, and you can edit it and press `Enter` to search again; `Esc` puts the current query back. Each operator in the field gets a chip underneath it, and `×` on a chip removes that operator from the query and searches again. Typing an operator shows its chip at once, before you submit.
 
-After the chips, **＋ 条件** (**＋** on a phone) adds an operator without typing the syntax: **タグ** (tag), **種類** (type), **フォルダ** (folder), **コレクション** (collection) or **お気に入り** (favourites). Tag, folder and collection open a list of values; each list has a filter box, and a value already in the query is not offered. Picking a value adds it to the query and searches.
+After the chips, **＋ 条件** (**＋** on a phone) adds an operator without typing the syntax: **タグ** (tag), **種類** (type), **フォルダ** (folder), **コレクション** (collection), **サイズ** (size), **長さ** (length) or **お気に入り** (favourites). Tag, folder and collection open a list of values; each list has a filter box, and a value already in the query is not offered. Size and length open fixed presets such as **1 GB 以上** and **30 分以上**; a preset already in the query, or one that would contradict it, is not offered. Picking a value adds it to the query and searches.
 
 Above the results:
 
@@ -53,7 +53,11 @@ Words of the form `name:value`, typed in the search window or on the search page
 | `type:video` | files of that kind: `video`, `image`, `audio`, `document`, `text`, `pdf`, `archive`, `other` | any of the kinds |
 | `path:Work/2024` | files in that folder and its subfolders, comparing the folder name case-sensitively | any of the folders |
 | `in:trip` | files in the collection named `trip`, ignoring case | any of the collections |
+| `size:>1GB` | files larger than 1 GB, in binary units: `B`, `KB`, `MB`, `GB`, `TB`, where `1KB` is 1024 bytes | every comparison must hold |
+| `duration:>=30m` | video and audio at least 30 minutes long: `s`, `m`, `h`, `1h30m`, `1:30` or `1:05:00` | every comparison must hold |
 | `is:favorite`, `is:liked` | favourites, liked files | both |
+
+A size and a length need a comparison: `>`, `>=`, `<` or `<=`. Write a range as two comparisons side by side, such as `size:>100MB size:<1GB` or `duration:>=5m duration:<1h`. A value without a comparison, or one that does not parse, is searched as ordinary text. A file with no duration, such as a document or a picture, never matches a `duration:` comparison.
 
 `tag:trip type:image kyoto` finds images tagged `trip` whose name or folder contains "kyoto". Operators alone, such as `tag:trip`, list every file that passes them, newest first. A word that is not one of these operators, or a value that is not one of these values, is searched as ordinary text. Put a value with spaces in quotes: `path:"My Photos/2024"`, `in:"読書 メモ"`, `tag:"two words"`. In the search window, typing `tag:`, `type:` or `is:` lists the values you can use, the drive's most used tags first; pick one with the arrow keys and `Enter` to complete it.
 
@@ -81,6 +85,7 @@ With the intelligence addon enabled for the drive, results found by meaning are 
 - The badges also show matches in **Transcript**, **Content**, **Visual**, **Thumbnail** and **Metadata**.
 - Pictures and video frames found by how they look (**Thumbnail**, **Visual**) can be only loosely related to your words. In relevance order they usually come after other matches.
 - Text inside pictures, such as screenshots, slides and photos of signs, is found by its words in search and Ask, and a match shows the recognised text as its quote. A reading can contain single-character errors. To fix one, open the picture's page and use the **画像の文字** (Text in image) section: **修正** (Edit), then **保存** (Save). Search uses the corrected text from then on, and **元の結果に戻す** (Restore original) puts back what the engine read.
+- Text shown in a video — a slide, terminal output, a caption burned into the picture — is found by its words too. A video found this way shows 内容一致; its time and 「画面内の文字」 appear under 箇所. The text on a scanned PDF page is found as that page's text.
 - A match in speech or in a scene shows up to three timestamps. Click one to play from that moment. `+N` says how many more there were.
 - A match in a PDF lists the pages, as `p.N`. Click one to open the PDF at that page.
 - A match in an EPUB book lists the chapters by title. Click one to open the book at the start of that chapter.
@@ -92,7 +97,7 @@ While a meaning search runs, a **ファイル / 箇所** switch sits under the q
 
 - Each row shows a frame or the file's thumbnail, the place (a time range, page or chapter), the file name and the matched text in full. A picture's recognised text and a plain text match are labelled accordingly.
 - Click a row to open the file at that time, page or chapter.
-- **箇所** shows only places inside files: speech, PDF pages, chapters, text in a picture, and scenes when **Scene search** is on. A file found only by its name or thumbnail appears only under **ファイル**.
+- **箇所** shows only places inside files: speech, PDF pages, chapters, text in a picture, text shown in a video (「画面内の文字」 with its time), and scenes when **Scene search** is on. A file found only by its name or thumbnail appears only under **ファイル**.
 - A file shows up to three places. When it has more, **このファイルの他の箇所 →** opens the file with [finding in this file](viewers-and-players.md#finding-in-this-file) already searching for the word that matched there.
 - The list holds the best-matching passages the search kept, not every occurrence of your words in a file. Finding in the file lists every occurrence.
 - If nothing was found inside files, **ファイルで表示** switches back to the files that matched.
@@ -107,6 +112,20 @@ To find a moment inside a video (*the part where the cat jumps off the table*), 
 
 With it on, **Scene candidates** appear above the results: a grid of moments from videos in the drive, each with a frame, the file name and a time range. Click one to open the video at that time. The first eight candidates are shown; **Show all** expands the remaining candidates, and **Collapse** returns to the first eight. They are the closest matches, not a promise that the scene exists, and the grid is not shown when the search uses a smart folder or a type other than video.
 
+## Searching by an image (intelligence addon)
+
+Give the search an image instead of words: paste it, drop it on the search page, or click **Search by image** in the search window or in the results page's field. On a phone the **Search by image** pill sits under the field. The search window also accepts a drop on its panel.
+
+The results page shows up to three groups:
+
+- **Documents with this text** — documents whose text matches the words read from the image. This is what finds a screenshot of a PDF page or a slide, and the group comes first when it has a hit.
+- **Similar pictures** — pictures of the drive that look like it.
+- **Similar scenes in videos** — places in the drive's videos where a similar scene appears.
+
+The image is not saved. Reloading the page or opening the same link in another tab asks you to choose the image again. A picture can be up to 20 MB and 50 megapixels; a larger one is scaled down in the browser when the browser can read it.
+
+The documents group needs readable text in the image — about 20 characters — and **Text in pictures** turned on for the drive (see [text in pictures](../addons/intelligence.md#text-in-pictures)). A picture with no readable text still returns similar pictures and scenes. An image search does not combine with operators, a type filter or text, and it cannot be saved as a Smart Folder.
+
 ## Ask and Find (intelligence addon)
 
 **Ask** is in the sidebar when the intelligence addon is installed and an administrator has set up a language model. Type a question and it answers from your files, with links to its sources and timestamps for videos. It warns you when it found no strong source. Ask answers only from [verified files](file-browsing.md#trusted-sources-and-the-review-queue).
@@ -120,6 +139,8 @@ When more than one model is available, a select beside the **Ask** button picks 
 To ask about one file, open it and use the **Ask** tab beside its details; the answer cites times, pages or sections you can click to jump there. The tab appears once the file has been indexed, a little after upload.
 
 Ask sends parts of your files to the language model. An administrator can use a local model, or turn Ask off for a drive. See the [intelligence addon](../addons/intelligence.md#ask-rag).
+
+**Ask within a folder, a collection, tags or kinds.** The folder `…` menu's **ここに質問** and the collection page's **ここに質問** open Ask already narrowed to that folder (and everything under it) or that collection. Under the Ask field the narrowing appears as chips; **＋ 範囲** adds another folder, collection, tag or kind, and a chip's `×` removes one. Ask answers only from those files, and says **この範囲にはファイルがありません** when the scope holds none. The chips travel with you to **Find** and back, though Find itself is not narrowed. The folder menu entry is absent at the drive root and for a name containing a double quote, which the query syntax cannot express.
 
 ## Duplicate files
 

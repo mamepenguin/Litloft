@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "ImageQueryDropTarget.tsx:49-53: onDragOver sets dropEffect='copy' for any drag with files and never checks dragClass. A drag classed upload therefore shows a copy cursor and the drop does nothing (onDrop at :61-74 only acts when kept==='one_image'). It is cosmetic. The modal handler GlobalSearch.tsx:508-513 does the same."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "GlobalSearch.tsx:131-132 sets imageEnabled false when scope or browsing is set. Handlers are then undefined (:719-722, :813-816), so nothing calls stopPropagation (stopPropagation is only at :500, :511, :525, all behind imageEnabled). ImageQueryDropTarget.tsx:76-79 listens on document, and FolderBrowser.tsx:908 mounts it with no knowledge of the modal. A one-image drop on the open scoped or browsing modal over a text-query page bubbles to the page target and starts an image query. I read this from the code and did not run it. It is a narrow edge case and an uploads-never-start guarantee still holds."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "ImageQueryDropTarget.test.tsx has five cases (lines 59, 96, 108, 122, 132), and every one renders with onImageQuery. None renders without it and checks that no listener is attached and no preventDefault is called. The component guard at ImageQueryDropTarget.tsx:29 is untested, and that guard protects I7's 'behave exactly as before' rule."
+    }
+  ],
+  "specification_compliance": [
+    "I8: the drop target acts only on the class kept from dragenter (ImageQueryDropTarget.tsx:64-72) and never uploads.",
+    "I7: the modal's handlers are gated on imageEnabled, but the page-level target is not aware of the modal (see F2)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "A drop on a scoped or browsing modal can start an image query on the page behind it (F2)."
+  ],
+  "regression_risks": [
+    "The document-level listeners with preventDefault on file drags could interfere with other drop targets on the results page, only while availability is 'available'."
+  ],
+  "test_coverage": [
+    "ImageQueryDropTarget has tests only for the case where onImageQuery is present; the case where it is absent is untested (F3)."
+  ],
+  "not_verified": [
+    "I did not run any tests or a browser; every conclusion comes from reading the code.",
+    "I did not check the addon (Python) side.",
+    "I did not check the rest of the invariants I1-I13 beyond these three findings."
+  ],
+  "confidence": 80
+}

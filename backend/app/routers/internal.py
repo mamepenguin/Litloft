@@ -38,7 +38,9 @@ from app.routers.drives import (
     _normalize_kind,
     apply_file_filters,
     normalize_collections,
+    normalize_durations,
     normalize_folders,
+    normalize_sizes,
 )
 from app.routers.files import replace_file_tags
 from app.services.tagops import cleanup_orphan_tags
@@ -642,6 +644,8 @@ class FileMatchingRequest(BaseModel):
     liked: StrictBool | None = None
     folders: list[str] = Field(default_factory=list)
     collections: list[str] = Field(default_factory=list)
+    sizes: list[str] = Field(default_factory=list)
+    durations: list[str] = Field(default_factory=list)
 
     @field_validator("tags")
     @classmethod
@@ -680,6 +684,16 @@ class FileMatchingRequest(BaseModel):
     def validate_collections(cls, collections: list[str]) -> list[str]:
         return normalize_collections(collections)
 
+    @field_validator("sizes")
+    @classmethod
+    def validate_sizes(cls, sizes: list[str]) -> list[str]:
+        return normalize_sizes(sizes)
+
+    @field_validator("durations")
+    @classmethod
+    def validate_durations(cls, durations: list[str]) -> list[str]:
+        return normalize_durations(durations)
+
 
 @router.post("/files/matching")
 def files_matching(
@@ -707,6 +721,8 @@ def files_matching(
         liked=body.liked,
         folders=body.folders,
         collections=body.collections,
+        sizes=body.sizes,
+        durations=body.durations,
         drive=body.drive,
     )
     return {"file_ids": [row.id for row in query.order_by(File.id).all()]}

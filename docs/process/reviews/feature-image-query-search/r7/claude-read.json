@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "After the move from document to the [data-page-frame] element, the drop overlay is portalled to document.body without pointer-events-none, so it sits outside the frame that holds the listeners and intercepts the drag it was meant to accept.",
+      "impact": "On the text-query page, a one-image drag shows the overlay. The pointer then lies over the overlay, which is not inside the frame. The frame gets dragleave, depth drops to 0, reset() removes the overlay, and dragenter fires again, so the overlay flickers. A drop onto the overlay targets a body-level node and never reaches the frame's drop listener, so the image query may not start. The page's main image drop path can therefore fail in a real browser.",
+      "evidence": "frontend/src/components/search/ImageQueryDropTarget.tsx:83-86 listeners on frame; :97-109 createPortal to document.body with class 'fixed inset-0 z-50 ...' and no pointer-events-none (the modal overlay in GlobalSearch uses pointer-events-none). Native listeners do not see events from portalled DOM outside the frame. The jsdom tests dispatch on the frame element itself (ImageQueryDropTarget.test.tsx renderZone), so they cannot see the overlay intercept.",
+      "repro": "not_reproduced (read only): in a real browser drag one PNG over /drive/x/search?q=a with image search available; the overlay appears, the pointer is over it, the frame sees dragleave. Mutation: remove the overlay or add pointer-events-none and the real-browser behaviour changes, while no jsdom test would fail.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I8 requires a one-image drop on the text-query page to start an image query; the overlay can swallow the drop.",
+        "invariant_ref": "I8"
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Add pointer-events-none to the overlay, as the modal's overlay has, and add a real-browser drag test for the text page."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The drop target still has no test for the case where onImageQuery is absent, and the new frame lookup 'if (!frame) return' has no test either.",
+      "impact": "Removing the 'if (!onImageQuery) return' guard would make file drops on the page preventDefault'ed while image search is unavailable (I7), with no test failing.",
+      "evidence": "ImageQueryDropTarget.test.tsx: every case renders with onImageQuery; renderZone(undefined) is never called.",
+      "repro": "Mutation: delete the guard at ImageQueryDropTarget.tsx:31; no test fails (the upload-class path no longer calls preventDefault, so the main risk is smaller than in r5, but dragenter of a one-image drag still would).",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I7 unavailable-state behaviour is unguarded by any test (carried over from r5 F3).",
+        "invariant_ref": "I7"
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add a test that with no onImageQuery a one-image drag adds no overlay and is not defaultPrevented."
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "The effect depends on [onImageQuery], and search/page.tsx passes a new handleImageQuery function on every render, so listeners are removed and re-added and reset() runs on every parent render, including mid-drag.",
+      "impact": "A re-render of the page during a drag (for example the preparing or error state) clears the kept class and overlay; the next dragenter reclassifies. Minor.",
+      "evidence": "page.tsx: onImageQuery={availability === 'available' ? handleImageQuery : undefined}, with handleImageQuery defined inline; ImageQueryDropTarget.tsx:94 dependency array.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant is clearly broken in normal use.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Hold the callback in a ref and key the effect on its presence only."
+    }
+  ],
+  "specification_compliance": [
+    "I8: the fix limits preventDefault to one-image drags, so an upload-class drop falls to the browser default as before. This matches the clarification, but the portalled overlay can stop a one-image drop from reaching the frame listener (F1).",
+    "The modal is outside the frame, so r5 F2 (a drop in a scoped modal starting a query) is addressed by the change.",
+    "The dragover cursor is now set only for the one-image class, which addresses r5 F1."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Overlay flicker or a lost drop on the text page in real browsers (F1).",
+    "Any page with several [data-page-frame] elements would bind to the first match via querySelector."
+  ],
+  "test_coverage": [
+    "ImageQueryDropTarget.test.tsx now wraps the target in a data-page-frame div and dispatches on it, so the jsdom tests pass for the new listener target, but they do not model the overlay sitting outside the frame.",
+    "The CDP drag spec covers only the modal, not the text page.",
+    "No test covers absent onImageQuery (F2)."
+  ],
+  "not_verified": [
+    "Addon Python code; not touched by this commit.",
+    "Nothing was run; real-browser drag event targeting for the overlay was reasoned from the DOM structure, not observed.",
+    "Whether PageFrame wraps the whole search-page content so the frame covers every area users drop on.",
+    "The rest of the 200000-byte-truncated diff."
+  ],
+  "confidence": 72,
+  "trajectory": "r2 and r3 added flags to UploadZone (acceptUpload, enabled) so it would imitate an absent zone. r4 removed them and moved the logic into a separate drop target. This round (c9d9900aa) adds one lookup of the frame element and two class checks in the handlers. It removes the document-level listeners and the unconditional preventDefault, which are subtractions of earlier behaviour, and adds a branch. It adds no new state. The remaining defect is a consequence of the move: the overlay is now outside the element that listens (F1). I see this round as converging and not as patching, though it needs a real-browser check."
+}

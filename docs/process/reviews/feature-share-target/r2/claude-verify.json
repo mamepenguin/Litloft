@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "ShareSheetView.swift:372 DrivePicker calls model.pickDrive. ShareSheetModel.swift:118-129 sets destination and state = .ready (or resolveKind). It never touches queue. pickDriveForQueue (ShareSheetModel.swift:203) has no caller. In ShareSheetView.swift:44-58 the confirmation button is Retry only while the state is .stopped(.driveNotAvailable). After pickDrive the state is .ready, so the button becomes Save. save() (ShareSheetModel.swift:145-158) builds a new queue from all shareItems(), so items already saved would be sent again. The queue's own destination (ShareSendQueue.swift:203 pickDrive) is never changed. This breaks I4: the picked drive does not apply to the items not yet saved, and the saved items are resent."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "ShareSendQueue.swift:176 (send) and :186 (retry) both call run(non-saved indices, attempt: .first). Only retryItem at :191 chooses .again for .unknown. A queue-level retry() therefore uses .first for items in the unknown state, so the 409-suffix path applies instead of the original-name check. That conflicts with I6/I7 (a retry never takes a suffix). The sheet's Retry button calls model.retry() for .finishedWithFailures, which is the state with unknown items."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "ShareSendQueue.swift:449-453: a .transport error from /complete whose code is in isUnreachable (:549-558, includes notConnectedToInternet, cannotConnectToHost, etc.) returns .stopped(.cannotReach) before pollForFile (:461). run() then marks the item .failed (:245-254) and not .unknown, with the retry offer only. The claim matches the code. Whether this is a defect is a judgement call: I6 stops the queue when the server is unreachable, but also says that after an unanswered /complete the item is saved when by-path finds it. The connection may drop after the server received /complete, and the code does not poll in that case. The offer is .retry, which re-inits with .first instead of the original-name check, so a duplicate with a suffix is possible."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F4",
+      "status": "confirmed",
+      "note": "ShareSendQueue.swift:207-220: cancel() only sets cancelling and state = .closing. It calls client.cancelInFlight() only in the chunk, complete and polling phases, and it does not wait for run(). ShareSheetModel.swift:194-201 awaits queue.cancel() and then sets state = .closed. ShareSheetView.swift:32-33 then calls onCancel(). The init answer and the deleteUpload at the next cancelling check (e.g. :435-437) run later, so the extension can complete first and the opened session may not be deleted. This is a timing risk that I did not reproduce at runtime."
+    }
+  ],
+  "specification_compliance": [
+    "I4 is violated by F1: the picked drive is not applied to the queue, and the saved items are resent.",
+    "I6/I7 are at risk from F2 and F3: a retry of an unknown item takes the .first path, and an unreachable error at /complete skips the polling.",
+    "I6 (cancel before /complete leaves no file) is at risk from F4."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Fixing F1 means routing DrivePicker to the queue when the state is stopped(.driveNotAvailable) and then calling queue.retry. That interacts with F2, because retry uses .first for every item."
+  ],
+  "test_coverage": [
+    "I did not inspect the tests. The pickDriveForQueue path has no caller, so no UI-level test exercises it."
+  ],
+  "not_verified": [
+    "Runtime behaviour of the extension when cancelled mid-init.",
+    "The tests in ios/LitloftTests.",
+    "The backend, the frontend and the other invariants (I1, I2, I5, I8-I10)."
+  ],
+  "confidence": 80
+}

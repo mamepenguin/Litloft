@@ -573,6 +573,16 @@ One header for every screen with a subject, in up to three rows:
   field takes the content width and the count and actions share the row under
   the chips.
 
+### Image query chip
+
+When the results page is a search by an image, the query field's leading edge
+holds the picture: a 28 × 28 `rounded-lg object-cover` image, the label 「画像」
+in `text-xs font-semibold`, and a small round ✕ `hover:bg-bg-elevated` button,
+inside a `bg-sand rounded-full` chip (§Editable Tag Chips). The field is
+otherwise empty and editable. The image button sits at the field's trailing
+edge on `sm` and wider; below `sm` the 「画像で探す」 pill sits in the row under
+the field. Nothing in this view uses an accent fill.
+
 ### Tabs
 
 **Underline tabs, and only underline tabs.** Selected `border-accent font-semibold

@@ -71,6 +71,10 @@ export async function getDriveFiles(
     folder?: string | readonly string[];
     /** Each collection name keeps its items. */
     collection?: string | readonly string[];
+    /** Size comparisons in the wire form (`gt:1073741824`). */
+    size?: string | readonly string[];
+    /** Duration comparisons in the wire form (`gte:1800`). */
+    duration?: string | readonly string[];
     /**
      * `verified` / `unverified` select a tier; `unreviewed` is not a tier but
      * the review queue — files nobody has ruled on, which spans both.
@@ -96,6 +100,12 @@ export async function getDriveFiles(
   }
   for (const collection of [params.collection ?? []].flat()) {
     if (collection) searchParams.append("collection", collection);
+  }
+  for (const size of [params.size ?? []].flat()) {
+    if (size) searchParams.append("size", size);
+  }
+  for (const duration of [params.duration ?? []].flat()) {
+    if (duration) searchParams.append("duration", duration);
   }
   if (params.trust) searchParams.set("trust", params.trust);
   if (params.sort) searchParams.set("sort", params.sort);

@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "I8 on the text-query page: dragenter now counts depth for every file drag (ImageQueryDropTarget.tsx:48-57). dragleave resets once depth reaches 0 whatever the class (:65-69). An abandoned upload-class drag therefore no longer leaves a stale class, so the next one-image drag is classified afresh. This closes r8 F1.",
+    "A one-image drop still calls onImageQuery only when the kept class is one_image and the drop holds exactly one image file. It never uploads, and the class is not re-derived on drop (:71-86).",
+    "I7: with onImageQuery absent the effect attaches no listener (:36).",
+    "The r8 F2 test weakness is fixed: the e2e hit-test now requires el !== null (image-drop-target-desktop.spec.ts:55)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "dragleave no longer checks hasFiles, so a non-file dragleave while a file drag is active would decrement depth. Browsers fire dragleave with the same payload as the matching dragenter, so I expect this to be inert, but I did not confirm it.",
+    "The frame element is looked up once when the effect runs. If PageFrame is replaced later, the listeners stay on the old element (carried over from r8; not checked this round)."
+  ],
+  "test_coverage": [
+    "The new test 'reclassifies after an upload-class drag has left the page' drives text dragenter, dragleave, then a one-image dragenter and drop. It fails on the old early return in onDragLeave. I did not run it.",
+    "No test covers dragleave for an upload-class drag with nested dragenters, so unbalanced depth there is unchecked.",
+    "The e2e drop-target spec still dispatches synthetic events on the frame instead of a real CDP drag."
+  ],
+  "not_verified": [
+    "I ran no tests or browser; all conclusions come from reading ImageQueryDropTarget.tsx and the fix diff.",
+    "I did not review the addon (Python) side, which this commit does not touch, so I1-I6 and I12 were not assessed.",
+    "Real-browser dragenter/dragleave ordering with nested children and with Escape or dragend cancellation.",
+    "Whether PageFrame is replaced between renders on the search page."
+  ],
+  "confidence": 76,
+  "trajectory": "The fix commit bdadf8be8 moves one line (depth += 1) above the class check and replaces onDragLeave's two-part guard with a single null check. It adds no flag, state or prediction, and it removes a condition (the one_image and hasFiles guards in dragleave). That is the single reset path the r8 reader asked for. Earlier rounds did add flags to UploadZone (acceptUpload, enabled), and r4 and r8 removed them, so the trend is now convergent. The last docs-only commit, 9fa32b81d, adds only review records. I see no patching in the last two rounds."
+}

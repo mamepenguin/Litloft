@@ -67,6 +67,7 @@ const AT_THE_PHONE_WIDTH = [
 
 const AT_THE_DESKTOP_WIDTH = [
   "add-menu-desktop.spec.ts",
+  "condition-menu-desktop.spec.ts",
   "anchored-direction-desktop.spec.ts",
   "view-transition-desktop.spec.ts",
   "citation-seams-desktop.spec.ts",
@@ -74,6 +75,8 @@ const AT_THE_DESKTOP_WIDTH = [
   "segmented-control-desktop.spec.ts",
   "epub-bar-desktop.spec.ts",
   "justified-hold-desktop.spec.ts",
+  "image-search-drag-desktop.spec.ts",
+  "image-drop-target-desktop.spec.ts",
 ] as const;
 
 test.describe("the component fixture lays out at the width it was given", () => {
