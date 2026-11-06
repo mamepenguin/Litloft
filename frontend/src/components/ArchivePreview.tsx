@@ -17,6 +17,10 @@ import {
   MAX_TEXT_AUTO_LOAD,
 } from "./archive/archiveUtils";
 import { canOpenArchiveEntry, getDirname } from "./archive/archiveUtils";
+import {
+  archiveOrdinal,
+  useArchiveProgress,
+} from "@/lib/archiveProgress";
 import { useArchiveNavigation } from "./archive/useArchiveNavigation";
 import { useArchiveSort } from "./archive/useArchiveSort";
 import { useArchiveViewMode } from "./archive/useArchiveViewMode";
@@ -93,11 +97,21 @@ export function ArchivePreview({
   const {
     currentEntries,
     imageEntries,
+    imageSequence,
     breadcrumbs,
     navigateArchive,
     handleDirClick,
     handleBreadcrumbClick,
   } = useArchiveNavigation(archive, currentPath, searchParamsString, router);
+
+  const {
+    resume,
+    imageShown,
+    flush: flushArchiveProgress,
+  } = useArchiveProgress({
+    fileId,
+    imageCount: archive ? imageSequence.length : null,
+  });
 
   // Derived from the level, not from what the filter left of it: narrowing to
   // images would otherwise flip the layout under the reader's hand.
@@ -107,15 +121,17 @@ export function ArchivePreview({
   );
 
   const closeViewer = useCallback(() => {
+    flushArchiveProgress();
     setViewerMode("listing");
     setViewingEntry(null);
-  }, []);
+  }, [flushArchiveProgress]);
 
   const imageViewer = useImageViewer(
     viewerMode,
     imageEntries,
     fileId,
     closeViewer,
+    (entry) => imageShown(archiveOrdinal(imageSequence, entry.path)),
   );
 
   const textViewer = useTextViewer(viewerMode, viewingEntry, fileId);
@@ -123,6 +139,7 @@ export function ArchivePreview({
   const currentImage = imageEntries[imageViewer.imageIndex] ?? null;
 
   const closeViewerFull = useCallback(() => {
+    flushArchiveProgress();
     setViewerMode("listing");
     setViewingEntry(null);
     imageViewer.setPlaying(false);
@@ -130,9 +147,10 @@ export function ArchivePreview({
     textViewer.setTextContent(null);
     textViewer.setTextError(null);
     textViewer.setTextConfirmed(false);
-  }, [imageViewer, textViewer]);
+  }, [flushArchiveProgress, imageViewer, textViewer]);
 
   useEffect(() => {
+    flushArchiveProgress();
     setViewerMode("listing");
     setViewingEntry(null);
     imageViewer.setPlaying(false);
@@ -215,6 +233,12 @@ export function ArchivePreview({
     },
     [currentPath, handleDirClick, handleFileClick, navigateArchive],
   );
+
+  const openResume = useCallback(() => {
+    if (!resume) return;
+    const entry = imageSequence[resume.position - 1];
+    if (entry) openFromIndex(entry);
+  }, [resume, imageSequence, openFromIndex]);
 
   useEffect(() => {
     if (!pendingOpen) return;
@@ -325,6 +349,8 @@ export function ArchivePreview({
         order={order}
         typeFilter={typeFilter}
         viewMode={viewMode}
+        resume={viewerMode === "listing" ? resume : null}
+        onResume={openResume}
         onSortChange={setSort}
         onOrderChange={setOrder}
         onTypeFilterChange={setTypeFilter}

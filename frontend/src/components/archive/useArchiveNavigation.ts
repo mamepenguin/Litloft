@@ -5,11 +5,13 @@ import { useTranslations } from "next-intl";
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 
 import type { ArchiveContents, ArchiveEntry } from "@/types";
+import { archiveImageSequence } from "@/lib/archiveProgress";
 import { getDirname, getEntriesInDir, inferDirectories } from "./archiveUtils";
 
 interface ArchiveNavigationResult {
   currentEntries: ArchiveEntry[];
   imageEntries: ArchiveEntry[];
+  imageSequence: ArchiveEntry[];
   breadcrumbs: Array<{ label: string; path: string }>;
   navigateArchive: (path: string) => void;
   handleDirClick: (entry: ArchiveEntry) => void;
@@ -48,6 +50,11 @@ export function useArchiveNavigation(
             .sort((a, b) => a.path.localeCompare(b.path))
         : [],
     [archive, currentPath]
+  );
+
+  const imageSequence = useMemo(
+    () => (archive ? archiveImageSequence(archive.entries) : []),
+    [archive]
   );
 
   const pathSegments = currentPath ? currentPath.split("/") : [];
@@ -93,6 +100,7 @@ export function useArchiveNavigation(
   return {
     currentEntries,
     imageEntries,
+    imageSequence,
     breadcrumbs,
     navigateArchive,
     handleDirClick,
