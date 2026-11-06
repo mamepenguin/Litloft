@@ -68,7 +68,6 @@ function renderHeader(overrides: Record<string, unknown> = {}) {
 const trigger = () => screen.getByRole("button", { name: "Add filter" });
 
 const openRoot = () => fireEvent.click(trigger());
-
 const openFolderList = () => {
   openRoot();
   fireEvent.click(screen.getByRole("menuitem", { name: "Folder" }));
@@ -97,6 +96,17 @@ beforeEach(() => {
 });
 
 describe("SPEC-CORE-043 I9 the menu's first level", () => {
+  it("keeps the trigger's visible word while naming it Add filter", () => {
+    renderHeader();
+
+    // The extracted ConditionMenu takes its visible text from the caller:
+    // the search page still shows the short word, and the accessible name
+    // stays the one the screen reader had before the extraction.
+    const button = trigger();
+    expect(button.textContent).toBe("＋Filter");
+    expect(button.getAttribute("aria-label")).toBe("Add filter");
+  });
+
   it("offers Tag, Type, Folder, Collection, Favorites in that order", () => {
     renderHeader();
     openRoot();

@@ -806,6 +806,7 @@ plus what its row lists.
 | `file-actions-menu` | The file page's `[...]` menu | File props plus `onRequestClose`, `onDialogOpenChange`. See [Contributing to the file actions menu](#contributing-to-the-file-actions-menu) |
 | `folder-actions-menu` | The folder toolbar's **Add** menu, below the core rows | See [Contributing to the add menu](#contributing-to-the-add-menu) |
 | `folder-bulk-actions-menu` | The folder toolbar's `…` menu, below the core rows. Only on a folder or the drive root | See [Contributing to the folder `…` menu](#contributing-to-the-folder--menu) |
+| `collection-actions` | The collection page's header, between **再生** and the `…` menu | `{ drive, collectionId, collectionName }`. `layout="stack"` draws the entries side by side in the actions row; with no entry the slot draws nothing |
 | `document-viewer-actions` | Top bar of the full-screen PDF viewer | File props plus `documentCaptureController` and `tone: "on-dark"`. The bar is black: draw a transparent control with a white glyph. The controller publishes the page in view or the selected text, never an anchor |
 | `header-actions` | App header | `{ drive }` |
 | `active-summary-view` | File detail, with the summaries | `{ fileId, drive, summaryNote }`. Drawn only when `GET /api/addons/knowledge/file_active_summary/{id}/note` reports an active summary; without an entry the core draws the note itself |

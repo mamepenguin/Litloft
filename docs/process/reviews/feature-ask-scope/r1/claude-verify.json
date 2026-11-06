@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "ConditionMenu.tsx:265-288 renders `<span className=\"hidden sm:inline\">{label}</span>` when the label has no leading ＋. SearchQueryHeader.tsx:119 passes label={t(\"addFilter\")}, which is 条件を追加. addFilterWord appears only in the messages-core json files (ja.json:285, en.json:285) and has no remaining use in src. core-search-vocabulary.test.ts:96 expects 81. I could not read the old code, so the earlier use of addFilterWord rests on that reading and the unused key."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "anchoredDropdowns.test.ts, popup-dismissal.test.ts, core-search-vocabulary.test.ts and toolbarMenuHome.test.ts all reference ConditionMenu now. None of them is in the touch-point list. I could not run git diff, so I did not confirm that the edits are only path renames."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "frontend/e2e-layout/spec-viewport.spec.ts:24 and :26 list ask-scope-chips.html and collection-actions.html, and :44 has FIXTURE_COUNT = 19. frontend/src/components/__tests__/CollectionDetail.collectionActions.test.tsx exists. I did not confirm the earlier count of 17."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F4",
+      "status": "confirmed",
+      "note": "addons/intelligence/app/schemas.py:8 imports apply_filter_normalisation from app.file_matching. schemas.py:745 sets extra=\"forbid\" on AskRequest, so every /ask caller is now subject to it. file_matching.py:57 defines the shared function, and file_matching.py:146 and :157 show the SearchFilter validator now calls it. The unknown-key rejection is intended by I3."
+    }
+  ],
+  "specification_compliance": [
+    "I3: AskScope and AskRequest both forbid extra keys (schemas.py:712, 745). AskScope raises 'scope has no condition' when all four lists are empty (schemas.py:722-723). It reuses the shared filter normalisation (schemas.py:721).",
+    "I10: ConditionMenu takes its entries from the caller. SearchQueryHeader passes tag, kind, folder, collection, favorite. The trigger text changed, per F1.",
+    "I11: both fixtures are registered in spec-viewport.spec.ts. I did not run them."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The search page's visible trigger word changes from 条件 to 条件を追加 (F1).",
+    "Four core tests outside the touch points are edited (F2).",
+    "AskRequest rejects unknown keys for every /ask caller (F4), which the spec's I3 already covers."
+  ],
+  "regression_risks": [
+    "The search page trigger is wider at sm and above, which could affect the chip row layout.",
+    "An older client that sends an extra key to /ask now gets a 422."
+  ],
+  "test_coverage": [
+    "ConditionMenu.test.tsx exists.",
+    "CollectionDetail.collectionActions.test.tsx exists.",
+    "core-search-vocabulary.test.ts expects 81 used keys."
+  ],
+  "not_verified": [
+    "I could not run git diff or any tests, so I did not confirm the old SearchQueryHeader code or the exact test edits.",
+    "I did not check invariants I1, I2, I4 to I9 or I11 beyond what the findings touch.",
+    "I did not read the e2e fixtures or the layout results."
+  ],
+  "confidence": 80
+}

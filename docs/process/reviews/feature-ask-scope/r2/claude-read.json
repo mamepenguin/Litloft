@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "I10: after fc8fa0633 SearchQueryHeader passes label=t(\"addFilterWord\") and ariaLabel=t(\"addFilter\"). ConditionMenu renders the label in the hidden sm:inline span when it has no leading plus sign, and uses ariaLabel ?? label for both the trigger and the menu. This restores the pre-extraction visible word and accessible name, so the r1 F1 concern appears fixed.",
+    "The vocabulary guard returns to 82 used keys and SearchQueryHeader.tsx is counted as 3 callers, consistent with addFilterWord being used again.",
+    "The Ask page passes a label starting with the plus sign and no ariaLabel, so it keeps the 「＋ 範囲」 text and name as specified."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The Escape handler in SearchQueryHeader's input no longer checks whether the menu is open and always resets the text. Focus normally sits in the menu panel while it is open, so the input handler is unlikely to fire, but this was not confirmed in a browser."
+  ],
+  "regression_risks": [
+    "The ConditionMenu trigger now has an optional ariaLabel branch; a future caller that passes a non-plus label without ariaLabel would show the label in a span hidden below sm, leaving only the plus sign on phones."
+  ],
+  "test_coverage": [
+    "The new SearchQueryHeader.scope test asserts button.textContent equals \"＋Filter\" and aria-label equals \"Add filter\". Reverting the label to t(\"addFilter\") would fail it, so it covers the F1 regression.",
+    "ConditionMenu.test.tsx still passes only a plus-prefixed label and never exercises ariaLabel or the non-plus branch directly; the SearchQueryHeader test is the only coverage of that branch.",
+    "The diff was truncated at 200000 bytes, so the later addon frontend and test files were not read."
+  ],
+  "not_verified": [
+    "The truncated remainder of the diff (Page.tsx, api.ts, find.tsx, askNoteFormat.ts, slots.ts, manifest.json, messages, addon tests) was not reviewed.",
+    "I did not run any tests or a browser, so I did not check the rendered trigger at 390 px and 1280 px or the e2e layout specs.",
+    "I did not re-check invariants I1 to I9 and I11 against the addon backend code in this round.",
+    "I did not check the docs-only commits f646472a3 and 9ab5249b3 beyond noting that they contain no code in the diff shown."
+  ],
+  "confidence": 72,
+  "trajectory": "The fix round (fc8fa0633) added one optional prop, ariaLabel, with a single ?? fallback, and restored the caller's original label and test counts. It added no state and no prediction, and it removed the earlier mismatch between visible text and accessible name. The other fix commits in the record are documentation records. I see no accumulating patches. The design is not being patched on top of itself."
+}
