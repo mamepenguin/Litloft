@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "IndexDetailsDialog.tsx:232-234 handleCancel only calls setPendingTask(null). forceCorrected is set true at :274 on a 409 'corrected' response and reset only in handleConfirm at :247. After a cancel it stays true, so the next handleConfirm computes overwrite = forceCorrected || ... (:239-240) as true for any task. The dialog text also switches on forceCorrected (:399), so the viewer still sees a confirmation. The effect is a stale flag with limited reach, not a silent overwrite."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "TranscriptSection.tsx:228 declares editDraftsRef as a map keyed by cue index. It is cleared only in the fileId effect (:288-289). Lines 785-831 only delete the entry of the line being saved or cancelled. beginEdit (:788) reads editDraftsRef.current[cue.index] ?? cue.text. After a Refine or restore refetch renumbers the indexes, a draft left on another line would be offered for whichever utterance now has that index. I did not verify that a refetch cannot also clear it elsewhere; I found no such clear."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "workers/followup.py:265-276 calls _embed_utterance, then _realign_utterance, then _recompute_keywords and post_addon_event_sync, in that order. _realign_utterance raises RuntimeError(outcome) at :365 on a load_failed or unreachable outcome while attempts are below MAX_ALIGN_ATTEMPTS. process_item catches it at :219-221 and calls _record_failure, so the keyword recompute and the 'corrected' event are skipped until the retry or the third attempt."
+    }
+  ],
+  "specification_compliance": [
+    "I7: the frontend confirm dialog is still shown when forceCorrected is stale, so the I7 requirement that the flag is sent only after confirmation is not clearly broken. The stale state is untidy.",
+    "I15/I2: the 'corrected' event and the keyword rebuild are delayed on a retryable alignment failure. Whether that breaks the 'exactly once' wording depends on how the retry schedule is read, so I did not judge it."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Draft restore keyed by index can show text for the wrong utterance after Refine renumbering.",
+    "The stale forceCorrected flag can carry over to a later regenerate of a different task."
+  ],
+  "test_coverage": [
+    "I did not inspect the tests for these three paths."
+  ],
+  "not_verified": [
+    "I did not run any code or test, because I only have read tools.",
+    "I did not check the other invariants or touch points beyond the three findings.",
+    "I did not check whether a refetch path elsewhere in TranscriptSection resets the drafts."
+  ],
+  "confidence": 80
+}

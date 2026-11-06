@@ -99,7 +99,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-061 | implemented | docs/specs/in-file-find.md | sha256:73aa8f34f99d39d7e66c4b9a670d4c68290c95cd3f0424ca9c1c0ba8777768db |
 | SPEC-CORE-028 | implemented | docs/specs/in-file-find.md | sha256:73aa8f34f99d39d7e66c4b9a670d4c68290c95cd3f0424ca9c1c0ba8777768db |
 | SPEC-CORE-029 | draft | docs/specs/office-viewer.md | |
-| SPEC-ADDON-051 | draft | docs/specs/extraction-corrections.md | |
+| SPEC-ADDON-051 | superseded | docs/specs/extraction-corrections.md | |
 | SPEC-ADDON-052 | draft | docs/specs/figure-aware-reading.md | |
 | SPEC-CORE-030 | implemented | docs/specs/background-upload.md | sha256:ffe09b32450a1f43cf6e5aaec2211505c8508836e1a38857b51bc8b161bf5211 |
 | SPEC-CORE-031 | implemented | docs/specs/ingest-progress.md | sha256:de18030f6fb3fe7172d2ef5474e6349e04ecb055520a610d4e780e8648bcfefd |
@@ -131,3 +131,6 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-066 | implemented | docs/specs/frame-ocr.md | sha256:e457ec6b9ade299f547a699c43f8ac27a4fef85449791c7f3dd9a9848549aeaf |
 | SPEC-ADDON-069 | implemented | docs/specs/frame-ocr.md | sha256:e457ec6b9ade299f547a699c43f8ac27a4fef85449791c7f3dd9a9848549aeaf |
 | SPEC-CORE-048 | implemented | docs/specs/frame-ocr.md | sha256:e457ec6b9ade299f547a699c43f8ac27a4fef85449791c7f3dd9a9848549aeaf |
+| SPEC-ADDON-070 | implemented | docs/specs/extraction-edits.md | sha256:e651a74cf4e0e80f37003a94017fed3f61d0c2242b6bdd6a2ce4995046234ae6 |
+| SPEC-ADDON-067 | implemented | docs/specs/extraction-edits.md | sha256:e651a74cf4e0e80f37003a94017fed3f61d0c2242b6bdd6a2ce4995046234ae6 |
+| SPEC-ADDON-068 | implemented | docs/specs/extraction-edits.md | sha256:e651a74cf4e0e80f37003a94017fed3f61d0c2242b6bdd6a2ce4995046234ae6 |

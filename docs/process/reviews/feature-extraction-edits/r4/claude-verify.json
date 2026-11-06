@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "followup.py:271-280: _realign_utterance returns None. Its early returns at :356-357 (chunk is None or chunk.text != text) and the :343 loft path give the caller no signal. post_addon_event_sync('intelligence.transcript.updated', reason 'corrected') at :273 is then called unconditionally. The event is emitted for a stale item. No data is written, so I2 holds, but the event is spurious relative to I15's 'after an utterance's follow-up'. The fetch at :245-254 also reads the current chunk text, so staleness is mostly caught earlier."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "TranscriptSection.tsx:1119-1124: while another row is edited, the 修正 button gets only inline opacity 0, pointerEvents none and the pointer-events-none class. It has no tabIndex=-1 and is disabled only by `busy` (:1117). It stays keyboard-focusable and activatable. beginEdit (:788-802) then keeps the open row's draft in editDraftsRef and switches rows, so no data is lost. The effect is an invisible focus stop, an accessibility defect with no data impact."
+    }
+  ],
+  "specification_compliance": [
+    "I15: a corrected event can be emitted for a stale item (F1)",
+    "I2: stale item writes nothing; the stale guards at followup.py:301 and :356 hold"
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "A spurious transcript.updated event makes the viewer refetch, which is harmless."
+  ],
+  "test_coverage": [
+    "I did not inspect the tests."
+  ],
+  "not_verified": [
+    "Tests were not run or read.",
+    "I did not check how process_item's _stale pre-check interacts with the event under concurrent saves.",
+    "Everything outside the two cited code regions."
+  ],
+  "confidence": 85
+}

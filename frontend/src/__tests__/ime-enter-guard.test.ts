@@ -54,6 +54,7 @@ const NOT_A_TEXT_FIELD_ENTER = [
 const ADDON_TEXT_FIELD_ENTER = [
   "intelligence/frontend/Page.tsx",
   "intelligence/frontend/pages/search-compare.tsx",
+  "intelligence/frontend/TranscriptSection.tsx",
   "media_import/frontend/Composer.tsx",
   "media_import/frontend/ImportFromUrlDialog.tsx",
 ];
@@ -65,6 +66,7 @@ const ADDON_TEXT_FIELD_ENTER = [
  */
 const ADDON_NOT_A_GUARDED_ENTER = [
   "intelligence/frontend/DetailedSummarySection.tsx",
+  "intelligence/frontend/PictureTextSection.tsx",
   "knowledge/frontend/WikiLinkAutocomplete.tsx",
 ];
 
@@ -104,7 +106,7 @@ describe("core files handling Enter", () => {
 
   it("are all declared in the addons as well", () => {
     const declared = [...ADDON_TEXT_FIELD_ENTER, ...ADDON_NOT_A_GUARDED_ENTER].sort();
-    expect(declared).toHaveLength(6);
+    expect(declared).toHaveLength(8);
     const found = readdirSync(ADDONS_DIR, { withFileTypes: true })
       .filter((e) => e.isDirectory())
       .map((e) => resolve(ADDONS_DIR, e.name, "frontend"))

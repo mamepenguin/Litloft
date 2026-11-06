@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "addons/intelligence/app/extraction.py exists. Its absence from the touch-point list is a documentation gap only. I did not count its lines."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "frontend/src/__tests__/ime-enter-guard.test.ts is a core test file. It lists intelligence/frontend/TranscriptSection.tsx (line 57) and PictureTextSection.tsx (line 69) and asserts toHaveLength(8) at line 109. The touch points do not name it. It is a test-only change and no protected path is touched."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "database.py:1111 declares text_embedding_model_rebuilt = False. database.py:732-733 sets it True inside the model-rebuild migration. workers/followup.py:95 reads it and followup.py:130 resets it. The touch points do not mention this process-global state. It is an unlisted coupling and does not change the rebuild itself."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F4",
+      "status": "confirmed",
+      "note": "workers/aligner.py:54 makes _load_align_model delegate to _load_align_model_detailed (line 58). Lines 94-98 add a separate except ValueError that returns 'unsupported'. The generic exception returns 'load_failed' at line 103. The old wrapper still returns None on any failure, so Refine behaviour is preserved."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F5",
+      "status": "confirmed",
+      "note": "routers/files.py:877 adds the manager: Any = Depends(get_index_manager) parameter. Line 988 re-fetches with get_index_manager(). The comment at lines 937-938 has an unclosed parenthesis ('404 (not cross-drive / soft-deleted / unknown — keeps the'), which suggests it was edited or truncated. The effect is cosmetic."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F6",
+      "status": "confirmed",
+      "note": "workers/followup.py imports _store_embedding and _remove_embeddings from app.workers.metadata (lines 306, 441, 611, 676). It calls whisper._index_tfidf_keywords (lines 433, 496, 556). routers/files.py:556 imports _merge_chunks and _replay_limit from app.file_find. routers/files.py:657 imports _remove_embeddings. These are private helpers in modules outside the touch points. I did not check idf_backfill, processing_events or extractors/base."
+    }
+  ],
+  "specification_compliance": [
+    "All six findings concern undeclared touch points or couplings. None is a violation of invariants I1-I15. I did not trace the invariants themselves."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "New shared module app/extraction.py is not in the touch points.",
+    "The process-global flag database.text_embedding_model_rebuilt couples the migration to the follow-up worker.",
+    "The core test ime-enter-guard.test.ts is edited."
+  ],
+  "regression_risks": [
+    "The follow-up worker depends on private helper signatures in metadata, file_find and whisper. A later change to those helpers may break it silently.",
+    "The aligner load path now has an 'unsupported' result. That is the language case plus a ValueError from whisperx. A ValueError raised for another reason is treated as permanent and not retried."
+  ],
+  "test_coverage": [
+    "I saw that tests/test_spec_addon_068_startup_rebuild.py sets the rebuild flag. I did not review the other tests."
+  ],
+  "not_verified": [
+    "I did not verify any invariant I1-I15 behaviourally; I could not run anything.",
+    "I did not diff against the base, so I could not tell whether the comment at routers/files.py:937 was damaged by this commit.",
+    "I did not read the full length or contents of extraction.py.",
+    "I did not check idf_backfill, processing_events or extractors/base imports."
+  ],
+  "confidence": 80
+}

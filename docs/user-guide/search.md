@@ -84,7 +84,7 @@ With the intelligence addon enabled for the drive, results found by meaning are 
 
 - The badges also show matches in **Transcript**, **Content**, **Visual**, **Thumbnail** and **Metadata**.
 - Pictures and video frames found by how they look (**Thumbnail**, **Visual**) can be only loosely related to your words. In relevance order they usually come after other matches.
-- Text inside pictures, such as screenshots, slides and photos of signs, is found by its words in search and Ask, and a match shows the recognised text as its quote. A reading can contain single-character errors.
+- Text inside pictures, such as screenshots, slides and photos of signs, is found by its words in search and Ask, and a match shows the recognised text as its quote. A reading can contain single-character errors. To fix one, open the picture's page and use the **画像の文字** (Text in image) section: **修正** (Edit), then **保存** (Save). Search uses the corrected text from then on, and **元の結果に戻す** (Restore original) puts back what the engine read.
 - Text shown in a video — a slide, terminal output, a caption burned into the picture — is found by its words too. A video found this way shows 内容一致; its time and 「画面内の文字」 appear under 箇所. The text on a scanned PDF page is found as that page's text.
 - A match in speech or in a scene shows up to three timestamps. Click one to play from that moment. `+N` says how many more there were.
 - A match in a PDF lists the pages, as `p.N`. Click one to open the PDF at that page.
