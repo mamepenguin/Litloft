@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "tests/test_llm_caller_inventory.py is a declared touch point where the new streaming call should be registered, but it still has no reference to generate_stream_with_image or any stream or vision call, and neither the original diff nor the r1 fix commits changed it.",
+      "impact": "Nothing pins the two new generate_stream_with_image methods to the resolved client, so a later direct client construction or a call that bypasses resolve would pass the inventory test.",
+      "evidence": "Grep for 'generate_stream|vision' in addons/intelligence/tests/test_llm_caller_inventory.py returns no matches; the fix commits 3d46e45d5 and 74eba744a only add a validation-body test and move the pin. This repeats r1 F3, which is still unaddressed.",
+      "repro": "Grep the inventory test for generate_stream_with_image: 0 matches.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant is shown broken, because the wire tests check I2 through the real client transport. The spec still says the test registers the call, and the diff does not do it.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Register the new streaming call in the inventory test, or delete that touch point from the spec."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The new frontend source filter withoutImagesAndRefusedLinks only recognises fenced code that starts at column 0 to 3 spaces, so a Markdown image or link written inside an indented code block, a blockquote fence or a list-nested fence is rewritten before rendering.",
+      "impact": "Code shown in an answer can lose its image or link syntax. The image and refused-link rules of I10 still hold, so this is a drawing inaccuracy rather than a security gap.",
+      "evidence": "AnswerMarkdown.tsx: the fence regex /^ {0,3}(`{3,}|~{3,})/ is applied per line. Indented code (4 spaces) and '> ```' are not detected, so stripInlineMarkup runs on those lines.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a minor rendering inaccuracy. I10 requires an image to be drawn as its alternative text outside code, and it does not say what to do inside nested code.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    }
+  ],
+  "specification_compliance": [
+    "I2, I3, I6 and I9 appear consistent in routers/rag.py from reading. The 409 comes before the semaphore, image preparation and the retry run under the one slot, and meta.image is omitted (read as none) when the profile cannot see and no image applies.",
+    "I7 and I11: schemas.py bounds position_seconds with ge=0 and le=1,000,000, and the new RequestValidationError handler turns non-finite values into repr strings, so the response is 422. The r1 fix added a test through /ask and /find.",
+    "The r1 touch-point findings F1, F2 and F4 were handled by tests or are accepted as non-defects. F3, the inventory test, remains."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The app-wide RequestValidationError handler applies to every addon route, not only the file-question route.",
+    "On a generic mid-stream failure the route now emits a meta event before done.",
+    "An Ollama 404, for example a missing model, is recorded as a permanent vision-unsupported verdict until the process restarts."
+  ],
+  "regression_risks": [
+    "has_vision_profile was refactored onto _active_for, and the new tests do not call it directly (I12).",
+    "The app-wide 422 handler changes the encoding of every validation error body, and only /ask and /find were exercised."
+  ],
+  "test_coverage": [
+    "The new tests cover the picture and frame paths, the retry, the slot, the 409, the wire for both client classes, the position range, availability, the non-finite 422 on /ask and /find, and the tab rendering.",
+    "The inventory test is not updated.",
+    "The 422 body shape for routes other than /ask and /find is not tested."
+  ],
+  "not_verified": [
+    "I ran no tests, because I only had read tools.",
+    "I did not read workers/vision.py, frame_cache.py or MarkdownPreview.",
+    "I did not check the other routes' request models for a field that would now produce a different 422 body.",
+    "I did not check the frontend renderer against every I10 case."
+  ],
+  "confidence": 72,
+  "trajectory": "The only fix since r1 adds a test for the non-finite 422 on the two drive-wide routes and moves the submodule pin. It adds no branch, state or prediction to the code, and it removes none. Nothing in the fixes suggests the design is being patched. The r1 inventory-test gap (F3) is still open."
+}
