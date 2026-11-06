@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "frame_ocr.py:139-147 _showinfo_time returns None when the numeric regex (line 57) does not match, so N/A gives None. Line 155 only requires the literal 'pts_time:', so an N/A line reaches line 158 and queues _BAD. Lines 284-287 then set times_failed and kill ffmpeg. Line 501 makes index_frame_ocr bail out with nothing written. The video stays pending. This matches the 'nothing written' rule, but such a stream will be retried and fail every time. Read from the code only; I could not run it."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2",
+      "status": "confirmed",
+      "note": "tests/test_frame_page_ocr_readers.py:401 test_spec_addon_066_a4_a_missing_showinfo_time_writes_nothing uses a _FakeProcess defined at line 419 and returned at line 440. Grep for 'odd' and 'needs_scale' in that test file found no test using an odd-dimension clip or real ffmpeg on the stderr-thread path. I did not inspect other test files or the fixtures directory."
+    }
+  ],
+  "specification_compliance": [
+    "I4: the times_failed path writes nothing and leaves the flags as they were (frame_ocr.py:501 onward). I did not check the remaining invariants."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "A key-frame video whose timestamps are missing is retried without limit and never indexed."
+  ],
+  "test_coverage": [
+    "The missing-time branch is tested only with a fake Popen. No real-ffmpeg test covers a large video with odd dimensions."
+  ],
+  "not_verified": [
+    "Did not run any code or tests.",
+    "Did not check invariants I1-I3 or I5-I10.",
+    "Did not search for odd-dimension fixtures outside the one test file.",
+    "Did not check whether the kept items are retried indefinitely by the queue."
+  ],
+  "confidence": 80
+}
