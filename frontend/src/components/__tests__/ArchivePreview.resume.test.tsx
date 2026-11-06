@@ -121,7 +121,7 @@ function ui(fileId = FILE): ReactNode {
 }
 
 async function openAt(folder: string, filename: string, byAlt = folder !== "") {
-  vi.useFakeTimers({ shouldAdvanceTime: true });
+  vi.useFakeTimers();
   if (folder) mockSearchParams.set("archivePath", folder);
   const view = render(ui());
   const target =
