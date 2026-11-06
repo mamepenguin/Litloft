@@ -2,7 +2,7 @@
 
 decision:
 ran_in_app: yes
-at: c1679f59d862963e70d67feabba6798959a96e60
+at: d38000401c0396a0db808b4c33c4120821d45f7f
 by: agent
 evidence: |
   Environment: compose project `litloft-r5-b4` (LITLOFT_PORT=3996), own
@@ -66,6 +66,16 @@ evidence: |
     view. The component test `ExtractionEditsReview.test.tsx` covers the
     host's reused mount (rerender to the next file) and shows the field and
     confirmation are dropped.
+  - Third run (touch layout, after the fix-review round). At 390x844 with a
+    coarse pointer, opening a line's edit put the field on its own row:
+    input width 285 px, **保存** and **キャンセル** under it at y=734, both
+    44 px high (40-touch-edit-row.png). The other lines' **修正** measured
+    opacity 0 and `pointer-events: none` while a line was open.
+  - With the sheet at its half snap, **元の結果に戻す** opened the
+    confirmation inside the viewport (message y=397, **戻す** y=453,
+    viewport height 844), not below the fold (41-touch-restore-dialog.png).
+    **続ける** on the Refine confirmation closed the dialog after the request
+    (42-touch-refine-after-confirm.png).
 
 pending: |
   - A successful WhisperX alignment of a corrected utterance: the stack's
