@@ -61,7 +61,7 @@ interface ConditionMenuProps {
 type Level = "closed" | "root" | ConditionEntry;
 
 interface Preset {
-  labelKey:
+  label:
     | "filterSizeUnder10MB"
     | "filterSize100MBOrMore"
     | "filterSize1GBOrMore"
@@ -74,17 +74,17 @@ interface Preset {
 
 const SIZE_PRESETS: readonly Preset[] = [
   {
-    labelKey: "filterSizeUnder10MB",
+    label: "filterSizeUnder10MB",
     value: "<10MB",
     comparison: { operator: "lt", value: 10 * 1024 ** 2 },
   },
   {
-    labelKey: "filterSize100MBOrMore",
+    label: "filterSize100MBOrMore",
     value: ">=100MB",
     comparison: { operator: "gte", value: 100 * 1024 ** 2 },
   },
   {
-    labelKey: "filterSize1GBOrMore",
+    label: "filterSize1GBOrMore",
     value: ">=1GB",
     comparison: { operator: "gte", value: 1024 ** 3 },
   },
@@ -92,17 +92,17 @@ const SIZE_PRESETS: readonly Preset[] = [
 
 const LENGTH_PRESETS: readonly Preset[] = [
   {
-    labelKey: "filterDurationUnder5Min",
+    label: "filterDurationUnder5Min",
     value: "<5m",
     comparison: { operator: "lt", value: 300 },
   },
   {
-    labelKey: "filterDuration30MinOrMore",
+    label: "filterDuration30MinOrMore",
     value: ">=30m",
     comparison: { operator: "gte", value: 1800 },
   },
   {
-    labelKey: "filterDuration1HourOrMore",
+    label: "filterDuration1HourOrMore",
     value: ">=1h",
     comparison: { operator: "gte", value: 3600 },
   },
@@ -355,7 +355,7 @@ export function ConditionMenu({
 
   const hasPlus = label.startsWith("＋") || label.startsWith("+");
 
-  const presetLabel = (key: Preset["labelKey"]): string => {
+  const presetLabel = (key: Preset["label"]): string => {
     if (key === "filterSizeUnder10MB") return t("filterSizeUnder10MB");
     if (key === "filterSize100MBOrMore") return t("filterSize100MBOrMore");
     if (key === "filterSize1GBOrMore") return t("filterSize1GBOrMore");
@@ -390,7 +390,7 @@ export function ConditionMenu({
             className={rootItemClass}
             onClick={() => choose(operator, preset.value)}
           >
-            {presetLabel(preset.labelKey)}
+            {presetLabel(preset.label)}
           </button>
         ))
       )}
