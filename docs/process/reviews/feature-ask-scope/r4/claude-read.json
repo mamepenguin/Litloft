@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "I1/I2 (backend): the supplied diff passes file_id_constraint through retrieve_with_keywords, the hierarchical bypass paths, the clue retrievals, the exact-match lookup, the coarse retriever (scoped KNN through _scoped_vector_rows), the category-expansion path and the agentic search_files tool. The scoped file_id_scope is None everywhere I could see. get_file_chunks, get_file_detail and get_related_files return not_found for an out-of-scope id before any ensure_access call, and register_file_ids drops ids outside E. I found no path that breaks these, but I did not trace every call site.",
+    "I3: AskScope and AskRequest forbid extra keys. AskScope raises 'scope has no condition' after the shared normalisation. The route resolves the scope before the semaphore is taken and answers 503 with detail.code scope_unavailable.",
+    "I4: retrieve_with_keywords adds file_id_constraint to the search() kwargs only when it is not None, so an unscoped call sends the same keyword set as before.",
+    "I5: a scope event is emitted first. An empty S gives citations [] and then done with scope_empty true, with no LLM call. The added log lines carry only the drive and counts.",
+    "I9: the MCP tool forwards scope, returns an error when no scope event arrives, and the scope_empty case yields an empty answer. This matches the tests shown.",
+    "I10: after the earlier ariaLabel fix, the SearchQueryHeader keeps its visible word and its accessible name.",
+    "This round's commits (the 'Fix commits since the previous review' list) are almost entirely unrelated spec drafts (share-target, image-query-search) and the merge of origin/develop, plus a docs record of the R-5 check. I saw no production change to the Ask scope code in the part of the record that was not truncated."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "A strict-history short-circuit in a scoped request emits done without scope_empty, which is what the spec says, but a client cannot tell it from other empty answers except by the history_filter event.",
+    "coarse_retrieve now has a second code path (scoped) that is only exercised when file_id_constraint is given; a wrong row-to-file join there would hurt scoped hierarchical retrieval only.",
+    "AskRequest forbids unknown keys, so any other caller that sends extra fields to /ask now gets 422 (declared in the spec)."
+  ],
+  "test_coverage": [
+    "I could not see the addon backend tests (tests/ for I1/I2/I4) because the supplied diff was truncated before them.",
+    "The core tests shown (ConditionMenu, CollectionDetail slot, MCP askScope) match the invariants they name.",
+    "Earlier rounds' tests for Page.scope and api.scope were reported in r3; I did not re-read them."
+  ],
+  "not_verified": [
+    "I did not run any test, browser or e2e-layout fixture (I11).",
+    "The diff was truncated at 200000 bytes, so Page.tsx, api.ts, find.tsx, askNoteFormat.ts, slots.ts, manifest.json, the messages and most addon tests were not read in this round.",
+    "I did not read the merged-in develop changes or check the 'R-5 check of the merged search header' document against the code.",
+    "I did not trace the scoped _stream_answer path against every search() call site or check tests/test_filtered_search_unchanged.py."
+  ],
+  "confidence": 70,
+  "trajectory": "The fix commits since r3 are almost all docs: spec drafts and their revisions for share-target and image-query-search, the merge of origin/develop, and a docs record of the R-5 check. I saw no new branch, state or prediction added to the Ask scope code in these rounds, and none removed. The Ask scope design is not being patched on top of itself in this window. The share-target and image-query specs do grow by revision (each revision adds states such as armed/disarmed or pending/loading), but they are separate specs and not part of this change."
+}

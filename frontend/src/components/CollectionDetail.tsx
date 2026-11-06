@@ -14,6 +14,7 @@ import {
 } from "@/lib/api";
 import { Breadcrumb } from "@/components/Breadcrumb";
 import { Button } from "@/components/Button";
+import { AddonSlot } from "@/components/AddonSlot";
 import { ActionMenuItem } from "@/components/ActionMenuItem";
 import { EmptyState } from "@/components/EmptyState";
 import { OverflowMenu } from "@/components/OverflowMenu";
@@ -332,6 +333,15 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
                     {t("play")}
                   </Button>
                 )}
+                <AddonSlot
+                  id="collection-actions"
+                  layout="stack"
+                  props={{
+                    drive,
+                    collectionId,
+                    collectionName: detail.name,
+                  }}
+                />
                 {/* Behind `…`: an icon-only Trash beside the screen's primary
                     action put a destructive control one mis-aimed tap from
                     Play. */}

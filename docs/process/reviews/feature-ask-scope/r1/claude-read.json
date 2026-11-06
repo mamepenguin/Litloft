@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The extracted ConditionMenu draws the trigger text from the aria label (t(\"addFilter\")), so the search page's visible trigger word changes from addFilterWord to addFilter, a place the touch points do not name.",
+      "impact": "On the search results page at sm and wider, the trigger reads 「＋ 条件を追加」 (en: \"+ Add filter\") instead of 「＋ 条件」 (\"+ Filter\"). The chip row is wider and the core message key addFilterWord is now unused, which is why the vocabulary test count fell from 82 to 81. The user sees a changed header on a page the spec says is unchanged.",
+      "evidence": "ConditionMenu.tsx trigger: when label does not start with ＋ or +, it renders `<span className=\"hidden sm:inline\">{label}</span>`. SearchQueryHeader passes `label={t(\"addFilter\")}`, and the old code rendered `t(\"addFilterWord\")` there. messages ja.json:374-375 gives addFilter=条件を追加 and addFilterWord=条件. core-search-vocabulary.test.ts changed used.length 82 to 81 to absorb it.",
+      "repro": "Compare the old SearchQueryHeader trigger markup with the new one at 1280 px. The new one shows the longer label. Reverting the test count to 82 would fail the vocabulary test, which shows the key left the used set.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "The spec's CORE-044 step 3 and I10 require the search results page to behave exactly as before the extraction. The visible trigger text is part of that and changed. Entries, order, exclusions and submit are unchanged, so it is a close call.",
+        "invariant_ref": "I10"
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Give ConditionMenu a separate visible-word prop, or pass addFilterWord for the visible span while keeping addFilter as the aria-label."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The diff edits four existing core tests that are not in the touch-point list, only to follow the SearchQueryHeader to ConditionMenu path rename.",
+      "impact": "The guards for anchored dropdowns, popup dismissal, the toolbar menu home and the search vocabulary were repointed or recounted without being declared. A reviewer reading only the touch points would not look at them. The vocabulary count and caller table (24 to 2+21, 82 to 81) loosen or move a guard, which also hides F1.",
+      "evidence": "frontend/src/__tests__/anchoredDropdowns.test.ts, frontend/src/__tests__/popup-dismissal.test.ts, frontend/src/__tests__/core-search-vocabulary.test.ts and frontend/src/components/__tests__/toolbarMenuHome.test.ts are all in the diff.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is broken. The list omitted them.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "The diff reaches frontend/src/e2e-layout/spec-viewport.spec.ts (the fixture list and FIXTURE_COUNT) and adds a core test, CollectionDetail.collectionActions.test.tsx. The touch points name neither; they name only the new fixtures.",
+      "impact": "Minor. The shared viewport spec now covers two more fixtures, and a new core test pins the slot props.",
+      "evidence": "spec-viewport.spec.ts FIXTURES gains ask-scope-chips.html and collection-actions.html, and FIXTURE_COUNT goes from 17 to 19. The new test is under frontend/src/components/__tests__/.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Expected companions of the listed fixtures and the slot. They are not declared.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "F4",
+      "origin": "reviewer",
+      "claim": "Two addon-side effects reach beyond the listed files. AskRequest now forbids unknown keys for every /ask caller, and schemas.py now imports app.file_matching, which was not there before.",
+      "impact": "The extra=forbid on the request is declared in the spec (Checked, no action) but is a global change. The new import couples the schemas module to file_matching and adds a circular-import risk. The refactor of SearchFilter into apply_filter_normalisation also changes the validator path for the search filter used by Find and /search.",
+      "evidence": "schemas.py adds `from app.file_matching import apply_filter_normalisation` and `model_config = ConfigDict(extra=\"forbid\")` on AskRequest. file_matching.py moves the SearchFilter validator body into a shared function. The listed touch points name file_matching only as the shared validator.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Declared in prose, no invariant broken, and the existing filter tests are not shown to fail.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    }
+  ],
+  "specification_compliance": [
+    "Core slot id collection-actions needs no registry edit: a grep for folder-bulk-actions-menu found no other core slot registry besides FolderToolbar.",
+    "The spec files, INDEX.md and review records are implicit touch points and are not reported."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Search page trigger label text changes (F1).",
+    "ConditionMenu's hasPlus branch (label starting with ＋ or +) is a new rendering rule that SearchQueryHeader never used before."
+  ],
+  "regression_risks": [
+    "Search results page header trigger text and width.",
+    "AskRequest extra=forbid rejects any caller sending extra keys.",
+    "Circular import between schemas.py and file_matching.py."
+  ],
+  "test_coverage": [
+    "ConditionMenu.test.tsx passes a label that starts with ＋, so it never covers the non-plus branch that SearchQueryHeader uses. This is why F1 goes unnoticed.",
+    "The diff was truncated at 200000 bytes, so the later addon frontend files and tests were not seen."
+  ],
+  "not_verified": [
+    "The truncated remainder of the diff (Page.tsx, api.ts, find.tsx, askNoteFormat.ts, slots.ts, manifest.json, messages, addon tests).",
+    "Whether other callers of AskRequest or SearchFilter exist outside the listed files.",
+    "Whether schemas.py and file_matching.py form an import cycle at runtime.",
+    "Actual rendering at the browser widths."
+  ],
+  "confidence": 72
+}

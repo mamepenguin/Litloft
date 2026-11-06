@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "The reviewed commit d6394ec8f only moves the addons/intelligence gitlink from cbd36cd6 to f7602f77. The addon diff adds tests only: Page.scope.test.tsx (three cases) and api.scope.test.ts. No production code changed in this round.",
+    "I6/I7: the new tests check that the chip scope is sent with Ask, Enter and retry, that no scope is sent after the last chip is removed, and that a popstate read aborts the open stream and clears the answer. These match the invariant text.",
+    "I3/I7: the retry case checks that a scope_unavailable error shows 'Could not load the scope'.",
+    "The wire tests check that the scope event and done.scope_empty are parsed, and that scope appears in the body only when given. This is consistent with the unscoped-request body invariant in I4.",
+    "The addon production code in this diff (schemas, router, service, retrieval, agentic tools, MCP ask) was read in the supplied diff. I saw no defect against I1-I5, I8, I9, but did not trace every path."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The tests mock askQuestionStream, so a mismatch between the mock and the real function's argument position for options is not caught. The optionsScope helper scans all arguments after the second, which is lenient.",
+    "api.scope.test.ts stubs fetch with body null and only calls .next() once, so it covers body construction but not stream parsing through the real reader."
+  ],
+  "test_coverage": [
+    "The new tests close gaps in I6/I7: scope sent on retry and Enter, no scope after chip removal, popstate abort, and the wire format.",
+    "No test in this round covers the backend invariants I1/I2. Their coverage in earlier rounds was not visible because the diff was truncated.",
+    "The diff was truncated at 200000 bytes, so the rest of Page.scope.test.tsx and other addon tests were not read."
+  ],
+  "not_verified": [
+    "I did not run any tests, so I do not know whether the new tests pass.",
+    "I did not read the truncated remainder of the diff: Page.tsx, api.ts, find.tsx, askNoteFormat.ts, slots.ts and the messages.",
+    "I did not check whether the addon commit f7602f77 matches the code in the supplied submodule diff.",
+    "I did not check the browser layout at 390 px and 1280 px (I11)."
+  ],
+  "confidence": 72,
+  "trajectory": "The only fix commit since r2 (d6394ec8f) is a gitlink bump to an addon commit that adds tests: three Page.scope cases and the api.scope wire tests. It adds no branch, state or prediction to production code, and it removes none. The design is not being patched in this round. The earlier round (fc8fa0633) added one optional ariaLabel prop and restored the original label, which was a reduction in mismatch. I see no accumulating patches."
+}

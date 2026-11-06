@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>collection header actions — layout fixture</title>
+    <link rel="stylesheet" href="./globals.built.css" />
+  </head>
+  <body>
+    <!--
+      The collection page's PageHeader with a long name and the actions row
+      intelligence adds: 再生, 「ここに質問」, `…`. The classes are the ones
+      PageHeader, Button and OverflowMenu draw.
+    -->
+    <header id="header" class="flex flex-col gap-1 px-4 py-2">
+      <div class="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:gap-3">
+        <div class="min-w-0 sm:flex-1">
+          <h1 id="title" class="truncate text-2xl font-bold text-text-primary">
+            2024年度 家族会議で決めた旅行の計画と持ち物リスト（改訂版）
+          </h1>
+          <div class="mt-1 text-xs text-text-muted">12 items</div>
+        </div>
+        <div class="flex min-w-0 items-center gap-2 sm:contents">
+          <div
+            id="actions"
+            class="flex flex-shrink-0 flex-wrap items-center gap-2"
+          >
+            <button
+              id="play"
+              type="button"
+              class="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white transition-colors"
+            >
+              再生
+            </button>
+            <button
+              id="ask"
+              type="button"
+              class="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-sand px-4 py-2 text-sm font-medium text-text-primary transition-colors"
+            >
+              ここに質問
+            </button>
+            <button
+              id="more"
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded="false"
+              aria-label="その他の操作"
+              class="flex items-center justify-center rounded-lg p-2 text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11 pointer-coarse:min-w-11"
+            >
+              ⋯
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <script>
+      window.measureCollectionActions = function () {
+        const box = (el) => {
+          if (!el) return null;
+          const r = el.getBoundingClientRect();
+          return {
+            top: r.top,
+            bottom: r.bottom,
+            left: r.left,
+            right: r.right,
+            width: r.width,
+            height: r.height,
+          };
+        };
+        const header = document.getElementById("header");
+        const style = getComputedStyle(header);
+        return {
+          viewport: { width: window.innerWidth, height: window.innerHeight },
+          documentWidth: document.documentElement.clientWidth,
+          documentScrollWidth: document.documentElement.scrollWidth,
+          contentWidth:
+            header.clientWidth -
+            parseFloat(style.paddingLeft) -
+            parseFloat(style.paddingRight),
+          header: box(header),
+          title: box(document.getElementById("title")),
+          actions: box(document.getElementById("actions")),
+          play: box(document.getElementById("play")),
+          ask: box(document.getElementById("ask")),
+          more: box(document.getElementById("more")),
+        };
+      };
+      document.body.dataset.ready = "1";
+    </script>
+  </body>
+</html>
