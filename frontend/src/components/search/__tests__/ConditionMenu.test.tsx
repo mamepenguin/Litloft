@@ -42,13 +42,22 @@ const collection = (name: string): CollectionSummary => ({
   updated_at: "2026-01-01T00:00:00Z",
 });
 
-type ConditionEntry = "tag" | "kind" | "folder" | "collection" | "favorite";
+type ConditionEntry =
+  | "tag"
+  | "kind"
+  | "folder"
+  | "collection"
+  | "size"
+  | "duration"
+  | "favorite";
 
 const ROOT_LABEL: Record<ConditionEntry, string> = {
   tag: "Tag",
   kind: "Type",
   folder: "Folder",
   collection: "Collection",
+  size: "Size",
+  duration: "Length",
   favorite: "Favorites",
 };
 
@@ -210,4 +219,112 @@ describe("SPEC-CORE-044 ConditionMenu", () => {
 
     expect(onChoose).toHaveBeenCalledWith("cats path:Photos");
   });
+});
+
+describe("SPEC-CORE-039 the menu answers keys where the page leaves focus", () => {
+  const trigger = () => screen.getByRole("button", { name: "＋ 条件" });
+  const menu = () => screen.getByRole("menu");
+
+  /** Keys go to the element that holds focus, as a real key press does. */
+  const press = (key: string) => {
+    fireEvent.keyDown(document.activeElement ?? document.body, { key });
+  };
+
+  /**
+   * A browser moves focus to a button on the press that clicks it, so an
+   * opened menu leaves focus on the trigger. jsdom's click moves nothing, so
+   * the case places focus where the page has it.
+   */
+  const openWithFocusOnTrigger = () => {
+    const button = trigger();
+    button.focus();
+    fireEvent.click(button);
+    return button;
+  };
+
+  it("SPEC-CORE-039: Escape on the trigger closes the menu and keeps focus there", async () => {
+    await renderMenu();
+    openWithFocusOnTrigger();
+
+    press("Escape");
+
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(trigger()).toHaveFocus();
+  });
+
+  it("SPEC-CORE-039: Tab on the trigger closes the menu", async () => {
+    await renderMenu();
+    openWithFocusOnTrigger();
+
+    press("Tab");
+
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("SPEC-CORE-039: arrows move through the rows after opening by click", async () => {
+    await renderMenu();
+    openWithFocusOnTrigger();
+
+    press("ArrowDown");
+    expect(screen.getByRole("menuitem", { name: "Tag" })).toHaveFocus();
+
+    press("ArrowDown");
+    expect(screen.getByRole("menuitem", { name: "Type" })).toHaveFocus();
+
+    press("ArrowUp");
+    expect(screen.getByRole("menuitem", { name: "Tag" })).toHaveFocus();
+  });
+
+  const valueLists: Array<{
+    entry: ConditionEntry;
+    load: () => void;
+    /** A row that arrives with the request, so the test waits for it. */
+    option: RegExp | null;
+    input: string | null;
+  }> = [
+    {
+      entry: "tag",
+      load: () => api.getDriveTags.mockResolvedValue([{ name: "会議", count: 2 }]),
+      option: /会議/,
+      input: "Filter tags",
+    },
+    { entry: "kind", load: () => undefined, option: null, input: null },
+    {
+      entry: "folder",
+      load: () => api.getFolderTree.mockResolvedValue([folder("Photos")]),
+      option: /Photos/,
+      input: "Filter folders",
+    },
+    {
+      entry: "collection",
+      load: () => api.getCollections.mockResolvedValue([collection("Trip")]),
+      option: /Trip/,
+      input: "Filter collections",
+    },
+    { entry: "size", load: () => undefined, option: null, input: null },
+  ];
+
+  it.each(valueLists)(
+    "SPEC-CORE-039: the $entry list takes focus, Escape returns to the first level, Escape again closes",
+    async ({ entry, load, option, input }) => {
+      load();
+      await renderMenu({ entries: [entry] });
+      // Opening and choosing by pointer leaves nothing focused in jsdom, as an
+      // unmounted row leaves nothing focused in the browser.
+      openRoot();
+      fireEvent.click(screen.getByRole("menuitem", { name: ROOT_LABEL[entry] }));
+
+      if (input) expect(screen.getByLabelText(input)).toHaveFocus();
+      else expect(menu()).toContainElement(document.activeElement as HTMLElement);
+      if (option) await screen.findByRole("menuitem", { name: option });
+
+      press("Escape");
+      expect(screen.getByRole("menuitem", { name: ROOT_LABEL[entry] })).toBeInTheDocument();
+      expect(trigger()).toHaveFocus();
+
+      press("Escape");
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+      expect(trigger()).toHaveFocus();
+    },
+  );
 });

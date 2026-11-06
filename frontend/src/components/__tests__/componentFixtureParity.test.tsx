@@ -271,6 +271,7 @@ describe("the component fixture's page", () => {
       "measured-tree-pane",
       "measured-picker-in-dialog",
       "add-menu",
+      "condition-menu",
       "quick-note-footer-ja",
       "quick-note-footer-en",
       "scoped-search-ja",
