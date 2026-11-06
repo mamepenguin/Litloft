@@ -297,6 +297,7 @@ describe("SPEC-CORE-049 a text entry is not a page", () => {
   ]);
 
   it("writes nothing for the text entry and still records the image", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.mocked(getArchiveContents).mockResolvedValue(WITH_TEXT);
     mockSearchParams.set("archivePath", "chapter1");
     render(ui());
@@ -309,6 +310,9 @@ describe("SPEC-CORE-049 a text entry is not a page", () => {
     fireEvent.click(screen.getByText("Back to list"));
     fireEvent.click(await screen.findByText("001.jpg"));
     await screen.findByRole("dialog");
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+    });
 
     expect(saveWatchProgress).toHaveBeenCalledWith(FILE, 2, 2);
   });

@@ -121,6 +121,7 @@ function ui(fileId = FILE): ReactNode {
 }
 
 async function openAt(folder: string, filename: string, byAlt = folder !== "") {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
   if (folder) mockSearchParams.set("archivePath", folder);
   const view = render(ui());
   const target =
@@ -166,8 +167,7 @@ describe("SPEC-CORE-049 recording", () => {
     "showing %j/%s records ordinal %s",
     async (folder, filename, ordinal) => {
       await openAt(folder, filename);
-      vi.useFakeTimers();
-      await elapse(5000);
+      await elapse(1000);
 
       if (ordinal === null) {
         expect(saveWatchProgress).not.toHaveBeenCalled();
@@ -180,8 +180,9 @@ describe("SPEC-CORE-049 recording", () => {
 
   it("sends the save one second after the viewer shows a different image", async () => {
     await openAt("chapter1", "001.jpg");
-    vi.useFakeTimers();
-    await elapse(5000);
+    await elapse(999);
+    expect(saveWatchProgress).not.toHaveBeenCalled();
+    await elapse(1);
     vi.mocked(saveWatchProgress).mockClear();
 
     fireEvent.click(screen.getByRole("button", { name: "Next image" }));
@@ -195,8 +196,7 @@ describe("SPEC-CORE-049 recording", () => {
 
   it("sends only the last image of a quick flip", async () => {
     await openAt("chapter1", "001.jpg");
-    vi.useFakeTimers();
-    await elapse(5000);
+    await elapse(1000);
     vi.mocked(saveWatchProgress).mockClear();
 
     fireEvent.click(screen.getByRole("button", { name: "Next image" }));
@@ -212,8 +212,7 @@ describe("SPEC-CORE-049 recording", () => {
 
   it("sends a pending save at once when the viewer closes", async () => {
     await openAt("chapter1", "001.jpg");
-    vi.useFakeTimers();
-    await elapse(5000);
+    await elapse(1000);
     vi.mocked(saveWatchProgress).mockClear();
 
     fireEvent.click(screen.getByRole("button", { name: "Next image" }));
@@ -224,8 +223,7 @@ describe("SPEC-CORE-049 recording", () => {
 
   it("sends a pending save at once when the page is left", async () => {
     const view = await openAt("chapter1", "001.jpg");
-    vi.useFakeTimers();
-    await elapse(5000);
+    await elapse(1000);
     vi.mocked(saveWatchProgress).mockClear();
 
     fireEvent.click(screen.getByRole("button", { name: "Next image" }));
@@ -237,8 +235,7 @@ describe("SPEC-CORE-049 recording", () => {
   it("writes nothing for an archive with one image", async () => {
     vi.mocked(getArchiveContents).mockResolvedValue(archive([image("only.jpg")]));
     await openAt("", "only.jpg", true);
-    vi.useFakeTimers();
-    await elapse(5000);
+    await elapse(1000);
 
     expect(saveWatchProgress).not.toHaveBeenCalled();
   });
@@ -248,7 +245,6 @@ describe("SPEC-CORE-049 recording", () => {
       archive([image("a.jpg"), image("b.jpg")]),
     );
     await openAt("", "a.jpg", true);
-    vi.useFakeTimers();
     fireEvent.click(screen.getByRole("button", { name: "Next image" }));
     await elapse(1000);
 
@@ -258,7 +254,6 @@ describe("SPEC-CORE-049 recording", () => {
   it("ignores a failed save and leaves the viewer open", async () => {
     vi.mocked(saveWatchProgress).mockRejectedValue(new Error("down"));
     await openAt("chapter1", "001.jpg");
-    vi.useFakeTimers();
     await elapse(1000);
 
     expect(saveWatchProgress).toHaveBeenCalled();
@@ -440,7 +435,6 @@ describe("SPEC-CORE-049 without a nickname", () => {
 
   it("saves to local storage and sends no position request", async () => {
     await openAt("chapter1", "001.jpg");
-    vi.useFakeTimers();
     fireEvent.click(screen.getByRole("button", { name: "Next image" }));
     await elapse(1000);
 

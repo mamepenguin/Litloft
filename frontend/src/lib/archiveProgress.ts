@@ -186,15 +186,7 @@ export function useArchiveProgress({
         byProfile: hasProfileRef.current,
       };
 
-      // The first image of a visit has no preceding change to collapse, and
-      // waiting would leave it unrecorded if the reader closes at once.
-      if (!shownRef.current) {
-        shownRef.current = true;
-        const pending = pendingRef.current;
-        pendingRef.current = null;
-        if (pending) write(pending);
-        return;
-      }
+      shownRef.current = true;
 
       cancel();
       timerRef.current = setTimeout(() => {
