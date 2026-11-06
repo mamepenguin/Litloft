@@ -2,6 +2,8 @@ spec: docs/specs/frame-ocr.md
 
 ## Revisions
 
+- 2026-11-06, by the human (「高解像度は読み方を変える」), after the required measurement found 4K HEVC at 5.7–23.8 min per video hour (1080p: 4.95): for a video taller than 1080 lines, frame selection decodes only key frames (no full decode of every frame), and a selected frame is OCRed scaled down to 1080 lines. Videos up to 1080p keep the spec's method unchanged. Before implementing, this method is measured on the same 4K HEVC excerpt; if it still exceeds 5 minutes per video hour, stop and ask.
+
 ## Clarifications
 
 Settled with the human on 2026-11-06, at approval:
