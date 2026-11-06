@@ -2,6 +2,7 @@ import { act, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TextPreview } from "../TextPreview";
+import { TextLines } from "../TextLines";
 import { MarkdownFileViewer } from "../MarkdownFileViewer";
 import { MarkdownPreview } from "../MarkdownPreview";
 import { useProfile } from "../ProfileProvider";
@@ -310,5 +311,77 @@ describe("SPEC-CORE-050 the profile decides the store at each save", () => {
 
     expect(saveWatchProgress).not.toHaveBeenCalled();
     expect(getSavedPlayback("textfile0001")).toEqual({ position: 500, duration: 1000 });
+  });
+});
+
+const EDITOR_FILE = "textfile0001";
+
+describe("SPEC-CORE-050 text drawn by the knowledge editor", () => {
+  it("records a scroll through TextLines under the file id context", async () => {
+    vi.useFakeTimers();
+    const host = makeHost(3000, 1000);
+    render(
+      <TextScrollFileIdContext.Provider value={EDITOR_FILE}>
+        <TextLines text={BODY} filename="notes.txt" />
+      </TextScrollFileIdContext.Provider>,
+      { container: host.el },
+    );
+
+    host.readerScrollTo(1000);
+    await debounceElapses();
+
+    expect(saveWatchProgress).toHaveBeenCalledWith(EDITOR_FILE, 500, 1000);
+  });
+
+  it("restores a stored position through TextLines under the file id context", async () => {
+    vi.mocked(getWatchProgress).mockResolvedValue({ position: 500, duration: 1000 });
+    const host = makeHost(3000, 1000);
+    render(
+      <TextScrollFileIdContext.Provider value={EDITOR_FILE}>
+        <TextLines text={BODY} filename="notes.txt" />
+      </TextScrollFileIdContext.Provider>,
+      { container: host.el },
+    );
+
+    await waitFor(() => expect(host.el.scrollTop).toBe(1000));
+  });
+
+  it("does nothing without a file id context", async () => {
+    vi.useFakeTimers();
+    const host = makeHost(3000, 1000);
+    render(<TextLines text={BODY} filename="notes.txt" />, { container: host.el });
+
+    host.readerScrollTo(1000);
+    await debounceElapses();
+
+    expect(saveWatchProgress).not.toHaveBeenCalled();
+    expect(getWatchProgress).not.toHaveBeenCalled();
+  });
+});
+
+describe("SPEC-CORE-050 a preview that is not shown", () => {
+  async function scrollWithWrapper(display: "none" | "block") {
+    vi.useFakeTimers();
+    stubFetch();
+    const host = makeHost(3000, 1000);
+    render(
+      <div style={{ display }}>
+        <TextPreview fileId={EDITOR_FILE} fileSize={BODY.length} />
+      </div>,
+      { container: host.el },
+    );
+    await waitFor(() => expect(host.el.textContent).toContain("line of text"));
+    host.readerScrollTo(1000);
+    await debounceElapses();
+  }
+
+  it("records the scroll when the wrapper is shown", async () => {
+    await scrollWithWrapper("block");
+    expect(saveWatchProgress).toHaveBeenCalledWith(EDITOR_FILE, 500, 1000);
+  });
+
+  it("records nothing when the wrapper is hidden inside a host that scrolls", async () => {
+    await scrollWithWrapper("none");
+    expect(saveWatchProgress).not.toHaveBeenCalled();
   });
 });

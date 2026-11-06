@@ -57,6 +57,22 @@ function scrollHostOf(element: HTMLElement): HTMLElement | null {
   return null;
 }
 
+/**
+ * A document that stays mounted under `display: none` (the Markdown editor's
+ * edit mode keeps its preview in the page) shares the host with the editor,
+ * so the host scrolling says nothing about reading it.
+ */
+function isShown(target: HTMLElement, host: HTMLElement): boolean {
+  for (
+    let node: HTMLElement | null = target;
+    node !== null;
+    node = node === host ? null : node.parentElement
+  ) {
+    if (getComputedStyle(node).display === "none") return false;
+  }
+  return true;
+}
+
 function isTwoScreens(host: HTMLElement): boolean {
   return host.clientHeight > 0 && host.scrollHeight >= 2 * host.clientHeight;
 }
@@ -145,7 +161,7 @@ export function useTextScrollProgress({
       }
 
       const range = host.scrollHeight - host.clientHeight;
-      if (range <= 0 || !isTwoScreens(host)) return;
+      if (range <= 0 || !isTwoScreens(host) || !isShown(target, host)) return;
       const position = Math.round((host.scrollTop / range) * 1000);
       if (position < MIN_POSITION) return;
 
@@ -187,7 +203,7 @@ export function useTextScrollProgress({
             ) {
               return;
             }
-            if (!isTwoScreens(host)) return;
+            if (!isTwoScreens(host) || !isShown(target, host)) return;
             const range = host.scrollHeight - host.clientHeight;
             if (range <= 0) return;
 
