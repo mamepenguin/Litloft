@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "_process_utterance emits the 'corrected' event after _realign_utterance returns even when _realign_utterance returned early because the chunk was deleted or its text changed (a stale item), so a stale item still announces.",
+      "impact": "When an utterance is corrected twice before the worker runs, the older item can emit a 'corrected' event without having written anything, and the newer item emits another. The effect is an extra refetch of the transcript panel in a single-user tool; no data is wrong.",
+      "evidence": "addons/intelligence/app/workers/followup.py:272-273 call _realign_utterance and then post_addon_event_sync unconditionally. The early 'return' paths in _realign_utterance (chunk is None or chunk.text != text) do not signal the caller. The stale check in _stale runs only at the start of process_item.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "I15 says 'corrected' is named once after an item's follow-up; a stale item announcing is an edge case the invariants do not state, and only a redundant refresh results.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Make _realign_utterance return whether it wrote or ended the pending mark, and emit the event only then."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The hidden 修正 buttons of the other rows are hidden by inline opacity 0 and pointer-events none while one row is edited, but they remain keyboard-focusable and activatable.",
+      "impact": "A keyboard user can Tab to an invisible button and press Enter to start editing another row. The draft map keeps the earlier draft, so no text is lost; the cost is a confusing invisible focus stop.",
+      "evidence": "TranscriptSection.tsx near line 1116: the style prop sets only opacity and pointerEvents; the button is not disabled and has no tabIndex change.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant covers keyboard behaviour of the edit buttons; the spec says only that at most one row is in edit mode, which beginEdit still honours.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "I15: the r3 finding is fixed. In followup.py the 'corrected' event is now emitted after _realign_utterance. A retry that raises skips it, and the third failed attempt or an aligned result reaches it, so it fires once per ended item. A stale item can still emit (F1).",
+    "I2/A8: the keyword vector is still recomputed before the realignment, so a retry does not hold it back.",
+    "The remaining fix-commit changes are frontend: confirmation dialogs portalled out of the panel, the confirmation closing on a 409 busy answer, the touch layout classes and the hidden edit buttons. They touch no backend invariant."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Each retry of an utterance item repeats the embedding and keyword recompute, which A8 says a retry should skip when already done. The work is idempotent and wasted.",
+    "The portalled ConfirmDialog depends on useDialogPortalTarget returning a host. If it returns null, the restore and Refine confirmations do not render at all."
+  ],
+  "test_coverage": [
+    "New backend tests assert that a retry rebuilds the keywords without announcing, that an aligned item announces once after the words exist, and that a parked item finishes once the file is active again.",
+    "New frontend tests cover the confirmation closing on busy, the portalling of both confirmations, the touch-layout classes and the hidden edit buttons.",
+    "No test covers a stale item's event (F1)."
+  ],
+  "not_verified": [
+    "I did not run any test or code.",
+    "I did not read the whole of followup.py, only its call order around _process_utterance.",
+    "I did not check what useDialogPortalTarget returns when no host exists.",
+    "I did not re-trace the invariants outside the fix commits."
+  ],
+  "confidence": 72,
+  "trajectory": "The fix rounds since r3 are small and local. The r3 event-ordering finding was fixed by moving the event after the realignment, without adding a new branch or state, and by changing the test that had locked in the old behaviour. The frontend round added portals and a few classes, plus one inline style that replaces a class (the previous class was swapped for the inline style after the test showed Tailwind classes were not readable). That is a replacement, not a stacked patch. A new state of the confirmation is closed through a keepOpen local in a finally block, which removes the earlier setConfirmRefine(true) branch. No round adds a branch, state or prediction that the round before it also added; the design is not being patched in layers. One remaining edge, a stale item emitting an event, is a leftover of the same reorder."
+}
