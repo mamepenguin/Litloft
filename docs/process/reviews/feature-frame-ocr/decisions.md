@@ -2,7 +2,7 @@
 
 decision:
 ran_in_app: yes
-at: 0104ab9074c8033fbdc546996096b407c9b814ed
+at: 608930ff41238fa304c6b684b0b97bcabc3d8113
 by: agent
 evidence: |
   Environment: compose project `litloft-r5-b2b` on port 3997, built from this worktree
@@ -76,4 +76,28 @@ evidence: |
   No difference from the spec was seen in these paths. The locators shown are 「mm:ss」
   in the find list (zero-padded minutes, e.g. 「00:10」) and 「m:ss」 in the passage view
   (e.g. 「0:10」 and 「1:10」), both time locators over 「画面内の文字」.
+
+  Second run (after review r1 fixes; core 608930ff4, addon 4ef04f2):
+  rebuilt the same stack from this worktree and added three files to the scratch drive:
+  - `portrait1080.mp4`: 30 s, stored 1920x1080 with a 90° display matrix, so the player
+    reports 1080x1920 upright; two printed slides, 「最小解」 0–15 s and 「画面内の文字」
+    15–30 s.
+  - `portrait1440.mp4`: the same two slides at 1440x2560 upright (short side 1440, so the
+    key-frame path), stored 2560x1440 with the display matrix.
+  - `broken.mp4`: 12 bytes of text.
+  The addon closed all four videos: `indexed.frame_ocr` 4, `pending.frame_ocr` 0
+  (`indexed.page_ocr` 1, `pending.page_ocr` 0). The two portraits have two stored
+  segments each (0–15 「最小解」, 15–30 「画面内の文字」); `broken.mp4` has no
+  `video_frame_texts` row. The dashboard read 「動画内の文字 4 / 4 件」 and
+  「スキャンしたページの文字 1 / 1 件」 (r5b-01-dashboard.png).
+  The portraits played with `video.videoWidth/videoHeight` 1080x1920 and 1440x2560. Find
+  「画面内の文字」 returned one 「00:15 画面内の文字」 row on each; choosing it set the
+  player to 15 s (r5b-02-find-portrait1080.png, r5b-02-find-portrait1440.png). On
+  `broken.mp4`, インデックス詳細 listed 「動画内の文字」 インデックス済 and find said
+  「見つかりません」 (r5b-03-broken-index-details.png, r5b-04-broken-find.png); it was
+  not pending. Searching 「画面内の文字」 and switching to 箇所 showed 「0:15」 over
+  「画面内の文字」 for both portraits with their excerpt; choosing the first opened
+  portrait1440 at 15 s (r5b-05-passage.png). The settings screen still listed
+  「動画内の文字」 and 「スキャンしたページの文字」, both インデックス時
+  (r5b-00-settings.png). No difference from the spec was seen in this second run.
 pending: Ask and the single-file question over frame text and scanned pages (no LLM profile configured); video/audio as heard and seen, and subtitle timing; playback over the real home LAN and on other household devices; addon calls to real third-party services; the production Mac mini (measurements were made on this development Mac).
