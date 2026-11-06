@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "followup.py:269-277 in _process_utterance calls _recompute_keywords and then post_addon_event_sync('intelligence.transcript.updated', reason 'corrected'). _realign_utterance is only called afterwards, at :278-279. At :367-368 it raises RuntimeError when load_failed or unreachable has attempts left. process_item catches that at :219-222 and calls _record_failure, which increments attempts but does not drop the item, then returns before _drop at :223. The item stays queued, and the whole _process_utterance runs again at the next due time, so the event is emitted again on each retry. This breaks I15, which says 'corrected' is named exactly once, after the utterance's follow-up item. The event fires before the item ends, and up to MAX_ALIGN_ATTEMPTS times. Under the threat model the effect is only redundant UI refreshes of a single viewer, so severity is low, but the claim is accurate."
+    }
+  ],
+  "specification_compliance": [
+    "I15 is violated for the 'corrected' event: it is emitted before the item finishes and repeated on each retry."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The keyword vector is recomputed and the utterance is re-embedded on every retry. This is wasted work, though it is idempotent."
+  ],
+  "test_coverage": [
+    "Not inspected. The finding says test_a_retry_still_rebuilds_the_keywords_and_announces asserts the event on the retry attempt, which would encode the behaviour that violates I15."
+  ],
+  "not_verified": [
+    "Whether the tests actually assert the event on a retry attempt.",
+    "The due-time and backoff logic that re-runs a failed item.",
+    "Every other invariant, and the rest of the diff."
+  ],
+  "confidence": 85
+}
