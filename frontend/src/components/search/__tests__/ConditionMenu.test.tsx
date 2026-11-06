@@ -7,17 +7,9 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 
 import type { CollectionSummary, FileKind, FolderTreeNode } from "@/types";
-
-const ASK_PAGE = resolve(
-  dirname(fileURLToPath(import.meta.url)),
-  "../../../../../addons/intelligence/frontend/Page.tsx",
-);
 
 const api = vi.hoisted(() => ({
   getDriveTags: vi.fn(),
@@ -194,17 +186,8 @@ describe("SPEC-CORE-044 ConditionMenu", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("draws the Ask page's entries without Size or Length", async () => {
-    // The Ask page lives in the addon, so its entries are read where it passes
-    // them; rendering with that list is what puts the menu under test.
-    const source = readFileSync(ASK_PAGE, "utf8");
-    const literal = /<ConditionMenu[\s\S]*?entries=\{(\[[^\]]*\])\}/.exec(source);
-    expect(literal).not.toBeNull();
-    const entries = [
-      ...(literal?.[1] ?? "").matchAll(/"([^"]+)"/g),
-    ].map((match) => match[1] as ConditionEntry);
-
-    expect(entries).toEqual(["folder", "collection", "tag", "kind"]);
+  it("draws only the entries its host passes, so the Ask page's list has no Size or Length", async () => {
+    const entries: ConditionEntry[] = ["folder", "collection", "tag", "kind"];
 
     await renderMenu({ entries });
     openRoot();

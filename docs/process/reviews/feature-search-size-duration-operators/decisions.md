@@ -1,6 +1,6 @@
 # Decisions
 
-decision: r1 HUMAN_REVIEW_REQUIRED → ship (user, 2026-11-06: 「出荷」). B findings accepted: F1/R1-1 is behaviour-equivalent (the continuation already needs meaning hits, which an impossible query never fetches); F2, F3, R1-2 are touch-point omissions. Mutation not applied: no data loss, no security boundary, results visible to the user (impact ≤ 5).
+decision: r1 HUMAN_REVIEW_REQUIRED → ship (user, 2026-11-06: 「出荷」). B findings accepted: F1/R1-1 is behaviour-equivalent (the continuation already needs meaning hits, which an impossible query never fetches); F2, F3, R1-2 are touch-point omissions. Mutation not applied: no data loss, no security boundary, results visible to the user (impact ≤ 5). r2 HUMAN_REVIEW_REQUIRED → ship after fixing D1/R2-1 (user, 2026-11-06: 「D1 を直して出荷」): the core test now renders ConditionMenu with the Ask entries as a literal instead of reading the addon file. D2 and the r1 carry-overs accepted. The pre-existing Escape/Tab gap in the menu goes to a separate fix after this PR (user choice).
 ran_in_app: yes
 at: 05fd1bb2d572fe59c66035e82d51b8a9015c904c
 by: agent

@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2-1",
+      "status": "confirmed",
+      "note": "ConditionMenu.test.tsx:17-20 resolves ASK_PAGE to addons/intelligence/frontend/Page.tsx. Lines 200-201 do readFileSync on it and parse the entries with /<ConditionMenu[\\s\\S]*?entries=\\{(\\[[^\\]]*\\])\\}/. The file exists in this checkout. The claim is factually accurate. The test couples core to the submodule's source text, so it breaks if the submodule is absent or the JSX is reformatted. This is a fragility, not a wrong-result defect."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "D1",
+      "status": "confirmed",
+      "note": "Same as R2-1. ConditionMenu.test.tsx:17-20 and 200-201 read the addon's Page.tsx and regex-extract the entries list."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "D2",
+      "status": "confirmed",
+      "note": "parseDurationAmount (searchQuery.ts:151-157) keeps fractional seconds up to millisecond precision, and comparisonsImpossible (182-225) compares the real numbers. The backend (drives.py:255-258) casts File.duration to Integer, so the stored values are whole seconds. For example, duration:>1.2 with duration:<1.8 is not impossible in the frontend, so it is requested. In the backend it means integer >1.2 and integer <1.8, which is 2 or more and 1 or less, so nothing matches. The result is still correct (empty), but I7 says an impossible query requests nothing, so the request is wasted. The effect is minor."
+    }
+  ],
+  "specification_compliance": [
+    "I12 and I3: the backend casts duration to Integer, and NULL stays NULL and never passes, as the invariants require.",
+    "I7: not fully met for fractional duration ranges that are empty over whole seconds (see D2). Size ranges are exact."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The core test depends on the addon Page.tsx source text. A submodule layout or format change breaks it."
+  ],
+  "test_coverage": [
+    "I only read the code. I ran no tests."
+  ],
+  "not_verified": [
+    "I did not run any tests.",
+    "I did not check the addon's SearchFilter validation parity (I8).",
+    "I did not check the backend duration wire-form validator for fractional values.",
+    "I did not check whether the spec explicitly allows fractional duration amounts."
+  ],
+  "confidence": 80
+}
