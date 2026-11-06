@@ -120,6 +120,6 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-062 | implemented | docs/specs/nfd-path-resolution.md | sha256:c8ede99437f15a3e16577af66225fa4bd3cc3ef87669a1939ae9acf2ce743680 |
 | SPEC-CORE-043 | implemented | docs/specs/search-scope-operators.md | sha256:d8241feb82371ba3f7cd552cdaa3efb30009fcb1e1bf5677781257c47320341d |
 | SPEC-ADDON-063 | implemented | docs/specs/search-scope-operators.md | sha256:d8241feb82371ba3f7cd552cdaa3efb30009fcb1e1bf5677781257c47320341d |
-| SPEC-ADDON-070 | implemented | docs/specs/extraction-edits.md | sha256:102bdbc5e45b3ebc79e32e90028a613b29d5eae0d3121a3bc16df6b1ae288783 |
-| SPEC-ADDON-067 | implemented | docs/specs/extraction-edits.md | sha256:102bdbc5e45b3ebc79e32e90028a613b29d5eae0d3121a3bc16df6b1ae288783 |
-| SPEC-ADDON-068 | implemented | docs/specs/extraction-edits.md | sha256:102bdbc5e45b3ebc79e32e90028a613b29d5eae0d3121a3bc16df6b1ae288783 |
+| SPEC-ADDON-070 | implemented | docs/specs/extraction-edits.md | sha256:e651a74cf4e0e80f37003a94017fed3f61d0c2242b6bdd6a2ce4995046234ae6 |
+| SPEC-ADDON-067 | implemented | docs/specs/extraction-edits.md | sha256:e651a74cf4e0e80f37003a94017fed3f61d0c2242b6bdd6a2ce4995046234ae6 |
+| SPEC-ADDON-068 | implemented | docs/specs/extraction-edits.md | sha256:e651a74cf4e0e80f37003a94017fed3f61d0c2242b6bdd6a2ce4995046234ae6 |
