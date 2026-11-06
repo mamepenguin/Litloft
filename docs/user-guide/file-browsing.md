@@ -110,7 +110,7 @@ Files added by an addon, such as web clips, arrive unverified. With the intellig
 
 Home shows these rows, in order:
 
-- **Continue Watching**: media you stopped before 90%.
+- **Continue Watching**: videos, audio, PDFs, EPUBs, archives and long text you stopped before 90%.
 - Rows added by addons, if any.
 - **Recently Viewed**
 - **Recently Added**
