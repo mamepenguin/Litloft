@@ -93,7 +93,8 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-039 | implemented | docs/specs/filtered-semantic-search.md | sha256:87c313b76e9348b5ef8fa0f81153a6e4c12fd7f5eca4b50ae072e50b11bdec28 |
 | SPEC-ADDON-048 | implemented | docs/specs/passage-results-view.md | sha256:1db0cb47d6ee07333751cbcb3926fede6eaefdccc1116ff27f45d6a8283667f5 |
 | SPEC-CORE-040 | implemented | docs/specs/passage-results-view.md | sha256:1db0cb47d6ee07333751cbcb3926fede6eaefdccc1116ff27f45d6a8283667f5 |
-| SPEC-ADDON-049 | draft | docs/specs/image-query-search.md | |
+| SPEC-ADDON-049 | implemented | docs/specs/image-query-search.md | sha256:d551cf9af55039fc9951695bd2669d767ef70e8f6138d50abe010df006b4d9f6 |
+| SPEC-CORE-046 | implemented | docs/specs/image-query-search.md | sha256:d551cf9af55039fc9951695bd2669d767ef70e8f6138d50abe010df006b4d9f6 |
 | SPEC-ADDON-050 | implemented | docs/specs/image-ocr.md | sha256:10d7b3560a941338b4c1e6ac6cf5b4d59bf3cae4d282e4269885a95d77a3598a |
 | SPEC-ADDON-061 | implemented | docs/specs/in-file-find.md | sha256:73aa8f34f99d39d7e66c4b9a670d4c68290c95cd3f0424ca9c1c0ba8777768db |
 | SPEC-CORE-028 | implemented | docs/specs/in-file-find.md | sha256:73aa8f34f99d39d7e66c4b9a670d4c68290c95cd3f0424ca9c1c0ba8777768db |
@@ -107,7 +108,9 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-032 | implemented | docs/specs/inbox.md | sha256:f45f9a5d405e187b7402a6b9812c0af748e56ba4c749f8220f9fb72f9ed8cd0f |
 | SPEC-ADDON-059 | implemented | docs/specs/inbox.md | sha256:f45f9a5d405e187b7402a6b9812c0af748e56ba4c749f8220f9fb72f9ed8cd0f |
 | SPEC-CORE-041 | implemented | docs/specs/inbox.md | sha256:f45f9a5d405e187b7402a6b9812c0af748e56ba4c749f8220f9fb72f9ed8cd0f |
-| SPEC-CORE-033 | draft | docs/specs/share-target.md | |
+| SPEC-CORE-033 | implemented | docs/specs/share-target.md | sha256:6213dcd55b969f6d6b4a2b0f8c68681c4176903a969da00f83cdd12ad493d763 |
+| SPEC-IOS-001 | implemented | docs/specs/share-target.md | sha256:6213dcd55b969f6d6b4a2b0f8c68681c4176903a969da00f83cdd12ad493d763 |
+| SPEC-IOS-002 | implemented | docs/specs/share-target.md | sha256:6213dcd55b969f6d6b4a2b0f8c68681c4176903a969da00f83cdd12ad493d763 |
 | SPEC-ADDON-053 | implemented | docs/specs/ask-about-this-file.md | sha256:7da6124f365a0c64ce31532e5697fb68fbc14a639efa56394ad99bd09b8b5b6a |
 | SPEC-ADDON-056 | implemented | docs/specs/ask-about-this-file.md | sha256:7da6124f365a0c64ce31532e5697fb68fbc14a639efa56394ad99bd09b8b5b6a |
 | SPEC-CORE-036 | implemented | docs/specs/ask-about-this-file.md | sha256:7da6124f365a0c64ce31532e5697fb68fbc14a639efa56394ad99bd09b8b5b6a |

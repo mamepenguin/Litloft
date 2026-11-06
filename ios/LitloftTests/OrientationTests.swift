@@ -52,7 +52,7 @@ struct OrientationWiringTests {
     func modelAndControllerAreJoined() {
         OrientationPolicy.isLocked = false
         let scene = FakeScene()
-        let model = WebViewModel(serverURL: URL(string: "http://litloft.local:3000/")!, idiom: .phone)
+        let model = WebViewModel(serverURL: URL(string: "http://litloft.local:3000/")!, idiom: .phone, sharedSession: FakeSharedSession())
         let controller = OrientationController(scene: scene)
         var laidOut = 0
         model.onImmersiveLaidOut = { laidOut += 1 }

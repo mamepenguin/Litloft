@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "FolderBrowser now wraps the text-query search page in an UploadZone when onImageQuery is passed, although before this change the search branch returned `inner` with no UploadZone at all, so drags classed 'upload' now upload into the drive root from a page that never accepted uploads.",
+      "impact": "While image search is available, dropping a non-image file, several files or a folder on the text-query results page starts an upload into the drive root. Before this change that drop did nothing in the app. The spec's premise that 'every drop on the results page goes to the upload zone as today' does not match the code.",
+      "evidence": "frontend/src/components/FolderBrowser.tsx diff: old `if (isSearch) return inner;` became a branch returning `<UploadZone ... onImageQuery={onImageQuery}>{inner}</UploadZone>` when onImageQuery is set. UploadZone.handleDrop falls through to addFiles/addFileEntries for the 'upload' class. UploadZone.imageQuery.test.tsx tests the zone alone and never checks that the search page had no zone before.",
+      "repro": "not_reproduced (read only): open /drive/x/search?q=a with image search available and drop a .txt file; the code path reaches addFiles(drive, '', files).",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I8 says an 'upload'-class drag uploads exactly as before on the text-query page; before, nothing was uploaded there. This is an unplanned reach into FolderBrowser's search branch, not merely passing a prop.",
+        "invariant_ref": "I8"
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "For the search branch, either give the zone an 'upload' class that does nothing (preventDefault only), or state in the spec that the search page gains uploads."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "UploadZone.handleDragEnter shows the overlay for every drag whenever onImageQuery is set, because the condition `onImageQuery || ... || types.includes('Files')` no longer requires 'Files' in the drag types.",
+      "impact": "With image search available, dragging selected text or an internal app item over the page shows the upload overlay, which was not shown before. On the non-search folder pages that also pass onImageQuery, the same applies. This is a behaviour change to an existing path that was meant to stay unchanged.",
+      "evidence": "frontend/src/components/UploadZone.tsx diff in handleDragEnter: `if (onImageQuery || dragClassRef.current === 'one_image' || e.dataTransfer.types.includes('Files')) setIsDragging(true)`.",
+      "repro": "not_reproduced: drag a text selection over the zone with onImageQuery set; isDragging becomes true.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I8 requires 'upload'-class drags to behave as before; the overlay now appears for non-file drags.",
+        "invariant_ref": "I8"
+      },
+      "severity": "LOW",
+      "proposed_fix": "Keep the `types.includes('Files')` condition and drop `onImageQuery ||`."
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "Files outside the touch-point list are reached: frontend/src/components/search/ImageQueryViewPresenter.tsx (new, about 400 lines), frontend/e2e-layout/spec-viewport.spec.ts (FIXTURES list and count), frontend/src/__tests__/core-search-vocabulary.test.ts (CALLERS table and key count), and frontend/src/__tests__/helpers/imageQuery.ts.",
+      "impact": "The Presenter is the Container/Presenter pair the rules require, and the other three are test files. The e2e spec and vocabulary test are existing shared tests whose counts (17 fixtures, 93 keys, per-file caller counts) now couple to this feature. No user-facing risk.",
+      "evidence": "Diff headers for the four paths; the touch list names ImageQueryView.tsx, 'frontend tests beside the existing search tests' and an e2e fixture, but not these files.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is broken; these are small omissions in the touch list.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "F4",
+      "origin": "reviewer",
+      "claim": "The diff handed to this review was cut at 200000 bytes, so the addon changes, imageQuery.ts, SearchQueryHeader.tsx, PassageList.tsx, useImageInput.ts, messages and the rest of ImageQueryViewPresenter.tsx could not be checked for out-of-list reach.",
+      "impact": "Out-of-list reach in the unseen files, especially the addon side, is not ruled out. The gitlink bump hides the addon diff in any case.",
+      "evidence": "Notice 'truncated: this diff was cut at 200000 bytes' in the diff.",
+      "repro": "not_reproduced",
+      "introduced": "unverified",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "A coverage limit of this review, not a defect.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "The visible frontend follows the spec for availability gating, id and store handling, and group order, but FolderBrowser wraps the search page in an UploadZone that did not exist before (F1).",
+    "DESIGN.md, docs/addons/intelligence.md, docs/reference/configuration.md and the user-guide changes match the listed touch points."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The search page gains an UploadZone, and so uploads, while image search is available (F1).",
+    "The upload overlay appears for non-file drags when onImageQuery is set (F2)."
+  ],
+  "regression_risks": [
+    "Folder pages that pass onImageQuery to UploadZone: any change in the drag overlay or the drop class there.",
+    "core-search-vocabulary.test.ts and spec-viewport.spec.ts counts conflict when other specs, such as SPEC-CORE-043, edit the same files."
+  ],
+  "test_coverage": [
+    "UploadZone.imageQuery.test.tsx exercises the zone alone and has no test that a non-file drag shows no overlay (F2).",
+    "No test asserts that the search page had no upload zone before, or what an 'upload'-class drop does there (F1)."
+  ],
+  "not_verified": [
+    "Addon Python changes, the manifest, imageQuery.ts, SearchQueryHeader.tsx, PassageList.tsx, useImageInput.ts and the messages JSON (cut from the diff).",
+    "Nothing was run; every finding comes from reading the diff.",
+    "The baseline UploadZone behaviour in the repository outside the diff."
+  ],
+  "confidence": 72
+}

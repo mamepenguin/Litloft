@@ -43,6 +43,7 @@ import { buildWidenTagScope } from "@/components/folder/WidenTagScopeLink";
 import { Button } from "@/components/Button";
 import { parseSearchQuery } from "@/lib/searchQuery";
 import { SearchQueryHeader } from "@/components/search/SearchQueryHeader";
+import { ImageQueryDropTarget } from "@/components/search/ImageQueryDropTarget";
 
 /**
  * How long scrolling must be idle before the list snapshot is
@@ -63,6 +64,11 @@ interface FolderBrowserProps {
   includeSceneClip?: boolean;
   /** `passages` selects the Passages view; anything else is Files. */
   show?: string | null;
+  /** Given an image while image search is available for the drive. */
+  onImageQuery?: (file: File) => void;
+  imageError?: "too_large" | "unreadable" | "one_image" | null;
+  imagePreparing?: boolean;
+  onImageEdit?: () => void;
 }
 
 export function FolderBrowser({
@@ -75,6 +81,10 @@ export function FolderBrowser({
   smartFolderId,
   includeSceneClip,
   show,
+  onImageQuery,
+  imageError,
+  imagePreparing,
+  onImageEdit,
 }: FolderBrowserProps) {
   const isSearch = !!(searchQuery && searchQuery.trim());
   const [initialSnapshot] = useState(() => {
@@ -617,6 +627,10 @@ export function FolderBrowser({
                 smartFolderId={smartFolderId ?? null}
                 includeSceneClip={!!includeSceneClip}
                 show={show}
+                onImagePick={onImageQuery}
+                onImagePaste={onImageQuery}
+                onEdit={onImageEdit}
+                imagePreparing={imagePreparing}
               />
             ) : undefined
           }
@@ -662,6 +676,15 @@ export function FolderBrowser({
         />
       }
     >
+      {imageError && (
+        <p role="alert" className="px-4 pt-2 text-xs text-text-muted">
+          {imageError === "too_large"
+            ? tSearch("imageTooLarge")
+            : imageError === "unreadable"
+              ? tSearch("imageUnreadable")
+              : tSearch("imageOneOnly")}
+        </p>
+      )}
       {!hideToolbar && <FolderToolbar
         isSpecialView={isSpecialView}
         isWriteDestination={isWriteDestination}
@@ -878,7 +901,14 @@ export function FolderBrowser({
     </PageFrame>
   );
 
-  if (isSearch) return inner;
+  if (isSearch) {
+    return (
+      <>
+        {inner}
+        <ImageQueryDropTarget onImageQuery={onImageQuery} />
+      </>
+    );
+  }
   return (
     <UploadZone drive={driveName} folderPath={folderPath ?? ""} className="flex-1 flex flex-col">
       {inner}

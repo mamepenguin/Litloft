@@ -7,7 +7,7 @@ struct WebShell: View {
     @State private var orientation: OrientationController
 
     init(serverURL: URL, onChangeServer: @escaping () -> Void) {
-        self.init(model: WebViewModel(serverURL: serverURL), onChangeServer: onChangeServer)
+        self.init(model: WebViewModel(serverURL: serverURL, sharedSession: GroupSharedSession()), onChangeServer: onChangeServer)
     }
 
     init(model: WebViewModel, onChangeServer: @escaping () -> Void) {
@@ -44,7 +44,10 @@ struct WebShell: View {
                 ConnectionErrorView(
                     message: message,
                     onRetry: { model.retry() },
-                    onChangeServer: onChangeServer
+                    onChangeServer: {
+                        model.sessionMirror.disarm()
+                        onChangeServer()
+                    }
                 )
             }
         }

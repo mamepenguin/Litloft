@@ -25,6 +25,7 @@ const FIXTURES = [
   "button-touch-floor.html",
   "collection-actions.html",
   "file-actions-menu.html",
+  "image-query.html",
   "inbox-rows.html",
   "justified-grid.html",
   "list-row-furniture.html",
@@ -41,7 +42,7 @@ const FIXTURES = [
   "upload-drawer.html",
 ] as const;
 
-const FIXTURE_COUNT = 19;
+const FIXTURE_COUNT = 20;
 
 /**
  * On the far side of `sm` from Chromium's mobile default, so a page that

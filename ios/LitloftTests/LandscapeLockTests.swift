@@ -8,7 +8,7 @@ struct LandscapeLockTests {
     private let server = URL(string: "http://litloft.local:3000/")!
 
     private func model(idiom: UIUserInterfaceIdiom = .phone) -> WebViewModel {
-        WebViewModel(serverURL: server, idiom: idiom)
+        WebViewModel(serverURL: server, idiom: idiom, sharedSession: FakeSharedSession())
     }
 
     @Test("a request for landscape locks it on a phone, and going back unlocks it")

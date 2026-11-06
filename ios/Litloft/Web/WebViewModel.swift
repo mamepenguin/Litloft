@@ -1,5 +1,6 @@
 import Foundation
 import UIKit
+import WebKit
 
 @MainActor
 @Observable
@@ -26,11 +27,24 @@ final class WebViewModel {
     @ObservationIgnored var onLandscapeLockChange: ((Bool) -> Void)?
 
     let serverURL: URL
+    /// Mirrors this server's session into the App Group for the share
+    /// extension. One model lives for one server, so one mirror is enough.
+    let sessionMirror: SessionMirror
     private let idiom: UIUserInterfaceIdiom
 
-    init(serverURL: URL, idiom: UIUserInterfaceIdiom = UIDevice.current.userInterfaceIdiom) {
+    init(
+        serverURL: URL,
+        idiom: UIUserInterfaceIdiom = UIDevice.current.userInterfaceIdiom,
+        jar: CookieJar? = nil,
+        sharedSession: SharedSession
+    ) {
         self.serverURL = serverURL
         self.idiom = idiom
+        sessionMirror = SessionMirror(
+            server: serverURL,
+            jar: jar ?? WKWebsiteDataStore.default().httpCookieStore,
+            store: sharedSession
+        )
     }
 
     func setPageColor(_ color: PageColor) {
