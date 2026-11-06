@@ -219,6 +219,23 @@ describe("SPEC-CORE-051 I9 one outline per distinct quad of the rows that have b
     ]);
   });
 
+  it("styles marks and the current outline through their classes (SPEC-CORE-051 I9)", async () => {
+    const first = pictureRow({ ordinal: 1, boxes: [Q1, Q2] });
+    const second = pictureRow({ ordinal: 2, boxes: [Q2] });
+    await renderPicture(findValue([first, second], second));
+
+    await paint(screen.getByRole("img"));
+
+    const classes = Array.from(
+      document.querySelectorAll("[data-find-box]"),
+    ).map((node) => node.getAttribute("class")?.split(" ") ?? []);
+    expect(classes).toHaveLength(2);
+    expect(classes[0]).toContain("find-box");
+    expect(classes[0]).not.toContain("find-box-current");
+    expect(classes[1]).toContain("find-box");
+    expect(classes[1]).toContain("find-box-current");
+  });
+
   it("draws a malformed row as nothing while another row still draws", async () => {
     const bad = pictureRow({ ordinal: 1, boxes: [[0.1, 0.2, 0.3]] });
     const good = pictureRow({ ordinal: 2, boxes: [Q1] });
@@ -507,6 +524,7 @@ describe("SPEC-CORE-051 I9 the layer covers the contain-fitted painted picture",
     await paint(img);
 
     expectPx((layer() as SVGSVGElement).style.width, 300);
+    expect(callbacks.flatMap(({ targets }) => targets)).toContain(img);
 
     box = { left: 0, top: 0, width: 600, height: 300 };
     await act(async () => {
