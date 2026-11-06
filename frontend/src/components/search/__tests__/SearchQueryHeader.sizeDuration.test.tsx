@@ -1,5 +1,5 @@
 /**
- * SPEC-CORE-044: the results header's 「＋ 条件」 menu gains a size list and a
+ * SPEC-CORE-047: the results header's 「＋ 条件」 menu gains a size list and a
  * length list with fixed presets, and a choice appends exactly one token the
  * parser reads back as that comparison.
  */
@@ -80,7 +80,7 @@ beforeEach(() => {
   api.getCollections.mockResolvedValue([]);
 });
 
-describe("SPEC-CORE-044 menu 1 the first level's order", () => {
+describe("SPEC-CORE-047 menu 1 the first level's order", () => {
   it("offers Tag, Type, Folder, Collection, Size, Length, Favorites in that order", () => {
     renderHeader();
     openRoot();
@@ -97,7 +97,7 @@ describe("SPEC-CORE-044 menu 1 the first level's order", () => {
   });
 });
 
-describe("SPEC-CORE-044 menu 2 the fixed preset lists", () => {
+describe("SPEC-CORE-047 menu 2 the fixed preset lists", () => {
   it("shows the three size presets with no filter input and no request", () => {
     renderHeader();
     openList("Size");
@@ -125,7 +125,7 @@ describe("SPEC-CORE-044 menu 2 the fixed preset lists", () => {
   });
 });
 
-describe("SPEC-CORE-044 menu 4 a preset appends one token and submits once", () => {
+describe("SPEC-CORE-047 menu 4 a preset appends one token and submits once", () => {
   it("appends size:>=1GB and closes the menu", () => {
     renderHeader();
 
@@ -203,7 +203,7 @@ describe("SPEC-CORE-044 menu 4 a preset appends one token and submits once", () 
   });
 });
 
-describe("SPEC-CORE-044 menu 3 a preset already in the query is not offered", () => {
+describe("SPEC-CORE-047 menu 3 a preset already in the query is not offered", () => {
   it("leaves out the comparison the query already holds", () => {
     renderHeader({ query: "size:>=100MB" });
 
@@ -231,7 +231,7 @@ describe("SPEC-CORE-044 menu 3 a preset already in the query is not offered", ()
   });
 });
 
-describe("SPEC-CORE-044 menu 3 an impossible preset is not offered", () => {
+describe("SPEC-CORE-047 menu 3 an impossible preset is not offered", () => {
   it("leaves out a size preset that contradicts the query", () => {
     renderHeader({ query: "size:>500MB" });
 
@@ -265,7 +265,7 @@ describe("SPEC-CORE-044 menu 3 an impossible preset is not offered", () => {
   });
 });
 
-describe("SPEC-CORE-044 menu 3 a full list disables its first-level entry", () => {
+describe("SPEC-CORE-047 menu 3 a full list disables its first-level entry", () => {
   const fourSizes = "size:>1B size:>2B size:>3B size:>4B";
   const threeSizes = "size:>1B size:>2B size:>3B";
   const fourDurations = "duration:>1s duration:>2s duration:>3s duration:>4s";
@@ -294,7 +294,7 @@ describe("SPEC-CORE-044 menu 3 a full list disables its first-level entry", () =
   });
 });
 
-describe("SPEC-CORE-044 states the preset list returns or closes", () => {
+describe("SPEC-CORE-047 states the preset list returns or closes", () => {
   it("returns to the first level on the back item", () => {
     renderHeader();
     openList("Size");

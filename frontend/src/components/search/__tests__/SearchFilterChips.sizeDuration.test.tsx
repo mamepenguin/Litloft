@@ -1,5 +1,5 @@
 /**
- * SPEC-CORE-044 chips 1/2: the size and length chips carry the value as first
+ * SPEC-CORE-047 chips 1/2: the size and length chips carry the value as first
  * written, and their ✕ names it and removes exactly that comparison.
  */
 
@@ -11,7 +11,7 @@ import { SearchFilterChips } from "../SearchFilterChips";
 const chips = () =>
   Array.from(screen.getByRole("group", { name: "Filters" }).children) as HTMLElement[];
 
-describe("SPEC-CORE-044 chips 1 the chip label and its title", () => {
+describe("SPEC-CORE-047 chips 1 the chip label and its title", () => {
   it("labels a size chip and a length chip with the written value", () => {
     render(<SearchFilterChips query="size:>1GB duration:<5m" onRemove={vi.fn()} />);
 
@@ -58,7 +58,7 @@ describe("SPEC-CORE-044 chips 1 the chip label and its title", () => {
   });
 });
 
-describe("SPEC-CORE-044 chips 2 the ✕ removes exactly that comparison", () => {
+describe("SPEC-CORE-047 chips 2 the ✕ removes exactly that comparison", () => {
   it("removes every token whose comparison equals the size chip's", () => {
     const onRemove = vi.fn();
     render(

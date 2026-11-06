@@ -1,4 +1,4 @@
-"""Acceptance tests for SPEC-CORE-044: searching by file size and by length.
+"""Acceptance tests for SPEC-CORE-047: searching by file size and by length.
 
 The listing's ``size`` / ``duration`` parameters and the Internal API's
 ``sizes`` / ``durations`` must resolve through the same predicates (I1), apply
@@ -188,7 +188,7 @@ def corpus(client):
 
 
 class TestSizeComparisons:
-    """SPEC-CORE-044 I2: a size comparison keeps a file exactly when it holds."""
+    """SPEC-CORE-047 I2: a size comparison keeps a file exactly when it holds."""
 
     @pytest.mark.parametrize(
         ("wire", "expected"),
@@ -247,7 +247,7 @@ class TestSizeComparisons:
 
 
 class TestDurationComparisons:
-    """SPEC-CORE-044 I3/I12: whole displayed seconds, NULL never passes."""
+    """SPEC-CORE-047 I3/I12: whole displayed seconds, NULL never passes."""
 
     @pytest.mark.parametrize(
         ("wire", "expected"),
@@ -320,7 +320,7 @@ class TestDurationComparisons:
 
 
 class TestParagraphParity:
-    """SPEC-CORE-044 I1: the endpoint answers the listing's ids."""
+    """SPEC-CORE-047 I1: the endpoint answers the listing's ids."""
 
     @pytest.mark.parametrize(
         ("body", "params", "expected"),
@@ -340,7 +340,7 @@ class TestParagraphParity:
 
 
 class TestImpossibleRanges:
-    """SPEC-CORE-044 I7: an impossible range is not an error and answers no ids."""
+    """SPEC-CORE-047 I7: an impossible range is not an error and answers no ids."""
 
     @pytest.mark.parametrize(
         ("field", "values"),
@@ -379,7 +379,7 @@ class TestImpossibleRanges:
 
 
 class TestWireFormValidation:
-    """SPEC-CORE-044 I8: 400 on the listing where matching answers 422."""
+    """SPEC-CORE-047 I8: 400 on the listing where matching answers 422."""
 
     REJECTED = [
         ("sizes", "gt:9007199254740992", "size-above-2-53-minus-1"),
@@ -503,7 +503,7 @@ class TestWireFormValidation:
 
 
 class TestUnchangedWithoutTheNewParameters:
-    """SPEC-CORE-044 I11: neither parameter changes an existing answer."""
+    """SPEC-CORE-047 I11: neither parameter changes an existing answer."""
 
     def test_the_listing_with_no_size_or_duration_keeps_its_ids_order_and_total(
         self, client, corpus
@@ -537,7 +537,7 @@ class TestUnchangedWithoutTheNewParameters:
 
 
 class TestCombinesWithTheExistingListingParameters:
-    """SPEC-CORE-044 listing 3: every parameter combines as AND."""
+    """SPEC-CORE-047 listing 3: every parameter combines as AND."""
 
     def test_size_and_duration_and_the_existing_filters_are_and(self, client, corpus):
         c, _db, _drive_dir, _data_dir = client

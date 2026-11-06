@@ -1,5 +1,5 @@
 /**
- * SPEC-CORE-044: the `size:` and `duration:` range operators, their units and
+ * SPEC-CORE-047: the `size:` and `duration:` range operators, their units and
  * comparisons, their chips and chip removal, and the filter the meaning stage
  * receives.
  */
@@ -26,7 +26,7 @@ const operators = (q: string) => operatorChips(q).map((chip) => chip.operator);
 
 const chipOf = (q: string, index: number): OperatorChip => operatorChips(q)[index];
 
-describe("SPEC-CORE-044 1.1 the value is NFKC-normalised before it is read", () => {
+describe("SPEC-CORE-047 1.1 the value is NFKC-normalised before it is read", () => {
   it("reads full-width digits, letters and comparison signs", () => {
     expect(sizes("size:＞１ＧＢ")).toEqual(["gt:1073741824"]);
     expect(sizes("size:＞＝１ＧＢ")).toEqual(["gte:1073741824"]);
@@ -46,7 +46,7 @@ describe("SPEC-CORE-044 1.1 the value is NFKC-normalised before it is read", () 
   });
 });
 
-describe("SPEC-CORE-044 1.2 a value without a usable comparison is text", () => {
+describe("SPEC-CORE-047 1.2 a value without a usable comparison is text", () => {
   it.each([
     ["no comparison", "size:1GB"],
     ["empty amount", "size:>"],
@@ -74,7 +74,7 @@ describe("SPEC-CORE-044 1.2 a value without a usable comparison is text", () => 
   });
 });
 
-describe("SPEC-CORE-044 I4 size amounts are binary multiples of bytes", () => {
+describe("SPEC-CORE-047 I4 size amounts are binary multiples of bytes", () => {
   it.each([
     ["no unit", "size:>=1", "gte:1"],
     ["bytes", "size:>=1B", "gte:1"],
@@ -124,7 +124,7 @@ describe("SPEC-CORE-044 I4 size amounts are binary multiples of bytes", () => {
   });
 });
 
-describe("SPEC-CORE-044 I5 duration amounts are seconds", () => {
+describe("SPEC-CORE-047 I5 duration amounts are seconds", () => {
   it.each([
     ["bare seconds", "duration:>=90", "gte:90"],
     ["s", "duration:>=90s", "gte:90"],
@@ -172,7 +172,7 @@ describe("SPEC-CORE-044 I5 duration amounts are seconds", () => {
   });
 });
 
-describe("SPEC-CORE-044 1.5 the parsed lists", () => {
+describe("SPEC-CORE-047 1.5 the parsed lists", () => {
   it("keeps the comparisons in order of first appearance and sets hasOperators", () => {
     const parsed = parseSearchQuery(
       "size:>1GB duration:>=30m size:>1KB duration:<5m",
@@ -240,7 +240,7 @@ describe("SPEC-CORE-044 1.5 the parsed lists", () => {
   });
 });
 
-describe("SPEC-CORE-044 1.6 an impossible range keeps its comparisons and chips", () => {
+describe("SPEC-CORE-047 1.6 an impossible range keeps its comparisons and chips", () => {
   it("keeps both sides of an impossible range so the user can remove one", () => {
     const bySize = "size:>1GB size:<500MB";
     const byDuration = "duration:>10m duration:<=10m";
@@ -252,7 +252,7 @@ describe("SPEC-CORE-044 1.6 an impossible range keeps its comparisons and chips"
   });
 });
 
-describe("SPEC-CORE-044 chips 1 one chip per distinct comparison", () => {
+describe("SPEC-CORE-047 chips 1 one chip per distinct comparison", () => {
   it("follows the first appearance of each comparison", () => {
     expect(operators("size:>1GB duration:<5m size:>=1GB")).toEqual([
       "size",
@@ -272,7 +272,7 @@ describe("SPEC-CORE-044 chips 1 one chip per distinct comparison", () => {
   });
 });
 
-describe("SPEC-CORE-044 I9 removing a chip removes exactly its own tokens", () => {
+describe("SPEC-CORE-047 I9 removing a chip removes exactly its own tokens", () => {
   it("removes every token whose comparison equals the chip's", () => {
     const q = "a size:>1GB size:>1024MB b";
 
@@ -333,7 +333,7 @@ describe("SPEC-CORE-044 I9 removing a chip removes exactly its own tokens", () =
   });
 });
 
-describe("SPEC-CORE-044 sending 1 the filter the meaning stage receives", () => {
+describe("SPEC-CORE-047 sending 1 the filter the meaning stage receives", () => {
   it("copies sizes and durations in order", () => {
     expect(
       filterOf("size:>1GB size:<500MB duration:>=30m"),
@@ -383,7 +383,7 @@ describe("SPEC-CORE-044 sending 1 the filter the meaning stage receives", () => 
   });
 });
 
-describe("SPEC-CORE-044 sending 2 getDriveFiles writes the repeated parameters", () => {
+describe("SPEC-CORE-047 sending 2 getDriveFiles writes the repeated parameters", () => {
   const fetchMock = vi.fn();
 
   beforeEach(() => {

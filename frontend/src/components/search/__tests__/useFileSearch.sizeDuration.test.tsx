@@ -1,5 +1,5 @@
 /**
- * SPEC-CORE-044 I6/I7/I11: the modal sends the size and duration wire forms to
+ * SPEC-CORE-047 I6/I7/I11: the modal sends the size and duration wire forms to
  * the listing and to the meaning stage, and an impossible range requests
  * neither.
  */
@@ -104,7 +104,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe("SPEC-CORE-044 I6 useFileSearch sends the same wire forms to both stages", () => {
+describe("SPEC-CORE-047 I6 useFileSearch sends the same wire forms to both stages", () => {
   it("sends the size and duration comparisons to the listing and the filter", async () => {
     const view = await open();
 
@@ -141,7 +141,7 @@ describe("SPEC-CORE-044 I6 useFileSearch sends the same wire forms to both stage
   });
 });
 
-describe("SPEC-CORE-044 I7 an impossible range requests nothing", () => {
+describe("SPEC-CORE-047 I7 an impossible range requests nothing", () => {
   const impossible = [
     ["sizes that cross", "size:>1GB size:<500MB 京都"],
     ["a size below zero", "size:<0 京都"],
@@ -161,7 +161,7 @@ describe("SPEC-CORE-044 I7 an impossible range requests nothing", () => {
   });
 });
 
-describe("SPEC-CORE-044 I11 a query without size or duration is unchanged", () => {
+describe("SPEC-CORE-047 I11 a query without size or duration is unchanged", () => {
   it("sends no size or duration parameter and the same filter text", async () => {
     const view = await open({ query: "tag:会議 type:pdf 予算" });
 

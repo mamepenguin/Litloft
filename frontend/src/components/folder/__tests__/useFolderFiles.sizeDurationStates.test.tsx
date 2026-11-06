@@ -103,7 +103,7 @@ beforeEach(() => {
   semantic.fetchImages.mockResolvedValue({ ok: true, results: [] });
 });
 
-describe("SPEC-CORE-044 I7 an impossible range settles with nothing to show", () => {
+describe("SPEC-CORE-047 I7 an impossible range settles with nothing to show", () => {
   it("stops loading with no files and asks for neither stage", async () => {
     const { result } = renderSearch("size:>1GB size:<500MB 京都");
 
@@ -116,7 +116,7 @@ describe("SPEC-CORE-044 I7 an impossible range settles with nothing to show", ()
   });
 });
 
-describe("SPEC-CORE-044 I6 a changed range refetches with the new comparison", () => {
+describe("SPEC-CORE-047 I6 a changed range refetches with the new comparison", () => {
   it("goes back to loading and sends the new wire form", async () => {
     const { result, rerender } = renderSearch("size:>1GB 京都");
     await waitFor(() => expect(result.current.loading).toBe(false));

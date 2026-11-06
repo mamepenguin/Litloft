@@ -1,9 +1,9 @@
 # Search by file size and by length: `size:` and `duration:` operators
 
-SPEC-ID: SPEC-CORE-044
-SPEC-ID: SPEC-ADDON-064
+SPEC-ID: SPEC-CORE-047
+SPEC-ID: SPEC-ADDON-065
 
-Approval: sha256:31f668629c7feb47137a54c771328031082784cb708c206929c7d6e3ca49d3fd Yuichi Senga 2026-11-05
+Approval: sha256:6536d3ac22dd7cee8cd0beef0fd992d9e5567f331c5365e1ba577094622ebc29 Yuichi Senga 2026-11-06
 
 ## Summary
 
@@ -18,11 +18,11 @@ frontend turns each comparison into a number (bytes, seconds), so the core and t
 compare numbers and never parse units. The results page's 「＋ 条件」 menu gains 「サイズ」
 and 「長さ」 with fixed presets.
 
-- **SPEC-CORE-044**: parsing `size:` / `duration:` with their units, chips and chip
+- **SPEC-CORE-047**: parsing `size:` / `duration:` with their units, chips and chip
   removal, the two menu entries with presets; the listing `GET /api/drives/{name}/files`
   gains repeated `size` and `duration` parameters; the Internal API
   `POST /files/matching` gains `sizes` and `durations`.
-- **SPEC-ADDON-064**: intelligence's `filter` accepts `sizes` and `durations` with the
+- **SPEC-ADDON-065**: intelligence's `filter` accepts `sizes` and `durations` with the
   same validation as the core and passes them through.
 
 Decided by the user on 2026-11-05 and not reopened here: a comparison is required (`>`,
@@ -46,7 +46,7 @@ Terms. *Comparison*: a pair (operator, number) with operator one of `gt`, `gte`,
 *Wire form*: the string `<operator>:<number>`, for example `gte:1073741824` or `lt:90`;
 the number is written in plain decimal without exponent, with no trailing `.0`.
 
-SPEC-CORE-044, parsing (`searchQuery.ts`):
+SPEC-CORE-047, parsing (`searchQuery.ts`):
 
 1. A `size:` or `duration:` token is read through the existing tokenizer (SPEC-CORE-043
    rules 1–4); its value, quoted or bare, is first NFKC-normalised, so full-width digits,
@@ -78,7 +78,7 @@ SPEC-CORE-044, parsing (`searchQuery.ts`):
    nothing, as a query whose kinds are impossible does today (`resolveKinds(...).
    impossible`), on both the results page and in the modal.
 
-SPEC-CORE-044, chips:
+SPEC-CORE-047, chips:
 
 1. One chip per distinct comparison, in the order of first appearance: 「サイズ <value>」 /
    "Size <value>" and 「長さ <value>」 / "Length <value>". The value is the token's value
@@ -88,7 +88,7 @@ SPEC-CORE-044, chips:
    (same operator and same number), keeping every other token's raw string
    (SPEC-CORE-043 rule 4): `size:>1GB size:>1024MB` give one chip, and its ✕ removes both.
 
-SPEC-CORE-044, sending:
+SPEC-CORE-047, sending:
 
 1. `SearchFilter` gains `sizes: string[]` and `durations: string[]`, the wire forms of the
    parsed comparisons. `filterQueryParam` writes them only when non-empty, after the
@@ -116,7 +116,7 @@ SPEC-CORE-044, sending:
    with at most three decimals; items equal after parsing count once; at most 4 distinct
    items per list. An impossible range is not an error: it answers no ids.
 
-SPEC-CORE-044, 「＋ 条件」 menu (results page):
+SPEC-CORE-047, 「＋ 条件」 menu (results page):
 
 1. The first level becomes 「タグ」, 「種類」, 「フォルダ」, 「コレクション」, 「サイズ」, 「長さ」,
    「お気に入り」, in that order.
@@ -133,10 +133,10 @@ SPEC-CORE-044, 「＋ 条件」 menu (results page):
 4. Choosing a preset appends its token through the shared writer (closing an open quote
    first, SPEC-CORE-043 rule 7) and submits once, as the other lists do.
 
-SPEC-ADDON-064:
+SPEC-ADDON-065:
 
 1. `SearchFilter` gains `sizes: list[str]` and `durations: list[str]`, default `[]`,
-   validated as SPEC-CORE-044 sending step 5, and passed to `/files/matching` unchanged
+   validated as SPEC-CORE-047 sending step 5, and passed to `/files/matching` unchanged
    after normalisation (each item rewritten in the wire form, duplicates removed).
 2. Everything else of SPEC-ADDON-047 and SPEC-ADDON-063 applies unchanged; unknown keys
    are already rejected.

@@ -126,5 +126,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-062 | implemented | docs/specs/nfd-path-resolution.md | sha256:c8ede99437f15a3e16577af66225fa4bd3cc3ef87669a1939ae9acf2ce743680 |
 | SPEC-CORE-043 | implemented | docs/specs/search-scope-operators.md | sha256:d8241feb82371ba3f7cd552cdaa3efb30009fcb1e1bf5677781257c47320341d |
 | SPEC-ADDON-063 | implemented | docs/specs/search-scope-operators.md | sha256:d8241feb82371ba3f7cd552cdaa3efb30009fcb1e1bf5677781257c47320341d |
-| SPEC-CORE-044 | implemented | docs/specs/search-size-duration-operators.md | sha256:31f668629c7feb47137a54c771328031082784cb708c206929c7d6e3ca49d3fd |
-| SPEC-ADDON-064 | implemented | docs/specs/search-size-duration-operators.md | sha256:31f668629c7feb47137a54c771328031082784cb708c206929c7d6e3ca49d3fd |
+| SPEC-CORE-047 | implemented | docs/specs/search-size-duration-operators.md | sha256:6536d3ac22dd7cee8cd0beef0fd992d9e5567f331c5365e1ba577094622ebc29 |
+| SPEC-ADDON-065 | implemented | docs/specs/search-size-duration-operators.md | sha256:6536d3ac22dd7cee8cd0beef0fd992d9e5567f331c5365e1ba577094622ebc29 |
