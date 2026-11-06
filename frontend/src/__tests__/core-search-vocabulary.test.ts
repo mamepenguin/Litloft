@@ -29,7 +29,7 @@ const CALLERS: Record<string, number> = {
   "components/search/SearchEmptyState.tsx": 4,
   "components/search/SearchFilterChips.tsx": 7,
   "components/search/SearchFooter.tsx": 2,
-  "components/search/SearchQueryHeader.tsx": 2,
+  "components/search/SearchQueryHeader.tsx": 3,
   "components/search/ConditionMenu.tsx": 21,
   "components/search/SearchResultsList.tsx": 2,
   "components/search/useLauncherRows.ts": 1,
@@ -93,7 +93,7 @@ describe("the search vocabulary core draws", () => {
     ].sort();
     // The check below is true of no keys at all, so the population is
     // asserted first.
-    expect(used.length).toBe(81);
+    expect(used.length).toBe(82);
     const missing = used.filter((key) => !(key in namespaces[locale]));
     // Named, not counted: a failure should say which word is missing.
     expect(missing).toEqual([]);

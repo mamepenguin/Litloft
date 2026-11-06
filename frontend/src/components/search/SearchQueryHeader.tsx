@@ -116,7 +116,8 @@ export function SearchQueryHeader({
           query={text}
           typeFilter={typeFilter}
           entries={["tag", "kind", "folder", "collection", "favorite"]}
-          label={t("addFilter")}
+          label={t("addFilterWord")}
+          ariaLabel={t("addFilter")}
           onChoose={(next) => {
             setText(next);
             submit(next);

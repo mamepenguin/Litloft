@@ -43,8 +43,13 @@ interface ConditionMenuProps {
   typeFilter: FileKind | null;
   /** First-level items, in this order. */
   entries: ConditionEntry[];
-  /** The trigger's accessible name, e.g. 「＋ 条件」. */
+  /** The trigger's visible text, e.g. 「＋ 条件」 or “Filter”. */
   label: string;
+  /**
+   * The trigger's accessible name when it differs from the visible text.
+   * The search page calls the menu “Filter” and names it “Add filter”.
+   */
+  ariaLabel?: string;
   onChoose: (next: string) => void;
 }
 
@@ -80,6 +85,7 @@ export function ConditionMenu({
   typeFilter,
   entries,
   label,
+  ariaLabel,
   onChoose,
 }: ConditionMenuProps) {
   const t = useTranslations("search");
@@ -271,7 +277,7 @@ export function ConditionMenu({
         type="button"
         aria-haspopup="menu"
         aria-expanded={level !== "closed"}
-        aria-label={label}
+        aria-label={ariaLabel ?? label}
         onClick={() => {
           if (level === "closed") openRoot();
           else closeMenu();
@@ -294,7 +300,7 @@ export function ConditionMenu({
             <div
               ref={surface.panelRef}
               role="menu"
-              aria-label={label}
+              aria-label={ariaLabel ?? label}
               className={surface.className}
               onKeyDown={handleMenuKeyDown}
             >
