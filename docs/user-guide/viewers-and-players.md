@@ -123,6 +123,8 @@ Notes show highlighted code blocks, Mermaid diagrams, task lists, and the frontm
 
 With the [knowledge addon](../addons/knowledge.md) and its editor enabled for the drive, you can edit the note in the page with **Edit / Split / Preview**. Changes save as you type. Without it, notes are read-only apart from the chips.
 
+A note longer than two screens reopens where you left it, and one you read nearly to the end (the last tenth) opens at the top.
+
 ## PDF viewer
 
 - Select text as on any page. With the intelligence addon, Ask can quote the page you are on.
@@ -154,6 +156,7 @@ There is no viewer for Office files. The page offers **Download** and **Open in 
 An archive opens as a listing of its contents, without extracting it on the server. It has its own grid and list views, sorting, a type filter, and a path for folders inside it.
 
 - Click an image to open it in a page-turner that works like the [image viewer](#image-viewer), with a **Download** button. Click a text file to read it under the listing.
+- Closing an archive remembers the image you were on. When you open the archive again, a **Resume (12 / 80)** button above the listing opens that image, moving to its folder first. The viewer never opens on its own.
 - An entry that cannot be shown says **No preview** and offers **Download** instead.
 - Source files such as `main.rs`, `Cargo.toml` or `Makefile` open as text; unknown files like `app.bin` do not.
 - The **Pages** tab lists every entry at every depth, with a filter by path, so you can find a file without opening folders.
@@ -162,6 +165,8 @@ An archive opens as a listing of its contents, without extracting it on the serv
 ## Text files
 
 Text and source files are shown read-only, with line numbers. Copying the text leaves the numbers out. Source code is coloured when the file's extension names its language. Arriving from a search highlights the term you searched for.
+
+Like a long note, a long text or source file reopens where you left it.
 
 A file over 1 MB asks before it loads. A very large file is shown without numbers or colour.
 

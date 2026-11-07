@@ -62,6 +62,7 @@ export function useImageViewer(
   imageEntries: ArchiveEntry[],
   fileId: string,
   onClose: () => void,
+  onImageShown?: (entry: ArchiveEntry) => void,
 ): ImageViewerResult {
   const [imageIndex, setImageIndex] = useState(0);
   const [imageLoading, setImageLoading] = useState(false);
@@ -79,6 +80,21 @@ export function useImageViewer(
   );
   const [isCurrentLandscape, setIsCurrentLandscape] = useState(false);
   const [showRightHalf, setShowRightHalf] = useState(false);
+
+  const shownPathRef = useRef<string | null>(null);
+  const onImageShownRef = useRef(onImageShown);
+  onImageShownRef.current = onImageShown;
+
+  useEffect(() => {
+    if (viewMode !== "image") {
+      shownPathRef.current = null;
+      return;
+    }
+    const entry = imageEntries[imageIndex];
+    if (!entry || shownPathRef.current === entry.path) return;
+    shownPathRef.current = entry.path;
+    onImageShownRef.current?.(entry);
+  }, [viewMode, imageEntries, imageIndex]);
 
   const readingDirectionRef = useRef(readingDirection);
 

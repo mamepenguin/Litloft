@@ -302,6 +302,7 @@ describe("the component fixture's page", () => {
       "epub-bar-loading",
       "markdown-tables",
       "played-ranges",
+      "text-resume",
     ]);
   });
 });

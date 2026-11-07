@@ -32,6 +32,8 @@ interface ArchiveToolbarProps {
   order: ArchiveSortOrder;
   typeFilter: FileType | null;
   viewMode: "grid" | "list";
+  resume?: { position: number; total: number } | null;
+  onResume?: () => void;
   onSortChange: (sort: ArchiveSortKey) => void;
   onOrderChange: (order: ArchiveSortOrder) => void;
   onTypeFilterChange: (filter: FileType | null) => void;
@@ -121,6 +123,8 @@ export function ArchiveToolbar({
   order,
   typeFilter,
   viewMode,
+  resume,
+  onResume,
   onSortChange,
   onOrderChange,
   onTypeFilterChange,
@@ -240,6 +244,19 @@ export function ArchiveToolbar({
         data-testid="archive-controls"
         className="flex items-center gap-2 px-4 py-2"
       >
+        {resume && (
+          <button
+            type="button"
+            onClick={onResume}
+            className="flex items-center gap-1.5 rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-bg-elevated pointer-coarse:min-h-11"
+          >
+            {t("resume", {
+              position: resume.position,
+              total: resume.total,
+            })}
+          </button>
+        )}
+
         <ToolbarMenu
           label={tSort("label")}
           value={activeSort ? t(activeSort.labelKey) : tSort("label")}

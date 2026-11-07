@@ -16,6 +16,7 @@ export const DESKTOP_ONLY = [
   "**/justified-hold-desktop.spec.ts",
   "**/image-search-drag-desktop.spec.ts",
   "**/image-drop-target-desktop.spec.ts",
+  "**/text-resume-desktop.spec.ts",
 ];
 
 /** Literals rather than a device preset, which can change under it. */
