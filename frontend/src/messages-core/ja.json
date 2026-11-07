@@ -863,6 +863,13 @@
     "loadFailed": "読み込みに失敗しました: {error}",
     "tooLargeToDecorate": "行番号と色を付けるには大きすぎるため、そのまま表示しています。"
   },
+  "highlight": {
+    "add": "ハイライト",
+    "remove": "削除",
+    "saveFailed": "ハイライトを保存できませんでした",
+    "removeFailed": "ハイライトを削除できませんでした",
+    "limitReached": "ハイライトの上限に達しました"
+  },
   "batchRename": {
     "title": "一括名前変更",
     "modeTemplate": "テンプレート",

@@ -10,6 +10,7 @@ import {
 import { MarkdownPreview } from "@/components/MarkdownPreview";
 import { FindTextBodyProvider } from "@/components/FileDetail/find/FindContext";
 import { TextScrollFileIdContext } from "@/lib/textScrollProgress";
+import { HighlightFileContext } from "@/lib/highlightStore";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
 
 /**
@@ -119,16 +120,20 @@ export function MarkdownFileViewer({
     <TextScrollFileIdContext.Provider
       value={error === null && sourceFileId === fileId ? fileId : null}
     >
-      <FindTextBodyProvider>
-        <MarkdownPreview
-          source={source}
-          editable={edit}
-          onTagsSaved={onTagsSaved}
-          highlight={highlight}
-          wikiResolution={wikiResolution}
-          onDocumentCaptureController={onDocumentCaptureController}
-        />
-      </FindTextBodyProvider>
+      <HighlightFileContext.Provider
+        value={error === null && sourceFileId === fileId ? fileId : null}
+      >
+        <FindTextBodyProvider>
+          <MarkdownPreview
+            source={source}
+            editable={edit}
+            onTagsSaved={onTagsSaved}
+            highlight={highlight}
+            wikiResolution={wikiResolution}
+            onDocumentCaptureController={onDocumentCaptureController}
+          />
+        </FindTextBodyProvider>
+      </HighlightFileContext.Provider>
     </TextScrollFileIdContext.Provider>
   );
 }
