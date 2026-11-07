@@ -1,0 +1,8 @@
+# Decisions
+
+decision:
+ran_in_app: yes
+at: 6f80e164586299717ca01f1bcb80e3cff22efb01
+by: agent
+evidence: Ran against the rebuilt stack at localhost:3000 (Chrome, drive 動画, 505 videos, profile set) at 1400px wide plus a 390px iframe. Sidebar: Video row sits after Library, before Ask/Notes, and opens /drive/動画/apps/video with header "Video / 動画 · 505 videos / Target". Discover shows Continue, Recommended, New; Continue lists the video I played to 15s first afterwards. Library: Folder, Tag, Month added, Length, Watch state all draw shelves with counts (Watch state 138+355+12=505; Length 116+68+12, the rest have no duration). See all on In progress pages in 60s (60, 120, 138 loaded by real scroll). Target menu lists All videos (505) and smart folders; the smart folder あんこ動画 gave "8 videos" in both faces (matches tag count 8). A type:image smart folder gave "0 videos" and the empty state. Reload kept face=library, classification=watch, target (localStorage litloft.videoApp.* per drive). A bogus stored target id fell back to default and was rewritten to "default" with no error. With the profile cleared: Continue omitted, Recommended drawn, Classification menu without Watch state, Folder shown while stored value stayed "watch"; after re-setting the profile Watch state returned. 390px: no horizontal overflow, hamburger drawer. API checks: by=watch without viewer returned 400 viewer_required. Screenshots were viewed in-session only, none saved to disk.
+pending: iOS app on a real device (agent_cannot_verify). Not exercised: slow/failing shelf retry state, the viewer_required-with-profile (expired cookie) path, a smart folder with an unsupported query part (see report: no query I could write reaches that state), the other drive テスト画像.
