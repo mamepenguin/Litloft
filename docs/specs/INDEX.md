@@ -134,7 +134,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-070 | implemented | docs/specs/extraction-edits.md | sha256:e651a74cf4e0e80f37003a94017fed3f61d0c2242b6bdd6a2ce4995046234ae6 |
 | SPEC-ADDON-067 | implemented | docs/specs/extraction-edits.md | sha256:e651a74cf4e0e80f37003a94017fed3f61d0c2242b6bdd6a2ce4995046234ae6 |
 | SPEC-ADDON-068 | implemented | docs/specs/extraction-edits.md | sha256:e651a74cf4e0e80f37003a94017fed3f61d0c2242b6bdd6a2ce4995046234ae6 |
-| SPEC-ADDON-071 | approved | docs/specs/file-ask-vision.md | sha256:e56dcacbe129568785fabd48d2e73fc599d10d4e6ad781c401e97d7960907358 |
-| SPEC-ADDON-072 | approved | docs/specs/file-ask-vision.md | sha256:e56dcacbe129568785fabd48d2e73fc599d10d4e6ad781c401e97d7960907358 |
-| SPEC-ADDON-073 | approved | docs/specs/file-ask-vision.md | sha256:e56dcacbe129568785fabd48d2e73fc599d10d4e6ad781c401e97d7960907358 |
-| SPEC-ADDON-074 | approved | docs/specs/file-ask-vision.md | sha256:e56dcacbe129568785fabd48d2e73fc599d10d4e6ad781c401e97d7960907358 |
+| SPEC-ADDON-071 | implemented | docs/specs/file-ask-vision.md | sha256:e56dcacbe129568785fabd48d2e73fc599d10d4e6ad781c401e97d7960907358 |
+| SPEC-ADDON-072 | implemented | docs/specs/file-ask-vision.md | sha256:e56dcacbe129568785fabd48d2e73fc599d10d4e6ad781c401e97d7960907358 |
+| SPEC-ADDON-073 | implemented | docs/specs/file-ask-vision.md | sha256:e56dcacbe129568785fabd48d2e73fc599d10d4e6ad781c401e97d7960907358 |
+| SPEC-ADDON-074 | implemented | docs/specs/file-ask-vision.md | sha256:e56dcacbe129568785fabd48d2e73fc599d10d4e6ad781c401e97d7960907358 |
