@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "frontend/src/components/HighlightControls.tsx exists as a new file and is not in the touch-point list. Scope/documentation observation only; no behavioural defect shown."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "TextLines.tsx:145 and :155 use key={`${i}:${line}`}. TextLines is a listed touch point, but this key change is not listed. I did not determine whether it affects scroll (I8)."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "frontend/src/types/raw.d.ts exists and types/index.ts:345 and :354 declare Highlight and HighlightInput. Neither file is listed in the touch points. Scope observation only."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F4",
+      "status": "confirmed",
+      "note": "fixtures/app.tsx:2054 defines DEFERRED_ARRANGEMENTS = new Set([\"persistent-highlights\"]) and :2058 skips the default data-arrangement for it. The shared bootstrap is changed. Scope observation only."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F5",
+      "status": "confirmed",
+      "note": "persistent-highlights-desktop.spec.ts:4 says the arrangement 'does not exist yet', but fixtures/persistentHighlights.tsx now exists. The comment is stale (cosmetic)."
+    }
+  ],
+  "specification_compliance": [
+    "Not checked against invariants I1-I10 in depth; only the five listed findings were verified."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "HighlightControls.tsx, types/raw.d.ts, the TextLines key change and the DEFERRED_ARRANGEMENTS bootstrap are not in the touch points."
+  ],
+  "regression_risks": [
+    "The TextLines key change (index to index:line) forces remounts of changed lines, which could affect scroll or selection."
+  ],
+  "test_coverage": [
+    "Not assessed."
+  ],
+  "not_verified": [
+    "Whether the TextLines key change affects scroll position (I8)",
+    "Backend routes and invariants I1-I10",
+    "HighlightControls.tsx logic beyond the file's existence",
+    "Whether the changes in F1-F4 are covered by the spec"
+  ],
+  "confidence": 75
+}

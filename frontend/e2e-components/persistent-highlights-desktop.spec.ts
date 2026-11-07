@@ -1,17 +1,4 @@
-/**
- * SPEC-CORE-053 / SPEC-CORE-052: the parts of persistent highlights that need
- * a layout engine and a real selection. The fixture arrangement
- * `persistent-highlights` does not exist yet; it must render, in the same
- * page, with the real components and the real quote button slot:
- *   - `?doc=pdf`   a PdfPreview of a 3-page text PDF (inline), with a button
- *                  that opens PdfFullscreenViewer, and zoom in / out buttons;
- *   - `?doc=markdown` a MarkdownPreview of "Alpha Beta Gamma Beta" plus an
- *                  in-file find box wired to useFindMarksIn;
- *   - a stand-in for the Knowledge quote button (`[data-testid=quote-button]`)
- *     mounted the way the knowledge-edit slot mounts it;
- *   - `?profile=none|alice` choosing the store; both inside
- *     HighlightFileContext.Provider value="fixture-file".
- */
+/** SPEC-CORE-053 / SPEC-CORE-052: the parts of persistent highlights that need a layout engine and a real selection. */
 
 import { test, expect, type Page } from "@playwright/test";
 import { pathToFileURL } from "node:url";

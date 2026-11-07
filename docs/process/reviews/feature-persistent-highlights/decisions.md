@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship (human, 2026-11-07: "ship"), on review r1 HUMAN_REVIEW_REQUIRED (unspecified_behavior: HighlightControls.tsx, types/raw.d.ts, the TextLines key change and the DEFERRED_ARRANGEMENTS bootstrap are outside the touch points). The R-5 re-run for the drag-select fix 1bcae5b29 and a mutation review of the write paths were offered and not requested.
 ran_in_app: yes
 at: c4bbea5abe227695096d33f020ae0b576b142b11
 by: agent
