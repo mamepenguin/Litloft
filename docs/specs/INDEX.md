@@ -144,3 +144,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-051 | implemented | docs/specs/ocr-line-boxes.md | sha256:34e34c624bf5010e494acb27acd3d641490b7c3488504c1991d0e22a06f90414 |
 | SPEC-CORE-052 | implemented | docs/specs/persistent-highlights.md | sha256:a3289475f0de7eb5baceb80b7f281b4ade7283f8f1bde522e601d41974e1cfce |
 | SPEC-CORE-053 | implemented | docs/specs/persistent-highlights.md | sha256:a3289475f0de7eb5baceb80b7f281b4ade7283f8f1bde522e601d41974e1cfce |
+| SPEC-ADDON-076 | draft | docs/specs/youtube-frames.md | |
+| SPEC-ADDON-077 | draft | docs/specs/youtube-frames.md | |
+| SPEC-ADDON-078 | draft | docs/specs/youtube-frames.md | |
+| SPEC-CORE-058 | draft | docs/specs/youtube-frames.md | |
