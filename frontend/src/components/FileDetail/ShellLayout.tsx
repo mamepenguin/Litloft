@@ -44,6 +44,7 @@ import { useSheetHalfSnap } from "./hooks/useSheetHalfSnap";
 import { RelatedPanel } from "./related/RelatedPanel";
 import { useFileRelations } from "./related/useFileRelations";
 import { TextScrollFileIdContext } from "@/lib/textScrollProgress";
+import { HighlightFileContext } from "@/lib/highlightStore";
 
 export interface ShellLayoutProps {
   file: FileItem;
@@ -493,17 +494,19 @@ export function ShellLayout({
           ) : (
             <FindTextBodyProvider>
               <TextScrollFileIdContext.Provider value={file.id}>
-                <AddonSlot
-                  id="file-detail-sections"
-                  layout="stack"
-                  includeIds={["knowledge-edit"]}
-                  props={{
-                    ...addonSlotProps,
-                    fillHeight: true,
-                    highlight,
-                    ...(plainTextDocument ? { plainTextDocument: true } : {}),
-                  }}
-                />
+                <HighlightFileContext.Provider value={file.id}>
+                  <AddonSlot
+                    id="file-detail-sections"
+                    layout="stack"
+                    includeIds={["knowledge-edit"]}
+                    props={{
+                      ...addonSlotProps,
+                      fillHeight: true,
+                      highlight,
+                      ...(plainTextDocument ? { plainTextDocument: true } : {}),
+                    }}
+                  />
+                </HighlightFileContext.Provider>
               </TextScrollFileIdContext.Provider>
             </FindTextBodyProvider>
           )}

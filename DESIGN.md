@@ -205,6 +205,7 @@ for an error surface in markup use `bg-danger/15`.
 | `--danger` | `#9e0a0a` | Danger / error color |
 | `--danger-bg` | `rgba(230,0,35,0.08)` | Error background |
 | `--highlight-bg` | `#fff8c5` | `<mark>` highlight background (warm butter) |
+| `--mark-bg` | `#dff0cf` | Persistent highlight background (soft green) |
 | `--kbd-shadow` | `inset 0 -1px 0 #b8c0c8` | `<kbd>` bottom bevel |
 
 #### Dark mode (`[data-theme="dark"]`)
@@ -232,6 +233,7 @@ for an error surface in markup use `bg-danger/15`.
 | `--danger` | `#ff8a8a` | Bright coral error |
 | `--danger-bg` | `rgba(255,45,66,0.12)` | Error background |
 | `--highlight-bg` | `rgba(244,198,116,0.55)` | Mark highlight, lifted to read against the dark canvas |
+| `--mark-bg` | `rgba(126,200,126,0.32)` | Persistent highlight, translucent over the dark canvas |
 | `--kbd-shadow` | `inset 0 -1px 0 rgba(255,255,255,0.2)` | `<kbd>` bottom bevel |
 
 #### System preference
@@ -259,7 +261,13 @@ There is no `[data-theme="system"]`. A stored `system` is resolved to `light` or
 - **`<mark>`'s UA default is reset globally** so utilities apply to it; inside
   `.markdown-body`, `--highlight-bg` wins. The reset lives in `@layer base`: an
   unlayered rule beats every utility regardless of specificity.
-- **A persistent highlight outside `.markdown-body` uses `bg-highlight-bg`.**
+- **A search or citation highlight outside `.markdown-body` uses `bg-highlight-bg`.**
+- **A saved highlight uses `--mark-bg`, never `--highlight-bg`.** Green
+  separates the viewer's own mark from a find match or an Ask citation, which
+  keep the butter tone. On a PDF text layer it is drawn at reduced alpha, as
+  find marks are, so the word on the canvas underneath stays visible. The mark
+  carries no padding, because a saved highlight must not move the text it sits
+  behind.
 
 ### 2.3 Wiki-link classes
 

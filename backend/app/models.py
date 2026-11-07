@@ -269,6 +269,27 @@ class Comment(Base):
     )
 
 
+class Highlight(Base):
+    __tablename__ = "highlights"
+
+    id: Mapped[str] = mapped_column(String(12), primary_key=True, default=generate_nanoid)
+    viewer_id: Mapped[str] = mapped_column(String(16), nullable=False)
+    file_id: Mapped[str] = mapped_column(
+        String(12), ForeignKey("files.id", ondelete="CASCADE"), nullable=False
+    )
+    page: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
+    quote: Mapped[str] = mapped_column(Text, nullable=False)
+    prefix: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    suffix: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(UTC)
+    )
+
+    __table_args__ = (
+        Index("idx_highlights_viewer_file", "viewer_id", "file_id"),
+    )
+
+
 class FileVersion(Base):
     __tablename__ = "file_versions"
 

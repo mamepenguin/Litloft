@@ -1,0 +1,164 @@
+{
+  "risk": "HIGH",
+  "score": 9,
+  "base": 3,
+  "zone_max": "MEDIUM",
+  "modifiers": [
+    "persistence",
+    "schema"
+  ],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "DESIGN.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/main.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/models.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/routers/highlights.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/schemas.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/tests/test_highlights.py",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/reference/api.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/persistent-highlights.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/viewers-and-players.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/persistentHighlights.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/persistent-highlights-desktop.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/globals.css",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/ShellLayout.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/HighlightControls.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/MarkdownFileViewer.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/MarkdownPreview.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/PdfPreview.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/TextLines.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/TextPreview.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/componentFixtureParity.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/persistentHighlights.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/pdf/PdfFullscreenViewer.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/hooks/useHighlightMarksIn.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/__tests__/highlightAnchor.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/api.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/findMarks.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/highlightAnchor.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/highlightStore.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/types/index.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/types/raw.d.ts",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)",
+    "modifiers: persistence schema"
+  ]
+}

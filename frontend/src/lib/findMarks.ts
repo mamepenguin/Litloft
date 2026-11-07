@@ -358,18 +358,18 @@ function occurrenceContexts(
   });
 }
 
-interface TextEntry {
+export interface TextEntry {
   node: Text;
   start: number;
 }
 
-interface TextIndex {
+export interface TextIndex {
   /** Every text node's value, concatenated in document order. */
   text: string;
   entries: TextEntry[];
 }
 
-function indexText(container: HTMLElement): TextIndex {
+export function indexText(container: HTMLElement): TextIndex {
   const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
   const entries: TextEntry[] = [];
   let text = "";
@@ -380,6 +380,84 @@ function indexText(container: HTMLElement): TextIndex {
     text += textNode.nodeValue ?? "";
   }
   return { text, entries };
+}
+
+function entryFor(index: TextIndex, node: Node): TextEntry | undefined {
+  if (!(node instanceof Text)) return undefined;
+  return index.entries.find((entry) => entry.node === node);
+}
+
+function endOfNode(node: Text): number {
+  return node.nodeValue?.length ?? 0;
+}
+
+/**
+ * The offsets in the text-node concatenation of a selection that starts in
+ * `root`. An end outside `root` is clipped to the last character, so a
+ * selection spanning PDF pages is read as the part on the page it started on.
+ */
+export function selectionOffsets(
+  root: HTMLElement,
+  range: Range,
+): { text: string; start: number; end: number } | null {
+  if (!root.contains(range.startContainer)) return null;
+  const index = indexText(root);
+  const startEntry = entryFor(index, range.startContainer);
+  if (!startEntry) return null;
+
+  const start =
+    startEntry.start +
+    Math.max(0, Math.min(range.startOffset, endOfNode(startEntry.node)));
+
+  let end: number;
+  if (!root.contains(range.endContainer)) {
+    end = index.text.length;
+  } else {
+    const endEntry = entryFor(index, range.endContainer);
+    end = endEntry
+      ? endEntry.start +
+        Math.max(0, Math.min(range.endOffset, endOfNode(endEntry.node)))
+      : index.text.length;
+  }
+
+  if (end <= start) return null;
+  return { text: index.text, start, end };
+}
+
+/** The text-node offset at a viewport point, or null when no caret resolves there. */
+export function textOffsetAtPoint(
+  root: HTMLElement,
+  clientX: number,
+  clientY: number,
+): number | null {
+  if (typeof document === "undefined") return null;
+  const doc = document as Document & {
+    caretRangeFromPoint?: (x: number, y: number) => Range | null;
+  };
+
+  let container: Node | null = null;
+  let offset = 0;
+  if (typeof doc.caretRangeFromPoint === "function") {
+    const range = doc.caretRangeFromPoint(clientX, clientY);
+    if (range) {
+      container = range.startContainer;
+      offset = range.startOffset;
+    }
+  } else if (typeof document.caretPositionFromPoint === "function") {
+    const position = document.caretPositionFromPoint(clientX, clientY);
+    if (position) {
+      container = position.offsetNode;
+      offset = position.offset;
+    }
+  }
+
+  if (!container || !(container instanceof Text) || !root.contains(container)) {
+    return null;
+  }
+  const index = indexText(root);
+  const entry = index.entries.find((candidate) => candidate.node === container);
+  if (!entry) return null;
+  return entry.start + Math.max(0, Math.min(offset, endOfNode(container)));
 }
 
 interface Segment {
@@ -506,10 +584,24 @@ function chooseTextOccurrence(
 }
 
 function wrap(node: Text, start: number, end: number, current: boolean): HTMLElement {
+  return wrapTextSegment(
+    node,
+    start,
+    end,
+    current ? `${FIND_MARK_CLASS} ${FIND_MARK_CURRENT_CLASS}` : FIND_MARK_CLASS,
+  );
+}
+
+export function wrapTextSegment(
+  node: Text,
+  start: number,
+  end: number,
+  className: string,
+): HTMLElement {
   if (end < node.length) node.splitText(end);
   const target = start > 0 ? node.splitText(start) : node;
   const mark = document.createElement("mark");
-  mark.className = current ? `${FIND_MARK_CLASS} ${FIND_MARK_CURRENT_CLASS}` : FIND_MARK_CLASS;
+  mark.className = className;
   target.parentNode?.insertBefore(mark, target);
   mark.appendChild(target);
   return mark;

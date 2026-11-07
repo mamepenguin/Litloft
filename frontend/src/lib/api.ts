@@ -1,4 +1,4 @@
-import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, CollectionDetail, CollectionSummary, Comment, CommentsResponse, DashboardResponse, Drive, DriveSummary, DuplicatesResponse, FileExif, FileItem, Folder, FolderCount, FolderTreeNode, Neighbors, PaginatedResponse, PinnedFolder, ListingSortField, SortField, SortOrder, Tag, TrustFilter, TrustTier, FileKind, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
+import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, CollectionDetail, CollectionSummary, Comment, CommentsResponse, DashboardResponse, Drive, DriveSummary, DuplicatesResponse, FileExif, FileItem, Folder, FolderCount, FolderTreeNode, Highlight, HighlightInput, Neighbors, PaginatedResponse, PinnedFolder, ListingSortField, SortField, SortOrder, Tag, TrustFilter, TrustTier, FileKind, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
 import type { SmartFolder, SmartFolderCreate, SmartFolderUpdate } from "@/types/smartFolder";
 import { seedFiles } from "@/lib/fileSeed";
 
@@ -894,6 +894,54 @@ export async function recordFileView(fileId: string): Promise<void> {
 
 export async function getWatchProgress(fileId: string): Promise<WatchProgress> {
   return fetchJSON<WatchProgress>(`${API_BASE}/files/${fileId}/progress`);
+}
+
+export async function listHighlights(fileId: string): Promise<Highlight[]> {
+  const res = await fetch(`${API_BASE}/files/${fileId}/highlights`, {
+    credentials: "include",
+  });
+  if (!res.ok) {
+    throw new ApiStatusError(
+      res.status,
+      `API error: ${res.status} ${res.statusText}`,
+    );
+  }
+  return res.json() as Promise<Highlight[]>;
+}
+
+export async function createHighlight(
+  fileId: string,
+  input: HighlightInput,
+): Promise<Highlight> {
+  const res = await fetch(`${API_BASE}/files/${fileId}/highlights`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) {
+    throw new ApiStatusError(
+      res.status,
+      `API error: ${res.status} ${res.statusText}`,
+    );
+  }
+  return res.json() as Promise<Highlight>;
+}
+
+export async function deleteHighlight(
+  fileId: string,
+  highlightId: string,
+): Promise<void> {
+  const res = await fetch(
+    `${API_BASE}/files/${fileId}/highlights/${highlightId}`,
+    { method: "DELETE", credentials: "include" },
+  );
+  if (!res.ok) {
+    throw new ApiStatusError(
+      res.status,
+      `API error: ${res.status} ${res.statusText}`,
+    );
+  }
 }
 
 export async function deleteWatchProgress(fileId: string): Promise<void> {

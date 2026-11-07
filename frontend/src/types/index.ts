@@ -342,6 +342,22 @@ export interface WatchProgress {
   duration: number;
 }
 
+export interface Highlight {
+  id: string;
+  page: number | null;
+  quote: string;
+  prefix: string;
+  suffix: string;
+  created_at: string;
+}
+
+export interface HighlightInput {
+  page: number | null;
+  quote: string;
+  prefix: string;
+  suffix: string;
+}
+
 export interface WatchHistoryItem extends FileItem {
   watch_progress: WatchProgress;
 }

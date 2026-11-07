@@ -5,6 +5,8 @@ import { useHighlightPassage } from "@/hooks/useHighlightPassage";
 import { useFindMarksIn } from "@/hooks/useFindMarksIn";
 import { useFindTextBody } from "@/components/FileDetail/find/FindContext";
 import { isTextFindRow } from "@/lib/findMarks";
+import { HighlightFileContext } from "@/lib/highlightStore";
+import { HighlightControls } from "@/components/HighlightControls";
 import { useDocumentCapturePublisher } from "@/hooks/useDocumentCapturePublisher";
 import {
   TextScrollFileIdContext,
@@ -460,6 +462,7 @@ export function MarkdownPreview({
   );
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const highlightFileId = useContext(HighlightFileContext);
   useTextScrollProgress({
     fileId: useContext(TextScrollFileIdContext),
     targetRef: containerRef,
@@ -542,8 +545,21 @@ export function MarkdownPreview({
     />
   );
 
+  const controls = (
+    <HighlightControls
+      getContainer={() => containerRef.current}
+      fileId={highlightFileId}
+      renderKey={html}
+    />
+  );
+
   if (!chrome) {
-    return body;
+    return (
+      <>
+        {body}
+        {controls}
+      </>
+    );
   }
 
   return (
@@ -561,6 +577,7 @@ export function MarkdownPreview({
         </div>
       )}
       {body}
+      {controls}
     </div>
   );
 }

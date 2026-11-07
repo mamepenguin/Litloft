@@ -863,6 +863,13 @@
     "loadFailed": "Failed to load: {error}",
     "tooLargeToDecorate": "Too large for line numbers and colour — shown as plain text."
   },
+  "highlight": {
+    "add": "Highlight",
+    "remove": "Remove",
+    "saveFailed": "Could not save the highlight",
+    "removeFailed": "Could not remove the highlight",
+    "limitReached": "Highlight limit reached"
+  },
   "batchRename": {
     "title": "Batch Rename",
     "modeTemplate": "Template",

@@ -10,6 +10,8 @@ import { codeLanguageFor } from "@/lib/codeLanguage";
 import { splitHighlightedLines, splitPlainLines } from "@/lib/codeLines";
 import { useDocumentCapturePublisher } from "@/hooks/useDocumentCapturePublisher";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
+import { HighlightFileContext } from "@/lib/highlightStore";
+import { HighlightControls } from "@/components/HighlightControls";
 import {
   TextScrollFileIdContext,
   useTextScrollProgress,
@@ -88,6 +90,7 @@ export function TextLines({
 }) {
   const t = useTranslations("text");
   const preRef = useRef<HTMLPreElement>(null);
+  const highlightFileId = useContext(HighlightFileContext);
   useTextScrollProgress({
     fileId: useContext(TextScrollFileIdContext),
     targetRef: preRef,
@@ -111,6 +114,14 @@ export function TextLines({
 
   const { text, lines, coloured, trailingBreak } = decorated;
 
+  const controls = (
+    <HighlightControls
+      getContainer={() => preRef.current}
+      fileId={highlightFileId}
+      renderKey={decorated.text}
+    />
+  );
+
   if (lines === null) {
     return (
       <div className="w-full rounded-xl bg-bg-card">
@@ -118,6 +129,7 @@ export function TextLines({
         <pre ref={preRef} className={preClass}>
           {text}
         </pre>
+        {controls}
       </div>
     );
   }
@@ -130,7 +142,7 @@ export function TextLines({
         {lines.map((line, i) =>
           coloured ? (
             <span
-              key={i}
+              key={`${i}:${line}`}
               className="code-line"
               // highlight.js escapes the source before wrapping it. The
               // uncoloured branch below must not share this sink: there the
@@ -140,13 +152,14 @@ export function TextLines({
               }}
             />
           ) : (
-            <span key={i} className="code-line">
+            <span key={`${i}:${line}`} className="code-line">
               {line}
               {withBreak(i) ? "\n" : ""}
             </span>
           ),
         )}
       </pre>
+      {controls}
     </div>
   );
 }

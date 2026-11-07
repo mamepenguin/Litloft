@@ -33,6 +33,7 @@ import {
   type PdfZoomMode,
 } from "@/lib/pdfZoomMode";
 import { MenuRadioGroup, ToolbarMenu } from "@/components/ToolbarMenu";
+import { HighlightControls } from "@/components/HighlightControls";
 import { PdfCanvas } from "@/components/pdf/PdfCanvas";
 import { PdfPageInput } from "@/components/pdf/PdfPageInput";
 import { usePdfPageBoxes } from "@/components/pdf/usePdfPageBoxes";
@@ -127,7 +128,7 @@ export function PdfPreview({
   const [availableHeight, setAvailableHeight] = useState(600);
   const pageBoxRef = useRef<HTMLDivElement>(null);
   const pageSectionRef = useRef<HTMLElement>(null);
-  const [, setTextLayerRevision] = useState(0);
+  const [textLayerRevision, setTextLayerRevision] = useState(0);
   const textLayerPageRef = useRef<number | null>(null);
   const [pageBox, setPageBox] = useState<PageBox | null>(null);
   const [zoomMode, setZoomMode] = useState<PdfZoomMode>(DEFAULT_PDF_ZOOM_MODE);
@@ -690,6 +691,7 @@ export function PdfPreview({
           {fullscreen && loaded && (
             <PdfFullscreenViewer
               pdf={loaded.pdf}
+              fileId={fileId}
               declaredDirection={loaded.declaredDirection}
               title={title}
               initialPage={page}
@@ -705,6 +707,17 @@ export function PdfPreview({
           )}
         </Document>
       </div>
+
+      <HighlightControls
+        getContainer={() =>
+          pageSectionRef.current?.querySelector<HTMLElement>(
+            ".react-pdf__Page__textContent",
+          ) ?? null
+        }
+        fileId={fileId}
+        page={page}
+        renderKey={`${page}:${textLayerRevision}`}
+      />
     </div>
   );
 }

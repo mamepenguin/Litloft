@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The new component frontend/src/components/HighlightControls.tsx is not in the touch-point list, yet it holds the whole UI logic: selection reading, the Highlight and Remove controls, the click handler on the container, the window scroll listener, and message display.",
+      "impact": "This is the biggest unplanned surface and it sits next to the quote button. It registers a document selectionchange listener and a capture-phase window scroll listener per mounted instance, and in the PDF full-screen viewer there is one instance per page. The touch-point list gave reviewers no cue to check I9 (no cover of the quote button, no change to capture) in this file.",
+      "evidence": "frontend/src/components/HighlightControls.tsx:1-288 (new file). Touch points name only MarkdownPreview, TextLines, PdfPreview and PdfFullscreenViewer as hosts of the controls.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a gap in the declared touch-point list. It does not by itself break an invariant. The I9 behaviours it implements are covered by the e2e specs.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add HighlightControls.tsx to the touch points."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The diff changes the React keys of TextLines line spans from the index to `${i}:${line}`, which is not a listed touch point and is not needed to draw marks.",
+      "impact": "Any line whose text changes now remounts its span. For a large text file with highlights this adds remount cost and discards DOM nodes. It exists to drop the stale split-text nodes left by marks, so the unmark/redraw cycle interacts with React reconciliation in a way nothing documents. A wrong key scheme could let React reuse a node that the mark code has split, though the added tests do not show that happening.",
+      "evidence": "frontend/src/components/TextLines.tsx:145 and :155 (`key={`${i}:${line}`}` replacing `key={i}`). Spec I8 and the text-scroll behaviour of SPEC-CORE-050 are what this could touch.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "It is an unplanned behavioural change in a listed file. It is not shown to break an invariant. The effect on scroll and reading position (I8) was not verified.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "The shared type file frontend/src/types/index.ts (Highlight, HighlightInput) and a new global declaration file frontend/src/types/raw.d.ts (`*?raw` module) are not in the touch points.",
+      "impact": "raw.d.ts adds an ambient `*?raw` module declaration to the whole frontend type space. It exists only for the e2e fixture's worker import, but it applies to production code as well and silently types every `?raw` import in the app.",
+      "evidence": "frontend/src/types/raw.d.ts:1-4 (new). frontend/src/types/index.ts:342-358 (new interfaces).",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "These are touch-point omissions with no invariant effect.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "F4",
+      "origin": "reviewer",
+      "claim": "The shared e2e bootstrap frontend/e2e-components/fixtures/app.tsx now defers setting `data-arrangement` for the arrangement `persistent-highlights` (DEFERRED_ARRANGEMENTS). The touch points list `fixtures` only generically, and this is a change to code shared by all arrangements.",
+      "impact": "A future arrangement added to DEFERRED_ARRANGEMENTS that never sets the attribute makes the spec wait forever. The other arrangements' behaviour is unchanged for now. The fixture also monkey-patches `window.fetch` and `XMLHttpRequest.prototype.open` globally. Both patches are confined to the fixture page.",
+      "evidence": "frontend/e2e-components/fixtures/app.tsx:2047-2060; fixtures/persistentHighlights.tsx:46-62 and :108-125.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is test infrastructure only and it breaks no product invariant.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "F5",
+      "origin": "reviewer",
+      "claim": "The new e2e spec header still says the fixture arrangement 'does not exist yet'. The spec was written before the fixture, so the comment is stale.",
+      "impact": "A reader could be led to add a second fixture.",
+      "evidence": "frontend/e2e-components/persistent-highlights-desktop.spec.ts:2-14",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Stale prose with no effect on the code.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Delete the sentence."
+    }
+  ],
+  "specification_compliance": [
+    "Backend routes, schema and tests match I1, I2 and I10 as read. The 404 check runs before viewer handling, a delete is scoped by viewer and file and answers 204, and the table has a CASCADE foreign key.",
+    "Frontend store: with no profile it uses only localStorage and with a profile only the server, with a generation counter to discard stale results (I3, I7).",
+    "The answer to the touch-point question: unplanned places are HighlightControls.tsx, the TextLines key change, types/index.ts, types/raw.d.ts, and the shared e2e bootstrap in app.tsx. The new spec and fixture files, the unit tests and the extra findMarks exports (selectionOffsets, textOffsetAtPoint) are covered by listed entries or by tests and fixtures."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Each PDF full-screen page mounts its own HighlightControls, so there are several selectionchange and scroll listeners.",
+    "The remove control is dismissed on any window scroll (capture phase).",
+    "Mark wrappers are unwrapped and `normalize()` is called on the parent on every redraw, which could merge adjacent text nodes that other code (in-file find) holds references to."
+  ],
+  "regression_risks": [
+    "TextLines key change may remount line spans and interact with scroll restoration (SPEC-CORE-050).",
+    "The `normalize()` call in clearHighlightMarks can invalidate Text node references held by in-file find marks.",
+    "The ambient `*?raw` declaration affects all TypeScript code in the frontend."
+  ],
+  "test_coverage": [
+    "Backend routes are tested thoroughly, including the cap, duplicates, authorization, the locked drive and cascade deletion.",
+    "The frontend jsdom tests cover both stores, failures, profile switching and the quote-not-found case. PDF behaviour, click order and coexistence with find and the quote button are covered only by real-browser e2e specs, which I did not run.",
+    "No test covers the TextLines key change for scroll or reading position."
+  ],
+  "not_verified": [
+    "I did not run any test or the browser e2e specs.",
+    "I did not read the repository files outside the supplied diff, such as documentCapture.ts or the rules documents.",
+    "The effect of the TextLines key change on scroll restoration was not verified.",
+    "I reviewed the whole-branch diff as supplied, not only the single commit 1bcae5b29, so I cannot say which unplanned places belong to the drag-select fix."
+  ],
+  "confidence": 72
+}

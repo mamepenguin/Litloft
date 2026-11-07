@@ -115,6 +115,10 @@ The maximise button opens the full-screen viewer, which turns through the folder
 - **Reading direction**: **LTR** or **RTL**, shown while **Spread** is on. RTL mirrors the edge taps, arrows and keys, not the swipe.
 - HEIC photos from an iPhone are shown too.
 
+## Highlights
+
+In a PDF, a Markdown note or a text file, select text and choose **Highlight** to keep a mark that is there when you open the file again. Click a mark and choose **Remove** to take it away.
+
 ## Markdown viewer
 
 ![Markdown viewer with frontmatter chips and a rendered Mermaid diagram](../images/user-guide/markdown-viewer-frontmatter-mermaid.png)

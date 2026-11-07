@@ -6,6 +6,7 @@ import { getStreamUrl } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
 import { fileNameParts } from "@/lib/fileNameParts";
 import { TextScrollFileIdContext } from "@/lib/textScrollProgress";
+import { HighlightFileContext } from "@/lib/highlightStore";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
 
 import { TextLines } from "./TextLines";
@@ -169,12 +170,14 @@ export function TextPreview({
 
   return (
     <TextScrollFileIdContext.Provider value={textLoaded ? fileId : null}>
-      <TextLines
-        text={content}
-        filename={filename}
-        highlight={highlight}
-        onDocumentCaptureController={onDocumentCaptureController}
-      />
+      <HighlightFileContext.Provider value={textLoaded ? fileId : null}>
+        <TextLines
+          text={content}
+          filename={filename}
+          highlight={highlight}
+          onDocumentCaptureController={onDocumentCaptureController}
+        />
+      </HighlightFileContext.Provider>
     </TextScrollFileIdContext.Provider>
   );
 }

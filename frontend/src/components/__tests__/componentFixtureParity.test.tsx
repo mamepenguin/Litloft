@@ -303,6 +303,7 @@ describe("the component fixture's page", () => {
       "markdown-tables",
       "played-ranges",
       "text-resume",
+      "persistent-highlights",
     ]);
   });
 });

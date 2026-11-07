@@ -16,6 +16,7 @@ import { Page } from "react-pdf";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 
 import { AddonSlot } from "@/components/AddonSlot";
+import { HighlightControls } from "@/components/HighlightControls";
 import { PdfCanvas } from "@/components/pdf/PdfCanvas";
 import { PdfPageInput } from "@/components/pdf/PdfPageInput";
 import { usePdfPageBoxes } from "@/components/pdf/usePdfPageBoxes";
@@ -57,6 +58,7 @@ export interface DocumentSlotProps {
 
 export function PdfFullscreenViewer({
   pdf,
+  fileId,
   title,
   initialPage,
   slotProps,
@@ -67,6 +69,7 @@ export function PdfFullscreenViewer({
   onPageTurned,
 }: {
   pdf: PDFDocumentProxy;
+  fileId?: string;
   /**
    * The document's own `/Direction`. It opens the viewer in that direction,
    * and a switch made here then lasts only as long as the viewer: a reader
@@ -290,6 +293,12 @@ export function PdfFullscreenViewer({
     });
   }, []);
 
+  const [textLayerRevision, setTextLayerRevision] = useState(0);
+  const pageSectionsRef = useRef(new Map<number, HTMLElement>());
+  const textLayerRendered = useCallback(() => {
+    setTextLayerRevision((value) => value + 1);
+  }, []);
+
   useShellImmersive(true);
   const backdropRef = useInertBackdrop<HTMLDivElement>(true);
 
@@ -492,6 +501,10 @@ export function PdfFullscreenViewer({
               widths[slot] > 0 ? (
                 <section
                   key={n}
+                  ref={(element) => {
+                    if (element) pageSectionsRef.current.set(n, element);
+                    else pageSectionsRef.current.delete(n);
+                  }}
                   data-pdf-page={n}
                   aria-label={`${title}, ${n}`}
                   className="bg-white"
@@ -507,6 +520,20 @@ export function PdfFullscreenViewer({
                     loading={null}
                     onRenderError={() => markRender(n, true)}
                     onRenderSuccess={() => markRender(n, false)}
+                    onRenderTextLayerSuccess={textLayerRendered}
+                  />
+                  <HighlightControls
+                    getContainer={() =>
+                      pageSectionsRef.current
+                        .get(n)
+                        ?.querySelector<HTMLElement>(
+                          ".react-pdf__Page__textContent",
+                        ) ?? null
+                    }
+                    fileId={fileId ?? null}
+                    page={n}
+                    renderKey={`${n}:${textLayerRevision}`}
+                    zIndex={70}
                   />
                 </section>
               ) : null,

@@ -924,6 +924,41 @@ class CommentsListResponse(BaseModel):
     total: int
 
 
+class HighlightCreateRequest(BaseModel):
+    page: int | None = None
+    quote: str
+    prefix: str = ""
+    suffix: str = ""
+
+    @field_validator("quote")
+    @classmethod
+    def validate_quote(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("quote is required")
+        if len(v) > 2000:
+            raise ValueError("quote exceeds 2000 characters")
+        return v
+
+    @field_validator("prefix", "suffix")
+    @classmethod
+    def validate_context(cls, v: str) -> str:
+        if len(v) > 64:
+            raise ValueError("prefix and suffix are limited to 64 characters")
+        return v
+
+
+class HighlightResponse(_UtcDateTimeMixin, BaseModel):
+    id: str
+    page: int | None
+    quote: str
+    prefix: str
+    suffix: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class RelatedFileSummary(_UtcDateTimeMixin, BaseModel):
     """Compact view of a file shown in the Related Files section.
 
