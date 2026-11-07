@@ -282,6 +282,15 @@ A `picture_text` row of `GET /api/addons/intelligence/files/{id}/find` carries `
 
 Each addon's page under [`docs/addons/`](../addons/) documents its endpoints.
 
+### Ask about one file
+
+The **Ask** tab on a file page asks about that file through the [intelligence addon](../addons/intelligence.md#ask-rag).
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/addons/intelligence/files/{id}/ask` | `{ "available": true }` when the file has at least one indexed chunk in the request drive, or when it is a picture and some profile has a `vision_model` and has not been recorded as unable to read images; `false` otherwise. |
+| `POST` | `/api/addons/intelligence/files/{id}/ask` | Body `{ question, profile?, position_seconds? }`. `position_seconds` is the player's position in seconds, from 0 to 1,000,000 (`422` otherwise); it is sent while a video or audio file plays, ignored for other kinds, and for a video it selects the frame sent with the passages. Streams `answer_chunk`, `citations`, `meta`, `done`. `meta` carries `image`: `attached` when an image was sent, `unavailable` when one was attempted and could not be sent, `none` when none applies. A picture with no indexed text answers `409 picture_needs_vision` when the profile the question resolves to cannot read images, and ends with `done` carrying `error: "image_unusable"` when its image could not be used. |
+
 ## Internal API
 
 For addons, on the Docker network only: the frontend server answers `/api/internal/*` with `404`.

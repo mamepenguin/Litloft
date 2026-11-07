@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "addons/intelligence/app/main.py:478-499 defines _finite_json and an app-wide @app.exception_handler(RequestValidationError) _invalid_body. main.py is not in the touch points. It is likely there to give I7's 422 for non-finite positions."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "addons/intelligence/app/llm_routing.py:440-475 has the new _active_for, profile_can_see and any_profile_can_see, and has_vision_profile now goes through _active_for. The touch points say has_vision_profile is only read. I did not confirm via git diff that has_vision_profile's body changed, because I had no shell access."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "tests/test_llm_caller_inventory.py has no match for 'stream' or 'generate_stream_with_image'. The new call is defined at llm.py:899 and llm.py:1856 and used at routers/rag.py:503. The inventory test therefore does not register it."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F4",
+      "status": "confirmed",
+      "note": "tests/file_question_doubles.py:60 has a SearchDB.file helper, and the claim says its signature gained parameters. Only the existence of the helper was checked. This is a test-only change outside the touch points."
+    }
+  ],
+  "specification_compliance": [
+    "Only the four scope-drift findings were checked. Invariants I1-I10 were not individually verified."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "App-wide RequestValidationError handler in main.py changes 422 responses for every route.",
+    "New llm_routing helpers (profile_can_see, any_profile_can_see) that the touch points do not list."
+  ],
+  "regression_risks": [
+    "The global validation handler may change the 422 body shape for other endpoints.",
+    "A new LLM streaming call is not in the caller inventory test, so inventory drift will go undetected."
+  ],
+  "test_coverage": [
+    "I did not run any tests. The inventory test has no entry for the new streaming call."
+  ],
+  "not_verified": [
+    "Behavior of invariants I1-I10",
+    "The diff itself (no git access; I only checked the files at HEAD)",
+    "Whether the has_vision_profile semantics changed",
+    "The details of the file_question_doubles.py signature change"
+  ],
+  "confidence": 75
+}
