@@ -30,6 +30,7 @@ const FIXTURES = [
   "justified-grid.html",
   "list-row-furniture.html",
   "mobile-inspector-sheet.html",
+  "ocr-line-boxes.html",
   "passage-rows.html",
   "popup-dismiss.html",
   "pseudo-fullscreen.html",
@@ -42,7 +43,7 @@ const FIXTURES = [
   "upload-drawer.html",
 ] as const;
 
-const FIXTURE_COUNT = 20;
+const FIXTURE_COUNT = 21;
 
 /**
  * On the far side of `sm` from Chromium's mobile default, so a page that

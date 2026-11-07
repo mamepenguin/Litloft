@@ -48,7 +48,9 @@ With the intelligence addon, the search button in the page row (or `Cmd/Ctrl+F` 
 - A video or audio file seeks to that moment and keeps playing or stays paused.
 - A PDF opens that page with the word marked. Markdown and text files mark the word too.
 - An EPUB opens the chapter, without marking the word inside it.
-- Office files and the text in a picture are listed, but there is no place to go to.
+- Office files are listed, but there is no place to go to. A picture's hits outline the lines over the picture.
+
+A picture read before its lines were kept, or one whose text was corrected, shows the hits without an outline until it is read again or its original text is restored.
 
 The chips at the top of the tab narrow the list to one kind. Matching is exact text; case is ignored for Latin letters only.
 

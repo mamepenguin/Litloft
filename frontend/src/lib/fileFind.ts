@@ -17,6 +17,8 @@ export interface FindRow {
   snippet: string;
   match_start: number;
   match_length: number;
+  /** Quads of the picture lines the hit sits on, as fractions of the picture. */
+  boxes?: number[][] | null;
 }
 
 export interface FindAnswer {
@@ -39,6 +41,23 @@ function driveHeaders(drive: string): HeadersInit {
   return { "X-Lit-Drive": encodeURIComponent(drive) };
 }
 
+function isQuad(value: unknown): value is number[] {
+  return (
+    Array.isArray(value) &&
+    value.length === 8 &&
+    value.every((n) => typeof n === "number" && Number.isFinite(n))
+  );
+}
+
+function readRow(value: unknown): FindRow {
+  if (!value || typeof value !== "object") return value as FindRow;
+  const row = value as Record<string, unknown>;
+  if (!("boxes" in row)) return row as unknown as FindRow;
+  const { boxes, ...rest } = row;
+  const quads = Array.isArray(boxes) ? boxes.filter(isQuad) : [];
+  return (quads.length > 0 ? { ...rest, boxes: quads } : rest) as unknown as FindRow;
+}
+
 function readAnswer(data: unknown): FindAnswer | null {
   if (!data || typeof data !== "object") return null;
   const body = data as Record<string, unknown>;
@@ -51,7 +70,7 @@ function readAnswer(data: unknown): FindAnswer | null {
     indexed: body.indexed,
     total: body.total,
     truncated: body.truncated,
-    rows: body.rows as FindRow[],
+    rows: body.rows.map(readRow),
   };
 }
 

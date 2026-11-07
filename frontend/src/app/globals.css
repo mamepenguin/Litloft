@@ -729,6 +729,16 @@ mark.find-mark-current {
   outline: 2px solid var(--accent);
 }
 
+.find-box {
+  fill: color-mix(in srgb, var(--highlight-bg) 55%, transparent);
+}
+
+.find-box-current {
+  stroke: var(--accent);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
 /* In the pdf.js text layer the glyphs are transparent and the words are
    drawn on the canvas underneath, so an opaque mark hides the word it
    marks. */

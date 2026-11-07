@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "frontend/src/app/globals.css:732-739 defines .find-box (fill) and .find-box-current (stroke, stroke-width, vector-effect). The touch points do not list this file. It is a scope observation with no behavioural defect."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "frontend/e2e-layout/spec-viewport.spec.ts:33 lists \"ocr-line-boxes.html\" in FIXTURES and line 46 sets FIXTURE_COUNT = 21. Line 89 asserts the on-disk fixture count equals it. The file is not in the touch points, but the edit is needed to register the new fixture."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "addons/intelligence/tests/ocr_fixtures.py:182-216 and 296-308 define an ABSENT sentinel. FakeOcrResult sets boxes and scores only when given, and install() and FakeEngine take new boxes and scores parameters. The old defaults (scores 0.99, boxes empty) are no longer applied. I could not see the old code, so I did not check how many existing tests are affected."
+    }
+  ],
+  "specification_compliance": [
+    "I did not check the invariants I1-I11 in this pass. I only checked the three scope findings."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "globals.css, spec-viewport.spec.ts and the shared test helper ocr_fixtures.py are edited but not named in the touch points."
+  ],
+  "regression_risks": [
+    "Changing the shared OCR test helper defaults can alter the behaviour of existing OCR tests, for example by making an absent boxes or scores attribute reach the code under test."
+  ],
+  "test_coverage": [
+    "I did not run or inspect the tests themselves."
+  ],
+  "not_verified": [
+    "Diff against origin/develop, since I could not run git and saw only the final file contents",
+    "Which existing tests use ocr_fixtures.py and whether they still pass",
+    "Invariants I1-I11 and the backend and frontend behaviour"
+  ],
+  "confidence": 80
+}
