@@ -58,12 +58,15 @@ downloading the whole video. They are separate changes.
    native route uses. Only `provider == "youtube"` continues.
 4. The route obtains the video's stream description with `yt-dlp -J --no-playlist <url>`.
    The description is kept in memory for 5 minutes per file id so the next frames of the
-   same video skip the lookup.
+   same video skip the lookup. Concurrent requests for one file id share one lookup
+   (single flight); the lookup does not take one of the 4 ffmpeg slots.
 5. The route picks the video-only, plain-HTTPS format with the greatest height not above
-   720 (ties: mp4), and runs `ffmpeg -ss <t> -i <that format's URL>` with the format's
-   request headers, one frame, scaled exactly as for a native frame (`small`: 320 wide,
-   q70; `large`: long edge at most 1280, never enlarged, q80), through the same atomic
-   `.tmp` then `os.replace` write.
+   720, preferring an H.264 (`avc1`) stream and then an mp4 container among equal
+   heights, and runs `ffmpeg -ss <t> -i <that format's URL>` with the format's request
+   headers, one frame, scaled exactly as for a native frame (`small`: 320 wide, q70;
+   `large`: long edge at most 1280, never enlarged, q80), through the same atomic write:
+   a `.tmp` name unique per call (uuid), then `os.replace`. If ffmpeg cannot decode the
+   chosen stream the request fails; no other format is tried.
 6. The response is the cached WebP with the same headers as for a native frame.
 
 **Ask (SPEC-ADDON-077).** For a question about a YouTube `.loft` carrying
@@ -73,22 +76,29 @@ as in `docs/specs/file-ask-vision.md`.
 
 **Scene index (SPEC-ADDON-078).**
 
-1. When a YouTube `.loft` is indexed for CLIP (the thumbnail leg is as today), the indexer
-   then runs the storyboard leg: `yt-dlp -J` gives the `sb0` format, a list of sheet URLs
-   with the grid (`rows`, `columns`) and each sheet's duration.
-2. The sheets are downloaded and cut into tiles. The tile at position `k` of the sheet
-   starting at `s` with duration `d` has timestamp `s + k * d / (rows * columns)`; a tile
-   whose timestamp is not below the file's duration is dropped.
-3. Tiles are kept in time order, a tile only when its timestamp is at least
-   `indexing.frame_extraction.min_interval` after the last kept one, at most
-   `indexing.frame_extraction.max_frames` of them.
+1. When a `.loft` is indexed for CLIP (the thumbnail leg is as today and still decides
+   `clip_indexed` and `clip_thumbnail_indexed`, and the job still returns True), the
+   indexer then runs the storyboard leg for a YouTube one: `yt-dlp -J` gives the `sb0`
+   format, whatever tile size it declares, as a list of sheet URLs with the grid (`rows`,
+   `columns`) and each sheet's duration. The leg changes no flag but `storyboard_indexed`.
+2. The sheets are downloaded and cut into tiles by the declared tile size. The tile at
+   position `k` of the sheet starting at `s` with duration `d` has timestamp
+   `s + k * d / (rows * columns)`. The video's duration is the lookup's `duration`, else
+   the indexed duration (media_import copies yt-dlp's into the core file row); a tile
+   whose timestamp is not below it is dropped, so the empty cells of the last sheet go.
+   When neither duration is known (null or not above 0) no tile is dropped for it.
+3. Tiles are kept in time order, a tile only when its timestamp is at least the spacing
+   after the last kept one. The spacing is `indexing.frame_extraction.min_interval`, or
+   `duration / max_frames` when that is larger, so a long video is spread over its whole
+   length rather than cut at the cap; with no duration the first `max_frames` are kept.
 4. Each kept tile is embedded with the same CLIP model and stored as an `embeddings` row
    of type `clip` with `timestamp_start` set, through the same insert path native scene
    frames use. The file's earlier `clip` rows are replaced in the same transaction, after
    every kept tile has been embedded.
 5. `storyboard_indexed` (new column of `indexed_files`) becomes true.
 6. `GET /files/{file_id}/scenes` accepts the YouTube `.loft` and runs the selection it
-   runs for a native video over these rows.
+   runs for a native video over these rows. A route decides "YouTube" by reading the
+   `.loft` from the drive the way the frame route does, through one shared helper.
 
 **MCP (SPEC-CORE-058).** For `get_video_frame` and `list_video_scenes` on a `.loft`, the
 tool reads the `.loft` through the core stream route, as SPEC-CORE-021 describes. When the
@@ -104,9 +114,12 @@ provider, or an unreadable `.loft`, it returns the SPEC-CORE-021 error text.
 | Frame, step 4 | `yt-dlp` missing, fails (private, removed, age-restricted, members-only, live, region), or finds no plain-HTTPS video format | 502 `Frame source unavailable`; no cache file; the description is not kept |
 | Frame, step 5 | ffmpeg fails (expired URL, 403, no frame at `t`) | 500 as for a native frame; the kept description of that file is dropped so the next request looks it up again; no cache file |
 | Frame | The one 15 s deadline, spanning the lookup and ffmpeg, passes | 504 `Frame extraction timed out`; the subprocesses are killed; no cache file |
-| Frame | More than 4 YouTube frame fetches already running in the process | The request waits for a slot inside its 15 s deadline; at the deadline 504 |
+| Frame | More than 4 ffmpeg runs already going in the process | The request waits for a slot inside its 15 s deadline; at the deadline 504. `list_video_scenes` never has more than 4 requests in flight (`mcp-video-frames` I8), so a scene list does not queue |
+| Frame | Several requests for one file id arrive while its description is not kept | One lookup serves them all; if it fails they all fail with 502 |
+| Frame | Two requests for the same file and time at once | Each writes its own uniquely named `.tmp` and replaces the cache path; the last replace wins with identical bytes |
+| Frame as an `<img>` | Any failure | The browser shows its broken-image state, as for a native frame; the UI never requests a `.loft` frame, so no new UI |
 | Ask | Any failure above, or `position_seconds` above the indexed duration | `image: "unavailable"`, text-only retry or the notice, exactly as for a native video |
-| Storyboard | `yt-dlp` fails, the video has no `sb0`, a sheet cannot be downloaded or decoded | Nothing is written, existing `clip` rows stay; a lookup or download failure leaves `storyboard_indexed` false (retried later); a video that has no `sb0`, or a `.loft` that is not YouTube, sets it true |
+| Storyboard | `yt-dlp` fails, the video has no `sb0`, a sheet cannot be downloaded or decoded | Nothing is written, existing `clip` rows stay; a lookup or download failure leaves `storyboard_indexed` false and is tried again by a later resume, at most once per file per process (a private or removed video costs one lookup per restart); a video that has no `sb0`, or a `.loft` that is not YouTube, sets it true |
 | Storyboard | CLIP fails on a tile | Nothing is written; `storyboard_indexed` stays false |
 | Scenes | YouTube `.loft` with no `clip` rows | `scenes: []`, `candidate_count: 0`, as for a native video without candidates |
 | Scenes | `.loft` of another provider | 400 `Not a video file`, as today |
@@ -117,8 +130,10 @@ provider, or an unreadable `.loft`, it returns the SPEC-CORE-021 error text.
 - **A `.loft` row** is one of: not YouTube (no frame source, no storyboard leg, unchanged);
   YouTube with `storyboard_indexed` false; YouTube with it true. `storyboard_indexed`
   moves false to true on a definite result (rows written, or no `sb0`, or not YouTube),
-  and true to false when a CLIP model change resets the CLIP legs or the user reindexes
-  the `clip` task. It never moves for a native video or a picture.
+  and true to false wherever a CLIP model change purges the `clip` rows, and when the
+  user reindexes the `clip` task, for `.loft` rows. It never moves for a native video or
+  a picture. `clip_indexed` is unaffected by this flag and the job never fails because of
+  it, so only the resume path retries.
 - **A frame cache entry** exists or does not; it is written only whole.
 - **The in-memory stream description** exists for at most 5 minutes, or is dropped on an
   ffmpeg failure.
@@ -131,12 +146,13 @@ provider, or an unreadable `.loft`, it returns the SPEC-CORE-021 error text.
 | `intelligence_data_dir/frames/{file_id}/{ms}.webp`, `{ms}.large.webp` | read; written on a miss; purged with the file by the existing purge |
 | `embeddings` and `vec_clip` rows of type `clip` for the `.loft` | written (replace) by the storyboard leg; read by scenes, search and scene-segment search |
 | `embeddings` row of type `clip_thumbnail` | untouched |
-| `indexed_files.storyboard_indexed` | new column, boolean, default false; read and written by the indexer; migration adds it |
+| `indexed_files.storyboard_indexed` | new column, boolean, default false, with an index like the other `*_indexed` flags; read and written by the indexer; the migration adds it and leaves every other column of every row as it was |
 | Core DB | not touched |
 
 ### 5. External services
 
-YouTube, from the intelligence container: the page lookup `yt-dlp` makes, the storyboard
+YouTube, from the intelligence container (which therefore needs outbound access to
+`youtube.com`, `i.ytimg.com` and `googlevideo.com`): the page lookup `yt-dlp` makes, the storyboard
 sheets (small images on `i.ytimg.com`) and the video stream (`googlevideo.com` range
 reads). Slow: the 15 s deadline (frames) and, for the storyboard leg, 60 s for the
 lookup and 120 s for all sheets, after which the leg ends as a failure. Down or
@@ -157,9 +173,15 @@ the Internal API is not touched.
 
 - **Native videos** take the same code path as before; only the `.loft` branch is new.
 - **Search.** A YouTube `.loft` gains `clip` rows, so `include_scene_clip` and
-  `/search/scene-segments` can return it with timestamps, and its scene rows count in
-  the drive's frame-vector population that the scene-segment threshold is taken from.
-  `frame_url` stays unset for every `.loft` passage (`passage-results-view` I7 holds).
+  `/search/scene-segments` can return it with timestamps. Its rows join the drive's
+  frame-vector population from which the scene-segment threshold (the top share of the
+  drive's frames) is taken, so on a drive that holds a YouTube `.loft` that threshold, and
+  with it the segments of native videos, can shift. This is accepted (see the question at
+  approval). `frame_url` stays unset for every `.loft` passage (`passage-results-view`
+  I7 holds).
+- **Upgrade.** Every existing YouTube `.loft` has `storyboard_indexed` false after the
+  migration, so the first start after upgrade runs the storyboard leg for each of them,
+  one video at a time in the CLIP worker (1 to 6 MB and one lookup each).
 - **Similar files and CLIP concept tagging** read `clip` rows by file id; for a YouTube
   `.loft` they now see scene rows as for a native video.
 - **Reindex and resume.** The `clip` task of a `.loft` also runs the storyboard leg;
@@ -194,31 +216,48 @@ result, and nothing at all for a missing storyboard.
 - Size: a frame is at most 1280 px on the long edge; the storyboard leg downloads about
   1 to 6 MB per video, once.
 - Time: 15 s per frame including the lookup; the storyboard leg 3 minutes at most.
-- Concurrency: at most 4 YouTube frame fetches per process; the storyboard leg runs one
-  video at a time inside the indexer's existing CLIP worker.
+- Concurrency: at most 4 ffmpeg runs for YouTube frames per process, one shared lookup per
+  file id; the storyboard leg runs one video at a time inside the indexer's existing CLIP
+  worker.
+- Acceptance without a network: the lookup and the ffmpeg run are replaceable in tests by
+  fakes (a recorded `-J` description, a local video served as the stream), so every
+  failure row is testable and CI never contacts YouTube. R-5 runs once inside the built
+  intelligence container against a real video, because the measurement above was made on
+  the host and the container may lack what yt-dlp needs for YouTube.
 - Privacy: the server contacts YouTube for videos the user already saved; no cookie or
   credential is sent. A frame reaches an LLM only through Ask, under `llm_cloud` and the
   chosen profile, and reaches an agent only through the MCP caller's own token.
 - Cost: no LLM call. CLIP embedding of up to 500 tiles per video, as for a native video.
 - Fragility: `yt-dlp` follows YouTube's changes; the image build installs
-  `yt-dlp>=2025.10.0` as `media_import` does, so a rebuild picks up fixes.
+  `yt-dlp>=2026.8.19`, the version measured, and a rebuild picks up fixes. A lookup that
+  fails logs the failure class and the last line of yt-dlp's error with URLs removed, so a
+  missing component shows up in the log rather than as a bare 502.
 
 ## Touch points
 
-- `addons/intelligence/app/frame_cache.py`: a source lookup for a `.loft`, the 5-minute
-  description cache, the 4-slot bound, the one 15 s deadline.
+- `addons/intelligence/app/frame_cache.py` and a new module beside it holding the shared
+  `.loft` reader (provider, url): a source lookup for a `.loft`, the 5-minute description
+  cache with its single flight, the 4-slot bound, the one 15 s deadline.
 - `addons/intelligence/app/routers/files.py`: `GET /files/{file_id}/frame`, the `.loft`
-  branch.
+  branch; the reindex task `clip` resetting `storyboard_indexed`.
 - `addons/intelligence/app/rag/file_question.py`: `_frame_image` for a YouTube `.loft`.
-- `addons/intelligence/app/workers/clip.py`: the storyboard leg; `app/indexer.py`
-  (`_resume_incomplete`, dispatch); `app/database.py` and `app/models.py` (the new column
-  and its migration); `app/routers/files.py` reindex task `clip`.
-- `addons/intelligence/app/routers/scenes.py`: the `.loft` refusal.
+- `addons/intelligence/app/workers/clip.py`: the storyboard leg after
+  `_handle_thumbnail_fallback`; the CLIP-model-change purge of `clip` rows resetting the
+  flag.
+- `addons/intelligence/app/indexer.py`: every place that names `clip_indexed` and must
+  name `storyboard_indexed` too: the `incomplete` query and the `newly_done` marking in
+  `_resume_incomplete`, the row mapping and the status counters, the dispatch.
+- `addons/intelligence/app/database.py` and `app/models.py`: the new column, its index and
+  its migration.
+- `addons/intelligence/app/routers/scenes.py`: the `.loft` refusal (line `indexed["mime_type"] == LOFT_MIME`).
+- `docs/specs/INDEX.md`: the four ledger rows.
 - `mcp-server/src/tools/video.ts` and its tests; `mcp-server/README.md`.
 - `addons/intelligence/Dockerfile` and `addons/intelligence/Dockerfile.test`: install
   `yt-dlp`. **Protected path**: `risk-zones.conf` classifies `**/Dockerfile*` CRITICAL.
-- Docs: `docs/addons/intelligence.md`, `docs/user-guide/` (Ask, scene search),
-  `docs/reference/api.md` if it lists the frame route.
+- Docs: `docs/addons/intelligence.md` (YouTube frames, the outbound access the container
+  needs, the `yt-dlp` dependency), `docs/user-guide/` (Ask and scene search on a YouTube
+  reference). `docs/reference/api.md` does not list the frame route (checked), so it is
+  unchanged.
 - Rules passed through: `design-decisions.md` (drive boundary; LLM features, `llm_cloud`;
   Handling missing files), `backend-conventions.md` (atomic writes; no language-dependent
   rules), `internal-api-policy.md` (not engaged: no Internal API change).
@@ -229,22 +268,26 @@ result, and nothing at all for a missing storyboard.
 
 ## Invariants
 
+What must not break at the touch points. Each is one observable sentence; after approval
+this spec is not edited and a revision goes into the change's `invariants.md`.
+
 I1. For a `.loft` whose JSON `provider` is `youtube`, `GET /files/{id}/frame` returns the video stream's frame at `t`, `small` 320 px wide q70 or `large` with its long edge at most 1280 px and never enlarged, and stores it under the same cache path a native frame uses; for a `.loft` of any other provider, an unreadable `.loft`, or one without a `url`, it answers 400 and writes nothing.
-I2. A failure to look up, fetch or decode the frame (including the 15 s deadline, which spans the lookup and ffmpeg together) leaves no cache file and no `.tmp` file, and answers 502, 500 or 504; no frame of another time, no storyboard tile and no thumbnail is returned or cached in its place, and Ask reports `"unavailable"` and the MCP tool an error.
-I3. At most 4 YouTube frame fetches run at once in a process; a request that cannot take a slot within its 15 s deadline answers 504.
-I4. The only addresses the addon contacts for a frame or a storyboard are the `.loft`'s stored `url` (looked up with `--no-playlist`, no cookies, no credentials) and the stream and sheet URLs that lookup returned; the `.loft` file is never written.
-I5. Ask on a YouTube `.loft` with `position_seconds` attaches exactly one `large` frame at that position, under every invariant of SPEC-ADDON-071 (profile, `llm_cloud`, one slot, nothing stored or logged but the `large` cache entry); on a frame failure it ends in `"unavailable"` and the text-only retry, and Ask on a `.loft` of another provider is unchanged.
-I6. The storyboard leg replaces a YouTube `.loft`'s `clip` rows in one transaction after every kept tile has been embedded, keeps a tile only when its timestamp is below the file's duration and at least `min_interval` after the last kept tile, keeps at most `max_frames` tiles, and writes no `clip_thumbnail` row and no row for any other file.
-I7. A lookup failure, a sheet download or decode failure, or a CLIP failure leaves the file's existing `clip` rows and `storyboard_indexed` as they were; `storyboard_indexed` becomes true only after rows were written, or the video was found to have no storyboard, or the `.loft` is not YouTube; running the leg again never leaves two sets of rows.
+I2. A failure to look up, fetch or decode the frame leaves no cache file and no `.tmp` file and answers 502 (lookup, no usable format), 500 (ffmpeg) or 504 (deadline); no frame of another time, no storyboard tile and no thumbnail is returned or cached in its place, Ask reports `"unavailable"` for it, and the MCP tool returns an error.
+I3. One request spends at most 15 s in all, lookup and ffmpeg together; at most 4 ffmpeg runs for YouTube frames go at once in a process and a request that cannot take a slot in time answers 504; concurrent requests for one file id share one lookup; a description is reused for 5 minutes, dropped after an ffmpeg failure and never kept after a failed lookup.
+I4. `yt-dlp` is given only the `.loft`'s stored `url`, with `--no-playlist` and no cookie or credential option, and ffmpeg and the sheet downloads are given only addresses that lookup returned.
+I5. Ask on a YouTube `.loft` with `position_seconds` attaches exactly one `large` frame at that position, under every invariant of SPEC-ADDON-071 (profile, `llm_cloud`, one slot, nothing stored or logged but the `large` cache entry); a position above a known indexed duration, or any frame failure, ends in `"unavailable"` and the text-only retry; Ask on a `.loft` of another provider is unchanged.
+I6. The storyboard leg replaces a YouTube `.loft`'s `clip` rows in one transaction after every kept tile has been embedded; it keeps a tile only when its timestamp is below the known duration and at least the spacing (`min_interval`, or `duration / max_frames` when larger) after the last kept tile, so a video longer than `max_frames * min_interval` is spread over its whole length with at most `max_frames` tiles; it writes no `clip_thumbnail` row, no row for another file, and changes no flag but `storyboard_indexed`.
+I7. A lookup, sheet or CLIP failure leaves the file's existing `clip` rows and `storyboard_indexed` as they were and is retried at most once per file per process; `storyboard_indexed` becomes true only after rows were written, or the video was found to have no storyboard, or the `.loft` is not YouTube; a repeat run never leaves two sets of rows; the migration adds the column false for every row and changes no other column; a CLIP-model purge of `clip` rows and a `clip` reindex set it false for a `.loft`; `_resume_incomplete` queues a YouTube `.loft` whose flag is false and nothing else for it.
 I8. `GET /files/{id}/scenes` for a YouTube `.loft` returns the selection a native video gets from the same rows, makes no network call and no LLM call, and writes nothing; for a `.loft` of another provider it answers 400 `Not a video file`; for a native video it answers exactly as before.
-I9. `get_video_frame` and `list_video_scenes` on a `.loft` whose provider is `youtube` request intelligence and return the frame as an image block, with no `.loft` error text; on any other `.loft`, or one the stream read cannot parse, they return exactly the SPEC-CORE-021 error text and request nothing from intelligence; on a non-`.loft` file they are unchanged.
-I10. No passage of a `.loft` carries a `frame_url`, and results for native videos, pictures and documents, including their scores, are unchanged by this change.
+I9. `get_video_frame` and `list_video_scenes` on a `.loft` whose provider is `youtube` request intelligence with `X-Lit-Drive` and return the frame as an image block, with no `.loft` error text; on any other `.loft`, or one the stream read cannot parse, they return exactly the SPEC-CORE-021 error text and request nothing from intelligence; on a non-`.loft` file they are unchanged.
+I10. No passage of a `.loft` carries a `frame_url`; on a drive that holds no YouTube `.loft` every result of `/search` and `/search/scene-segments`, with its score and order, is the same as before this change, and for a native video the change adds, removes and alters no row.
 
 ## Revises
 
 SPEC-CORE-021 I1. Either tool on a `.loft` whose provider is not `youtube` and whose stream body is a JSON object with a non-empty string `url` returns an error result whose content is exactly one text block, `<file_id> is a .loft reference to <url>; it has no local video to read frames from`, with `<url>` identical to the stored value.
-SPEC-CORE-021 I3. On a `.loft` whose provider is not `youtube`, the requests either tool sends are exactly `GET /api/files/{file_id}` followed by `GET /api/files/{file_id}/stream`; none goes to `/api/addons/intelligence/`. On a `.loft` whose provider is `youtube` the tool sends those two requests and then continues as for a native video.
+SPEC-CORE-021 I3. On a `.loft` whose provider is not `youtube`, the requests either tool sends are exactly `GET /api/files/{file_id}` followed by `GET /api/files/{file_id}/stream`; none goes to `/api/addons/intelligence/`, and in `get_video_frame` the `.loft` check runs before the duration check. On a `.loft` whose provider is `youtube` the tool sends those two requests and then continues as for a native video, duration check included.
 SPEC-CORE-021 I5. A result for a `.loft` whose provider is not `youtube` never contains an image block and is never reported as `Litloft API error`.
+SPEC-CORE-021 I6. A call on a `.loft` whose provider is not `youtube` returns the same result whatever `drive` argument is passed; a call on one whose provider is `youtube` sends the `drive` argument as `X-Lit-Drive`.
 
 ## Checked, no action
 
@@ -278,3 +321,15 @@ SPEC-CORE-021 I5. A result for a `.loft` whose provider is not `youtube` never c
   planned; R-5 confirms.
 - **Core change and Internal API**: none; the addon reads the `.loft` from the drive and
   the core's data is untouched.
+- **SPEC-CORE-021 I2 and I4 stand**: an unreadable `.loft` keeps the no-URL error text,
+  and a non-`.loft` file never requests the stream; I9 restates the first and the second
+  is unchanged.
+- **Excluding YouTube rows from the scene-segment threshold population**: it would keep
+  native results fixed on every drive, at the price of a second population to maintain and
+  of YouTube moments ranking against a different scale than they are searched with; the
+  shift is accepted instead and put to the human at approval.
+- **A per-key guard for two requests of one time**: the native code already writes a
+  uniquely named `.tmp` per call, so the last replace wins with identical bytes.
+- **A codec fallback when ffmpeg cannot decode the chosen stream**: H.264 is preferred and
+  a failure is reported as `ffmpeg_failed`; a second attempt would double the time of the
+  failing case for a stream shape no measured video had.
