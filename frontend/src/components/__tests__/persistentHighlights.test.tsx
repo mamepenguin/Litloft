@@ -120,7 +120,8 @@ function intl(ui: React.ReactElement) {
   );
 }
 
-function md(source: string, fileId: string | null | undefined = FILE) {
+function md(source: string, ...fileIdArg: [] | [string | null | undefined]) {
+  const fileId = fileIdArg.length === 0 ? FILE : fileIdArg[0];
   const preview = <MarkdownPreview source={source} />;
   return intl(
     fileId === undefined ? (
@@ -131,7 +132,8 @@ function md(source: string, fileId: string | null | undefined = FILE) {
   );
 }
 
-function txt(text: string, fileId: string | null | undefined = FILE) {
+function txt(text: string, ...fileIdArg: [] | [string | null | undefined]) {
+  const fileId = fileIdArg.length === 0 ? FILE : fileIdArg[0];
   const view = <TextLines text={text} />;
   return intl(
     fileId === undefined ? (

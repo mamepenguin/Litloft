@@ -74,6 +74,7 @@ import { showOpenGhost } from "@/lib/openGhost";
 import { JustifiedHoldArrangement } from "./justifiedHold";
 import { PlayedRangesArrangement } from "./playedRanges";
 import { TextResumeArrangement } from "./textResume";
+import { PersistentHighlightsArrangement } from "./persistentHighlights";
 import {
   navigateWithTransition,
   notifyNavigationCommit,
@@ -2033,6 +2034,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "markdown-tables": MarkdownTables,
   "played-ranges": PlayedRangesArrangement,
   "text-resume": TextResumeArrangement,
+  "persistent-highlights": PersistentHighlightsArrangement,
 };
 
 function App(): ReactElement {
@@ -2045,7 +2047,15 @@ function App(): ReactElement {
 }
 
 createRoot(document.getElementById("root")!).render(<App />);
-document.body.dataset.arrangement =
+/**
+ * An arrangement whose content is only ready once an asynchronous viewer has
+ * painted (the PDF text layer) sets the attribute itself.
+ */
+const DEFERRED_ARRANGEMENTS = new Set(["persistent-highlights"]);
+const arrangement =
   new URLSearchParams(location.search).get("arrangement") ??
   (location.hash.slice(1) || "plain");
+if (!DEFERRED_ARRANGEMENTS.has(arrangement)) {
+  document.body.dataset.arrangement = arrangement;
+}
 document.body.dataset.ready = "1";

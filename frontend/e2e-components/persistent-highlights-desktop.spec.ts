@@ -32,21 +32,40 @@ async function selectText(page: Page, text: string, nth = 0) {
   await page.evaluate(
     ({ text, nth }) => {
       const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-      let seen = 0;
+      const nodes: Text[] = [];
       let node: Text | null;
-      while ((node = walker.nextNode() as Text | null)) {
-        const at = node.data.indexOf(text);
-        if (at >= 0 && seen++ === nth) {
-          const range = document.createRange();
-          range.setStart(node, at);
-          range.setEnd(node, at + text.length);
-          const sel = window.getSelection()!;
-          sel.removeAllRanges();
-          sel.addRange(range);
-          return;
-        }
+      while ((node = walker.nextNode() as Text | null)) nodes.push(node);
+      const joined = nodes.map((entry) => entry.data).join("");
+
+      let at = -1;
+      let from = 0;
+      for (let seen = 0; seen <= nth; seen += 1) {
+        at = joined.indexOf(text, from);
+        if (at < 0) throw new Error("text not found");
+        from = at + 1;
       }
-      throw new Error("text not found");
+
+      const locate = (offset: number, start: boolean): [Text, number] => {
+        let consumed = 0;
+        for (const entry of nodes) {
+          const next = consumed + entry.data.length;
+          if (start ? offset < next : offset <= next) {
+            return [entry, offset - consumed];
+          }
+          consumed = next;
+        }
+        const last = nodes[nodes.length - 1];
+        return [last, last.data.length];
+      };
+
+      const [startNode, startOffset] = locate(at, true);
+      const [endNode, endOffset] = locate(at + text.length, false);
+      const range = document.createRange();
+      range.setStart(startNode, startOffset);
+      range.setEnd(endNode, endOffset);
+      const sel = window.getSelection()!;
+      sel.removeAllRanges();
+      sel.addRange(range);
     },
     { text, nth },
   );

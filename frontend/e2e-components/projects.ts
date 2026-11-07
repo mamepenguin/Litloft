@@ -17,6 +17,7 @@ export const DESKTOP_ONLY = [
   "**/image-search-drag-desktop.spec.ts",
   "**/image-drop-target-desktop.spec.ts",
   "**/text-resume-desktop.spec.ts",
+  "**/persistent-highlights-desktop.spec.ts",
 ];
 
 /** Literals rather than a device preset, which can change under it. */

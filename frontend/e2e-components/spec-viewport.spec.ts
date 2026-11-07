@@ -78,6 +78,7 @@ const AT_THE_DESKTOP_WIDTH = [
   "image-search-drag-desktop.spec.ts",
   "image-drop-target-desktop.spec.ts",
   "text-resume-desktop.spec.ts",
+  "persistent-highlights-desktop.spec.ts",
 ] as const;
 
 test.describe("the component fixture lays out at the width it was given", () => {
