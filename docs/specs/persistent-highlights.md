@@ -49,6 +49,19 @@ the viewer's own, keyed by `viewer_id` as watch history is.
    re-render, a content reload or edit, a PDF zoom, resize or page change (text-layer rebuild).
 4. Clicking a mark offers "Remove". Removing deletes the record and the mark disappears.
 
+**Opt-in by file id.** `MarkdownPreview` and `TextLines` offer and draw highlights only when
+they are inside a `HighlightFileContext` that supplies the file's id; with none they show no
+control and no mark. Core supplies it where they render the file's own text (`MarkdownFileViewer`,
+`TextPreview`) and the `knowledge-edit` slot supplies it in `ShellLayout.tsx` (where the existing
+text-scroll context is already supplied), so the Knowledge editor's reading view gets
+highlights without an edit to the addon repository. A `MarkdownPreview` that renders something
+else (an AI summary, a note excerpt) is never inside that context.
+
+**One state per file.** The highlight list of the open file lives in one page-level store keyed
+by file id (an external store like `pdfStore`), read by the inline PDF viewer, the full-screen
+viewer, the Markdown preview and the text view. A save or remove in one is visible in the others
+at once, including when full screen opens or closes.
+
 **Text source.** The text a highlight is matched against is the concatenation of the text nodes
 of the viewer's text container, in document order, skipping `script` and `style`, exactly as
 in-file find indexes it (`lib/findMarks.ts`): the PDF page's text layer, the Markdown preview
@@ -56,6 +69,11 @@ body, the text view's text column (the line-number gutter is not part of it). Ru
 whitespace in that text are matched as one space. Text that is not in the DOM is never matched.
 Marks that already exist (find marks, highlight marks) are transparent to the text: wrapping a
 stretch in a mark does not change the text.
+
+**Quote source.** `quote`, `prefix` and `suffix` are always cut from the text-node concatenation
+(the selection's range ends are mapped to offsets in it), never from `Selection.toString()`,
+which adds line breaks at block boundaries that the matched text does not have. A selection
+across paragraphs, list items or table cells is therefore matched the way it was cut.
 
 ### 2. Failure cases
 
@@ -71,16 +89,23 @@ stretch in a mark does not change the text.
   `suffix` is used; on a tie the first.
 - The same selection saved twice (same `quote`, `prefix`, `suffix`, `page`): the second save
   returns the existing record and creates nothing (a double click is harmless).
-- Over the limit (item 10): server answers 409 on the 501st; the local store refuses the same;
-  the viewer sees the limit message.
+- A save is checked in this order: validity (422), duplicate (returns the existing record, even
+  at 500), then the limit (409 on a new 501st; the local store refuses the same). Concurrent
+  identical saves create one record and never exceed 500 on the server; across two tabs the
+  local store is not synchronised (item Checked).
 - Invalid input to the server answers 422: empty or whitespace-only `quote`; over-length
-  fields; `page` below 1; `page` missing for a PDF; `page` present for a file that is not a PDF.
+  fields; `page` below 1; `page` missing for a file whose `mime_type` is `application/pdf`; `page` present for any
+  other file. The server limits no other file type (the viewers decide where the control shows).
 - A locked drive, a trashed or missing file, or an unknown id answers 404 on all three routes,
   `DELETE` included. A `DELETE` for a record that does not exist, belongs to another viewer, or
   belongs to another file answers 204 and deletes nothing.
-- The profile changes while the page is open (a nickname is set or cleared): the marks of the
-  open file are reloaded from the store the new profile state selects. Records are never copied
-  between the two stores.
+- The profile is not resolved yet (the provider has not read the cookie): no control is offered
+  and nothing is loaded; both start when it resolves. A cookie that expired while the page was
+  open makes a save answer 401, which is shown as a failed save; the list stays as drawn.
+- The profile changes while the page is open (a nickname is set or cleared): marks are reloaded
+  from the store the new state selects, and the result of a save or remove still in flight to
+  the old store is discarded. Records and ids are never copied between the two stores; a local
+  id (`local-` and random text) is never sent to the server.
 
 ### 3. States
 
@@ -144,8 +169,10 @@ None. No addon, LLM or network call beyond the three core routes.
 
 ### 8. Error behavior
 
-The viewer sees one line for a failed save, a failed remove or the limit, using
-`highlight.*` messages in English and Japanese; nothing for a failed load or an unfound quote.
+The viewer sees one of three lines, as `highlight.*` keys in English and Japanese:
+`saveFailed` for every failed save (network, 401, 404, 422, a full or throwing `localStorage`),
+`removeFailed` for a failed remove, and `limitReached` for the 500 limit. Nothing is shown for
+a failed load or an unfound quote.
 The backend logs the usual request line and never the text of a quote.
 
 ### 9. User-visible behavior
@@ -158,8 +185,11 @@ The backend logs the usual request line and never the text of a quote.
   makes a new highlight.
 - The mark is a soft yellow background behind the text, no change to the glyphs, readable in
   the light and dark themes, drawn at reduced alpha on a PDF text layer as find marks are.
-- Clicking a mark shows "Remove" for the newest highlight that covers the click point; removing
-  it and clicking again reaches the next older one. Nothing else is offered: no list, colour,
+- Clicking a mark shows "Remove" for the newest highlight whose drawn range covers the click
+  point (newest by `created_at`, then by list order); removing it and clicking again reaches the
+  next older one. The target is resolved from the highlight records and their resolved ranges,
+  not from which DOM wrapper was hit, and a click on a find mark drawn over a highlight reaches
+  the highlight. Nothing else is offered: no list, colour,
   note or edit.
 - Pointer use is the target (PC browser). The controls' placement, when they appear and when
   they dismiss (selection collapses, page changes, scroll) are fixed in a design artifact the
@@ -180,7 +210,8 @@ The backend logs the usual request line and never the text of a quote.
 - Privacy: highlights are the viewer's reading history. They live in the core database, which
   independent-service addons may read through their read-only data mount (an accepted exposure
   under the personal-tool premise); no Internal API endpoint exposes them and no core code sends
-  them to an addon.
+  them to an addon. The new routes list only the requester's own records, in line with the rule
+  against a profile-listing API.
 
 ## Touch points
 
@@ -197,6 +228,10 @@ The backend logs the usual request line and never the text of a quote.
   in a text source and pick the best occurrence.
 - `frontend/src/lib/findMarks.ts` and `frontend/src/hooks/useFindMarksIn.ts`: share the
   text-node indexing and wrapping; a new `useHighlightMarksIn` hook.
+- `frontend/src/components/FileDetail/ShellLayout.tsx`, `MarkdownFileViewer.tsx`,
+  `TextPreview.tsx`, `FilePreview.tsx`: supply `HighlightFileContext` (the id) where the file's
+  own text is rendered. `frontend/src/lib/__tests__/findMarks*.test.ts` and
+  `TextPreview.test.tsx` change with the shared indexing.
 - `frontend/src/components/MarkdownPreview.tsx`, `TextLines.tsx`, `PdfPreview.tsx`,
   `pdf/PdfFullscreenViewer.tsx` (including their text-layer render callbacks): draw marks and
   host the "Highlight" and "Remove" controls.
@@ -211,19 +246,20 @@ The backend logs the usual request line and never the text of a quote.
   page of the text and Markdown viewers, `docs/reference/api.md`.
 - Rules passed through: `.claude/rules/design-decisions.md` (drive boundary, file state, watch
   history and profiles), `backend-conventions.md`, `frontend-conventions.md`, `DESIGN.md`. No
-  protected path is edited.
+  protected path is edited. The change adds a table, which the risk classifier counts as a
+  schema modifier; that is accepted and no file in a HIGH zone is touched.
 
 ## Invariants
 
-I1. All three routes answer only for an active file of an accessible drive (404 otherwise), return and delete only the requesting viewer's records, and no response carries a `viewer_id`.
-I2. A highlight is stored as quote, prefix, suffix and (PDF only) page, never as an offset or a rectangle.
+I1. All three routes answer only for an active file of an accessible drive (404 otherwise), return and delete only the requesting viewer's records of that file (a delete of another viewer's or another file's record answers 204 and removes nothing), and no response carries a `viewer_id`.
+I2. A highlight is stored as quote, prefix, suffix and (PDF only) page, never as an offset or a rectangle; the server answers 422 for an empty quote, a quote over 2,000 or a prefix or suffix over 64 characters, and a wrong `page`; a duplicate save returns the existing record; no more than 500 exist per viewer per file in either store.
 I3. With no profile highlights are read and written only in `localStorage` and the server receives no highlight request; with a profile `localStorage` is not read or written.
 I4. A highlight whose quote is not found in the text now shown is neither drawn nor deleted, and is drawn again when the text returns.
 I5. A PDF highlight is drawn only on the page it was made on, and again after the text layer is rebuilt.
 I6. Where a quote occurs more than once, the occurrence whose neighbours best match the stored prefix and suffix is marked, the first on a tie.
 I7. A failed save stores and draws nothing, a failed remove keeps the mark, and a successful remove deletes exactly that record.
-I8. No more than 500 highlights exist per viewer per file in either store, and a selection over 2,000 characters or an empty one is never saved.
-I9. Selecting, drawing marks or clicking a mark adds nothing to the quote basket, does not change what a selection captures, does not hide or cover the quote button, and leaves in-file find marks visible and working.
+I8. Drawing marks changes neither the text of the text source nor the scroll position, and records no reading position (SPEC-CORE-050).
+I9. Selecting, drawing marks or clicking a mark adds nothing to the quote basket, does not change what a selection captures, does not hide or cover the quote button, and leaves in-file find marks visible and working; a `MarkdownPreview` or `TextLines` outside `HighlightFileContext` shows no control and no mark.
 I10. Moving a file to the trash keeps its highlights, purging it deletes them, and saving or removing a highlight never modifies the file.
 
 ## Checked, no action
@@ -247,3 +283,9 @@ I10. Moving a file to the trash keeps its highlights, purging it deletes them, a
 - Hyphenation and line breaks inside a PDF text layer: matching is on the text-layer text as
   pdf.js emits it; a quote that crosses a hyphenated break is matched the way find matches it.
 - A tested performance bound: unmeasurable in CI; looked at once in R-5.
+- Local `highlights:<fileId>` entries of purged files, and edits made in two tabs at once with no
+  profile: accepted. Orphan entries are small and unbounded in number only by what one browser
+  has opened; two-tab races lose at worst a mark, which the viewer sees and redoes.
+- Compound invariant lines (I2, I4, I5, I9): each states one rule with its parts; a finding cites
+  the part it breaks.
+- `Selection.toString()` for the quote: rejected (see Quote source).
