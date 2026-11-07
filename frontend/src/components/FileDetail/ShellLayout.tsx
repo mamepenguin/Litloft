@@ -43,6 +43,7 @@ import { slotAvailabilityKey } from "./hooks/useSlotAvailability";
 import { useSheetHalfSnap } from "./hooks/useSheetHalfSnap";
 import { RelatedPanel } from "./related/RelatedPanel";
 import { useFileRelations } from "./related/useFileRelations";
+import { TextScrollFileIdContext } from "@/lib/textScrollProgress";
 
 export interface ShellLayoutProps {
   file: FileItem;
@@ -491,17 +492,19 @@ export function ShellLayout({
             <FilePreview file={file} />
           ) : (
             <FindTextBodyProvider>
-              <AddonSlot
-                id="file-detail-sections"
-                layout="stack"
-                includeIds={["knowledge-edit"]}
-                props={{
-                  ...addonSlotProps,
-                  fillHeight: true,
-                  highlight,
-                  ...(plainTextDocument ? { plainTextDocument: true } : {}),
-                }}
-              />
+              <TextScrollFileIdContext.Provider value={file.id}>
+                <AddonSlot
+                  id="file-detail-sections"
+                  layout="stack"
+                  includeIds={["knowledge-edit"]}
+                  props={{
+                    ...addonSlotProps,
+                    fillHeight: true,
+                    highlight,
+                    ...(plainTextDocument ? { plainTextDocument: true } : {}),
+                  }}
+                />
+              </TextScrollFileIdContext.Provider>
             </FindTextBodyProvider>
           )}
         </div>

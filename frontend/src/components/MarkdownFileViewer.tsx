@@ -9,6 +9,7 @@ import {
 } from "@/lib/api";
 import { MarkdownPreview } from "@/components/MarkdownPreview";
 import { FindTextBodyProvider } from "@/components/FileDetail/find/FindContext";
+import { TextScrollFileIdContext } from "@/lib/textScrollProgress";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
 
 /**
@@ -45,6 +46,7 @@ export function MarkdownFileViewer({
 }) {
   const t = useTranslations("text");
   const [source, setSource] = useState<string | null>(null);
+  const [sourceFileId, setSourceFileId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [wikiResolution, setWikiResolution] = useState<
     Record<string, WikiResolveResult> | undefined
@@ -58,7 +60,10 @@ export function MarkdownFileViewer({
         return res.text();
       })
       .then((text) => {
-        if (!cancelled) setSource(text);
+        if (!cancelled) {
+          setSource(text);
+          setSourceFileId(fileId);
+        }
       })
       .catch((err) => {
         if (!cancelled)
@@ -111,15 +116,19 @@ export function MarkdownFileViewer({
     : undefined;
 
   return (
-    <FindTextBodyProvider>
-      <MarkdownPreview
-        source={source}
-        editable={edit}
-        onTagsSaved={onTagsSaved}
-        highlight={highlight}
-        wikiResolution={wikiResolution}
-        onDocumentCaptureController={onDocumentCaptureController}
-      />
-    </FindTextBodyProvider>
+    <TextScrollFileIdContext.Provider
+      value={error === null && sourceFileId === fileId ? fileId : null}
+    >
+      <FindTextBodyProvider>
+        <MarkdownPreview
+          source={source}
+          editable={edit}
+          onTagsSaved={onTagsSaved}
+          highlight={highlight}
+          wikiResolution={wikiResolution}
+          onDocumentCaptureController={onDocumentCaptureController}
+        />
+      </FindTextBodyProvider>
+    </TextScrollFileIdContext.Provider>
   );
 }

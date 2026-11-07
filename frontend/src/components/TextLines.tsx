@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useContext, useMemo, useRef } from "react";
 import { useTranslations } from "next-intl";
 import hljs from "highlight.js";
 import { useHighlightPassage } from "@/hooks/useHighlightPassage";
@@ -10,6 +10,10 @@ import { codeLanguageFor } from "@/lib/codeLanguage";
 import { splitHighlightedLines, splitPlainLines } from "@/lib/codeLines";
 import { useDocumentCapturePublisher } from "@/hooks/useDocumentCapturePublisher";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
+import {
+  TextScrollFileIdContext,
+  useTextScrollProgress,
+} from "@/lib/textScrollProgress";
 
 /**
  * Highlighting and line splitting both run on the main thread, and both cost
@@ -84,6 +88,11 @@ export function TextLines({
 }) {
   const t = useTranslations("text");
   const preRef = useRef<HTMLPreElement>(null);
+  useTextScrollProgress({
+    fileId: useContext(TextScrollFileIdContext),
+    targetRef: preRef,
+    hasExplicitTarget: Boolean(highlight),
+  });
   useDocumentCapturePublisher(preRef, onDocumentCaptureController);
   useHighlightPassage(preRef, highlight, true);
   const decorated = useMemo(

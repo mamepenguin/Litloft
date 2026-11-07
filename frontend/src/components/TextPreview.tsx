@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { getStreamUrl } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
 import { fileNameParts } from "@/lib/fileNameParts";
+import { TextScrollFileIdContext } from "@/lib/textScrollProgress";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
 
 import { TextLines } from "./TextLines";
@@ -93,9 +94,15 @@ export function TextPreview({
 }) {
   const t = useTranslations("text");
   const [content, setContent] = useState<string | null>(null);
+  const [contentFileId, setContentFileId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(fileSize <= MAX_AUTO_LOAD_SIZE);
+
+  // A re-fetch leaves the previous file's text on screen for a moment; its
+  // scroll must not be recorded under the new id.
+  const textLoaded =
+    confirmed && error === null && content !== null && contentFileId === fileId;
 
   useEffect(() => {
     if (!confirmed) return;
@@ -110,7 +117,10 @@ export function TextPreview({
         return res.text();
       })
       .then((text) => {
-        if (!cancelled) setContent(text);
+        if (!cancelled) {
+          setContent(text);
+          setContentFileId(fileId);
+        }
       })
       .catch((err) => {
         if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load");
@@ -158,11 +168,13 @@ export function TextPreview({
   }
 
   return (
-    <TextLines
-      text={content}
-      filename={filename}
-      highlight={highlight}
-      onDocumentCaptureController={onDocumentCaptureController}
-    />
+    <TextScrollFileIdContext.Provider value={textLoaded ? fileId : null}>
+      <TextLines
+        text={content}
+        filename={filename}
+        highlight={highlight}
+        onDocumentCaptureController={onDocumentCaptureController}
+      />
+    </TextScrollFileIdContext.Provider>
   );
 }

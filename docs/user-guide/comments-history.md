@@ -17,9 +17,9 @@ Each file has one list of comments, at the bottom of its page under **Comments**
 
 ## Watch history
 
-Litloft records each file you open, and for video and audio, where you stopped. Home shows two rows from this:
+Litloft records each file you open, and for video, audio, PDFs, EPUBs, archives and long text, where you stopped. Home shows two rows from this:
 
-- **Continue Watching**: media you stopped before 90%.
+- **Continue Watching**: videos, audio, PDFs, EPUBs, archives and long text you stopped before 90%.
 - **Recently Viewed**: every file you opened, including ones you finished.
 
 Watching to the end keeps the file in **Recently Viewed** and takes it out of **Continue Watching**. Litloft cannot tell when a live stream or a video embedded from another site has ended, so these are never marked as finished.

@@ -73,6 +73,7 @@ import { folderTransitionKind } from "@/lib/folderTransition";
 import { showOpenGhost } from "@/lib/openGhost";
 import { JustifiedHoldArrangement } from "./justifiedHold";
 import { PlayedRangesArrangement } from "./playedRanges";
+import { TextResumeArrangement } from "./textResume";
 import {
   navigateWithTransition,
   notifyNavigationCommit,
@@ -2031,15 +2032,20 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "epub-bar-loading": EpubBarLoading,
   "markdown-tables": MarkdownTables,
   "played-ranges": PlayedRangesArrangement,
+  "text-resume": TextResumeArrangement,
 };
 
 function App(): ReactElement {
-  const id = location.hash.slice(1) || "plain";
+  const id =
+    new URLSearchParams(location.search).get("arrangement") ??
+    (location.hash.slice(1) || "plain");
   const Arrangement = ARRANGEMENTS[id];
   if (!Arrangement) throw new Error(`no arrangement named ${id}`);
   return <Arrangement />;
 }
 
 createRoot(document.getElementById("root")!).render(<App />);
-document.body.dataset.arrangement = location.hash.slice(1) || "plain";
+document.body.dataset.arrangement =
+  new URLSearchParams(location.search).get("arrangement") ??
+  (location.hash.slice(1) || "plain");
 document.body.dataset.ready = "1";

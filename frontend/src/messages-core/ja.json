@@ -543,6 +543,7 @@
     "rootBreadcrumb": "書庫",
     "loadFailed": "アーカイブの読み込みに失敗しました: {error}",
     "fileCount": "{count}ファイル/{size}",
+    "resume": "続きから（{position} / {total}）",
     "downloadArchive": "アーカイブをダウンロード",
     "emptyFolder": "このフォルダは空です",
     "downloadFile": "{name}をダウンロード",

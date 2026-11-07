@@ -1,11 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useContext, useEffect, useMemo, useRef } from "react";
 import { useHighlightPassage } from "@/hooks/useHighlightPassage";
 import { useFindMarksIn } from "@/hooks/useFindMarksIn";
 import { useFindTextBody } from "@/components/FileDetail/find/FindContext";
 import { isTextFindRow } from "@/lib/findMarks";
 import { useDocumentCapturePublisher } from "@/hooks/useDocumentCapturePublisher";
+import {
+  TextScrollFileIdContext,
+  useTextScrollProgress,
+} from "@/lib/textScrollProgress";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
 import MarkdownIt from "markdown-it";
 import type Token from "markdown-it/lib/token.mjs";
@@ -456,6 +460,11 @@ export function MarkdownPreview({
   );
 
   const containerRef = useRef<HTMLDivElement>(null);
+  useTextScrollProgress({
+    fileId: useContext(TextScrollFileIdContext),
+    targetRef: containerRef,
+    hasExplicitTarget: Boolean(highlight),
+  });
   // React compares this object, not its string: a fresh one on each render
   // resets the body's innerHTML, dropping the citation and find marks.
   const bodyHtml = useMemo(() => ({ __html: html }), [html]);

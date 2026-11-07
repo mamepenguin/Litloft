@@ -543,6 +543,7 @@
     "rootBreadcrumb": "Archive",
     "loadFailed": "Failed to load archive: {error}",
     "fileCount": "{count} files / {size}",
+    "resume": "Resume ({position} / {total})",
     "downloadArchive": "Download archive",
     "emptyFolder": "This folder is empty",
     "downloadFile": "Download {name}",

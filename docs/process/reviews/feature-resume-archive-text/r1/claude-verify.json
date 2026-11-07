@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "ShellLayout.tsx:46 imports TextScrollFileIdContext. Lines 495-507 wrap the AddonSlot in the Provider with value file.id. The file is not a listed touch point. This is a scope deviation only. It does not break a declared invariant."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "TextLines.tsx:14 and :92 call the hook with fileId from useContext(TextScrollFileIdContext). The default is null (lib/textScrollProgress.ts:25). TextLines is not a listed touch point. Scope deviation only."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "frontend/e2e-components/text-resume-desktop.spec.ts and fixtures/textResume.tsx exist. The touch points name e2e-layout/. I did not open the edits to app.tsx, projects.ts or spec-viewport.spec.ts. Location deviation only."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F4",
+      "status": "confirmed",
+      "note": "archiveProgress.ts:6-7 imports useProfile from @/components/ProfileProvider and getDirname from @/components/archive/archiveUtils. textScrollProgress.ts:12 imports useProfile. The lib to components import is not new: the model file pdfPageProgress.ts:6 already imports ProfileProvider. Only the archiveUtils import is a new kind of dependency. Low significance."
+    }
+  ],
+  "specification_compliance": [
+    "The four findings are scope or layout deviations from the touch-point list. None contradicts an invariant I1-I10, and I did not test invariant behavior."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The ShellLayout, TextLines and e2e-components edits go beyond the listed touch points."
+  ],
+  "regression_risks": [
+    "The default context value null means TextLines outside a provider records nothing. A missing provider would silently disable text resume."
+  ],
+  "test_coverage": [
+    "Tests exist at textScrollResume.extra.test.tsx and PlainTextDocument.test.tsx. I did not read them in depth."
+  ],
+  "not_verified": [
+    "Invariants I1-I10 behavior was not traced.",
+    "Contents of the e2e-components edits were not opened.",
+    "No tests were run, since I have no execution tool."
+  ],
+  "confidence": 80
+}
