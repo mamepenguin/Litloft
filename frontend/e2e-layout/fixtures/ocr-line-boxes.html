@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OCR line boxes — layout fixture</title>
+    <!--
+      No <style> of its own: every declaration measured here has to come
+      out of the app's own stylesheet.
+    -->
+    <link rel="stylesheet" href="./globals.built.css" />
+  </head>
+  <body class="bg-bg-primary text-text-primary">
+    <main class="flex flex-col gap-4 p-4">
+      <!-- The picture page's canvas: the picture span and the find boxes over
+           the painted picture. The overlay is laid out from the picture's
+           natural size and its element box the way ImageCanvas does. -->
+      <div
+        class="flex w-full items-center justify-center overflow-hidden rounded-xl bg-bg-card"
+        style="height: 340px"
+      >
+        <span data-image-canvas data-case="landscape" class="relative inline-flex">
+          <img
+            src="./ocr-landscape.jpg"
+            alt=""
+            width="400"
+            height="300"
+            decoding="async"
+            class="max-h-[70vh] w-auto object-contain"
+          />
+          <svg
+            data-find-boxes
+            aria-hidden="true"
+            viewBox="0 0 1 1"
+            preserveAspectRatio="none"
+            style="position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none"
+          ></svg>
+        </span>
+      </div>
+
+      <div
+        class="flex w-full items-center justify-center overflow-hidden rounded-xl bg-bg-card"
+        style="height: 640px"
+      >
+        <span data-image-canvas data-case="portrait" class="relative inline-flex">
+          <img
+            src="./ocr-portrait.jpg"
+            alt=""
+            width="300"
+            height="1200"
+            decoding="async"
+            class="max-h-[70vh] w-auto object-contain"
+          />
+          <svg
+            data-find-boxes
+            aria-hidden="true"
+            viewBox="0 0 1 1"
+            preserveAspectRatio="none"
+            style="position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none"
+          ></svg>
+        </span>
+      </div>
+
+      <div
+        class="flex w-full items-center justify-center overflow-hidden rounded-xl bg-bg-card"
+        style="height: 220px"
+      >
+        <span data-image-canvas data-case="rotated" class="relative inline-flex">
+          <img
+            src="./ocr-rotated.jpg"
+            alt=""
+            width="80"
+            height="40"
+            decoding="async"
+            class="max-h-[70vh] w-auto object-contain"
+          />
+          <svg
+            data-find-boxes
+            aria-hidden="true"
+            viewBox="0 0 1 1"
+            preserveAspectRatio="none"
+            style="position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none"
+          ></svg>
+        </span>
+      </div>
+    </main>
+
+    <script type="application/json" id="ocr-quads">
+      {
+        "landscape": [
+          [0.12, 0.1, 0.55, 0.1, 0.55, 0.22, 0.12, 0.22],
+          [0.2, 0.6, 0.72, 0.6, 0.72, 0.78, 0.2, 0.78]
+        ],
+        "portrait": [[0.15, 0.2, 0.85, 0.2, 0.85, 0.26, 0.15, 0.26]],
+        "rotated": [[0.1, 0.3, 0.9, 0.3, 0.9, 0.42, 0.1, 0.42]]
+      }
+    </script>
+
+    <script>
+      const QUADS = JSON.parse(
+        document.getElementById("ocr-quads").textContent,
+      );
+
+      window.ocrQuads = QUADS;
+
+      function paintedRect(img) {
+        const box = img.getBoundingClientRect();
+        const width = img.naturalWidth;
+        const height = img.naturalHeight;
+        if (!(width > 0 && height > 0)) return null;
+        const scale = Math.min(box.width / width, box.height / height);
+        const paintedWidth = width * scale;
+        const paintedHeight = height * scale;
+        return {
+          left: (box.width - paintedWidth) / 2,
+          top: (box.height - paintedHeight) / 2,
+          width: paintedWidth,
+          height: paintedHeight,
+        };
+      }
+
+      function drawPolygons(svg, quads) {
+        quads.forEach((quad, index) => {
+          const polygon = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "polygon",
+          );
+          const kind = index === quads.length - 1 ? "current" : "mark";
+          polygon.setAttribute("data-find-box", kind);
+          polygon.setAttribute(
+            "class",
+            kind === "current" ? "find-box find-box-current" : "find-box",
+          );
+          const points = [];
+          for (let i = 0; i < quad.length; i += 2) {
+            points.push(`${quad[i]},${quad[i + 1]}`);
+          }
+          polygon.setAttribute("points", points.join(" "));
+          svg.appendChild(polygon);
+        });
+      }
+
+      function layout() {
+        document.querySelectorAll("[data-image-canvas]").forEach((span) => {
+          const img = span.querySelector("img");
+          const svg = span.querySelector("[data-find-boxes]");
+          const painted = paintedRect(img);
+          if (!painted) return;
+          svg.style.left = `${painted.left}px`;
+          svg.style.top = `${painted.top}px`;
+          svg.style.width = `${painted.width}px`;
+          svg.style.height = `${painted.height}px`;
+        });
+      }
+
+      window.measureOcrBoxes = function () {
+        return Array.from(document.querySelectorAll("[data-case]")).map((span) => {
+          const img = span.querySelector("img");
+          const svg = span.querySelector("[data-find-boxes]");
+          const box = img.getBoundingClientRect();
+          const painted = paintedRect(img);
+          const svgBox = svg.getBoundingClientRect();
+          return {
+            case: span.dataset.case,
+            natural: { width: img.naturalWidth, height: img.naturalHeight },
+            element: {
+              left: box.left,
+              top: box.top,
+              width: box.width,
+              height: box.height,
+            },
+            painted: painted
+              ? {
+                  left: box.left + painted.left,
+                  top: box.top + painted.top,
+                  width: painted.width,
+                  height: painted.height,
+                }
+              : null,
+            layer: {
+              left: svgBox.left,
+              top: svgBox.top,
+              width: svgBox.width,
+              height: svgBox.height,
+            },
+            polygons: Array.from(svg.querySelectorAll("[data-find-box]")).map(
+              (polygon) => {
+                const r = polygon.getBoundingClientRect();
+                return {
+                  kind: polygon.getAttribute("data-find-box"),
+                  className: polygon.getAttribute("class"),
+                  left: r.left,
+                  top: r.top,
+                  width: r.width,
+                  height: r.height,
+                };
+              },
+            ),
+            quads: window.ocrQuads[span.dataset.case],
+          };
+        });
+      };
+
+      document.querySelectorAll("[data-case]").forEach((span) => {
+        const svg = span.querySelector("[data-find-boxes]");
+        drawPolygons(svg, window.ocrQuads[span.dataset.case]);
+      });
+
+      const images = Array.from(document.images);
+      Promise.all(images.map((img) => img.decode().catch(() => {}))).then(() => {
+        layout();
+        const observer = new ResizeObserver(layout);
+        images.forEach((img) => observer.observe(img));
+        window.addEventListener("resize", layout);
+        requestAnimationFrame(() => {
+          layout();
+          document.body.setAttribute("data-ready", "1");
+        });
+      });
+    </script>
+  </body>
+</html>
