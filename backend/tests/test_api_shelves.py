@@ -206,7 +206,7 @@ class TestGroupingByClassification:
 
         assert [s["key"] for s in shelves] == ["10_to_30m", "30m_plus"]
 
-    def test_under_10m_key_equals_listing_duration_filter(self, client):
+    def test_under_10m_key_equals_listing_duration_filter_without_unknown_duration(self, client):
         c, db, *_ = client
         rows = _seed(db)
         listing = c.get(
@@ -215,7 +215,9 @@ class TestGroupingByClassification:
 
         shelf = _shelves(_get(c, "by=duration&key=under_10m&type=video&per_shelf=60"))[0]
 
-        assert {i["id"] for i in shelf["items"]} == {i["id"] for i in listing}
+        known = {i["id"] for i in listing} - {rows["zero.mp4"].id}
+        assert {i["id"] for i in shelf["items"]} == known
+        assert rows["zero.mp4"].id in {i["id"] for i in listing}
         assert rows["a1.mp4"].id in {i["id"] for i in shelf["items"]}
 
     def test_a_folder_or_tag_named_like_a_fixed_key_does_not_collide(self, client):
@@ -497,7 +499,7 @@ class TestFiltersAndState:
             ("tag=trip", ["a1.mp4", "a2.mp4"]),
             ("search=b1", ["b1.mp4"]),
             ("folder=Shows", ["b1.mp4", "b2.mp4", "zero.mp4"]),
-            ("duration=lt:600", ["a1.mp4", "x.mp4"]),
+            ("duration=lt:600", ["a1.mp4", "x.mp4", "zero.mp4"]),
         ],
     )
     def test_listing_filters_narrow_every_shelf(self, client, query, expected):
