@@ -166,3 +166,17 @@ test("a re-rendered Markdown preview recomputes its marks (SPEC-CORE-053)", asyn
   await page.getByRole("button", { name: "Preview" }).click();
   await expect(page.locator(".highlight-mark")).toHaveText("Gamma");
 });
+
+test("a mouse drag that starts inside a mark selects and offers Highlight (SPEC-CORE-053)", async ({ page }) => {
+  await open(page, "markdown");
+  await selectText(page, "Alpha");
+  await page.getByRole("button", { name: "Highlight" }).click();
+  const mark = page.locator(".highlight-mark").first();
+  const from = await mark.boundingBox();
+  const target = await page.getByText("Gamma").first().boundingBox();
+  await page.mouse.move(from!.x + from!.width / 2, from!.y + from!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(target!.x + target!.width, target!.y + target!.height / 2, { steps: 8 });
+  await page.mouse.up();
+  await expect(page.getByRole("button", { name: "Highlight" })).toBeVisible();
+});

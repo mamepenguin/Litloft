@@ -165,22 +165,11 @@ export function HighlightControls({
         top: Math.max(8, (rect ? rect.top : event.clientY) - 40),
       });
     };
-    const onPointerDown = (event: PointerEvent) => {
-      const target = event.target;
-      if (
-        target instanceof Element &&
-        target.closest("mark.find-mark, mark.highlight-mark")
-      ) {
-        event.preventDefault();
-      }
-    };
 
     container.addEventListener("click", onClick);
-    container.addEventListener("pointerdown", onPointerDown);
     window.addEventListener("scroll", dismissOnScroll, true);
     return () => {
       container.removeEventListener("click", onClick);
-      container.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("scroll", dismissOnScroll, true);
     };
   }, [fileId, resolveAt, renderKey, page]);
