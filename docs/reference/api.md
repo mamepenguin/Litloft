@@ -15,21 +15,21 @@ Conventions:
 
 | Code | Meaning |
 |---|---|
-| `200` / `201` | Success. `201` when a pin, collection, Smart Folder, text file, comment or (Internal API) file relation is created. |
+| `200` / `201` | Success. `201` when a pin, collection, Smart Folder, text file, comment, highlight or (Internal API) file relation is created. |
 | `202` | The Markdown image import job was queued. |
-| `204` | Success, no body: unpin, delete a comment, Smart Folder, collection or collection item, delete progress, the Internal API writes, played-ranges writes, and progress writes made without a viewer identity. |
+| `204` | Success, no body: unpin, delete a comment or highlight, Smart Folder, collection or collection item, delete progress, the Internal API writes, played-ranges writes, and progress writes made without a viewer identity. |
 | `206` | A satisfied `Range` request on `/stream`. |
 | `400` | Bad request: path traversal in a `path` / `folder` argument, a malformed `size` / `duration` comparison, a missing drive context on a `scope=drive` addon call, a cross-drive collection item or relation. |
-| `401` | A comment posted without a viewer identity. |
+| `401` | A comment or highlight saved without a viewer identity. |
 | `403` | A non-admin caller on an admin route, editing or deleting someone else's comment, an addon call naming a drive the caller cannot access, a wrong setup token, a wrong `X-Internal-Secret`. |
 | `404` | Not found. Also returned for a locked protected drive, so its existence stays hidden, and for Missing or Trash files on GET and mutating endpoints. `/stream`, `/render`, `/preview-text` and `/thumbnail` still serve trashed files. |
-| `409` | Conflict: scan already running, duplicate collection name, folder already pinned, `conflict_mode=error` collision, a collection reorder whose item set does not match, setup already completed, a maintenance job already running, a relation that already exists, an Internal API trust-tier write on a file a viewer already ruled on. |
+| `409` | Conflict: scan already running, duplicate collection name, folder already pinned, `conflict_mode=error` collision, a collection reorder whose item set does not match, setup already completed, a maintenance job already running, a relation that already exists, a new highlight past the 500-per-file ceiling, an Internal API trust-tier write on a file a viewer already ruled on. |
 | `410` | Gone: `/stream`, `/render` or `/preview-text` on a Missing file. |
 | `412` / `428` | `PUT /api/files/{id}/content`: `428` when `If-Match` is absent, `412` when it does not match the current ETag. |
 | `413` | Body or file too large: 1 MB content write / text-file create, 5 MB render, 5 MB subtitle, 50 MB archive entry, `CORE_INTERNAL_CONTENT_MAX_BYTES` on the Internal API content read. |
 | `415` | Unsupported media type: non-UTF-8 HTML on `/render`, a non-Markdown file on `/wiki-resolutions`, a mime outside the text allowlist on the content `PUT` or the Internal API content read. |
 | `416` | A malformed or out-of-range `Range` header on `/stream`. |
-| `422` | Validation error: schema rejection, the 500-comments-per-file ceiling, a chapter promotion with no valid entry, an admin config payload that fails validation. |
+| `422` | Validation error: schema rejection, the 500-comments-per-file ceiling, an invalid highlight (empty or over-length quote, a wrong `page`), a chapter promotion with no valid entry, an admin config payload that fails validation. |
 | `429` | Rate limit: `POST /api/auth/unlock` and `POST /api/files/{id}/comments`, per client IP. |
 | `502` | An external-service addon did not answer. |
 | `503` | An addon's proxy target is not configured, or a strict Internal API write was called while `CORE_INTERNAL_SECRET` is unset. |
@@ -107,6 +107,9 @@ File ids are 12-character nanoids and are validated as such in the path.
 | `POST` | `/api/files/{id}/progress` | Body `{ position?, duration? }`. Always updates `last_played_at`; the playback position is updated only when both fields are sent. An empty body records a view. For a PDF, `position` is the page (1-based) and `duration` the page count. |
 | `GET` | `/api/files/{id}/progress` | `{ position, duration }`; zeros when there is no record or no viewer identity. |
 | `DELETE` | `/api/files/{id}/progress` | Remove this viewer's history row and played segments for the file, in one transaction (`204`). |
+| `GET` | `/api/files/{id}/highlights` | This viewer's highlights on the file, oldest first: `[{ id, page, quote, prefix, suffix, created_at }]`. `page` is set for a PDF and null otherwise. `[]` without a viewer identity. |
+| `POST` | `/api/files/{id}/highlights` | Body `{ page, quote, prefix, suffix }`. `quote` is 1 to 2,000 characters after trimming; `prefix` and `suffix` are at most 64 each. `page` is required and at least 1 for a PDF, and must be null for any other file; otherwise `422`. `201`; an identical `quote`, `prefix`, `suffix` and `page` returns the existing record (`200`). Needs a viewer identity (`401`); `409` once the viewer has 500 highlights on the file. |
+| `DELETE` | `/api/files/{id}/highlights/{hid}` | Remove this viewer's highlight (`204`). A record of another viewer, another file, or no record at all also answers `204` and removes nothing. |
 | `POST` | `/api/files/{id}/played-ranges` | Body `{ ranges: [{ start, end }] }`, 1 to 256 ranges, each `0 <= start < end <= 604800` seconds; otherwise `422` and nothing is written. Each range's seconds are split at 5-second boundaries and added to this viewer's totals for the file (`204`). `204` without writing when there is no viewer identity. |
 | `GET` | `/api/files/{id}/played-segments` | This viewer's played seconds per 5-second segment: `{ segment_seconds: 5, segments: [{ index, played_seconds }] }`, ascending by `index`, where segment `n` covers `[5n, 5n + 5)` and a segment never played is left out. Empty `segments` without a viewer identity. |
 | `POST` | `/api/files/{id}/like` | Toggle the like. Liking sets `liked_at` to now, so a re-liked file sorts first in the Liked view. |
@@ -218,7 +221,7 @@ Each stage is `{ "addon", "key", "i18n_key", "state", "required" }`, with `state
 
 There is no profile or account API. The nickname in the `lit_viewer` cookie or `X-Lit-Viewer` header is hashed into a `viewer_id`, and watch history and comment ownership are keyed by it. Requests without a nickname are accepted: progress writes do nothing and return `204`, and history reads come back empty.
 
-Per-viewer endpoints: `POST` / `GET` / `DELETE /api/files/{id}/progress`, `POST /api/files/{id}/played-ranges`, `GET /api/files/{id}/played-segments` and `GET /api/drives/{drive}/watch-history`.
+Per-viewer endpoints: `POST` / `GET` / `DELETE /api/files/{id}/progress`, `POST` / `GET /api/files/{id}/highlights`, `DELETE /api/files/{id}/highlights/{hid}`, `POST /api/files/{id}/played-ranges`, `GET /api/files/{id}/played-segments` and `GET /api/drives/{drive}/watch-history`.
 
 ## Admin
 
