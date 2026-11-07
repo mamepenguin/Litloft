@@ -278,6 +278,8 @@ Examples:
 - `GET /api/addons/cloud-sync/config`, `PUT /api/addons/cloud-sync/config`
 - `POST /api/addons/media_import/link`
 
+A `picture_text` row of `GET /api/addons/intelligence/files/{id}/find` carries `boxes` when the picture's OCR lines are usable: a list of quads, each eight numbers as fractions of the picture, in row-major corner order. Rows of other kinds never carry it.
+
 Each addon's page under [`docs/addons/`](../addons/) documents its endpoints.
 
 ### Ask about one file

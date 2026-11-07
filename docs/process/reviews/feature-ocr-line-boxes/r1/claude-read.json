@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The diff edits frontend/src/app/globals.css to add the global `.find-box` and `.find-box-current` rules, and that file is not in the touch-point list.",
+      "impact": "The stylesheet is shared by the whole frontend. The new selectors apply to any SVG element with those classes. A later edit to the find-mark colours would change the outline style without a reviewer expecting it. The spec only names DESIGN.md and 'no new token' for the outline.",
+      "evidence": "frontend/src/app/globals.css (hunk at line ~729): `.find-box { fill: color-mix(...) }`, `.find-box-current { stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke }`. The Touch points list ImageCanvas.tsx, fileFind.ts and e2e-layout, not globals.css.",
+      "repro": "not_reproduced. Compare the diff's file list with the Touch points section.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant is broken. I9 requires the mark and current styles, and the stylesheet is the natural place for them. The only gap is that the touch-point list is incomplete.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The diff edits the existing frontend/e2e-layout/spec-viewport.spec.ts, adding the new fixture to FIXTURES and raising FIXTURE_COUNT from 20 to 21. That file is not in the touch-point list, which names only a 'new case' in e2e-layout.",
+      "impact": "The new fixture is now also run through the viewport-wide checks of that spec at the sizes it covers. A failure of the fixture there, or a miscounted FIXTURE_COUNT, would show up in an unrelated test.",
+      "evidence": "frontend/e2e-layout/spec-viewport.spec.ts: `\"ocr-line-boxes.html\"` added to FIXTURES, and `FIXTURE_COUNT = 21`.",
+      "repro": "not_reproduced. Read the hunks of spec-viewport.spec.ts.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is broken, and the registration is probably required by the count guard. The touch-point list simply omits it.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "The diff changes the shared test helper addons/intelligence/tests/ocr_fixtures.py. FakeOcrResult no longer defaults `scores` to 0.99 and `boxes` to an empty tuple, and install() and FakeEngine gain new parameters. Every existing test that uses this helper is reached, and that reach is not named.",
+      "impact": "Older OCR tests now run against a result with no `boxes` or `scores`, so they exercise the no-lines path. Their expectations were not stated to change, and the frame and page readers may share this result shape. The helper change can hide or alter coverage that those tests used to give.",
+      "evidence": "addons/intelligence/tests/ocr_fixtures.py: `self.scores = tuple(0.99 ...)` and `self.boxes = ()` are replaced by conditional attributes using the ABSENT sentinel.",
+      "repro": "not_reproduced. I cannot run the tests. I did not list the other users of ocr_fixtures.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The touch points already cover 'Tests under addons/intelligence/tests/', and no invariant is broken. This is only a wider shared-fixture reach that a reader should know about.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "Planned and present: ocr.py, models.py, indexer.py `_purge_file`, file_find.py, schemas.py, fileFind.ts, ImageCanvas.tsx, the e2e-layout spec and fixtures, the design-decisions rule, and the docs (api.md, intelligence.md, user guide).",
+    "Listed as touch points but not edited by the diff: routers/files.py. The find route is unchanged, and the schema field carries `boxes` through. This is consistent with the spec's wording.",
+    "Unlisted reach: globals.css (F1), spec-viewport.spec.ts (F2) and the shared test helper ocr_fixtures.py (F3).",
+    "Also reached: fileFind.ts `readRow` now rebuilds every find row of every kind, not only picture rows. It stays inside a listed file and drops `boxes` unless there is at least one valid quad."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Global CSS classes `.find-box` and `.find-box-current` now exist in the app-wide stylesheet.",
+    "`readAnswer` now passes every row through `readRow`, which also normalises rows of other kinds when they carry a `boxes` key. Non-object rows are passed through unchanged.",
+    "The e2e viewport spec now includes the new fixture in its fixture count."
+  ],
+  "regression_risks": [
+    "The shared OCR test fixture no longer supplies default boxes or scores, so older tests may now cover the no-lines path.",
+    "The global stylesheet additions could collide with a future class of the same name.",
+    "The viewport spec count must be kept in step when fixtures are added or removed."
+  ],
+  "test_coverage": [
+    "Only the question about unlisted reach was answered. I did not assess the depth of the tests in general, so no mutation analysis was done.",
+    "The new e2e-layout case and spec-viewport registration cover the fixture. I did not check that the `globals.built.css` the fixture links is regenerated."
+  ],
+  "not_verified": [
+    "I did not run any test or any build.",
+    "I did not read the files outside the diff, including the other users of ocr_fixtures.py and the generated globals.built.css.",
+    "I did not check the invariants I1 to I11 beyond locating unplanned reach.",
+    "I did not confirm that routers/files.py needs no edit for the response schema to carry `boxes`."
+  ],
+  "confidence": 78
+}

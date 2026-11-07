@@ -327,6 +327,8 @@ Pictures are read for the words in them: screenshots, slides, photos of signs an
 
 The recognised lines are joined with newlines and stored as the picture's text, then chunked as its text chunks, the same rows a document's text uses, so search, exact search and Ask find and quote them. From there the text follows a document's rules: Ask may send it to the routed LLM, and to an off-host profile only on drives whose `llm_cloud` policy allows it.
 
+Each picture also has one `picture_lines` row, written in the same transaction as its text: the kept lines in the engine's order, each with its text, the four corners of its box as fractions of the picture, and the engine's score. A correction and a restore never edit it. Find in this file carries the boxes of the lines a hit overlaps only while the stored text still equals the lines joined by newlines, and the picture page then outlines those lines over the picture, in the find mark's style with the current hit's line in the current style. A picture read before its lines were kept, or one whose text was corrected, shows its hits with no outline until it is read again or its original text is restored.
+
 Modes (`features.image_ocr`):
 
 - `"on_index"`: read when a picture is indexed. Default. Pictures already indexed with no reading are queued in the background at startup and after each hourly pass, behind new work.

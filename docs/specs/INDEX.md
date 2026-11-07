@@ -138,3 +138,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-072 | implemented | docs/specs/file-ask-vision.md | sha256:e56dcacbe129568785fabd48d2e73fc599d10d4e6ad781c401e97d7960907358 |
 | SPEC-ADDON-073 | implemented | docs/specs/file-ask-vision.md | sha256:e56dcacbe129568785fabd48d2e73fc599d10d4e6ad781c401e97d7960907358 |
 | SPEC-ADDON-074 | implemented | docs/specs/file-ask-vision.md | sha256:e56dcacbe129568785fabd48d2e73fc599d10d4e6ad781c401e97d7960907358 |
+| SPEC-ADDON-075 | implemented | docs/specs/ocr-line-boxes.md | sha256:34e34c624bf5010e494acb27acd3d641490b7c3488504c1991d0e22a06f90414 |
+| SPEC-CORE-051 | implemented | docs/specs/ocr-line-boxes.md | sha256:34e34c624bf5010e494acb27acd3d641490b7c3488504c1991d0e22a06f90414 |
