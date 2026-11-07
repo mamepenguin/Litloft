@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { FilePlus, Files, FolderTree, History, Home, Inbox, Star, ThumbsUp } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { AddonSlot } from "@/components/AddonSlot";
 import type { AddonNavEntry } from "@/lib/addonNavigation";
 import type { Drive } from "@/types";
+import { builtinApps } from "@/lib/builtinApps";
 import { driveHref } from "@/lib/driveViews";
 import { AddonNavRows } from "./AddonNavRows";
+import { isAddonNavRowActive } from "./isSidebarLinkActive";
 import { SidebarDriveSwitcher } from "./SidebarDriveSwitcher";
 import { SidebarSectionHeading } from "./SidebarSectionHeading";
 import { useInboxCount } from "./useInboxCount";
@@ -30,6 +33,8 @@ interface SidebarLibrarySectionProps {
 
 export function SidebarLibrarySection({ driveBase, currentDrive, drives = [], linkClass, close, primaryAddons = [], sourceAddons = [], libraryActive }: SidebarLibrarySectionProps) {
   const t = useTranslations("sidebar");
+  const tRoot = useTranslations();
+  const pathname = usePathname() ?? "";
   const inboxCount = useInboxCount(currentDrive);
   const homeHref = currentDrive ? driveHref(currentDrive, "home") : "/";
   const inboxHref = currentDrive && driveBase ? `${driveBase}?view=inbox` : null;
@@ -66,6 +71,22 @@ export function SidebarLibrarySection({ driveBase, currentDrive, drives = [], li
           {t("library")}
         </Link>
       )}
+      {currentDrive &&
+        builtinApps.map((app) => {
+          const href = app.route(currentDrive);
+          const Icon = app.icon;
+          return (
+            <Link
+              key={app.id}
+              href={href}
+              onClick={close}
+              className={linkClass(href, isAddonNavRowActive(pathname, href))}
+            >
+              <Icon size={16} />
+              {tRoot(app.labelKey)}
+            </Link>
+          );
+        })}
       <AddonNavRows entries={primaryAddons} linkClass={linkClass} close={close} />
       {driveBase && (
         <>

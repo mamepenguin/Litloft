@@ -24,6 +24,7 @@ Two exceptions:
 
 - The start page, **Litloft**, lists the drives you can open, with their file counts. If some drives are locked, the last card, **Enter password**, leads to the unlock page.
 - Folders in grid or list mode. See [browsing files](file-browsing.md).
+- **動画** / **Video** is a page for the drive's videos, with a Discover tab and a Library tab. See [video](video.md).
 - Video and audio with resume, subtitles, chapters and scrubbing previews. Images with swipe, two-page spread and slideshow. Markdown, PDFs and ZIP archives open in place. See [viewers and players](viewers-and-players.md).
 - Office files (DOCX, XLSX, PPTX) have no viewer. The file page shows a short text excerpt.
 

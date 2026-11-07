@@ -192,6 +192,7 @@ describe("sidebar top — item 10", () => {
       "Home",
       "Inbox",
       "Library",
+      "Video",
       "Favorites",
       "Liked",
       "Recently Viewed",

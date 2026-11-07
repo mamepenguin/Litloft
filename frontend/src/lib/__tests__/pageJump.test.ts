@@ -61,6 +61,7 @@ describe("visibleFixedJumps", () => {
       "home",
       "inbox",
       "library",
+      "app-video",
       "favorites",
       "liked",
       "recent",

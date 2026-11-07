@@ -3,10 +3,11 @@
  * this set has to supply a non-zero missing count, or the Missing Files row
  * does not render.
  */
-export const FIXED_SIDEBAR_ROWS: readonly { label: string; view: string | null }[] = [
+export const FIXED_SIDEBAR_ROWS: readonly { label: string; view: string | null; path?: string }[] = [
   { label: "Home", view: "home" },
   { label: "Inbox", view: "inbox" },
   { label: "Library", view: null },
+  { label: "Video", view: null, path: "/apps/video" },
   { label: "Favorites", view: "favorites" },
   { label: "Liked", view: "liked" },
   { label: "Recently Viewed", view: "recent" },
