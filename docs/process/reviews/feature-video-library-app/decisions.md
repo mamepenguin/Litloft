@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship. The human answered "1" to the offered options, which was "ship as is"; the review r1 findings F1 to F5 are bucket B items about files edited outside the spec's touch points.
 ran_in_app: yes
 at: 6f80e164586299717ca01f1bcb80e3cff22efb01
 by: agent
