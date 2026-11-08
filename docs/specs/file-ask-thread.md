@@ -383,6 +383,13 @@ SPEC-ADDON-071 I8. The questions, the answers, the history and every image byte 
 
 ## Checked, no action
 
+- **Leaving existing Ask notes verified, or skipping ones edited since saving.** Chosen
+  by the owner: every existing Ask note becomes unverified, and one the owner rewrote is
+  trusted again from its own page.
+- **Hiding Markdownで保存 when the knowledge addon is unavailable for the drive.** Chosen
+  by the owner: the button behaves as on the drive Ask page.
+- **The production backend's `CORE_INTERNAL_SECRET`.** The owner checks it before the
+  merge; the agent cannot read the production host.
 - **SPEC-ADDON-071 I5 and an earlier answer that mentions an image.** I5 is about the
   instructions the prompt gives; an earlier answer is the viewer's history, not an
   instruction, so I5 holds as written.
