@@ -23,8 +23,8 @@ without downloading the video.
   the MCP tools. A frame that cannot be read is unavailable; no other frame is ever
   substituted.
 - **A scene index.** The storyboard YouTube publishes for the video (usually 320x180
-  tiles, 3x3 per sheet, one tile per 10 s) is read once when the `.loft` is indexed, a
-  tile is kept every 30 s at most, and each kept tile is embedded with CLIP as a scene row
+  tiles, 3x3 per sheet, one tile per 10 s) is read once when the `.loft` is indexed, every
+  tile is kept up to `max_frames` per video, and each kept tile is embedded with CLIP as a scene row
   (`embedding_type = "clip"`) of the `.loft`. The existing scene list, scene-segment
   search and `include_scene_clip` search then see it. Tiles are never shown to a model or
   a person: they are index input only.
@@ -106,10 +106,13 @@ has no thumbnail path:
    whose timestamp is not below it is dropped, so the empty cells of the last sheet go.
    With no known duration (null or not above 0) the video is treated as having no
    storyboard.
-4. Tiles are kept in time order, a tile only when its timestamp is at least the spacing
-   after the last kept one. The spacing is `indexing.frame_extraction.min_interval`, or
-   `duration / max_frames` when that is larger, so a long video is spread over its whole
-   length rather than cut at the cap.
+4. Tiles are kept in time order. The first tile is always kept; a later tile is kept only
+   when its timestamp is at least `duration / indexing.frame_extraction.max_frames` after
+   the last kept one, so a long video is spread over its whole length rather than cut at
+   the cap, and a video whose tiles fit under the cap keeps every tile.
+   `indexing.frame_extraction.min_interval` is not applied: for a native video it bounds
+   the gap between frames (a frame is added wherever none lies within it), not their
+   spacing, and storyboard tiles are already closer than it.
 5. Each kept tile is embedded with the same CLIP model and stored as an `embeddings` row
    of type `clip` with `timestamp_start` set, through the same insert path native scene
    frames use. The file's earlier `clip` rows are replaced in the same transaction, after
@@ -305,7 +308,7 @@ I3. One request spends at most 15 s in all, lookup and ffmpeg together; at most 
 I4. A stream description is reused for 5 minutes, is dropped after any ffmpeg failure or deadline for its file, and is never kept after a failed lookup.
 I5. `yt-dlp` is given only the `.loft`'s stored `url`, with `--no-playlist` and no cookie or credential option, ffmpeg and the sheet downloads are given only addresses that lookup returned, and no log line the change writes contains a URL or a request header.
 I6. Ask on a YouTube `.loft` with `position_seconds` attaches exactly one `large` frame at that position, under every invariant of SPEC-ADDON-071 (profile, `llm_cloud`, one slot, nothing stored or logged but the `large` cache entry); a position above a known indexed duration, or any frame failure, ends in `"unavailable"` and the text-only retry; Ask on a `.loft` of another provider is unchanged.
-I7. The storyboard leg replaces a YouTube `.loft`'s `clip` rows in one transaction after every kept tile has been embedded, keeps a tile only when its timestamp is below the known duration and at least the spacing (`min_interval`, or `duration / max_frames` when larger) after the last kept tile, so a long video is spread over its whole length with at most `max_frames` tiles, writes no `clip_thumbnail` row and no row for another file, and runs whatever the thumbnail leg did.
+I7. The storyboard leg replaces a YouTube `.loft`'s `clip` rows in one transaction after every kept tile has been embedded, keeps the first tile and then a tile only when its timestamp is below the known duration and at least `duration / max_frames` after the last kept tile, so a video keeps every tile when they fit under `max_frames` and a long video is spread over its whole length with at most `max_frames` tiles, does not thin tiles by `min_interval`, writes no `clip_thumbnail` row and no row for another file, and runs whatever the thumbnail leg did.
 I8. After the `clip` task of a `.loft`, `clip_indexed` is true exactly when the thumbnail leg is done and the storyboard leg wrote rows, found no `sb0` or no known duration, or found the `.loft` not YouTube; on a transient failure it is false, the existing `clip` rows are as they were, and the same file is not attempted again in that process; a repeat run never leaves two sets of rows or a second `clip_thumbnail` row.
 I9. `GET /files/{id}/scenes` for a YouTube `.loft` returns the selection a native video gets from the same rows, makes no network call and no LLM call, and writes nothing; for a `.loft` of another provider it answers 400 `Not a video file`; for a native video it answers exactly as before.
 I10. No passage of a `.loft` carries a `frame_url`, and on a drive that holds no YouTube `.loft` every result of `/search` and `/search/scene-segments`, with its score and order, is the same as before this change.
