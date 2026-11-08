@@ -248,8 +248,12 @@ describe("both forms of the inspector", () => {
     expect(overflowing(str("columnPanel"))).toEqual([]);
     expect(overflowing(str("panelPanel"))).toEqual(["overflow-auto"]);
     expect(overflowing(str("scroller"))).toEqual(["overflow-auto"]);
-    expect(tokens(str("columnStrip"))).toContain("overflow-x-auto");
-    expect(tokens(str("panelStrip"))).toContain("overflow-x-auto");
+    expect(tokens(str("columnStrip"))).toContain(
+      "pointer-coarse:overflow-x-auto",
+    );
+    expect(tokens(str("panelStrip"))).toContain(
+      "pointer-coarse:overflow-x-auto",
+    );
   });
 });
 

@@ -53,8 +53,7 @@ export default function AdminSettingsPage(): React.ReactElement {
     // `w-full` is not decoration. This div is a flex item of the
     // AppShell's `<main>`, and `mx-auto` gives it automatic cross-axis
     // margins, which opt it out of `stretch` — so its width becomes
-    // its own min-content and the policy table's `overflow-x-auto` never
-    // scrolls.
+    // its own min-content and the policy table has only that to fit into.
     <div className="mx-auto w-full min-w-0 max-w-3xl py-2">
       <PageHeader
         title={t("title")}

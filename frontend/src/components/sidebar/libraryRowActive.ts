@@ -1,5 +1,6 @@
 import {
   isDriveAddonPath,
+  isDriveAppPath,
   isDriveCollectionPath,
   isDriveSearchPath,
 } from "@/lib/driveViews";
@@ -41,6 +42,7 @@ export function isLibraryRowActive({
   if (!isUnderDriveBase(pathname, driveBase)) return false;
   if (isDriveSearchPath(pathname)) return false;
   if (isDriveAddonPath(pathname)) return false;
+  if (isDriveAppPath(pathname)) return false;
   if (isDriveCollectionPath(pathname)) return false;
   if (pinnedHrefs.some((href) => samePath(pathname, href))) return false;
 

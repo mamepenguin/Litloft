@@ -13,6 +13,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import { builtinApps } from "./builtinApps";
 import { driveHref } from "./driveViews";
 
 export const JUMP_LIMIT = 3;
@@ -39,6 +40,12 @@ export const FIXED_JUMPS: readonly FixedJump[] = [
   { key: "home", labelKey: "sidebar.home", icon: Home, href: (d) => driveHref(d, "home") },
   { key: "inbox", labelKey: "sidebar.inbox", icon: Inbox, href: view("inbox") },
   { key: "library", labelKey: "sidebar.library", icon: FolderTree, href: (d) => driveHref(d, "library") },
+  ...builtinApps.map((app) => ({
+    key: `app-${app.id}`,
+    labelKey: app.labelKey,
+    icon: app.icon,
+    href: app.route,
+  })),
   { key: "favorites", labelKey: "sidebar.favorites", icon: Star, href: view("favorites") },
   { key: "liked", labelKey: "sidebar.liked", icon: ThumbsUp, href: view("liked") },
   { key: "recent", labelKey: "sidebar.recentlyViewed", icon: History, href: view("recent") },

@@ -55,6 +55,41 @@ export async function getFolderTree(
   );
 }
 
+type ListingFilters = Pick<
+  Parameters<typeof getDriveFiles>[1],
+  | "search"
+  | "favorite"
+  | "liked"
+  | "tag"
+  | "type"
+  | "folder"
+  | "collection"
+  | "size"
+  | "duration"
+  | "trust"
+>;
+
+function appendListingFilters(searchParams: URLSearchParams, params: ListingFilters): void {
+  if (params.search) searchParams.set("search", params.search);
+  if (params.favorite !== undefined) searchParams.set("favorite", String(params.favorite));
+  if (params.liked !== undefined) searchParams.set("liked", String(params.liked));
+  for (const tag of [params.tag ?? []].flat()) if (tag) searchParams.append("tag", tag);
+  for (const kind of [params.type ?? []].flat()) searchParams.append("type", kind);
+  for (const folder of [params.folder ?? []].flat()) {
+    if (folder) searchParams.append("folder", folder);
+  }
+  for (const collection of [params.collection ?? []].flat()) {
+    if (collection) searchParams.append("collection", collection);
+  }
+  for (const size of [params.size ?? []].flat()) {
+    if (size) searchParams.append("size", size);
+  }
+  for (const duration of [params.duration ?? []].flat()) {
+    if (duration) searchParams.append("duration", duration);
+  }
+  if (params.trust) searchParams.set("trust", params.trust);
+}
+
 export async function getDriveFiles(
   drive: string,
   params: {
@@ -90,24 +125,7 @@ export async function getDriveFiles(
   const searchParams = new URLSearchParams();
   if (params.path !== undefined) searchParams.set("path", params.path);
   if (params.recursive) searchParams.set("recursive", "true");
-  if (params.search) searchParams.set("search", params.search);
-  if (params.favorite !== undefined) searchParams.set("favorite", String(params.favorite));
-  if (params.liked !== undefined) searchParams.set("liked", String(params.liked));
-  for (const tag of [params.tag ?? []].flat()) if (tag) searchParams.append("tag", tag);
-  for (const kind of [params.type ?? []].flat()) searchParams.append("type", kind);
-  for (const folder of [params.folder ?? []].flat()) {
-    if (folder) searchParams.append("folder", folder);
-  }
-  for (const collection of [params.collection ?? []].flat()) {
-    if (collection) searchParams.append("collection", collection);
-  }
-  for (const size of [params.size ?? []].flat()) {
-    if (size) searchParams.append("size", size);
-  }
-  for (const duration of [params.duration ?? []].flat()) {
-    if (duration) searchParams.append("duration", duration);
-  }
-  if (params.trust) searchParams.set("trust", params.trust);
+  appendListingFilters(searchParams, params);
   if (params.sort) searchParams.set("sort", params.sort);
   if (params.order) searchParams.set("order", params.order);
   if (params.page) searchParams.set("page", String(params.page));
@@ -119,6 +137,79 @@ export async function getDriveFiles(
   );
   seedFiles(page.data);
   return page;
+}
+
+export type ShelfGrouping = "all" | "folder" | "tag" | "month" | "duration" | "watch";
+export type ShelfWatchState = "in_progress" | "unwatched" | "finished";
+
+export interface ShelvesParams extends ListingFilters {
+  by: ShelfGrouping;
+  /** The empty string is the root-folder shelf, so it is sent as given. */
+  key?: string;
+  /** Keep only files in this reading state; needs a viewer identity. */
+  watch?: ShelfWatchState;
+  sort?: ListingSortField | "last_played";
+  order?: SortOrder;
+  per_shelf?: number;
+  shelf_limit?: number;
+  offset?: number;
+  page?: number;
+}
+
+export type ShelfItem = FileItem & { watch_progress?: WatchProgress };
+
+export interface Shelf {
+  key: string;
+  /** The data value (folder segment, tag, `YYYY-MM`); empty for fixed shelves. */
+  label: string;
+  count: number;
+  items: ShelfItem[];
+}
+
+export interface ShelvesResponse {
+  by: ShelfGrouping;
+  shelves: Shelf[];
+  total_shelves: number;
+  /** The folder the `by=folder` shelves are children of; `""` otherwise. */
+  base: string;
+}
+
+export async function getShelves(
+  drive: string,
+  params: ShelvesParams,
+  options?: RequestOptions,
+): Promise<ShelvesResponse> {
+  const searchParams = new URLSearchParams();
+  searchParams.set("by", params.by);
+  if (params.key !== undefined) searchParams.set("key", params.key);
+  appendListingFilters(searchParams, params);
+  if (params.watch) searchParams.set("watch", params.watch);
+  if (params.sort) searchParams.set("sort", params.sort);
+  if (params.order) searchParams.set("order", params.order);
+  for (const name of ["per_shelf", "shelf_limit", "offset", "page"] as const) {
+    const value = params[name];
+    if (value !== undefined) searchParams.set(name, String(value));
+  }
+
+  const res = await fetch(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/shelves?${searchParams.toString()}`,
+    { credentials: "include", signal: options?.signal },
+  );
+  if (!res.ok) {
+    const body: unknown = await res.json().catch(() => null);
+    const detail =
+      typeof body === "object" && body !== null && "detail" in body
+        ? (body as { detail: unknown }).detail
+        : undefined;
+    throw new ApiStatusError(
+      res.status,
+      `API error: ${res.status} ${res.statusText}`,
+      typeof detail === "string" ? detail : undefined,
+    );
+  }
+  const shelves = (await res.json()) as ShelvesResponse;
+  for (const shelf of shelves.shelves) seedFiles(shelf.items);
+  return shelves;
 }
 
 export async function getDriveTags(
@@ -150,7 +241,12 @@ export interface ScanResult {
 }
 
 export class ApiStatusError extends Error {
-  constructor(readonly status: number, message: string) {
+  constructor(
+    readonly status: number,
+    message: string,
+    /** The `detail` code of an error body, when the server sent a string. */
+    readonly detail?: string,
+  ) {
     super(message);
     this.name = "ApiStatusError";
   }

@@ -30,10 +30,12 @@ const FIXTURES = [
   "justified-grid.html",
   "list-row-furniture.html",
   "mobile-inspector-sheet.html",
+  "no-horizontal-scroll.html",
   "ocr-line-boxes.html",
   "passage-rows.html",
   "popup-dismiss.html",
   "pseudo-fullscreen.html",
+  "reading-video-faces.html",
   "related-files.html",
   "scene-candidates.html",
   "search-header.html",
@@ -41,9 +43,10 @@ const FIXTURES = [
   "sidebar-shell.html",
   "toolbar-menu.html",
   "upload-drawer.html",
+  "video-app.html",
 ] as const;
 
-const FIXTURE_COUNT = 21;
+const FIXTURE_COUNT = 24;
 
 /**
  * On the far side of `sm` from Chromium's mobile default, so a page that

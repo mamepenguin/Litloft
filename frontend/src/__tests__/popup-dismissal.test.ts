@@ -162,6 +162,20 @@ const POPUPS: Record<string, PopupEntry> = {
     dismissedIn: "frontend/src/components/ToolbarMenu.tsx",
     why: "the labelled toolbar menus, and the surface FilterMenu shares",
   },
+  "frontend/src/components/appshell/ManageTargetsDialog.tsx": {
+    dismissedIn: null,
+    why: "a modal dialog with its own backdrop",
+  },
+  "frontend/src/components/appshell/TargetMenu.tsx": {
+    dismissedIn: "frontend/src/components/ToolbarMenu.tsx",
+    why:
+      "draws its rows inside ToolbarMenu, which owns the scrim; Manage opens " +
+      "the modal above, which has its own backdrop",
+  },
+  "frontend/src/components/readingapp/LibraryControls.tsx": {
+    dismissedIn: "frontend/src/components/ToolbarMenu.tsx",
+    why: "draws its tag rows inside ToolbarMenu, which owns the scrim",
+  },
   "frontend/src/components/archive/ArchiveToolbar.tsx": {
     dismissedIn: "frontend/src/components/archive/ArchiveToolbar.tsx",
     why: "the archive bar's … menu",

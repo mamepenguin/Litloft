@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant mouse (@media (hover: hover) and (pointer: fine));
+
 /* Tailwind finds its own sources by walking out from this file, and it
    skips paths a .gitignore excludes and symlinks. `src/addons/*` is caught
    by both, so every utility class that appears ONLY in an addon generated

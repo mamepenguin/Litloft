@@ -236,6 +236,7 @@ export function ConditionMenu({
   const kindOptions = useMemo(() => {
     const chosen = [...parsed.types, ...(typeFilter ? [typeFilter] : [])];
     return FILE_KINDS.filter((kind) => {
+      if (kind === "epub") return false;
       if (chosen.includes(kind)) return false;
       if (chosen.some((held) => kindHolds(held, kind) || kindHolds(kind, held))) {
         return false;

@@ -69,6 +69,21 @@ disappear exits without having waited.
   control (`.claude/rules/design-decisions.md`), the Internal API and
   `CORE_INTERNAL_SECRET` (`.claude/rules/internal-api-policy.md`), and the addon proxy's
   `X-Lit-Drive` and policy checks.
+- A change with an agreed design (a design artifact the human approved) is checked
+  against that design, not only against `DESIGN.md`. `review.sh` reviewers read only the
+  repository, so the design has to be in it:
+  - At spec time, read the artifact's files (for a Design canvas, `project/canvas.json`
+    and each `project/*.dc.html`) and save them to `docs/process/reviews/<topic>/design/`.
+    The spec cites that directory and the artifact URL, and lists the design's visible
+    decisions as checkable lines: regions and their order, columns at a stated width,
+    card size and proportion, controls and their labels, the states drawn.
+  - R-5 screenshots every artboard's screen and state at the artboard's width, plus the
+    phone width.
+  - After R-5 and before `review.sh`, the `design-checker` subagent writes
+    `docs/process/reviews/<topic>/design-check.md`, ending in `TOTAL: N findings`.
+  - A design difference is not triaged by frequency and impact, and is not bucket B.
+    Each `D-` finding is either fixed, or accepted by the human by its id in
+    `decisions.md`. A change does not ship while one is neither.
 - Layout, spacing and overflow need a named instruction to measure in a real browser.
   jsdom lays nothing out, and matching the text of a stylesheet cannot verify a layout.
   `frontend/e2e-layout/` measures real boxes against static fixtures in CI.

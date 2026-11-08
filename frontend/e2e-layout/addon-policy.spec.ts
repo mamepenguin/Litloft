@@ -2,7 +2,7 @@
  * The addon-policy table's column headings, measured in Chromium.
  *
  * `position: sticky` resolves against the nearest scrollport, and the
- * wrapper's `overflow-x: auto` makes it one in both axes — so a sticky head
+ * wrapper's `overflow-y: auto` makes it one in both axes — so a sticky head
  * inside an unbounded wrapper sticks to a box that never scrolls, with the
  * class present and correct.
  */
@@ -177,15 +177,15 @@ test.describe(WIDTH_GROUP, () => {
   expect(WIDTHS).toHaveLength(2);
 
   for (const width of WIDTHS) {
-    test(`${width}px scrolls sideways, and vertically too on a phone's height`, async ({ page }) => {
+    test(`${width}px fits its columns, and scrolls vertically on a phone's height`, async ({ page }) => {
       const m = await layout(page, { width, height: 667 });
 
       // Every other assertion here is a boolean both widths answer the
       // same way, so the case's own width is read back.
       expect(m.frameWidth).toBeCloseTo(width, 0);
-      expect(m.scrollsHorizontally).toBe(true);
-      // Both axes, and that is the trade rather than an accident: the
-      // nested scroller is what keeps the checkbox columns labelled.
+      // A mouse has no sideways gesture, so the columns wrap to fit.
+      expect(m.scrollsHorizontally).toBe(false);
+      // The cap still makes a nested vertical scroller on a short screen.
       expect(m.scrollsVertically).toBe(true);
       expect(m.headTop).toBe(0);
     });

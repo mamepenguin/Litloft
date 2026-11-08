@@ -53,6 +53,14 @@ export function isDriveAddonPath(pathname: string): boolean {
   return /^\/drive\/[^/]+\/addons\//.test(pathname);
 }
 
+/**
+ * `apps` is a fixed segment, so a root folder named `apps` is not reachable
+ * at its own URL, as with `search`.
+ */
+export function isDriveAppPath(pathname: string): boolean {
+  return /^\/drive\/[^/]+\/apps(\/|$)/.test(pathname);
+}
+
 export function isDriveCollectionPath(pathname: string): boolean {
   return /^\/drive\/[^/]+\/collections\/[^/]+\/?$/.test(pathname);
 }
@@ -76,6 +84,7 @@ export function routeHidesTree({
   if (includeStandalone) {
     if (isStandaloneView(view)) return true;
     if (isDriveAddonPath(pathname)) return true;
+    if (isDriveAppPath(pathname)) return true;
   }
   return false;
 }

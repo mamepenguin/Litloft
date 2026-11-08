@@ -709,7 +709,9 @@ file, not the layout.
 - Composition: core tabs before addon tabs.
 - Button `px-3 py-2 text-xs font-medium`, `border-b-2` as the selected indicator.
 - **One tab stop for the strip**; `←` / `→` move within it.
-- **Scrolls, never wraps.**
+- **On touch it scrolls, never wraps; on a mouse it wraps onto another row.** A
+  mouse wheel has no sideways gesture, so there a long strip takes a second row
+  instead of hiding tabs past the edge.
 - **Every panel stays mounted; only the selected one is shown**, so a tab keeps
   its data and scroll position.
 - Touch floor per §Row Actions.
@@ -865,8 +867,9 @@ no fills, no zebra, no cell grid.
   the header role.
 - **Exception**: vertical-header tables (`tbody th`) may keep a subtle fill on the
   header column.
-- Mobile: `font-size: 0.93em`. Do not reflow — horizontal scroll is preferred to
-  structure loss.
+- Mobile: `font-size: 0.93em`. On touch, do not reflow — horizontal scroll is
+  preferred to structure loss. On a mouse environment the table fits its
+  container and its columns wrap.
 
 ### A control table: say each explanation once, and keep the headings
 
@@ -1180,6 +1183,34 @@ and a folder tree have already taken space the viewport does not know about.
   must never bound itself.
 - **Lead and fill, not equal shares**: a short index sizes to its content under a
   cap, and the long body takes the rest. The index does not shrink.
+
+### The primary pointer decides whether anything scrolls sideways
+
+A mouse wheel scrolls one axis, so a sideways strip is a dead end there. The
+environment is `(hover: hover) and (pointer: fine)` — the same axis as the
+coarse-pointer rules, never the viewport width — and it is defined once, as the
+`mouse:` custom variant in `globals.css`.
+
+- **On a mouse environment no screen scrolls sideways.** Shelves, tab strips,
+  breadcrumbs and settings tables wrap or reflow instead.
+- **On touch nothing changes.** Horizontal scrolling stays, and every strip that
+  wraps on a mouse keeps today's scroll through `pointer-coarse:`.
+- **Exempt content scrolls on either pointer**: Markdown tables, code blocks
+  (including the file viewer and a setup command snippet), mermaid diagrams, and
+  a viewer's pan area only while it is zoomed.
+- **A token that cannot wrap** truncates with an ellipsis and carries its full
+  text in `title`, or breaks with `overflow-wrap: anywhere`. It never produces a
+  scrollbar.
+- **A shelf is a grid of exactly the cards that fit in two rows.** Columns come
+  from the container's width, so the shelf never scrolls and has nothing hidden.
+  The collection panel under the player wraps into a box about two rows tall
+  that scrolls vertically, because it has no see-all page. Every card, tab and
+  track stays in the DOM.
+- **Tab strips wrap onto another row** and keep `border-b-2`, one tab stop and
+  `←` / `→`.
+- **The breadcrumb spends its width from the first segment inward**: ancestors
+  shrink with an ellipsis first, and the last segment truncates only once it
+  alone no longer fits.
 
 ### Measure against the container, not the viewport
 

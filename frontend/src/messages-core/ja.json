@@ -29,6 +29,12 @@
       "confirmLabel": "破棄して移動"
     }
   },
+  "appShell": {
+    "manage": "管理…",
+    "done": "完了",
+    "searchTargets": "スマートフォルダを検索",
+    "seeAllIn": "すべて見る: {name}"
+  },
   "metadata": {
     "description": "自宅LAN向けファイル管理＆メディアストリーミング"
   },
@@ -71,7 +77,9 @@
     },
     "clearTag": "タグ絞り込みを解除",
     "lock": "ロックする",
-    "administration": "管理"
+    "administration": "管理",
+    "video": "動画",
+    "reading": "読む"
   },
   "drive": {
     "empty": "ドライブがありません",
@@ -1405,5 +1413,95 @@
     "browseNoMatch": "一致する項目はありません",
     "browseUp": "1 つ上へ",
     "suggestions": "候補"
+  },
+  "videoApp": {
+    "title": "動画",
+    "tabsLabel": "動画の表示",
+    "discover": "発見",
+    "library": "ライブラリ",
+    "videoCount": "{count, plural, other {{formatted} 本の動画}}",
+    "target": "対象",
+    "allVideos": "すべての動画",
+    "targetUnavailable": "対象にできません",
+    "classification": "分類",
+    "classifications": {
+      "folder": "フォルダ",
+      "tag": "タグ",
+      "month": "追加した月",
+      "duration": "長さ",
+      "watch": "視聴状態"
+    },
+    "shelves": {
+      "continue": "続きから",
+      "recommended": "おすすめ",
+      "new": "新着"
+    },
+    "noTag": "タグなし",
+    "watch": {
+      "in_progress": "視聴中",
+      "unwatched": "未視聴",
+      "finished": "視聴済み"
+    },
+    "length": {
+      "under_10m": "10分未満",
+      "10_to_30m": "10〜30分",
+      "30m_plus": "30分以上"
+    },
+    "sort": {
+      "label": "並べ替え",
+      "addedNewest": "追加日（新しい順）",
+      "addedOldest": "追加日（古い順）",
+      "title": "タイトル",
+      "size": "サイズ"
+    },
+    "seeAllIn": "すべて見る: {name}"
+  },
+  "readingApp": {
+    "title": "読む",
+    "tabsLabel": "読むの表示",
+    "discover": "発見",
+    "library": "ライブラリ",
+    "bookCount": "{count, plural, other {{formatted} 冊}}",
+    "target": "対象",
+    "allBooks": "すべての本",
+    "targetUnavailable": "この対象は使えません",
+    "targetUnusable": "この対象は使えません",
+    "noBooks": "本がありません",
+    "shelves": {
+      "continue": "続きを読む",
+      "notReadYet": "まだ読んでいない本",
+      "new": "新着",
+      "in_progress": "続きを読む",
+      "unwatched": "まだ読んでいない本",
+      "finished": "読了"
+    },
+    "all": "すべて",
+    "group": {
+      "label": "まとめ方",
+      "none": "なし",
+      "byTag": "タグ別"
+    },
+    "state": {
+      "label": "状態",
+      "all": "すべて",
+      "unwatched": "未読",
+      "in_progress": "読書中",
+      "finished": "読了"
+    },
+    "tag": "タグ",
+    "noTags": "タグがありません",
+    "noTag": "タグなし",
+    "sort": {
+      "label": "並び順",
+      "addedNewest": "追加日（新しい順）",
+      "addedOldest": "追加日（古い順）",
+      "title": "タイトル",
+      "size": "サイズ"
+    },
+    "formats": {
+      "epub": "EPUB",
+      "pdf": "PDF",
+      "archive": "書庫"
+    }
   }
 }

@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>video app — layout fixture</title>
+    <link rel="stylesheet" href="./globals.built.css" />
+  </head>
+  <body>
+    <!--
+      The video app's two faces: Discover (12-card shelves) and Library
+      (shelves of 5 under a toolbar). The fixture names the utilities it
+      measures as the rules they emit, copied from PageFrame, PageHeader,
+      ToolbarMenu, ShelfBlock and VideoCard, so a class renamed in a
+      component leaves this file measuring a shape the app no longer draws.
+    -->
+    <script type="application/json" id="fixture-markup">
+      {
+        "frame": "flex w-full min-w-0 flex-1 flex-col pt-5 mx-auto max-w-wide",
+        "header": "flex flex-col gap-1 px-4 py-2",
+        "subject": "flex min-w-0 items-start gap-3",
+        "tile": "flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-bg-elevated text-text-primary",
+        "title": "text-2xl font-bold text-text-primary truncate",
+        "scope": "mt-1 text-sm text-text-muted",
+        "actions": "flex flex-shrink-0 flex-wrap items-center gap-2",
+        "menuButton": "flex max-w-full items-center gap-1.5 rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11",
+        "menuValue": "max-w-[12rem] truncate text-text-primary",
+        "tabs": "flex flex-wrap gap-1 border-b border-bg-border pointer-coarse:flex-nowrap pointer-coarse:overflow-x-auto",
+        "tab": "-mb-px inline-flex items-center gap-1.5 rounded-t-xl border-b-2 px-4 py-2 text-sm transition-colors pointer-coarse:min-h-11",
+        "tabSelected": "border-accent font-semibold text-text-primary",
+        "tabIdle": "border-transparent text-text-muted",
+        "panel": "px-4 pb-6 pt-4 sm:pb-8",
+        "toolbar": "flex items-center gap-2",
+        "menuWrapper": "relative min-w-0",
+        "truncate": "truncate",
+        "faceStack": "space-y-8",
+        "toolbarStack": "space-y-6",
+        "section": "min-w-0",
+        "shelfHead": "mb-3 flex items-baseline gap-2",
+        "shelfTitle": "min-w-0 truncate text-lg font-bold text-text-primary",
+        "shelfCount": "flex-shrink-0 text-sm tabular-nums text-text-muted",
+        "seeAll": "ml-auto flex-shrink-0 text-sm text-text-muted",
+        "row": "flex snap-x gap-3 overflow-x-auto pb-2",
+        "slot": "w-44 flex-shrink-0 snap-start sm:w-56 xl:w-[calc((100%-3rem)/5)]",
+        "card": "group block min-w-0 rounded-2xl",
+        "thumb": "relative aspect-video overflow-hidden rounded-2xl bg-bg-elevated",
+        "duration": "absolute bottom-2 right-2 rounded-lg bg-black/70 px-1.5 py-0.5 text-xs font-medium tabular-nums text-white",
+        "progressTrack": "absolute inset-x-0 bottom-0 h-1 bg-black/50",
+        "progressFill": "h-full bg-white",
+        "cardTitle": "mt-2 line-clamp-2 text-sm font-semibold text-text-primary",
+        "longTitle": "A very long video title that keeps going well past two lines so that the clamp has something to cut and the card is measured at its tallest, not its tidiest",
+        "shortTitle": "Short title"
+      }
+    </script>
+
+    <div id="page"></div>
+
+    <script>
+      const SPEC = JSON.parse(document.getElementById("fixture-markup").textContent);
+
+      const el = (tag, className, text, attrs = {}) => {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text !== undefined) node.textContent = text;
+        for (const [name, value] of Object.entries(attrs)) node.setAttribute(name, value);
+        return node;
+      };
+
+      const menuButton = (label, value, name) => {
+        const button = el("button", SPEC.menuButton, undefined, { "data-menu": name, type: "button" });
+        const valueClass = name === "sort" ? SPEC.truncate : SPEC.menuValue;
+        const showLabel = name !== "sort";
+        if (showLabel) button.append(el("span", undefined, label));
+        button.append(el("span", valueClass, value));
+        const wrapper = el("div", SPEC.menuWrapper);
+        wrapper.append(button);
+        return wrapper;
+      };
+
+      const card = (index) => {
+        const slot = el("li", SPEC.slot, undefined, { "data-card": String(index) });
+        const link = el("a", SPEC.card, undefined, { href: "#" });
+        const thumb = el("div", SPEC.thumb, undefined, { "data-thumb": "" });
+        thumb.append(el("span", SPEC.duration, "12:34"));
+        if (index % 2 === 0) {
+          const track = el("div", SPEC.progressTrack, undefined, { "data-progress": "" });
+          const fill = el("div", SPEC.progressFill);
+          fill.style.width = "40%";
+          track.append(fill);
+          thumb.append(track);
+        }
+        link.append(
+          thumb,
+          el("span", SPEC.cardTitle, index === 0 ? SPEC.longTitle : SPEC.shortTitle, {
+            "data-card-title": "",
+          }),
+        );
+        slot.append(link);
+        return slot;
+      };
+
+      const shelf = (title, count, cards) => {
+        const section = el("section", SPEC.section, undefined, { "data-shelf": title });
+        const head = el("div", SPEC.shelfHead);
+        head.append(el("h2", SPEC.shelfTitle, title));
+        if (count !== null) head.append(el("span", SPEC.shelfCount, count));
+        head.append(el("a", SPEC.seeAll, "See all", { href: "#", "data-see-all": "" }));
+        const row = el("ul", SPEC.row, undefined, { "data-row": "" });
+        for (let i = 0; i < cards; i += 1) row.append(card(i));
+        section.append(head, row);
+        return section;
+      };
+
+      window.buildVideoApp = (face) => {
+        const page = document.getElementById("page");
+        page.innerHTML = "";
+        const frame = el("div", SPEC.frame, undefined, { "data-frame": "" });
+
+        const header = el("header", SPEC.header, undefined, { "data-header": "" });
+        const subject = el("div", SPEC.subject);
+        subject.append(el("div", SPEC.tile, "V", { "data-tile": "" }));
+        const text = el("div", "min-w-0 flex-1");
+        text.append(
+          el("h1", SPEC.title, "Video"),
+          el("div", SPEC.scope, "A drive with a rather long name · 1,234 videos"),
+        );
+        const actions = el("div", SPEC.actions);
+        actions.append(menuButton("Target", "A smart folder with a very long name indeed", "target"));
+        subject.append(text, actions);
+
+        const tabs = el("nav", SPEC.tabs, undefined, { "data-tabs": "" });
+        tabs.append(
+          el("button", `${SPEC.tab} ${face === "discover" ? SPEC.tabSelected : SPEC.tabIdle}`, "Discover", { type: "button" }),
+          el("button", `${SPEC.tab} ${face === "library" ? SPEC.tabSelected : SPEC.tabIdle}`, "Library", { type: "button" }),
+        );
+        header.append(subject, tabs);
+
+        const panel = el("div", SPEC.panel);
+        if (face === "discover") {
+          const stack = el("div", SPEC.faceStack);
+          stack.append(shelf("Continue", null, 12), shelf("Recommended", null, 12), shelf("New", null, 12));
+          panel.append(stack);
+        } else {
+          const stack = el("div", SPEC.toolbarStack);
+          const toolbar = el("div", SPEC.toolbar, undefined, { "data-toolbar": "" });
+          toolbar.append(
+            menuButton("Classification", "Month added", "classification"),
+            menuButton("Sort", "Added (newest first)", "sort"),
+          );
+          const shelves = el("div", SPEC.faceStack);
+          shelves.append(shelf("Movies", "1,200", 5), shelf("A folder with a very long name that must truncate", "34", 5));
+          stack.append(toolbar, shelves);
+          panel.append(stack);
+        }
+        frame.append(header, panel);
+        page.append(frame);
+      };
+
+      window.measureVideoApp = () => {
+        const box = (node) => {
+          const rect = node.getBoundingClientRect();
+          return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height };
+        };
+        const all = (selector) => Array.from(document.querySelectorAll(selector));
+        const root = document.documentElement;
+        const firstCard = document.querySelector("[data-card]");
+        const shortTitle = all("[data-card-title]")[1];
+        const lineHeight = parseFloat(getComputedStyle(shortTitle).lineHeight);
+        return {
+          viewport: window.innerWidth,
+          pageOverflowsX: root.scrollWidth > root.clientWidth,
+          header: box(document.querySelector("[data-header]")),
+          tile: box(document.querySelector("[data-tile]")),
+          target: box(document.querySelector('[data-menu="target"]')),
+          tabs: box(document.querySelector("[data-tabs]")),
+          toolbar: document.querySelector("[data-toolbar]") ? box(document.querySelector("[data-toolbar]")) : null,
+          classification: document.querySelector('[data-menu="classification"]') ? box(document.querySelector('[data-menu="classification"]')) : null,
+          sort: document.querySelector('[data-menu="sort"]') ? box(document.querySelector('[data-menu="sort"]')) : null,
+          rows: all("[data-row]").map((row) => ({
+            ...box(row),
+            scrollWidth: row.scrollWidth,
+            clientWidth: row.clientWidth,
+            cards: row.querySelectorAll("[data-card]").length,
+          })),
+          thumb: box(firstCard.querySelector("[data-thumb]")),
+          cardSlot: box(firstCard),
+          longTitle: { ...box(all("[data-card-title]")[0]), lineHeight },
+          shortTitle: box(shortTitle),
+          progress: all("[data-progress]").length ? box(all("[data-progress]")[0]) : null,
+          shelfTitles: all("[data-shelf] h2").map((h) => ({ ...box(h), truncated: h.scrollWidth > h.clientWidth })),
+          seeAll: all("[data-see-all]").map(box),
+        };
+      };
+    </script>
+  </body>
+</html>

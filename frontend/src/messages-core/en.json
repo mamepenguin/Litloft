@@ -29,6 +29,12 @@
       "confirmLabel": "Discard and navigate"
     }
   },
+  "appShell": {
+    "manage": "Manage…",
+    "done": "Done",
+    "searchTargets": "Search smart folders",
+    "seeAllIn": "See all: {name}"
+  },
   "metadata": {
     "description": "Home LAN file management & media streaming"
   },
@@ -71,7 +77,9 @@
     },
     "clearTag": "Clear tag filter",
     "lock": "Lock",
-    "administration": "Administration"
+    "administration": "Administration",
+    "video": "Video",
+    "reading": "Reading"
   },
   "drive": {
     "empty": "No drives found",
@@ -1405,5 +1413,95 @@
     "browseNoMatch": "Nothing here matches",
     "browseUp": "Up one level",
     "suggestions": "Suggestions"
+  },
+  "videoApp": {
+    "title": "Video",
+    "tabsLabel": "Video views",
+    "discover": "Discover",
+    "library": "Library",
+    "videoCount": "{formatted} {count, plural, one {video} other {videos}}",
+    "target": "Target",
+    "allVideos": "All videos",
+    "targetUnavailable": "Not available as a target",
+    "classification": "Classification",
+    "classifications": {
+      "folder": "Folder",
+      "tag": "Tag",
+      "month": "Month added",
+      "duration": "Length",
+      "watch": "Watch state"
+    },
+    "shelves": {
+      "continue": "Continue",
+      "recommended": "Recommended",
+      "new": "New"
+    },
+    "noTag": "No tag",
+    "watch": {
+      "in_progress": "In progress",
+      "unwatched": "Unwatched",
+      "finished": "Finished"
+    },
+    "length": {
+      "under_10m": "Under 10 min",
+      "10_to_30m": "10 to 30 min",
+      "30m_plus": "30 min or more"
+    },
+    "sort": {
+      "label": "Sort",
+      "addedNewest": "Added (newest first)",
+      "addedOldest": "Added (oldest first)",
+      "title": "Title",
+      "size": "Size"
+    },
+    "seeAllIn": "See all: {name}"
+  },
+  "readingApp": {
+    "title": "Reading",
+    "tabsLabel": "Reading views",
+    "discover": "Discover",
+    "library": "Library",
+    "bookCount": "{formatted} {count, plural, one {book} other {books}}",
+    "target": "Target",
+    "allBooks": "All books",
+    "targetUnavailable": "This target cannot be used",
+    "targetUnusable": "This target cannot be used",
+    "noBooks": "No books",
+    "shelves": {
+      "continue": "Continue reading",
+      "notReadYet": "Not read yet",
+      "new": "New",
+      "in_progress": "Continue reading",
+      "unwatched": "Not read yet",
+      "finished": "Finished"
+    },
+    "all": "All",
+    "group": {
+      "label": "Group",
+      "none": "None",
+      "byTag": "By tag"
+    },
+    "state": {
+      "label": "State",
+      "all": "All",
+      "unwatched": "Unread",
+      "in_progress": "In progress",
+      "finished": "Finished"
+    },
+    "tag": "Tag",
+    "noTags": "No tags",
+    "noTag": "No tag",
+    "sort": {
+      "label": "Sort",
+      "addedNewest": "Added (newest first)",
+      "addedOldest": "Added (oldest first)",
+      "title": "Title",
+      "size": "Size"
+    },
+    "formats": {
+      "epub": "EPUB",
+      "pdf": "PDF",
+      "archive": "Archive"
+    }
   }
 }

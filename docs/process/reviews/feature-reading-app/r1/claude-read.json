@@ -1,0 +1,128 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The diff edits the shared component frontend/src/components/PageTabs.tsx to add a `wrap` prop, and no touch point names this file.",
+      "impact": "PageTabs is also used by app/admin/settings/page.tsx. The default `wrap=false` keeps the old `overflow-x-auto` class there, so no user-visible regression was found. The edit still reaches a page outside the plan.",
+      "evidence": "frontend/src/components/PageTabs.tsx: the className changes from a fixed `overflow-x-auto` to `${wrap ? \"flex-wrap\" : \"overflow-x-auto\"}`. Grep for `<PageTabs` finds appshell/AppTabs.tsx and app/admin/settings/page.tsx.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant breaks. The change is to a shared component that the touch-point list does not name.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add PageTabs.tsx to the touch points, or keep the wrapping inside AppTabs."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The diff edits the Video shelf route frontend/src/app/drive/[name]/apps/video/shelf/page.tsx to pass `initialSort` and `from`, but the touch points list only the new Reading routes.",
+      "impact": "Video's See all URLs now accept `sort` and `from`. Spec item 6 requires this, so the behavior is intended, but the route file is not on the list.",
+      "evidence": "The diff of apps/video/shelf/page.tsx adds `initialSort={search.get(\"sort\")}` and `from={search.get(\"from\")}`.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The change follows item 6 and I21. Only the touch-point list leaves it out.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add the Video shelf route to the touch points."
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "The diff adds a new module, frontend/src/lib/readingAppTarget.ts (target resolution, kind intersection, rejection of negated operators), that no touch point names.",
+      "impact": "This module decides which `type` values are sent and which smart folders are usable, so it carries I12, I12a and I12b. A reviewer who uses the touch-point list to choose where to look for mutation review could miss it.",
+      "evidence": "frontend/src/lib/readingAppTarget.ts is new. It holds `resolveReadingTarget`, `intersect`, and `NEGATED_OPERATOR` with the operator list tag|type|path|in|size|duration|is.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is shown broken. The module carrying I12, I12a and I12b is simply unlisted.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add lib/readingAppTarget.ts to the touch points."
+    },
+    {
+      "id": "TP-4",
+      "origin": "reviewer",
+      "claim": "The diff edits an existing layout spec, frontend/e2e-layout/spec-viewport.spec.ts (the FIXTURES list and FIXTURE_COUNT 22→23), but the touch point names only a new spec file and its fixture.",
+      "impact": "An existing layout guard is changed, which the touch point did not announce. No loss of coverage was found, because the new fixture is only added to the list.",
+      "evidence": "frontend/e2e-layout/spec-viewport.spec.ts: `\"reading-video-faces.html\"` is added and `FIXTURE_COUNT = 23`.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This bookkeeping is needed to register the new fixture. No invariant is affected.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Name spec-viewport.spec.ts in the layout touch point."
+    },
+    {
+      "id": "TP-5",
+      "origin": "reviewer",
+      "claim": "The diff changes the allowlists and counts of several repository guard tests that no touch point names: card-grid.test.ts (6→8 sites), section-rows.test.tsx (the scrollbar allowlist swaps videoapp/ShelfBlock for readingapp/LibraryFace), popup-dismissal.test.ts (three new popups registered), and toolbarMenuHome.test.ts.",
+      "impact": "Each guard's exemption list now includes the new reading files. The section-rows exemption allows the Reading chip row's `overflow-x-auto`. Under I22 that is acceptable only because the mouse media query switches it off. A future edit to the chip row would pass this guard unchecked.",
+      "evidence": "frontend/src/__tests__/section-rows.test.tsx adds \"frontend/src/components/readingapp/LibraryFace.tsx\". frontend/src/__tests__/card-grid.test.ts expects 8 sites. frontend/src/__tests__/popup-dismissal.test.ts adds appshell/ManageTargetsDialog, appshell/TargetMenu and readingapp/LibraryControls.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "These are guard registrations outside the plan. No invariant is broken. I22 coverage now rests on the e2e-layout spec, not this guard.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "List the guard tests whose registries the change updates in the touch points."
+    },
+    {
+      "id": "TP-6",
+      "origin": "reviewer",
+      "claim": "useVideoApp.ts drops Video's repair of a stale saved target: it no longer rewrites a deleted folder's id to `default`. The touch point says Video behavior outside the three item-7 changes stays as it is, and this is not one of those changes.",
+      "impact": "In Video, a stored target id for a deleted smart folder now stays in localStorage permanently. If that folder (the same id) comes back, it becomes the target again. The existing SPEC-CORE-055 test was rewritten from \"repairs\" to \"keeps\" to match.",
+      "evidence": "frontend/src/components/videoapp/useVideoApp.ts removes the `stale` useEffect that called `updatePrefs({ target: \"default\" })`. frontend/src/components/videoapp/__tests__/VideoApp.test.tsx now expects `readAppPrefs(DRIVE).target` to be \"deleted-id\".",
+      "repro": "Store a target id for a smart folder that does not exist and open the Video app. Before the change, storage became `default`. After it, the id stays (the rewritten test asserts this).",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The spec's failure-case text says the saved id is left in storage, so the change is arguably intended. But it is a Video behavior change that the touch point's \"stays as it is\" excludes, and it rewrites a SPEC-CORE-055 test. I16 covers only Reading, so no declared invariant is broken.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "State in the touch points (item 7) that Video also keeps a stale saved target id, or restore the repair for Video."
+    }
+  ],
+  "specification_compliance": [
+    "backend drives.py, shelves.py and schemas.py stay within their listed touch points; _KIND_MIMES, _KIND_SUFFIXES and the folder-card classifier are not edited.",
+    "internal.py, FolderKind, mcp-server/, playwright-layout.config.ts, process/ and .github/ are not edited; no protected path in process/protected-paths.conf is touched.",
+    "Listed but not reached: driveViews.ts, SidebarLibrarySection.tsx and libraryRowActive.ts; the sidebar appears to derive the row from builtinApps."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "FilterField.tsx maps `epub` to the `type.document` label and the Files icon, so a `type:epub` filter chip would read \"Document\".",
+    "ParsedQuery gains a `kinds` getter that aliases `types`; spreading the object copies it as a value."
+  ],
+  "regression_risks": [
+    "The admin settings page shares PageTabs; it is unaffected only while its `wrap` default stays false.",
+    "The guard-test allowlist now exempts readingapp/LibraryFace.tsx from the no-hidden-scrollbar rule."
+  ],
+  "test_coverage": [
+    "Backend: test_api_shelves_reading.py covers epub, by=all, the watch filter, the base descent, the trailing-slash key and NFC.",
+    "Frontend: vitest covers the touch-point files; readingAppTarget has its own test."
+  ],
+  "not_verified": [
+    "I did not run any test or build.",
+    "I did not check whether the sidebar or the layout route checks need edits to driveViews.ts or libraryRowActive.ts for I13.",
+    "I did not check whether the commit ef9797b06 alone, as opposed to the branch diff shown, contains these files."
+  ],
+  "confidence": 75
+}

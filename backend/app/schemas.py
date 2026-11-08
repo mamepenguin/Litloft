@@ -3,7 +3,14 @@ import re
 from datetime import UTC, datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_serializer,
+    model_validator,
+)
 
 from app.models import TRUST_TIERS
 from app.services.chapters import ChapterRow, normalise_chapters
@@ -707,6 +714,31 @@ class WatchHistoryItemResponse(_UtcDateTimeMixin, BaseModel):
 
 class WatchHistoryResponse(BaseModel):
     data: list[WatchHistoryItemResponse]
+
+
+class ShelfItemResponse(FileResponse):
+    watch_progress: WatchProgressInfo | None = None
+
+    @model_serializer(mode="wrap")
+    def _omit_absent_progress(self, handler):
+        data = handler(self)
+        if data.get("watch_progress") is None:
+            data.pop("watch_progress", None)
+        return data
+
+
+class ShelfResponse(BaseModel):
+    key: str
+    label: str
+    count: int
+    items: list[ShelfItemResponse]
+
+
+class ShelvesResponse(BaseModel):
+    by: str
+    shelves: list[ShelfResponse]
+    total_shelves: int
+    base: str = ""
 
 
 def _validate_collection_name(v: str) -> str:

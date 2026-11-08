@@ -1,0 +1,517 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>reading and video faces — layout fixture</title>
+    <link rel="stylesheet" href="./globals.built.css" />
+  </head>
+  <body class="m-0">
+    <!--
+      The furniture the Reading and Video faces draw, as the class lists the
+      components write. A row is a shape the geometry spec measures; `ref`
+      pulls a named row in, so adding a row to this table without drawing it
+      leaves the "every declared shape" case red.
+    -->
+    <script type="application/json" id="fixture-markup">
+      {
+        "readingShelf": {
+          "source": "ShelfBlock",
+          "tag": "section",
+          "class": "min-w-0",
+          "children": [
+            {
+              "tag": "div",
+              "class": "mb-3 flex min-w-0 items-baseline gap-2",
+              "children": [
+                {
+                  "tag": "h2",
+                  "class": "min-w-0 truncate text-lg font-bold text-text-primary"
+                },
+                {
+                  "tag": "span",
+                  "class": "flex-shrink-0 text-sm tabular-nums text-text-muted"
+                },
+                {
+                  "tag": "a",
+                  "class": "ml-auto flex-shrink-0 text-sm text-text-muted transition-colors hover:text-text-primary",
+                  "attrs": { "href": "*", "aria-label": "*" }
+                }
+              ]
+            },
+            {
+              "tag": "ul",
+              "class": "grid gap-3",
+              "attrs": { "style": "*" },
+              "children": [
+                {
+                  "tag": "li",
+                  "class": "min-w-0",
+                  "children": [
+                    {
+                      "tag": "div",
+                      "class": "aspect-[2/3] rounded-xl bg-bg-elevated"
+                    }
+                  ]
+                },
+                {
+                  "tag": "li",
+                  "class": "min-w-0",
+                  "children": [
+                    {
+                      "tag": "div",
+                      "class": "aspect-[2/3] rounded-xl bg-bg-elevated"
+                    }
+                  ]
+                },
+                {
+                  "tag": "li",
+                  "class": "min-w-0",
+                  "children": [
+                    {
+                      "tag": "div",
+                      "class": "aspect-[2/3] rounded-xl bg-bg-elevated"
+                    }
+                  ]
+                },
+                {
+                  "tag": "li",
+                  "class": "min-w-0",
+                  "children": [
+                    {
+                      "tag": "div",
+                      "class": "aspect-[2/3] rounded-xl bg-bg-elevated"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "videoShelf": {
+          "source": "ShelfBlock",
+          "tag": "section",
+          "class": "min-w-0",
+          "children": [
+            {
+              "tag": "div",
+              "class": "mb-3 flex min-w-0 items-baseline gap-2",
+              "children": [
+                {
+                  "tag": "h2",
+                  "class": "min-w-0 truncate text-lg font-bold text-text-primary"
+                },
+                {
+                  "tag": "span",
+                  "class": "flex-shrink-0 text-sm tabular-nums text-text-muted"
+                },
+                {
+                  "tag": "a",
+                  "class": "ml-auto flex-shrink-0 text-sm text-text-muted transition-colors hover:text-text-primary",
+                  "attrs": { "href": "*", "aria-label": "*" }
+                }
+              ]
+            },
+            {
+              "tag": "ul",
+              "class": "grid gap-3",
+              "attrs": { "style": "*" },
+              "children": [
+                {
+                  "tag": "li",
+                  "class": "min-w-0",
+                  "children": [
+                    {
+                      "tag": "div",
+                      "class": "aspect-video rounded-2xl bg-bg-elevated"
+                    }
+                  ]
+                },
+                {
+                  "tag": "li",
+                  "class": "min-w-0",
+                  "children": [
+                    {
+                      "tag": "div",
+                      "class": "aspect-video rounded-2xl bg-bg-elevated"
+                    }
+                  ]
+                },
+                {
+                  "tag": "li",
+                  "class": "min-w-0",
+                  "children": [
+                    {
+                      "tag": "div",
+                      "class": "aspect-video rounded-2xl bg-bg-elevated"
+                    }
+                  ]
+                },
+                {
+                  "tag": "li",
+                  "class": "min-w-0",
+                  "children": [
+                    {
+                      "tag": "div",
+                      "class": "aspect-video rounded-2xl bg-bg-elevated"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "readingDiscover": {
+          "source": "ReadingDiscoverFace",
+          "tag": "div",
+          "class": "space-y-8"
+        },
+        "videoDiscover": {
+          "source": "VideoDiscoverFace",
+          "tag": "div",
+          "class": "space-y-8"
+        },
+        "readingChips": {
+          "source": "ReadingLibraryFace",
+          "tag": "div",
+          "class": "flex flex-wrap gap-2 pb-1 max-h-[8rem] overflow-y-auto pointer-coarse:max-h-none pointer-coarse:flex-nowrap pointer-coarse:overflow-x-auto",
+          "attrs": { "data-testid": "reading-chips" },
+          "children": [{ "ref": "readingChipSelected" }, { "ref": "readingChipIdle" }]
+        },
+        "readingChipSelected": {
+          "source": "ReadingLibraryFace",
+          "tag": "button",
+          "class": "flex-shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-sm transition-colors pointer-coarse:min-h-11 border-accent font-semibold text-text-primary",
+          "attrs": { "type": "button", "aria-pressed": "true" }
+        },
+        "readingChipIdle": {
+          "source": "ReadingLibraryFace",
+          "tag": "button",
+          "class": "flex-shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-sm transition-colors pointer-coarse:min-h-11 border-bg-border text-text-muted hover:text-text-primary",
+          "attrs": { "type": "button", "aria-pressed": "false" }
+        },
+        "readingControls": {
+          "source": "ReadingLibraryFace",
+          "tag": "div",
+          "class": "flex flex-wrap items-center gap-2",
+          "children": [
+            { "ref": "menuButton" },
+            { "ref": "menuButton" },
+            { "ref": "menuButton" },
+            { "ref": "menuButton" }
+          ]
+        },
+        "videoControls": {
+          "source": "VideoLibraryFace",
+          "tag": "div",
+          "class": "flex items-center gap-2",
+          "children": [{ "ref": "menuButton" }, { "ref": "menuButton" }]
+        },
+        "menuButton": {
+          "source": "ToolbarMenu",
+          "tag": "div",
+          "class": "relative min-w-0",
+          "children": [
+            {
+              "tag": "button",
+              "class": "flex items-center gap-1.5 rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11 max-w-full",
+              "attrs": {
+                "aria-haspopup": "menu",
+                "aria-expanded": "false",
+                "aria-label": "*"
+              }
+            }
+          ]
+        },
+        "tabs": {
+          "source": "AppTabs",
+          "tag": "nav",
+          "class": "flex gap-1 border-b border-bg-border flex-wrap",
+          "attrs": { "aria-label": "*", "role": "tablist" },
+          "children": [{ "ref": "tabSelected" }, { "ref": "tabIdle" }]
+        },
+        "tabSelected": {
+          "source": "AppTabs",
+          "tag": "button",
+          "class": "-mb-px inline-flex items-center gap-1.5 rounded-t-xl border-b-2 px-4 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring pointer-coarse:min-h-11 border-accent font-semibold text-text-primary",
+          "attrs": {
+            "type": "button",
+            "id": "*",
+            "role": "tab",
+            "aria-selected": "true",
+            "aria-controls": "*"
+          }
+        },
+        "tabIdle": {
+          "source": "AppTabs",
+          "tag": "button",
+          "class": "-mb-px inline-flex items-center gap-1.5 rounded-t-xl border-b-2 px-4 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring pointer-coarse:min-h-11 border-transparent text-text-muted hover:text-text-primary",
+          "attrs": {
+            "type": "button",
+            "id": "*",
+            "role": "tab",
+            "aria-selected": "false",
+            "aria-controls": "*"
+          }
+        }
+      }
+    </script>
+
+    <div id="page"></div>
+
+    <script>
+      const SHAPES = JSON.parse(
+        document.getElementById("fixture-markup").textContent,
+      );
+
+      /** Named rows reached by the current build, so a table row cannot go undrawn. */
+      const used = new Set();
+      let grids = [];
+
+      const resolve = (spec) => (spec.ref ? SHAPES[spec.ref] : spec);
+
+      const build = (spec, name) => {
+        if (name) used.add(name);
+        if (spec.ref) used.add(spec.ref);
+        const named = resolve(spec);
+        const el = document.createElement(named.tag);
+        if (named.class) el.setAttribute("class", named.class);
+        for (const [key, value] of Object.entries(named.attrs ?? {})) {
+          el.setAttribute(key, value === "*" ? "" : value);
+        }
+        for (const child of named.children ?? []) el.append(build(child));
+        return el;
+      };
+
+      const text = (root, selector, value) => {
+        const node = root.querySelector(selector);
+        if (node) node.textContent = value;
+      };
+
+      const shelf = (app, title, count) => {
+        const section = build({
+          ref: app === "reading" ? "readingShelf" : "videoShelf",
+        });
+        section.dataset.shelf = title;
+        text(section, "h2", title);
+        text(section, "span", count);
+        const link = section.querySelector("a");
+        link.href = "#";
+        link.setAttribute("aria-label", "See all: " + title);
+        link.textContent = "See all";
+
+        const grid = section.querySelector("ul");
+        const template = grid.firstElementChild.cloneNode(true);
+        grid.replaceChildren();
+        grids.push({ grid, template });
+        return section;
+      };
+
+      const menu = (wrapper, label, value) => {
+        const button = wrapper.querySelector("button");
+        button.setAttribute("aria-label", label + ": " + value);
+        button.textContent = label + " " + value;
+      };
+
+      const tabs = (face) => {
+        const nav = build({ ref: "tabs" });
+        const buttons = nav.querySelectorAll("button");
+        buttons[0].textContent = "Discover";
+        buttons[1].textContent = "Library";
+        buttons[0].setAttribute(
+          "aria-selected",
+          face === "discover" ? "true" : "false",
+        );
+        buttons[1].setAttribute(
+          "aria-selected",
+          face === "library" ? "true" : "false",
+        );
+        return nav;
+      };
+
+      const header = (app, face) => {
+        const node = document.createElement("header");
+        node.className = "flex flex-col gap-1 px-4 py-2";
+        node.dataset.header = "";
+
+        const subject = document.createElement("div");
+        subject.className = "flex min-w-0 items-start gap-3";
+
+        const tile = document.createElement("div");
+        tile.className =
+          "flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-bg-elevated text-text-primary";
+        tile.textContent = app === "reading" ? "R" : "V";
+
+        const textBlock = document.createElement("div");
+        textBlock.className = "min-w-0 flex-1";
+        const heading = document.createElement("h1");
+        heading.className = "truncate text-2xl font-bold text-text-primary";
+        heading.textContent = app === "reading" ? "Reading" : "Video";
+        const scope = document.createElement("div");
+        scope.className = "mt-1 text-sm text-text-muted";
+        scope.textContent =
+          "A drive with a rather long name · 1,234 " +
+          (app === "reading" ? "books" : "videos");
+        textBlock.append(heading, scope);
+        subject.append(tile, textBlock);
+
+        node.append(subject, tabs(face));
+        return node;
+      };
+
+      const discover = (app) => {
+        const stack = build({
+          ref: app === "reading" ? "readingDiscover" : "videoDiscover",
+        });
+        const names =
+          app === "reading"
+            ? ["Continue reading", "Not read yet", "New"]
+            : ["Continue", "Recommended", "New"];
+        for (const name of names) stack.append(shelf(app, name, "1,234"));
+        return stack;
+      };
+
+      const readingLibrary = () => {
+        const stack = document.createElement("div");
+        stack.className = "space-y-6";
+
+        const chips = build({ ref: "readingChips" });
+        chips.dataset.chips = "";
+        const [selected, idle] = chips.querySelectorAll("button");
+        selected.textContent = "All";
+        idle.textContent = "Novels";
+        // More chips than any width fits in one line, so the row has to wrap
+        // or scroll rather than disappear behind the edge.
+        for (let i = 0; i < 30; i += 1) {
+          const chip = build({ ref: "readingChipIdle" });
+          chip.textContent = "A folder with a very long name " + i;
+          chips.append(chip);
+        }
+
+        const controls = build({ ref: "readingControls" });
+        controls.dataset.controls = "";
+        const labels = [
+          ["Tag", "Tag"],
+          ["State", "In progress"],
+          ["Group", "By tag"],
+          ["Sort", "Added (newest first)"],
+        ];
+        controls.querySelectorAll(":scope > div").forEach((wrapper, i) => {
+          menu(wrapper, labels[i][0], labels[i][1]);
+        });
+
+        stack.append(chips, controls, shelf("reading", "Novels", "34"));
+        return stack;
+      };
+
+      const videoLibrary = () => {
+        const stack = document.createElement("div");
+        stack.className = "space-y-6";
+
+        const controls = build({ ref: "videoControls" });
+        controls.dataset.controls = "";
+        controls.querySelectorAll(":scope > div").forEach((wrapper, i) => {
+          menu(
+            wrapper,
+            i === 0 ? "Classification" : "Sort",
+            i === 0 ? "Folder" : "Added (newest first)",
+          );
+        });
+
+        stack.append(
+          controls,
+          shelf("video", "Movies", "1,200"),
+          shelf("video", "A folder with a very long name that must truncate", "34"),
+        );
+        return stack;
+      };
+
+      window.buildApp = (app, face) => {
+        used.clear();
+        grids = [];
+        const page = document.getElementById("page");
+        page.replaceChildren();
+
+        const frame = document.createElement("div");
+        frame.className =
+          "mx-auto flex w-full min-w-0 max-w-wide flex-1 flex-col pt-5";
+        frame.dataset.frame = "";
+
+        const panel = document.createElement("div");
+        panel.className = "px-4 pb-6 pt-4 sm:pb-8";
+        panel.dataset.panel = "";
+
+        panel.append(
+          face === "discover"
+            ? discover(app)
+            : app === "reading"
+              ? readingLibrary()
+              : videoLibrary(),
+        );
+
+        frame.append(header(app, face), panel);
+        page.append(frame);
+      };
+
+      window.firstGridWidth = () => grids[0].grid.clientWidth;
+
+      window.fillGrids = (template, capacity) => {
+        for (const { grid, template: card } of grids) {
+          grid.style.gridTemplateColumns = template;
+          grid.replaceChildren();
+          for (let i = 0; i < capacity; i += 1) {
+            grid.append(card.cloneNode(true));
+          }
+        }
+      };
+
+      window.measureApp = () => {
+        const box = (node) => {
+          const rect = node.getBoundingClientRect();
+          return {
+            left: rect.left,
+            right: rect.right,
+            top: rect.top,
+            bottom: rect.bottom,
+            width: rect.width,
+            height: rect.height,
+          };
+        };
+        const root = document.documentElement;
+        const row = (node) =>
+          node
+            ? {
+                ...box(node),
+                scrollWidth: node.scrollWidth,
+                clientWidth: node.clientWidth,
+              }
+            : null;
+
+        return {
+          media: {
+            fine: matchMedia("(hover: hover) and (pointer: fine)").matches,
+            coarse: matchMedia("(pointer: coarse)").matches,
+          },
+          pageOverflowsX: root.scrollWidth > root.clientWidth,
+          frame: box(document.querySelector("[data-frame]")),
+          tabs: row(document.querySelector("[data-header] nav")),
+          shelves: Array.from(document.querySelectorAll("[data-shelf]")).map(
+            (section) => {
+              const grid = section.querySelector("ul");
+              return {
+                ...row(section),
+                gridScrollWidth: grid.scrollWidth,
+                gridClientWidth: grid.clientWidth,
+                cards: grid.children.length,
+                seeAll: box(section.querySelector("a")),
+              };
+            },
+          ),
+          chipRow: row(document.querySelector("[data-chips]")),
+          controls: row(document.querySelector("[data-controls]")),
+          shapes: Array.from(used).sort(),
+        };
+      };
+    </script>
+  </body>
+</html>

@@ -287,6 +287,7 @@ FileKind = Literal[
     "other",
     "text",
     "pdf",
+    "epub",
     "subtitle",
 ]
 
@@ -318,6 +319,14 @@ _KIND_MIMES: dict[str, tuple[str, ...]] = {
 _KIND_SUFFIXES: dict[str, tuple[str, ...]] = {
     "text": (".md", ".markdown", ".txt"),
     "pdf": (".pdf",),
+}
+
+
+# Kinds only the kind predicate accepts. `epub` is here, not in the two
+# tables above, because the folder card's roll-up reads those and must keep
+# counting an EPUB as `document`.
+_FILTER_ONLY_KINDS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
+    "epub": (("application/epub+zip",), (".epub",)),
 }
 
 
@@ -480,10 +489,15 @@ def apply_file_filters(
 
 
 def _kind_predicate(kind: FileKind):
-    mimes = _KIND_MIMES.get(kind)
-    if mimes is None:
-        # The six flat kinds are `file_type` itself.
-        return File.file_type == kind
+    filter_only = _FILTER_ONLY_KINDS.get(kind)
+    if filter_only is not None:
+        mimes, suffixes = filter_only
+    else:
+        mimes = _KIND_MIMES.get(kind)
+        if mimes is None:
+            # The six flat kinds are `file_type` itself.
+            return File.file_type == kind
+        suffixes = _KIND_SUFFIXES[kind]
 
     # A nested kind: recognised by mime, or by extension for rows whose
     # mime was never recorded.
@@ -495,7 +509,6 @@ def _kind_predicate(kind: FileKind):
     # predicate would undo the extension fallback for exactly the rows
     # it exists for: one whose mime was never recorded may well have
     # been given the wrong ``file_type`` by the same writer.
-    suffixes = _KIND_SUFFIXES[kind]
     return or_(
         File.mime_type.in_(mimes),
         *(func.lower(File.filename).like(f"%{suffix}") for suffix in suffixes),
@@ -902,36 +915,30 @@ def list_folder_tree(
     return folder_nodes + file_nodes
 
 
-@router.get("/{drive_name}/files", response_model=PaginatedResponse)
-def list_drive_files(
+def filtered_drive_files(
+    db: Session,
     drive_name: str,
-    db: Annotated[Session, Depends(get_db)],
-    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    *,
     path: str | None = None,
     recursive: bool = False,
-    search: str | None = Query(None, max_length=200),
+    search: str | None = None,
     favorite: bool | None = None,
     liked: bool | None = None,
-    tag: list[str] | None = Query(None),
-    type: list[FileKindParam] | None = Query(None),
-    folder: list[str] | None = Query(None),
-    collection: list[str] | None = Query(None),
-    size: list[str] | None = Query(None),
-    duration: list[str] | None = Query(None),
-    trust: str | None = Query(None, pattern="^(verified|unverified|unreviewed)$"),
-    sort: str = Query(
-        "created_at", pattern="^(created_at|title|file_size|liked_at|updated_at|random)$"
-    ),
-    order: str = Query("desc", pattern="^(asc|desc)$"),
-    page: int = Query(1, ge=1),
-    limit: int = Query(30, ge=1, le=500),
+    tag: list[str] | None = None,
+    type: list[FileKindParam] | None = None,
+    folder: list[str] | None = None,
+    collection: list[str] | None = None,
+    size: list[str] | None = None,
+    duration: list[str] | None = None,
+    trust: str | None = None,
 ):
-    """List a drive's active files.
+    """The active files of one drive under the listing's filters.
 
-    `path` is an exact `folder_path` match by default — direct children only.
-    `recursive=True` widens it to the folder's whole subtree.
+    Shared by the listing and the shelves endpoint so both answer the same
+    set for the same parameters. Returns the query and the NFC-normalised
+    search text (``None`` without a search). A filter that does not
+    normalise raises 400.
     """
-    _validate_drive(drive_name, unlocked_groups)
     if path is not None and path:
         path = _validate_folder_path(path)
     try:
@@ -987,6 +994,55 @@ def list_drive_files(
         query = query.filter(File.trust_reviewed_at.is_(None))
     elif trust:
         query = query.filter(File.trust_tier == trust)
+    return query, normalized_search
+
+
+@router.get("/{drive_name}/files", response_model=PaginatedResponse)
+def list_drive_files(
+    drive_name: str,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    path: str | None = None,
+    recursive: bool = False,
+    search: str | None = Query(None, max_length=200),
+    favorite: bool | None = None,
+    liked: bool | None = None,
+    tag: list[str] | None = Query(None),
+    type: list[FileKindParam] | None = Query(None),
+    folder: list[str] | None = Query(None),
+    collection: list[str] | None = Query(None),
+    size: list[str] | None = Query(None),
+    duration: list[str] | None = Query(None),
+    trust: str | None = Query(None, pattern="^(verified|unverified|unreviewed)$"),
+    sort: str = Query(
+        "created_at", pattern="^(created_at|title|file_size|liked_at|updated_at|random)$"
+    ),
+    order: str = Query("desc", pattern="^(asc|desc)$"),
+    page: int = Query(1, ge=1),
+    limit: int = Query(30, ge=1, le=500),
+):
+    """List a drive's active files.
+
+    `path` is an exact `folder_path` match by default — direct children only.
+    `recursive=True` widens it to the folder's whole subtree.
+    """
+    _validate_drive(drive_name, unlocked_groups)
+    query, normalized_search = filtered_drive_files(
+        db,
+        drive_name,
+        path=path,
+        recursive=recursive,
+        search=search,
+        favorite=favorite,
+        liked=liked,
+        tag=tag,
+        type=type,
+        folder=folder,
+        collection=collection,
+        size=size,
+        duration=duration,
+        trust=trust,
+    )
 
     total = query.count()
 

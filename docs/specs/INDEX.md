@@ -144,6 +144,17 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-051 | implemented | docs/specs/ocr-line-boxes.md | sha256:34e34c624bf5010e494acb27acd3d641490b7c3488504c1991d0e22a06f90414 |
 | SPEC-CORE-052 | implemented | docs/specs/persistent-highlights.md | sha256:a3289475f0de7eb5baceb80b7f281b4ade7283f8f1bde522e601d41974e1cfce |
 | SPEC-CORE-053 | implemented | docs/specs/persistent-highlights.md | sha256:a3289475f0de7eb5baceb80b7f281b4ade7283f8f1bde522e601d41974e1cfce |
+| SPEC-CORE-054 | implemented | docs/specs/video-library-app.md | sha256:3802363ed6d4223f69c5ba8f2766457d393097f13aaa707b38aac176c4d9c549 |
+| SPEC-CORE-055 | implemented | docs/specs/video-library-app.md | sha256:3802363ed6d4223f69c5ba8f2766457d393097f13aaa707b38aac176c4d9c549 |
+| SPEC-CORE-056 | implemented | docs/specs/video-library-app.md | sha256:3802363ed6d4223f69c5ba8f2766457d393097f13aaa707b38aac176c4d9c549 |
+| SPEC-CORE-057 | implemented | docs/specs/video-library-app.md | sha256:3802363ed6d4223f69c5ba8f2766457d393097f13aaa707b38aac176c4d9c549 |
+| SPEC-CORE-059 | implemented | docs/specs/reading-app.md | sha256:d50212bc93851ad97819185b6a7ec10e43f805aabc994a912143fb2d813836fb |
+| SPEC-CORE-060 | implemented | docs/specs/reading-app.md | sha256:d50212bc93851ad97819185b6a7ec10e43f805aabc994a912143fb2d813836fb |
+| SPEC-CORE-061 | implemented | docs/specs/reading-app.md | sha256:d50212bc93851ad97819185b6a7ec10e43f805aabc994a912143fb2d813836fb |
+| SPEC-CORE-062 | implemented | docs/specs/reading-app.md | sha256:d50212bc93851ad97819185b6a7ec10e43f805aabc994a912143fb2d813836fb |
+| SPEC-CORE-063 | implemented | docs/specs/reading-app.md | sha256:d50212bc93851ad97819185b6a7ec10e43f805aabc994a912143fb2d813836fb |
+| SPEC-CORE-064 | implemented | docs/specs/no-horizontal-scroll-on-mouse.md | sha256:8d3333579eb13917fd2c7f022e2309c30c7ff27573e12bb506a44c667e2ef0fd |
+| SPEC-CORE-065 | implemented | docs/specs/no-horizontal-scroll-on-mouse.md | sha256:8d3333579eb13917fd2c7f022e2309c30c7ff27573e12bb506a44c667e2ef0fd |
 | SPEC-ADDON-076 | implemented | docs/specs/youtube-frames.md | sha256:d505349c8947e1efea1efcd1a9d1449cf74f7df17e7f016394d7c9c1005acfb5 |
 | SPEC-ADDON-077 | implemented | docs/specs/youtube-frames.md | sha256:d505349c8947e1efea1efcd1a9d1449cf74f7df17e7f016394d7c9c1005acfb5 |
 | SPEC-ADDON-078 | implemented | docs/specs/youtube-frames.md | sha256:d505349c8947e1efea1efcd1a9d1449cf74f7df17e7f016394d7c9c1005acfb5 |
