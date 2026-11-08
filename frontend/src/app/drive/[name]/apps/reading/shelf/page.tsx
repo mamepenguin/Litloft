@@ -1,17 +1,23 @@
 "use client";
 
-import { BookOpen } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useParams, useSearchParams } from "next/navigation";
 
-import { PageFrame } from "@/components/PageFrame";
-import { PageHeader } from "@/components/PageHeader";
+import { parseGrouping, ReadingShelfPage } from "@/components/readingapp/ReadingShelfPage";
 
-export default function ReadingShelfPage() {
-  const t = useTranslations("readingApp");
+export default function ReadingShelfRoute() {
+  const params = useParams();
+  const search = useSearchParams();
+  const driveName = decodeURIComponent(params.name as string);
   return (
-    <PageFrame
-      width="wide"
-      header={<PageHeader titleIcon={BookOpen} title={t("title")} />}
+    <ReadingShelfPage
+      key={driveName}
+      drive={driveName}
+      by={parseGrouping(search.get("by"))}
+      shelfKey={search.get("key") ?? ""}
+      initialSort={search.get("sort")}
+      folders={search.getAll("folder").filter(Boolean)}
+      tags={search.getAll("tag").filter(Boolean)}
+      watch={search.get("watch")}
     />
   );
 }
