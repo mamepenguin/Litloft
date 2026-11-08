@@ -38,7 +38,7 @@ const BASE_CLASS =
 const SELECTED_CLASS = "border-accent font-semibold text-text-primary";
 const UNSELECTED_CLASS = "border-transparent text-text-muted hover:text-text-primary";
 
-const WRAP_ROW_CLASS = "flex flex-wrap gap-1 border-b border-bg-border";
+const WRAP_ROW_CLASS = "flex gap-1 border-b border-bg-border flex-wrap";
 const ROW_CLASS =
   "flex flex-wrap gap-1 border-b border-bg-border " +
   "pointer-coarse:flex-nowrap pointer-coarse:overflow-x-auto";
