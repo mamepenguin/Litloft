@@ -66,7 +66,7 @@ Environment variables of the `knowledge` container:
 | `HOMEVAULT_INTERNAL_URL` | `http://backend:8000` | The backend's address on the Docker network. |
 | `KNOWLEDGE_USER_AGENT` | a desktop Chrome user agent | User agent for fetching web pages to clip. |
 | `KNOWLEDGE_WEBHOOK_SECRET` | *(empty)* | Shared secret the backend sends in the `X-Webhook-Secret` header on file events. The addon rejects a call with the wrong value (`403`). Also required by the intelligence addon to clear a summary note. |
-| `CORE_INTERNAL_SECRET` | *(empty)* | Shared secret for the addon's calls to the backend's internal API. Web clipping fails without it; see [Clips are unverified](#clips-are-unverified). |
+| `CORE_INTERNAL_SECRET` | *(empty)* | Shared secret for the addon's calls to the backend's internal API. Web clipping fails without it, and saving an Ask answer answers `502` though the note is written; see [Clips are unverified](#clips-are-unverified) and [Notes saved from Ask are unverified](#notes-saved-from-ask-are-unverified). |
 | `NOTE_SCANNER_INTERVAL_SECONDS` | `3600` | How often to check for notes edited outside Litloft. |
 
 With a secret empty, that check is skipped. Set both on a real installation.
@@ -162,6 +162,12 @@ Litloft creates the note at once and fetches the page in the background. It keep
 Every clip is saved as an **unverified** source. It can be searched at once, but Ask does not use it as evidence until you press **Trust as a source** on its file page. See [Trusted sources](../user-guide/file-browsing.md#trusted-sources-and-the-review-queue).
 
 Because of this, `CORE_INTERNAL_SECRET` must be set on both containers. Without it, the clip cannot be marked unverified, so clipping fails (`502`) rather than saving the page as a trusted source. The empty placeholder note is left in the folder.
+
+### Notes saved from Ask are unverified
+
+Every note saved through Ask's **Markdownで保存**, from the drive's Ask page or a file's **Ask** tab, is saved as an **unverified** source. It can be searched, but Ask does not use it as evidence until you press **Trust as a source** on its page: an earlier answer from the model must not come back as evidence for a later question. See [Trusted sources](../user-guide/file-browsing.md#trusted-sources-and-the-review-queue).
+
+Ask notes already in the library are declared unverified at the addon's next start. When the declaration at save time fails, the save answers `502` with a detail saying the note was saved but could not be marked unverified; the note stays where it was written and is declared at the next start. `CORE_INTERNAL_SECRET` must be set on both containers for this, as for clips.
 
 ### Pages that are refused
 

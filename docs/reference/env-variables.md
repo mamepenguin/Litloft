@@ -50,6 +50,8 @@ A variable only reaches the containers whose `environment` lists it. Compose set
 - Unset: the backend logs a warning at startup, and every internal endpoint accepts requests without it, except `PUT /api/internal/files/{id}/chapters`, which returns `503`.
 - Set, but to a different value on the addon: `403`.
 - Set the same value on the backend and on every addon that calls the core. `configure.py` generates it whenever the intelligence or knowledge addon is enabled.
+- Also needed to save an Ask answer: the knowledge addon marks the saved note unverified through the Internal API. Without it, the save answers `502` and the note is still written.
+- An override written by an older `configure.py` may lack it on the backend; run `configure.py` again to add it.
 
 ### `CORE_INTERNAL_CONTENT_MAX_BYTES`
 - **Default**: `10485760` (10 MiB)
@@ -242,6 +244,7 @@ A normal deployment needs none of these. The `/api/*` rewrite always targets `ht
 ### `CORE_INTERNAL_SECRET`
 - **Default**: empty
 - Same value as on the core, sent on every call to the core's Internal API. Needed once the core has it set; with a different value, the core refuses the addon's Internal API calls with `403`.
+- Needed to save an Ask answer: the note is written, but the addon cannot mark it unverified, and the save answers `502`.
 
 ### `NOTE_SCANNER_INTERVAL_SECONDS`
 - **Default**: `3600`
