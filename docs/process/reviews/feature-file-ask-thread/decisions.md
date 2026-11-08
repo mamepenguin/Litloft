@@ -378,3 +378,7 @@ pending: |
 Against `design-check.md` (11 findings):
 - Fix: D-3 (24px between turns), D-4 (16px padding on the turn list, 12px on the form), D-7 (New conversation and Save on the left, submit on the right; radius and height stay the shared Button's).
 - Accepted as drawn: D-1, D-2, D-5, D-6 and D-8 keep the existing answer, question, pill, textarea and secondary-button styles of the design system; D-9 follows the spec's visibility rules; D-10 is the host's tab strip, outside this change; D-11 has no phone artboard to compare against.
+
+## Missing note_origins rows in the second R-5 (author's investigation, 2026-11-09)
+
+The second R-5 found four Ask notes (`DrlHLe0nQj1R`, `mlLRVcat98v0`, `h7VTNELwp7JR`, `WQAkEbIVwyqZ`) unverified in core but with no `note_origins` row. knowledge has no code path that deletes a `note_origins` row, and `POST /notes` commits the row before it declares the tier. Reproduced on the same scratch stack and data without opening the database from the host: six saves of the same name through `POST /api/addons/knowledge/notes` gave `wal-probe.md` to `wal-probe (5).md`, six rows read inside the container, each with `trust_declared_at` set, and all six still present after restarting the knowledge container. The R-5 had read and written the live WAL database from the host through the bind mount while the container held it open; SQLite's `-shm` index is not shared across that boundary, which is the likely cause. Not a defect of the change; later R-5s read the knowledge database only inside its container.
