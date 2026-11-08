@@ -128,8 +128,7 @@ layout runs the same pages. The iOS app is not changed and not verified (see 10)
    folder of the drive (one the app cannot use is shown disabled and unchecked), and **Done**.
    A toggle takes effect at once. The set is per app and per drive. When nothing has ever been
    saved, the dialog shows every usable folder checked, and the first toggle saves the
-   usable folders with that one flipped; an empty saved set shows none. When nothing has ever been
-   saved, every usable smart folder is shown; once any set is saved, only its members are. The
+   usable folders with that one flipped; an empty saved set shows none. The
    current target is listed in the menu even when it is not in the set, provided it is usable.
 8. **Folder classification with a base** (SPEC-CORE-060, for both apps). For `by=folder`
    without `key`, the server computes `base` over the files that match the filters: start with
@@ -148,8 +147,8 @@ layout runs the same pages. The iOS app is not changed and not verified (see 10)
 9. **Request and response additions** to `GET /api/drives/{drive}/shelves`:
    - `type` accepts `epub`, in the same vocabulary as the listing, the tree's `type_filter`
      and every other endpoint that takes `FileKindParam`: a file whose mime is
-     `application/epub+zip`, or whose name ends `.epub` when the mime was never recorded.
-     `document` still returns it. The Filter menu does not gain an entry; `type:epub` parses
+     `application/epub+zip`, or whose name ends `.epub` whatever mime was recorded (the existing predicate ORs the
+     suffix with the mime, as for `pdf` and `text`). `document` still returns it. The Filter menu does not gain an entry; `type:epub` parses
      as a search operator. The folder card's kind roll-up keeps labelling an EPUB `document`.
    - `by=all`: one shelf, key `all`, empty label, `count` the matching total, `total_shelves`
      1, paged by `key=all` and `page` like any shelf. A `key` other than `all` is a 200 with
@@ -256,7 +255,20 @@ parameters need the viewer identity cookie or header, as SPEC-CORE-056.
 ### 8. Error behavior
 
 As SPEC-CORE-056 and 057: per-shelf retry, empty states, an empty-state message when the
-target is not usable. The endpoint logs nothing new. 422 and 400 bodies are FastAPI's.
+target is not usable. The endpoint adds no log line: `viewer_required` and 422 answer as the
+endpoint's other refusals do today, unlogged. 422 and 400 bodies are FastAPI's.
+
+- **Smart folders fail to load or are none.** The Target menu still shows the app's default
+  and Manage…; the Manage dialog shows the existing retry text for a failed load and an empty
+  list for none. The default stays selectable.
+- **`localStorage` throws** on read: the shown set reads as never saved. On write: the toggle
+  applies for the open page and is not kept.
+- **Chip row.** The `<base>/` shelf (the key ending `/`, or `""` at the root) is never a chip
+  and does not count toward the 24 per page or the 120 chips. The folder comparison for
+  narrowing is NFC, case-sensitive, trailing slash removed, and matches at a segment
+  boundary: `a/b` lies inside `a`, and `a/bc` does not lie inside `a/b`, the rule of the
+  listing's `folder` condition. Chips that loaded stay drawn when a later page fails, with
+  a retry; with none loaded the row shows **All** and the retry.
 
 ### 9. User-visible behavior
 
@@ -311,7 +323,11 @@ target is not usable. The endpoint logs nothing new. 422 and 400 bodies are Fast
   becomes a grid on `lib/cardGrid.ts`), `DiscoverFace.tsx` (passes the See all links),
   `LibraryFace.tsx`.
 - Layout measurement of both apps' two faces on a narrow and a wide viewport on a mouse
-  environment: a new spec file under `frontend/e2e-layout/` with its fixture. Frontend tests are vitest files under
+  environment: a new spec file under `frontend/e2e-layout/` with its fixture and the fixture-parity vitest the
+  existing layout specs have (`playwright-layout.config.ts` takes the whole directory; neither
+  it, `process/` nor `.github/` is edited). It measures 320, 768, 1280 and 1920 px with
+  `hover: hover` and `pointer: fine` emulated, and once with touch emulated, where the chip row
+  scrolls sideways and the page itself does not. Frontend tests are vitest files under
   `frontend/src`; neither lives on a protected path.
 - Rules passed through: `design-decisions.md` (drive boundary, File state, Watch history),
   `backend-conventions.md`, `frontend-conventions.md`, `DESIGN.md`.
@@ -337,7 +353,7 @@ I2. Every file in a shelf's `items` and `count` is active and satisfies every fi
 I3. A shelf's `count` equals the number of files its `key` returns across all pages.
 
 I4. `type=epub` returns exactly the files whose mime is `application/epub+zip`, or whose name
-ends `.epub` when no mime was recorded.
+ends `.epub`, whatever mime was recorded.
 
 I5. A request of any other kind, and the folder card's kind label of every file, return what
 they returned before `epub` was added.
@@ -433,8 +449,23 @@ I23. Every drawn Discover shelf and every By tag shelf shows its **See all** ins
 when it has a destination, in Reading and in Video, and a shelf draws no more than its
 columns-times-rows cards.
 
+I24. The Filter menu lists no new kind and `type:epub` still parses, `/files/matching`
+accepts `epub`, and the MCP server's enums are unchanged.
+
+I25. Video's folder shelves keep matching a first-segment key at `base` `""`, and a shelf
+page titles a folder key by its last segment.
+
+I26. When a chip page fails, the chips already loaded stay and a retry is shown; with none
+loaded the row is **All** and the retry.
+
 ## Questions for the human
 
+- **A smart folder made after the first save stays out of the menu** until the viewer turns it
+  on in Manage…, because once a set is saved only its members are shown. Recommended: accept;
+  the set exists to keep the menu short.
+- **The same book may sit in several Discover shelves.** A book in progress can be in
+  Continue reading and in New. Recommended: accept; the three are independent requests, as
+  Video's three are today.
 - **Any ZIP is a book.** The `archive` kind is every ZIP, so a ZIP of something else counts as
   a book. The viewer narrows it with a smart folder target (for example `folder:Books`).
   Accept, or add a rule that an archive must hold images to be a book (needs an index read
@@ -451,6 +482,10 @@ columns-times-rows cards.
 - **Empty-state wording** in item 9 (本がありません, この対象は使えません).
 
 ## Checked, no action
+
+- **Tag case.** The listing folds tag names case-insensitively and `by=tag` shelves key the
+  exact name; a book then sits in the shelf of every tag it carries, and the Tag filter only
+  chooses which books. A differently-cased tag in the filter picks the same books. Accepted.
 
 - **SPEC-CORE-064 is unmerged.** Item 11 restates its rule for these faces and does not
   depend on it landing first; when it lands its scan test covers these faces too. Shelves use
