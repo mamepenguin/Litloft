@@ -86,6 +86,7 @@ describe("the shared toolbar menu has one home", () => {
       "frontend/src/components/folder/FolderToolbar.tsx",
       "frontend/src/components/folder/SortMenu.tsx",
       "frontend/src/components/folder/__tests__/toolbarBarScope.test.tsx",
+      "frontend/src/components/readingapp/LibraryControls.tsx",
       "frontend/src/components/search/ConditionMenu.tsx",
       "frontend/src/components/videoapp/LibraryControls.tsx",
     ]);

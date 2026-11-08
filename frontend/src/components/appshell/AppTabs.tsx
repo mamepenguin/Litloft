@@ -27,6 +27,7 @@ export function AppTabs({
       label={label}
       current={current}
       onSelect={(key) => onSelect(key as AppFace)}
+      wrap
       items={[
         {
           key: "discover",

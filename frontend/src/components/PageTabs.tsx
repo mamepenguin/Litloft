@@ -26,6 +26,8 @@ export interface PageTabsProps {
   current: string;
   onSelect?: (key: string) => void;
   label: string;
+  /** Wrap onto further lines instead of scrolling sideways. */
+  wrap?: boolean;
 }
 
 const BASE_CLASS =
@@ -46,14 +48,14 @@ function navigates(items: readonly PageTabItem[]): boolean {
   return items.some((item) => item.href !== undefined);
 }
 
-export function PageTabs({ items, current, onSelect, label }: PageTabsProps) {
+export function PageTabs({ items, current, onSelect, label, wrap = false }: PageTabsProps) {
   const isNav = navigates(items);
 
   return (
     <nav
       aria-label={label}
       role={isNav ? undefined : "tablist"}
-      className="flex gap-1 overflow-x-auto border-b border-bg-border"
+      className={`flex gap-1 border-b border-bg-border ${wrap ? "flex-wrap" : "overflow-x-auto"}`}
     >
       {/* The icons carry no `aria-hidden`: lucide-react adds it itself unless
           an a11y prop is passed. */}

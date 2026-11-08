@@ -1,17 +1,11 @@
 "use client";
 
-import { BookOpen } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useParams } from "next/navigation";
 
-import { PageFrame } from "@/components/PageFrame";
-import { PageHeader } from "@/components/PageHeader";
+import { ReadingApp } from "@/components/readingapp/ReadingApp";
 
 export default function ReadingAppPage() {
-  const t = useTranslations("readingApp");
-  return (
-    <PageFrame
-      width="wide"
-      header={<PageHeader titleIcon={BookOpen} title={t("title")} />}
-    />
-  );
+  const params = useParams();
+  const driveName = decodeURIComponent(params.name as string);
+  return <ReadingApp key={driveName} drive={driveName} />;
 }

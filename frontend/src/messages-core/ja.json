@@ -1457,6 +1457,51 @@
     "seeAllIn": "すべて見る: {name}"
   },
   "readingApp": {
-    "title": "読む"
+    "title": "読む",
+    "tabsLabel": "読むの表示",
+    "discover": "発見",
+    "library": "ライブラリ",
+    "bookCount": "{count, plural, other {{formatted} 冊}}",
+    "target": "対象",
+    "allBooks": "すべての本",
+    "targetUnavailable": "この対象は使えません",
+    "targetUnusable": "この対象は使えません",
+    "noBooks": "本がありません",
+    "shelves": {
+      "continue": "続きを読む",
+      "notReadYet": "まだ読んでいない本",
+      "new": "新着",
+      "in_progress": "続きを読む",
+      "unwatched": "まだ読んでいない本",
+      "finished": "読了"
+    },
+    "all": "すべて",
+    "group": {
+      "label": "まとめ方",
+      "none": "なし",
+      "byTag": "タグ別"
+    },
+    "state": {
+      "label": "状態",
+      "all": "すべて",
+      "unwatched": "未読",
+      "in_progress": "読書中",
+      "finished": "読了"
+    },
+    "tag": "タグ",
+    "noTags": "タグがありません",
+    "noTag": "タグなし",
+    "sort": {
+      "label": "並び順",
+      "addedNewest": "追加日（新しい順）",
+      "addedOldest": "追加日（古い順）",
+      "title": "タイトル",
+      "size": "サイズ"
+    },
+    "formats": {
+      "epub": "EPUB",
+      "pdf": "PDF",
+      "archive": "書庫"
+    }
   }
 }
