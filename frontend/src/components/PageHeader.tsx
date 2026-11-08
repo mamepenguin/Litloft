@@ -98,12 +98,12 @@ export function PageHeader({
             {heading}
             {titleField}
           </div>
-          <div className="flex min-w-0 items-center gap-2 sm:contents">
+          <div className="flex min-w-0 flex-wrap items-center gap-2 sm:contents">
             {given(scope) && (
               <div className="text-sm text-text-muted">{scope}</div>
             )}
             {given(actions) && (
-              <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
+              <div className="flex max-w-full flex-shrink-0 flex-wrap items-center gap-2 sm:max-w-none">
                 {actions}
               </div>
             )}

@@ -32,6 +32,7 @@ const FIXTURES = [
   "mobile-inspector-sheet.html",
   "no-horizontal-scroll.html",
   "ocr-line-boxes.html",
+  "page-header-wrap.html",
   "passage-rows.html",
   "popup-dismiss.html",
   "pseudo-fullscreen.html",
@@ -46,7 +47,7 @@ const FIXTURES = [
   "video-app.html",
 ] as const;
 
-const FIXTURE_COUNT = 24;
+const FIXTURE_COUNT = 25;
 
 /**
  * On the far side of `sm` from Chromium's mobile default, so a page that
