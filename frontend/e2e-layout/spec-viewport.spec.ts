@@ -34,6 +34,7 @@ const FIXTURES = [
   "passage-rows.html",
   "popup-dismiss.html",
   "pseudo-fullscreen.html",
+  "reading-video-faces.html",
   "related-files.html",
   "scene-candidates.html",
   "search-header.html",
@@ -44,7 +45,7 @@ const FIXTURES = [
   "video-app.html",
 ] as const;
 
-const FIXTURE_COUNT = 22;
+const FIXTURE_COUNT = 23;
 
 /**
  * On the far side of `sm` from Chromium's mobile default, so a page that
