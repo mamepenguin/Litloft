@@ -28,7 +28,7 @@ def _t(day: int) -> datetime:
     return datetime(2026, 3, day, 12, tzinfo=UTC)
 
 
-def _book(name, folder, created, *, mime=PDF_MIME, drive=TEST_DRIVE, **extra):
+def _book(name, folder, created, *, mime=PDF_MIME, drive=TEST_DRIVE, file_type="document", **extra):
     path = f"{folder}/{name}" if folder else name
     return File(
         filename=name,
@@ -37,7 +37,7 @@ def _book(name, folder, created, *, mime=PDF_MIME, drive=TEST_DRIVE, **extra):
         folder_path=folder,
         file_path=path,
         file_size=extra.pop("size", 1),
-        file_type="document",
+        file_type=file_type,
         mime_type=mime,
         created_at=created,
         **extra,
@@ -79,7 +79,7 @@ class TestEpubKind:
             _book("recorded-as-octet.epub", "", _t(2), mime="application/octet-stream"),
             _book("mime-only", "", _t(3), mime=EPUB_MIME),
             _book("b.pdf", "", _t(4), mime=PDF_MIME),
-            _book("c.zip", "", _t(5), mime=ZIP_MIME),
+            _book("c.zip", "", _t(5), mime=ZIP_MIME, file_type="archive"),
             _book("notes.txt", "", _t(6), mime="text/plain"),
             _book("gone.epub", "", _t(7), mime=EPUB_MIME, missing_since=_t(8)),
         )
@@ -361,8 +361,8 @@ class TestFolderBase:
 
         assert base == "Books"
         assert shelves == [
-            ("Books/Novels", "Novels", 2),
             ("Books/Manga", "Manga", 2),
+            ("Books/Novels", "Novels", 2),
         ]
 
     def test_files_directly_in_base_form_a_trailing_slash_shelf(self, client):
