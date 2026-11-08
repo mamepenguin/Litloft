@@ -101,9 +101,14 @@ has no thumbnail path:
    `columns`) and each sheet's duration.
 3. The sheets are downloaded and cut into tiles by the declared tile size. The tile at
    position `k` of the sheet starting at `s` with duration `d` has timestamp
-   `s + k * d / (rows * columns)`. The video's duration is the lookup's `duration`, else
-   the indexed duration (media_import copies yt-dlp's into the core file row). A tile
-   whose timestamp is not below it is dropped, so the empty cells of the last sheet go.
+   `s + k * i`, where `i` is the tile interval: `1 / fps` from the format's declared
+   `fps`, or, with no positive `fps`, the longest sheet's duration divided by
+   `rows * columns`. A sheet's own duration is never divided by its cell count: the last
+   sheet is usually shorter and holds fewer pictures at the same interval. The video's
+   duration is the lookup's `duration`, else the indexed duration (media_import copies
+   yt-dlp's into the core file row). A tile whose timestamp is not below its sheet's end
+   (`s + d`) or not below the video's duration is dropped, so the empty cells of the last
+   sheet go.
    With no known duration (null or not above 0) the video is treated as having no
    storyboard.
 4. Tiles are kept in time order. The first tile is always kept; a later tile is kept only
@@ -308,7 +313,7 @@ I3. One request spends at most 15 s in all, lookup and ffmpeg together; at most 
 I4. A stream description is reused for 5 minutes, is dropped after any ffmpeg failure or deadline for its file, and is never kept after a failed lookup.
 I5. `yt-dlp` is given only the `.loft`'s stored `url`, with `--no-playlist` and no cookie or credential option, ffmpeg and the sheet downloads are given only addresses that lookup returned, and no log line the change writes contains a URL or a request header.
 I6. Ask on a YouTube `.loft` with `position_seconds` attaches exactly one `large` frame at that position, under every invariant of SPEC-ADDON-071 (profile, `llm_cloud`, one slot, nothing stored or logged but the `large` cache entry); a position above a known indexed duration, or any frame failure, ends in `"unavailable"` and the text-only retry; Ask on a `.loft` of another provider is unchanged.
-I7. The storyboard leg replaces a YouTube `.loft`'s `clip` rows in one transaction after every kept tile has been embedded, keeps the first tile and then a tile only when its timestamp is below the known duration and at least `duration / max_frames` after the last kept tile, so a video keeps every tile when they fit under `max_frames` and a long video is spread over its whole length with at most `max_frames` tiles, does not thin tiles by `min_interval`, writes no `clip_thumbnail` row and no row for another file, and runs whatever the thumbnail leg did.
+I7. The storyboard leg replaces a YouTube `.loft`'s `clip` rows in one transaction after every kept tile has been embedded, times each tile as its sheet's start plus its cell position times the tile interval (`1 / fps`, or the longest sheet's duration over the cell count), never a sheet's own duration over its cell count, keeps the first tile and then a tile only when its timestamp is below its sheet's end and the known duration and at least `duration / max_frames` after the last kept tile, so a video keeps every tile when they fit under `max_frames` and a long video is spread over its whole length with at most `max_frames` tiles, does not thin tiles by `min_interval`, writes no `clip_thumbnail` row and no row for another file, and runs whatever the thumbnail leg did.
 I8. After the `clip` task of a `.loft`, `clip_indexed` is true exactly when the thumbnail leg is done and the storyboard leg wrote rows, found no `sb0` or no known duration, or found the `.loft` not YouTube; on a transient failure it is false, the existing `clip` rows are as they were, and the same file is not attempted again in that process; a repeat run never leaves two sets of rows or a second `clip_thumbnail` row.
 I9. `GET /files/{id}/scenes` for a YouTube `.loft` returns the selection a native video gets from the same rows, makes no network call and no LLM call, and writes nothing; for a `.loft` of another provider it answers 400 `Not a video file`; for a native video it answers exactly as before.
 I10. No passage of a `.loft` carries a `frame_url`, and on a drive that holds no YouTube `.loft` every result of `/search` and `/search/scene-segments`, with its score and order, is the same as before this change.
