@@ -38,6 +38,7 @@ const TYPE_LABEL_KEYS: Record<FileKind, string> = {
   other: "type.other",
   text: "type.text",
   pdf: "type.pdf",
+  epub: "type.document",
 };
 
 const TYPE_ICONS: Record<FileKind, typeof FileText> = {
@@ -49,6 +50,7 @@ const TYPE_ICONS: Record<FileKind, typeof FileText> = {
   other: FileIcon,
   text: FileText,
   pdf: FileType,
+  epub: Files,
 };
 
 // Chip is anchored at left-7 (28px) inside the relative container; the input

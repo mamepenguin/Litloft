@@ -27,6 +27,7 @@ describe("parseSearchQuery", () => {
       text: "",
       tags: [],
       types: [],
+      kinds: [],
       favorite: false,
       liked: false,
       folders: [],

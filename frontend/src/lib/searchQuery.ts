@@ -13,6 +13,7 @@ export interface ParsedQuery {
   text: string;
   tags: string[];
   types: FileKind[];
+  kinds: FileKind[];
   favorite: boolean;
   liked: boolean;
   folders: string[];
@@ -31,6 +32,7 @@ export const FILE_KINDS: readonly FileKind[] = [
   "other",
   "text",
   "pdf",
+  "epub",
 ];
 
 const KINDS = FILE_KINDS;
@@ -441,6 +443,9 @@ export function parseSearchQuery(q: string): ParsedQuery {
     text: "",
     tags: [],
     types: [],
+    get kinds() {
+      return this.types;
+    },
     favorite: false,
     liked: false,
     folders: [],
@@ -490,7 +495,10 @@ export function parseSearchQuery(q: string): ParsedQuery {
 
 /** `document` is the one kind that holds others. */
 export function kindHolds(outer: FileKind, inner: FileKind): boolean {
-  return outer === inner || (outer === "document" && (inner === "text" || inner === "pdf"));
+  return (
+    outer === inner ||
+    (outer === "document" && (inner === "text" || inner === "pdf" || inner === "epub"))
+  );
 }
 
 const holds = kindHolds;

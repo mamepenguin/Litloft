@@ -139,12 +139,15 @@ export async function getDriveFiles(
   return page;
 }
 
-export type ShelfGrouping = "folder" | "tag" | "month" | "duration" | "watch";
+export type ShelfGrouping = "all" | "folder" | "tag" | "month" | "duration" | "watch";
+export type ShelfWatchState = "in_progress" | "unwatched" | "finished";
 
 export interface ShelvesParams extends ListingFilters {
   by: ShelfGrouping;
   /** The empty string is the root-folder shelf, so it is sent as given. */
   key?: string;
+  /** Keep only files in this reading state; needs a viewer identity. */
+  watch?: ShelfWatchState;
   sort?: ListingSortField | "last_played";
   order?: SortOrder;
   per_shelf?: number;
@@ -167,6 +170,8 @@ export interface ShelvesResponse {
   by: ShelfGrouping;
   shelves: Shelf[];
   total_shelves: number;
+  /** The folder the `by=folder` shelves are children of; `""` otherwise. */
+  base: string;
 }
 
 export async function getShelves(
@@ -178,6 +183,7 @@ export async function getShelves(
   searchParams.set("by", params.by);
   if (params.key !== undefined) searchParams.set("key", params.key);
   appendListingFilters(searchParams, params);
+  if (params.watch) searchParams.set("watch", params.watch);
   if (params.sort) searchParams.set("sort", params.sort);
   if (params.order) searchParams.set("order", params.order);
   for (const name of ["per_shelf", "shelf_limit", "offset", "page"] as const) {

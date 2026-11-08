@@ -1,6 +1,9 @@
 export const APP_FACES = ["discover", "library"] as const;
 export type AppFace = (typeof APP_FACES)[number];
 
+export const APP_IDS = ["video", "reading"] as const;
+export type AppId = (typeof APP_IDS)[number];
+
 export const APP_CLASSIFICATIONS = ["folder", "tag", "month", "duration", "watch"] as const;
 export type AppClassification = (typeof APP_CLASSIFICATIONS)[number];
 
@@ -18,13 +21,13 @@ export const DEFAULT_APP_PREFS: AppPrefs = {
 };
 
 /** Encoded, so one drive's name can never be the prefix of another's key. */
-function keyFor(field: keyof AppPrefs, drive: string): string {
-  return `litloft.videoApp.${field}.${encodeURIComponent(drive)}`;
+function keyFor(app: AppId, field: keyof AppPrefs, drive: string): string {
+  return `litloft.${app}App.${field}.${encodeURIComponent(drive)}`;
 }
 
-function read(field: keyof AppPrefs, drive: string): string | null {
+function read(app: AppId, field: keyof AppPrefs, drive: string): string | null {
   try {
-    return localStorage.getItem(keyFor(field, drive));
+    return localStorage.getItem(keyFor(app, field, drive));
   } catch {
     return null;
   }
@@ -34,24 +37,28 @@ function oneOf<T extends string>(allowed: readonly T[], value: string | null, fa
   return allowed.find((candidate) => candidate === value) ?? fallback;
 }
 
-export function readAppPrefs(drive: string): AppPrefs {
+export function readAppPrefs(drive: string, app: AppId = "video"): AppPrefs {
   return {
-    face: oneOf(APP_FACES, read("face", drive), DEFAULT_APP_PREFS.face),
+    face: oneOf(APP_FACES, read(app, "face", drive), DEFAULT_APP_PREFS.face),
     classification: oneOf(
       APP_CLASSIFICATIONS,
-      read("classification", drive),
+      read(app, "classification", drive),
       DEFAULT_APP_PREFS.classification,
     ),
-    target: read("target", drive) || DEFAULT_APP_PREFS.target,
+    target: read(app, "target", drive) || DEFAULT_APP_PREFS.target,
   };
 }
 
-export function writeAppPrefs(drive: string, changes: Partial<AppPrefs>): void {
+export function writeAppPrefs(
+  drive: string,
+  changes: Partial<AppPrefs>,
+  app: AppId = "video",
+): void {
   for (const field of ["face", "classification", "target"] as const) {
     const value = changes[field];
     if (value === undefined) continue;
     try {
-      localStorage.setItem(keyFor(field, drive), value);
+      localStorage.setItem(keyFor(app, field, drive), value);
     } catch {
       // Losing a preference only resets it to its default.
     }

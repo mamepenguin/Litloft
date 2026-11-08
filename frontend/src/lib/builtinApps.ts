@@ -1,4 +1,4 @@
-import { Film, type LucideIcon } from "lucide-react";
+import { BookOpen, Film, type LucideIcon } from "lucide-react";
 
 export interface BuiltinApp {
   id: string;
@@ -15,5 +15,11 @@ export const builtinApps: readonly BuiltinApp[] = [
     labelKey: "sidebar.video",
     icon: Film,
     route: (drive) => `/drive/${encodeURIComponent(drive)}/apps/video`,
+  },
+  {
+    id: "reading",
+    labelKey: "sidebar.reading",
+    icon: BookOpen,
+    route: (drive) => `/drive/${encodeURIComponent(drive)}/apps/reading`,
   },
 ];

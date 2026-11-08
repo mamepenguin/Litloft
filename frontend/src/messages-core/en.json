@@ -72,7 +72,8 @@
     "clearTag": "Clear tag filter",
     "lock": "Lock",
     "administration": "Administration",
-    "video": "Video"
+    "video": "Video",
+    "reading": "Reading"
   },
   "drive": {
     "empty": "No drives found",
@@ -1448,5 +1449,8 @@
       "size": "Size"
     },
     "seeAllIn": "See all: {name}"
+  },
+  "readingApp": {
+    "title": "Reading"
   }
 }

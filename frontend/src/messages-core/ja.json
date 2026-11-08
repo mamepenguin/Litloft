@@ -72,7 +72,8 @@
     "clearTag": "タグ絞り込みを解除",
     "lock": "ロックする",
     "administration": "管理",
-    "video": "動画"
+    "video": "動画",
+    "reading": "読む"
   },
   "drive": {
     "empty": "ドライブがありません",
@@ -1448,5 +1449,8 @@
       "size": "サイズ"
     },
     "seeAllIn": "すべて見る: {name}"
+  },
+  "readingApp": {
+    "title": "読む"
   }
 }
