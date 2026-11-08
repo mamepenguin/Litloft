@@ -30,6 +30,7 @@ const FIXTURES = [
   "justified-grid.html",
   "list-row-furniture.html",
   "mobile-inspector-sheet.html",
+  "no-horizontal-scroll.html",
   "ocr-line-boxes.html",
   "passage-rows.html",
   "popup-dismiss.html",

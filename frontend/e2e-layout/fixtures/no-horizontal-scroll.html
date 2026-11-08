@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>no horizontal scroll on a mouse — layout fixture</title>
+    <!--
+      No <style> of its own: every declaration measured here comes out of
+      the app's own stylesheet.
+    -->
+    <link rel="stylesheet" href="./globals.built.css" />
+  </head>
+  <body>
+    <!--
+      The class lists are copied from the components under test, one key per
+      element the spec measures. `noHorizontalScrollFixtureParity.test.tsx`
+      renders the component and fails when a list here stops matching, so a
+      renamed utility cannot leave this page measuring a shape the app no
+      longer draws.
+    -->
+    <script type="application/json" id="fixture-markup">
+      {
+        "shelfSection": "min-w-0",
+        "shelfHead": "mb-3 flex items-baseline gap-2",
+        "shelfTitle": "min-w-0 truncate text-lg font-bold text-text-primary",
+        "shelfCount": "flex-shrink-0 text-sm tabular-nums text-text-muted",
+        "seeAll": "ml-auto flex-shrink-0 text-sm text-text-muted transition-colors hover:text-text-primary",
+        "shelfRow": "flex snap-x gap-3 overflow-x-auto pb-2",
+        "slot": "w-44 flex-shrink-0 snap-start sm:w-56 xl:w-[calc((100%-3rem)/5)]",
+        "card": "group block min-w-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring",
+        "thumb": "relative aspect-video overflow-hidden rounded-2xl bg-bg-elevated",
+        "cardTitle": "mt-2 line-clamp-2 text-sm font-semibold text-text-primary",
+
+        "collectionOuter": "mt-4 w-full",
+        "collectionCard": "rounded-2xl border border-bg-border bg-bg-card p-4",
+        "collectionHead": "mb-3 flex items-center justify-between",
+        "collectionTitle": "truncate text-base font-semibold text-text-primary",
+        "collectionCount": "text-sm text-text-muted",
+        "trackList": "flex gap-3 overflow-x-auto pb-2",
+        "track": "group relative w-48 sm:w-52 flex-shrink-0 cursor-pointer overflow-hidden rounded-xl ring-2 ring-accent",
+        "trackThumb": "aspect-video bg-bg-elevated",
+        "trackBody": "p-2",
+        "trackTitle": "truncate text-sm font-semibold text-text-primary",
+
+        "pageTabs": "flex gap-1 overflow-x-auto border-b border-bg-border",
+        "pageTab": "-mb-px inline-flex items-center gap-1.5 rounded-t-xl border-b-2 px-4 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring pointer-coarse:min-h-11",
+        "pageTabSelected": "border-accent font-semibold text-text-primary",
+        "pageTabIdle": "border-transparent text-text-muted hover:text-text-primary",
+
+        "inspectorStrip": "flex gap-1 overflow-x-auto border-b border-bg-border px-2 pointer-coarse:min-h-11 shrink-0",
+        "inspectorTab": "whitespace-nowrap border-b-2 px-3 py-2 text-xs font-medium transition-colors pointer-coarse:min-h-11",
+        "inspectorTabSelected": "border-accent font-semibold text-text-primary",
+        "inspectorTabIdle": "border-transparent text-text-muted hover:text-text-primary",
+
+        "breadcrumb": "flex min-w-0 flex-1 items-center gap-1 overflow-x-auto text-sm text-text-muted",
+        "breadcrumbSegment": "flex items-center gap-1",
+        "breadcrumbAncestor": "min-w-12 shrink-[999]",
+        "breadcrumbLeaf": "min-w-0",
+        "breadcrumbLink": "truncate rounded-lg px-1 transition-colors hover:text-text-primary",
+        "breadcrumbLabel": "truncate font-medium text-text-primary"
+      }
+    </script>
+
+    <div id="frame"></div>
+
+    <script>
+      const SPEC = JSON.parse(
+        document.getElementById("fixture-markup").textContent,
+      );
+
+      const frame = () => document.getElementById("frame");
+
+      const el = (tag, className, text, attrs = {}) => {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text !== undefined) node.textContent = text;
+        for (const [name, value] of Object.entries(attrs)) {
+          node.setAttribute(name, value);
+        }
+        return node;
+      };
+
+      const rect = (node) => {
+        const box = node.getBoundingClientRect();
+        return {
+          left: box.left,
+          right: box.right,
+          top: box.top,
+          bottom: box.bottom,
+          width: box.width,
+          height: box.height,
+        };
+      };
+
+      const scrollable = (node) => ({
+        ...rect(node),
+        scrollWidth: node.scrollWidth,
+        clientWidth: node.clientWidth,
+        scrollHeight: node.scrollHeight,
+        clientHeight: node.clientHeight,
+        overflowX: getComputedStyle(node).overflowX,
+        overflowY: getComputedStyle(node).overflowY,
+        flexWrap: getComputedStyle(node).flexWrap,
+      });
+
+      const named = (selector) => Array.from(document.querySelectorAll(selector));
+
+      window.buildShelf = ({ width, cards, seeAll }) => {
+        frame().style.width = `${width}px`;
+        frame().replaceChildren();
+
+        const section = el("section", SPEC.shelfSection);
+        const head = el("div", SPEC.shelfHead);
+        head.append(
+          el("h2", SPEC.shelfTitle, "A shelf of many videos"),
+          el("span", SPEC.shelfCount, String(cards)),
+        );
+        if (seeAll) {
+          head.append(
+            el("a", SPEC.seeAll, "See all", {
+              href: "#",
+              "data-see-all": "",
+            }),
+          );
+        }
+        section.append(head);
+
+        const row = el("ul", SPEC.shelfRow, undefined, {
+          "data-shelf-row": "",
+        });
+        for (let i = 0; i < cards; i += 1) {
+          const slot = el("li", SPEC.slot, undefined, {
+            "data-shelf-card": String(i),
+          });
+          const card = el("a", SPEC.card, undefined, { href: "#" });
+          card.append(
+            el("div", SPEC.thumb),
+            el("span", SPEC.cardTitle, `Video number ${i + 1}`),
+          );
+          slot.append(card);
+          row.append(slot);
+        }
+        section.append(row);
+        frame().append(section);
+      };
+
+      window.measureShelf = () => {
+        const row = document.querySelector("[data-shelf-row]");
+        return {
+          row: scrollable(row),
+          cards: named("[data-shelf-card]").map(rect),
+          seeAll: document.querySelector("[data-see-all]") !== null,
+        };
+      };
+
+      window.buildCollectionPanel = ({ width, tracks }) => {
+        frame().style.width = `${width}px`;
+        frame().replaceChildren();
+
+        const outer = el("div", SPEC.collectionOuter);
+        const card = el("div", SPEC.collectionCard);
+
+        const head = el("div", SPEC.collectionHead);
+        const text = el("div", "min-w-0 flex-1");
+        text.append(
+          el("div", SPEC.collectionTitle, "A collection of many tracks"),
+          el("div", SPEC.collectionCount, `1 \u2013 ${tracks} tracks`),
+        );
+        head.append(text);
+        card.append(head);
+
+        const list = el("div", SPEC.trackList, undefined, {
+          "data-track-list": "",
+        });
+        for (let i = 0; i < tracks; i += 1) {
+          const track = el("div", SPEC.track, undefined, {
+            "data-track": String(i),
+          });
+          const thumb = el("div", SPEC.trackThumb);
+          const body = el("div", SPEC.trackBody);
+          body.append(el("div", SPEC.trackTitle, `Track number ${i + 1}`));
+          track.append(thumb, body);
+          list.append(track);
+        }
+        card.append(list);
+        outer.append(card);
+        frame().append(outer);
+      };
+
+      window.measureCollection = (scrollTop = 0) => {
+        const list = document.querySelector("[data-track-list]");
+        list.scrollTop = scrollTop;
+        return {
+          list: scrollable(list),
+          scrolledTo: list.scrollTop,
+          tracks: named("[data-track]").map(rect),
+        };
+      };
+
+      const setSelected = (tab, selected) => {
+        tab.setAttribute("aria-selected", String(selected));
+        tab.tabIndex = selected ? 0 : -1;
+        tab.className = `${tab.dataset.base} ${
+          selected ? tab.dataset.selected : tab.dataset.idle
+        }`;
+      };
+
+      const buildTabs = ({ width, tabs, stripClass, tabClass, selectedClass, idleClass, inspector }) => {
+        frame().style.width = `${width}px`;
+        frame().replaceChildren();
+
+        const strip = el("div", stripClass, undefined, {
+          "data-tab-strip": "",
+          role: "tablist",
+          "aria-label": "Tabs",
+        });
+        for (let i = 0; i < tabs; i += 1) {
+          const tab = el("button", `${tabClass} ${i === 0 ? selectedClass : idleClass}`, `Tab ${i + 1}`, {
+            type: "button",
+            role: "tab",
+            "data-tab": String(i),
+          });
+          tab.dataset.base = tabClass;
+          tab.dataset.selected = selectedClass;
+          tab.dataset.idle = idleClass;
+          if (inspector) setSelected(tab, i === 0);
+          strip.append(tab);
+        }
+
+        if (inspector) {
+          strip.addEventListener("keydown", (event) => {
+            const delta =
+              event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+            if (delta === 0) return;
+            event.preventDefault();
+            const all = Array.from(strip.querySelectorAll("[data-tab]"));
+            const index = all.findIndex(
+              (tab) => tab.getAttribute("aria-selected") === "true",
+            );
+            const next = all[(index + delta + all.length) % all.length];
+            for (const tab of all) setSelected(tab, tab === next);
+            next.focus();
+          });
+        }
+
+        frame().append(strip);
+      };
+
+      window.buildPageTabs = ({ width, tabs }) => {
+        buildTabs({
+          width,
+          tabs,
+          stripClass: SPEC.pageTabs,
+          tabClass: SPEC.pageTab,
+          selectedClass: SPEC.pageTabSelected,
+          idleClass: SPEC.pageTabIdle,
+          inspector: false,
+        });
+      };
+
+      window.buildInspectorTabs = ({ width, tabs }) => {
+        buildTabs({
+          width,
+          tabs,
+          stripClass: SPEC.inspectorStrip,
+          tabClass: SPEC.inspectorTab,
+          selectedClass: SPEC.inspectorTabSelected,
+          idleClass: SPEC.inspectorTabIdle,
+          inspector: true,
+        });
+      };
+
+      window.measureTabs = () => {
+        const strip = document.querySelector("[data-tab-strip]");
+        return {
+          strip: scrollable(strip),
+          tabs: named("[data-tab]").map((tab) => ({
+            ...rect(tab),
+            selected: tab.getAttribute("aria-selected") === "true",
+            tabIndex: tab.tabIndex,
+            focused: document.activeElement === tab,
+          })),
+        };
+      };
+
+      const chevron = () => {
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("width", "14");
+        svg.setAttribute("height", "14");
+        svg.setAttribute("class", "flex-shrink-0");
+        return svg;
+      };
+
+      window.buildBreadcrumb = ({ width, segments, leafNode }) => {
+        frame().style.width = `${width}px`;
+        frame().replaceChildren();
+
+        const nav = el("nav", SPEC.breadcrumb, undefined, {
+          "data-breadcrumb": "",
+          "aria-label": "Breadcrumb",
+        });
+
+        const home = el("a", "flex-shrink-0 hover:text-text-primary", undefined, {
+          href: "/",
+          "aria-label": "Home",
+        });
+        const homeIcon = document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "svg",
+        );
+        homeIcon.setAttribute("width", "16");
+        homeIcon.setAttribute("height", "16");
+        home.append(homeIcon);
+        nav.append(home);
+
+        segments.forEach((label, i) => {
+          const leaf = i === segments.length - 1;
+          const segment = el(
+            "span",
+            `${SPEC.breadcrumbSegment} ${
+              leaf ? SPEC.breadcrumbLeaf : SPEC.breadcrumbAncestor
+            }`,
+          );
+          segment.append(chevron());
+          const text = leaf
+            ? leafNode
+              ? el("span", "whitespace-nowrap", label)
+              : el("span", SPEC.breadcrumbLabel, label)
+            : el("a", SPEC.breadcrumbLink, label, { href: "#" });
+          text.dataset.breadcrumbLabel = "";
+          segment.append(text);
+          nav.append(segment);
+        });
+
+        frame().append(nav);
+      };
+
+      window.measureBreadcrumb = () => {
+        const nav = document.querySelector("[data-breadcrumb]");
+        return {
+          nav: scrollable(nav),
+          labels: named("[data-breadcrumb-label]").map((label) => ({
+            ...rect(label),
+            text: label.textContent,
+            scrollWidth: label.scrollWidth,
+            clientWidth: label.clientWidth,
+            title: label.getAttribute("title"),
+          })),
+        };
+      };
+    </script>
+  </body>
+</html>
