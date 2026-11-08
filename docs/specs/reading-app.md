@@ -81,7 +81,7 @@ layout runs the same pages. The iOS app is not changed and not verified (see 10)
    and history behavior are the existing ones.
 5. **Library** (SPEC-CORE-062). A row of chips: **All** first, then one chip per child folder
    of the folder classification's `base` (item 8), ordered by count descending then name,
-   scrolling sideways when they do not fit. Below it, controls **Tag**, **State**, **Group**,
+   wrapping onto further lines when they do not fit (item 11). Below it, controls **Tag**, **State**, **Group**,
    **Sort**, then the books.
    - **The chip request** (`shelves?by=folder&per_shelf=1`) carries the target's conditions
      only, not Tag, State or the chosen chip, so the chip set and `base` stay put while the
@@ -120,7 +120,8 @@ layout runs the same pages. The iOS app is not changed and not verified (see 10)
      re-fetches. A key that names no shelf, or a shelf the conditions leave empty, shows the
      empty state.
 6. **Video** carries the same sort over: Library's **See all** passes the Library sort, and the
-   shelf page opens on it.
+   shelf page opens on it. Video's Discover shelves also gain the **See all** they lacked, with
+   the destinations of item 4 (Recommended's only with a profile; New to `by=all&key=all`).
 7. **Target menu** (SPEC-CORE-063), in both apps. The menu shows the app's default ("All
    books", "All videos"; with its count), then the smart folders in the viewer's **shown set**,
    then **Manage…**. Manage… opens a dialog: a search field, a checklist of every smart
@@ -233,6 +234,24 @@ parameters need the viewer identity cookie or header, as SPEC-CORE-056.
   shelf page titles a folder key by its last path segment.
 - The file page, reader, resume and history writers are not touched.
 - `by=folder` callers that sent first-segment keys get the same files for the same key.
+11. **Layout without sideways scrolling** (SPEC-CORE-061 and 062, both apps; the rule is
+   SPEC-CORE-064, branch `feature/no-horizontal-scroll`, not yet merged, restated here). A
+   mouse environment is `(hover: hover) and (pointer: fine)`, written as that media query
+   because the `mouse:` variant is not in develop yet. There nothing the faces draw needs
+   sideways scrolling to be reached: no `overflow-x-auto` and no `snap-x` outside the
+   exceptions of that rule (none applies to these faces).
+   - **Shelves** (Discover, and each shelf of Library's By tag), in Reading and Video alike,
+     are a grid like Home's: the column count comes from the container's width as Home's does
+     (`lib/cardGrid.ts`), each shelf draws its first columns-times-rows books (one row, two
+     rows when only two columns fit) of the up to 12 it fetched, and every card keeps the same
+     size within a shelf. A narrower window gives fewer columns, not a scroll. The shelf's
+     title row and its **See all** stay inside the width at every size and are drawn for every
+     shelf that has a destination (item 4; none is drawn without a profile where item 4 says
+     so).
+   - **Chip row**: on a mouse environment the chips wrap onto lines inside a frame at most
+     three lines high that scrolls vertically past that; on a touch device it scrolls sideways.
+   - **Tabs** (Discover / Library) and the control row (Tag, State, Group, Sort) wrap rather
+     than scroll.
 
 ### 8. Error behavior
 
@@ -249,7 +268,8 @@ target is not usable. The endpoint logs nothing new. 422 and 400 bodies are Fast
   この対象は使えません (the intersection is empty). Per-shelf error: the existing retry text.
   Count unit: 冊 / "books" ("706 冊", "706 books"). No emoji (lucide icons).
 - Defaults: Discover; All chip; Group None; Sort Added newest first.
-- A phone shows the same pages: the chip row scrolls, the cover grid has fewer columns.
+- A phone shows the same pages: the chip row scrolls sideways there (a touch device), the
+  cover grid has fewer columns. On a mouse environment nothing scrolls sideways (item 11).
 - Layout and look follow `DESIGN.md` (underline tabs, pill chips, one accent fill).
 
 ### 10. Non-functional
@@ -287,8 +307,11 @@ target is not usable. The endpoint logs nothing new. 422 and 400 bodies are Fast
 - `frontend/src/lib/appPrefs.ts` (per-app key namespace; the shown set),
   `frontend/src/lib/api.ts` (`getShelves` params and `base`),
   `frontend/src/messages-core/ja.json`, `en.json`.
-- Layout measurement of Reading's two faces on a narrow and a wide viewport: a new spec file
-  under `frontend/e2e-layout/` with its fixture. Frontend tests are vitest files under
+- `frontend/src/components/videoapp/ShelfBlock.tsx` (the sideways `overflow-x-auto snap-x` row
+  becomes a grid on `lib/cardGrid.ts`), `DiscoverFace.tsx` (passes the See all links),
+  `LibraryFace.tsx`.
+- Layout measurement of both apps' two faces on a narrow and a wide viewport on a mouse
+  environment: a new spec file under `frontend/e2e-layout/` with its fixture. Frontend tests are vitest files under
   `frontend/src`; neither lives on a protected path.
 - Rules passed through: `design-decisions.md` (drive boundary, File state, Watch history),
   `backend-conventions.md`, `frontend-conventions.md`, `DESIGN.md`.
@@ -402,6 +425,14 @@ I20a. When controls change quickly only the latest response is drawn.
 I21. See all pages 60 at a time under the conditions in force, and opens on the sort Library
 carried, in both apps.
 
+I22. On a mouse environment, at every width from 320 to 1920 px, no Discover shelf, chip row,
+tab row or control row of either app is wider than its container or reachable only by
+scrolling sideways; a narrower container shows fewer cards per shelf, not a scrollbar.
+
+I23. Every drawn Discover shelf and every By tag shelf shows its **See all** inside the width
+when it has a destination, in Reading and in Video, and a shelf draws no more than its
+columns-times-rows cards.
+
 ## Questions for the human
 
 - **Any ZIP is a book.** The `archive` kind is every ZIP, so a ZIP of something else counts as
@@ -420,6 +451,10 @@ carried, in both apps.
 - **Empty-state wording** in item 9 (本がありません, この対象は使えません).
 
 ## Checked, no action
+
+- **SPEC-CORE-064 is unmerged.** Item 11 restates its rule for these faces and does not
+  depend on it landing first; when it lands its scan test covers these faces too. Shelves use
+  a grid on touch devices as well, so they have no touch exception.
 
 - **Genre as a concept.** Not a thing in the data. Folders and tags are the only sources;
   the UI says Folder or Tag.
