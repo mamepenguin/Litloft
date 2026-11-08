@@ -179,15 +179,22 @@ page, and the only durable copy is a note the viewer chooses to save.
   context). Every other failure is today's: 404, 409 `picture_needs_vision`, 503 busy,
   `done` with an error.
 - **080.** A failed turn keeps its question, the text it received and its failure line,
-  and is not sent as history. The viewer can send the next question; the failed turn
-  stays where it is in the thread. A request aborted by moving away leaves no turn.
+  and is not sent as history. When it fails and the text box is empty, its question is
+  put back into the box, so the viewer resends it with one press; text the viewer typed
+  meanwhile is left alone. The failed turn stays where it is in the thread. A request
+  aborted by moving away leaves no turn.
 - **081.** A save that fails shows the error inside `FileSaveDialog`, as on the drive Ask
-  page, and the thread is unchanged. A read-only drive answers 403 there.
+  page, and the thread is unchanged. A read-only drive answers 403 there. After 082's
+  502 the note exists although the dialog shows an error; saving again writes a second
+  note (`name (1).md`). Both are accepted: the 502 needs a core without
+  `CORE_INTERNAL_SECRET`, which `configure.py` never produces.
 - **082.** When core rejects the declaration for any reason but 409 (no
   `CORE_INTERNAL_SECRET`, 403, 404, network), `POST /notes` answers 502 with a detail
   saying the note was saved but could not be marked unverified; the note stays where it
-  was written. This is the clip route's behaviour (`clips.py`). Its `note_origins` row
-  keeps `trust_declared_at` null, so the startup pass declares it at the next start.
+  was written. This is the clip route's behaviour (`clips.py`). The `note_origins` row
+  is committed and `knowledge.note.created` is emitted before the declaration, so open
+  Knowledge views refresh either way. The row keeps `trust_declared_at` null, so the
+  startup pass declares it at the next start; until then Ask can cite that note.
   The startup pass logs each failure with the file id and the status, never the content,
   and does not delay startup on failure (it runs after the app is serving).
 
@@ -337,7 +344,7 @@ I2. For one question, the kept turns' sizes (question plus answer after marker r
 I3. No `[n]` marker from an earlier answer reaches the model, and every entry of the `citations` event names a passage sent in this request.
 I4. A body with more than 10 turns, a turn question outside 1 to 1,000 characters, a turn answer over 20,000 characters, or an unknown key in a turn is rejected with 422 before any model, embedding or semaphore slot is used.
 I5. The tab sends as `history` only the thread's `answered` turns before the new one, oldest first, at most the last 10, each answer at most 20,000 characters; a failed or streaming turn is never sent.
-I6. **新しい会話** and **Markdownで保存** are never offered while a turn streams; **新しい会話** empties the thread and its saved-note link and leaves the text box as it was.
+I6. **新しい会話** and **Markdownで保存** are never offered while a turn streams; **新しい会話** empties the thread and its saved-note link and leaves the text box as it was; a turn that fails while the text box is empty puts its question back into it, and never overwrites text the viewer typed.
 I7. A note saved from the tab contains every answered turn in thread order and no failed one, and each `[n]` in it is either a `loft://` link to the cited position of this file, with an integer `t`, or removed.
 I8. `POST /notes` with `origin: "ask_answer"` either leaves the note unverified, or answers 201 with the tier a viewer already ruled, or answers a non-2xx status; with any other origin it never calls the trust declaration.
 I9. A `note_origins` row with `origin = 'ask_answer'` gets `trust_declared_at` only after core answered its declaration with 204 or 409, every such row still null is declared again at the next knowledge startup, and that pass never delays `/health`.
@@ -374,6 +381,14 @@ SPEC-ADDON-071 I8. The questions, the answers, the history and every image byte 
 - **Rewriting the follow-up before ranking with the LLM.** Joining the previous question
   is free and covers "それはなぜ？"-style follow-ups; an extra LLM call per question is
   not.
+- **Retrying a failed declaration before the next startup** (in the hourly scanner,
+  or by answering 201 with a warning). Chosen by the owner: a failure needs a core
+  without the write secret, and the clip route accepts the same window.
+- **A failed save's duplicate on retry.** Chosen by the owner, for the same reason.
+- **Updating the first note when a thread is saved again.** Chosen by the owner: a
+  second save creates a new note, so edits made to the first are never overwritten.
+- **An answer's own `#` headings next to the turn headings.** Written as received; the
+  note is the viewer's to edit.
 - **Rolling back the note when the declaration fails.** The internal client has no
   delete, and the clip route already settles this as 502 with the file left; the
   startup pass then repairs the tier at the next start.
