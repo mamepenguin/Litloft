@@ -61,6 +61,25 @@
       }
     </script>
 
+    <script type="application/json" id="addon-fixture-markup">
+      {
+        "clipRow": "scrollbar-hover flex flex-wrap gap-2 p-1 mouse:max-h-[17.5rem] mouse:overflow-y-auto pointer-coarse:flex-nowrap pointer-coarse:overflow-x-auto",
+        "clipCard": "group w-48 shrink-0 cursor-pointer overflow-hidden rounded-lg bg-bg-card transition-colors hover:ring-2 hover:ring-accent",
+        "clipThumb": "aspect-video w-full object-cover",
+        "clipCaption": "px-1.5 py-1 text-center text-xs text-text-muted group-hover:text-accent",
+
+        "visualRow": "scrollbar-hover flex flex-wrap gap-3 p-1 mouse:max-h-[30.75rem] mouse:overflow-y-auto pointer-coarse:flex-nowrap pointer-coarse:overflow-x-auto",
+        "visualCard": "w-64 shrink-0 overflow-hidden rounded-lg bg-bg-card",
+        "visualThumbButton": "group block w-full cursor-pointer overflow-hidden rounded-t-lg transition-colors hover:ring-2 hover:ring-accent",
+        "visualThumb": "aspect-video w-full object-cover",
+        "visualMeta": "flex items-center justify-between px-1.5 py-1 text-xs text-text-muted group-hover:text-accent",
+        "visualBody": "space-y-1 px-2 pb-2",
+        "visualLabel": "line-clamp-2 text-xs font-medium leading-snug text-text-primary",
+        "visualText": "line-clamp-2 text-[11px] italic text-text-muted",
+        "visualTranscript": "text-[11px] text-text-muted"
+      }
+    </script>
+
     <div id="frame"></div>
 
     <script>
@@ -372,6 +391,99 @@
             title: label.getAttribute("title"),
           })),
         };
+      };
+
+      /*
+        The two add-on rows have their own markup block because they live in
+        separate repositories. The class lists are copied from
+        ClipFramesSection and VisualIndexSection.
+      */
+      const ADDON_SPEC = JSON.parse(
+        document.getElementById("addon-fixture-markup").textContent,
+      );
+
+      const image = () => {
+        const img = document.createElement("img");
+        img.className = "";
+        img.alt = "";
+        img.src =
+          "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+        return img;
+      };
+
+      window.buildClipFramesRow = ({ width, cards }) => {
+        frame().style.width = `${width}px`;
+        frame().replaceChildren();
+
+        const row = el("div", ADDON_SPEC.clipRow, undefined, {
+          "data-addon-row": "",
+        });
+        for (let i = 0; i < cards; i += 1) {
+          const card = el("button", ADDON_SPEC.clipCard, undefined, {
+            type: "button",
+            "data-addon-card": String(i),
+          });
+          const thumb = image();
+          thumb.className = ADDON_SPEC.clipThumb;
+          card.append(
+            thumb,
+            el("div", ADDON_SPEC.clipCaption, `00:${String(i).padStart(2, "0")}`),
+          );
+          row.append(card);
+        }
+        frame().append(row);
+      };
+
+      window.measureAddonRow = (scrollTop = 0) => {
+        const row = document.querySelector("[data-addon-row]");
+        row.scrollTop = scrollTop;
+        const cards = named("[data-addon-card]").map(rect);
+        return {
+          row: scrollable(row),
+          cards,
+          scrolledTo: row.scrollTop,
+          cardHeight: cards[0]?.height ?? 0,
+          rows: new Set(cards.map((card) => Math.round(card.top))).size,
+        };
+      };
+
+      window.buildVisualIndexRow = ({ width, cards }) => {
+        frame().style.width = `${width}px`;
+        frame().replaceChildren();
+
+        const row = el("div", ADDON_SPEC.visualRow, undefined, {
+          "data-addon-row": "",
+        });
+        for (let i = 0; i < cards; i += 1) {
+          const card = el("div", ADDON_SPEC.visualCard, undefined, {
+            "data-addon-card": String(i),
+          });
+          const seek = el("button", ADDON_SPEC.visualThumbButton, undefined, {
+            type: "button",
+          });
+          const thumb = image();
+          thumb.className = ADDON_SPEC.visualThumb;
+          const meta = el("div", ADDON_SPEC.visualMeta);
+          meta.append(el("span", "", `00:${String(i).padStart(2, "0")}`));
+          seek.append(thumb, meta);
+
+          const body = el("div", ADDON_SPEC.visualBody);
+          body.append(
+            el("p", ADDON_SPEC.visualLabel, `Scene number ${i + 1}`),
+            el("p", ADDON_SPEC.visualText, `Words on screen in scene ${i + 1}`),
+            el(
+              "details",
+              ADDON_SPEC.visualTranscript,
+              undefined,
+            ),
+          );
+          body.lastElementChild.append(
+            el("summary", "cursor-pointer select-none", "Transcript"),
+          );
+          card.append(seek, body);
+          row.append(card);
+        }
+        frame().append(row);
       };
     </script>
   </body>

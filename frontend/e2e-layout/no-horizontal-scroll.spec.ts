@@ -113,7 +113,18 @@ declare global {
       headPosition: string;
       headBackground: string;
     };
+    buildClipFramesRow: (spec: { width: number; cards: number }) => void;
+    buildVisualIndexRow: (spec: { width: number; cards: number }) => void;
+    measureAddonRow: (scrollTop?: number) => AddonRowReading;
   }
+}
+
+interface AddonRowReading {
+  row: ScrollBox;
+  cards: Box[];
+  scrolledTo: number;
+  cardHeight: number;
+  rows: number;
 }
 
 const within = (inner: Box, outer: Box) =>
@@ -197,6 +208,24 @@ async function breadcrumb(
     leafNode,
   });
   return page.evaluate(() => window.measureBreadcrumb());
+}
+
+async function addonRow(
+  page: Page,
+  kind: "clip" | "visual",
+  width: number,
+  cards: number,
+) {
+  await page.goto(FIXTURE);
+  await page.evaluate(
+    ([build, spec]) =>
+      (window as unknown as Record<string, (s: unknown) => void>)[build](spec),
+    [kind === "clip" ? "buildClipFramesRow" : "buildVisualIndexRow", {
+      width,
+      cards,
+    }] as const,
+  );
+  return page.evaluate(() => window.measureAddonRow(0));
 }
 
 /**
@@ -346,6 +375,98 @@ test.describe("mouse environment", () => {
       expect(end.scrolledTo).toBeGreaterThan(0);
       expect(last.top).toBeGreaterThanOrEqual(end.list.top - TOLERANCE);
       expect(last.bottom).toBeLessThanOrEqual(end.list.bottom + TOLERANCE);
+    });
+  });
+
+  test.describe("SPEC-CORE-065 I4 — the add-on card rows wrap and stay bounded", () => {
+    test("the clip-frames row wraps its cards", async ({ page }) => {
+      const m = await addonRow(page, "clip", 900, 12);
+
+      expect(m.rows).toBeGreaterThan(1);
+      expect(m.row.scrollWidth).toBeLessThanOrEqual(
+        m.row.clientWidth + TOLERANCE,
+      );
+      for (const card of m.cards) {
+        expect(card.left).toBeGreaterThanOrEqual(m.row.left - TOLERANCE);
+        expect(card.right).toBeLessThanOrEqual(m.row.right + TOLERANCE);
+      }
+      expect(await horizontalScrollers(page)).toEqual([]);
+    });
+
+    test("many clip frames scroll vertically inside a two-row box", async ({
+      page,
+    }) => {
+      const start = await addonRow(page, "clip", 900, 60);
+
+      expect(start.row.overflowY).toBe("auto");
+      expect(start.row.scrollHeight).toBeGreaterThan(
+        start.row.clientHeight + TOLERANCE,
+      );
+      expect(start.row.height).toBeGreaterThan(start.cardHeight * 1.5);
+      expect(start.row.height).toBeLessThan(start.cardHeight * 2.5);
+
+      const end = await page.evaluate(() => window.measureAddonRow(1_000_000));
+      const last = end.cards[end.cards.length - 1]!;
+      expect(end.scrolledTo).toBeGreaterThan(0);
+      expect(last.bottom).toBeLessThanOrEqual(end.row.bottom + TOLERANCE);
+      expect(last.right).toBeLessThanOrEqual(end.row.right + TOLERANCE);
+    });
+
+    test("a few clip frames stay in one row without a vertical scrollbar", async ({
+      page,
+    }) => {
+      const m = await addonRow(page, "clip", 900, 2);
+
+      expect(m.rows).toBe(1);
+      expect(m.row.scrollHeight).toBeLessThanOrEqual(
+        m.row.clientHeight + TOLERANCE,
+      );
+      expect(await horizontalScrollers(page)).toEqual([]);
+    });
+
+    test("the visual-index row wraps every scene", async ({ page }) => {
+      const m = await addonRow(page, "visual", 900, 24);
+
+      expect(m.rows).toBeGreaterThan(2);
+      expect(m.row.scrollWidth).toBeLessThanOrEqual(
+        m.row.clientWidth + TOLERANCE,
+      );
+      for (const card of m.cards) {
+        expect(card.left).toBeGreaterThanOrEqual(m.row.left - TOLERANCE);
+        expect(card.right).toBeLessThanOrEqual(m.row.right + TOLERANCE);
+      }
+      expect(await horizontalScrollers(page)).toEqual([]);
+    });
+
+    test("a few visual-index scenes stay in one row without a vertical scrollbar", async ({
+      page,
+    }) => {
+      const m = await addonRow(page, "visual", 900, 3);
+
+      expect(m.rows).toBe(1);
+      expect(m.row.scrollHeight).toBeLessThanOrEqual(
+        m.row.clientHeight + TOLERANCE,
+      );
+      expect(await horizontalScrollers(page)).toEqual([]);
+    });
+
+    test("a full visual index scrolls vertically inside a two-row box", async ({
+      page,
+    }) => {
+      const start = await addonRow(page, "visual", 900, 24);
+
+      expect(start.row.overflowY).toBe("auto");
+      expect(start.row.scrollHeight).toBeGreaterThan(
+        start.row.clientHeight + TOLERANCE,
+      );
+      expect(start.row.height).toBeGreaterThan(start.cardHeight * 1.5);
+      expect(start.row.height).toBeLessThan(start.cardHeight * 2.5);
+
+      const end = await page.evaluate(() => window.measureAddonRow(1_000_000));
+      const last = end.cards[end.cards.length - 1]!;
+      expect(end.scrolledTo).toBeGreaterThan(0);
+      expect(last.bottom).toBeLessThanOrEqual(end.row.bottom + TOLERANCE);
+      expect(last.right).toBeLessThanOrEqual(end.row.right + TOLERANCE);
     });
   });
 
@@ -531,5 +652,24 @@ test.describe("touch environment", () => {
   }) => {
     const m = await shelf(page, { width: 393, seeAll: true });
     expect(rowsOf(m.cards)).toBe(1);
+  });
+
+  test.describe("SPEC-CORE-065 I3 — the add-on rows still scroll sideways", () => {
+    for (const kind of ["clip", "visual"] as const) {
+      test(`${kind} rows`, async ({ page }) => {
+        const m = await addonRow(page, kind, 393, 12);
+
+        expect(m.row.overflowX === "auto" || m.row.overflowX === "scroll").toBe(
+          true,
+        );
+        expect(m.row.scrollWidth).toBeGreaterThan(
+          m.row.clientWidth + TOLERANCE,
+        );
+        expect(m.rows).toBe(1);
+        expect(m.row.scrollHeight).toBeLessThanOrEqual(
+          m.row.clientHeight + TOLERANCE,
+        );
+      });
+    }
   });
 });
