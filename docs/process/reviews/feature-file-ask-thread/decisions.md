@@ -264,3 +264,9 @@ pending: |
   - Audio and video as heard and seen, subtitle timing, playback over the
     home LAN and on other household devices, and calls to real third-party
     addon services (`PROJECT.md` agent_cannot_verify).
+
+## Design check decisions (owner, 2026-11-09)
+
+Against `design-check.md` (11 findings):
+- Fix: D-3 (24px between turns), D-4 (16px padding on the turn list, 12px on the form), D-7 (New conversation and Save on the left, submit on the right; radius and height stay the shared Button's).
+- Accepted as drawn: D-1, D-2, D-5, D-6 and D-8 keep the existing answer, question, pill, textarea and secondary-button styles of the design system; D-9 follows the spec's visibility rules; D-10 is the host's tab strip, outside this change; D-11 has no phone artboard to compare against.
