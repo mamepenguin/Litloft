@@ -349,7 +349,7 @@ test.describe("mouse environment", () => {
     });
   });
 
-  test.describe("SPEC-CORE-065 I5 — every tab is visible and the strip keeps one tab stop", () => {
+  test.describe("SPEC-CORE-065 I5 — every tab is visible, and the inspector strip keeps one tab stop", () => {
     const STRIPS = ["page", "inspector"] as const;
 
     for (const kind of STRIPS) {
@@ -360,9 +360,10 @@ test.describe("mouse environment", () => {
           before.strip.clientWidth + TOLERANCE,
         );
         for (const tab of before.tabs) expect(within(tab, before.strip)).toBe(true);
-        expect(tabStops(before)).toHaveLength(1);
         expect(selectedIndex(before)).toBe(0);
+        if (kind === "page") return;
 
+        expect(tabStops(before)).toHaveLength(1);
         await page.locator("[data-tab]").first().focus();
         await expect(page.locator("[data-tab]").first()).toBeFocused();
         await page.keyboard.press("ArrowRight");

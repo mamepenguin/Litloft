@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRef } from "react";
 import type { LucideIcon } from "lucide-react";
 
 export interface PageTabItem {
@@ -56,29 +55,11 @@ function navigates(items: readonly PageTabItem[]): boolean {
 
 export function PageTabs({ items, current, onSelect, label, wrap = false }: PageTabsProps) {
   const isNav = navigates(items);
-  const tabRefs = useRef(new Map<string, HTMLButtonElement>());
-  const currentIndex = Math.max(
-    0,
-    items.findIndex((item) => item.key === current),
-  );
-
-  const onKeyDown = (event: React.KeyboardEvent) => {
-    if (isNav) return;
-    const delta =
-      event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
-    if (delta === 0) return;
-    event.preventDefault();
-    const next = items[(currentIndex + delta + items.length) % items.length];
-    if (!next) return;
-    onSelect?.(next.key);
-    tabRefs.current.get(next.key)?.focus();
-  };
 
   return (
     <nav
       aria-label={label}
       role={isNav ? undefined : "tablist"}
-      onKeyDown={onKeyDown}
       className={wrap ? WRAP_ROW_CLASS : ROW_CLASS}
     >
       {/* The icons carry no `aria-hidden`: lucide-react adds it itself unless
@@ -111,15 +92,10 @@ export function PageTabs({ items, current, onSelect, label, wrap = false }: Page
           <button
             key={item.key}
             type="button"
-            ref={(node) => {
-              if (node) tabRefs.current.set(item.key, node);
-              else tabRefs.current.delete(item.key);
-            }}
             id={isNav ? undefined : item.id}
             role={isNav ? undefined : "tab"}
             aria-selected={isNav ? undefined : active}
             aria-controls={isNav ? undefined : item.controls}
-            tabIndex={isNav ? undefined : active ? 0 : -1}
             // No `aria-current="page"` here. It names the current *page* in a
             // set of navigations, and this branch does not navigate.
             onClick={() => onSelect?.(item.key)}

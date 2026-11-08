@@ -100,9 +100,9 @@ function drawsSegmentedControl(body: string): boolean {
 }
 
 /**
- * The inspector's tab strip is not folded into `PageTabs`: each owns its
- * own roving tab index and selection state, and `PageTabs` may draw links
- * instead of tabs.
+ * The inspector's tab strip is not folded into `PageTabs` because of a
+ * behaviour `PageTabs` does not have: a roving `tabIndex`, one stop for the
+ * whole strip with the arrow keys moving inside it.
  */
 const UNDERLINE_EXCEPTIONS = [
   "frontend/src/components/FileDetail/inspector/InspectorShell.tsx",
