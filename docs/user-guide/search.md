@@ -112,6 +112,8 @@ To find a moment inside a video (*the part where the cat jumps off the table*), 
 
 With it on, **Scene candidates** appear above the results: a grid of moments from videos in the drive, each with a frame, the file name and a time range. Click one to open the video at that time. The first eight candidates are shown; **Show all** expands the remaining candidates, and **Collapse** returns to the first eight. They are the closest matches, not a promise that the scene exists, and the grid is not shown when the search uses a smart folder or a type other than video.
 
+A YouTube reference can be found this way too, by a moment of the video, and opens at that time. Its picture is read from YouTube when the candidates load, so it can appear a few seconds after the others and stays blank when YouTube cannot be read. A reference saved before the administrator installed this version has no moments to find until its index is regenerated (**Index details** → **Regenerate** on the `clip` task).
+
 ## Searching by an image (intelligence addon)
 
 Give the search an image instead of words: paste it, drop it on the search page, or click **Search by image** in the search window or in the results page's field. On a phone the **Search by image** pill sits under the field. The search window also accepts a drop on its panel.
@@ -136,7 +138,7 @@ The documents group needs readable text in the image — about 20 characters —
 
 When more than one model is available, a select beside the **Ask** button picks the model for your questions; **Auto** uses the one the administrator assigned. It goes back to **Auto** when you reopen the page or switch drives. AI summaries have the same choice under the **▾** beside **Create again**.
 
-To ask about one file, open it and use the **Ask** tab beside its details; the answer cites times, pages or sections you can click to jump there. The tab appears once the file has been indexed, a little after upload. A picture that has no text can be asked about when a model that can read images is set up. While a video or audio file is playing, a question can be about that moment — for a video, what is on screen. When the answer was meant to use an image and could not, a line under the answer says the image could not be used and the answer is from the text only.
+To ask about one file, open it and use the **Ask** tab beside its details; the answer cites times, pages or sections you can click to jump there. The tab appears once the file has been indexed, a little after upload. A picture that has no text can be asked about when a model that can read images is set up. While a video or audio file is playing, a question can be about that moment — for a video, what is on screen, and for a YouTube reference too (the answer can take up to 15 seconds longer to start). When the answer was meant to use an image and could not, a line under the answer says the image could not be used and the answer is from the text only.
 
 Ask sends parts of your files to the language model. An administrator can use a local model, or turn Ask off for a drive. See the [intelligence addon](../addons/intelligence.md#ask-rag).
 
