@@ -167,18 +167,20 @@ describe("AddonPolicySection layout", () => {
     }
   });
 
-  it("lets a keyboard reach the columns that are off-screen", async () => {
+  it("lets a keyboard reach the columns that are off-screen on touch", async () => {
     setupSuccessfulLoads();
     render(<AddonPolicySection />);
     const table = await screen.findByRole("table");
     const region = table.closest("[tabindex]");
     expect(region).not.toBeNull();
     expect(region!.getAttribute("tabindex")).toBe("0");
-    expect(region!.className).toContain("overflow-x-auto");
-    // `w-full` is what made the table fold its headings instead of
-    // scrolling; `min-w-full` keeps it from shrinking below the region.
-    expect(table.className).toContain("min-w-full");
-    expect(table.className).not.toMatch(/(?<![-\w])w-full/);
+    const regionTokens = new Set(region!.className.split(/\s+/));
+    expect(regionTokens).toContain("pointer-coarse:overflow-x-auto");
+    const tableTokens = new Set(table.className.split(/\s+/));
+    // On a mouse the table fits the container and its columns wrap; only a
+    // coarse pointer keeps the row one line and scrolls it sideways.
+    expect(tableTokens).toContain("w-full");
+    expect(tableTokens).toContain("pointer-coarse:min-w-full");
   });
 });
 

@@ -287,7 +287,11 @@ export function MenuRadioGroup<T>({
             <span className="w-4 flex-shrink-0">
               {selected && <Check size={14} />}
             </span>
-            {opt.detail === undefined && opt.label}
+            {opt.detail === undefined && (
+              // Smart-folder names reach this row from the user, so a long
+              // unbroken one has to wrap rather than widen the menu.
+              <span className="min-w-0 flex-1 wrap-anywhere">{opt.label}</span>
+            )}
             {opt.detail !== undefined && (
               <>
                 <span className="min-w-0 flex-1 truncate">{opt.label}</span>

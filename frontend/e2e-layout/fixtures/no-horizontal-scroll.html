@@ -20,14 +20,14 @@
     -->
     <script type="application/json" id="fixture-markup">
       {
-        "shelfSection": "min-w-0",
+        "shelfSection": "min-w-0 @container [--shelf-slot-w:11rem] sm:[--shelf-slot-w:14rem] xl:[--shelf-slot-w:calc((100cqw-3rem)/5)] [--shelf-slot-h:calc(var(--shelf-slot-w)*9/16+3rem)]",
         "shelfHead": "mb-3 flex items-baseline gap-2",
         "shelfTitle": "min-w-0 truncate text-lg font-bold text-text-primary",
         "shelfCount": "flex-shrink-0 text-sm tabular-nums text-text-muted",
         "seeAll": "ml-auto flex-shrink-0 text-sm text-text-muted transition-colors hover:text-text-primary",
-        "shelfRow": "flex snap-x gap-3 overflow-x-auto pb-2",
-        "slot": "w-44 flex-shrink-0 snap-start sm:w-56 xl:w-[calc((100%-3rem)/5)]",
-        "card": "group block min-w-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring",
+        "shelfRow": "flex flex-wrap gap-3 pointer-coarse:flex-nowrap pointer-coarse:snap-x pointer-coarse:overflow-x-auto pointer-coarse:pb-2 mouse:max-h-[calc(2*var(--shelf-slot-h)+0.75rem)] mouse:overflow-hidden",
+        "slot": "w-44 flex-shrink-0 snap-start sm:w-56 xl:w-[calc((100%-3rem)/5)] mouse:h-[var(--shelf-slot-h)]",
+        "card": "group block min-w-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring mouse:h-full",
         "thumb": "relative aspect-video overflow-hidden rounded-2xl bg-bg-elevated",
         "cardTitle": "mt-2 line-clamp-2 text-sm font-semibold text-text-primary",
 
@@ -36,23 +36,23 @@
         "collectionHead": "mb-3 flex items-center justify-between",
         "collectionTitle": "truncate text-base font-semibold text-text-primary",
         "collectionCount": "text-sm text-text-muted",
-        "trackList": "flex gap-3 overflow-x-auto pb-2",
+        "trackList": "flex flex-wrap gap-3 pb-2 mouse:max-h-[19.25rem] sm:mouse:max-h-[20.375rem] mouse:overflow-y-auto pointer-coarse:flex-nowrap pointer-coarse:overflow-x-auto",
         "track": "group relative w-48 sm:w-52 flex-shrink-0 cursor-pointer overflow-hidden rounded-xl ring-2 ring-accent",
         "trackThumb": "aspect-video bg-bg-elevated",
         "trackBody": "p-2",
         "trackTitle": "truncate text-sm font-semibold text-text-primary",
 
-        "pageTabs": "flex gap-1 overflow-x-auto border-b border-bg-border",
+        "pageTabs": "flex flex-wrap gap-1 border-b border-bg-border pointer-coarse:flex-nowrap pointer-coarse:overflow-x-auto",
         "pageTab": "-mb-px inline-flex items-center gap-1.5 rounded-t-xl border-b-2 px-4 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring pointer-coarse:min-h-11",
         "pageTabSelected": "border-accent font-semibold text-text-primary",
         "pageTabIdle": "border-transparent text-text-muted hover:text-text-primary",
 
-        "inspectorStrip": "flex gap-1 overflow-x-auto border-b border-bg-border px-2 pointer-coarse:min-h-11 shrink-0",
+        "inspectorStrip": "flex flex-wrap gap-1 border-b border-bg-border px-2 pointer-coarse:min-h-11 pointer-coarse:flex-nowrap pointer-coarse:overflow-x-auto shrink-0",
         "inspectorTab": "whitespace-nowrap border-b-2 px-3 py-2 text-xs font-medium transition-colors pointer-coarse:min-h-11",
         "inspectorTabSelected": "border-accent font-semibold text-text-primary",
         "inspectorTabIdle": "border-transparent text-text-muted hover:text-text-primary",
 
-        "breadcrumb": "flex min-w-0 flex-1 items-center gap-1 overflow-x-auto text-sm text-text-muted",
+        "breadcrumb": "flex min-w-0 flex-1 items-center gap-1 text-sm text-text-muted pointer-coarse:overflow-x-auto",
         "breadcrumbSegment": "flex items-center gap-1",
         "breadcrumbAncestor": "min-w-12 shrink-[999]",
         "breadcrumbLeaf": "min-w-0",
@@ -105,7 +105,7 @@
 
       const named = (selector) => Array.from(document.querySelectorAll(selector));
 
-      window.buildShelf = ({ width, cards, seeAll }) => {
+      window.buildShelf = ({ width, cards, seeAll, state = "loaded" }) => {
         frame().style.width = `${width}px`;
         frame().replaceChildren();
 
@@ -125,19 +125,48 @@
         }
         section.append(head);
 
-        const row = el("ul", SPEC.shelfRow, undefined, {
+        if (state === "failed") {
+          section.append(
+            el(
+              "button",
+              "rounded-2xl border border-bg-border px-3 py-1.5 text-sm text-text-muted transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring pointer-coarse:min-h-11",
+              "Retry",
+              { type: "button", "data-retry": "" },
+            ),
+          );
+          frame().append(section);
+          return;
+        }
+
+        const CAP =
+          "mouse:max-h-[calc(2*var(--shelf-slot-h)+0.75rem)] mouse:overflow-hidden";
+        const rowClass = seeAll
+          ? SPEC.shelfRow
+          : SPEC.shelfRow
+              .split(/\s+/)
+              .filter((token) => !CAP.split(/\s+/).includes(token))
+              .join(" ");
+        const row = el("ul", rowClass, undefined, {
           "data-shelf-row": "",
         });
         for (let i = 0; i < cards; i += 1) {
           const slot = el("li", SPEC.slot, undefined, {
             "data-shelf-card": String(i),
           });
-          const card = el("a", SPEC.card, undefined, { href: "#" });
-          card.append(
-            el("div", SPEC.thumb),
-            el("span", SPEC.cardTitle, `Video number ${i + 1}`),
-          );
-          slot.append(card);
+          if (state === "loading") {
+            slot.classList.add("animate-pulse");
+            slot.append(
+              el("div", "aspect-video rounded-2xl bg-bg-elevated"),
+              el("div", "mt-2 h-4 w-3/4 rounded-lg bg-bg-elevated"),
+            );
+          } else {
+            const card = el("a", SPEC.card, undefined, { href: "#" });
+            card.append(
+              el("div", SPEC.thumb),
+              el("span", SPEC.cardTitle, `Video number ${i + 1}`),
+            );
+            slot.append(card);
+          }
           row.append(slot);
         }
         section.append(row);
@@ -205,7 +234,7 @@
         }`;
       };
 
-      const buildTabs = ({ width, tabs, stripClass, tabClass, selectedClass, idleClass, inspector }) => {
+      const buildTabs = ({ width, tabs, stripClass, tabClass, selectedClass, idleClass }) => {
         frame().style.width = `${width}px`;
         frame().replaceChildren();
 
@@ -223,25 +252,23 @@
           tab.dataset.base = tabClass;
           tab.dataset.selected = selectedClass;
           tab.dataset.idle = idleClass;
-          if (inspector) setSelected(tab, i === 0);
+          setSelected(tab, i === 0);
           strip.append(tab);
         }
 
-        if (inspector) {
-          strip.addEventListener("keydown", (event) => {
-            const delta =
-              event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
-            if (delta === 0) return;
-            event.preventDefault();
-            const all = Array.from(strip.querySelectorAll("[data-tab]"));
-            const index = all.findIndex(
-              (tab) => tab.getAttribute("aria-selected") === "true",
-            );
-            const next = all[(index + delta + all.length) % all.length];
-            for (const tab of all) setSelected(tab, tab === next);
-            next.focus();
-          });
-        }
+        strip.addEventListener("keydown", (event) => {
+          const delta =
+            event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+          if (delta === 0) return;
+          event.preventDefault();
+          const all = Array.from(strip.querySelectorAll("[data-tab]"));
+          const index = all.findIndex(
+            (tab) => tab.getAttribute("aria-selected") === "true",
+          );
+          const next = all[(index + delta + all.length) % all.length];
+          for (const tab of all) setSelected(tab, tab === next);
+          next.focus();
+        });
 
         frame().append(strip);
       };
@@ -254,7 +281,6 @@
           tabClass: SPEC.pageTab,
           selectedClass: SPEC.pageTabSelected,
           idleClass: SPEC.pageTabIdle,
-          inspector: false,
         });
       };
 
@@ -266,7 +292,6 @@
           tabClass: SPEC.inspectorTab,
           selectedClass: SPEC.inspectorTabSelected,
           idleClass: SPEC.inspectorTabIdle,
-          inspector: true,
         });
       };
 
@@ -325,8 +350,8 @@
           const text = leaf
             ? leafNode
               ? el("span", "whitespace-nowrap", label)
-              : el("span", SPEC.breadcrumbLabel, label)
-            : el("a", SPEC.breadcrumbLink, label, { href: "#" });
+              : el("span", SPEC.breadcrumbLabel, label, { title: label })
+            : el("a", SPEC.breadcrumbLink, label, { href: "#", title: label });
           text.dataset.breadcrumbLabel = "";
           segment.append(text);
           nav.append(segment);
