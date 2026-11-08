@@ -19,7 +19,7 @@ from app.auth import check_drive_access, get_unlocked_groups, init_jwt_secret, l
 import app.setup_token as setup_token
 import app.config as config
 from app.models import File
-from app.routers import admin, admin_markdown_images, auth, collections, comments, drives, files, highlights, progress, uploads, ws
+from app.routers import admin, admin_markdown_images, auth, collections, comments, drives, files, highlights, progress, shelves, uploads, ws
 from app.routers import addon_proxy, admin_config, drive_policies, files_processing, inbox, internal, smart_folders
 from app.services import inbox as inbox_service
 from app.services.diskpath import resolve_on_disk
@@ -326,6 +326,7 @@ app.include_router(files.router)
 app.include_router(files_processing.router)
 app.include_router(inbox.router)
 app.include_router(drives.router)
+app.include_router(shelves.router)
 app.include_router(drive_policies.router)
 app.include_router(uploads.router)
 app.include_router(collections.router)

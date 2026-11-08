@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The shared ToolbarMenu.tsx component is edited (new showLabel and truncateValue props, a changed button class, MenuRadioGroup options gain detail, disabled and title, and the option key changes from label to index:label), and this file is not in the touch-point list.",
+      "impact": "Every existing ToolbarMenu and MenuRadioGroup consumer (sort, filter and condition menus) shares this code. The key change and the new disabled styling are not covered by any consumer test in the diff, so a silent regression in other menus is possible.",
+      "evidence": "frontend/src/components/ToolbarMenu.tsx hunks at ~134-200 and ~226-290; the diff only adds allowlist entries in toolbarMenuHome.test.ts",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant covers shared menu components; this is an unplanned reach into shared UI.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Add ToolbarMenu to the touch points, or move the new behaviour into a videoapp-local wrapper."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "frontend/src/lib/pageJump.ts is edited to spread builtinApps into FIXED_JUMPS, which adds a Video entry to the page-jump feature; the touch-point list does not name it.",
+      "impact": "A new jump destination appears in the page-jump UI for every drive, and the pageJump test's expected list was edited to match. This extends I11 ('appears after Library') to a second surface the spec never mentions.",
+      "evidence": "frontend/src/lib/pageJump.ts FIXED_JUMPS hunk; frontend/src/lib/__tests__/pageJump.test.ts adds 'app-video'",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "I11 covers only the sidebar row; the extra surface is an unplanned touch point.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "The existing getDriveFiles client path in api.ts is refactored (filter appending extracted into appendListingFilters) and the ApiStatusError constructor signature changes; the touch point names only getShelves.",
+      "impact": "Every listing request from the frontend now goes through the extracted function, and every ApiStatusError construction goes through the changed constructor; this is the client-side counterpart of I7 with no named coverage.",
+      "evidence": "frontend/src/lib/api.ts hunks around getDriveFiles and class ApiStatusError",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "A refactor of the existing listing client that the touch points do not name.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "F4",
+      "origin": "reviewer",
+      "claim": "Several existing gate and test files are edited that the touch points do not name: the allowlists in toolbarMenuHome.test.ts and section-rows.test.tsx, the FIXTURE_COUNT in spec-viewport.spec.ts, and the existing sidebar tests SidebarActiveRow, SidebarAddonNav, SidebarDriveSwitcher, fixedRows and libraryRowActive.",
+      "impact": "Guard tests were widened to accept the new files (a hidden scrollbar in ShelfBlock, ToolbarMenu importers), so those gates no longer protect those files; the sidebar tests were rewritten to expect the new row.",
+      "evidence": "the diff hunks of the files named above",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "These are unplanned test and gate edits; none breaks a declared invariant.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "F5",
+      "origin": "reviewer",
+      "claim": "backend/app/main.py (router registration) and docs/user-guide/overview.md (an added line) are edited, and the touch-point list names neither; the new video.md page is named but the overview edit is not.",
+      "impact": "A minor unplanned reach. The main.py edit is implied by the 'new router' option, and the overview.md line only adds a link.",
+      "evidence": "backend/app/main.py import and include_router lines; docs/user-guide/overview.md hunk",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Not a behaviour defect.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "Answer to the question: places reached but not in the touch-point list are ToolbarMenu.tsx (shared component), pageJump.ts, the getDriveFiles and ApiStatusError refactor in api.ts, widened gate allowlists and FIXTURE_COUNT, edits to existing sidebar tests, main.py, and docs/user-guide/overview.md. frontend/src/lib/videoAppTarget.ts is also new and unlisted, but it serves the app's target.",
+    "The listing helper extraction keeps the same filter code, which is consistent with I7 on a read of the diff alone."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The Video entry appears in the page-jump list.",
+    "ToolbarMenu gained label and truncation modes and disabled radio rows."
+  ],
+  "regression_risks": [
+    "Changing the MenuRadioGroup key and button styling could affect other menus.",
+    "The getDriveFiles refactor could change how the listing encodes its parameters."
+  ],
+  "test_coverage": [
+    "Backend shelves tests cover grouping, watch state, paging and filters thoroughly.",
+    "No test covers the ToolbarMenu changes against other consumers, or the pageJump behaviour beyond the list."
+  ],
+  "not_verified": [
+    "I did not read the full repository files, only the diff.",
+    "I did not review backend correctness (I1 to I5) in depth.",
+    "I did not run any tests."
+  ],
+  "confidence": 72
+}

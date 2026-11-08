@@ -8,6 +8,7 @@ import { TwoPaneLayout } from "@/components/folder/TwoPaneLayout";
 import {
   isCrossFolderView,
   isDriveAddonPath,
+  isDriveAppPath,
   isDriveCollectionPath,
   isDriveSearchPath,
   isStandaloneView,
@@ -28,10 +29,11 @@ export default function DriveLayout({ children }: { children: ReactNode }) {
   const view = searchParams.get("view");
   const isAddonRoute = isDriveAddonPath(pathname);
   const isCollectionRoute = isDriveCollectionPath(pathname);
+  const isAppRoute = isDriveAppPath(pathname);
   const isStandalone = isStandaloneView(view);
   const isCrossFolderRoute = isCrossFolderView(view) || isDriveSearchPath(pathname);
 
-  if (isAddonRoute || isStandalone || isCollectionRoute) {
+  if (isAddonRoute || isStandalone || isCollectionRoute || isAppRoute) {
     return <>{children}</>;
   }
 

@@ -134,6 +134,10 @@ interface ToolbarMenuProps {
   "data-bar"?: BarScope;
   align?: keyof typeof PREFERRED_SIDE;
   portalOnPhone?: boolean;
+  /** Draws the label before the value, for a control whose value alone would not say what it sets. */
+  showLabel?: boolean;
+  /** Lets a long value shorten with an ellipsis where the bar is tight. */
+  truncateValue?: boolean;
   children: (close: () => void) => ReactNode;
 }
 
@@ -149,6 +153,8 @@ export function ToolbarMenu({
   "data-bar": bar,
   align = "end",
   portalOnPhone = false,
+  showLabel = false,
+  truncateValue = false,
   children,
 }: ToolbarMenuProps) {
   const [open, setOpen] = useState(false);
@@ -189,10 +195,21 @@ export function ToolbarMenu({
         // `gap-2` is 8px, `Button`'s overhang is `-inset-1.5` — 6px on each side, so
         // 12px between neighbours — and two of them would overlap, the later
         // one winning the hit test.
-        className="flex items-center gap-1.5 rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11"
+        className={`flex items-center gap-1.5 rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11${showLabel || truncateValue ? " max-w-full" : ""}`}
       >
         <Icon size={16} />
-        <span>{value}</span>
+        {showLabel && <span>{label}</span>}
+        <span
+          className={
+            showLabel
+              ? "max-w-[12rem] truncate text-text-primary"
+              : truncateValue
+                ? "truncate"
+                : undefined
+          }
+        >
+          {value}
+        </span>
       </button>
       {open &&
         surface.layer(
@@ -209,6 +226,10 @@ export function ToolbarMenu({
 export interface MenuRadioOption<T> {
   value: T;
   label: string;
+  /** Muted text at the row's end, such as a count. */
+  detail?: string;
+  disabled?: boolean;
+  title?: string;
 }
 
 interface MenuRadioGroupProps<T> {
@@ -242,20 +263,22 @@ export function MenuRadioGroup<T>({
       >
         {heading}
       </p>
-      {options.map((opt) => {
+      {options.map((opt, index) => {
         const selected = isSelected(opt.value);
         return (
           <button
-            key={opt.label}
+            key={`${index}:${opt.label}`}
             role="menuitemradio"
             aria-checked={selected}
             onClick={() => onSelect(opt.value)}
+            disabled={opt.disabled}
+            title={opt.title}
             // A negative outline offset, because the menu scrolls on
             // both axes: CSS resolves `overflow-x` to `auto` once the other
             // axis is not `visible`, and the focus ring on a full-width row
             // was being clipped at the padding edges. Drawn inside the row
             // instead of around it.
-            className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors focus-visible:-outline-offset-2 ${
+            className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors focus-visible:-outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${
               selected
                 ? "bg-bg-elevated font-medium text-text-primary"
                 : "text-text-primary hover:bg-bg-elevated"
@@ -264,7 +287,15 @@ export function MenuRadioGroup<T>({
             <span className="w-4 flex-shrink-0">
               {selected && <Check size={14} />}
             </span>
-            {opt.label}
+            {opt.detail === undefined && opt.label}
+            {opt.detail !== undefined && (
+              <>
+                <span className="min-w-0 flex-1 truncate">{opt.label}</span>
+                <span className="flex-shrink-0 text-xs tabular-nums text-text-muted">
+                  {opt.detail}
+                </span>
+              </>
+            )}
           </button>
         );
       })}
