@@ -31,6 +31,7 @@
   },
   "appShell": {
     "manage": "管理…",
+    "manageTitle": "表示する対象",
     "done": "完了",
     "searchTargets": "スマートフォルダを検索",
     "seeAllIn": "すべて見る: {name}"

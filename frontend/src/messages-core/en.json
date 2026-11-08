@@ -31,6 +31,7 @@
   },
   "appShell": {
     "manage": "Manage…",
+    "manageTitle": "Shown targets",
     "done": "Done",
     "searchTargets": "Search smart folders",
     "seeAllIn": "See all: {name}"
