@@ -39,9 +39,15 @@ Indexing (SPEC-ADDON-079):
    `{ms}.webp`, where `ms` is the tile's timestamp in milliseconds rounded as the frame
    cache rounds it.
 3. In the transaction that replaces the file's `clip` rows, nothing about tiles changes.
-   After that transaction commits, the old `frames/{file_id}/tiles/` is removed and the
-   new directory is renamed to `frames/{file_id}/tiles/`. The rows and the tiles on disk
-   then name the same times.
+   After that transaction commits, the swap runs: the old `frames/{file_id}/tiles/` is
+   renamed aside to `tiles.old.<random>/`, the new directory is renamed to
+   `frames/{file_id}/tiles/`, and the old one is removed. The rows and the tiles on disk
+   then name the same times. The row commit and the swap of one file id run under a
+   per-file lock in the process, so two runs on the same file finish one after the
+   other and the later commit's tiles are the ones left.
+   At the start of every storyboard leg, any `frames/{file_id}/tiles.*` directory left
+   by an earlier run (a failed swap or a process exit) is removed; `tiles/` itself is
+   kept.
 
 Serving (SPEC-ADDON-079):
 
@@ -55,8 +61,10 @@ Showing (SPEC-ADDON-080):
 
 5. File page, CLIP frames panel: for a `.loft` (mime
    `application/vnd.litloft.loft+json`) the panel requests `clip-timestamps` when it
-   mounts, appears only when that returns at least one row, and shows each row's picture
-   from the scene-tile route at the row's `start`. Clicking a picture seeks the player to
+   mounts and renders nothing until that returns at least one row. It then appears as
+   the native panel does: a collapsed header with the row count, expanded by a click,
+   showing 20 pictures at a time with the same near-end paging. Each picture comes from
+   the scene-tile route at the row's `start`. Clicking a picture seeks the player to
    that time, as for a native video. Native videos behave exactly as today (lazy fetch on
    first expand, frame route).
 6. Search page, Scene candidates grid: a candidate whose filename ends in `.loft` shows
@@ -68,22 +76,42 @@ Showing (SPEC-ADDON-080):
 - Encoding or writing a tile fails: the leg is a transient failure with class
   `tile_write_failed`, as a failed embed is (SPEC-ADDON-078 I8): no rows are replaced,
   the new directory is removed, the old rows and tiles stay.
-- The swap after commit fails (removing the old directory or renaming): logged as a
-  warning; the rows are already committed. A row whose tile is missing shows the blank
-  card; the next `clip` run writes the tiles again. The leg's result is unchanged.
-- The route finds no file for `ms`: 404. That covers a reference indexed before this
-  change, a native video, a `.loft` of another provider, a `t` that is not a row time,
-  and a file not indexed or not active.
-- The file is not `file_type == "video"`: 400 `Not a video file`, as the frame route.
-- In the UI a tile request that fails shows the blank card (grid) or a blank picture of
-  the same size (panel); nothing else is requested in its place.
+- The swap after commit fails (a rename or the removal): logged as a warning naming the
+  file id; the rows stay committed and `clip_indexed` is true. Whatever the swap left
+  (old tiles in `tiles/`, no `tiles/`, or a `tiles.*` directory) stays until the next
+  storyboard leg, which removes every `tiles.*` directory first and writes a fresh set.
+  Until then a row whose tile is missing shows the blank picture; an old tile under the
+  same time shows the picture of that time from the earlier run (same video).
+- The process exits between the commit and the end of the swap: the same states, cleared
+  the same way by the next leg.
+- A re-run that ends `no_sb0`, `no_duration` or not YouTube: it touches neither the
+  existing rows (SPEC-ADDON-078) nor the existing tiles.
+- Route input: `t` is declared as the frame route declares it (`float`, required,
+  `>= 0`), so a missing, negative or non-numeric `t` answers 422. The checks then run in
+  this order: file lookup (404 when not indexed or not active, or outside the
+  `X-Lit-Drive` drive), file type (400 `Not a video file` unless `file_type ==
+  "video"`), tile (404 when `frames/{file_id}/tiles/{ms}.webp` does not exist). A
+  reference indexed before this change, a native video, a `.loft` of another provider
+  and a `t` that is not a row time all end at the tile check.
+- `clip-timestamps` fails for a `.loft` panel: the panel stays hidden (as when it returns
+  no rows) and nothing is retried until the page is opened again.
+- In the UI a tile request that fails shows the blank card (grid) or a blank block of
+  the picture's size with no alt text shown (panel); nothing else is requested in its
+  place.
 
 ### 3. States
 
-Per YouTube `.loft`: no tiles (indexed before this change, or the leg found no
-storyboard) → tiles matching the current rows (after a successful storyboard leg). A
-later successful run moves to the new set; a failed run stays where it was. A file
-removed from the index loses its tiles with the frame cache. No other state.
+Per YouTube `.loft`:
+
+- **No tiles**: indexed before this change, or never had a storyboard.
+- **Tiles match rows**: after a storyboard leg whose swap succeeded.
+- **Tiles out of step**: after a swap that failed or was cut short by a process exit —
+  old tiles under `tiles/`, no `tiles/`, and/or a leftover `tiles.*` directory.
+
+Transitions: any state → tiles match rows on a storyboard leg whose swap succeeds; any
+state → tiles out of step on a swap failure; a leg that fails before its commit, or ends
+`no_sb0` / `no_duration` / not YouTube, leaves the state as it was. A file removed from
+the index loses `frames/{file_id}/` entirely, whatever the state.
 
 ### 4. Data read and written
 
@@ -157,20 +185,26 @@ answers 404 from the host before the addon.
 - `addons/intelligence/frontend/SceneCandidatesSection.tsx`: the `.loft` picture.
 - `addons/intelligence/frontend/api.ts`: `getSceneTileUrl`.
 - Tests under `addons/intelligence/tests/` and `addons/intelligence/frontend/`.
-- `docs/addons/intelligence.md` (the YouTube references paragraph and the route list),
-  `docs/user-guide/search.md` (the YouTube candidate sentence).
+- `docs/addons/intelligence.md` (the YouTube references paragraph, whose "never shown"
+  and "blank card" sentences become false, and the route list),
+  `docs/user-guide/search.md` (the YouTube candidate sentence, which also says a
+  reference saved earlier shows pictures after its `Image analysis (CLIP)` is
+  regenerated; no user-guide page documents the file page's CLIP frames panel, so that
+  sentence covers both places).
+- The core gitlink for `addons/intelligence`, bumped to the merged addon commit.
 - No protected path is edited.
 
 ## Invariants
 
-I1. `GET /files/{id}/scene-tile?t=` returns only a file under `frames/{id}/tiles/` whose name is `t` in milliseconds with the frame cache's rounding, as `image/webp`; when no such file exists it answers 404, and it never contacts the network, never runs ffmpeg and never writes a file.
-I2. After a successful storyboard leg, the names in `frames/{id}/tiles/` are exactly the `timestamp_start` values of the file's `clip` rows in milliseconds, and each file is the tile that was embedded for that row, at the tile's own size.
-I3. A storyboard leg that fails before its row transaction commits leaves the file's `clip` rows and its `frames/{id}/tiles/` as they were, and leaves no temporary tile directory.
+I1. `GET /files/{id}/scene-tile?t=` returns only a file under `frames/{id}/tiles/` whose name is `t` in milliseconds with the frame cache's rounding, as `image/webp`; when no such file exists it answers 404, `t` is validated as the frame route validates it (422), a non-video file answers 400, and it never contacts the network, never runs ffmpeg and never writes a file.
+I2. After a storyboard leg whose swap succeeded, the names in `frames/{id}/tiles/` are exactly the `timestamp_start` values of the file's `clip` rows in milliseconds, each file is the tile that was embedded for that row at the tile's own size, and no `frames/{id}/tiles.*` directory remains.
+I3. A storyboard leg that fails before its row transaction commits, or ends `no_sb0`, `no_duration` or not YouTube, leaves the file's `clip` rows and its `frames/{id}/tiles/` as they were, and leaves no temporary tile directory.
 I4. The scene-tile route is reachable only through the host's file-access check, and with `X-Lit-Drive` present it answers as the frame route does for a file outside that drive.
 I5. `GET /files/{id}/frame`, Ask and the MCP tools never return or cache a storyboard tile, and the frame cache files `{ms}.webp` and `{ms}.large.webp` are never written by the storyboard leg.
-I6. The CLIP frames panel of a `.loft` appears only after `clip-timestamps` returns at least one row, takes every picture from the scene-tile route, and never requests the frame route; for a native video the panel requests nothing before its first expand and takes its pictures from the frame route, as before.
+I6. The CLIP frames panel of a `.loft` renders nothing until `clip-timestamps` returns at least one row (and stays hidden when it fails), then shows the native panel's collapsed header with the count and 20-at-a-time paging, takes every picture from the scene-tile route, never requests the frame route, and shows a blank block of the picture's size with no visible alt text for a tile that fails; for a native video the panel requests nothing before its first expand and takes its pictures from the frame route, as before.
 I7. A `.loft` candidate in the Scene candidates grid requests only the scene-tile route at its `peak`, and shows the blank card when that request fails; a native candidate requests only the frame route, as before.
 I8. Removing a file from the index (and the policy-off drive purge) removes its tiles with its frame cache.
+I9. A swap that fails after the row commit leaves the rows committed and `clip_indexed` true and logs a warning naming the file id; the next storyboard leg of that file removes every `frames/{id}/tiles.*` directory before writing, and two legs of one file in a process never interleave their commit and swap.
 
 ## Checked, no action
 
@@ -190,3 +224,8 @@ I8. Removing a file from the index (and the policy-off drive purge) removes its 
   the scene list cheaper but changes SPEC-CORE-058; its own change if wanted.
 - **A label telling sampled tiles from scene-change frames**: the user decided no.
 - **Tiles for non-YouTube `.loft` providers**: they have no storyboard leg.
+- **A purge that runs while a storyboard leg is in flight**: the leg's row commit would
+  already write rows for the purged file; the tiles follow the rows and add no new case.
+  Purges happen on file removal and a policy change, not during a reindex in normal use.
+- **Retrying a `tile_write_failed` file before a restart**: it joins the existing
+  per-process failed set (SPEC-ADDON-078 I8), as every other transient class does.
