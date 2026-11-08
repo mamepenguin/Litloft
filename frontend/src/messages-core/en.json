@@ -1489,6 +1489,7 @@
       "finished": "Finished"
     },
     "tag": "Tag",
+    "tagNone": "None specified",
     "noTags": "No tags",
     "noTag": "No tag",
     "sort": {

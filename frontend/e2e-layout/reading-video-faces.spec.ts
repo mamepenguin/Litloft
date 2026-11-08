@@ -11,7 +11,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { cardGridTemplate, columnsFor, rowsFor } from "../src/lib/cardGrid";
+import { BOOK_GRID, cardGridTemplate, columnsFor, rowsFor } from "../src/lib/cardGrid";
 
 const FIXTURE_FILE = resolve(
   __dirname,
@@ -34,7 +34,7 @@ const SHAPES: Record<string, Markup> = JSON.parse(
   )![1],
 );
 
-const SHAPE_COUNT = 13;
+const SHAPE_COUNT = 15;
 
 const APPS = [
   { app: "reading", face: "discover" },
@@ -99,15 +99,17 @@ async function layout(
   await page.evaluate(([a, f]) => window.buildApp(a, f), [app, face]);
 
   const gridWidth = await page.evaluate(() => window.firstGridWidth());
-  const columns = columnsFor(gridWidth);
+  const metrics = app === "reading" ? BOOK_GRID : undefined;
+  const columns = columnsFor(gridWidth, metrics);
   const capacity = columns * rowsFor(columns);
   await page.evaluate(
     ({ template, count }) => window.fillGrids(template, count),
-    { template: cardGridTemplate(columns), count: capacity },
+    { template: cardGridTemplate(columns, metrics), count: capacity },
   );
 
   return {
     columns,
+    metrics,
     capacity,
     m: await page.evaluate(() => window.measureApp()),
   };
@@ -132,7 +134,7 @@ test.describe("a mouse environment", () => {
         test(`${app} ${face} keeps every row inside the page`, async ({
           page,
         }) => {
-          const { capacity, m } = await layout(page, app, face, width);
+          const { capacity, metrics, m } = await layout(page, app, face, width);
 
           expect(m.media.fine).toBe(true);
           expect(m.media.coarse).toBe(false);
@@ -150,8 +152,8 @@ test.describe("a mouse environment", () => {
             );
             expect(shelf.cards).toBe(capacity);
             expect(shelf.cards).toBeLessThanOrEqual(
-              columnsFor(shelf.gridClientWidth) *
-                rowsFor(columnsFor(shelf.gridClientWidth)),
+              columnsFor(shelf.gridClientWidth, metrics) *
+                rowsFor(columnsFor(shelf.gridClientWidth, metrics)),
             );
             inside(shelf.seeAll, shelf);
             inside(shelf.seeAll, m.frame);

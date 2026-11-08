@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import {
+  BOOK_GRID,
   MIN_CARD_COLUMNS,
   cardGridTemplate,
   rowsFor,
@@ -19,10 +21,16 @@ export type ShelfView<T> =
 
 type GridView<T> = Exclude<ShelfView<T>, { status: "failed" }>;
 
-function SkeletonCard() {
+function SkeletonCard({ book }: { book: boolean }) {
   return (
     <li className="animate-pulse" aria-hidden="true">
-      <div className="aspect-video rounded-2xl bg-bg-elevated" />
+      <div
+        className={
+          book
+            ? "aspect-[2/3] rounded-xl bg-bg-elevated"
+            : "aspect-video rounded-2xl bg-bg-elevated"
+        }
+      />
       <div className="mt-2 h-4 w-3/4 rounded-lg bg-bg-elevated" />
     </li>
   );
@@ -37,21 +45,27 @@ function capacityOf(columns: number): number {
 export function ShelfGrid<T extends { id: string }>({
   view,
   renderItem,
+  book = false,
 }: {
   view: GridView<T>;
   renderItem: (item: T) => ReactNode;
+  book?: boolean;
 }) {
-  const { ref, columns } = useCardColumns();
+  const { ref, columns } = useCardColumns(book ? BOOK_GRID : undefined);
   const capacity = capacityOf(columns);
 
   return (
     <ul
       ref={ref}
-      className="grid gap-3"
-      style={{ gridTemplateColumns: cardGridTemplate(columns) }}
+      className={`grid ${book ? "gap-5" : "gap-3"}`}
+      style={{
+        gridTemplateColumns: cardGridTemplate(columns, book ? BOOK_GRID : undefined),
+      }}
     >
       {view.status === "loading"
-        ? Array.from({ length: capacity }).map((_, i) => <SkeletonCard key={i} />)
+        ? Array.from({ length: capacity }).map((_, i) => (
+            <SkeletonCard key={i} book={book} />
+          ))
         : view.items.slice(0, capacity).map((item) => (
             <li key={item.id} className="min-w-0">
               {renderItem(item)}
@@ -68,6 +82,7 @@ export function ShelfBlock<T extends { id: string }>({
   view,
   onRetry,
   renderItem,
+  book = false,
 }: {
   title: string;
   /** Already in the viewer's number format. */
@@ -76,6 +91,7 @@ export function ShelfBlock<T extends { id: string }>({
   view: ShelfView<T>;
   onRetry: () => void;
   renderItem: (item: T) => ReactNode;
+  book?: boolean;
 }) {
   const tc = useTranslations("common");
   const t = useTranslations("appShell");
@@ -95,9 +111,10 @@ export function ShelfBlock<T extends { id: string }>({
           <Link
             href={seeAllHref}
             aria-label={t("seeAllIn", { name: title })}
-            className="ml-auto flex-shrink-0 text-sm text-text-muted transition-colors hover:text-text-primary"
+            className="ml-auto inline-flex flex-shrink-0 items-center gap-0.5 text-sm text-text-muted transition-colors hover:text-text-primary"
           >
             {tc("seeAll")}
+            <ChevronRight size={16} aria-hidden="true" />
           </Link>
         )}
       </div>
@@ -105,7 +122,7 @@ export function ShelfBlock<T extends { id: string }>({
       {view.status === "failed" ? (
         <RetryButton onRetry={onRetry} />
       ) : (
-        <ShelfGrid view={view} renderItem={renderItem} />
+        <ShelfGrid view={view} renderItem={renderItem} book={book} />
       )}
     </section>
   );

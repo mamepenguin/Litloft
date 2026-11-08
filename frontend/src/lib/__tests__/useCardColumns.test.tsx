@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { act, render, screen } from "@testing-library/react";
 
-import { cardGridTemplate, useCardColumns } from "@/lib/cardGrid";
+import { BOOK_GRID, cardGridTemplate, useCardColumns } from "@/lib/cardGrid";
 
 let resize: (() => void) | undefined;
 
@@ -40,6 +40,23 @@ function renderAtWidth(width: number) {
   return screen.getByTestId("grid").style.gridTemplateColumns;
 }
 
+function BookGrid() {
+  const { ref, columns } = useCardColumns(BOOK_GRID);
+  return (
+    <div
+      ref={ref}
+      data-testid="grid"
+      style={{ gridTemplateColumns: cardGridTemplate(columns, BOOK_GRID) }}
+    />
+  );
+}
+
+function renderBookAtWidth(width: number) {
+  vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(width);
+  render(<BookGrid />);
+  return screen.getByTestId("grid").style.gridTemplateColumns;
+}
+
 describe("a mounted card grid", () => {
   it("holds two columns on a 375px phone", () => {
     expect(renderAtWidth(343)).toBe("repeat(2, minmax(0, 1fr))");
@@ -47,6 +64,13 @@ describe("a mounted card grid", () => {
 
   it("takes the columns that fit on a wide canvas", () => {
     expect(renderAtWidth(1213)).toBe("repeat(4, minmax(0, 1fr))");
+  });
+
+  it.each([
+    [976, "repeat(6, minmax(0, 1fr))"],
+    [358, "repeat(2, minmax(0, 1fr))"],
+  ])("counts the book grid at %ipx with its own minimum and gap", (width, expected) => {
+    expect(renderBookAtWidth(width)).toBe(expected);
   });
 
   it("falls back to a template that still holds the floor", () => {

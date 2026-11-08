@@ -6,7 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { FileTypeIcon } from "@/components/FileTypeIcon";
 import { getThumbnailUrl, type ShelfItem } from "@/lib/api";
 import { fileLinkHref } from "@/lib/canonicalFileUrl";
-import { formatRelativeDate } from "@/lib/format";
+import { formatRelativeAge } from "@/lib/format";
 import { bookFormat, folderLabel } from "./labels";
 
 function progressPercent(item: ShelfItem): number | null {
@@ -56,7 +56,7 @@ export function ReadingCard({
           <div className="absolute inset-x-0 bottom-0 h-1 bg-black/50">
             <div
               data-testid="progress-fill"
-              className="h-full bg-white"
+              className="h-full bg-accent"
               style={{ width: `${percent}%` }}
             />
           </div>
@@ -66,7 +66,7 @@ export function ReadingCard({
         {item.title}
       </span>
       <span className="mt-0.5 block truncate text-xs text-text-muted">
-        {folderLabel(item.folder_path, drive)} · {formatRelativeDate(item.created_at, locale)}
+        {folderLabel(item.folder_path, drive)} · {formatRelativeAge(item.created_at, locale)}
       </span>
     </Link>
   );

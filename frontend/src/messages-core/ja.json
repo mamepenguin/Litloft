@@ -1489,6 +1489,7 @@
       "finished": "読了"
     },
     "tag": "タグ",
+    "tagNone": "指定なし",
     "noTags": "タグがありません",
     "noTag": "タグなし",
     "sort": {
