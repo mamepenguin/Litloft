@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "addons/intelligence/frontend/ClipFramesSection.tsx:211 uses `mouse:max-h-[17.5rem] mouse:overflow-y-auto`. The frontend uses Tailwind v4 with no tailwind.config, and no `@custom-variant`/`addVariant` or `mouse` variant is defined in any frontend CSS or JS (grep finds none). So the strip has no height bound and is not a scroll container. The IntersectionObserver at :133-148 uses root=stripRef, and the sentinel at :240-246 always intersects it, so showCount grows until every row is rendered. decisions.md R-5 saw this in the running app: 112 buttons for the .loft and 75 for the native video right after expand, and no 17.5rem rule in the built stylesheet. ClipFramesSection.test.tsx:209-212 only regex-matches class names. The submodule reflog shows how the change got in: the scene-tiles branch was cut from f803f99, which is addon main fast-forwarded past 1f38a24, so the class reaches this diff range through the bump. It was not written in this branch's own commits. The same unbounded layout also affects VisualIndexSection.tsx:276."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "addons/intelligence/frontend/VisualIndexSection.tsx:276 has `flex flex-wrap gap-3 p-1 mouse:max-h-[30.75rem] mouse:overflow-y-auto pointer-coarse:...`, and VisualIndexSection.test.tsx:311-314 asserts those classes. Neither file is in the touch-point list. In the submodule reflog (logs/HEAD lines 16-18), the scene-tiles branch starts from f803f99, the fast-forward of addon main past 1f38a24, so this upstream work is inside the gitlink diff range."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "addons/intelligence/frontend/AdminFeaturesSettingsSection.tsx:160 (headClass) and :203 (first <td>) carry `break-anywhere`, and AdminFeaturesSettingsSection.test.tsx:133-135 asserts it. The file is not in the touch points. It enters the range the same way as F2: the branch is based on the fast-forwarded addon main (f803f99) and the base gitlink is 1f38a24."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F4",
+      "status": "confirmed",
+      "note": "These all exist at HEAD and none is in the scene-tiles touch points: addons/intelligence/app/youtube_source.py; scenes.py:62 `_require_youtube_loft`; files.py:1572 `_image_route_indexed_file`; frame_cache.py:105 `frame_ffmpeg_argv`; clip.py:870 `_handle_thumbnail_fallback` and :957 `_index_clip_loft`. The submodule reflog shows the youtube-frames commits (89c7be1..4e18d95, made after 1f38a24) under the scene-tiles commits, so the bump from the base's 1f38a24 carries all of them."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F5",
+      "status": "confirmed",
+      "note": "addons/intelligence/Dockerfile:25 and Dockerfile.test:31 install `yt-dlp>=2026.8.19`. process/risk-zones.conf:38 has `zone **/Dockerfile* CRITICAL`, and docs/specs/youtube-frames.md:290-291 calls this a protected path. r1/classification.json:51 nevertheless has `protected_paths_touched: []` and zone_max MEDIUM, because the classifier sees only the core gitlink and does not look inside the submodule range. The touch points' 'No protected path is edited' is therefore false for this diff range."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F6",
+      "status": "confirmed",
+      "note": "mcp-server/src/tools/video.ts:68 defines `readLoftReference`, and the branches at :174-175 and :216-217 test `loft?.provider !== \"youtube\"`. r1/classification.json:34-47 lists mcp-server/README.md, src/__tests__/loftUrl.test.ts, src/__tests__/loftYoutube.test.ts and src/tools/video.ts as touched. None of them is in the scene-tiles touch points."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F7",
+      "status": "confirmed",
+      "note": "docs/addons/intelligence.md:31 is a privacy bullet about contacting YouTube. Lines 212-218 hold more than the scene-tile route paragraph at :216, and line 289 also matches YouTube/yt-dlp/outbound. docs/user-guide/search.md:141 is a further YouTube line besides the touch-point sentence at :115. I checked these by grep hits on the current file content, not by reading the diff hunks, so whether each line is newly added in the range was inferred from the YouTube-frames feature being part of the range (F4)."
+    }
+  ],
+  "specification_compliance": [
+    "Touch-point list is narrower than the actual diff range: because the core base gitlink is 1f38a24 and the addon branch sits on fast-forwarded addon main plus the youtube-frames commits, the bump carries SPEC-ADDON-076/077/078, an mcp-server change, a Dockerfile change and unrelated frontend layout changes."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The CLIP frames strip and VisualIndexSection strip are unbounded on mouse devices because the `mouse:` variant is undefined, so 20-at-a-time paging (I6) never happens in practice."
+  ],
+  "regression_risks": [
+    "Native video panels also render all frames at once after expand (75 rows observed in R-5), issuing many /frame requests (lazy-loaded) instead of paging.",
+    "The protected-path classifier does not see Dockerfile edits inside the submodule, so CRITICAL zone gating is bypassed for this bump."
+  ],
+  "test_coverage": [
+    "ClipFramesSection.test.tsx:209-212 and VisualIndexSection.test.tsx:311-314 only regex-match class names and cannot detect that the `mouse:` variant generates no CSS."
+  ],
+  "not_verified": [
+    "Did not read git objects to confirm origin/develop's gitlink is exactly 1f38a24 or which addon commit (d420278) introduced the strip classes; I inferred this from the submodule reflog and the reviewer's stated range.",
+    "Did not run the build to confirm the compiled stylesheet lacks a 17.5rem rule; I relied on the source grep and the R-5 record.",
+    "Did not inspect the actual diff hunks of docs/addons/intelligence.md lines 212-218 and 289 or search.md:141 (omitted long lines)."
+  ],
+  "confidence": 85
+}
