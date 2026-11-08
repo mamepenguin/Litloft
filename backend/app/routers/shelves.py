@@ -5,7 +5,7 @@ import unicodedata
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import Integer, and_, case, cast, false, func, select
+from sqlalchemy import Integer, and_, case, cast, false, func, select, true
 from sqlalchemy.orm import Session
 
 from app.auth import get_unlocked_groups
@@ -29,11 +29,12 @@ from app.schemas import (
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/drives", tags=["drives"])
 
-ShelfBy = Literal["folder", "tag", "month", "duration", "watch"]
+ShelfBy = Literal["all", "folder", "tag", "month", "duration", "watch"]
 
 NO_TAG = "no_tag"
 DURATION_KEYS = ("under_10m", "10_to_30m", "30m_plus")
-WATCH_KEYS = ("in_progress", "unwatched", "finished")
+WatchState = Literal["in_progress", "unwatched", "finished"]
+WATCH_KEYS: tuple[WatchState, ...] = ("in_progress", "unwatched", "finished")
 FIXED_KEYS = {"duration": DURATION_KEYS, "watch": WATCH_KEYS}
 
 _UNDER_10M_SECONDS = 600
@@ -101,10 +102,8 @@ def _key_expr(by: str):
     return _watch_bucket()
 
 
-def _grouping(query, by: str, drive: str, viewer_id: str | None):
+def _grouping(query, by: str, drive: str):
     """Join what the grouping needs and return ``(query, key expression)``."""
-    if by == "watch":
-        return _join_watch(query, viewer_id), _key_expr(by)
     if by != "tag":
         return query, _key_expr(by)
     names = (
@@ -118,10 +117,15 @@ def _grouping(query, by: str, drive: str, viewer_id: str | None):
 
 
 def _key_filter(by: str, key: str, drive: str):
+    if by == "all":
+        return true() if key == "all" else false()
     if by == "folder":
         if key == "":
             return File.folder_path == ""
-        return _folder_subtree(unicodedata.normalize("NFC", key))
+        folder = unicodedata.normalize("NFC", key)
+        if folder.endswith("/"):
+            return File.folder_path == folder.rstrip("/")
+        return _folder_subtree(folder)
     if by == "tag":
         if key == NO_TAG:
             return File.id.not_in(_drive_tag_links(drive))
@@ -166,8 +170,11 @@ def _item_order(sort: str, order: str):
 
 
 def _label(by: str, key: str) -> str:
-    if by in FIXED_KEYS or (by == "tag" and key == NO_TAG):
+    if by == "all" or by in FIXED_KEYS or (by == "tag" and key == NO_TAG):
         return ""
+    if by == "folder":
+        folder = key.rstrip("/")
+        return folder.rsplit("/", 1)[-1] if folder else ""
     return key
 
 
@@ -187,22 +194,95 @@ def _progress_of(row) -> tuple[float, float] | None:
     return position, duration
 
 
+def _folder_base(counts: dict[str, int]) -> str:
+    """The deepest folder every matching file lies under, with none at it."""
+    base = ""
+    while base not in counts:
+        children = set()
+        for folder in counts:
+            if base:
+                prefix = f"{base}/"
+                if not folder.startswith(prefix):
+                    return base
+                children.add(folder[len(prefix):].split("/", 1)[0])
+            else:
+                children.add(folder.split("/", 1)[0])
+        if len(children) != 1:
+            return base
+        segment = children.pop()
+        base = f"{base}/{segment}" if base else segment
+    return base
+
+
+def _folder_shelf_key(base: str, folder: str) -> str:
+    if folder == base:
+        return f"{base}/" if base else ""
+    rest = folder[len(base) + 1:] if base else folder
+    segment = rest.split("/", 1)[0]
+    return f"{base}/{segment}" if base else segment
+
+
+def _folder_shelves(
+    base_query, *, sort, order, per_shelf, shelf_limit, offset
+) -> tuple[list[ShelfResponse], int, str]:
+    """Child folders of the base, plus the files sitting in it.
+
+    Grouped in Python over the stored folder paths: the base and the keys
+    are NFC, and SQLite cannot normalise a column to compare against them.
+    """
+    grouped = (
+        base_query.with_entities(
+            File.folder_path, func.count(func.distinct(File.id))
+        )
+        .group_by(File.folder_path)
+        .all()
+    )
+    counts: dict[str, int] = {}
+    paths: dict[str, list[str]] = {}
+    for folder, count in grouped:
+        normalized = unicodedata.normalize("NFC", folder)
+        counts[normalized] = counts.get(normalized, 0) + count
+        paths.setdefault(normalized, []).append(folder)
+    base = _folder_base(counts)
+
+    shelf_counts: dict[str, int] = {}
+    shelf_paths: dict[str, list[str]] = {}
+    for folder in counts:
+        key = _folder_shelf_key(base, folder)
+        shelf_counts[key] = shelf_counts.get(key, 0) + counts[folder]
+        shelf_paths.setdefault(key, []).extend(paths[folder])
+
+    ordered = _order_shelves("folder", shelf_counts)
+    shelves = [
+        ShelfResponse(
+            key=key,
+            label=_label("folder", key),
+            count=shelf_counts[key],
+            items=[
+                _item(file, None)
+                for file in base_query.filter(File.folder_path.in_(shelf_paths[key]))
+                .order_by(*_item_order(sort, order))
+                .limit(per_shelf)
+                .all()
+            ],
+        )
+        for key in ordered[offset : offset + shelf_limit]
+    ]
+    return shelves, len(ordered), base
+
+
 def _keyed_shelf(
     base,
     *,
     by,
     key,
     drive,
-    viewer_id,
     sort,
     order,
     page,
     per_shelf,
 ) -> ShelfResponse:
-    query = base
-    if by == "watch":
-        query = _join_watch(query, viewer_id)
-    query = query.filter(_key_filter(by, key, drive))
+    query = base.filter(_key_filter(by, key, drive))
     count = query.count()
     rows_query = query.order_by(*_item_order(sort, order))
     if by == "watch":
@@ -226,14 +306,22 @@ def _unkeyed_shelves(
     *,
     by,
     drive,
-    viewer_id,
     sort,
     order,
     per_shelf,
     shelf_limit,
     offset,
-) -> tuple[list[ShelfResponse], int]:
-    grouped, key_expr = _grouping(base, by, drive, viewer_id)
+) -> tuple[list[ShelfResponse], int, str]:
+    if by == "folder":
+        return _folder_shelves(
+            base,
+            sort=sort,
+            order=order,
+            per_shelf=per_shelf,
+            shelf_limit=shelf_limit,
+            offset=offset,
+        )
+    grouped, key_expr = _grouping(base, by, drive)
     counts = dict(
         grouped.with_entities(key_expr, func.count(func.distinct(File.id)))
         .filter(key_expr.is_not(None))
@@ -243,7 +331,7 @@ def _unkeyed_shelves(
     ordered = _order_shelves(by, counts)
     chosen = ordered[offset : offset + shelf_limit]
     if not chosen:
-        return [], len(ordered)
+        return [], len(ordered), ""
 
     rank = func.row_number().over(
         partition_by=key_expr, order_by=_item_order(sort, order)
@@ -277,7 +365,7 @@ def _unkeyed_shelves(
         )
         for key in chosen
     ]
-    return shelves, len(ordered)
+    return shelves, len(ordered), ""
 
 
 @router.get("/{drive_name}/shelves", response_model=ShelvesResponse)
@@ -301,6 +389,7 @@ def list_drive_shelves(
     collection: list[str] | None = Query(None),
     size: list[str] | None = Query(None),
     duration: list[str] | None = Query(None),
+    watch: WatchState | None = Query(None),
     trust: str | None = Query(None, pattern="^(verified|unverified|unreviewed)$"),
     sort: str = Query(
         "created_at",
@@ -318,7 +407,7 @@ def list_drive_shelves(
         raise HTTPException(status_code=422, detail="last_played requires by=watch")
     if sort == "random" and key is not None and page is not None:
         raise HTTPException(status_code=422, detail="random cannot be paged")
-    if (by == "watch" or sort == "last_played") and viewer_id is None:
+    if (by == "watch" or watch is not None or sort == "last_played") and viewer_id is None:
         raise HTTPException(status_code=400, detail="viewer_required")
 
     base, _ = filtered_drive_files(
@@ -335,25 +424,39 @@ def list_drive_shelves(
         duration=duration,
         trust=trust,
     )
+    if by == "watch" or watch is not None:
+        base = _join_watch(base, viewer_id)
+    if watch is not None:
+        base = base.filter(_watch_bucket() == watch)
     try:
-        if key is not None:
+        if by == "all":
             shelf = _keyed_shelf(
                 base,
                 by=by,
-                key=key,
+                key="all" if key is None else key,
                 drive=drive_name,
-                viewer_id=viewer_id,
                 sort=sort,
                 order=order,
                 page=page or 1,
                 per_shelf=per_shelf,
             )
             return ShelvesResponse(by=by, shelves=[shelf], total_shelves=1)
-        shelves, total = _unkeyed_shelves(
+        if key is not None:
+            shelf = _keyed_shelf(
+                base,
+                by=by,
+                key=key,
+                drive=drive_name,
+                sort=sort,
+                order=order,
+                page=page or 1,
+                per_shelf=per_shelf,
+            )
+            return ShelvesResponse(by=by, shelves=[shelf], total_shelves=1)
+        shelves, total, response_base = _unkeyed_shelves(
             base,
             by=by,
             drive=drive_name,
-            viewer_id=viewer_id,
             sort=sort,
             order=order,
             per_shelf=per_shelf,
@@ -363,4 +466,6 @@ def list_drive_shelves(
     except Exception:
         logger.exception("Shelves failed: drive=%s by=%s", drive_name, by)
         raise
-    return ShelvesResponse(by=by, shelves=shelves, total_shelves=total)
+    return ShelvesResponse(
+        by=by, shelves=shelves, total_shelves=total, base=response_base
+    )

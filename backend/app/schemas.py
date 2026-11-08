@@ -738,6 +738,7 @@ class ShelvesResponse(BaseModel):
     by: str
     shelves: list[ShelfResponse]
     total_shelves: int
+    base: str = ""
 
 
 def _validate_collection_name(v: str) -> str:

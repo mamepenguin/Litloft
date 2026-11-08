@@ -487,7 +487,9 @@ class TestFiltersAndState:
 
         everything = _by_key(_get(c, "by=folder"))["Movies"]
         videos = _by_key(_get(c, "by=folder&type=video"))["Movies"]
-        images = _by_key(_get(c, "by=folder&type=image"))["Movies"]
+        # The only image lies directly in Movies, so that folder is the base
+        # and its own shelf takes the trailing-slash key.
+        images = _by_key(_get(c, "by=folder&type=image"))["Movies/"]
 
         assert (everything["count"], videos["count"], images["count"]) == (3, 2, 1)
 
