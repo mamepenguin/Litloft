@@ -25,7 +25,7 @@
         "shelfTitle": "min-w-0 truncate text-lg font-bold text-text-primary",
         "shelfCount": "flex-shrink-0 text-sm tabular-nums text-text-muted",
         "seeAll": "ml-auto flex-shrink-0 text-sm text-text-muted transition-colors hover:text-text-primary",
-        "shelfRow": "flex flex-wrap gap-3 pointer-coarse:flex-nowrap pointer-coarse:snap-x pointer-coarse:overflow-x-auto pointer-coarse:pb-2 mouse:max-h-[calc(2*var(--shelf-slot-h)+0.75rem)] mouse:overflow-hidden",
+        "shelfRow": "flex flex-wrap gap-3 pointer-coarse:flex-nowrap pointer-coarse:snap-x pointer-coarse:overflow-x-auto pointer-coarse:pb-2 mouse:max-h-[calc(2*var(--shelf-slot-h)+0.75rem+0.5rem)] mouse:overflow-clip mouse:-m-1 mouse:p-1",
         "slot": "w-44 flex-shrink-0 snap-start sm:w-56 xl:w-[calc((100%-3rem)/5)] mouse:h-[var(--shelf-slot-h)]",
         "card": "group block min-w-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring mouse:h-full",
         "thumb": "relative aspect-video overflow-hidden rounded-2xl bg-bg-elevated",
@@ -158,7 +158,7 @@
         }
 
         const CAP =
-          "mouse:max-h-[calc(2*var(--shelf-slot-h)+0.75rem)] mouse:overflow-hidden";
+          "mouse:max-h-[calc(2*var(--shelf-slot-h)+0.75rem+0.5rem)] mouse:overflow-clip mouse:-m-1 mouse:p-1";
         const rowClass = seeAll
           ? SPEC.shelfRow
           : SPEC.shelfRow

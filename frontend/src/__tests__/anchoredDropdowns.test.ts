@@ -193,6 +193,10 @@ describe("the vertical table", () => {
 const OVERFLOW_CLIP_OCCURRENCES = [
   'frontend/src/components/folder/TwoPaneLayout.tsx :: ' +
     '<div className="flex h-below-header w-full overflow-clip">',
+  // A shelf card holds only a link and its thumbnail, so no anchored
+  // dropdown starts inside the capped box.
+  'frontend/src/components/videoapp/ShelfBlock.tsx :: ' +
+    '"mouse:max-h-[calc(2*var(--shelf-slot-h)+0.75rem+0.5rem)] mouse:overflow-clip mouse:-m-1 mouse:p-1";',
 ] as const;
 
 describe("overflow: clip", () => {
