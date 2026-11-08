@@ -159,5 +159,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-077 | implemented | docs/specs/youtube-frames.md | sha256:d505349c8947e1efea1efcd1a9d1449cf74f7df17e7f016394d7c9c1005acfb5 |
 | SPEC-ADDON-078 | implemented | docs/specs/youtube-frames.md | sha256:d505349c8947e1efea1efcd1a9d1449cf74f7df17e7f016394d7c9c1005acfb5 |
 | SPEC-CORE-058 | implemented | docs/specs/youtube-frames.md | sha256:d505349c8947e1efea1efcd1a9d1449cf74f7df17e7f016394d7c9c1005acfb5 |
-| SPEC-ADDON-079 | approved | docs/specs/youtube-scene-tiles.md | sha256:2e9ad74c9dc5d895d20afd14405fa0ffedff7f55d74c9c3dd75e4aef4e303f1c |
-| SPEC-ADDON-080 | approved | docs/specs/youtube-scene-tiles.md | sha256:2e9ad74c9dc5d895d20afd14405fa0ffedff7f55d74c9c3dd75e4aef4e303f1c |
+| SPEC-ADDON-079 | implemented | docs/specs/youtube-scene-tiles.md | sha256:2e9ad74c9dc5d895d20afd14405fa0ffedff7f55d74c9c3dd75e4aef4e303f1c |
+| SPEC-ADDON-080 | implemented | docs/specs/youtube-scene-tiles.md | sha256:2e9ad74c9dc5d895d20afd14405fa0ffedff7f55d74c9c3dd75e4aef4e303f1c |

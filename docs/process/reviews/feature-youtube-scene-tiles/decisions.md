@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship (human, 2026-11-09, r2 HUMAN_REVIEW_REQUIRED). The user answered "出荷" to the recommendation to ship with the three unspecified_behavior items (the one-commit stale render on a fileId change, the right-edge-only rootMargin on a vertical strip, mkdir failure outside tile_write_failed) left as they are.
 ran_in_app: yes
 at: 620fd87fbd8900f383adf98782c0f5924f726790
 by: agent
