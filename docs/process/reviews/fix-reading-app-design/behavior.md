@@ -44,3 +44,15 @@ D-15. The human decided which to fix on 2026-11-09. The revised invariants are i
 Accepted, not changed: D-3 and D-4 (the Target menu's width and its check-mark rows are
 the app-wide menu, which Video's design also draws with check marks), the Manage dialog's
 close button and its search placeholder (D-5, D-6).
+
+## Round 3: after the second design check
+
+`design-check.md` (the second check) reported D-1 to D-5, all visible only by measuring.
+The human accepted all five on 2026-11-09, unchanged: the badge's radius and weight and
+the Manage dialog's radius, search field and checkboxes follow DESIGN.md (§5 radius scale,
+inputs) and the app-wide controls; the 2px title-to-meta gap and the progress track's
+opacity are left as they are.
+
+R-5 of round 2 found that the Reading and Video shelf pages scrolled sideways below `sm`,
+because `PageHeader` kept its controls on one line. Every `PageHeader` layout now wraps its
+controls below `sm` instead of widening the page; `sm` and wider are unchanged.

@@ -2,7 +2,7 @@
 
 decision:
 ran_in_app: yes
-at: 1c0e7778b38d1791fdbf223f0ef323a30ce60ae0
+at: 59edc23857726f40927deac8fb1ba429a01b8b56
 by: agent
 evidence: |
   R-5 run 2 of `docs/process/reviews/fix-reading-app-design/behavior.md` (the `## Fixed` table and
@@ -48,9 +48,41 @@ evidence: |
   (`/drive/main/apps/reading/shelf?by=...&key=...&from=discover`, all three shelves): scrollWidth 419
   against 390. The header's `flex-shrink-0 flex-wrap` control group holds the sort button
   (追加日（新しい順）, x 80-254) and the Target button (対象すべての本, x 262-418.6) on one line
-  that does not wrap and ends 29px past the viewport. Shot:
-  `shots/390-reading-shelf-overflow.png`. Discover, Library, Video and the dialogs at 390 do not
-  scroll.
+  that does not wrap and ends 29px past the viewport. Discover, Library, Video and the dialogs at 390
+  do not scroll.
+
+  Re-check run 3 (targeted, after da869e072 and 5603d443f), against HEAD 7dd190c18; stack rebuilt from
+  that tree (frontend image built 01:49), script `.r5/round3.mjs`, `.r5/round3-inspect.mjs`.
+  - Item 1, Reading shelf (3 shelves) and Video shelf (2 shelves), from each Discover See all:
+    1280 and 1440: scrollWidth = innerWidth (1280/1440); header controls (search, quick note, profile)
+    inside the viewport on the title row at the right, same as before (shot `shots/1280-reading-shelf-header.png`,
+    `shots/1280-video-shelf-header.png`). 390: Reading shelf scrollWidth 419 (innerWidth 390), Video
+    shelf 433. 320: Reading 419, Video 433 (innerWidth 320). FAIL at 320 and 390. Cause by element
+    inspection at 390: the page-body control group `div.flex.flex-shrink-0.flex-wrap.items-center.gap-2`
+    (sort button + Target button, x 80-419, top 108) does not wrap and ends past the viewport; the Target
+    button spans x 262-419. This group is the `hasTitle && !hasTitleField` branch of
+    `frontend/src/components/PageHeader.tsx` (`actions` wrapper, `flex flex-shrink-0 flex-wrap`, no
+    `max-w-full`/`min-w-0`), not the branch the two commits changed.
+    Shot of the failing state: `shots/390-reading-shelf.png` (the earlier overflow shot is deleted).
+  - Item 2 at 390: Reading Discover 390/390, Reading Library 390/390, Video Library 390/390. No
+    sideways scroll.
+
+  Re-check run 4 (targeted, after 59edc2385 PageHeader wraps controls below sm), against HEAD
+  59edc23857726f40927deac8fb1ba429a01b8b56; stack rebuilt from that tree; scripts `.r5/round4.mjs`,
+  `.r5/round4-ctrl.mjs`, log `.r5/round4.log`.
+  - Item 1, Reading shelf (3 shelves) and Video shelf (2 shelves), from each Discover See all, at 320,
+    390, 1280, 1440: documentElement.scrollWidth and body.scrollWidth equal the viewport width in every
+    case (320/390/1280/1440). Header controls (search, quick note, profile) inside the viewport. Page-body
+    controls: at 1280 and 1440 the sort and Target buttons sit on the title row at the right (Reading
+    x 925-1099 and 1107-1264 at 1280, top 108, same row as the h1; Video 911-1085 and 1093-1264). At 390
+    sort (x 16-190) and Target (x 198-355 Reading, 198-369 Video) wrap onto a row below the title, inside
+    the viewport. At 320 the sort button is x 16-190 and the Target button wraps to a third line
+    (x 16-173 Reading, 16-187 Video, top 222), inside the viewport.
+  - Item 2 at 390, scrollWidth/innerWidth: Reading Discover 390/390, Reading Library 390/390, Video
+    Library 390/390, Home (/) 390/390, drive Library (/drive/main) 390/390, folder page
+    (/drive/main/Tech) 390/390, Search (/drive/main/search?q=a) 390/390, Inbox (?view=inbox) 390/390,
+    Trash (?view=trash) 390/390. No sideways scroll.
+  - Shots: `shots/390-reading-shelf.png` (retaken), `shots/390-video-shelf.png`, `shots/320-reading-shelf.png`.
 
 pending: none. Audio/video as heard and seen, the iOS app on a real device, real home-LAN playback and
   third-party addon services are `PROJECT.md` agent_cannot_verify items, and none is touched by this
