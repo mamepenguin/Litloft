@@ -90,8 +90,14 @@ None at runtime. The repository test names each offending file and line when it 
 
 On a mouse environment:
 
-- Video shelf, collection panel, clip frames and visual index lay their cards out in
-  wrapped rows.
+- The video shelf lays its cards out in wrapped rows, at most two rows when the shelf has a
+  "see all" link; the cards beyond the second row are not drawn there and are all on the
+  page that link opens. A shelf without that link draws every row.
+- The collection panel under the player lays its tracks out in wrapped rows inside a box
+  about two rows tall that scrolls vertically; every track is reachable by scrolling it.
+- Clip frames and visual index lay their cards out in wrapped rows. Whether they also
+  get a bounded height is decided from their measured item counts when the addon is
+  checked out, and recorded in that addon's PR.
 - Tab strips (page tabs, inspector tabs) wrap onto a second row instead of scrolling.
 - The breadcrumb shrinks its segments with ellipsis; the last segment stays whole.
 - The add-on policy table and other settings tables fit the container width; columns wrap.
@@ -181,9 +187,11 @@ only while it is zoomed (at the default zoom it does not overflow); any other el
 environment fails the check.
 I3. On a touch environment the shelf, collection panel, clip frames, visual index, page
 tabs, inspector tabs and breadcrumb remain horizontally scrollable as they were.
-I4. On a mouse environment no item is clipped by a wrapper: the bounding box of every card,
-tab and breadcrumb segment lies inside its container's box. Every card of a shelf, collection panel, clip-frame row or
-visual-index row is rendered inside the visible box of its container, in wrapped rows.
+I4. On a mouse environment no drawn item is clipped by a wrapper: the bounding box of every
+drawn card, tab and breadcrumb segment lies inside its container's box. A shelf with a "see
+all" link draws at most two rows; a shelf without one, the clip frames and the visual index
+draw every card in wrapped rows; the collection panel keeps every track reachable through
+its vertical scroll.
 I5. On a mouse environment every tab of a page or inspector tab strip is visible without
 scrolling, `←` / `→` still move between tabs, and the strip is still one tab stop.
 I6. On a mouse environment the breadcrumb's last segment is fully visible however many
@@ -205,8 +213,12 @@ left unmeasured.
   recorded in the Summary.
 - `DESIGN.md` is not compared with code by any test (`frontend-conventions.md` forbids
   it); the two touch-only sentences are edited by hand and reviewed.
-- Shelf row count: all items wrap and none is hidden. A cap with "show all" is not added;
-  it would be a new control and the human has not asked for it.
+- Shelf row count (human decision 2026-11-08): the shelf caps at two rows and relies on
+  its existing "see all" link; the collection panel, which has no such link, scrolls
+  vertically instead. No new control is added.
+- The hybrid-device trade-off and the knowledge `Editor` / `WikiLinkAutocomplete` handling
+  (measure, then fix, never exempt) stand as the recommended defaults; the human has not
+  contradicted them.
 - No scroll-into-view logic exists in the tab strips or breadcrumb (checked by grep), so
   none needs to change.
 - The iOS device behavior of I3 cannot be verified by an agent (`agent_cannot_verify`);
