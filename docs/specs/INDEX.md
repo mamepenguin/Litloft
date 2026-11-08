@@ -153,3 +153,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-061 | implemented | docs/specs/reading-app.md | sha256:d50212bc93851ad97819185b6a7ec10e43f805aabc994a912143fb2d813836fb |
 | SPEC-CORE-062 | implemented | docs/specs/reading-app.md | sha256:d50212bc93851ad97819185b6a7ec10e43f805aabc994a912143fb2d813836fb |
 | SPEC-CORE-063 | implemented | docs/specs/reading-app.md | sha256:d50212bc93851ad97819185b6a7ec10e43f805aabc994a912143fb2d813836fb |
+| SPEC-CORE-064 | draft | docs/specs/no-horizontal-scroll-on-mouse.md | |
+| SPEC-CORE-065 | draft | docs/specs/no-horizontal-scroll-on-mouse.md | |
