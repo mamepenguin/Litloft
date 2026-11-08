@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-1",
+      "status": "confirmed",
+      "note": "Reproduced. Glob of docs/process/reviews/feature-design-conformance-check/** returns only r1/head.txt, r1/expected.txt, r1/classification.json and r1/fixes.txt (empty); there is no invariants.md. Grep for 'design.?check|conformance|design-checker' (case-insensitive) under docs/specs/ finds nothing, so no spec declares Touch points or Invariants for this topic. Repo-wide, the same grep matches only PROJECT.md, .claude/agents/design-checker.md, this topic's classification.json and older review records. classification.json:8-17 lists zones_touched .claude/agents/design-checker.md (MEDIUM) and docs/process/PROJECT.md (LOW), and line 20 sets docs_only true. PROJECT.md:140-145 says invariants live in the spec under '## Touch points' / '## Invariants' or in the topic's invariants.md, and neither exists, so both touched files are outside any declared touch-point list. The new review rule is at PROJECT.md:72-86."
+    }
+  ],
+  "specification_compliance": [
+    "No spec under docs/specs/ and no invariants.md for topic feature-design-conformance-check, so there are no invariants to check the change against.",
+    "The design-checker agent's output format (design-check.md ending in 'TOTAL: N findings', D- ids) matches the rule it is cited by in PROJECT.md:82-86."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The new process rule (PROJECT.md:72-86) and the design-checker agent are not bound to any spec or invariant, so nothing declares what they must guarantee."
+  ],
+  "regression_risks": [
+    "The change is docs and agent prompt only (docs_only true); it changes no runtime code. The only effect is on review process: PROJECT.md:84-86 adds a ship-blocking condition for unresolved D- findings."
+  ],
+  "test_coverage": [
+    "There are no tests: the change is docs and an agent prompt, and none is expected for it."
+  ],
+  "not_verified": [
+    "I did not compare the diff against origin/develop directly (no git access). I read the files as they are in the worktree, which I assumed to be at commit 817c77e.",
+    "I did not check whether process/process.conf or scripts/process/review.sh need changes to find design-check.md.",
+    "I did not check whether the 'sonnet' model alias in the design-checker frontmatter resolves in this harness."
+  ],
+  "confidence": 90
+}

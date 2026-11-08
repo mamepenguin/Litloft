@@ -1,0 +1,1 @@
+{"verdict":"HUMAN_REVIEW_REQUIRED","reasons":["unspecified_behavior"],"findings":[{"reviewer":"claude-read","id":"CR-1","state":"open"}],"needs_human":[{"kind":"unspecified_behavior","ref":null,"note":"The new process rule (PROJECT.md:72-86) and the design-checker agent are not bound to any spec or invariant, so nothing declares what they must guarantee.","paths":[]}]}
