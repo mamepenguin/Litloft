@@ -112,7 +112,7 @@ To find a moment inside a video (*the part where the cat jumps off the table*), 
 
 With it on, **Scene candidates** appear above the results: a grid of moments from videos in the drive, each with a frame, the file name and a time range. Click one to open the video at that time. The first eight candidates are shown; **Show all** expands the remaining candidates, and **Collapse** returns to the first eight. They are the closest matches, not a promise that the scene exists, and the grid is not shown when the search uses a smart folder or a type other than video.
 
-A YouTube reference can be found this way too, by a moment of the video, and opens at that time. A reference saved before the administrator installed this version has no moments to find until its index is regenerated (**Index details** → **Regenerate** on the `clip` task).
+A YouTube reference can be found this way too, by a moment of the video, and opens at that time; its card shows a small picture from that moment. A reference saved before the administrator installed this version has no moments to find, and no pictures, until its **Image analysis (CLIP)** is regenerated from **Index details**.
 
 ## Searching by an image (intelligence addon)
 
