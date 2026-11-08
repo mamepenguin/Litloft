@@ -193,7 +193,7 @@ export function LibraryFace({
   const chipRow = (
     <div
       data-testid="reading-chips"
-      className="flex gap-2 overflow-x-auto pb-1 [@media(hover:hover)_and_(pointer:fine)]:max-h-[8rem] [@media(hover:hover)_and_(pointer:fine)]:flex-wrap [@media(hover:hover)_and_(pointer:fine)]:overflow-x-hidden [@media(hover:hover)_and_(pointer:fine)]:overflow-y-auto"
+      className="flex flex-wrap gap-2 pb-1 max-h-[8rem] overflow-y-auto pointer-coarse:max-h-none pointer-coarse:flex-nowrap pointer-coarse:overflow-x-auto"
     >
       <ChipButton label={t("all")} selected={chip === "all"} onSelect={() => setChip("all")} />
       {chips.state.chips.map((folder) => (

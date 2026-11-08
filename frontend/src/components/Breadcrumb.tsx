@@ -91,10 +91,16 @@ export function Breadcrumb({
       >
         <ChevronRight size={14} className="flex-shrink-0" />
         {isLeaf ? (
-          <span className="truncate font-medium text-text-primary">{entry.label}</span>
+          <span
+            className="truncate font-medium text-text-primary"
+            title={entry.label}
+          >
+            {entry.label}
+          </span>
         ) : (
           <Link
             href={entry.href}
+            title={entry.label}
             className={`truncate rounded-lg px-1 transition-colors hover:text-text-primary${
               isDropTarget?.(entry.path) ? " ring-2 ring-accent bg-accent/10 text-accent" : ""
             }`}
@@ -109,7 +115,7 @@ export function Breadcrumb({
   };
 
   return (
-    <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto text-sm text-text-muted">
+    <nav className="flex min-w-0 flex-1 items-center gap-1 text-sm text-text-muted pointer-coarse:overflow-x-auto">
       <Link href="/" className="flex-shrink-0 hover:text-text-primary" aria-label={t("home")}>
         <Home size={16} />
       </Link>

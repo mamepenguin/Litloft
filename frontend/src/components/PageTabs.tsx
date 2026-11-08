@@ -38,6 +38,11 @@ const BASE_CLASS =
 const SELECTED_CLASS = "border-accent font-semibold text-text-primary";
 const UNSELECTED_CLASS = "border-transparent text-text-muted hover:text-text-primary";
 
+const WRAP_ROW_CLASS = "flex gap-1 border-b border-bg-border flex-wrap";
+const ROW_CLASS =
+  "flex flex-wrap gap-1 border-b border-bg-border " +
+  "pointer-coarse:flex-nowrap pointer-coarse:overflow-x-auto";
+
 /**
  * A row that navigates is not a tablist: `role="tab"` promises a screen
  * reader that activating it swaps a panel in the same view, and a `<Link>`
@@ -55,7 +60,7 @@ export function PageTabs({ items, current, onSelect, label, wrap = false }: Page
     <nav
       aria-label={label}
       role={isNav ? undefined : "tablist"}
-      className={`flex gap-1 border-b border-bg-border ${wrap ? "flex-wrap" : "overflow-x-auto"}`}
+      className={wrap ? WRAP_ROW_CLASS : ROW_CLASS}
     >
       {/* The icons carry no `aria-hidden`: lucide-react adds it itself unless
           an a11y prop is passed. */}

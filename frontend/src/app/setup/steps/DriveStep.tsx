@@ -141,7 +141,10 @@ export function DriveStep({
             {tDrive("noneDetectedTitle")}
           </p>
           <p>{tDrive("noneDetected")}</p>
-          <pre className="overflow-x-auto rounded-xl bg-bg-card p-3 text-xs">
+          <pre
+            className="overflow-x-auto rounded-xl bg-bg-card p-3 text-xs"
+            data-hscroll-exempt
+          >
             <code>{tDrive("noneDetectedCommand")}</code>
           </pre>
         </div>

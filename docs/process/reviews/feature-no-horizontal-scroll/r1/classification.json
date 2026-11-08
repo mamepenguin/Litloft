@@ -1,0 +1,156 @@
+{
+  "risk": "HIGH",
+  "score": 7,
+  "base": 3,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "DESIGN.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "addons/intelligence",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "addons/knowledge",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/no-horizontal-scroll-on-mouse.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/e2e-layout/addon-policy.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-layout/fixtures/addon-policy.html",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-layout/fixtures/mobile-inspector-sheet.html",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-layout/fixtures/no-horizontal-scroll.html",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-layout/fixtures/video-app.html",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-layout/no-horizontal-scroll-states.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-layout/no-horizontal-scroll.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-layout/spec-viewport.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-layout/video-app.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/anchoredDropdowns.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/section-rows.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/admin/settings/AddonPolicySection.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/admin/settings/__tests__/AddonPolicySection.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/admin/settings/page.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/globals.css",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/setup/steps/DriveStep.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/Breadcrumb.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/CollectionPanel.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/inspector/InspectorShell.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/PageTabs.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/ToolbarMenu.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/mobileInspectorSheetFixtureParity.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/noHorizontalScrollFixtureParity.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/ShelfBlock.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoCard.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/ShelfBlock.hiddenRows.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/shelfHiddenRows.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/shelfHiddenRows.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/__tests__/hscrollScan.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/__tests__/noHorizontalScroll.test.ts",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}

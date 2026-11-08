@@ -1,0 +1,565 @@
+/**
+ * SPEC-CORE-064 and SPEC-CORE-065 measured in Chromium: with a mouse there
+ * is no horizontal scrolling left in the components the rule reaches, and
+ * with a coarse pointer every strip still scrolls the way it did.
+ *
+ * Two environments, chosen exactly as the rule names them: a mouse answers
+ * `(hover: hover) and (pointer: fine)` and a touch context answers
+ * `(pointer: coarse)` with no hover. The widths below are the container the
+ * component sits in, not the window: the rule is never about a breakpoint.
+ */
+
+import { test, expect, type Page } from "@playwright/test";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+
+const FIXTURE = pathToFileURL(
+  resolve(__dirname, "fixtures", "no-horizontal-scroll.html"),
+).href;
+const POLICY_FIXTURE = pathToFileURL(
+  resolve(__dirname, "fixtures", "addon-policy.html"),
+).href;
+
+const SPEC: Record<string, string> = JSON.parse(
+  readFileSync(resolve(__dirname, "fixtures", "no-horizontal-scroll.html"), "utf-8").match(
+    /<script type="application\/json" id="fixture-markup">([\s\S]*?)<\/script>/,
+  )![1],
+);
+
+const TOLERANCE = 1;
+
+interface Box {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+  width: number;
+  height: number;
+}
+
+interface ScrollBox extends Box {
+  scrollWidth: number;
+  clientWidth: number;
+  scrollHeight: number;
+  clientHeight: number;
+  overflowX: string;
+  overflowY: string;
+  flexWrap: string;
+}
+
+interface CollectionReading {
+  list: ScrollBox;
+  scrolledTo: number;
+  tracks: Box[];
+}
+
+interface TabReading {
+  strip: ScrollBox;
+  tabs: (Box & { selected: boolean; tabIndex: number; focused: boolean })[];
+}
+
+interface BreadcrumbReading {
+  nav: ScrollBox;
+  labels: (Box & {
+    text: string;
+    scrollWidth: number;
+    clientWidth: number;
+    title: string | null;
+  })[];
+}
+
+declare global {
+  interface Window {
+    buildCollectionPanel: (spec: { width: number; tracks: number }) => void;
+    measureCollection: (scrollTop?: number) => CollectionReading;
+    buildPageTabs: (spec: { width: number; tabs: number }) => void;
+    buildInspectorTabs: (spec: { width: number; tabs: number }) => void;
+    measureTabs: () => TabReading;
+    buildBreadcrumb: (spec: {
+      width: number;
+      segments: string[];
+      leafNode?: boolean;
+    }) => void;
+    measureBreadcrumb: () => BreadcrumbReading;
+    buildPolicyTable: (spec: {
+      width: number;
+      drives: number;
+      featuresPerDrive: number;
+      columns: number;
+    }) => void;
+    measurePolicyTable: (scrollTop?: number) => {
+      frameWidth: number;
+      capPx: number;
+      wrapperHeight: number;
+      tableHeight: number;
+      scrollsVertically: boolean;
+      scrollsHorizontally: boolean;
+      scrolledTo: number;
+      headTop: number;
+      firstRowTop: number;
+      headPosition: string;
+      headBackground: string;
+    };
+    buildClipFramesRow: (spec: { width: number; cards: number }) => void;
+    buildVisualIndexRow: (spec: { width: number; cards: number }) => void;
+    measureAddonRow: (scrollTop?: number) => AddonRowReading;
+  }
+}
+
+interface AddonRowReading {
+  row: ScrollBox;
+  cards: Box[];
+  scrolledTo: number;
+  cardHeight: number;
+  rows: number;
+}
+
+const within = (inner: Box, outer: Box) =>
+  inner.left >= outer.left - TOLERANCE &&
+  inner.right <= outer.right + TOLERANCE &&
+  inner.top >= outer.top - TOLERANCE &&
+  inner.bottom <= outer.bottom + TOLERANCE;
+
+const COLLECTION_TRACKS = 18;
+
+const STRIP_TABS = 12;
+
+const BREADCRUMB_SEGMENTS = [
+  "A folder with a long name",
+  "A subfolder with a longer name",
+  "One more nested folder with a long name",
+  "The deepest folder that names the current place",
+];
+
+async function collection(page: Page, width: number) {
+  await page.goto(FIXTURE);
+  await page.evaluate((spec) => window.buildCollectionPanel(spec), {
+    width,
+    tracks: COLLECTION_TRACKS,
+  });
+  return page.evaluate(() => window.measureCollection(0));
+}
+
+async function tabs(
+  page: Page,
+  kind: "page" | "inspector",
+  width: number,
+) {
+  await page.goto(FIXTURE);
+  await page.evaluate(
+    ([build, spec]) =>
+      (window as unknown as Record<string, (s: unknown) => void>)[build](spec),
+    [kind === "page" ? "buildPageTabs" : "buildInspectorTabs", {
+      width,
+      tabs: STRIP_TABS,
+    }] as const,
+  );
+  return page.evaluate(() => window.measureTabs());
+}
+
+async function breadcrumb(
+  page: Page,
+  width: number,
+  { leafNode = false }: { leafNode?: boolean } = {},
+) {
+  await page.goto(FIXTURE);
+  await page.evaluate((spec) => window.buildBreadcrumb(spec), {
+    width,
+    segments: BREADCRUMB_SEGMENTS,
+    leafNode,
+  });
+  return page.evaluate(() => window.measureBreadcrumb());
+}
+
+async function addonRow(
+  page: Page,
+  kind: "clip" | "visual",
+  width: number,
+  cards: number,
+) {
+  await page.goto(FIXTURE);
+  await page.evaluate(
+    ([build, spec]) =>
+      (window as unknown as Record<string, (s: unknown) => void>)[build](spec),
+    [kind === "clip" ? "buildClipFramesRow" : "buildVisualIndexRow", {
+      width,
+      cards,
+    }] as const,
+  );
+  return page.evaluate(() => window.measureAddonRow(0));
+}
+
+/**
+ * Every element on the page that scrolls sideways although it has more
+ * content than box. The exempt content is named here as the rule names it;
+ * the fixture has none, so a hit is a defect.
+ */
+async function horizontalScrollers(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const EXEMPT =
+      ".markdown-body pre, .markdown-body .markdown-table-scroll, .markdown-body .code-block, .mermaid-diagram";
+    return Array.from(document.querySelectorAll("body *"))
+      .filter(
+        (node) =>
+          !node.closest(EXEMPT) && !node.closest("[data-hscroll-exempt]"),
+      )
+      .filter((node) => {
+        const overflow = getComputedStyle(node).overflowX;
+        return (
+          (overflow === "auto" || overflow === "scroll") &&
+          node.scrollWidth > node.clientWidth + 1
+        );
+      })
+      .map((node) => `${node.tagName.toLowerCase()}.${String(node.className)}`);
+  });
+}
+
+const tabStops = (reading: TabReading) =>
+  reading.tabs.filter((tab) => tab.tabIndex === 0);
+
+const selectedIndex = (reading: TabReading) =>
+  reading.tabs.findIndex((tab) => tab.selected);
+
+test.describe("mouse environment", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test("SPEC-CORE-064 I1 — the context really reports hover and a fine pointer", async ({
+    page,
+  }) => {
+    await page.goto(FIXTURE);
+    const media = await page.evaluate(() => ({
+      mouse: matchMedia("(hover: hover) and (pointer: fine)").matches,
+      coarse: matchMedia("(pointer: coarse)").matches,
+    }));
+    expect(media.mouse).toBe(true);
+    expect(media.coarse).toBe(false);
+  });
+
+  test.describe("SPEC-CORE-064 I1 — nothing scrolls sideways under a mouse", () => {
+    const CASES = [
+      {
+        name: "the collection panel's track strip",
+        open: (page: Page) => collection(page, 900),
+      },
+      {
+        name: "the page tab strip",
+        open: (page: Page) => tabs(page, "page", 560),
+      },
+      {
+        name: "the inspector tab strip",
+        open: (page: Page) => tabs(page, "inspector", 560),
+      },
+      {
+        name: "the breadcrumb",
+        open: (page: Page) => breadcrumb(page, 460, { leafNode: true }),
+      },
+    ];
+
+    for (const { name, open } of CASES) {
+      test(name, async ({ page }) => {
+        await open(page);
+        expect(await horizontalScrollers(page)).toEqual([]);
+      });
+    }
+  });
+
+  test.describe("SPEC-CORE-065 I4 — no drawn item is clipped by its wrapper", () => {
+    test("the collection panel scrolls vertically and every track stays reachable", async ({
+      page,
+    }) => {
+      const start = await collection(page, 900);
+
+      for (const track of start.tracks) {
+        expect(track.left).toBeGreaterThanOrEqual(start.list.left - TOLERANCE);
+        expect(track.right).toBeLessThanOrEqual(start.list.right + TOLERANCE);
+      }
+      expect(start.list.overflowY === "auto" || start.list.overflowY === "scroll").toBe(
+        true,
+      );
+      expect(start.list.scrollHeight).toBeGreaterThan(
+        start.list.clientHeight + TOLERANCE,
+      );
+
+      // About two rows of tracks, so the box is a window onto the queue
+      // rather than the whole queue.
+      const trackHeight = start.tracks[0]!.height;
+      expect(start.list.height).toBeGreaterThan(trackHeight * 1.5);
+      expect(start.list.height).toBeLessThan(trackHeight * 2.5);
+
+      const end = await page.evaluate(() => window.measureCollection(1_000_000));
+      const last = end.tracks[end.tracks.length - 1]!;
+      expect(end.scrolledTo).toBeGreaterThan(0);
+      expect(last.top).toBeGreaterThanOrEqual(end.list.top - TOLERANCE);
+      expect(last.bottom).toBeLessThanOrEqual(end.list.bottom + TOLERANCE);
+    });
+  });
+
+  test.describe("SPEC-CORE-065 I4 — the add-on card rows wrap and stay bounded", () => {
+    test("the clip-frames row wraps its cards", async ({ page }) => {
+      const m = await addonRow(page, "clip", 900, 12);
+
+      expect(m.rows).toBeGreaterThan(1);
+      expect(m.row.scrollWidth).toBeLessThanOrEqual(
+        m.row.clientWidth + TOLERANCE,
+      );
+      for (const card of m.cards) {
+        expect(card.left).toBeGreaterThanOrEqual(m.row.left - TOLERANCE);
+        expect(card.right).toBeLessThanOrEqual(m.row.right + TOLERANCE);
+      }
+      expect(await horizontalScrollers(page)).toEqual([]);
+    });
+
+    test("many clip frames scroll vertically inside a two-row box", async ({
+      page,
+    }) => {
+      const start = await addonRow(page, "clip", 900, 60);
+
+      expect(start.row.overflowY).toBe("auto");
+      expect(start.row.scrollHeight).toBeGreaterThan(
+        start.row.clientHeight + TOLERANCE,
+      );
+      expect(start.row.height).toBeGreaterThan(start.cardHeight * 1.5);
+      expect(start.row.height).toBeLessThan(start.cardHeight * 2.5);
+
+      const end = await page.evaluate(() => window.measureAddonRow(1_000_000));
+      const last = end.cards[end.cards.length - 1]!;
+      expect(end.scrolledTo).toBeGreaterThan(0);
+      expect(last.bottom).toBeLessThanOrEqual(end.row.bottom + TOLERANCE);
+      expect(last.right).toBeLessThanOrEqual(end.row.right + TOLERANCE);
+    });
+
+    test("a few clip frames stay in one row without a vertical scrollbar", async ({
+      page,
+    }) => {
+      const m = await addonRow(page, "clip", 900, 2);
+
+      expect(m.rows).toBe(1);
+      expect(m.row.scrollHeight).toBeLessThanOrEqual(
+        m.row.clientHeight + TOLERANCE,
+      );
+      expect(await horizontalScrollers(page)).toEqual([]);
+    });
+
+    test("the visual-index row wraps every scene", async ({ page }) => {
+      const m = await addonRow(page, "visual", 900, 24);
+
+      expect(m.rows).toBeGreaterThan(2);
+      expect(m.row.scrollWidth).toBeLessThanOrEqual(
+        m.row.clientWidth + TOLERANCE,
+      );
+      for (const card of m.cards) {
+        expect(card.left).toBeGreaterThanOrEqual(m.row.left - TOLERANCE);
+        expect(card.right).toBeLessThanOrEqual(m.row.right + TOLERANCE);
+      }
+      expect(await horizontalScrollers(page)).toEqual([]);
+    });
+
+    test("a few visual-index scenes stay in one row without a vertical scrollbar", async ({
+      page,
+    }) => {
+      const m = await addonRow(page, "visual", 900, 3);
+
+      expect(m.rows).toBe(1);
+      expect(m.row.scrollHeight).toBeLessThanOrEqual(
+        m.row.clientHeight + TOLERANCE,
+      );
+      expect(await horizontalScrollers(page)).toEqual([]);
+    });
+
+    test("a full visual index scrolls vertically inside a two-row box", async ({
+      page,
+    }) => {
+      const start = await addonRow(page, "visual", 900, 24);
+
+      expect(start.row.overflowY).toBe("auto");
+      expect(start.row.scrollHeight).toBeGreaterThan(
+        start.row.clientHeight + TOLERANCE,
+      );
+      expect(start.row.height).toBeGreaterThan(start.cardHeight * 1.5);
+      expect(start.row.height).toBeLessThan(start.cardHeight * 2.5);
+
+      const end = await page.evaluate(() => window.measureAddonRow(1_000_000));
+      const last = end.cards[end.cards.length - 1]!;
+      expect(end.scrolledTo).toBeGreaterThan(0);
+      expect(last.bottom).toBeLessThanOrEqual(end.row.bottom + TOLERANCE);
+      expect(last.right).toBeLessThanOrEqual(end.row.right + TOLERANCE);
+    });
+  });
+
+  test.describe("SPEC-CORE-065 I5 — every tab is visible, and the inspector strip keeps one tab stop", () => {
+    const STRIPS = ["page", "inspector"] as const;
+
+    for (const kind of STRIPS) {
+      test(`${kind} tabs`, async ({ page }) => {
+        const before = await tabs(page, kind, 560);
+
+        expect(before.strip.scrollWidth).toBeLessThanOrEqual(
+          before.strip.clientWidth + TOLERANCE,
+        );
+        for (const tab of before.tabs) expect(within(tab, before.strip)).toBe(true);
+        expect(selectedIndex(before)).toBe(0);
+        if (kind === "page") return;
+
+        expect(tabStops(before)).toHaveLength(1);
+        await page.locator("[data-tab]").first().focus();
+        await expect(page.locator("[data-tab]").first()).toBeFocused();
+        await page.keyboard.press("ArrowRight");
+
+        const after = await page.evaluate(() => window.measureTabs());
+        expect(selectedIndex(after)).toBe(1);
+        expect(after.tabs[1]!.focused).toBe(true);
+        expect(tabStops(after)).toHaveLength(1);
+      });
+    }
+  });
+
+  test.describe("SPEC-CORE-065 I6 — the breadcrumb keeps its last segment whole", () => {
+    test("every segment stays in the DOM and the last is fully visible", async ({
+      page,
+    }) => {
+      const m = await breadcrumb(page, 460);
+
+      expect(m.labels).toHaveLength(BREADCRUMB_SEGMENTS.length);
+      expect(m.labels.map((label) => label.text)).toEqual(BREADCRUMB_SEGMENTS);
+
+      const last = m.labels[m.labels.length - 1]!;
+      expect(last.left).toBeGreaterThanOrEqual(m.nav.left - TOLERANCE);
+      expect(last.right).toBeLessThanOrEqual(m.nav.right + TOLERANCE);
+
+      for (const label of m.labels) {
+        if (label.scrollWidth > label.clientWidth + TOLERANCE) {
+          expect(label.title).not.toBeNull();
+        }
+      }
+    });
+  });
+
+  test("SPEC-CORE-065 I7 — the add-on policy table fits and its headings stay sticky", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 667 });
+    await page.goto(POLICY_FIXTURE);
+    await page.evaluate((spec) => window.buildPolicyTable(spec), {
+      width: 375,
+      drives: 4,
+      featuresPerDrive: 2,
+      columns: 4,
+    });
+    const m = await page.evaluate(() => window.measurePolicyTable(10_000));
+
+    expect(m.scrollsHorizontally).toBe(false);
+    expect(m.scrollsVertically).toBe(true);
+    expect(m.scrolledTo).toBeGreaterThan(0);
+    expect(m.headPosition).toBe("sticky");
+    expect(m.headTop).toBe(0);
+    expect(m.headBackground).not.toBe("rgba(0, 0, 0, 0)");
+  });
+
+  test("SPEC-CORE-064 I1 — the fixture declares the class lists it measures", () => {
+    expect(Object.keys(SPEC).sort()).toEqual(
+      [
+        "breadcrumb",
+        "breadcrumbAncestor",
+        "breadcrumbLabel",
+        "breadcrumbLeaf",
+        "breadcrumbLink",
+        "breadcrumbSegment",
+        "collectionCard",
+        "collectionCount",
+        "collectionHead",
+        "collectionOuter",
+        "collectionTitle",
+        "inspectorStrip",
+        "inspectorTab",
+        "inspectorTabIdle",
+        "inspectorTabSelected",
+        "pageTab",
+        "pageTabIdle",
+        "pageTabSelected",
+        "pageTabs",
+        "track",
+        "trackBody",
+        "trackList",
+        "trackThumb",
+        "trackTitle",
+      ].sort(),
+    );
+  });
+});
+
+test.describe("touch environment", () => {
+  // `hasTouch` alone is what makes Chromium answer `(hover: none)` and
+  // `(pointer: coarse)`; `isMobile` would also take over the layout viewport.
+  test.use({ viewport: { width: 393, height: 851 }, hasTouch: true });
+
+  test("SPEC-CORE-065 I3 — the context really reports a coarse pointer", async ({
+    page,
+  }) => {
+    await page.goto(FIXTURE);
+    const media = await page.evaluate(() => ({
+      coarse: matchMedia("(pointer: coarse)").matches,
+      hover: matchMedia("(hover: none)").matches,
+      mouse: matchMedia("(hover: hover) and (pointer: fine)").matches,
+    }));
+    expect(media.coarse).toBe(true);
+    expect(media.hover).toBe(true);
+    expect(media.mouse).toBe(false);
+  });
+
+  test.describe("SPEC-CORE-065 I3 — the strips still scroll sideways", () => {
+    const CASES = [
+      {
+        name: "the collection panel's track strip",
+        open: (page: Page) => collection(page, 393),
+        strip: (reading: CollectionReading) => reading.list,
+      },
+      {
+        name: "the page tab strip",
+        open: (page: Page) => tabs(page, "page", 393),
+        strip: (reading: TabReading) => reading.strip,
+      },
+      {
+        name: "the inspector tab strip",
+        open: (page: Page) => tabs(page, "inspector", 393),
+        strip: (reading: TabReading) => reading.strip,
+      },
+      {
+        name: "the breadcrumb",
+        open: (page: Page) => breadcrumb(page, 393, { leafNode: true }),
+        strip: (reading: BreadcrumbReading) => reading.nav,
+      },
+    ];
+
+    for (const { name, open, strip } of CASES) {
+      test(name, async ({ page }) => {
+        const reading = await open(page);
+        const box = strip(reading as never);
+
+        expect(box.overflowX === "auto" || box.overflowX === "scroll").toBe(
+          true,
+        );
+        expect(box.scrollWidth).toBeGreaterThan(box.clientWidth + TOLERANCE);
+      });
+    }
+  });
+
+  test.describe("SPEC-CORE-065 I3 — the add-on rows still scroll sideways", () => {
+    for (const kind of ["clip", "visual"] as const) {
+      test(`${kind} rows`, async ({ page }) => {
+        const m = await addonRow(page, kind, 393, 12);
+
+        expect(m.row.overflowX === "auto" || m.row.overflowX === "scroll").toBe(
+          true,
+        );
+        expect(m.row.scrollWidth).toBeGreaterThan(
+          m.row.clientWidth + TOLERANCE,
+        );
+        expect(m.rows).toBe(1);
+        expect(m.row.scrollHeight).toBeLessThanOrEqual(
+          m.row.clientHeight + TOLERANCE,
+        );
+      });
+    }
+  });
+});
