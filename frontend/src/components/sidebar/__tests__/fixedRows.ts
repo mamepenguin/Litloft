@@ -8,6 +8,7 @@ export const FIXED_SIDEBAR_ROWS: readonly { label: string; view: string | null; 
   { label: "Inbox", view: "inbox" },
   { label: "Library", view: null },
   { label: "Video", view: null, path: "/apps/video" },
+  { label: "Reading", view: null, path: "/apps/reading" },
   { label: "Favorites", view: "favorites" },
   { label: "Liked", view: "liked" },
   { label: "Recently Viewed", view: "recent" },

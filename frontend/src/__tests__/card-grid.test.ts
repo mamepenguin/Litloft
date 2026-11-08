@@ -161,14 +161,16 @@ describe("every card grid goes through lib/cardGrid", () => {
   const sites = cardGridSites();
 
   it("finds the card grids it is meant to be checking", () => {
-    expect(sites.length).toBe(6);
+    expect(sites.length).toBe(8);
     expect(new Set(sites.map((s) => s.file))).toEqual(
       new Set([
+        "frontend/src/components/appshell/ShelfBlock.tsx",
         "frontend/src/components/FileGrid.tsx",
         "frontend/src/components/SectionRow.tsx",
         "frontend/src/components/folder/FolderContent.tsx",
         "frontend/src/components/folder/RightPaneFolder.tsx",
         "frontend/src/components/missing/MissingFileGrid.tsx",
+        "frontend/src/components/readingapp/ReadingGrid.tsx",
         "frontend/src/components/trash/TrashFileGrid.tsx",
       ]),
     );
@@ -182,8 +184,8 @@ describe("every card grid goes through lib/cardGrid", () => {
   });
 
   it("hands every grid element the measuring ref", () => {
-    expect(sites.length).toBe(6);
-    expect(useCardColumnsCallSites().length).toBe(6);
+    expect(sites.length).toBe(8);
+    expect(useCardColumnsCallSites().length).toBe(8);
 
     const unattached = sites
       .filter((s) => !/\bref=\{/.test(s.tag))

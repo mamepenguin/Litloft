@@ -148,3 +148,8 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-055 | implemented | docs/specs/video-library-app.md | sha256:3802363ed6d4223f69c5ba8f2766457d393097f13aaa707b38aac176c4d9c549 |
 | SPEC-CORE-056 | implemented | docs/specs/video-library-app.md | sha256:3802363ed6d4223f69c5ba8f2766457d393097f13aaa707b38aac176c4d9c549 |
 | SPEC-CORE-057 | implemented | docs/specs/video-library-app.md | sha256:3802363ed6d4223f69c5ba8f2766457d393097f13aaa707b38aac176c4d9c549 |
+| SPEC-CORE-059 | implemented | docs/specs/reading-app.md | sha256:d50212bc93851ad97819185b6a7ec10e43f805aabc994a912143fb2d813836fb |
+| SPEC-CORE-060 | implemented | docs/specs/reading-app.md | sha256:d50212bc93851ad97819185b6a7ec10e43f805aabc994a912143fb2d813836fb |
+| SPEC-CORE-061 | implemented | docs/specs/reading-app.md | sha256:d50212bc93851ad97819185b6a7ec10e43f805aabc994a912143fb2d813836fb |
+| SPEC-CORE-062 | implemented | docs/specs/reading-app.md | sha256:d50212bc93851ad97819185b6a7ec10e43f805aabc994a912143fb2d813836fb |
+| SPEC-CORE-063 | implemented | docs/specs/reading-app.md | sha256:d50212bc93851ad97819185b6a7ec10e43f805aabc994a912143fb2d813836fb |

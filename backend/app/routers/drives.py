@@ -287,6 +287,7 @@ FileKind = Literal[
     "other",
     "text",
     "pdf",
+    "epub",
     "subtitle",
 ]
 
@@ -318,6 +319,14 @@ _KIND_MIMES: dict[str, tuple[str, ...]] = {
 _KIND_SUFFIXES: dict[str, tuple[str, ...]] = {
     "text": (".md", ".markdown", ".txt"),
     "pdf": (".pdf",),
+}
+
+
+# Kinds only the kind predicate accepts. `epub` is here, not in the two
+# tables above, because the folder card's roll-up reads those and must keep
+# counting an EPUB as `document`.
+_FILTER_ONLY_KINDS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
+    "epub": (("application/epub+zip",), (".epub",)),
 }
 
 
@@ -480,10 +489,15 @@ def apply_file_filters(
 
 
 def _kind_predicate(kind: FileKind):
-    mimes = _KIND_MIMES.get(kind)
-    if mimes is None:
-        # The six flat kinds are `file_type` itself.
-        return File.file_type == kind
+    filter_only = _FILTER_ONLY_KINDS.get(kind)
+    if filter_only is not None:
+        mimes, suffixes = filter_only
+    else:
+        mimes = _KIND_MIMES.get(kind)
+        if mimes is None:
+            # The six flat kinds are `file_type` itself.
+            return File.file_type == kind
+        suffixes = _KIND_SUFFIXES[kind]
 
     # A nested kind: recognised by mime, or by extension for rows whose
     # mime was never recorded.
@@ -495,7 +509,6 @@ def _kind_predicate(kind: FileKind):
     # predicate would undo the extension fallback for exactly the rows
     # it exists for: one whose mime was never recorded may well have
     # been given the wrong ``file_type`` by the same writer.
-    suffixes = _KIND_SUFFIXES[kind]
     return or_(
         File.mime_type.in_(mimes),
         *(func.lower(File.filename).like(f"%{suffix}") for suffix in suffixes),

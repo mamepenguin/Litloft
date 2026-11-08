@@ -366,7 +366,7 @@ describe("SPEC-CORE-057 I9 Library", () => {
     const hrefs = screen
       .getAllByRole("link", { name: /See all/ })
       .map((a) => a.getAttribute("href"));
-    expect(hrefs).toContain(`/drive/${DRIVE}/apps/video/shelf?by=folder&key=Movies`);
+    expect(hrefs).toContain(`/drive/${DRIVE}/apps/video/shelf?by=folder&key=Movies&from=library`);
   });
 
   it("SPEC-CORE-057 labels the root folder shelf with the drive name and keeps its key empty", async () => {
@@ -377,7 +377,7 @@ describe("SPEC-CORE-057 I9 Library", () => {
     const hrefs = screen
       .getAllByRole("link", { name: /See all/ })
       .map((a) => a.getAttribute("href"));
-    expect(hrefs).toContain(`/drive/${DRIVE}/apps/video/shelf?by=folder&key=`);
+    expect(hrefs).toContain(`/drive/${DRIVE}/apps/video/shelf?by=folder&key=&from=library`);
   });
 
   it("SPEC-CORE-057 labels the untagged shelf No tag", async () => {
@@ -460,13 +460,13 @@ describe("SPEC-CORE-055 the target menu", () => {
     expect(call).toMatchObject({ sort: "created_at", order: "desc" });
   });
 
-  it("SPEC-CORE-055 uses the default target and repairs the saved value when the folder is gone", async () => {
+  it("SPEC-CORE-055 uses the default target and keeps the saved value when the folder is gone", async () => {
     getSmartFolders.mockResolvedValue([trips]);
     writeAppPrefs(DRIVE, { target: "deleted-id" });
     renderApp();
 
     expect(await screen.findByText("Resume me")).toBeInTheDocument();
-    await waitFor(() => expect(readAppPrefs(DRIVE).target).toBe("default"));
+    await waitFor(() => expect(readAppPrefs(DRIVE).target).toBe("deleted-id"));
     const sent = getShelves.mock.calls.map(([, p]) => p as Params);
     expect(sent.every((p) => p.tag === undefined && p.folder === undefined)).toBe(true);
     expect(screen.getByRole("button", { name: /Target/ })).toHaveTextContent("All videos");

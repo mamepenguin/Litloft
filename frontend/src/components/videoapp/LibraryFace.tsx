@@ -3,16 +3,19 @@
 import { useMemo } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
+import { RetryButton } from "@/components/appshell/RetryButton";
+import { ShelfBlock } from "@/components/appshell/ShelfBlock";
+import { useNearEnd } from "@/components/appshell/useNearEnd";
+import { usePaged } from "@/components/appshell/usePaged";
 import { EmptyState } from "@/components/EmptyState";
 import { getShelves, type Shelf, type ShelfGrouping } from "@/lib/api";
 import type { AppClassification } from "@/lib/appPrefs";
 import type { VideoTargetParams } from "@/lib/videoAppTarget";
 import { ClassificationMenu, SortChoiceMenu } from "./LibraryControls";
-import { RetryButton, ShelfBlock } from "./ShelfBlock";
 import { SORT_CHOICES, shelfTitle, type SortChoice } from "./labels";
+import { videoShelfHref } from "./shelfLinks";
+import { VideoCard } from "./VideoCard";
 import { isViewerRequired } from "./useVideoApp";
-import { usePaged } from "./usePaged";
-import { useNearEnd } from "./useNearEnd";
 
 export const LIBRARY_SHELF_ITEMS = 5;
 export const LIBRARY_SHELVES_PER_PAGE = 12;
@@ -25,9 +28,13 @@ export function effectiveClassification(
   return saved === "watch" && !hasProfile ? "folder" : saved;
 }
 
-export function seeAllHref(drive: string, by: ShelfGrouping, key: string): string {
-  const query = new URLSearchParams({ by, key });
-  return `/drive/${encodeURIComponent(drive)}/apps/video/shelf?${query.toString()}`;
+export function seeAllHref(
+  drive: string,
+  by: ShelfGrouping,
+  key: string,
+  sortId?: SortChoice["id"],
+): string {
+  return videoShelfHref(drive, by, key, sortId, "library");
 }
 
 export function LibraryFace({
@@ -107,20 +114,31 @@ export function LibraryFace({
                 key={shelf.key}
                 title={title}
                 count={number.format(shelf.count)}
-                seeAllHref={seeAllHref(drive, by, shelf.key)}
+                seeAllHref={seeAllHref(drive, by, shelf.key, sortId)}
                 view={{ status: "loaded", items: shelf.items }}
                 onRetry={shelves.retry}
+                renderItem={(item) => <VideoCard item={item} />}
               />
             );
           })}
           <div ref={sentinel} aria-hidden="true" className="h-px" />
           {shelves.more === "loading" && (
-            <ShelfBlock title="" view={{ status: "loading" }} onRetry={shelves.loadMore} />
+            <ShelfBlock
+              title=""
+              view={{ status: "loading" }}
+              onRetry={shelves.loadMore}
+              renderItem={() => null}
+            />
           )}
           {shelves.more === "failed" && <RetryButton onRetry={shelves.loadMore} />}
         </div>
       ) : (
-        <ShelfBlock title="" view={{ status: "loading" }} onRetry={shelves.retry} />
+        <ShelfBlock
+          title=""
+          view={{ status: "loading" }}
+          onRetry={shelves.retry}
+          renderItem={() => null}
+        />
       )}
     </div>
   );

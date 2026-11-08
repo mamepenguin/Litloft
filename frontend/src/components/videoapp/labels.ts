@@ -11,15 +11,22 @@ export function shelfTitle({
   shelf,
   drive,
   locale,
+  from,
   t,
 }: {
   by: ShelfGrouping;
   shelf: Pick<Shelf, "key" | "label">;
   drive: string;
   locale: string;
+  from?: string | null;
   t: Translate;
 }): string {
-  if (by === "folder") return shelf.key === "" ? drive : shelf.label;
+  if (by === "all") return from === "discover" ? t("shelves.new") : t("allVideos");
+  if (by === "folder") {
+    if (shelf.key === "") return drive;
+    const path = shelf.key.endsWith("/") ? shelf.key.slice(0, -1) : shelf.key;
+    return path.split("/").pop() || shelf.label;
+  }
   if (by === "tag") return shelf.key === "no_tag" ? t("noTag") : shelf.label;
   if (by === "month") return formatMonth(shelf.label || shelf.key, locale);
   if (by === "duration") return t(`length.${shelf.key}`);
@@ -50,3 +57,7 @@ export const SORT_CHOICES: readonly SortChoice[] = [
   { id: "title", labelKey: "sort.title", sort: "title", order: "asc" },
   { id: "size", labelKey: "sort.size", sort: "file_size", order: "desc" },
 ];
+
+export function parseSortId(raw: string | null): SortChoice["id"] | null {
+  return SORT_CHOICES.find((choice) => choice.id === raw)?.id ?? null;
+}

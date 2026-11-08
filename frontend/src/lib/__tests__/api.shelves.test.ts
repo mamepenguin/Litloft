@@ -84,6 +84,34 @@ describe("SPEC-CORE-056 getShelves", () => {
     expect(requested().searchParams.get("key")).toBe("");
   });
 
+  it("sends by=all without a key as the whole-list shelf", async () => {
+    await getShelves("main", { by: "all", per_shelf: 1 } as never);
+
+    const q = requested().searchParams;
+    expect(q.get("by")).toBe("all");
+    expect(q.has("key")).toBe(false);
+    expect(q.get("per_shelf")).toBe("1");
+  });
+
+  it("sends the watch filter", async () => {
+    await getShelves("main", { by: "all", watch: "finished" } as never);
+
+    expect(requested().searchParams.get("watch")).toBe("finished");
+  });
+
+  it("returns the folder base of the response", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({ ...body, by: "folder", base: "Books" }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
+    );
+
+    await expect(getShelves("main", { by: "folder" } as never)).resolves.toMatchObject({
+      base: "Books",
+    });
+  });
+
   it("SPEC-CORE-056 rejects when the server answers an error status", async () => {
     fetchMock.mockResolvedValue(new Response("{}", { status: 500 }));
 

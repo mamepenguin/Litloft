@@ -5,7 +5,7 @@ import { useCallback, useMemo, useState } from "react";
 import { getDriveFiles, getShelves, type ShelfItem } from "@/lib/api";
 import type { VideoTargetParams } from "@/lib/videoAppTarget";
 import { isViewerRequired } from "./useVideoApp";
-import { useLoad } from "./useLoad";
+import { useLoad } from "@/components/appshell/useLoad";
 
 export const DISCOVER_SHELF_SIZE = 12;
 

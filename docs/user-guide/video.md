@@ -24,6 +24,10 @@ Up to three shelves of 12 videos, each loading on its own:
 A shelf with no videos is not shown. If one shelf fails to load, only that shelf shows
 **Retry**.
 
+Each shelf has **See all**: **Continue** opens the in-progress shelf, **Recommended** opens
+the unwatched shelf (only with a profile), and **New** opens all videos newest first. The
+shelf page shows 60 videos at a time.
+
 ## Library
 
 **Classification** chooses how the drive's videos are grouped into shelves, and the sort
@@ -43,14 +47,22 @@ target and sort. More shelves load as you scroll.
 ## Target
 
 **Target** chooses which videos the page works on. **All videos** is every video in the
-drive. Any of the drive's smart folders can replace it; the page then shows only the videos
-that smart folder matches, and the choice is remembered for the drive. A smart folder's own
-sort is not used here.
+drive. A smart folder can replace it; the page then shows only the videos that smart folder
+matches, and the choice is remembered for the drive. A smart folder's own sort is not used
+here.
+
+The menu lists **All videos**, then the smart folders you chose to show, then
+**管理…** / **Manage…**. **Manage…** opens a searchable list of the drive's smart folders;
+tick the ones you want in this menu. The set is kept per app and per drive, so Video and
+Reading keep separate lists. A new smart folder stays out of the menu until you tick it
+there.
 
 - A smart folder that matches no videos (for example one limited to images) can still be
   chosen. Every tab then shows the empty state.
+- A smart folder the page cannot use is listed disabled.
 - A smart folder that has been deleted is replaced by **All videos** without a message.
-- If the smart folders cannot be loaded, the menu offers only **All videos**.
+- If the smart folders cannot be loaded, the menu offers **All videos** and **Manage…**; the
+  Manage list shows a retry.
 
 ## Without a profile
 

@@ -146,7 +146,8 @@ export type FileKind =
   | "archive"
   | "other"
   | "text"
-  | "pdf";
+  | "pdf"
+  | "epub";
 
 export type FolderTreeNode =
   | {

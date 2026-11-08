@@ -1,0 +1,388 @@
+{
+  "risk": "HIGH",
+  "score": 7,
+  "base": 3,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "backend/app/routers/drives.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/routers/shelves.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/schemas.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/tests/test_api_shelves.py",
+      "level": "LOW"
+    },
+    {
+      "path": "backend/tests/test_api_shelves_reading.py",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/ADDON-DEVELOPMENT.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/reference/api.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/reading-app.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/reading.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/video.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/e2e-layout/fixtures/reading-video-faces.html",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-layout/reading-video-faces.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-layout/spec-viewport.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/card-grid.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/popup-dismissal.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/section-rows.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/drive/[name]/apps/reading/page.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/drive/[name]/apps/reading/shelf/page.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/drive/[name]/apps/video/shelf/page.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/PageTabs.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/SidebarActiveRow.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/SidebarAddonNav.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/readingVideoLayoutFixtureParity.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/toolbarMenuHome.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/appshell/AppHeader.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/appshell/AppTabs.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/appshell/ManageTargetsDialog.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/appshell/RetryButton.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/appshell/ShelfBlock.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/appshell/TargetMenu.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/appshell/__tests__/ShelfBlock.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/appshell/__tests__/TargetMenu.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/appshell/useLoad.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/appshell/useNearEnd.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/appshell/usePaged.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/appshell/useShownTargets.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/folder/FilterField.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/DiscoverFace.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/LibraryControls.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/LibraryFace.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/ReadingApp.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/ReadingAppHeader.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/ReadingCard.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/ReadingGrid.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/ReadingShelfPage.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingApp.discover.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingApp.library.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingCard.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingShelfPage.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/folders.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/folders.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/labels.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/shelfLinks.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/useDiscover.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/useFolderChips.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/useReadingApp.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/search/ConditionMenu.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/SidebarDriveSwitcher.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/SidebarReadingRow.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/fixedRows.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/DiscoverFace.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/LibraryFace.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/ShelfBlock.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/TargetMenu.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoApp.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoAppHeader.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoShelfPage.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.navigation.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoShelfPage.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/labels.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/shelfLinks.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/useDiscover.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/useLoad.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/useNearEnd.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/usePaged.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/useVideoApp.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/__tests__/api.shelves.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/__tests__/appPrefs.targets.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/__tests__/appPrefs.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/__tests__/pageJump.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/__tests__/readingAppTarget.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/__tests__/readingKinds.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/__tests__/searchQuery.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/api.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/appPrefs.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/builtinApps.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/readingAppTarget.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/searchQuery.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/types/index.ts",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}

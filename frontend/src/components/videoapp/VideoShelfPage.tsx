@@ -6,21 +6,21 @@ import { ChevronLeft } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { EmptyState } from "@/components/EmptyState";
+import { RetryButton } from "@/components/appshell/RetryButton";
+import { useNearEnd } from "@/components/appshell/useNearEnd";
+import { usePaged } from "@/components/appshell/usePaged";
 import { PageFrame } from "@/components/PageFrame";
 import { builtinApps } from "@/lib/builtinApps";
 import { getShelves, type ShelfGrouping, type ShelfItem } from "@/lib/api";
 import { SortChoiceMenu } from "./LibraryControls";
-import { RetryButton } from "./ShelfBlock";
-import { SORT_CHOICES, shelfTitle, type SortChoice } from "./labels";
-import { useNearEnd } from "./useNearEnd";
-import { usePaged } from "./usePaged";
+import { SORT_CHOICES, parseSortId, shelfTitle, type SortChoice } from "./labels";
 import { isViewerRequired, useVideoApp } from "./useVideoApp";
 import { VideoAppHeader } from "./VideoAppHeader";
 import { VideoCard } from "./VideoCard";
 
 export const SHELF_PAGE_SIZE = 60;
 
-const GROUPINGS: readonly ShelfGrouping[] = ["folder", "tag", "month", "duration", "watch"];
+const GROUPINGS: readonly ShelfGrouping[] = ["all", "folder", "tag", "month", "duration", "watch"];
 
 export function parseGrouping(raw: string | null): ShelfGrouping | null {
   return GROUPINGS.find((grouping) => grouping === raw) ?? null;
@@ -44,15 +44,21 @@ export function VideoShelfPage({
   drive,
   by,
   shelfKey,
+  initialSort,
+  from,
 }: {
   drive: string;
   by: ShelfGrouping | null;
   shelfKey: string;
+  initialSort?: string | null;
+  from?: string | null;
 }) {
   const t = useTranslations("videoApp");
   const locale = useLocale();
   const state = useVideoApp(drive);
-  const [sortId, setSortId] = useState<SortChoice["id"]>("newest");
+  const [sortId, setSortId] = useState<SortChoice["id"]>(
+    () => parseSortId(initialSort ?? null) ?? "newest",
+  );
   const sort = SORT_CHOICES.find((choice) => choice.id === sortId) ?? SORT_CHOICES[0];
 
   // Watch state reads the viewer's rows; without a profile there is no shelf to open.
@@ -89,7 +95,7 @@ export function VideoShelfPage({
   const title =
     by === null
       ? t("title")
-      : shelfTitle({ by, shelf: { key: shelfKey, label: shelfKey }, drive, locale, t: (key) => t(key) });
+      : shelfTitle({ by, shelf: { key: shelfKey, label: shelfKey }, drive, locale, from, t: (key) => t(key) });
   const app = builtinApps.find((candidate) => candidate.id === "video")!;
 
   const body =
