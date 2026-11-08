@@ -47,8 +47,9 @@ page, and the only durable copy is a note the viewer chooses to save.
    turn are rejected.
 3. The route builds the history block from the turns:
    - every `[n]` marker (the pattern `file_question.py` already uses for citations,
-     `\[(\d{1,3})\]`) is removed from each earlier answer, code included, because it
-     numbered passages of an earlier request;
+     `\[(\d{1,3})\]`) is removed from each earlier answer, code included, repeating
+     until no match remains (so `[1[2]]` leaves nothing), because it numbered passages
+     of an earlier request;
    - a turn's size is the characters of its question plus its answer after marker
      removal; the history block's labels and separators are not counted;
    - turns are taken newest first while the sum of their sizes fits the history budget,
@@ -70,7 +71,9 @@ page, and the only durable copy is a note the viewer chooses to save.
    viewer's question and the earlier answer, then the new question, the position line,
    the image line and the numbered passages as today. The system prompt tells the model
    that the earlier turns are context for the new question, that their answers may be
-   wrong, and that only the numbered passages may be cited.
+   wrong, and that only the numbered passages may be cited. For a picture with no text,
+   whose system prompt has no citation rules, it says only that the earlier turns are
+   context for the new question and that their answers may be wrong.
 7. The image rules (SPEC-ADDON-071 to -074) apply to the new question only: a picture is
    attached again on every turn as today, a playing video's frame is the one at this
    request's `position_seconds`, and nothing about an earlier turn's image is sent.
@@ -83,14 +86,18 @@ page, and the only durable copy is a note the viewer chooses to save.
    sent, the answer text, citations, `partial`, `image`, a status (`streaming`,
    `answered`, `failed`) and a failure kind; plus the text being typed and the
    in-flight request's controller.
-2. Sending a question appends a new `streaming` turn at the end, clears the text box, and
+2. Sending a question appends a new `streaming` turn at the end, clears the text box
+   (today the box keeps the sent question; the AskTab test that asserts that after a
+   remount is rewritten to the revised SPEC-ADDON-056 I11, not deleted), and
    sends with `history` set to the thread's `answered` turns before it, oldest first, at
    most the last 10, each as `{question, answer}` with the answer text as received, cut
    to its first 20,000 characters.
 3. The turns are drawn oldest first. The text box and its controls sit below the last
    turn; in the inspector's full-height layout they stay at the bottom of the tab and the
-   turns scroll above them. When a turn is appended, the tab scrolls so that its question
-   is in view.
+   turns scroll above them. When a turn is appended, its question is scrolled into view
+   with `scrollIntoView({ block: "nearest" })`, which moves the tab's own scroller in the
+   full-height layout and the nearest scrolling ancestor otherwise. The view does not
+   follow the answer while it streams.
 4. Each turn's answer is drawn by `AnswerMarkdown` with that turn's citations, so its
    pills move the open player or viewer as today (SPEC-ADDON-056 I8). The partial and
    failure lines appear under the turn they belong to; the image line appears only under
@@ -143,10 +150,13 @@ page, and the only durable copy is a note the viewer chooses to save.
      `[<label>](loft://<file_id>?t=<seconds>)`, `?page=<page>` or
      `?section=<section>`, with the label the pill shows (`m:ss` or `h:mm:ss`, `p.<n>`,
      the section title or `§<n>`); `<seconds>` is the position rounded down to an
-     integer, as `citationToLoftUrl` writes it. Any other `[n]` is removed. Text inside
-     an inline code span or a fenced code block is written as received, `[n]` included,
-     by the same code rule the pills follow (SPEC-ADDON-071 I10). The answer's own
-     Markdown, headings included, is written as received.
+     integer, as `citationToLoftUrl` writes it; `[`, `]` and `\` in a label are escaped
+     with a backslash. Any other `[n]` is removed. Code is written as received, `[n]`
+     included: an inline code span (a backtick run closed by a run of the same length,
+     as CommonMark), a fenced block (``` or ~~~; an unclosed fence runs to the end of
+     the answer) and an indented code block, which are what `AnswerMarkdown` renders
+     inside `code` or `pre`. The answer's own Markdown, headings included, is written as
+     received.
 4. After a successful save the button is replaced by **Markdownを保存しました — ノートを
    開く**, linking to the note in the Knowledge editor as the drive Ask page does. The
    thread in `askStore` keeps the saved note's id and the number of answered turns at
@@ -333,7 +343,8 @@ text the viewer sent; it reads no other file. The note save goes through the pro
   `file_question_system.jinja2`.
 - `addons/intelligence/frontend/askStore.ts`, `AskTab.tsx`, `askStream.ts`.
 - `addons/intelligence/frontend/askNoteFormat.ts` (thread note builder),
-  `AskSaveDialog.tsx`, `knowledgeBridge.ts`, `Page.tsx` (sends `origin` explicitly).
+  `knowledgeBridge.ts` (`NoteCreateRequest` gains `origin`), `AskSaveDialog.tsx` (sends
+  `origin: "ask_answer"` for both Ask surfaces). `Page.tsx` is not changed.
 - `addons/intelligence/frontend/messages/{ja,en}.json` (`askTab` keys).
 - `addons/knowledge/app/routers/notes.py` (declaration), knowledge startup in
   `addons/knowledge/app/main.py` (the startup pass), `addons/knowledge/app/models.py`
@@ -352,12 +363,15 @@ text the viewer sent; it reads no other file. The note save goes through the pro
   fixed by running `configure.py` again), `docs/user-guide/search.md` (follow-up
   questions, why a follow-up can be partial, saving, saved answers not cited until
   trusted).
-- `frontend/e2e-layout/`: one case that, in the inspector's full-height layout with a
-  thread taller than the panel, the text box stays at the bottom in view and the turns
-  scroll above it.
+- `frontend/e2e-components/`: one case that renders the real `AskTab` in the
+  inspector's full-height layout with a mocked thread taller than the panel and measures
+  that the text box stays at the bottom in view and the turns scroll above it. Not a
+  static `e2e-layout` fixture, which would keep passing after AskTab's own markup
+  changed.
 - Two submodule PRs (intelligence, knowledge) and a core PR with the spec, docs and the
-  pointer bumps. No protected path is edited. The `note_origins` migration is a schema
-  change (HIGH in `risk-zones.conf`).
+  pointer bumps. No protected path is edited. The knowledge change adds a schema change
+  (the `note_origins` migration) and a background startup task, so it is reviewed at
+  CRITICAL (`risk-zones.conf`: `promote concurrency,schema CRITICAL`).
 
 ## Invariants
 
@@ -369,7 +383,7 @@ I5. **新しい会話** and **Markdownで保存** are never offered while a turn
 I6. In the inspector's full-height layout, with a thread taller than the panel, the text box stays at the bottom of the tab in view and the turns scroll above it; each turn's pills move the viewer to that turn's own cited positions.
 I7. A note saved from the tab contains every answered turn in thread order and no failed one, and outside code spans and fenced blocks each `[n]` in it is either a `loft://` link to the cited position of this file, with an integer `t`, or removed; inside them the text is as received.
 I8. `POST /notes` with `origin: "ask_answer"` either leaves the note unverified, or answers 201 with the tier a viewer already ruled, or answers a non-2xx status; with any other origin it never calls the trust declaration.
-I9. Only `note_origins` rows with `origin = 'ask_answer'` are ever declared; such a row gets `trust_declared_at` only after core answered 204 or 409, every such row still null is declared again at the next knowledge startup, and that pass never delays `/health`.
+I9. Only `note_origins` rows whose `origin` column is `ask_answer` are ever declared; such a row gets `trust_declared_at` when, and only when, core answers its declaration 204 or 409, at save time or in the startup pass, so the next start makes no call for it; every such row still null is declared again at the next knowledge startup, and that pass never delays `/health`.
 I10. The migration adds `note_origins.trust_declared_at` as null to every existing row, keeps every existing `note_origins` and `note_origin_sources` row and value, and changes nothing when the column already exists.
 
 ## Revises
@@ -377,12 +391,18 @@ I10. The migration adds `note_origins.trust_declared_at` as null to every existi
 SPEC-ADDON-053 I2. When the file's chunk text totals at most the passage budget (`rag.file_question_max_chars` minus the characters of the history turns sent), all chunks are sent in file order and `partial` is false; otherwise the sent chunk text totals at most the passage budget, chosen by the ranking and fitting rule of 053 step 4 with the ranking text of SPEC-ADDON-079 step 5, sent in file order, and `partial` is true.
 SPEC-ADDON-053 I5. Neither the routes nor the tab store the questions, answers, history or citations anywhere other than the open page's memory, except the note the viewer saves with **Markdownで保存**, and the addon never logs question, answer or history text.
 SPEC-ADDON-053 I12. `/ask` and `/find` return the same responses for the same requests as before, except that a note saved through the Ask save is no longer cited while it is unverified; `player-side` tabs keep their order and their silence-means-available rule.
-SPEC-ADDON-056 I11. While a file's turn is streaming no second request is sent for it; moving to another file or leaving the page aborts the stream and frees its semaphore slot; closing the mobile sheet or switching tabs keeps the whole thread; a stream that fails or closes without `done` keeps the text received in its turn and shows the failure line under it.
+SPEC-ADDON-056 I11. While a file's turn is streaming no second request is sent for it; moving to another file or leaving the page aborts the stream and frees its semaphore slot; closing the mobile sheet or switching tabs keeps the whole thread and the text box's current contents, which after a send is empty rather than the sent question; a stream that fails or closes without `done` keeps the text received in its turn and shows the failure line under it.
 SPEC-ADDON-071 I1. A question's passages, picture and frame come only from the requested file, an active file of the `X-Lit-Drive` drive that the viewer can access and whose `rag` feature is on, and the only other text sent is the history the request carried; the frame is the one at the request's `position_seconds`, and at most one image is sent, a picture of at most 1024 px on its long edge or a frame of at most 1280 px.
 SPEC-ADDON-071 I8. The questions, the answers, the history and every image byte are neither stored nor logged by the route or the tab, apart from the `large` frame cache entry that `get_video_frame` also writes and the note the viewer saves.
 
 ## Checked, no action
 
+- **A thread too large to save.** A note over the 1 MB `NoteCreate.content` cap answers
+  422 and the dialog shows that error as it comes. It takes many long answers in one
+  page visit, and nothing is lost: the thread stays on screen.
+- **Which notes count as Ask notes.** The `origin` column as the note scanner last read
+  it from the note's frontmatter. A note whose `origin: ask_answer` line the owner
+  removed is left as it is; a note the owner gave that line is treated as an Ask note.
 - **Leaving existing Ask notes verified, or skipping ones edited since saving.** Chosen
   by the owner: every existing Ask note becomes unverified, and one the owner rewrote is
   trusted again from its own page.
