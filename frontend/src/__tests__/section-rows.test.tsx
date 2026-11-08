@@ -87,6 +87,7 @@ describe("no shelf hides its own scrollbar", () => {
         "frontend/src/components/FileDetail/inspector/InspectorShell.tsx",
         "frontend/src/components/PageTabs.tsx",
         "frontend/src/components/readingapp/LibraryFace.tsx",
+        "frontend/src/lib/__tests__/noHorizontalScroll.test.ts",
         "addons/intelligence/frontend/ClipFramesSection.tsx",
         "addons/intelligence/frontend/VisualIndexSection.tsx",
       ]),
