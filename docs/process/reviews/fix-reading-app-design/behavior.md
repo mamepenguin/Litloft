@@ -27,3 +27,20 @@ D-15. The human decided which to fix on 2026-11-09. The revised invariants are i
 - D-10 (top bar) and D-11 (sidebar rows): the app shell, outside the reading app.
 - D-13, D-14: no screenshot existed; R-5 of this fix shoots the open Target menu and the
   Manage dialog.
+
+## Round 2: after the design check of the fix
+
+`design-check-1.md` compared the fixed screens with the design. The human decided on
+2026-11-09.
+
+| Finding | What is drawn after the fix |
+|---|---|
+| D-1 | The format badge sits at the cover's bottom-left (8px from the left, 10px from the bottom); with a progress bar it stays above the bar. |
+| D-2 | A book without a thumbnail shows its title as a cover: the title in 13px bold, `text-text-primary` at reduced emphasis, top-left with 14px / 12px padding, wrapping, on the `bg-bg-elevated` fill, clipped by the cover. No file-type icon, no gradient. Books with a thumbnail are unchanged. |
+| D-5 | The Manage dialog's heading is 表示する対象 / "Shown targets" (both apps). The 管理… menu row keeps its text. |
+| D-6 | The Manage dialog's search field has a 16px search icon at its start. |
+| D-7 | The Manage dialog's 完了 button is a DESIGN.md button: `rounded-2xl`, padding at least `px-4 py-2`, not a pill. |
+
+Accepted, not changed: D-3 and D-4 (the Target menu's width and its check-mark rows are
+the app-wide menu, which Video's design also draws with check marks), the Manage dialog's
+close button and its search placeholder (D-5, D-6).
