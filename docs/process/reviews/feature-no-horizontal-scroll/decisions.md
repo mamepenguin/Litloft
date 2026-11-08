@@ -121,3 +121,91 @@ pending: |
     cap could be measured; the multi-row wrap was not seen.
   - Real iOS device behavior (PROJECT.md `agent_cannot_verify`): orientation, touch
     scrolling feel and the breadcrumb on a real phone are for a human.
+
+## R-5 re-run after d36be64e6
+
+ran_in_app: yes
+at: d36be64e6b4a02f02ba7ad3b253e276ce878258b
+by: agent
+evidence: |
+  Scope of this run: items 1-3 of the earlier record (video shelf only), after the fix commit
+  d36be64e6. Environment: the same scratch stack, compose project litloft-r5-hscroll, port
+  3995, backend and frontend rebuilt from d36be64e6 with
+  `docker compose -p litloft-r5-hscroll -f docker-compose.yml -f .r5/override.yml up -d --build
+  backend frontend` (LITLOFT_PORT=3995). The earlier `.r5/` drive was reused: 22 videos in
+  `videos`, 1 in `deep`, `drives.json` = one drive Scratch, `passwords.json` = `[]`. Browser:
+  Playwright Chromium at 1440x900, 1000x900 and 700x900; touch under the Playwright iPhone 13
+  descriptor. `matchMedia('(hover: hover) and (pointer: fine)')` was true on every mouse page.
+  Build check: at 700 the Library `videos` shelf laid out 5 cards in 3 rows (2+2+1); the fifth
+  `li` carried `inert`, the `ul` was 676x368 with `overflow: clip`, 4px padding,
+  scrollHeight 550 / clientHeight 368. Screenshots `docs/process/reviews/
+  feature-no-horizontal-scroll/shots/r5b-*.png`.
+
+  1. At 700, Tab from the Library tab stopped at Classification, the sort button ("Added
+  (newest first)"), the shelf's "See all", cards 0, 1, 2 and 3 (first and second row), then
+  the `deep` shelf's "See all". Focus never reached card 4, the only card in the third row.
+  `li[inert]` was exactly [4], i.e. the third row. `ul.scrollTop` and `ul.scrollLeft` read 0
+  at every stop and after the whole pass. After the pass, assigning `ul.scrollTop = 500` and
+  `ul.scrollLeft = 100` read back 0 and 0 (overflow clip; scrollHeight 550 > clientHeight
+  368). Calling `.focus()` on the inert card's link left focus on the shelf's "See all".
+  Shots: r5b-pagecheck-library-700, r5b-1-tab700-card0, r5b-1-tab700-card2,
+  r5b-1-library-700-after-tab.
+
+  2. Card geometry of the `videos` shelf against the earlier run's log:
+  - 1440: 5 columns x 1 row; cards 214x169 at x 280/506/733/959/1186, y 308; `ul` 1128x177.
+    Earlier run: same columns and card boxes, `ul` 1120x169.
+  - 1000: 4 columns x 2 rows (4+1); cards 224x174 at x 16/252/488/724, y 308/494; `ul`
+    976x368. Earlier run: same columns and card boxes, `ul` 968x360.
+  - 700: 2 columns x 3 layout rows (2+2+1); cards 224x174 at x 16/252, y 308/494/680; `ul`
+    676x368, 4 cards drawn. Earlier run: same columns and card boxes, `ul` 668x360.
+  Column count, row count and every card box are unchanged; the list box itself is 8px wider
+  and taller (4px padding on each side) than in the earlier run. Shots:
+  r5b-2-library-1440, r5b-2-library-1000, r5b-2-library-700.
+
+  3. Focus ring at 700 and 1000, reached by Tab (keyboard). The ring is a 2px box-shadow
+  (`0 0 0 2px rgb(67, 94, 229)`) on the card link, so it extends 2px beyond the card box.
+  - First-row first-column card: box 16,308-240,482 at both widths; the card edge is the
+    content-box edge, and the `ul` clip box starts at 12,304 (4px padding). Ring outer
+    14,306-242,484, inside the clip box by 2px on every side.
+  - Second-row card (index 2 at 700, index 4 at 1000): box 16,494-240,668; ring outer bottom
+    670 against the `ul` bottom 672. Fully visible.
+  3x crops show the ring unbroken at the top-left corner and along the bottom edge:
+  r5b-3-zoom-w700-card0-topleft, r5b-3-zoom-w700-card0-bottom,
+  r5b-3-zoom-w700-card2-topleft, r5b-3-zoom-w700-card2-bottom,
+  r5b-3-zoom-w1000-card0-topleft, r5b-3-zoom-w1000-card0-bottom,
+  r5b-3-zoom-w1000-card4-topleft, r5b-3-zoom-w1000-card4-bottom. Shots of the focused pages:
+  r5b-3-library-1000-card4-focus, r5b-3-library-700-card2-focus. Screenshots from an earlier
+  attempt of this run that focused a card with `.focus()` (which does not set
+  `:focus-visible`) are not evidence and were deleted; the `r5b-3-zoom-*` crops and the two
+  page shots above come from the keyboard pass.
+
+  4. Resizing the same page without reload 700 -> 1000 -> 700 -> 1440 -> 700: `li[inert]` was
+  [4] at 700 (3 rows), [] at 1000 (2 rows), [] at 1440 (1 row), [4] again at 700, each time
+  exactly the cards in layout row 3 and below. Changing sort to Title at 700 reordered the
+  cards and kept inert [4]; changing classification to Tag replaced the shelves with one
+  "No tag" shelf of 5 cards in 3 rows, inert [4]. Shots: r5b-4-sort-menu-700,
+  r5b-4-sort-title-700, r5b-4-class-menu-700, r5b-4-class-changed-700.
+
+  5. Discover (shelves without "See all"): Recommended and New each drew 12 cards, 3 rows at
+  1440 and 6 rows at 700, `li[inert]` count 0 at both widths, overflow-x visible. Tabbing
+  from the Discover tab reached every card: 12/12 in Recommended then 12/12 in New, no
+  missing and no duplicate index, at both widths. Shots: r5b-5-discover-1440,
+  r5b-5-discover-700.
+
+  6. Touch, Playwright iPhone 13 descriptor (viewport 390, pointer coarse, hover none): the
+  Library `videos` shelf was `flex-wrap: nowrap`, `overflow-x: auto`, `max-height: none`, 5
+  cards in 1 row, `li[inert]` count 0; scrollWidth 928 / clientWidth 358, and setting
+  scrollLeft 120 moved it (read back 188, a snap point). The `deep` shelf fit. Shot:
+  r5b-6-touch-library.
+
+  7. Zoom-equivalent widths of the 1440 view: 150% (viewport 960) gave 3 columns x 2 rows,
+  card tops 308/494, second-row bottom 668 against the `ul` bottom 672; not clipped, no
+  hidden row, inert []. 200% (viewport 720) gave 2 columns x 3 rows (2+2+1); second-row
+  bottom 668 against the `ul` bottom 672, not clipped; the third-row card sat at y 680,
+  entirely below the box, and was inert [4]. Shots: r5b-7-zoom150pct-equivalent,
+  r5b-7-zoom200pct-equivalent.
+
+  No mismatch in items 1-3.
+pending: |
+  - The rest of the earlier record is untouched by this re-run; its pending items (Visual
+    Index rows, CLIP Frames with many cards, real iOS device) still apply.
