@@ -42,12 +42,17 @@ Indexing (SPEC-ADDON-079):
    After that transaction commits, the swap runs: the old `frames/{file_id}/tiles/` is
    renamed aside to `tiles.old.<random>/`, the new directory is renamed to
    `frames/{file_id}/tiles/`, and the old one is removed. The rows and the tiles on disk
-   then name the same times. The row commit and the swap of one file id run under a
-   per-file lock in the process, so two runs on the same file finish one after the
-   other and the later commit's tiles are the ones left.
-   At the start of every storyboard leg, any `frames/{file_id}/tiles.*` directory left
-   by an earlier run (a failed swap or a process exit) is removed; `tiles/` itself is
-   kept.
+   then name the same times. One storyboard leg per file runs at a time: `index_clip`
+   has one caller, the clip worker, and its batch collector drops a task whose file is
+   already being processed; this spec relies on that and adds no lock.
+   Cleanup: once the leg has passed its lookup, `sb0` and duration checks and before it
+   writes the first tile, it removes any `frames/{file_id}/tiles.*` directory left by an
+   earlier run (a failed swap or a process exit); `tiles/` itself is kept. The early
+   returns before that point (the failed-set short-circuit, `loft_unreadable`, not
+   YouTube, `lookup_failed`, `no_sb0`, `no_duration`) do no cleanup. A directory the
+   cleanup cannot remove is logged as a warning naming the file id and the leg goes on;
+   the new and set-aside directories carry random names, so a leftover never collides
+   with them.
 
 Serving (SPEC-ADDON-079):
 
@@ -61,7 +66,10 @@ Showing (SPEC-ADDON-080):
 
 5. File page, CLIP frames panel: for a `.loft` (mime
    `application/vnd.litloft.loft+json`) the panel requests `clip-timestamps` when it
-   mounts and renders nothing until that returns at least one row. It then appears as
+   mounts and again whenever its `fileId` changes while mounted, drops a response that
+   arrives after `fileId` changed, and renders nothing until the current file's request
+   returns at least one row. Moving between a native video and a `.loft` in the same
+   mounted panel switches between the two behaviours with nothing carried over. It then appears as
    the native panel does: a collapsed header with the row count, expanded by a click,
    showing 20 pictures at a time with the same near-end paging. Each picture comes from
    the scene-tile route at the row's `start`. Clicking a picture seeks the player to
@@ -96,8 +104,8 @@ Showing (SPEC-ADDON-080):
 - `clip-timestamps` fails for a `.loft` panel: the panel stays hidden (as when it returns
   no rows) and nothing is retried until the page is opened again.
 - In the UI a tile request that fails shows the blank card (grid) or a blank block of
-  the picture's size with no alt text shown (panel); nothing else is requested in its
-  place.
+  the picture's size with no alt text shown (panel); in the panel the block keeps its
+  time label and its click-to-seek. Nothing else is requested in its place.
 
 ### 3. States
 
@@ -110,8 +118,14 @@ Per YouTube `.loft`:
 
 Transitions: any state → tiles match rows on a storyboard leg whose swap succeeds; any
 state → tiles out of step on a swap failure; a leg that fails before its commit, or ends
-`no_sb0` / `no_duration` / not YouTube, leaves the state as it was. A file removed from
-the index loses `frames/{file_id}/` entirely, whatever the state.
+`no_sb0` / `no_duration` / not YouTube, leaves `tiles/` and the rows as they were (a leg
+that failed after its cleanup point has removed leftover `tiles.*` directories, and
+nothing else). A file removed from the index loses `frames/{file_id}/` entirely,
+whatever the state. Nothing else changes `frames/{file_id}/tiles` or `tiles.*`: not a
+reindex request before its leg runs, not the frame route, not the scene-tile route.
+
+During a successful swap there is a moment with no `tiles/`; a request then answers 404
+and shows the blank picture, and the next request shows the tile. It is not a state.
 
 ### 4. Data read and written
 
@@ -198,13 +212,13 @@ answers 404 from the host before the addon.
 
 I1. `GET /files/{id}/scene-tile?t=` returns only a file under `frames/{id}/tiles/` whose name is `t` in milliseconds with the frame cache's rounding, as `image/webp`; when no such file exists it answers 404, `t` is validated as the frame route validates it (422), a non-video file answers 400, and it never contacts the network, never runs ffmpeg and never writes a file.
 I2. After a storyboard leg whose swap succeeded, the names in `frames/{id}/tiles/` are exactly the `timestamp_start` values of the file's `clip` rows in milliseconds, each file is the tile that was embedded for that row at the tile's own size, and no `frames/{id}/tiles.*` directory remains.
-I3. A storyboard leg that fails before its row transaction commits, or ends `no_sb0`, `no_duration` or not YouTube, leaves the file's `clip` rows and its `frames/{id}/tiles/` as they were, and leaves no temporary tile directory.
+I3. A storyboard leg that fails before its row transaction commits, or ends `no_sb0`, `no_duration` or not YouTube, leaves the file's `clip` rows and its `frames/{id}/tiles/` as they were, and leaves no temporary tile directory of its own; a leg that ends before its cleanup point removes nothing.
 I4. The scene-tile route is reachable only through the host's file-access check, and with `X-Lit-Drive` present it answers as the frame route does for a file outside that drive.
 I5. `GET /files/{id}/frame`, Ask and the MCP tools never return or cache a storyboard tile, and the frame cache files `{ms}.webp` and `{ms}.large.webp` are never written by the storyboard leg.
-I6. The CLIP frames panel of a `.loft` renders nothing until `clip-timestamps` returns at least one row (and stays hidden when it fails), then shows the native panel's collapsed header with the count and 20-at-a-time paging, takes every picture from the scene-tile route, never requests the frame route, and shows a blank block of the picture's size with no visible alt text for a tile that fails; for a native video the panel requests nothing before its first expand and takes its pictures from the frame route, as before.
+I6. The CLIP frames panel of a `.loft` requests `clip-timestamps` on mount and on every `fileId` change, never applies a response for an earlier `fileId`, renders nothing until the current file's request returns at least one row (and stays hidden when it fails), then shows the native panel's collapsed header with the count and 20-at-a-time paging, takes every picture from the scene-tile route, never requests the frame route, and shows a blank block of the picture's size with no visible alt text, keeping its time label and click-to-seek, for a tile that fails; for a native video the panel requests nothing before its first expand and takes its pictures from the frame route, as before.
 I7. A `.loft` candidate in the Scene candidates grid requests only the scene-tile route at its `peak`, and shows the blank card when that request fails; a native candidate requests only the frame route, as before.
 I8. Removing a file from the index (and the policy-off drive purge) removes its tiles with its frame cache.
-I9. A swap that fails after the row commit leaves the rows committed and `clip_indexed` true and logs a warning naming the file id; the next storyboard leg of that file removes every `frames/{id}/tiles.*` directory before writing, and two legs of one file in a process never interleave their commit and swap.
+I9. A swap that fails after the row commit leaves the rows committed and `clip_indexed` true and logs a warning naming the file id; the next storyboard leg of that file that reaches its cleanup point removes every `frames/{id}/tiles.*` directory before writing its first tile, and a successful swap then leaves tiles matching its rows.
 
 ## Checked, no action
 
