@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The diff edits frontend/src/components/videoapp/VideoCard.tsx (adds `mouse:h-full` to the card link), and that file is not in the touch-point list.",
+      "impact": "VideoCard is also rendered by VideoShelfPage.tsx:105 (the see-all page) inside a CSS grid `li`. A stretched grid item has a definite height, so `h-full` makes every card link on that page as tall as its grid row when titles wrap to different line counts. The link's click area and focus ring then cover empty space below short titles. The see-all page is not one of the in-scope screens, so no layout spec measures it.",
+      "evidence": "frontend/src/components/videoapp/VideoCard.tsx:22 (diff hunk adds `mouse:h-full`); frontend/src/components/videoapp/VideoShelfPage.tsx:102-106 renders `<ul className=\"grid ...\"><li className=\"min-w-0\"><VideoCard/></li>`; grep shows only these two callers.",
+      "repro": "not_reproduced. Reasoning: in a grid with align-items stretch, the li gets the row height, and the a's height:100% resolves against it.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant covers the see-all page. The shared component was changed outside the listed touch points, and the side effect reaches an unlisted screen.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add VideoCard.tsx and VideoShelfPage.tsx to the touch points. Either confirm the see-all page's look on a mouse, or move the height onto the ShelfBlock slot (for example `[&>a]:mouse:h-full` on CARD_SLOT) so the shared card stays unchanged."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The diff adds frontend/src/components/videoapp/shelfHiddenRows.ts and a measured `inert` mechanism in ShelfBlock, plus two new unit tests (ShelfBlock.hiddenRows.test.tsx, shelfHiddenRows.test.ts). None of these is in the touch-point list, which names only ShelfBlock.tsx and a source-scan vitest and an e2e-layout spec.",
+      "impact": "The new runtime logic is a useLayoutEffect with a ResizeObserver that makes cards inert. It is not listed, and no declared invariant covers it (I4 speaks only of drawn boxes). The e2e fixture builds the shelf by hand and never applies `inert`, so the layout spec cannot detect a regression in which cards get inert. One example is a card in the second row that is visible but unreachable by keyboard.",
+      "evidence": "frontend/src/components/videoapp/ShelfBlock.tsx:79-120 (measure/inert); frontend/src/components/videoapp/shelfHiddenRows.ts:1-14; frontend/e2e-layout/fixtures/no-horizontal-scroll.html buildShelf sets no `inert`.",
+      "repro": "Mutation: in shelfHiddenRows.ts, change `top >= secondRowBottom` to `top >= secondRowTop`. The e2e spec would not catch it because the fixture has no inert logic. Only the jsdom stub tests would fail, and they assume uniform slot heights.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An unplanned module and behavior outside the listed touch points. It breaks no declared invariant as written.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "List shelfHiddenRows.ts and its tests as touch points, and state the inert behavior as an invariant so that a browser test measures it."
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "The diff edits frontend/src/__tests__/anchoredDropdowns.test.ts by adding the ShelfBlock cap string to OVERFLOW_CLIP_OCCURRENCES, and that test is not in the list of existing tests that change.",
+      "impact": "The new allowlist entry rests on a claim that no anchored dropdown starts inside a shelf card. If that ever stops holding, a dropdown would be clipped by `overflow: clip` on a mouse and no test would flag it.",
+      "evidence": "frontend/src/__tests__/anchoredDropdowns.test.ts:196-199 (new entry pinning the exact SHELF_CAP_CLASSES line).",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An unlisted test file widens an existing guard's allowlist. No declared invariant is involved.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add anchoredDropdowns.test.ts to the touch points' list of existing tests that change."
+    },
+    {
+      "id": "TP-4",
+      "origin": "reviewer",
+      "claim": "The diff edits frontend/e2e-layout/spec-viewport.spec.ts (FIXTURES list and FIXTURE_COUNT 22→23), and that file is not in the touch-point list.",
+      "impact": "No user-facing impact. It is an unplanned test edit needed to register the new fixture.",
+      "evidence": "frontend/e2e-layout/spec-viewport.spec.ts:33,48",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An unlisted file. No invariant is involved.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add it to the touch points."
+    },
+    {
+      "id": "TP-5",
+      "origin": "reviewer",
+      "claim": "The diff adds a second new e2e spec, frontend/e2e-layout/no-horizontal-scroll-states.spec.ts, and edits three existing fixtures (addon-policy.html, mobile-inspector-sheet.html, video-app.html). The touch points name one new spec and do not list these fixtures.",
+      "impact": "There is no user impact. One consequence: I1 says 'the list lives in that spec', but the in-scope screens are now spread across two spec files.",
+      "evidence": "frontend/e2e-layout/no-horizontal-scroll-states.spec.ts (new); frontend/e2e-layout/fixtures/{addon-policy,mobile-inspector-sheet,video-app}.html hunks.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Unlisted test files. No invariant is broken.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "List the states spec and the three edited fixtures as touch points."
+    },
+    {
+      "id": "TP-6",
+      "origin": "reviewer",
+      "claim": "The addon submodule bumps change test files that are not in the touch-point list: AdminFeaturesSettingsSection.test.tsx, ClipFramesSection.test.tsx and VisualIndexSection.test.tsx in intelligence, and __tests__/VersionHistoryPanel.test.tsx in knowledge. ClipFramesSection.tsx also deletes the mouse-only press-and-hold arrow buttons and their matchMedia hook. The touch points do not mention that removal.",
+      "impact": "Before this change, mouse users had 'Scroll left' and 'Scroll right' arrow controls on the clip-frames strip. They are gone, and the replacement is wrapped rows. This is an unplanned removal of a control.",
+      "evidence": "addons/intelligence/frontend/ClipFramesSection.tsx diff hunks removing hasFinePointer, startArrowScroll and the two aria-label 'Scroll left'/'Scroll right' buttons.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The removed control and the unlisted test files lie outside the listed touch points. No invariant is broken, because I4 now requires wrapped rows.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Record the removal of the arrow controls and the addon test files in the touch points or in the addon PR description."
+    }
+  ],
+  "specification_compliance": [
+    "The core components listed under Touch points are all reached by the diff: ShelfBlock, CollectionPanel, PageTabs, InspectorShell, Breadcrumb, AddonPolicySection, settings/page, DriveStep and ToolbarMenu.",
+    "Five places the diff reaches are not in the touch-point list (TP-1 to TP-6): VideoCard.tsx, shelfHiddenRows.ts with its two tests, anchoredDropdowns.test.ts, spec-viewport.spec.ts, the states spec with three edited fixtures, and the addon test files."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The ShelfBlock layout effect marks cards from the third row on as `inert`. No invariant states this, and the browser fixture does not reproduce it.",
+    "Because VideoCard now carries `mouse:h-full`, the card links on the see-all page (VideoShelfPage) stretch to their grid row height.",
+    "The mouse-only arrow scroll buttons in ClipFramesSection were removed."
+  ],
+  "regression_risks": [
+    "The see-all page's card hit area and focus ring may grow on a mouse (TP-1).",
+    "A regression in the inert logic is caught only by jsdom stub tests that assume uniform slot heights (TP-2)."
+  ],
+  "test_coverage": [
+    "The hand-built e2e shelf fixture does not run the ShelfBlock inert measurement, so the effect is never checked in a real browser.",
+    "No layout test covers VideoShelfPage after the VideoCard change."
+  ],
+  "not_verified": [
+    "I could not check which files commit cdf7858c1 itself touches, as opposed to the whole branch diff, because I had no git access.",
+    "The VideoShelfPage card stretching was not rendered or measured.",
+    "Touch-point items the diff does not reach, such as cloud-sync SyncDriveCard and knowledge Editor/WikiLinkAutocomplete, were not audited.",
+    "No tests were run."
+  ],
+  "confidence": 78
+}

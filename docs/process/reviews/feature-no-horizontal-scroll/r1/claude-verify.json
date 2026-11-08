@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "frontend/src/components/videoapp/VideoCard.tsx:22 has `mouse:h-full` on the card link class. The touch points (docs/specs/no-horizontal-scroll-on-mouse.md) do not name VideoCard.tsx. VideoShelfPage.tsx:104 wraps it in `<li className=\"min-w-0\">`. I read the file at HEAD. I could not run git diff, so I did not confirm that the hunk is new against develop."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "Both new files exist: shelfHiddenRows.ts and __tests__/shelfHiddenRows.test.ts. __tests__/ShelfBlock.hiddenRows.test.tsx also exists. ShelfBlock.tsx:79-120 measures offsetTop rows with a useLayoutEffect and a ResizeObserver and uses hiddenRowIndices. A grep for `inert` in fixtures/no-horizontal-scroll.html returns no match. None of these files or mechanisms is named in the touch points."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "frontend/src/__tests__/anchoredDropdowns.test.ts:196-199 adds the ShelfBlock.tsx cap-class string to OVERFLOW_CLIP_OCCURRENCES. The touch points' list of existing tests that change does not include anchoredDropdowns.test.ts."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-4",
+      "status": "confirmed",
+      "note": "frontend/e2e-layout/spec-viewport.spec.ts:33 lists \"no-horizontal-scroll.html\" and line 48 sets `FIXTURE_COUNT = 23`. The file is not among the touch points. I could not check the 22→23 change against develop without git."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-5",
+      "status": "confirmed",
+      "note": "Two new specs exist: frontend/e2e-layout/no-horizontal-scroll.spec.ts and no-horizontal-scroll-states.spec.ts. The touch points name only one new e2e-layout spec. fixtures/video-app.html has 3 `mouse:` occurrences, which matches an edit to that fixture. I did not confirm the addon-policy.html and mobile-inspector-sheet.html hunks without a diff, but the spec files for both are named in the touch points and their fixtures are not."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-6",
+      "status": "confirmed",
+      "note": "addons/intelligence/frontend/ClipFramesSection.tsx has no hasFinePointer, startArrowScroll, matchMedia or 'Scroll left'/'Scroll right' left. Line 163 now uses mouse:overflow-y-auto with pointer-coarse:overflow-x-auto. These tests carry new assertions: ClipFramesSection.test.tsx:127-144 and VisualIndexSection.test.tsx:303-312 (mouse:overflow-y-auto), AdminFeaturesSettingsSection.test.tsx:130 (wraps labels) and knowledge __tests__/VersionHistoryPanel.test.tsx:138 (break-anywhere). The spec mentions none of these test files or the arrow-button removal; a grep for 'arrow' in the spec has no match."
+    }
+  ],
+  "specification_compliance": [
+    "Every scope-drift claim from TP-1 to TP-6 holds against the files at HEAD: each named file or behaviour exists and is absent from the touch-point list in docs/specs/no-horizontal-scroll-on-mouse.md."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Removing the mouse-only press-and-hold scroll arrows from ClipFramesSection is a UI removal that no touch point declares.",
+    "The `inert` hiding of rows past the shelf cap in ShelfBlock is a focus/accessibility behaviour the spec does not cover. The static fixture does not reproduce it."
+  ],
+  "regression_risks": [
+    "The e2e fixture's buildShelf sets no `inert`, so the layout spec does not exercise the shelf's hidden-row focus handling. Only the unit tests cover it."
+  ],
+  "test_coverage": [
+    "shelfHiddenRows.test.ts and ShelfBlock.hiddenRows.test.tsx cover the hidden-row mechanism.",
+    "The addon tests assert the mouse:overflow-y-auto / max-h classes."
+  ],
+  "not_verified": [
+    "I could not run git diff against origin/develop, so whether each hunk is new was inferred from the HEAD file contents.",
+    "The addon-policy.html and mobile-inspector-sheet.html fixture edits were not compared with develop.",
+    "No tests or e2e specs were run."
+  ],
+  "confidence": 80
+}

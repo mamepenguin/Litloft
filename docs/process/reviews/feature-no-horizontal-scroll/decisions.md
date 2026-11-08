@@ -3,6 +3,7 @@
 ran_in_app: yes
 at: 2773048452d56db31138963b1ad14ebb7df825f6
 by: agent
+decision: ship (r1, HUMAN_REVIEW_REQUIRED for unspecified_behavior; the user stated "出荷" after being shown the inert hiding of capped shelf rows and the removal of the clip-frames arrow buttons)
 evidence: |
   Environment: scratch stack in this directory, compose project litloft-r5-hscroll, port 3995,
   `docker compose -p litloft-r5-hscroll -f docker-compose.yml -f .r5/override.yml`. Fresh
