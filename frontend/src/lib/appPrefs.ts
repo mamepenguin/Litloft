@@ -14,6 +14,11 @@ export interface AppPrefs {
   target: string;
 }
 
+export const READING_GROUPS = ["none", "tag"] as const;
+export type ReadingGroup = (typeof READING_GROUPS)[number];
+
+export const DEFAULT_READING_GROUP: ReadingGroup = "none";
+
 export const DEFAULT_APP_PREFS: AppPrefs = {
   face: "discover",
   classification: "folder",
@@ -101,5 +106,27 @@ export function writeShownTargets(
     );
   } catch {
     // The open page keeps the toggle; a reload reads the previous set.
+  }
+}
+
+function readingGroupKey(drive: string): string {
+  return `litloft.readingApp.group.${encodeURIComponent(drive)}`;
+}
+
+export function readReadingGroup(drive: string): ReadingGroup {
+  let raw: string | null;
+  try {
+    raw = localStorage.getItem(readingGroupKey(drive));
+  } catch {
+    return DEFAULT_READING_GROUP;
+  }
+  return oneOf(READING_GROUPS, raw, DEFAULT_READING_GROUP);
+}
+
+export function writeReadingGroup(drive: string, group: ReadingGroup): void {
+  try {
+    localStorage.setItem(readingGroupKey(drive), group);
+  } catch {
+    // Losing the choice only returns the face to None on the next visit.
   }
 }

@@ -2,7 +2,7 @@
 
 import { describe, it, expect, beforeEach } from "vitest";
 
-import { readAppPrefs, writeAppPrefs } from "../appPrefs";
+import { readAppPrefs, readReadingGroup, writeAppPrefs, writeReadingGroup } from "../appPrefs";
 
 const DEFAULTS = { face: "discover", classification: "folder", target: "default" };
 
@@ -106,5 +106,25 @@ describe("per-app preference keys", () => {
     localStorage.setItem("litloft.readingApp.face.main", "grid");
 
     expect(readAppPrefs("main", "reading").face).toBe(DEFAULTS.face);
+  });
+});
+
+describe("the Reading group", () => {
+  it("defaults to None", () => {
+    expect(readReadingGroup("main")).toBe("none");
+  });
+
+  it("round-trips under its own per-drive key", () => {
+    writeReadingGroup("main", "tag");
+
+    expect(readReadingGroup("main")).toBe("tag");
+    expect(localStorage.getItem("litloft.readingApp.group.main")).toBe("tag");
+    expect(readReadingGroup("other")).toBe("none");
+  });
+
+  it("reads an unknown stored value as None", () => {
+    localStorage.setItem("litloft.readingApp.group.main", "month");
+
+    expect(readReadingGroup("main")).toBe("none");
   });
 });

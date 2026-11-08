@@ -75,13 +75,13 @@ beforeEach(() => {
 });
 
 describe("the Target menu lists the shown set", () => {
-  it("lists every usable smart folder when nothing was ever saved", () => {
+  it("lists every smart folder when nothing was ever saved, unusable ones disabled", () => {
     render(menu());
     openMenu();
 
     expect(screen.getByRole("menuitemradio", { name: "Alpha" })).toBeInTheDocument();
     expect(screen.getByRole("menuitemradio", { name: "Beta" })).toBeInTheDocument();
-    expect(screen.queryByRole("menuitemradio", { name: "Broken" })).not.toBeInTheDocument();
+    expect(screen.getByRole("menuitemradio", { name: "Broken" })).toBeDisabled();
   });
 
   it("lists exactly the saved set's members", () => {

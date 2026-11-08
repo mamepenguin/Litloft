@@ -141,13 +141,13 @@ export function TargetMenu({
     return new Set(saved.filter((id) => known.has(id)));
   }, [saved, all, usable]);
   const listed = useMemo(() => {
-    const members = saved === null ? usable : all.filter((folder) => shownIds.has(folder.id));
+    const members = saved === null ? all : all.filter((folder) => shownIds.has(folder.id));
     const current = all.find((folder) => folder.id === selectedId);
     if (current && isUsable(current) && !members.some((folder) => folder.id === current.id)) {
       return [...members, current];
     }
     return members;
-  }, [saved, usable, all, shownIds, selectedId, isUsable]);
+  }, [saved, all, shownIds, selectedId, isUsable]);
 
   return (
     <>
