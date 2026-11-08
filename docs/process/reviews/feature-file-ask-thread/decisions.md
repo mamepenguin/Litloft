@@ -265,6 +265,114 @@ pending: |
     home LAN and on other household devices, and calls to real third-party
     addon services (`PROJECT.md` agent_cannot_verify).
 
+## R-5, second run (after fixes)
+
+ran_in_app: yes
+at: 247f649d5203ef94b6f34ef2b1b8bf3950f4f605
+by: agent
+evidence: |
+  SPEC-ADDON-079..082 of `docs/specs/file-ask-thread.md`, second R-5 after
+  the check 3, check 6 and D-3/D-4/D-7 fixes. Core tree
+  247f649d5203ef94b6f34ef2b1b8bf3950f4f605 with `addons/intelligence` at
+  3e80351deada06ed21c76057de3b798257c20f96 and `addons/knowledge` at
+  63fd1a797d7ad65f8edae60c52b5e985147571ba (both clean, no local edits).
+
+  Environment. The same scratch stack and working material as the first R-5:
+  `LITLOFT_PORT=3994 docker compose -p litloft-r5-thread -f docker-compose.yml
+  -f .r5/override.yml up -d --build backend frontend intelligence knowledge`
+  from this worktree, rebuilding the images from the current addon trees. The
+  three fixtures and the earlier Ask notes stayed in `.r5/drive`, the DBs and
+  models in `.r5/data`, and the local OpenAI-compatible stub under
+  `.r5/llm-stub` on host port 3996. Only `litloft-r5-thread` was started and
+  stopped; the other stacks were not touched. The scratch config still
+  carries the first run's deviations: `rag.file_question_max_chars: 1000`,
+  `text_chunking.max_chunk_size: 1000` with `overlap: 200`,
+  `transcription.whisper_local.min_segment_duration: 2`, and
+  `detailed_summaries: "false"`. The stub is not a model; nothing below is
+  evidence about answer quality or a real provider.
+
+  A. Check 3, failure (PASS). `forest-trail.md`, 1440x900. Q1 「Where does
+  the first bus leave from?」 answered. The stub's `fail` switch was set and
+  「And how much is the taxi?」 asked: the second turn showed the question and
+  the red 「答えを作れませんでした」 (a `[role=alert]` inside the turn), and the
+  text box, empty since the send, held the question again. No citations were
+  drawn. The switch was removed and the put-back question sent: the third
+  turn answered. The last request's history block held Q1 and its answer, not
+  Q2, with zero `[n]` markers. Shot `r2-a-failure.png`;
+  `.r5/results/r2-a-check3.json`.
+
+  B. Check 6, saving twice (PASS for the check; the detailed-summary half was
+  not run). `forest-trail.md`: Q1 「Which gate is below the bus stop?」, Q2
+  「How much is the taxi from the station?」, save with the proposed
+  `which-gate-is-below-the-bus-stop.md` in `/Ask` -> note `mQhHqK1DP30T`,
+  `trust_tier: unverified`, two `##` turn sections. Q3 「Where does the ridge
+  path go?」, save again with the same proposed name -> the request answered
+  200/201 and the note is `Ask/which-gate-is-below-the-bus-stop (1).md`
+  (`COGfZmt5ymXM`), unverified, holding all three turns in order; both
+  `note_origins` rows record the actual `(1)` path and a set
+  `trust_declared_at`. Shots `r2-b-saved-link.png`,
+  `r2-b-second-save.png`; `.r5/results/r2-b-check6.json`.
+  The detailed-summary half was not run: the scratch config has
+  `detailed_summaries: "false"`, and the AI menu's 「詳細要約を作成」 answers 400
+  `{"detail":"Detailed summaries feature is disabled"}`, so the
+  「ファイルとして保存」 action never appears (see pending).
+
+  C. Layout (PASS). `forest-trail.md` at 1440x900 with three answered turns
+  and one turn failed through the stub's 500. Four sections; the gaps between
+  consecutive turns were 24, 24 and 24 px. The turns scroller was 376 px high
+  against 658 px of content with `overflow-y: auto`; the text box sat at
+  y=743.4 in the inspector panel (354-884), below the turns container (which
+  ended at 734.4), and did not move when the turns were scrolled to the end.
+  新しい会話 (x 1073), Markdownで保存 (x 1183) and 質問する (x 1336-1424) sat
+  on one row at y=848, the first two on the left and the submit on the right;
+  all three are the shared Button (radius 16 px, height 36 px), the submit
+  the only accent fill (rgb(181, 36, 37)) and the secondaries the app's sand
+  (rgb(229, 229, 224)). The turn list had 16 px bottom padding, the form
+  12 px top padding and the host panel the horizontal 16 px. At 390x844
+  (Chromium, isMobile, hasTouch, DSF 2) the sheet was dragged to its full
+  height, the sheet scroller was 479/1136, the text box sat at y=662.8 with
+  the three buttons at y=767 (x 16, 126, 286), and
+  `documentElement.scrollWidth` was 390 = `innerWidth` (no horizontal
+  scrolling). The saved-link state showed the link and no save button. Shots
+  `r2-c10-desktop-layout.png`, `r2-c10-phone-layout.png`,
+  `r2-c10-saved-link.png`; `.r5/results/r2-c-layout.json`,
+  `r2-c-desktop-bottom.json`, `r2-c-phone.json`.
+
+  D. Check 1 repeated (PASS). A fresh `forest-trail.md` page, Q1 「Where does
+  the first bus leave from?」 then Q2 「How much does the taxi cost?」. The
+  turns were drawn oldest first (y 354 then 536) and the text box below them
+  (y 743.4), empty after each send. The Q2 request carried a history block
+  with Q1 and its answer, with zero `[n]` markers (the first answer's marker
+  was removed) and one passage. `.r5/results/r2-d-check1.json`.
+
+  Seen outside the checks. The failed turn in check C also drew
+  「ファイルの一部を読んで答えました」 above 「答えを作れませんでした」, because
+  this scratch run's `rag.file_question_max_chars: 1000` makes the follow-up
+  partial before the model call fails; check A's failed turn had no partial
+  line. Separately, of the eight successful `POST /notes` in this run, four
+  wrote their `note_origins`/`note_origin_sources` rows (the two check-B
+  saves and two later new-name saves), while four (the check-C save, a second
+  layout save, and two reproductions under a name already taken by an
+  earlier note, e.g. `Ask/where-does-the-trail-begin (2).md`,
+  `WQAkEbIVwyqZ`) returned 201, created the note file and set it
+  `unverified`, but left no row visible in
+  `.r5/data/addons/knowledge/knowledge.db`, read both on the host and inside
+  the container. The notes themselves opened and held their turns. Recorded
+  for the author; it is not one of checks A-D.
+
+pending: |
+  - The detailed-summary promotion (`POST /distill`) was not run because the
+    scratch config has `detailed_summaries: "false"` and the backend rejects
+    generation with 400; the Ask-note path the check names was exercised.
+  - The quality and correctness of answers with a real model: the LLM was a
+    canned local stub.
+  - A real off-host provider, and the `llm_cloud` policy on a real install.
+  - Anything on an iPhone: a 390 px Chromium viewport with isMobile and
+    hasTouch, not a device.
+  - Audio and video as heard and seen, subtitle timing, playback over the
+    home LAN and on other household devices, and calls to real third-party
+    addon services (`PROJECT.md` agent_cannot_verify).
+
 ## Design check decisions (owner, 2026-11-09)
 
 Against `design-check.md` (11 findings):
