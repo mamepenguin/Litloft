@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship. The human answered "ship" to the review r1 verdict HUMAN_REVIEW_REQUIRED; the findings TP-1 to TP-6 are bucket B items about files edited outside the spec's touch points, and TP-6 (Video keeps a stale saved target id) follows invariant I16a. The human declined to record Revisions for SPEC-CORE-055 and 056.
 ran_in_app: yes
 at: ac5e6d3005b1a125011633025064d907a2ed98af
 by: agent

@@ -8,7 +8,7 @@ beforeEach(() => {
   localStorage.clear();
 });
 
-describe("the shown target set", () => {
+describe("SPEC-CORE-063 the shown target set", () => {
   it("reads a drive that has never saved one as unset", () => {
     expect(readShownTargets(DRIVE)).toBeNull();
   });

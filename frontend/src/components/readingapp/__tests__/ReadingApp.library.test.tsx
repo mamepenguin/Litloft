@@ -165,7 +165,7 @@ beforeEach(() => {
   ]);
 });
 
-describe("I18 the folder chips", () => {
+describe("SPEC-CORE-062 I18 the folder chips", () => {
   beforeEach(() => {
     writeAppPrefs(DRIVE, { face: "library" }, "reading");
   });

@@ -74,7 +74,7 @@ beforeEach(() => {
   getDriveFiles.mockReset().mockResolvedValue({ data: [], meta: { total: 12, page: 1, limit: 1 } });
 });
 
-describe("the Target menu lists the shown set", () => {
+describe("SPEC-CORE-063 the Target menu lists the shown set", () => {
   it("lists every smart folder when nothing was ever saved, unusable ones disabled", () => {
     render(menu());
     openMenu();

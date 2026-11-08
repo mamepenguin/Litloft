@@ -136,7 +136,7 @@ beforeEach(() => {
   getSmartFolders.mockReset().mockResolvedValue([]);
 });
 
-describe("I17 Discover's three shelves", () => {
+describe("SPEC-CORE-061 I17 Discover's three shelves", () => {
   it("asks for Continue, Not read yet and New under the book target, with no path", async () => {
     render(<ReadingApp drive={DRIVE} />);
     await screen.findByText("Resume me");
