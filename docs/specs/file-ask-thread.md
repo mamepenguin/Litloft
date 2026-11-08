@@ -47,8 +47,8 @@ page, and the only durable copy is a note the viewer chooses to save.
    turn are rejected.
 3. The route builds the history block from the turns:
    - every `[n]` marker (the pattern `file_question.py` already uses for citations,
-     `\[(\d{1,3})\]`) is removed from each earlier answer, because it numbered passages
-     of an earlier request;
+     `\[(\d{1,3})\]`) is removed from each earlier answer, code included, because it
+     numbered passages of an earlier request;
    - a turn's size is the characters of its question plus its answer after marker
      removal; the history block's labels and separators are not counted;
    - turns are taken newest first while the sum of their sizes fits the history budget,
@@ -62,9 +62,10 @@ page, and the only durable copy is a note the viewer chooses to save.
    the kept turns' sizes after cutting. Chunks are chosen as SPEC-ADDON-053 step 4
    chooses them, against this budget, so a follow-up can be answered from fewer chunks
    than the first question and come back `partial`.
-5. When the chunks do not all fit, ranking embeds the previous turn's question and the
-   new question joined by a newline, instead of the new question alone. With no history
-   it embeds the new question alone, as today.
+5. When the chunks do not all fit, ranking embeds the question of the last entry of
+   `history` as the request carried it (before any cutting), a newline, and the new
+   question, instead of the new question alone. With no history it embeds the new
+   question alone, as today.
 6. The user prompt carries the history block before the question: each kept turn as the
    viewer's question and the earlier answer, then the new question, the position line,
    the image line and the numbered passages as today. The system prompt tells the model
@@ -142,13 +143,19 @@ page, and the only durable copy is a note the viewer chooses to save.
      `[<label>](loft://<file_id>?t=<seconds>)`, `?page=<page>` or
      `?section=<section>`, with the label the pill shows (`m:ss` or `h:mm:ss`, `p.<n>`,
      the section title or `§<n>`); `<seconds>` is the position rounded down to an
-     integer, as `citationToLoftUrl` writes it. Any other `[n]` is removed. The answer's
-     own Markdown, headings included, is written as received.
+     integer, as `citationToLoftUrl` writes it. Any other `[n]` is removed. Text inside
+     an inline code span or a fenced code block is written as received, `[n]` included,
+     by the same code rule the pills follow (SPEC-ADDON-071 I10). The answer's own
+     Markdown, headings included, is written as received.
 4. After a successful save the button is replaced by **Markdownを保存しました — ノートを
    開く**, linking to the note in the Knowledge editor as the drive Ask page does. The
-   saved note's id is part of the thread in `askStore`, so closing and reopening the
-   mobile sheet keeps the link. A new answered turn brings the button back; saving again
-   creates a second note holding every answered turn of the thread.
+   thread in `askStore` keeps the saved note's id and the number of answered turns at
+   the moment of the save, so closing and reopening the mobile sheet keeps the link.
+   The link stays while a new turn streams and after that turn fails. Only when the
+   thread has more answered turns than at the save is the link replaced by the button
+   again; saving again creates a second note holding every answered turn of the thread.
+5. The button is shown whether or not the knowledge addon is installed or on for the
+   drive, as on the drive Ask page; without it the dialog shows the proxy's 404 error.
 
 **082, saved answers are unverified.**
 
@@ -162,11 +169,16 @@ page, and the only durable copy is a note the viewer chooses to save.
 2. On knowledge startup, after migrations: every `note_origins` row with
    `origin = 'ask_answer'` and `trust_declared_at` null is declared the same way, one
    call each, and gets `trust_declared_at` on a 204 or 409. A row whose call answers
-   anything else, 404 included, keeps null and is tried again at the next startup. The
-   pass runs as a background task after startup, so `/health` and the routes answer
-   while it runs, and an unreachable core neither blocks nor stops startup. This covers the notes
-   saved before this change (the migration adds the column as null) and any note whose
-   declaration failed at save time.
+   anything else, 404 included, or raises a transport error (connection, timeout),
+   keeps null and is tried again at the next startup; the pass goes on to the next row.
+   The pass runs as a background task after startup, so `/health` and the routes answer
+   while it runs, and an unreachable core neither blocks nor stops startup. This covers
+   the notes saved before this change (the migration adds the column as null) and any
+   note whose declaration failed at save time. A note in the trash, missing, or purged
+   answers 404 and is retried at every start: one internal call each, logged at debug
+   level, accepted because knowledge keeps a purged note's `note_origins` row and a
+   restored note must still be declared. Only rows whose `origin` is `ask_answer` are
+   read by the pass.
 3. From then on Ask's retriever leaves those notes out as evidence through the existing
    trust filter (`filter-file-ids` with `trust_tier: "verified"`), search still finds
    them, and the note's file page shows the existing unverified-source section with
@@ -186,12 +198,16 @@ page, and the only durable copy is a note the viewer chooses to save.
 - **081.** A save that fails shows the error inside `FileSaveDialog`, as on the drive Ask
   page, and the thread is unchanged. A read-only drive answers 403 there. After 082's
   502 the note exists although the dialog shows an error; saving again writes a second
-  note (`name (1).md`). Both are accepted: the 502 needs a core without
-  `CORE_INTERNAL_SECRET`, which `configure.py` never produces.
+  note (`name (1).md`). Both are accepted: the 502 needs a backend without
+  `CORE_INTERNAL_SECRET`, which the current `configure.py` does not produce; an override
+  written by an older one can lack it (`docs/addons/intelligence.md`), and the upgrade
+  note in the docs tells that operator to run `configure.py` again.
 - **082.** When core rejects the declaration for any reason but 409 (no
-  `CORE_INTERNAL_SECRET`, 403, 404, network), `POST /notes` answers 502 with a detail
-  saying the note was saved but could not be marked unverified; the note stays where it
-  was written. This is the clip route's behaviour (`clips.py`). The `note_origins` row
+  `CORE_INTERNAL_SECRET`, 403, 404), or the call raises a transport error (connection,
+  timeout), `POST /notes` answers 502 with a detail saying the note was saved but could
+  not be marked unverified; the note stays where it was written. This follows the clip
+  route (`clips.py`), which answers 502 for a status and does not catch a transport
+  error; this route catches both. The `note_origins` row
   is committed and `knowledge.note.created` is emitted before the declaration, so open
   Knowledge views refresh either way. The row keeps `trust_declared_at` null, so the
   startup pass declares it at the next start; until then Ask can cite that note.
@@ -205,9 +221,10 @@ page, and the only durable copy is a note the viewer chooses to save.
   `answered` or `failed`.
 - **A thread:** empty → has turns (a question was sent) → empty (**新しい会話**, or the
   file page closed or changed). At most one turn is `streaming`, and it is the last.
-- **The save button:** hidden (no answered turn, or a turn is streaming) → offered →
-  saved (link shown) → offered again (a new answered turn). **新しい会話** returns it to
-  hidden, since the thread is then empty.
+- **The save button:** hidden (no answered turn, or a turn is streaming, with no save
+  yet) → offered → saved (link shown; it stays while a later turn streams or fails) →
+  offered again (the thread holds more answered turns than at the save). **新しい会話**
+  returns it to hidden, since the thread is then empty.
 - **A saved Ask note's trust tier:** `unverified` from creation or from the startup pass →
   `verified` only when the viewer presses **Trust as a source**; the viewer's ruling is
   never overwritten by either path.
@@ -301,7 +318,7 @@ text the viewer sent; it reads no other file. The note save goes through the pro
 - Privacy: earlier questions and answers about the file go to the same model the new
   question goes to, and to no other; the `llm_cloud` gate is unchanged.
 - The startup pass makes one internal call per Ask note whose declaration has not
-  succeeded, so a normal start after the first makes none.
+  succeeded: after the first start, only notes in the trash, missing or purged.
 
 ## Touch points
 
@@ -328,37 +345,53 @@ text the viewer sent; it reads no other file. The note save goes through the pro
   (no new Internal API endpoint), `.claude/rules/frontend-conventions.md` (i18n in the
   addon's messages; `DESIGN.md`).
 - Docs: `docs/addons/intelligence.md` (the `history` field, saving a file thread),
-  `docs/addons/knowledge.md` (Ask notes are unverified, beside "Clips are unverified"),
-  `docs/user-guide/search.md` (follow-up questions, why a follow-up can be partial,
-  saving, saved answers not cited until trusted).
+  `docs/reference/api.md` (the `history` field of `POST .../files/{id}/ask`),
+  `docs/addons/knowledge.md` (Ask notes are unverified, beside "Clips are unverified",
+  and the `CORE_INTERNAL_SECRET` row), `docs/reference/env-variables.md`
+  (`CORE_INTERNAL_SECRET` is also needed to save an Ask answer; an older override is
+  fixed by running `configure.py` again), `docs/user-guide/search.md` (follow-up
+  questions, why a follow-up can be partial, saving, saved answers not cited until
+  trusted).
 - `frontend/e2e-layout/`: one case that, in the inspector's full-height layout with a
   thread taller than the panel, the text box stays at the bottom in view and the turns
   scroll above it.
 - Two submodule PRs (intelligence, knowledge) and a core PR with the spec, docs and the
-  pointer bumps. No protected path is edited.
+  pointer bumps. No protected path is edited. The `note_origins` migration is a schema
+  change (HIGH in `risk-zones.conf`).
 
 ## Invariants
 
-I1. A file question with no `history` or an empty one sends the model the same system prompt, user prompt and chunks, ranked by the new question alone, as before this change.
-I2. For one question, the kept turns' sizes (question plus answer after marker removal and cutting) total at most half of `rag.file_question_max_chars` rounded down, turns and passages together at most `rag.file_question_max_chars`, and a kept turn is never older than a dropped one.
-I3. No `[n]` marker from an earlier answer reaches the model, and every entry of the `citations` event names a passage sent in this request.
-I4. A body with more than 10 turns, a turn question outside 1 to 1,000 characters, a turn answer over 20,000 characters, or an unknown key in a turn is rejected with 422 before any model, embedding or semaphore slot is used.
-I5. The tab sends as `history` only the thread's `answered` turns before the new one, oldest first, at most the last 10, each answer at most 20,000 characters; a failed or streaming turn is never sent.
-I6. **新しい会話** and **Markdownで保存** are never offered while a turn streams; **新しい会話** empties the thread and its saved-note link and leaves the text box as it was; a turn that fails while the text box is empty puts its question back into it, and never overwrites text the viewer typed.
-I7. A note saved from the tab contains every answered turn in thread order and no failed one, and each `[n]` in it is either a `loft://` link to the cited position of this file, with an integer `t`, or removed.
+I1. A file question with no `history` or an empty one sends the model the same system prompt, user prompt and chunks, ranked by the new question alone, as before this change; with history and a file over budget, ranking embeds the last `history` entry's question as sent, a newline, and the new question.
+I2. For one question, the kept turns' sizes (question plus answer after marker removal and cutting) total at most half of `rag.file_question_max_chars` rounded down, turns and passages together at most `rag.file_question_max_chars`, a kept turn is never older than a dropped one, and no `\[\d{1,3}\]` marker from an earlier answer reaches the model.
+I3. A body with more than 10 turns, a turn question outside 1 to 1,000 characters, a turn answer over 20,000 characters, or an unknown key in a turn is rejected with 422 before any model, embedding or semaphore slot is used.
+I4. The tab sends as `history` only the thread's `answered` turns before the new one, oldest first, at most the last 10, each answer at most 20,000 characters; a failed or streaming turn is never sent.
+I5. **新しい会話** and **Markdownで保存** are never offered while a turn streams; **新しい会話** empties the thread and its saved-note link and leaves the text box as it was; a turn that fails while the text box is empty puts its question back into it and never overwrites typed text; after a save, only a thread holding more answered turns than at the save offers the button again.
+I6. In the inspector's full-height layout, with a thread taller than the panel, the text box stays at the bottom of the tab in view and the turns scroll above it; each turn's pills move the viewer to that turn's own cited positions.
+I7. A note saved from the tab contains every answered turn in thread order and no failed one, and outside code spans and fenced blocks each `[n]` in it is either a `loft://` link to the cited position of this file, with an integer `t`, or removed; inside them the text is as received.
 I8. `POST /notes` with `origin: "ask_answer"` either leaves the note unverified, or answers 201 with the tier a viewer already ruled, or answers a non-2xx status; with any other origin it never calls the trust declaration.
-I9. A `note_origins` row with `origin = 'ask_answer'` gets `trust_declared_at` only after core answered its declaration with 204 or 409, every such row still null is declared again at the next knowledge startup, and that pass never delays `/health`.
-I10. Pills in a turn move the open player or viewer to that turn's own cited positions, and a time, page or section pill never changes the page URL or remounts the viewer.
+I9. Only `note_origins` rows with `origin = 'ask_answer'` are ever declared; such a row gets `trust_declared_at` only after core answered 204 or 409, every such row still null is declared again at the next knowledge startup, and that pass never delays `/health`.
+I10. The migration adds `note_origins.trust_declared_at` as null to every existing row, keeps every existing `note_origins` and `note_origin_sources` row and value, and changes nothing when the column already exists.
 
 ## Revises
 
 SPEC-ADDON-053 I2. When the file's chunk text totals at most the passage budget (`rag.file_question_max_chars` minus the characters of the history turns sent), all chunks are sent in file order and `partial` is false; otherwise the sent chunk text totals at most the passage budget, chosen by the ranking and fitting rule of 053 step 4 with the ranking text of SPEC-ADDON-079 step 5, sent in file order, and `partial` is true.
 SPEC-ADDON-053 I5. Neither the routes nor the tab store the questions, answers, history or citations anywhere other than the open page's memory, except the note the viewer saves with **Markdownで保存**, and the addon never logs question, answer or history text.
+SPEC-ADDON-053 I12. `/ask` and `/find` return the same responses for the same requests as before, except that a note saved through the Ask save is no longer cited while it is unverified; `player-side` tabs keep their order and their silence-means-available rule.
 SPEC-ADDON-056 I11. While a file's turn is streaming no second request is sent for it; moving to another file or leaving the page aborts the stream and frees its semaphore slot; closing the mobile sheet or switching tabs keeps the whole thread; a stream that fails or closes without `done` keeps the text received in its turn and shows the failure line under it.
+SPEC-ADDON-071 I1. A question's passages, picture and frame come only from the requested file, an active file of the `X-Lit-Drive` drive that the viewer can access and whose `rag` feature is on, and the only other text sent is the history the request carried; the frame is the one at the request's `position_seconds`, and at most one image is sent, a picture of at most 1024 px on its long edge or a frame of at most 1280 px.
 SPEC-ADDON-071 I8. The questions, the answers, the history and every image byte are neither stored nor logged by the route or the tab, apart from the `large` frame cache entry that `get_video_frame` also writes and the note the viewer saves.
 
 ## Checked, no action
 
+- **SPEC-ADDON-071 I5 and an earlier answer that mentions an image.** I5 is about the
+  instructions the prompt gives; an earlier answer is the viewer's history, not an
+  instruction, so I5 holds as written.
+- **Marker removal inside code in the history.** The history rule removes every `[n]`,
+  code included; only the model sees it, and an earlier answer's code is context, not
+  something it cites. The saved note keeps code as received (I7).
+- **Overlap with SPEC-ADDON-053 I3 and I8.** Citations naming only this request's
+  passages, and pills never changing the URL or remounting the viewer, are 053's and
+  hold unchanged; this spec states only the per-turn part.
 - **Follow-up questions on the drive Ask page.** A follow-up there has to be rewritten
   into a standalone question before retrieval, ahead of query transform, hierarchical
   retrieval, the agentic loop, personal history and scope. That is a larger unit with
