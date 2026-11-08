@@ -45,11 +45,13 @@ export function VideoShelfPage({
   by,
   shelfKey,
   initialSort,
+  from,
 }: {
   drive: string;
   by: ShelfGrouping | null;
   shelfKey: string;
   initialSort?: string | null;
+  from?: string | null;
 }) {
   const t = useTranslations("videoApp");
   const locale = useLocale();
@@ -93,7 +95,7 @@ export function VideoShelfPage({
   const title =
     by === null
       ? t("title")
-      : shelfTitle({ by, shelf: { key: shelfKey, label: shelfKey }, drive, locale, t: (key) => t(key) });
+      : shelfTitle({ by, shelf: { key: shelfKey, label: shelfKey }, drive, locale, from, t: (key) => t(key) });
   const app = builtinApps.find((candidate) => candidate.id === "video")!;
 
   const body =

@@ -354,6 +354,7 @@ describe("I19 grouping and sort", () => {
     expect(url.searchParams.get("key")).toBe("Trip");
     expect(url.searchParams.get("sort")).toBe("size");
     expect(url.searchParams.getAll("tag")).toEqual(["read"]);
+    expect(url.searchParams.get("from")).toBe("library");
   });
 });
 

@@ -34,7 +34,7 @@ export function seeAllHref(
   key: string,
   sortId?: SortChoice["id"],
 ): string {
-  return videoShelfHref(drive, by, key, sortId);
+  return videoShelfHref(drive, by, key, sortId, "library");
 }
 
 export function LibraryFace({

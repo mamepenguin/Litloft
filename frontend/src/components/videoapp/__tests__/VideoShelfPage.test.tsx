@@ -200,3 +200,15 @@ describe("See all", () => {
     expect(getShelves).not.toHaveBeenCalled();
   });
 });
+
+describe("the shelf page's title", () => {
+  it.each([
+    [null, "All videos"],
+    ["library", "All videos"],
+    ["discover", "New"],
+  ])("titles by=all from %s as %s", async (from, title) => {
+    render(<VideoShelfPage drive={DRIVE} by="all" shelfKey="all" from={from} />);
+
+    expect(await screen.findByRole("heading", { name: title })).toBeInTheDocument();
+  });
+});

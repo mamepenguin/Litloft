@@ -120,9 +120,9 @@ describe("Video's Discover shelves link to See all", () => {
     await screen.findByText("Pick me");
 
     const hrefs = seeAllHrefs();
-    expect(hrefs).toContain(`/drive/${DRIVE}/apps/video/shelf?by=watch&key=in_progress`);
-    expect(hrefs).toContain(`/drive/${DRIVE}/apps/video/shelf?by=watch&key=unwatched`);
-    expect(hrefs).toContain(`/drive/${DRIVE}/apps/video/shelf?by=all&key=all`);
+    expect(hrefs).toContain(`/drive/${DRIVE}/apps/video/shelf?by=watch&key=in_progress&from=discover`);
+    expect(hrefs).toContain(`/drive/${DRIVE}/apps/video/shelf?by=watch&key=unwatched&from=discover`);
+    expect(hrefs).toContain(`/drive/${DRIVE}/apps/video/shelf?by=all&key=all&from=discover`);
   });
 
   it("draws no Recommended See all without a profile, and keeps New's", async () => {
@@ -134,7 +134,7 @@ describe("Video's Discover shelves link to See all", () => {
     expect(screen.queryByRole("link", { name: "See all: Continue" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "See all: New" })).toHaveAttribute(
       "href",
-      `/drive/${DRIVE}/apps/video/shelf?by=all&key=all`,
+      `/drive/${DRIVE}/apps/video/shelf?by=all&key=all&from=discover`,
     );
   });
 });
@@ -151,7 +151,7 @@ describe("Video's Library sort reaches See all", () => {
     await waitFor(() =>
       expect(screen.getByRole("link", { name: "See all: Movies" })).toHaveAttribute(
         "href",
-        `/drive/${DRIVE}/apps/video/shelf?by=folder&key=Movies&sort=size`,
+        `/drive/${DRIVE}/apps/video/shelf?by=folder&key=Movies&sort=size&from=library`,
       ),
     );
   });

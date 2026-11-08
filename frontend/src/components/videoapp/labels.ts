@@ -11,15 +11,17 @@ export function shelfTitle({
   shelf,
   drive,
   locale,
+  from,
   t,
 }: {
   by: ShelfGrouping;
   shelf: Pick<Shelf, "key" | "label">;
   drive: string;
   locale: string;
+  from?: string | null;
   t: Translate;
 }): string {
-  if (by === "all") return t("allVideos");
+  if (by === "all") return from === "discover" ? t("shelves.new") : t("allVideos");
   if (by === "folder") {
     if (shelf.key === "") return drive;
     const path = shelf.key.endsWith("/") ? shelf.key.slice(0, -1) : shelf.key;

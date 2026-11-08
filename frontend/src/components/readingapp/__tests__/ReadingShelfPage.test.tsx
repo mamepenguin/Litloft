@@ -224,14 +224,23 @@ describe("I21 the shelf page", () => {
 
 describe("the shelf page's title", () => {
   it.each([
-    ["watch", "in_progress", "Continue reading"],
-    ["watch", "unwatched", "Not read yet"],
-    ["tag", "no_tag", "No tag"],
-    ["all", "all", "All books"],
-    ["folder", "Shows/Season 1", "Season 1"],
-    ["folder", "", DRIVE],
-  ])("titles %s %s as %s", async (by, key, title) => {
-    render(<ReadingShelfPage drive={DRIVE} by={by as never} shelfKey={key} />);
+    ["watch", "in_progress", null, "Continue reading"],
+    ["watch", "unwatched", null, "Not read yet"],
+    ["tag", "no_tag", null, "No tag"],
+    ["all", "all", null, "All books"],
+    ["all", "all", "library", "All books"],
+    ["all", "all", "discover", "New"],
+    ["folder", "Shows/Season 1", null, "Season 1"],
+    ["folder", "", null, DRIVE],
+  ])("titles %s %s from %s as %s", async (by, key, from, title) => {
+    render(
+      <ReadingShelfPage
+        drive={DRIVE}
+        by={by as never}
+        shelfKey={key}
+        from={from as string | null}
+      />,
+    );
 
     expect(await screen.findByRole("heading", { name: title })).toBeInTheDocument();
   });

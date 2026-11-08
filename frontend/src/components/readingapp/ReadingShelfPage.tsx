@@ -54,6 +54,7 @@ export function ReadingShelfPage({
   folders: urlFolders,
   tags: urlTags,
   watch: urlWatch,
+  from,
 }: {
   drive: string;
   by: ShelfGrouping | null;
@@ -62,6 +63,7 @@ export function ReadingShelfPage({
   folders?: readonly string[];
   tags?: readonly string[];
   watch?: string | null;
+  from?: string | null;
 }) {
   const t = useTranslations("readingApp");
   const state = useReadingApp(drive);
@@ -122,7 +124,7 @@ export function ReadingShelfPage({
   const title =
     by === null
       ? t("title")
-      : shelfTitle({ by, key: shelfKey, drive, t: (key) => t(key) });
+      : shelfTitle({ by, key: shelfKey, drive, from, t: (key) => t(key) });
 
   let body: ReactNode;
   if (state.empty) {

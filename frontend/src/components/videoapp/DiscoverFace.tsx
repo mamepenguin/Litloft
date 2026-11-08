@@ -49,7 +49,7 @@ export function DiscoverFace({
             id: "continue",
             title: t("continue"),
             source: continueShelf,
-            href: videoShelfHref(drive, "watch", "in_progress"),
+            href: videoShelfHref(drive, "watch", "in_progress", undefined, "discover"),
           },
         ]
       : []),
@@ -57,13 +57,13 @@ export function DiscoverFace({
       id: "recommended",
       title: t("recommended"),
       source: recommended,
-      href: hasProfile ? videoShelfHref(drive, "watch", "unwatched") : undefined,
+      href: hasProfile ? videoShelfHref(drive, "watch", "unwatched", undefined, "discover") : undefined,
     },
     {
       id: "new",
       title: t("new"),
       source: fresh,
-      href: videoShelfHref(drive, "all", "all"),
+      href: videoShelfHref(drive, "all", "all", undefined, "discover"),
     },
   ].filter((shelf) => drawn(shelf.source.state));
 

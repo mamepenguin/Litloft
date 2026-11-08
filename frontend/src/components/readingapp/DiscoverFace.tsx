@@ -50,7 +50,7 @@ export function DiscoverFace({
             id: "continue",
             title: t("shelves.continue"),
             source: continueShelf,
-            href: readingShelfHref(drive, "watch", "in_progress"),
+            href: readingShelfHref(drive, "watch", "in_progress", undefined, {}, "discover"),
             progress: true,
           },
         ]
@@ -59,14 +59,14 @@ export function DiscoverFace({
       id: "notRead",
       title: t("shelves.notReadYet"),
       source: notRead,
-      href: hasProfile ? readingShelfHref(drive, "watch", "unwatched") : undefined,
+      href: hasProfile ? readingShelfHref(drive, "watch", "unwatched", undefined, {}, "discover") : undefined,
       progress: false,
     },
     {
       id: "new",
       title: t("shelves.new"),
       source: fresh,
-      href: readingShelfHref(drive, "all", "all"),
+      href: readingShelfHref(drive, "all", "all", undefined, {}, "discover"),
       progress: false,
     },
   ].filter((shelf) => drawn(shelf.source.state));

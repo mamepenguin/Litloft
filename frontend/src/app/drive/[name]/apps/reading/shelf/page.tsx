@@ -18,6 +18,7 @@ export default function ReadingShelfRoute() {
       folders={search.getAll("folder").filter(Boolean)}
       tags={search.getAll("tag").filter(Boolean)}
       watch={search.get("watch")}
+      from={search.get("from")}
     />
   );
 }

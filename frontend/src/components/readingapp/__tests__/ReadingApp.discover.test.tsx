@@ -224,15 +224,15 @@ describe("Discover's See all destinations", () => {
 
     expect(screen.getByRole("link", { name: "See all: Continue reading" })).toHaveAttribute(
       "href",
-      `/drive/${DRIVE}/apps/reading/shelf?by=watch&key=in_progress`,
+      `/drive/${DRIVE}/apps/reading/shelf?by=watch&key=in_progress&from=discover`,
     );
     expect(screen.getByRole("link", { name: "See all: Not read yet" })).toHaveAttribute(
       "href",
-      `/drive/${DRIVE}/apps/reading/shelf?by=watch&key=unwatched`,
+      `/drive/${DRIVE}/apps/reading/shelf?by=watch&key=unwatched&from=discover`,
     );
     expect(screen.getByRole("link", { name: "See all: New" })).toHaveAttribute(
       "href",
-      `/drive/${DRIVE}/apps/reading/shelf?by=all&key=all`,
+      `/drive/${DRIVE}/apps/reading/shelf?by=all&key=all&from=discover`,
     );
   });
 });

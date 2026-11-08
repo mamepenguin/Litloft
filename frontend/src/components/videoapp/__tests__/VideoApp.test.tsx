@@ -366,7 +366,7 @@ describe("SPEC-CORE-057 I9 Library", () => {
     const hrefs = screen
       .getAllByRole("link", { name: /See all/ })
       .map((a) => a.getAttribute("href"));
-    expect(hrefs).toContain(`/drive/${DRIVE}/apps/video/shelf?by=folder&key=Movies`);
+    expect(hrefs).toContain(`/drive/${DRIVE}/apps/video/shelf?by=folder&key=Movies&from=library`);
   });
 
   it("SPEC-CORE-057 labels the root folder shelf with the drive name and keeps its key empty", async () => {
@@ -377,7 +377,7 @@ describe("SPEC-CORE-057 I9 Library", () => {
     const hrefs = screen
       .getAllByRole("link", { name: /See all/ })
       .map((a) => a.getAttribute("href"));
-    expect(hrefs).toContain(`/drive/${DRIVE}/apps/video/shelf?by=folder&key=`);
+    expect(hrefs).toContain(`/drive/${DRIVE}/apps/video/shelf?by=folder&key=&from=library`);
   });
 
   it("SPEC-CORE-057 labels the untagged shelf No tag", async () => {

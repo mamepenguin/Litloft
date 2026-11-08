@@ -48,14 +48,16 @@ export function shelfTitle({
   by,
   key,
   drive,
+  from,
   t,
 }: {
   by: ShelfGrouping;
   key: string;
   drive: string;
+  from?: string | null;
   t: Translate;
 }): string {
-  if (by === "all") return t("allBooks");
+  if (by === "all") return from === "discover" ? t("shelves.new") : t("allBooks");
   if (by === "folder") return folderLabel(key, drive);
   if (by === "tag") return key === "no_tag" ? t("noTag") : key;
   if (by === "watch") return t(`shelves.${key}`);

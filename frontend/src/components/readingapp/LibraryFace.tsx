@@ -273,7 +273,7 @@ export function LibraryFace({
                 key={shelf.key}
                 title={shelfTitle({ by: "tag", key: shelf.key, drive, t: (key) => t(key) })}
                 count={number.format(shelf.count)}
-                seeAllHref={readingShelfHref(drive, "tag", shelf.key, sortId, conditions)}
+                seeAllHref={readingShelfHref(drive, "tag", shelf.key, sortId, conditions, "library")}
                 view={{ status: "loaded", items: shelf.items }}
                 onRetry={grouped.retry}
                 renderItem={(item) => <ReadingCard item={item} drive={drive} />}
