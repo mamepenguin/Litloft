@@ -214,7 +214,7 @@ describe("SPEC-CORE-064 I8 — the repository", () => {
     // An empty walk would pass every case below and prove nothing.
     expect(files.length).toBeGreaterThan(100);
     expect(files.map((f) => f.path)).toContain(
-      "frontend/src/components/videoapp/ShelfBlock.tsx",
+      "frontend/src/components/appshell/ShelfBlock.tsx",
     );
 
     expect(describeViolations(findHscrollViolations(files))).toEqual([]);

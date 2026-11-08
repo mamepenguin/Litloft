@@ -46,7 +46,7 @@ const FIXTURES = [
   "video-app.html",
 ] as const;
 
-const FIXTURE_COUNT = 23;
+const FIXTURE_COUNT = 24;
 
 /**
  * On the far side of `sm` from Chromium's mobile default, so a page that

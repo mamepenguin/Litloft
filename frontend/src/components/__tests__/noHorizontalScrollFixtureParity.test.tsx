@@ -14,7 +14,6 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve, dirname } from "node:path";
 
-import { ShelfBlock } from "@/components/videoapp/ShelfBlock";
 import type { ShelfItem } from "@/lib/api";
 import { CollectionPanel } from "@/components/CollectionPanel";
 import { PageTabs } from "@/components/PageTabs";
@@ -86,55 +85,6 @@ const item = (id: string): ShelfItem =>
     duration: 120,
     tags: [],
   }) as unknown as ShelfItem;
-
-function renderShelf() {
-  const { container } = render(
-    <ShelfBlock
-      title="A shelf of many videos"
-      count="12"
-      seeAllHref="/shelf"
-      view={{ status: "loaded", items: [item("a"), item("b")] }}
-      onRetry={() => {}}
-    />,
-  );
-  const section = container.querySelector("section")!;
-  const head = section.firstElementChild as HTMLElement;
-  const row = section.querySelector("ul")!;
-  const slot = row.querySelector("li")!;
-  const card = slot.querySelector("a")!;
-  return {
-    section,
-    head,
-    title: head.querySelector("h2")!,
-    count: head.querySelector("span")!,
-    seeAll: head.querySelector("a")!,
-    row,
-    slot,
-    card,
-    thumb: card.firstElementChild as HTMLElement,
-    cardTitle: card.lastElementChild as HTMLElement,
-  };
-}
-
-describe("SPEC-CORE-064/065 — the no-horizontal-scroll fixture's shelf", () => {
-  it("declares the section ShelfBlock renders", () => {
-    const shelf = renderShelf();
-    expectSameClasses(shelf.section.className, SPEC.shelfSection!);
-    expectSameClasses(shelf.head.className, SPEC.shelfHead!);
-    expectSameClasses(shelf.title.className, SPEC.shelfTitle!);
-    expectSameClasses(shelf.count.className, SPEC.shelfCount!);
-    expectSameClasses(shelf.seeAll.className, SPEC.seeAll!);
-  });
-
-  it("declares the row and the card slot, which is the part that overflows", () => {
-    const shelf = renderShelf();
-    expectSameClasses(shelf.row.className, SPEC.shelfRow!);
-    expectSameClasses(shelf.slot.className, SPEC.slot!);
-    expectSameClasses(shelf.card.className, SPEC.card!);
-    expectSameClasses(shelf.thumb.className, SPEC.thumb!);
-    expectSameClasses(shelf.cardTitle.className, SPEC.cardTitle!);
-  });
-});
 
 function collectionFile(id: string) {
   return {

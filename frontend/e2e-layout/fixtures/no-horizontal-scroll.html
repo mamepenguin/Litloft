@@ -20,17 +20,6 @@
     -->
     <script type="application/json" id="fixture-markup">
       {
-        "shelfSection": "min-w-0 @container [--shelf-slot-w:11rem] sm:[--shelf-slot-w:14rem] xl:[--shelf-slot-w:calc((100cqw-3rem)/5)] [--shelf-slot-h:calc(var(--shelf-slot-w)*9/16+3rem)]",
-        "shelfHead": "mb-3 flex items-baseline gap-2",
-        "shelfTitle": "min-w-0 truncate text-lg font-bold text-text-primary",
-        "shelfCount": "flex-shrink-0 text-sm tabular-nums text-text-muted",
-        "seeAll": "ml-auto flex-shrink-0 text-sm text-text-muted transition-colors hover:text-text-primary",
-        "shelfRow": "flex flex-wrap gap-3 pointer-coarse:flex-nowrap pointer-coarse:snap-x pointer-coarse:overflow-x-auto pointer-coarse:pb-2 mouse:max-h-[calc(2*var(--shelf-slot-h)+0.75rem+0.5rem)] mouse:overflow-clip mouse:-m-1 mouse:p-1",
-        "slot": "w-44 flex-shrink-0 snap-start sm:w-56 xl:w-[calc((100%-3rem)/5)] mouse:h-[var(--shelf-slot-h)]",
-        "card": "group block min-w-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring mouse:h-full",
-        "thumb": "relative aspect-video overflow-hidden rounded-2xl bg-bg-elevated",
-        "cardTitle": "mt-2 line-clamp-2 text-sm font-semibold text-text-primary",
-
         "collectionOuter": "mt-4 w-full",
         "collectionCard": "rounded-2xl border border-bg-border bg-bg-card p-4",
         "collectionHead": "mb-3 flex items-center justify-between",
@@ -123,83 +112,6 @@
       });
 
       const named = (selector) => Array.from(document.querySelectorAll(selector));
-
-      window.buildShelf = ({ width, cards, seeAll, state = "loaded" }) => {
-        frame().style.width = `${width}px`;
-        frame().replaceChildren();
-
-        const section = el("section", SPEC.shelfSection);
-        const head = el("div", SPEC.shelfHead);
-        head.append(
-          el("h2", SPEC.shelfTitle, "A shelf of many videos"),
-          el("span", SPEC.shelfCount, String(cards)),
-        );
-        if (seeAll) {
-          head.append(
-            el("a", SPEC.seeAll, "See all", {
-              href: "#",
-              "data-see-all": "",
-            }),
-          );
-        }
-        section.append(head);
-
-        if (state === "failed") {
-          section.append(
-            el(
-              "button",
-              "rounded-2xl border border-bg-border px-3 py-1.5 text-sm text-text-muted transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring pointer-coarse:min-h-11",
-              "Retry",
-              { type: "button", "data-retry": "" },
-            ),
-          );
-          frame().append(section);
-          return;
-        }
-
-        const CAP =
-          "mouse:max-h-[calc(2*var(--shelf-slot-h)+0.75rem+0.5rem)] mouse:overflow-clip mouse:-m-1 mouse:p-1";
-        const rowClass = seeAll
-          ? SPEC.shelfRow
-          : SPEC.shelfRow
-              .split(/\s+/)
-              .filter((token) => !CAP.split(/\s+/).includes(token))
-              .join(" ");
-        const row = el("ul", rowClass, undefined, {
-          "data-shelf-row": "",
-        });
-        for (let i = 0; i < cards; i += 1) {
-          const slot = el("li", SPEC.slot, undefined, {
-            "data-shelf-card": String(i),
-          });
-          if (state === "loading") {
-            slot.classList.add("animate-pulse");
-            slot.append(
-              el("div", "aspect-video rounded-2xl bg-bg-elevated"),
-              el("div", "mt-2 h-4 w-3/4 rounded-lg bg-bg-elevated"),
-            );
-          } else {
-            const card = el("a", SPEC.card, undefined, { href: "#" });
-            card.append(
-              el("div", SPEC.thumb),
-              el("span", SPEC.cardTitle, `Video number ${i + 1}`),
-            );
-            slot.append(card);
-          }
-          row.append(slot);
-        }
-        section.append(row);
-        frame().append(section);
-      };
-
-      window.measureShelf = () => {
-        const row = document.querySelector("[data-shelf-row]");
-        return {
-          row: scrollable(row),
-          cards: named("[data-shelf-card]").map(rect),
-          seeAll: document.querySelector("[data-see-all]") !== null,
-        };
-      };
 
       window.buildCollectionPanel = ({ width, tracks }) => {
         frame().style.width = `${width}px`;

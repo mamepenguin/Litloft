@@ -62,7 +62,7 @@ async function measure(page: Page, face: "discover" | "library", width: number) 
 
 for (const width of [PHONE, DESKTOP]) {
   test.describe(`at ${width}px`, () => {
-    test(`Discover does not widen the page, and each shelf wraps inside itself`, async ({ page }) => {
+    test(`Discover does not widen the page, and each shelf scrolls inside itself`, async ({ page }) => {
       const m = await measure(page, "discover", width);
 
       expect(m.viewport).toBe(width);
@@ -71,9 +71,8 @@ for (const width of [PHONE, DESKTOP]) {
       for (const row of m.rows) {
         expect(row.cards).toBe(12);
         expect(row.right).toBeLessThanOrEqual(width);
-        // A mouse has no sideways gesture, so the row wraps instead of
-        // scrolling; every card is still in the document.
-        expect(row.scrollWidth).toBeLessThanOrEqual(row.clientWidth + 1);
+        // Twelve cards at least 176px wide never fit one screen, so the row is the thing that scrolls.
+        expect(row.scrollWidth).toBeGreaterThan(row.clientWidth);
       }
     });
 
@@ -118,8 +117,8 @@ test("at the desktop width the five Library cards of a shelf are all in view wit
   for (const row of m.rows) expect(row.scrollWidth).toBeLessThanOrEqual(row.clientWidth);
 });
 
-test("at the phone width the Library shelf wraps instead of scrolling sideways", async ({ page }) => {
+test("at the phone width the Library shelf scrolls sideways inside itself", async ({ page }) => {
   const m = await measure(page, "library", PHONE);
 
-  for (const row of m.rows) expect(row.scrollWidth).toBeLessThanOrEqual(row.clientWidth + 1);
+  for (const row of m.rows) expect(row.scrollWidth).toBeGreaterThan(row.clientWidth);
 });

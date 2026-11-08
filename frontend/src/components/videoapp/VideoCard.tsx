@@ -19,7 +19,7 @@ export function VideoCard({ item }: { item: ShelfItem }) {
   return (
     <Link
       href={fileLinkHref(item)}
-      className="group block min-w-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring mouse:h-full"
+      className="group block min-w-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
     >
       <div className="relative aspect-video overflow-hidden rounded-2xl bg-bg-elevated">
         {item.has_thumbnail ? (

@@ -1201,11 +1201,8 @@ coarse-pointer rules, never the viewport width — and it is defined once, as th
 - **A token that cannot wrap** truncates with an ellipsis and carries its full
   text in `title`, or breaks with `overflow-wrap: anywhere`. It never produces a
   scrollbar.
-- **A carousel wraps into rows.** A shelf with a "see all" link draws at most two
-  rows and leaves the rest to that page; the cards beyond the second row stay in
-  the DOM but are inert, so neither Tab nor assistive technology reaches them. A
-  card slot has the height of a thumbnail plus a two-line title, so the cap
-  lands exactly after the second row. A shelf without the link draws every row.
+- **A shelf is a grid of exactly the cards that fit in two rows.** Columns come
+  from the container's width, so the shelf never scrolls and has nothing hidden.
   The collection panel under the player wraps into a box about two rows tall
   that scrolls vertically, because it has no see-all page. Every card, tab and
   track stays in the DOM.

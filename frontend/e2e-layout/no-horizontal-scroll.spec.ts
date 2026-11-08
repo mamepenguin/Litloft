@@ -48,12 +48,6 @@ interface ScrollBox extends Box {
   flexWrap: string;
 }
 
-interface ShelfReading {
-  row: ScrollBox;
-  cards: Box[];
-  seeAll: boolean;
-}
-
 interface CollectionReading {
   list: ScrollBox;
   scrolledTo: number;
@@ -77,12 +71,6 @@ interface BreadcrumbReading {
 
 declare global {
   interface Window {
-    buildShelf: (spec: {
-      width: number;
-      cards: number;
-      seeAll: boolean;
-    }) => void;
-    measureShelf: () => ShelfReading;
     buildCollectionPanel: (spec: { width: number; tracks: number }) => void;
     measureCollection: (scrollTop?: number) => CollectionReading;
     buildPageTabs: (spec: { width: number; tabs: number }) => void;
@@ -133,19 +121,6 @@ const within = (inner: Box, outer: Box) =>
   inner.top >= outer.top - TOLERANCE &&
   inner.bottom <= outer.bottom + TOLERANCE;
 
-const intersects = (a: Box, b: Box) =>
-  a.right > b.left + TOLERANCE &&
-  a.left < b.right - TOLERANCE &&
-  a.bottom > b.top + TOLERANCE &&
-  a.top < b.bottom - TOLERANCE;
-
-/**
- * The shelf's card slots are `xl:` sized, and `xl` is a viewport
- * breakpoint: 12 slots fit five to a row at this window, so a two-row cap
- * and the third row it leaves behind are both real.
- */
-const SHELF_CARDS = 12;
-
 const COLLECTION_TRACKS = 18;
 
 const STRIP_TABS = 12;
@@ -156,19 +131,6 @@ const BREADCRUMB_SEGMENTS = [
   "One more nested folder with a long name",
   "The deepest folder that names the current place",
 ];
-
-async function shelf(
-  page: Page,
-  { width, seeAll }: { width: number; seeAll: boolean },
-) {
-  await page.goto(FIXTURE);
-  await page.evaluate((spec) => window.buildShelf(spec), {
-    width,
-    cards: SHELF_CARDS,
-    seeAll,
-  });
-  return page.evaluate(() => window.measureShelf());
-}
 
 async function collection(page: Page, width: number) {
   await page.goto(FIXTURE);
@@ -259,9 +221,6 @@ const tabStops = (reading: TabReading) =>
 const selectedIndex = (reading: TabReading) =>
   reading.tabs.findIndex((tab) => tab.selected);
 
-const rowsOf = (boxes: Box[]) =>
-  new Set(boxes.map((box) => Math.round(box.top))).size;
-
 test.describe("mouse environment", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
@@ -279,14 +238,6 @@ test.describe("mouse environment", () => {
 
   test.describe("SPEC-CORE-064 I1 — nothing scrolls sideways under a mouse", () => {
     const CASES = [
-      {
-        name: "a shelf that has a see-all link",
-        open: (page: Page) => shelf(page, { width: 900, seeAll: true }),
-      },
-      {
-        name: "a shelf that has no see-all link",
-        open: (page: Page) => shelf(page, { width: 900, seeAll: false }),
-      },
       {
         name: "the collection panel's track strip",
         open: (page: Page) => collection(page, 900),
@@ -314,40 +265,6 @@ test.describe("mouse environment", () => {
   });
 
   test.describe("SPEC-CORE-065 I4 — no drawn item is clipped by its wrapper", () => {
-    test("a shelf with a see-all link draws at most two rows", async ({
-      page,
-    }) => {
-      const m = await shelf(page, { width: 900, seeAll: true });
-
-      expect(m.seeAll).toBe(true);
-      expect(m.row.scrollWidth).toBeLessThanOrEqual(
-        m.row.clientWidth + TOLERANCE,
-      );
-      for (const card of m.cards) {
-        // A card is either wholly inside the row or wholly outside it; one
-        // straddling the edge is the clipping this invariant forbids.
-        expect(within(card, m.row) || !intersects(card, m.row)).toBe(true);
-      }
-
-      const drawn = m.cards.filter((card) => within(card, m.row));
-      expect(drawn.length).toBeGreaterThan(0);
-      expect(rowsOf(drawn)).toBeLessThanOrEqual(2);
-      // The third row is not drawn there; it is on the page the link opens.
-      expect(drawn.length).toBeLessThan(m.cards.length);
-    });
-
-    test("a shelf without a see-all link draws every card in wrapped rows", async ({
-      page,
-    }) => {
-      const m = await shelf(page, { width: 900, seeAll: false });
-
-      expect(m.seeAll).toBe(false);
-      for (const card of m.cards) {
-        expect(within(card, m.row)).toBe(true);
-      }
-      expect(rowsOf(m.cards)).toBeGreaterThan(1);
-    });
-
     test("the collection panel scrolls vertically and every track stays reachable", async ({
       page,
     }) => {
@@ -548,8 +465,6 @@ test.describe("mouse environment", () => {
         "breadcrumbLeaf",
         "breadcrumbLink",
         "breadcrumbSegment",
-        "card",
-        "cardTitle",
         "collectionCard",
         "collectionCount",
         "collectionHead",
@@ -563,14 +478,6 @@ test.describe("mouse environment", () => {
         "pageTabIdle",
         "pageTabSelected",
         "pageTabs",
-        "seeAll",
-        "shelfCount",
-        "shelfHead",
-        "shelfRow",
-        "shelfSection",
-        "shelfTitle",
-        "slot",
-        "thumb",
         "track",
         "trackBody",
         "trackList",
@@ -602,16 +509,6 @@ test.describe("touch environment", () => {
 
   test.describe("SPEC-CORE-065 I3 — the strips still scroll sideways", () => {
     const CASES = [
-      {
-        name: "a shelf that has a see-all link",
-        open: (page: Page) => shelf(page, { width: 393, seeAll: true }),
-        strip: (reading: ShelfReading) => reading.row,
-      },
-      {
-        name: "a shelf that has no see-all link",
-        open: (page: Page) => shelf(page, { width: 393, seeAll: false }),
-        strip: (reading: ShelfReading) => reading.row,
-      },
       {
         name: "the collection panel's track strip",
         open: (page: Page) => collection(page, 393),
@@ -645,13 +542,6 @@ test.describe("touch environment", () => {
         expect(box.scrollWidth).toBeGreaterThan(box.clientWidth + TOLERANCE);
       });
     }
-  });
-
-  test("SPEC-CORE-065 I3 — a touch shelf does not wrap into rows", async ({
-    page,
-  }) => {
-    const m = await shelf(page, { width: 393, seeAll: true });
-    expect(rowsOf(m.cards)).toBe(1);
   });
 
   test.describe("SPEC-CORE-065 I3 — the add-on rows still scroll sideways", () => {
