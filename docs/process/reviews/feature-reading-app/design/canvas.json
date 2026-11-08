@@ -1,0 +1,94 @@
+{
+  "v": 3,
+  "createdOnFiles": {
+    "v": 1,
+    "at": "2026-11-08T01:30:00Z"
+  },
+  "title": "読むアプリ 画面案",
+  "launch": {
+    "view": "canvas"
+  },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": {
+      "x": 0,
+      "y": 100,
+      "w": 1280,
+      "h": 1040,
+      "title": "発見",
+      "expand": "fill",
+      "is_interactive": true
+    },
+    "Lib.dc.html": {
+      "x": 0,
+      "y": 1380,
+      "w": 1280,
+      "h": 1040,
+      "title": "ライブラリ まとめ方なし",
+      "expand": "fill",
+      "is_interactive": true
+    },
+    "Lib-Grouped.dc.html": {
+      "x": 1360,
+      "y": 1380,
+      "w": 1280,
+      "h": 1040,
+      "title": "ライブラリ タグ別",
+      "expand": "fill",
+      "is_interactive": true
+    },
+    "Target-Menu.dc.html": {
+      "x": 0,
+      "y": 2660,
+      "w": 368,
+      "h": 300,
+      "title": "対象メニュー"
+    },
+    "Target-Manage.dc.html": {
+      "x": 448,
+      "y": 2660,
+      "w": 488,
+      "h": 560,
+      "title": "対象の管理"
+    },
+    "Sidebar.dc.html": {
+      "x": 1016,
+      "y": 2660,
+      "w": 240,
+      "h": 1040,
+      "title": "サイドバー"
+    }
+  },
+  "order": [
+    "Main.dc.html",
+    "Lib.dc.html",
+    "Lib-Grouped.dc.html",
+    "Target-Menu.dc.html",
+    "Target-Manage.dc.html",
+    "Sidebar.dc.html"
+  ],
+  "notes": {
+    "n1": {
+      "x": 0,
+      "y": -120,
+      "text": "読む  発見",
+      "kind": "title1",
+      "maxW": 1280
+    },
+    "n2": {
+      "x": 0,
+      "y": 1160,
+      "text": "ライブラリ  フォルダが先、まとめ方と並び順は別",
+      "kind": "title1",
+      "maxW": 2640
+    },
+    "n3": {
+      "x": 0,
+      "y": 2540,
+      "text": "対象の管理と共通部品",
+      "kind": "title1",
+      "maxW": 1280
+    }
+  },
+  "designSystems": []
+}
