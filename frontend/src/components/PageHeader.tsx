@@ -68,7 +68,7 @@ export function PageHeader({
   return (
     <header className="flex flex-col gap-1 px-4 py-2">
       {hasTrailRow && (
-        <div className="flex min-w-0 items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:flex-nowrap">
           {leading}
           {breadcrumb}
           {scopeOnTrail && (
@@ -77,7 +77,7 @@ export function PageHeader({
             </span>
           )}
           {actionsOnTrail && (
-            <div className="ml-auto flex flex-shrink-0 items-center gap-2">
+            <div className="ml-auto flex max-w-full flex-shrink-0 flex-wrap items-center gap-2 sm:max-w-none sm:flex-nowrap">
               {actions}
             </div>
           )}
@@ -112,7 +112,7 @@ export function PageHeader({
       )}
 
       {hasTitle && !hasTitleField && (
-        <div className="flex min-w-0 items-start gap-3">
+        <div className="flex min-w-0 flex-wrap items-start gap-3 sm:flex-nowrap">
           {!hasTrailRow && leading}
           {TitleIcon && (
             <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-bg-elevated text-text-primary">
@@ -126,7 +126,7 @@ export function PageHeader({
             )}
           </div>
           {given(actions) && (
-            <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
+            <div className="flex max-w-full flex-shrink-0 flex-wrap items-center gap-2 sm:max-w-none">
               {actions}
             </div>
           )}

@@ -1953,7 +1953,82 @@ function PlayerTransitionSameRender(): ReactElement {
   );
 }
 
+const HEADER_ACTIONS = (
+  <>
+    <button
+      type="button"
+      className="whitespace-nowrap rounded-lg border border-border-default px-3 py-1.5 text-sm"
+    >
+      並び順 追加日（新しい順）
+    </button>
+    <button
+      type="button"
+      className="whitespace-nowrap rounded-lg border border-border-default px-3 py-1.5 text-sm"
+    >
+      対象 すべての本と文書
+    </button>
+  </>
+);
+
+function PageHeaderActionsArrangement({
+  header,
+}: {
+  header: ReactElement;
+}): ReactElement {
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <PageFrame width="full" header={header} />
+    </NextIntlClientProvider>
+  );
+}
+
+function PageHeaderTrailActions(): ReactElement {
+  return (
+    <PageHeaderActionsArrangement
+      header={
+        <PageHeader
+          breadcrumb={<Breadcrumb driveName="Household Archive" folderPath="Documents" />}
+          actions={HEADER_ACTIONS}
+        />
+      }
+    />
+  );
+}
+
+function PageHeaderTitleFieldActions(): ReactElement {
+  return (
+    <PageHeaderActionsArrangement
+      header={
+        <PageHeader
+          title="Reading"
+          titleField={<input aria-label="Title" defaultValue="Reading" className="w-full" />}
+          scope="12 items"
+          actions={HEADER_ACTIONS}
+        />
+      }
+    />
+  );
+}
+
+function PageHeaderTitleActions(): ReactElement {
+  return (
+    <PageHeaderActionsArrangement
+      header={
+        <PageHeader
+          titleIcon={FolderTree}
+          title="Reading"
+          scope="12 items"
+          actions={HEADER_ACTIONS}
+        />
+      }
+    />
+  );
+}
+
 const ARRANGEMENTS: Record<string, () => ReactElement> = {
+  "page-header-trail-actions": PageHeaderTrailActions,
+  "page-header-title-field-actions": PageHeaderTitleFieldActions,
+  "page-header-title-actions": PageHeaderTitleActions,
   "chrome-buttons": ChromeButtonsArrangement,
   "folder-listing-header-deep": FolderListingHeaderArrangement,
   "folder-listing-header-shallow": FolderListingHeaderShallowArrangement,
