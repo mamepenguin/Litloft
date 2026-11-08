@@ -64,3 +64,42 @@ export function writeAppPrefs(
     }
   }
 }
+
+/**
+ * The smart folders the viewer chose to show in the Target menu. `null` is
+ * "never saved", which lists every usable folder; an empty array is a saved
+ * set that lists none.
+ */
+export function readShownTargets(drive: string, app: AppId = "video"): string[] | null {
+  let raw: string | null;
+  try {
+    raw = localStorage.getItem(`litloft.${app}App.targets.${encodeURIComponent(drive)}`);
+  } catch {
+    return null;
+  }
+  if (raw === null) return null;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed) || !parsed.every((id): id is string => typeof id === "string")) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function writeShownTargets(
+  drive: string,
+  ids: readonly string[],
+  app: AppId = "video",
+): void {
+  try {
+    localStorage.setItem(
+      `litloft.${app}App.targets.${encodeURIComponent(drive)}`,
+      JSON.stringify(ids),
+    );
+  } catch {
+    // The open page keeps the toggle; a reload reads the previous set.
+  }
+}

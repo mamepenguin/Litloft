@@ -3,12 +3,11 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 
+import { AppTabs } from "@/components/appshell/AppTabs";
+import { ShelfBlock } from "@/components/appshell/ShelfBlock";
 import { PageFrame } from "@/components/PageFrame";
-import { PageTabs } from "@/components/PageTabs";
-import type { AppFace } from "@/lib/appPrefs";
 import { DiscoverFace } from "./DiscoverFace";
 import { LibraryFace } from "./LibraryFace";
-import { ShelfBlock } from "./ShelfBlock";
 import type { SortChoice } from "./labels";
 import { useDiscover } from "./useDiscover";
 import { useVideoApp } from "./useVideoApp";
@@ -31,14 +30,14 @@ export function VideoApp({ drive }: { drive: string }) {
   });
 
   const tabs = (
-    <PageTabs
+    <AppTabs
       label={t("tabsLabel")}
       current={face ?? "discover"}
-      onSelect={(key) => state.updatePrefs({ face: key as AppFace })}
-      items={[
-        { key: "discover", label: t("discover"), controls: PANEL_ID, id: "video-app-tab-discover" },
-        { key: "library", label: t("library"), controls: PANEL_ID, id: "video-app-tab-library" },
-      ]}
+      onSelect={(key) => state.updatePrefs({ face: key })}
+      discoverLabel={t("discover")}
+      libraryLabel={t("library")}
+      panelId={PANEL_ID}
+      idPrefix="video-app"
     />
   );
 
@@ -51,7 +50,12 @@ export function VideoApp({ drive }: { drive: string }) {
         className="px-4 pb-6 pt-4 sm:pb-8"
       >
         {!state.ready ? (
-          <ShelfBlock title="" view={{ status: "loading" }} onRetry={() => {}} />
+          <ShelfBlock
+            title=""
+            view={{ status: "loading" }}
+            onRetry={() => {}}
+            renderItem={() => null}
+          />
         ) : face === "library" ? (
           <LibraryFace
             drive={drive}
@@ -66,6 +70,7 @@ export function VideoApp({ drive }: { drive: string }) {
           />
         ) : (
           <DiscoverFace
+            drive={drive}
             empty={state.empty}
             hasProfile={state.hasProfile}
             continueShelf={discover.continueShelf}

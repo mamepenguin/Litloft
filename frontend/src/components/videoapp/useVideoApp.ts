@@ -11,7 +11,7 @@ import {
   type VideoTargetParams,
 } from "@/lib/videoAppTarget";
 import type { SmartFolder } from "@/types/smartFolder";
-import { useLoad, type LoadState } from "./useLoad";
+import { useLoad, type LoadState } from "@/components/appshell/useLoad";
 
 export const VIEWER_REQUIRED = "viewer_required";
 
@@ -28,6 +28,7 @@ export interface VideoAppState {
   /** Call when a request answered `viewer_required`. */
   rejectViewer: () => void;
   smartFolders: LoadState<SmartFolder[]>;
+  retrySmartFolders: () => void;
   /** The folder in force; `null` is the default target. */
   folder: SmartFolder | null;
   /** Null while the saved folder is still being looked up, or when the target is empty. */
@@ -59,7 +60,7 @@ export function useVideoApp(drive: string): VideoAppState {
   );
 
   const loadFolders = useCallback(() => getSmartFolders(drive), [drive]);
-  const { state: smartFolders } = useLoad(loadFolders);
+  const { state: smartFolders, retry: retrySmartFolders } = useLoad(loadFolders);
 
   const savedId = prefs?.target ?? "default";
   const wantsFolder = savedId !== "default";
@@ -72,12 +73,8 @@ export function useVideoApp(drive: string): VideoAppState {
     return target.usable ? { folder: listed, target } : { folder: null, target: resolveVideoTarget(null) };
   }, [listed]);
 
-  // A folder that is gone is replaced; a list that failed to load proves nothing.
-  const stale = wantsFolder && smartFolders.status === "loaded" && listed === null;
-  useEffect(() => {
-    if (stale) updatePrefs({ target: "default" });
-  }, [stale, updatePrefs]);
-
+  // A folder that is gone or unusable is ignored, but its saved id stays:
+  // the viewer's choice returns if the folder does.
   const lookingUp = wantsFolder && (smartFolders.status === "loading" || smartFolders.status === "idle");
   const ready = prefs !== null && !lookingUp;
   const empty = ready && resolved.target.usable && "empty" in resolved.target;
@@ -104,6 +101,7 @@ export function useVideoApp(drive: string): VideoAppState {
     hasProfile,
     rejectViewer,
     smartFolders,
+    retrySmartFolders,
     folder: resolved.folder,
     params,
     ready,

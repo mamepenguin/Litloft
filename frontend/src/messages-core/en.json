@@ -29,6 +29,12 @@
       "confirmLabel": "Discard and navigate"
     }
   },
+  "appShell": {
+    "manage": "Manage…",
+    "done": "Done",
+    "searchTargets": "Search smart folders",
+    "seeAllIn": "See all: {name}"
+  },
   "metadata": {
     "description": "Home LAN file management & media streaming"
   },

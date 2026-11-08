@@ -29,6 +29,12 @@
       "confirmLabel": "破棄して移動"
     }
   },
+  "appShell": {
+    "manage": "管理…",
+    "done": "完了",
+    "searchTargets": "スマートフォルダを検索",
+    "seeAllIn": "すべて見る: {name}"
+  },
   "metadata": {
     "description": "自宅LAN向けファイル管理＆メディアストリーミング"
   },

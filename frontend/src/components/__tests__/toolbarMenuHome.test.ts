@@ -78,6 +78,7 @@ describe("the shared toolbar menu has one home", () => {
       "frontend/src/components/ViewMenu.tsx",
       "frontend/src/components/__tests__/ToolbarMenu.test.tsx",
       "frontend/src/components/__tests__/toolbarMenuFixtureParity.test.tsx",
+      "frontend/src/components/appshell/TargetMenu.tsx",
       "frontend/src/components/archive/ArchiveToolbar.tsx",
       "frontend/src/components/archive/ArchiveToolbar.tsx",
       "frontend/src/components/folder/FilterMenu.tsx",
@@ -87,7 +88,6 @@ describe("the shared toolbar menu has one home", () => {
       "frontend/src/components/folder/__tests__/toolbarBarScope.test.tsx",
       "frontend/src/components/search/ConditionMenu.tsx",
       "frontend/src/components/videoapp/LibraryControls.tsx",
-      "frontend/src/components/videoapp/TargetMenu.tsx",
     ]);
   });
 

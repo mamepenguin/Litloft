@@ -2,17 +2,19 @@
 
 import { useTranslations } from "next-intl";
 
+import { ShelfBlock, type ShelfView } from "@/components/appshell/ShelfBlock";
 import { EmptyState } from "@/components/EmptyState";
 import type { ShelfItem } from "@/lib/api";
-import { ShelfBlock, type ShelfView } from "./ShelfBlock";
-import type { LoadState } from "./useLoad";
+import type { LoadState } from "@/components/appshell/useLoad";
+import { videoShelfHref } from "./shelfLinks";
+import { VideoCard } from "./VideoCard";
 
 interface ShelfSource {
   state: LoadState<ShelfItem[]>;
   retry: () => void;
 }
 
-function viewOf(state: LoadState<ShelfItem[]>): ShelfView {
+function viewOf(state: LoadState<ShelfItem[]>): ShelfView<ShelfItem> {
   if (state.status === "loaded") return { status: "loaded", items: state.data };
   if (state.status === "failed") return { status: "failed" };
   return { status: "loading" };
@@ -24,12 +26,14 @@ function drawn(state: LoadState<ShelfItem[]>): boolean {
 }
 
 export function DiscoverFace({
+  drive,
   empty,
   hasProfile,
   continueShelf,
   recommended,
   fresh,
 }: {
+  drive: string;
   /** The target matches no video. */
   empty: boolean;
   hasProfile: boolean;
@@ -39,9 +43,28 @@ export function DiscoverFace({
 }) {
   const t = useTranslations("videoApp.shelves");
   const shelves = [
-    ...(hasProfile ? [{ id: "continue", title: t("continue"), source: continueShelf }] : []),
-    { id: "recommended", title: t("recommended"), source: recommended },
-    { id: "new", title: t("new"), source: fresh },
+    ...(hasProfile
+      ? [
+          {
+            id: "continue",
+            title: t("continue"),
+            source: continueShelf,
+            href: videoShelfHref(drive, "watch", "in_progress"),
+          },
+        ]
+      : []),
+    {
+      id: "recommended",
+      title: t("recommended"),
+      source: recommended,
+      href: hasProfile ? videoShelfHref(drive, "watch", "unwatched") : undefined,
+    },
+    {
+      id: "new",
+      title: t("new"),
+      source: fresh,
+      href: videoShelfHref(drive, "all", "all"),
+    },
   ].filter((shelf) => drawn(shelf.source.state));
 
   const settled = [continueShelf, recommended, fresh].every(
@@ -51,12 +74,14 @@ export function DiscoverFace({
 
   return (
     <div className="space-y-8">
-      {shelves.map(({ id, title, source }) => (
+      {shelves.map(({ id, title, source, href }) => (
         <ShelfBlock
           key={id}
           title={title}
+          seeAllHref={href}
           view={viewOf(source.state)}
           onRetry={source.retry}
+          renderItem={(item) => <VideoCard item={item} />}
         />
       ))}
     </div>

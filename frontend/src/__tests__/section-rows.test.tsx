@@ -86,7 +86,6 @@ describe("no shelf hides its own scrollbar", () => {
         "frontend/src/components/CollectionPanel.tsx",
         "frontend/src/components/FileDetail/inspector/InspectorShell.tsx",
         "frontend/src/components/PageTabs.tsx",
-        "frontend/src/components/videoapp/ShelfBlock.tsx",
         "addons/intelligence/frontend/ClipFramesSection.tsx",
         "addons/intelligence/frontend/VisualIndexSection.tsx",
       ]),

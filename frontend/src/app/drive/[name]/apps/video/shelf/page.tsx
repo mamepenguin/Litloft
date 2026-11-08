@@ -14,6 +14,7 @@ export default function VideoShelfRoute() {
       drive={driveName}
       by={parseGrouping(search.get("by"))}
       shelfKey={search.get("key") ?? ""}
+      initialSort={search.get("sort")}
     />
   );
 }
