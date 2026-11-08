@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship (human, 2026-11-08, r1 HUMAN_REVIEW_REQUIRED). On the blank .loft scene-candidate card: "4のstoryboardのタイル画像を出す件をこの後すぐに開始する予定なので、今は出さないという決定でよいです。" (the storyboard tiles in the candidate grid come in the next spec, so no picture for now). On the httpx log filter and the user-guide sentence: "2、3も推奨通りで。" (keep the filter as is; delete the wrong user-guide sentence).
 ran_in_app: yes
 at: 187cea80768d7325fdc5df86c781c06c2e50b6d7
 by: agent

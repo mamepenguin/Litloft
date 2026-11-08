@@ -144,7 +144,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-051 | implemented | docs/specs/ocr-line-boxes.md | sha256:34e34c624bf5010e494acb27acd3d641490b7c3488504c1991d0e22a06f90414 |
 | SPEC-CORE-052 | implemented | docs/specs/persistent-highlights.md | sha256:a3289475f0de7eb5baceb80b7f281b4ade7283f8f1bde522e601d41974e1cfce |
 | SPEC-CORE-053 | implemented | docs/specs/persistent-highlights.md | sha256:a3289475f0de7eb5baceb80b7f281b4ade7283f8f1bde522e601d41974e1cfce |
-| SPEC-ADDON-076 | approved | docs/specs/youtube-frames.md | sha256:d505349c8947e1efea1efcd1a9d1449cf74f7df17e7f016394d7c9c1005acfb5 |
-| SPEC-ADDON-077 | approved | docs/specs/youtube-frames.md | sha256:d505349c8947e1efea1efcd1a9d1449cf74f7df17e7f016394d7c9c1005acfb5 |
-| SPEC-ADDON-078 | approved | docs/specs/youtube-frames.md | sha256:d505349c8947e1efea1efcd1a9d1449cf74f7df17e7f016394d7c9c1005acfb5 |
-| SPEC-CORE-058 | approved | docs/specs/youtube-frames.md | sha256:d505349c8947e1efea1efcd1a9d1449cf74f7df17e7f016394d7c9c1005acfb5 |
+| SPEC-ADDON-076 | implemented | docs/specs/youtube-frames.md | sha256:d505349c8947e1efea1efcd1a9d1449cf74f7df17e7f016394d7c9c1005acfb5 |
+| SPEC-ADDON-077 | implemented | docs/specs/youtube-frames.md | sha256:d505349c8947e1efea1efcd1a9d1449cf74f7df17e7f016394d7c9c1005acfb5 |
+| SPEC-ADDON-078 | implemented | docs/specs/youtube-frames.md | sha256:d505349c8947e1efea1efcd1a9d1449cf74f7df17e7f016394d7c9c1005acfb5 |
+| SPEC-CORE-058 | implemented | docs/specs/youtube-frames.md | sha256:d505349c8947e1efea1efcd1a9d1449cf74f7df17e7f016394d7c9c1005acfb5 |
