@@ -1,0 +1,81 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-11-09T12:00:00Z"
+ },
+ "title": "検索結果ページの整理",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Main.dc.html": {
+   "x": 0,
+   "y": 1500,
+   "w": 1280,
+   "h": 900,
+   "title": "提案 デスクトップ（ファイル）"
+  },
+  "Scene.dc.html": {
+   "x": 1360,
+   "y": 1500,
+   "w": 1280,
+   "h": 1000,
+   "title": "提案 デスクトップ（シーン検索 ON）"
+  },
+  "Phone.dc.html": {
+   "x": 2720,
+   "y": 1500,
+   "w": 390,
+   "h": 844,
+   "title": "提案 スマートフォン"
+  },
+  "Passages.dc.html": {
+   "x": 0,
+   "y": 2900,
+   "w": 1280,
+   "h": 820,
+   "title": "提案 デスクトップ（箇所）"
+  },
+  "Menu.dc.html": {
+   "x": 1360,
+   "y": 2900,
+   "w": 1280,
+   "h": 620,
+   "title": "提案 … メニューを開いたとき"
+  },
+  "Filtered.dc.html": {
+   "x": 2720,
+   "y": 2900,
+   "w": 1280,
+   "h": 620,
+   "title": "提案 条件つき（種類: 動画）"
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "Scene.dc.html",
+  "Phone.dc.html",
+  "Passages.dc.html",
+  "Menu.dc.html",
+  "Filtered.dc.html"
+ ],
+ "notes": {
+  "t_after": {
+   "x": 0,
+   "y": 1200,
+   "text": "提案",
+   "kind": "title1",
+   "maxW": 3110
+  },
+  "t_more": {
+   "x": 0,
+   "y": 2600,
+   "text": "提案（箇所・… メニュー・条件つき）",
+   "kind": "title1",
+   "maxW": 4000
+  }
+ },
+ "designSystems": []
+}
