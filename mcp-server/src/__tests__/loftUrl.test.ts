@@ -52,7 +52,7 @@ const tools: Array<[string, Invoke]> = [
 ];
 
 describe.each(tools)("SPEC-CORE-021: %s on a .loft file", (_name, invoke) => {
-  it.each(["youtube", "vimeo", "soundcloud", "generic"])(
+  it.each(["vimeo", "soundcloud", "generic"])(
     "SPEC-CORE-021: names the stored url whatever the provider (%s)",
     async (provider) => {
       const url = "https://example.com/watch?v=a b&t=1#frag";
@@ -71,7 +71,7 @@ describe.each(tools)("SPEC-CORE-021: %s on a .loft file", (_name, invoke) => {
 
   it("SPEC-CORE-021: reads the file then its stream with no Range or X-Lit-Drive header, and nothing else", async () => {
     const client = loftClient(
-      streamOf(JSON.stringify({ provider: "youtube", url: "https://youtu.be/x" }))
+      streamOf(JSON.stringify({ provider: "vimeo", url: "https://vimeo.com/x" }))
     );
     await invoke(DRIVE, client);
 

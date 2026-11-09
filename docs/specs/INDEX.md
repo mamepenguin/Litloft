@@ -155,3 +155,9 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-063 | implemented | docs/specs/reading-app.md | sha256:d50212bc93851ad97819185b6a7ec10e43f805aabc994a912143fb2d813836fb |
 | SPEC-CORE-064 | implemented | docs/specs/no-horizontal-scroll-on-mouse.md | sha256:8d3333579eb13917fd2c7f022e2309c30c7ff27573e12bb506a44c667e2ef0fd |
 | SPEC-CORE-065 | implemented | docs/specs/no-horizontal-scroll-on-mouse.md | sha256:8d3333579eb13917fd2c7f022e2309c30c7ff27573e12bb506a44c667e2ef0fd |
+| SPEC-ADDON-076 | implemented | docs/specs/youtube-frames.md | sha256:d505349c8947e1efea1efcd1a9d1449cf74f7df17e7f016394d7c9c1005acfb5 |
+| SPEC-ADDON-077 | implemented | docs/specs/youtube-frames.md | sha256:d505349c8947e1efea1efcd1a9d1449cf74f7df17e7f016394d7c9c1005acfb5 |
+| SPEC-ADDON-078 | implemented | docs/specs/youtube-frames.md | sha256:d505349c8947e1efea1efcd1a9d1449cf74f7df17e7f016394d7c9c1005acfb5 |
+| SPEC-CORE-058 | implemented | docs/specs/youtube-frames.md | sha256:d505349c8947e1efea1efcd1a9d1449cf74f7df17e7f016394d7c9c1005acfb5 |
+| SPEC-ADDON-079 | implemented | docs/specs/youtube-scene-tiles.md | sha256:2e9ad74c9dc5d895d20afd14405fa0ffedff7f55d74c9c3dd75e4aef4e303f1c |
+| SPEC-ADDON-080 | implemented | docs/specs/youtube-scene-tiles.md | sha256:2e9ad74c9dc5d895d20afd14405fa0ffedff7f55d74c9c3dd75e4aef4e303f1c |

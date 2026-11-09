@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "When the `.loft` CLIP frames panel is expanded and its `fileId` changes to another `.loft`, the first render after the change still holds the previous file's `timestamps` and `expanded=true`. `pictureUrls` is rebuilt for that render with the new `fileId` and the old file's start times, so `<img>` elements for `/files/<new>/scene-tile?t=<old times>` are committed. The reset effect clears them only after that commit.",
+      "impact": "For one commit, navigating between two YouTube references in a mounted panel shows the previous reference's row count and time labels. It can request scene tiles of the new file at times that are not its rows, which gives 404s and a brief blank flash, or, by coincidence, the new file's picture under the old label. The flicker is cosmetic and nothing is persisted.",
+      "evidence": "addons/intelligence/frontend/ClipFramesSection.tsx: the reset effect has deps `[fileId, isLoft]` and calls setTimestamps(null) and setExpanded(false) post-commit. The `pictureUrls` useMemo depends on `[isLoft, fileId, timestamps]`, so the render that follows a prop change maps the old `timestamps` to the new `fileId`. The test 'refetches when fileId changes...' clicks the header only after the new response arrives, so it never observes the panel while it was expanded at the moment of the switch.",
+      "repro": "not_reproduced. Reasoned from render and effect ordering: render with fileId f1 and the panel expanded, then rerender with fileId f2 and inspect the img srcs synchronously before effects flush.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "I6 says the panel 'never applies a response for an earlier fileId'. This is a stale render, not an applied late response, and it lasts one commit. It reads wrong but arguably does not break I6."
+      },
+      "severity": "LOW",
+      "proposed_fix": "Key the held timestamps by fileId (store `{fileId, rows}` and treat a mismatch as null), or remount the section with `key={fileId}`."
+    }
+  ],
+  "specification_compliance": [
+    "r1 F1 (undefined `mouse:` variant) is resolved at this head: frontend/src/app/globals.css:3 now defines `@custom-variant mouse (@media (hover: hover) and (pointer: fine));`, which came in from develop (SPEC-CORE-064). The strip at ClipFramesSection.tsx:211 therefore has `max-h-[17.5rem] overflow-y-auto` on a mouse, and 20-at-a-time paging (I6) can work. No scene-tile code changed to fix it.",
+    "I1: `get_scene_tile` declares `t: float = Query(..., ge=0)` (422), looks the file up through `_image_route_indexed_file` (the same lookup as the frame route), answers 400 for a non-video, 404 for a non-`.loft` or a missing or empty tile, and serves `tile_cache_path(file_id, t)` with the shared `round_ms` as image/webp with the frame route's headers. It writes nothing and runs no subprocess.",
+    "I2: `_embed_tiles` writes `round_ms(tile.timestamp).webp` at the tile's crop size, and only for tiles that become rows. A tile whose box falls outside a short sheet is skipped for both the row and the file. `_swap_tiles` runs after the session commit.",
+    "I3/I9: every early return (failed-set, loft_unreadable, not YouTube, lookup_failed, no_sb0, no_duration) happens before `_prepare_tiles_dir`. Both pre-commit failure paths rmtree the new directory. A swap OSError logs a warning naming the file id and leaves rows and clip_indexed committed. The next leg's `_prepare_tiles_dir` removes every `tiles.*` directory, including `tiles.old.*`.",
+    "I4: the manifest entry for /files/{file_id}/scene-tile is identical to the frame route's (drive_optional, file_access pre_check), and the X-Lit-Drive path uses `_get_indexed_file_or_404`, as the frame route does.",
+    "I5: tiles live under `frames/{id}/tiles/`. `frame_cache_path` never points there, and the storyboard leg writes no `{ms}.webp` directly under `frames/{id}`.",
+    "I7: SceneCandidatesSection treats a filename ending `.loft` (case-insensitive) as a reference and uses `getSceneTileUrl(file_id, peak)`. `peak` is a row timestamp (scene_segments.py:178-187), so it matches a stored tile name. A failed load uses the existing blank card.",
+    "I8: tiles sit under `frame_cache_dir(file_id)`, which `purge_frame_cache` removes, and tests cover both `_purge_file` and `purge_drive`."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Stale one-commit render of the previous `.loft`'s rows under the new fileId when the panel was expanded (F1).",
+    "On a mouse the strip scrolls vertically, but the IntersectionObserver rootMargin pads only the right edge (`0px Npx 0px 0px`). The next 20 therefore load only when the sentinel becomes visible at the bottom, not near it. This is pre-existing in shape and was not introduced by the `.loft` branch.",
+    "`_prepare_tiles_dir` runs outside the try. If `mkdir` of the frames or new directory fails with OSError, the job raises without the `tile_write_failed` class and without joining `_storyboard_failed`."
+  ],
+  "regression_risks": [
+    "The core classifier still sees only the gitlink, so the Dockerfile and Dockerfile.test edits inside the submodule range (r1 F5) remain invisible to the protected-path check unless this run's classification counts them.",
+    "The CLIP frames and Visual Index strip layout now depends on the develop-provided `mouse` custom variant. Removing or renaming it in globals.css would silently bring back the unbounded strip, because the component tests only regex-match class names."
+  ],
+  "test_coverage": [
+    "test_spec_addon_079_scene_tiles.py covers the route statuses (404 variants, 400 non-video, 422 t), no network, no process and no write, the manifest parity with the frame route, tile names and sizes against rows, pre-commit failures including tile_write_failed, the failed swap and recovery by the next leg, the no-storyboard legs leaving leftovers alone, and purge.",
+    "ClipFramesSection.test.tsx covers mount fetch, pending, failed and empty hiding, the 20-picture first page from the scene-tile route, stale-response dropping, blank block with seek on a failed tile, and the native lazy path. No test switches fileId while the panel is expanded (F1).",
+    "No layout test runs the ClipFramesSection strip against built CSS. Only the e2e-layout fixtures of other components do, so whether the `mouse:` variant compiles here is checked only indirectly, through globals.css."
+  ],
+  "not_verified": [
+    "Did not run any test, build, or the e2e-layout suite.",
+    "Did not confirm that the built stylesheet emits `max-h-[17.5rem]` under the `mouse` variant for the addon's ClipFramesSection, which depends on Tailwind's content scanning including addons/intelligence/frontend.",
+    "Did not check whether the file page remounts ClipFramesSection on fileId change (a `key` prop), which would make F1 moot.",
+    "Did not read the full fix diffs beyond the truncation point at 600000 bytes."
+  ],
+  "confidence": 74,
+  "trajectory": "The fix commits since r1 are almost entirely develop work merged into this branch (the Video app, then the Reading app with shelves `by=all`, `watch`, folder `base`, and the shared app shell). None of them touches the scene-tile code (clip.py, the scene-tile route, ClipFramesSection's `.loft` branch, SceneCandidatesSection). r1's bucket-A F1 was resolved by the merged `@custom-variant mouse` in globals.css, not by a change in this feature. Within the merged Reading and Video work, later rounds did add state on top of earlier rounds. ab24d3c added the shown-target set and hid unusable folders; f9477ac reversed that to list them disabled. ab24d3c removed the stale-target repair effect in useVideoApp; that round removed a branch. 30144db added a `from` URL marker to disambiguate `by=all` titles, which is a new carried state predicting which face a shelf came from. ef424b5 added a second kind table (`_FILTER_ONLY_KINDS`) beside `_KIND_MIMES`/`_KIND_SUFFIXES` instead of extending them. Those rounds look like patching in the Reading/Video design. For the scene-tile design under review there was no fix round, so there is no patching trajectory."
+}
