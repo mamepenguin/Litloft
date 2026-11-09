@@ -58,7 +58,14 @@ describe("formatRelativeAge", () => {
   it.each([
     [3, "3 days ago", "3日前"],
     [14, "2 weeks ago", "2週間前"],
+    [29, "4 weeks ago", "4週間前"],
+    [30, "1 month ago", "1か月前"],
     [240, "8 months ago", "8か月前"],
+    [359, "11 months ago", "11か月前"],
+    [360, "1 year ago", "1年前"],
+    [364, "1 year ago", "1年前"],
+    [365, "1 year ago", "1年前"],
+    [729, "1 year ago", "1年前"],
     [730, "2 years ago", "2年前"],
   ])("names %i days as a relative age in English and Japanese", (days, en, ja) => {
     expect(formatRelativeAge(before(days), "en")).toBe(en);

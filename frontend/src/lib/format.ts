@@ -37,8 +37,8 @@ export function formatRelativeAge(isoString: string, locale = "en"): string {
   if (diffHour < 24) return text(-diffHour, "hour");
   if (diffDay < 7) return text(-diffDay, "day", diffDay === 1 ? named : always);
   if (diffDay < 30) return text(-Math.floor(diffDay / 7), "week");
-  if (diffDay < 365) return text(-Math.floor(diffDay / 30), "month");
-  return text(-Math.floor(diffDay / 365), "year");
+  if (diffDay < 360) return text(-Math.floor(diffDay / 30), "month");
+  return text(-Math.max(1, Math.floor(diffDay / 365)), "year");
 }
 
 export function formatRelativeDate(isoString: string, locale = "en"): string {
