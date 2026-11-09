@@ -146,10 +146,6 @@ const POPUPS: Record<string, PopupEntry> = {
     dismissedIn: null,
     why: "the drag bubble above the slider thumb, shown only while the thumb is held",
   },
-  "frontend/src/components/SmartFolderSaveButton.tsx": {
-    dismissedIn: "frontend/src/components/SmartFolderSaveButton.tsx",
-    why: "the saved-search menu",
-  },
   "frontend/src/components/search/ConditionMenu.tsx": {
     dismissedIn: "frontend/src/components/search/ConditionMenu.tsx",
     why: "the search page's add-filter menu",

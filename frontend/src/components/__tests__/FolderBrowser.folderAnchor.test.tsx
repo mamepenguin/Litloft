@@ -32,7 +32,10 @@ vi.mock("@/components/folder/FolderContent", () => ({
 vi.mock("@/components/Breadcrumb", () => ({ Breadcrumb: () => <nav /> }));
 vi.mock("@/components/TreeToggle", () => ({ TreeToggle: () => null }));
 vi.mock("@/components/SelectionBar", () => ({ SelectionBar: () => null }));
-vi.mock("@/components/SmartFolderSaveButton", () => ({ SmartFolderSaveButton: () => null }));
+vi.mock("@/components/SmartFolderSaveButton", () => ({
+  SmartFolderController: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+  SmartFolderMenuItems: () => null,
+}));
 vi.mock("@/components/AddonSlot", () => ({ AddonSlot: () => null }));
 vi.mock("@/components/UploadZone", () => ({
   UploadZone: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
@@ -52,6 +55,7 @@ vi.mock("@/components/AddButton", () => ({
 
 const mockPush = vi.fn();
 vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
   useRouter: () => ({ push: mockPush, replace: vi.fn() }),
 }));
 

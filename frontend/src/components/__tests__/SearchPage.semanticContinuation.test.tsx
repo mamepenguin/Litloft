@@ -8,7 +8,10 @@ import type { FileItem, FileKind } from "@/types";
 import { FolderBrowser } from "../FolderBrowser";
 
 const stableRouter = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
-vi.mock("next/navigation", () => ({ useRouter: () => stableRouter }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => stableRouter,
+  useSearchParams: () => new URLSearchParams(),
+}));
 
 interface ToolbarProps {
   fileIds: string[];
@@ -577,30 +580,29 @@ describe("SPEC-CORE-035 I8 appended rows are deduplicated and keep the endpoint'
 });
 
 describe("SPEC-CORE-035 I9 the rows above and the heading count are untouched", () => {
-  it("leaves the rows above in place and never counts appended rows in the heading", async () => {
+  it("leaves the rows above in place and keeps the count at the filename total", async () => {
     server.images = manyHits(250);
     const { container } = renderSearch();
     await settle();
     const above = drawnIds();
-    const heading = screen.getByText(`${above.length} items`);
-    expect(heading).toBeInTheDocument();
+    const counted = toolbar.latest.total;
+    expect(counted).toBe(above.length);
 
     await clickShowMore(container);
     await waitFor(() => expect(drawnIds()).toHaveLength(above.length + 100));
 
     expect(drawnIds().slice(0, above.length)).toEqual(above);
-    expect(screen.getByText(`${above.length} items`)).toBeInTheDocument();
-    expect(screen.queryByText(`${above.length + 100} items`)).toBeNull();
+    expect(toolbar.latest.total).toBe(counted);
 
     await reveal();
     await waitFor(() => expect(drawnIds()).toHaveLength(above.length + 200));
     expect(drawnIds().slice(0, above.length)).toEqual(above);
-    expect(screen.getByText(`${above.length} items`)).toBeInTheDocument();
+    expect(toolbar.latest.total).toBe(counted);
 
     await reveal();
     await waitFor(() => expect(drawnIds()).toHaveLength(above.length + 250));
     expect(drawnIds().slice(0, above.length)).toEqual(above);
-    expect(screen.getByText(`${above.length} items`)).toBeInTheDocument();
+    expect(toolbar.latest.total).toBe(counted);
   });
 });
 
@@ -721,7 +723,7 @@ describe("SPEC-CORE-035 I11 a failed or stale answer", () => {
 
   const keyChanges: Array<[string, (page: (props: PageProps) => void) => void]> = [
     ["the query", (rerenderPage) => rerenderPage({ searchQuery: "orca" })],
-    ["the type", () => act(() => toolbar.latest.onTypeFilterChange("image"))],
+    ["the type", (rerenderPage) => rerenderPage({ typeFilter: "image" })],
     ["the sort", () => act(() => toolbar.latest.onSortChange("created_at", "desc"))],
     ["Scene search", (rerenderPage) => rerenderPage({ includeSceneClip: true })],
   ];
@@ -793,16 +795,15 @@ describe("SPEC-CORE-035 I12 everything that reads the list sees drawn rows only"
   });
 
   it.each([
-    ["a drawn row", "cont-7.", 1],
-    ["an undrawn row", "cont-150.", 0],
-  ])("the text filter matches %s only", async (_name, text, expected) => {
-    await drawnPage();
+    ["a drawn row's text", "cont-7", true],
+    ["an undrawn row's text", "cont-150", false],
+  ])("leaves the text filter off the page, so %s narrows nothing", async (_name, text, isDrawn) => {
+    const { above } = await drawnPage();
 
-    fireEvent.change(screen.getByPlaceholderText("Filter in this folder..."), {
-      target: { value: text },
-    });
-
-    await waitFor(() => expect(drawnIds()).toHaveLength(expected));
+    expect(screen.queryByPlaceholderText(/filter in this folder/i)).toBeNull();
+    const drawn = drawnIds();
+    expect(drawn).toHaveLength(above.length + 100);
+    expect(drawn.some((id) => id.startsWith(text))).toBe(isDrawn);
   });
 });
 

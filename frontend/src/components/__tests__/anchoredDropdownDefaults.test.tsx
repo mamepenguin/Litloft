@@ -7,7 +7,6 @@ import { ShortcutsProvider } from "@/components/ShortcutsProvider";
 import { AddButton } from "@/components/AddButton";
 import { EditableTagChips } from "@/components/EditableTagChips";
 import { FolderPicker } from "@/components/FolderPicker";
-import { SmartFolderSaveButton } from "@/components/SmartFolderSaveButton";
 import { FilterField } from "@/components/folder/FilterField";
 import { TrashToolbar } from "@/components/trash/TrashToolbar";
 
@@ -180,22 +179,6 @@ const FORMS = [
       return screen.getByRole("menu", { name: "File type" });
     },
   },
-  {
-    name: "SmartFolderSaveButton's saved-search menu",
-    side: "right-0",
-    step: 1,
-    open: () => {
-      draw(
-        <SmartFolderSaveButton
-          drive="media"
-          query="clip"
-          smartFolderId="sf1"
-        />,
-      );
-      fireEvent.click(screen.getByRole("button", { name: /Saved:/ }));
-      return screen.getByRole("menu");
-    },
-  },
 ] as const;
 
 const SIDE_CLASSES = ["left-0", "left-7", "right-0"] as const;
@@ -206,11 +189,11 @@ describe("the sides the converted dropdowns prefer", () => {
   });
 
   it("covers every form the sweep converted, and both edges", () => {
-    // Eight forms, not six components: `AddButton` takes its preference
+    // Seven forms, not five components: `AddButton` takes its preference
     // from a prop whose two callers disagree, and `FilterField` draws two
     // menus from one `renderMenu` with different defaults. A table keyed by
-    // component would have four of the eight.
-    expect(FORMS).toHaveLength(8);
+    // component would have five of the seven.
+    expect(FORMS).toHaveLength(7);
     expect(FORMS.map((f) => f.name)).toHaveLength(new Set(FORMS.map((f) => f.name)).size);
 
     // Both edges are represented, and the sideless form is named rather

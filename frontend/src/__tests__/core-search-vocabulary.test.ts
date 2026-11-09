@@ -16,8 +16,7 @@ import en from "@/messages-core/en.json";
 const SRC_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 const CALLERS: Record<string, number> = {
-  "app/drive/[name]/search/page.tsx": 2,
-  "components/FolderBrowser.tsx": 9,
+  "components/FolderBrowser.tsx": 6,
   "components/folder/FolderContent.tsx": 1,
   "components/GlobalSearch.tsx": 12,
   // Two each: the badge words come from `MATCH_BADGES`, and `matchedPages`
@@ -31,13 +30,14 @@ const CALLERS: Record<string, number> = {
   "components/search/SearchEmptyState.tsx": 4,
   "components/search/SearchFilterChips.tsx": 9,
   "components/search/SearchFooter.tsx": 2,
-  "components/search/SearchQueryHeader.tsx": 6,
+  "components/search/SearchQueryHeader.tsx": 8,
   "components/search/ConditionMenu.tsx": 30,
   "components/search/SearchResultsList.tsx": 2,
   "components/search/useLauncherRows.ts": 1,
   // None by name: the legend draws every word it shows out of
   // `MATCH_BADGES`.
   "components/search/MatchLegend.tsx": 0,
+  "components/folder/FolderToolbar.tsx": 5,
 };
 
 const HANDLE = /(?:const|let)\s+(\w+)\s*=\s*useTranslations\(\s*"search"\s*\)/;

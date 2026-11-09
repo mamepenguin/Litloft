@@ -1,16 +1,17 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const browser = vi.hoisted(() => ({ props: [] as Array<Record<string, unknown>> }));
+
 vi.mock("@/components/FolderBrowser", () => ({
-  FolderBrowser: () => <div data-testid="folder-browser" />,
+  FolderBrowser: (props: Record<string, unknown>) => {
+    browser.props.push(props);
+    return <div data-testid="folder-browser" />;
+  },
 }));
 
-const slots = vi.hoisted(() => ({ ids: [] as string[] }));
 vi.mock("@/components/AddonSlot", () => ({
-  AddonSlot: ({ id }: { id: string }) => {
-    slots.ids.push(id);
-    return <div data-testid={`slot-${id}`} />;
-  },
+  AddonSlot: ({ id }: { id: string }) => <div data-testid={`slot-${id}`} />,
 }));
 
 let params = new URLSearchParams();
@@ -27,32 +28,37 @@ function renderPage() {
   return render(<SearchPage />);
 }
 
+const handed = () => browser.props.at(-1);
+
 beforeEach(() => {
-  slots.ids = [];
+  browser.props = [];
   params = new URLSearchParams();
 });
 
-describe("SPEC-CORE-039 I21 a filtered query renders no Scene toggle and no slots", () => {
+describe("SPEC-CORE-039 I21 a filtered query reaches the results page as written", () => {
   it.each([
     ["a tag operator", "cats tag:pets"],
     ["a type operator", "cats type:video"],
     ["a favourite operator", "is:favorite cats"],
-  ])("hides the toggle and search-results-top for %s", (_name, q) => {
+  ])("keeps the operators in the query it hands over for %s", (_name, q) => {
     params = new URLSearchParams({ q, include_scene_clip: "true" });
 
     renderPage();
 
-    expect(screen.queryByRole("checkbox")).toBeNull();
-    expect(screen.queryByTestId("slot-search-results-top")).toBeNull();
-    expect(slots.ids).not.toContain("search-results-top");
+    expect(handed()?.searchQuery).toBe(q);
+    expect(handed()?.includeSceneClip).toBe(true);
   });
 
-  it("keeps both for an unfiltered query", () => {
+  it("mounts no addon slot of its own, filtered or not", () => {
     params = new URLSearchParams({ q: "cats", include_scene_clip: "true" });
 
-    renderPage();
+    const filtered = renderPage();
+    expect(filtered.container.querySelector('[data-testid^="slot-"]')).toBeNull();
+    filtered.unmount();
 
-    expect(screen.getByRole("checkbox")).toBeInTheDocument();
-    expect(screen.getByTestId("slot-search-results-top")).toBeInTheDocument();
+    params = new URLSearchParams({ q: "cats tag:pets", include_scene_clip: "true" });
+    const unfiltered = renderPage();
+    expect(unfiltered.container.querySelector('[data-testid^="slot-"]')).toBeNull();
+    expect(screen.getByTestId("folder-browser")).toBeInTheDocument();
   });
 });

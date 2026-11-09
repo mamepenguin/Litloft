@@ -74,6 +74,7 @@ describe("the shared toolbar menu has one home", () => {
       "addons/knowledge/frontend/AllNotes.tsx",
       "frontend/src/components/OverflowMenu.tsx",
       "frontend/src/components/PdfPreview.tsx",
+      "frontend/src/components/SmartFolderSaveButton.tsx",
       "frontend/src/components/SortButton.tsx",
       "frontend/src/components/ViewMenu.tsx",
       "frontend/src/components/__tests__/ToolbarMenu.test.tsx",

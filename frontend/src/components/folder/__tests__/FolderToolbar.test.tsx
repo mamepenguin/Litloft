@@ -416,7 +416,7 @@ describe("FolderToolbar", () => {
     it("keeps them all for an empty search", () => {
       render(<FolderToolbar {...empty} isSearch />);
       expect(sortControl()).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: /^Filter/ })).toBeInTheDocument();
+      expect(screen.getByLabelText("More actions")).toBeInTheDocument();
     });
 
     it("keeps them all when the folder count is simply not known", () => {
@@ -442,12 +442,9 @@ describe("FolderToolbar", () => {
       ]);
     });
 
-    it("offers the same vocabulary in search", () => {
+    it("offers no file-type menu in search", () => {
       render(<FolderToolbar {...defaultProps} isSearch />);
-      expect(kindMenu()).toEqual([
-        "All", "Video", "Image", "Audio", "Document", "Text", "PDF",
-        "Archive", "Other",
-      ]);
+      expect(screen.queryByRole("button", { name: /^Filter/ })).toBeNull();
     });
   });
 });

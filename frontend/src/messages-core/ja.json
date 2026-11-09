@@ -277,7 +277,7 @@
     "recentFiles": "最近のファイル",
     "recentSearches": "最近の検索",
     "sceneSearchToggle": "シーン検索",
-    "sceneSearchHint": "動画の中で特定のシーンが映っている箇所を探す",
+    "sceneSearchToggleShort": "シーン",
     "semanticPending": "意味でも探しています…",
     "showMoreBySimilarity": "似ている順にさらに表示",
     "scopeRemove": "{label}の範囲を外す",
@@ -364,7 +364,7 @@
   "smartFolder": {
     "sectionTitle": "スマートフォルダ",
     "save": "スマートフォルダに保存",
-    "saved": "保存中: {name}",
+    "saved": "保存済み: {name}",
     "update": "更新",
     "delete": "削除",
     "rename": "名前変更",

@@ -1,24 +1,27 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Pencil, RefreshCw, Star, Trash2 } from "lucide-react";
+import { Pencil, RefreshCw, Star, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import type { FileKind } from "@/types";
-import {
-  ANCHORED_ORIGIN,
-  ANCHORED_VERTICAL,
-  useAnchoredDirection,
-} from "@/hooks/useAnchoredDirection";
+import type { SmartFolder } from "@/types/smartFolder";
 import { useSmartFolders } from "@/hooks/useSmartFolders";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { DismissScrim } from "./DismissScrim";
-import { useShortcuts } from "@/hooks/useShortcuts";
-import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 import { SmartFolderSaveDialog } from "./SmartFolderSaveDialog";
+import { ActionMenuItem } from "./ActionMenuItem";
+import { MenuSeparator } from "./ToolbarMenu";
 
-interface SmartFolderSaveButtonProps {
+interface SmartFolderSaveProps {
   drive: string;
   query: string;
   /**
@@ -29,14 +32,34 @@ interface SmartFolderSaveButtonProps {
    */
   typeFilter?: FileKind | null;
   smartFolderId: string | null;
+  show?: string | null;
+  includeSceneClip?: boolean;
 }
 
-export function SmartFolderSaveButton({
+interface SmartFolderActions {
+  current: SmartFolder | null;
+  save: () => void;
+  update: () => void;
+  rename: () => void;
+  remove: () => void;
+}
+
+const SmartFolderActionsContext = createContext<SmartFolderActions | null>(null);
+
+/**
+ * Owns the Smart Folder dialogs and the error toast. It lives for as long as
+ * the page does: the menu that offers the entries unmounts when it closes,
+ * while the dialog it opened has to keep working.
+ */
+export function SmartFolderController({
   drive,
   query,
   typeFilter,
   smartFolderId,
-}: SmartFolderSaveButtonProps) {
+  show,
+  includeSceneClip,
+  children,
+}: SmartFolderSaveProps & { children?: ReactNode }) {
   const t = useTranslations("smartFolder");
   const router = useRouter();
 
@@ -54,16 +77,6 @@ export function SmartFolderSaveButton({
   const [renameOpen, setRenameOpen] = useState(false);
   const [updateConfirmOpen, setUpdateConfirmOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuTriggerRef = useRef<HTMLButtonElement>(null);
-  const menuWrapperRef = useRef<HTMLDivElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const { openUp, side } = useAnchoredDirection({
-    triggerRef: menuWrapperRef,
-    panelRef: menuRef,
-    open: menuOpen,
-    gapPx: ANCHORED_VERTICAL[1].px,
-  });
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -72,42 +85,17 @@ export function SmartFolderSaveButton({
     return () => clearTimeout(timer);
   }, [error]);
 
-  // On the shortcut stack, not on `document`: a listener does not know
-  // what is stacked above it.
-  //
-  // `editingOnly: false` because nothing traps focus inside this menu, so
-  // Tab walks out of the last row into whatever follows in the document.
-  // The provider counts a focused field as "editing", and the default
-  // fires only when nothing is — which would leave Escape inert exactly
-  // there, with the menu still up.
-  useShortcuts(
-    "smart-folder-menu",
-    "Dialog",
-    [
-      {
-        key: "escape",
-        label: "Close",
-        editingOnly: false,
-        hidden: true,
-        handler: () => {
-          setMenuOpen(false);
-          menuTriggerRef.current?.focus();
-        },
-      },
-    ],
-    menuOpen,
-    OVERLAY_PRIORITY,
-  );
-
   const buildSearchUrl = useCallback(
     (id: string | null) => {
       const params = new URLSearchParams();
       params.set("q", query);
       if (typeFilter) params.set("type", typeFilter);
       if (id) params.set("smart_folder_id", id);
+      if (includeSceneClip) params.set("include_scene_clip", "true");
+      if (show === "passages") params.set("show", "passages");
       return `/drive/${encodeURIComponent(drive)}/search?${params.toString()}`;
     },
-    [drive, query, typeFilter],
+    [drive, query, typeFilter, includeSceneClip, show],
   );
 
   const handleSaveSubmit = useCallback(
@@ -164,90 +152,20 @@ export function SmartFolderSaveButton({
     }
   }, [current, remove, router, buildSearchUrl, t]);
 
-  if (!query.trim()) return null;
-
-  const inSavedMode = !!current;
+  const actions = useMemo<SmartFolderActions>(
+    () => ({
+      current,
+      save: () => setSaveOpen(true),
+      update: () => setUpdateConfirmOpen(true),
+      rename: () => setRenameOpen(true),
+      remove: () => setDeleteConfirmOpen(true),
+    }),
+    [current],
+  );
 
   return (
-    <>
-      {inSavedMode ? (
-        <div ref={menuWrapperRef} className="relative flex-shrink-0">
-          <button
-            ref={menuTriggerRef}
-            type="button"
-            onClick={() => setMenuOpen((v) => !v)}
-            className="flex items-center gap-1.5 rounded-2xl bg-bg-elevated px-3 py-1.5 text-sm font-medium text-text-primary ring-1 ring-bg-border transition-colors hover:bg-bg-card"
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-          >
-            <Star size={14} className="text-accent" />
-            <span className="max-w-[160px] truncate">
-              {t("saved", { name: current.name })}
-            </span>
-            <ChevronDown size={14} className="text-text-muted" />
-          </button>
-          {menuOpen && (
-            <DismissScrim
-              onDismiss={() => setMenuOpen(false)}
-              className="fixed inset-0 z-30"
-            >
-              <div
-                ref={menuRef}
-                role="menu"
-                className={`absolute z-40 w-44 overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-lg animate-fade-in-scale ${
-                  ANCHORED_VERTICAL[1][openUp ? "up" : "down"]
-                } ${side === "left" ? "left-0" : "right-0"} ${
-                  ANCHORED_ORIGIN[`${openUp ? "up" : "down"}-${side}`]
-                }`}
-              >
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    setUpdateConfirmOpen(true);
-                  }}
-                  className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
-                >
-                  <RefreshCw size={14} />
-                  {t("update")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    setRenameOpen(true);
-                  }}
-                  className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
-                >
-                  <Pencil size={14} />
-                  {t("rename")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    setDeleteConfirmOpen(true);
-                  }}
-                  className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-danger transition-colors hover:bg-accent/10"
-                >
-                  <Trash2 size={14} />
-                  {t("delete")}
-                </button>
-              </div>
-            </DismissScrim>
-          )}
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setSaveOpen(true)}
-          className="flex flex-shrink-0 items-center gap-1.5 rounded-2xl bg-bg-elevated px-3 py-1.5 text-sm font-medium text-text-primary ring-1 ring-bg-border transition-colors hover:bg-bg-card"
-        >
-          <Star size={14} className="text-accent" />
-          <span className="whitespace-nowrap">{t("save")}</span>
-        </button>
-      )}
-
+    <SmartFolderActionsContext.Provider value={query.trim() ? actions : null}>
+      {children}
       <SmartFolderSaveDialog
         open={saveOpen}
         mode="save"
@@ -283,6 +201,68 @@ export function SmartFolderSaveButton({
           {error}
         </div>
       )}
+    </SmartFolderActionsContext.Provider>
+  );
+}
+
+interface SmartFolderMenuItemsProps {
+  closeMenu: () => void;
+  /** Whether a row comes after these and wants a rule before it. */
+  separated?: boolean;
+}
+
+/** The Smart Folder rows of the `…` menu, in the order it offers them. */
+export function SmartFolderMenuItems({
+  closeMenu,
+  separated = false,
+}: SmartFolderMenuItemsProps) {
+  const t = useTranslations("smartFolder");
+  const actions = useContext(SmartFolderActionsContext);
+
+  if (!actions) return null;
+
+  const choose = (act: () => void) => {
+    closeMenu();
+    act();
+  };
+
+  if (actions.current) {
+    return (
+      <>
+        <div role="presentation" className="px-3 py-2">
+          <span className="block truncate text-sm text-text-muted">
+            {t("saved", { name: actions.current.name })}
+          </span>
+        </div>
+        <ActionMenuItem
+          icon={RefreshCw}
+          label={t("update")}
+          onClick={() => choose(actions.update)}
+        />
+        <ActionMenuItem
+          icon={Pencil}
+          label={t("rename")}
+          onClick={() => choose(actions.rename)}
+        />
+        <ActionMenuItem
+          icon={Trash2}
+          label={t("delete")}
+          danger
+          onClick={() => choose(actions.remove)}
+        />
+        {separated && <MenuSeparator />}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <ActionMenuItem
+        icon={Star}
+        label={t("save")}
+        onClick={() => choose(actions.save)}
+      />
+      {separated && <MenuSeparator />}
     </>
   );
 }

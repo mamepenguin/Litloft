@@ -46,9 +46,16 @@ vi.mock("@/components/TreeToggle", () => ({
 }));
 vi.mock("@/components/SelectionBar", () => ({ SelectionBar: () => null }));
 vi.mock("@/components/SmartFolderSaveButton", () => ({
-  SmartFolderSaveButton: (props: Record<string, unknown>) => (
-    <button data-save-props={JSON.stringify(props)}>Save search</button>
+  SmartFolderController: ({
+    children,
+    ...props
+  }: { children?: React.ReactNode } & Record<string, unknown>) => (
+    <>
+      <div data-controller-props={JSON.stringify(props)} />
+      {children}
+    </>
   ),
+  SmartFolderMenuItems: () => null,
 }));
 vi.mock("@/components/AddonSlot", () => ({
   AddonSlot: ({ id, layout, props }: { id: string; layout?: string; props?: Record<string, unknown> }) => (
@@ -63,6 +70,7 @@ vi.mock("@/components/AddonSlot", () => ({
         ...props,
         // A function does not survive JSON; record only whether one arrived.
         onSelect: props?.onSelect ? "fn" : "none",
+        closeMenu: props?.closeMenu ? "fn" : "none",
       })}
     />
   ),
@@ -99,6 +107,7 @@ vi.mock("@/components/AddButton", () => ({
 }));
 
 vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }));
 
@@ -324,15 +333,18 @@ describe("the search header", () => {
     expect(screen.getAllByText("42 items")).toHaveLength(1);
   });
 
-  it("keeps the save-search action and the addon slot", () => {
+  it("keeps the Search-mode addon slot out of the header and in the open … menu", () => {
     renderFolder({ searchQuery: "cats" });
-    expect(screen.getByRole("button", { name: "Save search" })).toBeInTheDocument();
+    expect(screen.queryByTestId("slot-search-modes")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+
     expect(screen.getByTestId("slot-search-modes")).toBeInTheDocument();
   });
 
-  it("offers neither of those outside search mode", () => {
+  it("offers no addon slot outside search mode", () => {
     renderFolder();
-    expect(screen.queryByRole("button", { name: "Save search" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "More actions" })).not.toBeNull();
     expect(screen.queryByTestId("slot-search-modes")).toBeNull();
   });
 });
@@ -480,10 +492,12 @@ describe("what the header hands its children", () => {
 
   // Non-default values throughout: an assertion written with a default is
   // true before the code runs.
-  it("gives the save-search button the query, filter and smart folder", () => {
+  it("gives the Smart Folder controller the query, filter and smart folder", () => {
     renderFolder({ searchQuery: "cats", typeFilter: "video", smartFolderId: "sf1" });
     const props = JSON.parse(
-      screen.getByRole("button", { name: "Save search" }).getAttribute("data-save-props")!,
+      document.querySelector("[data-controller-props]")!.getAttribute(
+        "data-controller-props",
+      )!,
     );
     expect(props.query).toBe("cats");
     expect(props.drive).toBe("main");
@@ -491,18 +505,20 @@ describe("what the header hands its children", () => {
     expect(props.smartFolderId).toBe("sf1");
   });
 
-  it("gives the addon slot its query, drive, filter and select handler", () => {
+  it("gives the addon slot its query, drive, filter, select handler and close", () => {
     renderFolder({ searchQuery: "cats", typeFilter: "video" });
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
     const slot = screen.getByTestId("slot-search-modes");
     expect(slot.getAttribute("data-layout")).toBe("stack");
     const props = JSON.parse(slot.getAttribute("data-slot-props")!);
     expect(slot.getAttribute("data-slot-prop-keys")).toBe(
-      "drive,filter,onSelect,query",
+      "closeMenu,drive,filter,onSelect,query",
     );
     expect(props.query).toBe("cats");
     expect(props.drive).toBe("main");
     expect(props.filter).toBe("video");
     expect(props.onSelect).toBe("fn");
+    expect(props.closeMenu).toBe("fn");
   });
 });
 
