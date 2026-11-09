@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship (human, 2026-11-09, r1 HUMAN_REVIEW_REQUIRED). The user answered "推奨通りでよい" to shipping as is and to recording the I1 wording revision (`accepted` is 200, `already_queued` is 202) in invariants.md.
 ran_in_app: yes
 at: c477602a8bfcf1ba7a51c48a0dc33cb259e353a2
 by: agent
