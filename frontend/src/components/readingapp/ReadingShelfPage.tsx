@@ -148,6 +148,7 @@ export function ReadingShelfPage({
             title=""
             view={{ status: "loading" }}
             onRetry={paged.loadMore}
+            book
             renderItem={() => null}
           />
         )}
@@ -160,6 +161,7 @@ export function ReadingShelfPage({
         title=""
         view={{ status: "loading" }}
         onRetry={paged.retry}
+        book
         renderItem={() => null}
       />
     );

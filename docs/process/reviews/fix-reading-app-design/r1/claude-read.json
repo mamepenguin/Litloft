@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The diff edits the app-wide `frontend/src/components/PageHeader.tsx`, which is not in the touch-point list; the list names only the apps' own header (`AppHeader` in appshell) as a shared piece.",
+      "impact": "PageHeader draws the header of 15+ non-Reading pages (FolderBrowser, DriveHome, TrashView, MissingView, InboxPresenter, CollectionDetail, ImageQueryViewPresenter, HomeHeader, settings, admin pages). Below the `sm` breakpoint, the trail row and the title row now wrap (`flex-wrap ... sm:flex-nowrap`), and the action groups get `max-w-full`. On a narrow page whose actions do not fit, the actions now move to a second line instead of squeezing the breadcrumb. That changes the layout of every drive page on a phone, and no invariant or touch point covers it.",
+      "evidence": "frontend/src/components/PageHeader.tsx:71, :80, :101, :106, :115, :129 (wrap classes added). Grep for `<PageHeader` finds 15 production callers outside the Reading and Video apps. The new e2e-components/page-header-actions.spec.ts checks only three synthetic arrangements at 320/390/1280 px. It checks no real caller, and it does not check that a breadcrumb such as the one in folder listings still fits on one row.",
+      "repro": "not_reproduced. Reading the code: at 320 px, PageHeader with a breadcrumb plus two whitespace-nowrap action buttons wider than the leftover width now puts the action div on a new line, because the row is flex-wrap and the breadcrumb nav is `flex-1 min-w-0`. Before this change the actions stayed on the row.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant covers the app-wide page header (I22 is limited to the two apps' rows), so this is unplanned scope, not a broken invariant.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Add PageHeader to the touch points and give a reason. Alternatively, limit the wrap to the Reading and Video header (AppHeader) and leave the global component as it was."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The diff edits the shared `frontend/src/lib/cardGrid.ts`, which is not in the touch-point list. It changes the signatures of `columnsFor`, `cardGridTemplate` and `useCardColumns`, and adds `BOOK_GRID`. The touch points only have ShelfBlock laid out *on* lib/cardGrid.ts.",
+      "impact": "Every Home and Drive grid (FileGrid, SectionRow, FolderContent, RightPaneFolder, MissingFileGrid, TrashFileGrid) goes through the edited functions. The behavior is the same with the default metrics, but the module that decides card columns everywhere was changed outside the planned scope.",
+      "evidence": "frontend/src/lib/cardGrid.ts:24-46 (new constants and HOME_GRID), :57 (columnsFor metrics), :67 (cardGridTemplate metrics; the fallback template is now built inline instead of using `cardGridColumns`), :75-97 (useCardColumns metrics, callback deps [minWidthPx, gapPx]). Callers found by Grep: SectionRow.tsx:21, FileGrid.tsx:56, FolderContent.tsx:112, RightPaneFolder.tsx:30, MissingFileGrid.tsx:45, TrashFileGrid.tsx:50.",
+      "repro": "not_reproduced. With no metrics, columnsFor and cardGridTemplate reduce to the previous formulas (HOME_GRID spread). card-grid.test.ts:156-157 pins the Home column counts at 1213 and 1480 px.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "I27 asks that Video and Home keep Home's grid, and the defaults keep it. No invariant is broken, but the place is unplanned.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "The diff changes the population guard in `frontend/src/__tests__/card-grid.test.ts`. That guard keeps every grid in the app on lib/cardGrid: it widens the `useCardColumns(` regex and adds a per-file gap allowlist for ShelfBlock.tsx and ReadingGrid.tsx. It is an app-wide test guard, which the touch-point list does not name.",
+      "impact": "ShelfBlock.tsx is on the allowlist as a whole file. A 20px gap there now passes for any grid in that file, including the Video (non-book) branch. If ShelfBlock someday drew `gap-5` for Video while counting columns with the Home gap, the guard would not catch the mismatch.",
+      "evidence": "frontend/src/__tests__/card-grid.test.ts:57 and :120 (regex widened from `useCardColumns\\(\\)` to `useCardColumns\\(`), :209-225 (bookGapSites allowlist keyed by file path, not by the metrics passed).",
+      "repro": "Mutation, in my head: ShelfBlock.tsx:60 `book ? \"gap-5\" : \"gap-3\"` → `\"gap-5\"` for both. The `uses the column gap the helper counts with` test still passes, because the file is on the allowlist. Only the Video layout fixture parity (\"grid gap-3\" is no longer asserted for Video ul at reading-video-faces.html, since only reading shelves changed) might catch it. Not run.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a weakened test guard in an unplanned place. With today's code no invariant is broken.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "TP-4",
+      "origin": "reviewer",
+      "claim": "The diff edits the app-wide `frontend/src/components/ToolbarMenu.tsx` by adding a `filled` variant. ToolbarMenu is not in the touch-point list.",
+      "impact": "ToolbarMenu draws toolbar menus across the app. The new prop is optional and defaults to false, so existing callers render as before. Still, a shared component's markup changed outside the planned scope.",
+      "evidence": "frontend/src/components/ToolbarMenu.tsx:139-140 (prop), :201-229 (filled branch drops the Icon and adds ChevronDown). The only `filled` callers are TargetMenu.tsx:154 and readingapp/LibraryControls.tsx.",
+      "repro": "not_reproduced. Reading the code: with filled=false, the className and children are byte-identical to the previous ones.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Unplanned shared-component edit. I28 asks for the filled look but does not name ToolbarMenu as a place.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "TP-5",
+      "origin": "reviewer",
+      "claim": "The diff adds `formatRelativeAge` to the shared `frontend/src/lib/format.ts`, which is not in the touch-point list.",
+      "impact": "It is additive and only ReadingCard uses it, so the impact is small. One rounding edge: an age of 360–364 days shows as \"12 months ago\", not \"1 year ago\".",
+      "evidence": "frontend/src/lib/format.ts:21-42; ReadingCard.tsx:71 uses it; format.test.ts covers 3, 14, 240 and 730 days only.",
+      "repro": "not_reproduced. diffDay=362 → floor(362/30)=12 → \"12 months ago\".",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Unplanned place. I29 only asks for a relative age, and \"12 months ago\" is still relative.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "TP-6",
+      "origin": "reviewer",
+      "claim": "The diff adds a spec and arrangements under `frontend/e2e-components/` (page-header-actions.spec.ts, fixtures/app.tsx, the spec-viewport.spec.ts list) and the matching componentFixtureParity.test.tsx entries. The touch-point list names only a new spec under `frontend/e2e-layout/`.",
+      "impact": "This is a test-suite location the plan did not declare. It exists only because of the unplanned PageHeader edit (TP-1).",
+      "evidence": "frontend/e2e-components/page-header-actions.spec.ts (new), frontend/e2e-components/fixtures/app.tsx:1956-2031, frontend/e2e-components/spec-viewport.spec.ts:48, frontend/src/components/__tests__/componentFixtureParity.test.tsx:226-228. docs/process/risk-and-human-review.md does not list e2e-components as protected (Grep found no match).",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Unplanned test location. No invariant applies.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "I27: ReadingGrid and ShelfBlock(book) use BOOK_GRID (140px min, gap-5 = 20px). columnsFor(976, BOOK_GRID) = floor(996/160) = 6. Video keeps the defaults.",
+    "I28: TargetMenu passes `filled` for both apps. Tag, State, Group and Sort pass `filled`. Group carries `ml-auto`, so Group and Sort sit at the row's end.",
+    "I29: ReadingCard uses formatRelativeAge (always relative) and the progress fill is `bg-accent`.",
+    "I23: a ShelfBlock draws at most capacityOf(columns) cards, and the e2e-layout spec now counts with BOOK_GRID metrics for reading."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Global PageHeader wraps its trail and title rows below the sm breakpoint on every page, not only the Reading and Video apps.",
+    "The Video app's See all link gains a trailing ChevronRight icon (shared ShelfBlock). No invariant or revision names this for Video.",
+    "A ReadingCard without a thumbnail now prints the title inside the cover instead of a file-type icon. I29 does not cover this.",
+    "The Tag menu's empty value text changes from 'Tag' to 'None specified'."
+  ],
+  "regression_risks": [
+    "Narrow-width header layout of folder listing, trash, missing, inbox, collection, settings and admin pages (PageHeader wrap).",
+    "Home and Drive grid column counts if the defaults in cardGrid.ts ever diverge from HOME_GRID; today they are equivalent."
+  ],
+  "test_coverage": [
+    "page-header-actions.spec.ts measures only synthetic arrangements, with no real PageHeader caller such as FolderBrowser's breadcrumb and actions.",
+    "card-grid.test.ts allowlists ShelfBlock.tsx for gap 20 by file, not by branch.",
+    "format.test.ts does not cover the 360–364 day edge or sub-day ages.",
+    "useCardColumns.test.tsx and card-grid.test.ts pin BOOK_GRID at 976 and 358 px and Home at 1213 and 1480 px."
+  ],
+  "not_verified": [
+    "I did not run any test, e2e spec or build. All claims come from reading the code.",
+    "I did not check how each of the 15 PageHeader callers actually renders at 320–639 px after the wrap change.",
+    "I did not read docs/specs/reading-app.md or frontend-conventions.md in full to see whether PageHeader, ToolbarMenu or cardGrid edits are pre-authorised there.",
+    "I did not check whether the e2e-components Playwright config picks up the new spec automatically."
+  ],
+  "confidence": 78
+}
