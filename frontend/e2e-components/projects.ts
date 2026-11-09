@@ -19,6 +19,7 @@ export const DESKTOP_ONLY = [
   "**/text-resume-desktop.spec.ts",
   "**/persistent-highlights-desktop.spec.ts",
   "**/ask-thread-desktop.spec.ts",
+  "**/search-results-bar-desktop.spec.ts",
 ];
 
 /** Literals rather than a device preset, which can change under it. */
