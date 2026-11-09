@@ -593,3 +593,107 @@ pending: |
   - Audio and video as heard and seen, subtitle timing, playback over the home
     LAN and on other household devices, and calls to real third-party addon
     services (`PROJECT.md` agent_cannot_verify).
+
+## R-5, fifth run (after the parser-decided saved-note code)
+
+ran_in_app: yes
+at: 40349eb4ac857ad81fb13518a148686b6f45680a
+by: agent
+evidence: |
+  SPEC-ADDON-081..084 of `docs/specs/file-ask-thread.md`, fifth R-5 after the
+  saved note took its code spans from the Markdown parser's own tokens
+  (SPEC-ADDON-083 step 3, I7). Core tree
+  40349eb4ac857ad81fb13518a148686b6f45680a with `addons/intelligence` at
+  70c1334e13088011ac8374c682513be4b21a27fc and `addons/knowledge` at
+  59d155a014b73db679396b64799a6b85168fb20a (both clean).
+
+  Environment. The earlier runs' scratch material was reused and the images
+  rebuilt: `LITLOFT_PORT=3994 docker compose -p litloft-r5-thread
+  -f docker-compose.yml -f .r5/override.yml up -d --build backend frontend
+  intelligence knowledge` from this worktree. `.r5/data` for the backend and
+  both addons' data, `.r5/drive` as drive `scratch`, `passwords.json` `[]`, the
+  `.r5/search-config.yml` (`rag.file_question_max_chars: 1000`,
+  `text_chunking.max_chunk_size: 1000`, `transcription.whisper_local
+  .min_segment_duration: 2`, `detailed_summaries: "false"`) and
+  `event-hooks.json` mounted as before. The local OpenAI-compatible stub under
+  `.r5/llm-stub/` ran on host port 3996; its `fixed` switch streamed
+  `.r5/llm-stub/fixed-answer.txt`, rewritten for this run to hold the answer
+  text below, and was removed before B. Only `litloft-r5-thread` was started
+  and stopped; the other stacks were not touched. The note was read through the
+  app's API, never from the host DB. The stub is not a model; nothing below is
+  evidence about a real model's answer quality.
+
+  A. Code spans, an escaped backtick, a link text and the saved note (PASS).
+  `trailhead.mp4` (`w3RoCFb3U9TJ`), 1440x900, 質問 tab, one question
+  「What does the bus do in the morning?」 answered with the fixed text (the
+  request carried 3 passages; `[1]` is the 0:00 one). On screen (shot
+  `r5-a-answer-drawn.png`) the answer was drawn as:
+  - a paragraph `See ` + inline code `x y [1]` + ` z and ` + a `0:00` pill +
+    `.`;
+  - a blockquote whose paragraph was `Quote ` + inline code `a b [1]` + ` c`;
+  - a paragraph `open `x ` (its backtick left literal, never closed) + a
+    `0:00` pill;
+  - a paragraph `after ` + a `0:00` pill;
+  - a paragraph `Use `x ` + a pill + inline code `here, ``a` + a pill + `` and ``
+    + a link to `https://example.com` whose text was `see ` + a pill + `.`;
+  - an ordered list item `Run:` whose content was a fenced code block, drawn as
+    one `pre` holding `y = arr[1]\n`.
+
+  The turn's DOM had one `pre`, three `inline code` elements (`x y [1]`,
+  `a b [1]` and `here, ``a`; the first two keep `[1]` and carry no pill) and
+  six pill buttons (all `0:00`). So `[1]` was drawn as code inside the two
+  inline spans that cross a line ending and inside the list-nested fence, and
+  as a pill in the six other places, including the first `[1]` of the `Use`
+  line whose leading backtick is escaped, the one after that line's code span,
+  and the one in the link text. 「Markdownで保存」 proposed `Ask` /
+  `what-does-the-bus-do-in-the-morning.md`; the save answered 200 with
+  `note_path Ask/what-does-the-bus-do-in-the-morning (2).md` (the earlier
+  runs' notes hold the name) -> note `t2LZINY-ZREo`, `trust_tier: "unverified"`,
+  `trust_reviewed_at: null`. The link 「Markdownを保存しました — ノートを開く」
+  pointed at `/drive/scratch/addons/knowledge?edit=t2LZINY-ZREo`. The note's raw
+  content (`GET /api/files/t2LZINY-ZREo/stream`) has one `##` turn section; its
+  answer exactly:
+
+  ````markdown
+  See `x
+  y [1]` z and [0:00](loft://w3RoCFb3U9TJ?t=0).
+
+  > Quote `a
+  > b [1]` c
+
+  open `x [0:00](loft://w3RoCFb3U9TJ?t=0)
+
+  after [0:00](loft://w3RoCFb3U9TJ?t=0)
+
+  Use \`x [0:00](loft://w3RoCFb3U9TJ?t=0)` here, ``a ` [0:00](loft://w3RoCFb3U9TJ?t=0)`` and [see [0:00](loft://w3RoCFb3U9TJ?t=0)](https://example.com).
+
+  1. Run:
+      ```python
+      y = arr[1]
+      ```
+  ````
+
+  `[1]` stayed as written inside every part drawn as code (the two inline
+  spans and the fence) and became `[0:00](loft://w3RoCFb3U9TJ?t=0)` in all six
+  other places, including the escaped-backtick `Use` line and the link text.
+  There is no difference between what was drawn as code and what the note
+  keeps. Result `.r5/results/r5-a.json`; shot `r5-a-saved-link.png`.
+
+  B. Check 1 repeated (PASS). `trailhead.mp4`, 1440x900, fresh page. Q1
+  「What is said about the faded sign?」 answered with the normal canned text;
+  Q2 「How much does the taxi cost?」 asked as a follow-up. The turns were drawn
+  oldest first (tops 358 then 544), the text box below them (y 743.4) and empty
+  after each send. The last request carried `Earlier in this conversation:`
+  with Q1 and its answer, zero `[n]` matches in the block (the first answer's
+  `[1]` was removed), and three passages. Q1's answer drew one pill `0:04`;
+  Q2's drew `0:00` and `0:09` (shot `r5-b-video-followup-pills.png`). Result
+  `.r5/results/r5-b.json`.
+
+pending: |
+  - The quality and correctness of answers with a real model: the LLM was a
+    canned local stub.
+  - A real off-host provider, and the `llm_cloud` policy on a real install.
+  - Anything on an iPhone: a desktop Chromium viewport was used, not a device.
+  - Audio and video as heard and seen, subtitle timing, playback over the home
+    LAN and on other household devices, and calls to real third-party addon
+    services (`PROJECT.md` agent_cannot_verify).
