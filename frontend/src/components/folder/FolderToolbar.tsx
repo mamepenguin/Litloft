@@ -259,8 +259,10 @@ export function FolderToolbar({
           z-20 matches the Header so that FilterField's absolute search icon
           (z-10) is covered when the bar sticks. */}
       <div
-        className={`sticky top-0 z-20 mb-2 flex flex-wrap items-center gap-2 bg-bg-primary px-4 py-2 ${
-          isSearch ? "border-b border-bg-border" : ""
+        // The search bar never wraps: when a wide font leaves no room, the
+        // Scene search label truncates instead of pushing `…` to a second row.
+        className={`sticky top-0 z-20 mb-2 flex items-center gap-2 bg-bg-primary px-4 py-2 ${
+          isSearch ? "flex-nowrap border-b border-bg-border" : "flex-wrap"
         }`}
       >
         {leftActions}
@@ -280,15 +282,15 @@ export function FolderToolbar({
         )}
 
         {isSearch && search?.showSceneSearch && (
-          <label className="inline-flex cursor-pointer select-none items-center gap-1.5 text-sm text-text-primary pointer-coarse:min-h-11 sm:gap-2">
+          <label className="inline-flex min-w-0 cursor-pointer select-none items-center gap-1.5 text-sm text-text-primary pointer-coarse:min-h-11 sm:gap-2">
             <input
               type="checkbox"
               checked={search.sceneSearch}
               onChange={(e) => search.onSceneSearchChange(e.target.checked)}
-              className="h-4 w-4"
+              className="h-4 w-4 flex-none"
             />
-            <span className="sm:hidden">{tSearch("sceneSearchToggleShort")}</span>
-            <span className="hidden sm:inline">{tSearch("sceneSearchToggle")}</span>
+            <span className="min-w-0 truncate sm:hidden">{tSearch("sceneSearchToggleShort")}</span>
+            <span className="hidden min-w-0 truncate sm:inline">{tSearch("sceneSearchToggle")}</span>
           </label>
         )}
 

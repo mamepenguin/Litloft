@@ -64,3 +64,16 @@ test(`the condition button names what it adds at ${PHONE}px`, async ({ page }) =
   const box = await label.boundingBox();
   expect(box?.width ?? 0).toBeGreaterThan(0);
 });
+
+// 375 px is the narrowest supported width. With less slack than 390 px it
+// also stands in for fonts wider than the test machine's.
+for (const id of [ARRANGEMENT.files, ARRANGEMENT.passagesScene]) {
+  test(`${id} at 375px: the results bar stays one row`, async ({ page }) => {
+    await open(page, id, 375);
+    const m = await measure(page);
+    expect(m.scrollWidth).toBeLessThanOrEqual(375);
+    const controls = [...m.switches, ...m.checkboxes, ...m.counts, ...m.mores];
+    for (const a of controls) for (const b of controls) expect(overlapVertically(a, b)).toBe(true);
+    expect(m.counts[0].lines).toBe(1);
+  });
+}
