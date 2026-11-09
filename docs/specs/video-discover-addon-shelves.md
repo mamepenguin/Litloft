@@ -54,9 +54,14 @@ export const slotProviders: Record<string, ShelfProvider>;
 type ShelfProvider = (args: {
   drive: string;
   limit: number;                                    // ids the shelf will draw, 12
-  restrict: (ids: string[]) => Promise<string[]>;   // core's filter, at most 60 ids per call
+  restrict: (ids: string[]) => Promise<string[]>;   // core's filter, any number of ids
 }) => Promise<string[]>;                            // ordered file ids, best first
 ```
+
+`restrict` accepts any number of ids. It sends them in requests of at most 60 ids each,
+the endpoint's cap. `restrict([])` resolves to `[]` without sending a request. A
+`viewer_required` error from any of its requests calls the app's `onViewerRejected`, as the
+watch shelves do today, and then rejects.
 
 The provider is found the same way as a slot component, by slot id → catalogue entries
 (sorted by `priority`) → `addonName` → that addon's `slots.ts` → `slotProviders[entry.id]`.
@@ -65,28 +70,46 @@ optional `i18n_key` for the label, as other slots do.
 
 `restrict(ids)` calls `GET /api/drives/{drive}/shelves?by=all&key=all&per_shelf=60&ids=…`
 with the app's target parameters, plus the shelf's own condition (below). It returns the
-subset of `ids` that matched, in the order the provider passed them. The core keeps the
-`ShelfItem` of every id it returned. The provider may call `restrict` as many times as it
-needs to.
+subset of `ids` that matched, in the order the provider passed them. Each provider call
+gets its own `restrict` and its own set of accepted ids, holding the `ShelfItem` of every id
+that this `restrict` returned. Ids accepted for one shelf never count for another. The
+provider may call its `restrict` as many times as it needs to.
 
 When a provider resolves, the core's shelf is built in this order:
 
 1. Take the provider's ids in order.
-2. Drop duplicates, and drop every id that no `restrict` call of this load returned.
+2. Drop duplicates, and drop every id that is not in this call's accepted set.
 3. Keep the first `limit`.
 4. Draw the matching `ShelfItem`s.
 
-**Recommended (SPEC-CORE-068).** With a profile, and once the addon catalogue for the drive
-has loaded:
+**When the catalogue counts as loaded.** The catalogue counts as loaded for a drive when
+`useAddonSlots()` reports `loading` false and `catalogueDrive` equal to the app's drive.
+Until then, no entry of the previous drive is used.
 
-1. If `video-discover-recommended` has an entry whose provider resolves, call the provider
-   of the first entry by `priority`. Its `restrict` adds `watch=unwatched` to the target.
-2. At the same time, request the random unwatched shelf as today, with `per_shelf` equal to
-   12 plus the provider's count.
+**When the providers run again.** Recommended and the addon shelves are asked again exactly
+when today's Discover shelves are: the drive, the target parameters or `hasProfile`
+changes, and when the catalogue's entries for the two slots change. A result whose inputs
+have since changed is dropped (`useLoad` already does this by load identity).
+
+**Recommended (SPEC-CORE-068).** With a profile, and once the catalogue has loaded:
+
+1. Take the first `video-discover-recommended` entry by `priority` whose module exports a
+   function under its id. Later entries are never tried, not even when this one rejects.
+   This provider's `restrict` adds `watch=unwatched` to the target.
+2. At the same time, request the random unwatched shelf as today, but with `per_shelf` 24
+   instead of 12. The random sample then still covers 12 after removing up to 12
+   duplicates.
 3. Recommended is the provider's items followed by random items not already shown, up to 12.
+   When the provider rejects or returns nothing, Recommended is the first 12 of the random
+   response.
+4. If the random request has answered and the provider has not settled 3 seconds later,
+   Recommended is drawn from the random response alone, and the provider's late answer is
+   discarded for this load.
 
-Without a profile, or with no entry, Recommended is the random sample of SPEC-CORE-057,
-unchanged. **See all** still opens the core unwatched shelf.
+With no entry that has a function, Recommended sends exactly SPEC-CORE-057's request
+(`per_shelf` 12) and does not wait for the provider. Without a profile it is also
+SPEC-CORE-057's request, and it does not wait for the catalogue either. **See all** still
+opens the core unwatched shelf.
 
 **Addon shelves (SPEC-CORE-068).** For each `video-discover-shelves` entry in `priority`
 order, Discover calls its provider. `restrict` adds no watch condition, so the target alone
@@ -101,10 +124,13 @@ otherwise. The shelves are drawn after Recommended and before New:
 
 1. Read the viewer's feed in rank order, 60 ids per request (`/pickup?limit=60&offset=…`),
    and pass each page through `restrict`.
-2. Stop once 40 ids have matched, the feed is exhausted, or `total` is reached. The feed
-   holds at most 300 rows, so this is at most 5 page requests.
-3. Shuffle the matched pool with a seed made from the drive and the viewer's local date
-   (`localDateStamp()`), and return the first `limit`.
+2. Stop once 40 ids have matched, a page comes back shorter than 60, or `offset` reaches
+   `total`. The feed holds at most 300 rows, so this is at most 5 page requests.
+3. The pool is the first 40 matched ids in feed rank order. Ids past 40 on the last page
+   are not used.
+4. Shuffle the pool with a seeded PRNG whose seed is derived from the drive and the
+   viewer's local date (`localDateStamp()`), and return the first `limit`. Any seeded
+   shuffle will do; only the determinism in I8 is required.
 
 This is the same "sample 12 from the top 40, once a day" rule as the home carousel, applied
 after the target filter rather than before it. A shuffle of the unfiltered window would
@@ -113,13 +139,14 @@ leave few or no videos in a drive of mixed kinds.
 **Media Import providers (SPEC-ADDON-088).** Media Import registers two entries under
 `video-discover-shelves`:
 
-| Entry id | Lane | Priority | ja / en label | `href` |
-|---|---|---|---|---|
-| `media-import-regular` | `regular` | 10 | よく見るソース / Regular sources | `addons/media_import` |
-| `media-import-feed` | `feed` | 20 | 購読の新着 / New from subscriptions | `addons/media_import` |
+| Entry id | Lane | Priority | `i18n_key` | ja / en label | `href` |
+|---|---|---|---|---|---|
+| `media-import-regular` | `regular` | 10 | `mediaImport.slots.videoRegular` | よく見るソース / Regular sources | `addons/media_import` |
+| `media-import-feed` | `feed` | 20 | `mediaImport.slots.videoFeed` | 購読の新着 / New from subscriptions | `addons/media_import` |
 
-Each provider reads `GET /api/addons/media_import/watch?lane=…&limit=60`, passes the ids
-through `restrict` and returns them in lane order. The feed label differs from the addon
+Each provider calls the existing `listWatch(drive, lane, { limit: 60 })`. It sends the
+`drive` query parameter and the matching `X-Lit-Drive` header that `/watch` requires. The
+provider passes the ids through `restrict` and returns them in lane order. The feed label differs from the addon
 page's 新着 so that it cannot be mistaken for the core **New** shelf on the same screen.
 
 ### 2. Failure cases
@@ -152,11 +179,15 @@ page's 新着 so that it cannot be mistaken for the core **New** shelf on the sa
 
 Per Discover shelf, with `useLoad`'s states: `idle` → `loading` → `loaded` | `failed`.
 
-- **Recommended:** `loading` lasts until the catalogue has loaded and the provider (if any)
-  and the random request have settled. `loaded` with zero items is not drawn. It is `failed`
-  only when the random request failed and the provider gave nothing.
-- **Addon shelf:** `loading` until its provider settles. Then `loaded`, which is drawn only
-  with at least one item, or `failed`, which is not drawn and has no Retry.
+- **Recommended:** `loading` lasts until the catalogue has loaded, the random request has
+  settled, and the provider (if any) has settled or the 3-second bound after the random
+  answer has passed. While loading it is drawn as today's skeleton. `loaded` with zero items
+  is not drawn. It is `failed` only when the random request failed and the provider gave
+  nothing.
+- **Addon shelf:** not drawn at all until its provider settles: no title and no skeleton.
+  Then `loaded`, drawn only with at least one item, or `failed`, never drawn and with no
+  Retry. A shelf that comes to nothing never appears, so the shelves below it do not jump
+  twice.
 
 The existing Discover empty state (no video under the target) is unchanged. It still
 depends only on the three core shelves.
@@ -250,6 +281,8 @@ endpoint's existing exception log is unchanged.
   shelves, `restrict`.
 - `frontend/src/components/videoapp/DiscoverFace.tsx`: draw the addon shelves in order.
 - `frontend/src/components/videoapp/__tests__/`: tests for the above.
+- `addons/intelligence/frontend/__tests__/pickupShelfProvider.test.ts` (I8), and
+  `addons/media_import/frontend/__tests__/watchShelfProviders.test.ts` (I9).
 - `addons/intelligence/frontend/slots.ts`, a new provider module, and `manifest.json`
   (`video-discover-recommended` entry). This is a separate repository; the submodule
   pointer is bumped in core.
@@ -275,16 +308,17 @@ drive, of trash or of a missing file is never returned, and more than 60 ids is 
 
 I2. A shelves request without `ids` returns the same response as before this change.
 
-I3. Discover draws a Recommended or addon-shelf item only if its id was returned by a
-`restrict` call of the same load, so a provider can never make Discover show a file outside
+I3. Discover draws a Recommended or addon-shelf item only if its id was returned by the
+`restrict` given to that same shelf's provider call (never by another shelf's), so a provider can never make Discover show a file outside
 the app's target, outside `type=video`, of another drive, or (for Recommended) one the
 viewer has started or finished.
 
 I4. Recommended shows the provider's items first, in the provider's order, followed by
-random unwatched items not already shown, at most 12 in all and with no duplicate. With no
-profile, no `video-discover-recommended` entry, a provider that rejects, or one that
-returns nothing, Recommended is the random sample of SPEC-CORE-057 with the same request
-parameters.
+random unwatched items not already shown, at most 12 in all and with no duplicate. A
+provider that rejects, returns nothing, or has not settled 3 seconds after the random
+response leaves Recommended as the first 12 random unwatched videos. With no profile, or no
+`video-discover-recommended` entry with a function, Recommended sends SPEC-CORE-057's
+request unchanged.
 
 I5. An addon shelf is drawn only when its provider resolves with at least one restricted
 item. A missing module, a missing function, or a rejection hides that shelf alone, and the
@@ -304,6 +338,13 @@ returns the same ids in the same order.
 
 I9. Each Media Import provider returns only ids from its own lane (`regular` or `feed`) for
 that drive, in that lane's order, after `restrict`.
+
+I10. An addon's `slots.ts` is imported at most once per page load for components and
+providers together, and every `AddonSlot` renders the same entries as before this change.
+
+I11. Recommended and the addon shelves never use a catalogue entry fetched for another
+drive, and a provider result whose drive, target or profile has since changed is never
+drawn.
 
 ## Revises
 
@@ -329,9 +370,9 @@ not drawn without a profile.
   target's full meaning.
 - **`ids` on the file listing too.** Not needed. The listing stays unchanged (I2's twin for
   the listing is SPEC-CORE-056 I7).
-- **A request timeout for providers.** None in this change. Every provider call stays
-  inside the LAN stack, and a hung addon leaves its own shelf loading, not the face. Revisit
-  if a slow provider shows up in use.
+- **A request timeout for addon shelves.** None in this change. An addon shelf is not drawn
+  while it loads, so a hung addon shows nothing and blocks nothing. Recommended is the one
+  that waits, and it has the 3-second bound.
 - **Duplicates across shelves.** A video may appear both in an addon shelf and in New, or in
   Recommended, because each shelf answers a different question. This is accepted, as Home
   and the Media Import page already overlap today. The two Media Import lanes are disjoint
