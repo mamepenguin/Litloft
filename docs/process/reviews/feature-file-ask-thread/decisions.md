@@ -697,3 +697,7 @@ pending: |
   - Audio and video as heard and seen, subtitle timing, playback over the home
     LAN and on other household devices, and calls to real third-party addon
     services (`PROJECT.md` agent_cannot_verify).
+
+## Escalation after r5 (owner's decision, 2026-11-09)
+
+The r2 to r5 reviews each found one more case where the saved note's code detection differed from what AnswerMarkdown renders. At the fourth finding on the same spot the author escalated. The owner chose: "角括弧付きの目印で直す" — keep the sentinel's `[`...`]` shape so reference definitions and link labels parse as in the original answer, then run R-5 and /review again; a further LOW finding of the same kind is brought to the owner rather than fixed.

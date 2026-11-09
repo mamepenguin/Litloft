@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R1",
+      "origin": "reviewer",
+      "claim": "rewriteAnswer replaces each `[n]` with a bracket-free sentinel before it parses, and removing the brackets changes the parse itself: a line such as `[1]: https://example.com` is a link reference definition for the renderer but a plain paragraph for the sentinel text. A following line indented 4 spaces is therefore a code_block on screen but a lazy paragraph continuation in the note builder, so a `[n]` inside that on-screen code is rewritten or removed.",
+      "impact": "Take an answer that ends with reference-style source lines, e.g. \"[1]: https://example.com\\n    see arr[2]\". AnswerMarkdown renders line 2 as a `<pre>` code block that shows `arr[2]` as typed, with no pill. The saved note turns it into `see arr[0:05](loft://…?t=5)`, or `see arr` when 2 has no position. The code in the note silently differs from what the viewer read.",
+      "evidence": "addons/intelligence/frontend/askNoteFormat.ts rewriteAnswer builds sentinelText by replacing every MARKER match with `${prefix}${index}` and parses only sentinelText (`collect(blockParser.parse(sentinelText, {}))`). markdown-it 14.1.1 lib/rules_block/reference.mjs:11 requires the line to start with `[`, so `LITASKSENTINEL0: https://…` is never a reference. On the original text, reference.mjs:25 reads the 4-space line as a continuation only while it looks for a title. When the title fails it rolls back (`nextLine = destEndLineNo`, :162-163) and sets `state.line = nextLine` (:210), so the indented line starts a new block and the code rule makes it a code_block. On the sentinel text the same line is a lazy continuation of the paragraph (an indented code block cannot interrupt a paragraph), so no code_block token holds the sentinel, codeIndexes misses it, and markerReplacement runs. AnswerMarkdown.applyCitations skips `code, pre` (AnswerMarkdown.tsx:232).",
+      "repro": "Traced by hand from markdown-it 14.1.1 source, not executed: buildAskThreadMarkdown({fileId:'vid000000001', filename:'lecture.mp4', fileType:'video', turns:[{question:'why', answer:'[1]: https://example.com\\n    see arr[2]', citations:[{n:2, position:{seconds:5}}]}]}). The note's second answer line becomes `    see arr[0:05](loft://vid000000001?t=5)`, while the renderer parses the original as a reference definition followed by a code_block holding `see arr[2]`. No test in askNoteFormat.test.ts or AskTabThread.test.tsx has a reference definition.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I7: inside code as AnswerMarkdown renders it, the text must be as received. Here a code_block line on screen is rewritten in the note, and the sentinel substitution added in this round is the cause.",
+        "invariant_ref": "I7"
+      },
+      "severity": "LOW",
+      "proposed_fix": "Parse the original answer, not a substituted one, and map code tokens back to source offsets (block `map` line ranges for fence/code_block plus the inline token's content scanned for code_inline), or choose a sentinel that keeps the `[`…`]` shape (e.g. `[LITASKSENTINEL0]`) so reference definitions and link labels parse the same. Add a test with a reference-definition line followed by an indented line."
+    }
+  ],
+  "specification_compliance": [
+    "The r4 finding (an escaped backtick read as a code-span opener) is fixed. The hand-written rewriteInline/closingBacktickRun scanner is gone, and code is now decided by markdown-it `code_inline`, `fence` and `code_block` tokens over a sentinel-substituted text, using the renderer's options. The new tests cover the escaped backtick, a double-backtick span holding one backtick, a marker in link text, and a sentinel prefix already present in the answer.",
+    "Sentinel uniqueness holds: the prefix is lengthened until the original answer lacks it, the counters are zero-padded to one width, and the prefix holds no digits, so no sentinel can be found inside another or across an answer/sentinel boundary.",
+    "The sentinel substitution is not neutral for constructs that depend on `[`: link reference definitions in particular (R1).",
+    "I did not see changes to I1-I6 or I8-I12 since r4. The fix commit touches only askNoteFormat.ts and its test."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "blockParser does not have MarkdownPreview's `wiki_link` inline rule, which runs before `link` and consumes `[[…]]` on one line before the backtick rule sees a backtick inside it. For an answer such as \"[[a `b]] [1]` c\", the screen shows [1] as text with a pill, while the note builder parses \"`b]] [1]`\" as a code span and keeps [1] raw. This is contrived for model output.",
+    "A `[n]` in a fence's info string (\"```js [1]\") is not in token.content, so it is rewritten in the opening fence line. The info string is not drawn on screen.",
+    "MarkdownPreview strips a leading YAML frontmatter block with gray-matter, while the note builder parses the raw answer.",
+    "AskTab's saveContent memo depends on `answeredTurns`, which is a new array on every render, so `saved_at` is the time of the last render, not of the save click."
+  ],
+  "regression_risks": [
+    "The note builder's code detection now depends on the substituted text parsing like the original. Any block or inline rule keyed on `[` (reference definitions, wiki links, footnote-like plugins added to MarkdownPreview later) can make the two diverge.",
+    "blockParser stays a separate MarkdownIt instance without MarkdownPreview's plugins, so the two configurations can drift."
+  ],
+  "test_coverage": [
+    "askNoteFormat.test.ts has exact-output cases for list- and blockquote-nested fences, multi-line code spans, an unclosed backtick, an escaped backtick, double-backtick spans, a marker in link text and a pre-existing sentinel prefix. Reverting to the hand scanner would fail the escaped-backtick case.",
+    "No test covers a link reference definition (`[n]: url`), a wiki link, or a marker in a fence info string, so R1 passes the suite."
+  ],
+  "not_verified": [
+    "I did not run markdown-it or the tests. R1 is traced by hand from markdown-it 14.1.1 reference.mjs and the CommonMark paragraph rule, not executed.",
+    "I did not confirm that the intelligence addon resolves the same markdown-it version (14.1.1) as frontend/node_modules at runtime.",
+    "I did not re-review the backend invariants (I1-I3, I8-I12) or the AskTab/askStore state logic in depth this round, because the fix commit does not touch them.",
+    "The reviewed commit fb15fd8 itself only records review documents. I reviewed the branch diff and the fix commits as supplied."
+  ],
+  "confidence": 78,
+  "trajectory": "r2→r3 removed the hand-written block classifier in favour of markdown-it block tokens. r3→r4 kept the hand-written inline scanner and added state around it (inlineRanges, a handled set, a fallback pass), which patched the design. r4→r5 removed that scanner and its state entirely: rewriteInline, closingBacktickRun, answerBlocks, inlineRanges and handled are deleted, and every code decision now comes from parser tokens. That is a removal. In exchange it adds one new mechanism, sentinel substitution with a lengthened prefix and padded counters. This mechanism carries a new prediction: that swapping `[n]` for bracket-free text does not change how markdown-it parses the answer. The prediction fails for link reference definitions (R1). So this round removed the old duplicated prediction of the renderer's code-span rules but introduced a different one. It is not the same branch re-added round after round, but the same spot is being patched again."
+}
