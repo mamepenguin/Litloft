@@ -382,3 +382,114 @@ Against `design-check.md` (11 findings):
 ## Missing note_origins rows in the second R-5 (author's investigation, 2026-11-09)
 
 The second R-5 found four Ask notes (`DrlHLe0nQj1R`, `mlLRVcat98v0`, `h7VTNELwp7JR`, `WQAkEbIVwyqZ`) unverified in core but with no `note_origins` row. knowledge has no code path that deletes a `note_origins` row, and `POST /notes` commits the row before it declares the tier. Reproduced on the same scratch stack and data without opening the database from the host: six saves of the same name through `POST /api/addons/knowledge/notes` gave `wal-probe.md` to `wal-probe (5).md`, six rows read inside the container, each with `trust_declared_at` set, and all six still present after restarting the knowledge container. The R-5 had read and written the live WAL database from the host through the bind mount while the container held it open; SQLite's `-shm` index is not shared across that boundary, which is the likely cause. Not a defect of the change; later R-5s read the knowledge database only inside its container.
+
+## R-5, third run (after the rebase and the saved-note code parser)
+
+ran_in_app: yes
+at: c42c21fe0d35b1ce663fcd8131c212d04f49ebfa
+by: agent
+evidence: |
+  SPEC-ADDON-081..084 of `docs/specs/file-ask-thread.md`, third R-5. Core tree
+  c42c21fe0d35b1ce663fcd8131c212d04f49ebfa ("chore: point intelligence at the
+  saved-note code fix") with `addons/intelligence` at
+  2d4c4a6670a8a09e40b55d5c37269c89c199c5a8 and `addons/knowledge` at
+  59d155a014b73db679396b64799a6b85168fb20a (both clean). The branch had been
+  rebased onto develop; the saved note now classifies code with the same
+  Markdown parser as the answer (`addons/intelligence/frontend/askNoteFormat.ts`,
+  SPEC-ADDON-083 step 3 / I7).
+
+  Environment. The earlier runs' scratch material was reused and the images
+  rebuilt: `LITLOFT_PORT=3994 docker compose -p litloft-r5-thread
+  -f docker-compose.yml -f .r5/override.yml up -d --build backend frontend
+  intelligence knowledge` from this worktree. `.r5/data` for backend and both
+  addons' data, `.r5/drive` as drive `scratch`, `passwords.json` `[]`, the
+  `.r5/search-config.yml` (still `rag.file_question_max_chars: 1000`,
+  `text_chunking.max_chunk_size: 1000`, `transcription.whisper_local
+  .min_segment_duration: 2`, `detailed_summaries: "false"`) and
+  `event-hooks.json` mounted as before. The local OpenAI-compatible stub under
+  `.r5/llm-stub/` ran on host port 3996. A new `fixed` switch makes it stream
+  the exact text in `.r5/llm-stub/fixed-answer.txt`; it was on only for check A
+  and removed before B and C. Only `litloft-r5-thread` was started and stopped;
+  the other stacks were not touched. The DBs were read only through the app's
+  API and, where needed, inside the containers, never from the host. The stub
+  is not a model; nothing below is evidence about a real model's answer
+  quality.
+
+  A. The answer is drawn as its Markdown and saved unchanged outside code
+  (PASS). `trailhead.mp4` (`w3RoCFb3U9TJ`), 1440x900, 質問 tab. One question
+  「What does the bus do in the morning?」 was answered with the fixed text
+  (the stub cited [1], which is the 0:00 passage of this request). On screen
+  (shot `r3-a-answer-drawn.png`): `See [1].` was a paragraph, "See" followed by
+  the `0:00` pill; `1. Run:` was an ordered list item whose content was a code
+  block holding `y = arr[1]`; `- item` was a bullet whose first paragraph was
+  `item` and whose second paragraph, after a blank line, was `see [1]` drawn as
+  text with the `0:00` pill; `Top-level code:` was a paragraph; `z = arr[1]`
+  was an indented code block. The turn's DOM had exactly two `pre` elements
+  (`y = arr[1]\n`, `z = arr[1]\n`), no inline `code`, and two pill buttons
+  (`0:00`, `0:00`). 「Markdownで保存」 opened the dialog with folder `Ask` and
+  the proposed `what-does-the-bus-do-in-the-morning.md`; confirming posted
+  `origin: ask_answer` and answered 200 `note_file_id ZcwK3SjfvpQk`,
+  `note_path Ask/what-does-the-bus-do-in-the-morning.md`; the link
+  「Markdownを保存しました — ノートを開く」 pointed at
+  `/drive/scratch/addons/knowledge?edit=ZcwK3SjfvpQk`; the note was
+  `trust_tier: unverified`, `trust_reviewed_at: null`. Its raw content
+  (`GET /api/files/ZcwK3SjfvpQk/stream`), answer section exactly:
+
+  ````markdown
+  See [0:00](loft://w3RoCFb3U9TJ?t=0).
+
+  1. Run:
+      ```python
+      y = arr[1]
+      ```
+
+  - item
+
+      see [0:00](loft://w3RoCFb3U9TJ?t=0)
+
+  Top-level code:
+
+      z = arr[1]
+  ````
+
+  That is `[1]` turned into a `loft://…?t=0` link in both places outside code,
+  and `arr[1]` kept as written inside both code blocks: the expected result of
+  083 step 3, no difference. The saved answer ends with the indented code block
+  and a trailing blank line; `## What does the bus do in the morning?` is its
+  only turn section. Result `.r5/results/r3-a.json`; shot
+  `r3-a-saved-link.png`.
+
+  B. Check 1 repeated (PASS). `trailhead.mp4`, 1440x900, fresh page. Q1
+  「What is said about the faded sign?」 answered with the normal canned text;
+  Q2 「How much does the taxi cost?」 asked as a follow-up. The turns were drawn
+  oldest first (tops 358 then 544), the text box below them (y 743.4) and
+  empty after each send. The last request carried
+  `Earlier in this conversation:` with Q1 and its answer, zero `[n]` matches
+  in the block (the first answer's `[1]` was removed), and three passages. Q1's
+  answer drew the `0:04` pill; Q2's drew `0:00` and `0:09`
+  (shot `r3-b-video-followup-pills.png`). Result `.r5/results/r3-b2.json`. A
+  quick text-file pass first showed the same history behaviour but no pills,
+  since that file's one passage has no time position
+  (`.r5/results/r3-b.json`, shot `r3-b-followup-pills.png`).
+
+  C. A second thread under the proposed name (PASS). `forest-trail.md`
+  (`2xoT1MejZ6uo`), 1440x900, 質問 tab. Q 「Which marker sits on the ridge
+  path?」 answered, saved with the proposed `which-marker-sits-on-the-ridge-
+  path.md` -> `Ask/which-marker-sits-on-the-ridge-path.md`, note
+  `gd_iW4x5JACk`, `trust_tier: unverified`, `trust_reviewed_at: null`.
+  「新しい会話」 emptied the thread (0 turns), the same question was asked
+  again, and the second save under the same proposed name answered 200 with
+  `note_path Ask/which-marker-sits-on-the-ridge-path (1).md` -> note
+  `u-OABSHvV3S8`, also `trust_tier: unverified`, `trust_reviewed_at: null`.
+  Both notes hold one `##` section with those two questions; the second's
+  source line is `[[forest-trail]]`. Shots `r3-c-first-thread-saved.png`,
+  `r3-c-second-thread-saved.png`; result `.r5/results/r3-c.json`.
+
+pending: |
+  - The quality and correctness of answers with a real model: the LLM was a
+    canned local stub.
+  - A real off-host provider, and the `llm_cloud` policy on a real install.
+  - Anything on an iPhone: a desktop Chromium viewport was used, not a device.
+  - Audio and video as heard and seen, subtitle timing, playback over the home
+    LAN and on other household devices, and calls to real third-party addon
+    services (`PROJECT.md` agent_cannot_verify).
