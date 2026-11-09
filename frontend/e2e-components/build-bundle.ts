@@ -40,6 +40,7 @@ export default async function buildComponentFixture(): Promise<void> {
         { find: /^react\/jsx-dev-runtime$/, replacement: resolve(__dirname, "..", "node_modules", "react", "jsx-dev-runtime.js") },
         { find: /^next-intl$/, replacement: resolve(__dirname, "..", "node_modules", "next-intl") },
         { find: /^lucide-react$/, replacement: resolve(__dirname, "..", "node_modules", "lucide-react") },
+        { find: /^markdown-it$/, replacement: resolve(__dirname, "..", "node_modules", "markdown-it") },
       ],
     },
     build: {
