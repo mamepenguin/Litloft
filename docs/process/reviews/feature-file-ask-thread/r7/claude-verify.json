@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "frontend/e2e-components/fixtures/app.tsx:78-80 statically imports ../../src/addons/intelligence/AskTab, askStore and messages/en.json. That one fixture is the entry for every e2e-components spec (build-bundle.ts:19-22, root FIXTURE_DIR). frontend/src/addons/ is gitignored (.gitignore:33) and only setup-addons.sh creates it (setup-addons.sh:5,19,50,173). So when the link tree is missing, the vite build fails for the whole suite. docs/developer-guide/testing.md:198-213 ('Components in a browser') still describes only `pnpm test:e2e:components` and does not name setup-addons.sh. The other testing.md references are at :117, :141 and :330 and cover vitest. One part of the claim is wrong: build-bundle.ts:28-32 was not left stale. The comment now goes on to say 'The Ask-thread case imports one addon file by a relative path on purpose', so it records the exception, although it still conflicts with the principle stated just before it."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "D1",
+      "status": "confirmed",
+      "note": "Same evidence as R1. app.tsx:78-80 makes hard relative imports into the gitignored link tree (.gitignore:33). setup-addons.sh:5,173 creates that tree as per-file symlinks. The single fixture bundle (build-bundle.ts:19-56) is shared by every spec under e2e-components/, so a checkout without submodules or without setup-addons.sh cannot build any of them. testing.md:198-213 does not name the prerequisite. The build-bundle.ts comment at :28-32 has been extended to acknowledge the Ask-thread exception, so the claim is right that the comment still states the general rule, but it is no longer silent about the exception."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "D2",
+      "status": "confirmed",
+      "note": "At this commit, .github/workflows/ci.yml:306-313 checks out with `submodules: recursive` and runs ./setup-addons.sh at job level. The earlier comment justifying a run without addons is gone, and the job's only other comment (:296-298) is about e2e/. The same job runs `pnpm test:e2e:layout` (:344-346). e2e-layout/build-fixture-css.ts:4-7 states that `@source \"../addons\"` (globals.css:10) is skipped silently when the link tree is absent, so with the tree present the compiled layout sheet now includes the addon sources at the pinned commits. The components bundle reuses the same buildFixtureCss (build-bundle.ts:17), so both suites measure one sheet. I confirmed the facts only. Whether this matters depends on whether an addon class affects a rule the layout fixtures measure, and I did not check that."
+    }
+  ],
+  "specification_compliance": [
+    "The touch-point list asks for an e2e-components case that renders the real AskTab rather than a static e2e-layout fixture. The fixture does import the real AskTab (app.tsx:78), as specified, and that import is the source of the dependency described in R1 and D1."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "A local run of `pnpm test:e2e:components` without setup-addons.sh now fails at bundle time for every case, and the guide gives no hint why."
+  ],
+  "regression_risks": [
+    "The layout-invariant sheet now depends on the addon pins, so an addon pointer bump can change what the core e2e-layout fixtures measure.",
+    "Every e2e-components case depends on the intelligence submodule checkout."
+  ],
+  "test_coverage": [
+    "I did not run any test. My verification was static reading only."
+  ],
+  "not_verified": [
+    "I did not compare against origin/develop (git diff was unavailable), so I cannot say which lines 610ab690b itself changed and which came from earlier branch commits, including the build-bundle.ts comment.",
+    "I did not check whether any addon utility class changes a rule that an e2e-layout fixture measures.",
+    "I did not build the bundle without the link tree to watch the failure happen."
+  ],
+  "confidence": 85
+}
