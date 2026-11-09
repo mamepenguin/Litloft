@@ -1,5 +1,5 @@
 /**
- * SPEC-ADDON-080 I6: in the inspector's full-height layout, a thread taller
+ * SPEC-ADDON-082 I6: in the inspector's full-height layout, a thread taller
  * than the panel scrolls above a question box that stays at the bottom in
  * view. jsdom lays nothing out, so this is measured in a real browser.
  */

@@ -1,9 +1,9 @@
 # Follow-up questions on a file, and saving the thread
 
-SPEC-ID: SPEC-ADDON-079
-SPEC-ID: SPEC-ADDON-080
 SPEC-ID: SPEC-ADDON-081
 SPEC-ID: SPEC-ADDON-082
+SPEC-ID: SPEC-ADDON-083
+SPEC-ID: SPEC-ADDON-084
 
 Approval: sha256:a40ccd91c35b404a86209d8a3ed897b1f700fd16aaaf75b5778f2e228149c0e8 Yuichi Senga 2026-11-08
 
@@ -14,14 +14,14 @@ The **質問** / **Ask** tab on a file page answers one question at a time today
 sees nothing of what was asked before. This change lets the viewer keep asking about the
 same file, and save the conversation as a note.
 
-- **SPEC-ADDON-079**: `POST /files/{file_id}/ask` accepts the earlier turns of the
+- **SPEC-ADDON-081**: `POST /files/{file_id}/ask` accepts the earlier turns of the
   conversation and gives them to the model with the new question.
-- **SPEC-ADDON-080**: the tab keeps a thread of turns per file in the browser, sends the
+- **SPEC-ADDON-082**: the tab keeps a thread of turns per file in the browser, sends the
   answered ones with each new question, and offers **新しい会話** to start over. The thread
   lives exactly as long as today's single answer does.
-- **SPEC-ADDON-081**: the tab offers **Markdownで保存** for the thread, through the same
+- **SPEC-ADDON-083**: the tab offers **Markdownで保存** for the thread, through the same
   Knowledge save the drive Ask page uses.
-- **SPEC-ADDON-082**: every note saved through the Ask save (`origin: ask_answer`), from the
+- **SPEC-ADDON-084**: every note saved through the Ask save (`origin: ask_answer`), from the
   drive Ask page or from the tab, lands **unverified**, so a later Ask never cites an LLM's
   answer back as evidence until the viewer vouches for it. Notes saved before this change
   are declared unverified at the next knowledge startup.
@@ -37,7 +37,7 @@ page, and the only durable copy is a note the viewer chooses to save.
 
 ### 1. Normal flow
 
-**079, the route.**
+**081, the route.**
 
 1. The tab sends `POST /api/addons/intelligence/files/{file_id}/ask` with `X-Lit-Drive`
    and a body that may now carry `history`: a list of earlier turns, oldest first, each
@@ -80,7 +80,7 @@ page, and the only durable copy is a note the viewer chooses to save.
 8. The stream is unchanged: `answer_chunk`, `citations` (numbers of this request's
    passages only), `meta`, `done`.
 
-**080, the tab.**
+**082, the tab.**
 
 1. The tab holds, per file id, a thread: a list of turns, each with the question as
    sent, the answer text, citations, `partial`, `image`, a status (`streaming`,
@@ -109,7 +109,7 @@ page, and the only durable copy is a note the viewer chooses to save.
    thread (today's `dropAskEntry` and `FILE_PAGE_CLOSED_EVENT` paths). Closing the mobile
    sheet or switching inspector tabs keeps the thread.
 
-**081, saving the thread.**
+**083, saving the thread.**
 
 1. **Markdownで保存** is shown next to **新しい会話** while the thread has at least one
    `answered` turn and no turn is streaming.
@@ -167,7 +167,7 @@ page, and the only durable copy is a note the viewer chooses to save.
 5. The button is shown whether or not the knowledge addon is installed or on for the
    drive, as on the drive Ask page; without it the dialog shows the proxy's 404 error.
 
-**082, saved answers are unverified.**
+**084, saved answers are unverified.**
 
 1. `POST /notes` in the knowledge addon, after it wrote the `note_origins` row and
    before it answers, calls `declare_trust_tier(note_file_id, "unverified")` when
@@ -196,23 +196,23 @@ page, and the only durable copy is a note the viewer chooses to save.
 
 ### 2. Failure cases
 
-- **079.** A body that breaks a limit in 10 answers 422 before any gate, LLM or slot. A
+- **081.** A body that breaks a limit in 10 answers 422 before any gate, LLM or slot. A
   turn whose answer is empty after marker removal is still sent (its question is
   context). Every other failure is today's: 404, 409 `picture_needs_vision`, 503 busy,
   `done` with an error.
-- **080.** A failed turn keeps its question, the text it received and its failure line,
+- **082.** A failed turn keeps its question, the text it received and its failure line,
   and is not sent as history. When it fails and the text box is empty, its question is
   put back into the box, so the viewer resends it with one press; text the viewer typed
   meanwhile is left alone. The failed turn stays where it is in the thread. A request
   aborted by moving away leaves no turn.
-- **081.** A save that fails shows the error inside `FileSaveDialog`, as on the drive Ask
-  page, and the thread is unchanged. A read-only drive answers 403 there. After 082's
+- **083.** A save that fails shows the error inside `FileSaveDialog`, as on the drive Ask
+  page, and the thread is unchanged. A read-only drive answers 403 there. After 084's
   502 the note exists although the dialog shows an error; saving again writes a second
   note (`name (1).md`). Both are accepted: the 502 needs a backend without
   `CORE_INTERNAL_SECRET`, which the current `configure.py` does not produce; an override
   written by an older one can lack it (`docs/addons/intelligence.md`), and the upgrade
   note in the docs tells that operator to run `configure.py` again.
-- **082.** When core rejects the declaration for any reason but 409 (no
+- **084.** When core rejects the declaration for any reason but 409 (no
   `CORE_INTERNAL_SECRET`, 403, 404), or the call raises a transport error (connection,
   timeout), `POST /notes` answers 502 with a detail saying the note was saved but could
   not be marked unverified; the note stays where it was written. This follows the clip
@@ -274,7 +274,7 @@ text the viewer sent; it reads no other file. The note save goes through the pro
 ### 7. Effect on existing features
 
 - `/ask` and `/find` (drive Ask) are not changed, apart from the notes they save landing
-  unverified (082).
+  unverified (084).
 - A question without `history` gets the same prompt, the same chunks and the same stream
   as before.
 - The MCP server's `ask` tool calls drive Ask and is unchanged. It gets no history
@@ -294,7 +294,7 @@ text the viewer sent; it reads no other file. The note save goes through the pro
 ### 8. Error behavior
 
 - The tab shows today's failure lines, under the turn that failed.
-- The save dialog shows the save error text; for 082's 502 that is the knowledge
+- The save dialog shows the save error text; for 084's 502 that is the knowledge
   route's detail.
 - Logs: the route logs failure classes and file ids as today; knowledge logs the
   declaration failure with file id and status; the startup pass logs one line per failed
@@ -381,14 +381,14 @@ I3. A body with more than 10 turns, a turn question outside 1 to 1,000 character
 I4. The tab sends as `history` only the thread's `answered` turns before the new one, oldest first, at most the last 10, each answer at most 20,000 characters; a failed or streaming turn is never sent.
 I5. **新しい会話** and **Markdownで保存** are never offered while a turn streams; **新しい会話** empties the thread and its saved-note link and leaves the text box as it was; a turn that fails while the text box is empty puts its question back into it and never overwrites typed text; after a save, only a thread holding more answered turns than at the save offers the button again.
 I6. In the inspector's full-height layout, with a thread taller than the panel, the text box stays at the bottom of the tab in view and the turns scroll above it; each turn's pills move the viewer to that turn's own cited positions.
-I7. A note saved from the tab contains every answered turn in thread order and no failed one, and outside code (inline spans, fenced blocks and indented blocks, as 081 step 3 defines them) each `[n]` in it is either a `loft://` link to the cited position of this file, with an integer `t`, or removed; inside them the text is as received.
+I7. A note saved from the tab contains every answered turn in thread order and no failed one, and outside code (inline spans, fenced blocks and indented blocks, as 083 step 3 defines them) each `[n]` in it is either a `loft://` link to the cited position of this file, with an integer `t`, or removed; inside them the text is as received.
 I8. `POST /notes` with `origin: "ask_answer"` either leaves the note unverified, or answers 201 with the tier a viewer already ruled, or answers a non-2xx status; with any other origin it never calls the trust declaration.
 I9. Only `note_origins` rows whose `origin` column is `ask_answer` are ever declared; such a row gets `trust_declared_at` when, and only when, core answers its declaration 204 or 409, at save time or in the startup pass, so the next start makes no call for it; every such row still null is declared again at the next knowledge startup, and that pass never delays `/health`.
 I10. The migration adds `note_origins.trust_declared_at` as null to every existing row, keeps every existing `note_origins` and `note_origin_sources` row and value, and changes nothing when the column already exists.
 
 ## Revises
 
-SPEC-ADDON-053 I2. When the file's chunk text totals at most the passage budget (`rag.file_question_max_chars` minus the characters of the history turns sent), all chunks are sent in file order and `partial` is false; otherwise the sent chunk text totals at most the passage budget, chosen by the ranking and fitting rule of 053 step 4 with the ranking text of SPEC-ADDON-079 step 5, sent in file order, and `partial` is true.
+SPEC-ADDON-053 I2. When the file's chunk text totals at most the passage budget (`rag.file_question_max_chars` minus the characters of the history turns sent), all chunks are sent in file order and `partial` is false; otherwise the sent chunk text totals at most the passage budget, chosen by the ranking and fitting rule of 053 step 4 with the ranking text of SPEC-ADDON-081 step 5, sent in file order, and `partial` is true.
 SPEC-ADDON-053 I5. Neither the routes nor the tab store the questions, answers, history or citations anywhere other than the open page's memory, except the note the viewer saves with **Markdownで保存**, and the addon never logs question, answer or history text.
 SPEC-ADDON-053 I12. `/ask` and `/find` return the same responses for the same requests as before, except that a note saved through the Ask save is no longer cited while it is unverified; `player-side` tabs keep their order and their silence-means-available rule.
 SPEC-ADDON-056 I11. While a file's turn is streaming no second request is sent for it; moving to another file or leaving the page aborts the stream and frees its semaphore slot; closing the mobile sheet or switching tabs keeps the whole thread and the text box's current contents, which after a send is empty rather than the sent question; a stream that fails or closes without `done` keeps the text received in its turn and shows the failure line under it.
