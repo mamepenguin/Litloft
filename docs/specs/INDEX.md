@@ -172,3 +172,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-082 | approved | docs/specs/file-ask-thread.md | sha256:a40ccd91c35b404a86209d8a3ed897b1f700fd16aaaf75b5778f2e228149c0e8 |
 | SPEC-ADDON-083 | approved | docs/specs/file-ask-thread.md | sha256:a40ccd91c35b404a86209d8a3ed897b1f700fd16aaaf75b5778f2e228149c0e8 |
 | SPEC-ADDON-084 | approved | docs/specs/file-ask-thread.md | sha256:a40ccd91c35b404a86209d8a3ed897b1f700fd16aaaf75b5778f2e228149c0e8 |
+| SPEC-ADDON-081 | approved | docs/specs/file-ask-thread.md | sha256:dd40710470e7f0770b3cb8fecf447c14649337918576df45e399a9813aa972c6 |
+| SPEC-ADDON-082 | approved | docs/specs/file-ask-thread.md | sha256:dd40710470e7f0770b3cb8fecf447c14649337918576df45e399a9813aa972c6 |
+| SPEC-ADDON-083 | approved | docs/specs/file-ask-thread.md | sha256:dd40710470e7f0770b3cb8fecf447c14649337918576df45e399a9813aa972c6 |
+| SPEC-ADDON-084 | approved | docs/specs/file-ask-thread.md | sha256:dd40710470e7f0770b3cb8fecf447c14649337918576df45e399a9813aa972c6 |
