@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship. The human answered "fix V-1 and ship" to review r1 (HUMAN_REVIEW_REQUIRED): V-1 (twelve months read as months) was fixed in 87cafc4cd and r2 passed; TP-1 to TP-6 are accepted, the PageHeader wrap being the app-wide fix R-5 run 4 verified on nine pages. The second design check's D-1 to D-5 were accepted by the human (behavior.md, Round 3).
 ran_in_app: yes
 at: 59edc23857726f40927deac8fb1ba429a01b8b56
 by: agent
