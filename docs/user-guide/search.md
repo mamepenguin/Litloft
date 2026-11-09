@@ -34,7 +34,7 @@ Each result has a small badge saying where it matched, such as **Filename** or *
 
 The top of the page is also the query field. It holds what you searched for, and you can edit it and press `Enter` to search again; `Esc` puts the current query back. Each operator in the field gets a chip underneath it, and `×` on a chip removes that operator from the query and searches again. Typing an operator shows its chip at once, before you submit.
 
-After the chips, **＋ 条件** (**＋** on a phone) adds an operator without typing the syntax: **タグ** (tag), **種類** (type), **フォルダ** (folder), **コレクション** (collection), **サイズ** (size), **長さ** (length) or **お気に入り** (favourites). Tag, folder and collection open a list of values; each list has a filter box, and a value already in the query is not offered. Size and length open fixed presets such as **1 GB 以上** and **30 分以上**; a preset already in the query, or one that would contradict it, is not offered. Picking a value adds it to the query and searches.
+After the chips, **＋ 条件** adds an operator without typing the syntax: **タグ** (tag), **種類** (type), **フォルダ** (folder), **コレクション** (collection), **サイズ** (size), **長さ** (length) or **お気に入り** (favourites). Tag, folder and collection open a list of values; each list has a filter box, and a value already in the query is not offered. Size and length open fixed presets such as **1 GB 以上** and **30 分以上**; a preset already in the query, or one that would contradict it, is not offered. Picking a value adds it to the query and searches.
 
 Under the chips is the results bar. It holds, in order, the **ファイル / 箇所** switch (with the intelligence addon), **シーン検索**, the number of results, **View**, **Sort** and `…`. On a phone **View** and **Sort** are in `…`.
 

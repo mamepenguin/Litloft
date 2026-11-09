@@ -1,9 +1,9 @@
 # Search results page: one results bar
 
 SPEC-ID: SPEC-CORE-066
-SPEC-ID: SPEC-ADDON-081
+SPEC-ID: SPEC-ADDON-086
 
-Approval: sha256:f77b3a5cedd1c910d8c58fbeda5ad44a56bceb469f0fa0c6db9d0306dbb3e8e4 Yuichi Senga 2026-11-09
+Approval:
 
 ## Summary
 
@@ -27,7 +27,7 @@ The toolbar's Filter menu leaves this page, so a file type is chosen in one plac
 
 - **SPEC-CORE-066**: the core page layout, the `type` chip, the `…` menu entries, the
   single-colour match labels, and the `search-modes` slot moving into the `…` menu.
-- **SPEC-ADDON-081**: intelligence's `find-mode` entry draws a menu row instead of a chip.
+- **SPEC-ADDON-086**: intelligence's `find-mode` entry draws a menu row instead of a chip.
 
 Agreed design: https://claude.ai/artifact/8rvA46N9E1ZRKiSMncvtVS, saved in
 `docs/process/reviews/feature-search-results-layout/design/` (`Main`, `Scene`, `Phone`,
@@ -136,7 +136,7 @@ addon and do not change; the design shows where it goes, not a new shelf.
 - **The intelligence probe has not answered or answers "off":** the Find entry is absent.
   The probe runs on every mount, as today, so the entry appears a moment after `…` opens;
   it is the menu's last row, so nothing above it moves. Closing the menu aborts the
-  probe, as unmounting does today. New in SPEC-ADDON-081: a rejected request leaves the
+  probe, as unmounting does today. New in SPEC-ADDON-086: a rejected request leaves the
   entry absent instead of the gate pending forever (today there is no `catch`). No result
   is cached.
 - **The intelligence addon is not installed:** the slot is empty and the menu has no Find
@@ -295,6 +295,26 @@ D1–D10 above, plus:
   needed, removal of keys nothing reads.
 - `addons/intelligence/frontend/FindModeSlot.tsx` (submodule) — draws an
   `ActionMenuItem` row and calls `closeMenu` before `onSelect`.
+- `frontend/src/components/search/ConditionMenu.tsx` — the 「＋ 条件」 button shows its
+  word at every width, as the agreed Phone artboard draws it (the owner's decision on
+  design difference D-4, recorded in the review's `decisions.md`); the Ask page's 「＋ 範囲」
+  already shows its word at every width.
+- `frontend/src/components/MatchOverlay.tsx` — its fallback for an unlisted kind takes the
+  single match-label style (I9).
+- Existing tests whose assertions restate an earlier spec under the new structure (each
+  still checks the same guarantee; none is dropped):
+  - `SearchPage.semanticContinuation.test.tsx` — SPEC-CORE-035 I9 (the count stays at the
+    filename total) now reads the count handed to the results bar, which draws it; I12's
+    text-filter half becomes "the field is absent on the search page" (spec item 1.5).
+  - `FolderBrowser.passages.test.tsx` — SPEC-CORE-040 I9 against the real results bar
+    instead of a mocked toolbar.
+  - `FolderBrowser.sceneUrl.test.tsx` — a type change from the URL no longer rewrites the
+    URL, because the URL is the source of truth for `type` (I3); the flag-keeping half is
+    covered by I4's tests.
+- Registries: `toolbarMenuHome.test.ts` lists `SmartFolderSaveButton.tsx` as a home of
+  … menu rows; `componentFixtureParity.test.tsx`, `frontend/e2e-components/projects.ts`
+  and `spec-viewport.spec.ts` register the new e2e specs and arrangements in
+  `frontend/e2e-components/fixtures/app.tsx`.
 - `frontend/e2e-layout/search-header.spec.ts`, `passage-rows.spec.ts` and the
   no-horizontal-scroll specs — measurements updated to the new layout.
 - `DESIGN.md` — §6 Page Header: the search results bullet (count and actions move to the
