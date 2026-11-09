@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "V-1",
+      "origin": "verifier",
+      "claim": "formatRelativeAge picks a unit by fixed day thresholds: 30-day months below 365 days, then 365-day years. A book added 360 to 364 days ago therefore reads \"12 months ago\" / \"12か月前\" instead of \"1 year ago\". 28 to 29 days reads \"4 weeks ago\". The tests do not cover any boundary (they check 3, 14, 240 and 730 days only).",
+      "impact": "In normal use the relative-age line on a Reading card can show the odd \"12 months ago\" for about 5 days a year per book. This is cosmetic and is not a wrong date order.",
+      "evidence": "frontend/src/lib/format.ts:39-41: `if (diffDay < 30) weeks; if (diffDay < 365) return text(-Math.floor(diffDay / 30), \"month\"); return years`. For diffDay=360, Math.floor(360/30)=12, so the result is month -12. frontend/src/lib/__tests__/format.test.ts:58-62 covers no boundary values.",
+      "repro": "Work through format.ts:40 by hand with diffDay 360: floor(360/30)=12, which gives Intl.RelativeTimeFormat('en').format(-12,'month') = \"12 months ago\".",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "C",
+        "reason": "Cosmetic wording at a unit boundary. I29 requires a relative age, and the output is still relative.",
+        "invariant_ref": "I29"
+      },
+      "severity": "LOW"
+    }
+  ],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "r1/classification.json:34 lists frontend/src/components/PageHeader.tsx as touched. PageHeader.tsx:71, :80, :101, :106, :115 and :129 carry the flex-wrap / max-w-full / sm:flex-nowrap classes the claim describes. The touch-point list does not name PageHeader. Grep for `<PageHeader` finds 17 files. Without tests and AppHeader, 13 are production files, so the reader's count of 15 is probably call sites; the substance does not change. The e2e-components spec renders three synthetic arrangements, at fixtures/app.tsx:1985-2031. decisions.md re-check run 4 records manual 390px measurements of Home, the drive Library, the folder page, Search, Inbox and Trash showing no sideways scroll. That is out-of-band evidence and not an automated check of real callers."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "classification.json:102 lists frontend/src/lib/cardGrid.ts. cardGrid.ts:24-46 adds BOOK_* constants, BOOK_GRID, CardGridMetrics and HOME_GRID. columnsFor (:57), cardGridTemplate (:67) and useCardColumns (:75) take an optional metrics argument that defaults to HOME_GRID, so existing zero-argument callers keep the old values. The cardGridTemplate fallback is built inline at :71. The touch-point list only names ShelfBlock as laid out on lib/cardGrid.ts and does not name the module itself."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "classification.json:30 lists frontend/src/__tests__/card-grid.test.ts. Line 57 is `/useCardColumns\\(/` and line 120 is `/=\\s*useCardColumns\\(/g`. Lines 209-223 add a bookGapSites Set keyed by the file paths ShelfBlock.tsx and ReadingGrid.tsx, which accepts BOOK_CARD_GAP_PX at those files. The test file is not in the touch-point list."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-4",
+      "status": "confirmed",
+      "note": "classification.json:38 lists ToolbarMenu.tsx. ToolbarMenu.tsx:13 imports ChevronDown, :140 declares `filled?: boolean`, :159 defaults it to false, and :202-211 has the filled branch rendering ChevronDown. ToolbarMenu is not in the touch-point list."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-5",
+      "status": "confirmed",
+      "note": "classification.json:106 lists frontend/src/lib/format.ts. format.ts:21-42 defines formatRelativeAge, ReadingCard.tsx:71 calls it, and format.test.ts:58-62 covers 3, 14, 240 and 730 days only. format.ts is not in the touch-point list."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-6",
+      "status": "confirmed",
+      "note": "classification.json:10-18 and :42 list frontend/e2e-components/fixtures/app.tsx, page-header-actions.spec.ts, spec-viewport.spec.ts and componentFixtureParity.test.tsx. Grep shows spec-viewport.spec.ts:48 naming page-header-actions.spec.ts, fixtures/app.tsx:1973-2031 holding the three arrangements, and componentFixtureParity.test.tsx:226-228 holding the three ids. The touch-point list names only a new spec under frontend/e2e-layout/. classification.json protected_paths_touched is empty."
+    }
+  ],
+  "specification_compliance": [
+    "The touch-point list in the declared invariants does not name the app-wide files PageHeader.tsx, cardGrid.ts, ToolbarMenu.tsx, format.ts, card-grid.test.ts or the e2e-components files. The change edits all of them (r1/classification.json).",
+    "cardGrid.ts keeps HOME_GRID defaults for callers that pass no metrics, which is consistent with I27's 'Video's grids keep Home's card grid'."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "PageHeader's trail row now wraps below sm (flex-wrap sm:flex-nowrap), so breadcrumb and actions may stack on narrow pages for every app-wide caller.",
+    "formatRelativeAge shows '12 months ago' for 360-364 days."
+  ],
+  "regression_risks": [
+    "PageHeader layout changes apply to about 13 production caller files outside the Reading and Video apps. The only automated coverage is three synthetic arrangements.",
+    "The card-grid population guard now allows a 20px gap for two specific file paths. A future file using BOOK_GRID would need another allowlist entry."
+  ],
+  "test_coverage": [
+    "format.test.ts covers formatRelativeAge at 3, 14, 240 and 730 days with no boundary cases.",
+    "page-header-actions.spec.ts covers three synthetic PageHeader arrangements; there is no automated test against real callers."
+  ],
+  "not_verified": [
+    "I could not see the git diff itself. 'Edited by this change' rests on r1/classification.json zones_touched and the current file contents, not on a base-vs-head comparison.",
+    "I did not run any test or the e2e/layout specs.",
+    "I did not render real PageHeader callers (folder breadcrumb) at narrow widths."
+  ],
+  "confidence": 85
+}
