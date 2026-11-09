@@ -42,19 +42,22 @@ Agreed design: https://claude.ai/artifact/8rvA46N9E1ZRKiSMncvtVS, saved in
   except the image button inside it.
 - D3. Results bar, left to right: the Files / Passages `SegmentedControl`; the Scene search
   checkbox labelled 「シーン検索」 (「シーン」 below 640 px) with no hint text; a flexible
-  gap; the count; Sort; View; `…`. A hairline border separates the bar from what follows.
+  gap; the count; View; Sort; `…` (View before Sort, as on every other page). A hairline border separates the bar from what follows.
 - D4. The count reads 「N 件」 in Files and 「N ファイル・M 箇所」 in Passages (「M 箇所」 below
   640 px), on one line.
-- D5. The `…` menu holds, in order: the Smart Folder entries, a separator, 選択モード, and
-  the Find entry last (so its late arrival moves nothing above it). In Passages: the Smart
-  Folder entries and the Find entry only.
+- D5. The `…` menu holds, in order: below 768 px only, the View group and the Sort group
+  each followed by a separator (as today); the Smart Folder entries; a separator;
+  選択モード; and the Find entry last, with no separator before it (so its late arrival
+  moves nothing above it). In Passages: the Smart Folder entries, then the Find entry, no
+  separator, at every width.
 - D6. The type chip looks like an operator chip: `bg-sand` pill, 「種類」 in semibold, the
   kind, and a ✕.
 - D7. Passages rows start at the content's left edge (no centring) within
   `max-w-list-row`.
-- D8. Match labels on result cards share one neutral style.
-- D9. Below 640 px the page is three rows above the results: field, chips, results bar;
-  Sort and View are in `…` (as today below 768 px).
+- D8. Match labels on result cards share one neutral style, at today's size
+  (`text-[10px]`).
+- D9. Below 640 px the page is three rows above the results: field, chips, results bar.
+  Below 768 px Sort and View are in `…`, as today.
 - D10. With an operator in the query, the Scene search checkbox is absent and every other
   control keeps its place.
 - D11. The results bar sticks to the top of the scroll area while the results scroll, as
@@ -83,16 +86,19 @@ addon and do not change; the design shows where it goes, not a new shelf.
    entry draws nothing while `includeSceneClip` is false. Core does not add a gate on
    `includeSceneClip`.
    When the tree pane is visible and a file is selected (`hideToolbar`), the results bar
-   still renders the view switch, Scene search and the count, which do not depend on that
-   flag today; Sort, View and `…` hide as the toolbar does today.
+   still renders the view switch, Scene search, the count and `…`, which today are all
+   reachable in that state (the Smart Folder button and Find sit in the header); only
+   Sort and View hide, as the toolbar does today.
 5. The results render: the Files grid or list, or the Passages list. No
    "Filter in this folder…" field is rendered on this page.
 6. Viewer actions:
    - ✕ on the type chip removes `type` from the URL with `router.push` and keeps `q`,
      `sort`, `order`, `smart_folder_id`, `include_scene_clip` and `show`.
-     On the search page the URL is the source of truth for `type`: `FolderBrowser`'s type
-     state follows the `typeFilter` prop on every change (today it is seeded once), and
-     the URL-sync effect never writes back a `type` the URL no longer has. The two other
+     On the search page the URL is the source of truth for `type` and `sort`/`order`:
+     `FolderBrowser`'s state follows the props on every change (today it is seeded once),
+     it is never seeded from the list snapshot (whose key `drive|||` the search page shares
+     with the drive root), and the URL-sync effect never writes back a `type` the URL no
+     longer has. View mode keeps the global preference, as today. The two other
      controls that clear the type on this page, the no-results 「フィルタを解除」 and
      `PassageList`'s clear-filter action, stay and go through the same `push` as ✕.
      `search-results-top` receives the URL's type.
@@ -101,13 +107,16 @@ addon and do not change; the design shows where it goes, not a new shelf.
    - `…` → Smart Folder entries behave as the current Smart Folder button and its menu:
      unsaved, 「スマートフォルダに保存」 opens the save dialog; on a saved search
      (`smart_folder_id` resolves), the menu shows 「保存済み: <name>」 as a non-interactive
-     label, then 「更新」, 「名前を変更」, 「削除」, each opening the dialog it opens today.
+     label, then 「更新」, 「名前変更」, 「削除」, each opening the dialog it opens today.
+     `smartFolder.saved` changes from 「保存中: {name}」 to 「保存済み: {name}」 (en stays
+     "Saved: {name}"); the other labels are today's keys.
      Choosing an entry closes `…` first, then opens the dialog. The dialogs and the error
      toast are owned by a Smart Folder controller mounted by `FolderBrowser` for the
      page's lifetime, not by the menu panel, which unmounts on close. The component's
      own dropdown, and its `smart-folder-menu` Escape registration, go away.
-   - `…` → Find entry (intelligence) navigates to the Find page with the trimmed query, as
-     the chip does today.
+   - `…` → Find entry (intelligence), labelled with today's `find.pageCta`
+     (「Findページを開く」 / "Open Find page"), navigates to the Find page with the trimmed
+     query, as the chip does today.
    - `…` → 選択モード toggles select mode, as today.
 
 ### 2. Failure cases
@@ -117,10 +126,14 @@ addon and do not change; the design shows where it goes, not a new shelf.
 - **The Smart Folder list is loading or failed:** the entries resolve as the button does
   today: a `smart_folder_id` that does not resolve shows the unsaved entry.
 - **The intelligence probe has not answered or answers "off":** the Find entry is absent.
-  `FindModeSlot` keeps its probe result per drive for the page's lifetime (module cache),
-  so only the first open of `…` on a drive waits for it; later opens draw the entry at
-  once. The entry is the menu's last row, so when it appears late nothing above it moves.
-  A failed probe is not cached, so the next open retries.
+  New in SPEC-ADDON-081: `FindModeSlot` keeps its gate per drive in a module-level cache
+  that lasts until a full reload (it outlives SPA navigation), so only the first open of
+  `…` on a drive waits; later opens draw the entry at once. A definite answer is cached:
+  `/status` answered (on or off), or `/status` returned null and the enabled-addons
+  fallback answered (today's deliberate fallback). A rejected request is not cached,
+  shows no entry, and the next open probes again; today a rejection leaves the gate
+  pending forever. The entry is the menu's last row, so when it appears late nothing
+  above it moves.
 - **The intelligence addon is not installed:** the slot is empty and the menu has no Find
   entry and no gap.
 - **Scene shelf fetch fails:** unchanged; the addon decides what to draw.
@@ -139,6 +152,21 @@ The page state is the URL plus the existing loading flags. New combinations to c
 
 Count: hidden while `settledTotal` is null (Files) or while the meaning search is loading
 or failed (Passages), as today.
+
+Transitions (each a URL change; parameters not named are carried unchanged):
+
+- Adding an operator (Enter or 「＋ 条件」): `push`, keeps `type`, `sort`, `order`,
+  `smart_folder_id`, `include_scene_clip`, `show` (SPEC-CORE-039 I20). The checkbox hides
+  but `include_scene_clip` stays in the URL, so removing the last operator brings the
+  checkbox back in the state it had. Intended: the viewer's choice is not lost.
+- ✕ on the type chip or a clear-filter action: `push`, drops `type` only; the view
+  (`show`) stays.
+- Files ↔ Passages: `replace`, changes `show` only (SPEC-CORE-040 I9). Entering Passages
+  clears select mode (SPEC-CORE-040 I24); `…` in Passages has no 選択モード.
+- Any URL change while `…` is open closes it, as the menu does today on navigation. A
+  Smart Folder dialog that is open stays open, because its controller lives for the page,
+  and acts on the URL's `q` at the moment of submission, as today.
+- No transition is disallowed; every combination in the table is reachable by URL.
 
 ### 4. Data read and written
 
@@ -171,7 +199,9 @@ adds a route or a request.
 - The `search-modes` slot moves from `PageHeader` actions into the `…` menu, wrapped by
   the host's `role="menu"` as `file-actions-menu` is. Its props stay
   `{ query, drive, filter, onSelect }` and gain `closeMenu`.
-- `ImageQueryView` (`?img=`) does not render `FolderBrowser` and is unchanged.
+- `ImageQueryView` (`?img=`) does not render `FolderBrowser` and is unchanged. It renders
+  `SearchQueryHeader` with `typeFilter={null}` and an `imageSrc`, and the type chip is
+  drawn only inside the chip row that `imageSrc` suppresses, so it never appears there.
 - The header search modal (`GlobalSearch`) still writes `type=` into the results URL for a
   scoped filtered search; the chip is how that type now shows and goes away.
 
@@ -192,7 +222,9 @@ D1–D10 above, plus:
 - Choosing a type with 「＋ 条件」 adds an operator, so Scene search and Find disappear for
   that query, as they do today for any operator (SPEC-CORE-039 I21).
 - Match labels: one style for every kind, `bg-bg-elevated text-text-muted`
-  (`font-medium`, same size and radius as today).
+  (`font-medium`, same size and radius as today). `MatchOverlay`'s fallback for a kind
+  missing from `MATCH_BADGE_STYLES` takes the same style.
+- The short Scene search label below 640 px: 「シーン」 / "Scenes" (new key).
 - Docs updated in the same PR: `docs/user-guide/search.md` (the Filter control at :41,
   "the type chosen in the toolbar" at :64, the Save button at :68, the switch's position
   at :96, the Find chip at :137, the Scene search toggle's position);
@@ -225,11 +257,27 @@ D1–D10 above, plus:
   (`ActionMenuItem`) and a controller that owns the dialogs and the toast; its own
   dropdown and `smart-folder-menu` registration removed.
 - Guard registries that list `SmartFolderSaveButton`'s dropdown:
-  `frontend/src/__tests__/popup-dismissal.test.ts` and
-  `frontend/src/__tests__/anchoredDropdowns.test.ts`. Their entry is removed because the
-  dropdown no longer exists, not to weaken the check; the `…` menu that now carries the
-  entries is already registered there.
-- Unit tests rewritten for the new structure (behaviour, not loosened):
+  `frontend/src/__tests__/popup-dismissal.test.ts`,
+  `frontend/src/__tests__/anchoredDropdowns.test.ts` and
+  `frontend/src/components/__tests__/anchoredDropdownDefaults.test.tsx`. Their entry is
+  removed because the dropdown no longer exists, not to weaken the check; the `…` menu
+  that now carries the entries is already registered there.
+- `frontend/src/__tests__/core-search-vocabulary.test.ts`: the per-file counts of `search`
+  keys and the total are recounted for the moved toggle, the removed `sceneSearchHint`
+  and the new short label. A recount of keys that moved, not a looser bound.
+- Tests that `vi.mock("@/components/SmartFolderSaveButton")` follow its new export names:
+  `FolderBrowser.{snapshotScroll,sceneUrl,paste,hasMore,imageQuery,folderAnchor,passages}`,
+  `SearchPage.queryHeader`, `SearchPage.filtered`, `ImageQueryView.test.tsx`.
+- `SearchPage.queryHeader.test.tsx` and `FolderBrowser.header.test.tsx` assertions that an
+  operator query renders no `search-modes` slot open `…` before asserting, so they still
+  test SPEC-CORE-039 I21.
+- `frontend/e2e-layout/fixtures/search-header.html`, `passage-rows.html` and
+  `no-horizontal-scroll.html`, updated to the new markup; and a new
+  `frontend/e2e-components/` spec that renders the real `FolderToolbar` search branch and
+  `SearchQueryHeader` for I5 and I10.
+- `frontend/src/messages-core/{ja,en}.json` `smartFolder.saved`; the short Scene label.
+- `addons/intelligence/frontend/FindModeSlot.tsx` also gains the gate cache.
+- Other unit tests rewritten for the new structure (behaviour, not loosened):
   `FolderBrowser.header.test.tsx`, `FolderToolbar.passages.test.tsx` (`…` now shown in
   Passages), `SmartFolderSaveButton.test.tsx`, `SearchPage.sceneSlot.test.tsx`,
   `SearchPage.filteredSlots.test.tsx`, `SearchPage.passages.test.tsx`, FilterMenu and
@@ -257,20 +305,21 @@ No protected path is edited.
 
 ## Invariants
 
-I1. In the page body (below the app toolbar, ignoring the visually hidden `<h1>`), no visible element is above the query field, in every state of the table in item 3, including Scene search on.
-I2. At any width the page shows exactly one visible Files / Passages control and exactly one visible count, and renders no `FilterMenu` and no "Filter in this folder…" field; folder, special-view and tag pages still render `FilterMenu` and `FilterField` as before.
-I3. The type chip renders exactly when the URL's `type` parses to a valid kind (`markdown` as `text`), and the listing is filtered by exactly the URL's `type`; ✕ on the chip, the no-results 「フィルタを解除」 and `PassageList`'s clear-filter each push one history entry whose URL lacks `type` and keeps `q`, `sort`, `order`, `smart_folder_id`, `include_scene_clip` and `show`, after which the listing is unfiltered by type and no later effect puts `type` back.
+I1. In the page body (below the app toolbar, ignoring the visually hidden `<h1>`), no visible element is above the query field, in every state of the table in item 3, including Scene search on, measured on the real components in `frontend/e2e-components/`.
+I2. At any width, including while the toolbar is hidden for a selected file, the page shows exactly one visible Files / Passages control, exactly one visible count and one `…`, and renders no `FilterMenu` and no "Filter in this folder…" field; folder, special-view and tag pages still render `FilterMenu` and `FilterField`, and gain no view switch, Scene search or count.
+I3. The type chip renders exactly when the URL's `type` parses to a valid kind (`markdown` as `text`), and the listing is filtered by exactly the URL's `type`, also when the drive root's list snapshot carries a type; ✕ on the chip, the no-results 「フィルタを解除」 and `PassageList`'s clear-filter each push one history entry whose URL lacks `type` and keeps `q`, `sort`, `order`, `smart_folder_id`, `include_scene_clip` and `show`, after which the listing is unfiltered by type and no later effect puts `type` back.
 I4. The Scene search checkbox renders exactly when the query has no operator, in both Files and Passages, also while the toolbar is hidden for a selected file; toggling it changes only `include_scene_clip`, with `router.replace`.
-I5. With the checkbox absent, the Files / Passages control, the count, Sort, View and `…` keep the positions they have when it is present, measured in a real browser at 1280 px and at 390 px.
+I5. With the checkbox absent, the Files / Passages control, the count, View, Sort and `…` keep the x positions they have when it is present, measured on the real components in `frontend/e2e-components/` at 1280 px and at 390 px.
 I6. The `search-results-top` slot mounts after the results bar and before the first result, exactly when the query has no operator and the view is Files, and receives the URL's `type`.
 I7. The `…` menu offers the Smart Folder actions available today for the same URL (save when unsaved; the saved name, update, rename and delete when `smart_folder_id` resolves; none when `q` is blank), each opening the same dialog as today after the menu closes and saving the URL's `q`, never unsubmitted field text; a failed Smart Folder action shows its error toast after the menu has closed.
-I8. The `search-modes` slot renders only inside the open `…` menu, as its last row, and never for a query with operators; the Find entry navigates to `/drive/{drive}/addons/intelligence/find?q=<trimmed q>` and closes the menu; in Passages the `…` menu holds only the Smart Folder and Find entries.
-I9. Every match label on result cards, modal rows and the legend uses the same class string, and each kind keeps its label text.
-I10. Measured in a real browser by `frontend/e2e-layout/`: at 390 px the query field spans the content width, the results bar is one row with the count on one line, its controls are at least 44 px tall on a coarse pointer, and the page has no horizontal scroll in Files and Passages, with and without Scene search; at 1280 px the results bar is one row with the count right of the Scene search checkbox, and Passages rows start at the results bar's left edge within `max-w-list-row`.
+I8. The `search-modes` slot renders only inside the open `…` menu, as its last row, and never for a query with operators (asserted with the menu open); the Find entry navigates to `/drive/{drive}/addons/intelligence/find?q=<trimmed q>` and closes the menu; `FindModeSlot` probes a drive at most once until a definite answer is cached and probes again after a rejected request; in Passages the `…` menu holds only the Smart Folder and Find entries at every width.
+I9. Every match label on result cards, modal rows and the legend uses the same class string, the fallback for an unlisted kind included, and each kind keeps its label text.
+I10. Measured in a real browser on the real components (`frontend/e2e-components/`): at 390 px the query field spans the content width, the results bar is one row with the count on one line, its controls are at least 44 px tall on a coarse pointer, and the page has no horizontal scroll in Files and Passages, with and without Scene search; at 1280 px the results bar is one row with the count right of the Scene search checkbox, Passages rows start at the results bar's left edge within `max-w-list-row`, and after scrolling the results the bar's top stays at the scroll area's top while the shelf scrolls under it.
 
 ## Revises
 
 SPEC-CORE-039 I15. At 390 px wide, measured in a real browser by `frontend/e2e-layout/`, the field spans the content width with the full query reachable, and the count sits on one line in the results bar; at desktop width the field has its row to itself and the count shares the results bar with the view switch, Sort, View and `…`.
+SPEC-CORE-039 I22. The Smart Folder save entry in the `…` menu saves the URL's `q`, never unsubmitted field text.
 SPEC-CORE-040 I17. In Passages, sort, view mode, select, Play all and the Filter menu are hidden, while `sort` and `order` survive in the URL and apply again after switching back to Files; the `…` menu stays and offers only the Smart Folder and Find entries; `search-results-top` and Show more by similarity are not rendered.
 
 ## Checked, no action
@@ -295,6 +344,9 @@ SPEC-CORE-040 I17. In Passages, sort, view mode, select, Play all and the Filter
   submodule pointer, and a second id would leave an unused one behind.
 - **Empty results** keep today's `EmptyState`; the results bar stays above it with
   「0 件」.
+- **SPEC-CORE-035 I8 and I12** (semantic-search-all-hits: "with the text filter off",
+  "the text filter matches only drawn rows"). Not revised: with the field gone from the
+  search page the filter is always off there, so both still hold as written.
 - **SPEC-CORE-039 I14** ("its kinds exclude … the toolbar type"). Not revised: the type
   it means is the URL's `type`, which this change keeps; restating I14 would replace the
   menu entries SPEC-CORE-043 and SPEC-CORE-047 added since.
