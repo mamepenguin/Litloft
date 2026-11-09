@@ -39,7 +39,7 @@ import { SaveDot } from "@/components/markdown/SaveDot";
 import { ContextMenu } from "@/components/ContextMenu";
 import { TouchControlsPresenter } from "@/components/player/MediaControls/TouchControlsPresenter";
 import { VideoPlayer } from "@/components/VideoPlayer";
-import type { ArchiveEntry, SubtitleInfo } from "@/types";
+import type { ArchiveEntry, FileKind, SubtitleInfo } from "@/types";
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
 import { useFullscreen } from "@/components/player/hooks/useFullscreen";
 import { useHighlightPassage } from "@/hooks/useHighlightPassage";
@@ -54,6 +54,11 @@ import { CurrentDriveProvider } from "@/components/CurrentDriveProvider";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { ImageQueryDropTarget } from "@/components/search/ImageQueryDropTarget";
 import { ConditionMenu } from "@/components/search/ConditionMenu";
+import { FolderToolbar } from "@/components/folder/FolderToolbar";
+import { PassageList } from "@/components/search/PassageList";
+import { SearchQueryHeader } from "@/components/search/SearchQueryHeader";
+import type { PassageGroup } from "@/lib/searchPassages";
+import type { SearchPassage } from "@/lib/searchMerge";
 import {
   GlobalSearchProvider,
   useGlobalSearch,
@@ -996,6 +1001,195 @@ function ConditionMenuArrangement(): ReactElement {
     </NextIntlClientProvider>
   );
 }
+
+const RESULT_ROWS = Array.from({ length: 12 }, (_, i) => ({
+  id: `result${String(i + 1).padStart(6, "0")}`,
+  name: `Recording ${i + 1}.mp4`,
+}));
+
+function resultPassage(index: number): SearchPassage {
+  return {
+    kind: "text",
+    start: null,
+    end: null,
+    page: null,
+    section: null,
+    section_title: null,
+    chunk_index: index,
+    text: `A passage that mentions the query, number ${index}.`,
+    score: 1,
+    keyword: false,
+    highlight_terms: [],
+    frame_url: null,
+  };
+}
+
+const RESULT_GROUPS: PassageGroup[] = [
+  {
+    fileId: "passages0001",
+    filename: "Recording one.mp4",
+    fileType: "video",
+    file: null,
+    bestScore: 0.9,
+    passages: [resultPassage(1), resultPassage(2), resultPassage(3)],
+  },
+  {
+    fileId: "passages0002",
+    filename: "Recording two.mp4",
+    fileType: "video",
+    file: null,
+    bestScore: 0.8,
+    passages: [resultPassage(4), resultPassage(5)],
+  },
+  {
+    fileId: "passages0003",
+    filename: "Meeting notes.md",
+    fileType: "text",
+    file: null,
+    bestScore: 0.7,
+    passages: [resultPassage(6), resultPassage(7)],
+  },
+];
+
+interface ResultsBarState {
+  view: "files" | "passages";
+  typeFilter: FileKind | null;
+  operator: boolean;
+  scene: boolean;
+}
+
+/**
+ * The results page's body without the app toolbar: the real header, results
+ * bar and Passages list. The page adds no horizontal padding, because the bar
+ * carries its own and the field, bar and list are measured against each other.
+ */
+function SearchResultsBar({ state }: { state: ResultsBarState }): ReactElement {
+  const noop = () => {};
+  const query = state.operator ? "cats tag:meeting" : "cats";
+  const showScene = !state.operator;
+  const showShelf = showScene && state.scene && state.view === "files";
+
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <div className="flex min-h-screen flex-col bg-bg-primary">
+        <div className="min-w-0 pb-2 pt-5">
+          <SearchQueryHeader
+            drive="fixture"
+            query={query}
+            typeFilter={state.typeFilter}
+            sort="relevance"
+            order="desc"
+            smartFolderId={null}
+            includeSceneClip={state.scene}
+            show={state.view}
+            onRemoveType={noop}
+          />
+        </div>
+
+        <FolderToolbar
+          isSpecialView={false}
+          isWriteDestination={false}
+          isSearch
+          search={{
+            passagesApplicable: true,
+            show: state.view,
+            onShowChange: noop,
+            showSceneSearch: showScene,
+            sceneSearch: state.scene,
+            onSceneSearchChange: noop,
+            countLabel: state.view === "files" ? "12 items" : null,
+            passageCountLabel: "3 files · 7 passages",
+            passageCountShort: "7 passages",
+            query,
+            smartFolderId: null,
+            showFind: showScene,
+            onSelect: noop,
+            hideArranging: false,
+          }}
+          isPassages={state.view === "passages"}
+          hasPlayableFiles={false}
+          sort="relevance"
+          order="desc"
+          typeFilter={state.typeFilter}
+          total={RESULT_ROWS.length}
+          folderCount={0}
+          selectable={false}
+          scanning={false}
+          creatingFolder={false}
+          newFolderName=""
+          folderError={null}
+          fileIds={RESULT_ROWS.map((row) => row.id)}
+          drive="fixture"
+          folderPath=""
+          onSortChange={noop}
+          onTypeFilterChange={noop}
+          onViewChange={noop}
+          onToggleSelectable={noop}
+          onScan={noop}
+          onPlayAll={noop}
+          onSetCreatingFolder={noop}
+          onSetNewFolderName={noop}
+          onSetFolderError={noop}
+          onCreateFolder={noop}
+        />
+
+        {showShelf && (
+          <div
+            data-testid="scene-shelf"
+            className="grid grid-cols-2 gap-2 px-4 py-3 sm:grid-cols-4"
+          >
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="h-24 rounded-xl bg-bg-elevated" />
+            ))}
+          </div>
+        )}
+
+        {state.view === "passages" ? (
+          <PassageList
+            state="listed"
+            groups={RESULT_GROUPS}
+            filesCount={RESULT_GROUPS.length}
+          />
+        ) : (
+          <ul className="flex flex-col">
+            {RESULT_ROWS.map((row) => (
+              <li
+                key={row.id}
+                className="flex h-24 items-center border-b border-bg-border px-3 text-sm text-text-primary"
+              >
+                {row.name}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </NextIntlClientProvider>
+  );
+}
+
+const SEARCH_RESULTS_BAR: Record<string, ResultsBarState> = {
+  files: { view: "files", typeFilter: null, operator: false, scene: false },
+  "files-type": { view: "files", typeFilter: "video", operator: false, scene: false },
+  "files-scene": { view: "files", typeFilter: null, operator: false, scene: true },
+  "files-operator": { view: "files", typeFilter: null, operator: true, scene: false },
+  passages: { view: "passages", typeFilter: null, operator: false, scene: false },
+  "passages-scene": { view: "passages", typeFilter: null, operator: false, scene: true },
+  "passages-operator": { view: "passages", typeFilter: null, operator: true, scene: false },
+  sticky: { view: "files", typeFilter: null, operator: false, scene: true },
+};
+
+function searchResultsBarArrangement(id: string): ReactElement {
+  return <SearchResultsBar state={SEARCH_RESULTS_BAR[id]} />;
+}
+
+const SearchResultsBarFiles = (): ReactElement => searchResultsBarArrangement("files");
+const SearchResultsBarFilesType = (): ReactElement => searchResultsBarArrangement("files-type");
+const SearchResultsBarFilesScene = (): ReactElement => searchResultsBarArrangement("files-scene");
+const SearchResultsBarFilesOperator = (): ReactElement => searchResultsBarArrangement("files-operator");
+const SearchResultsBarPassages = (): ReactElement => searchResultsBarArrangement("passages");
+const SearchResultsBarPassagesScene = (): ReactElement => searchResultsBarArrangement("passages-scene");
+const SearchResultsBarPassagesOperator = (): ReactElement => searchResultsBarArrangement("passages-operator");
+const SearchResultsBarSticky = (): ReactElement => searchResultsBarArrangement("sticky");
 
 function OpenScoped({ label }: { label: string }): null {
   const scope = useMemo(
@@ -2179,6 +2373,14 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "measured-picker-in-dialog": PickerInDialog,
   "add-menu": AddMenu,
   "condition-menu": ConditionMenuArrangement,
+  "search-results-bar-files": SearchResultsBarFiles,
+  "search-results-bar-files-type": SearchResultsBarFilesType,
+  "search-results-bar-files-scene": SearchResultsBarFilesScene,
+  "search-results-bar-files-operator": SearchResultsBarFilesOperator,
+  "search-results-bar-passages": SearchResultsBarPassages,
+  "search-results-bar-passages-scene": SearchResultsBarPassagesScene,
+  "search-results-bar-passages-operator": SearchResultsBarPassagesOperator,
+  "search-results-bar-sticky": SearchResultsBarSticky,
   "quick-note-footer-ja": QuickNoteFooterJa,
   "quick-note-footer-en": QuickNoteFooterEn,
   "scoped-search-ja": ScopedSearchJa,

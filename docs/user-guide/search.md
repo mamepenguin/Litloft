@@ -36,10 +36,11 @@ The top of the page is also the query field. It holds what you searched for, and
 
 After the chips, **＋ 条件** (**＋** on a phone) adds an operator without typing the syntax: **タグ** (tag), **種類** (type), **フォルダ** (folder), **コレクション** (collection), **サイズ** (size), **長さ** (length) or **お気に入り** (favourites). Tag, folder and collection open a list of values; each list has a filter box, and a value already in the query is not offered. Size and length open fixed presets such as **1 GB 以上** and **30 分以上**; a preset already in the query, or one that would contradict it, is not offered. Picking a value adds it to the query and searches.
 
-Above the results:
+Under the chips is the results bar. It holds, in order, the **ファイル / 箇所** switch (with the intelligence addon), **シーン検索**, the number of results, **View**, **Sort** and `…`. On a phone **View** and **Sort** are in `…`.
 
-- **Filter** narrows by file type, as in a folder. **Document** includes text files and PDFs.
 - **Sort** offers **Relevance** (the default while searching) plus the usual folder orders.
+- `…` holds **Save as Smart Folder**, **選択モード**, and, with the intelligence addon, **Open Find page**.
+- A file type is chosen with **＋ 条件** → **種類**, which writes `type:<kind>` into the query. A type that arrives in the address — from the search window or a Smart Folder — shows as a **種類** chip in the row under the field; `×` on the chip removes it.
 
 To filter by tag, kind or favourite, type an operator; see [Operators](#operators). The sidebar's tags also filter a folder; see [Tag filtering](#tag-filtering).
 
@@ -61,11 +62,11 @@ A size and a length need a comparison: `>`, `>=`, `<` or `<=`. Write a range as 
 
 `tag:trip type:image kyoto` finds images tagged `trip` whose name or folder contains "kyoto". Operators alone, such as `tag:trip`, list every file that passes them, newest first. A word that is not one of these operators, or a value that is not one of these values, is searched as ordinary text. Put a value with spaces in quotes: `path:"My Photos/2024"`, `in:"読書 メモ"`, `tag:"two words"`. In the search window, typing `tag:`, `type:` or `is:` lists the values you can use, the drive's most used tags first; pick one with the arrow keys and `Enter` to complete it.
 
-With the intelligence addon, operators also filter the files found by meaning: `tag:会議 type:pdf 予算の見直し` searches for the meaning of 「予算の見直し」 among files tagged 会議 and of kind PDF. Operators alone, with no other words, list files only and run no meaning search. Scene search is off while an operator is in the query. The type chosen in the toolbar still applies, together with any `type:`.
+With the intelligence addon, operators also filter the files found by meaning: `tag:会議 type:pdf 予算の見直し` searches for the meaning of 「予算の見直し」 among files tagged 会議 and of kind PDF. Operators alone, with no other words, list files only and run no meaning search. Scene search is off while an operator is in the query. A type in the address — shown as the **種類** chip — still applies, together with any `type:`.
 
 ## Saving as a Smart Folder
 
-Click **Save as Smart Folder** beside the results heading and give it a name. It appears under **Smart Folders** in the sidebar, and the button becomes **Saved:** followed by the name, with **Update**, **Rename** and **Delete**.
+In the results bar, open `…` and choose **Save as Smart Folder**, then give it a name. It appears under **Smart Folders** in the sidebar, and the `…` menu then shows **Saved:** followed by the name, with **Update**, **Rename** and **Delete**.
 
 - A Smart Folder keeps the query, the file type and the sort. A tag is kept when it is written into the query as `tag:`.
 - It always shows the files that match now, not the ones that matched when you saved it.
@@ -93,7 +94,7 @@ With the intelligence addon enabled for the drive, results found by meaning are 
 
 ### Files and passages
 
-While a meaning search runs, a **ファイル / 箇所** switch sits under the query field. **ファイル** lists the files that matched, as before. **箇所** lists the places where the search found something, in order of relevance, with a count of files and places above the list.
+While a meaning search runs, a **ファイル / 箇所** switch sits in the results bar above the results. **ファイル** lists the files that matched, as before. **箇所** lists the places where the search found something, in order of relevance, with a count of files and places in the bar.
 
 - Each row shows a frame or the file's thumbnail, the place (a time range, page or chapter), the file name and the matched text in full. A picture's recognised text and a plain text match are labelled accordingly.
 - Click a row to open the file at that time, page or chapter.
@@ -108,7 +109,7 @@ At the end of the results, **Show more by similarity** adds more pictures from t
 
 ### Scene search
 
-To find a moment inside a video (*the part where the cat jumps off the table*), turn on **Scene search** above the results. It is off by default because it adds noise to ordinary searches.
+To find a moment inside a video (*the part where the cat jumps off the table*), turn on **Scene search** in the results bar above the results. It is off by default because it adds noise to ordinary searches.
 
 With it on, **Scene candidates** appear above the results: a grid of moments from videos in the drive, each with a frame, the file name and a time range. Click one to open the video at that time. The first eight candidates are shown; **Show all** expands the remaining candidates, and **Collapse** returns to the first eight. They are the closest matches, not a promise that the scene exists, and the grid is not shown when the search uses a smart folder or a type other than video.
 
@@ -134,7 +135,7 @@ The documents group needs readable text in the image — about 20 characters —
 
 ![Ask answer pane with source citations and a no-strong-source warning](../images/user-guide/ask-answer-citations-warning.png)
 
-**Find**, the tab beside Ask, returns a list of files for your question instead of a written answer. While you are searching, the **Find** chip in the search page header sends your query there.
+**Find**, the tab beside Ask, returns a list of files for your question instead of a written answer. While you are searching, **Open Find page** in the results bar's `…` menu sends your query there.
 
 When more than one model is available, a select beside the **Ask** button picks the model for your questions; **Auto** uses the one the administrator assigned. It goes back to **Auto** when you reopen the page or switch drives. AI summaries have the same choice under the **▾** beside **Create again**.
 

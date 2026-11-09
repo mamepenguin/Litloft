@@ -266,7 +266,7 @@ export function FolderToolbar({
         {leftActions}
 
         {isSearch && search?.passagesApplicable && (
-          <div className="w-48 flex-none">
+          <div className="w-[148px] flex-none sm:w-48">
             <SegmentedControl
               label={tSearch("viewLabel")}
               options={[
@@ -280,7 +280,7 @@ export function FolderToolbar({
         )}
 
         {isSearch && search?.showSceneSearch && (
-          <label className="inline-flex cursor-pointer select-none items-center gap-2 text-sm text-text-primary pointer-coarse:min-h-11">
+          <label className="inline-flex cursor-pointer select-none items-center gap-1.5 text-sm text-text-primary pointer-coarse:min-h-11 sm:gap-2">
             <input
               type="checkbox"
               checked={search.sceneSearch}

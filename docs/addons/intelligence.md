@@ -205,7 +205,7 @@ Search drops results scoring below half the top result, except those with a CLIP
 
 ### Scene search
 
-**Scene search** above the search results matches your words against the stored video frames. `search.min_score_clip` and `search.min_score_clip_thumbnail` are the score floors. Both default to 0.05, which suits the default SigLIP2 model; use 0.20 with CLIP-family models.
+**Scene search** in the search results bar matches your words against the stored video frames. `search.min_score_clip` and `search.min_score_clip_thumbnail` are the score floors. Both default to 0.05, which suits the default SigLIP2 model; use 0.20 with CLIP-family models.
 
 `GET /search/scene-segments?q=&limit=` returns time ranges of the drive's videos closest to a query, built from the same stored frame vectors without reading or writing anything else. `q` is 1 to 200 characters and `limit` is 1 to 50 (default 20). Each segment is `{file_id, filename, start, end, peak, score}`, ordered by score, at most two per file. It always returns the closest segments the drive has, so the score says how they compare with each other, not whether the scene exists. `partial` is true when other drives' frames filled the search and the drive's own frames may have been missed. It needs the `search` policy and takes the drive from `X-Lit-Drive`. The search page draws these as **Scene candidates** above the results while **Scene search** is on.
 

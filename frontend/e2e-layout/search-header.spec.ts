@@ -1,8 +1,10 @@
 /**
- * SPEC-CORE-039 I15: the search results header at a phone width and at
- * desktop, measured in Chromium. At 390 px the field spans the content width
- * and the count sits on one line under the chips; at desktop the field, the
- * count and the actions share the subject row.
+ * SPEC-CORE-039 I15 as revised by SPEC-CORE-066: the search results header at
+ * a phone width and at desktop, measured in Chromium. At 390 px the field
+ * spans the content width with the chips under it, and the results bar below
+ * them holds the view switch, Scene search, the count and `…` on one row; at
+ * desktop the field has its row to itself and the count shares the results
+ * bar with the switch, Scene search, View, Sort and `…`.
  */
 
 import { test, expect, type Page } from "@playwright/test";
@@ -33,9 +35,14 @@ interface Measurement {
   contentWidth: number;
   field: Box | null;
   chips: Box | null;
+  bar: Box | null;
+  switch: Box | null;
+  scene: Box | null;
   count: Box;
   countLineHeight: number;
-  actions: Box;
+  views: Box[];
+  sorts: Box[];
+  mores: Box[];
 }
 
 declare global {
@@ -53,7 +60,7 @@ async function open(page: Page, width: number): Promise<Measurement> {
   return page.evaluate(() => window.measureHeader());
 }
 
-test("at 390px the query field takes the content width and the count sits on one line under the chips", async ({
+test("at 390px the field takes the content width and the results bar is one row under the chips", async ({
   page,
 }) => {
   const m = await open(page, PHONE_WIDTH);
@@ -64,22 +71,53 @@ test("at 390px the query field takes the content width and the count sits on one
   expect(m.field!.right).toBeLessThanOrEqual(m.header.right);
 
   expect(m.chips).not.toBeNull();
-  expect(m.count.top).toBeGreaterThanOrEqual(m.chips!.bottom - 1);
+  expect(m.chips!.top).toBeGreaterThanOrEqual(m.field!.bottom - 1);
+
+  expect(m.bar).not.toBeNull();
+  expect(overlapsVertically(m.field!, m.bar!)).toBe(false);
+  expect(m.bar!.top).toBeGreaterThanOrEqual(m.chips!.bottom - 1);
+
+  expect(m.switch).not.toBeNull();
+  expect(m.scene).not.toBeNull();
+  expect(m.mores).toHaveLength(1);
+  expect(m.views).toHaveLength(0);
+  expect(m.sorts).toHaveLength(0);
+
+  for (const control of [m.switch!, m.scene!, m.count, ...m.mores]) {
+    expect(overlapsVertically(control, m.count)).toBe(true);
+    expect(control.left).toBeGreaterThanOrEqual(m.bar!.left);
+    expect(control.right).toBeLessThanOrEqual(m.bar!.right);
+  }
+  expect(m.count.top).toBeGreaterThanOrEqual(m.bar!.top);
+  expect(m.count.bottom).toBeLessThanOrEqual(m.bar!.bottom);
   expect(m.count.height).toBeLessThanOrEqual(m.countLineHeight * 1.5);
-  expect(overlapsVertically(m.count, m.actions)).toBe(true);
 
   expect(m.documentScrollWidth).toBeLessThanOrEqual(m.documentWidth);
 });
 
-test("at desktop width the field, the count and the actions share the subject row", async ({
+test("at desktop width the field has its row and the count shares the results bar with View, Sort and …", async ({
   page,
 }) => {
   const m = await open(page, DESKTOP_WIDTH);
 
   expect(m.field).not.toBeNull();
-  expect(overlapsVertically(m.field!, m.count)).toBe(true);
-  expect(overlapsVertically(m.field!, m.actions)).toBe(true);
-  expect(m.field!.width).toBeLessThan(m.contentWidth);
+  expect(m.field!.width).toBeCloseTo(m.contentWidth, 0);
+  expect(m.bar).not.toBeNull();
+  expect(overlapsVertically(m.field!, m.bar!)).toBe(false);
+
+  expect(m.switch).not.toBeNull();
+  expect(m.scene).not.toBeNull();
+  expect(m.views).toHaveLength(1);
+  expect(m.sorts).toHaveLength(1);
+  expect(m.mores).toHaveLength(1);
+
+  for (const control of [m.switch!, m.scene!, ...m.views, ...m.sorts, ...m.mores]) {
+    expect(overlapsVertically(control, m.count)).toBe(true);
+  }
+  expect(m.count.left).toBeGreaterThan(m.scene!.right);
+  expect(m.views[0]!.left).toBeLessThan(m.sorts[0]!.left);
+  expect(m.sorts[0]!.left).toBeLessThan(m.mores[0]!.left);
+  expect(m.count.height).toBeLessThanOrEqual(m.countLineHeight * 1.5);
 
   expect(m.documentScrollWidth).toBeLessThanOrEqual(m.documentWidth);
 });
