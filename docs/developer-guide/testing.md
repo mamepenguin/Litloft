@@ -204,9 +204,13 @@ emulated Pixel 5; the ones listed in `e2e-components/projects.ts` run at a
 desktop viewport.
 
 ```bash
+./setup-addons.sh   # with the submodules checked out
 cd frontend
 pnpm test:e2e:components
 ```
+
+The fixture also renders the intelligence addon's Ask tab, so the bundle needs
+the addon link tree that `setup-addons.sh` builds; without it no spec runs.
 
 The pages around the components are hand-written: anything that needs Next.js,
 `next-intl` routing or a backend is represented by a copy of its layout in the
