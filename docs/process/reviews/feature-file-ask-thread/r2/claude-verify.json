@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "I traced this by hand through addons/intelligence/frontend/askNoteFormat.ts rewriteAnswer (lines 247-302); nothing was executed. Case A, a fence inside a list item: given the answer \"1. Step\\n    ```\\n    x [1]\\n    ```\", line 274's opener regex /^ {0,3}(`{3,}|~{3,})/ does not match \"    ```\" (4 spaces). Line 284 does not treat it as indented code either, because previousBlank is false after \"1. Step\" and indented is false. The line therefore goes to rewriteInline (line 297), where the unclosed ``` run is copied literally (lines 233-235) and no fence state is set. The next line, \"    x [1]\", follows the same path, and rewriteMarkers turns [1] into a loft:// link, or removes it when there is no position. markdown-it is CommonMark, and AnswerMarkdown renders through MarkdownPreview (frontend/src/components/MarkdownPreview.tsx:16, 93). Under CommonMark this is a fenced block inside the item, because the item's content column is 3 and the fence is indented 1 relative to it. So text that is shown as code is altered, which breaks I7 (\"inside them the text is as received\") and SPEC-ADDON-083 step 3 (\"Code is written as received\"). Case B, a continuation paragraph: given \"- item\\n\\n    more [1]\", line 284 matches lineIsIndented && previousBlank, so the line is written raw (lines 285-288). CommonMark treats it as a paragraph inside the list item, because the content column is 2 and the relative indent is 2, which is fewer than 4. The [1] stays raw outside code, which breaks I7 (\"each [n] outside code is a loft:// link or removed\"). Coverage: the only code test, AskTabThread.test.tsx:735-780, uses top-level fences, top-level indented code and inline spans, with no list context. An LLM answer that puts code or extra paragraphs inside list items is ordinary output, so this falls within the threat model."
+    }
+  ],
+  "specification_compliance": [
+    "SPEC-ADDON-083 step 3 and I7 are not met for answers that contain a fence or a continuation paragraph inside a list item; see R1.",
+    "For top-level fences, indented code and inline code spans, the behaviour matches 083 step 3, as AskTabThread.test.tsx:735-780 checks."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "083 step 3 defines fenced and indented code blocks by what AnswerMarkdown (markdown-it, CommonMark) renders, but it does not say whether list or blockquote context has to be followed. Blockquote-nested code (for example \"> ```\") is probably mis-detected the same way: the opener regex requires the fence at column 0 to 3, so the line goes to rewriteInline. I did not trace this case in full."
+  ],
+  "regression_risks": [
+    "Saved notes can contain changed code samples (a [n] replaced or deleted inside code) or raw [n] markers where links were expected, and neither causes an error."
+  ],
+  "test_coverage": [
+    "AskTabThread.test.tsx:735-780 covers only top-level code constructs. No test puts a list item, a nested fence or a blockquote around code."
+  ],
+  "not_verified": [
+    "I did not run the tests or markdown-it, so the CommonMark list-item parsing is reasoned from the specification, not executed.",
+    "I did not check whether MarkdownPreview's custom plugins change how list or fence content is parsed.",
+    "I did not review the other invariants (I1-I6, I8-I12) or the backend changes."
+  ],
+  "confidence": 88
+}
