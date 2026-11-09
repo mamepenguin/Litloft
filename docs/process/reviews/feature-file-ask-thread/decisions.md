@@ -826,3 +826,7 @@ pending: |
   - Audio and video as heard and seen, subtitle timing, playback over the home
     LAN and on other household devices, and calls to real third-party addon
     services (`PROJECT.md` agent_cannot_verify).
+
+## CI job for the Ask thread e2e case (owner's decision, 2026-11-09)
+
+After r6 PASS, CI's `frontend (layout invariants and components in a browser)` job failed to build the component fixture: the job checked out no submodules, and the Ask thread case imports the intelligence addon's `AskTab`. `.github/**` is a CRITICAL zone the approved spec does not name, so the author asked. The owner chose "ジョブに submodule を足す": the job checks out the pinned submodules and runs `./setup-addons.sh`, and the comment that said the job runs without addons is replaced.
