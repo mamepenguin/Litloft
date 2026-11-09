@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: continue (r1). The owner answered 「OKです」 to: rebase onto develop once the YouTube frames work is merged there and run /review again (R1, R2, R5); accept R3 and R4 as invariant revisions I11 and I12; R6 needs no action.
 ran_in_app: yes
 at: 1dde119a99781700a35d96cc180d4731d7334b6a
 by: agent
