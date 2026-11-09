@@ -387,6 +387,7 @@ def list_drive_shelves(
     type: list[FileKindParam] | None = Query(None),
     folder: list[str] | None = Query(None),
     collection: list[str] | None = Query(None),
+    ids: list[str] | None = Query(None),
     size: list[str] | None = Query(None),
     duration: list[str] | None = Query(None),
     watch: WatchState | None = Query(None),
@@ -407,6 +408,11 @@ def list_drive_shelves(
         raise HTTPException(status_code=422, detail="last_played requires by=watch")
     if sort == "random" and key is not None and page is not None:
         raise HTTPException(status_code=422, detail="random cannot be paged")
+    if ids is not None:
+        if len(ids) > 60:
+            raise HTTPException(status_code=422, detail="ids accepts at most 60 elements")
+        if any(not file_id for file_id in ids):
+            raise HTTPException(status_code=422, detail="ids cannot contain an empty element")
     if (by == "watch" or watch is not None or sort == "last_played") and viewer_id is None:
         raise HTTPException(status_code=400, detail="viewer_required")
 
@@ -424,6 +430,8 @@ def list_drive_shelves(
         duration=duration,
         trust=trust,
     )
+    if ids is not None:
+        base = base.filter(File.id.in_(ids))
     if by == "watch" or watch is not None:
         base = _join_watch(base, viewer_id)
     if watch is not None:
