@@ -493,3 +493,103 @@ pending: |
   - Audio and video as heard and seen, subtitle timing, playback over the home
     LAN and on other household devices, and calls to real third-party addon
     services (`PROJECT.md` agent_cannot_verify).
+
+## R-5, fourth run (after the inline-code-span fix)
+
+ran_in_app: yes
+at: 97ec1bec34529a166e7747b663b5434c8be56798
+by: agent
+evidence: |
+  SPEC-ADDON-081..084 of `docs/specs/file-ask-thread.md`, fourth R-5 after the
+  saved-note builder was changed to find inline code spans across a paragraph's
+  line endings (I7, 083 step 3). Core tree
+  97ec1bec34529a166e7747b663b5434c8be56798 with `addons/intelligence` at
+  ff0854a6d2a83b77c3e3fc9679c8d1e0e05522f5 and `addons/knowledge` at
+  59d155a014b73db679396b64799a6b85168fb20a (both clean).
+
+  Environment. The earlier runs' scratch material was reused and the images
+  rebuilt: `LITLOFT_PORT=3994 docker compose -p litloft-r5-thread
+  -f docker-compose.yml -f .r5/override.yml up -d --build backend frontend
+  intelligence knowledge` from this worktree. `.r5/data` for the backend and
+  both addons' data, `.r5/drive` as drive `scratch`, `passwords.json` `[]`, the
+  `.r5/search-config.yml` (`rag.file_question_max_chars: 1000`,
+  `text_chunking.max_chunk_size: 1000`, `transcription.whisper_local
+  .min_segment_duration: 2`, `detailed_summaries: "false"`) and
+  `event-hooks.json` mounted as before. The local OpenAI-compatible stub under
+  `.r5/llm-stub/` ran on host port 3996; its `fixed` switch streamed
+  `.r5/llm-stub/fixed-answer.txt`, which held the exact answer text for check A.
+  Only `litloft-r5-thread` was started and stopped; the other stacks were not
+  touched. The note was read through the app's API, never from the host DB. The
+  stub is not a model; nothing below is evidence about a real model's answer
+  quality.
+
+  A. Code spans across line endings and the saved note (PASS). `trailhead.mp4`
+  (`w3RoCFb3U9TJ`), 1440x900, 質問 tab, one question
+  「What does the bus do in the morning?」 answered with the fixed text (the
+  request's only passage, 0:00, gave `[1]` a position). On screen (shot
+  `r4-a-answer-drawn.png`) the answer was drawn as:
+  - a paragraph `See ` + inline code `x y [1]` + ` z and ` + a `0:00` pill +
+    `.`;
+  - a blockquote whose paragraph was `Quote ` + inline code `a b [1]` +
+    ` c`;
+  - a paragraph `open `x ` (backtick left literal, never closed) + a `0:00`
+    pill;
+  - a paragraph `after ` + a `0:00` pill;
+  - an ordered list item `Run:` whose content was a fenced code block, drawn
+    as one `pre` holding `y = arr[1]\n`.
+
+  The turn's DOM had exactly one `pre`, two `inline code` elements (`x y [1]`
+  and `a b [1]`, both keeping `[1]` and carrying no pill) and three pill
+  buttons (`0:00` each). So `[1]` was drawn as code inside both spans that
+  cross a line ending and inside the list-nested fence, and as a pill
+  everywhere else. 「Markdownで保存」 proposed `Ask` /
+  `what-does-the-bus-do-in-the-morning.md`; the save answered 200 with
+  `note_path Ask/what-does-the-bus-do-in-the-morning (1).md` (the earlier
+  run's note holds the name) -> note `YB2kWtCOmOV9`, `trust_tier:
+  "unverified"`, `trust_reviewed_at: null`. The link
+  「Markdownを保存しました — ノートを開く」 pointed at
+  `/drive/scratch/addons/knowledge?edit=YB2kWtCOmOV9`. The note's raw content
+  (`GET /api/files/YB2kWtCOmOV9/stream`) has one `##` turn section; its answer
+  exactly:
+
+  ````markdown
+  See `x
+  y [1]` z and [0:00](loft://w3RoCFb3U9TJ?t=0).
+
+  > Quote `a
+  > b [1]` c
+
+  open `x [0:00](loft://w3RoCFb3U9TJ?t=0)
+
+  after [0:00](loft://w3RoCFb3U9TJ?t=0)
+
+  1. Run:
+      ```python
+      y = arr[1]
+      ```
+  ````
+
+  `[1]` stayed as written inside every part drawn as code (the two inline
+  spans and the fence) and became `[0:00](loft://w3RoCFb3U9TJ?t=0)` in the
+  other three places, including the paragraph whose backtick never closes.
+  There is no difference between what was drawn as code and what the note
+  keeps. Result `.r5/results/r4-a.json`; shot `r4-a-saved-link.png`.
+
+  B. Check 1 repeated (PASS). `trailhead.mp4`, 1440x900, fresh page. Q1
+  「What is said about the faded sign?」 answered with the normal canned text;
+  Q2 「How much does the taxi cost?」 asked as a follow-up. The turns were
+  drawn oldest first (tops 358 then 544), the text box below them (y 743.4)
+  and empty after each send. The last request carried
+  `Earlier in this conversation:` with Q1 and its answer, zero `[n]` matches
+  in the block (the first answer's `[1]` was removed), and three passages.
+  Q1's answer drew one pill `0:04`; Q2's drew `0:00` and `0:09` (shot
+  `r4-b-video-followup-pills.png`). Result `.r5/results/r4-b.json`.
+
+pending: |
+  - The quality and correctness of answers with a real model: the LLM was a
+    canned local stub.
+  - A real off-host provider, and the `llm_cloud` policy on a real install.
+  - Anything on an iPhone: a desktop Chromium viewport was used, not a device.
+  - Audio and video as heard and seen, subtitle timing, playback over the home
+    LAN and on other household devices, and calls to real third-party addon
+    services (`PROJECT.md` agent_cannot_verify).
