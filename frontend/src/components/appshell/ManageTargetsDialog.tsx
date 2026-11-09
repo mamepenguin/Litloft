@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { X } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { useShortcuts } from "@/hooks/useShortcuts";
@@ -83,7 +83,7 @@ export function ManageTargetsDialog({
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 id="manage-targets-title" className="text-lg font-semibold text-text-primary">
-            {t("manage")}
+            {t("manageTitle")}
           </h2>
           <button
             type="button"
@@ -95,15 +95,22 @@ export function ManageTargetsDialog({
           </button>
         </div>
 
-        <input
-          ref={searchRef}
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder={t("searchTargets")}
-          aria-label={t("searchTargets")}
-          className="mb-3 w-full rounded-2xl border border-bg-border bg-bg-elevated px-3 py-2 text-sm text-text-primary outline-none focus:border-focus-ring"
-        />
+        <div className="relative mb-3">
+          <Search
+            size={16}
+            aria-hidden="true"
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
+          />
+          <input
+            ref={searchRef}
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={t("searchTargets")}
+            aria-label={t("searchTargets")}
+            className="w-full rounded-2xl border border-bg-border bg-bg-elevated py-2 pl-9 pr-3 text-sm text-text-primary outline-none focus:border-focus-ring"
+          />
+        </div>
 
         {folders.status === "failed" ? (
           <RetryButton onRetry={onRetryFolders} />
@@ -135,7 +142,7 @@ export function ManageTargetsDialog({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
+            className="rounded-2xl bg-accent px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent-hover"
           >
             {t("done")}
           </button>

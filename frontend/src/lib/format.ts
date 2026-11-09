@@ -18,6 +18,29 @@ export function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
+export function formatRelativeAge(isoString: string, locale = "en"): string {
+  const date = new Date(isoString);
+  const diffMs = Math.max(0, Date.now() - date.getTime());
+  const diffMin = Math.floor(diffMs / 60000);
+  const diffHour = Math.floor(diffMs / 3600000);
+  const diffDay = Math.floor(diffMs / 86400000);
+
+  const always = new Intl.RelativeTimeFormat(locale, { numeric: "always" });
+  const named = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+  const text = (value: number, unit: Intl.RelativeTimeFormatUnit, formatter = always) => {
+    const formatted = formatter.format(value, unit);
+    return locale.startsWith("ja") ? formatted.replace(/\s/g, "") : formatted;
+  };
+
+  if (diffMin < 1) return text(0, "second", named);
+  if (diffMin < 60) return text(-diffMin, "minute");
+  if (diffHour < 24) return text(-diffHour, "hour");
+  if (diffDay < 7) return text(-diffDay, "day", diffDay === 1 ? named : always);
+  if (diffDay < 30) return text(-Math.floor(diffDay / 7), "week");
+  if (diffDay < 360) return text(-Math.floor(diffDay / 30), "month");
+  return text(-Math.max(1, Math.floor(diffDay / 365)), "year");
+}
+
 export function formatRelativeDate(isoString: string, locale = "en"): string {
   const date = new Date(isoString);
   const now = new Date();

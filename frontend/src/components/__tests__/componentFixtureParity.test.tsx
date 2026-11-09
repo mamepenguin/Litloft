@@ -223,6 +223,9 @@ describe("the component fixture's page", () => {
       (m) => m[1],
     );
     expect(declared).toEqual([
+      "page-header-trail-actions",
+      "page-header-title-field-actions",
+      "page-header-title-actions",
       "chrome-buttons",
       "folder-listing-header-deep",
       "folder-listing-header-shallow",

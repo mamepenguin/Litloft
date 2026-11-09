@@ -31,6 +31,7 @@
   },
   "appShell": {
     "manage": "Manage…",
+    "manageTitle": "Shown targets",
     "done": "Done",
     "searchTargets": "Search smart folders",
     "seeAllIn": "See all: {name}"
@@ -1489,6 +1490,7 @@
       "finished": "Finished"
     },
     "tag": "Tag",
+    "tagNone": "None specified",
     "noTags": "No tags",
     "noTag": "No tag",
     "sort": {

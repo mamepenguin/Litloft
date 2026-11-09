@@ -74,13 +74,14 @@ export function TagMenu({
   onToggle: (tag: string) => void;
 }) {
   const t = useTranslations("readingApp");
-  const value = selected.length === 0 ? t("tag") : selected.join(", ");
+  const value = selected.length === 0 ? t("tagNone") : selected.join(", ");
   return (
     <ToolbarMenu
       label={t("tag")}
       value={value}
       icon={Tag}
       truncateValue
+      filled
       className="min-w-0"
       align="start"
     >
@@ -109,6 +110,7 @@ export function StateMenu({
       value={t(`state.${value}`)}
       icon={BookMarked}
       showLabel
+      filled
       className="min-w-0"
       align="start"
     >
@@ -145,7 +147,8 @@ export function GroupMenu({
       value={t(`group.${value === "none" ? "none" : "byTag"}`)}
       icon={Layers}
       showLabel
-      className="min-w-0"
+      filled
+      className="min-w-0 ml-auto"
       align="start"
     >
       {(close) => (
@@ -166,9 +169,11 @@ export function GroupMenu({
 export function ReadingSortMenu({
   value,
   onChange,
+  filled = false,
 }: {
   value: SortChoice["id"];
   onChange: (value: SortChoice["id"]) => void;
+  filled?: boolean;
 }) {
   const t = useTranslations("readingApp");
   const options = SORT_CHOICES.map((choice) => ({ value: choice.id, label: t(choice.labelKey) }));
@@ -179,6 +184,7 @@ export function ReadingSortMenu({
       value={t(current.labelKey)}
       icon={ArrowDownUp}
       truncateValue
+      filled={filled}
       className="min-w-0"
       align="end"
     >
