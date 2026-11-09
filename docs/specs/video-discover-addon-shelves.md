@@ -73,7 +73,13 @@ subset of `ids` that matched, in the order the provider passed them.
   endpoint's cap.
 - `restrict([])` resolves to `[]` without sending a request.
 - A `viewer_required` error from any of its requests calls the app's `onViewerRejected`,
-  as the watch shelves do today, and then rejects. Any other error only rejects.
+  as the watch shelves do today, and then rejects. Any other error only rejects. A
+  `restrict` whose load has been superseded rejects without calling `onViewerRejected`.
+- `ids` goes on the wire repeated (`ids=a&ids=b`), the way `api.ts` already serializes
+  array parameters.
+
+Providers receive no abort signal. A superseded provider may finish its requests, and its
+result is dropped. The leftover traffic of at most 10 requests is accepted.
 
 Each provider call gets its own `restrict` and its own set of accepted ids, holding the
 `ShelfItem` of every id that this `restrict` returned. Ids accepted for one shelf never count
@@ -89,6 +95,10 @@ When a provider resolves, its shelf is built in this order:
 **When the catalogue counts as loaded.** The catalogue counts as loaded for a drive when
 `useAddonSlots()` reports `loading` false and `catalogueDrive` equal to the app's drive.
 Until then no provider is called, and no entry of the previous drive is used.
+
+**When the providers run at all.** Providers run under the same gate as Continue and New:
+only once Discover has been shown in this page (`asked`), and never while the target is
+empty (`params === null`). A viewer who only uses Library triggers no provider request.
 
 **When the providers run again.** The providers are asked again exactly when today's
 Discover shelves are, which is when the drive, the target parameters or `hasProfile`
@@ -193,8 +203,10 @@ Each provider shelf (Recommended and every addon shelf) goes through
 - `failed`: the provider or its `restrict` rejected.
 
 A provider shelf is drawn only in `loaded` with at least one item. It has no skeleton and no
-**Retry**. A shelf that comes to nothing never appears, so the shelves below it move at most
-once. A change of inputs returns it to `loading`, and it is not drawn until it settles again.
+**Retry**. A shelf that comes to nothing never appears, so it moves the shelves below it at
+most once, when it appears. Provider shelves appear independently, so New can move once per
+provider shelf that appears, at most three times. Every request stays on the LAN, and there
+is no time bound. A change of inputs returns it to `loading`, and it is not drawn until it settles again.
 
 Continue and New keep their own states and **Retry** unchanged. The Discover empty state
 (no video under the target) keeps its rule, but only Continue and New count towards it. A
@@ -313,7 +325,14 @@ then shows only those.
   only.
 - `frontend/src/components/videoapp/VideoApp.tsx`: pass the addon shelves from
   `useDiscover` to `DiscoverFace`.
-- `frontend/src/components/videoapp/__tests__/`: tests for the above.
+- `frontend/src/components/videoapp/__tests__/`: tests for the above. The existing cases
+  that assert the random Recommended (`VideoApp*.test.tsx`) are rewritten to the revised
+  SPEC-CORE-057 I8, not deleted.
+- `frontend/e2e-layout/fixtures/reading-video-faces.html`,
+  `frontend/e2e-layout/fixtures/video-app.html`, and
+  `frontend/src/components/__tests__/readingVideoLayoutFixtureParity.test.tsx`: updated to
+  the new `DiscoverFace` props. The fixture draws one addon shelf, so the order Continue ·
+  Recommended · addon · New is measured in a real browser.
 - `addons/intelligence/frontend/slots.ts`, a new provider module, `manifest.json` (the
   `video-discover-recommended` entry), and
   `addons/intelligence/frontend/__tests__/pickupShelfProvider.test.ts` (I8, I12). This is a
@@ -341,8 +360,9 @@ then shows only those.
 
 I1. A shelves request with `ids` returns and counts only files that are in `ids` **and**
 satisfy every other filter of the request, from the requested drive only. An id of another
-drive, of trash or of a missing file is never returned. More than 60 ids, or an empty value,
-is 422.
+drive, of trash or of a missing file is never returned. `ids` is a repeated parameter.
+More than 60 elements (duplicates counted) is 422, and so is any empty element, including a
+lone `ids=`.
 
 I2. A shelves request without `ids` returns the same response as before this change.
 
@@ -352,9 +372,10 @@ never make Discover show a file outside the app's target, outside `type=video`, 
 another drive. For Recommended, it also cannot show one the viewer has started or finished.
 
 I4. Recommended consists only of the provider's restricted items, in the provider's order,
-at most 12, with no duplicate. No random request is sent for it. It is not drawn without a
-profile, without a `video-discover-recommended` entry whose function exists, when that
-provider rejects, or when it yields no item. A second entry is never tried.
+at most 12, with no duplicate. No random request is sent for it, and it is never drawn
+without a profile. The provider is the first entry by `priority` whose function exists. An
+entry with no module or no function is passed over. Once an entry with a function has been
+chosen, no later entry is tried, even when the chosen one rejects.
 
 I5. A provider shelf is drawn only when its provider has resolved for the current inputs
 with at least one item, and never while loading. A missing module, a missing function or a
@@ -388,6 +409,13 @@ drive. A provider result whose drive, target or profile has since changed is nev
 I12. The Pickup provider samples only from the first 40 restricted ids in feed rank order.
 It reads pages of 60 in rank order and stops at 40 matches, at a page shorter than 60, or at
 `offset ≥ total`, so it never reads more than 5 pages.
+
+I13. No provider is called before Discover has been shown in the page, or while the target
+is empty.
+
+I14. `restrict` returns the matched ids in the order it was given them, whatever order the
+backend answers in. It sends at most 60 ids per request and no request for `[]`. A
+`viewer_required` answer calls `onViewerRejected` only while its load is current.
 
 ## Revises
 
@@ -426,6 +454,14 @@ Each shelf holds at most 12, and a shelf with no videos is not drawn.
 - **A See all for Recommended.** Intelligence declares no `href`, because its own Pickup
   page lists every kind of file, not only the target's videos. The core unwatched shelf is
   not linked, because it is not the recommendation.
+- **Media Import's See all leaving the target.** Kept. The Media Import page shows the
+  whole lane, unfiltered by the smart folder, and caps the regular lane at 12. It still
+  lists only videos from the same subscriptions, so a viewer who follows See all sees more
+  of the same kind of thing. Pickup's page, by contrast, lists images and documents, which
+  is why Recommended has no See all.
+- **Holding New until every provider shelf settles, or reserving their space.** Not done.
+  Holding New would delay a core shelf behind addon requests, and reserving space would draw
+  empty gaps for shelves that come to nothing.
 - **Duplicates across shelves.** A video may appear both in an addon shelf and in New or
   Recommended, because each shelf answers a different question. The Media Import page and
   the home already overlap in this way. A file in both a *regular* and a *feed* subscription
