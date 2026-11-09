@@ -54,3 +54,13 @@ for (const id of [
     }
   });
 }
+
+test(`the condition button names what it adds at ${PHONE}px`, async ({ page }) => {
+  await open(page, ARRANGEMENT.files, PHONE);
+  const button = page.getByRole("button", { name: "Add filter", exact: true });
+  await expect(button).toBeVisible();
+  await expect(button).toHaveText(/Filter/);
+  const label = button.getByText("Filter", { exact: true });
+  const box = await label.boundingBox();
+  expect(box?.width ?? 0).toBeGreaterThan(0);
+});
