@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "The r5 finding is fixed. askNoteFormat.ts rewriteAnswer now builds each sentinel as `[${prefix}${index}]`, keeping the `[`…`]` shape. A line such as `[1]: https://example.com` stays a link reference definition in the sentinel text (markdown-it reference.mjs requires a leading `[`, which is now present), so a following line indented 4 spaces is a code_block in both parses, and its marker is kept as received.",
+    "The new test case \"a reference definition's indented line\" asserts the r5 repro exactly (`    see arr[2]` kept, `[1]` removed). A second new case, \"a defined reference used later and in a code span\", checks that the definition's label marker and a later use are rewritten while a code-span marker is kept. Reverting the brackets would fail the first case.",
+    "Sentinel uniqueness still holds and is stronger: the prefix is lengthened until the answer lacks it, the counters share one width, and each sentinel is closed by `]`, so no sentinel is a substring of another.",
+    "I checked other `[`-keyed constructs against the bracketed sentinel: balanced link text, escaped `\\[1]`, autolinks, link destinations and titles, fence info strings and table rows. In each one the sentinel parses the same way as the original for code_inline/fence/code_block purposes. Because every definition and every use gets a different sentinel index, reference links never resolve in the sentinel text. That changes link-ness only, and code spans take precedence over link brackets (markdown-it parseLinkLabel skips code tokens), so code detection does not change.",
+    "The fix commits touch only askNoteFormat.ts and its test, plus the pointer and review records. I1–I6 and I8–I12 code is unchanged since r5."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "MarkdownPreview (frontend/src/components/MarkdownPreview.tsx:374) runs gray-matter and renders only `parsed.content`, while rewriteAnswer parses the raw answer. An answer that starts with a `---` line and has a later `---` line whose content between is valid YAML is drawn without that block on screen, and the note builder parses it as an hr plus following blocks. A contrived example where code classification differs: \"---\\n~~~ x\\n---\\nsee [1]\". The note builder sees an unclosed tilde fence and keeps `[1]` raw; the screen, if gray-matter strips the block, shows `see [1]` as text with a pill. Earlier rounds noted this as a potential divergence. I did not confirm gray-matter's handling of non-object YAML data, so I record it here rather than as a finding.",
+    "blockParser lacks MarkdownPreview's inline `wiki_link` rule (noted in r5). `[[a `b]] [1]` c`-style input can still classify a code span differently. The bracketed sentinel does not change this.",
+    "A `[n]` in a fence info string is still rewritten, although the info string is not drawn on screen.",
+    "A reference definition `[n]: url` is invisible on screen, but in the note its label marker becomes a loft link or is removed, so the definition line turns into visible text such as `: https://example.com`. This satisfies I7 as written, and the new test asserts it."
+  ],
+  "regression_risks": [
+    "Code detection still depends on the sentinel text parsing like the original. A future MarkdownPreview plugin keyed on bracket contents (for example footnotes `[^1]`, or label matching between definitions and uses) could make the two diverge, because definitions and uses get different sentinel labels.",
+    "blockParser is a separate MarkdownIt instance without MarkdownPreview's plugins or its frontmatter stripping, so the two configurations can drift."
+  ],
+  "test_coverage": [
+    "askNoteFormat.test.ts covers list- and blockquote-nested fences, multi-line code spans, an unclosed backtick, an escaped backtick, double-backtick spans, a marker in link text, a pre-existing sentinel prefix, and now a reference definition followed by an indented line and a defined reference used later.",
+    "No test covers an answer that starts with YAML-like frontmatter, a wiki link next to a backtick, or a marker in a fence info string."
+  ],
+  "not_verified": [
+    "I did not run markdown-it or the test suite. The claim that the bracketed sentinel parses the same as the original is reasoned from markdown-it 14 reference/link/backtick rules.",
+    "I did not confirm how gray-matter treats a frontmatter block whose YAML is a scalar or is invalid, so the frontmatter divergence is unconfirmed.",
+    "I did not re-review the backend invariants (I1–I3, I8–I12) or the AskTab/askStore state logic in depth, because the fix commits do not touch them.",
+    "The reviewed commit 9e77d8b itself records review documents only. I reviewed the supplied branch diff and the fix diff."
+  ],
+  "confidence": 80,
+  "trajectory": "r2→r3 removed the hand-written block classifier in favour of markdown-it block tokens. r3→r4 patched around the remaining hand-written inline scanner by adding state (inlineRanges, a handled set, a fallback pass). r4→r5 removed that scanner and its state, and added one new mechanism: sentinel substitution, which carries the prediction that the substituted text parses like the original. r5→r6 adds no branch, state or prediction. It changes one template string so the sentinel keeps the `[`…`]` shape, which narrows the existing prediction rather than layering a new one on it, and it adds two test cases. The same spot has been touched in four consecutive rounds, so the area has been patched repeatedly, but this round is a minimal correction of the r5 mechanism, not another added layer."
+}

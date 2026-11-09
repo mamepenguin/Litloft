@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "The reviewers listed no findings, so there were no verification records to write. I spot-checked several invariants against the code in the worktree.",
+    "I8: addons/knowledge/app/routers/notes.py:185-186 calls _declare_unverified only when body.origin == \"ask_answer\". notes.py:62-80 treats 409 as accepted and maps any other InternalAPIError or httpx.HTTPError to 502. So the route either answers 201 after core accepts, answers 201 with a ruling the viewer already made, or answers non-2xx. This matches I8.",
+    "I9: notes.py:82 sets trust_declared_at only after the declaration succeeds or returns 409. trust_declaration.py:50-58 selects only rows where origin == 'ask_answer' and trust_declared_at IS NULL. trust_declaration.py:65-89 marks a row only on success or 409 and leaves every other failure NULL so the next start retries it. main.py:166 runs the pass with asyncio.create_task after startup, so it does not block /health, and main.py:135-142 swallows non-cancel exceptions.",
+    "I10: database.py:161-177 adds a nullable DATETIME column with no default and does nothing if the column already exists or the table is missing. It is called last in init_schema (database.py:188). No row data is touched.",
+    "I2: file_question.py:148-180 sets the budget to max_chars // 2. It removes markers before counting and repeats the removal until nothing changes (file_question.py:183-188), so a nested marker like [[1]1] is also removed. It walks turns from newest to oldest and stops at the first turn that does not fit, so a kept turn is never older than a dropped one. When the newest turn alone is too long, it is cut to fit the budget, question first."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The startup pass retries a 404 (a trashed or purged note) at every start and logs it only at debug level. The module docstring at trust_declaration.py:5-7 says this is deliberate, and I9 allows it."
+  ],
+  "regression_risks": [
+    "notes.py commits the note_origins row before declaring the trust tier. If the declaration fails, the client receives a 502 even though the note exists. The detail message says so, and I8 allows a non-2xx answer in this case."
+  ],
+  "test_coverage": [
+    "I did not inspect the test files. Coverage of I1 to I11 was not assessed in this pass."
+  ],
+  "not_verified": [
+    "Frontend behaviour for I4 to I7 (askStore.ts, AskTab.tsx, askNoteFormat.ts, and the e2e-components layout case)",
+    "Request validation for I3 in schemas.py, and the 422 ordering against the semaphore, model and embedding calls in routers/rag.py",
+    "I1 prompt equivalence with no history, and the ranking-text construction in routers/rag.py",
+    "The I11 empty-answer path and the I12 collision behaviour",
+    "Whether the worktree's submodule checkouts match the pointers at commit 9e77d8b6f"
+  ],
+  "confidence": 80
+}
