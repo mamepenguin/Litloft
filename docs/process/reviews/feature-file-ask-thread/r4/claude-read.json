@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R1",
+      "origin": "reviewer",
+      "claim": "The hand-written code-span scanner in the saved-note builder treats a backslash-escaped backtick as the opening of a code span. Text that CommonMark renders as plain text is therefore kept as if it were code, and a `[n]` inside it stays raw in the note.",
+      "impact": "Take an answer containing \"Use \\`x [1]` here\". markdown-it renders it as plain text with a citation pill, because the escaped backtick is literal and the later backtick has no closing run. The saved note keeps `[1]` as a bare marker: it is neither a `loft://` link nor removed. This is rare in model output, but the note then silently differs from the rule.",
+      "evidence": "addons/intelligence/frontend/askNoteFormat.ts rewriteInline (around lines 219-246) starts a span at any '`' and does not look at a preceding backslash. closingBacktickRun finds the later single backtick, and that range is copied verbatim (`out += line.slice(i, close + run)`). escapeLinkLabel at :182 is the only place where backslashes are handled. The r4 fix (answerBlocks/inlineRanges) still sends the joined paragraph through the same scanner, so this edge case remains. Neither askNoteFormat.test.ts nor AskTabThread.test.tsx has a case with an escaped backtick.",
+      "repro": "Traced by hand, not executed: buildAskThreadMarkdown with the answer \"Use \\\\`x [1]` here\" and citations [{n:1, position:{seconds:5}}]. The answer line in the note is unchanged: \"Use \\\\`x [1]` here\". Under CommonMark the expected output is \"Use \\\\`x [0:05](loft://<id>?t=5)` here\".",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I7 requires each [n] outside code (as CommonMark defines code spans) to be a loft:// link or removed. Here a [n] outside code stays raw.",
+        "invariant_ref": "I7"
+      },
+      "severity": "LOW",
+      "proposed_fix": "Take inline code ranges from markdown-it's own `code_inline` tokens, or skip a backtick preceded by an odd number of backslashes, and add a test with an escaped backtick."
+    }
+  ],
+  "specification_compliance": [
+    "The r3 finding (a code span crossing a soft line break) is fixed. rewriteAnswer now collects each markdown-it `inline` token's line map and runs rewriteInline over the joined lines of each paragraph, heading or table cell. New tests cover a span crossing one line, a span crossing two lines, one inside a blockquote, one inside a list item paragraph, and a backtick left unclosed before a paragraph break.",
+    "Lines covered by `fence`/`code_block` maps are still copied verbatim. Lines in neither set (for example link reference definitions or blank lines) still go through the per-line rewrite.",
+    "Rewriting uses the original `lines` for every inline range, so table rows, whose cell inline tokens share one line map, are rewritten idempotently.",
+    "I could not see changes to I1-I6 or I8-I12 since r3. The fix commits touch only askNoteFormat.ts, its tests, and the pointer and docs commits."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "AskTab's saveContent useMemo depends on `answeredTurns`, which is a new array on every render, so `saved_at` is the time of the last render rather than the moment of the save click.",
+    "MarkdownPreview strips leading YAML frontmatter before rendering, while answerBlocks parses the raw answer. An answer that starts with `---` lines can be classified differently in the note than on screen.",
+    "A `\\[1]` marker renders as a pill on screen. In the note it becomes `\\[label](url)`, which is literal text, not a link."
+  ],
+  "regression_risks": [
+    "blockParser is a separate MarkdownIt instance without MarkdownPreview's plugins. If MarkdownPreview later adds a block rule, the two can drift apart.",
+    "Joined-block scanning relies on markdown-it inline token `map` covering exactly the paragraph's source lines. Setext headings include the underline line, which is harmless today."
+  ],
+  "test_coverage": [
+    "askNoteFormat.test.ts now has exact-output cases for multi-line code spans in a paragraph, a blockquote and a list item, and for an unclosed backtick before a paragraph break. Reverting to per-line scanning would fail them.",
+    "No test covers an escaped backtick, a backtick inside an autolink or link destination, or a code span inside a table cell."
+  ],
+  "not_verified": [
+    "I did not run markdown-it or the tests. The escaped-backtick behaviour is reasoned from CommonMark rules and from reading rewriteInline.",
+    "I did not confirm the exact `map` values markdown-it 14 assigns to table-cell inline tokens.",
+    "I did not re-review the backend invariants (I1-I3, I8-I12) in depth this round, because the fix commits do not touch them.",
+    "The reviewed commit e57e1067 itself only records review documents. I reviewed the branch diff and the fix commits as supplied."
+  ],
+  "confidence": 75,
+  "trajectory": "r2→r3 removed design: the hand-written block classifier was replaced with markdown-it block tokens. r3→r4 did not remove the remaining hand-written inline-span scanner (rewriteInline/closingBacktickRun), as r3 had suggested. It kept the scanner and added state around it: an inlineRanges list taken from the parse, a `handled` set, and a second fallback pass for lines outside any inline range. That fixes the multi-line case, but the hand-written prediction of CommonMark code-span rules remains, and it still differs from the renderer on escaped backticks (R1). This round therefore patches around the same duplicated prediction instead of removing it. The design is being patched in this one spot, though more mildly than in earlier rounds."
+}
