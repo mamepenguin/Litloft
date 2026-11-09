@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "At the reviewed tree these files exist: addons/intelligence/app/youtube_source.py; tests test_spec_addon_076_youtube_{frame,loft_access,waiters}.py, test_spec_addon_077_youtube_ask.py, test_spec_addon_078_youtube_{reset_sites,scenes,storyboard}.py; and youtube_frame_doubles.py. youtube_source is imported by workers/clip.py:30, rag/file_question.py:31, routers/files.py:1573 and routers/scenes.py:21. file_question.py:379 `_frame_image` calls `_youtube_frame_to_cache` (defined at :399). docs/specs/INDEX.md goes from SPEC-ADDON-075 (line 143) to 079-082 (lines 151-154), with no 076/077/078 row, and no file under docs/specs declares those SPEC-IDs. The tests cite them anyway, e.g. test_spec_addon_077_youtube_ask.py:1. docs/specs/file-ask-thread.md never mentions YouTube. With Read/Glob/Grep I could not diff against origin/develop, so I took 'introduced by this bump' from the reader's diff evidence, not from a diff of my own."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2",
+      "status": "confirmed",
+      "note": "addons/intelligence/Dockerfile:25 and Dockerfile.test:31 both have `RUN pip install --no-cache-dir \"yt-dlp>=2026.8.19\"`, with a lower bound and no upper bound. Neither Dockerfile is in the touch-point list, and file-ask-thread.md never mentions yt-dlp."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R3",
+      "status": "confirmed",
+      "note": "addons/intelligence/app/routers/rag.py:590-603: after a stream that raised no exception, `if not \"\".join(answer).strip()` logs 'EmptyAnswer', yields meta, then yields `done` with {error: 'Answer generation failed'} and returns before the citations event. The test is test_file_question.py:475 (parametrized over nothing and whitespace), and its docstring cites SPEC-ADDON-080. The failure cases at file-ask-thread.md:197-214 do not list an empty or whitespace model answer as a server-side failure. Line 200 covers only an empty *history* answer after marker removal, which is a different case. The state machine at line 229 ('answered (stream ended with done and no error) or failed') does not require it either. No spec step names this behavior."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R4",
+      "status": "confirmed",
+      "note": "`_created_rel_path` is defined at addons/knowledge/app/routers/distill.py:98 and used at distill.py:199, note_from_file.py:96 and notes.py:133. addons/knowledge/tests/test_note_created_path.py exists. distill.py and note_from_file.py are not touch points, and the spec does not mention the path computation. I did not diff against the base, so whether this helper is new comes from the reader's evidence."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R5",
+      "status": "confirmed",
+      "note": "Partly reproduced at the tree. SceneCandidatesSection.tsx uses `isLoft` (2 occurrences) and AdminFeaturesSettingsSection.tsx uses `break-anywhere` (2 occurrences, plus 2 in its test). ClipFramesSection.tsx has no `hasFinePointer`, which fits the claimed removal. None of these files, VisualIndexSection or knowledge's VersionHistoryPanel.tsx (which exists) is a touch point, and the spec does not mention them. I could not see the actual diff hunks without git, so the claim that these changes ride along in this commit rests on the reader's diff."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R6",
+      "status": "confirmed",
+      "note": "addons/knowledge/app/services/trust_declaration.py exists. It defines ASK_INGEST_TIER = \"unverified\" (:26) and the startup pass, which main.py:31 imports as declare_pending_ask_notes; routers/notes.py:44 imports ASK_INGEST_TIER and uses it at :63. addons/intelligence/frontend/citationLabel.ts exists, and AnswerMarkdown.tsx:10 imports citationLabel from it and uses it at :249; AnswerMarkdown.tsx no longer contains formatSeconds. frontend/src/components/__tests__/componentFixtureParity.test.tsx:291 lists \"ask-thread\". None of these files is named in the touch points, although the work is in scope."
+    }
+  ],
+  "specification_compliance": [
+    "The empty or whitespace-only answer failure (rag.py:591-603) is not named by any step of SPEC-ADDON-079..082.",
+    "SPEC-ADDON-076/077/078 are cited by tests and code, but docs/specs/INDEX.md has no row for them and no spec file under docs/specs declares them."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The file Ask stream turns an empty or whitespace-only model answer into a done-with-error, with no citations.",
+    "YouTube .loft frame, storyboard and Ask-frame behavior ships with no approved spec in INDEX.md.",
+    "Knowledge note path recording through _created_rel_path in distill, note-from-file and notes."
+  ],
+  "regression_risks": [
+    "yt-dlp has no upper version bound, so image builds can change behavior over time.",
+    "The _created_rel_path change affects /distill and /note-from-file, which are outside this feature's touch points."
+  ],
+  "test_coverage": [
+    "test_file_question.py:475 covers the empty and whitespace answer cases.",
+    "There are YouTube tests test_spec_addon_076..078_*, but they point to specs that are missing.",
+    "tests/test_note_created_path.py covers _created_rel_path."
+  ],
+  "not_verified": [
+    "I did not diff against origin/develop (no git or shell access), so whether each file is new or changed in this commit, rather than already present at the base, comes from the readers' diff evidence.",
+    "I did not read VisualIndexSection.tsx or VersionHistoryPanel.tsx to see their changes.",
+    "I did not run any tests."
+  ],
+  "confidence": 80
+}

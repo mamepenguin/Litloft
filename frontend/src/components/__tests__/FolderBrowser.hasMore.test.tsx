@@ -31,9 +31,8 @@ vi.mock("@/components/TreeToggle", () => ({
 }));
 vi.mock("@/components/SelectionBar", () => ({ SelectionBar: () => null }));
 vi.mock("@/components/SmartFolderSaveButton", () => ({
-  SmartFolderSaveButton: (props: Record<string, unknown>) => (
-    <button data-save-props={JSON.stringify(props)}>Save search</button>
-  ),
+  SmartFolderController: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+  SmartFolderMenuItems: () => null,
 }));
 vi.mock("@/components/AddonSlot", () => ({
   AddonSlot: ({ id, layout, props }: { id: string; layout?: string; props?: Record<string, unknown> }) => (
@@ -84,6 +83,7 @@ vi.mock("@/components/AddButton", () => ({
 }));
 
 vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }));
 

@@ -31,6 +31,7 @@
   },
   "appShell": {
     "manage": "管理…",
+    "manageTitle": "表示する対象",
     "done": "完了",
     "searchTargets": "スマートフォルダを検索",
     "seeAllIn": "すべて見る: {name}"
@@ -276,7 +277,7 @@
     "recentFiles": "最近のファイル",
     "recentSearches": "最近の検索",
     "sceneSearchToggle": "シーン検索",
-    "sceneSearchHint": "動画の中で特定のシーンが映っている箇所を探す",
+    "sceneSearchToggleShort": "シーン",
     "semanticPending": "意味でも探しています…",
     "showMoreBySimilarity": "似ている順にさらに表示",
     "scopeRemove": "{label}の範囲を外す",
@@ -363,7 +364,7 @@
   "smartFolder": {
     "sectionTitle": "スマートフォルダ",
     "save": "スマートフォルダに保存",
-    "saved": "保存中: {name}",
+    "saved": "保存済み: {name}",
     "update": "更新",
     "delete": "削除",
     "rename": "名前変更",
@@ -1489,6 +1490,7 @@
       "finished": "読了"
     },
     "tag": "タグ",
+    "tagNone": "指定なし",
     "noTags": "タグがありません",
     "noTag": "タグなし",
     "sort": {

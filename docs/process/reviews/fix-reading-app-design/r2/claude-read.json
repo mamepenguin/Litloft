@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "I29: frontend/src/lib/format.ts:40-41. From 360 days on, formatRelativeAge now gives a year count of max(1, floor(days/365)), so 360–364 days reads \"1 year ago\" / \"1年前\" and not \"12 months ago\". Below 360 days, floor(days/30) is at most 11, so no \"12 months\" output is left. Every age is still relative, as I29 requires.",
+    "V-1 from r1 is addressed: format.test.ts:58-70 now pins 29, 30, 359, 360, 364, 365, 729 and 730 days in en and ja.",
+    "The only production caller is ReadingCard.tsx:71, so the change cannot reach Video or Home."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Between 360 and 729 days the label reads \"1 year ago\" (a 370-day span), and \"2 years ago\" starts at 730. Floor rounding makes ages of up to about 23.9 months read as one year. This is consistent with the floor rounding used for the other units, and no invariant names a rounding rule."
+  ],
+  "regression_risks": [
+    "None found for this commit. The edit is limited to the month/year branch of formatRelativeAge, which only ReadingCard calls."
+  ],
+  "test_coverage": [
+    "Mutation (in my head): change the threshold at format.ts:40 from 360 back to 365. The 360 and 364 cases would fail, because they expect \"1 year ago\" and would get \"12 months ago\". Killed.",
+    "Mutation (in my head): drop Math.max(1, …) at format.ts:41. At 360 days the output becomes a zero-year string, which does not match \"1 year ago\". Killed by the 360 and 364 cases.",
+    "Mutation (in my head): change the year divisor from 365 to 360. 729 days would give 2 years instead of the expected 1. Killed by the 729 case.",
+    "Mutation (in my head): change the week/month threshold from 30 to 31. 30 days would read \"4 weeks ago\" instead of \"1 month ago\". Killed by the 30 case.",
+    "The tests use fake timers and whole-day offsets (format.test.ts:44-56), so diffDay is exact and the cases are deterministic.",
+    "Sub-day ages (minutes, hours, the 'yesterday' path) are still not covered by format.test.ts. This commit does not touch those branches."
+  ],
+  "not_verified": [
+    "I did not run vitest. Whether the en/ja strings from Intl.RelativeTimeFormat (for example \"1 year ago\", and \"1年前\" after whitespace is stripped) are exactly as expected depends on the ICU data of the Node runtime. I inferred them and did not observe them.",
+    "I did not re-review the rest of the branch diff (PageHeader, cardGrid, ToolbarMenu and so on) beyond what the earlier r1 artifacts recorded, because the commit under review touches only format.ts and its test.",
+    "I did not check the Intl output for locales other than en and ja."
+  ],
+  "confidence": 88,
+  "trajectory": "There are two commits since r1. 520236694 only records the r1 review in docs and adds no branch, state or prediction. 87cafc4cd changes one code path: it moves the month/year threshold from 365 to 360 days and adds a clamp, Math.max(1, …), on the year count. That clamp is a new special case added at a boundary of the fixed-day threshold table, not a structural change such as calendar-based units. Earlier rounds did not add the same kind of branch to this function, so this is a single boundary patch and not a repeated one. The function was added in the same branch and has been patched once since. If another unit boundary needs its own clamp later, the threshold-table design is being patched."
+}

@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { Check } from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 
 import { DismissScrim } from "@/components/DismissScrim";
 import { useAnchoredDirection } from "@/hooks/useAnchoredDirection";
@@ -136,6 +136,8 @@ interface ToolbarMenuProps {
   portalOnPhone?: boolean;
   /** Draws the label before the value, for a control whose value alone would not say what it sets. */
   showLabel?: boolean;
+  /** Filled label-value form: no leading icon, muted label, value, trailing chevron. */
+  filled?: boolean;
   /** Lets a long value shorten with an ellipsis where the bar is tight. */
   truncateValue?: boolean;
   children: (close: () => void) => ReactNode;
@@ -154,6 +156,7 @@ export function ToolbarMenu({
   align = "end",
   portalOnPhone = false,
   showLabel = false,
+  filled = false,
   truncateValue = false,
   children,
 }: ToolbarMenuProps) {
@@ -195,21 +198,35 @@ export function ToolbarMenu({
         // `gap-2` is 8px, `Button`'s overhang is `-inset-1.5` — 6px on each side, so
         // 12px between neighbours — and two of them would overlap, the later
         // one winning the hit test.
-        className={`flex items-center gap-1.5 rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11${showLabel || truncateValue ? " max-w-full" : ""}`}
+        className={
+          filled
+            ? "flex max-w-full items-center gap-1.5 rounded-2xl bg-sand px-4 py-2 text-sm text-text-muted transition-colors hover:bg-sand-hover pointer-coarse:min-h-11"
+            : `flex items-center gap-1.5 rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11${showLabel || truncateValue ? " max-w-full" : ""}`
+        }
       >
-        <Icon size={16} />
-        {showLabel && <span>{label}</span>}
-        <span
-          className={
-            showLabel
-              ? "max-w-[12rem] truncate text-text-primary"
-              : truncateValue
-                ? "truncate"
-                : undefined
-          }
-        >
-          {value}
-        </span>
+        {filled ? (
+          <>
+            <span className="text-text-muted">{label}</span>
+            <span className="min-w-0 truncate text-text-primary">{value}</span>
+            <ChevronDown size={16} className="flex-shrink-0" aria-hidden="true" />
+          </>
+        ) : (
+          <>
+            <Icon size={16} />
+            {showLabel && <span>{label}</span>}
+            <span
+              className={
+                showLabel
+                  ? "max-w-[12rem] truncate text-text-primary"
+                  : truncateValue
+                    ? "truncate"
+                    : undefined
+              }
+            >
+              {value}
+            </span>
+          </>
+        )}
       </button>
       {open &&
         surface.layer(

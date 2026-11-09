@@ -1,8 +1,11 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+
 import type { SmartFolder } from "@/types/smartFolder";
-import { SmartFolderSaveButton } from "../SmartFolderSaveButton";
-import { ShortcutsProvider } from "../ShortcutsProvider";
+import {
+  SmartFolderController,
+  SmartFolderMenuItems,
+} from "../SmartFolderSaveButton";
 
 const routerReplace = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -78,7 +81,41 @@ const SAMPLE: SmartFolder = {
   updated_at: null,
 };
 
-describe("SmartFolderSaveButton", () => {
+interface Props {
+  query?: string;
+  typeFilter?: "video" | "image" | null;
+  smartFolderId?: string | null;
+  show?: string | null;
+  includeSceneClip?: boolean;
+}
+
+function menu(props: Props = {}) {
+  const closeMenu = vi.fn();
+  const view = render(
+    <SmartFolderController
+      drive="main"
+      query={props.query ?? "foo"}
+      typeFilter={props.typeFilter ?? null}
+      smartFolderId={props.smartFolderId ?? null}
+      show={props.show}
+      includeSceneClip={props.includeSceneClip}
+    >
+      <div role="menu">
+        <SmartFolderMenuItems closeMenu={closeMenu} />
+      </div>
+    </SmartFolderController>,
+  );
+  return { closeMenu, view };
+}
+
+const replaced = () => {
+  const raw = routerReplace.mock.calls.at(-1)?.[0] as string | undefined;
+  if (!raw) return null;
+  const url = new URL(raw, "http://localhost");
+  return { pathname: url.pathname, params: url.searchParams };
+};
+
+describe("the Smart Folder rows in the … menu", () => {
   beforeEach(() => {
     routerReplace.mockReset();
     createMock.mockReset();
@@ -87,180 +124,98 @@ describe("SmartFolderSaveButton", () => {
     mockSmartFolders = [];
   });
 
-  it("renders 'save' button when smartFolderId is null", () => {
-    render(
-      <SmartFolderSaveButton
-        drive="main"
-        query="foo"
-        typeFilter={null}
-        smartFolderId={null}
-      />,
-    );
-    expect(screen.getByText("Save as Smart Folder")).toBeInTheDocument();
+  it("offers Save when no smart folder is resolved", () => {
+    menu();
+    expect(screen.getByRole("menuitem", { name: "Save as Smart Folder" })).toBeInTheDocument();
   });
 
-  it("renders nothing visually meaningful when query is empty", () => {
-    const { container } = render(
-      <SmartFolderSaveButton
-        drive="main"
-        query="   "
-        typeFilter={null}
-        smartFolderId={null}
-      />,
-    );
-    expect(container.firstChild).toBeNull();
+  it("offers nothing for a blank query", () => {
+    menu({ query: "   " });
+    expect(screen.queryAllByRole("menuitem")).toHaveLength(0);
   });
 
-  it("renders 'saved: name' chip when smart folder is found", () => {
+  it("shows the saved name as a non-item row, then Update, Rename and Delete", () => {
     mockSmartFolders = [SAMPLE];
-    render(
-      <SmartFolderSaveButton
-        drive="main"
-        query="foo"
-        typeFilter="video"
-        smartFolderId="sf1"
-      />,
-    );
-    expect(screen.getByText(/Saved: My Folder/)).toBeInTheDocument();
+    menu({ smartFolderId: "sf1", typeFilter: "video" });
+
+    const label = screen.getByText("Saved: My Folder");
+    expect(label.closest("[role]")?.getAttribute("role")).toBe("presentation");
+    expect(label.classList).toContain("truncate");
+    expect(screen.queryByRole("menuitem", { name: /Saved:/ })).toBeNull();
+    for (const name of ["Update", "Rename", "Delete"]) {
+      expect(screen.getByRole("menuitem", { name })).toBeInTheDocument();
+    }
+    expect(screen.queryByRole("menuitem", { name: "Save as Smart Folder" })).toBeNull();
   });
 
-  it("falls back to 'save' mode if smartFolderId does not match any SF", () => {
+  it("falls back to Save for an unresolved smart_folder_id", () => {
     mockSmartFolders = [SAMPLE];
-    render(
-      <SmartFolderSaveButton
-        drive="main"
-        query="foo"
-        typeFilter={null}
-        smartFolderId="missing-id"
-      />,
-    );
-    expect(screen.getByText("Save as Smart Folder")).toBeInTheDocument();
+    menu({ smartFolderId: "missing-id" });
+
+    expect(screen.getByRole("menuitem", { name: "Save as Smart Folder" })).toBeInTheDocument();
+    expect(screen.queryByText(/Saved:/)).toBeNull();
   });
 
-  it("opens save dialog on save button click", () => {
-    render(
-      <SmartFolderSaveButton
-        drive="main"
-        query="foo"
-        typeFilter={null}
-        smartFolderId={null}
-      />,
-    );
-    fireEvent.click(screen.getByText("Save as Smart Folder"));
+  it("closes the menu before opening Save", () => {
+    const { closeMenu } = menu();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Save as Smart Folder" }));
+
+    expect(closeMenu).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId("save-dialog-save")).toBeInTheDocument();
   });
 
-  it("creates SF and replaces URL on dialog submit", async () => {
+  it("keeps the dialog alive when the menu goes away", () => {
+    const props = { drive: "main", query: "foo", typeFilter: null, smartFolderId: null };
+    const { rerender } = render(
+      <SmartFolderController {...props}>
+        <div role="menu">
+          <SmartFolderMenuItems closeMenu={vi.fn()} />
+        </div>
+      </SmartFolderController>,
+    );
+    fireEvent.click(screen.getByRole("menuitem", { name: "Save as Smart Folder" }));
+
+    rerender(
+      <SmartFolderController {...props}>
+        <div role="menu" />
+      </SmartFolderController>,
+    );
+
+    expect(screen.getByTestId("save-dialog-save")).toBeInTheDocument();
+  });
+
+  it("saves the URL's q and keeps the view and the scene flag", async () => {
     createMock.mockResolvedValueOnce({ ...SAMPLE, id: "new-id" });
-    render(
-      <SmartFolderSaveButton
-        drive="main"
-        query="foo"
-        typeFilter="video"
-        smartFolderId={null}
-      />,
-    );
-    fireEvent.click(screen.getByText("Save as Smart Folder"));
+    menu({ query: "foo", typeFilter: "video", show: "passages", includeSceneClip: true });
+
+    fireEvent.click(screen.getByRole("menuitem", { name: "Save as Smart Folder" }));
     fireEvent.click(screen.getByTestId("dialog-submit"));
-    await waitFor(() => {
-      expect(createMock).toHaveBeenCalledWith({
-        name: "my folder",
-        query: "foo",
-        file_type: "video",
-      });
-      expect(routerReplace).toHaveBeenCalledWith(
-        "/drive/main/search?q=foo&type=video&smart_folder_id=new-id",
-      );
+
+    await waitFor(() => expect(createMock).toHaveBeenCalledTimes(1));
+    expect(createMock).toHaveBeenCalledWith({
+      name: "my folder",
+      query: "foo",
+      file_type: "video",
     });
+    await waitFor(() => expect(routerReplace).toHaveBeenCalled());
+    const { pathname, params } = replaced()!;
+    expect(pathname).toBe("/drive/main/search");
+    expect(params.get("q")).toBe("foo");
+    expect(params.get("type")).toBe("video");
+    expect(params.get("smart_folder_id")).toBe("new-id");
+    expect(params.get("show")).toBe("passages");
+    expect(params.get("include_scene_clip")).toBe("true");
   });
 
-  it("opens dropdown menu in saved mode and shows update/rename/delete", () => {
+  it("updates with the URL's query after closing the menu", async () => {
     mockSmartFolders = [SAMPLE];
-    render(
-      <SmartFolderSaveButton
-        drive="main"
-        query="foo"
-        typeFilter="video"
-        smartFolderId="sf1"
-      />,
-    );
-    fireEvent.click(screen.getByText(/Saved: My Folder/));
-    expect(screen.getByText("Update")).toBeInTheDocument();
-    expect(screen.getByText("Rename")).toBeInTheDocument();
-    expect(screen.getByText("Delete")).toBeInTheDocument();
-  });
+    updateMock.mockResolvedValueOnce({ ...SAMPLE });
+    const { closeMenu } = menu({ query: "newquery", typeFilter: "video", smartFolderId: "sf1" });
 
-  it("closes its menu on Escape and returns focus to the trigger", () => {
-    // Focus is moved **into the menu** before the press. Pressing with
-    // focus already on the trigger asserts nothing about the focus
-    // return: closing the menu does not move focus, so `toHaveFocus`
-    // passes whether or not the handler restores it.
-    mockSmartFolders = [SAMPLE];
-    render(
-      <ShortcutsProvider>
-        <SmartFolderSaveButton
-          drive="main"
-          query="foo"
-          typeFilter="video"
-          smartFolderId="sf1"
-        />
-      </ShortcutsProvider>,
-    );
-    const trigger = screen.getByText(/Saved: My Folder/).closest("button")!;
-    fireEvent.click(trigger);
-    const row = screen.getByText("Update").closest("button")!;
-    row.focus();
-    expect(row).toHaveFocus();
-
-    fireEvent.keyDown(row, { key: "Escape" });
-
-    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
-    expect(trigger).toHaveFocus();
-  });
-
-
-  it("closes on Escape even with focus in a text field", () => {
-    // What `editingOnly: false` buys. Nothing traps focus inside these
-    // menus, so Tab walks out of the last row into whatever follows in the
-    // document, and `ShortcutsProvider` treats an INPUT as "editing".
-    mockSmartFolders = [SAMPLE];
-    render(
-      <ShortcutsProvider>
-        <SmartFolderSaveButton
-          drive="main"
-          query="foo"
-          typeFilter="video"
-          smartFolderId="sf1"
-        />
-        <input aria-label="elsewhere" />
-      </ShortcutsProvider>,
-    );
-    fireEvent.click(screen.getByText(/Saved: My Folder/));
-    expect(screen.getByRole("menu")).toBeInTheDocument();
-
-    const field = screen.getByLabelText("elsewhere");
-    field.focus();
-    fireEvent.keyDown(field, { key: "Escape" });
-
-    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
-  });
-
-  it("calls update with current query when 'update' is confirmed", async () => {
-    mockSmartFolders = [SAMPLE];
-    updateMock.mockResolvedValueOnce({ ...SAMPLE, query: "newquery" });
-    render(
-      <SmartFolderSaveButton
-        drive="main"
-        query="newquery"
-        typeFilter="video"
-        smartFolderId="sf1"
-      />,
-    );
-    fireEvent.click(screen.getByText(/Saved: My Folder/));
-    await act(async () => {
-      fireEvent.click(screen.getByText("Update"));
-    });
+    fireEvent.click(screen.getByRole("menuitem", { name: "Update" }));
+    expect(closeMenu).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByTestId("confirm-ok"));
+
     await waitFor(() => {
       expect(updateMock).toHaveBeenCalledWith("sf1", {
         query: "newquery",
@@ -269,42 +224,49 @@ describe("SmartFolderSaveButton", () => {
     });
   });
 
-  it("deletes SF and removes smart_folder_id from URL on delete confirm", async () => {
+  it("deletes and keeps show and include_scene_clip", async () => {
     mockSmartFolders = [SAMPLE];
     removeMock.mockResolvedValueOnce(undefined);
-    render(
-      <SmartFolderSaveButton
-        drive="main"
-        query="foo"
-        typeFilter={null}
-        smartFolderId="sf1"
-      />,
-    );
-    fireEvent.click(screen.getByText(/Saved: My Folder/));
-    await act(async () => {
-      fireEvent.click(screen.getByText("Delete"));
+    const { closeMenu } = menu({
+      typeFilter: "video",
+      smartFolderId: "sf1",
+      show: "passages",
+      includeSceneClip: true,
     });
+
+    fireEvent.click(screen.getByRole("menuitem", { name: "Delete" }));
+    expect(closeMenu).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByTestId("confirm-ok"));
-    await waitFor(() => {
-      expect(removeMock).toHaveBeenCalledWith("sf1");
-      expect(routerReplace).toHaveBeenCalledWith("/drive/main/search?q=foo");
-    });
+
+    await waitFor(() => expect(removeMock).toHaveBeenCalledWith("sf1"));
+    await waitFor(() => expect(routerReplace).toHaveBeenCalled());
+    const { params } = replaced()!;
+    expect(params.has("smart_folder_id")).toBe(false);
+    expect(params.get("q")).toBe("foo");
+    expect(params.get("type")).toBe("video");
+    expect(params.get("show")).toBe("passages");
+    expect(params.get("include_scene_clip")).toBe("true");
   });
 
-  it("opens rename dialog when 'rename' menu item clicked", async () => {
+  it("opens the rename dialog after closing the menu", () => {
     mockSmartFolders = [SAMPLE];
-    render(
-      <SmartFolderSaveButton
-        drive="main"
-        query="foo"
-        typeFilter={null}
-        smartFolderId="sf1"
-      />,
-    );
-    fireEvent.click(screen.getByText(/Saved: My Folder/));
-    await act(async () => {
-      fireEvent.click(screen.getByText("Rename"));
-    });
+    const { closeMenu } = menu({ smartFolderId: "sf1" });
+
+    fireEvent.click(screen.getByRole("menuitem", { name: "Rename" }));
+
+    expect(closeMenu).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId("save-dialog-rename")).toBeInTheDocument();
+  });
+
+  it("shows a failed save as a toast outside the menu", async () => {
+    createMock.mockRejectedValueOnce(new Error("offline"));
+    menu();
+
+    fireEvent.click(screen.getByRole("menuitem", { name: "Save as Smart Folder" }));
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("dialog-submit"));
+    });
+
+    expect(await screen.findByText("Failed to save Smart Folder")).toBeInTheDocument();
   });
 });

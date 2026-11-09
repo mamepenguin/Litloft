@@ -104,6 +104,24 @@ declare global {
     buildClipFramesRow: (spec: { width: number; cards: number }) => void;
     buildVisualIndexRow: (spec: { width: number; cards: number }) => void;
     measureAddonRow: (scrollTop?: number) => AddonRowReading;
+    buildSearchResults: (spec: {
+      width: number;
+      typeChip: boolean;
+      operator: boolean;
+    }) => void;
+    measureSearchResults: () => {
+      documentWidth: number;
+      documentScrollWidth: number;
+      frame: Box & { scrollWidth: number; clientWidth: number };
+      page: Box;
+      field: Box;
+      chips: Box;
+      bar: Box;
+      switch: Box;
+      scene: Box;
+      count: Box;
+      more: Box;
+    };
   }
 }
 
@@ -454,6 +472,35 @@ test.describe("mouse environment", () => {
     expect(m.headPosition).toBe("sticky");
     expect(m.headTop).toBe(0);
     expect(m.headBackground).not.toBe("rgba(0, 0, 0, 0)");
+  });
+
+  test("SPEC-CORE-066 I10 — the search results page fits 375 px without sideways scroll", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 375, height: 667 });
+    await page.goto(FIXTURE);
+    await page.evaluate((spec) => window.buildSearchResults(spec), {
+      width: 375,
+      typeChip: true,
+      operator: true,
+    });
+    const m = await page.evaluate(() => window.measureSearchResults());
+
+    expect(m.documentScrollWidth).toBeLessThanOrEqual(m.documentWidth);
+    expect(m.frame.scrollWidth).toBeLessThanOrEqual(m.frame.clientWidth);
+    expect(within(m.chips, m.page)).toBe(true);
+    expect(within(m.field, m.page)).toBe(true);
+    expect(within(m.bar, m.frame)).toBe(true);
+
+    const overlaps = (a: Box, b: Box) => a.top < b.bottom && b.top < a.bottom;
+    for (const control of [m.switch, m.scene, m.count, m.more]) {
+      expect(within(control, m.bar)).toBe(true);
+    }
+    for (const control of [m.switch, m.scene, m.more]) {
+      expect(overlaps(control, m.count)).toBe(true);
+    }
+
+    expect(await horizontalScrollers(page)).toEqual([]);
   });
 
   test("SPEC-CORE-064 I1 — the fixture declares the class lists it measures", () => {

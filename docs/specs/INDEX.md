@@ -159,3 +159,16 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-068 | approved | docs/specs/video-discover-addon-shelves.md | sha256:7c0256f452426b45de6872341b4a498482abab2b8bbb9efa6acf13f878bbc7c1 |
 | SPEC-ADDON-087 | approved | docs/specs/video-discover-addon-shelves.md | sha256:7c0256f452426b45de6872341b4a498482abab2b8bbb9efa6acf13f878bbc7c1 |
 | SPEC-ADDON-088 | approved | docs/specs/video-discover-addon-shelves.md | sha256:7c0256f452426b45de6872341b4a498482abab2b8bbb9efa6acf13f878bbc7c1 |
+| SPEC-ADDON-076 | implemented | docs/specs/youtube-frames.md | sha256:d505349c8947e1efea1efcd1a9d1449cf74f7df17e7f016394d7c9c1005acfb5 |
+| SPEC-ADDON-077 | implemented | docs/specs/youtube-frames.md | sha256:d505349c8947e1efea1efcd1a9d1449cf74f7df17e7f016394d7c9c1005acfb5 |
+| SPEC-ADDON-078 | implemented | docs/specs/youtube-frames.md | sha256:d505349c8947e1efea1efcd1a9d1449cf74f7df17e7f016394d7c9c1005acfb5 |
+| SPEC-CORE-058 | implemented | docs/specs/youtube-frames.md | sha256:d505349c8947e1efea1efcd1a9d1449cf74f7df17e7f016394d7c9c1005acfb5 |
+| SPEC-ADDON-079 | implemented | docs/specs/youtube-scene-tiles.md | sha256:2e9ad74c9dc5d895d20afd14405fa0ffedff7f55d74c9c3dd75e4aef4e303f1c |
+| SPEC-ADDON-080 | implemented | docs/specs/youtube-scene-tiles.md | sha256:2e9ad74c9dc5d895d20afd14405fa0ffedff7f55d74c9c3dd75e4aef4e303f1c |
+| SPEC-ADDON-085 | implemented | docs/specs/youtube-storyboard-retry.md | sha256:129fbbcc2779437658a633a4f0e5782b801e7d7fde9140accc6a13ca6c561cb3 |
+| SPEC-ADDON-081 | implemented | docs/specs/file-ask-thread.md | sha256:dd40710470e7f0770b3cb8fecf447c14649337918576df45e399a9813aa972c6 |
+| SPEC-ADDON-082 | implemented | docs/specs/file-ask-thread.md | sha256:dd40710470e7f0770b3cb8fecf447c14649337918576df45e399a9813aa972c6 |
+| SPEC-ADDON-083 | implemented | docs/specs/file-ask-thread.md | sha256:dd40710470e7f0770b3cb8fecf447c14649337918576df45e399a9813aa972c6 |
+| SPEC-ADDON-084 | implemented | docs/specs/file-ask-thread.md | sha256:dd40710470e7f0770b3cb8fecf447c14649337918576df45e399a9813aa972c6 |
+| SPEC-CORE-066 | implemented | docs/specs/search-results-layout.md | sha256:4891e47b05a2b3cd5f7f4e90400094d58115bbfa16581441e066f6a1942dd2f7 |
+| SPEC-ADDON-086 | implemented | docs/specs/search-results-layout.md | sha256:4891e47b05a2b3cd5f7f4e90400094d58115bbfa16581441e066f6a1942dd2f7 |

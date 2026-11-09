@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "I29: frontend/src/lib/format.ts:21-42 formatRelativeAge returns a relative age at every age; it uses months below 360 days and years from 360 days on, with Math.max(1, floor(days/365)). That makes 360-364 days read '1 year ago' rather than '12 months ago', and it never falls back to a date. frontend/src/components/readingapp/ReadingCard.tsx:71 renders the folder label · formatRelativeAge(created_at, locale).",
+    "The boundary table in frontend/src/lib/__tests__/format.test.ts:58-73 is consistent with the code by reading (I did not run it): 359 days gives 11 months, 360 gives 1 year, 729 gives 1 year, and 730 gives 2 years, in en and ja."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "For days 360-364, floor(days/365) is 0, and the Math.max(1, ...) clamp turns it into 1 year. This is intended.",
+    "Ages use fixed 30- and 365-day buckets, not calendar months, so 30-59 days reads '1 month ago'. This is consistent with existing behavior."
+  ],
+  "regression_risks": [
+    "formatRelativeAge has only one caller, ReadingCard.tsx, so Video and Home dates (formatRelativeDate) are not affected."
+  ],
+  "test_coverage": [
+    "format.test.ts covers the boundaries of the week, month and year buckets in en and ja with frozen timers. The sub-day branches (seconds, minutes, hours, 'yesterday') are not covered in this table."
+  ],
+  "not_verified": [
+    "Did not run vitest or confirm that the Intl.RelativeTimeFormat output in the test environment's ICU matches the expected ja strings (for example, '1か月前').",
+    "Did not re-verify the backend shelves invariants I1-I11 or the layout invariants I22/I27; the only reader finding list was empty and this commit touches only format.ts and its test.",
+    "Did not check the rendering of an invalid or missing created_at."
+  ],
+  "confidence": 85
+}

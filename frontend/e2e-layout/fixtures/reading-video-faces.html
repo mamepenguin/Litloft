@@ -34,14 +34,14 @@
                 },
                 {
                   "tag": "a",
-                  "class": "ml-auto flex-shrink-0 text-sm text-text-muted transition-colors hover:text-text-primary",
+                  "class": "ml-auto inline-flex flex-shrink-0 items-center gap-0.5 text-sm text-text-muted transition-colors hover:text-text-primary",
                   "attrs": { "href": "*", "aria-label": "*" }
                 }
               ]
             },
             {
               "tag": "ul",
-              "class": "grid gap-3",
+              "class": "grid gap-5",
               "attrs": { "style": "*" },
               "children": [
                 {
@@ -107,7 +107,7 @@
                 },
                 {
                   "tag": "a",
-                  "class": "ml-auto flex-shrink-0 text-sm text-text-muted transition-colors hover:text-text-primary",
+                  "class": "ml-auto inline-flex flex-shrink-0 items-center gap-0.5 text-sm text-text-muted transition-colors hover:text-text-primary",
                   "attrs": { "href": "*", "aria-label": "*" }
                 }
               ]
@@ -181,13 +181,13 @@
         "readingChipSelected": {
           "source": "ReadingLibraryFace",
           "tag": "button",
-          "class": "flex-shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-sm transition-colors pointer-coarse:min-h-11 border-accent font-semibold text-text-primary",
+          "class": "flex-shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-sm transition-colors pointer-coarse:min-h-11 bg-bg-elevated border-accent font-semibold text-text-primary",
           "attrs": { "type": "button", "aria-pressed": "true" }
         },
         "readingChipIdle": {
           "source": "ReadingLibraryFace",
           "tag": "button",
-          "class": "flex-shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-sm transition-colors pointer-coarse:min-h-11 border-bg-border text-text-muted hover:text-text-primary",
+          "class": "flex-shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-sm transition-colors pointer-coarse:min-h-11 bg-bg-elevated border-transparent text-text-muted hover:text-text-primary",
           "attrs": { "type": "button", "aria-pressed": "false" }
         },
         "readingControls": {
@@ -195,10 +195,10 @@
           "tag": "div",
           "class": "flex flex-wrap items-center gap-2",
           "children": [
-            { "ref": "menuButton" },
-            { "ref": "menuButton" },
-            { "ref": "menuButton" },
-            { "ref": "menuButton" }
+            { "ref": "menuButtonFilled" },
+            { "ref": "menuButtonFilled" },
+            { "ref": "menuButtonFilledEnd" },
+            { "ref": "menuButtonFilled" }
           ]
         },
         "videoControls": {
@@ -215,6 +215,38 @@
             {
               "tag": "button",
               "class": "flex items-center gap-1.5 rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11 max-w-full",
+              "attrs": {
+                "aria-haspopup": "menu",
+                "aria-expanded": "false",
+                "aria-label": "*"
+              }
+            }
+          ]
+        },
+        "menuButtonFilled": {
+          "source": "ToolbarMenu",
+          "tag": "div",
+          "class": "relative min-w-0",
+          "children": [
+            {
+              "tag": "button",
+              "class": "flex max-w-full items-center gap-1.5 rounded-2xl bg-sand px-4 py-2 text-sm text-text-muted transition-colors hover:bg-sand-hover pointer-coarse:min-h-11",
+              "attrs": {
+                "aria-haspopup": "menu",
+                "aria-expanded": "false",
+                "aria-label": "*"
+              }
+            }
+          ]
+        },
+        "menuButtonFilledEnd": {
+          "source": "ToolbarMenu",
+          "tag": "div",
+          "class": "relative min-w-0 ml-auto",
+          "children": [
+            {
+              "tag": "button",
+              "class": "flex max-w-full items-center gap-1.5 rounded-2xl bg-sand px-4 py-2 text-sm text-text-muted transition-colors hover:bg-sand-hover pointer-coarse:min-h-11",
               "attrs": {
                 "aria-haspopup": "menu",
                 "aria-expanded": "false",

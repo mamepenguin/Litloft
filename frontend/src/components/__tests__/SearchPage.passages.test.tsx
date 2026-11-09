@@ -1,17 +1,17 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render } from "@testing-library/react";
+
+const browser = vi.hoisted(() => ({ props: [] as Array<Record<string, unknown>> }));
 
 vi.mock("@/components/FolderBrowser", () => ({
-  FolderBrowser: () => <div data-testid="folder-browser" />,
+  FolderBrowser: (props: Record<string, unknown>) => {
+    browser.props.push(props);
+    return <div data-testid="folder-browser" />;
+  },
 }));
 
-const slots = vi.hoisted(() => ({ ids: [] as string[] }));
-
 vi.mock("@/components/AddonSlot", () => ({
-  AddonSlot: ({ id }: { id: string }) => {
-    slots.ids.push(id);
-    return <div data-testid={`slot-${id}`} />;
-  },
+  AddonSlot: ({ id }: { id: string }) => <div data-testid={`slot-${id}`} />,
 }));
 
 let params = new URLSearchParams();
@@ -29,38 +29,30 @@ function renderAt(query: string) {
   return render(<SearchPage />);
 }
 
-const topSlotRendered = () =>
-  screen.queryByTestId("slot-search-results-top") !== null;
+const handed = () => browser.props.at(-1);
 
-describe("SPEC-CORE-040 I17 Passages renders no Scene candidates strip", () => {
+describe("SPEC-CORE-040 I17 the page carries the chosen view down", () => {
   beforeEach(() => {
-    slots.ids = [];
+    browser.props = [];
   });
 
-  it("keeps the strip in Files", () => {
+  it("hands Files over when the URL names no view", () => {
     renderAt("q=cats&include_scene_clip=true");
 
-    expect(topSlotRendered()).toBe(true);
-    expect(slots.ids).toContain("search-results-top");
+    expect(handed()?.show).toBeUndefined();
+    expect(handed()?.includeSceneClip).toBe(true);
   });
 
-  it("leaves the strip out in Passages", () => {
+  it("hands Passages over in the view the URL names", () => {
     renderAt("q=cats&show=passages&include_scene_clip=true");
 
-    expect(topSlotRendered()).toBe(false);
-    expect(slots.ids).not.toContain("search-results-top");
+    expect(handed()?.show).toBe("passages");
+    expect(handed()?.includeSceneClip).toBe(true);
   });
 
-  it("keeps the Scene search toggle where it is in Passages", () => {
-    renderAt("q=cats&show=passages");
-
-    expect(screen.getByRole("checkbox")).toBeInTheDocument();
-    expect(screen.getByTestId("folder-browser")).toBeInTheDocument();
-  });
-
-  it("keeps the strip for a query that runs no meaning search", () => {
+  it("keeps show for a blank query too, leaving the meaning search to decide", () => {
     renderAt("show=passages");
 
-    expect(topSlotRendered()).toBe(true);
+    expect(handed()?.show).toBe("passages");
   });
 });

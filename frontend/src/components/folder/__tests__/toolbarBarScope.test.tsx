@@ -89,13 +89,6 @@ const STATES = [
   ],
   ["naming a new folder", { creatingFolder: true }, [...BASE, "INPUT", "Create", "Cancel"]],
   ["in select mode", { selectable: true }, BASE],
-  [
-    "searching",
-    { isSearch: true, hasPlayableFiles: false },
-    // The face reads the order that is *on*, and these props pass
-    // `created_at`.
-    BASE.filter((c) => c !== "Play"),
-  ],
 ] as const;
 
 const MIN = ["pointer-coarse:min-h-11"];
@@ -467,6 +460,91 @@ describe("what the folder toolbar keeps on the bar", () => {
     expect(
       within(screen.getByRole("menu")).queryAllByRole("menuitemradio"),
     ).toHaveLength(0);
+  });
+});
+
+describe("the search results bar", () => {
+  afterEach(cleanup);
+
+  const search = {
+    passagesApplicable: true,
+    show: "files" as const,
+    onShowChange: vi.fn(),
+    showSceneSearch: true,
+    sceneSearch: false,
+    onSceneSearchChange: vi.fn(),
+    countLabel: "42 items",
+    passageCountLabel: "2 files · 7 passages",
+    passageCountShort: "7 passages",
+    query: "cats",
+    smartFolderId: null,
+    showFind: true,
+    onSelect: vi.fn(),
+    hideArranging: false,
+  };
+
+  const searchBar = (overrides: Record<string, unknown> = {}) => {
+    const view = render(
+      <FolderToolbar
+        {...props}
+        isSearch
+        isWriteDestination={false}
+        search={{ ...search, ...overrides }}
+      />,
+    );
+    return bar(view.container);
+  };
+
+  it("carries the switch, Scene search, the count, View, Sort and … in one row", () => {
+    expect(controls(searchBar()).map(nameOrTag).sort()).toEqual([
+      "Files",
+      "INPUT",
+      "More actions",
+      "Passages",
+      "ScenesScene search",
+      "Sort: Newest first",
+      "View: Grid view",
+    ]);
+    expect(screen.getByText("42 items")).toBeInTheDocument();
+  });
+
+  it("reaches the touch floor on the Scene search control on a coarse pointer", () => {
+    searchBar();
+    const label = screen.getByText("Scene search").closest("label")!;
+    expect([...label.classList]).toContain("pointer-coarse:min-h-11");
+  });
+
+  it("puts the view switch away where Passages does not apply", () => {
+    const row = searchBar({ passagesApplicable: false });
+    expect(controls(row).map(nameOrTag)).not.toContain("Passages");
+    expect(screen.queryByRole("group", { name: "Show" })).toBeNull();
+  });
+
+  it("keeps the switch, Scene search, the count and … while Sort and View are away", () => {
+    const row = searchBar({ hideArranging: true });
+    const names = controls(row).map(nameOrTag);
+    expect(names).toContain("Files");
+    expect(names).toContain("More actions");
+    expect(names.some((n) => /^(Sort|View):/.test(n))).toBe(false);
+    expect(screen.getByRole("checkbox", { name: /Scene/ })).toBeInTheDocument();
+    expect(screen.getByText("42 items")).toBeInTheDocument();
+  });
+
+  it("says which passages count is readable at each width", () => {
+    render(
+      <FolderToolbar
+        {...props}
+        isSearch
+        isWriteDestination={false}
+        isPassages
+        search={{ ...search, show: "passages" }}
+      />,
+    );
+    const counts = screen.getAllByTestId("passage-count");
+    expect(counts.map((c) => c.textContent)).toEqual([
+      "2 files · 7 passages",
+      "7 passages",
+    ]);
   });
 });
 

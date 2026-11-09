@@ -8,7 +8,10 @@ import type { FileItem, FileKind } from "@/types";
 import { FolderBrowser } from "../FolderBrowser";
 
 const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
-vi.mock("next/navigation", () => ({ useRouter: () => router }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => router,
+  useSearchParams: () => new URLSearchParams(),
+}));
 
 vi.mock("@/components/folder/FolderToolbar", () => ({
   FolderToolbar: () => <div data-testid="toolbar" />,
@@ -78,7 +81,8 @@ vi.mock("@/components/folder/useCreateFolder", () => ({
   }),
 }));
 vi.mock("@/components/SmartFolderSaveButton", () => ({
-  SmartFolderSaveButton: () => <button>Save search</button>,
+  SmartFolderController: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+  SmartFolderMenuItems: () => null,
 }));
 
 const searchCache = vi.hoisted(() => ({ hit: null as unknown }));

@@ -208,7 +208,7 @@ export function PassageList({
 
   if (state === "loading") {
     return (
-      <ol className="mx-auto w-full max-w-list-row">
+      <ol className="w-full max-w-list-row">
         {[0, 1, 2].map((index) => (
           <SkeletonRow key={index} />
         ))}
@@ -248,7 +248,7 @@ export function PassageList({
   }
 
   return (
-    <ol aria-label={t("passageList")} className="mx-auto w-full max-w-list-row">
+    <ol aria-label={t("passageList")} className="w-full max-w-list-row">
       {groups.map((group) => (
         <li key={group.fileId} className="border-b border-bg-border">
           <ol>

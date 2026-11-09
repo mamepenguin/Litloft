@@ -91,6 +91,7 @@ export function DiscoverFace({
           seeAllHref={href}
           view={viewOf(source.state)}
           onRetry={source.retry}
+          book
           renderItem={(item) => (
             <ReadingCard item={item} drive={drive} showProgress={progress} />
           )}

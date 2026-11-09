@@ -5,6 +5,10 @@ export interface MatchBadge {
   style: string;
 }
 
+/** Every badge says where the words were found, not how strongly. */
+export const MATCH_BADGE_STYLE =
+  "bg-bg-elevated text-text-muted font-medium text-[10px]";
+
 /**
  * In the order the legend lists them: where the words were found, from the
  * name of the file inwards to what it turned out to contain.
@@ -14,49 +18,49 @@ export const MATCH_BADGES: readonly MatchBadge[] = [
     key: "filename",
     labelKey: "matchFilename",
     helpKey: "matchFilenameHelp",
-    style: "bg-accent/15 text-accent",
+    style: MATCH_BADGE_STYLE,
   },
   {
     key: "path",
     labelKey: "matchPath",
     helpKey: "matchPathHelp",
-    style: "bg-accent/5 text-accent",
+    style: MATCH_BADGE_STYLE,
   },
   {
     key: "metadata",
     labelKey: "matchMetadata",
     helpKey: "matchMetadataHelp",
-    style: "bg-accent/10 text-accent",
+    style: MATCH_BADGE_STYLE,
   },
   {
     key: "transcript",
     labelKey: "matchTranscript",
     helpKey: "matchTranscriptHelp",
-    style: "bg-accent-teal/15 text-accent-teal",
+    style: MATCH_BADGE_STYLE,
   },
   {
     key: "clip",
     labelKey: "matchClip",
     helpKey: "matchClipHelp",
-    style: "bg-accent-amber/15 text-accent-amber",
+    style: MATCH_BADGE_STYLE,
   },
   {
     key: "clip_thumbnail",
     labelKey: "matchClipThumbnail",
     helpKey: "matchClipThumbnailHelp",
-    style: "bg-accent-amber/10 text-accent-amber",
+    style: MATCH_BADGE_STYLE,
   },
   {
     key: "content",
     labelKey: "matchContent",
     helpKey: "matchContentHelp",
-    style: "bg-warm-light text-text-primary",
+    style: MATCH_BADGE_STYLE,
   },
   {
     key: "retrieval_keywords",
     labelKey: "matchRetrievalKeywords",
     helpKey: "matchRetrievalKeywordsHelp",
-    style: "bg-warm-light text-text-muted",
+    style: MATCH_BADGE_STYLE,
   },
 ] as const;
 

@@ -139,13 +139,15 @@ export function FolderContent({
           {rename.error}
         </div>
       )}
-      <div className="mb-6">
-        <FilterField
-          text={filter.text}
-          onTextChange={filter.setText}
-          placeholder={tFilter("placeholder.folder")}
-        />
-      </div>
+      {!isSearch && (
+        <div className="mb-6">
+          <FilterField
+            text={filter.text}
+            onTextChange={filter.setText}
+            placeholder={tFilter("placeholder.folder")}
+          />
+        </div>
+      )}
 
       {filteredFolders.length > 0 && (
         <FolderShelf

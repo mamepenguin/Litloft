@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "addons/intelligence/frontend/SceneCandidatesSection.tsx:48 computes `isLoft = segment.filename.toLowerCase().endsWith(\".loft\")` and :62-72 renders a blank `<div>` instead of `<img src={getFrameUrl(...)}>` when isLoft. SceneCandidatesSection.test.tsx:208-229 asserts no <img> for ref.loft / ref.LOFT and one <img> for the mp4. The touch-point list names no frontend file. docs/specs/youtube-frames.md:365-367 says 'A frontend change ... no UI change is planned; R-5 confirms', and :154 says 'the UI never requests a .loft frame, so no new UI'. Before this change a .loft had no clip rows and so could not appear as a scene candidate, which is consistent with the guard being new in this change. I could not run git diff, so I did not see directly that the file is in the diff. decisions.md:7 (second R-5 run) records two blank cards for nn-youtube.loft and no /frame request."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "docs/user-guide/search.md:115 says 'Its picture is read from YouTube when the candidates load, so it can appear a few seconds after the others and stays blank when YouTube cannot be read.' The code at addons/intelligence/frontend/SceneCandidatesSection.tsx:62 always renders the blank div for a .loft filename and never calls getFrameUrl for it, so the picture is never read and the card is always blank. docs/addons/intelligence.md:212 describes the code correctly ('shows a blank card rather than asking the frame route for its picture'), so the two documents contradict each other."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "addons/intelligence/app/youtube_source.py:39-55 defines `_SIGNED_FETCH` (ytimg.com|googlevideo.com|youtube.com|sigh=|sqp=) and `_SignedFetchFilter`. At module import, `_drop_signed_fetches()` adds that filter once to `logging.getLogger(\"httpx\")`. The module is imported at module level by workers/clip.py:30, routers/scenes.py:21 and rag/file_question.py:30, and lazily by routers/files.py:1573, so the filter applies to the whole process from startup. The filter drops only records whose message matches those patterns, so other httpx callers (for example http://backend:8000, which decisions.md:7/13/19 shows still logged) are unaffected. It is still a process-wide logging change outside the listed touch points. The comment at youtube_source.py:35-38 gives the reason for the choice."
+    }
+  ],
+  "specification_compliance": [
+    "The frontend guard (SceneCandidatesSection.tsx:48,62) contradicts the spec's statement that no UI change is planned (youtube-frames.md:365-367). It does match the spec's failure-table claim that the UI never requests a .loft frame (youtube-frames.md:154).",
+    "docs/user-guide/search.md:115 contradicts both the code and docs/addons/intelligence.md:212 about whether a YouTube candidate's picture is fetched.",
+    "I5 (no log line contains a URL): the httpx logger filter at youtube_source.py:39-55 is how the code enforces it for the sheet downloads made with httpx.get (clip.py:1062)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Any httpx log record in the process whose message contains youtube.com, ytimg.com, googlevideo.com, sigh= or sqp= is now dropped, whichever caller produced it.",
+    "Scene candidate cards for any file whose name ends in .loft, case-insensitively, are always blank, including YouTube references whose frame route works."
+  ],
+  "regression_risks": [
+    "Users who read the user guide expect YouTube candidate pictures to load after a delay; they never do.",
+    "A future httpx caller whose URLs contain youtube.com would lose its request logs with no visible cause."
+  ],
+  "test_coverage": [
+    "SceneCandidatesSection.test.tsx:208-229 covers the .loft blank card for lower and upper case and the native video's <img>.",
+    "I did not find a test asserting the httpx filter's scope (that non-YouTube httpx records still pass)."
+  ],
+  "not_verified": [
+    "Whether SceneCandidatesSection.tsx and its test are actually in the diff against origin/develop: git diff could not be run, and the claim that the code is new rests on reasoning and decisions.md.",
+    "Whether the httpx library logs to the 'httpx' logger itself rather than a child logger in the pinned version, which decides whether the filter takes effect.",
+    "The rest of the change's invariants (I1-I10) beyond these three findings."
+  ],
+  "confidence": 85
+}

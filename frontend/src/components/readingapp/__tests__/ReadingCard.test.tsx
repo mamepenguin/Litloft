@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 
 import type { ShelfItem } from "@/lib/api";
 import { ReadingCard } from "../ReadingCard";
@@ -60,6 +60,14 @@ describe("a Reading card", () => {
     expect(screen.getByText("EPUB")).toBeInTheDocument();
     expect(screen.getByText("PDF")).toBeInTheDocument();
     expect(screen.getByText("Archive")).toBeInTheDocument();
+  });
+
+  it("sets the title inside the cover, with no file-type icon, when there is no thumbnail", () => {
+    render(<ReadingCard item={item({ title: "Dune" })} drive={DRIVE} />);
+
+    const cover = screen.getByTestId("reading-cover");
+    expect(within(cover).getByText("Dune")).toBeInTheDocument();
+    expect(cover.querySelector("svg")).toBeNull();
   });
 
   it("names the folder's last segment, or the drive at the root, and the relative time", () => {

@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "Traced by hand at addons/intelligence/frontend/askNoteFormat.ts:219-246. rewriteInline opens a span at any '`' (line 227) and never looks at the character before it. closingBacktickRun (:204-217) finds the next run of the same length, and :232 copies the whole range unchanged. Worked example with the answer paragraph \"Use \\\\`x [1] `y`\" (a literal backslash, then a backtick): CommonMark reads the escaped backtick as plain text, so ' x [1] ' is plain text and only `y` is a code span. The scanner instead pairs the escaped backtick with the backtick that opens `y`, copies '`x [1] `' unchanged, and leaves [1] raw. Under spec step 3 (docs/specs/file-ask-thread.md:149-157: inline code span 'as CommonMark', 'what AnswerMarkdown renders inside code') and I7, that [1] should become a loft:// link or be removed. The r4 inlineRanges change (:300-308) still sends each joined block through the same rewriteInline, so this case is not fixed. The only backslash handling is escapeLinkLabel (:182), which applies to labels, not to scanning. I did not search the test files for an escaped-backtick case."
+    }
+  ],
+  "specification_compliance": [
+    "I7 / spec step 3: the inline code span scanner departs from CommonMark when a backtick is backslash-escaped, so a [n] that CommonMark treats as plain text can be left raw in the saved note."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The scanner pairs backtick runs without the CommonMark rule that a code span cannot start inside an autolink or a raw HTML span. With html:false this probably matters little, and I did not check it."
+  ],
+  "regression_risks": [
+    "A fix that adds escape handling to rewriteInline must still treat a backslash inside a code span as literal (CommonMark does not process escapes inside code spans)."
+  ],
+  "test_coverage": [
+    "I did not open the test files, so I cannot say whether askNoteFormat.test.ts or AskTabThread.test.tsx has an escaped-backtick case."
+  ],
+  "not_verified": [
+    "I did not run the code or the tests; the trace was done by reading the code.",
+    "I did not check how AnswerMarkdown's markdown-it renderer handles the same input, beyond CommonMark's escape rules.",
+    "I did not search the test files for escaped-backtick coverage."
+  ],
+  "confidence": 88
+}

@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 import { resolve, dirname, relative } from "node:path";
 
 import {
+  BOOK_CARD_GAP_PX,
+  BOOK_GRID,
   CARD_GAP_PX,
   CARD_MIN_PX,
   MIN_CARD_COLUMNS,
@@ -52,7 +54,7 @@ function rendersCards(body: string): boolean {
     // A grid that takes its cards as `children` carries none of those tokens.
     // A children-taking grid that hand-writes its columns without calling the
     // hook stays outside the population entirely.
-    /useCardColumns\(\)/.test(body)
+    /useCardColumns\(/.test(body)
   );
 }
 
@@ -115,7 +117,7 @@ function useCardColumnsCallSites(): string[] {
     const body = readFileSync(file, "utf-8");
     const rel = relative(REPO_ROOT, file);
     // The call, not the declaration in `lib/cardGrid.ts` itself.
-    for (const _ of body.matchAll(/=\s*useCardColumns\(\)/g)) out.push(rel);
+    for (const _ of body.matchAll(/=\s*useCardColumns\(/g)) out.push(rel);
   }
   return out;
 }
@@ -143,6 +145,16 @@ describe("columnsFor", () => {
     const threeColumns = CARD_MIN_PX * 3 + CARD_GAP_PX * 2;
     expect(columnsFor(threeColumns)).toBe(3);
     expect(columnsFor(threeColumns - 1)).toBe(2);
+  });
+
+  it("gives the book grid 6 columns at 976px and 2 at 358px", () => {
+    expect(columnsFor(976, BOOK_GRID)).toBe(6);
+    expect(columnsFor(358, BOOK_GRID)).toBe(2);
+  });
+
+  it("leaves Home's grid on its own minimum and gap", () => {
+    expect(columnsFor(1213)).toBe(4);
+    expect(columnsFor(1480)).toBe(5);
   });
 });
 
@@ -194,12 +206,23 @@ describe("every card grid goes through lib/cardGrid", () => {
   });
 
   it("uses the column gap the helper counts with", () => {
+    const bookGapSites = new Set([
+      "frontend/src/components/appshell/ShelfBlock.tsx",
+      "frontend/src/components/readingapp/ReadingGrid.tsx",
+    ]);
     const wrongGap = sites
       .filter((s) => {
         const gaps = [...s.className.matchAll(/\bgap(?:-x)?-(\d+)\b/g)].map(
           (m) => Number(m[1]) * 4,
         );
-        return gaps.length === 0 || gaps.some((g) => g !== CARD_GAP_PX);
+        return (
+          gaps.length === 0 ||
+          gaps.some(
+            (g) =>
+              g !== CARD_GAP_PX &&
+              !(bookGapSites.has(s.file) && g === BOOK_CARD_GAP_PX),
+          )
+        );
       })
       .map((s) => `${s.file}:${s.line} — ${s.className}`);
     expect(wrongGap).toEqual([]);

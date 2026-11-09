@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R1",
+      "origin": "reviewer",
+      "claim": "The intelligence submodule bump carries a whole YouTube `.loft` frame/storyboard feature (SPEC-ADDON-076/077/078) that none of the touch points or invariants cover.",
+      "impact": "Merging this pointer ships new behaviour with no approved spec in `docs/specs/INDEX.md`: `GET /files/{id}/frame` and `/scenes` now answer for `.loft` files, the CLIP worker downloads YouTube storyboard sheets and runs `yt-dlp`, and a file question about a playing YouTube `.loft` now runs `yt-dlp` and ffmpeg against a remote stream. A user hits all of this in normal use, and no review of SPEC-079..082 is checking it.",
+      "evidence": "New files `addons/intelligence/app/youtube_source.py` and tests `test_spec_addon_076_*`, `077_*`, `078_*`, `youtube_frame_doubles.py`. Changed files: `app/frame_cache.py` (`frame_ffmpeg_argv`), `app/routers/files.py` (`_extract_loft_frame`), `app/routers/scenes.py` (`_require_youtube_loft`), `app/workers/clip.py` (`_index_clip_loft`, `_index_youtube_storyboard`), and `app/rag/file_question.py` `_frame_image` → `_youtube_frame_to_cache`. Grep finds no SPEC-ADDON-07[678] in `docs/specs/INDEX.md` and no YouTube spec under `docs/specs`.",
+      "repro": "Compare the submodule diff 1f38a24..3e80351 with the touch-point list. None of the listed files is youtube_source.py, files.py, scenes.py, clip.py or frame_cache.py, and the change to file_question.py lies outside load_material and the history trimming.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "It breaks none of I1–I10, but the change reaches well past its declared scope and brings unreviewed behaviour into the merge.",
+        "invariant_ref": null
+      },
+      "severity": "HIGH",
+      "proposed_fix": "Point the intelligence submodule at a commit that holds only the SPEC-079..081 work, or declare and review SPEC-076..078 on their own first."
+    },
+    {
+      "id": "R2",
+      "origin": "reviewer",
+      "claim": "Both intelligence Dockerfiles now `pip install yt-dlp>=2026.8.19` with no upper bound, and these files are not touch points.",
+      "impact": "Each image build pulls whatever yt-dlp is newest, so a build can stop matching what the tests ran against. The file Ask thread does not need this.",
+      "evidence": "`addons/intelligence/Dockerfile`: `RUN pip install --no-cache-dir \"yt-dlp>=2026.8.19\"`; `Dockerfile.test` has the same line.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a build change outside the declared scope; it breaks no invariant.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM"
+    },
+    {
+      "id": "R3",
+      "origin": "reviewer",
+      "claim": "`_file_question_stream` now ends any answer that is empty or only whitespace with `done` carrying an error and no `citations`, and no step of SPEC-079..082 names this.",
+      "impact": "A question with no history whose model returns only whitespace used to finish as answered and now shows 'Could not answer'. This changes the stream of a no-history request, while the spec says the stream is unchanged (079 step 8, section 7).",
+      "evidence": "`addons/intelligence/app/routers/rag.py:~591`: `if not \"\".join(answer).strip(): logger.warning(... \"EmptyAnswer\" ...); yield meta; yield done{error}`. The test `test_no_answer_text_ends_as_a_failure_without_citations` cites SPEC-ADDON-080, which has no such step.",
+      "repro": "Serve `RecordingLLM(deltas=(\"  \",))` with no history. Before this change the stream emitted `citations`, `meta` and `done` with no error; now it emits `meta` and then `done` with `error: Answer generation failed`.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "I1 covers prompts and chunks, not the outcome of the stream, so no declared invariant breaks. The behaviour is still outside the spec.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM"
+    },
+    {
+      "id": "R4",
+      "origin": "reviewer",
+      "claim": "The knowledge submodule changes how `/distill`, `/note-from-file` and `/notes` compute the recorded note path (`_created_rel_path`), and none of these is a touch point.",
+      "impact": "When core renames a file to `name (1).md`, the path stored in `note_origins` and returned now comes from core's `folder_path`/`filename`. Before, `/distill` and `/note-from-file` used the requested path, and `/notes` used `file_path`. Every note-creating route is affected, not only Ask saves.",
+      "evidence": "`addons/knowledge/app/routers/distill.py:98` adds `_created_rel_path`, used at distill.py:~199, `note_from_file.py:~96` and `notes.py:~133`. The new test is `tests/test_note_created_path.py`.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "It plausibly fixes a real defect, but it lies outside the declared scope and the note_origins row keys depend on it.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM"
+    },
+    {
+      "id": "R5",
+      "origin": "reviewer",
+      "claim": "Unrelated frontend layout changes ride along in both submodules: AdminFeaturesSettingsSection, ClipFramesSection, VisualIndexSection, SceneCandidatesSection and knowledge's VersionHistoryPanel.",
+      "impact": "The scene and frame strips change from a horizontal scroller with arrow buttons to rows that wrap on mouse devices, the arrow buttons are removed, `.loft` scene cards no longer request frames, and the admin table and version preview now wrap long text. Users see all of this, and it is not reviewed against any spec of this change.",
+      "evidence": "Diffs of `ClipFramesSection.tsx` (removes `hasFinePointer` and the arrow buttons), `VisualIndexSection.tsx`, `SceneCandidatesSection.tsx` (`isLoft`), `AdminFeaturesSettingsSection.tsx` (`break-anywhere`), and `addons/knowledge/frontend/VersionHistoryPanel.tsx` with their tests.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Scope creep that breaks no declared invariant.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "R6",
+      "origin": "reviewer",
+      "claim": "Some in-scope work lands in files the list does not name: a new `addons/knowledge/app/services/trust_declaration.py` (the startup pass and `ASK_INGEST_TIER`), a new `addons/intelligence/frontend/citationLabel.ts` with `AnswerMarkdown.tsx` refactored onto it, and core's `frontend/src/components/__tests__/componentFixtureParity.test.tsx`.",
+      "impact": "There is no user impact. The touch-point list names `main.py` for the startup pass, and the pass logic actually lives elsewhere. `AnswerMarkdown`'s pill labels now come from a shared module, which the touch points do not mention.",
+      "evidence": "New file `services/trust_declaration.py`, imported by `main.py` and `routers/notes.py`. New `citationLabel.ts`; `AnswerMarkdown.tsx` drops its local `formatSeconds` and `citationLabel`. `componentFixtureParity.test.tsx` adds 'ask-thread'.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "These are necessary supporting files that the list does not name; no invariant breaks.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "Every touch point in the list is present in the diff: schemas, rag.py, file_question.py, prompt.py and the jinja templates, askStore/AskTab/askStream, askNoteFormat/knowledgeBridge/AskSaveDialog, messages, knowledge notes.py/main.py/models.py/database.py, the listed docs, and the e2e-components case.",
+    "Places outside the list: the YouTube frame and storyboard feature in the intelligence submodule (youtube_source.py, files.py, scenes.py, clip.py, frame_cache.py, the frame path in file_question.py, both Dockerfiles, and the 076–078 tests); the empty-answer failure in rag.py; knowledge's _created_rel_path in distill.py, note_from_file.py and notes.py; unrelated frontend layout changes; and the supporting files trust_declaration.py, citationLabel.ts and componentFixtureParity.test.tsx."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The YouTube .loft frame, scenes and storyboard indexing ship with no spec in INDEX.md.",
+    "An empty or whitespace-only model answer now ends as a failure, including for questions with no history.",
+    "Note-creating routes record core's renamed path instead of the requested one."
+  ],
+  "regression_risks": [
+    "The CLIP worker now runs yt-dlp and fetches remote sheets for every YouTube .loft during indexing.",
+    "The frame strips lose their arrow buttons and change layout for mouse users.",
+    "The note_origins note_path for /distill and /note-from-file now follows core's rename, which can change which row a later rescan matches."
+  ],
+  "test_coverage": [
+    "The YouTube work has its own tests (076–078). The empty-answer change has one test in test_file_question.py. _created_rel_path has test_note_created_path.py."
+  ],
+  "not_verified": [
+    "Whether the YouTube commits are already on the intelligence submodule's develop, which would make them reachable from the base by another route; I could not run git.",
+    "Whether SPEC-ADDON-076..078 exist on another branch or in an approved spec outside this worktree.",
+    "That the commit's own diff matches the branch diff supplied; I reviewed the supplied diff."
+  ],
+  "confidence": 80
+}

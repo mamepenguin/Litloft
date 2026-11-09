@@ -64,30 +64,14 @@ vi.mock("@/components/SelectionBar", () => ({
   SelectionBar: () => <div data-testid="selection-bar" />,
 }));
 vi.mock("@/components/SmartFolderSaveButton", () => ({
-  SmartFolderSaveButton: () => null,
+  SmartFolderController: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+  SmartFolderMenuItems: () => null,
 }));
 vi.mock("@/components/AddonSlot", () => ({ AddonSlot: () => null }));
 vi.mock("@/components/UploadZone", () => ({
   UploadZone: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
 }));
 vi.mock("@/components/AddButton", () => ({ AddButton: () => null }));
-vi.mock("@/components/folder/FolderToolbar", () => ({
-  FolderToolbar: ({
-    onSortChange,
-    onTypeFilterChange,
-    onToggleSelectable,
-  }: {
-    onSortChange: (s: string, o: string) => void;
-    onTypeFilterChange: (t: string | null) => void;
-    onToggleSelectable: () => void;
-  }) => (
-    <div>
-      <button data-testid="set-sort" onClick={() => onSortChange("file_size", "asc")} />
-      <button data-testid="set-type" onClick={() => onTypeFilterChange("video")} />
-      <button data-testid="select-mode" onClick={onToggleSelectable} />
-    </div>
-  ),
-}));
 
 const stableRouter = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }));
 const paramsState = vi.hoisted(() => ({ current: new URLSearchParams() }));
@@ -336,17 +320,22 @@ describe("SPEC-CORE-040 I9 the view control and the URL", () => {
     scrollTo.mockRestore();
   });
 
-  it("keeps show in the URL when the type filter or the sort changes", () => {
-    renderAt();
+  it("keeps show and the URL's type when the Scene flag changes", () => {
+    const view = renderAt({ typeFilter: "video" });
     stableRouter.replace.mockClear();
 
-    fireEvent.click(screen.getByTestId("set-type"));
+    view.rerender(
+      <FolderBrowser
+        driveName="main"
+        searchQuery="cats"
+        show="passages"
+        typeFilter="video"
+        includeSceneClip
+      />,
+    );
+
     expect(lastReplaced()?.params.get("show")).toBe("passages");
     expect(lastReplaced()?.params.get("type")).toBe("video");
-
-    stableRouter.replace.mockClear();
-    fireEvent.click(screen.getByTestId("set-sort"));
-    expect(lastReplaced()?.params.get("show")).toBe("passages");
   });
 });
 
@@ -362,10 +351,12 @@ describe("SPEC-CORE-040 I9 the control appears only while a meaning search runs"
 
   it("leaves show in the URL while the view does not apply", () => {
     listing.passagesApplicable = false;
-    renderAt();
+    const view = renderAt();
     stableRouter.replace.mockClear();
 
-    fireEvent.click(screen.getByTestId("set-type"));
+    view.rerender(
+      <FolderBrowser driveName="main" searchQuery="cats" show="passages" includeSceneClip />,
+    );
 
     expect(lastReplaced()?.params.get("show")).toBe("passages");
   });
@@ -401,7 +392,8 @@ describe("SPEC-CORE-040 I24 what a view change leaves behind", () => {
   it("clears the selection and leaves select mode on switching to Passages", () => {
     paramsState.current = new URLSearchParams("q=cats");
     renderAt({ show: undefined });
-    fireEvent.click(screen.getByTestId("select-mode"));
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Selection mode" }));
     expect(screen.getByTestId("selection-bar")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Passages" }));

@@ -39,7 +39,7 @@ import { SaveDot } from "@/components/markdown/SaveDot";
 import { ContextMenu } from "@/components/ContextMenu";
 import { TouchControlsPresenter } from "@/components/player/MediaControls/TouchControlsPresenter";
 import { VideoPlayer } from "@/components/VideoPlayer";
-import type { ArchiveEntry, SubtitleInfo } from "@/types";
+import type { ArchiveEntry, FileKind, SubtitleInfo } from "@/types";
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
 import { useFullscreen } from "@/components/player/hooks/useFullscreen";
 import { useHighlightPassage } from "@/hooks/useHighlightPassage";
@@ -54,6 +54,11 @@ import { CurrentDriveProvider } from "@/components/CurrentDriveProvider";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { ImageQueryDropTarget } from "@/components/search/ImageQueryDropTarget";
 import { ConditionMenu } from "@/components/search/ConditionMenu";
+import { FolderToolbar } from "@/components/folder/FolderToolbar";
+import { PassageList } from "@/components/search/PassageList";
+import { SearchQueryHeader } from "@/components/search/SearchQueryHeader";
+import type { PassageGroup } from "@/lib/searchPassages";
+import type { SearchPassage } from "@/lib/searchMerge";
 import {
   GlobalSearchProvider,
   useGlobalSearch,
@@ -75,6 +80,9 @@ import { JustifiedHoldArrangement } from "./justifiedHold";
 import { PlayedRangesArrangement } from "./playedRanges";
 import { TextResumeArrangement } from "./textResume";
 import { PersistentHighlightsArrangement } from "./persistentHighlights";
+import AskTab from "../../src/addons/intelligence/AskTab";
+import { getAskThread } from "../../src/addons/intelligence/askStore";
+import intelligenceEn from "../../src/addons/intelligence/messages/en.json";
 import {
   navigateWithTransition,
   notifyNavigationCommit,
@@ -89,6 +97,7 @@ const nativeFetch = window.fetch.bind(window);
 window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
   const url =
     typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+  const method = (init?.method ?? "GET").toUpperCase();
   if (url.includes("/api/addons/intelligence/search/by-image/available")) {
     return Promise.resolve(
       new Response("{}", {
@@ -97,8 +106,37 @@ window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
       }),
     );
   }
+  if (url.includes("/api/addons/intelligence/files/") && /\/ask(\?|$)/.test(url)) {
+    if (method === "POST") return Promise.resolve(askStreamResponse());
+    return Promise.resolve(jsonResponse({ available: true }));
+  }
+  if (url.includes("/api/addons/intelligence/llm/choices/rag")) {
+    return Promise.resolve(jsonResponse({ auto: "local", choices: [] }));
+  }
   return nativeFetch(input, init);
 };
+
+function jsonResponse(body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+/** A complete answer in one body: the tab reads it as the frames it streams. */
+function askStreamResponse(): Response {
+  const answer = "The answer follows from the passage in this file. ".repeat(6);
+  const frames = [
+    `event: answer_chunk\ndata: ${JSON.stringify({ delta: answer })}\n\n`,
+    "event: citations\ndata: []\n\n",
+    `event: meta\ndata: ${JSON.stringify({ partial: false, image: "none" })}\n\n`,
+    "event: done\ndata: {}\n\n",
+  ];
+  return new Response(frames.join(""), {
+    status: 200,
+    headers: { "Content-Type": "text/event-stream" },
+  });
+}
 
 /**
  * `onClick` is React's, delegated at the root container: the swallow stops
@@ -964,6 +1002,195 @@ function ConditionMenuArrangement(): ReactElement {
   );
 }
 
+const RESULT_ROWS = Array.from({ length: 12 }, (_, i) => ({
+  id: `result${String(i + 1).padStart(6, "0")}`,
+  name: `Recording ${i + 1}.mp4`,
+}));
+
+function resultPassage(index: number): SearchPassage {
+  return {
+    kind: "text",
+    start: null,
+    end: null,
+    page: null,
+    section: null,
+    section_title: null,
+    chunk_index: index,
+    text: `A passage that mentions the query, number ${index}.`,
+    score: 1,
+    keyword: false,
+    highlight_terms: [],
+    frame_url: null,
+  };
+}
+
+const RESULT_GROUPS: PassageGroup[] = [
+  {
+    fileId: "passages0001",
+    filename: "Recording one.mp4",
+    fileType: "video",
+    file: null,
+    bestScore: 0.9,
+    passages: [resultPassage(1), resultPassage(2), resultPassage(3)],
+  },
+  {
+    fileId: "passages0002",
+    filename: "Recording two.mp4",
+    fileType: "video",
+    file: null,
+    bestScore: 0.8,
+    passages: [resultPassage(4), resultPassage(5)],
+  },
+  {
+    fileId: "passages0003",
+    filename: "Meeting notes.md",
+    fileType: "text",
+    file: null,
+    bestScore: 0.7,
+    passages: [resultPassage(6), resultPassage(7)],
+  },
+];
+
+interface ResultsBarState {
+  view: "files" | "passages";
+  typeFilter: FileKind | null;
+  operator: boolean;
+  scene: boolean;
+}
+
+/**
+ * The results page's body without the app toolbar: the real header, results
+ * bar and Passages list. The page adds no horizontal padding, because the bar
+ * carries its own and the field, bar and list are measured against each other.
+ */
+function SearchResultsBar({ state }: { state: ResultsBarState }): ReactElement {
+  const noop = () => {};
+  const query = state.operator ? "cats tag:meeting" : "cats";
+  const showScene = !state.operator;
+  const showShelf = showScene && state.scene && state.view === "files";
+
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <div className="flex min-h-screen flex-col bg-bg-primary">
+        <div className="min-w-0 pb-2 pt-5">
+          <SearchQueryHeader
+            drive="fixture"
+            query={query}
+            typeFilter={state.typeFilter}
+            sort="relevance"
+            order="desc"
+            smartFolderId={null}
+            includeSceneClip={state.scene}
+            show={state.view}
+            onRemoveType={noop}
+          />
+        </div>
+
+        <FolderToolbar
+          isSpecialView={false}
+          isWriteDestination={false}
+          isSearch
+          search={{
+            passagesApplicable: true,
+            show: state.view,
+            onShowChange: noop,
+            showSceneSearch: showScene,
+            sceneSearch: state.scene,
+            onSceneSearchChange: noop,
+            countLabel: state.view === "files" ? "12 items" : null,
+            passageCountLabel: "3 files · 7 passages",
+            passageCountShort: "7 passages",
+            query,
+            smartFolderId: null,
+            showFind: showScene,
+            onSelect: noop,
+            hideArranging: false,
+          }}
+          isPassages={state.view === "passages"}
+          hasPlayableFiles={false}
+          sort="relevance"
+          order="desc"
+          typeFilter={state.typeFilter}
+          total={RESULT_ROWS.length}
+          folderCount={0}
+          selectable={false}
+          scanning={false}
+          creatingFolder={false}
+          newFolderName=""
+          folderError={null}
+          fileIds={RESULT_ROWS.map((row) => row.id)}
+          drive="fixture"
+          folderPath=""
+          onSortChange={noop}
+          onTypeFilterChange={noop}
+          onViewChange={noop}
+          onToggleSelectable={noop}
+          onScan={noop}
+          onPlayAll={noop}
+          onSetCreatingFolder={noop}
+          onSetNewFolderName={noop}
+          onSetFolderError={noop}
+          onCreateFolder={noop}
+        />
+
+        {showShelf && (
+          <div
+            data-testid="scene-shelf"
+            className="grid grid-cols-2 gap-2 px-4 py-3 sm:grid-cols-4"
+          >
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="h-24 rounded-xl bg-bg-elevated" />
+            ))}
+          </div>
+        )}
+
+        {state.view === "passages" ? (
+          <PassageList
+            state="listed"
+            groups={RESULT_GROUPS}
+            filesCount={RESULT_GROUPS.length}
+          />
+        ) : (
+          <ul className="flex flex-col">
+            {RESULT_ROWS.map((row) => (
+              <li
+                key={row.id}
+                className="flex h-24 items-center border-b border-bg-border px-3 text-sm text-text-primary"
+              >
+                {row.name}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </NextIntlClientProvider>
+  );
+}
+
+const SEARCH_RESULTS_BAR: Record<string, ResultsBarState> = {
+  files: { view: "files", typeFilter: null, operator: false, scene: false },
+  "files-type": { view: "files", typeFilter: "video", operator: false, scene: false },
+  "files-scene": { view: "files", typeFilter: null, operator: false, scene: true },
+  "files-operator": { view: "files", typeFilter: null, operator: true, scene: false },
+  passages: { view: "passages", typeFilter: null, operator: false, scene: false },
+  "passages-scene": { view: "passages", typeFilter: null, operator: false, scene: true },
+  "passages-operator": { view: "passages", typeFilter: null, operator: true, scene: false },
+  sticky: { view: "files", typeFilter: null, operator: false, scene: true },
+};
+
+function searchResultsBarArrangement(id: string): ReactElement {
+  return <SearchResultsBar state={SEARCH_RESULTS_BAR[id]} />;
+}
+
+const SearchResultsBarFiles = (): ReactElement => searchResultsBarArrangement("files");
+const SearchResultsBarFilesType = (): ReactElement => searchResultsBarArrangement("files-type");
+const SearchResultsBarFilesScene = (): ReactElement => searchResultsBarArrangement("files-scene");
+const SearchResultsBarFilesOperator = (): ReactElement => searchResultsBarArrangement("files-operator");
+const SearchResultsBarPassages = (): ReactElement => searchResultsBarArrangement("passages");
+const SearchResultsBarPassagesScene = (): ReactElement => searchResultsBarArrangement("passages-scene");
+const SearchResultsBarPassagesOperator = (): ReactElement => searchResultsBarArrangement("passages-operator");
+const SearchResultsBarSticky = (): ReactElement => searchResultsBarArrangement("sticky");
+
 function OpenScoped({ label }: { label: string }): null {
   const scope = useMemo(
     () => ({ label, type: "text" as const, seeAllHref: (q: string) => `/notes?q=${encodeURIComponent(q)}` }),
@@ -1202,6 +1429,74 @@ function CodeViewer(): ReactElement {
         />
       </div>
     </NextIntlClientProvider>
+  );
+}
+
+/**
+ * The real Ask tab in the inspector's full-height box, fed by mocked answers
+ * until the thread is taller than the panel. The question box has to stay at
+ * the bottom while the turns scroll above it; jsdom lays none of this out.
+ */
+const ASK_THREAD_FILE = "vid000000001";
+
+function AskThreadArrangement(): ReactElement {
+  useEffect(() => {
+    let cancelled = false;
+    const wait = (ms: number) =>
+      new Promise<void>((resolve) => setTimeout(resolve, ms));
+    const run = async () => {
+      for (let i = 1; i <= 6 && !cancelled; i += 1) {
+        const panel = document.querySelector<HTMLElement>("#ask-thread-panel");
+        const box = panel?.querySelector<HTMLTextAreaElement>("textarea");
+        const submit = panel?.querySelector<HTMLButtonElement>(
+          'button[type="submit"]',
+        );
+        if (!panel || !box || !submit) return;
+        const setValue = Object.getOwnPropertyDescriptor(
+          HTMLTextAreaElement.prototype,
+          "value",
+        )?.set;
+        setValue?.call(box, `question ${i}`);
+        box.dispatchEvent(new Event("input", { bubbles: true }));
+        for (let tries = 0; tries < 50 && submit.disabled; tries += 1) {
+          await wait(0);
+        }
+        submit.click();
+        for (let tries = 0; tries < 200; tries += 1) {
+          const turns = getAskThread(ASK_THREAD_FILE).turns;
+          if (turns[turns.length - 1]?.status === "answered") break;
+          await wait(5);
+        }
+      }
+      if (!cancelled) document.body.dataset.threadReady = "1";
+    };
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return (
+    <div className="flex min-h-screen items-start justify-center bg-bg-primary p-8">
+      <div
+        id="ask-thread-panel"
+        className="flex h-[420px] w-96 flex-col overflow-hidden rounded-xl border border-bg-border bg-bg-card"
+      >
+        <NextIntlClientProvider
+          locale="en"
+          messages={{ ...enMessages, ...intelligenceEn }}
+        >
+          <AskTab
+            fileId={ASK_THREAD_FILE}
+            drive="family"
+            filename="lecture.mp4"
+            fileType="video"
+            fillHeight
+            onAvailability={() => {}}
+          />
+        </NextIntlClientProvider>
+      </div>
+    </div>
   );
 }
 
@@ -1953,7 +2248,82 @@ function PlayerTransitionSameRender(): ReactElement {
   );
 }
 
+const HEADER_ACTIONS = (
+  <>
+    <button
+      type="button"
+      className="whitespace-nowrap rounded-lg border border-border-default px-3 py-1.5 text-sm"
+    >
+      並び順 追加日（新しい順）
+    </button>
+    <button
+      type="button"
+      className="whitespace-nowrap rounded-lg border border-border-default px-3 py-1.5 text-sm"
+    >
+      対象 すべての本と文書
+    </button>
+  </>
+);
+
+function PageHeaderActionsArrangement({
+  header,
+}: {
+  header: ReactElement;
+}): ReactElement {
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <PageFrame width="full" header={header} />
+    </NextIntlClientProvider>
+  );
+}
+
+function PageHeaderTrailActions(): ReactElement {
+  return (
+    <PageHeaderActionsArrangement
+      header={
+        <PageHeader
+          breadcrumb={<Breadcrumb driveName="Household Archive" folderPath="Documents" />}
+          actions={HEADER_ACTIONS}
+        />
+      }
+    />
+  );
+}
+
+function PageHeaderTitleFieldActions(): ReactElement {
+  return (
+    <PageHeaderActionsArrangement
+      header={
+        <PageHeader
+          title="Reading"
+          titleField={<input aria-label="Title" defaultValue="Reading" className="w-full" />}
+          scope="12 items"
+          actions={HEADER_ACTIONS}
+        />
+      }
+    />
+  );
+}
+
+function PageHeaderTitleActions(): ReactElement {
+  return (
+    <PageHeaderActionsArrangement
+      header={
+        <PageHeader
+          titleIcon={FolderTree}
+          title="Reading"
+          scope="12 items"
+          actions={HEADER_ACTIONS}
+        />
+      }
+    />
+  );
+}
+
 const ARRANGEMENTS: Record<string, () => ReactElement> = {
+  "page-header-trail-actions": PageHeaderTrailActions,
+  "page-header-title-field-actions": PageHeaderTitleFieldActions,
+  "page-header-title-actions": PageHeaderTitleActions,
   "chrome-buttons": ChromeButtonsArrangement,
   "folder-listing-header-deep": FolderListingHeaderArrangement,
   "folder-listing-header-shallow": FolderListingHeaderShallowArrangement,
@@ -2003,6 +2373,14 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "measured-picker-in-dialog": PickerInDialog,
   "add-menu": AddMenu,
   "condition-menu": ConditionMenuArrangement,
+  "search-results-bar-files": SearchResultsBarFiles,
+  "search-results-bar-files-type": SearchResultsBarFilesType,
+  "search-results-bar-files-scene": SearchResultsBarFilesScene,
+  "search-results-bar-files-operator": SearchResultsBarFilesOperator,
+  "search-results-bar-passages": SearchResultsBarPassages,
+  "search-results-bar-passages-scene": SearchResultsBarPassagesScene,
+  "search-results-bar-passages-operator": SearchResultsBarPassagesOperator,
+  "search-results-bar-sticky": SearchResultsBarSticky,
   "quick-note-footer-ja": QuickNoteFooterJa,
   "quick-note-footer-en": QuickNoteFooterEn,
   "scoped-search-ja": ScopedSearchJa,
@@ -2019,6 +2397,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "justified-hold": JustifiedHoldArrangement,
   "citation-seams": CitationSeams,
   "citation-seams-prose": CitationSeamsProse,
+  "ask-thread": AskThreadArrangement,
   "code-viewer": CodeViewer,
   "code-viewer-many": CodeViewerMany,
   "typography-panel-ja": TypographyPanelJa,

@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "D1",
+      "origin": "reviewer",
+      "claim": "The component fixture bundle now imports addon files through the gitignored link tree (`../../src/addons/intelligence/...`). In a checkout without the submodules or without `setup-addons.sh`, the fixture does not build at all, so every e2e-components case fails, not only the Ask-thread case.",
+      "impact": "A developer who runs `pnpm test:e2e:components` as `docs/developer-guide/testing.md:206-209` describes, without first linking the addons, gets a bundle failure across all component specs instead of a single failing case. CI is not affected, because commit 610ab690b adds `submodules: recursive` and `./setup-addons.sh` to that job.",
+      "evidence": "frontend/e2e-components/fixtures/app.tsx:78-80 imports `../../src/addons/intelligence/AskTab`, `askStore` and `messages/en.json`. setup-addons.sh:5,168-173 builds `frontend/src/addons/<name>/` as per-file symlinks. The build-bundle.ts comment still says 'Addon slot modules are not part of the fixture: bundling them would assert about whichever addon commits core points at'. The 'Components in a browser' section of testing.md:198-213 does not mention setup-addons.sh.",
+      "repro": "not_reproduced (reasoned from the import paths and the link-tree script; not run)",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a developer-workflow and scope coupling. None of I1-I10 covers how the test fixture is built.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Name `./setup-addons.sh` as a prerequisite in the 'Components in a browser' section, or lazy-load the ask-thread arrangement so that a missing link tree fails only that case."
+    },
+    {
+      "id": "D2",
+      "origin": "reviewer",
+      "claim": "Commit 610ab690b changes what the layout-invariant job compiles. With the link tree present, globals.css `@source \"../addons\"` now scans the addon sources, so the e2e-layout fixtures run against a sheet that depends on the addon pins. The commit deletes the comment that explained why the job previously ran without addons.",
+      "impact": "The e2e-layout results can now change when a submodule pointer moves, even though no core layout file changed. I found no rule that changes behaviour today: `@source` only adds utility classes and imports no addon CSS.",
+      "evidence": ".github/workflows/ci.yml:297-313 removes the comment 'No submodules and no setup-addons.sh ... No addon writes a rule the justified grid reads' and adds `submodules: recursive` and `./setup-addons.sh` before `pnpm test:e2e:layout` (line 345). frontend/src/app/globals.css:10 has `@source \"../addons\";`.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a scope or submodule coupling in CI and breaks no declared invariant.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "The commit 610ab690b changes only .github/workflows/ci.yml. The browser job now checks out the submodules recursively and runs ./setup-addons.sh before pnpm install, in the same order as the vitest, coverage, tsc/eslint and shuffled jobs (ci.yml:38-56, 120-136, 179-195, 263-279, 310-326).",
+    "The AskTab import chain resolves under the fixture aliases. The bare imports in the addon files the fixture reaches are react (llmChoice.ts, AnswerMarkdown.tsx, AskTab.tsx), next-intl (AskTab.tsx, AskSaveDialog.tsx), lucide-react (AskTab.tsx) and markdown-it (askNoteFormat.ts). build-bundle.ts aliases each of them to frontend/node_modules. Vite resolves the per-file symlinks to addons/intelligence/frontend, which has no node_modules, so these aliases are required.",
+    "Only one CI job runs `pnpm test:e2e:components` (ci.yml:349), and that job now has the link tree.",
+    "Persistence, knowledge: the PK of NoteOrigin is (drive, note_path) (models.py:74-75), and no code path deletes or renames NoteOrigin rows (only NoteOriginSource rows are deleted, in webhook.py:217 and note_scanner.py:293). So `_mark_declared` keying on (drive, note_path) with `trust_declared_at IS NULL` cannot mark a different note's row than the one declared. This is consistent with I9.",
+    "Concurrency, knowledge: the startup pass, the note scanner and the save route each write in short session_scope sessions on SQLite in WAL mode (database.py:32). The pass catches only InternalAPIError and httpx.HTTPError per row. A DB error in `_mark_declared` ends the whole pass through `_declare_pending_notes`'s `except Exception` (main.py:135-142), which leaves the remaining rows null for the next start. That still satisfies I9.",
+    "I10: `_migrate_add_trust_declared_at` returns when the table is missing or the column exists, and otherwise runs a single ADD COLUMN DATETIME with no default (database.py:161-177)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The e2e-layout invariants now run against a Tailwind sheet built with the addon sources (D2). The spec's touch points name only the e2e-components case.",
+    "AskTab's saveContent memo depends on `answeredTurns`, which is a new array on every render. `saved_at` is therefore the time of the last render before the save, not the moment of the click (noted in earlier rounds)."
+  ],
+  "regression_risks": [
+    "The browser job now depends on the submodule checkout succeeding. A submodule fetch failure fails the layout and EPUB browser checks, which previously did not need addons.",
+    "A submodule pointer bump can now change e2e-layout and e2e-components results without any change to core files.",
+    "Contributors who run the component specs locally without setup-addons.sh lose all component cases at bundle time (D1)."
+  ],
+  "test_coverage": [
+    "ask-thread-desktop.spec.ts would fail if AskTab reverted to the form-above-thread layout: it asserts box.y >= scroller bottom - 1 and form bottom ≈ panel bottom. It would also fail if the thread never grew past the panel (scrollHeight > clientHeight), or if the textarea went missing (threadReady is never set, so the test times out).",
+    "No test checks that the CI job really has the link tree. If setup-addons.sh were dropped, the failure would show up as a bundle error, not as a dedicated guard like the vitest 'collected no tests from addons' check (ci.yml:216-233).",
+    "The knowledge startup pass has tests for filtering, retry on the next start, /health not being delayed, an unreachable core and logging. No test covers a DB error inside `_mark_declared`."
+  ],
+  "not_verified": [
+    "I did not run CI, the Playwright component job or the vite bundle, so whether the fixture builds with the aliases is reasoned from the imports and was not executed.",
+    "I did not check that the submodule pointers at 610ab690b match the addon commits the diff describes.",
+    "I did not check whether contributing.md or frontend-dev.md already tell developers to run setup-addons.sh before the component specs.",
+    "I did not re-verify the I7 note builder or the I1-I3 backend behaviour, which earlier rounds covered and this commit does not touch."
+  ],
+  "confidence": 78,
+  "trajectory": "The commits since r6 are mostly develop work merged into the branch. SPEC-ADDON-085 added one new state, a pending-retry set beside the failed set in the clip worker. Its two spec-review rounds refined that one mechanism (atomic consume, failure leaves the id in the failed set) rather than layering a new state each round. The reading-app design fix and its PageHeader wrap follow-ups are unrelated to this feature. For the file Ask thread itself, the rounds since r6 add no branch, state or prediction to askNoteFormat or the store: they renumber the spec, add the markdown-it alias the r5/r6 parser change needed, repoint the submodules, and, in 610ab690b, give the browser CI job the submodules and the link tree. That last commit removes an earlier assumption (that the browser job needs no addons) rather than adding a new one. Its only new coupling is that browser results now depend on the addon pins. The design is not being patched in this window."
+}

@@ -45,6 +45,7 @@ const AT_THE_PHONE_WIDTH = [
   "immersive-viewer-layer.spec.ts",
   "chrome-buttons.spec.ts",
   "page-frame.spec.ts",
+  "page-header-actions.spec.ts",
   "player-captions.spec.ts",
   "player-menu-layer.spec.ts",
   "player-seek-indicator.spec.ts",
@@ -53,6 +54,7 @@ const AT_THE_PHONE_WIDTH = [
   "popup-dismiss.spec.ts",
   "quick-note-footer.spec.ts",
   "scoped-search.spec.ts",
+  "search-results-bar.spec.ts",
   "view-transition-push.spec.ts",
   "viewer-zoom.spec.ts",
   "sheet-gesture.spec.ts",
@@ -79,6 +81,8 @@ const AT_THE_DESKTOP_WIDTH = [
   "image-drop-target-desktop.spec.ts",
   "text-resume-desktop.spec.ts",
   "persistent-highlights-desktop.spec.ts",
+  "ask-thread-desktop.spec.ts",
+  "search-results-bar-desktop.spec.ts",
 ] as const;
 
 test.describe("the component fixture lays out at the width it was given", () => {

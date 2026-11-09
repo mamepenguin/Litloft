@@ -54,6 +54,7 @@ export function ReadingApp({ drive }: { drive: string }) {
             title=""
             view={{ status: "loading" }}
             onRetry={() => {}}
+            book
             renderItem={() => null}
           />
         ) : face === "library" ? (

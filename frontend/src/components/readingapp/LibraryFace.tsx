@@ -217,7 +217,7 @@ export function LibraryFace({
       <TagMenu drive={drive} selected={tags} onToggle={toggleTag} />
       {hasProfile && <StateMenu value={state} onChange={setState} />}
       <GroupMenu value={group} onChange={onGroup} />
-      <ReadingSortMenu value={sortId} onChange={onSort} />
+      <ReadingSortMenu value={sortId} onChange={onSort} filled />
     </div>
   );
 
@@ -243,6 +243,7 @@ export function LibraryFace({
                 title=""
                 view={{ status: "loading" }}
                 onRetry={flat.loadMore}
+                book
                 renderItem={() => null}
               />
             )}
@@ -255,6 +256,7 @@ export function LibraryFace({
           title=""
           view={{ status: "loading" }}
           onRetry={flat.retry}
+          book
           renderItem={() => null}
         />
       );
@@ -276,6 +278,7 @@ export function LibraryFace({
                 seeAllHref={readingShelfHref(drive, "tag", shelf.key, sortId, conditions, "library")}
                 view={{ status: "loaded", items: shelf.items }}
                 onRetry={grouped.retry}
+                book
                 renderItem={(item) => <ReadingCard item={item} drive={drive} />}
               />
             ))}
@@ -286,6 +289,7 @@ export function LibraryFace({
               title=""
               view={{ status: "loading" }}
               onRetry={grouped.loadMore}
+              book
               renderItem={() => null}
             />
           )}
@@ -298,16 +302,17 @@ export function LibraryFace({
         title=""
         view={{ status: "loading" }}
         onRetry={grouped.retry}
+        book
         renderItem={() => null}
       />
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div>
       {chipRow}
-      {controls}
-      {body}
+      <div className="mt-3">{controls}</div>
+      <div className="mt-6">{body}</div>
     </div>
   );
 }
@@ -326,10 +331,10 @@ function ChipButton({
       type="button"
       aria-pressed={selected}
       onClick={onSelect}
-      className={`flex-shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-sm transition-colors pointer-coarse:min-h-11 ${
+      className={`flex-shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-sm transition-colors pointer-coarse:min-h-11 bg-bg-elevated ${
         selected
           ? "border-accent font-semibold text-text-primary"
-          : "border-bg-border text-text-muted hover:text-text-primary"
+          : "border-transparent text-text-muted hover:text-text-primary"
       }`}
     >
       {label}

@@ -397,6 +397,164 @@
         }
         frame().append(row);
       };
+
+      /*
+        The search results page above its results, copied from
+        SearchQueryHeader and FolderToolbar. At 375 px the type and operator
+        chips wrap inside the page and the bar holds the switch, Scene search,
+        the count and … on one row.
+      */
+      const SEARCH = {
+        page: "flex min-h-screen flex-col bg-bg-primary",
+        head: "min-w-0 px-4 pb-2 pt-5",
+        field:
+          "w-full rounded-2xl border border-warm-silver/40 bg-bg-card px-3 py-1.5 text-lg text-text-primary outline-none focus:ring-2 focus:ring-[var(--focus-ring)]",
+        chipRow: "mt-2 flex flex-wrap items-center gap-2",
+        chip: "inline-flex min-w-0 max-w-full items-center gap-1 rounded-full bg-sand py-0.5 pl-2 pr-1 text-xs text-text-primary",
+        chipText: "min-w-0 overflow-hidden text-ellipsis whitespace-nowrap",
+        chipRemove:
+          "shrink-0 rounded-full p-0.5 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary",
+        addButton:
+          "inline-flex items-center gap-1 rounded-full border border-dashed border-warm-silver px-2.5 py-1 text-xs text-text-muted transition-colors hover:text-text-primary",
+        bar: "sticky top-0 z-20 mb-2 flex flex-wrap items-center gap-2 border-b border-bg-border bg-bg-primary px-4 py-2",
+        switchWrapper: "flex w-[148px] flex-none sm:w-48",
+        switchGroup:
+          "flex w-full gap-0.5 rounded-2xl border border-bg-border p-0.5",
+        segment:
+          "flex h-8 min-w-0 flex-1 items-center justify-center rounded-xl border border-transparent px-1 text-xs text-text-muted pointer-coarse:h-11",
+        segmentSelected: "border-accent font-medium text-text-primary",
+        scene:
+          "inline-flex cursor-pointer select-none items-center gap-1.5 text-sm text-text-primary pointer-coarse:min-h-11 sm:gap-2",
+        count: "whitespace-nowrap text-xs text-text-muted",
+        more:
+          "flex items-center justify-center rounded-2xl border border-bg-border bg-bg-card p-2 text-text-muted transition-colors pointer-coarse:h-11 pointer-coarse:w-11",
+      };
+
+      const chip = (label, value) => {
+        const node = el("span", SEARCH.chip);
+        const text = el("span", SEARCH.chipText);
+        text.append(
+          el("span", "font-semibold", label),
+          document.createTextNode(` ${value}`),
+        );
+        node.append(
+          text,
+          el("button", SEARCH.chipRemove, "×", {
+            type: "button",
+            "aria-label": `Remove ${label} ${value}`,
+          }),
+        );
+        return node;
+      };
+
+      window.buildSearchResults = ({ width, typeChip, operator }) => {
+        frame().style.width = `${width}px`;
+        frame().replaceChildren();
+
+        const page = el("div", SEARCH.page);
+        const head = el("div", SEARCH.head);
+        head.append(
+          el("input", SEARCH.field, undefined, {
+            type: "text",
+            value: "cats tag:meeting",
+            "aria-label": "Search query",
+            "data-role": "query-field",
+          }),
+        );
+
+        const chips = el("div", SEARCH.chipRow, undefined, {
+          "data-search-chips": "",
+        });
+        if (typeChip) chips.append(chip("Type", "Video"));
+        if (operator) chips.append(chip("Tag", "meeting"));
+        chips.append(
+          el("button", SEARCH.addButton, undefined, {
+            type: "button",
+            "aria-label": "Add filter",
+            "aria-haspopup": "menu",
+            "aria-expanded": "false",
+          }),
+        );
+        head.append(chips);
+        page.append(head);
+
+        const bar = el("div", SEARCH.bar, undefined, {
+          "data-search-bar": "",
+        });
+        const wrapper = el("div", SEARCH.switchWrapper);
+        const group = el("div", SEARCH.switchGroup, undefined, {
+          role: "group",
+          "aria-label": "Show",
+        });
+        group.append(
+          el("button", `${SEARCH.segment} ${SEARCH.segmentSelected}`, "Files", {
+            type: "button",
+            "aria-pressed": "true",
+          }),
+          el("button", SEARCH.segment, "Passages", {
+            type: "button",
+            "aria-pressed": "false",
+          }),
+        );
+        wrapper.append(group);
+
+        const scene = el("label", SEARCH.scene);
+        const checkbox = el("input", "h-4 w-4", undefined, { type: "checkbox" });
+        scene.append(
+          checkbox,
+          el("span", "sm:hidden", "Scenes"),
+          el("span", "hidden sm:inline", "Scene search"),
+        );
+
+        bar.append(
+          wrapper,
+          scene,
+          el("div", "flex-1"),
+          el("span", SEARCH.count, "12 items", { "data-search-count": "" }),
+          el("button", SEARCH.more, "…", {
+            type: "button",
+            "aria-label": "More actions",
+            "aria-haspopup": "menu",
+            "aria-expanded": "false",
+          }),
+        );
+
+        page.append(bar);
+        frame().append(page);
+      };
+
+      window.measureSearchResults = () => {
+        const page = frame().firstElementChild;
+        const bar = document.querySelector("[data-search-bar]");
+        const box = (node) => {
+          const r = node.getBoundingClientRect();
+          return {
+            left: r.left,
+            right: r.right,
+            top: r.top,
+            bottom: r.bottom,
+            width: r.width,
+            height: r.height,
+          };
+        };
+        return {
+          documentWidth: document.documentElement.clientWidth,
+          documentScrollWidth: document.documentElement.scrollWidth,
+          frame: {
+            ...box(frame()),
+            scrollWidth: frame().scrollWidth,
+            clientWidth: frame().clientWidth,
+          },
+          page: box(page),
+          field: box(document.querySelector('[data-role="query-field"]')),
+          chips: box(document.querySelector("[data-search-chips]")),
+          bar: box(bar),
+          switch: box(bar.querySelector('[aria-label="Show"]')),
+          scene: box(bar.querySelector("label")),
+          count: box(document.querySelector("[data-search-count]")),
+          more: box(bar.querySelector('[aria-label="More actions"]')),
+        };
+      };
     </script>
   </body>
 </html>

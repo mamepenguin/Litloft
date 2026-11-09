@@ -14,7 +14,7 @@ import { join } from "node:path";
 import { Tag } from "lucide-react";
 
 import { writeAppPrefs } from "@/lib/appPrefs";
-import { cardGridTemplate } from "@/lib/cardGrid";
+import { BOOK_GRID, cardGridTemplate } from "@/lib/cardGrid";
 import type { ShelfItem } from "@/lib/api";
 
 const DRIVE = "main";
@@ -101,7 +101,7 @@ const SHAPES: Record<string, Markup> = JSON.parse(
   )![1],
 );
 
-const SHAPE_COUNT = 13;
+const SHAPE_COUNT = 15;
 
 const SOURCES = [
   "AppTabs",
@@ -208,6 +208,7 @@ async function renderShape(name: string): Promise<Element> {
           seeAllHref="/drive/main/apps/reading/shelf?by=all&key=all"
           view={shelfSource()}
           onRetry={() => {}}
+          book={reading}
           renderItem={() => (
             <div
               className={
@@ -222,7 +223,9 @@ async function renderShape(name: string): Promise<Element> {
       const root = container.querySelector("section");
       expect(root).not.toBeNull();
       const grid = root!.querySelector("ul") as HTMLElement;
-      expect(grid.style.gridTemplateColumns).toBe(cardGridTemplate(2));
+      expect(grid.style.gridTemplateColumns).toBe(
+        cardGridTemplate(2, reading ? BOOK_GRID : undefined),
+      );
       return root!;
     }
 
@@ -264,7 +267,7 @@ async function renderShape(name: string): Promise<Element> {
       if (name === "readingChipSelected") return chips.children[0];
       if (name === "readingChipIdle") return chips.children[1];
       if (name === "readingControls") {
-        const tag = screen.getByRole("button", { name: "Tag" });
+        const tag = screen.getByRole("button", { name: /^Tag/ });
         return tag.parentElement!.parentElement!;
       }
       return container;
@@ -297,13 +300,15 @@ async function renderShape(name: string): Promise<Element> {
     }
 
     case "ToolbarMenu": {
+      const filled = name.startsWith("menuButtonFilled");
       const { container } = render(
         <ToolbarMenu
           label="Tag"
           value="Tag"
           icon={Tag}
           showLabel
-          className="min-w-0"
+          filled={filled}
+          className={name === "menuButtonFilledEnd" ? "min-w-0 ml-auto" : "min-w-0"}
         >
           {() => null}
         </ToolbarMenu>,

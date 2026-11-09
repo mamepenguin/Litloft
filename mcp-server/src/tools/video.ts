@@ -58,9 +58,17 @@ function loftError(fileId: string, url: string | null): string {
   return `${fileId} is a .loft reference${target}; it has no local video to read frames from`;
 }
 
+interface LoftReference {
+  provider: string | null;
+  url: string;
+}
+
 // Any failure falls back to the message without a URL: the file was found
 // and is still a .loft, so a failed read is not reported as an API error.
-async function readLoftUrl(client: LitloftClient, fileId: string): Promise<string | null> {
+async function readLoftReference(
+  client: LitloftClient,
+  fileId: string
+): Promise<LoftReference | null> {
   try {
     const res = await client.requestRaw(
       "GET",
@@ -68,8 +76,9 @@ async function readLoftUrl(client: LitloftClient, fileId: string): Promise<strin
     );
     const parsed: unknown = JSON.parse(res.text);
     if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return null;
-    const url = (parsed as { url?: unknown }).url;
-    return typeof url === "string" && url !== "" ? url : null;
+    const { provider, url } = parsed as { provider?: unknown; url?: unknown };
+    if (typeof url !== "string" || url === "") return null;
+    return { provider: typeof provider === "string" ? provider : null, url };
   } catch {
     return null;
   }
@@ -142,7 +151,7 @@ async function fetchSceneFrames(
 const getVideoFrame: LitloftMediaTool = {
   name: "get_video_frame",
   description:
-    "Return the frame of a video at time t (seconds) as an image, so you can see what is on screen: on-screen text, slides, what is being shown. size 'large' (default) has a long edge of up to 1280 px, enough to read on-screen text; 'small' is 320 px wide. Take t from list_video_scenes, get_transcript or a semantic_search time range. Native videos indexed by the intelligence addon only; a .loft reference has no frames, and the error gives its URL.",
+    "Return the frame of a video at time t (seconds) as an image, so you can see what is on screen: on-screen text, slides, what is being shown. size 'large' (default) has a long edge of up to 1280 px, enough to read on-screen text; 'small' is 320 px wide. Take t from list_video_scenes, get_transcript or a semantic_search time range. Native videos and YouTube .loft references indexed by the intelligence addon; for a .loft of another provider the error gives its URL.",
   inputSchema: {
     drive: z.string(),
     file_id: z.string(),
@@ -162,7 +171,10 @@ const getVideoFrame: LitloftMediaTool = {
 
       const file = await readCoreFile(client, fileId);
       if (file.mime_type === LOFT_MIME) {
-        return errorResult(loftError(fileId, await readLoftUrl(client, fileId)));
+        const loft = await readLoftReference(client, fileId);
+        if (loft?.provider !== "youtube") {
+          return errorResult(loftError(fileId, loft?.url ?? null));
+        }
       }
       if (typeof file.duration === "number" && t > file.duration) {
         return errorResult(
@@ -186,7 +198,7 @@ const getVideoFrame: LitloftMediaTool = {
 const listVideoScenes: LitloftMediaTool = {
   name: "list_video_scenes",
   description:
-    "Overview of a video: up to 24 representative scenes chosen from the scene changes found at indexing, each with its start/end time, the nearby transcript excerpt and a small frame image. Pass start_time/end_time (seconds) to look closer at one part of a long video. Use get_video_frame for a large frame of a scene you want to read. Native videos indexed by the intelligence addon only; a .loft reference has no frames, and the error gives its URL.",
+    "Overview of a video: up to 24 representative scenes chosen from the scene changes found at indexing, each with its start/end time, the nearby transcript excerpt and a small frame image. Pass start_time/end_time (seconds) to look closer at one part of a long video. Use get_video_frame for a large frame of a scene you want to read. Native videos and YouTube .loft references indexed by the intelligence addon; for a .loft of another provider the error gives its URL.",
   inputSchema: {
     drive: z.string(),
     file_id: z.string(),
@@ -201,7 +213,10 @@ const listVideoScenes: LitloftMediaTool = {
 
       const file = await readCoreFile(client, fileId);
       if (file.mime_type === LOFT_MIME) {
-        return errorResult(loftError(fileId, await readLoftUrl(client, fileId)));
+        const loft = await readLoftReference(client, fileId);
+        if (loft?.provider !== "youtube") {
+          return errorResult(loftError(fileId, loft?.url ?? null));
+        }
       }
 
       const res = await client.request<ScenesResponse>(

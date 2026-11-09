@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "The submodule worktree has the unrelated content the finding names: addons/intelligence/frontend/citationLabel.ts, AskTabThread.test.tsx, tests/test_spec_addon_085_storyboard_retry.py, `request_storyboard_retry` in app/workers/clip.py and app/routers/files.py, `class FileQuestionTurn` in app/schemas.py, and `newConversation` in messages/{en,ja}.json. None of this relates to FindModeSlot. The touch points name only FindModeSlot.tsx and a bump 'to the merged FindModeSlot change'. I could not run git, so I did not check the exact range 07dbabce..76317005 file by file."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "addons/intelligence/tests/test_spec_addon_081_file_question_history.py:1 reads \"SPEC-ADDON-081: a file question carrying the earlier turns of its conversation\", and lines 189-602 cite SPEC-ADDON-081 I1/I2/I3. Meanwhile docs/specs/search-results-layout.md:4 and :30, docs/specs/INDEX.md:165 and FindModeSlot.menuRow.test.tsx:34 use SPEC-ADDON-081 for the Find menu row. A repo-wide grep finds no spec that declares a file-question-history SPEC-ADDON-081, so one ID points to two features."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "frontend/src/components/search/ConditionMenu.tsx:437 and :441 now render `<span>{label}</span>` with no `hidden sm:inline`. frontend/e2e-components/search-results-bar.spec.ts:58 tests 'the condition button names what it adds at ${PHONE}px'. frontend/e2e-layout/fixtures/search-header.html:70 still has `<span class=\"hidden sm:inline\">Filter</span>` on the ＋ button. Neither the spec touch points nor invariants.md/design mention ConditionMenu."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-4",
+      "status": "confirmed",
+      "note": "frontend/src/components/MatchOverlay.tsx:13 is `MATCH_BADGE_STYLES[type] ?? MATCH_BADGE_STYLE` (import on :8). The spec text at docs/specs/search-results-layout.md:202 and :231 describes MatchOverlay's fallback, but the touch-point list names only matchBadges.ts for I9. This is a gap in the list, not in behaviour."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-5",
+      "status": "confirmed",
+      "note": "FolderBrowser.sceneUrl.test.tsx:257-263 is 'leaves the URL, flag included, alone when only the type changes' with `expect(routerReplace).not.toHaveBeenCalled()`. SearchPage.semanticContinuation.test.tsx:582-605 asserts `toolbar.latest.total` for SPEC-CORE-035 I9. frontend/src/components/__tests__/toolbarMenuHome.test.ts:77 lists SmartFolderSaveButton.tsx; the finding gives the wrong directory (src/__tests__), but the line is right. A grep of docs/specs/search-results-layout.md finds none of semanticContinuation, toolbarMenuHome, componentFixtureParity, FolderBrowser.passages, projects.ts, spec-viewport or fixtures/app. I could not confirm against develop without git that each file was changed."
+    }
+  ],
+  "specification_compliance": [
+    "The touch-point list leaves out ConditionMenu.tsx, MatchOverlay.tsx, several test and registry files, and the unrelated content that the intelligence submodule bump brings in.",
+    "SPEC-ADDON-081 is used both for the Find menu-row spec and for file-question-history tests in the submodule."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The ConditionMenu label is now visible at phone width, and no spec item covers it.",
+    "The submodule bump ships the Ask thread, file-question history and storyboard retry behaviour without a core spec."
+  ],
+  "regression_risks": [
+    "The e2e-layout fixture search-header.html no longer matches the real ConditionMenu markup, so its measurements may diverge from the real layout at 390 px."
+  ],
+  "test_coverage": [
+    "frontend/e2e-components/search-results-bar.spec.ts covers the ConditionMenu label at 390 px.",
+    "The submodule adds AskTabThread.test.tsx, test_spec_addon_081_file_question_history.py and test_spec_addon_085_storyboard_retry.py."
+  ],
+  "not_verified": [
+    "I did not compare the submodule range 07dbabce..76317005 with git; I only checked that the named files and symbols exist in the worktree.",
+    "For TP-5, I did not confirm against origin/develop that each listed test file was modified (or added) on this branch.",
+    "I ran no tests."
+  ],
+  "confidence": 82
+}
