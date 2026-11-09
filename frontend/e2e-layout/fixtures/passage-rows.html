@@ -12,135 +12,162 @@
   </head>
   <body class="bg-bg-primary text-text-primary">
     <!--
-      The Passages view: the 「ファイル / 箇所」 control row and three passage
-      rows. At a phone width the control and 「M 箇所」 share one row and the
-      picture is 64 px wide; at desktop the picture is 88 px wide and the rows
-      stay within `max-w-list-row`.
+      The Passages view: the results bar with the 「ファイル / 箇所」 switch,
+      「シーン検索」 and 「M 箇所」, then three passage rows. At a phone width the
+      switch and the count share the bar's one row and the picture is 64 px
+      wide; at desktop the picture is 88 px wide and the rows start at the
+      bar's first control and stay within `max-w-list-row`.
     -->
-    <main class="px-4 pb-6 pt-1 sm:pb-8 sm:pt-4">
+    <div class="min-h-screen bg-bg-primary">
       <div
-        data-control-row
-        class="mb-2 flex flex-wrap items-center justify-between gap-2 sm:justify-start sm:gap-3"
+        data-bar
+        class="sticky top-0 z-20 mb-2 flex flex-wrap items-center gap-2 border-b border-bg-border bg-bg-primary px-4 py-2"
       >
-        <div
-          data-control
-          role="group"
-          aria-label="表示"
-          class="flex w-48 gap-0.5 rounded-2xl border border-bg-border p-0.5"
-        >
-          <button
-            type="button"
-            aria-pressed="false"
-            class="flex h-8 min-w-0 flex-1 items-center justify-center rounded-xl border border-transparent px-1 text-xs text-text-muted pointer-coarse:h-11"
+        <div data-control-wrapper class="flex w-[148px] flex-none sm:w-48">
+          <div
+            data-control
+            role="group"
+            aria-label="表示"
+            class="flex w-full gap-0.5 rounded-2xl border border-bg-border p-0.5"
           >
-            <span class="truncate">ファイル</span>
-          </button>
-          <button
-            type="button"
-            aria-pressed="true"
-            class="flex h-8 min-w-0 flex-1 items-center justify-center rounded-xl border border-accent px-1 text-xs font-medium text-text-primary pointer-coarse:h-11"
-          >
-            <span class="truncate">箇所</span>
-          </button>
+            <button
+              type="button"
+              aria-pressed="false"
+              class="flex h-8 min-w-0 flex-1 items-center justify-center rounded-xl border border-transparent px-1 text-xs text-text-muted pointer-coarse:h-11"
+            >
+              <span class="truncate">ファイル</span>
+            </button>
+            <button
+              type="button"
+              aria-pressed="true"
+              class="flex h-8 min-w-0 flex-1 items-center justify-center rounded-xl border border-accent px-1 text-xs font-medium text-text-primary pointer-coarse:h-11"
+            >
+              <span class="truncate">箇所</span>
+            </button>
+          </div>
         </div>
-        <span data-count class="text-xs text-text-muted sm:hidden">
-          12 箇所
+
+        <label class="inline-flex cursor-pointer select-none items-center gap-1.5 text-sm text-text-primary pointer-coarse:min-h-11 sm:gap-2">
+          <input type="checkbox" class="h-4 w-4" />
+          <span class="sm:hidden">シーン</span>
+          <span class="hidden sm:inline">シーン検索</span>
+        </label>
+
+        <div class="flex-1"></div>
+
+        <span data-count class="hidden whitespace-nowrap text-xs text-text-muted sm:inline">
+          3 ファイル・7 箇所
         </span>
+        <span data-count class="whitespace-nowrap text-xs text-text-muted sm:hidden">
+          7 箇所
+        </span>
+
+        <button
+          type="button"
+          aria-haspopup="menu"
+          aria-expanded="false"
+          aria-label="その他の操作"
+          class="flex items-center justify-center rounded-2xl border border-bg-border bg-bg-card p-2 text-text-muted transition-colors pointer-coarse:h-11 pointer-coarse:w-11"
+        >
+          …
+        </button>
       </div>
 
-      <ol data-list aria-label="箇所" class="mx-auto max-w-list-row">
-        <li class="border-b border-bg-border">
-          <ol>
-            <li>
-              <a
-                data-row
-                href="/files/f1?t=120"
-                class="grid grid-cols-[auto_1fr] gap-3 rounded-xl px-1.5 py-2.5 transition-colors hover:bg-accent/5"
-              >
-                <span
-                  data-picture
-                  class="relative h-9 w-16 shrink-0 overflow-hidden rounded-lg bg-bg-elevated sm:h-[50px] sm:w-[88px]"
+      <div class="px-4 pb-6 pt-1 sm:pb-8 sm:pt-4">
+        <ol data-list aria-label="箇所" class="w-full max-w-list-row">
+          <li class="border-b border-bg-border">
+            <ol>
+              <li>
+                <a
+                  data-row
+                  href="/files/f1?t=120"
+                  class="grid grid-cols-[auto_1fr] gap-3 rounded-xl px-1.5 py-2.5 transition-colors hover:bg-accent/5"
                 >
-                  <img alt="" class="h-full w-full object-cover" />
                   <span
-                    class="absolute bottom-1 right-1 rounded bg-black/55 px-1 text-[10px] leading-tight text-white"
+                    data-picture
+                    class="relative h-9 w-16 shrink-0 overflow-hidden rounded-lg bg-bg-elevated sm:h-[50px] sm:w-[88px]"
                   >
-                    2:00
+                    <img alt="" class="h-full w-full object-cover" />
+                    <span
+                      class="absolute bottom-1 right-1 rounded bg-black/55 px-1 text-[10px] leading-tight text-white"
+                    >
+                      2:00
+                    </span>
                   </span>
-                </span>
-                <span data-text class="min-w-0">
-                  <span class="block text-xs font-semibold text-text-primary">
-                    2:00–2:30
+                  <span data-text class="min-w-0">
+                    <span class="block text-xs font-semibold text-text-primary">
+                      2:00–2:30
+                    </span>
+                    <span
+                      title="長い会議の録画"
+                      class="block truncate text-xs text-text-muted"
+                    >
+                      長い会議の録画
+                    </span>
+                    <span
+                      class="block text-[13px] leading-relaxed text-text-primary [line-break:strict]"
+                    >
+                      倉庫の<mark class="bg-highlight-bg">移転</mark
+                      >費用について、まず去年の秋に立てた計画をふりかえります。そのうえで、実際にかかった金額と、まだ支払っていない分を分けて説明します。
+                    </span>
                   </span>
-                  <span
-                    title="長い会議の録画"
-                    class="block truncate text-xs text-text-muted"
-                  >
-                    長い会議の録画
-                  </span>
-                  <span
-                    class="block text-[13px] leading-relaxed text-text-primary [line-break:strict]"
-                  >
-                    倉庫の<mark class="bg-highlight-bg">移転</mark
-                    >費用について、まず去年の秋に立てた計画をふりかえります。そのうえで、実際にかかった金額と、まだ支払っていない分を分けて説明します。
-                  </span>
-                </span>
-              </a>
-            </li>
-            <li>
-              <a
-                data-row
-                href="/files/f1?page=7"
-                class="grid grid-cols-[auto_1fr] gap-3 rounded-xl px-1.5 py-2.5 transition-colors hover:bg-accent/5"
-              >
-                <span
-                  data-picture
-                  class="relative h-9 w-16 shrink-0 overflow-hidden rounded-lg bg-bg-elevated sm:h-[50px] sm:w-[88px]"
+                </a>
+              </li>
+              <li>
+                <a
+                  data-row
+                  href="/files/f1?page=7"
+                  class="grid grid-cols-[auto_1fr] gap-3 rounded-xl px-1.5 py-2.5 transition-colors hover:bg-accent/5"
                 >
-                  <img alt="" class="h-full w-full object-cover" />
-                </span>
-                <span data-text class="min-w-0">
-                  <span class="block text-xs font-semibold text-text-primary">p.7</span>
-                  <span class="block truncate text-xs text-text-muted">予算資料.pdf</span>
-                  <span class="block text-[13px] leading-relaxed text-text-primary">
-                    倉庫の移転費用は、当初の見積もりを上回る見込みです。とくに
-                    <mark class="bg-highlight-bg">移転</mark>にともなう設備の更新が
-                    大きな割合を占めています。
+                  <span
+                    data-picture
+                    class="relative h-9 w-16 shrink-0 overflow-hidden rounded-lg bg-bg-elevated sm:h-[50px] sm:w-[88px]"
+                  >
+                    <img alt="" class="h-full w-full object-cover" />
                   </span>
-                </span>
-              </a>
-            </li>
-            <li>
-              <a
-                data-row
-                href="/files/f2"
-                class="grid grid-cols-[auto_1fr] gap-3 rounded-xl px-1.5 py-2.5 transition-colors hover:bg-accent/5"
-              >
-                <span
-                  data-picture
-                  class="relative h-9 w-16 shrink-0 overflow-hidden rounded-lg bg-bg-elevated sm:h-[50px] sm:w-[88px]"
+                  <span data-text class="min-w-0">
+                    <span class="block text-xs font-semibold text-text-primary">p.7</span>
+                    <span class="block truncate text-xs text-text-muted">予算資料.pdf</span>
+                    <span class="block text-[13px] leading-relaxed text-text-primary">
+                      倉庫の移転費用は、当初の見積もりを上回る見込みです。とくに
+                      <mark class="bg-highlight-bg">移転</mark>にともなう設備の更新が
+                      大きな割合を占めています。
+                    </span>
+                  </span>
+                </a>
+              </li>
+              <li>
+                <a
+                  data-row
+                  href="/files/f2"
+                  class="grid grid-cols-[auto_1fr] gap-3 rounded-xl px-1.5 py-2.5 transition-colors hover:bg-accent/5"
                 >
-                  <img alt="" class="h-full w-full object-cover" />
-                </span>
-                <span data-text class="min-w-0">
-                  <span class="block text-xs font-semibold text-text-primary">本文</span>
-                  <span class="block truncate text-xs text-text-muted">議事録.md</span>
-                  <span class="block text-[13px] leading-relaxed text-text-primary">
-                    次回は倉庫の移転費用の最終案を確認します。
+                  <span
+                    data-picture
+                    class="relative h-9 w-16 shrink-0 overflow-hidden rounded-lg bg-bg-elevated sm:h-[50px] sm:w-[88px]"
+                  >
+                    <img alt="" class="h-full w-full object-cover" />
                   </span>
-                </span>
-              </a>
-            </li>
-          </ol>
-          <a
-            href="/files/f1"
-            class="ml-1 block py-1 text-xs text-text-muted hover:text-text-primary"
-          >
-            このファイルの他の箇所 →
-          </a>
-        </li>
-      </ol>
-    </main>
+                  <span data-text class="min-w-0">
+                    <span class="block text-xs font-semibold text-text-primary">本文</span>
+                    <span class="block truncate text-xs text-text-muted">議事録.md</span>
+                    <span class="block text-[13px] leading-relaxed text-text-primary">
+                      次回は倉庫の移転費用の最終案を確認します。
+                    </span>
+                  </span>
+                </a>
+              </li>
+            </ol>
+            <a
+              href="/files/f1"
+              class="ml-1 block py-1 text-xs text-text-muted hover:text-text-primary"
+            >
+              このファイルの他の箇所 →
+            </a>
+          </li>
+        </ol>
+      </div>
+    </div>
 
     <script>
       function box(el) {
@@ -157,13 +184,18 @@
 
       window.measurePassages = function () {
         const rows = Array.from(document.querySelectorAll("[data-row]"));
+        const count = Array.from(document.querySelectorAll("[data-count]")).find(
+          (el) => el.getBoundingClientRect().width > 1,
+        );
         return {
           viewport: { width: window.innerWidth, height: window.innerHeight },
           documentWidth: document.documentElement.clientWidth,
           documentScrollWidth: document.documentElement.scrollWidth,
-          controlRow: box(document.querySelector("[data-control-row]")),
+          bar: box(document.querySelector("[data-bar]")),
+          controlWrapper: box(document.querySelector("[data-control-wrapper]")),
           control: box(document.querySelector("[data-control]")),
-          count: box(document.querySelector("[data-count]")),
+          count: box(count),
+          countLineHeight: parseFloat(getComputedStyle(count).lineHeight),
           list: box(document.querySelector("[data-list]")),
           rows: rows.map((row) => ({
             row: box(row),

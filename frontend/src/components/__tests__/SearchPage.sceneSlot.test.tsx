@@ -1,30 +1,18 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { NextIntlClientProvider } from "next-intl";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import enMessages from "@/messages-core/en.json";
+const browser = vi.hoisted(() => ({ props: [] as Array<Record<string, unknown>> }));
 
 vi.mock("@/components/FolderBrowser", () => ({
-  FolderBrowser: () => <div data-testid="folder-browser" />,
+  FolderBrowser: (props: Record<string, unknown>) => {
+    browser.props.push(props);
+    return <div data-testid="folder-browser" />;
+  },
 }));
 
-const slotRenders = vi.hoisted(() => ({
-  calls: [] as Array<{ id: string; props: Record<string, unknown> | undefined }>,
+vi.mock("@/components/AddonSlot", () => ({
+  AddonSlot: ({ id }: { id: string }) => <div data-testid={`slot-${id}`} />,
 }));
-
-const slotMode = vi.hoisted(() => ({ real: false }));
-
-vi.mock("@/components/AddonSlot", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/components/AddonSlot")>();
-  return {
-    ...actual,
-    AddonSlot: (p: { id: string; props?: Record<string, unknown> }) => {
-      slotRenders.calls.push({ id: p.id, props: p.props });
-      if (slotMode.real) return <actual.AddonSlot {...p} />;
-      return <div data-testid={`slot-${p.id}`} />;
-    },
-  };
-});
 
 let mockSearchParams = new URLSearchParams();
 vi.mock("next/navigation", () => ({
@@ -37,87 +25,49 @@ vi.mock("next/navigation", () => ({
 import SearchPage from "@/app/drive/[name]/search/page";
 
 function renderPage() {
-  return render(
-    <NextIntlClientProvider locale="en" messages={enMessages}>
-      <SearchPage />
-    </NextIntlClientProvider>,
-  );
+  return render(<SearchPage />);
 }
 
-const topSlotProps = () =>
-  slotRenders.calls.filter((c) => c.id === "search-results-top").at(-1)?.props;
+const handed = () => browser.props.at(-1);
 
-describe("SearchPage search-results-top slot (SPEC-CORE-025)", () => {
+describe("SPEC-CORE-025 the page hands the results page the URL's search", () => {
   beforeEach(() => {
-    slotRenders.calls = [];
-    slotMode.real = false;
+    browser.props = [];
     mockSearchParams = new URLSearchParams();
   });
 
-  it("renders the slot between the toggle row and the file list", () => {
-    mockSearchParams = new URLSearchParams("q=cats");
-    renderPage();
-
-    const toggle = screen.getByRole("checkbox");
-    const slot = screen.getByTestId("slot-search-results-top");
-    const list = screen.getByTestId("folder-browser");
-    expect(toggle.compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(slot.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  });
-
-  it("hands the slot the query, drive, flag, type filter and smart folder from the URL", () => {
+  it("hands over the query, drive, scene flag, type and smart folder", () => {
     mockSearchParams = new URLSearchParams(
       "q=cats&type=video&smart_folder_id=sf1&include_scene_clip=true",
     );
     renderPage();
-    expect(topSlotProps()).toEqual({
-      query: "cats",
-      drive: "media",
-      includeSceneClip: true,
+
+    expect(handed()).toMatchObject({
+      driveName: "media",
+      searchQuery: "cats",
       typeFilter: "video",
       smartFolderId: "sf1",
+      includeSceneClip: true,
     });
   });
 
-  it("hands the slot null filters and a false flag when the URL has none", () => {
+  it("hands over nothing the URL does not carry", () => {
     mockSearchParams = new URLSearchParams("q=cats");
     renderPage();
-    expect(topSlotProps()).toEqual({
-      query: "cats",
-      drive: "media",
-      includeSceneClip: false,
+
+    expect(handed()).toMatchObject({
+      searchQuery: "cats",
       typeFilter: null,
       smartFolderId: null,
+      includeSceneClip: false,
     });
   });
 
-  it.each([
-    ["a type operator", "cats type:video"],
-    ["a tag operator", "tag:pets cats"],
-    ["a favorite operator", "is:favorite cats"],
-  ])("renders the slot for a plain query but not for a query with %s", (_n, q) => {
-    mockSearchParams = new URLSearchParams({ q: "cats", include_scene_clip: "true" });
-    const plain = renderPage();
-    expect(screen.getByTestId("slot-search-results-top")).toBeInTheDocument();
-    plain.unmount();
-    slotRenders.calls = [];
-
-    mockSearchParams = new URLSearchParams({ q, include_scene_clip: "true" });
-    renderPage();
-    expect(screen.queryByRole("checkbox")).toBeNull();
-    expect(screen.queryByTestId("slot-search-results-top")).toBeNull();
-    expect(slotRenders.calls.some((c) => c.id === "search-results-top")).toBe(false);
-  });
-
-  it("adds nothing to the page when no addon registers the slot", () => {
-    slotMode.real = true;
+  it("mounts no results-top slot of its own", () => {
     mockSearchParams = new URLSearchParams("q=cats&include_scene_clip=true");
     const { container } = renderPage();
 
-    expect(topSlotProps()).toBeDefined();
     expect(screen.getByTestId("folder-browser")).toBeInTheDocument();
-    const toggleRow = screen.getByRole("checkbox").closest("div")!;
-    expect(toggleRow.nextElementSibling).toBe(screen.getByTestId("folder-browser"));
-    expect(container.children).toHaveLength(2);
+    expect(container.querySelector('[data-testid^="slot-"]')).toBeNull();
   });
 });

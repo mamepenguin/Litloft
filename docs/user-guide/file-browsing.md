@@ -125,7 +125,7 @@ Right-click a folder and choose **Pin**, or use `…` → **Pin this folder** in
 
 ## Smart folders (saved searches)
 
-Run a search and click **Save** to keep it as a Smart Folder in the sidebar. Smart folders are shared by everyone who uses the drive.
+Run a search, open `…` in the results bar and choose **Save as Smart Folder** to keep it as a Smart Folder in the sidebar. Smart folders are shared by everyone who uses the drive.
 
 ## Real-time updates
 

@@ -575,11 +575,12 @@ One header for every screen with a subject, in up to three rows:
   the drive alone, never `0`.
 - **The primary action ends the subject row.**
 - **The search results page's subject is an editable query field.** It takes the
-  title's place in the subject row, and the heading 「検索: "…"」 becomes a
-  visually hidden `<h1>` so the page still has one. The field is a §Inputs field;
-  its operator chips and 「＋ 条件」 button sit under it. At a phone width the
-  field takes the content width and the count and actions share the row under
-  the chips.
+  title's place in the subject row and has that row to itself; the heading
+  「検索: "…"」 becomes a visually hidden `<h1>` so the page still has one. The
+  field is a §Inputs field. Under it sit the chips: the URL's `type` as a chip
+  first, then the operator chips, then 「＋ 条件」. Under the chips, one results bar
+  holds the Files / Passages switch, Scene search, the count, View, Sort and `…`.
+  Save as Smart Folder is not a primary action: it lives in `…`.
 
 ### Image query chip
 

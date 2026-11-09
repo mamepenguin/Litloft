@@ -62,7 +62,6 @@ const DIRECTION_ROLES = {
   "frontend/src/components/EditableTagChips.tsx": "measures",
   "frontend/src/components/FileActions.tsx": "measures",
   "frontend/src/components/FolderPicker.tsx": "measures",
-  "frontend/src/components/SmartFolderSaveButton.tsx": "measures",
   "frontend/src/components/ToolbarMenu.tsx": "measures",
   "frontend/src/components/folder/FilterField.tsx": "measures",
   "frontend/src/components/trash/TrashToolbar.tsx": "measures",
@@ -119,7 +118,7 @@ describe("every anchored dropdown in core", () => {
     expect(byRole.supplies).toEqual([
       "frontend/src/hooks/useAnchoredDirection.ts",
     ]);
-    expect(byRole.measures).toHaveLength(8);
+    expect(byRole.measures).toHaveLength(7);
     expect(byRole["takes-the-surface"]).toHaveLength(6);
   });
 

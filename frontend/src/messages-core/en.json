@@ -277,7 +277,7 @@
     "recentFiles": "Recent files",
     "recentSearches": "Recent searches",
     "sceneSearchToggle": "Scene search",
-    "sceneSearchHint": "Find specific moments inside videos",
+    "sceneSearchToggleShort": "Scenes",
     "semanticPending": "Also searching by meaning…",
     "showMoreBySimilarity": "Show more by similarity",
     "scopeRemove": "Remove the {label} scope",

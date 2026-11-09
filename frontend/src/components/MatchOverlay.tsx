@@ -5,12 +5,12 @@ import { useTranslations } from "next-intl";
 import type { FileItemWithMatch, MatchMeta } from "@/types";
 import { formatDuration } from "@/lib/format";
 import { collectMatchTimestamps } from "@/lib/matchTimestamps";
-import { MATCH_BADGE_STYLES, matchBadgeLabels } from "@/lib/matchBadges";
+import { MATCH_BADGE_STYLE, MATCH_BADGE_STYLES, matchBadgeLabels } from "@/lib/matchBadges";
 import { AddonSlot } from "@/components/AddonSlot";
 import { buildSearchSnippet } from "@/lib/searchCapture";
 
 function MatchBadge({ type, label }: { type: string; label: string }) {
-  const style = MATCH_BADGE_STYLES[type] ?? "bg-sand text-text-primary";
+  const style = MATCH_BADGE_STYLES[type] ?? MATCH_BADGE_STYLE;
   return (
     <span
       className={`inline-flex rounded-lg px-1.5 py-0.5 text-[10px] font-medium ${style}`}

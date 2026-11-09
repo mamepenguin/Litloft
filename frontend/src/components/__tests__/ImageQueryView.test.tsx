@@ -78,7 +78,8 @@ vi.mock("@/components/AddonSlot", () => ({
 }));
 
 vi.mock("@/components/SmartFolderSaveButton", () => ({
-  SmartFolderSaveButton: () => <button>SAVE-SEARCH</button>,
+  SmartFolderController: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+  SmartFolderMenuItems: () => <button>SAVE-SEARCH</button>,
 }));
 
 const GONE = "画像をもう一度選んでください";

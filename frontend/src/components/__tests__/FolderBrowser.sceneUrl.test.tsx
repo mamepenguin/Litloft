@@ -46,9 +46,8 @@ vi.mock("@/components/TreeToggle", () => ({
 }));
 vi.mock("@/components/SelectionBar", () => ({ SelectionBar: () => null }));
 vi.mock("@/components/SmartFolderSaveButton", () => ({
-  SmartFolderSaveButton: (props: Record<string, unknown>) => (
-    <button data-save-props={JSON.stringify(props)}>Save search</button>
-  ),
+  SmartFolderController: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+  SmartFolderMenuItems: () => null,
 }));
 vi.mock("@/components/AddonSlot", () => ({
   AddonSlot: ({ id, layout, props }: { id: string; layout?: string; props?: Record<string, unknown> }) => (
@@ -119,7 +118,10 @@ const routerReplace = vi.hoisted(() => vi.fn());
 const stableRouter = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
 vi.mock("next/navigation", () => {
   stableRouter.replace = routerReplace;
-  return { useRouter: () => stableRouter };
+  return {
+    useRouter: () => stableRouter,
+    useSearchParams: () => new URLSearchParams(),
+  };
 });
 
 vi.mock("@/components/ClipboardProvider", () => ({
@@ -252,12 +254,13 @@ describe("search URL sync keeps include_scene_clip (SPEC-CORE-025)", () => {
     expect(lastReplacedUrl()?.params.has("include_scene_clip")).toBe(false);
   });
 
-  it("keeps the flag when the type filter changes", () => {
-    renderSearch({ includeSceneClip: true });
-    fireEvent.click(screen.getByTestId("set-type"));
-    const url = lastReplacedUrl();
-    expect(url?.params.get("type")).toBe("video");
-    expect(url?.params.get("include_scene_clip")).toBe("true");
+  it("leaves the URL, flag included, alone when only the type changes", () => {
+    const view = renderSearch({ includeSceneClip: true });
+    routerReplace.mockClear();
+
+    view.rerender({ includeSceneClip: true, typeFilter: "video" });
+
+    expect(routerReplace).not.toHaveBeenCalled();
   });
 
   it("keeps the flag when the sort changes", () => {

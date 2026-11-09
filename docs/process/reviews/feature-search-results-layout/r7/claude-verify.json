@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R7-1",
+      "status": "confirmed",
+      "note": "Reproduced by reading the code. In the fixture, frontend/e2e-components/fixtures/app.tsx:1074-1087 wraps SearchQueryHeader in `<div className=\"min-w-0 pb-2 pt-5\">` with no horizontal padding. SearchQueryHeader's root is `<div className=\"min-w-0\">` (SearchQueryHeader.tsx:131), so the field starts at x=0. PassageList (app.tsx:1147-1152) sits directly in the flex column, and its `<ol className=\"w-full max-w-list-row\">` (PassageList.tsx:251) also starts at x=0. search-results-bar.cases.ts:119-121 defines `bar` as the nearest common ancestor of the switch or checkbox and the `More actions` button. That ancestor is FolderToolbar's `sticky top-0 ... px-4 py-2` div (FolderToolbar.tsx:262), so bar.left is that div's border-box edge, x=0, in both the fixture and the real page. On the real page, FolderBrowser.tsx:655-707 renders SearchQueryHeader as PageHeader's titleField, inside `<header className=\"flex flex-col gap-1 px-4 py-2\">` (PageHeader.tsx:69). PageFrame width=\"full\" adds no horizontal padding (PageFrame.tsx:8,26), and search/page.tsx adds no wrapper, so field.left is 16. The real PassageList is inside `<div className=\"px-4 pb-6 pt-1 sm:pb-8 sm:pt-4\">` (FolderBrowser.tsx:801, 891-892), so listRow.left is 16. The assertions `Math.abs(m.field.left - m.bar.left) <= 1` (search-results-bar.spec.ts:36), the matching right-edge check (line 37) and `Math.abs(m.listRow.left - m.bar.left) <= 1` (search-results-bar-desktop.spec.ts:44) therefore hold in the fixture and would be off by about 16 px on the real page. In the fixture the field and list sit flush with the bar's border edge, 16 px left of the bar's controls; on the real page they line up with the bar's padded content edge. So the I10 alignment cases measure geometry the real page does not have."
+    }
+  ],
+  "specification_compliance": [
+    "I10 (field spans the content width at 390 px; Passages rows start at the results bar's left edge at 1280 px): the e2e-components arrangement leaves out the horizontal padding the real page has (PageHeader px-4 and the content div's px-4). The edge-alignment assertions test the fixture's geometry, not the real page's, so these I10 alignment cases do not show that the real page meets I10."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "I10 says 'start at the results bar's left edge' without saying whether that means the bar's border box or its padded content edge. The real page lines up with the content edge; the tests assert the border box against a fixture that has no padding."
+  ],
+  "regression_risks": [
+    "A future padding change in PageHeader or in FolderBrowser's content wrapper would not be caught by the e2e-components I10 cases, because the fixture reproduces neither wrapper."
+  ],
+  "test_coverage": [
+    "search-results-bar.spec.ts:36-37 and search-results-bar-desktop.spec.ts:44 compare box edges in a fixture whose header and list wrappers differ from FolderBrowser's, so they do not cover the real page's alignment."
+  ],
+  "not_verified": [
+    "Did not run Playwright or measure pixel values in a browser; the 16 px offset comes from the Tailwind px-4 class reading in the source.",
+    "Did not check whether the e2e-layout HTML fixtures (search-header.html, passage-rows.html) model the real padding correctly.",
+    "Did not verify the other invariants (I1-I9) beyond what R7-1 needed."
+  ],
+  "confidence": 88
+}

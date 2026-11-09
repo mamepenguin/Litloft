@@ -36,10 +36,14 @@ vi.mock("@/components/AddButton", () => ({ AddButton: () => <button>Add</button>
 
 const saveButton = vi.hoisted(() => ({ props: null as Record<string, unknown> | null }));
 vi.mock("@/components/SmartFolderSaveButton", () => ({
-  SmartFolderSaveButton: (props: Record<string, unknown>) => {
+  SmartFolderController: ({
+    children,
+    ...props
+  }: { children?: React.ReactNode } & Record<string, unknown>) => {
     saveButton.props = props;
-    return <button>Save search</button>;
+    return <>{children}</>;
   },
+  SmartFolderMenuItems: () => null,
 }));
 
 vi.mock("@/components/AddonSlot", () => ({

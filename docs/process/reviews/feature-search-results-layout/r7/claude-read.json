@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R7-1",
+      "origin": "reviewer",
+      "claim": "The e2e-components arrangement that stands in for the search page renders SearchQueryHeader, FolderToolbar and PassageList with no horizontal padding around the header or the list. The real FolderBrowser wraps the field in PageHeader's `px-4` and the Passages list in a `px-4` content div, so the box-edge alignments the I10 cases assert (field.left == bar.left at 390 px, listRow.left == bar.left at 1280 px) hold only in the fixture.",
+      "impact": "No user-visible defect. The I1/I5/I10 browser checks measure a hand composition and not the page, so a padding or wrapper change in FolderBrowser (for example the Passages list losing its left inset, or the shelf being placed above the bar) would not fail them. The fixture's own comment says the padding was removed on purpose so that the field, bar and list line up against each other.",
+      "evidence": "frontend/e2e-components/fixtures/app.tsx SearchResultsBar: `<div className=\"min-w-0 pb-2 pt-5\"><SearchQueryHeader …/>` with no PageHeader, and `<PassageList …/>` placed directly in the flex column. FolderBrowser.tsx:651-697 renders SearchQueryHeader as PageHeader's titleField (PageHeader: `<header className=\"flex flex-col gap-1 px-4 py-2\">`), and the PassageList sits inside `<div className=\"px-4 pb-6 pt-1 sm:pb-8 sm:pt-4\">`. search-results-bar.spec.ts asserts `Math.abs(m.field.left - m.bar.left) <= 1`, and search-results-bar-desktop.spec.ts asserts `Math.abs(m.listRow.left - m.bar.left) <= 1`. On the real page both differ by about 16 px, because bar.left is the padded box edge.",
+      "repro": "not_reproduced (read only). Mutation: move the shelf AddonSlot above FolderToolbar in FolderBrowser.tsx. No e2e-components case fails, because the fixture places its own stand-in shelf. Only the jsdom SearchPage.resultsBar order test would catch it.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is broken at runtime. The test fidelity for I1/I10's 'measured on the real components' is weaker than the claim, and the jsdom order tests partly cover the gap.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Wrap the arrangement in the real PageHeader with SearchQueryHeader as titleField and put PassageList in the same padded content div FolderBrowser uses. Then measure alignment between the field, the first bar control and the list (content edges), not box edges."
+    }
+  ],
+  "specification_compliance": [
+    "The r6 findings are resolved in the record. TP-1: after the rebase onto develop, which merged the Ask-thread and storyboard-retry work, the submodule bump in this diff (523555e..b0a5c01) holds only FindModeSlot.tsx and its two tests. TP-2: the Find menu-row spec was renumbered to SPEC-ADDON-086, so SPEC-ADDON-081 no longer names two features. TP-3: ConditionMenu.tsx is now a touch point with decision D-4, search-header.html shows the label at every width, and the search.md phone note was dropped. TP-4: MatchOverlay.tsx is listed. TP-5: the semanticContinuation, FolderBrowser.passages and sceneUrl tests and the registries are listed with the earlier-spec guarantees they restate.",
+    "FolderBrowser now derives typeFilter from the prop on the search page (I3). The sync effect reads the type through a ref, so it never writes back a removed type. clearTypeFilter pushes the current URL params minus `type`, so ✕, the empty-state clear and PassageList's clear keep q/sort/order/smart_folder_id/include_scene_clip/show.",
+    "FolderToolbar renders while hideToolbar on search, with Sort/View hidden through search.hideArranging; FilterMenu is gone on search; FilterField is gone in FolderContent on search (I2, I4).",
+    "search-results-top mounts after FolderToolbar under !hasOperators && !(show=passages && q non-blank) (I6).",
+    "SmartFolderController wraps the page; the menu rows call closeMenu before opening a dialog; buildSearchUrl keeps show and include_scene_clip; the saved-name row is role=presentation with w-0 min-w-full truncation (I7).",
+    "search-modes mounts only inside the open … menu as its last child, with closeMenu, and only when !hasOperators. FindModeSlot catches a rejected probe (I8).",
+    "MATCH_BADGE_STYLE is used for every kind and as MatchOverlay's fallback (I9)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "handleSceneToggle rebuilds the URL from props and local sort/order rather than from the current search params. A sort/order seeded from the drive root's snapshot (an out-of-scope existing behaviour) is therefore written into the URL on a Scene toggle. The previous page-level toggle copied the URL as it was."
+  ],
+  "regression_risks": [
+    "FolderToolbar now renders on the search page while a file is selected beside the tree; any toolbar element not gated by hideArranging (e.g. AddButton if a search were ever a write destination) would now appear in that state.",
+    "The sync effect and handleSceneToggle can both replace the URL in one toggle; harmless today but two writers of the same URL."
+  ],
+  "test_coverage": [
+    "SearchPage.resultsBar.test.tsx exercises the real SearchPage → FolderBrowser → FolderToolbar chain in jsdom for I2, I3, I4, I6, I7 and I8, including hideToolbar, snapshot type and clear-filter pushes.",
+    "The e2e-components search-results-bar specs cover I1, I2, I5 and I10 on a hand-composed arrangement, not on FolderBrowser (see R7-1).",
+    "matchBadges.oneStyle.test.tsx covers I9 for MatchOverlay and the shared table; the modal rows and legend are covered only through the shared table.",
+    "FindModeSlot.menuRow.test.tsx covers the rejected probe leaving no row and no unhandled rejection."
+  ],
+  "not_verified": [
+    "I ran no unit or e2e test; all behaviour was read.",
+    "Whether PageHeader renders a TreeToggle or another leading element above the field on the search page when the tree is enabled (relevant to I1 on the real page).",
+    "The exact content of the submodule commit b0a5c01 beyond the FindModeSlot diff shown.",
+    "The fix diffs past the 600000-byte truncation point."
+  ],
+  "confidence": 74,
+  "trajectory": "The commits since r6 do not show the design being patched. Most of them are develop work that the rebase brought in: the storyboard retry, the file Ask thread, and reading-app and header changes. That removed the unrelated submodule content r6 flagged (TP-1), rather than adding anything. The rounds on this branch itself mostly correct the record: SPEC-ADDON-081 is renumbered to 086, and the touch points are completed for ConditionMenu, MatchOverlay and the test registries. Earlier spec rounds removed state rather than adding it: the module-level probe cache was dropped, the sort/order URL ownership went out of scope, and the 'URL change closes …' rule was replaced by 'left as today'. The code-level additions are small and are not repeated across rounds: the saved-name truncation class and the switch width at 390 px. No round re-adds a branch, state or prediction that an earlier round had already added."
+}

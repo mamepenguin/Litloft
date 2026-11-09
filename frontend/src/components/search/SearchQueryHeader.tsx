@@ -33,6 +33,8 @@ interface SearchQueryHeaderProps {
   onImageMany?: () => void;
   onEdit?: () => void;
   imagePreparing?: boolean;
+  /** Takes the URL's `type` off; the page owns the parameters it keeps. */
+  onRemoveType?: () => void;
 }
 
 export function SearchQueryHeader({
@@ -51,8 +53,10 @@ export function SearchQueryHeader({
   onImageMany,
   onEdit,
   imagePreparing,
+  onRemoveType,
 }: SearchQueryHeaderProps) {
   const t = useTranslations("search");
+  const tFilter = useTranslations("filter");
   const router = useRouter();
   const ime = useImeKeyGuard();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -112,6 +116,8 @@ export function SearchQueryHeader({
     }
     router.push(searchHref(normalized));
   };
+
+  const typeLabel = typeFilter ? tFilter(`type.${typeFilter}`) : "";
 
   const imageButtonClass =
     "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary";
@@ -227,6 +233,28 @@ export function SearchQueryHeader({
               {t("searchByImage")}
             </button>
           )}
+          {typeFilter && (
+            <span
+              title={typeLabel}
+              className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-full bg-sand py-0.5 pl-2 pr-1 text-xs text-text-primary"
+            >
+              <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+                <span className="font-semibold">{t("filterKind")}</span> {typeLabel}
+              </span>
+              <button
+                type="button"
+                aria-label={t("removeFilter", {
+                  label: t("filterKind"),
+                  value: typeLabel,
+                })}
+                onClick={onRemoveType}
+                className="shrink-0 rounded-full p-0.5 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+              >
+                ×
+              </button>
+            </span>
+          )}
+
           <SearchFilterChips
             query={text}
             onRemove={(next) => removeChip(next)}

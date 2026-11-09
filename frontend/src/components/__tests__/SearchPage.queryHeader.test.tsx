@@ -28,10 +28,14 @@ vi.mock("@/components/AddButton", () => ({ AddButton: () => <button>Add</button>
 
 const saveButton = vi.hoisted(() => ({ props: null as Record<string, unknown> | null }));
 vi.mock("@/components/SmartFolderSaveButton", () => ({
-  SmartFolderSaveButton: (props: Record<string, unknown>) => {
+  SmartFolderController: ({
+    children,
+    ...props
+  }: { children?: React.ReactNode } & Record<string, unknown>) => {
     saveButton.props = props;
-    return <button>Save search</button>;
+    return <>{children}</>;
   },
+  SmartFolderMenuItems: () => null,
 }));
 
 vi.mock("@/components/AddonSlot", () => ({
@@ -416,19 +420,19 @@ describe("SPEC-CORE-039 I20 a submission is exactly one history entry", () => {
 });
 
 describe("SPEC-CORE-039 I21 a filtered query renders no search-modes slot", () => {
-  it("hides the slot the addons would fill", () => {
+  it("hides the slot the addons would fill, with … open", () => {
     renderSearch({ searchQuery: "cats tag:会議" });
+
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
 
     expect(screen.queryByTestId("slot-search-modes")).toBeNull();
   });
 });
 
-describe("SPEC-CORE-039 I22 the Smart Folder button saves the URL's query", () => {
+describe("SPEC-CORE-039 I22 the Smart Folder entry saves the URL's query", () => {
   it("ignores unsubmitted field text", () => {
     renderSearch({ searchQuery: "cats", typeFilter: "video" });
     typeField("cats dogs");
-
-    fireEvent.click(screen.getByRole("button", { name: "Save search" }));
 
     expect(saveButton.props?.query).toBe("cats");
     expect(saveButton.props?.typeFilter).toBe("video");
