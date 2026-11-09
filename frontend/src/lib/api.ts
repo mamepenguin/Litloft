@@ -148,6 +148,8 @@ export interface ShelvesParams extends ListingFilters {
   key?: string;
   /** Keep only files in this reading state; needs a viewer identity. */
   watch?: ShelfWatchState;
+  /** Restrict every shelf to these file ids, repeated on the wire. */
+  ids?: readonly string[];
   sort?: ListingSortField | "last_played";
   order?: SortOrder;
   per_shelf?: number;
@@ -184,6 +186,7 @@ export async function getShelves(
   if (params.key !== undefined) searchParams.set("key", params.key);
   appendListingFilters(searchParams, params);
   if (params.watch) searchParams.set("watch", params.watch);
+  for (const id of params.ids ?? []) searchParams.append("ids", id);
   if (params.sort) searchParams.set("sort", params.sort);
   if (params.order) searchParams.set("order", params.order);
   for (const name of ["per_shelf", "shelf_limit", "offset", "page"] as const) {

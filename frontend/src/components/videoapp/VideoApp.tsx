@@ -75,6 +75,7 @@ export function VideoApp({ drive }: { drive: string }) {
             hasProfile={state.hasProfile}
             continueShelf={discover.continueShelf}
             recommended={discover.recommended}
+            addonShelves={discover.addonShelves}
             fresh={discover.fresh}
           />
         )}
