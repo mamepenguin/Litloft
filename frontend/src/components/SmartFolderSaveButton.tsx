@@ -229,7 +229,9 @@ export function SmartFolderMenuItems({
   if (actions.current) {
     return (
       <>
-        <div role="presentation" className="px-3 py-2">
+        {/* `w-0 min-w-full`: the menu sizes to its action rows, so a long
+            name truncates instead of widening the panel. */}
+        <div role="presentation" className="w-0 min-w-full px-3 py-2">
           <span className="block truncate text-sm text-text-muted">
             {t("saved", { name: actions.current.name })}
           </span>
