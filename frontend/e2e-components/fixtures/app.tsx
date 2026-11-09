@@ -75,6 +75,9 @@ import { JustifiedHoldArrangement } from "./justifiedHold";
 import { PlayedRangesArrangement } from "./playedRanges";
 import { TextResumeArrangement } from "./textResume";
 import { PersistentHighlightsArrangement } from "./persistentHighlights";
+import AskTab from "../../src/addons/intelligence/AskTab";
+import { getAskThread } from "../../src/addons/intelligence/askStore";
+import intelligenceEn from "../../src/addons/intelligence/messages/en.json";
 import {
   navigateWithTransition,
   notifyNavigationCommit,
@@ -89,6 +92,7 @@ const nativeFetch = window.fetch.bind(window);
 window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
   const url =
     typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+  const method = (init?.method ?? "GET").toUpperCase();
   if (url.includes("/api/addons/intelligence/search/by-image/available")) {
     return Promise.resolve(
       new Response("{}", {
@@ -97,8 +101,37 @@ window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
       }),
     );
   }
+  if (url.includes("/api/addons/intelligence/files/") && /\/ask(\?|$)/.test(url)) {
+    if (method === "POST") return Promise.resolve(askStreamResponse());
+    return Promise.resolve(jsonResponse({ available: true }));
+  }
+  if (url.includes("/api/addons/intelligence/llm/choices/rag")) {
+    return Promise.resolve(jsonResponse({ auto: "local", choices: [] }));
+  }
   return nativeFetch(input, init);
 };
+
+function jsonResponse(body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+/** A complete answer in one body: the tab reads it as the frames it streams. */
+function askStreamResponse(): Response {
+  const answer = "The answer follows from the passage in this file. ".repeat(6);
+  const frames = [
+    `event: answer_chunk\ndata: ${JSON.stringify({ delta: answer })}\n\n`,
+    "event: citations\ndata: []\n\n",
+    `event: meta\ndata: ${JSON.stringify({ partial: false, image: "none" })}\n\n`,
+    "event: done\ndata: {}\n\n",
+  ];
+  return new Response(frames.join(""), {
+    status: 200,
+    headers: { "Content-Type": "text/event-stream" },
+  });
+}
 
 /**
  * `onClick` is React's, delegated at the root container: the swallow stops
@@ -1206,6 +1239,74 @@ function CodeViewer(): ReactElement {
 }
 
 /**
+ * The real Ask tab in the inspector's full-height box, fed by mocked answers
+ * until the thread is taller than the panel. The question box has to stay at
+ * the bottom while the turns scroll above it; jsdom lays none of this out.
+ */
+const ASK_THREAD_FILE = "vid000000001";
+
+function AskThreadArrangement(): ReactElement {
+  useEffect(() => {
+    let cancelled = false;
+    const wait = (ms: number) =>
+      new Promise<void>((resolve) => setTimeout(resolve, ms));
+    const run = async () => {
+      for (let i = 1; i <= 6 && !cancelled; i += 1) {
+        const panel = document.querySelector<HTMLElement>("#ask-thread-panel");
+        const box = panel?.querySelector<HTMLTextAreaElement>("textarea");
+        const submit = panel?.querySelector<HTMLButtonElement>(
+          'button[type="submit"]',
+        );
+        if (!panel || !box || !submit) return;
+        const setValue = Object.getOwnPropertyDescriptor(
+          HTMLTextAreaElement.prototype,
+          "value",
+        )?.set;
+        setValue?.call(box, `question ${i}`);
+        box.dispatchEvent(new Event("input", { bubbles: true }));
+        for (let tries = 0; tries < 50 && submit.disabled; tries += 1) {
+          await wait(0);
+        }
+        submit.click();
+        for (let tries = 0; tries < 200; tries += 1) {
+          const turns = getAskThread(ASK_THREAD_FILE).turns;
+          if (turns[turns.length - 1]?.status === "answered") break;
+          await wait(5);
+        }
+      }
+      if (!cancelled) document.body.dataset.threadReady = "1";
+    };
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return (
+    <div className="flex min-h-screen items-start justify-center bg-bg-primary p-8">
+      <div
+        id="ask-thread-panel"
+        className="flex h-[420px] w-96 flex-col overflow-hidden rounded-xl border border-bg-border bg-bg-card"
+      >
+        <NextIntlClientProvider
+          locale="en"
+          messages={{ ...enMessages, ...intelligenceEn }}
+        >
+          <AskTab
+            fileId={ASK_THREAD_FILE}
+            drive="family"
+            filename="lecture.mp4"
+            fileType="video"
+            fillHeight
+            onAvailability={() => {}}
+          />
+        </NextIntlClientProvider>
+      </div>
+    </div>
+  );
+}
+
+/**
  * The same citation in a rendered note, split across elements and whole.
  * `.markdown-body mark` supplies the padding there, and the `pre` rule that
  * zeroes it does not reach — so this is where the seam declarations decide
@@ -2094,6 +2195,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "justified-hold": JustifiedHoldArrangement,
   "citation-seams": CitationSeams,
   "citation-seams-prose": CitationSeamsProse,
+  "ask-thread": AskThreadArrangement,
   "code-viewer": CodeViewer,
   "code-viewer-many": CodeViewerMany,
   "typography-panel-ja": TypographyPanelJa,

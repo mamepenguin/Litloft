@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "Confirmed by reading the code and tracing an example by hand. addons/intelligence/frontend/askNoteFormat.ts:286-291 rewriteAnswer splits the answer on \"\\n\". It passes every line that codeLineIndexes does not mark (that function collects only `fence` and `code_block` tokens, :267) to rewriteInline line by line. rewriteInline (:219-246) and closingBacktickRun (:204-217) look for the closing backtick run only inside the same line string. When no closing run is found, the opening run is copied literally (:235) and the rest of the line goes through rewriteMarkers (:242). The renderer is MarkdownPreview (frontend/src/components/MarkdownPreview.tsx:93-98), which uses markdown-it with the same options as blockParser (:250-255). Under CommonMark/markdown-it, a code span can continue across a soft line break inside a paragraph. AnswerMarkdown.tsx:232 skips text under `code, pre`. Traced example: the answer \"Use `foo\\n[1]` here\" with citation n=1 at 5 seconds renders as <code>foo [1]</code>. The builder instead outputs \"Use `foo\\n[0:05](loft://<id>?t=5)` here\", so the link is written inside the code span. With no matching citation, [1] is removed instead. Either way this breaks I7 ('inside them the text is as received'). Spec 083 step 3 (docs/specs/file-ask-thread.md:154-158) defines an inline span 'as CommonMark' and as what AnswerMarkdown renders inside `code`, so the spec does not limit spans to one line. askNoteFormat.test.ts has no case with a multi-line inline span. The tests at :251-272 cover only block code. I traced the example from the code; I did not run it."
+    }
+  ],
+  "specification_compliance": [
+    "I7 / 083 step 3: inline code spans that cross a line ending are not treated as code by buildAskThreadMarkdown, so markers inside them are rewritten or removed (R1 confirmed)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Fixing inline-span detection with markdown-it `code_inline` tokens needs a way to map each token back to its source offsets. markdown-it inline tokens have no `map`, so a naive fix could misplace rewrites."
+  ],
+  "test_coverage": [
+    "askNoteFormat.test.ts covers block code (fenced, indented, in a blockquote, nested in a list) but has no inline code span that crosses a line ending."
+  ],
+  "not_verified": [
+    "I did not run the builder or the test suite. The reproduction was traced by hand from the source.",
+    "I did not check other invariants (I1-I6, I8-I12) beyond what R1 touches.",
+    "I did not check whether the frontend-side applyCitations in AnswerMarkdown has the same multi-line span edge case at render time."
+  ],
+  "confidence": 88
+}

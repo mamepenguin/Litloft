@@ -291,6 +291,7 @@ describe("the component fixture's page", () => {
       "justified-hold",
       "citation-seams",
       "citation-seams-prose",
+      "ask-thread",
       "code-viewer",
       "code-viewer-many",
       "typography-panel-ja",

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>質問タブ 上に入力欄</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;font-family:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif}
+a{color:#103c25}a:hover{color:#0a2818}
+</style>
+</helmet>
+<div style="width: 400px; height: 760px; box-sizing: border-box; background: #ffffff; color: #211922; display: flex; flex-direction: column; border-left: 1px solid rgba(145,145,140,0.2)">
+  <div style="display: flex; gap: 20px; padding: 12px 16px 0; border-bottom: 1px solid rgba(145,145,140,0.2); font-size: 13px">
+    <span style="padding-bottom: 10px; color: #62625b">詳細</span>
+    <span style="padding-bottom: 10px; color: #62625b">文字起こし</span>
+    <span style="padding-bottom: 10px; font-weight: 600; border-bottom: 2px solid #211922">質問</span>
+  </div>
+
+  <form style="padding: 16px 16px 12px; border-bottom: 1px solid rgba(145,145,140,0.2); display: flex; flex-direction: column; gap: 8px">
+    <label for="q2" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">このファイルについて質問</label>
+    <textarea id="q2" rows="3" placeholder="このファイルについて質問" style="width: 100%; box-sizing: border-box; resize: none; border-radius: 16px; border: 1px solid rgba(145,145,140,0.2); padding: 12px; font: inherit; font-size: 14px; color: #211922"></textarea>
+    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px">
+      <button type="button" style="min-height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid rgba(145,145,140,0.35); background: #ffffff; color: #211922; font: inherit; font-size: 13px">新しい会話</button>
+      <button type="button" style="min-height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid rgba(145,145,140,0.35); background: #ffffff; color: #211922; font: inherit; font-size: 13px">Markdownで保存</button>
+      <span style="flex: 1"></span>
+      <button type="submit" style="min-height: 40px; padding: 0 18px; border-radius: 12px; border: 0; background: #d63031; color: #ffffff; font: inherit; font-size: 14px; font-weight: 600">質問する</button>
+    </div>
+  </form>
+
+  <div style="flex: 1; min-height: 0; overflow: hidden; padding: 16px; display: flex; flex-direction: column; gap: 24px">
+    <section style="display: flex; flex-direction: column; gap: 8px">
+      <p style="margin: 0; font-size: 14px; font-weight: 600">帰りのバスの最終は？</p>
+      <p style="margin: 0; font-size: 14px; color: #9e0a0a">答えを作れませんでした</p>
+    </section>
+
+    <section style="display: flex; flex-direction: column; gap: 8px">
+      <p style="margin: 0; font-size: 14px; font-weight: 600">タクシーの料金は？</p>
+      <p style="margin: 0; font-size: 14px; line-height: 1.7">駅から登山口まで片道およそ6,000円と話しています <span style="display: inline-block; padding: 1px 7px; border-radius: 999px; background: #f6f6f3; border: 1px solid rgba(145,145,140,0.2); font-size: 12px">5:58</span>。予約が必要かどうかには触れていません。</p>
+      <p style="margin: 0; font-size: 12px; color: #62625b">ファイルの一部を読んで答えました</p>
+    </section>
+
+    <section style="display: flex; flex-direction: column; gap: 8px">
+      <p style="margin: 0; font-size: 14px; font-weight: 600">登山口までのアクセスはどう説明されていた？</p>
+      <p style="margin: 0; font-size: 14px; line-height: 1.7">バスで終点まで行き、そこから林道を40分歩くと説明されています <span style="display: inline-block; padding: 1px 7px; border-radius: 999px; background: #f6f6f3; border: 1px solid rgba(145,145,140,0.2); font-size: 12px">3:12</span>。冬季はバスが運休するため、タクシーを使うよう勧めています <span style="display: inline-block; padding: 1px 7px; border-radius: 999px; background: #f6f6f3; border: 1px solid rgba(145,145,140,0.2); font-size: 12px">5:40</span>。</p>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":400,"height":760}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

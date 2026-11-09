@@ -27,11 +27,20 @@ export default async function buildComponentFixture(): Promise<void> {
       // `use-intl`).
       // Addon slot modules are not part of the fixture: bundling them would
       // assert about whichever addon commits core points at, and they resolve
-      // their packages from outside `frontend/`.
+      // their packages from outside `frontend/`. The Ask-thread case imports
+      // one addon file by a relative path on purpose, so the package aliases
+      // below let that file's bare imports resolve to the fixture's copies.
       alias: [
         { find: /^@\/addons\/.*$/, replacement: resolve(__dirname, "stubs", "addon-slots.ts") },
         { find: "@", replacement: resolve(__dirname, "..", "src") },
         { find: "next/navigation", replacement: resolve(__dirname, "stubs", "next-navigation.ts") },
+        { find: /^react$/, replacement: resolve(__dirname, "..", "node_modules", "react") },
+        { find: /^react-dom$/, replacement: resolve(__dirname, "..", "node_modules", "react-dom") },
+        { find: /^react\/jsx-runtime$/, replacement: resolve(__dirname, "..", "node_modules", "react", "jsx-runtime.js") },
+        { find: /^react\/jsx-dev-runtime$/, replacement: resolve(__dirname, "..", "node_modules", "react", "jsx-dev-runtime.js") },
+        { find: /^next-intl$/, replacement: resolve(__dirname, "..", "node_modules", "next-intl") },
+        { find: /^lucide-react$/, replacement: resolve(__dirname, "..", "node_modules", "lucide-react") },
+        { find: /^markdown-it$/, replacement: resolve(__dirname, "..", "node_modules", "markdown-it") },
       ],
     },
     build: {

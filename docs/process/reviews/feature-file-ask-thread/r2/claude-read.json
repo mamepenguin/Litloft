@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R1",
+      "origin": "reviewer",
+      "claim": "The saved-note builder decides what counts as code with column-0 rules that ignore list context. As a result it rewrites or removes `[n]` inside fenced code that sits in a list item and is indented 4 or more spaces, and it leaves `[n]` raw in an indented list-continuation paragraph, which it mistakes for an indented code block.",
+      "impact": "When the viewer saves a thread whose answer has a fenced code block nested under a list item (common in model output, e.g. `1. Step` followed by a fence indented 4 spaces), indexing such as `arr[1]` in that code is silently turned into a `loft://` link or deleted in the note. A loose-list continuation paragraph indented 4 spaces after a blank line keeps raw `[1]` markers that are neither links nor removed. The note differs from what AnswerMarkdown (markdown-it, CommonMark) showed on screen.",
+      "evidence": "addons/intelligence/frontend/askNoteFormat.ts rewriteAnswer: the fence opener is detected only by `/^ {0,3}(`{3,}|~{3,})/`. A line with 4 or more leading spaces after a non-blank line therefore goes to `rewriteInline`, which runs `rewriteMarkers` on it. The indented-code test `/^(?: {4}|\\t)/ && (indented || previousBlank)` treats any 4-space line after a blank as code, including list-item continuation paragraphs. MarkdownPreview uses markdown-it, which parses a fence inside a list item relative to the item's content column. The AskTabThread tests cover only top-level fences, top-level indented code and inline spans.",
+      "repro": "Save a thread whose answered turn's answer is \"1. Run:\\n    ```python\\n    y = arr[1]\\n    ```\" and whose citations are [{n:1, position:{seconds:5}}]. The note line becomes `    y = arr[0:05](loft://<id>?t=5)`, while on screen the fence renders as a code block with `arr[1]`. With no citation for 1 the line becomes `    y = arr`. Second case: \"- item\\n\\n    see [1]\" renders as a list paragraph, but the note keeps `[1]` raw.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I7 requires that outside code (as 083 step 3 defines it: what AnswerMarkdown renders inside code/pre) every [n] is a loft link or removed, and that inside code the text is as received. Both directions break for list-nested blocks.",
+        "invariant_ref": "I7"
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Classify code with the same CommonMark parser AnswerMarkdown uses (markdown-it tokens with `map` line ranges for fence/code_block, and code_inline), and rewrite markers only in text outside those ranges. Add tests for a list-nested fence and a list continuation paragraph."
+    }
+  ],
+  "specification_compliance": [
+    "081: trim_history removes markers until none remain, counts sizes after removal, keeps the newest turns while they fit in max_chars//2, and cuts an oversized newest turn question first. The passage budget is max_chars minus the kept sizes, and the ranking text is history[-1].question + \"\\n\" + question (rag.py file_ask_endpoint, file_question.py:159-180, :345-349).",
+    "081 I3: FileQuestionTurn has extra=forbid, a question of 1..1000 and an answer of at most 20000, and history max_length=10. Pydantic validation runs before the handler body, so before any gate or slot.",
+    "082: the store keeps turns per file, beginAsk empties the text box, settleAsk puts a failed turn's question back only into an empty box, clearAskThread keeps the text, and the history sent is answered turns only, the last 10, with answers sliced to 20000.",
+    "084: POST /notes declares only when origin == 'ask_answer', after the commit and the event. A 409 counts as success, other statuses and httpx transport errors answer 502, and trust_declared_at is set only on success. The startup pass reads only ask_answer rows that are still null and runs as a background task. The migration is a plain ADD COLUMN, guarded by an existence check.",
+    "I11 (r1): rag.py ends an empty or whitespace-only answer with meta followed by done carrying an error, and sends no citations event.",
+    "I12 (r1): /notes, /distill and /note-from-file record and return the path core created, through _created_rel_path."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "AskTab recomputes saveContent, including a fresh saved_at timestamp, on every render, because answeredTurns is a new array each time. The note's saved_at is the time of the last render before confirm, not the moment of the click.",
+    "The history prompt block writes earlier answers without delimiters. An earlier answer that contains lines such as 'Question:' is inlined verbatim; this is outside the threat model."
+  ],
+  "regression_risks": [
+    "POST /notes without an explicit origin defaults to ask_answer (schemas.py:70), so it is declared unverified. In this repository the only caller is AskSaveDialog, which now sends origin explicitly.",
+    "The startup pass and the note scanner both start as background tasks at lifespan start. They touch different columns, so I see no conflict, but they run concurrently."
+  ],
+  "test_coverage": [
+    "test_spec_addon_081_file_question_history.py covers the limits, marker removal, budget edges (fits exactly and one over), the ranking text, and that no-history and empty-history prompts are equal. It does not compare those prompts against the prompts from before the change.",
+    "AskTabThread.test.tsx covers history selection, the button states, failure put-back, the saved-note layout, and code preservation for top-level fences, tilde fences, indented code, inline spans and an unclosed fence. It does not cover list-nested fences or list continuation paragraphs (see R1).",
+    "test_spec_addon_084 covers save-route statuses, transport errors, capture notes, the startup pass filtering, retry on the next start, /health not delayed, and migration idempotence and preservation.",
+    "The e2e-components ask-thread-desktop case measures the I6 layout against the real AskTab."
+  ],
+  "not_verified": [
+    "I did not run any test or build; every behaviour here comes from reading the code.",
+    "I did not confirm with a live parser that markdown-it treats a fence indented 4 spaces under '1. ' as a fence. I reasoned it from CommonMark list-item content-column rules.",
+    "I did not read InternalClient.declare_trust_tier, so I have not confirmed that every non-2xx answer raises InternalAPIError and every transport failure is an httpx.HTTPError subclass.",
+    "I did not check whether the no-history prompt text is byte-identical to the template before this change (I1 against the pre-change state), beyond reading the jinja whitespace control.",
+    "The fix-diff record was truncated at 600000 bytes, so I did not see the later fix commits in full."
+  ],
+  "confidence": 75,
+  "trajectory": "The commits since r1 are mostly develop work merged into the branch: the YouTube frames specs and code (SPEC-ADDON-076..078, SPEC-CORE-058), the reading app (SPEC-CORE-059..063) and YouTube scene tiles (SPEC-ADDON-079..080). For this feature they answered r1's scope findings by giving the YouTube work approved specs on develop, declaring the empty-answer failure and the created-path change as revisions I11 and I12, and renumbering this spec to SPEC-ADDON-081..084. I saw no added branch, state or prediction in the file-Ask-thread design itself. The YouTube storyboard spec, however, was revised three times for tile timing: the sheet duration over the cell count, then 1/fps, then an interval recovered from round(fps*duration). Each round replaced the previous timing rule with a new derived prediction, and min_interval thinning was dropped along the way. That pattern is patching in the YouTube design, not in this change."
+}
