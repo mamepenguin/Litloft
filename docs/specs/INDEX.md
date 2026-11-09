@@ -168,3 +168,6 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-084 | implemented | docs/specs/file-ask-thread.md | sha256:dd40710470e7f0770b3cb8fecf447c14649337918576df45e399a9813aa972c6 |
 | SPEC-CORE-066 | implemented | docs/specs/search-results-layout.md | sha256:4891e47b05a2b3cd5f7f4e90400094d58115bbfa16581441e066f6a1942dd2f7 |
 | SPEC-ADDON-086 | implemented | docs/specs/search-results-layout.md | sha256:4891e47b05a2b3cd5f7f4e90400094d58115bbfa16581441e066f6a1942dd2f7 |
+| SPEC-CORE-069 | draft | docs/specs/home-continue-desk.md | |
+| SPEC-CORE-070 | draft | docs/specs/home-continue-desk.md | |
+| SPEC-CORE-071 | draft | docs/specs/home-continue-desk.md | |
