@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/EmptyState";
 import type { ShelfItem } from "@/lib/api";
 import type { LoadState } from "@/components/appshell/useLoad";
 import { videoShelfHref } from "./shelfLinks";
-import { DISCOVER_SHELF_SIZE, type AddonShelf } from "./useDiscover";
+import type { AddonShelf } from "./useDiscover";
 import { VideoCard } from "./VideoCard";
 
 interface ShelfSource {
@@ -20,8 +20,6 @@ interface DrawnShelf {
   title: string;
   source: ShelfSource;
   href?: string;
-  /** A provider shelf holds a bounded list, so it draws all of it. */
-  capacity?: number;
 }
 
 function viewOf(state: LoadState<ShelfItem[]>): ShelfView<ShelfItem> {
@@ -74,7 +72,6 @@ export function DiscoverFace({
       id: "recommended",
       title: t("recommended"),
       source: recommended,
-      capacity: DISCOVER_SHELF_SIZE,
     });
   }
   for (const shelf of addonShelves) {
@@ -84,7 +81,6 @@ export function DiscoverFace({
         title: shelf.title,
         source: shelf,
         href: shelf.href,
-        capacity: DISCOVER_SHELF_SIZE,
       });
     }
   }
@@ -109,14 +105,13 @@ export function DiscoverFace({
 
   return (
     <div className="space-y-8">
-      {shelves.map(({ id, title, source, href, capacity }) => (
+      {shelves.map(({ id, title, source, href }) => (
         <ShelfBlock
           key={id}
           title={title}
           seeAllHref={href}
           view={viewOf(source.state)}
           onRetry={source.retry}
-          capacity={capacity}
           renderItem={(item) => <VideoCard item={item} />}
         />
       ))}

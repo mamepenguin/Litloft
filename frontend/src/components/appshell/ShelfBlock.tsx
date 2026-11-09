@@ -37,15 +37,12 @@ function capacityOf(columns: number): number {
 export function ShelfGrid<T extends { id: string }>({
   view,
   renderItem,
-  capacity,
 }: {
   view: GridView<T>;
   renderItem: (item: T) => ReactNode;
-  /** Overrides the rows the container can hold; a bounded shelf draws its whole list. */
-  capacity?: number;
 }) {
   const { ref, columns } = useCardColumns();
-  const limit = capacity ?? capacityOf(columns);
+  const capacity = capacityOf(columns);
 
   return (
     <ul
@@ -54,8 +51,8 @@ export function ShelfGrid<T extends { id: string }>({
       style={{ gridTemplateColumns: cardGridTemplate(columns) }}
     >
       {view.status === "loading"
-        ? Array.from({ length: limit }).map((_, i) => <SkeletonCard key={i} />)
-        : view.items.slice(0, limit).map((item) => (
+        ? Array.from({ length: capacity }).map((_, i) => <SkeletonCard key={i} />)
+        : view.items.slice(0, capacity).map((item) => (
             <li key={item.id} className="min-w-0">
               {renderItem(item)}
             </li>
@@ -71,7 +68,6 @@ export function ShelfBlock<T extends { id: string }>({
   view,
   onRetry,
   renderItem,
-  capacity,
 }: {
   title: string;
   /** Already in the viewer's number format. */
@@ -80,8 +76,6 @@ export function ShelfBlock<T extends { id: string }>({
   view: ShelfView<T>;
   onRetry: () => void;
   renderItem: (item: T) => ReactNode;
-  /** Overrides the rows the container can hold; a bounded shelf draws its whole list. */
-  capacity?: number;
 }) {
   const tc = useTranslations("common");
   const t = useTranslations("appShell");
@@ -111,7 +105,7 @@ export function ShelfBlock<T extends { id: string }>({
       {view.status === "failed" ? (
         <RetryButton onRetry={onRetry} />
       ) : (
-        <ShelfGrid view={view} renderItem={renderItem} capacity={capacity} />
+        <ShelfGrid view={view} renderItem={renderItem} />
       )}
     </section>
   );

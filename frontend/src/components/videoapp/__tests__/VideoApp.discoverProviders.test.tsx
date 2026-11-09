@@ -19,6 +19,13 @@ import { ApiStatusError } from "@/lib/api";
 import { AddonSlot } from "@/components/AddonSlot";
 import { VideoApp } from "../VideoApp";
 
+// jsdom lays nothing out, so a shelf would hold the unmeasured minimum of cards.
+// A wide grid lets every shelf draw all it keeps, so the tests see the shelf's list.
+vi.mock("@/lib/cardGrid", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/cardGrid")>()),
+  useCardColumns: () => ({ ref: () => {}, columns: 24 }),
+}));
+
 const DRIVE = "my drive";
 
 const SRC = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
