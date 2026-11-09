@@ -10,146 +10,179 @@ When the storyboard leg of a YouTube `.loft` fails (the `.loft` cannot be read, 
 fails, a sheet cannot be downloaded or decoded, CLIP fails on a tile, or a tile cannot be
 written), the clip worker remembers the file id in memory and every later attempt in that
 process ends False at once, with no call to YouTube, until the addon restarts. That stops
-the resume machinery from calling YouTube in a loop, but it also swallows the owner's own
-**Index details** → Regenerate of Image analysis (CLIP) and the Failed Jobs **Retry**:
-both send `POST /files/{file_id}/reindex` with `clip`, and the job they queue returns at
-once. After this change an explicit reindex request that names `clip` forgets that file's
-recorded failure, so the next storyboard leg of that file calls YouTube once more. The
-automatic paths keep the guard. This is for the owner who sees a YouTube reference without
-scenes and presses Regenerate or Retry.
+the resume machinery from calling YouTube in a loop, but it also swallows the owner's
+**Index details** → Regenerate of Image analysis (CLIP): it sends
+`POST /files/{file_id}/reindex` with `clip`, and the job it queues returns at once. After
+this change a reindex request that names `clip` and is answered 202 leaves a pending retry
+for that file, and the next storyboard leg of that file consumes it and calls YouTube once
+more, even if a leg was already running when the request arrived. Automatic attempts
+without a pending retry keep the guard. This is for the owner who sees a YouTube
+reference without scenes and presses Regenerate.
 
 ## Required items
 
 ### 1. Normal flow
 
-1. The owner presses Regenerate on Image analysis (CLIP) in Index details, or Retry on the
-   file in Failed Jobs. The frontend sends `POST /files/{file_id}/reindex` with `tasks`
-   containing `clip` (unchanged).
-2. The route validates the payload and looks the file up exactly as today (422 for a bad
-   payload, 404 for an unknown, inactive or other-drive file). Nothing below runs on
-   those answers.
-3. When `tasks` contains `clip`, the route removes `file_id` from the clip worker's
-   in-memory record of failed storyboard attempts. This happens before the
-   already-queued check, so it also happens when the answer is 202 `already_queued`.
+1. The owner presses Regenerate on Image analysis (CLIP) in Index details. The frontend
+   sends `POST /files/{file_id}/reindex` with `tasks` containing `clip` (unchanged).
+2. The route runs every check it runs today, in the same order: payload (422), file
+   lookup (404), the `ocr` / `frame_ocr` / `page_ocr` checks (422), `overwrite_corrections`
+   (422), corrections (409 `corrected`, 409 `busy`).
+3. Once all of those have passed, and only when `tasks` contains `clip`, the route records
+   a pending storyboard retry for `file_id` in the clip worker's memory. This is
+   immediately before the already-queued split, so it happens for both 202 answers,
+   `accepted` and `already_queued`.
 4. The route continues as today: for `clip` not already queued it sets `clip_indexed`
    false and enqueues the `clip` task.
-5. The next `clip` job of that file (the one just queued, or one already in the queue)
-   runs the storyboard leg in full: lookup, sheets, CLIP, tiles, rows and swap, as
-   SPEC-ADDON-078 and SPEC-ADDON-079 describe.
-6. If that leg fails again, the file id is recorded again and later automatic attempts in
-   this process end at once, as today.
+5. When a storyboard leg of that file starts and a retry is pending, it removes the
+   pending retry and the file's recorded failure, and runs in full: lookup, sheets, CLIP,
+   tiles, rows and swap, as SPEC-ADDON-078 and SPEC-ADDON-079 describe. Whichever leg of
+   the file starts next consumes it: the job the route queued, one already in the queue,
+   or the resume job that follows a running leg.
+6. If that leg fails, the file id is recorded as failed again, and later legs without a
+   pending retry end at once, as today.
+
+A leg that was already running when the request arrived does not consume the pending
+retry (it started before the request). If it fails, the retry stays pending and the next
+leg of the file runs in full.
 
 ### 2. Failure cases
 
-| Step | What goes wrong | What the system does |
-|---|---|---|
-| 2 | Bad payload, unknown task, empty tasks, unknown / inactive / other-drive file | Unchanged answer (422 / 404); the failure record is not touched |
-| 2 | `tasks` does not contain `clip` | The failure record is not touched |
-| 3 | The file id is not in the record (never failed, or a native video) | Nothing happens; removing an absent id is not an error |
-| 5 | The storyboard leg fails again | As today: nothing written, rows and tiles as they were, `clip_indexed` false, the job returns False, the id is recorded again |
-| 5 | The process restarts before the job runs | The record is empty after a restart anyway; the job runs normally when resumed |
+| Step | What goes wrong | What the system does | What the owner sees |
+|---|---|---|---|
+| 2 | Bad payload, unknown task, empty tasks, an OCR task the file cannot take, a bad `overwrite_corrections` | Unchanged 422; no pending retry | The existing error, unchanged |
+| 2 | Unknown, inactive or other-drive file | Unchanged 404; no pending retry | Unchanged |
+| 2 | Corrected file without confirmation, or busy | Unchanged 409; no pending retry | Unchanged confirmation or busy message |
+| 2 | `tasks` does not contain `clip` | No pending retry | Unchanged |
+| 3 | The file never failed, or is a native video | The pending retry is recorded and consumed by the next leg with no other effect (a native video has no storyboard leg, so it stays pending until the process restarts) | Nothing different |
+| 4 | The file is soft-deleted between the lookup and the flag write (the route's existing 404 there) | The pending retry stays; an inactive file runs no leg | Unchanged 404 |
+| 5 | The retried leg fails again | As today: nothing written, rows and tiles as they were, `clip_indexed` false, the job returns False, the id is recorded as failed again | Image analysis (CLIP) stays `pending` in Index details and the scenes do not appear, the same as before pressing Regenerate; no message |
+| 5 | The process restarts before a leg runs | Both records are empty after a restart; the resumed job runs normally | Nothing different |
 
 ### 3. States
 
-The in-memory record of failed storyboard attempts holds a file id from a failure of that
-file's storyboard leg until the process restarts **or an explicit reindex request naming
-`clip` for that file is accepted past the file lookup**, whichever comes first. A later
-failure adds it again. No other state changes; `clip_indexed`, the rows and the tiles move
+Two in-memory records in the clip worker, both empty at process start:
+
+- **Failed**: holds a file id from a failure of that file's storyboard leg until the
+  process restarts or a leg of that file consumes a pending retry.
+- **Pending retry**: holds a file id from a 202 answer of the reindex route to a request
+  naming `clip` until a leg of that file starts, or the process restarts.
+
+A leg that starts with the id in Failed and not in Pending retry ends False at once with
+no YouTube call. Any other leg runs in full. `clip_indexed`, the rows and the tiles move
 exactly as before.
 
 ### 4. Data read and written
 
 | Store | Access |
 |---|---|
-| In-memory failed-storyboard record (`app/workers/clip.py`) | Written: one id removed by the reindex route |
+| In-memory Failed record (`app/workers/clip.py`) | Read at the start of each leg; one id removed when a pending retry is consumed; one id added on failure (unchanged) |
+| In-memory Pending retry record (`app/workers/clip.py`) | New. One id added by the reindex route; removed by the leg that consumes it |
 | `indexed_files.clip_indexed`, the index queue | Unchanged behaviour of the reindex route |
 | Search DB rows, frame cache, tiles | Not touched by this change |
 
 ### 5. External services
 
-None added. The change lets one more storyboard leg call YouTube (`yt-dlp` lookup and
-`i.ytimg.com` sheets) per explicit request, with the existing time limits of
-SPEC-ADDON-078. An automatic path never removes the record, so repeated failures still do
-not loop against YouTube.
+None added. Each 202 answer permits at most one more storyboard leg for that file to call
+YouTube (`yt-dlp` lookup and `i.ytimg.com` sheets), within the existing time limits of
+SPEC-ADDON-078. No automatic path adds a pending retry, so repeated failures still do not
+loop against YouTube.
 
 ### 6. Authorization
 
 Unchanged. The reindex route takes the drive from `X-Lit-Drive` (`require_drive`) and
-answers 404 for a file outside it; the record is touched only after that lookup succeeds,
-so a request for another drive's file cannot clear its record.
+answers 404 for a file outside it; the pending retry is recorded only after every check
+has passed, so a request for another drive's file cannot record one.
 
 ### 7. Effect on existing features
 
-- Every caller of `POST /files/{file_id}/reindex` with `clip`: Index details Regenerate,
-  the Failed Jobs Retry, and any other client of the route. All of them are explicit
-  owner actions.
-- Startup recovery, reconciliation, `_resume_incomplete`, the vector-dimension migration,
-  the policy purge and the `.loft` reset do not go through this route and keep the guard.
-- The admin `resolve` endpoint (sets `clip_indexed` true) is unchanged and does not touch
-  the record.
-- Native videos: the record never holds their ids; removal is a no-op.
+- Callers of `POST /files/{file_id}/reindex` with `clip`: Index details Regenerate and any
+  other client of the route. All are explicit owner actions. Failed Jobs does not list
+  storyboard failures (it reads `JobRecord` rows, which the clip worker does not write),
+  so its Retry is not a path to this behaviour; that listing is unchanged.
+- Startup recovery, reconciliation, `_resume_incomplete`, `reset_falsely_completed_clip`,
+  the vector-dimension migration, the policy purge and the `.loft` reset do not go through
+  this route and never add a pending retry. A job they queue does consume one that the
+  route recorded.
+- The admin `resolve` endpoint (sets `clip_indexed` true) is unchanged and touches neither
+  record.
+- Native videos: they have no storyboard leg; a pending retry recorded for one has no
+  effect.
 
 ### 8. Error behavior
 
 No new response or message. The route's answers are unchanged. A failed retry logs the
-existing `youtube storyboard failed: file=<id> class=<class> ...` warning, now once per
-explicit request rather than never after the first failure.
+existing `youtube storyboard failed: file=<id> class=<class> ...` warning, once per leg
+that runs.
 
 ### 9. User-visible behavior
 
-Regenerate on Image analysis (CLIP), or Retry in Failed Jobs, for a YouTube reference
-whose storyboard failed earlier in this process now tries YouTube again: on success the
-reference gains its scenes, its CLIP frames panel and its Scene candidates pictures
-without a restart. Before, the job ended at once and nothing changed until the addon
-restarted. Text, layout and responses are unchanged. `docs/addons/intelligence.md` gets
-one sentence on the rule.
+Regenerate on Image analysis (CLIP) for a YouTube reference whose storyboard failed
+earlier in this process now tries YouTube again: on success the reference gains its
+scenes, its CLIP frames panel and its Scene candidates pictures without a restart. A retry
+that fails looks the same as before the press (Image analysis (CLIP) stays `pending`, no
+message); telling a failed retry from one not yet run is not in scope. Text, layout and
+responses are unchanged. `docs/addons/intelligence.md` gets one sentence on the rule.
 
 ### 10. Non-functional
 
-Each explicit request permits at most one more storyboard leg for that file, bounded by
-the existing lookup and sheet time limits. No new memory: the record only shrinks here.
-The record is touched from the event loop while the worker reads it from its thread; a
-set membership test and a discard of one id are each atomic under the GIL, and the worst
-interleaving (the discard lands while a leg is checking) only decides whether that one
-leg runs or ends at once.
+Each 202 answer permits at most one more storyboard leg for that file, bounded by the
+existing lookup and sheet time limits. The Pending retry record holds at most one entry
+per file. Both records live in the addon process; the route touches them from the event
+loop while legs run on worker threads. Each access is a single set membership test, add
+or discard of one id, which is atomic under the GIL. The leg reads and consumes at its
+start in one step, so a request that arrives after that point leaves its retry pending for
+the next leg rather than losing it.
 
 ## Touch points
 
-- `addons/intelligence/app/workers/clip.py`: the failed-storyboard record; a small
-  function that forgets one file id.
-- `addons/intelligence/app/routers/files.py`: `reindex_file` calls it when `tasks`
-  contains `clip`, after the file lookup and before the already-queued split.
+- `addons/intelligence/app/workers/clip.py`: the Failed record, the new Pending retry
+  record, a function the route calls to record a retry, and the check at the start of
+  `_index_youtube_storyboard`.
+- `addons/intelligence/app/routers/files.py`: `reindex_file` records a pending retry when
+  `tasks` contains `clip`, after every existing check and immediately before the
+  already-queued split.
 - `addons/intelligence/tests/`: acceptance tests for SPEC-ADDON-085.
-- `docs/addons/intelligence.md` (core repo): one sentence in the YouTube references
-  paragraph.
+- Core repo: `docs/addons/intelligence.md` (one sentence in the YouTube references
+  paragraph), `docs/specs/INDEX.md` (the SPEC-ADDON-085 row), and the `addons/intelligence`
+  gitlink, moved to the addon commit that carries the change after the addon PR merges
+  (the order of CLAUDE.md: addon first, then the core pointer).
 - No protected path is edited. No endpoint, event, table, manifest entry or frontend file
   changes.
 
 ## Invariants
 
-I1. After a storyboard failure of a YouTube `.loft`, an accepted `POST /files/{file_id}/reindex` naming `clip` makes the next `clip` job of that file call the YouTube lookup again, both when the route answers `accepted` and when it answers `already_queued`.
-I2. After a storyboard failure, a `clip` job queued by any path other than that route (resume, reconciliation, startup recovery) still ends False without calling the YouTube lookup, until the process restarts or the route is called for that file.
-I3. A reindex request that does not name `clip`, or that ends in 422 or 404 (including a file on another drive), leaves the failed-storyboard record as it was.
-I4. A retried storyboard leg that fails again records the file again, so the following automatic attempt in that process makes no YouTube call.
-I5. A retried leg that succeeds ends with the rows, tiles and `clip_indexed` true exactly as a first successful leg does (SPEC-ADDON-078 I8, SPEC-ADDON-079 I2).
-I6. The route's responses (status codes and bodies) for every request are unchanged.
+I1. After a storyboard failure of a YouTube `.loft`, a reindex request naming `clip` that the route answers 202 (`accepted` or `already_queued`) makes the next storyboard leg of that file call the YouTube lookup.
+I2. A reindex request naming `clip` that arrives while a storyboard leg of that file is running, and that leg then fails, still makes the following leg of that file call the YouTube lookup.
+I3. After a storyboard failure, a leg of that file with no pending retry (queued by resume, reconciliation, startup recovery or a direct enqueue) ends False without calling the YouTube lookup, until the process restarts.
+I4. A reindex request that does not name `clip`, or that the route answers 422, 404 or 409 before the already-queued split (including a file on another drive and a `["clip","ocr"]` request refused for the OCR task), records no pending retry.
+I5. One 202 answer permits exactly one full leg: after the retried leg fails, the next leg without a new request makes no YouTube call.
+I6. A retried leg that succeeds ends with the rows, tiles and `clip_indexed` true exactly as a first successful leg does (SPEC-ADDON-078 I8, SPEC-ADDON-079 I2).
+I7. The route's responses (status codes and bodies) are unchanged for every request.
 
 ## Revises
 
-SPEC-ADDON-078 I8. After the `clip` task of a `.loft`, `clip_indexed` is true exactly when the thumbnail leg is done and the storyboard leg wrote rows, found no `sb0` or no known duration, or found the `.loft` not YouTube; on a transient failure it is false, the existing `clip` rows are as they were, and the same file is not attempted again in that process unless an explicit `POST /files/{file_id}/reindex` naming `clip` is accepted for it; a repeat run never leaves two sets of rows or a second `clip_thumbnail` row.
+SPEC-ADDON-078 I8. After the `clip` task of a `.loft`, `clip_indexed` is true exactly when the thumbnail leg is done and the storyboard leg wrote rows, found no `sb0` or no known duration, or found the `.loft` not YouTube; on a transient failure it is false, the existing `clip` rows are as they were, and the same file is not attempted again in that process unless the reindex route has since answered 202 to a request naming `clip` for it; a repeat run never leaves two sets of rows or a second `clip_thumbnail` row.
 
 ## Checked, no action
 
-- **Forgetting on every automatic reset too.** The record exists to stop the resume
-  machinery from calling YouTube in a loop; clearing it on automatic paths would bring the
-  loop back.
-- **Clearing the whole record on any reindex.** Only the named file is the owner's
+- **Forgetting on every automatic reset too.** The Failed record exists to stop the resume
+  machinery from calling YouTube in a loop; letting automatic paths clear it would bring
+  the loop back.
+- **Clearing the whole Failed record on any reindex.** Only the named file is the owner's
   intent; clearing others would let their resume jobs call YouTube.
-- **Showing "failed until restart" in the UI.** After this change Regenerate does what it
-  says, so no new text is needed. Whether a storyboard failure is listed in Failed Jobs is
-  not changed here.
-- **A time-based expiry of the record.** Not asked for; the explicit action covers the
-  case the owner sees, and an expiry would reintroduce periodic YouTube calls for a video
-  that is gone.
+- **Simply removing the id from Failed in the route.** A leg already running when the
+  request arrives would add the id back on failure and the owner's request would be lost
+  (the queued job is dropped while the file is processing, and the next one ends at
+  once). The Pending retry record survives that.
+- **Showing that a retry ran and failed.** Index details shows `pending` either way; a
+  new status or message is a separate change.
+- **Listing storyboard failures in Failed Jobs.** That needs the clip worker to write
+  `JobRecord` rows, a separate behaviour.
+- **A time-based expiry of the Failed record.** Not asked for; the explicit action covers
+  the case the owner sees, and an expiry would bring back periodic YouTube calls for a
+  video that is gone.
 - **The admin `resolve` endpoint.** It marks the file done without a retry; it has no
-  reason to touch the record.
+  reason to touch either record.
+- **A pending retry left for a native video or an inactive file.** It is one id in memory
+  until restart and has no effect.
