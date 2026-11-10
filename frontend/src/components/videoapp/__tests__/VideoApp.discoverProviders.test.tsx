@@ -160,12 +160,12 @@ function restrictAnswer(p: Params) {
 
 function defaultShelves(_d: string, p: Params) {
   if (p.ids !== undefined) return restrictAnswer(p);
-  if (p.by === "watch" && p.key === "in_progress") {
+  if (p.by === "watch" && p.key === "continue") {
     return {
       by: "watch",
       total_shelves: 1,
       base: "",
-      shelves: [{ key: "in_progress", label: "", count: 1, items: [item("c1", "Resume me")] }],
+      shelves: [{ key: "continue", label: "", count: 1, items: [item("c1", "Resume me")] }],
     };
   }
   return { by: p.by, total_shelves: 0, base: "", shelves: [] };
@@ -606,8 +606,8 @@ describe("SPEC-CORE-068 addon shelves from video-discover-shelves", () => {
     media["shelf-a"] = shelfA;
     declare({ shelves: [SHELF_A] });
     getShelves.mockImplementation(async (d: string, p: Params) =>
-      p.key === "in_progress"
-        ? { by: "watch", total_shelves: 1, base: "", shelves: [{ key: "in_progress", label: "", count: 0, items: [] }] }
+      p.key === "continue"
+        ? { by: "watch", total_shelves: 1, base: "", shelves: [{ key: "continue", label: "", count: 0, items: [] }] }
         : defaultShelves(d, p),
     );
     getDriveFiles.mockImplementation(async () => ({ data: [], meta: { total: 0, page: 1, limit: 12 } }));
