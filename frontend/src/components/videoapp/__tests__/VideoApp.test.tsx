@@ -84,13 +84,13 @@ function smartFolder(id: string, name: string, query: string, extra: Record<stri
 type Params = Record<string, unknown>;
 
 function defaultShelves(_drive: string, params: Params) {
-  if (params.by === "watch" && params.key === "in_progress") {
+  if (params.by === "watch" && params.key === "continue") {
     return {
       by: "watch",
       total_shelves: 1,
       shelves: [
         {
-          key: "in_progress",
+          key: "continue",
           label: "",
           count: 1,
           items: [item("c1", "Resume me", { watch_progress: { position: 30, duration: 120 } })],
@@ -219,7 +219,7 @@ describe("SPEC-CORE-057 I8 Discover", () => {
     renderApp();
     await screen.findByText("Resume me");
 
-    const continueCall = shelfCalls({ by: "watch", key: "in_progress" })[0][1] as Params;
+    const continueCall = shelfCalls({ by: "watch", key: "continue" })[0][1] as Params;
     expect(continueCall).toMatchObject({ sort: "last_played", per_shelf: 12, type: ["video"] });
     const recommended = shelfCalls({ by: "watch", key: "unwatched" })[0][1] as Params;
     expect(recommended).toMatchObject({ sort: "random", per_shelf: 12, type: ["video"] });
@@ -240,8 +240,8 @@ describe("SPEC-CORE-057 I8 Discover", () => {
 
   it("SPEC-CORE-057 does not draw a shelf with no videos", async () => {
     getShelves.mockImplementation(async (d, p: Params) =>
-      p.key === "in_progress"
-        ? { by: "watch", total_shelves: 1, shelves: [{ key: "in_progress", label: "", count: 0, items: [] }] }
+      p.key === "continue"
+        ? { by: "watch", total_shelves: 1, shelves: [{ key: "continue", label: "", count: 0, items: [] }] }
         : defaultShelves(d, p),
     );
     renderApp();

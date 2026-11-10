@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { History, FilePlus, Home, Star, ThumbsUp } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { FileItem, PaginatedResponse, WatchHistoryItem } from "@/types";
-import { getDriveFiles, getWatchHistory } from "@/lib/api";
+import { dismissContinueItem, getDriveFiles, getWatchHistory } from "@/lib/api";
 import { UploadZone } from "@/components/UploadZone";
 import { useUploadCompleted } from "@/hooks/useUpload";
 import { useTreeRefresh } from "@/components/TreeRefreshContext";
@@ -149,7 +149,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
       // distinguishable from an empty history.
       hasProfile
         ? Promise.allSettled([
-            getWatchHistory(driveName, SECTION_LIMIT),
+            getWatchHistory(driveName, SECTION_LIMIT, "continue"),
             getWatchHistory(driveName, SECTION_LIMIT, "all"),
           ])
         : null,
@@ -204,6 +204,11 @@ export function DriveHome({ driveName }: DriveHomeProps) {
     setRecentlyPlayed((prev) => prev.filter((item) => item.id !== fileId));
   }, []);
 
+  const handleDismissWatchItem = useCallback(async (fileId: string) => {
+    await dismissContinueItem(fileId);
+    setContinueWatching((prev) => prev.filter((item) => item.id !== fileId));
+  }, []);
+
   const driveBase = `/drive/${encodeURIComponent(driveName)}`;
 
   const rowsEmpty =
@@ -255,10 +260,11 @@ export function DriveHome({ driveName }: DriveHomeProps) {
         <ContinueWatchingSection
           items={continueWatching}
           loading={continueWatchingLoading}
-          // Recently Viewed is this history without the 90% gate, so it
+          // Recently Viewed is this history without the desk's gates, so it
           // is a superset of this row.
-          seeAllHref={`${driveBase}?view=recent`}
+          seeAllHref={`${driveBase}?view=continue`}
           onRemoveItem={handleRemoveWatchItem}
+          onDismissItem={handleDismissWatchItem}
         />
       )}
 

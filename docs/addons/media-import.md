@@ -74,7 +74,7 @@ The provider is `youtube`, `vimeo` or `soundcloud` when the URL matches one of t
 | Vimeo | Embedded Vimeo player. |
 | SoundCloud and others | A link card that opens the original page. |
 
-Your position in a YouTube video is saved like a local video's, so it appears under **Continue Watching** on Home. The Vimeo player does not report its position.
+Your position in a YouTube video is saved like a local video's, so it appears under **Continue** on Home. The Vimeo player does not report its position.
 
 If the owner has disabled embedding, the page says **Embedded playback is disabled for this video** and offers **Watch on YouTube**.
 
@@ -117,7 +117,7 @@ Each subscription has a **Show in Watch** setting, chosen when you add it and ch
 
 A video that two subscriptions share appears once. A card shows how far you have watched, and **Watched** when you have finished. It offers **Add to collection** and **Open the source page**.
 
-The page opens on Watch when any subscription on the drive is set to something other than **Library only**, and on Manage otherwise. Videos you are part-way through are listed on Home under **Continue Watching**, not here.
+The page opens on Watch when any subscription on the drive is set to something other than **Library only**, and on Manage otherwise. Videos you are part-way through are listed on Home under **Continue**, not here.
 
 ## Subscriptions
 

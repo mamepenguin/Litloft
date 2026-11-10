@@ -129,7 +129,7 @@ describe("the drive's fixed sidebar rows", () => {
   it("renders more than nothing, so the table above is not vacuous", () => {
     render(<Sidebar />);
     expect(driveRows().length).toBe(FIXED_SIDEBAR_ROWS.length);
-    expect(FIXED_SIDEBAR_ROWS.length).toBe(12);
+    expect(FIXED_SIDEBAR_ROWS.length).toBe(13);
   });
 });
 

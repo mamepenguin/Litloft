@@ -167,17 +167,17 @@ describe("DriveHome", () => {
     });
   });
 
-  it("does not show Continue Watching when no profile", async () => {
+  it("does not show Continue when no profile", async () => {
     mockProfile.nickname = null;
     render(<DriveHome driveName="media" />);
 
     await waitFor(() => {
-      expect(screen.queryByText("Continue Watching")).toBeNull();
+      expect(screen.queryByText("Continue")).toBeNull();
     });
     expect(mockGetWatchHistory).not.toHaveBeenCalled();
   });
 
-  it("shows Continue Watching when profile is set and items exist", async () => {
+  it("shows Continue when profile is set and items exist", async () => {
     mockProfile.nickname = "Alice";
     mockGetWatchHistory.mockResolvedValue([
       makeWatchHistoryItem("v1"),
@@ -187,13 +187,13 @@ describe("DriveHome", () => {
     render(<DriveHome driveName="media" />);
 
     await waitFor(() => {
-      expect(screen.getByText("Continue Watching")).toBeInTheDocument();
+      expect(screen.getByText("Continue")).toBeInTheDocument();
     });
-    expect(mockGetWatchHistory).toHaveBeenCalledWith("media", 12);
+    expect(mockGetWatchHistory).toHaveBeenCalledWith("media", 12, "continue");
     expect(mockGetWatchHistory).toHaveBeenCalledWith("media", 12, "all");
   });
 
-  it("does not show Continue Watching when profile is set but no items", async () => {
+  it("does not show Continue when profile is set but no items", async () => {
     mockProfile.nickname = "Alice";
     mockGetWatchHistory.mockResolvedValue([]);
 
@@ -205,9 +205,9 @@ describe("DriveHome", () => {
     // the fetch to settle. Asserted only after it has been seen once:
     // without that, a section that never mounted at all would satisfy
     // the wait on its first tick.
-    expect(screen.getByText("Continue Watching")).toBeInTheDocument();
+    expect(screen.getByText("Continue")).toBeInTheDocument();
     await waitFor(() => {
-      expect(screen.queryByText("Continue Watching")).toBeNull();
+      expect(screen.queryByText("Continue")).toBeNull();
     });
   });
 
@@ -374,9 +374,8 @@ describe("the drive home's content rows", () => {
   it("gives both watch-history rows somewhere to send the reader", async () => {
     // The rows draw only what fits, so a row without a destination
     // discards the rest of the history with nothing saying so. Continue
-    // watching has no view of its own; Recently Viewed is the same
-    // history without the 90% gate, so it is a superset and an honest
-    // target for both.
+    // opens the desk view; Recently Viewed is the same history without
+    // the desk's gates, so it keeps the whole-history view.
     mockProfile.nickname = "Alice";
     mockGetDriveFiles.mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 12 } });
     mockGetWatchHistory.mockResolvedValue([
@@ -385,11 +384,14 @@ describe("the drive home's content rows", () => {
     ]);
     render(<DriveHome driveName="media" />);
 
-    await screen.findByText("Continue Watching");
-    const rows = ["Continue Watching", "Recently Viewed"];
-    for (const heading of rows) {
+    await screen.findByText("Continue");
+    const rows = [
+      ["Continue", "view=continue"],
+      ["Recently Viewed", "view=recent"],
+    ];
+    for (const [heading, view] of rows) {
       const section = screen.getByText(heading).closest("section")!;
-      const seeAll = section.querySelector("a[href*='view=recent']");
+      const seeAll = section.querySelector(`a[href*='${view}']`);
       expect(seeAll, `${heading} has no See all`).not.toBeNull();
     }
   });
@@ -485,7 +487,7 @@ describe("the drive home's acceptance criteria", () => {
       expect(sectionNames()).toEqual([messages.empty.noHomeActivityTitle]),
     );
 
-    expect(sectionNames()).not.toContain("Continue Watching");
+    expect(sectionNames()).not.toContain("Continue");
     expect(sectionNames()).not.toContain("Recently Viewed");
 
     expect(mockGetWatchHistory).not.toHaveBeenCalled();
@@ -519,13 +521,13 @@ describe("the drive home's acceptance criteria", () => {
     mockProfile.nickname = "Alice";
     mockGetWatchHistory.mockResolvedValue([makeWatchHistoryItem("v1")]);
     const { rerender } = render(<DriveHome driveName="media" />);
-    await waitFor(() => expect(sectionNames()).toContain("Continue Watching"));
+    await waitFor(() => expect(sectionNames()).toContain("Continue"));
 
     mockProfile.nickname = null;
     rerender(<DriveHome driveName="media" />);
 
     await waitFor(() => {
-      expect(sectionNames()).not.toContain("Continue Watching");
+      expect(sectionNames()).not.toContain("Continue");
       expect(sectionNames()).not.toContain("Recently Viewed");
     });
   });
@@ -554,7 +556,7 @@ describe("the drive home's acceptance criteria", () => {
     await screen.findByRole("button", { name: "Add" });
 
     await waitFor(() => {
-      expect(sectionNames()).toContain("Continue Watching");
+      expect(sectionNames()).toContain("Continue");
       expect(sectionNames()).toContain("Recently Viewed");
     });
   });

@@ -197,6 +197,7 @@ describe("DriveLayout", () => {
     ["liked"],
     ["all"],
     ["recent"],
+    ["continue"],
   ])("does NOT wrap on the %s cross-folder view", (view) => {
     treeEnabledStore.set("work", true);
     mockSearchParams = new URLSearchParams(`view=${view}`);

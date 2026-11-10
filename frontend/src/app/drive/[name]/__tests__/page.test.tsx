@@ -62,6 +62,7 @@ vi.mock("@/components/inbox", () => ({
 const ROUTES: { view: string; component: string; folderPath: string | undefined }[] = [
   { view: "favorites", component: "FolderBrowser", folderPath: undefined },
   { view: "liked", component: "FolderBrowser", folderPath: undefined },
+  { view: "continue", component: "FolderBrowser", folderPath: undefined },
   { view: "recent", component: "FolderBrowser", folderPath: undefined },
   { view: "recent-added", component: "FolderBrowser", folderPath: undefined },
   { view: "all", component: "FolderBrowser", folderPath: undefined },
@@ -92,7 +93,7 @@ describe("the drive route", () => {
       ROUTES.filter((r) => r.component !== "FolderBrowser").map((r) => r.view),
     );
     expect(branched).toEqual(named);
-    expect(ROUTES).toHaveLength(9);
+    expect(ROUTES).toHaveLength(10);
   });
 
   it.each(ROUTES)("opens $component at ?view=$view", ({ view, component }) => {

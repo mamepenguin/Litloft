@@ -98,6 +98,7 @@ interface UseFolderFilesReturn {
   setPaginatedTotal: Dispatch<SetStateAction<number>>;
   setFolders: Dispatch<SetStateAction<Folder[]>>;
   isRecent: boolean;
+  isContinue: boolean;
   hasProfile: boolean;
   snapshotKey: string;
   hydratedScrollY: number | null;
@@ -154,10 +155,13 @@ export function useFolderFiles({
   const rangeImpossible = useMemo(() => hasImpossibleRange(parsed), [parsed]);
   const isFavorites = view === "favorites";
   const isRecent = view === "recent" && !isSearch;
+  const isContinue = view === "continue" && !isSearch;
+  const isWatchHistory = isRecent || isContinue;
   const isRecentAdded = view === "recent-added";
   const isLiked = view === "liked";
   const isAll = view === "all";
-  const isSpecialView = isFavorites || isRecent || isRecentAdded || isLiked || isAll;
+  const isSpecialView =
+    isFavorites || isWatchHistory || isRecentAdded || isLiked || isAll;
 
   const snapshotKey = useMemo(
     () => buildListSnapshotKey({ driveName, folderPath, view, tagFilter }),
@@ -198,7 +202,7 @@ export function useFolderFiles({
     // stale (non-matching) items.
     if (
       snap &&
-      !isRecent &&
+      !isWatchHistory &&
       !isSearch &&
       snap.key === snapshotKey &&
       filtersMatchSnapshot(snap, typeFilter, sort, order)
@@ -218,7 +222,8 @@ export function useFolderFiles({
   });
 
   const [folders, setFolders] = useState<Folder[]>(() => hydration.folders ?? []);
-  const shouldRevalidateHydratedSnapshot = hydration.initial != null && !isSearch && !isRecent;
+  const shouldRevalidateHydratedSnapshot =
+    hydration.initial != null && !isSearch && !isWatchHistory;
 
   const fetchPage = useCallback(
     async (page: number, limit: number) => {
@@ -288,7 +293,7 @@ export function useFolderFiles({
   } = useInfiniteScroll<FileItem>({
     fetchPage,
     limit: 30,
-    disabled: isRecent,
+    disabled: isWatchHistory,
     initial: hydration.initial,
     revalidateInitial: shouldRevalidateHydratedSnapshot,
   });
@@ -512,7 +517,7 @@ export function useFolderFiles({
     // The kind goes to the server: `file_type` is a column that never
     // holds `markdown` or `pdf`. Trust has no server parameter on this
     // endpoint.
-    getWatchHistory(driveName, 50, "all", typeFilter).then((items) => {
+    getWatchHistory(driveName, 50, isContinue ? "continue" : "all", typeFilter).then((items) => {
       const filtered = items.filter((f) => matchesTrustFilter(f, trustFilter));
       setRecentFiles(filtered as FileItem[]);
     }).catch(() => {
@@ -520,11 +525,11 @@ export function useFolderFiles({
     }).finally(() => {
       setRecentLoading(false);
     });
-  }, [driveName, typeFilter, trustFilter, hasProfile]);
+  }, [driveName, typeFilter, trustFilter, hasProfile, isContinue]);
 
   useEffect(() => {
-    if (isRecent) fetchRecentFiles();
-  }, [isRecent, fetchRecentFiles]);
+    if (isWatchHistory) fetchRecentFiles();
+  }, [isWatchHistory, fetchRecentFiles]);
 
   const mergedSearch = useMemo(() => {
     if (!isSearch) return null;
@@ -588,24 +593,24 @@ export function useFolderFiles({
     return () => observer.disconnect();
   }, [continuationState, revealMore, scrollContainer, revealedContinuation]);
 
-  const files: FileItemWithMatch[] = isRecent
+  const files: FileItemWithMatch[] = isWatchHistory
     ? (recentFiles as FileItemWithMatch[])
     : mergedSearch
       ? [...mergedSearch.files, ...drawnContinuation]
       : (paginatedFiles as FileItemWithMatch[]);
-  const total = isRecent
+  const total = isWatchHistory
     ? recentFiles.length
     : mergedSearch
       ? mergedSearch.total
       : paginatedTotal;
   // A filtered query's meaning stage is an enhancement over the listing: the
   // listing rows stay visible while the addon ranks within the filter.
-  const loading = isRecent
+  const loading = isWatchHistory
     ? recentLoading
     : isSearch
       ? paginatedLoading || (semanticLoading && !parsed.hasOperators)
       : paginatedLoading;
-  const setFiles = isRecent ? setRecentFiles : setPaginatedFiles;
+  const setFiles = isWatchHistory ? setRecentFiles : setPaginatedFiles;
 
   const hydratedFoldersRef = useRef(hydration.folders != null);
   useEffect(() => {
@@ -652,7 +657,7 @@ export function useFolderFiles({
     if (!isSearch && !isSpecialView && !tagFilter) {
       getFolders(driveName, folderPath).then(setFolders).catch(() => setFolders([]));
     }
-    if (isRecent) {
+    if (isWatchHistory) {
       fetchRecentFiles();
     } else {
       reset();
@@ -674,7 +679,7 @@ export function useFolderFiles({
 
   return {
     files, folders, total, loading, loadingMore, hasMore, pagesLoaded, sentinelRef,
-    reset, setFiles, setPaginatedTotal, setFolders, isRecent, hasProfile,
+    reset, setFiles, setPaginatedTotal, setFolders, isRecent, isContinue, hasProfile,
     snapshotKey,
     hydratedScrollY: hydration.scrollY,
     continuationState,

@@ -23,6 +23,7 @@ from app.models import (
     Tag,
     WatchHistory,
     active_file_filter,
+    continue_desk_filter,
     file_tags,
 )
 from app.routers.progress import get_viewer_id
@@ -1628,7 +1629,7 @@ def get_watch_history(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
     viewer_id: Annotated[str | None, Depends(get_viewer_id)],
     limit: int = Query(20, ge=1, le=50),
-    filter: str = Query("unfinished", pattern=r"^(unfinished|all)$"),
+    filter: str = Query("unfinished", pattern=r"^(unfinished|all|continue)$"),
     type: FileKindParam | None = None,
 ):
     _validate_drive(drive_name, unlocked_groups)
@@ -1646,7 +1647,9 @@ def get_watch_history(
         )
     )
 
-    if filter == "unfinished":
+    if filter == "continue":
+        query = query.filter(continue_desk_filter())
+    elif filter == "unfinished":
         query = query.filter(
             WatchHistory.playback_position < WatchHistory.duration * 0.9,
         )

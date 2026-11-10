@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "V-1",
+      "origin": "verifier",
+      "claim": "The touch points say page.test.tsx gains the `continue` view, but its ROUTES table was not extended, so no route-level test checks that ?view=continue reaches FolderBrowser with no folder path and view 'continue'.",
+      "impact": "Coverage gap only. If page.tsx later started branching on `continue`, or stopped passing it through, the route test would not notice the new view. The behaviour itself is not shown to be wrong.",
+      "evidence": "frontend/src/app/drive/[name]/__tests__/page.test.tsx:62-72 lists favorites, liked, recent, recent-added, all, trash, missing, home and inbox, with no continue; :95 is toHaveLength(9). page.test.tsx is not in r1/classification.json zones_touched, while layout.test.tsx:200 does add [\"continue\"].",
+      "repro": "Read page.test.tsx:62-96: no ROUTES entry has view 'continue'.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "C",
+        "reason": "A test-coverage gap against a touch point. It is not a behaviour defect within the threat model.",
+        "invariant_ref": "I10"
+      },
+      "severity": "LOW"
+    }
+  ],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "docs/user-guide/viewers-and-players.md:189 now reads 'drops out of **Continue**', and r1/classification.json lists the file among zones_touched. The Docs entry in the touch points does not name it."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "All six files are in classification.json zones_touched and carry the stated content: EmptyState.test.tsx:23 toHaveLength(13) and :69 'no-continue'; SidebarActiveRow.test.tsx:132 toBe(13); SidebarAddonNav.test.tsx:121,177; SidebarDriveSwitcher.test.tsx:199; fixedRows.ts:14; pageJump.test.ts:68,93. None is named in the touch points."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "All six new test files exist and are listed in classification.json zones_touched. The touch points do not name any of them."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "SCOPE-1",
+      "status": "confirmed",
+      "note": "Same as TP-1: viewers-and-players.md:189 is edited, and the Docs touch-point list does not include it."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "SCOPE-2",
+      "status": "confirmed",
+      "note": "The listed sidebar and page-jump test edits are present and appear in classification.json. pageJumpParity.test.tsx and page.test.tsx are absent from zones_touched; page.test.tsx:62-72 has no continue route. layout.test.tsx (also named) is changed, at :200."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "SCOPE-3",
+      "status": "confirmed",
+      "note": "EmptyState.test.tsx:23 toHaveLength(13) and :69 'no-continue': 'lucide-play'. The file is in zones_touched and is not named in the touch points."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "SCOPE-4",
+      "status": "confirmed",
+      "note": "Same as TP-3: the six new test files exist, are in zones_touched, and are not named in the touch points."
+    }
+  ],
+  "specification_compliance": [
+    "The scope divergences claimed by TP-1..3 and SCOPE-1..4 are real: these files changed outside the touch-point list.",
+    "Touch-point divergence: page.test.tsx and pageJumpParity.test.tsx were named as gaining the view but are unchanged. Parity derives from FIXED_JUMPS, so it needs no edit."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "None identified within the scope of the verified findings."
+  ],
+  "regression_risks": [
+    "The out-of-list test edits update fixed counts (12→13), as expected when a sidebar row and an empty variant are added. They do not loosen any assertion."
+  ],
+  "test_coverage": [
+    "No route-level test in page.test.tsx covers ?view=continue (V-1). FolderBrowser.continueView.test.tsx and layout.test.tsx cover parts of it."
+  ],
+  "not_verified": [
+    "I could not run git diff. Changed-file membership comes from r1/classification.json and the current file contents, not from the raw diff hunks.",
+    "I did not verify the backend behaviour invariants I1–I8.",
+    "I did not run any tests."
+  ],
+  "confidence": 88
+}

@@ -616,7 +616,7 @@ describe("accent budget — drive root", () => {
 
     const { container } = render(<DriveHome driveName="main" />);
     await screen.findByRole("button", { name: "Add" });
-    await screen.findByText("Continue Watching");
+    await screen.findByText("Continue");
 
     const fills = accentFills(container);
     const controls = fills.filter((el) => el.textContent?.trim());

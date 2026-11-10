@@ -151,7 +151,7 @@ export function FolderBrowser({
   // Strict: `!folderPath` is also true for a cross-folder view, which has no
   // location at all.
   const isLibraryRoot = folderPath === "";
-  const isSpecialView = isFavorites || view === "recent" || isRecentAdded || isLiked || isAll;
+  const isSpecialView = isFavorites || view === "recent" || view === "continue" || isRecentAdded || isLiked || isAll;
   const isLocation = !isSpecialView && !isSearch && folderPath !== undefined;
   const isFolderAnchored = isLocation && folderPath !== "";
 
@@ -171,11 +171,13 @@ export function FolderBrowser({
 
   const {
     files, folders, total, loading, loadingMore, hasMore, pagesLoaded, sentinelRef,
-    reset, setFiles, setPaginatedTotal, isRecent, hasProfile,
+    reset, setFiles, setPaginatedTotal, isRecent, isContinue, hasProfile,
     snapshotKey, hydratedScrollY, continuationState, onShowMore, continuationSentinelRef,
     continuationDrawnIds, updateContinuationFile, removeContinuationFiles,
     passagesApplicable, passageGroups, passagesLoading, passagesFailed, retryPassages,
   } = useFolderFiles({ driveName, folderPath, view, tagFilter, typeFilter, trustFilter, sort, order, refreshKey, searchQuery, includeSceneClip, initialSnapshot });
+
+  const isWatchHistory = isRecent || isContinue;
 
   const passagesView = isSearch && passagesApplicable && show === "passages";
 
@@ -243,7 +245,7 @@ export function FolderBrowser({
         clearTimeout(timer);
         timer = null;
       }
-      if (isRecent) return;
+      if (isWatchHistory) return;
       // Don't persist search results into the folder/view snapshot —
       // snapshotKey doesn't include searchQuery, so saving here would
       // corrupt the root drive page's hydration.
@@ -301,7 +303,7 @@ export function FolderBrowser({
       // is handled separately below.
       if (timer != null) clearTimeout(timer);
     };
-  }, [files, folders, total, pagesLoaded, sort, order, typeFilter, trustFilter, viewMode, isRecent, isSearch, snapshotKey, scrollContainerRef]);
+  }, [files, folders, total, pagesLoaded, sort, order, typeFilter, trustFilter, viewMode, isWatchHistory, isSearch, snapshotKey, scrollContainerRef]);
 
   // Flush a pending snapshot write on unmount. `pagehide` covers a real
   // page teardown, but an in-app navigation unmounts this component
@@ -540,7 +542,7 @@ export function FolderBrowser({
             ? prev.map((f) => (f.id === updated.id ? updated : f))
             : prev.filter((f) => f.id !== updated.id)
         );
-        if (!updated.is_favorite && !isRecent) {
+        if (!updated.is_favorite && !isWatchHistory) {
           setPaginatedTotal((t) => t - 1);
         }
       } else {
@@ -550,7 +552,7 @@ export function FolderBrowser({
       }
       updateContinuationFile(updated);
     },
-    [isFavorites, isRecent, setFiles, setPaginatedTotal, updateContinuationFile],
+    [isFavorites, isWatchHistory, setFiles, setPaginatedTotal, updateContinuationFile],
   );
 
   const effectiveSort = isRecentAdded ? "created_at" : isLiked ? "liked_at" : sort;
@@ -857,7 +859,8 @@ export function FolderBrowser({
         loading={loading}
         loadingMore={loadingMore}
         hasMore={hasMore}
-        isRecent={isRecent}
+        isRecent={isWatchHistory}
+        isContinue={isContinue}
         hasProfile={hasProfile}
         isFavorites={isFavorites}
         isLiked={isLiked}

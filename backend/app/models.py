@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import (
     Boolean,
@@ -15,6 +15,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     and_,
+    or_,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -222,6 +223,9 @@ class WatchHistory(Base):
     playback_position: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     duration: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     last_played_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    dismissed_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True, default=None
+    )
 
     file: Mapped["File"] = relationship("File", lazy="selectin")
 
@@ -432,4 +436,26 @@ def active_file_filter():
     soft-deleted (trash) and missing files should be excluded.
     """
     return and_(File.deleted_at.is_(None), File.missing_since.is_(None))
+
+
+DESK_WINDOW_DAYS = 14
+
+
+def continue_desk_filter():
+    """Rows on the Continue desk: started, unfinished, recent, not set aside.
+
+    ``last_played_at`` and ``dismissed_at`` are stored as naive UTC, so the cutoff
+    must be naive too; an aware value compares as a string and moves the boundary.
+    """
+    now = datetime.now(UTC).replace(tzinfo=None)
+    return and_(
+        WatchHistory.duration > 0,
+        WatchHistory.playback_position * 100 >= WatchHistory.duration * 3,
+        WatchHistory.playback_position * 10 < WatchHistory.duration * 9,
+        WatchHistory.last_played_at >= now - timedelta(days=DESK_WINDOW_DAYS),
+        or_(
+            WatchHistory.dismissed_at.is_(None),
+            WatchHistory.dismissed_at < WatchHistory.last_played_at,
+        ),
+    )
 

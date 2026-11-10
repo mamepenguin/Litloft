@@ -13,8 +13,9 @@ opens there.
 
 Up to three shelves of 12 books, each loading on its own:
 
-- **続きを読む** / **Continue reading**: books you have started and not finished, most
-  recently opened first. A bar along the bottom of the cover shows how far you got.
+- **続きを読む** / **Continue reading**: books you have started and not finished, opened
+  within the last two weeks, most recently opened first. A book set aside from **Continue**
+  on Home does not appear here. A bar along the bottom of the cover shows how far you got.
 - **まだ読んでいない本** / **Not read yet**: a random sample of books you have not started.
   The sample stays while you switch tabs and back; reloading the page draws a new one.
 - **新着** / **New**: the most recently added books.

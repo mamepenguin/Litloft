@@ -810,7 +810,7 @@ plus what its row lists.
 | `document-viewer-actions` | Top bar of the full-screen PDF viewer | File props plus `documentCaptureController` and `tone: "on-dark"`. The bar is black: draw a transparent control with a white glyph. The controller publishes the page in view or the selected text, never an anchor |
 | `header-actions` | App header | `{ drive }` |
 | `active-summary-view` | File detail, with the summaries | `{ fileId, drive, summaryNote }`. Drawn only when `GET /api/addons/knowledge/file_active_summary/{id}/note` reports an active summary; without an entry the core draws the note itself |
-| `drive-home-sections` | Drive home, between **Continue Watching** and **Recently Viewed** | `{ drive }` |
+| `drive-home-sections` | Drive home, between **Continue** and **Recently Viewed** | `{ drive }` |
 | `sidebar-sections` | Sidebar, end of the library section | No props |
 | `dashboard-widgets` | Admin dashboard (`/admin`) | No props. Cards |
 | `dashboard-alerts` | Admin dashboard, above the drive cards | No props. For something an operator must see first. Render nothing when nothing is wrong: the host draws no wrapper |

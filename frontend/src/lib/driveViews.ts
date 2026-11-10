@@ -6,6 +6,7 @@
 
 const CROSS_FOLDER_VIEWS = new Set([
   "all",
+  "continue",
   "favorites",
   "recent",
   "recent-added",

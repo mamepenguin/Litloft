@@ -103,6 +103,31 @@ def get_progress(
     return ProgressResponse(position=record.playback_position, duration=record.duration)
 
 
+@router.post("/{file_id}/progress/dismiss", status_code=204)
+def dismiss_progress(
+    file_id: FileId,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    viewer_id: Annotated[str | None, Depends(get_viewer_id)],
+):
+    if viewer_id is None:
+        return Response(status_code=204)
+
+    _get_file_or_404(db, file_id, unlocked_groups)
+
+    record = (
+        db.query(WatchHistory)
+        .filter(WatchHistory.viewer_id == viewer_id, WatchHistory.file_id == file_id)
+        .first()
+    )
+    if not record:
+        raise HTTPException(status_code=404, detail="No watch history for this file")
+
+    record.dismissed_at = datetime.now(UTC)
+    db.commit()
+    return Response(status_code=204)
+
+
 @router.delete("/{file_id}/progress", status_code=204)
 def delete_progress(
     file_id: FileId,

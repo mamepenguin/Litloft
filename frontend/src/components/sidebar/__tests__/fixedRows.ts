@@ -11,6 +11,7 @@ export const FIXED_SIDEBAR_ROWS: readonly { label: string; view: string | null; 
   { label: "Reading", view: null, path: "/apps/reading" },
   { label: "Favorites", view: "favorites" },
   { label: "Liked", view: "liked" },
+  { label: "Continue", view: "continue" },
   { label: "Recently Viewed", view: "recent" },
   { label: "Recently Added", view: "recent-added" },
   { label: "All Files", view: "all" },
