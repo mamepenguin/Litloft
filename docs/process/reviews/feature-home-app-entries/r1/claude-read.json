@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The diff modifies frontend/e2e-components/spec-viewport.spec.ts, which is not in the touch-point list.",
+      "impact": "No user impact. The scope list does not mention the suite's viewport guard, which every new e2e-components spec has to be registered in.",
+      "evidence": "frontend/e2e-components/spec-viewport.spec.ts:68 adds \"home-app-entries.spec.ts\" to AT_THE_PHONE_WIDTH and :87 adds \"home-app-entries-desktop.spec.ts\" to AT_THE_DESKTOP_WIDTH. The touch-point list names only the two spec files, the fixture, index.html / app.tsx, projects.ts DESKTOP_ONLY and build-bundle.ts.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a scope gap in the touch-point list. The change is the suite's normal registration step and breaks no invariant.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The diff modifies frontend/src/components/__tests__/componentFixtureParity.test.tsx, which is not in the touch-point list.",
+      "impact": "No user impact. The fixture-parity test's list of arrangement ids is a test outside the declared scope.",
+      "evidence": "componentFixtureParity.test.tsx:318 adds \"home-app-entries\" to the expected arrangement list, which mirrors fixtures/app.tsx:2417. The list's e2e entry names fixtures/homeAppEntries.tsx and 'its entry in index.html / app.tsx' only.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a scope gap only. The edit adds one id, and the parity test stays exact.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "The diff adds frontend/e2e-components/home-app-entries.cases.ts, a shared case module that the touch-point list does not name.",
+      "impact": "No user impact. All I4/D3/D4 measurement logic lives in a file the list does not predict. The two listed spec files are three-line wrappers around it.",
+      "evidence": "home-app-entries.spec.ts:1 imports phoneCases, and home-app-entries-desktop.spec.ts:1 imports desktopCases, from ./home-app-entries.cases. The list names only home-app-entries.spec.ts and home-app-entries-desktop.spec.ts.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a scope gap only. The module is the planned measurement, placed in a helper file.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "F4",
+      "origin": "reviewer",
+      "claim": "The diff adds new unit and backend test files that the touch-point list does not name: backend/tests/test_watch_history_not_continue.py, frontend/src/__tests__/homeAppEntries.test.tsx, frontend/src/__tests__/homeResumeRows.test.tsx and frontend/src/components/search/__tests__/jumpAddonIcon.test.tsx.",
+      "impact": "No user impact. The list names only existing tests to change and the e2e measurement. The primary coverage of I1-I3, I5, I7-I9, I11, I12 and of the I6 backend behaviour sits in files the list does not predict.",
+      "evidence": "All four files are new in the diff. The touch-point list has no backend/tests entry and no new frontend unit test entry. Its tests section says only 'Existing tests that pin behaviour this spec replaces'.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a scope gap only. New acceptance tests for the declared invariants are expected work that the list leaves out.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "F5",
+      "origin": "reviewer",
+      "claim": "frontend/src/__tests__/DriveHome.test.tsx changes two assertions beyond the two reasons the touch-point list gives for that file (the liked:true request and the \"all\" request).",
+      "impact": "No user impact. The header test's breadcrumb probe and the 'See all (619)' count were changed without being declared. The breadcrumb probe was narrowed from `nav` to `nav:not([aria-label])`.",
+      "evidence": "DriveHome.test.tsx, in 'the drive root's header': `container.querySelector(\"nav\")` became `nav:not([aria-label])`. This is needed because HomeAppEntries draws <nav aria-label>, and Breadcrumb.tsx:118 draws a bare <nav>, so the narrowed probe still detects the trail. In 'the drive home's content rows', the See all (619) count went from 3 to 2, which follows from I5. Neither change is named for this file in the list.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a scope gap in the list. Both edits are consequences of I1/I5, and the narrowed selector still catches the bare Breadcrumb nav.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "Every production file in the diff is in the touch-point list: DriveHome.tsx, home/HomeAppEntries.tsx, lib/addonNavIcons.ts, AddonNavRows.tsx, useJumpDestinations.ts, the useInboxCount move with the SidebarLibrarySection import, api.ts, messages-core ja/en, and backend routers/drives.py.",
+    "These listed docs are all touched: DESIGN.md, docs/reference/api.md, docs/ADDON-DEVELOPMENT.md, and the user-guide pages file-browsing.md, comments-history.md and overview.md.",
+    "Listed e2e pieces are present: fixtures/homeAppEntries.tsx, fixtures/app.tsx, the two spec files and projects.ts DESKTOP_ONLY. index.html and build-bundle.ts are listed but not edited. Other arrangements (for example text-resume) have no index.html entry either, so leaving it out matches the suite's pattern.",
+    "These listed existing tests are touched for their stated reasons: driveHomeSectionOrder, homeContinueDesk, DriveHome.test, driveHomeFailureState, DriveHome.driveChange, section-headings, addon-name-neutral-hosts, SidebarAddonNav and accent-budget. section-headings also changes its perRoot count from 7 to 6, which is the same I5 reason.",
+    "docs/specs/home-app-entries.md and docs/specs/INDEX.md are implicit touch points and are not reported.",
+    "The diff reaches these places outside the touch-point list: spec-viewport.spec.ts, componentFixtureParity.test.tsx, home-app-entries.cases.ts, the new unit and backend test files, and two undeclared assertion changes in DriveHome.test.tsx."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "None of the unlisted files changes production behaviour. They are test registrations, test helpers and new tests."
+  ],
+  "regression_risks": [
+    "The DriveHome header test now probes `nav:not([aria-label])`. If Breadcrumb ever gains an aria-label, the test would stop detecting a reintroduced trail. Today Breadcrumb.tsx:118 draws a bare <nav>, so the test still detects it."
+  ],
+  "test_coverage": [
+    "Two unlisted test files carry the primary frontend coverage of I1-I3, I9, I11 and I12 (homeAppEntries.test.tsx) and of I5, I7 and I8 (homeResumeRows.test.tsx).",
+    "The unlisted file backend/tests/test_watch_history_not_continue.py carries the I6 coverage.",
+    "The unlisted file jumpAddonIcon.test.tsx covers I9 for page jump."
+  ],
+  "not_verified": [
+    "I could not run git. I answered against the branch diff supplied in the prompt and did not confirm which of these files commit e155c434a itself touches.",
+    "I did not run any tests: not the unit, backend or e2e suites.",
+    "I did not check the Photo Diary repository change, which is outside this repository.",
+    "I did not judge the correctness of the production code. The question asked only about scope."
+  ],
+  "confidence": 85
+}
