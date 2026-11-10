@@ -2,7 +2,7 @@
 
 A drive has two starting points in the sidebar:
 
-- **Home**: rows of files you were watching, opened recently, added recently, favourited or liked. A drive opens here.
+- **Home**: an entry row for the drive's apps, then rows of files you were watching, opened recently, favourited or added recently. A drive opens here.
 - **Library**: the drive's own folders and files, starting at the drive root.
 
 ## The sidebar
@@ -111,11 +111,12 @@ Files added by an addon, such as web clips, arrive unverified. With the intellig
 Home shows these rows, in order:
 
 - **Continue**: videos, audio, PDFs, EPUBs, archives and long text you started and have not finished within the last two weeks.
-- Rows added by addons, if any.
-- **Recently Viewed**
-- **Recently Added**
+- **Recently Viewed**: what you opened that is not on the Continue desk, finished files and set-aside ones included.
 - **Favorites**
-- **Liked**
+- Rows added by addons, if any.
+- **Recently Added**
+
+Above them sit the app destinations: **Library**, the built-in apps, any addon apps such as *Ask*, *Notes* or *Photo Diary*, and **Inbox** while it holds arrivals, carrying the count. It is the same set as the top of the sidebar, so on a phone, where the sidebar is an overlay, it is the quickest way into an app.
 
 **Continue** and **Recently Viewed** need a [profile](profile-preferences.md). Each row shows as many cards as fit, and **See all** opens the rest. Empty rows are hidden.
 
