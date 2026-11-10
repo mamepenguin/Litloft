@@ -16,3 +16,7 @@ export function videoShelfHref(
   if (from) query.set("from", from);
   return `/drive/${encodeURIComponent(drive)}/apps/video/shelf?${query.toString()}`;
 }
+
+export function providerShelfHref(drive: string, entryId: string): string {
+  return `/drive/${encodeURIComponent(drive)}/apps/video/shelf?entry=${encodeURIComponent(entryId)}`;
+}

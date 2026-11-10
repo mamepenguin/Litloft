@@ -25,14 +25,14 @@ export function DiscoverFace({
 
   return (
     <div className="space-y-8">
-      {shelves.map(({ id, title, href, state, retry }) => (
+      {shelves.map(({ id, title, href, state, bylines, retry }) => (
         <ShelfBlock<ShelfItem>
           key={id}
           title={title}
           seeAllHref={href}
           view={state}
           onRetry={retry}
-          renderItem={(item) => <VideoCard item={item} />}
+          renderItem={(item) => <VideoCard item={item} byline={bylines?.get(item.id)} />}
         />
       ))}
       {pending && (

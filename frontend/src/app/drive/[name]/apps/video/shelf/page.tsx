@@ -16,6 +16,7 @@ export default function VideoShelfRoute() {
       shelfKey={search.get("key") ?? ""}
       initialSort={search.get("sort")}
       from={search.get("from")}
+      entry={search.get("entry")}
     />
   );
 }

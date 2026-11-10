@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "Reproduced. frontend/src/components/__tests__/componentFixtureParity.test.tsx:320 contains \"video-card-byline\" in the list that the test 'names the arrangements the browser suite runs' (:221-322) checks against the ARRANGEMENTS keys parsed from the fixture. That path is frontend/src/components/__tests__/, which is not frontend/src/components/videoapp/__tests__/ and is not named anywhere in the touch points (docs/specs/provider-shelf-page.md:275-311). The edit is a mechanically forced companion of the new arrangement: without it the parity test fails. It is still outside the declared touch-point list."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "rejected_with_evidence",
+      "note": "The edits exist (frontend/e2e-components/fixtures/app.tsx:2421 ARRANGEMENTS entry \"video-card-byline\"; frontend/e2e-components/spec-viewport.spec.ts:70 and :91). However, the touch point at docs/specs/provider-shelf-page.md:296 is keyed by the directory `frontend/e2e-components/`, and both files are inside it. Unlike TP-1's file, these are not outside a listed path. Both edits are also required for the listed deliverable. spec-viewport.spec.ts:95-117 requires every *.spec.ts on disk to appear in exactly one of AT_THE_PHONE_WIDTH or AT_THE_DESKTOP_WIDTH, and requires AT_THE_DESKTOP_WIDTH to equal the DESKTOP_ONLY suffixes, so adding the two specs and the projects.ts:25 entry forces lines 70 and 91. The spec draws the real VideoCard through the fixture page (video-card-byline.cases.ts:19 navigates to #video-card-byline), which needs the ARRANGEMENTS entry in fixtures/app.tsx. Naming DESKTOP_ONLY in the touch point does not limit edits elsewhere in the listed directory."
+    }
+  ],
+  "specification_compliance": [
+    "The touch points name frontend/src/components/videoapp/__tests__/ for unit tests. The change also edits frontend/src/components/__tests__/componentFixtureParity.test.tsx:320, which is outside every listed path (TP-1).",
+    "The e2e-components edits (new spec pair, fixture arrangement, spec-viewport lists, projects.ts DESKTOP_ONLY) are all under the listed frontend/e2e-components/ directory."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Adding 'video-card-byline' to the fixture ARRANGEMENTS without the matching parity-list entry would break componentFixtureParity.test.tsx. The two are consistent at this commit."
+  ],
+  "test_coverage": [
+    "spec-viewport.spec.ts:95-117 enforces that the new phone and desktop byline specs are each assigned to one project and that the desktop one matches DESKTOP_ONLY (projects.ts:25)."
+  ],
+  "not_verified": [
+    "Did not run git diff against origin/develop (no shell access). Whether these lines were introduced by this branch was inferred from the files' content and the commit history in the context, not from a diff.",
+    "Did not run the vitest parity test or the Playwright specs.",
+    "Did not check the declared invariants I1-I12 against the implementation, which is outside the two findings."
+  ],
+  "confidence": 85
+}

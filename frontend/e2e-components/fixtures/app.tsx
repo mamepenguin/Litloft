@@ -81,6 +81,7 @@ import { PlayedRangesArrangement } from "./playedRanges";
 import { TextResumeArrangement } from "./textResume";
 import { HomeAppEntriesArrangement } from "./homeAppEntries";
 import { DiscoverPrefixArrangement } from "./discoverPrefix";
+import { VideoCardBylineArrangement } from "./videoCardByline";
 import { PersistentHighlightsArrangement } from "./persistentHighlights";
 import AskTab from "../../src/addons/intelligence/AskTab";
 import { getAskThread } from "../../src/addons/intelligence/askStore";
@@ -2417,6 +2418,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "text-resume": TextResumeArrangement,
   "home-app-entries": HomeAppEntriesArrangement,
   "discover-prefix": DiscoverPrefixArrangement,
+  "video-card-byline": VideoCardBylineArrangement,
   "persistent-highlights": PersistentHighlightsArrangement,
 };
 
