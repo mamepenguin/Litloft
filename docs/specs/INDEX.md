@@ -172,6 +172,6 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-070 | implemented | docs/specs/home-continue-desk.md | sha256:19b078dd5caa04929c8afebfe7a4934986e75674e1926f3418c9efee072e5a70 |
 | SPEC-CORE-071 | implemented | docs/specs/home-continue-desk.md | sha256:19b078dd5caa04929c8afebfe7a4934986e75674e1926f3418c9efee072e5a70 |
 | SPEC-CORE-072 | implemented | docs/specs/continue-shelf-page-order.md | sha256:b5886fc8c28ba025737cfa7e448842e75bf443aa602ad4d7bb0c23727ec81d2c |
-| SPEC-CORE-073 | draft | docs/specs/home-app-entries.md | |
-| SPEC-CORE-074 | draft | docs/specs/home-app-entries.md | |
-| SPEC-CORE-075 | draft | docs/specs/home-app-entries.md | |
+| SPEC-CORE-073 | approved | docs/specs/home-app-entries.md | sha256:c9062dec1fce7b0b551c43797a3677fcfaf8b5bbc099e7a1060c37ef1853bc1f |
+| SPEC-CORE-074 | approved | docs/specs/home-app-entries.md | sha256:c9062dec1fce7b0b551c43797a3677fcfaf8b5bbc099e7a1060c37ef1853bc1f |
+| SPEC-CORE-075 | approved | docs/specs/home-app-entries.md | sha256:c9062dec1fce7b0b551c43797a3677fcfaf8b5bbc099e7a1060c37ef1853bc1f |
