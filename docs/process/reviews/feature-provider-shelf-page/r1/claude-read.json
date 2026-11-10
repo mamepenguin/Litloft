@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The diff edits frontend/src/components/__tests__/componentFixtureParity.test.tsx, which is not in the touch-point list; the list names only frontend/src/components/videoapp/__tests__/ for unit tests.",
+      "impact": "Users are not affected. The edit only adds \"video-card-byline\" to the parity test's pinned list of fixture arrangements. It is a mechanical consequence of registering the new e2e arrangement, but the touch-point list does not mention it, so a reader checking scope against the list would miss a shared test outside videoapp/.",
+      "evidence": "frontend/src/components/__tests__/componentFixtureParity.test.tsx:320 adds \"video-card-byline\" to the expected arrangement names. The touch points list `frontend/src/components/videoapp/__tests__/` and `frontend/e2e-components/` only.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An unplanned touch point. It breaks no declared invariant: it is a required registration of the new arrangement in an existing parity test, and the list just does not mention it.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add componentFixtureParity.test.tsx (the arrangement-name pin) to the touch-point list as a registration companion of the e2e fixture."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The diff edits two shared registries in frontend/e2e-components that the touch-point list does not name: fixtures/app.tsx (the ARRANGEMENTS map and its import) and spec-viewport.spec.ts (the AT_THE_PHONE_WIDTH and AT_THE_DESKTOP_WIDTH lists). The list names only the new spec and the DESKTOP_ONLY registration in projects.ts.",
+      "impact": "Users are not affected. Both edits are one-line registrations of the new arrangement and specs. They fall under the frontend/e2e-components/ directory entry, but that entry describes only the new spec plus projects.ts, so the shared fixture page and the viewport-parity spec are reached without being listed.",
+      "evidence": "frontend/e2e-components/fixtures/app.tsx:84 and :2421 (import and ARRANGEMENTS entry \"video-card-byline\"); frontend/e2e-components/spec-viewport.spec.ts:70 and :91 (spec names added to the width lists). The touch-point list explicitly registers only frontend/e2e-components/projects.ts DESKTOP_ONLY.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Arguably covered by the e2e-components directory entry. These are required registrations and break no invariant. They are reported only because the list names one registry (projects.ts) and not the others.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Name fixtures/app.tsx (ARRANGEMENTS) and spec-viewport.spec.ts (width lists) beside projects.ts in the e2e touch point."
+    }
+  ],
+  "specification_compliance": [
+    "Every production source file the diff reaches is in the touch-point list: lib/addons.ts, useDiscover.ts, discoverCache.ts, restrict.ts (new), DiscoverFace.tsx, VideoCard.tsx, VideoShelfPage.tsx, app/drive/[name]/apps/video/shelf/page.tsx, useProviderShelfPage.ts (new) and shelfLinks.ts.",
+    "appshell/usePaged.ts is not edited, as the touch points require.",
+    "No backend file and no Internal API file is reached.",
+    "Both doc files the touch points list are edited: ADDON-DEVELOPMENT.md and user-guide/video.md.",
+    "docs/specs/provider-shelf-page.md and docs/specs/INDEX.md are implicit touch points and are not reported.",
+    "The readCachedIds/writeCachedIds renames have no callers outside the listed files (grep finds only useDiscover.ts and discoverCache.ts).",
+    "Two places outside the list are reached: componentFixtureParity.test.tsx (outside videoapp/__tests__), and the e2e registries fixtures/app.tsx and spec-viewport.spec.ts (inside the e2e directory but not named)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "useProviderShelfPage exports the ProviderPagePhase type and addons.ts exports ShelfPageItem and ShelfPageAnswer. These are new public exports inside listed files, not new touch points."
+  ],
+  "regression_risks": [
+    "componentFixtureParity.test.tsx pins the exact arrangement list, so a later change that drops or renames the byline fixture must edit this out-of-list test as well."
+  ],
+  "test_coverage": [
+    "The new unit tests are in videoapp/__tests__ (VideoApp.discoverPageProviders.test.tsx and VideoShelfPage.provider.test.tsx), as listed.",
+    "The e2e byline specs are registered at phone and desktop widths and in DESKTOP_ONLY, as listed."
+  ],
+  "not_verified": [
+    "I could not run git, so I did not confirm which files commit aa6db1777 touches by itself. I judged the branch diff given in the prompt.",
+    "I did not check the behavioural correctness of the invariants: the question was limited to touch-point completeness.",
+    "I did not run any test.",
+    "I did not read the untracked r1/ review records."
+  ],
+  "confidence": 85
+}
