@@ -317,6 +317,7 @@ describe("the component fixture's page", () => {
       "text-resume",
       "home-app-entries",
       "discover-prefix",
+      "video-card-byline",
       "persistent-highlights",
     ]);
   });
