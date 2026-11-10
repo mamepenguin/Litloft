@@ -66,6 +66,7 @@ const AT_THE_PHONE_WIDTH = [
   "played-ranges.spec.ts",
   "spec-viewport.spec.ts",
   "home-app-entries.spec.ts",
+  "discover-prefix.spec.ts",
 ] as const;
 
 const AT_THE_DESKTOP_WIDTH = [
@@ -85,6 +86,7 @@ const AT_THE_DESKTOP_WIDTH = [
   "ask-thread-desktop.spec.ts",
   "search-results-bar-desktop.spec.ts",
   "home-app-entries-desktop.spec.ts",
+  "discover-prefix-desktop.spec.ts",
 ] as const;
 
 test.describe("the component fixture lays out at the width it was given", () => {

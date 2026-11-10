@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "frontend/e2e-components/spec-viewport.spec.ts:69 lists \"discover-prefix.spec.ts\" in AT_THE_PHONE_WIDTH and :89 lists \"discover-prefix-desktop.spec.ts\" in AT_THE_DESKTOP_WIDTH. The file is in the change set (r1/classification.json:46). The Touch points in docs/specs/discover-shelves-never-shift.md:259-289 do not name spec-viewport.spec.ts, and invariants.md has an empty Revisions section."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "frontend/src/components/__tests__/componentFixtureParity.test.tsx:319 adds \"discover-prefix\" to the expected ARRANGEMENTS key list. The file is in the change set (classification.json:50). The spec's Touch points (lines 275-286) name readingVideoLayoutFixtureParity.test.tsx and fixtures/app.tsx, but not componentFixtureParity.test.tsx."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "The new frontend/e2e-components/fixtures/discoverPrefix.tsx defines STEPS (lines 55-59), window.__discoverPrefix (65-69, 77) and DiscoverPrefixArrangement (73-89), and app.tsx:2419 registers it. It is listed in classification.json:38. The Touch points name only fixtures/app.tsx, as a new entry in ARRANGEMENTS (spec line 279)."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F4",
+      "status": "confirmed",
+      "note": "The new frontend/e2e-components/discover-prefix.cases.ts holds all the assertions in discoverPrefixCases() (lines 57-84). Both discover-prefix.spec.ts:1-3 and discover-prefix-desktop.spec.ts:1-3 only import and call it. It is listed in classification.json:26 and is not named in the Touch points (spec lines 279-286)."
+    }
+  ],
+  "specification_compliance": [
+    "All four files that F1-F4 name are in the change set (r1/classification.json) but not in the spec's Touch points. invariants.md has no revisions that would add them. Each one is test or fixture support that the declared e2e-components touch point needs; none changes product behaviour."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "discover-prefix.cases.ts selects shelves as innermost <section> elements that have a heading or an .animate-pulse placeholder. This assumes DiscoverFace's markup and was not checked against DiscoverFace.tsx."
+  ],
+  "regression_risks": [
+    "spec-viewport.spec.ts and componentFixtureParity.test.tsx are shared gates. An edit that is missing or does not match there would fail other suites, but these edits only add entries."
+  ],
+  "test_coverage": [
+    "The e2e case covers SPEC-CORE-076 I1, I2 and I3 at the face level, with a fixed three-step sequence on mobile and on desktop. It does not cover the deadline, the cache or the provider ordering. Per the Touch points, those are left to the jsdom tests."
+  ],
+  "not_verified": [
+    "Read the git diff against origin/develop directly. I relied on the worktree contents and r1/classification.json to establish that the files are in the change set.",
+    "Ran any test suite (no command execution available).",
+    "Reviewed useDiscover.ts, discoverCache.ts or DiscoverFace.tsx against invariants I1-I9."
+  ],
+  "confidence": 90
+}

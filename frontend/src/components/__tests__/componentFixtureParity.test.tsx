@@ -316,6 +316,7 @@ describe("the component fixture's page", () => {
       "played-ranges",
       "text-resume",
       "home-app-entries",
+      "discover-prefix",
       "persistent-highlights",
     ]);
   });

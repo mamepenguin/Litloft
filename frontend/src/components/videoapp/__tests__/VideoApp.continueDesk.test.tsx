@@ -9,7 +9,7 @@ import { render, screen } from "@testing-library/react";
 import { VideoApp } from "../VideoApp";
 import { VideoShelfPage } from "../VideoShelfPage";
 
-const DRIVE = "main";
+const { DRIVE } = vi.hoisted(() => ({ DRIVE: "main" }));
 
 let nickname: string | null = "alice";
 
@@ -21,6 +21,18 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/components/ProfileProvider", () => ({
   useProfile: () => ({ nickname, setNickname: vi.fn(), clearNickname: vi.fn() }),
+}));
+
+vi.mock("@/components/AddonSlotsProvider", () => ({
+  useAddonSlots: () => ({
+    addons: {},
+    catalogueDrive: DRIVE,
+    slots: {},
+    loading: false,
+    getSlotEntries: () => [],
+    hasSlot: () => false,
+  }),
+  useAddonStatus: () => ({ features: {} }),
 }));
 
 const getShelves = vi.fn();

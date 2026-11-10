@@ -249,10 +249,13 @@ async function renderShape(name: string): Promise<Element> {
           drive={DRIVE}
           empty={false}
           hasProfile
-          continueShelf={loaded}
-          recommended={loaded}
-          addonShelves={[{ id: "addon", title: "Addon shelf", ...loaded }]}
-          fresh={loaded}
+          shelves={[
+            { id: "continue", title: "Continue", state: shelfSource(), retry: () => {} },
+            { id: "recommended", title: "Recommended", state: shelfSource(), retry: () => {} },
+            { id: "addon", title: "Addon shelf", state: shelfSource(), retry: () => {} },
+            { id: "new", title: "New", state: shelfSource(), retry: () => {} },
+          ]}
+          pending={false}
         />,
       );
       return container.firstElementChild as Element;
