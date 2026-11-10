@@ -26,6 +26,23 @@ vi.mock("@/lib/cardGrid", async (importOriginal) => ({
   useCardColumns: () => ({ ref: () => {}, columns: 24 }),
 }));
 
+// Every render's provider shelves, so a test can see a commit the DOM never changed for.
+const { faceRenders } = vi.hoisted(() => ({
+  faceRenders: [] as { recommended: unknown; addonShelves: { id: string; state: unknown }[] }[],
+}));
+vi.mock("../DiscoverFace", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../DiscoverFace")>();
+  return {
+    DiscoverFace: (props: Parameters<typeof actual.DiscoverFace>[0]) => {
+      faceRenders.push({
+        recommended: props.recommended.state,
+        addonShelves: props.addonShelves.map(({ id, state }) => ({ id, state })),
+      });
+      return actual.DiscoverFace(props);
+    },
+  };
+});
+
 const DRIVE = "my drive";
 
 const SRC = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -842,6 +859,42 @@ describe("SPEC-CORE-068 when the providers run", () => {
     await act(async () => fresh.resolve(["new1"]));
     expect(await screen.findByText(title("new1"))).toBeInTheDocument();
     expect(screen.queryByText(title("stale"))).not.toBeInTheDocument();
+  });
+
+  it.runIf(addonsLinked)("SPEC-CORE-068 I5 no render after a target change hands the face the old target's answer", async () => {
+    const pending = deferred<string[]>();
+    let call = 0;
+    media["shelf-a"] = vi.fn<Provider>(async ({ restrict }) => {
+      call += 1;
+      if (call === 1) return restrict(["a1"]);
+      return pending.promise;
+    });
+    let pickupCall = 0;
+    intel.pickup = vi.fn<Provider>(async ({ restrict }) => {
+      pickupCall += 1;
+      if (pickupCall === 1) return restrict(["r1"]);
+      return pending.promise;
+    });
+    getSmartFolders.mockResolvedValue([smartFolder("sf-trips", "Trips", "tag:Trip")]);
+    declare({ recommended: [PICKUP], shelves: [SHELF_A] });
+    renderApp();
+    expect(await screen.findByText(title("a1"))).toBeInTheDocument();
+    expect(await screen.findByText(title("r1"))).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: /Target/ }));
+    const trips = await screen.findByText("Trips");
+
+    const from = faceRenders.length;
+    fireEvent.click(trips);
+    await waitFor(() => expect(call).toBe(2));
+    await waitFor(() => expect(pickupCall).toBe(2));
+
+    const after = faceRenders.slice(from);
+    expect(after.length).toBeGreaterThan(0);
+    for (const render of after) {
+      expect(render.recommended).not.toMatchObject({ status: "loaded" });
+      const shelf = render.addonShelves.find(({ id }) => id === SHELF_A.id);
+      expect(shelf?.state).not.toMatchObject({ status: "loaded" });
+    }
   });
 
   it.runIf(addonsLinked)("SPEC-CORE-068 re-runs when an entry's content changes, not when the same entries are re-created", async () => {

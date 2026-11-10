@@ -144,26 +144,45 @@ export function useDiscover({
   const shelfEntriesRef = useRef(shelfEntries);
   shelfEntriesRef.current = shelfEntries;
 
-  const [recommended, setRecommended] = useState<LoadState<ShelfItem[]>>({ status: "idle" });
-  const [shelfStates, setShelfStates] = useState<
-    Record<string, LoadState<ShelfItem[]>>
-  >({});
+  const recommendedInputs = useMemo(
+    () =>
+      active && catalogueReady && hasProfile && params !== null
+        ? { drive, params, entriesKey: recommendedKey, onViewerRejected }
+        : null,
+    [active, catalogueReady, hasProfile, drive, params, recommendedKey, onViewerRejected],
+  );
+  const shelvesInputs = useMemo(
+    () =>
+      active && catalogueReady && params !== null
+        ? { drive, params, entriesKey: shelvesKey, onViewerRejected }
+        : null,
+    [active, catalogueReady, drive, params, shelvesKey, onViewerRejected],
+  );
+
+  const [recommendedHeld, setRecommendedHeld] = useState<{
+    inputs: object;
+    state: LoadState<ShelfItem[]>;
+  } | null>(null);
+  const [shelvesHeld, setShelvesHeld] = useState<{
+    inputs: object;
+    states: Record<string, LoadState<ShelfItem[]>>;
+  } | null>(null);
 
   useEffect(() => {
-    if (!active || !catalogueReady || !hasProfile || params === null) {
-      setRecommended({ status: "idle" });
-      return;
-    }
+    if (recommendedInputs === null) return;
+    const inputs = recommendedInputs;
     let current = true;
-    setRecommended({ status: "loading" });
+    const settle = (state: LoadState<ShelfItem[]>) => {
+      if (current) setRecommendedHeld({ inputs, state });
+    };
     const accepted = new Map<string, ShelfItem>();
     const restrict = createRestrict({
-      drive,
-      target: params,
+      drive: inputs.drive,
+      target: inputs.params,
       watch: "unwatched",
       accepted,
       isCurrent: () => current,
-      onViewerRejected,
+      onViewerRejected: inputs.onViewerRejected,
     });
 
     const run = async () => {
@@ -174,80 +193,67 @@ export function useDiscover({
       }
       if (!current) return;
       if (!provider) {
-        setRecommended({ status: "loaded", data: [] });
+        settle({ status: "loaded", data: [] });
         return;
       }
-      const ids = await provider({ drive, limit: DISCOVER_SHELF_SIZE, restrict });
-      if (!current) return;
-      setRecommended({ status: "loaded", data: buildShelf(ids, accepted) });
+      const ids = await provider({ drive: inputs.drive, limit: DISCOVER_SHELF_SIZE, restrict });
+      settle({ status: "loaded", data: buildShelf(ids, accepted) });
     };
 
-    run().catch(() => {
-      if (current) setRecommended({ status: "failed" });
-    });
+    run().catch(() => settle({ status: "failed" }));
     return () => {
       current = false;
     };
-  }, [
-    active,
-    catalogueReady,
-    hasProfile,
-    drive,
-    params,
-    recommendedKey,
-    onViewerRejected,
-  ]);
+  }, [recommendedInputs]);
 
   useEffect(() => {
-    if (!active || !catalogueReady || params === null) {
-      setShelfStates({});
-      return;
-    }
+    if (shelvesInputs === null) return;
+    const inputs = shelvesInputs;
     let current = true;
-    const entries = sortSlotEntries(shelfEntriesRef.current);
-    const loading: Record<string, LoadState<ShelfItem[]>> = {};
-    for (const entry of entries) loading[entry.id] = { status: "loading" };
-    setShelfStates(loading);
+    const settle = (id: string, state: LoadState<ShelfItem[]>) => {
+      if (!current) return;
+      setShelvesHeld((held) => ({
+        inputs,
+        states: { ...(held?.inputs === inputs ? held.states : {}), [id]: state },
+      }));
+    };
 
-    for (const entry of entries) {
+    for (const entry of sortSlotEntries(shelfEntriesRef.current)) {
       const accepted = new Map<string, ShelfItem>();
       const restrict = createRestrict({
-        drive,
-        target: params,
+        drive: inputs.drive,
+        target: inputs.params,
         accepted,
         isCurrent: () => current,
-        onViewerRejected,
+        onViewerRejected: inputs.onViewerRejected,
       });
       const run = async () => {
         const provider = await loadSlotProvider(entry);
         if (!current) return;
         if (!provider) {
-          setShelfStates((held) => ({
-            ...held,
-            [entry.id]: { status: "loaded", data: [] },
-          }));
+          settle(entry.id, { status: "loaded", data: [] });
           return;
         }
-        const ids = await provider({ drive, limit: DISCOVER_SHELF_SIZE, restrict });
-        if (!current) return;
-        setShelfStates((held) => ({
-          ...held,
-          [entry.id]: { status: "loaded", data: buildShelf(ids, accepted) },
-        }));
+        const ids = await provider({ drive: inputs.drive, limit: DISCOVER_SHELF_SIZE, restrict });
+        settle(entry.id, { status: "loaded", data: buildShelf(ids, accepted) });
       };
-      run().catch(() => {
-        if (current) {
-          setShelfStates((held) => ({
-            ...held,
-            [entry.id]: { status: "failed" },
-          }));
-        }
-      });
+      run().catch(() => settle(entry.id, { status: "failed" }));
     }
     return () => {
       current = false;
     };
-  }, [active, catalogueReady, drive, params, shelvesKey, onViewerRejected]);
+  }, [shelvesInputs]);
+
+  let recommended: LoadState<ShelfItem[]>;
+  if (recommendedInputs === null) recommended = { status: "idle" };
+  else if (recommendedHeld?.inputs === recommendedInputs) recommended = recommendedHeld.state;
+  else recommended = { status: "loading" };
+
+  const shelfStateOf = (id: string): LoadState<ShelfItem[]> => {
+    if (shelvesInputs === null) return { status: "idle" };
+    if (shelvesHeld?.inputs !== shelvesInputs) return { status: "loading" };
+    return shelvesHeld.states[id] ?? { status: "loading" };
+  };
 
   const watchShelf = useCallback(
     (key: "continue", sort: "last_played") => {
@@ -291,7 +297,7 @@ export function useDiscover({
     id: entry.id,
     title: slotEntryLabel(entry, tGlobal),
     href: entry.href ? `/drive/${encodeURIComponent(drive)}/${entry.href}` : undefined,
-    state: shelfStates[entry.id] ?? { status: "idle" },
+    state: shelfStateOf(entry.id),
     retry: noRetry,
   }));
 
