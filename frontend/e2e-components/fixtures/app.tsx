@@ -82,6 +82,7 @@ import { TextResumeArrangement } from "./textResume";
 import { HomeAppEntriesArrangement } from "./homeAppEntries";
 import { DiscoverPrefixArrangement } from "./discoverPrefix";
 import { PersistentHighlightsArrangement } from "./persistentHighlights";
+import { ScenesSectionArrangement } from "./scenesSection";
 import AskTab from "../../src/addons/intelligence/AskTab";
 import { getAskThread } from "../../src/addons/intelligence/askStore";
 import intelligenceEn from "../../src/addons/intelligence/messages/en.json";
@@ -2418,6 +2419,9 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "home-app-entries": HomeAppEntriesArrangement,
   "discover-prefix": DiscoverPrefixArrangement,
   "persistent-highlights": PersistentHighlightsArrangement,
+  "scenes-384": () => <ScenesSectionArrangement hostWidth={384} />,
+  "scenes-390": () => <ScenesSectionArrangement hostWidth={390} />,
+  "scenes-900": () => <ScenesSectionArrangement hostWidth={900} />,
 };
 
 function App(): ReactElement {
