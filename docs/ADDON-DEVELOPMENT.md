@@ -814,6 +814,8 @@ plus what its row lists.
 | `header-actions` | App header | `{ drive }` |
 | `active-summary-view` | File detail, with the summaries | `{ fileId, drive, summaryNote }`. Drawn only when `GET /api/addons/knowledge/file_active_summary/{id}/note` reports an active summary; without an entry the core draws the note itself |
 | `drive-home-sections` | Drive home, between **Continue** and **Recently Viewed** | `{ drive }` |
+| `video-discover-recommended` | Video app, **Discover** face, the **Recommended** shelf | A provider slot; see [Frontend slot providers](#frontend-slot-providers). The first entry by `priority` whose `slotProviders` has a function under its `id` supplies Recommended. Called only with a profile; its `restrict` adds `watch=unwatched` |
+| `video-discover-shelves` | Video app, **Discover** face, one shelf per entry between Recommended and New | A provider slot, with or without a profile. Each entry's provider supplies one shelf, in `priority` order. `i18n_key` (or `label`) titles it; `href`, relative to `/drive/{drive}/`, adds **See all** |
 | `sidebar-sections` | Sidebar, end of the library section | No props |
 | `dashboard-widgets` | Admin dashboard (`/admin`) | No props. Cards |
 | `dashboard-alerts` | Admin dashboard, above the drive cards | No props. For something an operator must see first. Render nothing when nothing is wrong: the host draws no wrapper |
@@ -1095,6 +1097,37 @@ export const slotComponents = {
 so it is also the place for registrations that must run early, such as a
 `.loft` player.
 
+### Frontend slot providers
+
+A slot entry can return data instead of a component. Beside `slotComponents`,
+`slots.ts` may export `slotProviders`; the core draws the shelf with its own
+cards, after narrowing the ids through its own filter for the app's target.
+
+```typescript
+// addons/{name}/frontend/slots.ts
+import { listWatch } from "./api";
+
+export const slotProviders = {
+  "shelf-a": async ({ drive, limit, restrict }) => {
+    const items = await listWatch(drive, { limit: 60 });
+    return restrict(items.map((item) => item.id));
+  },
+};
+```
+
+A provider is `({ drive, limit, restrict }) => Promise<string[]>`, returning
+ordered file ids, best first. It is found the same way as a component: the
+slot's entries sorted by `priority`, then `addonName` → that addon's `slots.ts`
+→ `slotProviders[entry.id]`. It shares the module cache with `AddonSlot`. An
+entry whose module or function is missing is absent, as is one whose provider
+rejects.
+
+`restrict(ids)` calls the core shelves endpoint with the app's target and
+returns the subset of `ids` that matched, in the order given. It sends at most
+60 ids per request and returns `[]` without a request for an empty list. Only
+ids that `restrict` returned may be drawn: an id the provider never passed
+through it is dropped.
+
 ### Registering a `.loft` player
 
 A `.loft` file stores an external URL and a `provider` name. To play a
@@ -1351,6 +1384,7 @@ Slot entries each addon declares, for reference when designing your own.
 | `intelligence` | `file-actions-menu` | `index-details` |
 | `intelligence` | `folder-bulk-actions-menu` | `folder-ai-actions` |
 | `intelligence` | `drive-home-sections` | `pickup` |
+| `intelligence` | `video-discover-recommended` | `pickup` |
 | `intelligence` | `dashboard-widgets` | `index-status` |
 | `intelligence` | `dashboard-alerts` | `failed-jobs` |
 | `intelligence` | `admin-intelligence-sections` | `admin-features`, `admin-llm`, `admin-embedding`, `admin-transcription`, `admin-rag` |
@@ -1366,4 +1400,5 @@ Slot entries each addon declares, for reference when designing your own.
 | `media_import` | `loft-metadata` | `loft-metadata` |
 | `media_import` | `folder-actions-menu` | `media-import-url` |
 | `media_import` | `file-actions-menu` | `loft-refresh` |
+| `media_import` | `video-discover-shelves` | `media-import-regular`, `media-import-feed` |
 | `cloud-sync` | `dashboard-widgets`, `admin-settings-sections` | `cloud-sync`, `cloud-sync-settings` |

@@ -131,7 +131,7 @@ describe("a shelf while it loads, refetches and fails", () => {
     getDriveFiles.mockImplementation(never);
     const { container } = render(<VideoApp drive={DRIVE} />);
 
-    await screen.findByText("Recommended");
+    await screen.findByText("New");
     expect(container.querySelectorAll(".animate-pulse").length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: /retry/i })).not.toBeInTheDocument();
     expect(screen.queryByText("No files")).not.toBeInTheDocument();
@@ -147,7 +147,7 @@ describe("a shelf while it loads, refetches and fails", () => {
 
     expect(await screen.findByText("Resume me")).toBeInTheDocument();
     const retry = await screen.findByRole("button", { name: /retry/i });
-    expect(screen.getByText("Pick me")).toBeInTheDocument();
+    expect(screen.getByText("Resume me")).toBeInTheDocument();
 
     failNew = false;
     fireEvent.click(retry);
@@ -192,14 +192,14 @@ describe("the profile as an input", () => {
   it("shows Continue once a profile is set, without a reload", async () => {
     nickname = null;
     const view = render(<VideoApp drive={DRIVE} />);
-    expect(await screen.findByText("Random pick")).toBeInTheDocument();
+    expect(await screen.findByText("Newest one")).toBeInTheDocument();
     expect(screen.queryByText("Continue")).not.toBeInTheDocument();
 
     nickname = "alice";
     view.rerender(<VideoApp drive={DRIVE} />);
 
     expect(await screen.findByText("Resume me")).toBeInTheDocument();
-    expect(screen.getByText("Pick me")).toBeInTheDocument();
+    expect(screen.queryByText("Pick me")).not.toBeInTheDocument();
   });
 
   it("drops Continue and the Watch state choice when the profile is cleared", async () => {

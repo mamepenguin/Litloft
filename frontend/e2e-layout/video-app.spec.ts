@@ -67,7 +67,7 @@ for (const width of [PHONE, DESKTOP]) {
 
       expect(m.viewport).toBe(width);
       expect(m.pageOverflowsX).toBe(false);
-      expect(m.rows).toHaveLength(3);
+      expect(m.rows).toHaveLength(4);
       for (const row of m.rows) {
         expect(row.cards).toBe(12);
         expect(row.right).toBeLessThanOrEqual(width);

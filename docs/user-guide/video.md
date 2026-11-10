@@ -12,23 +12,29 @@ opens there.
 
 ## Discover
 
-Up to three shelves of 12 videos, each loading on its own:
+Up to five shelves with the standard addons, each loading on its own, in this
+order: **Continue**, **Recommended**, the addon shelves, then **New**.
 
 - **Continue**: videos you started and have not finished, played within the last two weeks,
   most recently played first. A file set aside from **Continue** on Home does not appear
   here. A bar along the bottom of the thumbnail shows how far you got.
-- **Recommended**: a random sample of videos you have not watched. The sample stays while
-  you switch tabs and back; reloading the page draws a new one. A video you only opened
-  without playing counts as not watched and can come up again.
+- **Recommended**: up to 12 videos you have not watched, ranked by your history in
+  the drive. It needs a profile and the Intelligence addon with a Pickup feed, and
+  it is absent when there is no suggestion for the current target. It is not a
+  random sample.
+- **Addon shelves**: Media Import adds **よく見るソース** / **Regular sources** and
+  **購読の新着** / **New from subscriptions**, for the subscriptions you chose to show.
 - **New**: the most recently added videos.
 
-A shelf with no videos is not shown. If one shelf fails to load, only that shelf shows
-**Retry**.
+A shelf with no videos is not shown. If Continue or New fails to load, only that
+shelf shows **Retry**. A Recommended or addon shelf that fails or comes to nothing
+is simply absent, with no Retry.
 
-Each shelf has **See all**: **Continue** opens the Continue desk, **Recommended** opens
-the unwatched shelf (only with a profile), and **New** opens all videos newest first. The
-shelf page shows 60 videos at a time. **Continue**'s page opens most recently played first,
-with **最後に開いた順** / **Last opened** in its sort menu.
+**See all** appears on each shelf that has one: **Continue** opens the Continue desk,
+**New** opens all videos newest first, and an addon shelf opens its addon page when the
+addon offers one. **Recommended** has no **See all**. The shelf page shows 60 videos at a
+time. **Continue**'s page opens most recently played first, with **最後に開いた順** /
+**Last opened** in its sort menu.
 
 ## Library
 
@@ -72,8 +78,8 @@ Watch history is stored against a profile (see [Profile and preferences](profile
 With no profile set:
 
 - **Continue** is not shown, because there is no history to read.
-- **Recommended** is a random sample of all videos under the target, since there is no
-  watched or unwatched to tell apart.
+- **Recommended** is not shown: it needs a profile to know what you have watched.
+- The addon shelves still appear, because they do not need a profile.
 - **Watch state** is not offered under **Classification**. If you had chosen it earlier,
   the page shows Folder meanwhile and it comes back when you set a profile.
 

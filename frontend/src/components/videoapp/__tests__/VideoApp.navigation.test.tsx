@@ -114,21 +114,21 @@ beforeEach(() => {
 });
 
 describe("Video's Discover shelves link to See all", () => {
-  it("links Continue, Recommended and New to their shelves", async () => {
+  it("SPEC-CORE-068 links Continue and New to their shelves and nothing to the unwatched shelf", async () => {
     render(<VideoApp drive={DRIVE} />);
     await screen.findByText("Resume me");
-    await screen.findByText("Pick me");
+    await screen.findByText("Newest one");
 
     const hrefs = seeAllHrefs();
     expect(hrefs).toContain(`/drive/${DRIVE}/apps/video/shelf?by=watch&key=continue&from=discover`);
-    expect(hrefs).toContain(`/drive/${DRIVE}/apps/video/shelf?by=watch&key=unwatched&from=discover`);
     expect(hrefs).toContain(`/drive/${DRIVE}/apps/video/shelf?by=all&key=all&from=discover`);
+    expect(hrefs.some((h) => h?.includes("key=unwatched"))).toBe(false);
   });
 
   it("draws no Recommended See all without a profile, and keeps New's", async () => {
     nickname = null;
     render(<VideoApp drive={DRIVE} />);
-    await screen.findByText("Random pick");
+    await screen.findByText("Newest one");
 
     expect(screen.queryByRole("link", { name: "See all: Recommended" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "See all: Continue" })).not.toBeInTheDocument();

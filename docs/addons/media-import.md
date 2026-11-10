@@ -109,6 +109,8 @@ The page is at `/drive/{drive}/addons/media_import` and has two views.
 - **Regular sources**: subscriptions set to **Regular source**. At most two of the newest videos from each, and at most 12 in total. This lane has no **Show more**.
 - **Recent videos**: subscriptions set to **Show in recent videos**, newest first, 12 at a time with **Show more**.
 
+The same two lanes also appear on the drive's [Video](../user-guide/video.md) page under **Discover**, as **よく見るソース** / **Regular sources** and **購読の新着** / **New from subscriptions**, between Recommended and New. Each shows up to 12 videos, and its **See all** opens this page.
+
 Each subscription has a **Show in Watch** setting, chosen when you add it and changeable in its details in Manage:
 
 - **Library only**: videos are imported and searchable, including by Ask, but are not shown in Watch.

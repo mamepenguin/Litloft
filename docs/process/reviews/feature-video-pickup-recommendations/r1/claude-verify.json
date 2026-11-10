@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "frontend/e2e-layout/video-app.spec.ts:70 reads `expect(m.rows).toHaveLength(4);` inside the Discover layout test, so it now expects four shelves: Continue, Recommended, addon and New. That matches the fixture, which now draws one addon shelf. The file is not in the touch-point list, which names only the two fixtures and the parity test. The edit itself follows from the declared fixture change and is not a defect. Only the touch-point list is missing it."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "frontend/src/lib/__tests__/api.shelves.test.ts:102-106 holds the case 'SPEC-CORE-067 repeats ids, one parameter per id, in the order given'. It calls getShelves with ids ['b','a','c'] and asserts searchParams.getAll('ids') equals that order. The touch points name frontend/src/lib/api.ts but no lib test file. The case tests the declared ShelvesParams.ids change."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "addons/media_import/backend/tests/test_addon_meta.py:16 adds `\"video-discover-shelves\": [\"media-import-feed\", \"media-import-regular\"]` to the expected slot map. Lines 20-30 add test_video_discover_shelves_entries_spec_addon_088, which asserts each entry's priority (10 and 20), i18n_key and href 'addons/media_import'. For media_import, the touch points list router.py, slots.ts, the provider module, the messages and watchShelfProviders.test.ts, but not this backend test. The test checks the declared ADDON_META.slots change."
+    }
+  ],
+  "specification_compliance": [
+    "All three findings are about the touch-point list only. Each file not on the list holds a test or e2e assertion that matches a declared change: the fixture draws 4 rows, ShelvesParams.ids is sent, and ADDON_META.slots has the video-discover-shelves entries. None of them changes runtime behavior."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Before this commit, the e2e layout test asserted 3 Discover rows. It now asserts 4, because the fixture adds an addon shelf. That matches I7's ordering requirement."
+  ],
+  "regression_risks": [
+    "None from the files outside the touch points. They are test or spec files only."
+  ],
+  "test_coverage": [
+    "api.shelves.test.ts covers how repeated ids are serialized, in order.",
+    "test_addon_meta.py covers the media_import video-discover-shelves entries: ids, priority, i18n_key and href.",
+    "video-app.spec.ts covers the 4-row Discover layout in a real browser."
+  ],
+  "not_verified": [
+    "I could not run git diff, so I did not confirm that these exact lines were introduced by commit 6a1cc338 rather than by an earlier commit on the branch. I inferred this from the content: each line references features new to this branch.",
+    "I did not run the tests.",
+    "I did not check the media_import submodule pointer or its own git history."
+  ],
+  "confidence": 85
+}

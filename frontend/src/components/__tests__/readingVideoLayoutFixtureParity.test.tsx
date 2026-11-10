@@ -251,6 +251,7 @@ async function renderShape(name: string): Promise<Element> {
           hasProfile
           continueShelf={loaded}
           recommended={loaded}
+          addonShelves={[{ id: "addon", title: "Addon shelf", ...loaded }]}
           fresh={loaded}
         />,
       );
