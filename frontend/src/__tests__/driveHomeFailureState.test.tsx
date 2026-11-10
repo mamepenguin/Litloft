@@ -303,7 +303,7 @@ describe("what the drive home says when its rows have nothing to show", () => {
   // that reads the pair with `every` instead of `some` is the same page
   // in all of those.
   it.each([
-    ["the resumable history", undefined],
+    ["the resumable history", "continue"],
     ["the whole history", "all"],
   ])("does not call the drive unreachable when %s answered alone", async (_label, answered) => {
     mockProfile.nickname = "Alice";
@@ -422,7 +422,7 @@ describe("what the drive home says when its rows have nothing to show", () => {
   // The two watch rows are two requests and two pieces of state, so
   // either can carry the only thing on the page.
   it.each([
-    ["Continue Watching", undefined],
+    ["Continue", "continue"],
     ["Recently Viewed", "all"],
   ])("says nothing page-wide when only %s came back with items", async (heading, kind) => {
     mockProfile.nickname = "Alice";
@@ -445,7 +445,7 @@ describe("what the drive home says when its rows have nothing to show", () => {
 
     render(<DriveHome driveName="media" />);
 
-    await screen.findByText("Continue Watching");
+    await screen.findByText("Continue");
     expect(pageWideState()).toEqual([]);
   });
 
@@ -468,7 +468,7 @@ describe("what the drive home says when its rows have nothing to show", () => {
 
     await waitFor(() => expect(pageWideState()).toEqual([]));
     expect(mockGetWatchHistory).toHaveBeenCalledTimes(4);
-    await screen.findByText("Continue Watching");
+    await screen.findByText("Continue");
   });
 
   it("retries the drive in front of the reader, not the one the button was drawn on", async () => {
@@ -505,7 +505,7 @@ describe("what the drive home says when its rows have nothing to show", () => {
     mockGetWatchHistory.mockRejectedValue(new Error("network"));
     rerender(<DriveHome driveName="archive" />);
 
-    await waitFor(() => expect(screen.queryByText("Continue Watching")).toBeNull());
+    await waitFor(() => expect(screen.queryByText("Continue")).toBeNull());
     expect(screen.queryAllByText("Clip v1")).toHaveLength(0);
   });
 

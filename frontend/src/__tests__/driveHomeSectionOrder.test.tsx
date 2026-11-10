@@ -85,7 +85,7 @@ const watched = (id: string) =>
   }) satisfies WatchHistoryItem;
 
 const SECTIONS_IN_ORDER = [
-  "Continue Watching",
+  "Continue",
   "Pickup",
   "Recently Viewed",
   "Recently Added",

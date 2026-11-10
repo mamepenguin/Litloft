@@ -250,7 +250,7 @@ export function useDiscover({
   }, [active, catalogueReady, drive, params, shelvesKey, onViewerRejected]);
 
   const watchShelf = useCallback(
-    (key: "in_progress", sort: "last_played") => {
+    (key: "continue", sort: "last_played") => {
       if (params === null) return Promise.resolve<ShelfItem[]>([]);
       return getShelves(drive, {
         ...params,
@@ -270,7 +270,7 @@ export function useDiscover({
   );
 
   const loadContinue = useMemo(
-    () => (active && hasProfile ? () => watchShelf("in_progress", "last_played") : null),
+    () => (active && hasProfile ? () => watchShelf("continue", "last_played") : null),
     [active, hasProfile, watchShelf],
   );
   const loadNew = useMemo(

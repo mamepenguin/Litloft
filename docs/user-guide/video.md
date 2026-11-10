@@ -15,8 +15,9 @@ opens there.
 Up to five shelves with the standard addons, each loading on its own, in this
 order: **Continue**, **Recommended**, the addon shelves, then **New**.
 
-- **Continue**: videos you started and have not finished, most recently played first.
-  A bar along the bottom of the thumbnail shows how far you got.
+- **Continue**: videos you started and have not finished, played within the last two weeks,
+  most recently played first. A file set aside from **Continue** on Home does not appear
+  here. A bar along the bottom of the thumbnail shows how far you got.
 - **Recommended**: up to 12 videos you have not watched, ranked by your history in
   the drive. It needs a profile and the Intelligence addon with a Pickup feed, and
   it is absent when there is no suggestion for the current target. It is not a
@@ -29,10 +30,11 @@ A shelf with no videos is not shown. If Continue or New fails to load, only that
 shelf shows **Retry**. A Recommended or addon shelf that fails or comes to nothing
 is simply absent, with no Retry.
 
-**See all** appears on each shelf that has one: **Continue** opens the in-progress
-shelf, **New** opens all videos newest first, and an addon shelf opens its addon
-page when the addon offers one. **Recommended** has no **See all**. The shelf page
-shows 60 videos at a time.
+**See all** appears on each shelf that has one: **Continue** opens the Continue desk,
+**New** opens all videos newest first, and an addon shelf opens its addon page when the
+addon offers one. **Recommended** has no **See all**. The shelf page shows 60 videos at a
+time. **Continue**'s page opens most recently played first, with **最後に開いた順** /
+**Last opened** in its sort menu.
 
 ## Library
 

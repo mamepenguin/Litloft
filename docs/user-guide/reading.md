@@ -13,15 +13,17 @@ opens there.
 
 Up to three shelves of 12 books, each loading on its own:
 
-- **続きを読む** / **Continue reading**: books you have started and not finished, most
-  recently opened first. A bar along the bottom of the cover shows how far you got.
+- **続きを読む** / **Continue reading**: books you have started and not finished, opened
+  within the last two weeks, most recently opened first. A book set aside from **Continue**
+  on Home does not appear here. A bar along the bottom of the cover shows how far you got.
 - **まだ読んでいない本** / **Not read yet**: a random sample of books you have not started.
   The sample stays while you switch tabs and back; reloading the page draws a new one.
 - **新着** / **New**: the most recently added books.
 
 A shelf with no books is not shown, and **Continue reading** is not shown without a
 profile. Each shelf's **See all** opens it as a grid, 60 books at a time. **Not read yet**
-has no **See all** without a profile.
+has no **See all** without a profile. **Continue reading**'s page opens most recently
+opened first, with **最後に開いた順** / **Last opened** in its sort menu.
 
 Covers are portrait. The badge says **EPUB**, **PDF** or **書庫** / **Archive**, the title
 runs to two lines, and the line under it is the book's folder (the drive name at the root)

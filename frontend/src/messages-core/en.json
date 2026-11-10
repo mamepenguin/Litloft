@@ -80,7 +80,8 @@
     "lock": "Lock",
     "administration": "Administration",
     "video": "Video",
-    "reading": "Reading"
+    "reading": "Reading",
+    "continue": "Continue"
   },
   "drive": {
     "empty": "No drives found",
@@ -89,12 +90,13 @@
     "recentAdded": "Recently Added",
     "favorites": "Favorites",
     "liked": "Liked",
-    "continueWatching": "Continue Watching",
+    "continueWatching": "Continue",
     "recentlyViewed": "Recently Viewed",
     "greeting": "Welcome back, {name}",
     "fileCount": "{count, plural, one {# file} other {# files}}",
     "emptyDrive": "No files yet",
-    "unlockAccess": "Enter password"
+    "unlockAccess": "Enter password",
+    "couldNotRemoveFromContinue": "Could not remove from Continue"
   },
   "folder": {
     "items": "{count} items",
@@ -234,7 +236,8 @@
     "epubCloseContents": "Close contents",
     "epubUntitled": "Untitled",
     "epubTypographyReset": "Reset",
-    "markdownViewMode": "View"
+    "markdownViewMode": "View",
+    "removeFromContinue": "Remove from Continue"
   },
   "search": {
     "label": "Search",
@@ -612,7 +615,9 @@
     "homeUnavailableTitle": "Couldn't load this drive",
     "homeUnavailableDescription": "Nothing could be fetched just now. This does not mean the drive is empty.",
     "addFilesAction": "Add files",
-    "openLibraryAction": "Open Library"
+    "openLibraryAction": "Open Library",
+    "noContinueTitle": "Nothing in progress",
+    "noContinueDescription": "Files you opened in the last two weeks and stopped part-way appear here."
   },
   "theme": {
     "system": "System",
@@ -1450,6 +1455,7 @@
     },
     "sort": {
       "label": "Sort",
+      "lastOpened": "Last opened",
       "addedNewest": "Added (newest first)",
       "addedOldest": "Added (oldest first)",
       "title": "Title",
@@ -1495,6 +1501,7 @@
     "noTag": "No tag",
     "sort": {
       "label": "Sort",
+      "lastOpened": "Last opened",
       "addedNewest": "Added (newest first)",
       "addedOldest": "Added (oldest first)",
       "title": "Title",

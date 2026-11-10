@@ -20,7 +20,7 @@ describe("EmptyState", () => {
   // every row is drawn.
   describe("every variant resolves against the catalogue", () => {
     it("covers the whole table", () => {
-      expect(EMPTY_VARIANTS).toHaveLength(12);
+      expect(EMPTY_VARIANTS).toHaveLength(13);
     });
 
     it.each(EMPTY_VARIANTS)("renders real copy for %s", (variant) => {
@@ -66,6 +66,7 @@ describe("EmptyState", () => {
         "needs-scan": "lucide-refresh-cw",
         "no-favorites": "lucide-star",
         "no-liked": "lucide-thumbs-up",
+        "no-continue": "lucide-play",
         "no-recent": "lucide-history",
         "no-recent-profile": "lucide-history",
         "no-recent-added": "lucide-file-plus",

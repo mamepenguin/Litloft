@@ -14,7 +14,7 @@ vi.mock("../ProfileProvider", () => ({
 }));
 
 function SectionStandIn({ title, icon }: { title?: string; icon?: ReactNode }) {
-  return <section aria-label={title ?? "Continue Watching"}>{icon}</section>;
+  return <section aria-label={title ?? "Continue"}>{icon}</section>;
 }
 
 vi.mock("../ContinueWatchingSection", () => ({ ContinueWatchingSection: SectionStandIn }));

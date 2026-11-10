@@ -62,11 +62,11 @@ function item(id: string, title: string) {
 }
 
 function shelves(_drive: string, params: Params) {
-  if (params.by === "watch" && params.key === "in_progress") {
+  if (params.by === "watch" && params.key === "continue") {
     return {
       by: "watch",
       total_shelves: 1,
-      shelves: [{ key: "in_progress", label: "", count: 1, items: [item("c1", "Resume me")] }],
+      shelves: [{ key: "continue", label: "", count: 1, items: [item("c1", "Resume me")] }],
     };
   }
   if (params.by === "watch" && params.key === "unwatched") {
@@ -120,7 +120,7 @@ describe("Video's Discover shelves link to See all", () => {
     await screen.findByText("Newest one");
 
     const hrefs = seeAllHrefs();
-    expect(hrefs).toContain(`/drive/${DRIVE}/apps/video/shelf?by=watch&key=in_progress&from=discover`);
+    expect(hrefs).toContain(`/drive/${DRIVE}/apps/video/shelf?by=watch&key=continue&from=discover`);
     expect(hrefs).toContain(`/drive/${DRIVE}/apps/video/shelf?by=all&key=all&from=discover`);
     expect(hrefs.some((h) => h?.includes("key=unwatched"))).toBe(false);
   });

@@ -10,6 +10,7 @@ import { useContextMenu } from "@/hooks/useContextMenu";
 import { FileCard } from "./FileCard";
 import { FileContextMenu } from "./FileContextMenu";
 import { SectionRow } from "./SectionRow";
+import { useToast } from "./ToastProvider";
 
 interface ContinueWatchingSectionProps {
   items: WatchHistoryItem[];
@@ -18,6 +19,7 @@ interface ContinueWatchingSectionProps {
   icon?: React.ReactNode;
   seeAllHref?: string;
   onRemoveItem?: (fileId: string) => void;
+  onDismissItem?: (fileId: string) => Promise<void>;
   // No `totalCount`: `getWatchHistory` returns a bare array and has no
   // total to pass. Declaring the prop and leaving it undefined would
   // read as "nobody got round to it".
@@ -42,9 +44,11 @@ export function ContinueWatchingSection({
   icon,
   seeAllHref,
   onRemoveItem,
+  onDismissItem,
 }: ContinueWatchingSectionProps) {
   const t = useTranslations("drive");
   const tc = useTranslations("common");
+  const toast = useToast();
   const { menuState, close, handlers } = useContextMenu();
   const [target, setTarget] = useState<FileItem | null>(null);
 
@@ -101,6 +105,17 @@ export function ContinueWatchingSection({
           await deleteWatchProgress(target.id);
           onRemoveItem?.(target.id);
         }}
+        onRemoveFromContinue={
+          onDismissItem && target
+            ? async () => {
+                try {
+                  await onDismissItem(target.id);
+                } catch {
+                  toast.error(t("couldNotRemoveFromContinue"));
+                }
+              }
+            : undefined
+        }
       />
     </section>
   );

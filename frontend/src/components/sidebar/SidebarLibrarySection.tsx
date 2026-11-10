@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FilePlus, Files, FolderTree, History, Home, Inbox, Star, ThumbsUp } from "lucide-react";
+import { FilePlus, Files, FolderTree, History, Home, Inbox, Play, Star, ThumbsUp } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { AddonSlot } from "@/components/AddonSlot";
@@ -103,6 +103,10 @@ export function SidebarLibrarySection({ driveBase, currentDrive, drives = [], li
           <Link href={`${driveBase}?view=liked`} onClick={close} className={linkClass(`${driveBase}?view=liked`)}>
             <ThumbsUp size={16} />
             {t("liked")}
+          </Link>
+          <Link href={`${driveBase}?view=continue`} onClick={close} className={linkClass(`${driveBase}?view=continue`)}>
+            <Play size={16} />
+            {t("continue")}
           </Link>
           <Link href={`${driveBase}?view=recent`} onClick={close} className={linkClass(`${driveBase}?view=recent`)}>
             <History size={16} />

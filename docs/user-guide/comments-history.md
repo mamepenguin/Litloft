@@ -19,18 +19,22 @@ Each file has one list of comments, at the bottom of its page under **Comments**
 
 Litloft records each file you open, and for video, audio, PDFs, EPUBs, archives and long text, where you stopped. Home shows two rows from this:
 
-- **Continue Watching**: videos, audio, PDFs, EPUBs, archives and long text you stopped before 90%.
+- **Continue**: files you started (at least 3% in), have not finished (under 90%), and opened within the last two weeks. Files you set aside here stay out of this row.
 - **Recently Viewed**: every file you opened, including ones you finished.
 
-Watching to the end keeps the file in **Recently Viewed** and takes it out of **Continue Watching**. Litloft cannot tell when a live stream or a video embedded from another site has ended, so these are never marked as finished.
+Watching to the end keeps the file in **Recently Viewed** and takes it out of **Continue**. Litloft cannot tell when a live stream or a video embedded from another site has ended, so these are never marked as finished.
 
 History belongs to one drive. Use the same nickname on your phone and computer to share it between them.
 
 Without a nickname, resume positions are kept only in this browser, and Home shows neither row.
 
+### Setting an item aside
+
+Right-click a card in **Continue** on Home, or long-press it on a touch screen, and choose **Remove from Continue**. The file leaves **Continue** but stays in **Recently Viewed**, and its resume position is kept. Opening the file again puts it back in **Continue**.
+
 ### Removing an item
 
-Right-click a card in **Continue Watching** or **Recently Viewed** on Home, or long-press it on a touch screen, and choose **Remove from history**. Items are removed one at a time; there is no way to clear the whole history.
+Right-click a card in **Continue** or **Recently Viewed** on Home, or long-press it on a touch screen, and choose **Remove from history**. This deletes the history row, so the card leaves both rows and the resume position is lost. Items are removed one at a time; there is no way to clear the whole history.
 
 Clearing your nickname or your cookies does not delete your history. Enter the same nickname again and it comes back.
 

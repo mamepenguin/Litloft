@@ -194,6 +194,18 @@ def _migrate(engine_) -> None:
     if "watch_history" not in tables:
         Base.metadata.tables["watch_history"].create(bind=engine_, checkfirst=True)
 
+    inspector_history = inspect(engine_)
+    if "watch_history" in inspector_history.get_table_names():
+        history_columns = {
+            column["name"] for column in inspector_history.get_columns("watch_history")
+        }
+        if "dismissed_at" not in history_columns:
+            logger.info("Migrating: adding 'dismissed_at' column to watch_history")
+            with engine_.begin() as conn:
+                conn.execute(
+                    text("ALTER TABLE watch_history ADD COLUMN dismissed_at DATETIME")
+                )
+
     tables = inspector.get_table_names()
     if "files" in tables:
         file_columns = {col["name"] for col in inspector.get_columns("files")}

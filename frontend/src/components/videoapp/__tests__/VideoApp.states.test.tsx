@@ -78,7 +78,7 @@ const oneShelf = (key: string, items: unknown[]) => ({
 });
 
 function defaultShelves(_d: string, p: Params) {
-  if (p.by === "watch" && p.key === "in_progress") return oneShelf("in_progress", [item("c1", "Resume me")]);
+  if (p.by === "watch" && p.key === "continue") return oneShelf("continue", [item("c1", "Resume me")]);
   if (p.by === "watch" && p.key === "unwatched") return oneShelf("unwatched", [item("r1", "Pick me")]);
   const names = Array.from({ length: p.offset ? 3 : 12 }, (_, i) => `Shelf ${(Number(p.offset) || 0) + i}`);
   return {

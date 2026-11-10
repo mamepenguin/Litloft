@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The diff edits docs/user-guide/viewers-and-players.md, which is not in the touch-point list's Docs entry.",
+      "impact": "None for a user. The edited sentence (Reaching the end ... drops out of **Continue**) is accurate under the desk predicate, because a finished row fails `position*10 < duration*9`. The only effect is that the planned scope was incomplete.",
+      "evidence": "diff hunk docs/user-guide/viewers-and-players.md:189 renames 'Continue watching' to 'Continue'. The Touch points 'Docs:' entry lists overview, file-browsing, comments-history, playlists-favorites, profile-preferences, video, reading, media-import and ADDON-DEVELOPMENT, but not viewers-and-players.md.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Unplanned but correct prose rename. It breaks no invariant.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add docs/user-guide/viewers-and-players.md to the spec's Docs touch point, or accept it as planned scope."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The diff edits six existing frontend test files that the touch-point list does not name: components/__tests__/EmptyState.test.tsx, components/__tests__/SidebarActiveRow.test.tsx, components/__tests__/SidebarAddonNav.test.tsx, components/sidebar/__tests__/SidebarDriveSwitcher.test.tsx, components/sidebar/__tests__/fixedRows.ts and lib/__tests__/pageJump.test.ts.",
+      "impact": "No user impact. Each edit adds the new view or variant to an enumeration (EMPTY_VARIANTS length 12 to 13, FIXED_SIDEBAR_ROWS 12 to 13, sidebar label lists gain 'Continue' before 'Recently Viewed', pageJump keys and hrefs gain 'continue'). None loosens an assertion. The touch list named page.test.tsx and pageJumpParity.test.tsx instead. The diff does not touch those two: pageJumpParity derives its expectation from FIXED_JUMPS, so it covers the new entry without an edit. So the list named the wrong enumeration tests.",
+      "evidence": "diff: EmptyState.test.tsx:23 toHaveLength(13) and :69 'no-continue': 'lucide-play'; SidebarActiveRow.test.tsx:132 toBe(13); SidebarAddonNav.test.tsx:121,177 'Continue'; SidebarDriveSwitcher.test.tsx:199 'Continue'; fixedRows.ts:14 {label:'Continue',view:'continue'}; pageJump.test.ts:68,93 continue entries. pageJumpParity.test.tsx:36 compares sidebar hrefs to FIXED_JUMPS, which is derived, so it needs no change.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Scope drift in test enumerations only. The assertions get stricter, not looser, and no invariant is broken.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "List these enumeration tests in the touch points in place of, or beside, page.test.tsx and pageJumpParity.test.tsx."
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "The diff adds six new frontend acceptance test files that are not in the touch-point list: __tests__/homeContinueDesk.test.tsx, components/__tests__/FolderBrowser.continueView.test.tsx, components/folder/__tests__/useFolderFiles.continue.test.tsx, readingapp/__tests__/ReadingApp.continueDesk.test.tsx, videoapp/__tests__/VideoApp.continueDesk.test.tsx and sidebar/__tests__/continueRow.test.tsx.",
+      "impact": "No user impact. The touch list covers backend tests generically ('backend/tests/: watch-history, shelves, progress and migration tests'). For the frontend it names only existing tests whose assertions change, so new frontend test files are outside the declared scope.",
+      "evidence": "diff 'new file mode' for the six paths above. Touch points name frontend tests only under 'Tests that enumerate views...' and 'Frontend tests whose assertions change'.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "These are the acceptance tests for I9 and I10. Adding them is expected, and only the planning list omits them.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add a 'frontend/src/**/__tests__: new acceptance tests for I9/I10 and SPEC-CORE-071' line to the touch points."
+    }
+  ],
+  "specification_compliance": [
+    "All production source files in the diff (backend models/database/drives/progress/shelves; frontend api.ts, DriveHome, ContinueWatchingSection, FileContextMenu, useFileMenuItems, driveViews, useFolderFiles, FolderBrowser, FolderContent, EmptyState, SidebarLibrarySection, pageJump, video/reading useDiscover, DiscoverFace, ReadingShelfPage, videoapp/labels.ts, en/ja.json) are in the touch-point list.",
+    "The touch list names some files that the diff does not touch: frontend/src/components/readingapp/labels.ts, videoapp/VideoShelfPage.tsx, app/drive/[name]/__tests__/page.test.tsx and sidebar/__tests__/pageJumpParity.test.tsx. readingapp/labels.ts:63 already maps by=watch to t(`shelves.${key}`), so key=continue gets the Discover shelf string without a change. VideoShelfPage.tsx has no parseWatchState key check. pageJumpParity derives from FIXED_JUMPS. None of these omissions is a defect.",
+    "docs/specs/home-continue-desk.md and docs/specs/INDEX.md are implicit touch points and are not reported."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The en/ja value of drive.continueWatching changed to 'Continue' / '続きから'. The only consumer found is ContinueWatchingSection.tsx:64, so no other surface is renamed unexpectedly."
+  ],
+  "regression_risks": [
+    "The six unlisted enumeration tests hard-code counts (13 sidebar rows, 13 empty-state variants). That is correct now, but a reviewer working from the touch list would not know these tests guard the new view."
+  ],
+  "test_coverage": [
+    "New frontend acceptance tests cover I9 (menu order, dismiss success and failure, Remove from history) and I10 (view request, empty states, sidebar and page-jump order, shelf keys and headings). They lie outside the declared touch list (TP-3).",
+    "Backend acceptance tests for I1–I8 are in backend/tests, as declared."
+  ],
+  "not_verified": [
+    "I did not run any test. I could not confirm that the edited enumeration tests pass, or that page.test.tsx passes without an edit.",
+    "I did not check whether the reviewed commit c84d58635 alone (a docs-only R-5 record) differs from the branch diff shown. I reviewed the diff as given.",
+    "I did not inspect docs/process/reviews/feature-home-continue-desk/invariants.md for revisions beyond the text quoted in the prompt."
+  ],
+  "confidence": 85
+}

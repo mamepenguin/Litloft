@@ -84,13 +84,13 @@ function smartFolder(id: string, name: string, query: string, extra: Record<stri
 type Params = Record<string, unknown>;
 
 function defaultShelves(_drive: string, params: Params) {
-  if (params.by === "watch" && params.key === "in_progress") {
+  if (params.by === "watch" && params.key === "continue") {
     return {
       by: "watch",
       total_shelves: 1,
       shelves: [
         {
-          key: "in_progress",
+          key: "continue",
           label: "",
           count: 1,
           items: [item("c1", "Resume me", { watch_progress: { position: 30, duration: 120 } })],
@@ -220,7 +220,7 @@ describe("SPEC-CORE-057 I8 Discover", () => {
     await screen.findByText("Resume me");
     await screen.findByText("Newest one");
 
-    const continueCall = shelfCalls({ by: "watch", key: "in_progress" })[0][1] as Params;
+    const continueCall = shelfCalls({ by: "watch", key: "continue" })[0][1] as Params;
     expect(continueCall).toMatchObject({ sort: "last_played", per_shelf: 12, type: ["video"] });
     expect(shelfCalls({ key: "unwatched" })).toHaveLength(0);
     expect(shelfCalls({ sort: "random" })).toHaveLength(0);
@@ -243,8 +243,8 @@ describe("SPEC-CORE-057 I8 Discover", () => {
 
   it("SPEC-CORE-057 does not draw a shelf with no videos", async () => {
     getShelves.mockImplementation(async (d, p: Params) =>
-      p.key === "in_progress"
-        ? { by: "watch", total_shelves: 1, shelves: [{ key: "in_progress", label: "", count: 0, items: [] }] }
+      p.key === "continue"
+        ? { by: "watch", total_shelves: 1, shelves: [{ key: "continue", label: "", count: 0, items: [] }] }
         : defaultShelves(d, p),
     );
     renderApp();
@@ -258,7 +258,7 @@ describe("SPEC-CORE-057 I8 Discover", () => {
     renderApp();
     await screen.findByText("Resume me");
     await screen.findByText("Newest one");
-    const before = shelfCalls({ by: "watch", key: "in_progress" }).length;
+    const before = shelfCalls({ by: "watch", key: "continue" }).length;
     const newBefore = filesCalls({ sort: "created_at" }).length;
 
     fireEvent.click(screen.getByRole("tab", { name: "Library" }));
@@ -266,14 +266,14 @@ describe("SPEC-CORE-057 I8 Discover", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Discover" }));
 
     expect(await screen.findByText("Resume me")).toBeInTheDocument();
-    expect(shelfCalls({ by: "watch", key: "in_progress" }).length).toBe(before);
+    expect(shelfCalls({ by: "watch", key: "continue" }).length).toBe(before);
     expect(filesCalls({ sort: "created_at" }).length).toBe(newBefore);
   });
 
   it("SPEC-CORE-057 retries only the shelf that failed", async () => {
     let fail = true;
     getShelves.mockImplementation(async (d, p: Params) => {
-      if (p.key === "in_progress" && fail) throw new Error("boom");
+      if (p.key === "continue" && fail) throw new Error("boom");
       return defaultShelves(d, p);
     });
     renderApp();

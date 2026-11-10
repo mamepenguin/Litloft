@@ -50,7 +50,7 @@ export function DiscoverFace({
             id: "continue",
             title: t("shelves.continue"),
             source: continueShelf,
-            href: readingShelfHref(drive, "watch", "in_progress", undefined, {}, "discover"),
+            href: readingShelfHref(drive, "watch", "continue", undefined, {}, "discover"),
             progress: true,
           },
         ]

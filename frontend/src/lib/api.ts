@@ -1051,10 +1051,18 @@ export async function deleteWatchProgress(fileId: string): Promise<void> {
   if (!res.ok) throw new Error(`Failed to delete watch progress (${res.status})`);
 }
 
+export async function dismissContinueItem(fileId: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/files/${fileId}/progress/dismiss`, {
+    method: "POST",
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error(`Failed to dismiss continue item (${res.status})`);
+}
+
 export async function getWatchHistory(
   driveName: string,
   limit?: number,
-  filter?: "unfinished" | "all",
+  filter?: "unfinished" | "all" | "continue",
   type?: FileKind | null,
 ): Promise<WatchHistoryItem[]> {
   const params = new URLSearchParams();
