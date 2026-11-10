@@ -20,7 +20,7 @@ Each file has one list of comments, at the bottom of its page under **Comments**
 Litloft records each file you open, and for video, audio, PDFs, EPUBs, archives and long text, where you stopped. Home shows two rows from this:
 
 - **Continue**: files you started (at least 3% in), have not finished (under 90%), and opened within the last two weeks. Files you set aside here stay out of this row.
-- **Recently Viewed**: every file you opened, including ones you finished.
+- **Recently Viewed**: every file you opened that is not on the Continue desk, including ones you finished and ones you set aside.
 
 Watching to the end keeps the file in **Recently Viewed** and takes it out of **Continue**. Litloft cannot tell when a live stream or a video embedded from another site has ended, so these are never marked as finished.
 
@@ -30,7 +30,7 @@ Without a nickname, resume positions are kept only in this browser, and Home sho
 
 ### Setting an item aside
 
-Right-click a card in **Continue** on Home, or long-press it on a touch screen, and choose **Remove from Continue**. The file leaves **Continue** but stays in **Recently Viewed**, and its resume position is kept. Opening the file again puts it back in **Continue**.
+Right-click a card in **Continue** on Home, or long-press it on a touch screen, and choose **Remove from Continue**. The file leaves **Continue**; its resume position is kept, and it appears in **Recently Viewed** when it is among the newest files there. Opening the file again puts it back in **Continue**.
 
 ### Removing an item
 

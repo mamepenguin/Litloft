@@ -299,10 +299,13 @@ Rows sort by `priority`, then by addon name. The label is the translation of
 `i18n_key` when it resolves, otherwise `label`. The row is highlighted on the
 addon's route and every page under it.
 
-Icon tokens the sidebar knows: `download`, `message-circle-question`,
+Icon tokens that are drawn: `download`, `images`, `message-circle-question`,
 `notebook-pen`, `package`, `rss`. A missing or unknown token draws `package`.
-To add one, extend `ADDON_NAV_ICONS` in
-`frontend/src/components/sidebar/AddonNavRows.tsx`.
+To add one, extend `ADDON_NAV_ICONS` in `frontend/src/lib/addonNavIcons.ts`.
+The sidebar, page jump and the drive's Home entry row all read that one table.
+
+A `primary` entry is also drawn on every drive's Home, in the row of app
+destinations above the rows, in the same order.
 
 #### `policy_features`
 

@@ -86,14 +86,13 @@ const watched = (id: string) =>
 
 const SECTIONS_IN_ORDER = [
   "Continue",
-  "Pickup",
   "Recently Viewed",
-  "Recently Added",
   "Favorites",
-  "Liked",
+  "Pickup",
+  "Recently Added",
 ];
 
-const SECTIONS_WITHOUT_A_PROFILE = ["Pickup", "Recently Added", "Favorites", "Liked"];
+const SECTIONS_WITHOUT_A_PROFILE = ["Favorites", "Pickup", "Recently Added"];
 
 // Every heading below the page's own. Filtering to one level lets a row
 // that spells its heading differently slip into the sequence unseen; the
@@ -119,14 +118,14 @@ describe("the drive home's section order", () => {
     mockGetWatchHistory.mockResolvedValue([watched("v1")]);
   });
 
-  it("puts the addon slot between the two watch rows", async () => {
+  it("SPEC-CORE-074 I5 puts the watch rows first, then Favorites, the addon slot and Recently Added", async () => {
     mockProfile.nickname = "Alice";
     render(<DriveHome driveName="media" />);
     await loaded();
     expect(order()).toEqual(SECTIONS_IN_ORDER);
   });
 
-  it("draws the slot for a reader with no profile, with the watch rows gone", async () => {
+  it("SPEC-CORE-074 I5 draws Favorites, the slot and Recently Added for a reader with no profile", async () => {
     // The slot is the only section on this page that does not need a
     // profile. Its neighbours both do, so this is what is left.
     render(<DriveHome driveName="media" />);

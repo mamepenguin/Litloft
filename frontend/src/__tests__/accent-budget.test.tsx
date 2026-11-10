@@ -561,10 +561,10 @@ describe("accent budget — drive root", () => {
     // only known once the batch has settled, which is the state where a
     // second fill could appear — waiting on the request that starts it
     // would assert over an empty page (detector rule 3).
-    // Three: the rows that carry a count are Recently added, Favourites
-    // and Liked. `not.toHaveLength(0)` here would stay green if two of
-    // them stopped drawing at all (detector rule 1).
-    expect(await screen.findAllByText(/See all \(1\)/)).toHaveLength(3);
+    // Two: the rows that carry a count are Recently added and Favourites.
+    // `not.toHaveLength(0)` here would stay green if one of them stopped
+    // drawing at all (detector rule 1).
+    expect(await screen.findAllByText(/See all \(1\)/)).toHaveLength(2);
     // Not de-duplicated: collapsing equal labels throws away the
     // multiplicity, which is the property.
     expect(accentFills(container).map((el) => el.textContent?.trim() ?? "")).toEqual(["Add"]);

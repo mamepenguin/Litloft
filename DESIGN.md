@@ -635,6 +635,24 @@ with a **border in the accent colour**, never a fill.
 - `line-clamp-*` needs `display: -webkit-box`; any other `display` utility on the
   same element silently cancels the clamp.
 
+### Home entry row
+
+The row of app destinations at the top of a drive's Home: Library, the
+built-in and addon apps, and the Inbox while it holds arrivals.
+
+- **It measures its own width** (§8.5 Measure against the container), never
+  the viewport: the same row sits beside an inline sidebar and inside a phone.
+- **At or above `36rem`** the tiles form a wrapping row, icon left of the
+  label; below it, a 4-column grid with the icon above a centred label and
+  every tile at least 72px tall. Nothing scrolls sideways.
+- **Every tile reaches the 44px floor**, in either layout.
+- **A tile is a link, and nothing is selected.** The row is a `<nav>`, not a
+  tablist, so no entry carries a current or selected state.
+- **No accent fill.** The row spends none of §2.2's one accent.
+- **A count is plain text inside the link** — a `bg-warm-light` pill, after
+  the label in the wrapping row and at the tile's top-right in the grid — so
+  the link's own name carries the number.
+
 ### The first fact under a file's name
 
 What a card, a list row and the file page say first about a file is one rule,

@@ -2,27 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Download,
-  MessageCircleQuestion,
-  NotebookPen,
-  Package,
-  Rss,
-  type LucideIcon,
-} from "lucide-react";
+import { Package } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import type { AddonNavEntry } from "@/lib/addonNavigation";
+import { ADDON_NAV_ICONS } from "@/lib/addonNavIcons";
 import { slotEntryLabel } from "@/lib/slotLabel";
 import { isAddonNavRowActive } from "./isSidebarLinkActive";
-
-export const ADDON_NAV_ICONS: Record<string, LucideIcon> = {
-  download: Download,
-  "message-circle-question": MessageCircleQuestion,
-  "notebook-pen": NotebookPen,
-  package: Package,
-  rss: Rss,
-};
 
 export function AddonNavRows({
   entries,

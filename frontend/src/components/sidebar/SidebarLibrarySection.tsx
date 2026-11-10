@@ -11,7 +11,7 @@ import { AddonNavRows } from "./AddonNavRows";
 import { isAddonNavRowActive } from "./isSidebarLinkActive";
 import { SidebarDriveSwitcher } from "./SidebarDriveSwitcher";
 import { SidebarSectionHeading } from "./SidebarSectionHeading";
-import { useInboxCount } from "./useInboxCount";
+import { useInboxCount } from "@/hooks/useInboxCount";
 
 interface SidebarLibrarySectionProps {
   driveBase: string | null;

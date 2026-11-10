@@ -84,6 +84,7 @@
     "continue": "続きから"
   },
   "drive": {
+    "appsNav": "アプリ",
     "empty": "ドライブがありません",
     "emptyDescription": "drives.jsonを設定してドライブを追加してください。",
     "pickup": "ピックアップ",

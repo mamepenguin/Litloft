@@ -149,22 +149,18 @@ describe("DriveHome", () => {
     mockGetWatchHistory.mockResolvedValue([]);
   });
 
-  it("asks the backend for liked files, ordered by when they were liked", async () => {
-    // The counter this replaces was fetched with sort=likes and then
-    // filtered client-side on `likes > 0`; the server filter replaces
-    // both (spec 2026-09-01-favorite-like-separation).
+  it("SPEC-CORE-074 I5 asks the backend for no liked files", async () => {
     render(<DriveHome driveName="media" />);
 
     await waitFor(() => {
       expect(mockGetDriveFiles).toHaveBeenCalledWith(
         "media",
-        expect.objectContaining({
-          liked: true,
-          sort: "liked_at",
-          order: "desc",
-        }),
+        expect.objectContaining({ favorite: true }),
       );
     });
+    expect(
+      mockGetDriveFiles.mock.calls.some(([, params]) => (params as Record<string, unknown>).liked === true),
+    ).toBe(false);
   });
 
   it("does not show Continue when no profile", async () => {
@@ -190,7 +186,7 @@ describe("DriveHome", () => {
       expect(screen.getByText("Continue")).toBeInTheDocument();
     });
     expect(mockGetWatchHistory).toHaveBeenCalledWith("media", 12, "continue");
-    expect(mockGetWatchHistory).toHaveBeenCalledWith("media", 12, "all");
+    expect(mockGetWatchHistory).toHaveBeenCalledWith("media", 12, "not_continue");
   });
 
   it("does not show Continue when profile is set but no items", async () => {
@@ -346,9 +342,9 @@ describe("the drive home's content rows", () => {
       meta: { total: 619, page: 1, limit: 12 },
     });
     render(<DriveHome driveName="media" />);
-    // All three file rows read from the same mock, so all three carry it.
+    // Both file rows read from the same mock, so both carry it.
     const links = await screen.findAllByRole("link", { name: "See all (619)" });
-    expect(links).toHaveLength(3);
+    expect(links).toHaveLength(2);
   });
 
   it("gives each row its own total, and drops a row whose fetch failed", async () => {
@@ -623,11 +619,10 @@ describe("the drive root's header", () => {
       (h) => h.textContent,
     );
     expect(headings).toEqual(["Home"]);
-    // The trail, queried the way `Breadcrumb` draws it: a bare `<nav>`.
-    // It carries no `aria-label` of its own — only the home link inside
-    // it does — so a selector asking for one matches nothing whether the
-    // trail is there or not.
-    expect(container.querySelector("nav")).toBeNull();
+    // The trail, queried the way `Breadcrumb` draws it: a bare `<nav>`. The
+    // home entry row draws a `<nav aria-label>` of its own, so the trail is
+    // the one without a name.
+    expect(container.querySelector("nav:not([aria-label])")).toBeNull();
     expect(screen.getByText("media")).not.toBeNull();
   });
 
