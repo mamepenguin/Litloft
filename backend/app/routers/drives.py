@@ -7,7 +7,7 @@ from decimal import Decimal
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import Integer, case, cast, func, or_
+from sqlalchemy import Integer, case, cast, func, not_, or_
 from sqlalchemy.orm import Session
 
 import app.config as config
@@ -1629,7 +1629,7 @@ def get_watch_history(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
     viewer_id: Annotated[str | None, Depends(get_viewer_id)],
     limit: int = Query(20, ge=1, le=50),
-    filter: str = Query("unfinished", pattern=r"^(unfinished|all|continue)$"),
+    filter: str = Query("unfinished", pattern=r"^(unfinished|all|continue|not_continue)$"),
     type: FileKindParam | None = None,
 ):
     _validate_drive(drive_name, unlocked_groups)
@@ -1649,6 +1649,8 @@ def get_watch_history(
 
     if filter == "continue":
         query = query.filter(continue_desk_filter())
+    elif filter == "not_continue":
+        query = query.filter(not_(continue_desk_filter()))
     elif filter == "unfinished":
         query = query.filter(
             WatchHistory.playback_position < WatchHistory.duration * 0.9,
