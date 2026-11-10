@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [],
+  "specification_compliance": [
+    "Commit 101009259 changes only frontend/src/app/drive/[name]/__tests__/page.test.tsx. It adds { view: \"continue\", component: \"FolderBrowser\", folderPath: undefined } to ROUTES at line 65 and moves the length check from 9 to 10 at line 96. This closes r1 finding V-1 and the touch point that says page.test.tsx gains the view.",
+    "The new row is consistent with the production route. frontend/src/app/drive/[name]/page.tsx:19-38 names only trash, missing, inbox and home, and any other non-null view, continue included, falls through to <FolderBrowser view={view}> at line 38. normaliseDriveView (frontend/src/lib/driveViews.ts:35-37) rewrites only 'library'. So the parameterized tests at page.test.tsx:99-112 expect FolderBrowser, folderPath undefined and view 'continue', and those expectations match the code.",
+    "The test at page.test.tsx:83-97, which checks the set of branched view names, still holds. 'continue' is a FolderBrowser pass-through, so it is excluded from `named`, and page.tsx contains no `view === \"continue\"`.",
+    "No production code, invariant or doc changed in this commit. I1–I10 are unaffected by it."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "None introduced by this commit: it is test-only."
+  ],
+  "regression_risks": [
+    "None from this commit. The only coupling is the hard-coded toHaveLength(10). Like the existing count, it must be bumped when the next route is added. That is the intended tripwire."
+  ],
+  "test_coverage": [
+    "The new ROUTES row guards one regression: page.tsx starting to branch on 'continue' by name, or no longer passing it to FolderBrowser with view 'continue' and no folder path. Mutation: add `if (view === \"continue\") return <TrashView/>` to page.tsx. That would fail both the branched-name set test (line 95) and the 'opens FolderBrowser at ?view=continue' case. It is killed.",
+    "The row cannot detect that support for the continue view itself was lost. Because page.tsx passes every unknown view straight through, removing 'continue' from useFolderFiles, FolderBrowser or driveViews would still pass this route test. Those behaviours are covered elsewhere: useFolderFiles.continue.test.tsx, FolderBrowser.continueView.test.tsx, continueRow.test.tsx and layout.test.tsx:200. This is inherent to a generic route table and is not a defect of the fix."
+  ],
+  "not_verified": [
+    "I did not run the frontend test suite, so I did not confirm that page.test.tsx passes at this commit.",
+    "I did not re-review the backend changes on the branch (migration, desk predicate, dismiss endpoint) beyond what this test-only commit touches.",
+    "I did not check whether the other r1 findings (TP-1..3, SCOPE-1..4, all bucket B touch-point drift) were addressed. This commit does not address them, and they were not claimed to be fixed."
+  ],
+  "confidence": 90,
+  "trajectory": "There is one fix round (101009259). It adds a single data row to a test table and bumps the table's length check. It adds no branch, state or prediction to production code, and it does not repeat or extend anything an earlier round added, because there is no earlier fix round. It removes nothing. The design is not being patched; the round closes a test-coverage gap that r1 raised (V-1).",
+  "perspectives": [
+    {
+      "name": "fix-correctness",
+      "notes": "The added ROUTES entry matches page.tsx's fall-through to FolderBrowser. The count bump matches the new table length."
+    },
+    {
+      "name": "test-strength",
+      "notes": "The entry kills a mutation where page.tsx starts branching on 'continue'. It does not and cannot catch the view's behaviour being lost downstream; other new tests cover that."
+    }
+  ]
+}

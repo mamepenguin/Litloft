@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "R2-SCOPE-1",
+      "status": "confirmed",
+      "note": "Reproduced by reading the code. In frontend/src/app/drive/[name]/page.tsx, lines 19-35 branch only on trash, missing, inbox and home. Lines 37-38 send any other non-null view to `<FolderBrowser view={view} .../>` without a folderPath, and the page never names `continue`. normaliseDriveView (frontend/src/lib/driveViews.ts:35-37) rewrites only `library`, so `continue` reaches FolderBrowser unchanged. The new row at page.test.tsx:65 therefore passes the checks at :99-103 (component is FolderBrowser) and :105-111 (folderPath undefined, view === 'continue') for any string at all; :145-161 already gets the same result for 'not-a-view'. The name check at :83-97 only covers branched views, and it filters out FolderBrowser rows. The only thing the row changes is that the length assertion at :96 goes to 10. Taking `continue` out of CROSS_FOLDER_VIEWS (driveViews.ts:9) or out of useFolderFiles would not fail this file. The commit's stated aim, covering the continue view in the route table, is therefore not something this test can check."
+    }
+  ],
+  "specification_compliance": [
+    "I10 (`?view=continue` requests filter=continue with limit=50): this commit's page.test.tsx does not check it. The route only passes the view through, and the wiring that matters lives in useFolderFiles/driveViews, which this test file does not cover."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Unknown `?view=` values go to the drive-wide FolderBrowser listing on purpose (page.test.tsx:143-161), so a typo in a view name gives a working-looking screen rather than an error."
+  ],
+  "regression_risks": [
+    "If `continue` were dropped from CROSS_FOLDER_VIEWS or from the view-to-filter mapping, the route tests would stay green."
+  ],
+  "test_coverage": [
+    "page.test.tsx:65 adds a `continue` row that cannot tell a wired view from an unknown one; it adds no discriminating coverage.",
+    "The real check for the continue view has to come from useFolderFiles, driveViews, layout, sidebar or page-jump tests, which were not inspected here."
+  ],
+  "not_verified": [
+    "Did not run the test suite; the conclusion comes from reading the code only.",
+    "Did not inspect useFolderFiles.ts, layout.test.tsx or pageJumpParity tests, so I cannot say whether they cover the continue view's filter=continue/limit=50 request.",
+    "Did not check the backend invariants (I1-I8) or the frontend invariants I9."
+  ],
+  "confidence": 92
+}

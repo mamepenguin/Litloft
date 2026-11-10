@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "R2-SCOPE-1",
+      "origin": "reviewer",
+      "claim": "The new ROUTES row for `continue` would pass even if `continue` were not wired as a view anywhere, because page.tsx sends every unrecognised view to FolderBrowser with no folderPath, as the existing `not-a-view` cases show.",
+      "impact": "No user-facing effect. A reader could take the route table as proof that ?view=continue is wired. In fact it only proves that the value is passed through. The wiring is guarded elsewhere: FolderBrowser.continueView.test.tsx and useFolderFiles.continue.test.tsx check the request, the empty state and the no-profile state, and continueRow.test.tsx checks routeHidesTree.",
+      "evidence": "frontend/src/app/drive/[name]/page.tsx:37-38 renders `<FolderBrowser view={view} .../>` for any non-empty view that is not trash, missing, inbox or home. page.test.tsx:145-161 already asserts the same outcome (FolderBrowser, folderPath undefined) for arbitrary unknown strings. page.test.tsx:65 adds `continue` with that same expectation, and :105-111 additionally checks seen.view === 'continue', which normaliseDriveView (driveViews.ts:35-37) passes through unchanged.",
+      "repro": "Mental mutation: remove `continue` from CROSS_FOLDER_VIEWS and from useFolderFiles' isContinue. page.test.tsx still passes, because FolderBrowser is mocked and page.tsx does not change. The mutant would be killed by continueRow.test.tsx (routeHidesTree) and useFolderFiles.continue.test.tsx instead. Not run.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The row is correct, and it is the stricter of the two closures V-1 allowed. It breaks no invariant. It only guards against a future page.tsx branch on `continue`, which the branched-set assertion at :83-97 would also catch.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "None needed. If desired, add a comment beside the row noting that it is a pass-through view and that its wiring is tested in useFolderFiles.continue.test.tsx."
+    }
+  ],
+  "specification_compliance": [
+    "The fix commit 101009259 touches only frontend/src/app/drive/[name]/__tests__/page.test.tsx. It adds { view: 'continue', component: 'FolderBrowser', folderPath: undefined } and bumps the length from 9 to 10. This closes r1 V-1 (claude-verify), which said page.test.tsx was named in the touch points but lacked the view.",
+    "page.tsx itself is unchanged. Its branched-set test (page.test.tsx:83-97) still holds, because `continue` is a pass-through FolderBrowser view and is not branched on by name, so it is correctly excluded from `named`.",
+    "The r1 scope findings about pageJumpParity.test.tsx remain as recorded. That test derives from FIXED_JUMPS and needed no edit. This round does not change that.",
+    "No production code, migration, model or router changed in this round, so I1–I8 are unaffected by it."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "None introduced by this commit. It is a test-table row only."
+  ],
+  "regression_risks": [
+    "Persistence and concurrency: this round does not touch them. The dismissed_at migration and the dismiss endpoint are unchanged since r1.",
+    "Submodules: no addon or submodule path is touched in this round.",
+    "The hard-coded toHaveLength(10) has to be bumped with every new view. It is a tightening, not a loosening."
+  ],
+  "test_coverage": [
+    "page.test.tsx now covers ?view=continue in three ways: it reaches FolderBrowser, gets no folderPath, and receives view 'continue'. Because unknown views behave identically, this checks only the pass-through, not the view's semantics.",
+    "The semantics of ?view=continue (filter=continue, limit=50, the type filter, the empty state, the no-profile fallback and the hidden tree) are covered by useFolderFiles.continue.test.tsx, FolderBrowser.continueView.test.tsx, continueRow.test.tsx and layout.test.tsx:200."
+  ],
+  "not_verified": [
+    "Did not run vitest; did not confirm the 10-row table passes in CI.",
+    "Did not re-review backend invariants I1–I8 in depth this round, because the fix commit does not touch the backend.",
+    "Did not check whether git history contains other commits between r1's head and 101009259 beyond the one shown."
+  ],
+  "confidence": 88,
+  "trajectory": "There is one fix round, commit 101009259. It adds one row to a test enumeration and bumps one count. It adds no branch, state or prediction to production code, and it removes none. No earlier fix round exists to compare against, so there is no sign of the design being patched. The round closes a coverage gap that r1 reported.",
+  "perspectives": [
+    {
+      "name": "scope",
+      "notes": "The fix touches exactly the file that r1 V-1 named, and nothing else. It resolves the gap between page.test.tsx and the touch-point list."
+    },
+    {
+      "name": "submodules",
+      "notes": "No submodule or addon path changed in this round."
+    },
+    {
+      "name": "persistence",
+      "notes": "There is no schema or data change in this round. The r1 assessment of the guarded ALTER stands."
+    },
+    {
+      "name": "concurrency",
+      "notes": "This is a test-only change, so it has no concurrency surface."
+    }
+  ]
+}

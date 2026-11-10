@@ -168,6 +168,6 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-084 | implemented | docs/specs/file-ask-thread.md | sha256:dd40710470e7f0770b3cb8fecf447c14649337918576df45e399a9813aa972c6 |
 | SPEC-CORE-066 | implemented | docs/specs/search-results-layout.md | sha256:4891e47b05a2b3cd5f7f4e90400094d58115bbfa16581441e066f6a1942dd2f7 |
 | SPEC-ADDON-086 | implemented | docs/specs/search-results-layout.md | sha256:4891e47b05a2b3cd5f7f4e90400094d58115bbfa16581441e066f6a1942dd2f7 |
-| SPEC-CORE-069 | approved | docs/specs/home-continue-desk.md | sha256:19b078dd5caa04929c8afebfe7a4934986e75674e1926f3418c9efee072e5a70 |
-| SPEC-CORE-070 | approved | docs/specs/home-continue-desk.md | sha256:19b078dd5caa04929c8afebfe7a4934986e75674e1926f3418c9efee072e5a70 |
-| SPEC-CORE-071 | approved | docs/specs/home-continue-desk.md | sha256:19b078dd5caa04929c8afebfe7a4934986e75674e1926f3418c9efee072e5a70 |
+| SPEC-CORE-069 | implemented | docs/specs/home-continue-desk.md | sha256:19b078dd5caa04929c8afebfe7a4934986e75674e1926f3418c9efee072e5a70 |
+| SPEC-CORE-070 | implemented | docs/specs/home-continue-desk.md | sha256:19b078dd5caa04929c8afebfe7a4934986e75674e1926f3418c9efee072e5a70 |
+| SPEC-CORE-071 | implemented | docs/specs/home-continue-desk.md | sha256:19b078dd5caa04929c8afebfe7a4934986e75674e1926f3418c9efee072e5a70 |
