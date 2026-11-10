@@ -239,7 +239,7 @@ const ANCHORS = [
   "frontend/src/components/MatchOverlay.tsx",
   "frontend/src/components/trash/TrashFileGrid.tsx",
   "addons/media_import/frontend/watch/WatchCard.tsx",
-  "addons/intelligence/frontend/VisualIndexSection.tsx",
+  "addons/intelligence/frontend/ScenesSection/ScenesSectionPresenter.tsx",
   "addons/knowledge/frontend/CaptureBasket.tsx",
 ].filter((p) => addonPresent(REPO_ROOT, p));
 
