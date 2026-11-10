@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The commit edits frontend/e2e-layout/video-app.spec.ts, which is not in the touch-point list; the list names only the two e2e fixtures and the parity test.",
+      "impact": "No user impact. The video app's real-browser layout check now expects 4 Discover rows instead of 3, which matches the fixture now drawing an addon shelf. This is a planned consequence of the fixture change, but the plan does not name it.",
+      "evidence": "frontend/e2e-layout/video-app.spec.ts:70 changes `expect(m.rows).toHaveLength(3)` to `toHaveLength(4)`. The touch points list only `frontend/e2e-layout/fixtures/reading-video-faces.html`, `frontend/e2e-layout/fixtures/video-app.html` and `readingVideoLayoutFixtureParity.test.tsx`.",
+      "repro": "Compare the diff's file list with the Touch points section of docs/specs/video-discover-addon-shelves.md.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An omission in the touch-point list. The edit follows from the fixture change and breaks no invariant.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add frontend/e2e-layout/video-app.spec.ts to the touch points as the assertion that follows the fixture's new row."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The commit adds a case to frontend/src/lib/__tests__/api.shelves.test.ts, which is not in the touch-point list; the list names `frontend/src/lib/api.ts` but no lib test.",
+      "impact": "No user impact. This is the only test that checks `ids` goes on the wire repeated and in the order given (I1 'repeated parameter', I14 order), so it is the test that guards that behaviour.",
+      "evidence": "frontend/src/lib/__tests__/api.shelves.test.ts:102-106 adds 'SPEC-CORE-067 repeats ids, one parameter per id, in the order given'. The touch points list tests only under backend/tests, videoapp/__tests__, the parity test and the two addon tests.",
+      "repro": "Compare the diff's file list with the Touch points section.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An omission in the touch-point list only. The test fits I1 and I14.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add frontend/src/lib/__tests__/api.shelves.test.ts to the touch points."
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "Inside the media_import submodule, the commit edits addons/media_import/backend/tests/test_addon_meta.py, which is not in the touch-point list; for that addon the list names only router.py, slots.ts, the provider module, the messages and the frontend test watchShelfProviders.test.ts.",
+      "impact": "No user impact. The existing 'declares exactly these slot entries' test had to change, because router.py's ADDON_META.slots now carries video-discover-shelves. A new test also checks the priority, i18n_key and href of both entries, which is the I7 ordering and See all input for the Media Import shelves.",
+      "evidence": "addons/media_import/backend/tests/test_addon_meta.py:16 adds `\"video-discover-shelves\": [\"media-import-feed\", \"media-import-regular\"]`, and lines 20-30 add test_video_discover_shelves_entries_spec_addon_088.",
+      "repro": "Read addons/media_import/backend/tests/test_addon_meta.py in the bumped submodule and compare it with the Touch points.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An omission in the touch-point list. The edit follows from the router.py slot entry and breaks no invariant.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add addons/media_import/backend/tests/test_addon_meta.py to the touch points."
+    }
+  ],
+  "specification_compliance": [
+    "Every other changed path is covered by the touch-point list: shelves.py, test_api_shelves_ids.py, api.ts, addons.ts, AddonSlot.tsx, useDiscover.ts, DiscoverFace.tsx, VideoApp.tsx, the videoapp __tests__, both e2e fixtures, the parity test, the intelligence slots.ts / pickupShelfProvider.ts / manifest.json / test, the media_import router.py / slots.ts / watchShelfProviders.ts / messages / frontend test, and the five listed docs.",
+    "docs/specs/INDEX.md, docs/specs/video-discover-addon-shelves.md and docs/process/reviews/... are implicit touch points and are not reported.",
+    "AddonSlot.tsx changes `mod.slotComponents[entry.id]` to `mod.slotComponents?.[entry.id]`. This is within the listed file and only tolerates a module without slotComponents, so I10 rendering is unchanged for existing modules."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "AddonSlot now renders nothing, instead of throwing, for a slots.ts that exports only slotProviders. This is more tolerant than before and is not called out in the touch point's 'No change to how components render'."
+  ],
+  "regression_risks": [
+    "The e2e layout spec reading-video-faces.spec.ts was not edited even though its fixture now draws 4 video shelves. Its assertions are per-shelf (shelves.length > 0, cards ≤ capacity), so it should not depend on the count."
+  ],
+  "test_coverage": [
+    "The unplanned api.shelves.test.ts case is the only check that `ids` is serialised repeated and in order.",
+    "test_addon_meta.py pins the Media Import entries' priority, i18n_key and href."
+  ],
+  "not_verified": [
+    "I did not run any test or e2e spec, including whether video-app.spec.ts passes with 4 rows.",
+    "I did not check the git object list of the commit directly. The file set comes from the provided diff and a read of the bumped submodule.",
+    "I did not check the correctness of the logic against I1–I14 beyond the touch-point question."
+  ],
+  "confidence": 85
+}
