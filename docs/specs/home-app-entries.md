@@ -109,6 +109,9 @@ does not (`not_(continue_desk_filter())`), narrowed by `type` before `limit`, ne
   built-in apps and (if any) the Inbox; addon entries appear when the catalogue for this
   drive arrives. The catalogue is loaded once per drive by `AddonSlotsProvider`, which
   sits above the page, so this happens on the first load of a drive and on a drive switch.
+  A failed catalogue request is cached as an empty catalogue for that drive, so the addon
+  entries stay absent until a full reload, exactly as the sidebar's addon rows do. No retry
+  is added.
 - Inbox count request fails: `useInboxCount` keeps the last number it had for this drive
   (0 after a drive change), and the entry follows that number, as the sidebar's badge does.
   The next `inbox.updated` / `drive.structure_changed` event or drive change asks again.
@@ -120,7 +123,8 @@ does not (`not_(continue_desk_filter())`), narrowed by `type` before `limit`, ne
 ### 3. States
 
 - Entry row: always drawn on Home.
-  - Addon entries: absent (no catalogue for this drive) → present. On a drive change while
+  - Addon entries: absent (no catalogue for this drive) → present, or → absent for the
+    session when the catalogue request failed. On a drive change while
     Home stays mounted: present → absent → present for the new drive. Never present with
     another drive's catalogue.
   - Inbox entry: absent (count 0) ↔ present (count ≥ 1), following `useInboxCount`, which
@@ -186,8 +190,13 @@ Nothing new is logged.
     `<video>`, so the iOS Safari issue `cardGrid` avoids does not apply.
   - Container ≥ 36rem: one wrapping row of tiles, each an icon (18px) beside the label,
     `rounded-xl`, `bg-bg-elevated`, `px-4 py-3`, gap 8px. It never scrolls sideways.
-  - Container < 36rem: a 4-column grid, each tile the icon (22px) above a 12px label that
-    may wrap to two lines, at least 72px tall.
+  - Container < 36rem: a 4-column grid, gap 8px, each tile `rounded-xl` `bg-bg-elevated`
+    with padding 12px 4px, the icon (22px) above a 12px centred label that may wrap to two
+    lines, at least 72px tall.
+  - The entry row is the first child of the existing rows container (`space-y-8`), so it
+    sits where the first row sits today and the rows keep their spacing below it.
+  - The Inbox count is plain text inside the link, so the link's accessible name includes
+    it (「受信箱 3」), as the sidebar's row does.
   - Tiles and the pill use no accent fill (the drive root's one accent stays on 追加's
     menu as today).
   - Every tile is at least 44px tall. The Inbox count is a `rounded-full` `bg-warm-light`
@@ -203,6 +212,7 @@ Nothing new is logged.
   or are past its 12; those are reached through Continue's See all. A file that was
   finished, merely opened, older than 14 days or set aside still appears there.
 - The `no-home-activity` empty state keeps its Open Library action under the entry row.
+  A drive whose only listed content was liked files now shows that empty state.
 - Without a profile: entry row, Favorites, addon rows, Recently Added.
 - The empty state (`no-home-activity` / `home-unavailable`) appears under the entry row,
   judged on the core rows Home still draws (Liked no longer counts).
@@ -229,11 +239,15 @@ clone is an untracked nested repository: nothing in this change stages it.
 
 ### 10. Non-functional
 
-- Home makes one fewer request (no `liked=true`) and the same number of watch-history
-  requests on a page load (`not_continue` replaces `all`); a set-aside adds one.
-- `not_continue` is one query like `filter=all`; `limit` stays at most 50. The two requests
-  compute "now" separately, so a row crossing the 14-day line between them can appear in
-  neither row, never in both.
+- Requests on a page load: no `liked=true`, `not_continue` in place of `all`, plus one
+  `getInboxCount` for Home's own count, so the same number as today. Each `inbox.updated` /
+  `drive.structure_changed` event now asks for the count twice (sidebar and Home); accepted,
+  it is one integer. A set-aside adds one `not_continue`.
+- `not_continue` is one query like `filter=all`; `limit` stays at most 50. Each request
+  computes "now" on the server, so a desk row crossing the 14-day line between the Continue
+  request and a Recently Viewed request (more likely for the refetch after a set-aside) can
+  appear in both rows or in neither until the next page load. Accepted: it needs a file
+  last played exactly 14 days ago, and it corrects itself on the next load.
 
 ## Touch points
 
@@ -276,8 +290,11 @@ clone is an untracked nested repository: nothing in this change stages it.
   plus its entry in `index.html` / `app.tsx` as the suite does), inside containers 358px,
   960px and 1136px wide (the phone, 1024px without a sidebar, 1440px with it inline); a
   `next/link` stub in `build-bundle.ts` if the bundle cannot resolve it → I4, D3, D4
-- `DESIGN.md`: a short "Home entry row" rule under §6 (wrapping tiles on wide, 4-column grid
-  under `sm`, no selected state, count pill)
+- `DESIGN.md`: a short "Home entry row" rule under §6 (a container query at 36rem on the
+  row's wrapper: wrapping tiles at or above it, a 4-column grid below; no selected state; no
+  accent fill; count pill)
+- `frontend/src/__tests__/accent-budget.test.tsx` ("See all (1)" count 3 → 2 with Liked gone
+  → I5; its `accentFills == ["Add"]` assertion now also covers the entry row → I11)
 - Docs: `docs/reference/api.md` (`filter=not_continue`), `docs/user-guide/file-browsing.md`
   (Home rows and entry row), `docs/user-guide/comments-history.md` (what Recently Viewed on
   Home shows), `docs/user-guide/overview.md` (Home's rows), `docs/ADDON-DEVELOPMENT.md`
@@ -301,11 +318,12 @@ I7. Home's Recently Viewed row requests `filter=not_continue` with `limit=12` an
 I8. After a successful 続きから外す the card leaves the Continue row and exactly one `not_continue` request follows; while it is in flight Recently Viewed shows what it showed before, never the skeleton; a failed dismiss changes neither row and shows `couldNotRemoveFromContinue`; a failed refetch changes neither row and shows no toast; a refetch response for another drive, an older page load or an older refetch is discarded; a card removed with Remove from history never comes back from a refetch sent before the removal.
 I9. `ADDON_NAV_ICONS.images` is lucide `Images`, and a missing or unknown token draws `Package` in the sidebar, page jump and the entry row.
 I10. `HomeAppEntries.tsx`, `DriveHome.tsx` and `lib/addonNavIcons.ts` name no addon (`cloud-sync`, `intelligence`, `knowledge`, `media_import`, `photo_diary`) in code strings.
-I11. The entry row's `<nav>` has the accessible name `drive.appsNav` (アプリ / Apps) and no entry carries `aria-current` or a selected style on Home.
+I11. The entry row's `<nav>` has the accessible name `drive.appsNav` (アプリ / Apps), no entry carries `aria-current` or a selected style on Home, and the drive root still spends its one accent fill on 追加 alone.
+I12. Every entry is a `next/link` link: activating it changes the route on the client without a full document reload.
 
 ## Revises
 
-SPEC-CORE-069 I9. Home's Continue row is headed 続きから / Continue and requests `filter=continue`; only its card menu offers 続きから外す / Remove from Continue, directly above Remove from history; a successful dismiss removes the card from that row and fetches Recently Viewed (`filter=not_continue`) again; a failed one leaves both rows as they were and shows the toast; Remove from history still removes the card from both rows.
+SPEC-CORE-069 I9. Home's Continue row is headed 続きから / Continue and requests `filter=continue`; only its card menu offers 続きから外す / Remove from Continue, directly above Remove from history; what a dismiss does to Home's rows is I8 of `docs/specs/home-app-entries.md`; Remove from history still removes the card from both rows.
 
 ## Checked, no action
 
