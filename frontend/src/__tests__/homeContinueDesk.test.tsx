@@ -108,7 +108,7 @@ function menuLabels(): string[] {
 }
 
 async function openMenuOn(row: string, title: string) {
-  fireEvent.contextMenu(within(await section(row)).getByText(title));
+  fireEvent.contextMenu(await within(await section(row)).findByText(title));
   await screen.findAllByRole("menuitem");
 }
 
