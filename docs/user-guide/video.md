@@ -27,7 +27,7 @@ A shelf with no videos is not shown. If one shelf fails to load, only that shelf
 
 Each shelf has **See all**: **Continue** opens the Continue desk, **Recommended** opens
 the unwatched shelf (only with a profile), and **New** opens all videos newest first. The
-shelf page shows 60 videos at a time. The Continue desk opens most recently played first,
+shelf page shows 60 videos at a time. **Continue**'s page opens most recently played first,
 with **最後に開いた順** / **Last opened** in its sort menu.
 
 ## Library
