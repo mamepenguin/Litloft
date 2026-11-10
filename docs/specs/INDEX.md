@@ -171,4 +171,4 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-069 | implemented | docs/specs/home-continue-desk.md | sha256:19b078dd5caa04929c8afebfe7a4934986e75674e1926f3418c9efee072e5a70 |
 | SPEC-CORE-070 | implemented | docs/specs/home-continue-desk.md | sha256:19b078dd5caa04929c8afebfe7a4934986e75674e1926f3418c9efee072e5a70 |
 | SPEC-CORE-071 | implemented | docs/specs/home-continue-desk.md | sha256:19b078dd5caa04929c8afebfe7a4934986e75674e1926f3418c9efee072e5a70 |
-| SPEC-CORE-072 | draft | docs/specs/continue-shelf-page-order.md | |
+| SPEC-CORE-072 | approved | docs/specs/continue-shelf-page-order.md | sha256:b5886fc8c28ba025737cfa7e448842e75bf443aa602ad4d7bb0c23727ec81d2c |
