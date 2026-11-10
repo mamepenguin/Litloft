@@ -17,6 +17,7 @@ import { resolve, dirname } from "node:path";
 import { writeAppPrefs } from "@/lib/appPrefs";
 import { ApiStatusError } from "@/lib/api";
 import { AddonSlot } from "@/components/AddonSlot";
+import { resetDiscoverCache } from "../discoverCache";
 import { VideoApp } from "../VideoApp";
 
 // jsdom lays nothing out, so a shelf would hold the unmeasured minimum of cards.
@@ -26,17 +27,24 @@ vi.mock("@/lib/cardGrid", async (importOriginal) => ({
   useCardColumns: () => ({ ref: () => {}, columns: 24 }),
 }));
 
-// Every render's provider shelves, so a test can see a commit the DOM never changed for.
+// Every render's drawn shelves, so a test can see a commit the DOM never changed for.
 const { faceRenders } = vi.hoisted(() => ({
-  faceRenders: [] as { recommended: unknown; addonShelves: { id: string; state: unknown }[] }[],
+  faceRenders: [] as {
+    shelves: { id: string; status: string; ids: string[] }[];
+    pending: unknown;
+  }[],
 }));
 vi.mock("../DiscoverFace", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../DiscoverFace")>();
   return {
     DiscoverFace: (props: Parameters<typeof actual.DiscoverFace>[0]) => {
       faceRenders.push({
-        recommended: props.recommended.state,
-        addonShelves: props.addonShelves.map(({ id, state }) => ({ id, state })),
+        shelves: props.shelves.map(({ id, state }) => ({
+          id,
+          status: state.status,
+          ids: state.status === "loaded" ? state.items.map((item) => item.id) : [],
+        })),
+        pending: props.pending,
       });
       return actual.DiscoverFace(props);
     },
@@ -278,6 +286,7 @@ async function settle() {
 beforeEach(() => {
   nickname = "alice";
   localStorage.clear();
+  resetDiscoverCache();
   unmatched = new Set();
   catalogue.loading = false;
   catalogue.catalogueDrive = DRIVE;
@@ -597,7 +606,7 @@ describe("SPEC-CORE-068 addon shelves from video-discover-shelves", () => {
     expect(screen.queryByRole("button", { name: /retry/i })).not.toBeInTheDocument();
   });
 
-  it.runIf(addonsLinked)("SPEC-CORE-068 I5 draws nothing for a shelf while its provider is pending, then draws it", async () => {
+  it.runIf(addonsLinked)("SPEC-CORE-068 I5 draws nothing below a pending provider, and New follows it once it settles", async () => {
     const pending = deferred<string[]>();
     media["shelf-a"] = vi.fn<Provider>(async ({ restrict }) => {
       await restrict(["a1"]);
@@ -607,14 +616,16 @@ describe("SPEC-CORE-068 addon shelves from video-discover-shelves", () => {
     renderApp();
 
     await waitFor(() => expect(media["shelf-a"]).toHaveBeenCalled());
-    await screen.findByText("Newest one");
-    await settle();
+    await screen.findByText("Resume me");
     expect(screen.queryByText("Shelf Alpha")).not.toBeInTheDocument();
+    expect(screen.queryByText("Newest one")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /retry/i })).not.toBeInTheDocument();
+    expect(document.querySelector(".animate-pulse")).not.toBeNull();
 
     await act(async () => pending.resolve(["a1"]));
 
     expect(await screen.findByText("Shelf Alpha")).toBeInTheDocument();
+    expect(await screen.findByText("Newest one")).toBeInTheDocument();
     expect(screen.getByText(title("a1"))).toBeInTheDocument();
   });
 
@@ -743,15 +754,16 @@ describe("SPEC-CORE-068 when the providers run", () => {
     expect(screen.getByText("New")).toBeInTheDocument();
   });
 
-  it.runIf(addonsLinked)("SPEC-CORE-068 I11 calls no provider until the catalogue has loaded", async () => {
+  it.runIf(addonsLinked)("SPEC-CORE-068 I11 calls no provider until the catalogue has loaded, and draws New after it", async () => {
     catalogue.loading = true;
     const shelfA = restricting(["a1"]);
     media["shelf-a"] = shelfA;
     declare({ shelves: [SHELF_A] });
     const view = renderApp();
-    await screen.findByText("Newest one");
+    await screen.findByText("Resume me");
     await settle();
     expect(shelfA).not.toHaveBeenCalled();
+    expect(screen.queryByText("Newest one")).not.toBeInTheDocument();
 
     catalogue.loading = false;
     view.rerender(<VideoApp drive={DRIVE} />);
@@ -766,7 +778,7 @@ describe("SPEC-CORE-068 when the providers run", () => {
     media["shelf-a"] = shelfA;
     declare({ shelves: [SHELF_A] });
     const view = renderApp();
-    await screen.findByText("Newest one");
+    await screen.findByText("Resume me");
     await settle();
     expect(shelfA).not.toHaveBeenCalled();
     expect(screen.queryByText("Shelf Alpha")).not.toBeInTheDocument();
@@ -891,13 +903,13 @@ describe("SPEC-CORE-068 when the providers run", () => {
     const after = faceRenders.slice(from);
     expect(after.length).toBeGreaterThan(0);
     for (const render of after) {
-      expect(render.recommended).not.toMatchObject({ status: "loaded" });
-      const shelf = render.addonShelves.find(({ id }) => id === SHELF_A.id);
-      expect(shelf?.state).not.toMatchObject({ status: "loaded" });
+      const drawn = render.shelves.flatMap((shelf) => shelf.ids);
+      expect(drawn).not.toContain("a1");
+      expect(drawn).not.toContain("r1");
     }
   });
 
-  it.runIf(addonsLinked)("SPEC-CORE-068 re-runs when an entry's content changes, not when the same entries are re-created", async () => {
+  it.runIf(addonsLinked)("SPEC-CORE-068 an entry change within the visit asks nothing again, and the next visit uses the new entries", async () => {
     const shelfA = restricting(["a1"]);
     media["shelf-a"] = shelfA;
     declare({ shelves: [SHELF_A] });
@@ -912,10 +924,15 @@ describe("SPEC-CORE-068 when the providers run", () => {
     view.rerender(<VideoApp drive={DRIVE} />);
     await settle();
     expect(shelfA).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("Shelf Alpha")).toBeInTheDocument();
+    view.unmount();
 
     declare({ shelves: [{ ...SHELF_A, href: "addons/media_import/elsewhere" }] });
-    view.rerender(<VideoApp drive={DRIVE} />);
+    renderApp();
     await waitFor(() => expect(shelfA).toHaveBeenCalledTimes(2));
+    expect(
+      await screen.findByRole("link", { name: "See all: Shelf Alpha" }),
+    ).toHaveAttribute("href", `/drive/${encodeURIComponent(DRIVE)}/addons/media_import/elsewhere`);
   });
 
   it.runIf(addonsLinked)("SPEC-CORE-068 I11 on a drive switch draws nothing of the previous drive and waits for the new catalogue", async () => {

@@ -10,7 +10,7 @@ import { render, screen, waitFor, fireEvent, act } from "@testing-library/react"
 import { readAppPrefs, writeAppPrefs } from "@/lib/appPrefs";
 import { VideoApp } from "../VideoApp";
 
-const DRIVE = "main";
+const { DRIVE } = vi.hoisted(() => ({ DRIVE: "main" }));
 
 let nickname: string | null = "alice";
 const profile = {
@@ -28,6 +28,18 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/components/ProfileProvider", () => ({ useProfile: () => profile }));
+
+vi.mock("@/components/AddonSlotsProvider", () => ({
+  useAddonSlots: () => ({
+    addons: {},
+    catalogueDrive: DRIVE,
+    slots: {},
+    loading: false,
+    getSlotEntries: () => [],
+    hasSlot: () => false,
+  }),
+  useAddonStatus: () => ({ features: {} }),
+}));
 
 const getShelves = vi.fn();
 const getDriveFiles = vi.fn();
@@ -126,13 +138,15 @@ afterEach(() => {
 });
 
 describe("a shelf while it loads, refetches and fails", () => {
-  it("draws skeletons, no retry and no empty state while a shelf is still loading", async () => {
+  it("draws one untitled skeleton, no retry and no empty state while the shelves are still loading", async () => {
     getShelves.mockImplementation(never);
     getDriveFiles.mockImplementation(never);
     const { container } = render(<VideoApp drive={DRIVE} />);
 
-    await screen.findByText("New");
-    expect(container.querySelectorAll(".animate-pulse").length).toBeGreaterThan(0);
+    await waitFor(() => expect(container.querySelectorAll(".animate-pulse").length).toBeGreaterThan(0));
+    expect(screen.queryByText("Continue")).not.toBeInTheDocument();
+    expect(screen.queryByText("Recommended")).not.toBeInTheDocument();
+    expect(screen.queryByText("New")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /retry/i })).not.toBeInTheDocument();
     expect(screen.queryByText("No files")).not.toBeInTheDocument();
   });
