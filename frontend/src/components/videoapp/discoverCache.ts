@@ -1,0 +1,63 @@
+import type { VideoTargetParams } from "@/lib/videoAppTarget";
+
+const stored = new Map<string, readonly string[]>();
+
+/** Sorted, so a target built in another key order reads as the same target. */
+function ordered(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(ordered);
+  if (value !== null && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    return Object.fromEntries(
+      Object.keys(record)
+        .sort()
+        .map((name) => [name, ordered(record[name])]),
+    );
+  }
+  return value;
+}
+
+export function stableJson(value: unknown): string {
+  return JSON.stringify(ordered(value));
+}
+
+export interface DiscoverCacheKey {
+  drive: string;
+  params: VideoTargetParams;
+  slot: string;
+  date: string;
+  nickname?: string | null;
+  entriesKey?: string;
+  addonName?: string | null;
+  entryId?: string;
+}
+
+export function discoverCacheKey(key: DiscoverCacheKey): string {
+  return stableJson([
+    key.drive,
+    key.params,
+    key.slot,
+    key.date,
+    key.nickname ?? null,
+    key.entriesKey ?? null,
+    key.addonName ?? null,
+    key.entryId ?? null,
+  ]);
+}
+
+export function readCachedIds(key: string): readonly string[] | undefined {
+  return stored.get(key);
+}
+
+export function writeCachedIds(key: string, ids: readonly string[]): void {
+  stored.set(key, [...ids]);
+}
+
+export function resetDiscoverCache(): void {
+  stored.clear();
+}
+
+export function localDate(now: Date = new Date()): string {
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}-${month}-${day}`;
+}

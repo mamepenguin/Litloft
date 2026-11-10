@@ -25,6 +25,7 @@ export function VideoApp({ drive }: { drive: string }) {
     drive,
     params: state.params,
     hasProfile: state.hasProfile,
+    nickname: state.nickname,
     wanted: state.ready && face === "discover",
     onViewerRejected: state.rejectViewer,
   });
@@ -71,12 +72,10 @@ export function VideoApp({ drive }: { drive: string }) {
         ) : (
           <DiscoverFace
             drive={drive}
-            empty={state.empty}
+            empty={state.empty || discover.empty}
             hasProfile={state.hasProfile}
-            continueShelf={discover.continueShelf}
-            recommended={discover.recommended}
-            addonShelves={discover.addonShelves}
-            fresh={discover.fresh}
+            shelves={discover.shelves}
+            pending={discover.pending}
           />
         )}
       </div>

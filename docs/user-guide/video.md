@@ -12,8 +12,10 @@ opens there.
 
 ## Discover
 
-Up to five shelves with the standard addons, each loading on its own, in this
-order: **Continue**, **Recommended**, the addon shelves, then **New**.
+Up to five shelves with the standard addons, in this order: **Continue**,
+**Recommended**, the addon shelves, then **New**. They are drawn from the top down:
+while the page loads, one placeholder shelf sits under the shelves already shown, and
+nothing above it moves.
 
 - **Continue**: videos you started and have not finished, played within the last two weeks,
   most recently played first. A file set aside from **Continue** on Home does not appear
@@ -28,7 +30,9 @@ order: **Continue**, **Recommended**, the addon shelves, then **New**.
 
 A shelf with no videos is not shown. If Continue or New fails to load, only that
 shelf shows **Retry**. A Recommended or addon shelf that fails or comes to nothing
-is simply absent, with no Retry.
+is simply absent, with no Retry. A Recommended or addon shelf slower than about a
+second can be missing the first time and appears the next time you open Video in the
+same tab that day.
 
 **See all** appears on each shelf that has one: **Continue** opens the Continue desk,
 **New** opens all videos newest first, and an addon shelf opens its addon page when the
