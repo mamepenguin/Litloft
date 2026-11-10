@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2-1",
+      "status": "confirmed",
+      "note": "Reproduced by reading the code. useDiscover.ts:147-150 holds `recommended` and `shelfStates` in useState. They are reset only inside the effects: setRecommended({status:'loading'}) at :158 (or 'idle' at :154), and setShelfStates(loading) at :210 (or {} at :203). Both effects are keyed on drive, params, hasProfile, catalogueReady and the entries key (:191-199, :250). On the render where `params`, `drive` or `hasProfile` changes, :300 returns the old `recommended` state, and :290-296 build addonShelves from the old `shelfStates`. The render that commits therefore still carries the previous inputs' 'loaded' items. They are replaced only after the effect runs and causes a second render. DiscoverFace.tsx:70 also gates Recommended on `hasProfile`, so a profile loss hides Recommended at once. A change of target or drive does not hide it. useLoad.ts:17-21 and :49-52 instead derive 'loading' during render by comparing `settled.load === load`, so Continue and New never show stale data. The claim that I11 ('a provider result whose drive, target or profile has since changed is never drawn') is broken for one commit holds. I did not open the waitFor-based test, so its weakness is taken from the finding."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2-2",
+      "status": "confirmed",
+      "note": "pageJump.ts:52 has FIXED_JUMPS entry key 'continue'. useJumpDestinations.ts:137 calls t(`pageJump.aliases.${jump.key}`) for every visible fixed jump, inside a useMemo that runs whenever `drive` is non-null (:128-129), whether or not the launcher is open. messages-core/en.json:1402-1414 and ja.json:1402-1414 list aliases only for home, inbox, library, favorites, liked, recent, recentAdded, allFiles, trash, missing and admin. There is no 'continue'. There are also no `app-*` keys, though builtinApps entries are spread into FIXED_JUMPS at pageJump.ts:44-49. No onError or getMessageFallback override exists in frontend/src, so next-intl's default MISSING_MESSAGE reporting applies. The hook is mounted via useLauncherRows from GlobalSearch.tsx:145, so the error is plausibly app-wide. The finding says this came in with the develop merge. This branch's diff does not introduce it."
+    }
+  ],
+  "specification_compliance": [
+    "I11 is not fully met: for one commit after a drive, target or profile-gain change, useDiscover returns the previous inputs' loaded Recommended and addon-shelf items (R2-1).",
+    "I5 'never while loading' is met in state terms after the effect runs, but the first render after an input change shows the stale loaded state rather than loading."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "builtinApps keys (`app-*`) in FIXED_JUMPS also have no pageJump.aliases messages, so they would emit MISSING_MESSAGE the same way as 'continue'. This was already on develop."
+  ],
+  "regression_risks": [
+    "Stale provider shelves can flash for one frame when the video app target or drive changes. Continue and New, which use useLoad, do not do this."
+  ],
+  "test_coverage": [
+    "No test asserts the synchronous first render after a target change. A test of the 'I11 hides a shelf while it re-runs' kind that uses waitFor would pass even with one stale commit (per the finding; I did not open the test)."
+  ],
+  "not_verified": [
+    "I did not open VideoApp.discoverProviders.test.tsx to confirm that it uses waitFor.",
+    "I did not run any test or browser session to watch MISSING_MESSAGE logged at runtime.",
+    "I did not check next-intl's version-specific default onError behaviour.",
+    "I did not review the backend `ids` parameter, the addon submodules or the docs."
+  ],
+  "confidence": 85
+}
