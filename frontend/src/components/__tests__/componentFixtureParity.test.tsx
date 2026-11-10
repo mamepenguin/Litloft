@@ -315,6 +315,7 @@ describe("the component fixture's page", () => {
       "markdown-tables",
       "played-ranges",
       "text-resume",
+      "home-app-entries",
       "persistent-highlights",
     ]);
   });

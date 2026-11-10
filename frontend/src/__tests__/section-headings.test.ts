@@ -32,8 +32,8 @@ const SECTION_COMPONENTS = ["CarouselSection", "ContinueWatchingSection"];
 const DRIVE_HOME_GLYPHS = existsSync(
   resolve(REPO_ROOT, "addons/intelligence/frontend"),
 )
-  ? 6
-  : 5;
+  ? 5
+  : 4;
 
 const REQUIRED_COLOUR = "text-text-muted";
 const REQUIRED_SIZE = 20;

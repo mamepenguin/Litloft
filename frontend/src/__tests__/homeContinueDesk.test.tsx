@@ -117,7 +117,7 @@ beforeEach(() => {
   mockProfile.nickname = "Alice";
   mockGetDriveFiles.mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 12 } });
   mockGetWatchHistory.mockImplementation(async (_drive: string, _limit: number, filter?: string) =>
-    filter === "continue" || filter === "all" ? [item("v1"), item("v2")] : [],
+    filter === "continue" || filter === "not_continue" ? [item("v1"), item("v2")] : [],
   );
   mockDismiss.mockResolvedValue(undefined);
   mockDeleteProgress.mockResolvedValue(undefined);
@@ -131,8 +131,8 @@ describe("SPEC-CORE-069 I9 Home's Continue row", () => {
     expect(screen.queryByRole("heading", { level: 2, name: "Continue Watching" })).toBeNull();
     const calls = mockGetWatchHistory.mock.calls;
     expect(calls.some(([d, limit, filter]) => d === "media" && limit === 12 && filter === "continue")).toBe(true);
-    expect(calls.some(([d, limit, filter]) => d === "media" && limit === 12 && filter === "all")).toBe(true);
-    expect(calls.every(([, , filter]) => filter === "continue" || filter === "all")).toBe(true);
+    expect(calls.some(([d, limit, filter]) => d === "media" && limit === 12 && filter === "not_continue")).toBe(true);
+    expect(calls.every(([, , filter]) => filter === "continue" || filter === "not_continue")).toBe(true);
   });
 });
 
@@ -171,9 +171,11 @@ describe("SPEC-CORE-070 I9 set-aside from Home", () => {
     expect(menuLabels()).not.toContain("Remove from Continue");
   });
 
-  it("SPEC-CORE-070 takes the card out of Continue only, after the dismiss succeeds", async () => {
+  it("SPEC-CORE-074 I8 takes the card out of Continue after the dismiss succeeds, then asks for Recently Viewed once more", async () => {
     renderHome();
     await openMenuOn("Continue", "Video v1");
+    const notContinue = () => mockGetWatchHistory.mock.calls.filter(([, , f]) => f === "not_continue").length;
+    expect(notContinue()).toBe(1);
 
     fireEvent.click(screen.getByRole("menuitem", { name: /Remove from Continue/ }));
 
@@ -184,6 +186,7 @@ describe("SPEC-CORE-070 I9 set-aside from Home", () => {
     );
     expect(within(await section("Continue")).getByText("Video v2")).toBeInTheDocument();
     expect(within(await section("Recently Viewed")).getByText("Video v1")).toBeInTheDocument();
+    await waitFor(() => expect(notContinue()).toBe(2));
     expect(mockDeleteProgress).not.toHaveBeenCalled();
   });
 

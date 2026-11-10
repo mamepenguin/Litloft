@@ -238,6 +238,7 @@ describe("addon destinations in the sidebar", () => {
     ["an unknown icon", "no-such-icon", "lucide-package"],
     ["no icon", undefined, "lucide-package"],
     ["the download token", "download", "lucide-download"],
+    ["the images token", "images", "lucide-images"],
     ["the message-circle-question token", "message-circle-question", "lucide-message-circle-question-mark"],
     ["the notebook-pen token", "notebook-pen", "lucide-notebook-pen"],
     ["the package token", "package", "lucide-package"],

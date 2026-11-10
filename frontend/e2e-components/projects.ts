@@ -20,6 +20,7 @@ export const DESKTOP_ONLY = [
   "**/persistent-highlights-desktop.spec.ts",
   "**/ask-thread-desktop.spec.ts",
   "**/search-results-bar-desktop.spec.ts",
+  "**/home-app-entries-desktop.spec.ts",
 ];
 
 /** Literals rather than a device preset, which can change under it. */

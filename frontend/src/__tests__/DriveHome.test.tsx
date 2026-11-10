@@ -149,22 +149,18 @@ describe("DriveHome", () => {
     mockGetWatchHistory.mockResolvedValue([]);
   });
 
-  it("asks the backend for liked files, ordered by when they were liked", async () => {
-    // The counter this replaces was fetched with sort=likes and then
-    // filtered client-side on `likes > 0`; the server filter replaces
-    // both (spec 2026-09-01-favorite-like-separation).
+  it("SPEC-CORE-074 I5 asks the backend for no liked files", async () => {
     render(<DriveHome driveName="media" />);
 
     await waitFor(() => {
       expect(mockGetDriveFiles).toHaveBeenCalledWith(
         "media",
-        expect.objectContaining({
-          liked: true,
-          sort: "liked_at",
-          order: "desc",
-        }),
+        expect.objectContaining({ favorite: true }),
       );
     });
+    expect(
+      mockGetDriveFiles.mock.calls.some(([, params]) => (params as Record<string, unknown>).liked === true),
+    ).toBe(false);
   });
 
   it("does not show Continue when no profile", async () => {
@@ -190,7 +186,7 @@ describe("DriveHome", () => {
       expect(screen.getByText("Continue")).toBeInTheDocument();
     });
     expect(mockGetWatchHistory).toHaveBeenCalledWith("media", 12, "continue");
-    expect(mockGetWatchHistory).toHaveBeenCalledWith("media", 12, "all");
+    expect(mockGetWatchHistory).toHaveBeenCalledWith("media", 12, "not_continue");
   });
 
   it("does not show Continue when profile is set but no items", async () => {
