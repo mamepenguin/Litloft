@@ -5,9 +5,9 @@ import { Folder, Library, Package, Search, type LucideIcon } from "lucide-react"
 import { useTranslations } from "next-intl";
 
 import { useAddonSlots } from "@/components/AddonSlotsProvider";
-import { ADDON_NAV_ICONS } from "@/components/sidebar/AddonNavRows";
 import { pinHrefFor } from "@/components/sidebar/libraryRowActive";
 import { addonNavEntries, type AddonNavPlacement } from "@/lib/addonNavigation";
+import { ADDON_NAV_ICONS } from "@/lib/addonNavIcons";
 import {
   getAuthStatus,
   getCollections,

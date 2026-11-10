@@ -1,20 +1,24 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { History, FilePlus, Home, Star, ThumbsUp } from "lucide-react";
+import { History, FilePlus, Home, Star } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { FileItem, PaginatedResponse, WatchHistoryItem } from "@/types";
 import { dismissContinueItem, getDriveFiles, getWatchHistory } from "@/lib/api";
+import { addonNavEntries } from "@/lib/addonNavigation";
 import { UploadZone } from "@/components/UploadZone";
 import { useUploadCompleted } from "@/hooks/useUpload";
+import { useInboxCount } from "@/hooks/useInboxCount";
 import { useTreeRefresh } from "@/components/TreeRefreshContext";
 import { useWebSocketRefresh } from "@/hooks/useWebSocketRefresh";
 import { AddButton } from "./AddButton";
 import { AddonSlot } from "./AddonSlot";
+import { useAddonSlots } from "./AddonSlotsProvider";
 import { CarouselSection } from "./CarouselSection";
 import { driveHref } from "@/lib/driveViews";
 import { ContinueWatchingSection } from "./ContinueWatchingSection";
 import { EmptyState } from "./EmptyState";
+import { HomeAppEntries } from "./home/HomeAppEntries";
 import { PageFrame } from "./PageFrame";
 import { PageHeader } from "./PageHeader";
 import { useProfile } from "./ProfileProvider";
@@ -58,13 +62,14 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   const { nickname } = useProfile();
   const hasProfile = nickname !== null;
   const refreshTree = useTreeRefresh();
+  const { addons, catalogueDrive } = useAddonSlots();
+  const inboxCount = useInboxCount(driveName);
   const [continueWatching, setContinueWatching] = useState<WatchHistoryItem[]>([]);
   const [continueWatchingLoading, setContinueWatchingLoading] = useState(false);
   const [recentlyPlayed, setRecentlyPlayed] = useState<WatchHistoryItem[]>([]);
   const [recentlyPlayedLoading, setRecentlyPlayedLoading] = useState(false);
   const [recent, setRecent] = useState<SectionState>({ files: [], loading: true });
   const [favorites, setFavorites] = useState<SectionState>({ files: [], loading: true });
-  const [liked, setLiked] = useState<SectionState>({ files: [], loading: true });
   // Separate a row empty because its request failed from one empty
   // because the drive holds nothing. Two flags because the file rows are
   // also re-fetched without the watch rows.
@@ -85,6 +90,11 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   const fileSectionsAppliedRef = useRef(0);
   // The watch rows are fetched only on a page load, so it is their identity.
   const pageLoadRef = useRef(0);
+  const notContinueRequestRef = useRef(0);
+  // A card removed from history is left out of a refetch sent before the
+  // removal, whose response still holds it.
+  const removalSeqRef = useRef(0);
+  const removedIdsRef = useRef(new Map<string, number>());
 
   const applyFileSections = useCallback((batch: FileSectionsBatch) => {
     if (batch.drive !== shownDriveRef.current) return;
@@ -118,7 +128,6 @@ export function DriveHome({ driveName }: DriveHomeProps) {
 
     setRecent((previous) => section(results[0], previous));
     setFavorites((previous) => section(results[1], previous));
-    setLiked((previous) => section(results[2], previous));
   }, []);
 
   const fetchFileSections = useCallback(async (pageLoad: boolean): Promise<FileSectionsBatch> => {
@@ -127,7 +136,6 @@ export function DriveHome({ driveName }: DriveHomeProps) {
     const results = await Promise.allSettled([
       getDriveFiles(drive, { sort: "created_at", order: "desc", limit: SECTION_LIMIT }),
       getDriveFiles(drive, { favorite: true, sort: "created_at", order: "desc", limit: SECTION_LIMIT }),
-      getDriveFiles(drive, { liked: true, sort: "liked_at", order: "desc", limit: SECTION_LIMIT }),
     ]);
     return { drive, requestId, pageLoad, results };
   }, [driveName]);
@@ -137,7 +145,6 @@ export function DriveHome({ driveName }: DriveHomeProps) {
     setPageLoaded(false);
     setRecent({ files: [], loading: true });
     setFavorites({ files: [], loading: true });
-    setLiked({ files: [], loading: true });
     if (hasProfile) {
       setContinueWatchingLoading(true);
       setRecentlyPlayedLoading(true);
@@ -150,7 +157,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
       hasProfile
         ? Promise.allSettled([
             getWatchHistory(driveName, SECTION_LIMIT, "continue"),
-            getWatchHistory(driveName, SECTION_LIMIT, "all"),
+            getWatchHistory(driveName, SECTION_LIMIT, "not_continue"),
           ])
         : null,
     ]);
@@ -185,6 +192,35 @@ export function DriveHome({ driveName }: DriveHomeProps) {
     applyFileSections(await fetchFileSections(false));
   }, [fetchFileSections, applyFileSections]);
 
+  /**
+   * Asked for once after a set-aside, and not awaited by the caller. A
+   * failure changes nothing: the row keeps what it showed and says nothing.
+   */
+  const refetchRecentlyViewed = useCallback(async () => {
+    const requestId = ++notContinueRequestRef.current;
+    const drive = driveName;
+    const pageLoadId = pageLoadRef.current;
+    const removalsBeforeSend = removalSeqRef.current;
+
+    let items: WatchHistoryItem[];
+    try {
+      items = await getWatchHistory(drive, SECTION_LIMIT, "not_continue");
+    } catch {
+      return;
+    }
+
+    if (shownDriveRef.current !== drive) return;
+    if (pageLoadRef.current !== pageLoadId) return;
+    if (notContinueRequestRef.current !== requestId) return;
+
+    setRecentlyPlayed(
+      items.filter((item) => (removedIdsRef.current.get(item.id) ?? 0) <= removalsBeforeSend),
+    );
+    for (const [id, seq] of removedIdsRef.current) {
+      if (seq <= removalsBeforeSend) removedIdsRef.current.delete(id);
+    }
+  }, [driveName]);
+
   // `drive.file_updated` too: favouriting is a content update.
   const refreshPage = useCallback(() => {
     void refetchAllSections();
@@ -200,6 +236,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   );
 
   const handleRemoveWatchItem = useCallback((fileId: string) => {
+    removedIdsRef.current.set(fileId, ++removalSeqRef.current);
     setContinueWatching((prev) => prev.filter((item) => item.id !== fileId));
     setRecentlyPlayed((prev) => prev.filter((item) => item.id !== fileId));
   }, []);
@@ -207,14 +244,22 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   const handleDismissWatchItem = useCallback(async (fileId: string) => {
     await dismissContinueItem(fileId);
     setContinueWatching((prev) => prev.filter((item) => item.id !== fileId));
-  }, []);
+    void refetchRecentlyViewed();
+  }, [refetchRecentlyViewed]);
 
   const driveBase = `/drive/${encodeURIComponent(driveName)}`;
+
+  // Only this drive's catalogue: between a switch and the new response the
+  // provider still holds the previous drive's entries.
+  const addonEntries = addonNavEntries(
+    catalogueDrive === driveName ? addons : {},
+    driveName,
+    "primary",
+  );
 
   const rowsEmpty =
     recent.files.length === 0 &&
     favorites.files.length === 0 &&
-    liked.files.length === 0 &&
     continueWatching.length === 0 &&
     recentlyPlayed.length === 0;
   // Without a profile the watch rows are never requested.
@@ -256,21 +301,23 @@ export function DriveHome({ driveName }: DriveHomeProps) {
         }
       >
       <div className="space-y-8 px-4 pb-6 pt-2 sm:pb-8 sm:pt-4">
+      <HomeAppEntries
+        drive={driveName}
+        addonEntries={addonEntries}
+        inboxCount={inboxCount}
+      />
+
       {hasProfile && (
         <ContinueWatchingSection
           items={continueWatching}
           loading={continueWatchingLoading}
-          // Recently Viewed is this history without the desk's gates, so it
-          // is a superset of this row.
+          // The desk view is this row's own page; Recently Viewed lists
+          // what is off the desk and keeps the whole-history view.
           seeAllHref={`${driveBase}?view=continue`}
           onRemoveItem={handleRemoveWatchItem}
           onDismissItem={handleDismissWatchItem}
         />
       )}
-
-      {/* Suggestions sit beside "what you were in the middle of", and do
-          not need a profile. */}
-      <AddonSlot id="drive-home-sections" props={{ drive: driveName }} />
 
       {hasProfile && (
         <ContinueWatchingSection
@@ -284,16 +331,6 @@ export function DriveHome({ driveName }: DriveHomeProps) {
       )}
 
       <CarouselSection
-        title={t("recentAdded")}
-        icon={<FilePlus size={20} className="text-text-muted" />}
-        files={recent.files}
-        loading={recent.loading}
-        totalCount={recent.total}
-        seeAllHref={`${driveBase}?view=recent-added`}
-        onFileAction={refetchAllSections}
-      />
-
-      <CarouselSection
         title={t("favorites")}
         icon={<Star size={20} className="text-text-muted" />}
         files={favorites.files}
@@ -303,13 +340,17 @@ export function DriveHome({ driveName }: DriveHomeProps) {
         onFileAction={refetchAllSections}
       />
 
+      {/* Suggestions sit beside what you were in the middle of, and do
+          not need a profile. */}
+      <AddonSlot id="drive-home-sections" props={{ drive: driveName }} />
+
       <CarouselSection
-        title={t("liked")}
-        icon={<ThumbsUp size={20} className="text-text-muted" />}
-        files={liked.files}
-        loading={liked.loading}
-        totalCount={liked.total}
-        seeAllHref={`${driveBase}?view=liked`}
+        title={t("recentAdded")}
+        icon={<FilePlus size={20} className="text-text-muted" />}
+        files={recent.files}
+        loading={recent.loading}
+        totalCount={recent.total}
+        seeAllHref={`${driveBase}?view=recent-added`}
         onFileAction={refetchAllSections}
       />
 

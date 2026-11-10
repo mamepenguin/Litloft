@@ -153,7 +153,7 @@ describe("section heading icons", () => {
         : "frontend/src";
       perRoot.set(root, (perRoot.get(root) ?? 0) + 1);
     }
-    expect(perRoot.get("frontend/src")).toBe(7);
+    expect(perRoot.get("frontend/src")).toBe(6);
 
     const EXPECTED_ADDON_ICONS: Record<string, number> = {
       "addons/intelligence": 2,

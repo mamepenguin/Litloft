@@ -1059,7 +1059,7 @@ export async function dismissContinueItem(fileId: string): Promise<void> {
 export async function getWatchHistory(
   driveName: string,
   limit?: number,
-  filter?: "unfinished" | "all" | "continue",
+  filter?: "unfinished" | "all" | "continue" | "not_continue",
   type?: FileKind | null,
 ): Promise<WatchHistoryItem[]> {
   const params = new URLSearchParams();

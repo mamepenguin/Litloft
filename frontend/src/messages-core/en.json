@@ -84,6 +84,7 @@
     "continue": "Continue"
   },
   "drive": {
+    "appsNav": "Apps",
     "empty": "No drives found",
     "emptyDescription": "Configure drives.json to add drives.",
     "pickup": "Pickup",

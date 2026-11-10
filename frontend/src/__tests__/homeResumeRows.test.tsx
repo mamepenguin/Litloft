@@ -141,7 +141,15 @@ async function section(name: string): Promise<HTMLElement> {
 const titlesIn = (name: string) => {
   const s = sectionOf(name);
   if (!s) return null;
-  return Array.from(new Set((s.textContent ?? "").match(/Video [\w-]+/g) ?? []));
+  // Each card's title is its own text node; reading the section's whole
+  // text would run it into the relative date that follows it.
+  const titles: string[] = [];
+  const walker = document.createTreeWalker(s, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const text = (node.textContent ?? "").trim();
+    if (text.startsWith("Video ")) titles.push(text);
+  }
+  return Array.from(new Set(titles));
 };
 
 async function menuOn(row: string, title: string) {

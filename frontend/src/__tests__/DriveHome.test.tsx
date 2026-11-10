@@ -342,9 +342,9 @@ describe("the drive home's content rows", () => {
       meta: { total: 619, page: 1, limit: 12 },
     });
     render(<DriveHome driveName="media" />);
-    // All three file rows read from the same mock, so all three carry it.
+    // Both file rows read from the same mock, so both carry it.
     const links = await screen.findAllByRole("link", { name: "See all (619)" });
-    expect(links).toHaveLength(3);
+    expect(links).toHaveLength(2);
   });
 
   it("gives each row its own total, and drops a row whose fetch failed", async () => {
@@ -619,11 +619,10 @@ describe("the drive root's header", () => {
       (h) => h.textContent,
     );
     expect(headings).toEqual(["Home"]);
-    // The trail, queried the way `Breadcrumb` draws it: a bare `<nav>`.
-    // It carries no `aria-label` of its own — only the home link inside
-    // it does — so a selector asking for one matches nothing whether the
-    // trail is there or not.
-    expect(container.querySelector("nav")).toBeNull();
+    // The trail, queried the way `Breadcrumb` draws it: a bare `<nav>`. The
+    // home entry row draws a `<nav aria-label>` of its own, so the trail is
+    // the one without a name.
+    expect(container.querySelector("nav:not([aria-label])")).toBeNull();
     expect(screen.getByText("media")).not.toBeNull();
   });
 
