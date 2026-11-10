@@ -181,5 +181,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-075 | implemented | docs/specs/home-app-entries.md | sha256:c9062dec1fce7b0b551c43797a3677fcfaf8b5bbc099e7a1060c37ef1853bc1f |
 | SPEC-CORE-076 | implemented | docs/specs/discover-shelves-never-shift.md | sha256:ebc0d007063679aa4ea448c924dbe61702c0cb0e9e60023138c6b7c6e55bb0f7 |
 | SPEC-CORE-077 | implemented | docs/specs/discover-shelves-never-shift.md | sha256:ebc0d007063679aa4ea448c924dbe61702c0cb0e9e60023138c6b7c6e55bb0f7 |
-| SPEC-ADDON-089 | draft | docs/specs/scene-timeline.md | |
-| SPEC-ADDON-090 | draft | docs/specs/scene-timeline.md | |
+| SPEC-ADDON-089 | approved | docs/specs/scene-timeline.md | sha256:b4e54db683000fddc69a9ec97c7f9c2cb858e41b2de94e26777d2adaf1022b33 |
+| SPEC-ADDON-090 | approved | docs/specs/scene-timeline.md | sha256:b4e54db683000fddc69a9ec97c7f9c2cb858e41b2de94e26777d2adaf1022b33 |
