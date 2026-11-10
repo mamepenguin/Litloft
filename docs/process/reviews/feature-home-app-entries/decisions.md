@@ -96,3 +96,13 @@ pending: Real iOS Safari layout of the entry row (the 36rem container query and
   index, so the slot answered empty and drew nothing); audio/video playback was
   not part of this path. The design check against the four artboards is the
   design-checker's step, not recorded here.
+
+## Design differences
+
+Decided by the human on 2026-11-10, in the session that built this change.
+
+- D-1, D-2, D-3 accepted: the rows keep the existing `SectionRow` grid; the spec's Summary declares the design's shelf drawings illustrative.
+- D-4 accepted: 追加 is the existing header button, which D7 keeps unchanged; the artboards drew it wrong.
+- D-5, D-8 accepted: the cards are the existing cards; the spec's Summary declares card contents illustrative.
+- D-6 accepted: the existing shelf headings (icon, すべて見る, count); the spec's Summary declares the omitted heading icons.
+- D-7 accepted: Pickup had no items on the R-5 stack; its slot sits between お気に入り and 最近追加 as measured.
