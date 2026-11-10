@@ -43,7 +43,10 @@ artboards). Declared differences between the design and this spec, accepted with
 **Entry row (073)**
 
 1. The viewer opens a drive's Home (`/drive/{drive}?view=home`).
-2. Under the page header, before any row, Home draws a `<nav>` whose accessible name is
+2. Under the page header, before any row, Home draws `HomeAppEntries`, a presenter that
+   takes `drive`, the addon entries and the Inbox count as props and calls no hook that
+   fetches. `DriveHome` reads `useAddonSlots()` (with the `catalogueDrive` guard) and
+   `useInboxCount(drive)` and passes the results down. `HomeAppEntries` draws a `<nav>` whose accessible name is
    `drive.appsNav` (アプリ / Apps; `aria-label` only, no visible heading), holding one link
    per entry, in this order:
    1. ライブラリ / Library → `driveHref(drive, "library")`;
@@ -63,8 +66,10 @@ artboards). Declared differences between the design and this spec, accepted with
    `frontend/src/hooks/useInboxCount.ts`, unchanged, imported by the sidebar and the entry row.
 5. Photo Diary is a separate repository (`mamepenguin/Litloft-photo-diary-addon`), cloned to
    `addons/photo_diary` by an operator who wants it; it is not a submodule and the core pins
-   nothing for it. Its `backend/router.py` `ADDON_META.navigation` gains `"icon": "images"`
-   in that repository, as a separate pull request there.
+   nothing for it. Its `backend/router.py` `ADDON_META.navigation` declares
+   `placement: "primary"`, `priority: 30` and no icon (read at its commit `60356c7`, in the
+   clone at `video_share-photo-diary/addons/photo_diary`). It gains `"icon": "images"` in a
+   pull request in that repository, merged before this change's R-5.
 6. Activating an entry navigates with the router (a `next/link`), no full reload.
 
 **Rows (074)**, top to bottom after the entry row:
@@ -82,9 +87,12 @@ Home no longer draws the Liked row and no longer requests `liked=true`.
 
 1. 続きから外す calls the dismiss endpoint as today. On success the card leaves the Continue row.
 2. Then, not awaited by the dismiss handler, Home fetches `filter=not_continue` (limit 12)
-   once. The Recently Viewed row keeps its cards (no skeleton) until the response lands,
-   then shows the response, so the set-aside file appears there when it is among the newest
-   12 `not_continue` rows.
+   once. The Recently Viewed row keeps what it showed (its cards, or nothing if it was
+   hidden; no skeleton) until the response lands, then shows the response, so the set-aside
+   file appears there when it is among the newest 12 `not_continue` rows. A hidden row
+   (empty, or failed on the page load) is drawn when the response holds rows. The refetch
+   does not touch the watch-failure flag; the empty state follows from the rows being
+   non-empty.
 3. A refetch response is discarded when, by the time it lands, Home shows another drive, a
    newer page load has started, or a newer Recently Viewed refetch was sent. A card removed
    with Remove from history after the refetch was sent is left out of its response.
@@ -118,9 +126,9 @@ does not (`not_(continue_desk_filter())`), narrowed by `type` before `limit`, ne
   - Inbox entry: absent (count 0) ↔ present (count ≥ 1), following `useInboxCount`, which
     resets to 0 on a drive change.
 - Recently Viewed row: not drawn without a profile; page load: loading → filled, or loading
-  → hidden when empty or failed; after a set-aside: filled → refetching (same cards shown) →
-  filled with the response, or → unchanged on failure or discard. It never returns to the
-  loading skeleton on a refetch.
+  → hidden when empty or failed; after a set-aside: filled or hidden → refetching (shows
+  what it showed) → filled with the response (hidden if the response is empty), or →
+  unchanged on failure or discard. It never returns to the loading skeleton on a refetch.
 - Other rows: unchanged (loading → filled, or loading → hidden when empty).
 - Not allowed: another drive's entries or history on Home during a switch; a card removed
   with Remove from history coming back from a refetch sent before the removal.
@@ -173,10 +181,15 @@ Nothing new is logged.
 ### 9. User-visible behavior
 
 - Home's first block under the header is the entry row.
-  - Viewport width ≥ `sm` (640px): one wrapping row of tiles, each an icon (18px) beside the
-    label, `rounded-xl`, `bg-bg-elevated`, `px-4 py-3`, gap 8px. It never scrolls sideways.
-  - Viewport width < `sm`: a 4-column grid, each tile the icon (22px) above a 12px label
-    that may wrap to two lines, at least 72px tall.
+  - The switch is on the row's own width (a CSS container query on the row's wrapper,
+    threshold `36rem`), per DESIGN.md "Measure against the container"; the row holds no
+    `<video>`, so the iOS Safari issue `cardGrid` avoids does not apply.
+  - Container ≥ 36rem: one wrapping row of tiles, each an icon (18px) beside the label,
+    `rounded-xl`, `bg-bg-elevated`, `px-4 py-3`, gap 8px. It never scrolls sideways.
+  - Container < 36rem: a 4-column grid, each tile the icon (22px) above a 12px label that
+    may wrap to two lines, at least 72px tall.
+  - Tiles and the pill use no accent fill (the drive root's one accent stays on 追加's
+    menu as today).
   - Every tile is at least 44px tall. The Inbox count is a `rounded-full` `bg-warm-light`
     pill: after the label on the wide layout, at the tile's top-right corner on the grid.
   - No entry carries a selected state; the row is a `<nav>` of links, not a tablist.
@@ -185,8 +198,11 @@ Nothing new is logged.
   Accepted (see Checked).
 - Row order: entry row, Continue, Recently Viewed, Favorites, addon rows, Recently Added.
   No Liked row.
-- Recently Viewed no longer repeats a file that Continue's request returns; a file that was
+- Recently Viewed leaves out every file on the Continue desk (the `filter=continue`
+  predicate), including desk files the Continue row does not draw because they do not fit
+  or are past its 12; those are reached through Continue's See all. A file that was
   finished, merely opened, older than 14 days or set aside still appears there.
+- The `no-home-activity` empty state keeps its Open Library action under the entry row.
 - Without a profile: entry row, Favorites, addon rows, Recently Added.
 - The empty state (`no-home-activity` / `home-unavailable`) appears under the entry row,
   judged on the core rows Home still draws (Liked no longer counts).
@@ -207,8 +223,9 @@ Visible decisions of the agreed design, to check against:
 - D7. The page header (Home icon tile, ホーム, drive name, 追加) is unchanged.
 
 R-5 and the design check need Photo Diary installed for D2, D4 and D6 as drawn: they run in
-a checkout with the Photo Diary repository cloned to `addons/photo_diary` (with
-`./setup-addons.sh`), and also once without it.
+a checkout with the Photo Diary repository's `main` (after the icon pull request merges)
+cloned to `addons/photo_diary` (with `./setup-addons.sh`), and also once without it. The
+clone is an untracked nested repository: nothing in this change stages it.
 
 ### 10. Non-functional
 
@@ -240,21 +257,32 @@ a checkout with the Photo Diary repository cloned to `addons/photo_diary` (with
   - `frontend/src/__tests__/driveHomeSectionOrder.test.tsx` ("puts the addon slot between
     the two watch rows") → I5
   - `frontend/src/__tests__/homeContinueDesk.test.tsx` (the `filter === "all"` assertions →
-    I7; "takes the card out of Continue only" → Revises SPEC-CORE-069 I9 and I8)
+    I7; "takes the card out of Continue only" → Revises SPEC-CORE-069 I9, and I8)
   - `frontend/src/__tests__/DriveHome.test.tsx` (the `liked: true` request → I5; the
     `"all"` request → I7)
+  - `frontend/src/__tests__/driveHomeFailureState.test.tsx` (the `"all"` cases → I7; three
+    file requests become two → I5)
+  - `frontend/src/components/__tests__/DriveHome.driveChange.test.tsx` (`liked` in
+    `SECTION_KEYS`, `scope === "all"` → I5, I7)
+  - `frontend/src/__tests__/section-headings.test.ts` (`DRIVE_HOME_GLYPHS` loses Liked's
+    `ThumbsUp`; each section still has its own glyph) → I5
   - `frontend/src/__tests__/addon-name-neutral-hosts.test.ts` (hosts list and its count gain
-    `HomeAppEntries.tsx` and `lib/addonNavIcons.ts`) → I10
-  - Sidebar tests importing `useInboxCount` or the icon table by path, if any (path only)
-- New real-browser measurement: `frontend/e2e-components/home-app-entries.spec.ts` (touch,
-  390px) and `home-app-entries-desktop.spec.ts` (mouse, 1024px and 1440px), drawing the real
-  `HomeAppEntries` → I4, D3, D4
+    `HomeAppEntries.tsx` and `lib/addonNavIcons.ts`; `BUNDLED_ADDONS` gains `photo_diary`) → I10
+  - `SidebarAddonNav.test.tsx` and other sidebar tests importing `useInboxCount` or the icon
+    table by path (path only; the per-token cases gain `images`) → I9
+- New real-browser measurement in `frontend/e2e-components/`: `home-app-entries.spec.ts`
+  (touch) and `home-app-entries-desktop.spec.ts` (mouse, listed in `projects.ts`
+  `DESKTOP_ONLY`), drawing the real `HomeAppEntries` from a fixture (`fixtures/homeAppEntries.tsx`
+  plus its entry in `index.html` / `app.tsx` as the suite does), inside containers 358px,
+  960px and 1136px wide (the phone, 1024px without a sidebar, 1440px with it inline); a
+  `next/link` stub in `build-bundle.ts` if the bundle cannot resolve it → I4, D3, D4
 - `DESIGN.md`: a short "Home entry row" rule under §6 (wrapping tiles on wide, 4-column grid
   under `sm`, no selected state, count pill)
 - Docs: `docs/reference/api.md` (`filter=not_continue`), `docs/user-guide/file-browsing.md`
   (Home rows and entry row), `docs/user-guide/comments-history.md` (what Recently Viewed on
   Home shows), `docs/user-guide/overview.md` (Home's rows), `docs/ADDON-DEVELOPMENT.md`
-  (icon tokens gain `images`)
+  (icon tokens gain `images`; the table's path becomes `frontend/src/lib/addonNavIcons.ts`;
+  a `primary` entry also appears on every drive's Home entry row)
 - Outside this repository: `Litloft-photo-diary-addon` `backend/router.py`
   (`ADDON_META.navigation.icon = "images"`)
 - `docs/process/reviews/feature-home-app-entries/design/` (the agreed design)
@@ -266,13 +294,13 @@ No protected path is edited.
 I1. Home draws the entry row under the page header and above every row, with or without a profile, with the empty state shown or not, at every width, whether the sidebar is open, closed or an overlay.
 I2. The entry row lists Library, then every `builtinApps` entry in its order, then exactly `addonNavEntries(catalogue, drive, "primary")` in its order, then the Inbox entry when I3 allows it; each link's href equals the sidebar row's href for the same entry.
 I3. The Inbox entry is present exactly when `useInboxCount(drive)` is at least 1 and shows that number (`99+` above 99); addon entries come only from a catalogue whose `catalogueDrive` equals Home's drive.
-I4. Measured in a real browser at 390, 1024 and 1440px, the entry row causes no sideways overflow, every entry is at least 44px tall, and below 640px the entries form 4 columns at least 72px tall.
+I4. Measured in a real browser in containers 358, 960 and 1136px wide, the entry row causes no sideways overflow and every entry is at least 44px tall; in a container under 36rem the entries form 4 columns at least 72px tall, and at 36rem or wider they sit in wrapping rows.
 I5. With a profile, Home's rows are, in order: Continue, Recently Viewed, Favorites, the `drive-home-sections` slot, Recently Added; without one: Favorites, the slot, Recently Added; Home sends no request with `liked=true` and draws no Liked row, and each row shows the data of its own request.
 I6. `filter=not_continue` returns exactly the rows `filter=all` returns minus the rows `filter=continue` returns for the same viewer, drive and `type`, applied before `limit`, ordered by `last_played_at` newest first; without a viewer it returns `{ "data": [] }`; `filter=unfinished`, `filter=all` and `filter=continue` return what they returned before.
 I7. Home's Recently Viewed row requests `filter=not_continue` with `limit=12` and its See all opens `?view=recent`.
-I8. After a successful 続きから外す the card leaves the Continue row and exactly one `not_continue` request follows; a failed dismiss changes neither row and shows `couldNotRemoveFromContinue`; a failed refetch changes neither row and shows no toast; a refetch response for another drive, an older page load or an older refetch is discarded; a card removed with Remove from history never comes back from a refetch sent before the removal.
+I8. After a successful 続きから外す the card leaves the Continue row and exactly one `not_continue` request follows; while it is in flight Recently Viewed shows what it showed before, never the skeleton; a failed dismiss changes neither row and shows `couldNotRemoveFromContinue`; a failed refetch changes neither row and shows no toast; a refetch response for another drive, an older page load or an older refetch is discarded; a card removed with Remove from history never comes back from a refetch sent before the removal.
 I9. `ADDON_NAV_ICONS.images` is lucide `Images`, and a missing or unknown token draws `Package` in the sidebar, page jump and the entry row.
-I10. `HomeAppEntries.tsx`, `DriveHome.tsx` and `lib/addonNavIcons.ts` name no bundled addon in code strings.
+I10. `HomeAppEntries.tsx`, `DriveHome.tsx` and `lib/addonNavIcons.ts` name no addon (`cloud-sync`, `intelligence`, `knowledge`, `media_import`, `photo_diary`) in code strings.
 I11. The entry row's `<nav>` has the accessible name `drive.appsNav` (アプリ / Apps) and no entry carries `aria-current` or a selected style on Home.
 
 ## Revises
@@ -293,8 +321,12 @@ SPEC-CORE-069 I9. Home's Continue row is headed 続きから / Continue and requ
   the `?view=recent` page its See all opens; that page still lists files that are in Continue,
   as a superset, the way Continue's row is a subset of its page.
 - **Client-side subtraction of the Continue row's items** instead of `not_continue`. Rejected:
-  the Continue row draws only what fits, so a file past the visible cards would be dropped from
-  Recently Viewed without being shown anywhere, and `limit` would count removed rows.
+  `limit` would count removed rows, so Recently Viewed would come back short, and which files
+  it drops would depend on how many cards the Continue row fits at that width. With
+  `not_continue` the rule is the desk predicate: a desk file the Continue row cannot draw is
+  on neither row and is reached through Continue's See all. Accepted with the human.
+- **Removing the empty state's Open Library action** because the Library tile sits above it.
+  Kept: the empty state stays as it is everywhere it appears.
 - **Hiding Favorites when empty.** Already the behaviour: `CarouselSection` returns null when
   loaded and empty.
 - **Changing the shelf layout to match the design's drawings.** Out of scope; see Summary.
