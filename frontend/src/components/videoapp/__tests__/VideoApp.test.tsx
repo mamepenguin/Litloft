@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { act, render, screen, waitFor, fireEvent } from "@testing-library/react";
 
 import { readAppPrefs, writeAppPrefs } from "@/lib/appPrefs";
 import { ApiStatusError } from "@/lib/api";
@@ -215,27 +215,30 @@ describe("SPEC-CORE-057 faces", () => {
 });
 
 describe("SPEC-CORE-057 I8 Discover", () => {
-  it("SPEC-CORE-057 requests Continue, Recommended and New under the video target", async () => {
+  it("SPEC-CORE-057 SPEC-CORE-068 requests Continue and New under the video target, and no random Recommended", async () => {
     renderApp();
     await screen.findByText("Resume me");
+    await screen.findByText("Newest one");
 
     const continueCall = shelfCalls({ by: "watch", key: "continue" })[0][1] as Params;
     expect(continueCall).toMatchObject({ sort: "last_played", per_shelf: 12, type: ["video"] });
-    const recommended = shelfCalls({ by: "watch", key: "unwatched" })[0][1] as Params;
-    expect(recommended).toMatchObject({ sort: "random", per_shelf: 12, type: ["video"] });
+    expect(shelfCalls({ key: "unwatched" })).toHaveLength(0);
+    expect(shelfCalls({ sort: "random" })).toHaveLength(0);
+    expect(filesCalls({ sort: "random" })).toHaveLength(0);
     const fresh = filesCalls({ sort: "created_at", order: "desc" })[0][1] as Params;
     expect(fresh).toMatchObject({ limit: 12, type: ["video"] });
   });
 
-  it("SPEC-CORE-057 draws the three shelves with their videos", async () => {
+  it("SPEC-CORE-057 SPEC-CORE-068 draws Continue and New with their videos, and no Recommended without a provider", async () => {
     renderApp();
 
     expect(await screen.findByText("Resume me")).toBeInTheDocument();
-    expect(await screen.findByText("Pick me")).toBeInTheDocument();
     expect(await screen.findByText("Newest one")).toBeInTheDocument();
-    for (const heading of ["Continue", "Recommended", "New"]) {
+    for (const heading of ["Continue", "New"]) {
       expect(screen.getByText(heading)).toBeInTheDocument();
     }
+    expect(screen.queryByText("Recommended")).not.toBeInTheDocument();
+    expect(screen.queryByText("Pick me")).not.toBeInTheDocument();
   });
 
   it("SPEC-CORE-057 does not draw a shelf with no videos", async () => {
@@ -246,42 +249,44 @@ describe("SPEC-CORE-057 I8 Discover", () => {
     );
     renderApp();
 
-    await screen.findByText("Pick me");
+    await screen.findByText("Newest one");
     expect(screen.queryByText("Continue")).not.toBeInTheDocument();
-    expect(screen.getByText("Recommended")).toBeInTheDocument();
+    expect(screen.getByText("New")).toBeInTheDocument();
   });
 
-  it("SPEC-CORE-057 keeps Recommended's sample across a face switch and back", async () => {
+  it("SPEC-CORE-057 keeps Discover's shelves across a face switch and back", async () => {
     renderApp();
-    await screen.findByText("Pick me");
-    const before = shelfCalls({ by: "watch", key: "unwatched" }).length;
+    await screen.findByText("Resume me");
+    await screen.findByText("Newest one");
+    const before = shelfCalls({ by: "watch", key: "continue" }).length;
+    const newBefore = filesCalls({ sort: "created_at" }).length;
 
     fireEvent.click(screen.getByRole("tab", { name: "Library" }));
     await screen.findByText("Movies");
     fireEvent.click(screen.getByRole("tab", { name: "Discover" }));
 
-    expect(await screen.findByText("Pick me")).toBeInTheDocument();
-    expect(shelfCalls({ by: "watch", key: "unwatched" }).length).toBe(before);
+    expect(await screen.findByText("Resume me")).toBeInTheDocument();
+    expect(shelfCalls({ by: "watch", key: "continue" }).length).toBe(before);
+    expect(filesCalls({ sort: "created_at" }).length).toBe(newBefore);
   });
 
   it("SPEC-CORE-057 retries only the shelf that failed", async () => {
     let fail = true;
     getShelves.mockImplementation(async (d, p: Params) => {
-      if (p.key === "unwatched" && fail) throw new Error("boom");
+      if (p.key === "continue" && fail) throw new Error("boom");
       return defaultShelves(d, p);
     });
     renderApp();
 
-    expect(await screen.findByText("Resume me")).toBeInTheDocument();
     expect(await screen.findByText("Newest one")).toBeInTheDocument();
     const retry = await screen.findByRole("button", { name: /retry/i });
-    expect(screen.queryByText("Pick me")).not.toBeInTheDocument();
+    expect(screen.queryByText("Resume me")).not.toBeInTheDocument();
 
     fail = false;
     fireEvent.click(retry);
 
-    expect(await screen.findByText("Pick me")).toBeInTheDocument();
-    expect(screen.getByText("Resume me")).toBeInTheDocument();
+    expect(await screen.findByText("Resume me")).toBeInTheDocument();
+    expect(screen.getByText("Newest one")).toBeInTheDocument();
   });
 });
 
@@ -290,14 +295,14 @@ describe("SPEC-CORE-057 no profile", () => {
     nickname = null;
   });
 
-  it("SPEC-CORE-057 never asks for watch data, omits Continue and recommends from the listing", async () => {
+  it("SPEC-CORE-057 SPEC-CORE-068 never asks for watch data and omits Continue and Recommended", async () => {
     renderApp();
 
-    expect(await screen.findByText("Random pick")).toBeInTheDocument();
+    expect(await screen.findByText("Newest one")).toBeInTheDocument();
     expect(getShelves.mock.calls.filter(([, p]) => (p as Params).by === "watch")).toHaveLength(0);
     expect(screen.queryByText("Continue")).not.toBeInTheDocument();
-    const random = filesCalls({ sort: "random" })[0][1] as Params;
-    expect(random).toMatchObject({ limit: 12, type: ["video"] });
+    expect(screen.queryByText("Recommended")).not.toBeInTheDocument();
+    expect(filesCalls({ sort: "random" })).toHaveLength(0);
   });
 
   it("SPEC-CORE-057 does not offer Watch state in the Classification menu", async () => {
@@ -331,8 +336,14 @@ describe("SPEC-CORE-057 a rejected viewer", () => {
     });
     renderApp();
 
-    expect(await screen.findByText("Random pick")).toBeInTheDocument();
+    expect(await screen.findByText("Newest one")).toBeInTheDocument();
+    await waitFor(() => expect(shelfCalls({ by: "watch" }).length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.queryByText("Continue")).not.toBeInTheDocument());
+    await act(async () => {
+      await Promise.all(getShelves.mock.results.map((r) => Promise.resolve(r.value).catch(() => undefined)));
+    });
     expect(screen.queryByText("Continue")).not.toBeInTheDocument();
+    expect(screen.queryByText("Resume me")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /retry/i })).not.toBeInTheDocument();
   });
 });

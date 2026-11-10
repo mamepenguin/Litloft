@@ -3,36 +3,14 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useAddonSlots } from "./AddonSlotsProvider";
-import { sortSlotEntries, type SlotEntry } from "@/lib/addons";
+import {
+  getCachedSlotModule,
+  loadAddonSlotModule,
+  sortSlotEntries,
+  type SlotEntry,
+  type SlotModule,
+} from "@/lib/addons";
 import { slotEntryLabel } from "@/lib/slotLabel";
-
-type SlotModule = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  slotComponents: Record<string, React.LazyExoticComponent<React.ComponentType<any>>>;
-};
-
-// Cache loaded addon slot modules to avoid re-importing
-const moduleCache = new Map<string, SlotModule>();
-const modulePromiseCache = new Map<string, Promise<SlotModule>>();
-
-const VALID_ADDON_NAME = /^[a-z][a-z0-9_-]*$/;
-
-function loadAddonSlotModule(addonName: string): Promise<SlotModule> {
-  if (!VALID_ADDON_NAME.test(addonName)) {
-    return Promise.reject(new Error(`Invalid addon name: ${addonName}`));
-  }
-
-  const cached = modulePromiseCache.get(addonName);
-  if (cached) return cached;
-
-  const promise = import(`@/addons/${addonName}/slots.ts`).then((mod: SlotModule) => {
-    moduleCache.set(addonName, mod);
-    return mod;
-  });
-
-  modulePromiseCache.set(addonName, promise);
-  return promise;
-}
 
 interface AddonSlotProps {
   id: string;
@@ -79,7 +57,7 @@ export function SlotEntryRenderer({
   props: Record<string, unknown>;
 }) {
   const [mod, setMod] = useState<SlotModule | null>(
-    () => moduleCache.get(entry.addonName ?? "") ?? null
+    () => getCachedSlotModule(entry.addonName ?? "") ?? null
   );
   const [failed, setFailed] = useState(false);
 
@@ -89,8 +67,9 @@ export function SlotEntryRenderer({
       setFailed(true);
       return;
     }
-    if (moduleCache.has(addonName)) {
-      setMod(moduleCache.get(addonName)!);
+    const cached = getCachedSlotModule(addonName);
+    if (cached) {
+      setMod(cached);
       return;
     }
     loadAddonSlotModule(addonName)
@@ -100,7 +79,7 @@ export function SlotEntryRenderer({
 
   if (failed || !mod) return null;
 
-  const Component = mod.slotComponents[entry.id];
+  const Component = mod.slotComponents?.[entry.id];
   if (!Component) return null;
 
   return (

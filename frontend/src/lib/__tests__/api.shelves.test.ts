@@ -99,6 +99,12 @@ describe("SPEC-CORE-056 getShelves", () => {
     expect(requested().searchParams.get("watch")).toBe("finished");
   });
 
+  it("SPEC-CORE-067 repeats ids, one parameter per id, in the order given", async () => {
+    await getShelves("main", { by: "all", key: "all", ids: ["b", "a", "c"] } as never);
+
+    expect(requested().searchParams.getAll("ids")).toEqual(["b", "a", "c"]);
+  });
+
   it("returns the folder base of the response", async () => {
     fetchMock.mockResolvedValue(
       new Response(

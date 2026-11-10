@@ -116,7 +116,7 @@ describe("SPEC-CORE-071 Video Discover's Continue shelf", () => {
 
   it("SPEC-CORE-071 links See all to the continue shelf", async () => {
     render(<VideoApp drive={DRIVE} />);
-    await screen.findByText("Pick me");
+    await screen.findByText("Shelf continue");
 
     expect(screen.getByRole("link", { name: "See all: Continue" })).toHaveAttribute(
       "href",
