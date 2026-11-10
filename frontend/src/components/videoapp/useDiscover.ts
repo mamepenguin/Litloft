@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 import { getDriveFiles, getShelves, type ShelfItem } from "@/lib/api";
 import {
+  loadSlotPageProvider,
   loadSlotProvider,
   sortSlotEntries,
+  type ShelfPageProvider,
   type ShelfProvider,
   type SlotEntry,
 } from "@/lib/addons";
@@ -19,15 +21,16 @@ import { isViewerRequired } from "./useVideoApp";
 import {
   discoverCacheKey,
   localDate,
-  readCachedIds,
+  readCachedItems,
   stableJson,
-  writeCachedIds,
+  writeCachedItems,
+  type CachedItem,
 } from "./discoverCache";
 import { drawnPrefix } from "./discoverPrefix";
-import { videoShelfHref } from "./shelfLinks";
+import { createRestrict } from "./restrict";
+import { providerShelfHref, videoShelfHref } from "./shelfLinks";
 
 export const DISCOVER_SHELF_SIZE = 12;
-const RESTRICT_SHELF_SIZE = 60;
 const RECOMMENDED_SLOT = "video-discover-recommended";
 const SHELVES_SLOT = "video-discover-shelves";
 
@@ -39,6 +42,7 @@ export interface DrawnShelf {
   title: string;
   href?: string;
   state: ShelfView<ShelfItem>;
+  bylines?: ReadonlyMap<string, string>;
   retry: () => void;
 }
 
@@ -57,64 +61,32 @@ function entriesKey(entries: readonly SlotEntry[]): string {
   );
 }
 
-/** The provider's ids in its order, deduplicated and limited to what this call's restrict accepted. */
-function buildShelf(ids: readonly string[], accepted: Map<string, ShelfItem>): ShelfItem[] {
+/**
+ * The provider's order, deduplicated and limited to what this call's restrict
+ * accepted. An item that is not an object or has no usable id is skipped
+ * without disturbing the rest.
+ */
+function buildShelf(
+  rawItems: readonly unknown[],
+  accepted: Map<string, ShelfItem>,
+  limit: number,
+): { items: ShelfItem[]; bylines: Map<string, string> } {
   const seen = new Set<string>();
   const items: ShelfItem[] = [];
-  for (const id of ids) {
+  const bylines = new Map<string, string>();
+  for (const raw of rawItems) {
+    if (raw === null || typeof raw !== "object") continue;
+    const { id, byline } = raw as { id?: unknown; byline?: unknown };
+    if (typeof id !== "string" || id === "") continue;
     if (seen.has(id)) continue;
     const item = accepted.get(id);
     if (!item) continue;
     seen.add(id);
     items.push(item);
-    if (items.length === DISCOVER_SHELF_SIZE) break;
+    if (typeof byline === "string" && byline !== "") bylines.set(id, byline);
+    if (items.length === limit) break;
   }
-  return items;
-}
-
-function createRestrict({
-  drive,
-  target,
-  watch,
-  accepted,
-  isCurrent,
-  onViewerRejected,
-}: {
-  drive: string;
-  target: VideoTargetParams;
-  watch?: "unwatched";
-  accepted: Map<string, ShelfItem>;
-  isCurrent: () => boolean;
-  onViewerRejected: () => void;
-}): (ids: string[]) => Promise<string[]> {
-  return async (ids) => {
-    if (ids.length === 0) return [];
-    const matched: string[] = [];
-    for (let offset = 0; offset < ids.length; offset += RESTRICT_SHELF_SIZE) {
-      const chunk = ids.slice(offset, offset + RESTRICT_SHELF_SIZE);
-      let response;
-      try {
-        response = await getShelves(drive, {
-          ...target,
-          by: "all",
-          key: "all",
-          per_shelf: RESTRICT_SHELF_SIZE,
-          ids: chunk,
-          ...(watch ? { watch } : {}),
-        });
-      } catch (error) {
-        if (isViewerRequired(error) && isCurrent()) onViewerRejected();
-        throw error;
-      }
-      const returned = new Map<string, ShelfItem>();
-      for (const shelf of response.shelves) {
-        for (const item of shelf.items) returned.set(item.id, item);
-      }
-      for (const [id, item] of returned) accepted.set(id, item);
-      for (const id of chunk) if (returned.has(id)) matched.push(id);
-    }
-    return matched;
-  };
+  return { items, bylines };
 }
 
 type ProviderStatus = "loading" | "loaded" | "failed" | "absent" | "dropped";
@@ -122,6 +94,7 @@ type ProviderStatus = "loading" | "loaded" | "failed" | "absent" | "dropped";
 interface ProviderRuntime {
   status: ProviderStatus;
   items: ShelfItem[];
+  bylines: Map<string, string>;
 }
 
 interface VisitEntries {
@@ -138,6 +111,8 @@ interface Visit {
   date: string;
   /** Read when the catalogue for the drive becomes ready; fixed for the visit. */
   entries: VisitEntries | null;
+  /** Entries whose addon exports a page provider, so See all opens the core page. */
+  pageEntries: Set<string>;
   addonsVisible: boolean;
   states: Map<string, ProviderRuntime>;
   continueSettled: boolean;
@@ -172,7 +147,7 @@ function recommendedCacheKey(visit: Visit, entries: readonly SlotEntry[]): strin
   });
 }
 
-function addonCacheKey(visit: Visit, entry: SlotEntry): string {
+function addonCacheKey(visit: Visit, entry: SlotEntry, locale: string): string {
   return discoverCacheKey({
     drive: visit.drive,
     params: visit.params,
@@ -180,6 +155,7 @@ function addonCacheKey(visit: Visit, entry: SlotEntry): string {
     date: visit.date,
     addonName: entry.addonName ?? null,
     entryId: entry.id,
+    locale,
   });
 }
 
@@ -205,6 +181,7 @@ export function useDiscover({
   onViewerRejected: () => void;
 }) {
   const { slots, loading: catalogueLoading, catalogueDrive } = useAddonSlots();
+  const locale = useLocale();
   const tGlobal = useTranslations();
   const t = useTranslations("videoApp.shelves");
 
@@ -229,6 +206,7 @@ export function useDiscover({
       nickname,
       date: "",
       entries: null,
+      pageEntries: new Set(),
       addonsVisible: true,
       states: new Map(),
       continueSettled: false,
@@ -339,17 +317,18 @@ export function useDiscover({
       id: string,
       entries: readonly SlotEntry[],
       cacheKey: string,
-      watch?: "unwatched",
+      options: { watch?: "unwatched"; preferPageProvider?: boolean } = {},
     ) => {
       if (entries.length === 0) {
         commit(() => {
-          visit.states.set(id, { status: "absent", items: [] });
+          visit.states.set(id, { status: "absent", items: [], bylines: new Map() });
         });
         return;
       }
       const runtime: ProviderRuntime = {
         status: visit.deadline ? "dropped" : "loading",
         items: [],
+        bylines: new Map(),
       };
       visit.states.set(id, runtime);
       const settled = () => runtime.status !== "loading";
@@ -357,19 +336,38 @@ export function useDiscover({
       const restrict = createRestrict({
         drive: visit.drive,
         target: visit.params,
-        watch,
+        watch: options.watch,
         accepted,
         isCurrent: () => live() && !settled(),
         onViewerRejected: () => onRejected.current(),
       });
 
       void (async () => {
-        let provider: ShelfProvider | null = null;
-        for (const entry of sortSlotEntries(entries)) {
-          provider = await loadSlotProvider(entry);
-          if (provider) break;
+        let pageProvider: ShelfPageProvider | null = null;
+        let pageEntry: SlotEntry | null = null;
+        if (options.preferPageProvider) {
+          for (const entry of sortSlotEntries(entries)) {
+            pageProvider = await loadSlotPageProvider(entry);
+            if (pageProvider) {
+              pageEntry = entry;
+              break;
+            }
+          }
+          if (pageProvider && pageEntry) {
+            const marked = pageEntry;
+            commit(() => {
+              visit.pageEntries.add(marked.id);
+            });
+          }
         }
-        if (!provider) {
+        let provider: ShelfProvider | null = null;
+        if (!pageProvider) {
+          for (const entry of sortSlotEntries(entries)) {
+            provider = await loadSlotProvider(entry);
+            if (provider) break;
+          }
+        }
+        if (!pageProvider && !provider) {
           commit(() => {
             if (settled()) return;
             runtime.status = "absent";
@@ -377,17 +375,18 @@ export function useDiscover({
           return;
         }
 
-        const stored = readCachedIds(cacheKey);
+        const stored = readCachedItems(cacheKey);
         if (stored !== undefined && stored.length > 0) {
           void (async () => {
             try {
-              await restrict([...stored]);
-              const items = buildShelf(stored, accepted);
-              if (items.length === 0) return;
+              await restrict(stored.map((item) => item.id));
+              const rebuilt = buildShelf(stored, accepted, DISCOVER_SHELF_SIZE);
+              if (rebuilt.items.length === 0) return;
               commit(() => {
                 if (settled()) return;
                 runtime.status = "loaded";
-                runtime.items = items;
+                runtime.items = rebuilt.items;
+                runtime.bylines = rebuilt.bylines;
               });
             } catch {
               // The provider's answer still decides this visit.
@@ -396,16 +395,44 @@ export function useDiscover({
         }
 
         try {
-          const ids = await provider({ drive: visit.drive, limit: DISCOVER_SHELF_SIZE, restrict });
-          const items = buildShelf(ids, accepted);
-          writeCachedIds(
-            cacheKey,
-            items.map((item) => item.id),
-          );
+          let rawItems: readonly unknown[];
+          if (pageProvider) {
+            const answer = await pageProvider({
+              drive: visit.drive,
+              locale,
+              limit: DISCOVER_SHELF_SIZE,
+              cursor: null,
+              restrict,
+            });
+            if (!answer || !Array.isArray(answer.items)) {
+              commit(() => {
+                if (settled()) return;
+                runtime.status = "failed";
+              });
+              return;
+            }
+            rawItems = answer.items;
+          } else if (provider) {
+            const ids = await provider({
+              drive: visit.drive,
+              limit: DISCOVER_SHELF_SIZE,
+              restrict,
+            });
+            rawItems = ids.map((itemId) => ({ id: itemId }));
+          } else {
+            return;
+          }
+          const drawn = buildShelf(rawItems, accepted, DISCOVER_SHELF_SIZE);
+          const cached: CachedItem[] = drawn.items.map((item) => {
+            const byline = drawn.bylines.get(item.id);
+            return byline === undefined ? { id: item.id } : { id: item.id, byline };
+          });
+          writeCachedItems(cacheKey, cached);
           commit(() => {
             if (settled()) return;
             runtime.status = "loaded";
-            runtime.items = items;
+            runtime.items = drawn.items;
+            runtime.bylines = drawn.bylines;
           });
         } catch {
           commit(() => {
@@ -421,15 +448,17 @@ export function useDiscover({
         "recommended",
         visit.entries.recommended,
         recommendedCacheKey(visit, visit.entries.recommended),
-        "unwatched",
+        { watch: "unwatched" },
       );
     }
     for (const entry of sortSlotEntries(visit.entries.addons)) {
-      start(`addon:${entry.id}`, [entry], addonCacheKey(visit, entry));
+      start(`addon:${entry.id}`, [entry], addonCacheKey(visit, entry, locale), {
+        preferPageProvider: true,
+      });
     }
 
     rerender();
-  }, [current, catalogueReady, slots]);
+  }, [current, catalogueReady, slots, locale]);
 
   const positions: Position[] = [];
   if (current !== null) {
@@ -440,13 +469,17 @@ export function useDiscover({
         positions.push({ id: "addons", kind: "placeholder" });
       } else {
         for (const entry of sortSlotEntries(current.entries.addons)) {
+          let href: string | undefined;
+          if (current.pageEntries.has(entry.id)) {
+            href = providerShelfHref(drive, entry.id);
+          } else if (entry.href) {
+            href = `/drive/${encodeURIComponent(drive)}/${entry.href}`;
+          }
           positions.push({
             id: `addon:${entry.id}`,
             kind: "provider",
             title: slotEntryLabel(entry, tGlobal),
-            ...(entry.href
-              ? { href: `/drive/${encodeURIComponent(drive)}/${entry.href}` }
-              : {}),
+            ...(href ? { href } : {}),
           });
         }
       }
@@ -493,6 +526,7 @@ export function useDiscover({
       id: position.id,
       title: position.title,
       ...(position.href ? { href: position.href } : {}),
+      ...(runtime.bylines.size > 0 ? { bylines: runtime.bylines } : {}),
       state: { status: "loaded", items: runtime.items },
       retry: noRetry,
     });

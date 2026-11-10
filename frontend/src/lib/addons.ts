@@ -133,12 +133,31 @@ export type ShelfProvider = (args: {
   restrict: (ids: string[]) => Promise<string[]>;
 }) => Promise<string[]>;
 
+export interface ShelfPageItem {
+  id: string;
+  byline?: string;
+}
+
+export type ShelfPageAnswer = {
+  items: ShelfPageItem[];
+  cursor: string | null;
+};
+
+export type ShelfPageProvider = (args: {
+  drive: string;
+  locale: string;
+  limit: number;
+  cursor: string | null;
+  restrict: (ids: string[]) => Promise<string[]>;
+}) => Promise<ShelfPageAnswer>;
+
 export type SlotModule = {
   slotComponents?: Record<
     string,
     LazyExoticComponent<ComponentType<Record<string, unknown>>>
   >;
   slotProviders?: Record<string, ShelfProvider>;
+  slotPageProviders?: Record<string, ShelfPageProvider>;
 };
 
 // Shared with `SlotEntryRenderer`, so a provider resolves from a module the
@@ -179,6 +198,22 @@ export async function loadSlotProvider(entry: SlotEntry): Promise<ShelfProvider 
   try {
     const mod = await loadAddonSlotModule(entry.addonName);
     const provider = mod.slotProviders?.[entry.id];
+    return typeof provider === "function" ? provider : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The page provider an entry names, or `null` when the module,
+ * `slotPageProviders` or a function under the entry's id is missing. A failed
+ * import is "absent", not an error the caller has to handle.
+ */
+export async function loadSlotPageProvider(entry: SlotEntry): Promise<ShelfPageProvider | null> {
+  if (!entry.addonName) return null;
+  try {
+    const mod = await loadAddonSlotModule(entry.addonName);
+    const provider = mod.slotPageProviders?.[entry.id];
     return typeof provider === "function" ? provider : null;
   } catch {
     return null;

@@ -14,7 +14,7 @@ function progressPercent(item: ShelfItem): number | null {
   return Math.min(100, Math.max(0, (progress.position / progress.duration) * 100));
 }
 
-export function VideoCard({ item }: { item: ShelfItem }) {
+export function VideoCard({ item, byline }: { item: ShelfItem; byline?: string }) {
   const percent = progressPercent(item);
   return (
     <Link
@@ -53,6 +53,12 @@ export function VideoCard({ item }: { item: ShelfItem }) {
       <span className="mt-2 line-clamp-2 text-sm font-semibold text-text-primary">
         {item.title}
       </span>
+      {typeof byline === "string" && byline !== "" && (
+        <>
+          {" "}
+          <span className="mt-0.5 block truncate text-xs text-text-muted">{byline}</span>
+        </>
+      )}
     </Link>
   );
 }
