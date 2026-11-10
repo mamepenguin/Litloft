@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import get_unlocked_groups
 from app.database import get_db
-from app.models import File, Tag, WatchHistory, file_tags
+from app.models import File, Tag, WatchHistory, continue_desk_filter, file_tags
 from app.routers.drives import (
     FileKindParam,
     _folder_subtree,
@@ -134,6 +134,8 @@ def _key_filter(by: str, key: str, drive: str):
         )
     if by == "duration" and key not in DURATION_KEYS:
         return false()
+    if by == "watch" and key == "continue":
+        return continue_desk_filter()
     return _key_expr(by) == key
 
 
