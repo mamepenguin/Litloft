@@ -1455,6 +1455,7 @@
     },
     "sort": {
       "label": "並べ替え",
+      "lastOpened": "最後に開いた順",
       "addedNewest": "追加日（新しい順）",
       "addedOldest": "追加日（古い順）",
       "title": "タイトル",
@@ -1500,6 +1501,7 @@
     "noTag": "タグなし",
     "sort": {
       "label": "並び順",
+      "lastOpened": "最後に開いた順",
       "addedNewest": "追加日（新しい順）",
       "addedOldest": "追加日（古い順）",
       "title": "タイトル",

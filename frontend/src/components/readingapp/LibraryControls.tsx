@@ -9,7 +9,7 @@ import { useLoad } from "@/components/appshell/useLoad";
 import { MenuRadioGroup, ToolbarMenu } from "@/components/ToolbarMenu";
 import { getDriveTags, type ShelfWatchState } from "@/lib/api";
 import type { ReadingGroup } from "@/lib/appPrefs";
-import { SORT_CHOICES, type SortChoice } from "./labels";
+import { SORT_CHOICES } from "./labels";
 
 export type ReadingState = "all" | ShelfWatchState;
 
@@ -166,18 +166,20 @@ export function GroupMenu({
   );
 }
 
-export function ReadingSortMenu({
+export function ReadingSortMenu<Id extends string>({
+  choices = SORT_CHOICES,
   value,
   onChange,
   filled = false,
 }: {
-  value: SortChoice["id"];
-  onChange: (value: SortChoice["id"]) => void;
+  choices?: readonly { id: string; labelKey: string }[];
+  value: Id;
+  onChange: (value: Id) => void;
   filled?: boolean;
 }) {
   const t = useTranslations("readingApp");
-  const options = SORT_CHOICES.map((choice) => ({ value: choice.id, label: t(choice.labelKey) }));
-  const current = SORT_CHOICES.find((choice) => choice.id === value) ?? SORT_CHOICES[0];
+  const options = choices.map((choice) => ({ value: choice.id as Id, label: t(choice.labelKey) }));
+  const current = choices.find((choice) => choice.id === value) ?? choices[0];
   return (
     <ToolbarMenu
       label={t("sort.label")}
@@ -189,7 +191,7 @@ export function ReadingSortMenu({
       align="end"
     >
       {(close) => (
-        <MenuRadioGroup<SortChoice["id"]>
+        <MenuRadioGroup<Id>
           heading={t("sort.label")}
           options={options}
           isSelected={(id) => id === value}

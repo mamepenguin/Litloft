@@ -1455,6 +1455,7 @@
     },
     "sort": {
       "label": "Sort",
+      "lastOpened": "Last opened",
       "addedNewest": "Added (newest first)",
       "addedOldest": "Added (oldest first)",
       "title": "Title",
@@ -1500,6 +1501,7 @@
     "noTag": "No tag",
     "sort": {
       "label": "Sort",
+      "lastOpened": "Last opened",
       "addedNewest": "Added (newest first)",
       "addedOldest": "Added (oldest first)",
       "title": "Title",

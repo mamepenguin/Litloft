@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "I1: VideoShelfPage.tsx:65-67 and ReadingShelfPage.tsx:76-78 pick CONTINUE_SORT_CHOICES only for by=watch&key=continue. When the URL has no recognised sort, the page falls back to offered[0], which is {id:'played', sort:'last_played', order:'desc'} (videoapp/labels.ts:72, readingapp/labels.ts:29). That pair is sent at VideoShelfPage.tsx:89-90 and ReadingShelfPage.tsx:120. The label key sort.lastOpened maps to 最後に開いた順 / Last opened under both videoApp.sort and readingApp.sort (ja.json:1458,1504; en.json:1458,1504).",
+    "I2: CONTINUE_SORT_CHOICES puts Last opened first and spreads the four SORT_CHOICES after it. Both menus render `choices`, and onChange calls setSelection({scope,id}), which changes sort.sort and sort.order in the fetchPage useMemo deps (VideoShelfPage.tsx:103), so the shelf is requested again.",
+    "I3: parseShelfSortId resolves the four existing ids against the offered list. 'played' resolves to Last opened. An unknown value resolves to null and falls back to offered[0], which is Last opened.",
+    "I4: every other page gets SORT_CHOICES, which has no last_played entry, so 'played' parses to null and the page falls back to newest. The Library faces still read sort.sort from the unchanged SORT_CHOICES (videoapp/LibraryFace.tsx:75, readingapp/LibraryFace.tsx:132,157), and the Library files are untouched.",
+    "I5: in both useDiscover.ts files the Continue shelf call is still watchShelf('continue','last_played') (line 56), and those files are untouched.",
+    "I6: the selection is keyed by a scope string built from by, shelfKey and initialSort. When the scope changes, the page discards the stored id and re-derives it from the new offered list during render (VideoShelfPage.tsx:68-73, ReadingShelfPage.tsx:79-84). The fallback `offered.find(...) ?? offered[0]` stops a stale 'played' id from reaching a non-Continue page."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The scope includes initialSort, so a URL sort change while the page stays mounted with the same by/key also resets the selection to the URL value. The spec does not address this case. The behaviour looks reasonable."
+  ],
+  "regression_risks": [
+    "The page calls setSelection during render to re-sync the stored selection with the scope. That is the standard React 'adjust state on prop change' pattern, but it adds an extra render whenever the scope changes."
+  ],
+  "test_coverage": [
+    "I did not inspect the tests under frontend/src/components/{videoapp,readingapp}/__tests__/ in detail; the commit history shows acceptance tests were added (f7d8f5cea)."
+  ],
+  "not_verified": [
+    "I could not run the test suite or a type check, because I have no ability to run commands.",
+    "I did not review the docs/user-guide/video.md and reading.md wording.",
+    "I did not read the rest of ReadingShelfPage.tsx past line 120 (the request's order field and the menu wiring).",
+    "I did not confirm that the Library See all link builders (shelfLinks.ts) never emit sort=played; I relied on them being untouched and on SORT_CHOICES having no 'played' id.",
+    "I did not check the backend's handling of sort=last_played with order=desc."
+  ],
+  "confidence": 80
+}

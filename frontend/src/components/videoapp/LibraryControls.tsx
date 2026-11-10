@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 
 import { MenuRadioGroup, ToolbarMenu } from "@/components/ToolbarMenu";
 import { APP_CLASSIFICATIONS, type AppClassification } from "@/lib/appPrefs";
-import { SORT_CHOICES, type SortChoice } from "./labels";
+import { SORT_CHOICES } from "./labels";
 
 export function ClassificationMenu({
   value,
@@ -45,16 +45,18 @@ export function ClassificationMenu({
   );
 }
 
-export function SortChoiceMenu({
+export function SortChoiceMenu<Id extends string>({
+  choices = SORT_CHOICES,
   value,
   onChange,
 }: {
-  value: SortChoice["id"];
-  onChange: (value: SortChoice["id"]) => void;
+  choices?: readonly { id: string; labelKey: string }[];
+  value: Id;
+  onChange: (value: Id) => void;
 }) {
   const t = useTranslations("videoApp");
-  const options = SORT_CHOICES.map((choice) => ({ value: choice.id, label: t(choice.labelKey) }));
-  const current = SORT_CHOICES.find((choice) => choice.id === value) ?? SORT_CHOICES[0];
+  const options = choices.map((choice) => ({ value: choice.id as Id, label: t(choice.labelKey) }));
+  const current = choices.find((choice) => choice.id === value) ?? choices[0];
   return (
     <ToolbarMenu
       label={t("sort.label")}
@@ -65,7 +67,7 @@ export function SortChoiceMenu({
       align="end"
     >
       {(close) => (
-        <MenuRadioGroup<SortChoice["id"]>
+        <MenuRadioGroup<Id>
           heading={t("sort.label")}
           options={options}
           isSelected={(id) => id === value}

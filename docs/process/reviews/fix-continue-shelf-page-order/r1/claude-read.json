@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "Every file the diff touches is in the declared touch-point list or is an implicit touch point. The listed files are frontend/src/components/videoapp/{labels.ts, LibraryControls.tsx, VideoShelfPage.tsx}, frontend/src/components/readingapp/{labels.ts, LibraryControls.tsx, ReadingShelfPage.tsx}, frontend/src/messages-core/{en,ja}.json (videoApp.sort.lastOpened, readingApp.sort.lastOpened), the two new tests under frontend/src/components/{videoapp,readingapp}/__tests__/, and docs/user-guide/{video,reading}.md. The implicit ones are docs/specs/continue-shelf-page-order.md, docs/specs/INDEX.md and docs/process/reviews/fix-continue-shelf-page-order/.",
+    "The files listed as untouched on purpose are not in the diff: VideoApp.tsx, ReadingApp.tsx, both LibraryFace.tsx, both shelfLinks.ts, both useDiscover.ts, backend/. frontend/src/lib/api.ts is also not changed; the spec says it changes only if needed, and the type already includes last_played.",
+    "The new code is only in the listed labels.ts files: ShelfSortChoice, CONTINUE_SORT_CHOICES and parseShelfSortId. SORT_CHOICES, SortChoice and parseSortId are left as they were, which matches item 1 of the spec.",
+    "VideoShelfPage.tsx:65-75 picks CONTINUE_SORT_CHOICES only when by === 'watch' && shelfKey === 'continue', and sets the selection again during render when the (by, key, initialSort) scope changes. The fetchPage memo at VideoShelfPage.tsx:103 depends on sort.sort and sort.order, so changing the choice requests the shelf again. This matches I1-I4 and I6 as read."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The selection scope includes initialSort, so a URL sort change on the same shelf page while it stays mounted also resets the selection to the URL's value. The spec only describes a by/key change. The UI does not change the URL sort on the shelf page (decisions.md: 'URL does not change'), so a user cannot normally reach this."
+  ],
+  "regression_risks": [
+    "The shared sort menus SortChoiceMenu and ReadingSortMenu are now generic and take an optional choices prop that defaults to SORT_CHOICES. Library call sites pass no choices. The new I4 Library tests in both apps cover this, but I did not check every other caller of these menus."
+  ],
+  "test_coverage": [
+    "Both new test files cover I1, I2 (the order of the five choices, each pair, choosing Last opened again), I3 (four valid ids, played, bogus, empty, null), I4 (four non-Continue shelves with sort=played, plus Library's menu) and I6 (leaving Continue, arriving at Continue, a URL sort kept across the change).",
+    "I5 (Discover's Continue link and request unchanged) has no test in this diff. It depends on existing Discover tests in files the diff does not change (VideoApp.continueDesk / ReadingApp.discover tests reference last_played)."
+  ],
+  "not_verified": [
+    "I did not run the test suite or type-check (read-only tools).",
+    "I did not check that commit 16e6915 alone, as opposed to the full branch diff shown, touches only docs/process/reviews files.",
+    "I did not read every caller of SortChoiceMenu / ReadingSortMenu outside the shelf pages and Library.",
+    "I did not check the existing Discover tests that would protect I5."
+  ],
+  "confidence": 88
+}

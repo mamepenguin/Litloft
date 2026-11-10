@@ -13,7 +13,13 @@ import { PageFrame } from "@/components/PageFrame";
 import { builtinApps } from "@/lib/builtinApps";
 import { getShelves, type ShelfGrouping, type ShelfItem } from "@/lib/api";
 import { SortChoiceMenu } from "./LibraryControls";
-import { SORT_CHOICES, parseSortId, shelfTitle, type SortChoice } from "./labels";
+import {
+  CONTINUE_SORT_CHOICES,
+  SORT_CHOICES,
+  parseShelfSortId,
+  shelfTitle,
+  type ShelfSortChoice,
+} from "./labels";
 import { isViewerRequired, useVideoApp } from "./useVideoApp";
 import { VideoAppHeader } from "./VideoAppHeader";
 import { VideoCard } from "./VideoCard";
@@ -56,10 +62,17 @@ export function VideoShelfPage({
   const t = useTranslations("videoApp");
   const locale = useLocale();
   const state = useVideoApp(drive);
-  const [sortId, setSortId] = useState<SortChoice["id"]>(
-    () => parseSortId(initialSort ?? null) ?? "newest",
-  );
-  const sort = SORT_CHOICES.find((choice) => choice.id === sortId) ?? SORT_CHOICES[0];
+  const offered: readonly ShelfSortChoice[] =
+    by === "watch" && shelfKey === "continue" ? CONTINUE_SORT_CHOICES : SORT_CHOICES;
+  const initialChoice = parseShelfSortId(initialSort ?? null, offered) ?? offered[0].id;
+  const scope = `${by ?? ""}\u0000${shelfKey}\u0000${initialSort ?? ""}`;
+  // Keyed by the shelf: a choice must not survive a by or key change, including
+  // back to a shelf visited before.
+  const [selection, setSelection] = useState({ scope, id: initialChoice });
+  const active = selection.scope === scope ? selection : { scope, id: initialChoice };
+  if (selection.scope !== scope) setSelection(active);
+  const sortId = active.id;
+  const sort = offered.find((choice) => choice.id === sortId) ?? offered[0];
 
   // Watch state reads the viewer's rows; without a profile there is no shelf to open.
   const watchBlocked = by === "watch" && !state.hasProfile;
@@ -137,7 +150,13 @@ export function VideoShelfPage({
               {t("title")}
             </Link>
           }
-          actions={<SortChoiceMenu value={sortId} onChange={setSortId} />}
+          actions={
+            <SortChoiceMenu
+              choices={offered}
+              value={sortId}
+              onChange={(id) => setSelection({ scope, id })}
+            />
+          }
         />
       }
     >
