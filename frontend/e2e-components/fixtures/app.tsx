@@ -80,6 +80,7 @@ import { JustifiedHoldArrangement } from "./justifiedHold";
 import { PlayedRangesArrangement } from "./playedRanges";
 import { TextResumeArrangement } from "./textResume";
 import { HomeAppEntriesArrangement } from "./homeAppEntries";
+import { DiscoverPrefixArrangement } from "./discoverPrefix";
 import { PersistentHighlightsArrangement } from "./persistentHighlights";
 import AskTab from "../../src/addons/intelligence/AskTab";
 import { getAskThread } from "../../src/addons/intelligence/askStore";
@@ -2415,6 +2416,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "played-ranges": PlayedRangesArrangement,
   "text-resume": TextResumeArrangement,
   "home-app-entries": HomeAppEntriesArrangement,
+  "discover-prefix": DiscoverPrefixArrangement,
   "persistent-highlights": PersistentHighlightsArrangement,
 };
 

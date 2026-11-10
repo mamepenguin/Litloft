@@ -21,6 +21,7 @@ export const DESKTOP_ONLY = [
   "**/ask-thread-desktop.spec.ts",
   "**/search-results-bar-desktop.spec.ts",
   "**/home-app-entries-desktop.spec.ts",
+  "**/discover-prefix-desktop.spec.ts",
 ];
 
 /** Literals rather than a device preset, which can change under it. */
