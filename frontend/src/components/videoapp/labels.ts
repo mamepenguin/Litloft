@@ -62,3 +62,20 @@ export const SORT_CHOICES: readonly SortChoice[] = [
 export function parseSortId(raw: string | null): SortChoice["id"] | null {
   return SORT_CHOICES.find((choice) => choice.id === raw)?.id ?? null;
 }
+
+export type ShelfSortChoice =
+  | SortChoice
+  | { id: "played"; labelKey: string; sort: "last_played"; order: "desc" };
+
+/** Offered by the Continue shelf page alone; other shelves and Library use the four above. */
+export const CONTINUE_SORT_CHOICES: readonly ShelfSortChoice[] = [
+  { id: "played", labelKey: "sort.lastOpened", sort: "last_played", order: "desc" },
+  ...SORT_CHOICES,
+];
+
+export function parseShelfSortId(
+  raw: string | null,
+  choices: readonly ShelfSortChoice[],
+): ShelfSortChoice["id"] | null {
+  return choices.find((choice) => choice.id === raw)?.id ?? null;
+}

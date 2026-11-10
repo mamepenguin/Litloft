@@ -13,7 +13,13 @@ import { usePaged } from "@/components/appshell/usePaged";
 import { PageFrame } from "@/components/PageFrame";
 import { getShelves, type ShelfGrouping, type ShelfItem, type ShelfWatchState } from "@/lib/api";
 import { ReadingGrid } from "./ReadingGrid";
-import { shelfTitle, parseSortId, sortChoiceOf, type SortChoice } from "./labels";
+import {
+  CONTINUE_SORT_CHOICES,
+  SORT_CHOICES,
+  parseShelfSortId,
+  shelfTitle,
+  type ShelfSortChoice,
+} from "./labels";
 import { ReadingSortMenu } from "./LibraryControls";
 import { ReadingAppHeader } from "./ReadingAppHeader";
 import { ReadingCard } from "./ReadingCard";
@@ -67,10 +73,17 @@ export function ReadingShelfPage({
 }) {
   const t = useTranslations("readingApp");
   const state = useReadingApp(drive);
-  const [sortId, setSortId] = useState<SortChoice["id"]>(
-    () => parseSortId(initialSort ?? null) ?? "newest",
-  );
-  const sort = sortChoiceOf(sortId);
+  const offered: readonly ShelfSortChoice[] =
+    by === "watch" && shelfKey === "continue" ? CONTINUE_SORT_CHOICES : SORT_CHOICES;
+  const initialChoice = parseShelfSortId(initialSort ?? null, offered) ?? offered[0].id;
+  const scope = `${by ?? ""}\u0000${shelfKey}\u0000${initialSort ?? ""}`;
+  // Keyed by the shelf: a choice must not survive a by or key change, including
+  // back to a shelf visited before.
+  const [selection, setSelection] = useState({ scope, id: initialChoice });
+  const active = selection.scope === scope ? selection : { scope, id: initialChoice };
+  if (selection.scope !== scope) setSelection(active);
+  const sortId = active.id;
+  const sort = offered.find((choice) => choice.id === sortId) ?? offered[0];
   const requestedWatch = parseWatchState(urlWatch ?? null);
   const keyValid =
     by === "folder" ||
@@ -186,7 +199,13 @@ export function ReadingShelfPage({
               {t("title")}
             </Link>
           }
-          actions={<ReadingSortMenu value={sortId} onChange={setSortId} />}
+          actions={
+            <ReadingSortMenu
+              choices={offered}
+              value={sortId}
+              onChange={(id) => setSelection({ scope, id })}
+            />
+          }
         />
       }
     >
