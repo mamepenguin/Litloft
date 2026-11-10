@@ -25,7 +25,11 @@ profile, without waiting for the provider (SPEC-CORE-077). No animation is added
 
 - **Positions.** The shelves and their order are unchanged: Continue (with a profile),
   Recommended (with a profile), the `video-discover-shelves` addon shelves by entry
-  `priority`, then New. These are positions 1 to n.
+  `priority`, then New. These are positions 1 to n. Until the catalogue is ready, the addon
+  shelves are one placeholder position after Recommended; when the catalogue becomes ready
+  it is replaced by one position per entry (possibly none), each unsettled until it
+  settles. If the deadline fires first, the placeholder is `dropped` (settled, nothing
+  drawn) and no addon position is added for the rest of the visit.
 - **Visit inputs.** drive, target params, and profile (whether one applies, and its
   nickname), compared by value: target params by their JSON serialization with keys sorted.
   A new params object with equal values is not a change. The addon slot entries are **not**
@@ -33,12 +37,15 @@ profile, without waiting for the provider (SPEC-CORE-077). No animation is added
   (`loading` false and `catalogueDrive` equal to the drive), and an entry change after that
   is ignored until the next visit.
 - **Visit.** It starts when `useDiscover`'s `active` (`asked && params !== null`) becomes
-  true, and starts again whenever a visit input changes while `active`. It ends when
+  true, including after it was false because the target was empty, and starts again
+  whenever a visit input changes while `active`. It ends when
   `VideoApp` unmounts. Switching between the Discover and Library tabs does not end it:
   `useDiscover` lives in `VideoApp`, and the visit's state (deadline, which positions have
   settled, drops) lives in `useDiscover`.
 - **Settled.** A position is settled once it has reached a settled state at least once in
-  the visit. A Retry that puts Continue or New back into `loading` does not unsettle it.
+  the visit. `useDiscover` keeps one "settled once" flag per position for the visit; a flag
+  only goes from false to true, and all flags reset when a visit starts. A Retry that puts
+  Continue or New back into `loading` does not reset its flag.
 
 ## Required items
 
@@ -61,8 +68,25 @@ while the app is not ready. Nothing is drawn below it. When k = n it is gone.
 k never decreases during a visit, and k may grow past a position that is reloading after
 Retry. Once k = n, the trailing skeleton does not come back in the visit.
 
-The computation of k and the single skeleton from the positions' states is a pure function
-used by `DiscoverFace`, so it can be rendered from a scripted sequence of states.
+k is computed by a pure function (`discoverPrefix.ts`) from the ordered "settled once"
+flags; because the flags only turn true, k cannot decrease. `useDiscover` applies it and
+returns to `VideoApp`, which passes to `DiscoverFace`:
+
+- `shelves`: the drawn positions in order, each `{ id, title, href?, state, retry }`,
+  leaving out settled positions with nothing to draw;
+- `pending`: true while k < n (draw the trailing skeleton);
+- `empty` and `hasProfile` as today.
+
+`DiscoverFace` holds no state; it draws `shelves`, then one skeleton if `pending`. So the
+e2e check can drive it through a scripted sequence of these props.
+
+**Continue and New requests.** Within a visit they are requested once, and again only by
+Retry. Their load functions are keyed by the visit inputs' values, so a new params object
+with equal values, or a new `onViewerRejected`, does not re-request them.
+
+**Empty state.** The empty state takes precedence over the trailing skeleton: when the
+target is empty, or Continue and New have both settled empty, `DiscoverFace` shows the
+empty state and nothing else, even if a provider position is still unsettled.
 
 The page therefore only grows downward while Discover loads, and no shelf header moves
 except through the viewer's own action (Retry, a target or profile change) or scrolling.
@@ -92,20 +116,26 @@ tab. It stores provider answers as **ordered id lists**, never shelf items.
   as today. This happens even after the deadline has fired, and the call runs to its end
   even if the visit ends or `VideoApp` unmounts, so the cache can be written. A slot with
   no entry is `absent` and nothing is asked or looked up for it.
-- Write: when a provider resolves, its ids (in its order, at most 12) replace the entry
-  under the key it was asked with. A rejected call and an `absent` position write nothing
+- Write: when a provider resolves, the ids of the shelf `buildShelf` built from its answer
+  (deduplicated, accepted by its `restrict`, in its order, at most 12; possibly none)
+  replace the entry under the key it was asked with. A rejected call and an `absent` position write nothing
   and leave an existing entry in place.
 - Rebuild: at the same moment as the ask, a position whose key is in the map is also
   rebuilt from the stored ids: one `restrict` call (one shelves request with `ids`, as
   SPEC-CORE-067 defines it) under the current visit's target, and `watch=unwatched` for
   Recommended. The shelf is the stored order filtered to what this `restrict` returned, at
   most 12, exactly as a provider answer is built today (`buildShelf`).
-- Which answer is drawn: the position settles on whichever of its rebuild and its provider
-  answer comes first within the deadline; the other is not drawn during the visit. The
-  provider answer still writes the cache.
-- `onViewerRejected` is called for a `viewer_required` answer only when it belongs to the
-  current visit and its position is not yet settled. An answer for a settled or `dropped`
-  position, a previous visit, or an unmounted `VideoApp` calls nothing.
+- Which answer is drawn: the position settles on whichever comes first within the
+  deadline of a rebuild with at least one item, or the provider answer. A rebuild with no
+  item (every stored video since watched or gone, or an empty stored list, for which no
+  request is sent) does not settle the position; it waits for the provider within the
+  deadline. Once settled, a later answer is not drawn during the visit. The provider answer
+  still writes the cache.
+- For provider and rebuild requests, `onViewerRejected` is called for a `viewer_required`
+  answer only when it belongs to the current visit and its position is not yet settled. An
+  answer for a settled or `dropped` position, a previous visit, or an unmounted `VideoApp`
+  calls nothing, and no state is set from it. Continue and New keep today's rule: their
+  `viewer_required` always calls it while their load is current.
 - A reload or a new tab starts with an empty map. The module exports a function that
   empties the map, for tests.
 
@@ -148,7 +178,9 @@ possibly running) → `loaded` (from the rebuild or the provider) | `failed`; `w
 Continue and New keep `idle` → `loading` → `loaded` | `failed`, with Retry going
 `failed` → `loading`.
 
-The drawn prefix k: 0 → … → n, never decreasing within a visit.
+The drawn prefix k: 0 → … → n, never decreasing within a visit. A visit restart (a visit
+input change, or `active` going false and true again) sets k to 0: every drawn shelf is
+removed and the single skeleton is drawn, then the visit proceeds as above.
 
 The Discover empty state keeps its rule: it is shown when the target is empty, or when
 Continue and New are both settled and both empty (idle or zero items). A provider shelf
@@ -206,6 +238,8 @@ fails, is absent or is dropped is not shown. Nothing is logged.
 - Coming back to the video app in the same tab (from a video, a shelf page or Home), the
   provider shelves appear as soon as Continue, the addon catalogue and one shelves request
   have loaded, without waiting for the providers.
+- Changing the target or the profile replaces every shelf with the single untitled
+  skeleton, then draws from the top again (today Continue and New show titled skeletons).
 - Switching to Library and back to Discover shows the shelves as they are now: positions
   that settled meanwhile are drawn, and nothing is asked again.
 - No animation is added.
@@ -234,17 +268,23 @@ missing the first time and appears the next time.
 - `frontend/src/components/videoapp/VideoApp.tsx`: pass the nickname; pass the new props to
   `DiscoverFace`.
 - `frontend/src/components/videoapp/__tests__/` (`VideoApp.discoverProviders.test.tsx`,
-  `VideoApp.states.test.tsx`, `VideoApp.test.tsx` and new tests).
+  `VideoApp.states.test.tsx`, `VideoApp.test.tsx`, `VideoApp.navigation.test.tsx`,
+  `VideoApp.continueDesk.test.tsx` and new tests). Tests that render `VideoApp` without an
+  `AddonSlotsProvider` provide a ready catalogue with no entries, so New is not held to the
+  deadline.
 - `frontend/src/components/__tests__/readingVideoLayoutFixtureParity.test.tsx`,
   `frontend/e2e-layout/fixtures/video-app.html`,
   `frontend/e2e-layout/fixtures/reading-video-faces.html`: follow a markup or props change
   of `DiscoverFace`.
-- `frontend/e2e-components/fixtures/` (a new fixture) and a new
-  `frontend/e2e-components/discover-prefix.spec.ts`: render the real `DiscoverFace` through
-  a scripted sequence of position states (Continue loaded, providers loading, then loaded,
-  then New loaded) and measure that each drawn shelf header's top does not change, at the
-  mobile (375 px) and desktop projects. No addon alias or API stub is needed because the
-  face is driven by its props.
+- `frontend/e2e-components/fixtures/app.tsx` (a new entry in `ARRANGEMENTS`),
+  `frontend/e2e-components/discover-prefix.spec.ts` (mobile project, Pixel 5, 393 px),
+  `frontend/e2e-components/discover-prefix-desktop.spec.ts` and
+  `frontend/e2e-components/projects.ts` (`DESKTOP_ONLY`): render the real `DiscoverFace`
+  through a scripted sequence of props (Continue drawn and `pending`; then Recommended
+  added; then New added and `pending` false) and measure that each drawn shelf header's top
+  does not change. No addon alias or API stub is needed because the face is driven by its
+  props.
+- `docs/specs/INDEX.md`: rows for SPEC-CORE-076 and SPEC-CORE-077.
 - `docs/user-guide/video.md`: one sentence.
 - No protected path is edited.
 
@@ -256,17 +296,19 @@ or New does not change it.
 I2. Position j is drawn only once every position before it has settled in the visit; so no
 shelf ever appears above a shelf already drawn within a visit.
 
-I3. While some position has not settled, exactly one empty-title skeleton shelf is drawn,
-directly after the last drawn position, and nothing after it; once all have settled, none
-is drawn for the rest of the visit.
+I3. Unless the empty state is shown, while some position has not settled exactly one
+empty-title skeleton shelf is drawn, directly after the last drawn position, and nothing
+after it; once all have settled, none is drawn for the rest of the visit.
 
 I4. A provider position not settled `PROVIDER_DEADLINE_MS` after its visit starts is
 never drawn during that visit, whatever arrives later; if the catalogue is not ready by
 then, no provider shelf is drawn during that visit.
 
-I5. A position whose key is stored is drawn, within the deadline, from the stored ids
-filtered by a `restrict` made for the current visit, in the stored order; a provider
-answer that arrives after the position settled is not drawn during the visit.
+I5. A position whose key is stored and whose rebuild yields at least one item before its
+provider answers is drawn, within the deadline, from the stored ids filtered by a
+`restrict` made for the current visit, in the stored order; a rebuild with no item does not
+settle it; an answer that arrives after the position settled is not drawn during the
+visit.
 
 I6. Every provider position with an entry is asked exactly once per visit once the
 catalogue is ready, whether or not its key is stored and whether or not the deadline has
@@ -278,13 +320,26 @@ lookup never returns an entry stored under a different drive, target, slot, loca
 nickname or entry list (Recommended) or entry (addon shelf); a rejection or an absent
 provider writes nothing and leaves an existing entry in place.
 
-I8. `onViewerRejected` is called only for an answer of the current visit whose position
-has not yet settled.
+I8. For provider and rebuild requests, `onViewerRejected` is called only for an answer of
+the current visit whose position has not yet settled; Continue and New call it as today.
 
 I9. Continue and New are never dropped by the deadline and keep their Retry; the empty
 state is shown under the same conditions as before this change.
 
 ## Revises
+
+SPEC-CORE-067 I3. Discover draws a provider-shelf item only if its id was returned by a
+`restrict` made for that same shelf in the current visit, either the one given to its
+provider call or its rebuild from the cache, and never by another shelf's. So a provider
+can never make Discover show a file outside the app's target, outside `type=video`, or of
+another drive. For Recommended, it also cannot show one the viewer has started or finished.
+
+SPEC-CORE-067 I4. Recommended consists only of restricted items in the provider's order,
+from its answer in this visit or from its stored order, at most 12, with no duplicate. No
+random request is sent for it, and it is never drawn without a profile. The provider is the
+first entry by `priority` whose function exists. An entry with no module or no function is
+passed over. Once an entry with a function has been chosen, no later entry is tried, even
+when the chosen one rejects.
 
 SPEC-CORE-067 I5. A provider shelf is drawn only when, for the current visit, its provider
 answer or its rebuild from the cache has produced at least one item before the deadline,
@@ -341,3 +396,6 @@ Continue has settled and the catalogue for the drive is ready or the deadline ha
 4. When the server stops accepting the viewer's profile (`viewer_required`), Continue and
    Recommended disappear and the visit restarts, which moves shelves without the viewer's
    action. It happens only in that rare case. Accept?
+5. When the cached list rebuilds to nothing (every stored video watched or gone since),
+   the shelf waits for the provider within the deadline instead of settling empty.
+   Proposed: wait. Accept?
