@@ -30,7 +30,7 @@ interface Entry {
  * sits at every width and decides from the room it was given.
  */
 const TILE = [
-  "flex min-h-[72px] flex-col items-center justify-center gap-1.5 rounded-xl bg-bg-elevated px-1 py-3 text-center text-xs leading-tight text-text-primary transition-colors hover:bg-sand",
+  "relative flex min-h-[72px] flex-col items-center justify-center gap-1.5 rounded-xl bg-bg-elevated px-1 py-3 text-center text-xs leading-tight text-text-primary transition-colors hover:bg-sand",
   "@min-[36rem]:inline-flex @min-[36rem]:min-h-11 @min-[36rem]:flex-row @min-[36rem]:gap-2.5 @min-[36rem]:px-4 @min-[36rem]:py-3 @min-[36rem]:text-left @min-[36rem]:text-sm @min-[36rem]:font-medium @min-[36rem]:leading-normal",
 ].join(" ");
 

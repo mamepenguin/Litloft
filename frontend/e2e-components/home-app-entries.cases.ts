@@ -171,6 +171,8 @@ export function phoneCases(): void {
       const midY = (t.top + t.bottom) / 2;
       expect(t.pill!.left, "pill in the right half").toBeGreaterThanOrEqual(midX);
       expect(t.pill!.bottom, "pill in the top half").toBeLessThanOrEqual(midY);
+      expect(t.pill!.right, "pill inside the tile").toBeLessThanOrEqual(t.right + 0.5);
+      expect(t.pill!.top, "pill inside the tile").toBeGreaterThanOrEqual(t.top - 0.5);
     });
 
     test("SPEC-CORE-073 D6 six entries without an Inbox make a 4 + 2 grid", async ({ page }) => {

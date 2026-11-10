@@ -340,8 +340,6 @@ export function DriveHome({ driveName }: DriveHomeProps) {
         onFileAction={refetchAllSections}
       />
 
-      {/* Suggestions sit beside what you were in the middle of, and do
-          not need a profile. */}
       <AddonSlot id="drive-home-sections" props={{ drive: driveName }} />
 
       <CarouselSection
