@@ -235,11 +235,13 @@ Merge order:
   tiebreak, the `after` keyset condition, and a per-row cursor.
 - `addons/media_import/backend/router.py`: the `/watch` parameter `after` and its 422 rules.
   `_to_watch_item` fills `cursor`. In `ADDON_META.slots`, the two entries drop `href`.
-- `addons/media_import/backend/schemas.py`: `WatchItem.cursor`.
+- `addons/media_import/backend/schemas.py`: `WatchItem.cursor`; `WatchItem.playback` and
+  `WatchPlayback` removed. `router.py` and `subscription/db.py` lose the playback read
+  (`load_playback_markers` and the state helper) unless something else uses them.
 - `addons/media_import/backend/tests/`: keyset paging (order, no repeats or skips across
   pages, the regular cap, 422s) and `test_addon_meta.py` (no `href`).
-- `addons/media_import/frontend/api.ts`: `listWatch` takes `after`, and `WatchItem.cursor`.
-  `WATCH_LANE_CONFIG` goes if nothing else uses it.
+- `addons/media_import/frontend/api.ts`: `listWatch(drive, lane, { limit, after? })`,
+  `WatchItem.cursor` without `playback`, and no `WATCH_LANE_CONFIG`.
 - `addons/media_import/frontend/watchShelfProviders.ts` (or a renamed module) and
   `frontend/slots.ts`: `slotPageProviders`, the byline, no `slotProviders`.
 - `addons/media_import/frontend/__tests__/watchShelfProviders.test.ts`: rewritten for page
