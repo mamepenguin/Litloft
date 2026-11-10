@@ -89,20 +89,24 @@ for example), the spec wins.
    the time under the pointer.
    - A white line marks the browse point. The grid and the scene card follow it, and the
      tile at the browse point gets a white outline.
-   - Leaving the ruler clears the browse point, and the grid returns to the playback
-     position.
+   - Moving the pointer off the ruler into the grid or the card keeps the browse point,
+     so the reader can click a frame they browsed to. Leaving the section clears it, and
+     the grid returns to the playback position.
    - Clicking the ruler seeks to the time under the pointer and plays.
+   - Which behaviour applies (this step, or step 8) is decided per event by its
+     `pointerType`: `mouse` follows this step, `touch` and `pen` follow step 8.
 6. **Seek from a tile or the card.** Clicking a tile seeks to that frame's time and
    plays. Clicking the scene card seeks to the scene's time and plays. Either action
    clears the browse point.
 7. **Collapse or change file.** When the reader collapses the section, or the page moves
    to another file:
-   - The browse point and every loaded result are dropped.
+   - The browse point is dropped, and so is every loaded result, except a `.loft`'s
+     rows on a collapse (step 10).
    - The clock subscription and the event listening end.
    - A response that arrives later is discarded.
    - The next file starts collapsed.
 
-**Touch (pointer: coarse), in the Bottom Sheet or the inspector**
+**Touch and pen (by `pointerType`), in the Bottom Sheet or the inspector**
 
 8. **Browse with a finger.** A tap on the ruler, or a horizontal drag of at least 8 px
    that starts on it, moves the browse point and nothing else. It never seeks.
@@ -122,15 +126,18 @@ for example), the spec wins.
    - `←` / `→` move the browse point by one frame. The first press starts from the
      playing frame.
    - `Home` / `End` move the browse point to the first and the last frame.
-   - `Enter` seeks to the browse frame, plays, and clears the browse point.
+   - `Enter` seeks to the browse frame, plays, and clears the browse point. With no
+     browse point set, `Enter` does nothing.
    - These five keys call `preventDefault` and `stopPropagation` on the ruler. They never
      reach the page's shortcuts (`ShortcutsProvider`: file navigation and the player's
      seek keys).
-   - `aria-valuenow` is the time of the browse point, or of the playback position when no
+   - `aria-valuemin` is 0 and `aria-valuemax` is `L` (§2), in whole seconds.
+     `aria-valuenow` is the time of the browse point, or of the playback position when no
      browse point is set, in whole seconds. `aria-valuetext` is that time formatted by
      `formatDuration`.
-   - The browse point is cleared when focus leaves the section. Moving focus from the
-     ruler to a tile keeps it, so a keyboard user can reach a browsed tile.
+   - The browse point is cleared when focus leaves the section, and when the playback
+     position jumps (§9). Moving focus from the ruler to a tile keeps it, so a keyboard
+     user can reach a browsed tile.
    - Tiles, the scene card and the actions are buttons, in document order.
 
 **`.loft` (SPEC-ADDON-089, revising SPEC-ADDON-080 I6)**
@@ -138,6 +145,8 @@ for example), the spec wins.
 10. **A `.loft` file.** A `.loft` requests `clip-timestamps` on mount and on every
     `fileId` change.
     - The header appears only once at least one row has come back.
+    - Expanding requests nothing and goes straight to expanded, with no loading
+      skeleton. Collapsing keeps the rows.
     - Pictures come from `GET /files/{id}/scene-tile?t=`. The frame route is never
       requested.
     - A tile that fails to load draws a blank block of the tile's size, with no visible
@@ -162,8 +171,14 @@ for example), the spec wins.
 - **No frame rows (native video).** `clip-timestamps` fails or returns no rows. The
   section hides itself after the expand, as the CLIP Frames section does today. The
   Visual Index cannot run without frames, so nothing is lost.
-- **No usable Visual Index.** Any of the following counts as "no Visual Index" (I8). The
-  timeline is drawn without any Visual Index part:
+- **Visual Index still loading.** Until the policy and `visual-index` have both
+  answered, the header shows the frame count only, and no mark is drawn. The scene card
+  and the action row keep their space but are empty. If the answer is "no Visual Index",
+  that space is removed once.
+- **A reload fails.** A reload after a good answer (from an action or a WS event) that
+  fails keeps the last good Visual Index state on screen.
+- **No usable Visual Index.** On the first load, any of the following counts as "no
+  Visual Index" (I9). The timeline is drawn without any Visual Index part:
   - the policy is off;
   - `visual-index` fails;
   - `visual-index` answers 404;
@@ -192,7 +207,8 @@ for example), the spec wins.
 - **No `mediaController` yet.** Until the player reports a `mediaController`, the
   section draws no playback marker and no accent outline, and the grid shows the window
   at frame 0.
-  - A seek falls back to `videoRef.current.currentTime = t`, as ClipFrames does today.
+  - A seek falls back to `videoRef.current.currentTime = t`, followed by
+    `videoRef.current.play()`. Nothing follows `videoRef` as a clock.
   - With neither present, tiles, the card and the ruler do not seek.
 
 ### 3. States
@@ -202,7 +218,8 @@ for example), the spec wins.
 | From | To | Trigger |
 |---|---|---|
 | hidden | collapsed | file change to a video. A `.loft` changes only once rows arrive |
-| collapsed | expanded-loading | expand |
+| collapsed | expanded-loading | expand (native) |
+| collapsed | expanded | expand (`.loft`, whose rows are already loaded) |
 | expanded-loading | expanded | the timestamps arrive with at least one row |
 | expanded-loading | hidden | the timestamps fail or are empty (native) |
 | expanded-loading, expanded | collapsed | collapse. A response still out is discarded |
@@ -225,12 +242,14 @@ These apply to a native video with a usable Visual Index, and are drawn in
 |---|---|---|---|---|---|
 | 1 | a staged run is `queued` or `running`, with no active run | spinner, `done / selected` | none | absent | none |
 | 2 | a staged run is `queued` or `running`, with an active run | dot, spinner, `done / selected` | the active run's | as in 4 | none |
-| 3 | the staged run is `partial` or `failed`, or the active run is `partial` | dot and count of succeeded scenes (none when no active run) | the active run's (none when no active run) | as in 4 (absent when no active run) | note "N failed", **Retry the N failed** (filled), and **Regenerate scenes** (ghost; **Create scenes** when there is no active run) |
+| 3 | N > 0, where the staged run is `partial` or `failed`, or the active run is `partial` | dot and count of succeeded scenes (none when no active run) | the active run's (none when no active run) | as in 4 (absent when no active run) | note "N failed", **Retry the N failed** (filled), and **Regenerate scenes** (ghost; **Create scenes** when there is no active run) |
 | 4 | an active run | dot and count of succeeded scenes | one mark per scene | present when at least one succeeded scene has a label, absent otherwise | **Regenerate scenes** (ghost) |
 | 5 | no active run, nothing staged | frame count only | none | absent | **Create scenes** (filled) |
 
 - **N.** N is the staged run's `failed_count` when the staged run is `partial` or
-  `failed`. Otherwise it is the active run's `failed_count`.
+  `failed`. Otherwise it is the active run's `failed_count`. A run can fail before any
+  scene with `failed_count` 0. Retrying it has nothing to retry, so row 3 does not
+  apply, and row 4 or 5 is drawn.
 - **`done / selected`.** This is `completed_count / selected_count`, or `…` while
   `selected_count` is 0.
 - **The stale line.** When `stale` is true, an amber line sits above the action row in
@@ -300,7 +319,8 @@ Unchanged.
 - `frontend/src/__tests__/section-rows.test.tsx`: both files leave the `overflow-x-auto`
   site list.
 - `frontend/src/__tests__/line-clamp-display.test.ts`: the `VisualIndexSection.tsx`
-  anchor becomes the new section's file, which clamps lines.
+  anchor becomes `addons/intelligence/frontend/ScenesSection/ScenesSectionPresenter.tsx`,
+  which holds the scene card's line clamps.
 - `frontend/e2e-layout/no-horizontal-scroll.spec.ts` and its fixture: the add-on row
   cases for clip frames and the Visual Index (CORE-065 I3, I4) are removed. Revises
   states the replacement, and a new real-component case measures it (§10).
@@ -346,8 +366,10 @@ Unchanged.
   - All labels are formatted by `formatDuration`.
   - The boards show `0:00 5:00 10:00 15:00 18:44` and
     `0:00 1:00:00 2:00:00 3:00:00 4:09:30`.
-- **Grid**: three equal columns at every width the section is given. Rows are 12px
-  apart and columns 8px apart.
+- **Width**: the section is at most `24rem` wide, the inspector's width. On the
+  collection surface, where `file-detail-sections` is drawn in the canvas, it does not
+  grow past that.
+- **Grid**: three equal columns. Rows are 12px apart and columns 8px apart.
   - **Tile**: the picture (`rounded-lg`, not cropped), with its time under it at 12px,
     centered.
   - **Tile ratio**: the natural ratio of the first picture in the window that loads.
@@ -435,6 +457,9 @@ All keys are new keys in the `file` namespace, in both locales. The manifest lab
 - `docs/ADDON-DEVELOPMENT.md`: the slot table row.
 - `docs/user-guide/keyboard-shortcuts.md`: the ruler's `←` / `→` / `Home` / `End` /
   `Enter`.
+- `docs/user-guide/video.md`: one sentence. Hovering the scene ruler, or touching it on
+  a phone, shows the frames there without moving the video. A click on the ruler, or a
+  tap on a frame, plays from that point.
 
 ### 10. Non-functional
 
@@ -449,7 +474,8 @@ All keys are new keys in the `file` namespace, in both locales. The manifest lab
     window or the browse point changes. It does not re-render on every clock tick.
 - **Measurement**: a new `frontend/e2e-components` case renders the real Scenes
   component, with its API stubbed, in Chromium.
-  - Widths: 384px with a mouse, and 390px with a coarse pointer.
+  - Widths: 384px with a mouse, 390px with a coarse pointer, and a 900px host (the
+    collection surface), where the section stays at `24rem`.
   - It checks that no element scrolls on either axis.
   - It checks that the section's height stays the same across a window move, a browse
     point move, a scene card with no `visible_text` and one with a two-line label.
@@ -463,8 +489,9 @@ All paths are in the `addons/intelligence` repository, unless they start with
 
 **In `addons/intelligence`**
 
-- `frontend/ScenesSection.tsx` (new), and its tests. It is split into a Container and a
-  Presenter, per `.claude/rules/frontend-conventions.md`.
+- `frontend/ScenesSection/` (new): `ScenesSectionContainer.tsx`,
+  `ScenesSectionPresenter.tsx`, `index.ts` and its tests, per
+  `.claude/rules/frontend-conventions.md`. `slots.ts` imports `./ScenesSection`.
 - `frontend/ClipFramesSection.tsx`, `frontend/VisualIndexSection.tsx` and their tests
   (removed).
 - `frontend/slots.ts`, and `manifest.json` (`file-detail-sections`).
@@ -484,8 +511,8 @@ All paths are in the `addons/intelligence` repository, unless they start with
 - `frontend/e2e-layout/no-horizontal-scroll.spec.ts` and
   `frontend/e2e-layout/fixtures/no-horizontal-scroll.html`.
 - `frontend/e2e-components/`: a new Scenes case, with the fixture and stub it needs.
-- `docs/addons/intelligence.md`, `docs/ADDON-DEVELOPMENT.md` and
-  `docs/user-guide/keyboard-shortcuts.md`.
+- `docs/addons/intelligence.md`, `docs/ADDON-DEVELOPMENT.md`,
+  `docs/user-guide/keyboard-shortcuts.md` and `docs/user-guide/video.md`.
 - The `addons/intelligence` gitlink (pointer bump).
 
 **Rules passed through**
@@ -503,15 +530,15 @@ All paths are in the `addons/intelligence` repository, unless they start with
 ## Invariants
 
 I1. The ruler draws exactly one tick per `clip-timestamps` row, at `min(start, L) / L` of its width, with `L` as §2 defines it. The grid shows the nine frames from `s = clamp(3 × floor(i / 3) − 3, 0, max(0, n − 9))`, or every frame when there are fewer than nine. `i` is the last frame whose start is at or before the point being looked at, or frame 0 before the first.
-I2. While a `mediaController` is present, the ruler's playback marker and the accent outline of the playing tile follow the shared media clock, whether or not a browse point is set. A browse point (hover, touch or keyboard) moves the grid and the scene card and never seeks. Only four things seek: a mouse click on the ruler, `Enter` on the ruler, a tile and the scene card. Each seek is followed by play.
-I3. On a coarse pointer the ruler never seeks. A tap or a horizontal drag of at least 8 px sets the browse point. A touch handed to vertical scrolling leaves it as it was. The browse point stays until a tile or the scene card is tapped, the playback position jumps (§9), the section collapses or the file changes.
+I2. While a `mediaController` is present, the ruler's playback marker and the accent outline of the playing tile follow the shared media clock, whether or not a browse point is set. A browse point (hover, touch or keyboard) moves the grid and the scene card and never seeks. Only four things seek: a mouse click on the ruler, `Enter` on the ruler with a browse point set, a tile and the scene card. Each seek is followed by play, through `mediaController` or, without one, through `videoRef`. A mouse browse point stays while the pointer is inside the section and is cleared when it leaves.
+I3. For a `touch` or `pen` pointer event the ruler never seeks. A tap or a horizontal drag of at least 8 px sets the browse point. A touch handed to vertical scrolling leaves it as it was. The browse point stays until a tile or the scene card is tapped, the playback position jumps (§9), the section collapses or the file changes.
 I4. While the ruler has focus, `←`, `→`, `Home`, `End` and `Enter` act on the ruler and never trigger a page shortcut: no file navigation, and no player seek other than the ruler's own `Enter`.
-I5. The Info tab draws one Scenes section for a video, and nothing for any other file type. The intelligence manifest has exactly one `scenes` entry and no `visual-index` or `clip-frames` entry. No element inside the section scrolls on either axis, with either pointer. While the section is expanded, its height does not change when the window moves or the browse point changes.
+I5. The Info tab draws at most one Scenes section for a video, and only in the states §3 does not hide, and nothing for any other file type. The intelligence manifest has exactly one `scenes` entry and no `visual-index` or `clip-frames` entry. No element inside the section scrolls on either axis, with either pointer. While the section is expanded, its height does not change when the window moves or the browse point changes. The section is never wider than `24rem`.
 I6. A native video requests no `clip-timestamps`, `visual-index` or picture before its first expand. Each expand requests `clip-timestamps`, and also `visual-index` unless the policy is off. No response, WS-triggered reload or action result is applied for a `fileId` other than the current one, or after the section has collapsed. WS events reload the section only while it is expanded, and only for the current file.
-I7. A `.loft` requests `clip-timestamps` on mount and on every `fileId` change, never applies a response for an earlier `fileId`, and takes every picture from the scene-tile route and none from the frame route. It never requests `visual-index` and draws no Visual Index part. A tile that fails draws a blank tile-sized block, with its time label and click-to-seek.
+I7. A `.loft` requests `clip-timestamps` on mount and on every `fileId` change and at no other time, never applies a response for an earlier `fileId`, and takes every picture from the scene-tile route and none from the frame route. It never requests `visual-index` and draws no Visual Index part. A tile that fails draws a blank tile-sized block, with its time label and click-to-seek.
 I8. Only the pictures of the current window are requested. While the browse point moves, a window's pictures are requested only after that window has stayed 150 ms.
-I9. When the policy is off, when `visual-index` fails, answers 404, or answers `eligible: false` or `available: false`, and for every `.loft`, the section draws no Visual Index part: no dot count, no progress, no marks, no tile dots, no scene card and no actions. The timeline is otherwise unchanged. Otherwise every active-run scene is marked at its `start_time`, styled by its status as §9 says. A tile carries the dot exactly when a `succeeded` scene's `start_time` is within 0.05 s of its frame's `start`. The scene card shows the last succeeded, labelled scene at or before the point being looked at (or the first such scene before all of them), with its `visible_text` and never its `transcript_excerpt`. Activating the card seeks to that scene's `start_time`.
-I10. The Visual Index part draws exactly the first matching row of §3's table. No action is offered while a staged run is `queued` or `running`. **Create scenes** and **Regenerate scenes** call `/visual-index/generate`, and **Retry the N failed** calls `/visual-index/retry`. A `waiting_clip` refusal shows `visualIndexWaitingPrerequisite`, and any other failure shows `visualIndexActionError`.
+I9. When the policy is off, when the first `visual-index` request fails, answers 404, or answers `eligible: false` or `available: false`, and for every `.loft`, the section draws no Visual Index part: no dot count, no progress, no marks, no tile dots, no scene card and no actions. The timeline is otherwise unchanged. Otherwise every active-run scene is marked at its `start_time`, styled by its status as §9 says. A tile carries the dot exactly when a `succeeded` scene's `start_time` is within 0.05 s of its frame's `start`. The scene card shows the last succeeded, labelled scene at or before the point being looked at (or the first such scene before all of them), with its `visible_text` and never its `transcript_excerpt`. Activating the card seeks to that scene's `start_time`.
+I10. The Visual Index part draws exactly the first matching row of §3's table, and a failed reload leaves the last good state drawn. No action is offered while a staged run is `queued` or `running`, and no retry is offered when N is 0. **Create scenes** and **Regenerate scenes** call `/visual-index/generate`, and **Retry the N failed** calls `/visual-index/retry`. A `waiting_clip` refusal shows `visualIndexWaitingPrerequisite`, and any other failure shows `visualIndexActionError`.
 
 ## Revises
 
