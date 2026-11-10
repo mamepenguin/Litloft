@@ -41,6 +41,6 @@ Right-click a folder and choose **Pin**, or use `…` → **Pin this folder** in
 
 A Smart Folder is a saved search rather than a list you build. See [search](search.md#saving-as-a-smart-folder).
 
-## Continue watching
+## Continue
 
-The **Continue watching** row on Home lists media you started and stopped before 90%. It needs a [profile](profile-preferences.md). See [comments and watch history](comments-history.md).
+The **Continue** row on Home lists files you started and have not finished within the last two weeks. It needs a [profile](profile-preferences.md). See [comments and watch history](comments-history.md).

@@ -9,7 +9,7 @@ A drive has two starting points in the sidebar:
 
 The sidebar is the same on every screen of a drive.
 
-- At the top: Home, Library, and five views of the whole drive: **Favorites**, **Liked**, **Recently Viewed**, **Recently Added** and **All Files** (every file in the drive, with no folders). Addons can add pages here, such as *Ask* or *Notes*.
+- At the top: Home, Library, and six views of the whole drive: **Continue**, **Favorites**, **Liked**, **Recently Viewed**, **Recently Added** and **All Files** (every file in the drive, with no folders). Addons can add pages here, such as *Ask* or *Notes*.
 - In the middle, the sections you build yourself: **Collections**, **Pins**, **Smart Folders** and **Tags**. You can collapse these sections and drag them into the order you like.
 - At the bottom: **Trash**, **Missing Files** (only when the drive has some), and **Dashboard** for an administrator.
 
@@ -110,14 +110,14 @@ Files added by an addon, such as web clips, arrive unverified. With the intellig
 
 Home shows these rows, in order:
 
-- **Continue Watching**: videos, audio, PDFs, EPUBs, archives and long text you stopped before 90%.
+- **Continue**: videos, audio, PDFs, EPUBs, archives and long text you started and have not finished within the last two weeks.
 - Rows added by addons, if any.
 - **Recently Viewed**
 - **Recently Added**
 - **Favorites**
 - **Liked**
 
-Continue Watching and Recently Viewed need a [profile](profile-preferences.md). Each row shows as many cards as fit, and **See all** opens the rest. Empty rows are hidden.
+**Continue** and **Recently Viewed** need a [profile](profile-preferences.md). Each row shows as many cards as fit, and **See all** opens the rest. Empty rows are hidden.
 
 ## Pinned folders
 

@@ -14,8 +14,9 @@ opens there.
 
 Up to three shelves of 12 videos, each loading on its own:
 
-- **Continue**: videos you started and have not finished, most recently played first.
-  A bar along the bottom of the thumbnail shows how far you got.
+- **Continue**: videos you started and have not finished, played within the last two weeks,
+  most recently played first. A file set aside from **Continue** on Home does not appear
+  here. A bar along the bottom of the thumbnail shows how far you got.
 - **Recommended**: a random sample of videos you have not watched. The sample stays while
   you switch tabs and back; reloading the page draws a new one. A video you only opened
   without playing counts as not watched and can come up again.
@@ -24,7 +25,7 @@ Up to three shelves of 12 videos, each loading on its own:
 A shelf with no videos is not shown. If one shelf fails to load, only that shelf shows
 **Retry**.
 
-Each shelf has **See all**: **Continue** opens the in-progress shelf, **Recommended** opens
+Each shelf has **See all**: **Continue** opens the Continue desk, **Recommended** opens
 the unwatched shelf (only with a profile), and **New** opens all videos newest first. The
 shelf page shows 60 videos at a time.
 

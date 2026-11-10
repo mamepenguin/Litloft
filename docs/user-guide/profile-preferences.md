@@ -15,7 +15,7 @@ Press the round button at the top right of the header: your initial once you hav
 
 ## What a nickname gives you
 
-- Resuming media where you stopped, and a watch history (**Continue watching** and **Recently Viewed** on Home).
+- Resuming media where you stopped, and a watch history (**Continue** and **Recently Viewed** on Home).
 - Posting comments, and editing or deleting your own.
 - The same history on every device where you enter the same nickname.
 
@@ -31,7 +31,7 @@ Theme, language, the player's **Autoplay** switch, the image viewer's reading di
 
 ## Watch history
 
-There is no button to clear all history. Remove entries one at a time from the **Continue watching** and **Recently Viewed** rows. See [comments and watch history](comments-history.md).
+There is no button to clear all history. Remove entries one at a time from the **Continue** and **Recently Viewed** rows. See [comments and watch history](comments-history.md).
 
 ## Locking protected drives again
 

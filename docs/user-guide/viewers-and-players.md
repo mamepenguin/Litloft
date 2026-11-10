@@ -186,7 +186,7 @@ A `.loft` file from the [media_import addon](../addons/media-import.md) plays th
 
 ## Watch progress
 
-Your position is saved every few seconds, and a video resumes where you left off unless you were within a few seconds of the start or end. Reaching the end keeps the record, so the file drops out of **Continue watching**. Live streams are not resumed. See [comments and watch history](comments-history.md).
+Your position is saved every few seconds, and a video resumes where you left off unless you were within a few seconds of the start or end. Reaching the end keeps the record, so the file drops out of **Continue**. Live streams are not resumed. See [comments and watch history](comments-history.md).
 
 ## The `⋮` menu
 
