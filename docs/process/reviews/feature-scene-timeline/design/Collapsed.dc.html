@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>CLIP フレーム 折りたたみと読み込み中</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#1a0e10}
+.hdr{all:unset;display:flex;align-items:center;gap:8px;font-size:14px;color:#c4a0a4}
+</style>
+</helmet>
+<div style="width: 384px; height: 480px; box-sizing: border-box; padding: 16px; background: #1a0e10; color: #f5e6e8; font-family: -apple-system, system-ui, 'Hiragino Sans', sans-serif; display: flex; flex-direction: column; gap: 48px">
+  <div style="display: flex; flex-direction: column; gap: 16px">
+    <button class="hdr">
+      <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18"></rect><path d="M7 2v20M17 2v20M2 12h20M2 7h5M2 17h5M17 17h5M17 7h5"></path></svg>
+      <span>Visual index</span>
+      <svg aria-hidden="true" style="margin-left: auto" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+    </button>
+    <button class="hdr">
+      <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18"></rect><path d="M7 2v20M17 2v20M2 12h20M2 7h5M2 17h5M17 17h5M17 7h5"></path></svg>
+      <span>CLIP フレーム</span>
+      <svg aria-hidden="true" style="margin-left: auto" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+    </button>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 14px">
+    <button class="hdr">
+      <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18"></rect><path d="M7 2v20M17 2v20M2 12h20M2 7h5M2 17h5M17 17h5M17 7h5"></path></svg>
+      <span>CLIP フレーム</span>
+      <svg aria-hidden="true" style="margin-left: auto" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"></path></svg>
+    </button>
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <div style="height: 36px; border-radius: 8px; background: #231216"></div>
+      <div style="height: 14px"></div>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 8px">
+      <sc-for list="{{slots}}" as="s" hint-placeholder-count="9">
+        <div style="display: flex; flex-direction: column; gap: 4px">
+          <div style="aspect-ratio: 4 / 3; border-radius: 8px; background: #2f191b"></div>
+          <div style="height: 14px; width: 40%; margin: 0 auto; border-radius: 4px; background: #231216"></div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":384,"height":480}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { slots: [1, 2, 3, 4, 5, 6, 7, 8, 9] };
+  }
+}
+</script>
+</body>
+</html>
