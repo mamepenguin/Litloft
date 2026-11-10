@@ -268,7 +268,7 @@ describe("SPEC-CORE-078 the provider shelf page: the first page", () => {
     async () => {
       mediaPage.feed = pager({ "": { ids: ["v1"], cursor: null } });
       mediaPage.lane = pager({ "": { ids: ["w1"], cursor: null } });
-      shelves([FEED, { id: "lane", label: "Untranslated", priority: 20, addonName: "media_import", i18n_key: "mediaImport.watch.lane.regular" }]);
+      shelves([FEED, { id: "lane", label: "Untranslated", priority: 20, addonName: "media_import", i18n_key: "mediaImport.slots.videoRegular" }]);
       const view = renderEntryPage({ entry: "feed" });
       await screen.findByText(title("v1"));
       expect(heading("Feed")).toBeInTheDocument();
@@ -811,7 +811,7 @@ describe("SPEC-CORE-078 I8 the provider shelf page starts again", () => {
       await settle();
       expect(feed).toHaveBeenCalledTimes(1);
 
-      shelves([{ ...FEED, label: "Feed", i18n_key: "mediaImport.watch.lane.regular" }]);
+      shelves([{ ...FEED, label: "Feed", i18n_key: "mediaImport.slots.videoRegular" }]);
       view.rerender(pageElement({ entry: "feed" }));
       await waitFor(() => expect(feed).toHaveBeenCalledTimes(2));
       expect(feed.mock.calls[1][0]).toMatchObject({ cursor: null });

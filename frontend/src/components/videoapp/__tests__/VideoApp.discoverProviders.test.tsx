@@ -510,7 +510,7 @@ describe("SPEC-CORE-068 addon shelves from video-discover-shelves", () => {
     media["shelf-a"] = restricting(["a1"]);
     media["shelf-b"] = restricting(["b1"]);
     declare({
-      shelves: [{ ...SHELF_A, label: "Untranslated", i18n_key: "mediaImport.watch.lane.regular" }, SHELF_B],
+      shelves: [{ ...SHELF_A, label: "Untranslated", i18n_key: "mediaImport.slots.videoRegular" }, SHELF_B],
     });
     renderApp();
 
