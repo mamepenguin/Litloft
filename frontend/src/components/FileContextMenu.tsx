@@ -22,6 +22,7 @@ interface FileContextMenuProps {
   onClose: () => void;
   onUpdate?: () => void;
   onRemoveFromHistory?: () => Promise<void>;
+  onRemoveFromContinue?: () => Promise<void>;
   onOpenInNewTab?: () => void;
   onStartInlineRename?: () => void;
 }
@@ -33,6 +34,7 @@ export function FileContextMenu({
   onClose,
   onUpdate,
   onRemoveFromHistory,
+  onRemoveFromContinue,
   onOpenInNewTab,
   onStartInlineRename,
 }: FileContextMenuProps) {
@@ -114,6 +116,17 @@ export function FileContextMenu({
     }
   }, [onRemoveFromHistory, onClose]);
 
+  const handleRemoveFromContinue = useCallback(async () => {
+    if (!onRemoveFromContinue) return;
+    try {
+      await onRemoveFromContinue();
+    } catch {
+      // Surface failure via the parent; menu still closes for predictable UX.
+    } finally {
+      onClose();
+    }
+  }, [onRemoveFromContinue, onClose]);
+
   const items = useFileMenuItems(target, {
     onOpenInNewTab,
     onAddToCollection: () => setCollectionPickerOpen(true),
@@ -126,6 +139,11 @@ export function FileContextMenu({
     onRemoveFromHistory: onRemoveFromHistory
       ? () => {
           void handleRemoveFromHistory();
+        }
+      : undefined,
+    onRemoveFromContinue: onRemoveFromContinue
+      ? () => {
+          void handleRemoveFromContinue();
         }
       : undefined,
     onTrash: () => setDeleteOpen(true),

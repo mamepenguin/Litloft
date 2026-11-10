@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, File, FilePlus, History, Home, Search, RefreshCw, Star, Tag, ThumbsUp, Trash2 } from "lucide-react";
+import { AlertTriangle, File, FilePlus, History, Home, Play, Search, RefreshCw, Star, Tag, ThumbsUp, Trash2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
@@ -23,6 +23,7 @@ export const EMPTY_VARIANTS = [
   "needs-scan",
   "no-favorites",
   "no-liked",
+  "no-continue",
   "no-recent",
   "no-recent-profile",
   "no-recent-added",
@@ -62,6 +63,11 @@ const variantConfig: Record<
     icon: ThumbsUp,
     titleKey: "noLikedTitle",
     descriptionKey: "noLikedDescription",
+  },
+  "no-continue": {
+    icon: Play,
+    titleKey: "noContinueTitle",
+    descriptionKey: "noContinueDescription",
   },
   "no-recent": {
     icon: History,

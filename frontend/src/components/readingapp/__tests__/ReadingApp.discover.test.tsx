@@ -88,8 +88,8 @@ function smartFolder(id: string, name: string, query: string) {
 }
 
 function defaultShelves(_drive: string, params: Params) {
-  if (params.by === "watch" && params.key === "in_progress") {
-    return oneShelf("in_progress", [
+  if (params.by === "watch" && params.key === "continue") {
+    return oneShelf("continue", [
       book("c1", "Resume me", { watch_progress: { position: 30, duration: 120 } }),
     ]);
   }
@@ -141,7 +141,7 @@ describe("SPEC-CORE-061 I17 Discover's three shelves", () => {
     render(<ReadingApp drive={DRIVE} />);
     await screen.findByText("Resume me");
 
-    const continueCall = shelfCalls({ by: "watch", key: "in_progress" })[0][1] as Params;
+    const continueCall = shelfCalls({ by: "watch", key: "continue" })[0][1] as Params;
     expect(continueCall).toMatchObject({
       sort: "last_played",
       per_shelf: 12,
@@ -182,8 +182,8 @@ describe("SPEC-CORE-061 I17 Discover's three shelves", () => {
 
   it("does not draw a shelf with no books", async () => {
     getShelves.mockImplementation(async (d, params: Params) =>
-      params.by === "watch" && params.key === "in_progress"
-        ? oneShelf("in_progress", [])
+      params.by === "watch" && params.key === "continue"
+        ? oneShelf("continue", [])
         : defaultShelves(d, params),
     );
     render(<ReadingApp drive={DRIVE} />);
@@ -224,7 +224,7 @@ describe("Discover's See all destinations", () => {
 
     expect(screen.getByRole("link", { name: "See all: Continue reading" })).toHaveAttribute(
       "href",
-      `/drive/${DRIVE}/apps/reading/shelf?by=watch&key=in_progress&from=discover`,
+      `/drive/${DRIVE}/apps/reading/shelf?by=watch&key=continue&from=discover`,
     );
     expect(screen.getByRole("link", { name: "See all: Not read yet" })).toHaveAttribute(
       "href",

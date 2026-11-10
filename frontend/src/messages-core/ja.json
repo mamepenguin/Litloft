@@ -80,7 +80,8 @@
     "lock": "ロックする",
     "administration": "管理",
     "video": "動画",
-    "reading": "読む"
+    "reading": "読む",
+    "continue": "続きから"
   },
   "drive": {
     "empty": "ドライブがありません",
@@ -89,12 +90,13 @@
     "recentAdded": "最近追加",
     "favorites": "お気に入り",
     "liked": "Liked",
-    "continueWatching": "続きを見る",
+    "continueWatching": "続きから",
     "recentlyViewed": "最近見た",
     "greeting": "おかえりなさい、{name}",
     "fileCount": "{count, plural, other {#件のファイル}}",
     "emptyDrive": "まだファイルがありません",
-    "unlockAccess": "パスワードを入力"
+    "unlockAccess": "パスワードを入力",
+    "couldNotRemoveFromContinue": "続きから外せませんでした"
   },
   "folder": {
     "items": "{count}件",
@@ -234,7 +236,8 @@
     "epubCloseContents": "目次を閉じる",
     "epubUntitled": "（無題）",
     "epubTypographyReset": "標準に戻す",
-    "markdownViewMode": "表示"
+    "markdownViewMode": "表示",
+    "removeFromContinue": "続きから外す"
   },
   "search": {
     "label": "検索",
@@ -612,7 +615,9 @@
     "homeUnavailableTitle": "このドライブを読み込めませんでした",
     "homeUnavailableDescription": "いま何も取得できませんでした。ドライブが空という意味ではありません。",
     "addFilesAction": "ファイルを追加",
-    "openLibraryAction": "ライブラリを開く"
+    "openLibraryAction": "ライブラリを開く",
+    "noContinueTitle": "途中のファイルはありません",
+    "noContinueDescription": "最近 2 週間に開いて途中まで見たファイルが、ここに並びます。"
   },
   "theme": {
     "system": "システム",

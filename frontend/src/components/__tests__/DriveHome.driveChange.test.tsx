@@ -137,7 +137,7 @@ type WatchRowItems = Record<WatchKey, string>;
 
 /** The watch row titles, as `messages-core/en.json` spells them. */
 const WATCH_TITLES: Record<WatchKey, string> = {
-  continueWatching: "Continue Watching",
+  continueWatching: "Continue",
   recentlyPlayed: "Recently Viewed",
 };
 

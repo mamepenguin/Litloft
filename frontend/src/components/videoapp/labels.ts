@@ -30,6 +30,7 @@ export function shelfTitle({
   if (by === "tag") return shelf.key === "no_tag" ? t("noTag") : shelf.label;
   if (by === "month") return formatMonth(shelf.label || shelf.key, locale);
   if (by === "duration") return t(`length.${shelf.key}`);
+  if (by === "watch" && shelf.key === "continue") return t("shelves.continue");
   return t(`watch.${shelf.key}`);
 }
 

@@ -49,7 +49,7 @@ export function DiscoverFace({
             id: "continue",
             title: t("continue"),
             source: continueShelf,
-            href: videoShelfHref(drive, "watch", "in_progress", undefined, "discover"),
+            href: videoShelfHref(drive, "watch", "continue", undefined, "discover"),
           },
         ]
       : []),

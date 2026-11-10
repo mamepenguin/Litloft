@@ -75,7 +75,9 @@ export function ReadingShelfPage({
   const keyValid =
     by === "folder" ||
     by === "all" ||
-    (by === "watch" ? parseWatchState(shelfKey) !== null : shelfKey !== "");
+    (by === "watch"
+      ? parseWatchState(shelfKey) !== null || shelfKey === "continue"
+      : shelfKey !== "");
 
   // Watch state reads the viewer's rows; without a profile there is no shelf to open.
   const watchBlocked = by === "watch" && !state.hasProfile;
