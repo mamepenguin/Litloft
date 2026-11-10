@@ -45,7 +45,11 @@ keeps its parameters and gains `after`, an optional string.
 - `after` together with an `offset` other than 0 is 422. A malformed `after` (one that does
   not decode) is also 422.
 - Without `after`, the response is the same as today, apart from the added `cursor`
-  field.
+  field and the removed `playback` field.
+- `/watch` no longer reads `watch_history`. Its only consumer, the Watch card, is removed,
+  and the core draws the cards now. `WatchItem.playback`, `WatchPlayback`, the playback
+  state helper and `load_playback_markers` go, with their tests, unless something else
+  uses them.
 
 **Frontend: page providers (SPEC-ADDON-091).** `frontend/slots.ts` exports
 `slotPageProviders` with `media-import-regular` (lane `regular`) and `media-import-feed`
@@ -54,6 +58,8 @@ and works like this:
 
 1. Start from `cursor`, or from the lane's top when it is `null`.
 2. Read the lane 60 rows at a time with `listWatch(drive, lane, { limit: 60, after })`.
+   `listWatch(drive, lane, { limit, after? })` takes `limit` as required, sends `after` only
+   when given, and never sends `offset`. `WATCH_LANE_CONFIG` is removed.
 3. Pass each read's file ids through `restrict`, and take the accepted rows in lane order.
 4. Stop as soon as `limit` rows are taken, a read comes back shorter than 60, or 10 reads
    have been made in this call.
@@ -90,7 +96,8 @@ reads the subscription list once on mount, but only to decide whether the Compos
 expanded (no subscriptions), as today. Until that read settles, the page shows the
 existing loading line (`loadingDrive`), because the Composer reads its initial state once.
 If the read fails, the page shows the management view with the Composer expanded, as
-today. The `watch/` directory, its tests, and the
+today. The page is keyed by the drive, so moving to another drive's Media Import page
+starts again from the loading line and reads that drive's subscriptions. The `watch/` directory, its tests, and the
 `mediaImport.nav.*` and `mediaImport.watch.*` messages are removed.
 
 The display-mode field (`DisplayModeField`) keeps its three options and their values, and
@@ -117,9 +124,16 @@ setting so that videos would appear, and the hints now say where they appear.
 - **The 10-read bound is reached with fewer than `limit` taken.** The provider returns what
   it took and the cursor of the last row examined. If it took none, the core ends the list
   there (SPEC-CORE-078 I4), even though later rows might match. See Checked, no action.
-- **A row is deleted or moved to trash between two calls.** Keyset paging skips nothing
-  else and repeats nothing. A row whose sort key is before the cursor and that was added
-  later (an older video imported late) is not seen until the page is opened again.
+- **The lane changes while the viewer scrolls the core page.** Keyset paging does not
+  shift because of rows added above the cursor. These changes still reach rows the viewer
+  has not scrolled to, and are accepted; reopening the page shows the lane as it is now:
+  - a row added with a sort key behind the cursor (an older video imported late) is not
+    seen in this session;
+  - in `regular`, a new import from a source pushes that source's second video out of the
+    cap, and a deleted or trashed video lets a third one in, which may sit behind the
+    cursor and be skipped;
+  - a metadata refresh that changes `published_at` moves the row, so it can be skipped, or
+    returned again (the core then drops the repeat, SPEC-CORE-078 I3).
 - **A malformed `after`** (a stale bookmark cannot carry one, because the cursor never
   appears in a URL): 422, and the provider rejects.
 - **No channel and no publish date**: the item has no byline.
@@ -132,12 +146,13 @@ owns the page's states (SPEC-CORE-078 §3).
 The Media Import page has two states. `loading` shows the loading line while the drive is
 not known or the subscription list read is in flight. `managing` shows the management view,
 with the Composer expanded when the read returned no subscription or failed. `loading`
-goes to `managing` once the read settles. Nothing goes back.
+goes to `managing` once the read settles. A drive change remounts the page into
+`loading`. Nothing else goes back.
 
 ### 4. Data read and written
 
 - Read: `files`, `loft_metadata`, `subscription_videos` and `subscriptions` through
-  `/watch`, as today. Read: the core shelves query through `restrict`.
+  `/watch`. It no longer reads `watch_history`. Read: the core shelves query through `restrict`.
 - Written: nothing.
 
 ### 5. External services
@@ -158,7 +173,7 @@ equal `drive`. `restrict` makes the core decide what the viewer may see (SPEC-CO
 - Playback progress badges, the "Watched" state, **Add to collection** and **Open the
   source page** on Watch cards are gone with the cards. Opening a video and adding it to a
   collection remain on the file page. The source page remains in the `.loft` metadata panel.
-- `/watch` keeps `offset`, and its response gains `cursor`. No other caller exists once
+- `/watch` keeps `offset`; its response gains `cursor` and loses `playback`. No other caller exists once
   Watch is gone. The endpoint is not part of the Internal API.
 - The Discover shelves keep their titles, order and size (12). They gain bylines, and their
   **See all** stays in the video app.
@@ -242,8 +257,9 @@ Merge order:
   - `docs/user-guide/video.md`: no change. It already says that an addon shelf with a page
     provider opens a page in the video app, without naming the addon.
   - `docs/addons/media-import.md`: the Watch section becomes "In the video app" (the two
-    shelves, bylines, See all, the display-mode setting). The paragraph on which tab the
-    page opens on is removed.
+    shelves, bylines, See all, the display-mode setting). Every other mention of Watch
+    goes too: "Show in Watch", "not shown in Watch", the card actions, and which tab the
+    page opens on.
   - `docs/ADDON-DEVELOPMENT.md`: no change. Its UI slots table row stays, and `/watch` is
     documented nowhere today.
 - Rules passed through: `design-decisions.md` (drive boundary, no core-to-addon
@@ -270,11 +286,12 @@ I4. A page provider returns only ids that its own `restrict` accepted, in lane o
 most `limit`, and never an id it returned for an earlier cursor of the same lane while the
 lane is unchanged.
 
-I5. A page provider returns `cursor: null` exactly when it examined every row up to the
-lane's end. Otherwise its cursor makes the next call resume at the first row it did not
-examine.
+I5. A page provider returns `cursor: null` exactly when a read shorter than 60 rows was
+examined to its last row. Otherwise its cursor makes the next call resume at the first row
+it did not examine.
 
-I6. A page provider makes at most 10 `/watch` reads per call.
+I6. A page provider makes at most 10 `/watch` reads per call, and makes no further read
+after a short read or once `limit` rows are taken.
 
 I7. An item's byline is `channel · date`, `channel` or `date` alone when only one exists,
 and absent when neither does. The date is the calendar date of `published_at`, formatted
@@ -283,15 +300,24 @@ for the given `locale` in UTC, so it never shifts by a day with the browser's ti
 I8. Neither `video-discover-shelves` entry declares `href`, and `slots.ts` exports no
 `slotProviders` for them.
 
-I9. The Media Import page shows no tabs and no Watch content. Once its subscription read
-settles, it shows the Composer, the subscriptions dashboard and the activity feed for every
-drive, whatever the subscriptions' display modes. The Composer starts expanded exactly
-when the read returned no subscription or failed.
+I9. The Media Import page shows no tabs and no Watch content, and no `mediaImport.nav.*` or
+`mediaImport.watch.*` key remains in either locale. Until its subscription read settles it
+shows only the loading line. Then it shows the Composer, the subscriptions dashboard and
+the activity feed, whatever the subscriptions' display modes, with the Composer expanded
+exactly when the read returned no subscription or failed.
 
-I10. The display-mode field offers the same three values as before. Saving one stores the
-same `display_mode` as before.
+I10. The display-mode field offers the same three values as before, and saving one stores
+the same `display_mode` as before. Its legend, `feed.label` and three hints are exactly the
+texts in the table above, in ja and en.
 
 ## Revises
+
+SPEC-ADDON-088 I7. The shelves are drawn in the order Continue, Recommended, the addon
+shelves by entry `priority` ascending, then New. An addon shelf's title is the entry's
+translated label. **See all** on an addon shelf links to
+`/drive/${encodeURIComponent(drive)}/apps/video/shelf?entry=${encodeURIComponent(entry.id)}`
+when its entry has a page provider, otherwise to `/drive/${encodeURIComponent(drive)}/${href}`
+when the entry declares `href`, and is absent otherwise.
 
 SPEC-ADDON-088 I9. Each Media Import page provider returns only ids from its own lane
 (`regular` or `feed`) for that drive, in that lane's order, after `restrict`. It is called
@@ -317,6 +343,9 @@ with or without a profile.
   Discover shelf for the whole day, and the core's cache is keyed by date and locale.
 - **Removing `offset` from `/watch`.** Not done. It costs nothing to keep, and a test or a
   script may still use it.
+- **A design artifact for the tabless Media Import page.** Not made. The page is today's
+  Manage view without the tab row above it, and nothing new is laid out. The human is asked
+  to confirm at approval.
 - **A link from the Media Import page to the video app.** Not added. The sidebar already
   has both entries, and the hints name the video app.
 - **Add to collection and Open the source page from cards.** Gone with Watch. They remain
