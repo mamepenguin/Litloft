@@ -29,9 +29,14 @@ async function open(page: Page, hash: string) {
   await expect(page.getByTestId("file-detail-shell")).toBeVisible();
 }
 
-async function openTwoPane(page: Page, viewport: { width: number; height: number }) {
+async function openTwoPane(
+  page: Page,
+  viewport: { width: number; height: number },
+) {
   await page.setViewportSize(viewport);
-  await page.addInitScript(() => localStorage.setItem("tree:enabled:fixture", "true"));
+  await page.addInitScript(() =>
+    localStorage.setItem("tree:enabled:fixture", "true"),
+  );
   await open(page, TWO_PANE);
   await expect(page.getByTestId("inspector-pane")).toBeVisible();
 }
@@ -76,7 +81,11 @@ async function rowBox(page: Page): Promise<Box> {
  */
 function recordFitFrames(page: Page) {
   return page.addInitScript(() => {
-    const frames: { fit: string | null; rowWidth: number | null; pane: number | null }[] = [];
+    const frames: {
+      fit: string | null;
+      rowWidth: number | null;
+      pane: number | null;
+    }[] = [];
     (window as unknown as { __fitFrames: typeof frames }).__fitFrames = frames;
     const tick = () => {
       const row = document.querySelector<HTMLElement>(
@@ -155,7 +164,8 @@ async function expectHeaderInInfo(page: Page) {
   await expect(info.locator('span[title="design"]')).toBeVisible();
 }
 
-async function expectStripFirst(page: Page) {  const shell = page.getByTestId("inspector-shell");
+async function expectStripFirst(page: Page) {
+  const shell = page.getByTestId("inspector-shell");
   const firstChild = await shell.evaluate(
     (element) => element.firstElementChild?.getAttribute("data-testid") ?? null,
   );
@@ -187,8 +197,12 @@ test("the pane at 1180×820: the strip is the first row and the header is at the
   await page.getByRole("tab", { name: "Transcript" }).click();
   await expect(page.locator("#inspector-panel-info")).toBeHidden();
   await expect(page.locator("#inspector-panel-info h1")).toBeHidden();
-  await expect(page.locator("#inspector-panel-info [data-testid='file-action-row']")).toBeHidden();
-  await expect(page.locator("#inspector-panel-info span[title='design']")).toBeHidden();
+  await expect(
+    page.locator("#inspector-panel-info [data-testid='file-action-row']"),
+  ).toBeHidden();
+  await expect(
+    page.locator("#inspector-panel-info span[title='design']"),
+  ).toBeHidden();
 
   await page.getByRole("tab", { name: "Info" }).click();
   await expectHeaderInInfo(page);
@@ -427,12 +441,16 @@ test("the player element and its position survive a resize from beside to stacke
     const video = document.querySelector("video") as HTMLVideoElement & {
       __probe?: string;
     };
-    const w = window as unknown as { __video: HTMLVideoElement; __pane: Element };
+    const w = window as unknown as {
+      __video: HTMLVideoElement;
+      __pane: Element;
+    };
     return {
       sameVideo: video === w.__video,
       probe: video.__probe,
       currentTime: video.currentTime,
-      samePane: document.querySelector('[data-testid="inspector-pane"]') === w.__pane,
+      samePane:
+        document.querySelector('[data-testid="inspector-pane"]') === w.__pane,
     };
   });
 
@@ -451,7 +469,9 @@ test("a PDF at 900×700 gets the overlay, not the stacked layout", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 900, height: 700 });
-  await page.addInitScript(() => localStorage.setItem("inspector-open:fixture", "true"));
+  await page.addInitScript(() =>
+    localStorage.setItem("inspector-open:fixture", "true"),
+  );
   await open(page, PDF);
   await expect(page.locator("text=Quarterly report")).toBeVisible();
 
@@ -464,9 +484,10 @@ test("a PDF at 900×700 gets the overlay, not the stacked layout", async ({
   const pane = (await box(page, '[data-testid="inspector-pane"]'))!;
   const canvas = (await box(page, "main"))!;
 
-  expect(await page.getByTestId("inspector-pane").evaluate((el) => getComputedStyle(el).position)).toBe(
-    "absolute",
-  );
+  const position = await page
+    .getByTestId("inspector-pane")
+    .evaluate((pane) => getComputedStyle(pane).position);
+  expect(position).toBe("absolute");
   expect(canvas.width).toBeCloseTo(row.width, 0);
   expect(pane.right).toBeCloseTo(row.right, 0);
   expect(pane.left).toBeLessThan(canvas.right);
