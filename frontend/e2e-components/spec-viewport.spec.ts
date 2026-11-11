@@ -69,6 +69,7 @@ const AT_THE_PHONE_WIDTH = [
   "home-app-entries.spec.ts",
   "discover-prefix.spec.ts",
   "video-card-byline.spec.ts",
+  "video-card-spacing.spec.ts",
 ] as const;
 
 const AT_THE_DESKTOP_WIDTH = [
@@ -91,6 +92,7 @@ const AT_THE_DESKTOP_WIDTH = [
   "discover-prefix-desktop.spec.ts",
   "scenes-section-desktop.spec.ts",
   "video-card-byline-desktop.spec.ts",
+  "video-card-spacing-desktop.spec.ts",
 ] as const;
 
 test.describe("the component fixture lays out at the width it was given", () => {

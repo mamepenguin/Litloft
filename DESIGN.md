@@ -630,6 +630,8 @@ with a **border in the accent colour**, never a fill.
   hover, and never use `scale()`.**
 - **A card's name clamps to two lines where it clamps at all.** A one-line
   `truncate` is also fine; a third number is not.
+- **A video card's title is 16/22 medium and sits 12px under the thumbnail; its
+  byline is 14/20 muted, one truncated line, 4px under the title.**
 - **A text file's stand-in thumbnail** — its title over a shrunken cast of the
   body — is sized by the media box, not by the name rule.
 - `line-clamp-*` needs `display: -webkit-box`; any other `display` utility on the
@@ -1252,9 +1254,11 @@ window and splits a pane at widths where two columns do not fit.
 **Card grids.** Equal cards measure their own width.
 
 **Card minimum width: `16rem`. Minimum column count: 2.** A single column on a
-phone shows less per screen than the list view. **Column gap: `gap-3`**,
-everywhere, so a folder row and the file grid beneath it line up. Do not write a
-breakpoint column count or `repeat(auto-fill, …)` into a card grid.
+phone shows less per screen than the list view. **Column gap: `gap-3`** for file
+grids, so a folder row and the file grid beneath it line up. **Video grids use a
+`20rem` minimum with `gap-x-4` and `gap-y-8`**, the density measured on YouTube
+for titled media cards. Do not write a breakpoint column count or
+`repeat(auto-fill, …)` into a card grid.
 
 ### Justified thumbnail rows
 

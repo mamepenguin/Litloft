@@ -82,6 +82,7 @@ import { TextResumeArrangement } from "./textResume";
 import { HomeAppEntriesArrangement } from "./homeAppEntries";
 import { DiscoverPrefixArrangement } from "./discoverPrefix";
 import { VideoCardBylineArrangement } from "./videoCardByline";
+import { VideoCardSpacingArrangement } from "./videoCardSpacing";
 import { PersistentHighlightsArrangement } from "./persistentHighlights";
 import { ScenesSectionArrangement } from "./scenesSection";
 import AskTab from "../../src/addons/intelligence/AskTab";
@@ -2420,6 +2421,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "home-app-entries": HomeAppEntriesArrangement,
   "discover-prefix": DiscoverPrefixArrangement,
   "video-card-byline": VideoCardBylineArrangement,
+  "video-card-spacing": VideoCardSpacingArrangement,
   "persistent-highlights": PersistentHighlightsArrangement,
   "scenes-351": () => <ScenesSectionArrangement hostWidth={351} />,
   "scenes-384": () => <ScenesSectionArrangement hostWidth={384} />,

@@ -83,7 +83,7 @@ export function DiscoverFace({
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       {shelves.map(({ id, title, source, href, progress }) => (
         <ShelfBlock
           key={id}

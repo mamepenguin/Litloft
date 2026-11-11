@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "I1: VideoGrid.tsx:13 uses `grid gap-x-4 gap-y-8` (16px column, 32px row), and every video grid (ShelfBlock's non-book branch at ShelfBlock.tsx:137, and the cards and both skeletons in VideoShelfPage.tsx:50,156,187) is drawn through it.",
+    "I2: VideoGrid calls useCardColumns(VIDEO_GRID) on its own ul (cardGrid.ts:82-104 measures host clientWidth minus padding); columnsFor = max(2, floor((W+16)/(320+16))) (cardGrid.ts:64-68). No viewport breakpoint is left in VideoShelfPage.tsx.",
+    "I3: BookGrid keeps `gap-5` with BOOK_GRID (ShelfBlock.tsx:75-81); HOME_GRID 256px/12px is unchanged (cardGrid.ts:49-53).",
+    "I4: VideoCard.tsx:53 title `mt-3 line-clamp-2 text-base/[1.375rem] font-medium` (12px, 16px/22px, 500, two lines); VideoCard.tsx:59 byline `mt-1 block truncate text-sm` (4px, 14px/20px under default Tailwind; no theme override of --text-sm found).",
+    "I5: `space-y-10` on the Discover stacks (videoapp/DiscoverFace.tsx:27, readingapp/DiscoverFace.tsx:86) and the Library grouped stacks (videoapp/LibraryFace.tsx:111, readingapp/LibraryFace.tsx:278); the load-more skeleton or Retry is wrapped in `mt-10` after the 1px sentinel; ShelfBlock header is `mb-4` (ShelfBlock.tsx:111).",
+    "I6: video skeleton card title bar `mt-3 h-[1.375rem]` in ShelfBlock.tsx:39 and VideoShelfPage.tsx:43; see-all SkeletonGrid rows 2 (first load) and 1 (appended), 2-column floor when unmeasured (VideoShelfPage.tsx:48-58); appended skeleton/Retry in `mt-8` after the h-px sentinel.",
+    "I7: the paged items are still rendered into one VideoGrid ul keyed by item.id, with the sentinel after it (VideoShelfPage.tsx:187-196 and 156-165); paging logic is untouched in the reviewed files.",
+    "I8: capacityOf (ShelfBlock.tsx:47-50) gives c×rowsFor(c), floor 2 before measurement; columnsFor(792..991, VIDEO_GRID)=2 → 4 cards, columnsFor(992..1120)=3 → 3 cards, verified arithmetically.",
+    "card-grid.test.ts expects 9 sites and 9 useCardColumns call sites and a per-file gap rule with VideoGrid.tsx at 16/32 (lines 197-232)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "On the see-all page each appended-page SkeletonGrid is a separate VideoGrid that measures its own width; it matches the loaded grid only because both sit in the same padded container. That holds today, but nothing structurally ties the two together."
+  ],
+  "regression_risks": [
+    "The 320px video minimum means some widths that used to show 3 or more video columns now show 2, which changes the shelf card count (c×rowsFor(c)). This is the intended change, but users will see it."
+  ],
+  "test_coverage": [
+    "card-grid.test.ts guards 9 grid sites, the per-file gap values and VideoGrid.tsx's inclusion.",
+    "An e2e-components spec, video-card-spacing.cases.ts, measures real layout. I saw it but did not read it in detail."
+  ],
+  "not_verified": [
+    "I did not run any unit test or Playwright e2e test, because I have no shell access.",
+    "I did not inspect the layout fixture reading-video-faces.html, the parity tests, DESIGN.md or the design docs.",
+    "I did not check that the BYLINE selector constants in VideoShelfPage.provider.test.tsx and VideoApp.discoverPageProviders.test.tsx match the new byline classes exactly.",
+    "I did not read the Tailwind version and config to confirm text-sm's line height beyond finding no override."
+  ],
+  "confidence": 80
+}

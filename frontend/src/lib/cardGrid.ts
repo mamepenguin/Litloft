@@ -33,6 +33,13 @@ export const BOOK_GRID = {
   gapPx: BOOK_CARD_GAP_PX,
 } as const;
 
+/** YouTube's channel videos grid: the source of the 320px minimum and 16px gap. */
+export const VIDEO_GRID = {
+  minWidthPx: 320,
+  minWidth: "20rem",
+  gapPx: 16,
+} as const;
+
 export interface CardGridMetrics {
   minWidthPx?: number;
   minWidth?: string;
