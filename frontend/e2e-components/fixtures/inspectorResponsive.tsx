@@ -5,7 +5,7 @@
  * measured against the components the page actually mounts.
  */
 
-import { useEffect, useState, type ReactElement } from "react";
+import type { ReactElement } from "react";
 import { NextIntlClientProvider } from "next-intl";
 import { pdfjs } from "react-pdf";
 import pdfWorkerSource from "pdfjs-dist/build/pdf.worker.min.mjs?raw";
@@ -286,25 +286,6 @@ function installMedia(): void {
   });
 }
 
-/**
- * `SidebarProvider` draws a Fragment until its first effect has run and a
- * context provider afterwards, and that swap remounts everything under it —
- * including the file page, whose cleanup clears the tree-yield store. One
- * frame later is past the remount.
- */
-function AfterSidebarSettles({
-  children,
-}: {
-  children: ReactElement;
-}): ReactElement | null {
-  const [ready, setReady] = useState(false);
-  useEffect(() => {
-    const frame = requestAnimationFrame(() => setReady(true));
-    return () => cancelAnimationFrame(frame);
-  }, []);
-  return ready ? children : null;
-}
-
 function Providers({ children }: { children: ReactElement }): ReactElement {
   return (
     <NextIntlClientProvider locale="en" messages={enMessages}>
@@ -312,9 +293,7 @@ function Providers({ children }: { children: ReactElement }): ReactElement {
         <SidebarProvider>
           <ShortcutsProvider>
             <AddonSlotsProvider>
-              <ClipboardProvider>
-                <AfterSidebarSettles>{children}</AfterSidebarSettles>
-              </ClipboardProvider>
+              <ClipboardProvider>{children}</ClipboardProvider>
             </AddonSlotsProvider>
           </ShortcutsProvider>
         </SidebarProvider>

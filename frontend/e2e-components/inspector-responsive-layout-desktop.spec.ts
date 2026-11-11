@@ -403,6 +403,24 @@ test("a 900×700 row does not fit beside the pane: the first measured form is st
   );
 });
 
+test("a direct load yields the tree, and the tree button shows it without writing the setting", async ({
+  page,
+}) => {
+  await openTwoPane(page, PLAYER_FILE);
+  const pane = page.locator('aside[aria-label="Folder tree"]');
+  await expect(pane).toHaveCSS("width", "0px");
+  const stored = await page.evaluate(() =>
+    localStorage.getItem("tree:enabled:fixture"),
+  );
+
+  await page.getByRole("button", { name: "Show tree" }).click();
+
+  await expect(pane).toHaveCSS("width", "280px");
+  expect(
+    await page.evaluate(() => localStorage.getItem("tree:enabled:fixture")),
+  ).toBe(stored);
+});
+
 /* ------------------------------------------------------------------ *
  * I2 — the player survives the form change: the same element, still at
  * its playback position.

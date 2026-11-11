@@ -112,7 +112,11 @@ export function TwoPaneLayout({
     else treeYieldStore.clear(drive);
   }, [drive, hasFile]);
 
-  useEffect(() => () => treeYieldStore.clear(drive), [drive]);
+  // A layout cleanup, not a passive one: when an ancestor replaces its
+  // subtree, React runs the deleted instance's passive cleanups after the
+  // replacement's layout effects, which would wipe the file page the
+  // replacement just set.
+  useLayoutEffect(() => () => treeYieldStore.clear(drive), [drive]);
 
   const leftPaneState = useMemo(
     () => ({ element: paneElement, shownBySetting: treeEnabled && besideViewport }),
