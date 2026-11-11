@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-1",
+      "status": "confirmed",
+      "note": "I reproduced this with Glob. docs/process/reviews/fix-flaky-tests/ holds only decisions.md and r1/{head.txt,expected.txt,classification.json,fixes.txt}. There is no invariants.md, while about 80 sibling review directories do have one, such as feature-recommended-see-all/invariants.md. So no planned touch-point list exists to check the scope against. r1/classification.json:8-17 lists zones_touched as addons/media_import and frontend/e2e-components/sheet-gesture.spec.ts. decisions.md:7 says no production module changed in either repository. In the working tree, the spec passes explicit timestamps (sheet-gesture.spec.ts:148,155,161) and computes FLICK from SHEET_PULL_DISMISS_VELOCITY * 4 (line 34). TestInterItemDelay (addons/media_import/backend/tests/test_subscription_item_outcomes.py:585-620) monkeypatches time.sleep to record the order of events. I could not see the gitlink SHA move e18e57c..8bae8a5 without git; I took it from decisions.md:7, which names 8bae8a5."
+    }
+  ],
+  "specification_compliance": [
+    "No invariants file exists for fix-flaky-tests, so I could not check scope against a declared touch-point list. The touched zones in classification.json match the files that decisions.md describes."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Scope is declared only in prose in decisions.md:7, not in an invariants touch-point list."
+  ],
+  "regression_risks": [
+    "Changes are limited to test code: a Playwright spec and an addon pytest. No production module is touched, so the user cannot see any regression."
+  ],
+  "test_coverage": [
+    "TestInterItemDelay now asserts the order of sleep events instead of wall-clock gaps. The sheet-gesture spec drives velocity through explicit CDP touch timestamps."
+  ],
+  "not_verified": [
+    "Whether the core gitlink at bf9514c actually points to 8bae8a5 (needs git, which I do not have)",
+    "Whether the spec and pytest pass at runtime",
+    "The full diff between origin/develop and HEAD, beyond the files I read"
+  ],
+  "confidence": 85
+}
