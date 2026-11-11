@@ -138,6 +138,19 @@ async function browse(
   await page.clock.runFor(1_000);
 }
 
+/**
+ * Takes the mouse off the section. A mouse browse point survives a playback
+ * jump while the pointer is inside, so a window move under the pointer is only
+ * a window move once browsing has ended; a finger has no hover, and its point
+ * ends with the jump itself.
+ */
+async function stopBrowsing(page: Page, { pointer }: ScenesCase): Promise<void> {
+  if (pointer === "touch") return;
+  const host = await page.locator(HOST).boundingBox();
+  expect(host).not.toBeNull();
+  await page.mouse.move(host!.x + host!.width / 2, host!.y + host!.height + 40);
+}
+
 export function scenesSectionCases(cases: ScenesCase[]): void {
   test.describe("SPEC-ADDON-089 I5 — the Scenes section never scrolls and keeps its height", () => {
     for (const scenesCase of cases) {
@@ -175,6 +188,8 @@ export function scenesSectionCases(cases: ScenesCase[]): void {
         await browse(page, scenesCase, 0.005);
         const again = await sectionHeight(page);
         expect((await card(page)).label).toBe(SCENES_SHORT_LABEL);
+
+        await stopBrowsing(page, scenesCase);
 
         // Frame 18 moves the grid from frames 0–8 to frames 15–23.
         await page.evaluate(() => {
