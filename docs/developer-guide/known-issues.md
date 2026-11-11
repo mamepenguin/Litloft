@@ -160,6 +160,15 @@ which must stay selectable.
 
 ## Addons
 
+**An addon pull request's `frontend (core vitest / tsc)` job fails on core tests
+that pass in core's own CI.** The addon workflows run core's whole vitest suite
+(about 11,000 tests) in one job, where core's CI splits it into four shards, and
+timing-sensitive core tests fail there at random: a re-run of the same commit
+passes, and each run fails on different tests. Reached by opening a pull request
+in the knowledge or cloud-sync addon repository; seen on knowledge #73
+(`TextPreview`) and cloud-sync #10 (`VideoApp.states`, `ScenesSectionVisualIndex`)
+on 2026-11-11.
+
 **A wide table in a detailed summary is clipped instead of scrolling.** The
 intelligence addon's `DetailedSummarySection` builds its tables itself rather
 than through `MarkdownPreview`, so they do not get the horizontal scroll
