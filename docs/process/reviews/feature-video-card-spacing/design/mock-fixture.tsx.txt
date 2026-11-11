@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 import { cardGridTemplate, useCardColumns } from "@/lib/cardGrid";
 
-const VIDEO = { minWidthPx: 256, minWidth: "16rem", gapPx: 16 } as const;
+const VIDEO = { minWidthPx: 320, minWidth: "20rem", gapPx: 16 } as const;
 
 function MeasuredPage({ children }: { children: ReactElement[] }): ReactElement {
   const { ref, columns } = useCardColumns(VIDEO);
@@ -84,6 +84,13 @@ const PROPOSED = `
 [data-variant="b"] a.group > span.truncate { margin-top: 4px; font-size: 0.875rem; line-height: 1.25rem; }
 `;
 
+const WIDE = `
+@media (min-width: 1000px) {
+  [data-variant="b"] .space-y-8 section ul.grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+  [data-variant="b"] .space-y-8 section ul.grid > li:nth-child(n+4) { display: none; }
+}
+`;
+
 const THUMBS = `
 #spacing-mock .aspect-video { background: linear-gradient(135deg, #6b7a8f, #2f3a4a); }
 #spacing-mock li:nth-child(3n+1) .aspect-video { background: linear-gradient(135deg, #8f6b6b, #3a2f2f); }
@@ -96,7 +103,7 @@ export function VideoSpacingMock(): ReactElement {
   const page = new URLSearchParams(location.search).get("page") === "1";
   return (
     <NextIntlClientProvider locale="ja" messages={jaMessages}>
-      <style>{PROPOSED + THUMBS}</style>
+      <style>{PROPOSED + WIDE + THUMBS}</style>
       <div id="spacing-mock" data-variant={variant} className="bg-bg-primary px-4 pb-8 pt-4">
         {page ? (
           <section>

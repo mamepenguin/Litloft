@@ -20,10 +20,11 @@ The agreed design is the set of screenshots in
 `docs/process/reviews/feature-video-card-spacing/design/` (`agreed-*.png`; `current-*.png`
 is the state before this change), drawn from the real `ShelfBlock` and `VideoCard` in the
 e2e-components harness with the values below applied. `mock-fixture.tsx.txt` is the fixture
-that drew them; its see-all grid is measured with the video metric (16rem, 16px gap), so
-`agreed-page-1280.png` shows the 4 columns this spec requires. The Discover mock applied
-the 16px gap in CSS over a grid measured with 12px; at the mock's width both give 4
-columns. The human chose this design (plan B) over a spacing-only variant.
+that drew them; its see-all grid is measured with the video metric (20rem, 16px gap), and
+its Discover shelves are forced to that metric's 3 columns in CSS at the 1280px width, so
+both 1280px images show the 3 columns this spec requires. The human chose this design (plan B) over a spacing-only variant, and then a 20rem card
+minimum over 16rem ("today it is packed too tight"; YouTube's measured cards are
+347–397px wide).
 
 There is no artifact URL: the design was drawn only in the harness and shown to the human
 as images. It covers two screens in the loaded state, Discover (Continue, a subscription
@@ -38,16 +39,16 @@ Visible decisions, each checkable at 1280px and 375px:
   one truncated line. Tailwind: title `mt-3 line-clamp-2 text-base/[1.375rem]
   font-medium text-text-primary`, byline `mt-1 block truncate text-sm text-text-muted`.
 - Video grid (Discover and Library shelves, see-all page): 16px between columns, 32px
-  between rows; at least 16rem per card and at least two columns.
+  between rows; at least 20rem (320px) per card and at least two columns.
 - Shelves (video and reading apps, Discover and Library): 40px between consecutive shelves;
   16px between a shelf's header row and its grid. In both apps' Library, the "load more"
   skeleton shelf or its Retry also starts 40px below the last shelf.
 - See-all page: at 1280px viewport the grid has the same column count as a Discover shelf
-  in the same frame (4 at the measured width, where today it has 5).
+  in the same frame (3 at the 1120px frame, where today it has 5).
 - Column counts on Discover and Library shelves also move where the 16px gap changes the
-  `columnsFor` threshold: a grid 1060–1071px wide goes from 4 to 3 columns, and one
-  792–799px wide from 3 to 2 (so that shelf shows 4 cards in two rows instead of 3 in
-  one). Elsewhere the count is unchanged.
+  `columnsFor` thresholds. Within the 1120px frame: a grid 1060px or wider goes from 4 to
+  3 columns (4 cards to 3); one 792–991px wide goes from 3 to 2 columns (3 cards in one row
+  to 4 in two rows); 992–1059px keeps 3, and under 792px keeps 2.
 
 ## Required items
 
@@ -55,7 +56,7 @@ Visible decisions, each checkable at 1280px and 375px:
 
 1. The viewer opens the video app. Discover and Library draw shelves through `ShelfBlock`;
    each non-book shelf grid is a `VideoGrid` (a new component in `components/appshell/`),
-   which measures its own width, takes as many 16rem columns as fit with a 16px gap (at
+   which measures its own width, takes as many 20rem columns as fit with a 16px gap (at
    least two), and lays its cards out with a 32px row gap. `VideoGrid` is the only element
    that draws a video card grid. It hands its measured column count to its children as a
    render prop (`children: (columns) => ReactNode`), measured in the callback ref during
@@ -123,7 +124,7 @@ None: no access path changes.
 - `lib/cardGrid.ts`: `CARD_GAP_PX` (12) and `HOME_GRID` stay as they are, so the drive's
   file grids (`FileGrid`, `FolderContent`, `RightPaneFolder`, `SectionRow`, trash,
   missing, and the intelligence addon's `SceneCandidatesSection`) keep their columns and
-  `gap-3`. Video grids pass their own metric (`VIDEO_GRID`: 16rem, 16px), as book grids
+  `gap-3`. Video grids pass their own metric (`VIDEO_GRID`: 20rem, 16px), as book grids
   pass `BOOK_GRID`, including for the unmeasured first frame (`cardGridTemplate(0,
   VIDEO_GRID)`).
 - The see-all page's column count changes from viewport breakpoints (2/3/4/5) to its
@@ -163,7 +164,7 @@ in a callback ref) like the Discover shelves; nothing heavier.
 - `frontend/src/components/appshell/VideoGrid.tsx` (new) — the measured video grid:
   `useCardColumns(VIDEO_GRID)`, `cardGridTemplate(columns, VIDEO_GRID)`, `gap-x-4 gap-y-8`,
   its own measuring ref.
-- `frontend/src/lib/cardGrid.ts` — `VIDEO_GRID` (min 16rem, gap 16px) next to
+- `frontend/src/lib/cardGrid.ts` — `VIDEO_GRID` (min 20rem / 320px, gap 16px) next to
   `BOOK_GRID`.
 - `frontend/src/__tests__/card-grid.test.ts` — the guard over every card grid.
   `VideoGrid.tsx` becomes one new site; `ShelfBlock.tsx` keeps one site (now book only);
@@ -216,7 +217,7 @@ No protected path is edited.
 I1. On Discover, the Library and the see-all page, adjacent grid cells (`li`) in one video
 grid are 16px apart horizontally and 32px apart vertically (cell box to cell box).
 
-I2. A video grid's column count is `max(2, floor((W + 16) / (256 + 16)))` for its own
+I2. A video grid's column count is `max(2, floor((W + 16) / (320 + 16)))` for its own
 width W in px, on Discover, the Library and the see-all page alike; the see-all page never
 derives it from the viewport width.
 
@@ -247,8 +248,8 @@ cards to the same grid element, with no repeated or missing card at the page bou
 grid).
 
 I8. A video shelf draws exactly `c × rowsFor(c)` cards (or skeleton cards), where c is
-its I2 column count once measured and 2 before; so a shelf grid 792–799px wide draws 4
-cards in two rows and one 1060–1071px wide draws 3 in one row.
+its I2 column count once measured and 2 before; so a shelf grid 792–991px wide draws 4
+cards in two rows and one 992–1120px wide draws 3 in one row.
 
 ## Checked, no action
 
