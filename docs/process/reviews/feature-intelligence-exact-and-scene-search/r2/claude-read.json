@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "r1 finding claude-verify:V1 is addressed. addons/intelligence/app/routers/exact_search.py:56 now calls `is_feature_enabled(drive, \"video_visual_index\", default_on_failure=False)`. In addons/intelligence/app/policy_client.py:104-112,166-170, `_resolve_failure(False, ...)` returns False on a network error or a non-JSON answer. During the grace period it raises TransientError, and the router's `except Exception: return False` catches that. Both paths now close the gate. This matches the Visual Index wrapper at addons/intelligence/app/routers/video_visual.py:46-52 (I9).",
+    "The new test double `unreadable_policy` (tests/search_endpoint_db.py:233-235) returns whatever `default_on_failure` it is given, as the real client does. Suppose someone removes the kwarg again: the double returns True, scenes appear, and test_spec_addon_032_an_unreadable_policy_that_falls_back_instead_of_raising_closes_scenes and test_spec_addon_033_..._is_404 fail. So the r1 mutant is killed by these tests.",
+    "The fix changes only the gate call and the tests. The exact-search scan, the scene ranking, the manifest and the MCP tools are byte-identical to r1."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "`_visual_index_open` duplicates the fail-closed wrapper in video_visual.py instead of reusing it. A later change to one wrapper (for example, adding the `is_video_visual_index_available` check) would not reach the other."
+  ],
+  "test_coverage": [
+    "The two new tests use a policy double that mirrors the real client's fallback contract, so they catch a missing `default_on_failure=False` on both endpoints.",
+    "The general `visual` fixture double still ignores `default_on_failure`. It models an unreadable policy as a raised exception, which the real client raises only during the grace period. The new tests cover the gap left by that."
+  ],
+  "not_verified": [
+    "I did not run the tests or confirm that the new tests fail with the r1 code. The kill was reasoned statically.",
+    "I did not re-review the code that did not change since r1 (exact_search.py queries, MCP tools) against I1-I8 and I10.",
+    "I did not check whether `settings.features.video_visual_index == \"false\"` covers every way the Visual Index can be globally unavailable, for example `is_video_visual_index_available` used by video_visual.py."
+  ],
+  "confidence": 85,
+  "trajectory": "There is a single fix round (fa741fd7d) after r1. It changes one argument, `default_on_failure=False` on the existing policy call. It adds one test helper that mirrors the real client's fallback and two tests that use it. It adds no new branch, state or prediction to the production code, and it removes none. The existing try/except is unchanged. There is no sign that the design is being patched."
+}

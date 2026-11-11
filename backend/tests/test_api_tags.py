@@ -263,10 +263,9 @@ class TestFolderScopedTagCountAgreement:
     (`list_drive_tags?folder_path=`) and the number of results in the
     listing (`list_drive_files?path=&recursive=true&tag=`) must agree.
 
-    Fixture note: `list_drive_files` matches tags case-insensitively
-    (`func.lower(Tag.name) == tag.lower()`) while `list_drive_tags` groups
-    by `Tag.id`, so two tags differing only in case would make the sidebar
-    count smaller. Use a single-case tag here.
+    Fixture note: `list_drive_files` matches tags case-insensitively while
+    `list_drive_tags` groups by `Tag.id`, so two tags differing only in case
+    would make the sidebar count smaller. Use a single-case tag here.
     """
 
     def _seed_tagged(self, db, drive_dir):

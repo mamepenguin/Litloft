@@ -19,6 +19,7 @@ import app.database as database
 from app.models import File, active_file_filter
 from app.services.atomic_write import replace_file_contents, write_generated_file
 from app.services.content_write import ContentConflictError, write_text_content
+from app.services.diskpath import name_taken, resolve_on_disk
 from app.services import event_hooks
 from app.services.fileops import physical_delete, validate_within_drive
 from app.services.maintenance import (
@@ -39,6 +40,7 @@ from app.services.safe_image_fetch import (
     validate_image_url,
 )
 from app.services.scanner import register_single_file
+from app.services.thumbnail import remove_thumbnail_quietly, thumbnail_slot_rel
 
 logger = logging.getLogger(__name__)
 
@@ -210,7 +212,7 @@ def create_analysis(
     drive_path = config.get_drive_path(drive)
 
     for file in rows:
-        path = drive_path / file.file_path
+        path = resolve_on_disk(drive_path, file.file_path, cached=True)
         try:
             if path.stat().st_size > MAX_MARKDOWN_BYTES:
                 raise OSError("Markdown exceeds analysis size limit")
@@ -332,7 +334,7 @@ def _choose_asset_path(
 ) -> tuple[Path, File | None]:
     folder = f"{note.folder_path}/assets" if note.folder_path else "assets"
     drive_path = config.get_drive_path(note.drive)
-    directory = drive_path / folder
+    directory = resolve_on_disk(drive_path, folder, strict=True)
     validate_within_drive(directory, drive_path)
     directory.mkdir(parents=True, exist_ok=True)
     base = f"{_asset_stem(note)}-{candidate.url_hash[:8]}"
@@ -351,7 +353,7 @@ def _choose_asset_path(
             .first()
         )
         if existing is not None:
-            existing_path = directory / filename
+            existing_path = resolve_on_disk(directory, filename)
             try:
                 if hashlib.sha256(existing_path.read_bytes()).digest() == hashlib.sha256(
                     image.body
@@ -361,7 +363,7 @@ def _choose_asset_path(
                 pass
             continue
         path = directory / filename
-        if not path.exists():
+        if not name_taken(path):
             return path, None
     raise RuntimeError("asset_write_failed: too many filename collisions")
 
@@ -372,7 +374,7 @@ def _write_asset(path: Path, image: NormalizedImage) -> None:
 
 def _verify_candidate(note: File, candidate: ImportCandidate) -> tuple[Path, bytes, str]:
     drive_path = config.get_drive_path(note.drive)
-    path = config.get_drive_path(note.drive) / note.file_path
+    path = resolve_on_disk(drive_path, note.file_path)
     validate_within_drive(path, drive_path)
     raw = path.read_bytes()
     content_hash = hashlib.sha256(raw).hexdigest()
@@ -409,6 +411,7 @@ def _apply_import(
         asset_path, asset = _choose_asset_path(db, note, candidate, image)
         reused = asset is not None
         if asset is None:
+            asset_id: str | None = None
             try:
                 _write_asset(asset_path, image)
                 asset_id = register_single_file(db, note.drive, asset_path)
@@ -417,14 +420,10 @@ def _apply_import(
                 db.rollback()
                 try:
                     asset_path.unlink(missing_ok=True)
-                    thumbnail = (
-                        config.THUMBNAILS_DIR
-                        / note.drive
-                        / Path(asset_path.relative_to(config.get_drive_path(note.drive))).with_suffix(".jpg")
-                    )
-                    thumbnail.unlink(missing_ok=True)
                 except OSError:
                     logger.exception("Could not clean up failed asset registration")
+                if asset_id is not None:
+                    remove_thumbnail_quietly(thumbnail_slot_rel(asset_id))
                 raise
             asset = db.query(File).filter(File.id == asset_id).one()
             created_asset = asset
@@ -550,7 +549,9 @@ async def _run_import_job(job: ImportJob, candidates: list[ImportCandidate]) -> 
                 _current_job_id = None
 
 
-def start_import(analysis_id: str, allowed_hosts: list[str]) -> ImportJob:
+def prepare_import(
+    analysis_id: str, allowed_hosts: list[str]
+) -> tuple[ImportJob, list[ImportCandidate]]:
     global _current_job_id
     snapshot = get_analysis(analysis_id)
     if snapshot is None:
@@ -560,7 +561,9 @@ def start_import(analysis_id: str, allowed_hosts: list[str]) -> ImportJob:
         raise ValueError("allowed_hosts_invalid")
     try:
         drive_path = config.get_drive_path(snapshot.drive)
-        scope_path = drive_path / snapshot.folder_path if snapshot.folder_path else drive_path
+        scope_path = (
+            resolve_on_disk(drive_path, snapshot.folder_path) if snapshot.folder_path else drive_path
+        )
         validate_within_drive(scope_path, drive_path)
         if not scope_path.is_dir():
             raise ValueError("scope_invalid")
@@ -579,7 +582,16 @@ def start_import(analysis_id: str, allowed_hosts: list[str]) -> ImportJob:
     _jobs[job.job_id] = job
     _current_job_id = job.job_id
     _persist_job(job)
+    return job, candidates
+
+
+def launch_import(job: ImportJob, candidates: list[ImportCandidate]) -> None:
     asyncio.create_task(_run_import_job(job, candidates))
+
+
+def start_import(analysis_id: str, allowed_hosts: list[str]) -> ImportJob:
+    job, candidates = prepare_import(analysis_id, allowed_hosts)
+    launch_import(job, candidates)
     return job
 
 

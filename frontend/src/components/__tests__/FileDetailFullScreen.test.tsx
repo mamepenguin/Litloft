@@ -82,6 +82,22 @@ vi.mock("@/components/CollectionPanel", () => ({
   getCollectionOnEnded: () => null,
 }));
 
+vi.mock("@/components/AddonSlotsProvider", () => ({
+  useAddonSlots: () => ({
+    addons: {},
+    catalogueDrive: "main",
+    slots: {},
+    loading: false,
+    getSlotEntries: (slotId: string) =>
+      slotId === "file-detail-sections" ? [{ id: "knowledge-edit" }] : [],
+    hasSlot: () => true,
+  }),
+}));
+
+vi.mock("@/hooks/usePolicy", () => ({
+  usePolicy: () => ({ enabled: true, isLoading: false }),
+}));
+
 vi.mock("@/hooks/useFileNav", () => ({
   useFileNav: vi.fn(() => ({ prevId: null, nextId: null })),
 }));
@@ -134,6 +150,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.unstubAllEnvs();
 });
 
 describe("FileDetailFullScreen", () => {
@@ -303,6 +320,23 @@ describe("FileDetailFullScreen", () => {
 
       expect(screen.queryByTestId("file-detail-chrome")).toBeNull();
       expect(screen.queryByTestId("file-detail-back")).toBeNull();
+    });
+
+    it("draws no row for a .txt the knowledge editor takes", async () => {
+      vi.stubEnv("NEXT_PUBLIC_INLINE_KNOWLEDGE_EDITOR", "true");
+      mockGetFile.mockResolvedValue({
+        ...baseFile,
+        filename: "notes.txt",
+        mime_type: "text/plain",
+        file_type: "document",
+        file_size: 120,
+      });
+      render(<FileDetailFullScreen fileId="abc" />);
+      await waitFor(() =>
+        expect(screen.getByTestId("file-detail-content")).toBeInTheDocument(),
+      );
+
+      expect(screen.queryByTestId("file-detail-chrome")).toBeNull();
     });
 
     it("hands its back handler to the shell rather than losing it there", async () => {

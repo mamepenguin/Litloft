@@ -59,9 +59,13 @@ describe("visibleFixedJumps", () => {
   it("lists every fixed destination when there are missing files and the viewer is admin", () => {
     expect(keys({ missingCount: 2, isAdmin: true })).toEqual([
       "home",
+      "inbox",
       "library",
+      "app-video",
+      "app-reading",
       "favorites",
       "liked",
+      "continue",
       "recent",
       "recentAdded",
       "allFiles",
@@ -86,6 +90,7 @@ describe("FIXED_JUMPS hrefs", () => {
     ["library", "/drive/my%20drive"],
     ["favorites", "/drive/my%20drive?view=favorites"],
     ["liked", "/drive/my%20drive?view=liked"],
+    ["continue", "/drive/my%20drive?view=continue"],
     ["recent", "/drive/my%20drive?view=recent"],
     ["recentAdded", "/drive/my%20drive?view=recent-added"],
     ["allFiles", "/drive/my%20drive?view=all"],

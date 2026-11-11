@@ -1,8 +1,14 @@
 """Subtitle detection and SRT-to-VTT conversion."""
 
+import logging
 import re
+import shutil
 import unicodedata
 from pathlib import Path
+
+from app.services.diskpath import resolve_on_disk
+
+logger = logging.getLogger(__name__)
 
 _SUBTITLE_EXTENSIONS = frozenset({".srt", ".vtt"})
 
@@ -67,7 +73,7 @@ def detect_subtitles(video_file_path: str, drive_path: Path) -> list[dict]:
 
     Returns list of dicts: [{"path": "relative/path.srt", "language": "en", "format": "srt", "label": "English"}]
     """
-    video_path = drive_path / video_file_path
+    video_path = resolve_on_disk(drive_path, video_file_path, cached=True)
     if not video_path.exists():
         return []
 
@@ -97,6 +103,42 @@ def detect_subtitles(video_file_path: str, drive_path: Path) -> list[dict]:
 
     subtitles.sort(key=lambda s: (s["language"] != "", s["language"]))
     return subtitles
+
+
+def move_sidecar_subtitles(old_video: Path, new_video: Path) -> None:
+    """Move the subtitle files named after ``old_video`` to match ``new_video``.
+
+    Runs after the video has moved, so the old directory is listed here rather
+    than taken from the caller. Best effort: a failure is logged and never
+    raised, and an existing destination is left alone with its source in place.
+    """
+    old_stem = unicodedata.normalize("NFC", old_video.stem)
+    new_stem = new_video.stem
+    if old_video.parent == new_video.parent and old_stem == unicodedata.normalize("NFC", new_stem):
+        return
+
+    try:
+        sidecars = [
+            item
+            for item in old_video.parent.iterdir()
+            if item.is_file() and _parse_subtitle_filename(old_stem, item) is not None
+        ]
+    except OSError:
+        logger.exception("subtitle sidecars: could not list %s", old_video.parent)
+        return
+
+    for item in sidecars:
+        name = unicodedata.normalize("NFC", item.name)
+        target = new_video.parent / (new_stem + name[len(old_stem):])
+        try:
+            if resolve_on_disk(target.parent, target.name).exists():
+                logger.warning(
+                    "subtitle sidecar %s not moved: %s already exists", item, target
+                )
+                continue
+            shutil.move(str(item), str(target))
+        except Exception:
+            logger.exception("subtitle sidecar %s could not move to %s", item, target)
 
 
 def convert_srt_to_vtt(srt_content: str) -> str:

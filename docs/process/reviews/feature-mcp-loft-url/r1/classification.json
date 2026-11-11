@@ -1,0 +1,36 @@
+{
+  "risk": "HIGH",
+  "score": 6,
+  "base": 2,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/mcp-loft-url.md",
+      "level": "LOW"
+    },
+    {
+      "path": "mcp-server/README.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/__tests__/loftUrl.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/tools/video.ts",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}

@@ -56,6 +56,8 @@ export interface EpubReader {
   turn: (direction: TurnDirection) => void;
   seek: (fraction: number) => void;
   goToToc: (index: number) => void;
+  /** 1-based, the numbering `?section=` uses. */
+  goToSection: (section: number) => void;
   typography: Typography;
   setTypography: (typography: Typography) => void;
   setFullscreen: (fullscreen: boolean) => void;
@@ -80,6 +82,8 @@ export function useEpubReader(
   theme: ReaderTheme,
   onActivity?: (kind: ReaderActivity) => void,
   initialSection: number | null = null,
+  interceptFind = false,
+  onFindShortcut?: () => void,
 ): EpubReader {
   const frameRef = useRef<HTMLIFrameElement | null>(null);
   const [status, setStatus] = useState<ReaderStatus>({ kind: "loading" });
@@ -89,6 +93,10 @@ export function useEpubReader(
   const seekIdRef = useRef(0);
   const onActivityRef = useRef(onActivity);
   onActivityRef.current = onActivity;
+  const onFindShortcutRef = useRef(onFindShortcut);
+  onFindShortcutRef.current = onFindShortcut;
+  const interceptFindRef = useRef(interceptFind);
+  interceptFindRef.current = interceptFind;
   const { readSaved, turned } = useEpubProgress(fileId);
   const initialSectionRef = useRef(initialSection);
   initialSectionRef.current = initialSection;
@@ -141,6 +149,7 @@ export function useEpubReader(
                   section,
                   ...readAppearance(),
                   typography: typographyRef.current,
+                  interceptFind: interceptFindRef.current,
                 },
                 [bytes],
               );
@@ -176,6 +185,9 @@ export function useEpubReader(
         case "key":
           replayKey(message.key);
           return;
+        case "find-shortcut":
+          onFindShortcutRef.current?.();
+          return;
         case "link":
           window.open(message.url, "_blank", "noopener,noreferrer");
           return;
@@ -193,6 +205,18 @@ export function useEpubReader(
     postToReader(frameRef.current?.contentWindow ?? null, { type: "theme", ...readAppearance() });
   }, [theme, status.kind]);
 
+  const firstIntercept = useRef(true);
+  useEffect(() => {
+    if (firstIntercept.current) {
+      firstIntercept.current = false;
+      return;
+    }
+    postToReader(frameRef.current?.contentWindow ?? null, {
+      type: "set-find-intercept",
+      interceptFind,
+    });
+  }, [interceptFind]);
+
   const turn = useCallback((direction: TurnDirection) => {
     postToReader(frameRef.current?.contentWindow ?? null, { type: "turn", direction });
   }, []);
@@ -205,6 +229,10 @@ export function useEpubReader(
 
   const goToToc = useCallback((index: number) => {
     postToReader(frameRef.current?.contentWindow ?? null, { type: "goToToc", index });
+  }, []);
+
+  const goToSection = useCallback((section: number) => {
+    postToReader(frameRef.current?.contentWindow ?? null, { type: "goToSection", section });
   }, []);
 
   const setTypography = useCallback((next: Typography) => {
@@ -229,6 +257,7 @@ export function useEpubReader(
     turn,
     seek,
     goToToc,
+    goToSection,
     typography,
     setTypography,
     setFullscreen,

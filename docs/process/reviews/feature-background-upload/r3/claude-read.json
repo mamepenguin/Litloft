@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The I8 test's check that another drive's view does not refresh can pass without testing anything: it never asserts that the other-drive view fetched its listing before the drop.",
+      "impact": "Suppose the `<FolderBrowser driveName=\"other\" />` view stops calling `getDriveFiles` with an empty path, for example because its params change shape so `DRIVE_ROOT` no longer matches. Then `before.other` and the after-count are both 0, and the test passes even if a completion on `main` refreshed the other drive's view. A regression of the 'no view of another drive' clause of I8 would get through.",
+      "evidence": "In frontend/src/__tests__/uploadQueueRefresh.test.tsx, the `before` block asserts `toBeGreaterThan(0)` for recipes, series and search, but not for `before.other`. The final assertion is `expect(listingsFor(api, \"other\", DRIVE_ROOT)).toBe(before.other)`. The commit under review (b4ccecfc5) does not touch these lines.",
+      "repro": "Mutation, predicted by reading and not run: change DRIVE_ROOT to `(p) => p.path === \"__never__\"`, or make the other-drive FolderBrowser fetch with `path: \"/\"`. Both counts become 0 and the assertion still passes, so the mutant survives.",
+      "introduced": "pre-existing",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This weakens a test only. The production code filters by drive (`useUploadCompleted` compares `completedDrive === drive`), so I8 holds today.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add `expect(before.other).toBeGreaterThan(0);` next to the other `before` assertions."
+    }
+  ],
+  "specification_compliance": [
+    "Commit b4ccecfc5 adds one line, `vi.clearAllMocks()`, to the top-level beforeEach of frontend/src/__tests__/uploadQueueRefresh.test.tsx (line 74). It changes no production code and no assertion.",
+    "The fix is coherent with the failure the commit message describes. `vi.resetModules()` does not reset the mock registry, so the factory-made `vi.fn()`s in `@/lib/api` keep their call history across tests. The I8 test's `expect(api.completeUpload).toHaveBeenCalledTimes(1)` would then count the Clear test's earlier call. `vi.clearAllMocks()` clears call history and keeps implementations. Both tests set the `initUpload` resolution they need themselves. `uploadChunk` and `completeUpload` keep the factory's `mockResolvedValue({})`, which mockClear does not reset.",
+    "The listing counts in both tests are deltas measured after render (`before` against after), so they did not depend on the carried-over history. Only the absolute `toHaveBeenCalledTimes(1)` did.",
+    "Earlier open items are untouched by this round: r1 F4 (`disarmLeaveConfirmation()` runs before `await lockApi()`), r2 F1 (no test checks that MiniPlayerContainer and MobileInspectorSheet publish to bottomChrome) and r2 F2 (substring-only offset assertions)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Still present from r1 F4: if the lock request fails after the viewer confirms, the leave-page confirmation stays disarmed for the rest of the session (Sidebar.tsx performLock)."
+  ],
+  "regression_risks": [
+    "Other suites built on the shared `apiMock` (uploadLock.test.tsx, hooks/__tests__/uploadQueue.test.tsx) already call `vi.resetAllMocks()` in beforeEach and reconfigure. A new suite that copies the pre-fix pattern of uploadQueueRefresh.test.tsx (resetModules without clearing mocks) would have the same order-dependent call counts.",
+    "No vitest config option (`clearMocks`, `mockReset`, `restoreMocks`) enforces clearing globally, so each file has to clear the mocks itself."
+  ],
+  "test_coverage": [
+    "I8: same-drive refresh, other-drive no-refresh and search no-refresh are covered. The other-drive half has no baseline greater than zero (F1).",
+    "I12: covered. Clear removes the finished entry and triggers no listing re-fetch for either drive.",
+    "The order-dependence fixed here affected only the absolute `completeUpload` count in the I8 test."
+  ],
+  "not_verified": [
+    "I did not run the suite in shuffled or sequential order, so I did not confirm that the flake is gone.",
+    "I did not check which Vitest version is installed, or whether `mockClear` in that version keeps `mockResolvedValue` implementations. I assumed it does, as documented.",
+    "I did not check whether the CI shuffle job sets its seed in a workflow file outside frontend/.",
+    "I executed no mutant. Every survived outcome is a prediction from reading the tests."
+  ],
+  "confidence": 85,
+  "trajectory": "There have been two fix rounds since r1. 89b738ec6 (r2) added a test that renders the real UploadProgress for I13. b4ccecfc5 (r3) adds one `vi.clearAllMocks()` to fix a test-isolation flake. Neither round adds a production branch, state or prediction, and neither removes one. The design is not being patched. Both rounds tighten tests only."
+}

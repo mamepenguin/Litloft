@@ -1,0 +1,48 @@
+{
+  "risk": "MEDIUM",
+  "score": 5,
+  "base": 1,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "addons/knowledge",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "docs/developer-guide/known-issues.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/ShellLayout.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/PlainTextDocument.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/hooks/__tests__/useHighlightPassage.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/hooks/__tests__/useSelectedFile.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/hooks/useHighlightPassage.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/hooks/useSelectedFile.ts",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}

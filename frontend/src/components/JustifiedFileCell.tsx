@@ -5,7 +5,7 @@ import type { FileItem } from "@/types";
 import { getThumbnailUrl } from "@/lib/api";
 import { formatDuration } from "@/lib/format";
 import { hasKnownLength } from "@/lib/primaryMeta";
-import { OFFICE_MIMES } from "@/lib/officeFiles";
+import { hasThumbnail, showsTextExcerpt } from "@/lib/textExcerpt";
 import { justifiedRatio } from "@/lib/justifiedGrid";
 import { useFileCardLink } from "@/hooks/useFileCardLink";
 import { useClipboard } from "./ClipboardProvider";
@@ -59,15 +59,8 @@ function JustifiedFileCellImpl({
     sortQuery,
   });
   const ratio = justifiedRatio(file);
-  const hasThumbnail =
-    file.has_thumbnail ||
-    file.file_type === "video" ||
-    file.file_type === "image";
-  const isTextPreviewable =
-    !hasThumbnail &&
-    file.file_type === "document" &&
-    ((file.mime_type?.startsWith("text/") ?? false) ||
-      OFFICE_MIMES.has(file.mime_type ?? ""));
+  const drawsThumbnail = hasThumbnail(file);
+  const drawsExcerpt = showsTextExcerpt(file);
 
   return (
     <div
@@ -108,7 +101,7 @@ function JustifiedFileCellImpl({
         onTouchEnd={selectable ? undefined : onTouchEnd}
         onTouchMove={selectable ? undefined : onTouchMove}
       >
-        {hasThumbnail ? (
+        {drawsThumbnail ? (
           <img
             src={getThumbnailUrl(file.id)}
             // Empty on purpose. The cell is named by `aria-label` on the
@@ -118,7 +111,7 @@ function JustifiedFileCellImpl({
             loading="lazy"
             draggable="false"
           />
-        ) : isTextPreviewable ? (
+        ) : drawsExcerpt ? (
           <TextThumbnail file={file} />
         ) : (
           <div className="flex h-full w-full items-center justify-center">

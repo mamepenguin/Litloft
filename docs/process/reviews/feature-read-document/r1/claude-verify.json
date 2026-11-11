@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "mcp-server/src/tools/search.ts:7 `export function withoutAvailable` and :15 `export function intelligenceGet` exist; mcp-server/src/tools/documents.ts:3 imports both from ./search.js. search.ts is not in the touch-point list."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "addons/intelligence/app/document_text.py exists alongside the new app/routers/document_text.py. In the working tree, :45 `_slots = threading.BoundedSemaphore(SLOTS)`, :80 `extract_units`, :91 `page_units`, :132-137 acquire/release `pdf.PYMUPDF_LOCK` with a deadline timeout, and :215-219 use `epub._ByteBudget`, `epub._read_book`, `epub._encrypted_paths`. These line numbers are a few lines off the cited ones, but the content matches. The touch points name only a new module under app/routers/."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "addons/intelligence/Dockerfile.test:48-49 installs `PyMuPDF==1.25.5 pymupdf4llm==0.0.17 \"python-docx>=1.1.0\" \"openpyxl>=3.1.0\" \"python-pptx>=1.0.0\"`. Dockerfile.test is not in the touch-point list."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-4",
+      "status": "confirmed",
+      "note": "addons/intelligence/app/extractors/pdf.py:33 defines `PYMUPDF_LOCK = threading.Lock()` and :64 `with PYMUPDF_LOCK:` wraps the primary extraction and the fallback in `extract`. app/workers/metadata.py:344 calls `_extract_file_content`, which calls `extractor.extract` at :137. app/indexer.py:1421 runs `asyncio.to_thread(index_text_content, ...)`. So indexing now shares the lock. The human's 2026-10-30 revision mandates this lock, but the touch-point list does not describe it."
+    }
+  ],
+  "specification_compliance": [
+    "The 2026-10-30 revision requires one shared PyMuPDF lock for indexing and reads; pdf.py:64 and document_text.py:132 implement it."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Indexing PDF extraction now serializes with reads through PYMUPDF_LOCK, so throughput may change."
+  ],
+  "test_coverage": [
+    "Tests not examined in this verification."
+  ],
+  "not_verified": [
+    "Could not run git, so whether each change was introduced by the diff (rather than pre-existing) relies on the working tree at HEAD 0da36fcf4, not on a diff against origin/develop.",
+    "Did not check that the addons/intelligence submodule checkout matches the bumped pointer.",
+    "Did not check the invariants I1-I10 themselves."
+  ],
+  "confidence": 85
+}

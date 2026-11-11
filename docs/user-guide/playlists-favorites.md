@@ -16,7 +16,7 @@ A collection is an ordered list of files from one drive.
 ![Collection editor with a row being reordered by drag and drop](../images/user-guide/playlist-reorder-drag.png)
 
 - Create one with **Create collection** in the sidebar, or with **Add to collection** on a file's page.
-- A file can be in several collections, but only in collections of its own drive.
+- A file can be in several collections, but only in collections of its own drive. Moving a file to another drive takes it out of this drive's collections.
 - Drag rows to reorder them. The list view numbers the rows from 01.
 - A collection chooses grid or list the same way a folder does ([file browsing](file-browsing.md#file-grid-and-list-modes)), and remembers what you choose.
 - To delete a collection, open `…` beside **Play** and choose **Delete collection**. The files themselves are not deleted.
@@ -41,6 +41,6 @@ Right-click a folder and choose **Pin**, or use `…` → **Pin this folder** in
 
 A Smart Folder is a saved search rather than a list you build. See [search](search.md#saving-as-a-smart-folder).
 
-## Continue watching
+## Continue
 
-The **Continue watching** row on Home lists media you started and stopped before 90%. It needs a [profile](profile-preferences.md). See [comments and watch history](comments-history.md).
+The **Continue** row on Home lists files you started and have not finished within the last two weeks. It needs a [profile](profile-preferences.md). See [comments and watch history](comments-history.md).

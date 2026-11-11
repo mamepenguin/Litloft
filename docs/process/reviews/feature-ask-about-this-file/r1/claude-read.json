@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The diff edits frontend/src/components/FileDetail/FileDetailPresenter.tsx, which is not in the Core (PR 1) touch-point list.",
+      "impact": "No user-visible defect. The presenter is the only path from FileDetailContainer to ShellLayout and FileDetailCanvas, so the new hasInspector and onDocumentController props have to pass through it. Leaving it off the list means a scope check that trusts the list would not look at it.",
+      "evidence": "In the diff, FileDetailPresenter.tsx adds `hasInspector` and `onDocumentController` to FileDetailPresenterProps and passes them to ShellLayout (the ShellLayout render at FileDetailPresenter.tsx:114) and to FileDetailCanvas. The touch-point list names FileDetailContainer, FileDetailCanvas, MediaCanvas and MediaPlayerBlock, but not FileDetailPresenter.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is broken. The touch-point list is incomplete for a file the change needs to edit.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add `frontend/src/components/FileDetail/FileDetailPresenter.tsx` to the Core touch points."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The diff adds a new module, frontend/src/components/FileDetail/lowerInspector.tsx (a registry, a context provider and a register hook), which is not in the touch-point list.",
+      "impact": "No user-visible defect. lowerInspector is delivered through this new React context, which links FileDetailContainer to FileDetailShell. The list puts the lowerInspector work only in FileDetailShell.tsx and MobileInspectorSheet.tsx, so a reader of the list would miss the module that I9/I11-adjacent behaviour (the stable lowerInspector identity) depends on.",
+      "evidence": "The diff creates lowerInspector.tsx (useLowerInspectorRegistry, LowerInspectorProvider, useRegisterLowerInspector). FileDetailContainer wraps FileDetailPresenter in LowerInspectorProvider, and FileDetailShell calls useRegisterLowerInspector. MobileInspectorSheet.tsx, which is listed, is not touched.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is broken. The list does not name a new module the change introduces.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add `frontend/src/components/FileDetail/lowerInspector.tsx` to the Core touch points, in place of or beside MobileInspectorSheet.tsx."
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "The diff adds and edits test files that are not in the touch-point list, which names only i18n-keys.test.ts and the e2e-epub host fixture's message list.",
+      "impact": "No user-visible defect. The list understates where the I9, I10, I12 and lowerInspector coverage lives.",
+      "evidence": "New files: frontend/e2e-epub/goToSection.spec.ts, frontend/src/components/FileDetail/__tests__/DocumentController.test.tsx, InspectorTabsSlot.test.tsx and LowerInspector.test.tsx. Edited: frontend/src/components/FileDetail/__tests__/harness.tsx (adds slotPropsByNode and data-addon). None of these is listed.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is broken. Tests that are not listed are a gap in the list, not a code defect.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Name the FileDetail __tests__ harness and the new test files, and frontend/e2e-epub/goToSection.spec.ts, in the Core touch points, or state that tests beside a listed module are implicit."
+    }
+  ],
+  "specification_compliance": [
+    "Every other code file the diff reaches is in the Core list: ShellLayout.tsx, inspector/tabs.ts, hooks/useSlotAvailability.ts, FileDetailContainer.tsx, FileDetailCanvas.tsx, MediaPlayerBlock.tsx, FilePreview.tsx, PdfPreview.tsx, epub/EpubPreview.tsx, epub/useEpubReader.ts, lib/epubReaderChannel.ts, public/epub-reader/reader.js, e2e-epub/fixtures/host.html, lib/documentController.ts, FileDetailShell.tsx, __tests__/i18n-keys.test.ts and docs/ADDON-DEVELOPMENT.md.",
+    "The docs/specs/ask-about-this-file.md and docs/specs/INDEX.md changes are implicit touch points and are not reported.",
+    "Some listed touch points are not reached by the diff: MediaCanvas.tsx, InspectorShell and MobileInspectorSheet.tsx. That is not a defect: the list is a permitted scope, not a required one.",
+    "No addon (PR 2) path is touched, which matches the two-PR delivery.",
+    "All callers of isAvailable, reporterFor and reportedValue in production code now pass slotAvailabilityKey(slot, id), so player-side availability is keyed consistently (ShellLayout.tsx:184, :303, :330; FileDetailContainer.tsx:170)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Tab ids now contain a colon (`inspector-tabs:ask`). If InspectorShell builds DOM ids or CSS selectors from them, a colon would need escaping in querySelector. Not checked in InspectorShell."
+  ],
+  "regression_risks": [
+    "Re-keying useSlotAvailability reports from a bare entry id to `player-side:<id>` changes the stored key. Any caller outside the files grepped that still passes a bare id would silently read 'available' (silence means available). Grep found none in frontend/src."
+  ],
+  "test_coverage": [
+    "InspectorTabsSlot.test.tsx covers tab order, the silence-is-unavailable rule, id collisions between slots and the collection surface (I10, I12).",
+    "DocumentController.test.tsx covers non-null and identity for PDF and EPUB, and goTo routing (I9). goToSection.spec.ts covers reader-side bounds and the absence of a turned message.",
+    "LowerInspector.test.tsx covers half→peek, full→peek, no-op at peek, no-op on desktop and a stable identity."
+  ],
+  "not_verified": [
+    "Did not run any test or e2e spec.",
+    "Did not read InspectorShell to check how tab ids containing ':' become DOM ids or selectors.",
+    "Did not inspect commit 571652803 on its own (only the base-to-head diff provided); its docs/process records were not read.",
+    "Did not check whether docs/process/reviews/.../invariants.md revises the touch-point list (the revisions section supplied was empty)."
+  ],
+  "confidence": 85
+}

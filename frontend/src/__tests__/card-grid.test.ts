@@ -4,9 +4,13 @@ import { fileURLToPath } from "node:url";
 import { resolve, dirname, relative } from "node:path";
 
 import {
+  BOOK_CARD_GAP_PX,
+  BOOK_GRID,
   CARD_GAP_PX,
   CARD_MIN_PX,
   MIN_CARD_COLUMNS,
+  VIDEO_GRID,
+  cardGridTemplate,
   columnsFor,
   rowsFor,
 } from "@/lib/cardGrid";
@@ -52,7 +56,7 @@ function rendersCards(body: string): boolean {
     // A grid that takes its cards as `children` carries none of those tokens.
     // A children-taking grid that hand-writes its columns without calling the
     // hook stays outside the population entirely.
-    /useCardColumns\(\)/.test(body)
+    /useCardColumns\(/.test(body)
   );
 }
 
@@ -115,7 +119,7 @@ function useCardColumnsCallSites(): string[] {
     const body = readFileSync(file, "utf-8");
     const rel = relative(REPO_ROOT, file);
     // The call, not the declaration in `lib/cardGrid.ts` itself.
-    for (const _ of body.matchAll(/=\s*useCardColumns\(\)/g)) out.push(rel);
+    for (const _ of body.matchAll(/=\s*useCardColumns\(/g)) out.push(rel);
   }
   return out;
 }
@@ -144,6 +148,35 @@ describe("columnsFor", () => {
     expect(columnsFor(threeColumns)).toBe(3);
     expect(columnsFor(threeColumns - 1)).toBe(2);
   });
+
+  it("gives the book grid 6 columns at 976px and 2 at 358px", () => {
+    expect(columnsFor(976, BOOK_GRID)).toBe(6);
+    expect(columnsFor(358, BOOK_GRID)).toBe(2);
+  });
+
+  it("leaves Home's grid on its own minimum and gap", () => {
+    expect(columnsFor(1213)).toBe(4);
+    expect(columnsFor(1480)).toBe(5);
+  });
+});
+
+describe("SPEC-CORE-080 I2 the video grid's metric", () => {
+  it("is a 20rem (320px) card minimum with a 16px gap", () => {
+    expect(VIDEO_GRID).toMatchObject({ minWidthPx: 320, minWidth: "20rem", gapPx: 16 });
+  });
+
+  it("gives max(2, floor((W + 16) / 336)) columns for a grid W px wide", () => {
+    const widths = [1, 343, 655, 671, 672, 791, 792, 991, 992, 1059, 1060, 1120, 1327, 1328, 1663, 1664];
+    expect(widths.map((w) => [w, columnsFor(w, VIDEO_GRID)])).toEqual(
+      widths.map((w) => [w, Math.max(2, Math.floor((w + 16) / 336))]),
+    );
+  });
+
+  it("draws the unmeasured first frame on the video metric, not Home's", () => {
+    expect(cardGridTemplate(0, VIDEO_GRID)).toBe(
+      "repeat(auto-fill, minmax(min(20rem, calc(50% - 8px)), 1fr))",
+    );
+  });
 });
 
 describe("rowsFor", () => {
@@ -161,14 +194,17 @@ describe("every card grid goes through lib/cardGrid", () => {
   const sites = cardGridSites();
 
   it("finds the card grids it is meant to be checking", () => {
-    expect(sites.length).toBe(6);
+    expect(sites.length).toBe(9);
     expect(new Set(sites.map((s) => s.file))).toEqual(
       new Set([
+        "frontend/src/components/appshell/ShelfBlock.tsx",
+        "frontend/src/components/appshell/VideoGrid.tsx",
         "frontend/src/components/FileGrid.tsx",
         "frontend/src/components/SectionRow.tsx",
         "frontend/src/components/folder/FolderContent.tsx",
         "frontend/src/components/folder/RightPaneFolder.tsx",
         "frontend/src/components/missing/MissingFileGrid.tsx",
+        "frontend/src/components/readingapp/ReadingGrid.tsx",
         "frontend/src/components/trash/TrashFileGrid.tsx",
       ]),
     );
@@ -182,8 +218,8 @@ describe("every card grid goes through lib/cardGrid", () => {
   });
 
   it("hands every grid element the measuring ref", () => {
-    expect(sites.length).toBe(6);
-    expect(useCardColumnsCallSites().length).toBe(6);
+    expect(sites.length).toBe(9);
+    expect(useCardColumnsCallSites().length).toBe(9);
 
     const unattached = sites
       .filter((s) => !/\bref=\{/.test(s.tag))
@@ -191,13 +227,26 @@ describe("every card grid goes through lib/cardGrid", () => {
     expect(unattached).toEqual([]);
   });
 
-  it("uses the column gap the helper counts with", () => {
+  it("SPEC-CORE-080 uses the column gap its own metric counts with, and the video grid's 32px rows", () => {
+    const expected: Record<string, { column: number; row?: number }> = {
+      "frontend/src/components/appshell/VideoGrid.tsx": { column: 16, row: 32 },
+      "frontend/src/components/appshell/ShelfBlock.tsx": { column: BOOK_CARD_GAP_PX },
+      "frontend/src/components/readingapp/ReadingGrid.tsx": { column: BOOK_CARD_GAP_PX },
+    };
     const wrongGap = sites
       .filter((s) => {
-        const gaps = [...s.className.matchAll(/\bgap(?:-x)?-(\d+)\b/g)].map(
-          (m) => Number(m[1]) * 4,
+        const want = expected[s.file] ?? { column: CARD_GAP_PX };
+        const tokens = [...s.className.matchAll(/\bgap(?:-([xy]))?-(\d+)\b/g)].map((m) => ({
+          axis: m[1],
+          px: Number(m[2]) * 4,
+        }));
+        const column = tokens.filter((t) => t.axis !== "y").map((t) => t.px);
+        const row = tokens.filter((t) => t.axis !== "x").map((t) => t.px);
+        return (
+          column.length === 0 ||
+          column.some((g) => g !== want.column) ||
+          (want.row !== undefined && (row.length === 0 || row.some((g) => g !== want.row)))
         );
-        return gaps.length === 0 || gaps.some((g) => g !== CARD_GAP_PX);
       })
       .map((s) => `${s.file}:${s.line} — ${s.className}`);
     expect(wrongGap).toEqual([]);

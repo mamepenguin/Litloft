@@ -48,6 +48,12 @@ vi.mock("@/components/missing/MissingView", () => ({
     return <div data-testid="screen">missing</div>;
   },
 }));
+vi.mock("@/components/inbox", () => ({
+  InboxView: () => {
+    seen.component = "InboxView";
+    return <div data-testid="screen">inbox</div>;
+  },
+}));
 
 /**
  * `undefined` means the prop is not passed — no folder to stand in — and `""`
@@ -56,12 +62,14 @@ vi.mock("@/components/missing/MissingView", () => ({
 const ROUTES: { view: string; component: string; folderPath: string | undefined }[] = [
   { view: "favorites", component: "FolderBrowser", folderPath: undefined },
   { view: "liked", component: "FolderBrowser", folderPath: undefined },
+  { view: "continue", component: "FolderBrowser", folderPath: undefined },
   { view: "recent", component: "FolderBrowser", folderPath: undefined },
   { view: "recent-added", component: "FolderBrowser", folderPath: undefined },
   { view: "all", component: "FolderBrowser", folderPath: undefined },
   { view: "trash", component: "TrashView", folderPath: undefined },
   { view: "missing", component: "MissingView", folderPath: undefined },
   { view: "home", component: "DriveHome", folderPath: undefined },
+  { view: "inbox", component: "InboxView", folderPath: undefined },
 ];
 
 const renderAt = (params: Record<string, string> = {}) => {
@@ -85,7 +93,7 @@ describe("the drive route", () => {
       ROUTES.filter((r) => r.component !== "FolderBrowser").map((r) => r.view),
     );
     expect(branched).toEqual(named);
-    expect(ROUTES).toHaveLength(8);
+    expect(ROUTES).toHaveLength(10);
   });
 
   it.each(ROUTES)("opens $component at ?view=$view", ({ view, component }) => {

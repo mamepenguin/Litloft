@@ -1,0 +1,55 @@
+{
+  "risk": "CRITICAL",
+  "score": 11,
+  "base": 2,
+  "zone_max": "HIGH",
+  "modifiers": [
+    "persistence"
+  ],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "backend/app/routers/drives.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/routers/files.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/services/fileops.py",
+      "level": "HIGH"
+    },
+    {
+      "path": "backend/app/services/scanner.py",
+      "level": "HIGH"
+    },
+    {
+      "path": "backend/app/services/tagops.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/services/upload.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/tests/test_frontmatter_tags_on_create.py",
+      "level": "LOW"
+    },
+    {
+      "path": "backend/tests/test_scanner_md_id.py",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/developer-guide/known-issues.md",
+      "level": "LOW"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone HIGH (8 points)",
+    "modifiers: persistence"
+  ]
+}

@@ -21,7 +21,7 @@ const cases: Case[] = JSON.parse(readFileSync(FIXTURE, "utf-8")).cases;
 
 describe("the settings screens read a stored policy as the backend does", () => {
   it("reads the whole table, not some of it", () => {
-    expect(cases.length).toBe(9);
+    expect(cases.length).toBe(11);
   });
 
   it.each(cases)("$name", (c) => {

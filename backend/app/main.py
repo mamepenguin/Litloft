@@ -19,11 +19,14 @@ from app.auth import check_drive_access, get_unlocked_groups, init_jwt_secret, l
 import app.setup_token as setup_token
 import app.config as config
 from app.models import File
-from app.routers import admin, admin_markdown_images, auth, collections, comments, drives, files, progress, uploads, ws
-from app.routers import addon_proxy, admin_config, drive_policies, internal, smart_folders
+from app.routers import admin, admin_markdown_images, auth, collections, comments, drives, files, highlights, progress, shelves, uploads, ws
+from app.routers import addon_proxy, admin_config, drive_policies, files_processing, inbox, internal, smart_folders
+from app.services import inbox as inbox_service
+from app.services.diskpath import resolve_on_disk
 from app.services.fileops import physical_delete
 from app.services.scanner import scan_all_drives
 from app.services import addon_registry, drive_seed, event_hooks
+from app.services.thumbnail_migration import migrate_thumbnail_slots
 from app.services.upload import cleanup_abandoned_uploads
 from app.services.ws import set_event_loop
 
@@ -149,6 +152,10 @@ async def purge_expired_trash() -> None:
                 )
             )
         await asyncio.to_thread(_cleanup_empty_folders_after_purge, folders_to_check)
+        try:
+            await asyncio.to_thread(inbox_service.purge_done_rows)
+        except Exception:
+            logger.warning("Inbox retention failed; retrying on the next pass", exc_info=True)
         await asyncio.sleep(_PURGE_INTERVAL_SECONDS)
 
 
@@ -159,7 +166,7 @@ def _cleanup_empty_folders_after_purge(
     for drive_name, folder_path in folders:
         try:
             drive_root = config.get_drive_path(drive_name)
-            target = drive_root / folder_path
+            target = resolve_on_disk(drive_root, folder_path, strict=True)
             _rmdir_up_to_root(target, drive_root)
         except Exception:
             logger.exception(
@@ -272,6 +279,10 @@ async def lifespan(app: FastAPI):
     cleanup_abandoned_uploads()
     from app.services.markdown_image_import import initialize_interrupted_jobs
     initialize_interrupted_jobs()
+    try:
+        await asyncio.to_thread(migrate_thumbnail_slots, SessionLocal)
+    except Exception:
+        logger.exception("Thumbnail migration failed; startup continues")
     asyncio.create_task(scan_all_drives())
     logger.info("Background scan started for all drives")
     asyncio.create_task(purge_expired_trash())
@@ -312,12 +323,16 @@ app.include_router(admin_config.router)
 app.include_router(auth.router)
 app.include_router(comments.router)
 app.include_router(files.router)
+app.include_router(files_processing.router)
+app.include_router(inbox.router)
 app.include_router(drives.router)
+app.include_router(shelves.router)
 app.include_router(drive_policies.router)
 app.include_router(uploads.router)
 app.include_router(collections.router)
 app.include_router(smart_folders.router)
 app.include_router(progress.router)
+app.include_router(highlights.router)
 app.include_router(ws.router)
 app.include_router(internal.router)
 _load_addons(app)

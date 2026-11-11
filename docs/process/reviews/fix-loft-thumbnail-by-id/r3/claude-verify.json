@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "V1-pending-line-contradicts-recorded-failure-runs",
+      "origin": "verifier",
+      "claim": "The `pending` line in decisions.md says the failure of a thumbnail download was not exercised, but the `evidence` line above it records two such runs at accf5dfe4 and 9ba15e59f.",
+      "impact": "The review record understates what was tested, so a reader of the `pending` line could repeat the blocked-host check or misjudge what remains open. Runtime behavior is unaffected, and the error is on the conservative side.",
+      "evidence": "docs/process/reviews/fix-loft-thumbnail-by-id/decisions.md:7 describes the thumbnail host blocked through /etc/hosts, six 'Failed to download thumbnail' warnings and an unchanged thumbnail tree (run5-c*, run6-b*). decisions.md:8 says 'Subscription imports and the failure of a thumbnail download were not exercised.'",
+      "repro": "Read decisions.md:7 and decisions.md:8 together. The evidence files outside the repository were not opened, so this establishes only that the two lines disagree.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a wording inconsistency in a process record. It causes no wrong result in the tool and no check passes because of it.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "verification": [],
+  "specification_compliance": [
+    "SPEC-ADDON-040 / I15: `_save_loft_thumbnail` downloads to `config.THUMBNAILS_DIR / thumbnail_slot_rel(file_id)` and commits that value as the pointer (addons/media_import/backend/service.py:607-622). `thumbnail_slot_rel` returns `.by-id/<file id>.jpg` (backend/app/services/thumbnail.py:619-621).",
+    "Spec item 5 ('Its failure handling is unchanged'): `urlretrieve` is restored, so a body shorter than Content-Length raises again and is caught at service.py:548, returning False. The r2 regression where a short body counted as success is no longer present in the code. One difference from plain `urlretrieve` to the destination remains: a failure now leaves the existing slot intact, because the write goes through `generating_file` (backend/app/services/atomic_write.py:58-67).",
+    "Old picture removal happens after `db.commit()` and only when the old pointer differs from the slot (service.py:622-626), matching the spec's table row for a Media Import save over a reused row (docs/specs/thumbnail-slot-ownership.md:133)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The spec does not state that a thumbnail download is atomic; item 5 says only that failure handling is unchanged (docs/specs/thumbnail-slot-ownership.md:155). The code publishes through `generating_file` (service.py:545), and test_loft_thumbnail.py:483 attributes 'a slot is replaced whole or not at all' to SPEC-ADDON-040.",
+    "The spec does not state that a Media Import save logs and continues when removing the old picture fails, or that it prunes emptied directories. `remove_thumbnail_quietly` does both (backend/app/services/thumbnail.py:634-643), and the path is reached from service.py:625-626.",
+    "If the row disappears during the download, `_save_loft_thumbnail` returns None and leaves the newly written slot file with no row (service.py:618-619). The spec does not describe this case. It needs a delete racing a download and is harmless to display."
+  ],
+  "regression_risks": [
+    "`urlretrieve` opens the temporary path with 'wb' after `mkstemp` has created it. The existing mode is then replaced by `os.chmod` to the fixed generated mode in `_atomic`, so the published mode does not depend on `mkstemp`'s 0600. decisions.md records 644 in the third run.",
+    "`_save_subscription_avatar` shares `_download_thumbnail_sync` (service.py:574), so avatars also get atomic publication and the restored short-body failure. The decisions record says subscription imports were not exercised in the app.",
+    "`urlretrieve` is called with no timeout, so a stalled thumbnail host can hold the calling worker. The call form itself matches what r2 describes as the earlier code; the base revision was not read directly."
+  ],
+  "test_coverage": [
+    "The real download path is now covered against a local HTTP server: a good body fills the slot and leaves no temp file (test_loft_thumbnail.py:545-565). This closes r2's F2 by reading.",
+    "A truncated body is covered: the result is None, and the slot and pointer are kept (test_loft_thumbnail.py:567-592). A truncated first candidate falls through to the next URL (test_loft_thumbnail.py:594-613). This closes r2's F1 test gap by reading. The handler uses the default HTTP/1.0 and closes after 3 of 1000 advertised bytes, which reaches `urlretrieve`'s short-read check.",
+    "`_DroppingResponse` still fits `urlretrieve`: it has `info()`, `close()` and `read(size)` (test_loft_thumbnail.py:458-470). The test therefore fails at the second read rather than through an AttributeError from a missing method, which `except Exception` would have hidden. `urlretrieve` looks up `urlopen` as a module global, so the patch on `service.urllib.request.urlopen` should apply; the 3.12 source was not read to confirm it.",
+    "Commit order is covered: `test_failed_commit_leaves_the_old_picture_on_disk` patches `Session.commit` to raise and asserts the old file remains (test_loft_thumbnail.py:616-650). Moving the removal before the commit would fail this assertion, which closes r2's F3 by reading.",
+    "No test covers `_save_subscription_avatar` through the real `_download_thumbnail_sync`. It shares the code path that the HTTP tests exercise."
+  ],
+  "not_verified": [
+    "Nothing was executed: no tests, mutants or app runs. All test and behavior conclusions come from reading the code.",
+    "The addon code was read from the working tree. That its checkout matches the gitlink pinned at a39a8bead (6ab61614 according to decisions.md) was not checked.",
+    "The Python 3.12 stdlib used by the deployed image was not read. `urlretrieve`'s short-read check and module-global `urlopen` lookup are taken from an earlier run's reading of 3.14.8 and from memory.",
+    "The R-5 evidence files named in decisions.md live outside the repository and were not opened.",
+    "The diff against origin/develop was not inspected, because no git tool is available. Core changes outside the files read here were not re-reviewed.",
+    "Chunked or TLS early-EOF behavior against the real thumbnail hosts was not observed."
+  ],
+  "confidence": 78
+}

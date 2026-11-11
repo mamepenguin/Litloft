@@ -1,0 +1,116 @@
+{
+  "risk": "HIGH",
+  "score": 7,
+  "base": 3,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": ".claude/rules/internal-api-policy.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "addons/intelligence",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "docs/ADDON-DEVELOPMENT.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/addons/intelligence.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/ask-scope.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/search.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/e2e-layout/ask-scope-chips.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-layout/collection-actions.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-layout/fixtures/ask-scope-chips.html",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-layout/fixtures/collection-actions.html",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-layout/spec-viewport.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/anchoredDropdowns.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/core-search-vocabulary.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/popup-dismissal.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/CollectionDetail.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/CollectionDetail.collectionActions.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/toolbarMenuHome.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/search/ConditionMenu.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/search/SearchQueryHeader.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/ConditionMenu.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/SearchQueryHeader.scope.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/README.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/__tests__/askScope.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/tools/ask.ts",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}

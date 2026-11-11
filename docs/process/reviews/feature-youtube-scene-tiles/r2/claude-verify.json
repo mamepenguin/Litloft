@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "The mechanism holds at the component level. In addons/intelligence/frontend/ClipFramesSection.tsx:60-65 the reset effect (deps [fileId, isLoft]) clears timestamps and expanded only after commit. The pictureUrls useMemo at :154-164 (deps [isLoft, fileId, timestamps]) is recomputed during the render that follows a fileId prop change, so it maps the previous file's ts.start values to getSceneTileUrl(newFileId, ...). The .loft guard at :175 passes because timestamps is still non-null, and expanded is still true at :200, so <img src=/files/<new>/scene-tile?t=<old starts>> elements are committed (:225-226) before the effect resets state. The images carry loading=\"lazy\", but they sit in the visible strip, so the requests can still start. Reachability caveat for triage: the panel's only host is the file-detail-sections slot (addons/intelligence/manifest.json:33-78). That slot renders inside FileDetailContainer, which frontend/src/components/FileDetailContent.tsx:32 mounts with key={props.fileId}, and that is the only render site of FileDetailContainer outside tests. A file change in the product therefore remounts ClipFramesSection with fresh state, and the stale render described here only occurs when the component is rerendered with a new fileId directly, as a unit test does. Even when it occurs, the result is at worst 404 tile requests or blank tiles for one frame before the reset. The same stale-render pattern applies to the native branch through getFrameUrl."
+    }
+  ],
+  "specification_compliance": [
+    "I6 (\"never applies a response for an earlier fileId\"): the mount fetch at ClipFramesSection.tsx:69-82 drops stale responses through a `current` flag. The finding concerns stale state on the first render after a fileId change rather than a stale response. That render is reachable only when the component is rerendered without a remount, which the only host prevents with FileDetailContent.tsx:32 key={fileId}."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "A rerender of ClipFramesSection with a new fileId and no remount briefly renders tiles for the new id at the old file's start times. The only current host prevents this with a key."
+  ],
+  "regression_risks": [
+    "If a future host reuses ClipFramesSection across file changes without keying it by fileId, the stale first render in F1 becomes reachable."
+  ],
+  "test_coverage": [
+    "The 'refetches when fileId changes' test does not observe an expanded panel at the moment of the switch, so it cannot detect the stale-render mechanism in F1."
+  ],
+  "not_verified": [
+    "I did not run the frontend tests or reproduce the render in a browser. The verification is by code reading only.",
+    "I did not check whether the browser actually starts loading lazy <img> elements committed for a single frame before the reset effect runs.",
+    "I did not verify how AddonSlot builds addonSlotProps.fileId beyond confirming that the container is keyed by fileId.",
+    "I did not review the backend, route, manifest, docs or other invariants beyond F1."
+  ],
+  "confidence": 85
+}

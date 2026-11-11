@@ -90,7 +90,7 @@ import { DriveHome } from "../DriveHome";
  * What a response that outlived the drive it was made for may write.
  *
  * This page fetches on two streams, and they answer to different
- * things. The Recently Added / Favorites / Liked rows carry their
+ * things. The Recently Added / Favorites rows carry their
  * identity on the response (`ResponseIdentity`), because a row can
  * refetch itself with no page load involved. The watch rows are fetched
  * by the page load alone, so a page load is the unit of identity for
@@ -120,7 +120,7 @@ import { DriveHome } from "../DriveHome";
  * (`review-workflow.md` detector rule 5).
  */
 
-const SECTION_KEYS = ["recentAdded", "favorites", "liked"] as const;
+const SECTION_KEYS = ["recentAdded", "favorites"] as const;
 type SectionKey = (typeof SECTION_KEYS)[number];
 type SectionFiles = Record<SectionKey, string>;
 
@@ -128,7 +128,6 @@ type SectionFiles = Record<SectionKey, string>;
 const SECTION_TITLES: Record<SectionKey, string> = {
   recentAdded: "Recently Added",
   favorites: "Favorites",
-  liked: "Liked",
 };
 
 const WATCH_KEYS = ["continueWatching", "recentlyPlayed"] as const;
@@ -137,7 +136,7 @@ type WatchRowItems = Record<WatchKey, string>;
 
 /** The watch row titles, as `messages-core/en.json` spells them. */
 const WATCH_TITLES: Record<WatchKey, string> = {
-  continueWatching: "Continue Watching",
+  continueWatching: "Continue",
   recentlyPlayed: "Recently Viewed",
 };
 
@@ -145,13 +144,11 @@ const WATCH_TITLES: Record<WatchKey, string> = {
 const DRIVE_A_FILES: SectionFiles = {
   recentAdded: "alfa-added",
   favorites: "alfa-favorite",
-  liked: "alfa-liked",
 };
 
 const DRIVE_B_FILES: SectionFiles = {
   recentAdded: "bravo-added",
   favorites: "bravo-favorite",
-  liked: "bravo-liked",
 };
 
 /**
@@ -163,7 +160,6 @@ const DRIVE_B_FILES: SectionFiles = {
 const DRIVE_A_REVISIT_FILES: SectionFiles = {
   recentAdded: "alfa-added-after",
   favorites: "alfa-favorite-after",
-  liked: "alfa-liked-after",
 };
 
 /** One item per watch row, named for its drive for the same reason. */
@@ -190,13 +186,12 @@ function page(title: string): PaginatedResponse {
 /** Which row a `getDriveFiles` call is for, read off its query. */
 function sectionOf(params: Record<string, unknown>): SectionKey {
   if (params.favorite === true) return "favorites";
-  if (params.liked === true) return "liked";
   return "recentAdded";
 }
 
 /** Which watch row a `getWatchHistory` call is for, read off its scope. */
 function watchRowOf(scope: string | undefined): WatchKey {
-  return scope === "all" ? "recentlyPlayed" : "continueWatching";
+  return scope === "not_continue" ? "recentlyPlayed" : "continueWatching";
 }
 
 function watchItem(title: string): WatchHistoryItem {
@@ -230,7 +225,6 @@ function foreignFiles(drive: string): SectionFiles {
   return {
     recentAdded: `wrong-drive(${drive}):added`,
     favorites: `wrong-drive(${drive}):favorite`,
-    liked: `wrong-drive(${drive}):liked`,
   };
 }
 
@@ -291,7 +285,6 @@ function expectedRows(files: SectionFiles): Record<string, string[]> {
   return {
     [SECTION_TITLES.recentAdded]: [files.recentAdded],
     [SECTION_TITLES.favorites]: [files.favorites],
-    [SECTION_TITLES.liked]: [files.liked],
   };
 }
 
@@ -305,8 +298,8 @@ function expectedRows(files: SectionFiles): Record<string, string[]> {
  * keep the files they already had. `expectRowBatchStillHeld` is what
  * reads it, off the responses the component was handed.
  *
- * Held **for one drive and for one batch**: once all three rows have
- * been handed their promise the hold is released, so a return visit and
+ * Held **for one drive and for one batch**: once every row has
+ * been handed its promise the hold is released, so a return visit and
  * a retry both fall through to the drive's declared list. That is what
  * lets a case hold the first visit's batch and still see the third
  * render fetch normally.
@@ -528,7 +521,7 @@ describe("DriveHome across a drive change", () => {
     // The rows read this visit. The failure this covers is what a user
     // sees after trashing a file here, stepping to another drive and
     // coming back: the pre-action batch would put the file back into
-    // Recently Added, Favorites and Liked and leave it there.
+    // Recently Added and Favorites and leave it there.
     expect(rowsOnScreen()).toEqual(expectedRows(DRIVE_A_REVISIT_FILES));
     for (const name of Object.values(DRIVE_A_FILES)) {
       expect(screen.queryByText(name)).toBeNull();
@@ -585,7 +578,7 @@ describe("DriveHome across a drive change", () => {
     // A guard that drops everything but the newest request in flight
     // throws the good batch away before the refetch is known to have
     // failed. `Promise.allSettled` means the failed one still arrives,
-    // so instead of vanishing the three rows are written empty and stay
+    // so instead of vanishing the rows are written empty and stay
     // there for the rest of the visit.
     driveHasFiles(DRIVE_UNDER_TEST, DRIVE_A_FILES);
     const pageLoad = holdRowBatch(DRIVE_UNDER_TEST);
@@ -639,7 +632,7 @@ describe("DriveHome across a drive change", () => {
     // across a drive change "what it had" would be the previous drive's
     // files — and nothing in that function can tell the two apart,
     // because the failure branch is reached with the drive already
-    // checked. What scopes it is the fetch effect emptying all three
+    // checked. What scopes it is the fetch effect emptying all the
     // rows on every drive change, which is what the grid did not do for
     // six rounds.
     driveHasFiles(DRIVE_UNDER_TEST, DRIVE_A_FILES);
@@ -652,12 +645,11 @@ describe("DriveHome across a drive change", () => {
       failing.reject();
     });
 
-    // Three rows, all empty — the same thing a drive with no files
+    // Every row empty — the same thing a drive with no files
     // draws. Not the drive that was left.
     expect(rowsOnScreen()).toEqual({
       [SECTION_TITLES.recentAdded]: [],
       [SECTION_TITLES.favorites]: [],
-      [SECTION_TITLES.liked]: [],
     });
     for (const name of Object.values(DRIVE_A_FILES)) {
       expect(screen.queryByText(name)).toBeNull();

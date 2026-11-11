@@ -1,4 +1,4 @@
-import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, CollectionDetail, CollectionSummary, Comment, CommentsResponse, DashboardResponse, Drive, DriveSummary, DuplicatesResponse, FileExif, FileItem, Folder, FolderCount, FolderTreeNode, Neighbors, PaginatedResponse, PinnedFolder, ListingSortField, SortField, SortOrder, Tag, TrustFilter, TrustTier, FileKind, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
+import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, CollectionDetail, CollectionSummary, Comment, CommentsResponse, DashboardResponse, Drive, DriveSummary, DuplicatesResponse, FileExif, FileItem, Folder, FolderCount, FolderTreeNode, Highlight, HighlightInput, Neighbors, PaginatedResponse, PinnedFolder, ListingSortField, SortField, SortOrder, Tag, TrustFilter, TrustTier, FileKind, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
 import type { SmartFolder, SmartFolderCreate, SmartFolderUpdate } from "@/types/smartFolder";
 import { seedFiles } from "@/lib/fileSeed";
 
@@ -55,6 +55,41 @@ export async function getFolderTree(
   );
 }
 
+type ListingFilters = Pick<
+  Parameters<typeof getDriveFiles>[1],
+  | "search"
+  | "favorite"
+  | "liked"
+  | "tag"
+  | "type"
+  | "folder"
+  | "collection"
+  | "size"
+  | "duration"
+  | "trust"
+>;
+
+function appendListingFilters(searchParams: URLSearchParams, params: ListingFilters): void {
+  if (params.search) searchParams.set("search", params.search);
+  if (params.favorite !== undefined) searchParams.set("favorite", String(params.favorite));
+  if (params.liked !== undefined) searchParams.set("liked", String(params.liked));
+  for (const tag of [params.tag ?? []].flat()) if (tag) searchParams.append("tag", tag);
+  for (const kind of [params.type ?? []].flat()) searchParams.append("type", kind);
+  for (const folder of [params.folder ?? []].flat()) {
+    if (folder) searchParams.append("folder", folder);
+  }
+  for (const collection of [params.collection ?? []].flat()) {
+    if (collection) searchParams.append("collection", collection);
+  }
+  for (const size of [params.size ?? []].flat()) {
+    if (size) searchParams.append("size", size);
+  }
+  for (const duration of [params.duration ?? []].flat()) {
+    if (duration) searchParams.append("duration", duration);
+  }
+  if (params.trust) searchParams.set("trust", params.trust);
+}
+
 export async function getDriveFiles(
   drive: string,
   params: {
@@ -67,6 +102,14 @@ export async function getDriveFiles(
     tag?: string | readonly string[];
     /** Several kinds: the file may be any of them. */
     type?: FileKind | readonly FileKind[];
+    /** Each folder keeps its whole subtree. */
+    folder?: string | readonly string[];
+    /** Each collection name keeps its items. */
+    collection?: string | readonly string[];
+    /** Size comparisons in the wire form (`gt:1073741824`). */
+    size?: string | readonly string[];
+    /** Duration comparisons in the wire form (`gte:1800`). */
+    duration?: string | readonly string[];
     /**
      * `verified` / `unverified` select a tier; `unreviewed` is not a tier but
      * the review queue — files nobody has ruled on, which spans both.
@@ -82,12 +125,7 @@ export async function getDriveFiles(
   const searchParams = new URLSearchParams();
   if (params.path !== undefined) searchParams.set("path", params.path);
   if (params.recursive) searchParams.set("recursive", "true");
-  if (params.search) searchParams.set("search", params.search);
-  if (params.favorite !== undefined) searchParams.set("favorite", String(params.favorite));
-  if (params.liked !== undefined) searchParams.set("liked", String(params.liked));
-  for (const tag of [params.tag ?? []].flat()) if (tag) searchParams.append("tag", tag);
-  for (const kind of [params.type ?? []].flat()) searchParams.append("type", kind);
-  if (params.trust) searchParams.set("trust", params.trust);
+  appendListingFilters(searchParams, params);
   if (params.sort) searchParams.set("sort", params.sort);
   if (params.order) searchParams.set("order", params.order);
   if (params.page) searchParams.set("page", String(params.page));
@@ -99,6 +137,82 @@ export async function getDriveFiles(
   );
   seedFiles(page.data);
   return page;
+}
+
+export type ShelfGrouping = "all" | "folder" | "tag" | "month" | "duration" | "watch";
+export type ShelfWatchState = "in_progress" | "unwatched" | "finished";
+
+export interface ShelvesParams extends ListingFilters {
+  by: ShelfGrouping;
+  /** The empty string is the root-folder shelf, so it is sent as given. */
+  key?: string;
+  /** Keep only files in this reading state; needs a viewer identity. */
+  watch?: ShelfWatchState;
+  /** Restrict every shelf to these file ids, repeated on the wire. */
+  ids?: readonly string[];
+  sort?: ListingSortField | "last_played";
+  order?: SortOrder;
+  per_shelf?: number;
+  shelf_limit?: number;
+  offset?: number;
+  page?: number;
+}
+
+export type ShelfItem = FileItem & { watch_progress?: WatchProgress };
+
+export interface Shelf {
+  key: string;
+  /** The data value (folder segment, tag, `YYYY-MM`); empty for fixed shelves. */
+  label: string;
+  count: number;
+  items: ShelfItem[];
+}
+
+export interface ShelvesResponse {
+  by: ShelfGrouping;
+  shelves: Shelf[];
+  total_shelves: number;
+  /** The folder the `by=folder` shelves are children of; `""` otherwise. */
+  base: string;
+}
+
+export async function getShelves(
+  drive: string,
+  params: ShelvesParams,
+  options?: RequestOptions,
+): Promise<ShelvesResponse> {
+  const searchParams = new URLSearchParams();
+  searchParams.set("by", params.by);
+  if (params.key !== undefined) searchParams.set("key", params.key);
+  appendListingFilters(searchParams, params);
+  if (params.watch) searchParams.set("watch", params.watch);
+  for (const id of params.ids ?? []) searchParams.append("ids", id);
+  if (params.sort) searchParams.set("sort", params.sort);
+  if (params.order) searchParams.set("order", params.order);
+  for (const name of ["per_shelf", "shelf_limit", "offset", "page"] as const) {
+    const value = params[name];
+    if (value !== undefined) searchParams.set(name, String(value));
+  }
+
+  const res = await fetch(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/shelves?${searchParams.toString()}`,
+    { credentials: "include", signal: options?.signal },
+  );
+  if (!res.ok) {
+    const body: unknown = await res.json().catch(() => null);
+    const detail =
+      typeof body === "object" && body !== null && "detail" in body
+        ? (body as { detail: unknown }).detail
+        : undefined;
+    throw new ApiStatusError(
+      res.status,
+      `API error: ${res.status} ${res.statusText}`,
+      typeof detail === "string" ? detail : undefined,
+    );
+  }
+  const shelves = (await res.json()) as ShelvesResponse;
+  for (const shelf of shelves.shelves) seedFiles(shelf.items);
+  return shelves;
 }
 
 export async function getDriveTags(
@@ -130,7 +244,12 @@ export interface ScanResult {
 }
 
 export class ApiStatusError extends Error {
-  constructor(readonly status: number, message: string) {
+  constructor(
+    readonly status: number,
+    message: string,
+    /** The `detail` code of an error body, when the server sent a string. */
+    readonly detail?: string,
+  ) {
     super(message);
     this.name = "ApiStatusError";
   }
@@ -421,11 +540,32 @@ export async function deleteFolder(drive: string, path: string): Promise<void> {
   if (!res.ok) throw new Error(`API error: ${res.status}`);
 }
 
+async function fetchUploadJSON<T>(url: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(url, { credentials: "include", ...options });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { detail?: unknown } | null;
+    if (body?.detail === "destination_folder_not_found") {
+      throw new Error("destination_folder_not_found");
+    }
+    throw new Error(`API error: ${res.status} ${res.statusText}`);
+  }
+  return res.json();
+}
+
 export async function initUpload(
   drive: string,
-  params: { filename: string; file_size: number; folder_path: string; chunk_size: number; relative_path?: string }
+  params: {
+    filename: string;
+    file_size: number;
+    folder_path: string;
+    chunk_size: number;
+    relative_path?: string;
+    require_folder?: boolean;
+    /** The upload store marks every upload it starts as an arrival. */
+    inbox_source?: "upload";
+  }
 ): Promise<UploadInitResponse> {
-  return fetchJSON<UploadInitResponse>(
+  return fetchUploadJSON<UploadInitResponse>(
     `${API_BASE}/drives/${encodeURIComponent(drive)}/upload/init`,
     {
       method: "POST",
@@ -450,8 +590,19 @@ export async function uploadChunk(
   );
 }
 
-export async function completeUpload(drive: string, uploadId: string): Promise<FileItem> {
-  return fetchJSON<FileItem>(
+/** The answer for an uploaded subtitle: a sidecar file, so there is no record and no id. */
+export interface SidecarUploadResult {
+  status: "sidecar";
+  drive: string;
+  file_path: string;
+  id?: undefined;
+}
+
+export async function completeUpload(
+  drive: string,
+  uploadId: string
+): Promise<FileItem | SidecarUploadResult> {
+  return fetchUploadJSON<FileItem | SidecarUploadResult>(
     `${API_BASE}/drives/${encodeURIComponent(drive)}/upload/${uploadId}/complete`,
     { method: "POST" }
   );
@@ -463,6 +614,111 @@ export async function cancelUpload(drive: string, uploadId: string): Promise<voi
     { method: "DELETE", credentials: "include" }
   );
   if (!res.ok) throw new Error(`Cancel upload failed: ${res.status}`);
+}
+
+export interface InboxItem {
+  file: FileItem;
+  arrived_at: string;
+  source: string;
+  source_i18n_key: string;
+}
+
+export interface InboxListResponse {
+  items: InboxItem[];
+  next: string | null;
+  open_count: number;
+}
+
+export interface InboxNeighbors {
+  prev_id: string | null;
+  next_id: string | null;
+  position: number | null;
+  total: number | null;
+}
+
+export async function getInbox(
+  drive: string,
+  params: { before?: string | null; limit?: number } = {},
+): Promise<InboxListResponse> {
+  const search = new URLSearchParams();
+  if (params.before) search.set("before", params.before);
+  if (params.limit !== undefined) search.set("limit", String(params.limit));
+  const qs = search.toString();
+  const answer = await fetchJSON<InboxListResponse>(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/inbox${qs ? `?${qs}` : ""}`,
+    { cache: "no-store" },
+  );
+  seedFiles(answer.items.map((item) => item.file));
+  return answer;
+}
+
+export async function getInboxCount(drive: string): Promise<number> {
+  const answer = await fetchJSON<{ open: number }>(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/inbox/count`,
+    { cache: "no-store" },
+  );
+  return answer.open;
+}
+
+export async function markInboxDone(
+  drive: string,
+  body: { file_ids: string[] } | { all: true; up_to: string },
+): Promise<{ done: number; done_at: string }> {
+  return fetchJSON(`${API_BASE}/drives/${encodeURIComponent(drive)}/inbox/done`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export async function undoInboxDone(
+  drive: string,
+  doneAt: string,
+): Promise<{ reopened: number }> {
+  return fetchJSON(`${API_BASE}/drives/${encodeURIComponent(drive)}/inbox/undo`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ done_at: doneAt }),
+  });
+}
+
+export async function getInboxNeighbors(
+  drive: string,
+  fileId: string,
+): Promise<InboxNeighbors> {
+  return fetchJSON<InboxNeighbors>(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/inbox/${encodeURIComponent(fileId)}/neighbors`,
+    { cache: "no-store" },
+  );
+}
+
+export type ProcessingStageState = "pending" | "running" | "done" | "failed";
+
+export interface ProcessingStage {
+  addon: string | null;
+  key: string;
+  i18n_key: string;
+  state: ProcessingStageState;
+  required: boolean;
+}
+
+export interface FileProcessing {
+  stages: ProcessingStage[];
+  ready: boolean;
+}
+
+export interface FilesProcessingResponse {
+  files: Record<string, FileProcessing>;
+}
+
+export async function getFilesProcessing(
+  fileIds: string[]
+): Promise<FilesProcessingResponse> {
+  return fetchJSON<FilesProcessingResponse>(`${API_BASE}/files/processing`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ file_ids: fileIds }),
+  });
 }
 
 export async function batchGetFiles(ids: string[]): Promise<FileItem[]> {
@@ -739,6 +995,54 @@ export async function getWatchProgress(fileId: string): Promise<WatchProgress> {
   return fetchJSON<WatchProgress>(`${API_BASE}/files/${fileId}/progress`);
 }
 
+export async function listHighlights(fileId: string): Promise<Highlight[]> {
+  const res = await fetch(`${API_BASE}/files/${fileId}/highlights`, {
+    credentials: "include",
+  });
+  if (!res.ok) {
+    throw new ApiStatusError(
+      res.status,
+      `API error: ${res.status} ${res.statusText}`,
+    );
+  }
+  return res.json() as Promise<Highlight[]>;
+}
+
+export async function createHighlight(
+  fileId: string,
+  input: HighlightInput,
+): Promise<Highlight> {
+  const res = await fetch(`${API_BASE}/files/${fileId}/highlights`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) {
+    throw new ApiStatusError(
+      res.status,
+      `API error: ${res.status} ${res.statusText}`,
+    );
+  }
+  return res.json() as Promise<Highlight>;
+}
+
+export async function deleteHighlight(
+  fileId: string,
+  highlightId: string,
+): Promise<void> {
+  const res = await fetch(
+    `${API_BASE}/files/${fileId}/highlights/${highlightId}`,
+    { method: "DELETE", credentials: "include" },
+  );
+  if (!res.ok) {
+    throw new ApiStatusError(
+      res.status,
+      `API error: ${res.status} ${res.statusText}`,
+    );
+  }
+}
+
 export async function deleteWatchProgress(fileId: string): Promise<void> {
   const res = await fetch(`${API_BASE}/files/${fileId}/progress`, {
     method: "DELETE",
@@ -747,10 +1051,18 @@ export async function deleteWatchProgress(fileId: string): Promise<void> {
   if (!res.ok) throw new Error(`Failed to delete watch progress (${res.status})`);
 }
 
+export async function dismissContinueItem(fileId: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/files/${fileId}/progress/dismiss`, {
+    method: "POST",
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error(`Failed to dismiss continue item (${res.status})`);
+}
+
 export async function getWatchHistory(
   driveName: string,
   limit?: number,
-  filter?: "unfinished" | "all",
+  filter?: "unfinished" | "all" | "continue" | "not_continue",
   type?: FileKind | null,
 ): Promise<WatchHistoryItem[]> {
   const params = new URLSearchParams();

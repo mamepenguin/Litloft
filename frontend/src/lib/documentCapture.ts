@@ -94,6 +94,25 @@ function selectionAnchor(range: Range): DocumentCaptureAnchor | undefined {
   };
 }
 
+/**
+ * Clears the document selection only when it is the viewer's own. A focused
+ * text input mirrors its selection into `window.getSelection()`, and
+ * clearing every range collapses that input's selection as well.
+ */
+export function clearSelectionWithin(
+  root: HTMLElement,
+  selection: Selection | null,
+): void {
+  if (!selection || selection.rangeCount === 0) return;
+  const range = selection.getRangeAt(0);
+  if (
+    isInside(root, range.startContainer) ||
+    isInside(root, range.endContainer)
+  ) {
+    selection.removeAllRanges();
+  }
+}
+
 export function readDocumentSelection(
   root: HTMLElement,
   selection: Selection | null,

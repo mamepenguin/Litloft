@@ -1,0 +1,92 @@
+{
+  "risk": "HIGH",
+  "score": 7,
+  "base": 3,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "addons/intelligence",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "docs/ADDON-DEVELOPMENT.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/addons/intelligence.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/scene-segment-search.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/search.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/e2e-layout/build-fixture-css.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-layout/fixtures/scene-candidates.html",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-layout/scene-candidates.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-layout/spec-viewport.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/coarseNeedleSources.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/section-rows.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/drive/[name]/search/page.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FolderBrowser.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/GlobalSearch.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/FolderBrowser.sceneUrl.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/GlobalSearch.sceneFlag.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/SearchPage.sceneSlot.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/sceneCandidatesFixtureParity.test.tsx",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}

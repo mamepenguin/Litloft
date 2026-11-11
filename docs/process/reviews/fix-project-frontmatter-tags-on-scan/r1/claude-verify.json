@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "V1-copy-attaches-row-pending-delete",
+      "origin": "verifier",
+      "claim": "A copy onto a path held by a trashed ghost can attach the new note to a Tag row already marked for deletion, so the copy can lose that frontmatter tag.",
+      "impact": "When the ghost was the destination drive's last carrier of a tag and the copied note names that tag, the expected result is a copy with no chip for it, a removed Tag row and a 200 response. The tag stays in the file on disk, and a later chip edit would drop it from the file.",
+      "evidence": "backend/app/services/fileops.py:196-198 deletes the ghost, flushes, then calls cleanup_orphan_tags, which only marks orphans with db.delete at backend/app/services/tagops.py:116-117 and does not flush them. backend/app/database.py:38 sets autoflush=False, so load_tag_index at backend/app/services/tagops.py:65, reached from backend/app/services/fileops.py:336, still sees the row. backend/app/services/tagops.py:134-136 flushes first in retarget_file_tags for this hazard ('or a row about to be deleted gets attached'), and replace_file_tags has no such flush. Upload avoids it through db.flush at backend/app/services/upload.py:318. file_tags.tag_id is ON DELETE CASCADE at backend/app/models.py:28. Trash keeps the file on disk (backend/app/services/fileops.py:711), and _resolve_copy_filename at backend/app/services/fileops.py:222-225 avoids a path that exists on disk, so the ghost must have lost its disk file out of band. backend/tests/test_frontmatter_tags_on_create.py has no ghost case.",
+      "repro": "not_reproduced: this verifier cannot run code, and the final state after flush is inferred from reading the code and SQLAlchemy's unit-of-work ordering. Steps to run: on drive B, trash n.md carrying the only reference to tag alpha and remove its disk file; copy n.md with tags: [alpha] from drive A to the same path on B; inspect the copy's File.tags and B's Tag rows.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is normal use but needs a narrow state: a trashed row with its disk file removed out of band, and that row as the tag's last carrier. No declared invariant covers it.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Call db.flush() before load_tag_index on this path, or flush at the end of the trashed branch in resolve_db_path_conflict, and add a copy-over-ghost test."
+    }
+  ],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1-unattended-tag-respelling",
+      "status": "confirmed",
+      "note": "Confirmed by reading: tagops.py:72-76 renames the shared row and is reached from all four cited callers. decisions.md step 5 records the observed effect through rescan. test_scanner_md_id.py:178-183 pins the rename, and line 205 asserts only the row count."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2-writeback-failure-skips-tags",
+      "status": "confirmed",
+      "note": "Confirmed by reading: scanner.py:317-318 returns before line 330 while content is in memory from line 286. md_id is also left unset. The function runs only for new rows (scanner.py:402, 758), so a later scan does not retry the projection. The test file has no OSError, chmod or read-only case. Not executed."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3-upload-reuse-keeps-stale-tags",
+      "status": "confirmed",
+      "note": "Confirmed by reading: upload.py:321 and 325-326 skip both projection and cleanup with no log. The reused row is a missing or vanished-file row, because a live file gets 409 at init (upload.py:251-254) and a trashed row is purged (upload.py:260-267). The stale tags remain on the row. Not executed."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F4-tests-miss-drive-scoping-and-upload-guards",
+      "status": "confirmed",
+      "note": "Confirmed with one nuance. test_frontmatter_tags_on_create.py:138-139 does catch new rows being created on the source drive. It cannot catch a lookup that reads the wrong drive, because neither drive holds a row beforehand, and reuse on the destination is untested. The file has no oversized or non-UTF-8 upload."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F5-no-touch-point-list",
+      "status": "confirmed",
+      "note": "Confirmed: the review directory holds no invariants file, and docs/specs/INDEX.md has no frontmatter match. Cited sites exist. Nuance: markdown_image_import.py:414 calls register_single_file only for an image asset being imported, so the Markdown projection is not expected to run on that path."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F1-scan-writeback-failure-skips-tags",
+      "status": "confirmed",
+      "note": "Confirmed by reading: same path as claude-read F2, scanner.py:313-318 returning before line 330. test_scanner_md_id.py has no failed-write case. Not executed."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F2-registration-rewrites-shared-tag-spelling",
+      "status": "confirmed",
+      "note": "Confirmed: tagops.py:72-76, the contrast at tagops.py:124, test_case_variant_reuses_row at test_scanner_md_id.py:178-183, and decisions.md step 5 all match. test_cross_drive_uses_destination_rows seeds no destination row."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F3-swallowed-db-error-poisons-session",
+      "status": "confirmed",
+      "note": "Confirmed by reading; no failing flush was triggered. tagops.py:91-92 only logs, with no rollback or savepoint. Later use raises PendingRollbackError, which upload.py:325 and drives.py:1102 do not catch, so the request fails rather than staying isolated. The copy path turns it into a 500 and reverses the file (fileops.py:344-349). The flush is reached only on the case-variant branch, or from a later flush, and needs a database error such as a lock timeout. The failure is loud, not silent. The test injects RuntimeError at entry (test_scanner_md_id.py:190-193)."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F4-copy-size-limit-differs",
+      "status": "confirmed",
+      "note": "Confirmed by reading: fileops.py:38 uses 1_000_000, while scanner.py:57, upload.py:321 and drives.py:885 allow 1 MiB. A copy between 1,000,001 and 1,048,576 bytes skips projection at fileops.py:334-336, and scans do not re-project an existing row. No test covers the boundary. Not executed."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F5-upload-skip-branch-keeps-stale-tags",
+      "status": "confirmed",
+      "note": "Confirmed by reading: upload.py:321 and 325-326 skip silently, and files.py:1620-1625 logs the equivalent non-UTF-8 case. test_frontmatter_tags_on_create.py covers neither branch. This verifier did not repeat the search of the other upload and copy test files."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F6-sidebar-not-refreshed-for-new-tags",
+      "status": "confirmed",
+      "note": "Confirmed: useSidebarData.ts:58-83 depends on drive, folder and refreshKey, and useSidebarData.ts:85-89 refreshes only the summary on scan:complete. requestRefresh callers are limited to useFileDetailData.ts and usePinnedFolders.ts. decisions.md second run, steps 1, 3 and 4, records the stale sidebar. A folder navigation also refetches, so the staleness can end before a full page load."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F7-no-touch-point-list",
+      "status": "confirmed",
+      "note": "Confirmed: the directory holds decisions.md and an untracked r1/ only, with no invariants.md. No docs/specs file is named for frontmatter, and INDEX.md has no match. Indirect reach holds, with the same nuance that markdown_image_import.py:414 registers an image asset rather than a note."
+    }
+  ],
+  "specification_compliance": [
+    "No spec or invariants file declares this change: docs/specs/INDEX.md has no frontmatter entry and the review directory has no invariants.md.",
+    "The docstring at backend/app/services/tagops.py:84-85 says registering a note never depends on its tags. A failed flush inside the swallowed block does not meet that promise."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Registering a note can rename the drive's shared Tag row, changing the displayed spelling on other notes (backend/app/services/tagops.py:72-76).",
+    "A copy onto a path held by a trashed ghost can lose a frontmatter tag whose row is pending deletion (V1)."
+  ],
+  "regression_risks": [
+    "Scan, upload, copy and create now share the case-variant rename and flush in replace_file_tags.",
+    "Each new Markdown file with frontmatter loads the drive's Tag index once during a scan (backend/app/services/scanner.py:758, backend/app/services/tagops.py:65).",
+    "Upload and create now sweep the drive's orphan Tag rows in the same transaction as registration (backend/app/services/upload.py:324, backend/app/routers/drives.py:893)."
+  ],
+  "test_coverage": [
+    "No test covers a failed id write-back with tags, an oversized or non-UTF-8 upload, the copy size gap, or a failed flush inside the projection.",
+    "Case-variant reuse is tested for scan and single registration only, and the shared-row test asserts the count but not the spelling.",
+    "The cross-drive copy test catches rows created on the source drive, but seeds no destination row and no copy-over-ghost case."
+  ],
+  "not_verified": [
+    "No code or test was executed, because this verifier has only Read, Glob and Grep; all confirmations come from reading the code and decisions.md.",
+    "SQLAlchemy behaviour was not observed at runtime, including PendingRollbackError after a failed flush and the flush outcome assumed in V1.",
+    "The trigger inside useFileDetailData.ts for its requestRefresh calls was not read.",
+    "The commit diff was not read, so which lines the change introduced was not checked independently; files were read from the working tree, assumed to match the reviewed commit."
+  ],
+  "confidence": 85
+}

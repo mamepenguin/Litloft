@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The change edits normalizeKey, the single normalizer that ShortcutsProvider uses to dispatch every registered shortcut. No invariants file declares a touch-point list, so this shared dispatch path, and through it every Ctrl/Alt+Shift binding in core and in addons, falls outside any declared touch point.",
+      "impact": "Every chord pressed with Shift plus Ctrl/Cmd or Alt is now normalized differently. That covers ctrl+shift+f (GlobalSearch), ctrl+shift+k and ctrl+shift+\\ (addons/knowledge Editor), and any future Alt+Shift binding. On a non-US layout, a chord whose shifted character appears in the US-keyed table is rewritten to the US unshifted face. For example, JIS Ctrl+Shift+2 produces '\"', which is rewritten to ctrl+shift+'. So a binding written for a non-US key face would silently fail to match. No current binding is affected.",
+      "evidence": "frontend/src/lib/shortcuts.ts:85-89 holds a table keyed by US-layout shifted characters. shortcuts.ts:107-113 applies it whenever shiftKey is held together with the primary modifier or Alt. frontend/src/components/ShortcutsProvider.tsx:81 is the only caller, and it handles every context. A grep for ctrl/alt bindings finds three Shift chords: ctrl+shift+f (GlobalSearch.tsx:166,188), ctrl+shift+k (addons/knowledge/frontend/Editor.tsx:1151) and ctrl+shift+\\ (Editor.tsx:1170).",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is declared, so no touch-point list exists to break. The reach is app-wide through the shared dispatcher, and the only problem case needs a binding that does not exist yet.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The new core unit test in frontend/src/lib/__tests__/shortcuts.test.ts walks the filesystem of addons/*/frontend and frontend/src, which reaches the addon source trees from a core lib test. No touch-point list names these trees.",
+      "impact": "The result of a core test now depends on addon source files and on how their bindings are written. Only double-quoted `key: \"...\"` literals are scanned. A binding written with single quotes, a template literal or a constant is skipped without notice. A binding under a __tests__ directory is skipped as well. So the guard can pass while a real binding goes unchecked.",
+      "evidence": "shortcuts.test.ts (new) shiftPunctuationBindings() resolves `../addons` from the frontend root, skips node_modules and __tests__, and matches /\\bkey:\\s*(\"(?:[^\"\\\\\\n]|\\\\.)*\")/g. The only guard against a vacuous pass is expect(chords.length).toBeGreaterThan(0).",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is declared. The coupling and the narrow scan are a test-design concern, and no current binding escapes it: every current binding uses double quotes.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "No invariants file exists for this change, so there is no touch-point list to check against. Both places the diff reaches fall outside it: frontend/src/lib/shortcuts.ts (normalizeKey, which reaches every registered shortcut through ShortcutsProvider.tsx:81) and frontend/src/lib/__tests__/shortcuts.test.ts (which reads the addons/*/frontend source trees)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "On non-US layouts, a Ctrl/Alt+Shift chord that produces a character in the US table is rewritten to the US unshifted face. For example, JIS Shift+2 gives '\"', which becomes \"'\", and JIS Shift+; gives '+', which becomes '='. Shifted characters that are not in the table (for example JIS Shift+7, which gives \"'\") pass through unchanged.",
+    "On macOS, Option+Shift chords produce dead-key or special characters that are not in the table, so they are not mapped."
+  ],
+  "regression_risks": [
+    "Any existing or addon binding written with a shifted character after a modifier (for example \"ctrl+shift+?\" or \"ctrl+shift+|\") would stop matching. A grep found none, but the check covered double-quoted `key:` literals only.",
+    "The existing ShortcutsProvider test (frontend/src/components/__tests__/ShortcutsProvider.test.tsx:214,218) fires key \"\\\\\" with ctrl+shift held, which is not the event a real keyboard sends. It passes either way, so it does not exercise the new mapping. This was already the case before the change."
+  ],
+  "test_coverage": [
+    "shortcuts.test.ts now covers the realistic event for primary+Shift+\\ (key '|') on MacIntel and Win32, plain Shift+'|' staying '|', and Ctrl+Shift+F.",
+    "The new scan-based test simulates the US-layout event for every double-quoted Shift-punctuation binding found in frontend/src and addons/*/frontend.",
+    "No test covers Alt+Shift+punctuation, a non-US layout, or the integration path through ShortcutsProvider with a realistic '|' key."
+  ],
+  "not_verified": [
+    "I did not run the test suite, so I have not confirmed that the new tests pass or that __dirname resolves under the vitest config.",
+    "I did not inspect the content of commit 6dfe55339 on its own. I reviewed the diff as provided.",
+    "I did not check real browser e.key values for Cmd+Shift+\\ on macOS or for JIS layouts.",
+    "I did not check bindings that are defined outside a double-quoted `key:` literal (constants, template strings, addon manifests)."
+  ],
+  "confidence": 78
+}

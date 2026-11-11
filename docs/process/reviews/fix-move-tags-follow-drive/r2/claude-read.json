@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "non-ascii-capital-tag-edit-fails-after-move",
+      "origin": "reviewer",
+      "claim": "The ASCII-only name lookup that this commit removed from the move still exists in replace_file_tags and merge_file_tags, so a tag with a non-ASCII capital that a move has correctly placed on the destination makes the next tag edit of that tag on that drive fail with an unhandled IntegrityError.",
+      "impact": "After moving a file tagged `Übung`, adding or removing any other tag on it in file detail sends the whole list, including `Übung`, and answers 500 with nothing changed. Bulk-tagging another file on that drive with `Übung` also fails: batch_tags catches only HTTPException and OSError, so the whole request aborts. The same failure happens without any move, so the move is not the cause, but the fix stops at the move and the fixed case still leads straight to it. known-issues.md records only the list filter symptom of this mismatch.",
+      "evidence": "backend/app/routers/files.py:162 and :198 compare SQL func.lower(Tag.name) with Python tag_name.lower(). For the row `Übung`, SQLite gives `Übung` and Python gives `übung`, so the lookup misses. files.py:168 and :204 then build Tag(name='Übung', drive=file.drive) for a (drive, name) that already exists, which uq_tags_drive_name (backend/app/models.py:47) rejects at flush. No create_function exists in backend/app. update_file_tags (files.py:817-819) has no handler for it, and batch_tags (files.py:446-451) catches neither. The comment at backend/app/services/tagops.py:50 states the same folding limit. backend/tests/test_move_tags_follow_drive.py:188-206 asserts only the tag list after the move and never edits the tag afterwards.",
+      "repro": "not_reproduced (read-only review). Steps: tag a non-Markdown file `Übung` on drive A, then move it to drive B. Then PUT /api/files/{id}/tags with {\"tags\":[\"Übung\",\"neu\"]}. Expected from the code: 500 from the unique constraint, and the file keeps only `Übung`.",
+      "introduced": "pre-existing",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariants are declared. The input is a normal tag name, so it is within the threat model, and the failure is loud rather than silent.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Share one Python-side name match, per drive, among retarget_file_tags, replace_file_tags and merge_file_tags, and add a test that edits a non-ASCII capital tag on a drive where its row already exists."
+    },
+    {
+      "id": "exact-name-row-passed-over-for-older-variant",
+      "origin": "reviewer",
+      "claim": "retarget_file_tags keys the destination only by the lowered name and keeps the oldest row, so a file whose exact tag name exists on the destination is attached to a differently spelled older row instead.",
+      "impact": "A file tagged `übung` moved to a drive holding an older `Übung` and a newer `übung` silently becomes `Übung`, although its own spelling has a row there. The counts shift between the two rows and the file's displayed tag changes. Both rows can exist on one drive through normal tagging when `Übung` was created first, because replace_file_tags then misses it for `übung`.",
+      "evidence": "backend/app/services/tagops.py:52-53 uses setdefault in Tag.id order, and tagops.py:59 looks up only by the lowered key, with no exact-name preference. The pinned test test_a_destination_holding_two_variants_resolves_to_the_older_row (backend/tests/test_move_tags_follow_drive.py:208-217) moves `alpha` where only `Alpha` and `ALPHA` exist, so it never has an exact row to choose. Coexistence comes from backend/app/routers/files.py:162, :167-168.",
+      "repro": "not_reproduced (read-only review). Steps: on drive B, PUT tags `Übung` on one file, then `übung` on another, which gives two rows. On drive A, tag a file `übung` and move it to B. Expected from the code: B lists `Übung` 2 and `übung` 1, and the moved file shows `Übung`.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariants are declared. It is a silently wrong spelling in a narrow state where the drive already holds two variants, and no tag is lost.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Look up the exact name on the destination first and fall back to the lowered key only when no exact row exists."
+    },
+    {
+      "id": "variant-row-on-destination-stranded-by-return-move",
+      "origin": "reviewer",
+      "claim": "retarget_file_tags excludes the destination from its sweep, so a stale-linked file moved back to the drive of its old row can leave that row attached to nothing when the name resolves to an older case variant.",
+      "impact": "A file moved by the old code and now moved back can leave the destination's tag list showing a row with count 0. The next tag edit that sweeps that drive removes it, so the effect is cosmetic and temporary. It is an exception to the known-issues statement that the next move sweeps the old rows.",
+      "evidence": "backend/app/services/tagops.py:61 sweeps left_drives - {dst_drive}. tagops.py:53 and :59 can resolve the file's row to a different, older row on dst_drive, so the row it left is on dst_drive and is not swept. backend/app/routers/drives.py:817-820 lists rows with no files. test_stale_links_to_a_third_drive_are_swept (backend/tests/test_move_tags_follow_drive.py:254-280) covers a stale link only to a drive other than the destination.",
+      "repro": "not_reproduced (read-only review). Steps: seed drive B with `Übung` on another file and a newer `übung`. Link a file on drive A only to B's `übung`, as the old code left it. Move that file to B. Expected from the code: B lists `Übung` 2 and `übung` 0.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariants are declared. It needs legacy links plus two case variants on one drive, and the row is removed by the next sweep of that drive.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Sweep the destination drive too, after the file's tags are reassigned, and add this state as a test."
+    }
+  ],
+  "specification_compliance": [
+    "No invariants file exists for this change, so bucket A is not used.",
+    "r1 non-ASCII finding: fixed within the move by reading. Destination rows are matched in Python on both sides (backend/app/services/tagops.py:52-59), so an identical name always reuses its row and cannot violate uq_tags_drive_name, and `übung` reuses `Übung`. Other paths keep the old mismatch; see non-ascii-capital-tag-edit-fails-after-move.",
+    "r1 pending-delete finding: fixed by reading. tagops.py:49 flushes the ghost purge's deletes before the destination query, so the orphaned row is no longer returned and a new row is created. A later failure still rolls back the ghost and tag deletes, because they are flushed, not committed (backend/app/services/fileops.py:508-509).",
+    "r1 stale-links finding: partly fixed. tagops.py:54 and :61 now sweep the drives the file's old rows belonged to, except the destination. Stored links are not repaired, which known-issues.md now records rather than leaving unrecorded, and the repair decision stays open for a person.",
+    "The fix commit adds no new failure path on tag names inside the move: a new Tag is built only when no destination row shares its lowered key, and retargeted keys are unique, so uq_tags_drive_name cannot be hit from the retarget in single-user use.",
+    "Project rule checked: .claude/rules/design-decisions.md treats a drive as a security boundary. The destination lookup and new rows remain scoped to dst_drive. The sweep may now touch a third drive, but it deletes only rows with no file links, and that needs a legacy link."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "A move now treats `Übung` and `übung` as one tag, while replace_file_tags and merge_file_tags on a drive treat them as different when the existing row holds the capital. The same two names merge or stay apart depending on the path that handled them.",
+    "Python str.lower() also folds compatibility characters such as U+212A KELVIN SIGN to `k`, so such a tag name would merge into an ASCII row on the destination.",
+    "When a file holds two case variants and the destination has neither, the surviving spelling depends on the order of File.tags, which the relationship does not define (backend/app/models.py:115-117).",
+    "`{src_drive} |` at backend/app/services/tagops.py:54 makes a move of a file that has only stale links also sweep unrelated orphan rows on the source drive, where the file left nothing."
+  ],
+  "regression_risks": [
+    "retarget_file_tags now loads and hydrates every Tag row of the destination drive once per moved file, and batch_move calls it synchronously inside an async endpoint (backend/app/routers/files.py:402). The cost grows with tag count times batch size, though a cross-drive file copy in the same loop is likely to dominate it.",
+    "The extra db.flush() at tagops.py:49 takes the SQLite write lock slightly earlier in the move. cleanup_orphan_tags already flushed in the same try block, so a failure still takes the same rollback and reversal path.",
+    "A database failure after the thumbnail rename still leaves the thumbnail unreversed (fileops.py:491, :508-513). The r1 trigger on tag names is gone, so this path is now less reachable, but it is not fixed and no test seeds a thumbnail."
+  ],
+  "test_coverage": [
+    "New tests in backend/tests/test_move_tags_follow_drive.py cover a same non-ASCII name, a non-ASCII case variant, a destination holding two ASCII variants, a ghost as the only user of a tag, and stale links to a third drive.",
+    "Mutations I expect to be killed, by reading and not run: removing db.flush() at tagops.py:49 (ghost test); replacing setdefault with assignment (two-variants test); keeping only {src_drive} in left_drives (third-drive test).",
+    "Mutation likely killed, not certain: dropping order_by(Tag.id), because the row order then depends on the index SQLite chooses, and the two-variants test would fail only if that scan returned `ALPHA` first.",
+    "Mutations I expect to survive: removing `{src_drive} |` at tagops.py:54, since no test has an unrelated orphan on the source with stale links; sweeping left_drives without `- {dst_drive}`, since no test has an orphan on the destination.",
+    "Not covered: a tag edit after a non-ASCII move, a destination holding the exact name plus an older variant, a stale link to the destination drive, one file holding two case variants, a Markdown file, and a thumbnail on a failed move."
+  ],
+  "not_verified": [
+    "No test or code was run (read-only tools). All findings and mutation outcomes come from reading, including whether the new tests pass.",
+    "The IntegrityError path in replace_file_tags and merge_file_tags was traced by reading, not observed. The SQLite build was not inspected for ICU; the claim rests on no create_function in backend/app and the repository's own ASCII-only statements.",
+    "Whether _write_md_tags handles the same IntegrityError for Markdown files was not traced; the finding's repro uses a non-Markdown file.",
+    "Frontend tag-edit requests were taken from decisions.md and the replace semantics of the endpoint, not read in frontend code.",
+    "The knowledge addon's handling of files.moved and addon use of tag rows beyond the grep matches were not read in full.",
+    "The batch performance cost was estimated, not measured."
+  ],
+  "confidence": 78,
+  "trajectory": "There is one code-changing fix round since r1 (714a2ae57 records docs only). It does not repeat a kind of patch from an earlier fix round, because no earlier fix round exists; compared with the original retarget it both removes and adds. It removes the per-tag SQL lookup, the `if key in retargeted: continue` branch, and the prediction that all of a file's tags belong to src_drive. It adds a dst_by_key state, a left_drives state, and an ordering prediction that pending deletes must be flushed first. Replacing the Python-against-SQL comparison with one comparison removes a mismatch rather than patching it. left_drives is different: it is a new state that serves links a migration would otherwise remove, and it still predicts where old rows can be, which misses the destination (variant-row-on-destination-stranded-by-return-move). If a later round adds another case for stale or variant rows, the design is being patched. The same comparison also still lives in replace_file_tags and merge_file_tags, so the fix is local to the move."
+}

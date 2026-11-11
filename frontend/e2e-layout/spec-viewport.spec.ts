@@ -21,19 +21,32 @@ const FIXTURE_DIR = resolve(__dirname, "fixtures");
  */
 const FIXTURES = [
   "addon-policy.html",
+  "ask-scope-chips.html",
   "button-touch-floor.html",
+  "collection-actions.html",
   "file-actions-menu.html",
+  "image-query.html",
+  "inbox-rows.html",
   "justified-grid.html",
   "list-row-furniture.html",
   "mobile-inspector-sheet.html",
+  "no-horizontal-scroll.html",
+  "ocr-line-boxes.html",
+  "passage-rows.html",
   "popup-dismiss.html",
   "pseudo-fullscreen.html",
+  "reading-video-faces.html",
   "related-files.html",
+  "scene-candidates.html",
+  "search-header.html",
+  "search-scope-chip.html",
   "sidebar-shell.html",
   "toolbar-menu.html",
+  "upload-drawer.html",
+  "video-app.html",
 ] as const;
 
-const FIXTURE_COUNT = 11;
+const FIXTURE_COUNT = 24;
 
 /**
  * On the far side of `sm` from Chromium's mobile default, so a page that

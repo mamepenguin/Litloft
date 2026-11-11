@@ -7,6 +7,7 @@
 import { getEnabledAddons } from "./addons";
 import type { FileKind } from "@/types";
 import type { SemanticHit } from "./searchMerge";
+import { filterQueryParam, type SearchFilter } from "./searchQuery";
 
 const API_BASE = "/api";
 
@@ -20,6 +21,11 @@ export async function isSemanticSearchAvailable(drive: string): Promise<boolean>
   return Boolean(addons["intelligence"]);
 }
 
+export interface SemanticHitsResult {
+  ok: boolean;
+  results: SemanticHit[];
+}
+
 export async function fetchSemanticHits(
   query: string,
   drive: string,
@@ -27,14 +33,21 @@ export async function fetchSemanticHits(
     limit?: number;
     type?: FileKind | null;
     includeSceneClip?: boolean;
+    filter?: SearchFilter | null;
+    passages?: boolean;
     signal?: AbortSignal;
   },
-): Promise<SemanticHit[]> {
-  if (!query.trim() || !drive) return [];
+): Promise<SemanticHitsResult> {
+  if (!query.trim() || !drive) return { ok: false, results: [] };
   const params = new URLSearchParams({ q: query.trim() });
   if (options?.limit) params.set("limit", String(options.limit));
-  if (options?.type) params.set("type", options.type);
-  if (options?.includeSceneClip) params.set("include_scene_clip", "true");
+  if (options?.passages) params.set("passages", "true");
+  if (options?.filter) {
+    params.set("filter", filterQueryParam(options.filter));
+  } else {
+    if (options?.type) params.set("type", options.type);
+    if (options?.includeSceneClip) params.set("include_scene_clip", "true");
+  }
   try {
     const res = await fetch(
       `${API_BASE}/addons/intelligence/search?${params.toString()}`,
@@ -44,14 +57,53 @@ export async function fetchSemanticHits(
         signal: options?.signal,
       },
     );
-    if (!res.ok) return [];
+    if (!res.ok) return { ok: false, results: [] };
     const data = (await res.json()) as {
       available?: boolean;
       results?: SemanticHit[];
     };
-    if (!data?.available) return [];
-    return Array.isArray(data.results) ? data.results : [];
+    if (!data?.available) return { ok: false, results: [] };
+    return { ok: true, results: Array.isArray(data.results) ? data.results : [] };
   } catch {
-    return [];
+    return { ok: false, results: [] };
+  }
+}
+
+export interface SemanticImagesResult {
+  ok: boolean;
+  results: SemanticHit[];
+}
+
+export async function fetchSemanticImages(
+  query: string,
+  drive: string,
+  options?: {
+    type?: FileKind | null;
+    filter?: SearchFilter | null;
+    signal?: AbortSignal;
+  },
+): Promise<SemanticImagesResult> {
+  if (!query.trim() || !drive) return { ok: false, results: [] };
+  const params = new URLSearchParams({ q: query.trim() });
+  if (options?.filter) params.set("filter", filterQueryParam(options.filter));
+  else if (options?.type) params.set("type", options.type);
+  try {
+    const res = await fetch(
+      `${API_BASE}/addons/intelligence/search/images?${params.toString()}`,
+      {
+        credentials: "include",
+        headers: driveHeaders(drive),
+        signal: options?.signal,
+      },
+    );
+    if (!res.ok) return { ok: false, results: [] };
+    const data = (await res.json()) as {
+      available?: boolean;
+      results?: SemanticHit[];
+    };
+    if (!data?.available) return { ok: false, results: [] };
+    return { ok: true, results: Array.isArray(data.results) ? data.results : [] };
+  } catch {
+    return { ok: false, results: [] };
   }
 }

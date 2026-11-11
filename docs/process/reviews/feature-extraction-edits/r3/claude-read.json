@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "After the r2 reorder, _process_utterance emits intelligence.transcript.updated (reason corrected) before the realignment runs, so the event fires before the item finishes. It fires once more on every retry of a load_failed or unreachable realignment.",
+      "impact": "An open transcript panel refetches the transcript and subtitles at the event, while words are still pending, and shows the one-cue fallback. No event follows when alignment later writes the words, so the panel and subtitles stay on the fallback until something else triggers a refetch. When the model is unavailable, the same file's corrected event is emitted up to three times (once per attempt) rather than once.",
+      "evidence": "addons/intelligence/app/workers/followup.py _process_utterance: _recompute_keywords and post_addon_event_sync(\"...transcript.updated\", reason \"corrected\") now come before _realign_utterance. _realign_utterance raises RuntimeError on a retry, process_item records the failure, and the whole _process_utterance runs again at the next due time, emitting again. The new test test_a_retry_still_rebuilds_the_keywords_and_announces asserts the event is emitted on the attempt that leaves the item queued.",
+      "repro": "Stub align_span to return load_failed, call process_item twice with last_attempt_at reset: two corrected events are recorded and the item is still pending. With align_span returning aligned, one event is recorded before the words are inserted, and none after.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I15 says each ending names its event exactly once, corrected after an utterance's follow-up item. The event now precedes the item's end and repeats on retries.",
+        "invariant_ref": "I15"
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Emit the corrected event once, after the realignment has ended (aligned, no words, or third failed attempt). Recompute the keyword vector before the realignment if it should not wait, but do not emit the event on a path that raises for a retry."
+    }
+  ],
+  "specification_compliance": [
+    "Reviewed only the r2 fix commit: the followup.py reorder, forceCorrected resets in IndexDetailsDialog, the draft reset in TranscriptSection and the new tests.",
+    "I7: the cancel and request-regenerate resets of forceCorrected remove the stale-flag path from r2 F1.",
+    "I15: the reorder breaks the exactly-once event after the item's end (F1).",
+    "I2 and A8: the keyword vector is no longer held back by a retried alignment; that part of the fix agrees with the spec."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Every retry of an utterance item repeats the embedding, keyword recompute and event, not only the realignment; A8 says a retry redoes only the parts not yet done.",
+    "Clearing editDraftsRef on every transcript refetch also drops drafts for other lines when an unrelated event, such as a corrected event for another save, triggers a refetch while the viewer is editing."
+  ],
+  "test_coverage": [
+    "New backend test covers the keyword vector and the event on a retry, and so locks in the repeated emission.",
+    "New frontend tests cover forceCorrected reset after cancel and draft drop after a refetch.",
+    "No test checks that an event follows the final word write, or that the event is emitted exactly once per item."
+  ],
+  "not_verified": [
+    "I could not run any test or code.",
+    "I did not read the full followup.py after the commit beyond the diff, or whisper.py, ocr.py and workers/refine.py.",
+    "I did not verify whether another path (for example a Refine or a restore) triggers a refetch after the words are written.",
+    "I did not check whether the editDraftsRef reset interacts with the open field's own draft."
+  ],
+  "confidence": 72,
+  "trajectory": "The r2 fix round is small and removes stale state more than it adds: forceCorrected is now reset on cancel and on a new request, and the edit drafts are dropped on refetch. No new state or branch was added for those two. The followup.py change is a reorder, not a new branch, but it moved the event ahead of the realignment it announces and so introduced the exactly-once breach in F1. Across r1 to r3 the pattern is not stacked patches on patches; each round is a local change. The frontend reset paths are where the earlier round needed patching, and this round patched them directly."
+}

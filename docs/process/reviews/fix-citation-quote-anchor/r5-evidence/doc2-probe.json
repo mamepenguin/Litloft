@@ -1,0 +1,88 @@
+{
+ "snippets": [
+  {
+   "file_id": "ijDmXF8n2hsY",
+   "source": "text_content_vector",
+   "location": "chunk 217",
+   "anchor": 0,
+   "len": 400,
+   "before_anchor_head": "を［＃「特別に箱を」に傍点］つくりて、その内に入れて索引まで［＃「索引まで」に傍点］も附けて置いた。\n\n［＃５字下げ］五",
+   "at_anchor_head": "を［＃「特別に箱を」に傍点］つくりて、その内に入れて索引まで［＃「索引まで」に傍点］も附けて置いた。\n\n［＃５字下げ］五"
+  },
+  {
+   "file_id": "ijDmXF8n2hsY",
+   "source": "text_content_vector",
+   "location": "chunk 99",
+   "anchor": 0,
+   "len": 301,
+   "before_anchor_head": "日の仕事はこれで切り上げ、どこかに行こう。どこがよい。」「アストレーに行って、曲馬でも見よう」と、大機嫌でバーナードを連",
+   "at_anchor_head": "日の仕事はこれで切り上げ、どこかに行こう。どこがよい。」「アストレーに行って、曲馬でも見よう」と、大機嫌でバーナードを連"
+  },
+  {
+   "file_id": "ijDmXF8n2hsY",
+   "source": "text_content_vector",
+   "location": "chunk 101",
+   "anchor": 0,
+   "len": 353,
+   "before_anchor_head": "期のキリスト教徒の信じただけを信ずべきであると説いた。グラスと婿のサンデマンとがこの教旨を諸方に広めたので、この宗をグラ",
+   "at_anchor_head": "期のキリスト教徒の信じただけを信ずべきであると説いた。グラスと婿のサンデマンとがこの教旨を諸方に広めたので、この宗をグラ"
+  },
+  {
+   "file_id": "ijDmXF8n2hsY",
+   "source": "text_content_vector",
+   "location": "chunk 100",
+   "anchor": 0,
+   "len": 356,
+   "before_anchor_head": "たり、夕方から横笛を吹いたり、歌を唄う仲間と一週に一回集ったりした。彼はバスを歌った。\n\n［＃５字下げ］二三　サンデマン",
+   "at_anchor_head": "たり、夕方から横笛を吹いたり、歌を唄う仲間と一週に一回集ったりした。彼はバスを歌った。\n\n［＃５字下げ］二三　サンデマン"
+  },
+  {
+   "file_id": "ijDmXF8n2hsY",
+   "source": "text_content_vector",
+   "location": "chunk 229",
+   "anchor": 0,
+   "len": 400,
+   "before_anchor_head": "にも相当の効果を収めようと心がけておりました。が、初めの中は準備時代であり、思うままにならぬ中に、もはや老衰の境に入りま",
+   "at_anchor_head": "にも相当の効果を収めようと心がけておりました。が、初めの中は準備時代であり、思うままにならぬ中に、もはや老衰の境に入りま"
+  },
+  {
+   "file_id": "ijDmXF8n2hsY",
+   "source": "text_content_vector",
+   "location": "chunk 174",
+   "anchor": 0,
+   "len": 363,
+   "before_anchor_head": "な事まで観察しておった。後に王立協会に入ってから数週を経て、友人アボットに送った手紙に、講堂の事から講師の態度の事まで細",
+   "at_anchor_head": "な事まで観察しておった。後に王立協会に入ってから数週を経て、友人アボットに送った手紙に、講堂の事から講師の態度の事まで細"
+  },
+  {
+   "file_id": "ijDmXF8n2hsY",
+   "source": "text_content",
+   "location": "chunk 0",
+   "anchor": 0,
+   "len": 573,
+   "before_anchor_head": "ファラデーの伝\n電気学の泰斗\n愛知敬一\n\n---------------------------------------",
+   "at_anchor_head": "ファラデーの伝\n電気学の泰斗\n愛知敬一\n\n---------------------------------------"
+  },
+  {
+   "file_id": "ijDmXF8n2hsY",
+   "source": "text_content",
+   "location": "chunk 103",
+   "anchor": 301,
+   "len": 706,
+   "before_anchor_head": "［＃５字下げ］二四　サラ・バーナード嬢［＃「二四　サラ・バーナード嬢」は小見出し］\n\n　この教会の長老にバーナードという",
+   "at_anchor_head": "齢二十一才、三女のジェンはまだ幼い子であった。ファラデーは前から手帖に色々の事を書いておったが、その中に「愛」を罵《のの"
+  }
+ ],
+ "citations": [
+  {
+   "file_id": "ijDmXF8n2hsY",
+   "drive": "テスト画像",
+   "filename": "ファラデーの伝.txt",
+   "file_type": "document",
+   "quote": "を［＃「特別に箱を」に傍点］つくりて、その内に入れて索引まで［＃「索引まで」に傍点］も附けて置いた。\n\n［＃５字下げ］五一　宗教［＃「五一　宗教」は小見出し］\n\n　ファラデーの信じておったサンデマン宗の事については前にも述べたが、一八四〇年から四四年までの間、ファラデーはこの教会の長老であった。それが四四年に長老たることも会員たることもやめられた［＃「やめられた」に傍点］が、その委細は、ある日曜日…",
+   "relevance": 0.0,
+   "segment_location": "chunk 217",
+   "section_title": null
+  }
+ ]
+}

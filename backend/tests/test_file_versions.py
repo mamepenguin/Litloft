@@ -379,9 +379,10 @@ class TestWritePathRecording:
             .order_by(FileVersion.id)
             .all()
         )
-        assert [row.kind for row in rows] == ["auto", "explicit"]
-        assert rows[0].nickname == "Alice"
-        assert rows[0].viewer_id == nickname_to_viewer_id("Alice")
+        # The first row is the baseline of the seeded text.
+        assert [row.kind for row in rows] == ["explicit", "auto", "explicit"]
+        assert rows[1].nickname == "Alice"
+        assert rows[1].viewer_id == nickname_to_viewer_id("Alice")
 
     def test_identical_explicit_put_promotes_auto_then_becomes_no_op(self, client):
         from app.services.content_write import compute_content_etag
@@ -423,9 +424,15 @@ class TestWritePathRecording:
         assert unchanged.headers["X-Litloft-Version-Action"] == "unchanged"
 
         db.expire_all()
-        rows = db.query(FileVersion).filter(FileVersion.file_id == file.id).all()
-        assert len(rows) == 1
-        assert rows[0].kind == "explicit"
+        rows = (
+            db.query(FileVersion)
+            .filter(FileVersion.file_id == file.id)
+            .order_by(FileVersion.id)
+            .all()
+        )
+        # The baseline of the seeded text, then the promoted save.
+        assert [row.kind for row in rows] == ["explicit", "explicit"]
+        assert rows[1].nickname == "Alice"
 
     def test_create_and_missing_recovery_record_explicit(self, client):
         from datetime import UTC, datetime

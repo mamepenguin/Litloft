@@ -1,13 +1,17 @@
 import Link from "next/link";
-import { FilePlus, Files, FolderTree, History, Home, Star, ThumbsUp } from "lucide-react";
+import { FilePlus, Files, FolderTree, History, Home, Inbox, Play, Star, ThumbsUp } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { AddonSlot } from "@/components/AddonSlot";
 import type { AddonNavEntry } from "@/lib/addonNavigation";
 import type { Drive } from "@/types";
+import { builtinApps } from "@/lib/builtinApps";
 import { driveHref } from "@/lib/driveViews";
 import { AddonNavRows } from "./AddonNavRows";
+import { isAddonNavRowActive } from "./isSidebarLinkActive";
 import { SidebarDriveSwitcher } from "./SidebarDriveSwitcher";
 import { SidebarSectionHeading } from "./SidebarSectionHeading";
+import { useInboxCount } from "@/hooks/useInboxCount";
 
 interface SidebarLibrarySectionProps {
   driveBase: string | null;
@@ -29,8 +33,14 @@ interface SidebarLibrarySectionProps {
 
 export function SidebarLibrarySection({ driveBase, currentDrive, drives = [], linkClass, close, primaryAddons = [], sourceAddons = [], libraryActive }: SidebarLibrarySectionProps) {
   const t = useTranslations("sidebar");
+  const tRoot = useTranslations();
+  const pathname = usePathname() ?? "";
+  const inboxCount = useInboxCount(currentDrive);
   const homeHref = currentDrive ? driveHref(currentDrive, "home") : "/";
+  const inboxHref = currentDrive && driveBase ? `${driveBase}?view=inbox` : null;
   const libraryHref = currentDrive ? driveHref(currentDrive, "library") : null;
+  const inboxBadge =
+    inboxCount > 99 ? "99+" : inboxCount > 0 ? String(inboxCount) : null;
 
   return (
     <>
@@ -44,12 +54,39 @@ export function SidebarLibrarySection({ driveBase, currentDrive, drives = [], li
         <Home size={16} />
         {t("home")}
       </Link>
+      {inboxHref && (
+        <Link href={inboxHref} onClick={close} className={linkClass(inboxHref)}>
+          <Inbox size={16} />
+          {t("inbox")}
+          {inboxBadge && (
+            <span className="ml-auto text-xs tabular-nums text-text-muted">
+              {inboxBadge}
+            </span>
+          )}
+        </Link>
+      )}
       {libraryHref && (
         <Link href={libraryHref} onClick={close} className={linkClass(libraryHref, libraryActive)}>
           <FolderTree size={16} />
           {t("library")}
         </Link>
       )}
+      {currentDrive &&
+        builtinApps.map((app) => {
+          const href = app.route(currentDrive);
+          const Icon = app.icon;
+          return (
+            <Link
+              key={app.id}
+              href={href}
+              onClick={close}
+              className={linkClass(href, isAddonNavRowActive(pathname, href))}
+            >
+              <Icon size={16} />
+              {tRoot(app.labelKey)}
+            </Link>
+          );
+        })}
       <AddonNavRows entries={primaryAddons} linkClass={linkClass} close={close} />
       {driveBase && (
         <>
@@ -66,6 +103,10 @@ export function SidebarLibrarySection({ driveBase, currentDrive, drives = [], li
           <Link href={`${driveBase}?view=liked`} onClick={close} className={linkClass(`${driveBase}?view=liked`)}>
             <ThumbsUp size={16} />
             {t("liked")}
+          </Link>
+          <Link href={`${driveBase}?view=continue`} onClick={close} className={linkClass(`${driveBase}?view=continue`)}>
+            <Play size={16} />
+            {t("continue")}
           </Link>
           <Link href={`${driveBase}?view=recent`} onClick={close} className={linkClass(`${driveBase}?view=recent`)}>
             <History size={16} />

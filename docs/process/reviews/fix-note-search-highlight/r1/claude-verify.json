@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1-stale-highlight-follows-to-next-note",
+      "status": "confirmed",
+      "note": "Confirmed by tracing the code; nothing was executed because this role has read-only tools. Path: /files/<id>?highlight= redirects with highlight kept (frontend/src/lib/canonicalFileUrl.ts:14). TwoPaneLayout.tsx:75-80 (tree pick) and RightPaneFile.tsx:81 (file nav) both call selectFile. useSelectedFile.ts:11 and :43-45 delete only section, page and t, and useSelectedFile.test.tsx:77 pins highlight being kept. No code under frontend/src deletes the highlight param. RightPaneFile.tsx:90 and :123 pass it on, then ShellLayout.tsx:431, KnowledgeEditSection.tsx:100 and Editor.tsx:1489-1491 deliver it to MarkdownPreview. useHighlightPassage.ts:276-377 accepts exact and partial matches, so the next note gets a mark if the text matches. Lines 94-98 scroll the container when nothing matches; R-5 run 3 in decisions.md measured this for an absent phrase as scrollTop 153 with the frontmatter table above the visible area. One correction to the evidence: fresh hook state for the next note comes mainly from the remount at FileDetailContent.tsx:14 (key={props.fileId}), not only from Editor.tsx:472. That strengthens the claim, because every move to a new file starts with highlightSpent false and scrolledRef false. The R-5 runs recorded in decisions.md moved between notes using each note's own phrase or no highlight, and never pressed a list entry with an inherited phrase. That the old code withheld highlight from .md rests on decisions.md run 1, not on a diff I read."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2-spent-state-lost-after-note-to-note-move",
+      "status": "rejected_with_evidence",
+      "note": "The reader's premise that the Editor instance is reused across files does not hold in production. frontend/src/components/FileDetailContent.tsx:14 renders <FileDetailContainer key={props.fileId} {...props} />, and its comment at lines 8-12 says 'One mount per file'. The reader's search for a key missed this because the file sits outside the FileDetail directory. The only non-test mount of Editor is KnowledgeEditSection.tsx:91. That section is rendered through the file-detail-sections slot under FileDetailContainer, and FileDetailContainer's only caller is FileDetailContent.tsx:14. FileDetailContent's only callers are RightPaneFile.tsx:117 and FileDetailFullScreen.tsx:180. A change of file therefore unmounts Editor and mounts a new one with new refs. On that mount, Editor.tsx:1276-1279 sets readShownRef false and then Editor.tsx:1281-1284 runs in the same effect pass and sets it true when the preview is shown. The later Read to Edit change takes the branch at line 1283 and sets highlightSpent, so the first-Read rule holds for the second note. The sequence in the claim, where the fileId effect fires while previewShown stays true in one instance, occurs only in test harnesses that rerender Editor directly, such as Editor.highlight.test.tsx:170. Code trace only; not executed."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3-no-touch-point-list",
+      "status": "confirmed",
+      "note": "Glob of docs/process/reviews/fix-note-search-highlight/ returns decisions.md and r1/{head.txt,expected.txt,classification.json,fixes.txt}, with no invariants.md. decisions.md has no spec: line and no touch-point list. Under docs/, outside process/reviews, a content search for useHighlightPassage, ?highlight= or the topic name finds only docs/specs/citation-quote-anchor.md and older review records under docs/developer-guide/reviews; I did not open them, and the spec is not linked from this topic. review.md:204 and spec-and-design.md:101-104 frame the first-review question as a difference against the touch-point list, so it cannot be answered that way here. The places listed as reached agree with r1/classification.json zones_touched. The unshown places exist as cited: MarkdownPreview.tsx:426 and TextLines.tsx:86 call the hook, KnowledgeEditSection.tsx:100 passes highlight to Editor, and useSelectedFile.ts:11 is the param list."
+    }
+  ],
+  "specification_compliance": [
+    "No spec or invariants list was found for this topic, so compliance could only be read against the comments in the code and the behaviour recorded in decisions.md.",
+    "The rule in the comment at Editor.tsx:1272-1273, that the term is marked only on the first Read, holds per file because each file gets a new mount (FileDetailContent.tsx:14).",
+    "The comment at useSelectedFile.ts:10 says places inside one file mean nothing in the next, yet highlight is kept on a file change and useSelectedFile.test.tsx:77 pins that."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "A Markdown note picked after a citation-opened file inherits ?highlight= from the URL; it may then be marked by a partial match or scrolled past its top when nothing matches (F1)."
+  ],
+  "regression_risks": [
+    "Every core consumer of useHighlightPassage (MarkdownPreview.tsx:426, TextLines.tsx:86) gets the deferred scroll flag from useHighlightPassage.ts:121-125.",
+    "The fileId-reset effect at Editor.tsx:1276-1279 has no effect in production, because the file change remounts Editor. A future removal of the key at FileDetailContent.tsx:14 would expose the F2 sequence."
+  ],
+  "test_coverage": [
+    "useSelectedFile.test.tsx:77 pins highlight surviving a file change, but no test covers the resulting behaviour on a Markdown note.",
+    "Editor.highlight.test.tsx:163-175 rerenders Editor with a new fileId and no key, a sequence production does not produce because of FileDetailContent.tsx:14.",
+    "Editor.highlight.test.tsx:191-206 covers the first-Read rule on a single file only."
+  ],
+  "not_verified": [
+    "Nothing was executed: no tests, no browser and no running app. All three records rest on reading the code.",
+    "The diff against origin/develop was not read directly. The reached paths come from r1/classification.json and the claimed pre-change behaviour of ShellLayout.tsx comes from decisions.md.",
+    "The working tree was read and assumed to match commit 4782d625b; head.txt was not compared.",
+    "The pinned addons/knowledge checkout was read as present in the worktree; its pin was not compared with commit f12e5ad0f.",
+    "The list rows in FolderBrowser and the tree's call into onSelectFile were not traced; the F1 path was followed from TwoPaneLayout.tsx and RightPaneFile.tsx.",
+    "docs/specs/citation-quote-anchor.md and the older review records that mention the hook were not opened."
+  ],
+  "confidence": 88
+}

@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "The fix does what TP-1 asked. `app/evals_transcription/__main__.py:30,69` builds the `--providers` default text from `DEFAULT_PROVIDERS` and adds 'haas_local runs only when named'. `runner.py:58,135` uses the same constant for the default run, so the help and the behaviour have one source. A search of `addons/intelligence` finds no remaining `_DEFAULT_PROVIDERS` reference, so the rename broke no caller.",
+    "I10 eval part still holds. `runner.py:137-143` accepts `haas_local` by name through `ALL_PROVIDERS`, and `runner.py:134-135` leaves it out when `requested` is None.",
+    "The fix commit changes only the eval CLI text, a constant's name and one test. `haas_local.py`, `config.py`, `indexer.py` and `admin.py` are outside its diff, so the runtime evidence recorded in `decisions.md` (addon f8f66fff) still describes the provider. Only eval code moved between f8f66fff and 4eee50cd.",
+    "Scope gap, not raised as a finding because no user can hit it: `__main__.py` is edited but is still absent from the touch points in `docs/specs/haas-local-transcription.md`, and the Revisions section of `invariants.md` is empty. The r1 proposal asked to add it.",
+    "TP-2 is not addressed by this commit: `requirements.txt` still has no `huggingface_hub` line. `decisions.md` records the r1 decision as 'Continue', so it is not raised again. No new evidence changes its severity.",
+    "Re-read against I1, I2, I4, I7, I8 and I9 in the whole-branch diff, by reasoning through `_words`, `_transcribe_blocking`, `_fetch_model_dir` and `check_idle_unload`: the word-time clamping keeps `span start <= start <= end <= span end` and `end <= next start` for any recognizer times, `LocalEntryNotFoundError` is caught before its parent `EntryNotFoundError`, and `_inflight` plus a non-blocking acquire keeps the idle check from releasing during a call or waiting on the lock. I found no violation.",
+    "`whisper.py:928` applies the cloud fallback only when `sends_audio_offhost` is true, which gives I6. `retry.py:83-84` tolerates `HaasLocalProviderConfig` having no `circuit_breaker_threshold`."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "`check_idle_unload` runs `_release_recognizer` on the event loop, including the native destructor, `gc.collect()` and `malloc_trim()`. `whisper.py:257-260` and `:276-277` follow the same pattern, so this is an existing convention. R-5 sampled `/health` during a job but not during a release, so the stall on a process with several GB of RSS is unmeasured against I8.",
+    "`_BYTE_TOKEN` is matched against the unstripped token (`haas_local.py`, `_words`), so a byte token with surrounding whitespace would stay as literal text, while the spec records whitespace on a span's first tokens. R-5 found 0 literal `<0x` across every file checked, and SentencePiece byte pieces are normally standalone, so this needs a different model or sherpa-onnx version to appear. The exact sherpa-onnx pin holds that off."
+  ],
+  "test_coverage": [
+    "`test_spec_addon_039_i10_cli_help_matches_the_default_run` kills the original defect: restoring `ALL_PROVIDERS` in the help puts `haas_local` in the parsed list, and putting `haas_local` into `DEFAULT_PROVIDERS` makes the list differ from the expected one. Removing the 'runs only when named' sentence also fails it. These were traced by reading, not run.",
+    "That test can run in CI. `Dockerfile.test:37-38` installs `requirements-dev.txt`, so the `jiwer` and `jaconv` guard at `__main__.py:14-24` does not exit at import. `--help` exits inside `parse_args` before any case loading. The parsing of 'Default: ' is case-sensitive, so the earlier lowercase '(default: ...' text in `--cases-dir` does not disturb it.",
+    "`COLUMNS=500` leaves the help on one line, about 165 characters against about 470 available, so the comma list is not wrapped.",
+    "The idle-check timing assertions (`pass_seconds < 0.5`) cover only the branches that release nothing. No test times a pass that actually releases the recognizer.",
+    "`resolve_providers(['haas_local'])` is tested with a mocked `get_provider`, and `decisions.md` lists 'eval harness run by name' as unexercised, so the eval path through a real `HaasLocalProvider` has no test or recorded run.",
+    "`tests/haas_fakes.py` still replaces `huggingface_hub`, `sherpa_onnx`, `faster_whisper.vad` and `ffmpeg`, so CI verifies provider logic only. The real path rests on the R-5 record."
+  ],
+  "not_verified": [
+    "No test, build or command was run, because only Read, Glob and Grep were available. All mutation results are reasoned from the code.",
+    "The `addons/intelligence` tree was read from the working directory and was not confirmed to be exactly commit 4eee50cd. Its files match the supplied fix diff at the lines checked.",
+    "`python -m app.evals_transcription --help` was not executed, and neither was a real eval run naming `haas_local`.",
+    "The bounds other packages place on `huggingface_hub` were not checked, because package metadata is not in the repository.",
+    "The R-5 measurements in `decisions.md` were read, not reproduced. Real sherpa-onnx token output and the model's `tokens.txt` were not inspected.",
+    "The frontend tests and `tsc` were not run. The frontend diff was read but not traced in full against core's message merging.",
+    "The stall caused by a real recognizer release on the event loop was not measured."
+  ],
+  "confidence": 84,
+  "trajectory": "One fix commit exists since r1 (cae83606c), and it adds no branch, state or prediction. It makes the private `_DEFAULT_PROVIDERS` public as `DEFAULT_PROVIDERS`, and the CLI help now reads that constant instead of `ALL_PROVIDERS`, which removes a claim the help made about the default run. Its only addition is a test. With one round there is no repeated patching of the same kind, so nothing suggests the design is being patched. TP-2 stays open by decision rather than being worked around."
+}

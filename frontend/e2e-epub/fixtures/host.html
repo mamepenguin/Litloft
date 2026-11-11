@@ -23,7 +23,9 @@
   let seekId = 0;
   window.seek = (fraction, id = ++seekId) => send({ type: "seek", fraction, id });
   window.goToToc = (index) => send({ type: "goToToc", index });
+  window.goToSection = (section) => send({ type: "goToSection", section });
   window.setTypography = (typography) => send({ type: "typography", typography });
+  window.setFindIntercept = (interceptFind) => send({ type: "set-find-intercept", interceptFind });
   const COLORS = {
     light: { bg: "#ffffff", fg: "#211922", link: "#d63031" },
     dark: { bg: "#1a0e10", fg: "#f5e6e8", link: "#e85d5e" },
@@ -51,6 +53,8 @@
       colors: COLORS.light,
     };
     if (t !== null) open.typography = JSON.parse(t);
+    const find = params.get("find");
+    if (find !== null) open.interceptFind = find === "1";
     send(open, [bytes]);
     const early = params.get("early");
     if (early !== null) send({ type: "goToToc", index: Number(early) });

@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [],
+  "specification_compliance": [
+    "No invariants file or touch-point list exists for this change: the Glob of docs/process/reviews/fix-note-search-highlight/ shows decisions.md, r1/ and r2/ only. Compliance against declared invariants therefore cannot be judged, and r1's F3 still describes the state.",
+    "r1's F1 is fixed on every path I could trace. frontend/src/hooks/useSelectedFile.ts:11 and :43-45 now delete highlight when the file id changes. selectFile is the only writer of the file param under frontend/src apart from buildCanonicalFileUrl, whose query comes from its callers (useFileCardLink.ts:98 passes only the sort query). The full-screen route's buildNavUrl (FileDetailFullScreen.tsx:73-84) starts from empty params and already dropped it.",
+    "Reselecting the same file keeps the phrase (useSelectedFile.ts:43 compares ids), so a press on the open note does not lose the mark.",
+    "No code in frontend/src or addons relies on highlight surviving a file change. The only producer found is the intelligence citation link (addons/intelligence/frontend/Page.tsx:232 and :236), which targets one file by its own URL."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "clearFile (useSelectedFile.ts:55-62) and the folder-row press that calls it (TwoPaneLayout.tsx:68-69) leave ?highlight= in the URL with no file selected; run 4 in decisions.md recorded this as /drive/alpha/notes?highlight=<phrase>. I found no user-visible effect: RightPaneFile reads it only with a file selected, selectFile deletes it because the file id differs (null !== id), and card links rebuild the query. The same applies to section, page and t, and predates this fix.",
+    "Carried over from r1 and unchanged: a citation phrase with no match in the note's body, or found only in its frontmatter, scrolls the container to its start (useHighlightPassage.ts:94-98). This puts the frontmatter table above the visible area; decisions.md measured scrollTop 153. The F1 fix removes the stale-phrase route to this behaviour, so it now needs a citation whose phrase does not match the cited note.",
+    "Carried over from r1 and unchanged: highlightSpent is set when Read is left even if no highlight was present, and it resets only per mount (Editor.tsx:1274-1284). A first ?highlight= arriving on an already mounted note after Read was left is ignored. The only producer found goes through a separate page, so I found no normal-use route to it."
+  ],
+  "regression_risks": [
+    "selectFile now also drops highlight for its other callers: CollectionItemsPane.tsx:112, RightPaneFile.tsx:81 and :139, and TwoPaneLayout.tsx:77; CollectionDetail.tsx:47 also takes selectFile, and I did not read how it uses it. I found no caller that needs the phrase kept across a change of file.",
+    "Browser Back to an entry whose URL has the phrase marks and scrolls again, as run 4 recorded for a router.push entry. A new mount reads that URL afresh, so this follows from the phrase being in the URL. Pressing a file replaces the history entry, so this needs an entry made by a push.",
+    "Read to Split keeps the mark, but the view drops to scrollTop 68 and the mark goes off screen with no second scroll. decisions.md records the same drop with no highlight, so the highlight does not cause it; the user still sees it on this path.",
+    "The Editor reset effect at Editor.tsx:1276-1279 does not fire on a real file change, because FileDetailContent.tsx:14 remounts per file id (r1 verifier). Removing that key would expose the sequence in r1's F2."
+  ],
+  "test_coverage": [
+    "useSelectedFile.test.tsx:77: removing \"highlight\" from FILE_LOCATION_PARAMS leaves highlight=x in the URL and fails this row, so the fix is pinned at the hook.",
+    "useSelectedFile.test.tsx:78: deleting the params unconditionally, without the id comparison at useSelectedFile.ts:43, fails this row, so reselecting the same file is pinned.",
+    "RightPaneFile.test.tsx:255 pins the URL value reaching FileDetailContent. Together with rows 77-78 this covers both ends of the F1 path at unit level; no single test presses a second file and checks the next note has no mark. decisions.md run 4 covers that in the app.",
+    "No test has ?highlight= with no file param followed by selectFile. The code path is the same id comparison, and run 4 observed the card press there, not the tree press, so I do not consider this a real gap.",
+    "useHighlightPassage.test.tsx: removing `!first.isConnected` fails \"ends with one scroll, on a mark that is still in the document\"; removing `scrolledRef.current = true` from the frame fails \"does not scroll again on a re-render after it scrolled\".",
+    "useHighlightPassage.ts:122: the `scrolledRef.current ||` half of the guard looks like a surviving mutant by reading. Two connected frames for one mark cannot both be scheduled, because a rebuild detaches the older mark and no rebuild returns early at line 83. This is an extra condition with no test, not a behaviour defect.",
+    "addons/knowledge/frontend/__tests__/Editor.highlight.test.tsx still has `expect(pending.resolve).not.toBe(undefined)`, which is always true because pending.resolve starts as a function, so it does not wait for the fetch. I did not check whether this can make the test flaky. The addon pin did not change in the fixes since r1."
+  ],
+  "not_verified": [
+    "Nothing was run: no tests, no app and no mutations. This reviewer has read-only tools, so the test outcomes above are reasoned from the code.",
+    "I read the working tree and took it to match commit 85e61028 from the git status at session start; the addons/knowledge checkout was not compared with pin f12e5ad0f.",
+    "The Ask citation link with a real LLM, the only producer of ?highlight=, was not exercised; decisions.md also lists it as pending.",
+    "Core's MarkdownPreview path without the knowledge editor was not exercised, and decisions.md says run 3 skipped it.",
+    "The scripts, logs and screenshots named in decisions.md were not opened; I read only its text record of the runs.",
+    "The diffs of docs commits 9df30cf7f and 85e610287 were not in the brief. I read the current decisions.md but not the r1 record as committed, and I did not compare it with the artifacts in the brief.",
+    "I did not read the bodies of CollectionItemsPane.tsx or CollectionDetail.tsx beyond their selectFile calls, or FolderTreePane's press handling beyond the onSelectFile call at line 351.",
+    "readDocumentSelection in frontend/src/lib/documentCapture was not read, so capture of a selection that spans a mark is unchecked; the publisher hook itself only listens for selectionchange and does not change the DOM."
+  ],
+  "confidence": 85,
+  "trajectory": "No. The code fix since r1 adds no branch, no state and no prediction. Commit 5a72cf674 changes two rows of an existing test table. Commit b780e8a1a adds one string to the existing FILE_LOCATION_PARAMS list, which the existing id comparison and loop at useSelectedFile.ts:43-45 already handle. The round removes a behaviour, the phrase carrying over to the next file, and with it the stale-phrase route to a wrong mark or scroll on the next note. It also does not touch the frame guard or the Editor's highlightSpent state. Commits 9df30cf7f and 85e610287 are described as docs records; their diffs were not in the brief. The design is not being patched on this evidence."
+}

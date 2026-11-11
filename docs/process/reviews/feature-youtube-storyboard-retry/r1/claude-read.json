@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "Every place the diff reaches is in the declared touch-point list or is an implicit touch point. addons/intelligence/app/workers/clip.py: the Failed record (comment rewritten, new discards at clip.py:1004 via _storyboard_definite and clip.py:1068 after the row commit), the new _storyboard_retry set (clip.py:945), request_storyboard_retry (clip.py:948), _consume_storyboard_retry and the start check in _index_youtube_storyboard (clip.py:1017). addons/intelligence/app/routers/files.py: one import (files.py:19) and the call at files.py:1015-1016. The call comes after the payload, 404, ocr/frame_ocr/page_ocr, overwrite_corrections and 409 corrected/busy checks and immediately before the Layer 3 already-queued split. addons/intelligence/tests/test_spec_addon_085_storyboard_retry.py is new. Core: docs/addons/intelligence.md (one sentence appended to the YouTube references paragraph), docs/specs/INDEX.md (SPEC-ADDON-085 row), docs/specs/youtube-storyboard-retry.md (spec, implicit) and the addons/intelligence gitlink.",
+    "No endpoint, event, table, manifest, frontend or protected path appears in the diff.",
+    "The _storyboard_definite helper and the Failed-record discards are a new private function in clip.py. They implement spec item 6 (leave Failed only on a definite result) and fall under the listed 'the Failed record' in clip.py, so they are not an unplanned place."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The retry is recorded before the Layer 4 flag write, so a 404 from a soft-delete race or a 500 from the flag write or enqueue leaves a pending retry. The spec's failure table (step 4) declares this, so it is specified behavior, not an unplanned place."
+  ],
+  "regression_risks": [
+    "_storyboard_failed is now discarded on definite results. Before, a file in Failed never reached those paths, so for legs without a retry the behavior is the same."
+  ],
+  "test_coverage": [
+    "The tests cover 200 accepted and 202 already_queued retries, a request during a running leg, the guard without a request, one leg per request (classified failure and exception), the refused 422/404/409 requests, a successful retry matching a first success, and the unchanged route responses."
+  ],
+  "not_verified": [
+    "Whether addon commit 4f7e09869c70575e5d0383b9432fd71bb0f74fc4 is merged on the addon's origin/main, as the CLAUDE.md addon-first order requires. I could not resolve submodule refs without git.",
+    "I did not run the test suite.",
+    "I did not read the full addon diff beyond the hunks shown, for example other files in the addon commit range 2984ff5..4f7e098, if any exist outside the shown diff."
+  ],
+  "confidence": 85
+}

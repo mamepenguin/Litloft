@@ -2,14 +2,14 @@
 
 A drive has two starting points in the sidebar:
 
-- **Home**: rows of files you were watching, opened recently, added recently, favourited or liked. A drive opens here.
+- **Home**: an entry row for the drive's apps, then rows of files you were watching, opened recently, favourited or added recently. A drive opens here.
 - **Library**: the drive's own folders and files, starting at the drive root.
 
 ## The sidebar
 
 The sidebar is the same on every screen of a drive.
 
-- At the top: Home, Library, and five views of the whole drive: **Favorites**, **Liked**, **Recently Viewed**, **Recently Added** and **All Files** (every file in the drive, with no folders). Addons can add pages here, such as *Ask* or *Notes*.
+- At the top: Home, Library, and six views of the whole drive: **Continue**, **Favorites**, **Liked**, **Recently Viewed**, **Recently Added** and **All Files** (every file in the drive, with no folders). Addons can add pages here, such as *Ask* or *Notes*.
 - In the middle, the sections you build yourself: **Collections**, **Pins**, **Smart Folders** and **Tags**. You can collapse these sections and drag them into the order you like.
 - At the bottom: **Trash**, **Missing Files** (only when the drive has some), and **Dashboard** for an administrator.
 
@@ -110,14 +110,15 @@ Files added by an addon, such as web clips, arrive unverified. With the intellig
 
 Home shows these rows, in order:
 
-- **Continue Watching**: media you stopped before 90%.
-- Rows added by addons, if any.
-- **Recently Viewed**
-- **Recently Added**
+- **Continue**: videos, audio, PDFs, EPUBs, archives and long text you started and have not finished within the last two weeks.
+- **Recently Viewed**: what you opened that is not on the Continue desk, finished files and set-aside ones included.
 - **Favorites**
-- **Liked**
+- Rows added by addons, if any.
+- **Recently Added**
 
-Continue Watching and Recently Viewed need a [profile](profile-preferences.md). Each row shows as many cards as fit, and **See all** opens the rest. Empty rows are hidden.
+Above them sit the app destinations: **Library**, the built-in apps, any addon apps such as *Ask*, *Notes* or *Photo Diary*, and **Inbox** while it holds arrivals, carrying the count. It is the same set as the top of the sidebar, so on a phone, where the sidebar is an overlay, it is the quickest way into an app.
+
+**Continue** and **Recently Viewed** need a [profile](profile-preferences.md). Each row shows as many cards as fit, and **See all** opens the rest. Empty rows are hidden.
 
 ## Pinned folders
 
@@ -125,7 +126,7 @@ Right-click a folder and choose **Pin**, or use `…` → **Pin this folder** in
 
 ## Smart folders (saved searches)
 
-Run a search and click **Save** to keep it as a Smart Folder in the sidebar. Smart folders are shared by everyone who uses the drive.
+Run a search, open `…` in the results bar and choose **Save as Smart Folder** to keep it as a Smart Folder in the sidebar. Smart folders are shared by everyone who uses the drive.
 
 ## Real-time updates
 

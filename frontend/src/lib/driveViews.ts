@@ -6,13 +6,14 @@
 
 const CROSS_FOLDER_VIEWS = new Set([
   "all",
+  "continue",
   "favorites",
   "recent",
   "recent-added",
   "liked",
 ]);
 
-const STANDALONE_VIEWS = new Set(["trash", "missing"]);
+const STANDALONE_VIEWS = new Set(["trash", "missing", "inbox"]);
 
 export function isCrossFolderView(view: string | null): boolean {
   return view !== null && CROSS_FOLDER_VIEWS.has(view);
@@ -53,6 +54,14 @@ export function isDriveAddonPath(pathname: string): boolean {
   return /^\/drive\/[^/]+\/addons\//.test(pathname);
 }
 
+/**
+ * `apps` is a fixed segment, so a root folder named `apps` is not reachable
+ * at its own URL, as with `search`.
+ */
+export function isDriveAppPath(pathname: string): boolean {
+  return /^\/drive\/[^/]+\/apps(\/|$)/.test(pathname);
+}
+
 export function isDriveCollectionPath(pathname: string): boolean {
   return /^\/drive\/[^/]+\/collections\/[^/]+\/?$/.test(pathname);
 }
@@ -76,6 +85,7 @@ export function routeHidesTree({
   if (includeStandalone) {
     if (isStandaloneView(view)) return true;
     if (isDriveAddonPath(pathname)) return true;
+    if (isDriveAppPath(pathname)) return true;
   }
   return false;
 }

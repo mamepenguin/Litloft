@@ -24,11 +24,13 @@ Two exceptions:
 
 - The start page, **Litloft**, lists the drives you can open, with their file counts. If some drives are locked, the last card, **Enter password**, leads to the unlock page.
 - Folders in grid or list mode. See [browsing files](file-browsing.md).
+- **動画** / **Video** is a page for the drive's videos, with a Discover tab and a Library tab. See [video](video.md).
 - Video and audio with resume, subtitles, chapters and scrubbing previews. Images with swipe, two-page spread and slideshow. Markdown, PDFs and ZIP archives open in place. See [viewers and players](viewers-and-players.md).
 - Office files (DOCX, XLSX, PPTX) have no viewer. The file page shows a short text excerpt.
 
 ### Organise
 
+- **受信箱** / **Inbox** lists files that just arrived and are still waiting for you. See [inbox](inbox.md).
 - Tags, collections, favourites, likes and pinned folders. See [tags and relations](tags-and-relations.md).
 - Comments on any file.
 
@@ -37,7 +39,7 @@ Two exceptions:
 - **`Cmd/Ctrl+K`** opens a quick switcher on any page: jump to a recent file, or type to search the drive. See [search](search.md).
 - Search matches file titles and folder paths. Searching inside documents needs the intelligence addon.
 - Save a search as a Smart Folder.
-- Home shows **Continue Watching**, **Recently Viewed**, **Recently Added**, **Favorites** and **Liked**.
+- Home opens with a row of app destinations, then **Continue**, **Recently Viewed**, **Favorites**, any addon rows and **Recently Added**.
 
 ### Work with files
 

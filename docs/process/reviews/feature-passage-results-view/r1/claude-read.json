@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The diff changes production code in frontend/src/components/search/SearchQueryHeader.tsx (new `show` prop, and `show=passages` added to the submission URL), and that file is not in the touch-point list.",
+      "impact": "The touch-point list puts \"A2's submission keeps it\" under `frontend/src/app/drive/[name]/search/page.tsx`, but page.tsx does not build the submission URL. A reader who trusts the list would look for I9's submission behaviour in the wrong file and could miss a regression in SearchQueryHeader. The behaviour itself is implemented: FolderBrowser passes `show={show}` to SearchQueryHeader, and SearchQueryHeader.showPassages.test.tsx covers it.",
+      "evidence": "diff: frontend/src/components/search/SearchQueryHeader.tsx adds `show?: string | null` and `if (show === \"passages\") params.set(\"show\", \"passages\");` in the href builder. FolderBrowser.tsx passes `show={show}` at the SearchQueryHeader call site. The touch-point list names page.tsx for 'A2's submission keeps it' and does not mention SearchQueryHeader.tsx.",
+      "repro": "Compare the file list of the diff with the Core touch points: SearchQueryHeader.tsx appears in the diff and not in the list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is broken (I9's submission-keeps-show is implemented and tested). The touch-point list attributes the behaviour to the wrong file.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add `frontend/src/components/search/SearchQueryHeader.tsx` (A2's submission keeps `show`) to the spec's touch points, and remove that clause from the page.tsx bullet."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The commit under review (5d7f98bc3) edits frontend/e2e-layout/spec-viewport.spec.ts, a shared fixture registry: it adds `passage-rows.html` to FIXTURES and raises FIXTURE_COUNT from 15 to 16. The touch-point list does not name that file.",
+      "impact": "None at runtime. The edit is required: without it, 'the fixtures checked are the fixtures on disk' fails once passage-rows.html exists. The list only implies the edit through 'a frontend/e2e-layout/ case with a static fixture'.",
+      "evidence": "frontend/e2e-layout/spec-viewport.spec.ts:30 adds \"passage-rows.html\", and line 41 has FIXTURE_COUNT = 16. Glob of frontend/e2e-layout/fixtures/*.html returns exactly 16 files, which match the declared list, so the registry is consistent.",
+      "repro": "not_reproduced (cannot run Playwright). Read check: the declared list equals the 16 files on disk.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An unlisted file that a new e2e-layout fixture requires. It is correct and breaks no invariant.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "The diff edits the existing frontend/src/__tests__/core-search-vocabulary.test.ts: per-caller key counts (FolderBrowser 1→6, new PassageList 12) and the total used-key population 56→70. The touch-point list names no such existing test.",
+      "impact": "None for a user. If those counts are wrong, the vocabulary guard fails loudly, not silently. 'Frontend tests next to the existing search tests' arguably covers the file.",
+      "evidence": "diff hunk in frontend/src/__tests__/core-search-vocabulary.test.ts: CALLERS map and `expect(used.length).toBe(70)`.",
+      "repro": "not_reproduced (cannot run vitest).",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An unlisted edit to a shared test guard, with no invariant involved.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "TP-4",
+      "origin": "reviewer",
+      "claim": "The opposite direction: listed touch point `docs/addons/intelligence.md` (`passages=true` on `/search` and the `SearchPassage` shape) is not reached by the diff. The file has no mention of `passages=true` or `SearchPassage`.",
+      "impact": "A reader of the addon docs does not learn about the opt-in parameter or the wire shape that MCP and other callers could use. Documentation only.",
+      "evidence": "Grep for 'passages=true|SearchPassage' in *.md matches only docs/specs/passage-results-view.md and the review decisions.md. docs/addons/intelligence.md:242 mentions 'passages' only in the Ask retrieval description.",
+      "repro": "Grep 'passages=true' in docs/addons/intelligence.md returns no match.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "A planned documentation touch point the diff does not make; no invariant covers it.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Document `passages` on `/search` and the `SearchPassage` fields in docs/addons/intelligence.md, or remove the bullet from the touch points if that is deliberately deferred."
+    }
+  ],
+  "specification_compliance": [
+    "Reached places that are in the touch-point list: DESIGN.md §6, the addon gitlink, docs/user-guide/search.md, e2e-layout passage-rows fixture and spec, semanticSearch.ts, searchMerge.ts, searchPassages.ts, PassageList.tsx, useFolderFiles.ts, FolderBrowser.tsx, FolderToolbar.tsx, search/page.tsx, GlobalSearch.tsx, messages-core ja/en, addon search.py / routers/search.py / schemas.py / tests.",
+    "Reached places outside the list: SearchQueryHeader.tsx (production), e2e-layout/spec-viewport.spec.ts (the commit under review), core-search-vocabulary.test.ts.",
+    "Implicit touch points (docs/specs/*, INDEX.md, docs/process/reviews/*) are not reported.",
+    "Listed but not reached: docs/addons/intelligence.md."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "search.py tags `retrieval_keywords` matches with channel=\"keyword\". They make no passage, because the kind table excludes them, so this has no visible effect today."
+  ],
+  "regression_risks": [
+    "spec-viewport.spec.ts FIXTURE_COUNT must track fixtures on disk; currently 16 and consistent with the 16 files on disk.",
+    "SearchQueryHeader.tsx is a production change outside the planned list. Its keep-show behaviour depends on FolderBrowser passing `show`."
+  ],
+  "test_coverage": [
+    "spec-viewport.spec.ts 'the fixtures checked are the fixtures on disk' guards the registry edit.",
+    "SearchQueryHeader.showPassages.test.tsx covers the unlisted SearchQueryHeader change."
+  ],
+  "not_verified": [
+    "Did not run Playwright or vitest; the counts (16 fixtures, 70 vocabulary keys) were checked only by reading, the keys not at all.",
+    "The diff was truncated at 200000 bytes, so addon-repository files changed after test_search_passages.py (other tests, helpers, addon docs) may be missing from this list.",
+    "Could not read the git objects to confirm the exact file set of commit 5d7f98bc3 alone; I assumed it is the spec-viewport.spec.ts edit its message describes."
+  ],
+  "confidence": 75
+}

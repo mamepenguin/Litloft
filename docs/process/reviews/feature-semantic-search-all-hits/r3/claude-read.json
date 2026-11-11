@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "Fix commit 668c6fc87 adds only frontend/src/components/__tests__/SelectionBar.removedFlag.test.tsx. It changes no production code, so the fix touches no invariant directly.",
+    "The new test does what r2's R2-2 asked for. It drives every bulk action on SelectionBar that calls onComplete. Tag (:158), rename (:178) and move (:141) must call onComplete without `true`. Trash (:130) and purge (:119, which exists only when isTrashView) must call onComplete(true). It checks `calls[0][0] === true` against the expected flag. Mutating any of these call sites flips the assertion, so every such mutant is killed.",
+    "The test follows the existing SelectionBar.test.tsx: it mocks @/lib/api and ../ConfirmDialog, ../MoveDialog and ../ClipboardProvider by the same relative paths, and selects actions by English aria-labels such as getByLabelText(\"Move\") and (\"Move to Trash\"). BatchRenameDialog is mocked so that its onComplete reaches handleRenameComplete, the path that matters. handleOpenRename goes through the mocked batchGetFiles first, so the dialog opens with the mock's files.",
+    "The page-level link in FolderBrowser.tsx (`if (removed) removeContinuationFiles(cleared)`) is still covered from both sides. The I13 trash test in SearchPage.semanticContinuation.test.tsx kills `if (false)`, and the I8 tag test kills `if (true)`. Together with the new unit test, rename and move on a continuation row are covered by composition, not by a page-level test."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Still present from r2 (R2-1), not addressed by this test-only round. After a bulk tag, rename or move whose selection holds only continuation rows, refresh() is skipped, and the drawn rows keep the file data from the /search/images answer (old filename, tags, folder_path). The text filter then matches the old filename.",
+    "Still present from r1/r2: copy and cut call onClear without onComplete, so clearedSelectionRef in FolderBrowser keeps stale ids until the next onClear overwrites them. Nothing reads those ids before that overwrite, so no wrong result follows."
+  ],
+  "regression_risks": [
+    "Whether a bulk action counts as 'removed' is now pinned in SelectionBar's unit test. A new bulk action added later that takes files out of the listing has no test forcing it to pass `true`. Its continuation rows would stay on the page until the search key changes.",
+    "FolderBrowser's pruning still depends on SelectionBar calling onClear before onComplete (clearedSelectionRef). The new test does not assert that order. The I13 page test would catch a swap only for trash."
+  ],
+  "test_coverage": [
+    "Mutants checked by reading. Each of these is killed by SelectionBar.removedFlag.test.tsx: onComplete(true) in handleRenameComplete or in handleBatchMove, onComplete() or onComplete(false) in handleBatchDelete or in handleBatchPurge, and onComplete(true) in handleBatchTag.",
+    "Restore (trash view) is not in the table, so a mutant passing `true` from handleBatchRestore survives. Restore is not reachable from the search page, so this does not affect the continuation.",
+    "No test asserts the file data a continuation row shows after tag, rename or move (R2-1 remains uncovered)."
+  ],
+  "not_verified": [
+    "No tests were run. Mutant outcomes and whether the new test passes come from reading the code.",
+    "I did not confirm that the test environment's global next-intl setup resolves the 'Permanently Delete' label for purge. I inferred it from the existing SelectionBar.test.tsx, which uses the same English labels.",
+    "I did not re-review the addon (Python) side or browser layout (R-5) in this round, because the fix commit touches only one frontend test file."
+  ],
+  "confidence": 85,
+  "trajectory": "There are two fix rounds. Round 1 (f90c235c9) added a branch and a prediction: an optional `removed` flag on SelectionBar's onComplete, set only by trash and purge, plus `if (removed)` before removeContinuationFiles in FolderBrowser. Round 2 (668c6fc87) adds no branch, state or prediction. It is test-only and pins the prediction that round 1 introduced, covering all five actions that complete with onComplete. Neither round removed anything: clearedSelectionRef and the onlyContinuation refresh skip remain. The design is not being patched case by case. The open item from r2 (stale file data on continuation rows after tag, rename or move) is untouched."
+}

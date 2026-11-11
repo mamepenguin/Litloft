@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import (
     Boolean,
@@ -15,6 +15,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     and_,
+    or_,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -134,6 +135,30 @@ class File(Base):
     )
 
 
+class InboxItem(Base):
+    __tablename__ = "inbox_items"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    drive: Mapped[str] = mapped_column(String, nullable=False)
+    file_id: Mapped[str] = mapped_column(
+        String(12), ForeignKey("files.id", ondelete="CASCADE"), nullable=False
+    )
+    arrived_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    source: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_i18n_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    done_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, default=None)
+
+    __table_args__ = (
+        UniqueConstraint("drive", "file_id", name="uq_inbox_items_drive_file"),
+        Index(
+            "idx_inbox_items_drive_done_arrived",
+            "drive",
+            "done_at",
+            "arrived_at",
+        ),
+    )
+
+
 class EmptyFolder(Base):
     __tablename__ = "empty_folders"
 
@@ -198,12 +223,30 @@ class WatchHistory(Base):
     playback_position: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     duration: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     last_played_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    dismissed_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True, default=None
+    )
 
     file: Mapped["File"] = relationship("File", lazy="selectin")
 
     __table_args__ = (
         Index("idx_watch_history_viewer_last_played", "viewer_id", "last_played_at"),
     )
+
+
+class PlayedSegment(Base):
+    __tablename__ = "played_segments"
+
+    viewer_id: Mapped[str] = mapped_column(String(16), primary_key=True)
+    file_id: Mapped[str] = mapped_column(
+        String(12), ForeignKey("files.id", ondelete="CASCADE"), primary_key=True
+    )
+    segment_index: Mapped[int] = mapped_column(Integer, primary_key=True)
+    played_seconds: Mapped[float] = mapped_column(Float, nullable=False)
+
+    # The primary key leads with viewer_id, so without this index the
+    # cascade from a file's hard delete scans the whole table.
+    __table_args__ = (Index("idx_played_segments_file_id", "file_id"),)
 
 
 class Comment(Base):
@@ -227,6 +270,27 @@ class Comment(Base):
 
     __table_args__ = (
         Index("idx_comments_file_id", "file_id"),
+    )
+
+
+class Highlight(Base):
+    __tablename__ = "highlights"
+
+    id: Mapped[str] = mapped_column(String(12), primary_key=True, default=generate_nanoid)
+    viewer_id: Mapped[str] = mapped_column(String(16), nullable=False)
+    file_id: Mapped[str] = mapped_column(
+        String(12), ForeignKey("files.id", ondelete="CASCADE"), nullable=False
+    )
+    page: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
+    quote: Mapped[str] = mapped_column(Text, nullable=False)
+    prefix: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    suffix: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(UTC)
+    )
+
+    __table_args__ = (
+        Index("idx_highlights_viewer_file", "viewer_id", "file_id"),
     )
 
 
@@ -372,4 +436,26 @@ def active_file_filter():
     soft-deleted (trash) and missing files should be excluded.
     """
     return and_(File.deleted_at.is_(None), File.missing_since.is_(None))
+
+
+DESK_WINDOW_DAYS = 14
+
+
+def continue_desk_filter():
+    """Rows on the Continue desk: started, unfinished, recent, not set aside.
+
+    ``last_played_at`` and ``dismissed_at`` are stored as naive UTC, so the cutoff
+    must be naive too; an aware value compares as a string and moves the boundary.
+    """
+    now = datetime.now(UTC).replace(tzinfo=None)
+    return and_(
+        WatchHistory.duration > 0,
+        WatchHistory.playback_position * 100 >= WatchHistory.duration * 3,
+        WatchHistory.playback_position * 10 < WatchHistory.duration * 9,
+        WatchHistory.last_played_at >= now - timedelta(days=DESK_WINDOW_DAYS),
+        or_(
+            WatchHistory.dismissed_at.is_(None),
+            WatchHistory.dismissed_at < WatchHistory.last_played_at,
+        ),
+    )
 

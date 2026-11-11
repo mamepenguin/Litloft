@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The diff moves many handlers onto worker threads (asyncio.to_thread), which is not in the touch-point list: folder create/rename/move/delete, empty_trash, purge_all_missing, batch_move, batch_rename, rename/move file endpoints, upload complete, and get_archive_entry, put_file_content and _write_md_tags.",
+      "impact": "Handlers that used to run fileops on the event loop with the request's SQLAlchemy Session now run it on another thread. A thread-bound session, or concurrent use of the same session while the handler awaits, can raise or race. The change reaches the concurrency model of routers/drives.py, routers/uploads.py and routers/files.py beyond the path-resolution edits.",
+      "evidence": "backend/app/routers/drives.py create_folder, rename_folder, move_folder, delete_folder, empty_trash and purge_all_missing_endpoint; backend/app/routers/uploads.py complete_upload; backend/app/routers/files.py batch_move, batch_rename, rename_file_endpoint and move_file_endpoint. All now pass `db` into asyncio.to_thread.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The spec's non-functional item says no scandir runs on the event loop, so the intent is covered. The specific handlers and the Session thread-safety are not in the touch-point list. No declared invariant is broken.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Add these handlers to the touch-point list, or confirm that the Session and the sqlite engine allow cross-thread use."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "routers/admin_markdown_images.py is changed and services/markdown_image_import.py's start_import is split into prepare_import and launch_import. Neither the router nor this refactor is in the touch-point list. Only the service file is listed, for path resolution.",
+      "impact": "The import job now does its validation and job registration in a thread, so the module globals _jobs and _current_job_id are mutated off the event loop. That can race with concurrent job starts or maintenance checks. The public start_import is kept, but the router no longer uses it.",
+      "evidence": "backend/app/routers/admin_markdown_images.py start_markdown_image_import; backend/app/services/markdown_image_import.py prepare_import and launch_import.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is an unlisted touch point and a behavioural refactor with no declared invariant. The exception handling that follows the call is unchanged.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM"
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "Unlisted reach in routers/files.py: get_wiki_resolutions, get_subtitle (the subtitle path now goes through _on_disk_path), batch_move and the new _on_disk_path helper are changed. They are not named in the touch-point list. Only 'markdown resolution handlers' is listed loosely.",
+      "impact": "These handlers sit on the access-control path through _validate_path. A reviewer relying on the list would not have checked them.",
+      "evidence": "backend/app/routers/files.py _on_disk_path, get_subtitle and get_wiki_resolutions.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The spec's scope rule lets the inventory test define scope. This is a documentation gap only.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "F4",
+      "origin": "reviewer",
+      "claim": "Other unlisted reach: routers/drives.py gains new helpers (_checked_inside, _on_disk_new_target, _on_disk_existing_target) that import the private safepath._contains_symlink. docs/ADDON-DEVELOPMENT.md is edited (the spec text mentions it, but the touch-point list does not). backend/tests/test_listing_call_inventory.py gets a new inventory entry.",
+      "impact": "Duplicated containment logic in drives.py can drift from safepath.py's checks.",
+      "evidence": "backend/app/routers/drives.py _checked_inside; docs/ADDON-DEVELOPMENT.md; backend/tests/test_listing_call_inventory.py.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Spec section 6 describes this re-check. The list omits the sites.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "F5",
+      "origin": "reviewer",
+      "claim": "The commit contains no parity-table JSON fixture, and no addon pointer bump or addon changes. The touch-point list requires the parity table in each tree that holds a resolver.",
+      "impact": "I16 cannot be checked from this commit. The core resolver has no table-driven test, only hand-written cases.",
+      "evidence": "The diff adds backend/tests/test_diskpath*.py but no JSON fixture.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "SPEC-ADDON-062 covers I14 to I16 in a separate addon PR. The core copy of the table may still be expected in this commit.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    }
+  ],
+  "specification_compliance": [
+    "I1/I2: stream and the read handlers go through _on_disk_path or resolve_on_disk(cached=True), and tests cover the three layouts.",
+    "I3/I4/I12: the walk checks the exact name first, falls back to an NFC-equal scan, and does not raise or write.",
+    "I5-I8, I12: mutating sites use existing_or_409 and new_or_409 without the cache, and name_taken covers the other spelling.",
+    "I13: the AST inventory test exists with a seeded-detector self-check and an empty LISTING_DERIVED.",
+    "I14-I16: out of this diff."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Handlers moved onto worker threads (asyncio.to_thread) with the request's Session.",
+    "start_import split into prepare_import and launch_import, with the router running prepare_import in a thread.",
+    "physical_delete now raises 409 on an ambiguous name. Bulk purge (purge_all_trash, purge_all_missing and the trash purge job in main.py) may abort partway or log, instead of skipping that file. Not verified."
+  ],
+  "regression_risks": [
+    "Cross-thread SQLAlchemy Session use in the to_thread handlers.",
+    "Races on the markdown import module globals.",
+    "One bad ambiguous entry could stop an empty_trash or purge_all_missing batch.",
+    "An extra lexists per resolve, and a scandir on every miss, on hot read paths."
+  ],
+  "test_coverage": [
+    "The resolver unit tests cover I3, I4, I10 and I12. The cache tests cover I11 and the bound. The HTTP tests cover layouts, writes, 409 for ambiguity, the scan staying unchanged and symlinks.",
+    "No test covers a bulk purge that hits an ambiguous entry.",
+    "No test shows that the async handlers work with the real Session across threads beyond the happy path.",
+    "There is no parity-table test."
+  ],
+  "not_verified": [
+    "I did not run any test.",
+    "I did not read the full repository context of the changed functions, such as the purge_all_* loops, main.py's purge job error handling, or the thumbnail/heic callers.",
+    "I did not check Session thread-safety against the database engine configuration.",
+    "I did not read the addons.",
+    "I did not check that the inventory test's regex heuristics (DRIVE_PART) catch every site."
+  ],
+  "confidence": 66
+}

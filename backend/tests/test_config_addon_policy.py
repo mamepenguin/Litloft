@@ -89,3 +89,26 @@ def test_invalid_addon_value_rejected(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "_drives_cache", None)
     with pytest.raises(ValueError, match="intelligence"):
         config.load_drives()
+
+
+# UNSPEC: a feature map carrying `_all: false` is the addon turned off, with
+# the other keys kept only so they return when it is turned back on.
+def test_all_false_in_a_map_disables_every_feature(tmp_path, monkeypatch):
+    path = tmp_path / "drives.json"
+    path.write_text(json.dumps([
+        {
+            "name": "kept",
+            "path": str(tmp_path / "kept"),
+            "addons": {
+                "intelligence": {"llm_cloud": True, "rag": False, "_all": False},
+            },
+        },
+    ]))
+    monkeypatch.setattr(config, "DRIVES_CONFIG", path)
+    monkeypatch.setattr(config, "_drives_cache", None)
+    try:
+        assert not config.is_addon_feature_enabled("kept", "intelligence", "index")
+        assert not config.is_addon_feature_enabled("kept", "intelligence", "unlisted")
+        assert not config.is_addon_feature_enabled("kept", "intelligence", "llm_cloud")
+    finally:
+        monkeypatch.setattr(config, "_drives_cache", None)

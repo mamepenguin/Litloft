@@ -26,6 +26,20 @@ The search window also has a **Keyboard Shortcuts** button along its bottom edge
 | `/` | In an empty field, browse from the drive root (typed directly, not through an input method) |
 | `←` or `Backspace` | While browsing, with the field empty: go up one level (from the drive root, stop browsing) |
 | `Enter` | While browsing, open the picked row, or the folder you are in when no row is picked |
+| `Cmd/Ctrl+V` with an image on the clipboard | Start an image search from the image (see [searching by an image](search.md#searching-by-an-image-intelligence-addon)) |
+
+### On the search results page
+
+| Key | Action |
+|---|---|
+| `Enter` | Search for the field's text (nothing happens when it is blank or unchanged) |
+| `Esc` | Put the current query back in the field; with the condition menu open, close that first |
+| `Enter` or `Space` on a chip's `×` | Remove that operator and search again; focus moves to the next chip's `×`, else the previous, else the field |
+| `↑` / `↓` in the condition menu | Move through its items |
+| `Enter` in the condition menu | Choose the highlighted item |
+| `Esc` in the condition menu | Leave a value list for the first level, or close the menu |
+| `Tab` in the condition menu | Close it |
+| `Cmd/Ctrl+V` with an image on the clipboard | Start an image search from the image (see [searching by an image](search.md#searching-by-an-image-intelligence-addon)) |
 
 ### Quick Note panel
 
@@ -46,6 +60,30 @@ In the Library and in folders, not on Home.
 | `Cmd/Ctrl+N` | Create a new Markdown file in the current folder (see [Creating a new file](file-browsing.md#creating-a-new-file)) |
 
 Copy and cut need a selection. Paste and `Cmd/Ctrl+N` need a folder, so they do nothing in search results, in views like **Favourites** or **All Files**, or under a tag at the drive root.
+
+## Inbox
+
+The inbox lists files that just arrived in the drive. See [inbox](inbox.md).
+
+| Gesture | Action |
+|---|---|
+| Swipe left past a third of the row | Mark the arrival done |
+| Press and hold a row | Start selecting rows |
+
+With a mouse, hover a row to reveal **Done** and right-click for the file menu. On a touch screen 768 px wide or wider, the **Done** button stays visible.
+
+## Finding in a file
+
+On a file's page, with the intelligence addon. See [finding in this file](viewers-and-players.md#finding-in-this-file).
+
+| Key | Action |
+|---|---|
+| `Cmd/Ctrl+F` | Open the find bar (press again in the bar for the browser's find) |
+| `Enter` | Next place |
+| `Shift+Enter` | Previous place |
+| `Esc` | Close the find bar |
+
+`Cmd/Ctrl+F` stays the browser's find while you type in another field, while a dialog or a full-screen viewer is open, and on a phone.
 
 ## Renaming
 
@@ -70,6 +108,16 @@ Also works for YouTube videos imported with the media_import addon.
 | `F` | Full screen |
 
 Media keys on your keyboard and the lock screen also control playback.
+
+### Scenes timeline (intelligence addon)
+
+On a video's page, the ruler in the **Scenes** section is one tab stop; these keys work while it has focus and stay out of the page's other shortcuts.
+
+| Key | Action |
+|---|---|
+| `←` / `→` | Move the point you are browsing one frame back / forward (the first press starts from the playing frame) |
+| `Home` / `End` | Move it to the first / last frame |
+| `Enter` | Play from the point you are browsing; with none set, nothing happens |
 
 ## File navigation
 
@@ -172,7 +220,7 @@ While editing a note:
 | `Cmd/Ctrl+K` | Insert link |
 | `Cmd/Ctrl+E` | Inline code |
 | `Cmd/Ctrl+Shift+K` | Code block |
-| `Cmd/Ctrl+Shift+\` | Switch between Edit, Split and Preview |
+| `Cmd/Ctrl+Shift+\` | Switch between Edit, Split and Preview (on a `.txt` file: between Edit and Preview) |
 
 Notes save automatically. `Cmd/Ctrl+S` marks the current text as a version to keep. In the editor `Cmd/Ctrl+K` inserts a link instead of opening search.
 

@@ -104,6 +104,7 @@ export function ShortcutsProvider({ children }: { children: ReactNode }): ReactE
           // editingOnly === false: fires regardless of focus state.
           // editingOnly === true: only when an editing element has focus.
           // editingOnly === undefined: only when no editing element has focus.
+          if (s.when && !s.when()) return false;
           if (s.editingOnly === false) return true;
           return Boolean(s.editingOnly) === isEditing;
         });

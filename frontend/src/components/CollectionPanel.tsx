@@ -309,7 +309,7 @@ function VideoTrackList({
   onRemove: (index: number) => void;
 }) {
   return (
-    <div className="flex gap-3 overflow-x-auto pb-2">
+    <div className="flex flex-wrap gap-3 pb-2 mouse:max-h-[19.25rem] sm:mouse:max-h-[20.375rem] mouse:overflow-y-auto pointer-coarse:flex-nowrap pointer-coarse:overflow-x-auto">
       {tracks.map((track, index) => {
         const isCurrent = track.file.id === currentFileId;
         return (

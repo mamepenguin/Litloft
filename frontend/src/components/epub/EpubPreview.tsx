@@ -6,11 +6,13 @@ import { BookX, X } from "lucide-react";
 import type { FileItem } from "@/types";
 import { DismissScrim } from "@/components/DismissScrim";
 import { EmptyState } from "@/components/EmptyState";
+import { useFind } from "@/components/FileDetail/find/FindContext";
 import { useFullscreen } from "@/components/player/hooks/useFullscreen";
 import { useAutoHidingChrome } from "@/hooks/useAutoHidingChrome";
 import { useFocusScope } from "@/hooks/useFocusScope";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { getDownloadUrl } from "@/lib/api";
+import type { DocumentController } from "@/lib/documentController";
 import { formatFileSize } from "@/lib/format";
 import { chapterAt, chapterMarks, chapterOf, currentEntryIndex, hasSelectable } from "@/lib/epubToc";
 import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
@@ -53,9 +55,14 @@ export interface EpubPreviewProps {
   file: Pick<FileItem, "id" | "filename" | "title" | "file_size">;
   /** 1-based section number from `?section=`; read when the reader opens. */
   initialSection?: number | null;
+  onDocumentController?: (controller: DocumentController | null) => void;
 }
 
-export function EpubPreview({ file, initialSection = null }: EpubPreviewProps) {
+export function EpubPreview({
+  file,
+  initialSection = null,
+  onDocumentController,
+}: EpubPreviewProps) {
   const t = useTranslations("file");
   const tc = useTranslations("common");
   const theme = useSyncExternalStore(subscribeTheme, readTheme, () => "light" as const);
@@ -71,6 +78,11 @@ export function EpubPreview({ file, initialSection = null }: EpubPreviewProps) {
   });
   const [scrubbing, setScrubbing] = useState(false);
   const [openPanel, setOpenPanel] = useState<Panel>(null);
+  const find = useFind();
+  const interceptFind = find.shortcutEnabled && !fullscreen.isFullscreen;
+  const openFindFromReader = useCallback(() => {
+    find.openFindByShortcut();
+  }, [find]);
   const typographyPanelRef = useRef<HTMLDivElement | null>(null);
   const chrome = useAutoHidingChrome({
     enabled: fullscreen.isFullscreen,
@@ -82,9 +94,33 @@ export function EpubPreview({ file, initialSection = null }: EpubPreviewProps) {
     (kind: ReaderActivity) => (kind === "tap" ? toggleChrome() : showChrome()),
     [showChrome, toggleChrome],
   );
-  const reader = useEpubReader(file.id, theme, onActivity, initialSection);
+  const reader = useEpubReader(
+    file.id,
+    theme,
+    onActivity,
+    initialSection,
+    interceptFind,
+    openFindFromReader,
+  );
   const ready = reader.status.kind === "ready";
   const { setFullscreen, book, location, seeking } = reader;
+  const goToSection = reader.goToSection;
+  const documentController = useMemo<DocumentController | null>(
+    () =>
+      ready
+        ? {
+            goTo: (target) => {
+              if ("section" in target) goToSection(target.section);
+            },
+          }
+        : null,
+    [ready, goToSection],
+  );
+
+  useEffect(() => {
+    onDocumentController?.(documentController);
+    return () => onDocumentController?.(null);
+  }, [documentController, onDocumentController]);
   const toc = book?.toc ?? null;
   const labelAt = useCallback((f: number) => (toc ? chapterAt(toc, f) : null), [toc]);
   // While a seek is under way the bar shows where it is going, not the

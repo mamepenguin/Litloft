@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "mcp-server/src/tools/runTool.ts:9-16: apiErrorDetail returns the detail unchanged when it is a string and returns JSON.stringify(detail) otherwise. The comment at line 12 gives the reason: FastAPI's 422 detail list would otherwise become [object Object]. The changed file list in r1/classification.json (line 86) includes runTool.ts. decisions.md line 7 records that the [object Object] output was found in R-5 and fixed in d5fb9edba. apiErrorDetail is called at runTool.ts:25 (runTool wraps every tool) and video.ts:74. The declared touch points do not include runTool.ts."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "mcp-server/src/tools/textContent.ts exists and is 86 lines long. It exports FULL_READ_MAX_BYTES (line 4), RANGED_READ_MAX_BYTES (line 5), EDITABLE_MIMES (line 10), EDITABLE_MAX_BYTES (line 11), decodeUtf8 (line 34), splitLines (line 43), selectLines (line 58) and isReadableMime (line 84). It also exports RANGED_OUTPUT_MAX_BYTES, getFileMeta and readTextBody. read.ts:12 and write.ts:9 import from it. The changed file list in classification.json (line 90) includes it. Neither the touch points nor invariants.md mentions it."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "The changed file list in classification.json includes __tests__/toolHarness.ts, compactOutput.test.ts, fileContent.test.ts and runTool.test.ts. It does not include write.test.ts or videoFrames.test.ts, which the touch points name. compactOutput.test.ts:7 and fileContent.test.ts:12 import toolHarness. runTool.test.ts:22-31 adds the SPEC-CORE-014 test for the detail list."
+    }
+  ],
+  "specification_compliance": [
+    "The touch-point list in this verification prompt does not cover runTool.ts, textContent.ts, toolHarness.ts, compactOutput.test.ts, fileContent.test.ts or runTool.test.ts. All six are in the changed file list."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Every tool's error text now contains the JSON of the detail whenever detail is not a string. This changes error output for existing tools, but only on failed calls."
+  ],
+  "regression_risks": [
+    "apiErrorDetail is shared by every tool and by video.ts failureReason. Error text for a non-string detail changed from [object Object] to JSON."
+  ],
+  "test_coverage": [
+    "runTool.test.ts:22-31 checks the exact text for a list detail. runTool.test.ts:13-20 still covers a string detail."
+  ],
+  "not_verified": [
+    "Shell access was not available, so I did not read the diff against origin/develop with git. I took the changed file list from r1/classification.json, and the earlier String(detail) behavior from the code comment and decisions.md.",
+    "I did not check the correctness of invariants I1-I10 in textContent.ts, read.ts, write.ts, folders.ts or batch.ts.",
+    "I did not run the tests."
+  ],
+  "confidence": 88
+}

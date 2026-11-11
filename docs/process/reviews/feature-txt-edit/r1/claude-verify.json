@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "frontend/src/components/FileDetail/__tests__/PlainTextDocument.test.tsx exists in the worktree. The touch points in docs/specs/txt-edit.md:278-330 name only frontend/src/lib/__tests__/fileDetailShell.test.ts (:300) and frontend/e2e-layout/ or e2e-components/ (:308) as core test locations. The spec mentions no other jsdom or unit-test location (the only other test mention is :269, 'tested against core develop'). I could not run git to see the new-file header, but the file's presence and the touch-point text match the claim."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "addons/knowledge/frontend/__tests__/PlainTextEditor.test.tsx exists. The addon touch points at docs/specs/txt-edit.md:309-323 list only source and message files, with no addon test path. Spec :269 says the knowledge PR is 'tested' but names no file."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "addons/knowledge/frontend/api.ts:324-342: putFileContent takes `content: string | Uint8Array` (:326) and sends `body: content as BodyInit` (:341). The touch point at docs/specs/txt-edit.md:317-318 declares only a new loader and encoder, plus getFileContent unchanged. getFileContent (:218-226) still reads res.text(). The widening exists so that encodePlainText's Uint8Array (:296-304) can be sent. It is a small, functionally necessary change to an existing writer that the touch points do not name. The string path behaves as before."
+    }
+  ],
+  "specification_compliance": [
+    "The touch-point list in docs/specs/txt-edit.md:278-330 names no jsdom test file in core and no test file in the addon. Two such files exist.",
+    "The touch point for api.ts covers the new getPlainTextFile/encodePlainText (api.ts:248-304) and leaves getFileContent unchanged (api.ts:218-226). It does not mention the change to putFileContent's signature."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "putFileContent now casts its body to BodyInit. Existing string callers send the same body as before, so the risk is low."
+  ],
+  "test_coverage": [
+    "I did not inspect the contents of PlainTextDocument.test.tsx or PlainTextEditor.test.tsx; I only confirmed that they exist."
+  ],
+  "not_verified": [
+    "I could not run git, so I did not check that the two test files and the putFileContent change were introduced by this commit rather than already present on origin/develop or the earlier addon commit.",
+    "I did not check the invariants I1-I10 against the code beyond the three touch-point findings."
+  ],
+  "confidence": 85
+}

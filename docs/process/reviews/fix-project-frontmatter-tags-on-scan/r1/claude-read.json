@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "F1-unattended-tag-respelling",
+      "origin": "reviewer",
+      "severity": "MEDIUM",
+      "claim": "Registering a note by scan, upload, create or copy now renames the drive's shared Tag row to that note's frontmatter casing, so a background scan or a copy changes the displayed tag on every other note carrying it.",
+      "impact": "With notes A and C spelled `Python`, a new note B spelled `python` appearing on disk makes the next scan turn every `Python` chip into `python`, while A's and C's frontmatter still say `Python`. When several new notes differ in case, the scan's visiting order picks the final spelling. Copying a note to another drive also respells that drive's existing tag, which a move across drives deliberately never does. The user did not edit any tag and is not told.",
+      "evidence": "backend/app/services/tagops.py:72-76 assigns `tag.name = tag_name` for a case-variant match. It is newly reached from backend/app/services/scanner.py:330, backend/app/services/upload.py:323, backend/app/services/fileops.py:336 and backend/app/routers/drives.py:892. backend/app/services/tagops.py:124 says of the move path that a destination row is reused as it stands and its spelling never rewritten. frontend/src/components/EditableTagChips.tsx:251-254 canonicalises suggestions specifically to avoid renaming a tag for every file that carries it. backend/tests/test_scanner_md_id.py:178-183 pins the rename on registration, and test_scan_shares_new_tag_row_across_notes asserts only the row count, not the spelling.",
+      "repro": "not_reproduced (read-only reviewer). Traced by reading: seed Tag(name='Python') attached to note A, write b.md with `tags: [python]`, run _scan_and_register. index.get('python') misses the exact map and hits the folded map, the row is renamed, and A's tag name becomes `python`. The existing test test_case_variant_reuses_row asserts this outcome for a row with no attached note.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is declared. The rename matches the PUT /content rule, but on paths the user did not use to edit tags, and it differs from the move path's rule for the same destination row.",
+        "invariant_ref": null
+      },
+      "proposed_fix": "Have the registration and copy paths reuse a case-variant row as it stands, as retarget_file_tags does, and keep the rename for explicit tag or content writes only."
+    },
+    {
+      "id": "F2-writeback-failure-skips-tags",
+      "origin": "reviewer",
+      "severity": "LOW",
+      "claim": "When a new note has frontmatter but no valid `id:` and writing the generated id back fails, _ensure_md_id_for_new_file returns before projecting tags, so its readable tags are not projected.",
+      "impact": "A note without an `id:` on a drive the app cannot write, such as a read-only mount, registers with no chips even though its tags were read successfully. A note on the same drive that already has an id gets chips. Nothing but the absent chips shows this; no warning is logged on this path. Later scans do not retry, because the row then exists.",
+      "evidence": "backend/app/services/scanner.py:314-318 has `except OSError: return`, and the projection is only at backend/app/services/scanner.py:330. `content` is already in memory at line 286, so the projection does not depend on the write. backend/tests/test_scanner_md_id.py has no test with a failing write-back (no match for OSError, chmod or read-only).",
+      "repro": "not_reproduced. Traced by reading: make replace_file_contents raise OSError and register a note containing `---\\ntags: [a]\\n---\\n`. The function returns at line 318 and File.tags stays empty.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is declared. The gap is narrow and needs a drive the app cannot write to.",
+        "invariant_ref": null
+      },
+      "proposed_fix": "Project tags before the id write-back, or on the OSError branch before returning."
+    },
+    {
+      "id": "F3-upload-reuse-keeps-stale-tags",
+      "origin": "reviewer",
+      "severity": "LOW",
+      "claim": "An upload that replaces a reused Markdown row with a file that is over 1 MiB or not valid UTF-8 skips projection and leaves the old content's tags on the row.",
+      "impact": "After such an upload, the note keeps chips and tag-filter membership from content that no longer exists, with nothing logged. The same function resets the row's other content-derived state for this replacement, and the upload-over-missing tests establish that tags should follow the new content.",
+      "evidence": "backend/app/services/upload.py:319-326: the size guard falls through and `except (OSError, UnicodeDecodeError): pass` is silent, so neither replace_file_tags nor cleanup_orphan_tags runs. backend/app/services/upload.py:278-301 reuses the row and resets file_hash, chapters_probed_at and trust_tier. backend/tests/test_frontmatter_tags_on_create.py has no oversized or non-UTF-8 case.",
+      "repro": "not_reproduced. Traced by reading: seed a missing row n.md with tag `stale`, upload n.md with bytes `b'\\xff\\xfe'`. read_text raises UnicodeDecodeError, the `pass` runs, and the row is revived with `stale` still attached.",
+      "introduced": "unverified",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is declared and the input is uncommon for a notes tool. Before this commit every re-upload kept old tags, so the change narrowed this case but left it inconsistent.",
+        "invariant_ref": null
+      },
+      "proposed_fix": "On a reused row whose new content cannot be read as a note, clear the tags and sweep orphans."
+    },
+    {
+      "id": "F4-tests-miss-drive-scoping-and-upload-guards",
+      "origin": "reviewer",
+      "severity": "LOW",
+      "claim": "The new tests do not distinguish destination-drive tag rows from source-drive rows on a cross-drive copy, and they do not exercise the upload size guard or decode-error handler.",
+      "impact": "A regression that attached a source-drive Tag row to a copy, or that turned a non-UTF-8 `.md` upload into a 500 after its bytes landed, would pass this commit's new tests.",
+      "evidence": "backend/tests/test_frontmatter_tags_on_create.py:121-139: test_cross_drive_uses_destination_rows seeds the source through _seed_note, which never projects tags, so the source drive holds no `Alpha` row and the test cannot show which drive's row was chosen. It also seeds no destination row, so reuse there is untested. backend/app/services/upload.py:321 and :325 have no matching case in the new test file.",
+      "repro": "Mutations reasoned, not run. (1) In replace_file_tags, load all drives' tags instead of file.drive's: the cross-drive test still passes, because no source row exists to be picked. Other test files were not checked for killing this mutant. (2) Remove `except (OSError, UnicodeDecodeError)` in complete_upload: no case in the new test file fails.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is declared, so a gap in these tests cannot be bucket A.",
+        "invariant_ref": null
+      },
+      "proposed_fix": "Project the source's tags before the cross-drive copy and seed a same-name destination row, then assert the copy's row has drive2 and the destination row's id. Add a non-UTF-8 upload case."
+    },
+    {
+      "id": "F5-no-touch-point-list",
+      "origin": "reviewer",
+      "severity": "INFO",
+      "claim": "No invariants file declares a touch-point list for this change, so every place the diff reaches is undeclared, including several the diff text does not show.",
+      "impact": "No declared boundary exists to check the reach against. The reach outside the visibly edited lines is: every internal tag write, which reaches the moved helper through a re-export; the markdown image import through register_single_file; a new upload-to-scanner import; and a tag-index load per new Markdown file during a scan.",
+      "evidence": "Only decisions.md exists in docs/process/reviews/fix-project-frontmatter-tags-on-scan/, and docs/specs/INDEX.md has no matching frontmatter-tag entry. Edited places: backend/app/routers/drives.py:889-893, 1014, 1100; backend/app/routers/files.py:92; backend/app/services/fileops.py:336; backend/app/services/scanner.py:330; backend/app/services/tagops.py:49-92; backend/app/services/upload.py:22-23, 319-326. Reached without an edit: backend/app/routers/internal.py:26 imports replace_file_tags through app.routers.files; backend/app/services/markdown_image_import.py:414 calls register_single_file; backend/app/services/scanner.py:758 runs load_tag_index in tagops.py:65 once per new Markdown file with frontmatter.",
+      "repro": "not_reproduced. Found by reading and by a repository-wide search for the changed symbols.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariants file exists, so bucket A is unavailable. This records the answer to the first-review question and reports no defect in those places.",
+        "invariant_ref": null
+      }
+    }
+  ],
+  "specification_compliance": [
+    "No invariants file exists, and docs/specs/INDEX.md has no entry matching frontmatter tags, so the code could not be checked against a declared specification.",
+    "All five places in backend/app that construct a File row are covered: scanner.py:383, scanner.py:739, upload.py:303, fileops.py:313 and drives.py:1086. The row-reusing upload and create paths also project and sweep."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "A scan, upload, create or copy can rename a drive-wide Tag row to the new note's casing (F1). Whether that is intended on paths where the user did not edit tags is not declared anywhere found in this review.",
+    "Copying a note across drives can respell the destination drive's tag, whereas moving one cannot (backend/app/services/tagops.py:124).",
+    "Create parses the raw request body, while scan, upload and copy parse text from read_text, which normalises line endings. A CRLF frontmatter block is therefore read as no frontmatter by create (backend/app/services/frontmatter.py:110-112), but projects on the other paths.",
+    "Copy reads notes up to 1,000,000 bytes (backend/app/services/fileops.py:38), while scan and upload read up to 1 MiB (backend/app/services/scanner.py:57). A note between those sizes gets tags on scan or upload but none on copy."
+  ],
+  "regression_risks": [
+    "Re-uploading or recreating a Markdown file over a reused row now replaces its tags from frontmatter. A file with no `tags:` key, or with malformed YAML (parse returns empty metadata), clears them. The comment at backend/app/services/upload.py:281 still says reuse keeps tags, which is now true only for non-Markdown files and unreadable Markdown.",
+    "An initial scan of many new notes runs one Tag query per note with frontmatter, each loading all of the drive's Tag rows (backend/app/services/tagops.py:65). Its cost grows with notes times tags; no timing was measured.",
+    "project_frontmatter_tags swallows every Exception, including one raised from an autoflush or from the rename flush. A real flush failure would leave the session needing rollback and surface later as a different error at the next query, rather than meeting the helper's aim of not affecting registration. The existing failure test raises before any database work, so it does not exercise this. No normal-use way to trigger such a flush failure was found.",
+    "backend/app/routers/drives.py:1102 treats any IntegrityError at commit as a filename conflict. Pending Tag rows are now part of that commit, so a tag-name collision would be retried as a filename suffix. This needs concurrent timing and was not pursued, per the review rules.",
+    "upload.py now imports app.services.scanner at module load. Reading the imports found no path from scanner or fileops back to upload, so no import cycle is expected."
+  ],
+  "test_coverage": [
+    "Covered by reading: new-row projection for scan, single registration, upload and create; invalid tags dropped; no-frontmatter notes; non-Markdown files on upload and create; reuse of a missing row with orphan sweep on upload and create; same-drive and cross-drive copy; a shared row across two scanned notes; swallowed projection failure on scan and single registration.",
+    "Not covered in the changed test files: spelling of a row shared with another note after registration; a destination-drive row on cross-drive copy; write-back failure before projection; oversized or non-UTF-8 upload; projection failure on upload, create or copy; a flush failure inside project_frontmatter_tags; CRLF frontmatter through create.",
+    "No test or mutation was run. All claims about what tests would catch come from reading."
+  ],
+  "not_verified": [
+    "No code, test or mutation was run; every repro is traced by reading.",
+    "Whether tests outside the changed files kill the F4 mutants, or cover oversized or non-UTF-8 Markdown uploads.",
+    "Addon behaviour: a search for tag usage in Python files under addons/ returned nothing, and addons located elsewhere were not examined, including how the knowledge addon's tag writes interact with registration-time projection.",
+    "Frontend behaviour beyond the quoted lines of EditableTagChips.tsx, including how chips refresh after a background rename.",
+    "Scan time and memory on a large drive.",
+    "The contents of decisions.md for this change and the untracked r1 directory, which were deliberately not read to keep the review independent of the author's reasoning.",
+    "Behaviour on PostgreSQL or any database other than SQLite, and of a mount that folds case or Unicode normalisation."
+  ],
+  "confidence": 78
+}

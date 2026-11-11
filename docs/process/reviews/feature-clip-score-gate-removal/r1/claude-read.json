@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The diff adds addons/intelligence/tests/test_search_clip_score_gates.py, a file the touch-point list does not name; the list's only edited test file is test_search_knn_partition.py, and it names test_search.py and test_search_file_kind_filter.py as read-only.",
+      "impact": "No user-visible behaviour is affected. The file holds the checks for I1-I9 except I10, and it imports fixtures and helpers from test_search_knn_partition.py, so an unlisted file now depends on helpers in a listed one. No invariant is missing because of it: the file only writes tests and adds no production path.",
+      "evidence": "The diff creates addons/intelligence/tests/test_search_clip_score_gates.py (367 lines). Its imports at lines 14-29 take _far_scene_rows, _far_thumbnails_of_other_files, _rows, _use_search_config, clip_index and others from tests.test_search_knn_partition. Spec item 7 says removed tests are 'replaced by tests of the opposite' under the heading for test_search_knn_partition.py, while the diff only deletes them from that file and puts the replacements in the new file.",
+      "repro": "Compare the file list of the diff with the spec's '## Touch points': every other path in the diff is listed or is an implicit touch point (spec, INDEX.md, review records); this one is not.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "It breaks no invariant. It is a gap in the planned list, and the author can add the file to the touch points through the revision mechanism.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add the new test file to the touch-point list, or record it as a revision in invariants.md."
+    }
+  ],
+  "specification_compliance": [
+    "Touch-point question: the diff's paths are the addons/intelligence gitlink, app/config.py, app/search.py, tests/test_search_knn_partition.py, tests/test_search_clip_score_gates.py, docs/addons/intelligence.md, docs/user-guide/search.md, docs/specs/INDEX.md and docs/specs/clip-score-gates.md. Only test_search_clip_score_gates.py is unlisted (TP-1).",
+    "Callers of the two edited functions stay within the list. In app/, _build_results is called only from search() (search.py:369) and execute_search_compare (search.py:2484-2498). _vector_search_clip is called only from search() (search.py:281) and execute_search_compare (search.py:2459). Those are reached by GET /search and GET /search/compare, the two endpoints listed (routers/search.py:126,147).",
+    "I1/I2: search.py:686-698 runs no gap or coefficient-of-variation check on the CLIP channel, read in both modes and with Scene search on and off.",
+    "I3: the per-type floor (search.py:725-730) and the margin (search.py:750-751) are unchanged; the margin is the recall margin in recall mode (search.py:694-698).",
+    "I4: the text channel's gap handling at search.py:485-489 is not in the diff, and score_gap_threshold remains read there.",
+    "I5/I6: the exemption at search.py:1511-1515 applies only when mode != 'recall'; top_score is still results[0].score after the sort, and skip_cutoff bypasses the block. Recall-mode callers pass mode='recall' explicitly (rag/retriever.py:334, evals/stages.py:197,213).",
+    "Recall-mode CLIP results are unchanged because _RECALL_PARAMS.score_gap_threshold is 0.0 (search.py:60), which skipped the removed block under its old 'gap_threshold > 0' guard.",
+    "I7: sorting (search.py:1496) precedes the cutoff, and limit truncation (search.py:1517) follows it. I8: the scope, active, kind and drive filters (search.py:1435-1457) run before the exemption."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The search-compare page's cutoff toggle (addons/intelligence/frontend/pages/search-compare.tsx:228-229) now shows image matches below the ratio with the cutoff on. The endpoint is listed and spec item 7 calls this deliberate; the page itself is not listed and is not edited."
+  ],
+  "regression_risks": [
+    "Unedited consumers of GET /search receive more results: frontend/src/lib/semanticSearch.ts through useFileSearch.ts and useFolderFiles.ts, and searchMerge.ts, which counts semantic-only hits in total (searchMerge.ts:252-257). Spec item 7 describes the page and popup effect, but the frontend paths are not touch points and no invariant covers them; the listed endpoint covers them only indirectly.",
+    "MCP semantic_search (mcp-server/src/server.ts, tools/video.ts, tools/read.ts mention it) sees longer precision-mode results. Spec item 7 says its tool text stays as it is."
+  ],
+  "test_coverage": [
+    "The new test file has tests named for I1-I9. I10 concerns benchmark.py, which is not part of this diff's code, and it has no test in the diff.",
+    "I8 is tested at _build_results level (test_spec_addon_044_exempt_results_are_still_filtered), not through search() with Scene search on or off as the invariant words it. The filters sit in _build_results and search() passes them through (search.py:369-376), so the gap is narrow.",
+    "That same test gives every filtered file only a clip_thumbnail match, including 'both' and 'scene', so it does not exercise a 'clip' result or a mixed-type result through the filters. The exemption tests use those types separately.",
+    "test_search_knn_partition.py keeps leftovers of the removed checks: GATES_ONLY (line 234) is now unused, the section header at lines 166-170 and the helper docstrings at lines 174-175 and 224-225 still describe gap and CV checks, and tests still pass score_gap_threshold=0.02 (lines 243, 286), which no longer affects the CLIP channel. This is a listed file, so it is not a touch-point finding; the header is the prose most likely to mislead a reader."
+  ],
+  "not_verified": [
+    "I ran nothing: no test run, no mutation, and no observed behaviour against a real index.",
+    "The checked-out addons/intelligence tree was read as the state of submodule commit 9b58ec5c4; I could not confirm its HEAD with the available tools, only that its files match the diff where I read them.",
+    "benchmark.py and decisions.md, including I10 and the measured numbers, were not read or checked.",
+    "I searched the MCP tools only for mentions of semantic_search and did not read how they call GET /search or which mode they send.",
+    "Frontend ranking through computeHybridScore was not read, so the spec's statement that CLIP-only hits usually rank low is not checked.",
+    "The _combine_scores_cosine and _combine_scores_rrf code that produces match_types was not read."
+  ],
+  "confidence": 85
+}

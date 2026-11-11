@@ -13,16 +13,26 @@ import { CheckCircle2, Info, X, XCircle } from "lucide-react";
 
 type ToastKind = "error" | "success" | "info";
 
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
+export interface ToastOptions {
+  action?: ToastAction;
+}
+
 interface Toast {
   id: number;
   kind: ToastKind;
   message: string;
+  action?: ToastAction;
 }
 
 interface ToastApi {
-  error: (message: string) => void;
-  success: (message: string) => void;
-  info: (message: string) => void;
+  error: (message: string, options?: ToastOptions) => void;
+  success: (message: string, options?: ToastOptions) => void;
+  info: (message: string, options?: ToastOptions) => void;
 }
 
 const ToastContext = createContext<ToastApi | null>(null);
@@ -38,9 +48,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const push = useCallback(
-    (kind: ToastKind, message: string) => {
+    (kind: ToastKind, message: string, options?: ToastOptions) => {
       const id = nextIdRef.current++;
-      setToasts((prev) => [...prev, { id, kind, message }]);
+      setToasts((prev) => [
+        ...prev,
+        { id, kind, message, action: options?.action },
+      ]);
       // ``setTimeout`` handle isn't tracked because the timer firing for an
       // already-removed id is a no-op.
       if (typeof window !== "undefined") {
@@ -51,9 +64,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   );
 
   const api: ToastApi = {
-    error: useCallback((m) => push("error", m), [push]),
-    success: useCallback((m) => push("success", m), [push]),
-    info: useCallback((m) => push("info", m), [push]),
+    error: useCallback((m, o) => push("error", m, o), [push]),
+    success: useCallback((m, o) => push("success", m, o), [push]),
+    info: useCallback((m, o) => push("info", m, o), [push]),
   };
 
   return (
@@ -141,6 +154,18 @@ function ToastCard({
       <p className="min-w-0 flex-1 text-sm text-text-primary">
         {toast.message}
       </p>
+      {toast.action && (
+        <button
+          type="button"
+          onClick={() => {
+            toast.action?.onClick();
+            onDismiss(toast.id);
+          }}
+          className="flex-shrink-0 rounded px-1.5 py-0.5 text-sm font-medium text-accent hover:bg-accent/10"
+        >
+          {toast.action.label}
+        </button>
+      )}
       <button
         type="button"
         onClick={() => onDismiss(toast.id)}

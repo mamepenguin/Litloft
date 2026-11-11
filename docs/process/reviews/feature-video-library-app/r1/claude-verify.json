@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "ToolbarMenu.tsx has new showLabel and truncateValue props (lines 138-157) and a conditional max-w-full class (line 198). The file is not in the touch points. I did not read the MenuRadioGroup hunk."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "pageJump.ts imports builtinApps (line 16) and spreads it into the fixed jumps (line 43). That adds a Video page-jump entry, and pageJump.ts is not in the touch points."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "api.ts has a new appendListingFilters helper (line 72) that is called at lines 128 and 180, so the existing getDriveFiles path is refactored. ApiStatusError is at line 237. I did not check whether its constructor signature changed."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F4",
+      "status": "needs_human",
+      "note": "I did not open the named test and gate files or their diffs, so I cannot confirm each edit. The claim is plausible, since the new sidebar row and registry would force allowlist and fixture-count changes."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F5",
+      "status": "confirmed",
+      "note": "backend/app/main.py imports shelves (line 22) and calls include_router(shelves.router) (line 329). docs/user-guide/overview.md line 27 is a new line linking to video.md. The touch points allow a new router, but main.py and overview.md are not named."
+    }
+  ],
+  "specification_compliance": [
+    "All five findings are about changes outside the declared touch-point list. They are scope observations, not violations of invariants I1 to I11. Under the threat model they are bucket B or C at most."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The change adds a Video entry to the page-jump feature, which the spec does not mention.",
+    "The shared ToolbarMenu component now has new props and a changed button class, which affects every toolbar menu in the app."
+  ],
+  "regression_risks": [
+    "The ToolbarMenu class and option-key changes could affect other menus.",
+    "The extracted appendListingFilters helper could change getDriveFiles query strings, which touches invariant I7 on the client side.",
+    "The new pageJump entry could change the keyboard jump behaviour."
+  ],
+  "test_coverage": [
+    "I did not inspect any tests. I only confirmed from the findings that the pageJump test and the allowlist tests were edited."
+  ],
+  "not_verified": [
+    "F4 test and gate file edits",
+    "The MenuRadioGroup hunk in ToolbarMenu.tsx",
+    "The ApiStatusError constructor change",
+    "Whether the invariants hold behaviourally (backend shelves logic)"
+  ],
+  "confidence": 75
+}

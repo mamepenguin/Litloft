@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "batch-rename-still-detaches",
+      "origin": "reviewer",
+      "claim": "The bulk rename path `fileops.batch_rename` renames videos without calling `move_sidecar_subtitles`, so sidecar subtitles still detach when a video is renamed through it.",
+      "impact": "A user who selects videos and uses the selection bar's rename dialog gets a 200 and renamed files, but `movie.ja.srt` stays under the old name and the detail page stops offering the track, falling back to the generated track or none. This is the symptom the change sets out to remove, and the commit deletes the known-issues entry that warned about it while the user guide now says renaming takes subtitles along.",
+      "evidence": "backend/app/services/fileops.py:1089 does `old_full.rename(new_full)` and backend/app/services/fileops.py:1092 calls `_update_file_after_rename` (fileops.py:1107-1122), which moves the thumbnail and updates the row but has no sidecar step. The only `move_sidecar_subtitles` calls are fileops.py:437 and fileops.py:528. Reached from backend/app/routers/files.py:471 via `PUT /api/files/batch/rename`, frontend/src/lib/api.ts:522, frontend/src/components/BatchRenameDialog.tsx:89 and frontend/src/components/SelectionBar.tsx:435. backend/tests/test_batch_rename.py has no mention of srt, vtt or subtitle, test_sidecar_subtitles_follow_video.py has no batch rename case, and the R-5 walk in decisions.md covers bulk move only.",
+      "repro": "not_reproduced (read-only review). Steps: place `a/movie.mp4` and `a/movie.ja.srt`, register the video, call `PUT /api/files/batch/rename` with its id and a mode that changes the stem. Reading the code predicts `a/movie.ja.srt` remains and `detect_subtitles` returns no track for the new name.",
+      "introduced": "pre-existing",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariants are declared, so A is unavailable. The missing sidecar step predates this commit, but the single-rename fix makes the two rename paths disagree and the commit removes the record of the problem. Whether to fix it here is a human scope decision.",
+        "invariant_ref": null
+      },
+      "severity": "HIGH",
+      "proposed_fix": "After `db.commit()` in `batch_rename`, call `move_sidecar_subtitles` for each completed rename whose file satisfies `_serves_subtitles`, in rename order, and add a batch case to the new test file. If it is deferred instead, restore a known-issues entry naming the bulk rename."
+    },
+    {
+      "id": "shared-stem-sidecars-taken-from-sibling",
+      "origin": "reviewer",
+      "claim": "`move_sidecar_subtitles` moves every subtitle matching the old stem without checking whether another file in the folder still uses that stem, so renaming or moving one video removes the tracks from a sibling that shares them.",
+      "impact": "With `movie.mp4` and `movie.mkv` or `movie.loft` side by side, both are offered `movie.ja.srt` by `detect_subtitles`. Renaming or moving `movie.mp4` silently leaves the remaining sibling with no subtitle track, and there is no message. Before this commit the same action left the sibling's tracks intact, so this is a new silent wrong result in normal use. The same applies to `movie.mp4` next to `movie.ja.mp4`, where `movie.ja.srt` is the second video's bare track and also matches the first video's language pattern.",
+      "evidence": "backend/app/services/subtitle.py:119-123 selects sidecars by name only through `_parse_subtitle_filename`, and subtitle.py:137 moves them. backend/app/services/fileops.py:436-437 and fileops.py:527-528 pass no information about siblings. backend/app/services/subtitle.py:83-88 shows detection is stem-based, so two videos with the same stem share a track. `resolve_db_path_conflict` and the 409 checks compare full names, so same-stem videos with different extensions are permitted. backend/app/services/filetype.py:33 classes `.loft` as video, so it qualifies too. No test in backend/tests/test_sidecar_subtitles_follow_video.py seeds two videos with one stem.",
+      "repro": "not_reproduced (read-only review). Steps: seed `a/movie.mp4` and `a/movie.mkv` as video rows plus `a/movie.ja.srt`, then `PUT /api/files/<mp4 id>/rename` to `film.mp4`. Reading the code predicts `a/film.ja.srt` exists and `detect_subtitles('a/movie.mkv', drive)` returns an empty list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is declared. The behavior arises in normal use with ordinary filenames, and it reads wrong because a file the user did not touch loses its subtitles.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Before moving, check the old directory for another file with the old stem that serves subtitles and leave the sidecars in place when one exists, logging a warning, or copy instead of move in that case. Add a test with two same-stem videos."
+    },
+    {
+      "id": "nfd-target-name-untested",
+      "origin": "reviewer",
+      "claim": "No automated test exercises `move_sidecar_subtitles` with a decomposed (NFD) sidecar name, so the NFC slice that builds the target name can regress unnoticed.",
+      "impact": "If `name = unicodedata.normalize('NFC', item.name)` is dropped, a sidecar stored in NFD on disk gets a target built from a wrong slice offset, because the NFC stem is shorter than the NFD name's stem. It would be silently renamed to a garbled name such as `案内` plus the tail of the old stem and `.ja.srt`, and detached from the video. Japanese names on a macOS-sourced drive are the normal case for this project.",
+      "evidence": "backend/app/services/subtitle.py:129-130 slices the normalized name by `len(old_stem)`. A search for `NFD` and `normaliz` in backend/tests/test_sidecar_subtitles_follow_video.py returns nothing. backend/tests/test_subtitle.py:153 covers NFD for detection only. backend/tests/test_listing_call_inventory.py:109-116 only checks that `unicodedata.normalize` is called somewhere in the function, which `old_stem` at subtitle.py:113 still satisfies under this mutation. The manual NFD walk in decisions.md is not a regression test.",
+      "repro": "Mutation reasoned, not run: replace subtitle.py:129 with `name = item.name`. Every test in the new file uses ASCII names, where NFC and NFD agree, and the inventory test still sees a normalize call, so the mutant is expected to survive.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The code as written handles NFD correctly according to reading and the recorded walk. This is a coverage gap on a path the repository already treats as a known hazard, not a live defect.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add a test that seeds a Japanese-named video with an NFD-named `.ja.srt`, renames the video, and asserts the target name is exactly the new stem plus `.ja.srt`."
+    }
+  ],
+  "specification_compliance": [
+    "No invariants file and no touch-point list exist for this change, so the first-review question has no list to compare against. Measured instead against the places that rename or relocate a video, the diff reaches `rename_file` and `move_file`, and through them `PUT /api/files/{id}/rename`, `PUT /api/files/{id}/move`, `PUT /api/files/batch/move` (routers/files.py:402) and the knowledge addon's rename call (addons/knowledge/app/internal_client.py:120). It does not reach `batch_rename`, raised as finding batch-rename-still-detaches.",
+    "Folder rename and folder move (fileops.py:882 and fileops.py:668) relocate the whole directory, so sidecars go with it and need no change.",
+    "`_serves_subtitles` (fileops.py:379-380) uses the same condition as the two read gates at routers/files.py:247 and routers/files.py:1382, so the move and detection sides agree on which files have subtitles.",
+    "Subtitle files never have File rows (scanner.py:344 and scanner.py:451), so moving them on disk leaves no stale database row."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "When the destination already holds a same-named subtitle, the request returns 200 with no user-visible message, the video's own sidecar stays behind under the old name, and the video now shows the other file's captions. The R-5 walk in decisions.md step 6 observed this and only a backend WARNING records it. The behavior is deliberate and tested for not overwriting, but no document states that the user sees another video's captions and is not told.",
+    "A sidecar move failure after the commit is logged only, so the API response reports full success while some tracks are detached. This is deliberate best effort, but the user cannot see it.",
+    "A video moved to another drive takes its subtitles along, including from a locked drive to an open one. The video itself moves the same way, so this looks consistent, but it is not stated."
+  ],
+  "regression_risks": [
+    "Renaming or moving one of several same-stem files now removes shared subtitles from the others, which did not happen before this commit.",
+    "Sidecars move after the database commit with no rollback link, so a process crash between the commit and the sidecar loop leaves the sidecars detached under the old name, the same state as before the fix.",
+    "`fileops.py` now imports `app.services.subtitle`. That module has no `app` imports, so no import cycle was found."
+  ],
+  "test_coverage": [
+    "Covered by backend/tests/test_sidecar_subtitles_follow_video.py: bare and language sidecars on rename, lookalike names staying, extension-only rename, no overwrite on rename and move, non-video files, `.loft` by mime type, one failing sidecar, same-drive move and cross-drive move.",
+    "Not covered: `batch_rename` with sidecars, two videos sharing a stem, NFD sidecar names, and `PUT /api/files/batch/move` with sidecars. The last goes through `move_file`, and the R-5 walk exercised it by hand.",
+    "`test_loft_file_sidecars_follow` seeds the row with `file_type='document'`, while `classify` gives `.loft` the type `video` (filetype.py:33). The fabricated row is what makes this test pin the mime clause of `_serves_subtitles`, and it does not represent a scanned row.",
+    "Removing the `old_video.parent == new_video.parent` early return in `move_sidecar_subtitles` is expected to survive `test_extension_only_rename_moves_nothing`: without it the target equals the source, `target.exists()` is true and nothing moves. The only difference is a spurious WARNING, so this has no user impact."
+  ],
+  "not_verified": [
+    "No test, command or application was run because this review is read-only, so every repro and mutation result is predicted from reading the code.",
+    "The batch rename repro was not run. The frontend trace stops at the dialog and selection bar components, and I did not check that the selection bar offers rename for video selections at runtime.",
+    "What the knowledge addon's rename call at addons/knowledge/app/main.py:94 renames was not read beyond the client method, so I did not check whether it ever targets a video.",
+    "The R-5 evidence in decisions.md (logs and screenshots under a scratch path) was not opened.",
+    "Behavior on network or cross-device filesystems for `shutil.move` of sidecars was not checked, and neither were other addons reacting to `files.moved`."
+  ],
+  "confidence": 85,
+  "trajectory": "First review. With no touch-point list declared, the place the change should reach and does not is `fileops.batch_rename`; every other video rename or move path reaches the new sidecar step."
+}

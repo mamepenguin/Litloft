@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1-SCOPE-1",
+      "status": "confirmed",
+      "note": "Reproduced. process/reviewers.conf:24 is the new row `claude-deep | claude | read | CRITICAL | scope,submodules,persistence,concurrency`. docs/process/reviews/chore-risk-tuning/ holds only decisions.md and r1/{head.txt,expected.txt,classification.json,fixes.txt}, and has no invariants.md. A Grep of docs/specs for reviewers.conf, claude-deep or risk-tuning returns nothing. r1/classification.json:8-17 lists process/reviewers.conf both as a CRITICAL zone and as a protected path. r1/expected.txt:1-3 lists claude-read, claude-verify and claude-deep. The precedent holds: fix-backend-image-addons-dir/r1/triage.md:39 raised CR-1 for the same missing invariants.md, and that directory's decisions.md:3 records a human 'ship' decision with 'CR-1, no invariants.md, accepted as is'. The row itself is valid input for parse_conf in scripts/process/review.sh:95-126: it has 5 fields, the id is allowed, engine is claude, role is read, and min_risk is CRITICAL, which passes rank. So the gap is a process and scope gap, not a functional defect."
+    }
+  ],
+  "specification_compliance": [
+    "No spec or invariants file covers this change, so there is no declared touch-point list to check it against. The changed row matches the documented reviewers.conf format at process/reviewers.conf:5-18."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Every CRITICAL change will now run one more read reviewer (claude-deep). This adds cost and time, and it adds findings that triage has to handle."
+  ],
+  "test_coverage": [
+    "I found no automated test that parses the new reviewers.conf row. Validity was checked only by reading parse_conf (scripts/process/review.sh:95-126)."
+  ],
+  "not_verified": [
+    "I did not run git, so I did not confirm that the working-tree contents match commit 3306844cb exactly. I read the worktree files, and the git status showed only untracked review files.",
+    "I did not run review.sh to confirm that claude-deep is actually selected and run for a CRITICAL classification.",
+    "I did not check whether the process kit formally requires an invariants.md for a CRITICAL change that has no spec."
+  ],
+  "confidence": 88
+}

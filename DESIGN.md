@@ -205,6 +205,7 @@ for an error surface in markup use `bg-danger/15`.
 | `--danger` | `#9e0a0a` | Danger / error color |
 | `--danger-bg` | `rgba(230,0,35,0.08)` | Error background |
 | `--highlight-bg` | `#fff8c5` | `<mark>` highlight background (warm butter) |
+| `--mark-bg` | `#dff0cf` | Persistent highlight background (soft green) |
 | `--kbd-shadow` | `inset 0 -1px 0 #b8c0c8` | `<kbd>` bottom bevel |
 
 #### Dark mode (`[data-theme="dark"]`)
@@ -232,6 +233,7 @@ for an error surface in markup use `bg-danger/15`.
 | `--danger` | `#ff8a8a` | Bright coral error |
 | `--danger-bg` | `rgba(255,45,66,0.12)` | Error background |
 | `--highlight-bg` | `rgba(244,198,116,0.55)` | Mark highlight, lifted to read against the dark canvas |
+| `--mark-bg` | `rgba(126,200,126,0.32)` | Persistent highlight, translucent over the dark canvas |
 | `--kbd-shadow` | `inset 0 -1px 0 rgba(255,255,255,0.2)` | `<kbd>` bottom bevel |
 
 #### System preference
@@ -259,7 +261,13 @@ There is no `[data-theme="system"]`. A stored `system` is resolved to `light` or
 - **`<mark>`'s UA default is reset globally** so utilities apply to it; inside
   `.markdown-body`, `--highlight-bg` wins. The reset lives in `@layer base`: an
   unlayered rule beats every utility regardless of specificity.
-- **A persistent highlight outside `.markdown-body` uses `bg-highlight-bg`.**
+- **A search or citation highlight outside `.markdown-body` uses `bg-highlight-bg`.**
+- **A saved highlight uses `--mark-bg`, never `--highlight-bg`.** Green
+  separates the viewer's own mark from a find match or an Ask citation, which
+  keep the butter tone. On a PDF text layer it is drawn at reduced alpha, as
+  find marks are, so the word on the canvas underneath stays visible. The mark
+  carries no padding, because a saved highlight must not move the text it sits
+  behind.
 
 ### 2.3 Wiki-link classes
 
@@ -566,6 +574,23 @@ One header for every screen with a subject, in up to three rows:
 - **The scope line is the drive and the screen's count.** An unknown count shows
   the drive alone, never `0`.
 - **The primary action ends the subject row.**
+- **The search results page's subject is an editable query field.** It takes the
+  title's place in the subject row and has that row to itself; the heading
+  「検索: "…"」 becomes a visually hidden `<h1>` so the page still has one. The
+  field is a §Inputs field. Under it sit the chips: the URL's `type` as a chip
+  first, then the operator chips, then 「＋ 条件」. Under the chips, one results bar
+  holds the Files / Passages switch, Scene search, the count, View, Sort and `…`.
+  Save as Smart Folder is not a primary action: it lives in `…`.
+
+### Image query chip
+
+When the results page is a search by an image, the query field's leading edge
+holds the picture: a 28 × 28 `rounded-lg object-cover` image, the label 「画像」
+in `text-xs font-semibold`, and a small round ✕ `hover:bg-bg-elevated` button,
+inside a `bg-sand rounded-full` chip (§Editable Tag Chips). The field is
+otherwise empty and editable. The image button sits at the field's trailing
+edge on `sm` and wider; below `sm` the 「画像で探す」 pill sits in the row under
+the field. Nothing in this view uses an accent fill.
 
 ### Tabs
 
@@ -605,10 +630,30 @@ with a **border in the accent colour**, never a fill.
   hover, and never use `scale()`.**
 - **A card's name clamps to two lines where it clamps at all.** A one-line
   `truncate` is also fine; a third number is not.
+- **A video card's title is 16/22 medium and sits 12px under the thumbnail; its
+  byline is 14/20 muted, one truncated line, 4px under the title.**
 - **A text file's stand-in thumbnail** — its title over a shrunken cast of the
   body — is sized by the media box, not by the name rule.
 - `line-clamp-*` needs `display: -webkit-box`; any other `display` utility on the
   same element silently cancels the clamp.
+
+### Home entry row
+
+The row of app destinations at the top of a drive's Home: Library, the
+built-in and addon apps, and the Inbox while it holds arrivals.
+
+- **It measures its own width** (§8.5 Measure against the container), never
+  the viewport: the same row sits beside an inline sidebar and inside a phone.
+- **At or above `36rem`** the tiles form a wrapping row, icon left of the
+  label; below it, a 4-column grid with the icon above a centred label and
+  every tile at least 72px tall. Nothing scrolls sideways.
+- **Every tile reaches the 44px floor**, in either layout.
+- **A tile is a link, and nothing is selected.** The row is a `<nav>`, not a
+  tablist, so no entry carries a current or selected state.
+- **No accent fill.** The row spends none of §2.2's one accent.
+- **A count is plain text inside the link** — a `bg-warm-light` pill, after
+  the label in the wrapping row and at the tile's top-right in the grid — so
+  the link's own name carries the number.
 
 ### The first fact under a file's name
 
@@ -685,7 +730,9 @@ file, not the layout.
 - Composition: core tabs before addon tabs.
 - Button `px-3 py-2 text-xs font-medium`, `border-b-2` as the selected indicator.
 - **One tab stop for the strip**; `←` / `→` move within it.
-- **Scrolls, never wraps.**
+- **On touch it scrolls, never wraps; on a mouse it wraps onto another row.** A
+  mouse wheel has no sideways gesture, so there a long strip takes a second row
+  instead of hiding tabs past the edge.
 - **Every panel stays mounted; only the selected one is shown**, so a tab keeps
   its data and scroll position.
 - Touch floor per §Row Actions.
@@ -841,8 +888,9 @@ no fills, no zebra, no cell grid.
   the header role.
 - **Exception**: vertical-header tables (`tbody th`) may keep a subtle fill on the
   header column.
-- Mobile: `font-size: 0.93em`. Do not reflow — horizontal scroll is preferred to
-  structure loss.
+- Mobile: `font-size: 0.93em`. On touch, do not reflow — horizontal scroll is
+  preferred to structure loss. On a mouse environment the table fits its
+  container and its columns wrap.
 
 ### A control table: say each explanation once, and keep the headings
 
@@ -888,6 +936,41 @@ row's hover state.
 - Text `text-[11px] leading-relaxed text-text-muted`, `line-clamp-2`.
 - **One snippet per hit.**
 - Row actions follow §Row Actions, and revealing them never reflows the excerpt.
+
+### Search passage rows
+
+A row in the search page's Passages view: one picture, one place in one file.
+
+- **The excerpt is shown in full.** This is not the §Search Snippet: no
+  `line-clamp`, and there is one row per place rather than one per hit.
+- **The picture is 16:9**: a frame from the video with its start time over it
+  (§Over-video chrome), else the file's thumbnail, else the file-type icon.
+- **Only a keyword match is marked**, with `bg-highlight-bg`, and only the terms
+  the keyword channel actually matched.
+- **No accent fill**: the 「ファイル / 箇所」 control follows §Selected-state
+  controls, and a row is flat with a `hover:bg-accent/5` wash.
+- A file's name and a section's title truncate to one line with the full value
+  in `title`; the row measure is §3.6's.
+
+### Find in file
+
+The find bar over a file's canvas, and its places in the inspector's **検索** tab.
+
+- **The bar is a strip, not a card**: `bg-card` with a bottom border, under the page
+  row at the top of the canvas. Field, count, previous, next, then close at the far
+  end, with the status line under them. The count is `tabular-nums` so stepping does
+  not shift the buttons.
+- **The places live in the inspector**, not under the bar: the inspector already has
+  a desktop form and a phone sheet, and the bar stays one row on a phone.
+- **Kind chips sit at the top of the tab** and follow §Selected-state controls: an
+  accent border, never a fill. Each reads its label and count (「発話 6」).
+- **A row is a locator over its kind beside the snippet**: the time or page in
+  `tabular-nums` at `font-semibold`, the kind under it in `text-[11px]
+  text-text-muted`. The current row carries a 2px accent rule on its leading edge
+  and a faint accent wash; hover is the §Search passage rows wash.
+- **Two marks, no new colour**: every occurrence is `bg-highlight-bg`; the current
+  one adds a 2px `--accent` outline. A citation mark from Ask is a separate element
+  and keeps its own look.
 
 ### Row Actions
 
@@ -1122,6 +1205,34 @@ and a folder tree have already taken space the viewport does not know about.
 - **Lead and fill, not equal shares**: a short index sizes to its content under a
   cap, and the long body takes the rest. The index does not shrink.
 
+### The primary pointer decides whether anything scrolls sideways
+
+A mouse wheel scrolls one axis, so a sideways strip is a dead end there. The
+environment is `(hover: hover) and (pointer: fine)` — the same axis as the
+coarse-pointer rules, never the viewport width — and it is defined once, as the
+`mouse:` custom variant in `globals.css`.
+
+- **On a mouse environment no screen scrolls sideways.** Shelves, tab strips,
+  breadcrumbs and settings tables wrap or reflow instead.
+- **On touch nothing changes.** Horizontal scrolling stays, and every strip that
+  wraps on a mouse keeps today's scroll through `pointer-coarse:`.
+- **Exempt content scrolls on either pointer**: Markdown tables, code blocks
+  (including the file viewer and a setup command snippet), mermaid diagrams, and
+  a viewer's pan area only while it is zoomed.
+- **A token that cannot wrap** truncates with an ellipsis and carries its full
+  text in `title`, or breaks with `overflow-wrap: anywhere`. It never produces a
+  scrollbar.
+- **A shelf is a grid of exactly the cards that fit in two rows.** Columns come
+  from the container's width, so the shelf never scrolls and has nothing hidden.
+  The collection panel under the player wraps into a box about two rows tall
+  that scrolls vertically, because it has no see-all page. Every card, tab and
+  track stays in the DOM.
+- **Tab strips wrap onto another row** and keep `border-b-2`, one tab stop and
+  `←` / `→`.
+- **The breadcrumb spends its width from the first segment inward**: ancestors
+  shrink with an ellipsis first, and the last segment truncates only once it
+  alone no longer fits.
+
 ### Measure against the container, not the viewport
 
 Any layout that can appear both full-width and inside a pane switches on the width
@@ -1143,9 +1254,11 @@ window and splits a pane at widths where two columns do not fit.
 **Card grids.** Equal cards measure their own width.
 
 **Card minimum width: `16rem`. Minimum column count: 2.** A single column on a
-phone shows less per screen than the list view. **Column gap: `gap-3`**,
-everywhere, so a folder row and the file grid beneath it line up. Do not write a
-breakpoint column count or `repeat(auto-fill, …)` into a card grid.
+phone shows less per screen than the list view. **Column gap: `gap-3`** for file
+grids, so a folder row and the file grid beneath it line up. **Video grids use a
+`20rem` minimum with `gap-x-4` and `gap-y-8`**, the density measured on YouTube
+for titled media cards. Do not write a breakpoint column count or
+`repeat(auto-fill, …)` into a card grid.
 
 ### Justified thumbnail rows
 

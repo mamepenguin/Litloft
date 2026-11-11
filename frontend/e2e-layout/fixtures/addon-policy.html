@@ -21,15 +21,15 @@
     -->
     <script type="application/json" id="fixture-markup">
       {
-        "wrapper": "max-h-[70vh] overflow-x-auto overflow-y-auto",
-        "headCell": "sticky top-0 z-10 whitespace-nowrap bg-bg-card px-4 py-2 text-center text-sm font-medium text-text-primary",
-        "rowHeadCell": "sticky top-0 z-10 whitespace-nowrap bg-bg-card py-2 pr-6 text-left text-xs font-semibold tracking-wide text-text-muted",
-        "table": "min-w-full border-collapse text-sm",
+        "wrapper": "max-h-[70vh] overflow-y-auto pointer-coarse:overflow-x-auto",
+        "headCell": "sticky top-0 z-10 bg-bg-card px-4 py-2 text-center text-sm font-medium text-text-primary wrap-anywhere pointer-coarse:whitespace-nowrap",
+        "rowHeadCell": "sticky top-0 z-10 bg-bg-card py-2 pr-6 text-left text-xs font-semibold tracking-wide text-text-muted wrap-anywhere pointer-coarse:whitespace-nowrap",
+        "table": "w-full border-collapse text-sm pointer-coarse:w-auto pointer-coarse:min-w-full",
         "driveRow": "border-t border-bg-border",
-        "driveNameCell": "whitespace-nowrap py-3 pr-6 text-xs font-semibold tracking-wide text-text-muted",
+        "driveNameCell": "py-3 pr-6 text-xs font-semibold tracking-wide text-text-muted wrap-anywhere pointer-coarse:whitespace-nowrap",
         "driveToggleCell": "px-4 py-3 text-center",
         "driveToggle": "h-4 w-4 cursor-pointer accent-accent",
-        "featureNameCell": "whitespace-nowrap py-2 pr-6 pl-4",
+        "featureNameCell": "py-2 pr-6 pl-4 wrap-anywhere pointer-coarse:whitespace-nowrap",
         "featureToggleCell": "px-4 py-2 text-center",
         "featureSwitch": "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-focus-ring focus:ring-offset-2 bg-accent-teal"
       }

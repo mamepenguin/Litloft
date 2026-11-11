@@ -5,12 +5,10 @@ import { Upload } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useUpload, type UploadFileEntry } from "@/hooks/useUpload";
 import { readDirectoryEntries } from "@/lib/directoryReader";
-import { UploadProgress } from "./UploadProgress";
 
 interface UploadZoneProps {
   drive: string;
   folderPath: string;
-  onUploadComplete?: () => void;
   children: ReactNode;
   className?: string;
 }
@@ -18,7 +16,6 @@ interface UploadZoneProps {
 export function UploadZone({
   drive,
   folderPath,
-  onUploadComplete,
   children,
   className,
 }: UploadZoneProps) {
@@ -26,11 +23,7 @@ export function UploadZone({
   const [isDragging, setIsDragging] = useState(false);
   const dragCounterRef = useRef(0);
   const zoneRef = useRef<HTMLDivElement>(null);
-  const { uploads, addFiles, addFileEntries, cancelUpload, clearCompleted } = useUpload(
-    drive,
-    folderPath,
-    onUploadComplete,
-  );
+  const { addFiles, addFileEntries } = useUpload();
 
   useEffect(() => {
     const el = zoneRef.current;
@@ -40,14 +33,14 @@ export function UploadZone({
       if (!detail || !Array.isArray(detail) || detail.length === 0) return;
       const first = detail[0];
       if (first instanceof File) {
-        addFiles(detail as File[]);
+        addFiles(drive, folderPath, detail as File[]);
       } else if (first.file && typeof first.relativePath === "string") {
-        addFileEntries(detail as UploadFileEntry[]);
+        addFileEntries(drive, folderPath, detail as UploadFileEntry[]);
       }
     }
     el.addEventListener("upload-files", handleUploadFiles);
     return () => el.removeEventListener("upload-files", handleUploadFiles);
-  }, [addFiles, addFileEntries]);
+  }, [addFiles, addFileEntries, drive, folderPath]);
 
   const handleDragEnter = useCallback((e: DragEvent) => {
     e.preventDefault();
@@ -108,7 +101,7 @@ export function UploadZone({
               }
             }
             if (allEntries.length > 0) {
-              addFileEntries(allEntries);
+              addFileEntries(drive, folderPath, allEntries);
             }
             return;
           }
@@ -119,20 +112,11 @@ export function UploadZone({
 
       const files = Array.from(e.dataTransfer.files);
       if (files.length > 0) {
-        addFiles(files);
+        addFiles(drive, folderPath, files);
       }
     },
-    [addFiles, addFileEntries]
+    [addFiles, addFileEntries, drive, folderPath]
   );
-
-  const handleClearCompleted = useCallback(() => {
-    clearCompleted();
-    if (onUploadComplete) {
-      onUploadComplete();
-    }
-  }, [clearCompleted, onUploadComplete]);
-
-  const hasActiveUploads = uploads.length > 0;
 
   return (
     <div
@@ -157,14 +141,6 @@ export function UploadZone({
             </p>
           </div>
         </div>
-      )}
-
-      {hasActiveUploads && (
-        <UploadProgress
-          uploads={uploads}
-          onCancel={cancelUpload}
-          onClearCompleted={handleClearCompleted}
-        />
       )}
     </div>
   );

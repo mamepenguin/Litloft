@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The diff edits the call site inside `search()` (it now passes `drive=drive` to `_vector_search_clip`), but the touch-point list names only `_vector_search_clip` and `coarse_retrieve` in the app code.",
+      "impact": "The hybrid search behind `GET /search`, Ask, Find and `search_files` now drive-filters the CLIP channel before its score gates. That is a behavior change on every Scene-search-off search with a drive, and the touch-point list never mentions it, so a reader planning from that list misses that `search()` changed.",
+      "evidence": "addons/intelligence/app/search.py:282 `mode=mode, include_scene_clip=include_scene_clip, drive=drive,`. The touch points list only `_vector_search_clip (the KNN query and the branch on include_scene_clip)` and `coarse_retrieve`.",
+      "repro": "Mutation: drop `drive=drive` at search.py:282. Then test_spec_addon_025_search_with_scene_off_finds_the_drives_thumbnails_behind_a_crowd_of_another_drive should fail, because the other drive's flat crowd fills the 50 candidates and the drive filter in _build_results removes them. So the edit is tested, but it is outside the planned list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The revised I1/I3/I9 (r5) need this edit, so no invariant breaks. Only the touch-point list is incomplete.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add `search()` (the CLIP channel submit) to the touch points."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The diff changes `execute_search_compare` so that it passes `drive=drive` to `_vector_search_clip`. The function is not in the touch-point list, and no test covers the change.",
+      "impact": "The CLIP matches and the `clip_vector` source count in `GET /search/compare` are now limited to the requested drive and to active files, and the gates now judge that filtered set. If someone later dropped this argument, compare would quietly go back to drive-agnostic gating and nothing would catch it.",
+      "evidence": "addons/intelligence/app/search.py:2478 `_vector_search_clip(clip_vector, candidates, drive=drive)`. No test references `execute_search_compare` (grep over addons/intelligence/tests finds nothing). Spec §7 still says compare uses the default `include_scene_clip=False`, \"so it changes the same way\", and says nothing about the drive.",
+      "repro": "Mutation: revert search.py:2478 to `_vector_search_clip(clip_vector, candidates)`. Reading the tests, none of them should fail (not run).",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The declared invariants are about `_vector_search_clip` and `search()`, and none covers the compare endpoint. So this is a gap in the plan and in coverage, not a broken invariant.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add `execute_search_compare` to the touch points, and add a test in which another drive's crowd hides the requested drive's thumbnails from compare's `clip_vector` count."
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "The diff adds a new helper, `_drive_thumbnail_neighbours`, with the constants `_CLIP_DRIVE_FETCH_MAX`/`_CLIP_DRIVE_FETCH_FACTORS` and a new `drive` parameter on `_vector_search_clip`. The helper runs up to four widening KNNs (k up to 4096) and reads `embeddings`/`indexed_files` inside the CLIP channel. The touch points describe only \"the KNN query and the branch on include_scene_clip\".",
+      "impact": "With a drive, the CLIP channel no longer runs a single KNN of k=rrf_candidates. It can run up to four KNNs plus an `IN` lookup of up to 4,096 ids in search.db, and the drive and active filter now runs before the gates rather than only in `_build_results`. Spec §6 still says \"The drive filter after the KNN stays where it is: `_build_results`\", which could lead a reader to strip the new filter from the channel as if it were redundant.",
+      "evidence": "addons/intelligence/app/search.py:565-610 (the new helper and constants) and search.py:674-675 (`if drive and not include_scene_clip: rows = _drive_thumbnail_neighbours(...)`). docs/specs/search-knn-partition.md §6 and the Touch points section.",
+      "repro": "not_reproduced (this is about planning scope). The behavior itself is exercised by test_spec_addon_025_scene_off_reaches_the_drives_thumbnails_only_within_the_4096_nearest and the I3/I9 (r5) tests.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Revised I1/I3/I9 (r5) declare this behavior, so no invariant breaks. The touch-point list and §6 were not updated to match.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add `_drive_thumbnail_neighbours` and the `drive` parameter to the touch points. Delete the §6 sentence saying the drive filter stays only in `_build_results`, or revise it so it does not contradict the code."
+    },
+    {
+      "id": "TP-4",
+      "origin": "reviewer",
+      "claim": "The diff adds a second known-issues row (\"An Ask whose answer the LLM fails to generate never finishes\"). It has nothing to do with this change, and the touch points allow exactly one row, the one about personal-history trimming.",
+      "impact": "No user-facing effect. It is a docs edit outside the planned scope, about a different defect (the SSE stream never closes after the LLM fails).",
+      "evidence": "docs/developer-guide/known-issues.md:616-620. The touch points read \"one row under Addons for the personal-history Ask trimming before intersecting\".",
+      "repro": "not_reproduced (docs only).",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Docs outside the touch-point list. No invariant is involved.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Either add this row to the touch points or move it to its own docs change."
+    }
+  ],
+  "specification_compliance": [
+    "The KNN in coarse_retrieve is constrained to the metadata partition with k=:over_fetch, and over_fetch keeps max(top_k*50, 500), as the touch point says (coarse_retriever.py).",
+    "_vector_search_clip keeps the unconstrained KNN with Scene search on, and with Scene search off it constrains the KNN to clip_thumbnail. Matches the touch point.",
+    "Edits outside the listed touch points: the search() call site (search.py:282), execute_search_compare (search.py:2478), the new helper _drive_thumbnail_neighbours and its constants (search.py:565-610), and a second, unrelated known-issues row.",
+    "The new test file and tests/vec_partition_db.py (which already existed) fall under the tests touch point. test_rag_coarse_retriever.py is unchanged."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "GET /search/compare now drive-filters and gates its CLIP channel per drive. Spec §7 does not describe this, and no test covers it.",
+    "With a drive, the CLIP channel can run up to four KNNs (k up to 4096) plus a large IN query on search.db per search. Spec §10 does not describe this cost."
+  ],
+  "regression_risks": [
+    "The compare endpoint's drive argument has no test, so a regression there would go unnoticed.",
+    "When a drive's thumbnails rank beyond the 4,096 nearest, the drive gets no CLIP matches (accepted by I1/I9 r5)."
+  ],
+  "test_coverage": [
+    "The search() drive pass-through is covered by test_spec_addon_025_search_with_scene_off_finds_the_drives_thumbnails_behind_a_crowd_of_another_drive.",
+    "No test covers the drive argument passed in execute_search_compare.",
+    "The widening loop in _drive_thumbnail_neighbours is exercised by the 4,096 test, and by the crowd tests at the small sizes."
+  ],
+  "not_verified": [
+    "I did not run any tests, so the mutation outcomes are inferred from reading the code.",
+    "I did not read the submodule's git history to confirm that the diff shown matches commit 5b63f2d exactly.",
+    "I did not check whether other callers of _vector_search_clip exist outside addons/intelligence/app.",
+    "I did not read the .claude/rules files in full."
+  ],
+  "confidence": 82
+}

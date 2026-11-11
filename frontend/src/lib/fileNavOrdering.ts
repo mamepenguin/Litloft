@@ -43,6 +43,12 @@ export function resolveFileNavOrdering({
 }: {
   params: URLSearchParams;
 }): FileNavOrdering {
+  const nav = params.get("nav");
+  // The inbox walk has its own order, so a folder sort in the URL would
+  // send the arrows and the readout to two different sequences.
+  if (nav === "inbox") {
+    return { sort: undefined, order: undefined, countable: true };
+  }
   const urlSort = normalizeSortParam(params.get("sort"));
   const sort = urlSort && NEIGHBOURS_SORTS.has(urlSort) ? urlSort : undefined;
   const order = params.get("order") ?? undefined;

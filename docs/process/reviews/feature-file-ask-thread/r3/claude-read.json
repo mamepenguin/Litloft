@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R1",
+      "origin": "reviewer",
+      "claim": "The saved-note builder still finds inline code spans one line at a time, so a CommonMark code span that crosses a line ending is treated as text, and the `[n]` inside it is rewritten to a `loft://` link or removed.",
+      "impact": "An answer whose inline code wraps across a soft line break, for example \"Use `arr\\n[1]` here\", shows on screen as `<code>arr [1]</code>` with no pill, because applyCitations skips code. The saved note silently replaces that `[1]` with `[0:05](loft://…?t=5)`, or deletes it when it has no position, so the code in the note differs from what the viewer read. The reverse also happens: an unclosed backtick run on one line leaves the rest of that line to be rewritten even when markdown-it closes the span on a later line.",
+      "evidence": "addons/intelligence/frontend/askNoteFormat.ts rewriteAnswer calls `rewriteInline(line, …)` for each line that `codeLineIndexes` does not mark as block code. `rewriteInline` and `closingBacktickRun` look for the closing run only inside the same `line` string, and an unmatched opening run is copied literally before the scan moves on (`out += line.slice(i, i + run)`). The r2 fix replaced only block detection with markdown-it tokens (`fence`, `code_block`) and did not use `code_inline`. MarkdownPreview (frontend/src/components/MarkdownPreview.tsx:93) uses markdown-it with the same options, and CommonMark code spans may contain line endings. AnswerMarkdown.applyCitations skips text under `code, pre` (AnswerMarkdown.tsx:232).",
+      "repro": "Traced by hand, not executed: call buildAskThreadMarkdown with the answer \"See `x\\ny [1]` z\" and citations [{n:1, position:{seconds:5}}]. Line 1 \"See `x\" has no closing run, so the backtick is copied. Line 2 \"y [1]` z\" goes through rewriteMarkers and becomes \"y [0:05](loft://<id>?t=5)` z\". markdown-it renders `x y [1]` as one code_inline, so on screen it is code and shows no pill. No test in askNoteFormat.test.ts or AskTabThread.test.tsx has a multi-line code span.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I7 says inside inline spans (as 083 step 3 defines them: CommonMark spans, which may span lines) the text is as received. A span split by a newline is changed here.",
+        "invariant_ref": "I7"
+      },
+      "severity": "LOW",
+      "proposed_fix": "Take inline code ranges from the same markdown-it parse: walk the `inline` tokens' children for `code_inline`, or map paragraph content offsets, and skip markers inside them. Add a test with a code span that crosses a soft line break."
+    }
+  ],
+  "specification_compliance": [
+    "The r2 finding (block code nested in lists and blockquotes) is fixed. codeLineIndexes parses the answer with markdown-it, using the same options as MarkdownPreview (html:false, linkify:true, typographer:false, breaks:false), and treats every source line in a `fence` or `code_block` token's map range as code. markdown-it's block token stream is flat, so fences nested in list items and blockquotes keep their map ranges.",
+    "The new askNoteFormat tests cover a fence inside a list item, a list continuation paragraph (now rewritten), a top-level indented block, a fence in a blockquote, and a fence two list levels deep. Each matches what CommonMark renders as code.",
+    "The component fixture gets a `markdown-it` alias, so the e2e bundle resolves the addon's new import. frontend/package.json already depends on markdown-it ^14.1.1.",
+    "Inline code spans are still found by a per-line hand scanner instead of the parser, so spans that cross lines are not covered (R1)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "MarkdownPreview strips a leading YAML frontmatter block before rendering (gray-matter), and codeLineIndexes parses the raw answer. An answer that starts with `---` lines can therefore get different line classifications in the note than on screen. This is rare in model output.",
+    "A backslash before a marker (`\\[1]`) renders on screen as a pill. In the note it becomes `\\[label](url)`, where the backslash escapes the link bracket, so it is not a link."
+  ],
+  "regression_risks": [
+    "The parser instance is module-level and built without the taskLists plugin or wiki_link rule that MarkdownPreview adds. Those are inline or list-item rules and should not change fence or code_block line ranges, but the two configurations can drift if MarkdownPreview later adds a block rule.",
+    "The e2e bundle now aliases markdown-it to frontend/node_modules. A version skew between the addon and core would go unnoticed."
+  ],
+  "test_coverage": [
+    "askNoteFormat.test.ts now checks code nested in list items and blockquotes against exact output, and would catch a revert to the column-0 state machine.",
+    "No test has an inline code span that crosses a line ending, or an unclosed backtick run whose close is on a later line.",
+    "AskTabThread.test.tsx still covers top-level fences, tilde fences, indented code, an unclosed fence and inline spans on one line."
+  ],
+  "not_verified": [
+    "I did not run markdown-it or the tests. The claim that a code span crosses a soft line break comes from the CommonMark rules, not from execution.",
+    "I did not re-review I1–I6 and I8–I12 in depth this round. The fix commits touch only askNoteFormat.ts, its tests, the fixture alias and the docs.",
+    "I did not check that markdown-it's `map` for a fence inside a blockquote covers exactly the `>`-prefixed source lines; I relied on the new test asserting it."
+  ],
+  "confidence": 78,
+  "trajectory": "The r2→r3 round removed design rather than adding it. The hand-written block classifier in rewriteAnswer, a fence state, an indented flag, previousBlank and two regex predictions of where CommonMark blocks start, was deleted and replaced with markdown-it's own block tokens. That removes the duplicate prediction of the renderer that caused r2's finding. The other commits are the companion fixture alias for the new import and docs or review records, and they add no branch or state. The inline-span half of the same prediction (rewriteInline and closingBacktickRun) is still hand-written and per-line, so one copy of the renderer's rules remains. That is the source of R1. Removing it the same way, with code_inline from the parser, would finish the round rather than patch it."
+}

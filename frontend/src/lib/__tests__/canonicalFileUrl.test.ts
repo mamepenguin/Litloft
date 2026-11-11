@@ -53,6 +53,13 @@ describe("buildCanonicalFileUrl", () => {
     expect(url).toBe("/drive/media/Notes/2026?file=f1");
   });
 
+  it("SPEC-CORE-028 I9 carries ?find= through the canonical redirect", () => {
+    const url = buildCanonicalFileUrl(baseFile, "f1", { find: "倉庫 A&B" });
+    const carried = new URL(url, "http://x").searchParams;
+    expect(carried.get("file")).toBe("f1");
+    expect(carried.get("find")).toBe("倉庫 A&B");
+  });
+
   it("exposes the carried-key allowlist for callers that need to mirror it", () => {
     expect(CARRIED_QUERY_KEYS).toContain("edit");
     expect(CARRIED_QUERY_KEYS).toContain("t");

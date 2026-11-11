@@ -6,12 +6,15 @@ import {
   Gauge,
   History,
   Home,
+  Inbox,
+  Play,
   Star,
   ThumbsUp,
   Trash2,
   type LucideIcon,
 } from "lucide-react";
 
+import { builtinApps } from "./builtinApps";
 import { driveHref } from "./driveViews";
 
 export const JUMP_LIMIT = 3;
@@ -36,9 +39,17 @@ const view = (name: string) => (drive: string) =>
 /** Sidebar order. Each row's visibility matches the sidebar's own condition. */
 export const FIXED_JUMPS: readonly FixedJump[] = [
   { key: "home", labelKey: "sidebar.home", icon: Home, href: (d) => driveHref(d, "home") },
+  { key: "inbox", labelKey: "sidebar.inbox", icon: Inbox, href: view("inbox") },
   { key: "library", labelKey: "sidebar.library", icon: FolderTree, href: (d) => driveHref(d, "library") },
+  ...builtinApps.map((app) => ({
+    key: `app-${app.id}`,
+    labelKey: app.labelKey,
+    icon: app.icon,
+    href: app.route,
+  })),
   { key: "favorites", labelKey: "sidebar.favorites", icon: Star, href: view("favorites") },
   { key: "liked", labelKey: "sidebar.liked", icon: ThumbsUp, href: view("liked") },
+  { key: "continue", labelKey: "sidebar.continue", icon: Play, href: view("continue") },
   { key: "recent", labelKey: "sidebar.recentlyViewed", icon: History, href: view("recent") },
   { key: "recentAdded", labelKey: "sidebar.recentAdded", icon: FilePlus, href: view("recent-added") },
   { key: "allFiles", labelKey: "sidebar.allFiles", icon: Files, href: view("all") },

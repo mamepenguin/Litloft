@@ -55,8 +55,13 @@ vi.mock("@/lib/api", () => ({
 }));
 
 import { DriveHome } from "@/components/DriveHome";
+import { resetUploadStore } from "@/hooks/useUpload";
 import messages from "@/messages-core/en.json";
 import type { FileItem, WatchHistoryItem } from "@/types";
+
+beforeEach(() => {
+  resetUploadStore();
+});
 
 const FAILED_TITLE = messages.empty.homeUnavailableTitle;
 const EMPTY_TITLE = messages.empty.noHomeActivityTitle;
@@ -172,7 +177,7 @@ describe("what the drive home says when its rows have nothing to show", () => {
     expect(screen.getByRole("button", { name: RETRY })).not.toBeNull();
   });
 
-  it("offers it for a reader with a profile too, whose page load is five requests and not three", async () => {
+  it("offers it for a reader with a profile too, whose page load is four requests and not two", async () => {
     // The two watch requests were swallowed by a `catch` that turned a
     // rejection into an empty row, so with a profile the page could tell
     // that its file rows had failed and nothing about the rest.
@@ -214,14 +219,13 @@ describe("what the drive home says when its rows have nothing to show", () => {
     expect(pageWideState()).toEqual([EMPTY_TITLE]);
   });
 
-  // One row at a time: the three are fetched together but land in three
+  // One row at a time: the two are fetched together but land in two
   // pieces of state, so a page that reads only some of them still hides
   // its empty state for the right reason in the cases it happens to
   // read, and claims an empty drive over a row with files in the rest.
   it.each([
     [0, "Recently Added"],
     [1, "Favorites"],
-    [2, "Liked"],
   ])("says nothing page-wide when the row at %i came back with files", async (withFiles, heading) => {
     let call = 0;
     mockGetDriveFiles.mockImplementation(() =>
@@ -283,8 +287,8 @@ describe("what the drive home says when its rows have nothing to show", () => {
     mockGetDriveFiles.mockResolvedValue(page([aFile("f1")]));
 
     const { rerender } = render(<DriveHome driveName="media" />);
-    // Three, because all three rows read the same mock.
-    await waitFor(() => expect(screen.queryAllByText("Clip f1")).toHaveLength(3));
+    // Two, because both rows read the same mock.
+    await waitFor(() => expect(screen.queryAllByText("Clip f1")).toHaveLength(2));
 
     mockGetDriveFiles.mockReturnValue(new Promise<never>(() => {}));
     rerender(<DriveHome driveName="archive" />);
@@ -298,8 +302,8 @@ describe("what the drive home says when its rows have nothing to show", () => {
   // that reads the pair with `every` instead of `some` is the same page
   // in all of those.
   it.each([
-    ["the resumable history", undefined],
-    ["the whole history", "all"],
+    ["the resumable history", "continue"],
+    ["the history off the desk", "not_continue"],
   ])("does not call the drive unreachable when %s answered alone", async (_label, answered) => {
     mockProfile.nickname = "Alice";
     mockGetDriveFiles.mockRejectedValue(new Error("network"));
@@ -313,12 +317,12 @@ describe("what the drive home says when its rows have nothing to show", () => {
     expect(pageWideState()).toEqual([EMPTY_TITLE]);
   });
 
-  // Each row in turn, because they are three separate requests and any
-  // one of them can be the one that fails. The three cases above give
+  // Each row in turn, because they are two separate requests and any
+  // one of them can be the one that fails. The cases above give
   // the surviving row files, which keeps the page out of both states
   // however the batch is read; here the survivors answer with nothing,
   // which is the population the two states are decided on.
-  it.each([[0], [1], [2]])(
+  it.each([[0], [1]])(
     "does not call the drive unreachable when the row at %i refused and the others answered empty",
     async (refused) => {
       let call = 0;
@@ -350,7 +354,7 @@ describe("what the drive home says when its rows have nothing to show", () => {
       () => new Promise((_resolve, reject) => rejects.push(reject)),
     );
     emit("drive.structure_changed", "media");
-    await waitFor(() => expect(rejects).toHaveLength(3));
+    await waitFor(() => expect(rejects).toHaveLength(2));
     await settleRefresh(() => rejects.forEach((reject) => reject(new Error("network"))));
 
     expect(pageWideState()).toEqual([EMPTY_TITLE]);
@@ -370,7 +374,7 @@ describe("what the drive home says when its rows have nothing to show", () => {
       () => new Promise((_resolve, reject) => rejects.push(reject)),
     );
     emit("drive.structure_changed", "media");
-    await waitFor(() => expect(rejects).toHaveLength(3));
+    await waitFor(() => expect(rejects).toHaveLength(2));
     await settleRefresh(() => rejects.forEach((reject) => reject(new Error("network"))));
 
     expect(pageWideState()).toEqual([FAILED_TITLE]);
@@ -401,13 +405,13 @@ describe("what the drive home says when its rows have nothing to show", () => {
     );
 
     const { rerender } = render(<DriveHome driveName="media" />);
-    await waitFor(() => expect(deferred).toHaveLength(3));
+    await waitFor(() => expect(deferred).toHaveLength(2));
     rerender(<DriveHome driveName="archive" />);
-    await waitFor(() => expect(deferred).toHaveLength(6));
+    await waitFor(() => expect(deferred).toHaveLength(4));
 
     // The drive that was left answers; the one on screen still has not.
     await act(async () => {
-      deferred.slice(0, 3).forEach((resolve) => resolve(page([])));
+      deferred.slice(0, 2).forEach((resolve) => resolve(page([])));
       await Promise.resolve();
     });
 
@@ -417,8 +421,8 @@ describe("what the drive home says when its rows have nothing to show", () => {
   // The two watch rows are two requests and two pieces of state, so
   // either can carry the only thing on the page.
   it.each([
-    ["Continue Watching", undefined],
-    ["Recently Viewed", "all"],
+    ["Continue", "continue"],
+    ["Recently Viewed", "not_continue"],
   ])("says nothing page-wide when only %s came back with items", async (heading, kind) => {
     mockProfile.nickname = "Alice";
     mockGetWatchHistory.mockImplementation((...args: unknown[]) =>
@@ -440,7 +444,7 @@ describe("what the drive home says when its rows have nothing to show", () => {
 
     render(<DriveHome driveName="media" />);
 
-    await screen.findByText("Continue Watching");
+    await screen.findByText("Continue");
     expect(pageWideState()).toEqual([]);
   });
 
@@ -463,7 +467,7 @@ describe("what the drive home says when its rows have nothing to show", () => {
 
     await waitFor(() => expect(pageWideState()).toEqual([]));
     expect(mockGetWatchHistory).toHaveBeenCalledTimes(4);
-    await screen.findByText("Continue Watching");
+    await screen.findByText("Continue");
   });
 
   it("retries the drive in front of the reader, not the one the button was drawn on", async () => {
@@ -500,7 +504,7 @@ describe("what the drive home says when its rows have nothing to show", () => {
     mockGetWatchHistory.mockRejectedValue(new Error("network"));
     rerender(<DriveHome driveName="archive" />);
 
-    await waitFor(() => expect(screen.queryByText("Continue Watching")).toBeNull());
+    await waitFor(() => expect(screen.queryByText("Continue")).toBeNull());
     expect(screen.queryAllByText("Clip v1")).toHaveLength(0);
   });
 

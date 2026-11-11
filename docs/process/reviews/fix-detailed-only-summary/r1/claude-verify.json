@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1-regenerate-update-text-clearing-untested",
+      "status": "confirmed",
+      "note": "Confirmed by reading; the mutant was traced by hand, not run. tests/test_summaries_edit.py:221 sets short_summary=:s, long_summary='' and status='hidden'; test_regenerate_keeps_the_detailed_summary passes short='' at line 278, so the row is already empty before regenerate. It asserts only (detailed_status, edited_at, short_original) at lines 305-309. tests/test_llm_routing_callers.py:472 and 500 check only startswith('UPDATE file_summaries SET') against a recording fake. Dropping short_summary/long_summary from app/routers/summaries.py:296-297 therefore leaves these tests green. In production a row holding short text would then keep it, _has_summary (app/workers/summaries.py:557-567) stays true, want_short is false (1382-1385) and a queued regeneration is silently skipped unless on_index detailed work is owed. The explicit-profile path via generate_summary (1208-1230) has no such check. test_file_insights_regenerate.py:426-469 covers _save_summary on a marker row, not this UPDATE."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2-regenerate-delete-branch-only-prefix-checked",
+      "status": "confirmed",
+      "note": "Confirmed by reading; the mutant was traced by hand, not run. tests/test_llm_routing_callers.py:469 and 497 compare sql.split(' WHERE ')[0], discarding the predicate at app/routers/summaries.py:308. The only real-DB call, tests/test_summaries_edit.py:301, uses detailed_status='generated' (line 222), so no real-DB test covers a NULL-detailed row. The wire test at test_llm_routing_callers.py:925-946 also uses the fake session and discards the SQL. A predicate matching nothing (for example detailed_status = 'x') survives. A predicate that also matches detailed rows would be killed by the real-DB test at line 309, so the gap is specifically the one claimed: a predicate that stops the delete. The row would keep its short text, so a no-profile regenerate is silently skipped by the worker."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3-batch-reports-queued-for-image-placeholder-rows",
+      "status": "confirmed",
+      "note": "Path confirmed in the code. app/workers/vision.py:266-272 inserts short_summary=''. app/routers/summaries.py:535-544 excludes it from existing through _HAS_SHORT_SUMMARY. Lines 554-559 filter only on drive membership and existing, so the image is enqueued and counted as queued. app/workers/summaries.py:367-369 returns None for images and line 1400 returns without work. The count reaches the user: frontend/FolderAIActionsMenuItems.tsx:115-124 passes the whole fileIds list and shows queued/skipped in a toast. A folder holding only such images shows the success toast instead of summariesBatchEmpty, assuming the caller's fileIds are not narrowed earlier in the component, which I did not read. The prior behaviour (any row counts as existing) is taken from the finding's 'now' wording and the test's intent; no diff tool was available to read the base."
+    }
+  ],
+  "specification_compliance": [
+    "The regenerate UPDATE and DELETE predicates are complementary on detailed_status (app/routers/summaries.py:301 and 308), so a row with a detailed summary survives and any other row is deleted.",
+    "_HAS_SHORT_SUMMARY is used consistently by the GET route, the batch route, _has_summary and enqueue_unprocessed; app/indexer.py:1044 inlines the same expression."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Batch reports images with a vision placeholder row as queued although the worker does nothing for them; this is the behaviour in F3."
+  ],
+  "regression_risks": [
+    "Clearing the short/long columns or breaking the DELETE predicate in regenerate would not be caught by the current tests (F1, F2), and the result would be a silently skipped regeneration on the queued path."
+  ],
+  "test_coverage": [
+    "Real-DB regenerate coverage is one case at tests/test_summaries_edit.py:274-310, on a row that already has empty short/long text and a non-NULL detailed_status.",
+    "tests/test_llm_routing_callers.py regenerate tests use a recording fake session and check SQL prefixes only.",
+    "tests/test_summaries_edit.py:254-271 covers batch classification for a video row only; no test covers an image placeholder row."
+  ],
+  "not_verified": [
+    "No test or mutant was run; this verifier has read-only tools, so survival of the mutants is traced by reading the tests.",
+    "The base revision was not diffed, so the prior batch behaviour in F3 is inferred rather than read from origin/develop.",
+    "Whether fileIds is narrowed by type earlier in FolderAIActionsMenuItems.tsx, above line 85, was not read.",
+    "Concurrent regenerate during an in-flight detailed generation was not examined."
+  ],
+  "confidence": 88
+}

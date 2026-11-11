@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R2-1",
+      "origin": "reviewer",
+      "claim": "The new I7 shortcut test for a .md presses Ctrl/Cmd+B, I, E and Shift+K but not Ctrl/Cmd+K (insert link), so the link shortcut alone can be removed from markdownShortcuts with no test failing.",
+      "impact": "A later edit that drops or rebinds the Ctrl/Cmd+K insert-link shortcut for a .md would pass CI, and the user would lose the shortcut without warning. The current code is correct.",
+      "evidence": "addons/knowledge/frontend/__tests__/Editor.versions.test.tsx (new describe 'SPEC-ADDON-037 a .md keeps its toolbar, shortcuts and Split (I7)'): the it.each rows are b, i, e and k+shift. Editor.tsx markdownShortcuts also holds { key: \"ctrl+k\", handler: () => handleToolbar({ kind: \"link\" }) }. The plain-text side tests all five keys (PlainTextEditor.test.tsx 'Ctrl/Cmd+%s %j is left alone'), but the .md side tests only four.",
+      "repro": "Mutation: delete the ctrl+k entry from markdownShortcuts in Editor.tsx. No test in Editor.versions.test.tsx or PlainTextEditor.test.tsx presses Ctrl/Cmd+K on a .md. Expected result: survives. I did not run it.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The code meets I7. This is only a gap in the test that was added to pin I7 (mutation finding F4), so no invariant is broken.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add a Ctrl/Cmd+K row that asserts the link action (defaultPrevented and the inserted link syntax, or the link affordance it opens)."
+    }
+  ],
+  "specification_compliance": [
+    "The commit a02288bae only moves the addons/knowledge gitlink from ea54ceb3 to e85188f4. Inside the submodule it changes three test files and no production code: Editor.versions.test.tsx, KnowledgeEditSection.test.tsx and PlainTextEditor.test.tsx.",
+    "The added tests line up with the survivors listed in mutation-r1.md. F1/M32 (registry registration for plain text) is covered by 'does not register as a Markdown content source' through markdownContentRegistry.lookup('f1') === null. MarkdownAwareTagChips.tsx:35-36 switches to content mode only when an entry exists, so pinning that the entry is absent pins I3's chip behaviour.",
+    "F2/M34 and M35 (wiki trigger): the '[[a' test dispatches doc changes that include a selection. MarkdownEditor.tsx:350-356 calls both onChange and onSelectionChange, and WikiLinkAutocomplete.tsx:188 always renders data-testid='wiki-link-autocomplete' once the trigger is set. Both mutants should be killed.",
+    "F3/M43 (.md toolbar), F4/M39 (all .md shortcuts) and F5/M41 (.md Split by shortcut) each get a direct test at the Editor level in Editor.versions.test.tsx.",
+    "F7/M59 (.txt with the inline flag off) gets a KnowledgeEditSection test that passes plainTextDocument: true with the flag false.",
+    "F6/M47, F8/M22, F9/M31 and F10/M56 (all bucket B in the mutation review) get no new test. That matches their B triage."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The new KnowledgeEditSection I8 test uses the existing 'renders nothing' pattern: waitFor(fetch called), then waitFor(container empty). The container is empty before the file metadata resolves, so the empty assertion passes trivially. M59 is killed only if the following synchronous queryByRole('link') runs after React commits the fetched file. That depends on RTL's asyncWrapper draining with setTimeout(0) before the commit. I did not confirm this by running the test."
+  ],
+  "regression_risks": [
+    "Tests only; no production code changes in this commit, so there is no runtime regression risk.",
+    "The M59 kill in KnowledgeEditSection.test.tsx depends on async timing (see potential_unspecified_behavior). Under different scheduling the test could pass even with the guard at KnowledgeEditSection.tsx:85 removed."
+  ],
+  "test_coverage": [
+    "Read statically, these surviving mutants are now killed: M32 (registry), M34 and M35 (wiki trigger), M39 (.md shortcuts as a whole), M41 (.md Split on the shortcut) and M43 (.md toolbar). M59 is probably killed.",
+    "Still unpinned, all triaged B in mutation-r1: M22 (performSave plain-block guard), M31 (wiki-resolutions fetch in plain mode), M47 (.md version preview link decoding), M56 (indentation commands in the plain keymap), and the Ctrl/Cmd+K .md shortcut on its own (R2-1)."
+  ],
+  "not_verified": [
+    "I could not run the tests or re-run the mutations, so the kills are inferred from reading the code. There is no mutation-r2 record.",
+    "Whether the M59 kill in KnowledgeEditSection.test.tsx is deterministic under RTL's asyncWrapper timing.",
+    "Whether the submodule range ea54ceb3..e85188f4 contains changes beyond the three test files shown.",
+    "Playwright and e2e layout coverage."
+  ],
+  "confidence": 80,
+  "trajectory": "The rounds since r1 are 72ef6b1ee (docs: r1 review record), 07a004823 (docs: mutation review record) and a02288bae (submodule bump that adds tests only). No round adds a branch, a state or a prediction to production code. The only code-level change is new tests aimed at the mutation survivors from r1, and none of them adds production logic. The design is not being patched, and no round removed a branch or state."
+}

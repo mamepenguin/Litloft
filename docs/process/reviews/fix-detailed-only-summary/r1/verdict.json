@@ -1,0 +1,1 @@
+{"verdict":"PASS","reasons":[],"findings":[{"reviewer":"claude-read","id":"F1-regenerate-update-text-clearing-untested","state":"open"},{"reviewer":"claude-read","id":"F2-regenerate-delete-branch-only-prefix-checked","state":"open"},{"reviewer":"claude-read","id":"F3-batch-reports-queued-for-image-placeholder-rows","state":"open"}],"needs_human":[]}

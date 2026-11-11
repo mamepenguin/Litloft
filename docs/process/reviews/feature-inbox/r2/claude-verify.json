@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2-F1",
+      "status": "confirmed",
+      "note": "docs/reference/api.md:188 still says 'a re-upload over a trashed file at that path replaces the ghost and gets a new record'. backend/app/services/upload.py:151-152 makes init_upload raise 409 'File already exists' whenever target_full exists on disk, and nothing there checks the trash state. Trash is a soft delete that leaves the file on disk: backend/tests/test_inbox_arrival.py:147-160 deletes a file, uploads to the same path, and gets 409 with the old content still in place. The ghost-purge branch at upload.py:317-326 is reached only when the trashed file's bytes are already gone, and test_trashed_ghost_is_replaced_and_gets_a_new_row (test_inbox_arrival.py:129-144) sets that up with an explicit unlink at line 135. In normal use the documented replacement does not happen, so the doc sentence is wrong. The api.md row for upload/init (line 186) does not mention this 409 either."
+    }
+  ],
+  "specification_compliance": [
+    "The code (upload.py:151) and the tests (test_inbox_arrival.py:147) agree that an upload over a trashed file still on disk is refused with 409. Only the API reference row at api.md:188 says otherwise."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "A reader who relies on api.md:188 would expect a re-upload over a trashed file to succeed, but init answers 409."
+  ],
+  "test_coverage": [
+    "test_upload_over_a_trashed_file_still_on_disk_is_refused covers the 409 both with and without inbox_source; test_trashed_ghost_is_replaced_and_gets_a_new_row covers ghost replacement when the trashed file's bytes are gone from disk."
+  ],
+  "not_verified": [
+    "I did not run the tests; I verified by reading the code only.",
+    "I did not check whether the api.md:188 sentence predates this branch or was added by it.",
+    "I did not check other docs (the spec in docs/specs/inbox.md, the user guides) for the same stale statement."
+  ],
+  "confidence": 90
+}

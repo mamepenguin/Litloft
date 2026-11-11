@@ -4,7 +4,7 @@ import { useCallback } from "react";
 import { useTranslations } from "next-intl";
 
 import type { DriveDraft } from "./DriveStep";
-import { isAddonOn, type AddonStatusEntry, type AddonPolicy } from "@/lib/adminConfig";
+import { isAddonOn, withAddonSwitched, type AddonStatusEntry, type AddonPolicy } from "@/lib/adminConfig";
 
 interface Props {
   drives: DriveDraft[];
@@ -76,7 +76,7 @@ export function AddonPolicyStep({
     (drive: string, addon: string) => {
       const current = isAddonOn(value, drive, addon);
       const driveEntry = { ...(value[drive] ?? {}) };
-      driveEntry[addon] = !current;
+      driveEntry[addon] = withAddonSwitched(driveEntry[addon], !current);
       onChange({ ...value, [drive]: driveEntry });
     },
     [onChange, value],

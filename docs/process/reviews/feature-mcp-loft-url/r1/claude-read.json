@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "claude-read-1",
+      "origin": "reviewer",
+      "claim": "The diff adds a new test file mcp-server/src/__tests__/loftUrl.test.ts, which is not in the touch-point list; the listed test file mcp-server/src/__tests__/videoFrames.test.ts is not changed by the diff at all.",
+      "impact": "No user-visible effect: the file is test-only and its tests cite SPEC-CORE-021 as the spec requires. A reader who uses the touch-point list to find the tests for this spec looks in videoFrames.test.ts, finds only the two unchanged SPEC-CORE-008/009 .loft tests, and may conclude the new behavior has no tests or add duplicates there.",
+      "evidence": "The diff header shows 'new file mode' for mcp-server/src/__tests__/loftUrl.test.ts (138 lines; describe.each over both tools, covering I1, I2, I3, I5 and I6). Nothing in the diff touches videoFrames.test.ts: its .loft tests at videoFrames.test.ts:138 and :440 still assert only the fallback text. The spec's touch-point list names 'mcp-server/src/__tests__/videoFrames.test.ts: the existing .loft test and new tests'.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant names the test file location. Only the touch-point list is inaccurate: the new tests live in a different, unlisted file.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Record a revision in docs/process/reviews/feature-mcp-loft-url/invariants.md that replaces the videoFrames.test.ts touch point with mcp-server/src/__tests__/loftUrl.test.ts. Alternatively, move the tests into videoFrames.test.ts."
+    }
+  ],
+  "specification_compliance": [
+    "Production code changes are confined to mcp-server/src/tools/video.ts: the loftError/readLoftUrl helpers, the .loft branch of both handlers and the two descriptions. This matches the listed touch point.",
+    "mcp-server/README.md changes only the get_video_frame and list_video_scenes rows, as listed.",
+    "docs/specs/mcp-loft-url.md, docs/specs/INDEX.md and docs/process/reviews/feature-mcp-loft-url/* are implicit touch points and are not reported.",
+    "readLoftUrl calls client.requestRaw('GET', '/api/files/{id}/stream') with no options, so it sends no Range or X-Lit-Drive header. This is consistent with the drive-boundary pass-through.",
+    "In getVideoFrame the .loft check precedes the duration check (video.ts around lines 164-167), consistent with I3.",
+    "No touch point outside the list was found in source, backend or addons. The only unlisted place is the new test file loftUrl.test.ts."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "A url that contains newlines or very long text is copied verbatim into the error text. This is in scope by the spec's choice: there is no validation under the personal-tool threat model."
+  ],
+  "regression_risks": [
+    "Native path: readLoftUrl is reached only inside the mime === LOFT_MIME branch, so native calls send no /stream request. videoFrames.test.ts:613-624 asserts rawCalls is empty for both tools on a native video, which covers I4."
+  ],
+  "test_coverage": [
+    "loftUrl.test.ts covers I1 for four providers, a URL containing spaces, a query string and a fragment, and both tools.",
+    "loftUrl.test.ts covers I2 and I5 for 404, 410 and 500 stream errors, network and timeout rejections, non-JSON and empty bodies, non-object JSON, and missing, empty, null, numeric and object url values.",
+    "loftUrl.test.ts covers I3 (exact request sequence, no intelligence/bytes/SSE call) and the .loft-before-duration ordering (t=5000).",
+    "loftUrl.test.ts covers I6 by comparing results for two drive arguments.",
+    "videoFrames.test.ts:138 and :440 keep covering the fallback when requestRaw is not stubbed."
+  ],
+  "not_verified": [
+    "Did not run the test suite or build; cannot execute commands.",
+    "Did not read the core GET /api/files/{id}/stream route to confirm its authorization and its response to a .loft file.",
+    "Did not inspect the commit ab22e431c on its own versus the branch-wide diff supplied; reviewed the supplied diff.",
+    "Did not read the repository rules under .claude/rules/ in full."
+  ],
+  "confidence": 85
+}

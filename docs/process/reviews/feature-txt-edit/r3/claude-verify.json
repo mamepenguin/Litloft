@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R3-1",
+      "status": "confirmed",
+      "note": "Reproduced by reading the code. In addons/knowledge/frontend/MarkdownEditor.tsx:392-411 the paste handler is registered in all modes. Nothing at lines 325-337 or 360-413 gates it on plainText. It collects the clipboard items whose type starts with image/. When any are present it calls event.preventDefault() (line 404), then callbackRef.current.onPasteImages?.(...), and returns true, so CodeMirror never handles the event. Editor.tsx:1432 passes onPasteImages={plainText ? undefined : handlePasteImages}, so in plain-text mode the optional call does nothing. A clipboard that carries text/plain plus an image/* item therefore inserts neither, even though the text was pasted as text. That breaks I4: 'the only text inserted is what the viewer typed or pasted as text'. It happens in normal use: copying cells from a spreadsheet, or rich content from some apps, puts both text and image representations on the clipboard. The handler itself is pre-existing; reaching it from plain-text mode is new on this branch."
+    }
+  ],
+  "specification_compliance": [
+    "I4 is broken for a mixed text-plus-image clipboard in plain-text mode (R3-1).",
+    "The drop handler at MarkdownEditor.tsx:372-391 also calls preventDefault whenever files are present. With onDropFiles undefined, dropping a file uploads nothing and inserts nothing, which matches I4."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "A fix that gates the image branch on onPasteImages being defined (or on !plainText) must still keep the Markdown mode's image upload on paste."
+  ],
+  "test_coverage": [
+    "No test covers a paste whose clipboard carries both text/plain and image/* items in plain-text mode."
+  ],
+  "not_verified": [
+    "I did not run any tests or check the behaviour in a real browser; this was verified by reading the code only.",
+    "I did not check which real-world clipboard sources put an image item next to text."
+  ],
+  "confidence": 90
+}

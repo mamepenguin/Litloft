@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2-1",
+      "status": "confirmed",
+      "note": "frontend/src/lib/findMarks.ts:194-209 drops leading characters while dropFrom <= matchIndex. It accepts any remainder found anywhere in the normalized source. In the knowledge editor the source has no frontmatter, so a frontmatter row whose remainder shrinks to the term plus its trailing text can match a body occurrence and give it the current mark. I did not run it. I5 r5 allows the dropping rule, so this is a limit of the rule rather than a departure from it. The code matches the claim."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2-2",
+      "status": "confirmed",
+      "note": "FindInFile.test.tsx:1526-1529 reads ../docs/developer-guide/backend-dev.md with readFileSync relative to process.cwd(). Lines 2130-2139 assert fixed indices {6:4, 7:5}. Any edit to that doc that changes the 'backend' occurrences breaks the test, and it breaks if the test runs from another cwd. This is a fragile test, not a product defect."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2-3",
+      "status": "needs_human",
+      "note": "addons/intelligence/app/file_find.py:60-65 `_overlap` scans from min(limit, len(text), len(chunk)) down to _OVERLAP_MIN and returns the first suffix-prefix match. That is the longest match, which is what I12 literally defines, and the limit is the extractor's replay size. In strictly periodic text a match longer than the true replay can therefore drop occurrences. That is inherent to the longest-match definition and the spec records periodic text as a known limit. Whether this counts as a violation of I12's 'no occurrence is dropped' is for the human to decide."
+    }
+  ],
+  "specification_compliance": [
+    "I5 r5 locate-by-dropping rule: implemented as specified, with the weakness described in R2-1.",
+    "I12: longest suffix-prefix match capped at the replay limit, as defined; periodic text is a recorded limit."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The backend-dev.md-dependent test breaks on doc edits or when run from a different working directory."
+  ],
+  "test_coverage": [
+    "I only read the tests. I ran nothing. FindInFile.test.tsx has many source-line cases, and one of them depends on a live doc file."
+  ],
+  "not_verified": [
+    "I did not run any test or code.",
+    "I did not check the rest of the diff or invariants I1-I4 and I6-I11.",
+    "I did not construct a concrete frontmatter row that mis-marks a body occurrence."
+  ],
+  "confidence": 75
+}

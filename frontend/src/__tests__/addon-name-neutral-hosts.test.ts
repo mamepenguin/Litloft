@@ -13,6 +13,8 @@ const HOSTS: Record<string, readonly string[]> = {
     "components/sidebar/AddonNavRows.tsx",
     "components/sidebar/SidebarLibrarySection.tsx",
     "components/Sidebar.tsx",
+    "components/home/HomeAppEntries.tsx",
+    "lib/addonNavIcons.ts",
   ],
   "hosts the Add menu's addon rows": [
     "components/AddButton.tsx",
@@ -21,7 +23,7 @@ const HOSTS: Record<string, readonly string[]> = {
   ],
 };
 
-const BUNDLED_ADDONS = ["cloud-sync", "intelligence", "knowledge", "media_import"];
+const BUNDLED_ADDONS = ["cloud-sync", "intelligence", "knowledge", "media_import", "photo_diary"];
 
 /** Every string the file's code holds — literals and template pieces, never comments. */
 function codeStrings(path: string): string[] {
@@ -40,7 +42,7 @@ function codeStrings(path: string): string[] {
 
 describe("hosts of addon entries name no bundled addon", () => {
   it("covers the files it was declared with", () => {
-    expect(Object.values(HOSTS).flat().length).toBe(7);
+    expect(Object.values(HOSTS).flat().length).toBe(9);
   });
 
   it("reads strings out of code, so a planted name would be seen", () => {

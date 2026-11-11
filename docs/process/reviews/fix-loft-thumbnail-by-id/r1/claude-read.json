@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "F1-unlink-oserror-aborts-link-fetch",
+      "origin": "reviewer",
+      "claim": "The old-picture removal added to `_save_loft_thumbnail` lets an `OSError` escape into `_fetch_and_update`, a caller the spec's touch-point list does not name, so a cache cleanup failure aborts the rest of a metadata fetch after the new pointer has already committed.",
+      "impact": "If the old path-form picture cannot be removed, Refresh metadata or a /link import ends with item status `error`. The thumbnail is updated, but `loft_metadata` is not upserted, captions are not fetched, STT is not started and no file-updated event is emitted, all for a stale cache file. It needs a filesystem failure on the old path after a successful write to `.by-id`, so it is uncommon. A successful removal also leaves the emptied old directories in the cache, which the core helper would prune.",
+      "evidence": "addons/media_import/backend/service.py:624-625 calls `unlink(missing_ok=True)` with no `try`. The call site at service.py:923 is followed by the `loft_metadata` upsert at service.py:933-963 and the captions step at service.py:965-1009. The exception is only caught at service.py:780-782, which sets `item.status = \"error\"`. Core's `remove_thumbnail_quietly` at backend/app/services/thumbnail.py:634-643 absorbs `OSError`, logs a warning and prunes empty directories. The subscription caller at subscription/manager.py:716 is not affected in practice, because a newly registered row has no old pointer (subscription/db.py never writes `thumbnail_path`).",
+      "repro": "not_reproduced. Read-only trace: seed a .loft row with a path-form pointer, make `Path.unlink` raise `PermissionError` for that path, and run `_fetch_and_update`. The trace predicts an escaped `PermissionError`, the pointer already at `.by-id/<id>.jpg`, and no `loft_metadata` write.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariants file is declared, and this is a rare failure path that reads wrong rather than a broken design.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Call `remove_thumbnail_quietly(old_rel)` from `app.services.thumbnail` after the commit when the pointer changed, in place of the bare `unlink`."
+    },
+    {
+      "id": "F2-download-failure-test-is-vacuous",
+      "origin": "reviewer",
+      "claim": "No test exercises a failed download on a row that already has a picture, so the new destructive branch can lose the old picture or pointer on a failed refresh with every test still green.",
+      "impact": "A later edit that removes the old picture before downloading, or clears the pointer on failure, would turn a failed Refresh metadata into a silently lost thumbnail, and the suite would not catch it. The R-5 record in decisions.md also lists thumbnail download failure as not exercised, so neither tests nor the manual run cover this path.",
+      "evidence": "addons/media_import/backend/tests/test_loft_thumbnail.py:180-201: `test_download_failure_leaves_thumbnail_path_unchanged` seeds row f5 with a NULL pointer and asserts it is still NULL, and it has no old file. The only path-form test, test_loft_thumbnail.py:225-266, has a successful download. Removal-after-commit ordering has no test either, because nothing makes the commit fail. docs/process/reviews/fix-loft-thumbnail-by-id/decisions.md:8 states that the failure of a thumbnail download was not exercised.",
+      "repro": "not_reproduced (no shell for this reviewer). Mutants predicted to survive from reading the tests: (a) in service.py, read the pointer and unlink the old file before the download loop; (b) set `thumbnail_path = None` in the for-else failure branch; (c) move the unlink at service.py:624-625 before `db.commit()`. A mutate reviewer can confirm these.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The current code behaves correctly on this path and no invariant is declared; the gap is in what the tests would let through.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Add a test that seeds a path-form pointer and an old file, makes the download return False, and asserts that the pointer and the old file's bytes are both unchanged. Add one that makes the commit fail and asserts that the old file remains."
+    },
+    {
+      "id": "F3-stale-manager-comment-and-dead-parameters",
+      "origin": "reviewer",
+      "claim": "The change makes the comment at `subscription/manager.py:702-707` false, and that file is not in the touch-point list: the comment says the thumbnail path must match the on-disk filename for the core endpoint to find it, while `drive`, `folder_path` and `filename` no longer affect the helper at all.",
+      "impact": "No user-visible effect today. A reader who trusts the comment could keep threading filename logic through the import path, or could 'fix' the slot back toward a filename-derived path, which is the shape this change removes.",
+      "evidence": "addons/media_import/backend/subscription/manager.py:702-707 says `the thumb_rel must match the on-disk filename for the core thumbnail endpoint to find it`, while manager.py:720 still passes `filename=loft_path.name`. addons/media_import/backend/service.py:606 computes `thumb_rel` from `file_id` only, and the parameters at service.py:578-580 are no longer read anywhere in the function body shown at service.py:603-626. service.py:925-927 and manager.py:718-720 still pass them.",
+      "repro": "Read-only: the `_save_loft_thumbnail` body at service.py:603-626 contains no reference to `drive`, `folder_path` or `filename`. Changing the values passed at manager.py:718-720 cannot change the resulting pointer.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Prose that could lead a reader to a wrong code change, plus unused parameters; no behavior is wrong.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Delete the sentence about matching the on-disk filename at manager.py:704-707, and drop the three unused parameters from the helper and its two callers."
+    },
+    {
+      "id": "F4-new-tests-write-to-process-wide-thumbnail-cache",
+      "origin": "reviewer",
+      "claim": "The media_import test fixtures do not redirect `config.THUMBNAILS_DIR`, so the new tests create and delete files in the process-wide thumbnail directory instead of a per-test directory.",
+      "impact": "Running the addon tests from a checkout can leave `.by-id/f1.jpg`, `f6`, `f7`, `f8` and an empty `d/yt/` tree in `./data/thumbnails`, relative to the working directory. backend/tests/conftest.py:35-37 records that `./data` in a checkout is what the dev stack bind-mounts. These are stranded cache files with no row, so the cost is clutter and tests that depend on shared state, not a wrong picture.",
+      "evidence": "addons/media_import/backend/tests/conftest.py:17-99 patches `SessionLocal`, `get_drive_path` and `get_drive_access_group` but never `THUMBNAILS_DIR`. backend/app/config.py:8,11 derives `THUMBNAILS_DIR` from `DATA_DIR`, which defaults to `./data`. test_loft_thumbnail.py:236-239 seeds `d/yt/Old.jpg` under it, and the fake downloads at test_loft_thumbnail.py:80-85 and 250-254 write the slot there. The same unisolated write pattern already existed in the older `_fake_download` tests, so this change extends it to new tests and a seeded old file.",
+      "repro": "not_reproduced. Predicted: run `test_loft_thumbnail.py` from a checkout with `DATA_DIR` unset, then list `./data/thumbnails/.by-id/`; the files named after the test ids remain.",
+      "introduced": "pre-existing",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Test hygiene with no effect on the user's library unless the suite runs against a bind-mounted data directory, and even then only stranded files with no row result.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Have the `media_import_db` or `drive_path` fixture monkeypatch `config.THUMBNAILS_DIR` to a directory under `tmp_path`."
+    }
+  ],
+  "specification_compliance": [
+    "The brief declares no invariants file, so no finding is in bucket A. As context only, the code was read against docs/specs/thumbnail-slot-ownership.md.",
+    "Touch-point answer: every file the diff edits is listed in the spec's touch points (the addon's `service.py`, `test_loft_thumbnail.py`, `test_subscription_manager.py`, the addon pointer, and the four `docs/specs/INDEX.md` rows).",
+    "Places reached but not listed: `LoftManager._fetch_and_update` through the new unlink failure path (F1), and `subscription/manager.py` through its comment and the now-unused arguments (F3). Core's `remove_thumbnail_quietly` is a listed-file helper the diff could have used but did not.",
+    "SPEC-ADDON-040 and spec I15, first clause: `_save_loft_thumbnail` writes to `thumbnail_slot_rel(file_id)` and stores that value (service.py:606-620). Consistent.",
+    "Spec section 1 and the state table, 'path form or .markdown to .by-id, old file removed' on a Media Import save: implemented after the commit, only when the pointer changes (service.py:624-625). Consistent.",
+    "Spec section 5, 'failure handling is unchanged': a failed download returns None before any pointer read or removal (service.py:608-612). Consistent by reading; not tested with a pre-existing picture (F2).",
+    "The duplicate-title test in `test_subscription_manager.py` asserts that two imports get different pointers, as the touch-point list requires.",
+    "The spec's delivery order has the addon PR merge before the core bump, and the spec names only SPEC-ADDON-040 as becoming `implemented` with the bump. This diff pins a commit described as a review branch and also moves SPEC-CORE-022, 023 and 024 to `implemented`. The ledger touch point allows four rows, and all four IDs have test citations, so no finding is raised."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The spec states removal-failure behaviour for ghosts (log a warning, change nothing else) but not for a Media Import save over a reused row. The code lets the `OSError` propagate and abort the remaining fetch steps (F1).",
+    "A Media Import save removes the old picture but leaves its emptied directories under `<drive>/`, whereas the spec's pruning rule covers migration and the core helper prunes. decisions.md records the leftover seed directory."
+  ],
+  "regression_risks": [
+    "`_download_thumbnail_sync` writes directly to the live slot with `urlretrieve` (service.py:545). A transfer that fails midway can leave a truncated picture at a `.by-id` slot while the pointer still names it. In-place writes predate this change, and the startup caption retry recorded in decisions.md re-downloads .loft pictures, so this path runs regularly.",
+    "If the core PR merges while the pointer is still at 228674ba0 and the addon PR is later squash-merged or its branch deleted, the pin can stop resolving on a fresh clone with submodules. The spec's order (addon merge, then bump) avoids this; the pin's reachability was not verified.",
+    "Removing the old picture assumes no other row names it, which the spec guarantees only after a migration that completed without failure. If a migration run stopped before handling a shared path, a refresh of the .loft row deletes a file a sibling row still names. The next startup's migration empties the sibling's pointer and a later scan regenerates its picture where a generator exists, so this self-heals.",
+    "The addon now imports `thumbnail_slot_rel` from core, so an older core without that function fails at import of the addon's service module. The spec's delivery order and addon CI against core `develop` cover this, and the helper exists in this tree at backend/app/services/thumbnail.py:619."
+  ],
+  "test_coverage": [
+    "Covered: the slot path and pointer with and without a folder; the download destination; a path-form pointer replaced with its old file removed; a re-fetch over a `.by-id` pointer keeping the slot and its new bytes; an NFD filename having no effect on the slot; a subscription import's pointer; duplicate titles getting different pointers.",
+    "Mutants predicted to be killed: dropping `old_rel != thumb_rel` (the f8 test finds the new slot deleted); dropping the unlink (the f7 test finds the old file still present); computing the slot from the filename (the slot and NFD tests).",
+    "Mutants predicted to survive: removal before the download; clearing the pointer on a failed download, because the failure test seeds NULL; removal before the commit (F2).",
+    "Not tested: an `OSError` from the unlink (F1). The `file_record is None` test does not assert anything about the slot file left behind by a successful download."
+  ],
+  "not_verified": [
+    "Nothing was executed: no tests, mutations or application run. All predictions come from reading the code; this reviewer has only Read, Glob and Grep.",
+    "Whether commit 228674ba0 is reachable from the addon remote or its default branch. The local packed-refs search under the main checkout's git modules directory found no match, which is inconclusive.",
+    "The stdlib behaviour of `urlretrieve` on a mid-transfer failure was taken from memory, not checked against the runtime's source.",
+    "The core side of the feature (migration, scanner, fileops, upload) was treated as already reviewed in PR #494 and read only where this diff depends on it.",
+    "The R-5 evidence files named in decisions.md live outside the repository and were not read.",
+    "The Intelligence addon's handling of `.by-id` paths was read only at the clip.py docstring, not through its path resolution."
+  ],
+  "confidence": 82
+}

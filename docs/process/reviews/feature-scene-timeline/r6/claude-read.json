@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The new addon module `frontend/ScenesSection/scenesModel.ts` is not on the touch-point list, and the Container/Presenter layout that the list points to does not provide for it.",
+      "impact": "None at runtime. The ruler length L, frameIndexAt, the window start s, the time-label rule (I11) and rulerFraction are all in this unlisted file, so the logic behind I1 and I11 sits outside the declared surface. A reviewer who scopes the change by the touch points could skip it.",
+      "evidence": "addons/intelligence/frontend/ScenesSection/scenesModel.ts (new, 134 lines) is imported at ScenesSectionContainer.tsx:25-30 and ScenesSectionPresenter.tsx:13-19. The touch points name only `ScenesSectionContainer.tsx`, `ScenesSectionPresenter.tsx`, `index.ts` and its tests, per `.claude/rules/frontend-conventions.md`. That rule's layout (lines 46-51) has Container, Presenter, an optional `hooks/` and `index.ts`, with no model module.",
+      "repro": "Compare the diff's file list for addons/intelligence/frontend/ScenesSection/ with the touch-point list and frontend-conventions.md lines 46-51.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a gap in scope declaration, not a broken invariant. The file is inside the new component directory and is used only by it.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add `ScenesSection/scenesModel.ts` (and `hooks/`) to the touch-point list in the spec revision."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The new section reads the core modules `frontend/src/lib/shortcuts.ts` (`normalizeKey`) and `frontend/src/lib/format.ts` (`formatDuration`). Neither is in the 'core, read only' list.",
+      "impact": "The ruler's key handling (I4) depends on how `normalizeKey` maps keys, for example `arrowleft`, `home` and `enter`. A later change to `normalizeKey` could silently stop the ruler keys from matching. The keys would then reach neither the ruler nor be stopped, and with nothing declared, that core file would not be flagged as a dependency of this addon.",
+      "evidence": "ScenesSectionContainer.tsx:11 `import { normalizeKey } from \"@/lib/shortcuts\";`, used at the handleRulerKeyDown key comparison. ScenesSectionPresenter.tsx:12 and scenesModel.ts:1 import `formatDuration` from `@/lib/format`. The read-only list names only mediaClock.ts, usePolicy, useWebSocket and ShortcutsProvider.tsx. (`formatDuration` is named in the spec body §1 step 9 and §9, but not in the touch points.)",
+      "repro": "Grep the new addon files for '@/lib/' imports and compare them with the read-only touch-point list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "These are undeclared read-only dependencies. No invariant is broken.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "List `frontend/src/lib/shortcuts.ts` and `frontend/src/lib/format.ts` under 'In the core, read only'."
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "The change edits three existing shared e2e-components harness files: the arrangement registry `fixtures/app.tsx`, the desktop project list `projects.ts`, and the width gate `spec-viewport.spec.ts`. The touch-point list declares only 'a new Scenes case, with the fixture and stub it needs'.",
+      "impact": "Small. These are shared harness gates that every component spec relies on. Edits to them, such as adding spec names to AT_THE_PHONE_WIDTH and AT_THE_DESKTOP_WIDTH or to DESKTOP_ONLY, change which project runs which file. Earlier reviews in this repository (feature-video-library-app r1, feature-search-results-layout r6) flagged the same kind of edit as unplanned.",
+      "evidence": "frontend/e2e-components/fixtures/app.tsx adds the import and 7 `scenes-*` arrangements. frontend/e2e-components/projects.ts adds `**/scenes-section-desktop.spec.ts` to DESKTOP_ONLY. frontend/e2e-components/spec-viewport.spec.ts adds both scenes specs to its width lists.",
+      "repro": "Compare the diff's frontend/e2e-components/ entries with the touch-point wording: three of them are existing files, not a new case, fixture or stub.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The directory entry arguably covers these files, and the edits are the registrations a new case needs. No invariant is affected.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Name `fixtures/app.tsx`, `projects.ts` and `spec-viewport.spec.ts` explicitly in the touch points."
+    }
+  ],
+  "specification_compliance": [
+    "Every listed touch point is reached: the gitlink bump, ScenesSection Container/Presenter/index/tests, removal of ClipFramesSection and VisualIndexSection with their tests, slots.ts, manifest.json, en/ja messages, the two core vitest files, the e2e-layout spec and fixture, the new e2e-components case, and the four docs.",
+    "frontend/api.ts is not modified (read only, as declared).",
+    "docs/specs/scene-timeline.md and docs/specs/INDEX.md are implicit touch points and are not reported.",
+    "No protected path appears in the diff."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The ScenesSectionPresenter's Ruler holds useState, useLayoutEffect and useEffect (it measures width and attaches a native keydown listener). The Presenter rule in frontend-conventions.md says 'No useState, no useEffect'. This is outside the touch-point question and is noted only."
+  ],
+  "regression_risks": [
+    "The I4 key isolation depends on normalizeKey in the undeclared frontend/src/lib/shortcuts.ts.",
+    "Edits to the shared e2e-components harness files (projects.ts, spec-viewport.spec.ts) change which Playwright project runs the new specs."
+  ],
+  "test_coverage": [
+    "Not assessed beyond the touch-point question. Tests exist for I1-I11 under ScenesSection/__tests__ and in the e2e-components scenes cases."
+  ],
+  "not_verified": [
+    "I did not read docs/process/reviews/feature-scene-timeline/invariants.md in full to see whether an earlier revision widened the touch-point list.",
+    "I did not run any test or check that the submodule commit dc17868 matches the diff shown.",
+    "I did not check every transitive core import of the new e2e fixture (for example @/messages-core/en.json and @/lib/mediaController types)."
+  ],
+  "confidence": 80
+}

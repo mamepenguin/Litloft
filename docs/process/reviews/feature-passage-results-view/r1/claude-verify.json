@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "frontend/src/components/search/SearchQueryHeader.tsx:38 declares `show?: string | null`, :76 does `if (show === \"passages\") params.set(\"show\", \"passages\")`; FolderBrowser.tsx:619 passes `show={show}`. r1/classification.json:90 lists the file as changed by the diff; the touch-point list does not name it."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "frontend/e2e-layout/spec-viewport.spec.ts:30 lists \"passage-rows.html\", :41 `FIXTURE_COUNT = 16`, :84 asserts on-disk count. File is in the changed-file list (classification.json:38) and matches the HEAD commit message 'count the passage-row fixture'. Not named in touch points."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "frontend/src/__tests__/core-search-vocabulary.test.ts:20 FolderBrowser 6, :27 PassageList 12, :95 `expect(used.length).toBe(70)`; file is in classification.json:42. Touch points mention only 'frontend tests next to the existing search tests', not this existing test."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-4",
+      "status": "confirmed",
+      "note": "docs/addons/intelligence.md is absent from the changed-file list in r1/classification.json; Grep for 'passages|SearchPassage' in that file only hits line 242 (Ask retrieval). No *.md in the repo or under addons/intelligence mentions passages=true or SearchPassage other than the spec and decisions.md."
+    }
+  ],
+  "specification_compliance": [
+    "The listed touch point docs/addons/intelligence.md is not updated (TP-4)",
+    "SearchQueryHeader.tsx, spec-viewport.spec.ts and core-search-vocabulary.test.ts were changed outside the declared touch points (TP-1..TP-3)"
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [],
+  "test_coverage": [
+    "SearchQueryHeader.showPassages.test.tsx exists for the show-preserving submission"
+  ],
+  "not_verified": [
+    "Could not run git diff; changed-file set taken from r1/classification.json and the working tree at HEAD",
+    "Did not inspect the addons/intelligence submodule diff contents or run any tests",
+    "Did not check the invariants I1–I25 beyond the four findings"
+  ],
+  "confidence": 85
+}

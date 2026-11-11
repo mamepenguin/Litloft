@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "Every path the commit changes maps to a declared touch point. Core repo: the addons/media_import submodule pointer and docs/addons/media-import.md are listed. docs/specs/media-import-unavailable-items.md and docs/specs/INDEX.md are implicit touch points.",
+    "Submodule backend: router.py, schemas.py, service.py (_ensure_subscription_tables plus the new _upgrade_subscription_videos it calls), subscription/db.py (upsert_video_row, summary_for_drive, load_video_row, insert_unattempted_rows, fill_listing_columns, set_title_if_null, load_retry_set), subscription/manager.py, subscription/registry.py and subscription/providers/youtube.py are all listed. load_video_row and insert_unattempted_rows are not named, but they sit in the listed db.py and serve the listed manager paths (_sync_single_item and the rate-limit stop).",
+    "Submodule tests: the new and modified files under backend/tests/ (test_subscription_item_outcomes.py, test_subscription_item_states_router.py, test_subscription_videos_upgrade.py, test_youtube_item_classification.py, test_subscription_manager.py, test_subscription_router.py) fall under 'addons/media_import/backend/tests/'. The frontend tests (SubscriptionItemStates*.test.tsx, SubscriptionsAttention.test.tsx, lib/errorMessages.test.ts) sit next to their components, which matches 'frontend tests next to the components'.",
+    "Submodule frontend: SubscriptionDetailPanel.tsx (which contains the sync_completed handler), SubscriptionItemRow.tsx, SubscriptionsDashboard.tsx, api.ts, lib/errorMessages.ts, messages/ja.json and messages/en.json are all listed.",
+    "Places reached without an edit: subscription/worker.py broadcasts the sync result with **result (worker.py:192-197), so the new retried and rate_limited fields reach the frontend without a worker change. SubscriptionStatusPill.deriveStatus and SubscriptionCard take the changed count as an input and are not edited. No core (non-addon) code reads subscription_videos, error_kind or total_new (grep outside addons/media_import finds only cloud-sync and docs), so the change reaches no unplanned core place.",
+    "Answer to the question: none. The touch-point list was complete for this diff."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "router.py:741-758 resolves the provider from rows[0] only and calls provider.item_url unguarded. A registered provider without item_url would make the items endpoint answer 500. Only YouTube is registered today (providers/ holds youtube.py alone), so nobody can hit this now."
+  ],
+  "regression_risks": [
+    "Every fake provider in a test that calls the items endpoint must now define item_url. test_subscription_router.py and the new test files were updated. test_drive_scope.py hits /subscriptions/1/videos, but I did not confirm whether it registers a provider without item_url."
+  ],
+  "test_coverage": [
+    "The new backend tests cover outcome classification, three failures in a row, retry-set order, the rate-limit stop, the inter-item delay, titles, the oEmbed lookup, the upgrade move and rollback, the Retry 409, source_url, and the summary predicate. The new frontend tests cover the groups, the colour tokens, the source links, the rate-limit notice, the ja copy and the dashboard attention count."
+  ],
+  "not_verified": [
+    "I did not run any test. I cannot run commands.",
+    "I did not check whether the core WebSocket broadcast layer filters or reshapes the event payload before it reaches useWebSocket.",
+    "I did not read test_drive_scope.py to see which provider it registers for the /videos route.",
+    "I did not confirm that the checked-out submodule HEAD equals d50ae8998 rather than another commit."
+  ],
+  "confidence": 85
+}

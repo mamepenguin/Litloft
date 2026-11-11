@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "backend/tests/test_markdown_image_import.py:208-220 now expects two explicit rows, both with viewer_id None: the pre-import text first, then the rewritten text. The new comment at :214 ('The note had no history, so the text before the import is kept first.') ties the edit to this change, and so does commit de7af3f34. markdown_image_import.py:435 calls write_text_content. The declared touch points do not list this file."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "backend/tests/test_file_versions_baseline.py exists alongside backend/tests/test_file_versions.py. The touch-point bullet places new tests under test_file_versions.py only. I did not count the file's lines to check the 295-line figure."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "files.py:781 (tag write: kind='auto', viewer_id=None, runs only when new_bytes != current) and files.py:1615 (content PUT) both call write_text_content. content_write.py:77-86 records a viewer-less explicit baseline when has_versions(db, file.id) is false, so the history both callers produce changes. Neither call site is in the touch-point list."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-4",
+      "status": "confirmed",
+      "note": "Before the change, a first write had no latest row, so file_versions.py:296-311 returned action 'created'. Now content_write.py:89-90 sets version_action='unchanged' when baseline_recorded and body == current, for any kind, and skips the second record call. files.py:1745 sends the value as X-Litloft-Version-Action. addons/knowledge/frontend/api.ts:271-278 parses it, and Editor.tsx:518-519 sets saveState {kind:'unchanged'} when the save is explicit. For an auto save the frontend ignores the header. The frontend is not in the touch-point list."
+    }
+  ],
+  "specification_compliance": [
+    "I1: content_write.py:77-86 records the pre-write text as an explicit, viewer-less version before the new version (content_write.py:92-99), and only when has_versions is false. A row inserted earlier has a lower id, and on the same timestamp record_version_with_action orders by (created_at, id).",
+    "I2: when has_versions is true, the code takes the original record_version_with_action path unchanged.",
+    "I3: the baseline and the new version are recorded inside begin_nested within a try/except that only logs (content_write.py:72-106). The file is already replaced on disk at :67, and nothing reverts it.",
+    "I4: the baseline is gated on not has_versions. After the first write the file has rows, so a second write never adds a baseline.",
+    "I5: _can_be_baseline (content_write.py:33-42) rejects a body over FILE_VERSION_MAX_BODY_BYTES or one that is not valid UTF-8. When it does, the new version is still recorded through the else branch."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The baseline and the new version are recorded in the same nested transaction. If recording the new version fails, the baseline rolls back with it. The write still succeeds, which satisfies I3, but the baseline is lost and is only taken on the next write.",
+    "If the first write's body equals the file's current text, the code records only the baseline and reports 'unchanged', even for an auto save, where it used to report 'created'."
+  ],
+  "regression_risks": [
+    "A first write to a file with no history now creates two rows instead of one, which changes the row counts that callers and tests see.",
+    "A first identical explicit save now shows the 'unchanged' save state in Editor.tsx where it used to show 'saved'/'created'."
+  ],
+  "test_coverage": [
+    "backend/tests/test_file_versions_baseline.py adds the baseline tests (contents not read in detail).",
+    "test_markdown_image_import.py:208-220 covers the baseline on the image import path."
+  ],
+  "not_verified": [
+    "I did not run any tests, because I have no command execution.",
+    "I did not read the contents of test_file_versions_baseline.py or its 295-line count.",
+    "I could not run git, so I did not confirm the diff itself. I inferred that the test edits belong to this change from the commit messages and the in-code comments.",
+    "I did not verify the frontend's UI behavior for the 'unchanged' state beyond Editor.tsx:518."
+  ],
+  "confidence": 85
+}

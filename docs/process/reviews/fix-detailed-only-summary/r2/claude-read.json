@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "F3-batch-reports-queued-for-image-placeholder-rows",
+      "origin": "reviewer",
+      "claim": "Batch classification counts a file whose only file_summaries row is a vision placeholder as missing a summary, so it is reported as queued although the worker generates nothing for an image; the r2 fix commits did not touch this r1 finding.",
+      "impact": "Running 'Create AI summaries' on a folder containing described images can report 'Added N summaries to the queue' on every run instead of 'All files already have summaries', and no summary appears for those images. There is no data damage and no LLM cost.",
+      "evidence": "addons/intelligence/app/workers/vision.py:268 inserts the placeholder row. app/routers/summaries.py:539-540 excludes rows with empty short text from 'existing', and lines 554-559 enqueue without a file-type check. app/workers/summaries.py:367-369 classifies images as None and line 1400 returns without work. New since r1: frontend/src/components/FolderBrowser.tsx:590 passes files.map((f) => f.id) with no filter at that call site, and addons/intelligence/frontend/FolderAIActionsMenuItems.tsx:115 sends fileIds unchanged. That supports UI reachability, although typeFilter handling of the loaded list and the prop's path to the slot were not traced. Images with no row already behaved this way before the change.",
+      "repro": "not_reproduced (read-only reviewer). Predicted steps: describe an image so it has a vision row, then POST /batch/summaries with its file_id. Predicted response: queued 1, skipped 0 on every repeat, with no summary written. The R-5 record in decisions.md lists no image in its batch scenario.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariants are declared. This is a misleading count with no data damage or LLM cost.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    }
+  ],
+  "specification_compliance": [
+    "No invariants file exists, so no touch-point list exists to compare against. The commit under review changes only tests and the submodule pin relative to the r1 head; production code in the addon is identical between 784444849 and 57a174932 according to the supplied fix diff.",
+    "r1 F1 is addressed: test_regenerate_clears_short_text_and_keeps_detailed_state (tests/test_summaries_edit.py:288) seeds non-empty short and long text with status 'generated' and asserts short_summary, long_summary, status, edited_at, short_original, long_original and detailed_status.",
+    "r1 F2 is addressed: the 'no-detailed' case expects the row to be gone (tests/test_summaries_edit.py:284 and 327), and tests/test_llm_routing_callers.py:483 and 508 pin both statements exactly, including their WHERE clauses.",
+    "r1 F3 is not addressed by these commits and remains in the code."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "POST /summary/edit on a row cleared by regenerate succeeds where the old DELETE produced a 404. The row keeps status 'hidden' and stores short_original='' as its snapshot (app/routers/summaries.py:404-431). The UI offers edit only while client-side data is available; SummarySection.handleRegenerate (frontend/SummarySection.tsx:96-119) does not clear data while polling, so a stale panel may reach this after a failed regeneration. If it does, metadata.py:245 and clue_generator.py:86 ignore the edited long_summary because status is not 'generated'.",
+    "A row with detailed_status set keeps its visual-description columns through regenerate, while a row with detailed_status NULL loses them with the DELETE. Regenerate rejects unsupported types such as images with 400 at app/routers/summaries.py:285, which limits this to supported types that also carry vision data."
+  ],
+  "regression_risks": [
+    "The exact SQL strings in tests/test_llm_routing_callers.py:454-465 duplicate the router text, so any harmless rewording of the statements fails those tests. This is what protects model, context_type, context_chars and was_truncated, which the real-DB test does not assert.",
+    "The predicate is still duplicated: app/indexer.py:1042-1044 spells out the short-summary check rather than using _HAS_SHORT_SUMMARY, so a later change to one could diverge from the other.",
+    "GET /summary filters with the unqualified short_summary column across a join with indexed_files (app/routers/summaries.py:224-227 and app/workers/summaries.py:554), which would become ambiguous if indexed_files ever gained a column of that name."
+  ],
+  "test_coverage": [
+    "Traced by hand, not run: removing any one of short_summary, long_summary, status, edited_at, short_original or long_original from the UPDATE fails the 'short-and-detailed' case at tests/test_summaries_edit.py:278-283, because the seed sets each of them to a value differing from the expected result.",
+    "Traced by hand, not run: a DELETE predicate that matches nothing, such as detailed_status = 'x', fails the 'no-detailed' case. A predicate that also matches detailed rows fails the 'detailed-only' and 'short-and-detailed' cases.",
+    "Dropping model, context_type, context_chars or was_truncated from the UPDATE is not detected by the real-DB test but is detected by the exact SQL pin at tests/test_llm_routing_callers.py:483 and 508. These stale values would be overwritten by _save_summary on success (app/workers/summaries.py:604-612).",
+    "The parametrized real-DB test covers detailed_status 'generated' and NULL only. 'generating' and 'failed' are not exercised as data, though the exact SQL pin fixes the IS NOT NULL predicate that treats them alike.",
+    "The chosen-profile path is covered only by the recording fake at tests/test_llm_routing_callers.py:489-514; it shares the same _delete closure as the real-DB-tested path.",
+    "No automated test covers an image placeholder row in batch classification (F3)."
+  ],
+  "not_verified": [
+    "No test or mutant was run; all kill predictions come from reading the code and tests, because this reviewer has read-only tools.",
+    "The submodule's two commit ranges were not diffed directly; the claim that production code did not change since r1 rests on the supplied fix diff.",
+    "How FolderBrowser's fileIds prop reaches the folder-ai-actions slot, and whether typeFilter narrows the loaded files list, was not fully traced; the component receiving the prop at FolderBrowser.tsx:590 was not opened.",
+    "Whether a stale panel can actually reach edit after a failed regeneration: the code retains data during polling, while decisions.md reports the section disappearing, and the two were not reconciled.",
+    "The knowledge addon is not checked out, so its possible use of GET /summary's available flag was not examined.",
+    "The R-5 record in decisions.md was read as a claim; its screenshots and logs were not inspected, and it was recorded at 105ca5653, not at this commit.",
+    "Regenerate during an in-flight detailed generation was not analysed."
+  ],
+  "confidence": 84,
+  "trajectory": "No. Round r1 to r2 consists of 7fa10a00f, which only records the r1 review documents, and bac2b2ac4, which pins the submodule at a commit changing only tests. Neither adds a production branch, state or prediction. bac2b2ac4 replaces the WHERE-discarding prefix assertions with exact SQL pins and replaces one regenerate test with three parametrized cases, adding test cases only. The fix diffs show no sign of the design being patched, and they removed no production branch either."
+}

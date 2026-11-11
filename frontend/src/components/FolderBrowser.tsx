@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ClipboardPaste, FolderTree, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useShortcuts } from "@/hooks/useShortcuts";
+import { useUploadCompleted } from "@/hooks/useUpload";
 
 import type { FileItem, FileKind, SortField, SortOrder, TrustFilter, ViewMode } from "@/types";
 import { Breadcrumb } from "@/components/Breadcrumb";
@@ -12,7 +13,7 @@ import { PageFrame } from "@/components/PageFrame";
 import { PageHeader } from "@/components/PageHeader";
 import { UploadZone } from "@/components/UploadZone";
 import { SelectionBar } from "@/components/SelectionBar";
-import { SmartFolderSaveButton } from "@/components/SmartFolderSaveButton";
+import { SmartFolderController } from "@/components/SmartFolderSaveButton";
 import { AddonSlot } from "@/components/AddonSlot";
 import { EmptyState } from "@/components/EmptyState";
 import { useFilePicker } from "@/components/useFilePicker";
@@ -35,9 +36,13 @@ import { useIsInternalDragging } from "@/hooks/useIsInternalDragging";
 import { useTreeRefresh } from "@/components/TreeRefreshContext";
 import { FolderToolbar } from "@/components/folder/FolderToolbar";
 import { FolderContent } from "@/components/folder/FolderContent";
+import { PassageList } from "@/components/search/PassageList";
+import { passageCounts } from "@/lib/searchPassages";
 import { buildWidenTagScope } from "@/components/folder/WidenTagScopeLink";
 import { Button } from "@/components/Button";
 import { parseSearchQuery } from "@/lib/searchQuery";
+import { SearchQueryHeader } from "@/components/search/SearchQueryHeader";
+import { ImageQueryDropTarget } from "@/components/search/ImageQueryDropTarget";
 
 /**
  * How long scrolling must be idle before the list snapshot is
@@ -56,6 +61,13 @@ interface FolderBrowserProps {
   typeFilter?: FileKind | null;
   smartFolderId?: string | null;
   includeSceneClip?: boolean;
+  /** `passages` selects the Passages view; anything else is Files. */
+  show?: string | null;
+  /** Given an image while image search is available for the drive. */
+  onImageQuery?: (file: File) => void;
+  imageError?: "too_large" | "unreadable" | "one_image" | null;
+  imagePreparing?: boolean;
+  onImageEdit?: () => void;
 }
 
 export function FolderBrowser({
@@ -67,6 +79,11 @@ export function FolderBrowser({
   typeFilter: typeFilterProp,
   smartFolderId,
   includeSceneClip,
+  show,
+  onImageQuery,
+  imageError,
+  imagePreparing,
+  onImageEdit,
 }: FolderBrowserProps) {
   const isSearch = !!(searchQuery && searchQuery.trim());
   const [initialSnapshot] = useState(() => {
@@ -78,9 +95,15 @@ export function FolderBrowser({
     initialSnapshot?.filters.sort ?? (isSearch ? "relevance" : "created_at"),
   );
   const [localOrder, setLocalOrder] = useState<SortOrder>(initialSnapshot?.filters.order ?? "desc");
-  const [typeFilter, setTypeFilter] = useState<FileKind | null>(
+  // On the search page the URL owns the type. Seeding this from the list
+  // snapshot would let the drive root's key decide it, and a search is not a
+  // listing of that folder.
+  const [folderTypeFilter, setFolderTypeFilter] = useState<FileKind | null>(
     typeFilterProp ?? initialSnapshot?.filters.typeFilter ?? null,
   );
+  const typeFilter: FileKind | null = isSearch
+    ? typeFilterProp ?? null
+    : folderTypeFilter;
   // Not persisted into the list snapshot: the review queue is a deliberate,
   // short-lived mode, not a browsing preference to restore on return.
   const [trustFilter, setTrustFilter] = useState<TrustFilter | null>(null);
@@ -94,6 +117,12 @@ export function FolderBrowser({
   const [selectable, setSelectable] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
+  // Search results are not a listing of the drive, so an upload finishing
+  // must not re-run the query they show.
+  const refreshAfterUpload = useCallback(() => {
+    if (!isSearch) refresh();
+  }, [isSearch, refresh]);
+  useUploadCompleted(driveName, refreshAfterUpload);
 
   const refreshTree = useTreeRefresh();
   const prevRefreshKeyRef = useRef(refreshKey);
@@ -122,7 +151,7 @@ export function FolderBrowser({
   // Strict: `!folderPath` is also true for a cross-folder view, which has no
   // location at all.
   const isLibraryRoot = folderPath === "";
-  const isSpecialView = isFavorites || view === "recent" || isRecentAdded || isLiked || isAll;
+  const isSpecialView = isFavorites || view === "recent" || view === "continue" || isRecentAdded || isLiked || isAll;
   const isLocation = !isSpecialView && !isSearch && folderPath !== undefined;
   const isFolderAnchored = isLocation && folderPath !== "";
 
@@ -142,9 +171,15 @@ export function FolderBrowser({
 
   const {
     files, folders, total, loading, loadingMore, hasMore, pagesLoaded, sentinelRef,
-    reset, setFiles, setPaginatedTotal, isRecent, hasProfile,
-    snapshotKey, hydratedScrollY,
+    reset, setFiles, setPaginatedTotal, isRecent, isContinue, hasProfile,
+    snapshotKey, hydratedScrollY, continuationState, onShowMore, continuationSentinelRef,
+    continuationDrawnIds, updateContinuationFile, removeContinuationFiles,
+    passagesApplicable, passageGroups, passagesLoading, passagesFailed, retryPassages,
   } = useFolderFiles({ driveName, folderPath, view, tagFilter, typeFilter, trustFilter, sort, order, refreshKey, searchQuery, includeSceneClip, initialSnapshot });
+
+  const isWatchHistory = isRecent || isContinue;
+
+  const passagesView = isSearch && passagesApplicable && show === "passages";
 
   // Approximate the parent folder's dominant_kind from loaded files because the
   // listing endpoint only carries it for child folders.
@@ -210,7 +245,7 @@ export function FolderBrowser({
         clearTimeout(timer);
         timer = null;
       }
-      if (isRecent) return;
+      if (isWatchHistory) return;
       // Don't persist search results into the folder/view snapshot —
       // snapshotKey doesn't include searchQuery, so saving here would
       // corrupt the root drive page's hydration.
@@ -268,7 +303,7 @@ export function FolderBrowser({
       // is handled separately below.
       if (timer != null) clearTimeout(timer);
     };
-  }, [files, folders, total, pagesLoaded, sort, order, typeFilter, trustFilter, viewMode, isRecent, isSearch, snapshotKey, scrollContainerRef]);
+  }, [files, folders, total, pagesLoaded, sort, order, typeFilter, trustFilter, viewMode, isWatchHistory, isSearch, snapshotKey, scrollContainerRef]);
 
   // Flush a pending snapshot write on unmount. `pagehide` covers a real
   // page teardown, but an in-app navigation unmounts this component
@@ -286,8 +321,22 @@ export function FolderBrowser({
   const tSearch = useTranslations("search");
   const tFilter = useTranslations("filter");
   const tCommon = useTranslations("common");
+  const passageGroupList = passageGroups ?? [];
+  const passageTotals = passageCounts(passageGroupList);
+  const passageCountLabel = tSearch("passageCount", {
+    files: passageTotals.files,
+    passages: passageTotals.passages,
+  });
+  const passageCountShort = tSearch("passageCountShort", {
+    passages: passageTotals.passages,
+  });
+  const showPassageCount =
+    passagesView && !passagesLoading && !passagesFailed;
   const { pinnedPaths, handleTogglePin } = usePinnedFolders(driveName);
   const selection = useSelection();
+  // `SelectionBar` clears before it reports a completed bulk action, so the
+  // ids of that action are kept here for the continuation's own pruning.
+  const clearedSelectionRef = useRef<string[]>([]);
   const clipboard = useClipboard();
   const tcb = useTranslations("clipboard");
   const tsc = useTranslations("shortcuts");
@@ -364,20 +413,49 @@ export function FolderBrowser({
   });
 
   const folderRouter = useRouter();
+  const urlParams = useSearchParams();
+  const hasOperators = parseSearchQuery(searchQuery ?? "").hasOperators;
 
-  // URL sync for search mode: typeFilter / sort / order changes update the URL
-  // via replace (no history pollution per filter tweak).
+  // The type comes from the URL, so a URL change already wrote it. Keeping it
+  // out of the sync effect's dependencies is what stops a replace from putting
+  // back a type the URL no longer has; other writes still read the current one.
+  const typeFilterRef = useRef(typeFilter);
+  useEffect(() => {
+    typeFilterRef.current = typeFilter;
+  }, [typeFilter]);
+
+  // URL sync for search mode: sort / order changes update the URL via replace
+  // (no history pollution per filter tweak).
   useEffect(() => {
     if (!isSearch || !searchQuery) return;
     const params = new URLSearchParams();
     params.set("q", searchQuery);
-    if (typeFilter) params.set("type", typeFilter);
+    if (typeFilterRef.current) params.set("type", typeFilterRef.current);
     if (sort !== "relevance") params.set("sort", sort);
     if (order !== "desc") params.set("order", order);
     if (smartFolderId) params.set("smart_folder_id", smartFolderId);
+    if (includeSceneClip) params.set("include_scene_clip", "true");
+    if (show === "passages") params.set("show", "passages");
     const next = `/drive/${encodeURIComponent(driveName)}/search?${params.toString()}`;
     folderRouter.replace(next);
-  }, [isSearch, searchQuery, typeFilter, sort, order, smartFolderId, driveName, folderRouter]);
+  }, [isSearch, searchQuery, sort, order, smartFolderId, includeSceneClip, show, driveName, folderRouter]);
+
+  // A clear-filter action means "the same URL, without a type": built from
+  // the parameters already there so that sort, order and anything this page
+  // does not read travel with it.
+  const clearTypeFilter = useCallback(() => {
+    setTrustFilter(null);
+    if (!isSearch) {
+      setFolderTypeFilter(null);
+      return;
+    }
+    const params = new URLSearchParams(urlParams.toString());
+    params.delete("type");
+    const qs = params.toString();
+    folderRouter.push(
+      `/drive/${encodeURIComponent(driveName)}/search${qs ? `?${qs}` : ""}`,
+    );
+  }, [driveName, folderRouter, isSearch, urlParams]);
 
   const handleViewChange = useCallback(
     (mode: ViewMode) => {
@@ -394,6 +472,68 @@ export function FolderBrowser({
     [folderRouter],
   );
 
+  const handleSceneToggle = useCallback(
+    (next: boolean) => {
+      if (!isSearch) return;
+      const params = new URLSearchParams();
+      params.set("q", searchQuery ?? "");
+      if (typeFilter) params.set("type", typeFilter);
+      if (sort !== "relevance") params.set("sort", sort);
+      if (order !== "desc") params.set("order", order);
+      if (smartFolderId) params.set("smart_folder_id", smartFolderId);
+      if (next) params.set("include_scene_clip", "true");
+      if (show === "passages") params.set("show", "passages");
+      folderRouter.replace(
+        `/drive/${encodeURIComponent(driveName)}/search?${params.toString()}`,
+      );
+    },
+    [
+      isSearch,
+      searchQuery,
+      typeFilter,
+      sort,
+      order,
+      smartFolderId,
+      show,
+      driveName,
+      folderRouter,
+    ],
+  );
+
+  const handleShowChange = useCallback(
+    (next: "files" | "passages") => {
+      if (!isSearch) return;
+      if (next === "passages") {
+        selection.clear();
+        setSelectable(false);
+      }
+      const params = new URLSearchParams();
+      params.set("q", searchQuery ?? "");
+      if (typeFilter) params.set("type", typeFilter);
+      if (sort !== "relevance") params.set("sort", sort);
+      if (order !== "desc") params.set("order", order);
+      if (smartFolderId) params.set("smart_folder_id", smartFolderId);
+      if (includeSceneClip) params.set("include_scene_clip", "true");
+      if (next === "passages") params.set("show", "passages");
+      folderRouter.replace(
+        `/drive/${encodeURIComponent(driveName)}/search?${params.toString()}`,
+      );
+      window.scrollTo({ top: 0 });
+    },
+    [
+      isSearch,
+      selection,
+      searchQuery,
+      typeFilter,
+      sort,
+      order,
+      smartFolderId,
+      includeSceneClip,
+      driveName,
+      folderRouter,
+    ],
+  );
+
   const handleFavoriteToggle = useCallback(
     (updated: FileItem) => {
       if (isFavorites) {
@@ -402,7 +542,7 @@ export function FolderBrowser({
             ? prev.map((f) => (f.id === updated.id ? updated : f))
             : prev.filter((f) => f.id !== updated.id)
         );
-        if (!updated.is_favorite && !isRecent) {
+        if (!updated.is_favorite && !isWatchHistory) {
           setPaginatedTotal((t) => t - 1);
         }
       } else {
@@ -410,8 +550,9 @@ export function FolderBrowser({
           prev.map((f) => (f.id === updated.id ? updated : f))
         );
       }
+      updateContinuationFile(updated);
     },
-    [isFavorites, isRecent, setFiles, setPaginatedTotal],
+    [isFavorites, isWatchHistory, setFiles, setPaginatedTotal, updateContinuationFile],
   );
 
   const effectiveSort = isRecentAdded ? "created_at" : isLiked ? "liked_at" : sort;
@@ -537,44 +678,71 @@ export function FolderBrowser({
                 ? tSidebar("library")
                 : undefined
           }
-          // `settledTotal`, not `total`: a refetch sets `total` to 0 and
-          // `loading` to true together, so neither raw value can be shown.
+          titleField={
+            isSearch ? (
+              <SearchQueryHeader
+                drive={driveName}
+                query={searchQuery ?? ""}
+                typeFilter={typeFilter}
+                sort={sort}
+                order={order}
+                smartFolderId={smartFolderId ?? null}
+                includeSceneClip={!!includeSceneClip}
+                show={show}
+                onImagePick={onImageQuery}
+                onImagePaste={onImageQuery}
+                onEdit={onImageEdit}
+                imagePreparing={imagePreparing}
+                onRemoveType={clearTypeFilter}
+              />
+            ) : undefined
+          }
           scope={
             isLibraryRoot && !isSearch
               ? countLabel === null
                 ? driveName
                 : tCommon("driveScope", { drive: driveName, detail: countLabel })
-              : (countLabel ?? undefined)
-          }
-          actions={
-            isSearch ? (
-              <>
-                <SmartFolderSaveButton
-                  drive={driveName}
-                  query={searchQuery ?? ""}
-                  typeFilter={typeFilter}
-                  smartFolderId={smartFolderId ?? null}
-                />
-                {!parseSearchQuery(searchQuery ?? "").hasOperators && <AddonSlot
-                  id="search-modes"
-                  layout="stack"
-                  props={{
-                    query: searchQuery ?? "",
-                    drive: driveName,
-                    filter: typeFilter ?? "all",
-                    onSelect: handleSemanticSelect,
-                  }}
-                />}
-              </>
-            ) : undefined
+              : !isSearch
+                ? (countLabel ?? undefined)
+                : undefined
           }
         />
       }
     >
-      {!hideToolbar && <FolderToolbar
+      {imageError && (
+        <p role="alert" className="px-4 pt-2 text-xs text-text-muted">
+          {imageError === "too_large"
+            ? tSearch("imageTooLarge")
+            : imageError === "unreadable"
+              ? tSearch("imageUnreadable")
+              : tSearch("imageOneOnly")}
+        </p>
+      )}
+      {(!hideToolbar || isSearch) && <FolderToolbar
         isSpecialView={isSpecialView}
         isWriteDestination={isWriteDestination}
         isSearch={isSearch}
+        search={
+          isSearch
+            ? {
+                passagesApplicable,
+                show: passagesView ? "passages" : "files",
+                onShowChange: handleShowChange,
+                showSceneSearch: !hasOperators,
+                sceneSearch: !!includeSceneClip,
+                onSceneSearchChange: handleSceneToggle,
+                countLabel,
+                passageCountLabel: showPassageCount ? passageCountLabel : null,
+                passageCountShort: showPassageCount ? passageCountShort : null,
+                query: searchQuery ?? "",
+                smartFolderId: smartFolderId ?? null,
+                showFind: !hasOperators,
+                onSelect: handleSemanticSelect,
+                hideArranging: hideToolbar,
+              }
+            : undefined
+        }
+        isPassages={passagesView}
         tagFilter={tagFilter}
         hasPlayableFiles={hasPlayableFiles}
         sort={sort}
@@ -596,7 +764,7 @@ export function FolderBrowser({
           if (isFolderAnchored) folderSort.setSort(s, o);
           else { setLocalSort(s); setLocalOrder(o); }
         }}
-        onTypeFilterChange={setTypeFilter}
+        onTypeFilterChange={setFolderTypeFilter}
         trustFilter={trustFilter}
         onTrustFilterChange={trustFilterAvailable ? setTrustFilter : undefined}
         onViewChange={handleViewChange}
@@ -617,7 +785,23 @@ export function FolderBrowser({
         onTogglePin={isFolderAnchored ? handleTogglePin : undefined}
       />}
 
+      {isSearch &&
+        !hasOperators &&
+        !(show === "passages" && (searchQuery ?? "").trim() !== "") && (
+          <AddonSlot
+            id="search-results-top"
+            props={{
+              query: searchQuery ?? "",
+              drive: driveName,
+              includeSceneClip: !!includeSceneClip,
+              typeFilter,
+              smartFolderId: smartFolderId ?? null,
+            }}
+          />
+        )}
+
       <div className="px-4 pb-6 pt-1 sm:pb-8 sm:pt-4">
+
       {isWriteDestination && clipboard.clipboard && (
         <div className="mb-3 flex items-center gap-3 rounded-lg bg-accent/10 px-4 py-2.5 ring-1 ring-accent/20">
           <ClipboardPaste size={18} className="flex-shrink-0 text-accent" />
@@ -645,7 +829,7 @@ export function FolderBrowser({
         </div>
       )}
 
-      {isSearch && !loading && files.length === 0 && (
+      {!passagesView && isSearch && !loading && files.length === 0 && (
         <EmptyState
           variant="no-results"
           // No primary: the way out of a search that found nothing is a
@@ -655,10 +839,7 @@ export function FolderBrowser({
               ? [
                   {
                     label: tFilter("clear"),
-                    onClick: () => {
-                      setTypeFilter(null);
-                      setTrustFilter(null);
-                    },
+                    onClick: clearTypeFilter,
                   },
                 ]
               : undefined
@@ -667,6 +848,7 @@ export function FolderBrowser({
       )}
 
       {filePicker.input}
+      {!passagesView && (
       <FolderContent
         files={files}
         folders={folders}
@@ -677,7 +859,8 @@ export function FolderBrowser({
         loading={loading}
         loadingMore={loadingMore}
         hasMore={hasMore}
-        isRecent={isRecent}
+        isRecent={isWatchHistory}
+        isContinue={isContinue}
         hasProfile={hasProfile}
         isFavorites={isFavorites}
         isLiked={isLiked}
@@ -702,7 +885,32 @@ export function FolderBrowser({
         selectedCount={selection.count}
         isDropDisabled={isDropDisabled}
         onFolderDragStart={handleFolderDragStart}
+        {...(isSearch
+          ? { continuationState, onShowMore, continuationSentinelRef }
+          : {})}
       />
+      )}
+
+      {passagesView && (
+        <PassageList
+          state={
+            passagesLoading
+              ? "loading"
+              : passagesFailed
+                ? "failed"
+                : passageGroupList.length === 0
+                  ? "empty"
+                  : "listed"
+          }
+          groups={passageGroupList}
+          filesCount={files.length}
+          onRetry={retryPassages}
+          onShowFiles={() => handleShowChange("files")}
+          onClearFilter={
+            typeFilter || trustFilter ? clearTypeFilter : undefined
+          }
+        />
+      )}
 
       {selectable && (
         <SelectionBar
@@ -713,19 +921,43 @@ export function FolderBrowser({
           currentPath={folderPath}
           onSelectAll={() => selection.selectAll(files.map((f) => f.id))}
           onClear={() => {
+            clearedSelectionRef.current = [...selection.selectedIds];
             selection.clear();
             setSelectable(false);
           }}
-          onComplete={refresh}
+          onComplete={(removed) => {
+            const cleared = clearedSelectionRef.current;
+            clearedSelectionRef.current = [];
+            const onlyContinuation =
+              cleared.length > 0 && cleared.every((id) => continuationDrawnIds.has(id));
+            if (removed) removeContinuationFiles(cleared);
+            if (!onlyContinuation) refresh();
+          }}
         />
       )}
       </div>
     </PageFrame>
   );
 
-  if (isSearch) return inner;
+  if (isSearch) {
+    return (
+      <>
+        <SmartFolderController
+          drive={driveName}
+          query={searchQuery ?? ""}
+          typeFilter={typeFilter}
+          smartFolderId={smartFolderId ?? null}
+          show={show}
+          includeSceneClip={!!includeSceneClip}
+        >
+          {inner}
+        </SmartFolderController>
+        <ImageQueryDropTarget onImageQuery={onImageQuery} />
+      </>
+    );
+  }
   return (
-    <UploadZone drive={driveName} folderPath={folderPath ?? ""} onUploadComplete={refresh} className="flex-1 flex flex-col">
+    <UploadZone drive={driveName} folderPath={folderPath ?? ""} className="flex-1 flex flex-col">
       {inner}
     </UploadZone>
   );

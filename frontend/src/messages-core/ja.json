@@ -29,6 +29,13 @@
       "confirmLabel": "破棄して移動"
     }
   },
+  "appShell": {
+    "manage": "管理…",
+    "manageTitle": "表示する対象",
+    "done": "完了",
+    "searchTargets": "スマートフォルダを検索",
+    "seeAllIn": "すべて見る: {name}"
+  },
   "metadata": {
     "description": "自宅LAN向けファイル管理＆メディアストリーミング"
   },
@@ -37,6 +44,7 @@
   },
   "sidebar": {
     "home": "ホーム",
+    "inbox": "受信箱",
     "library": "ライブラリ",
     "views": "ビュー",
     "sources": "ソース",
@@ -70,21 +78,26 @@
     },
     "clearTag": "タグ絞り込みを解除",
     "lock": "ロックする",
-    "administration": "管理"
+    "administration": "管理",
+    "video": "動画",
+    "reading": "読む",
+    "continue": "続きから"
   },
   "drive": {
+    "appsNav": "アプリ",
     "empty": "ドライブがありません",
     "emptyDescription": "drives.jsonを設定してドライブを追加してください。",
     "pickup": "ピックアップ",
     "recentAdded": "最近追加",
     "favorites": "お気に入り",
     "liked": "Liked",
-    "continueWatching": "続きを見る",
+    "continueWatching": "続きから",
     "recentlyViewed": "最近見た",
     "greeting": "おかえりなさい、{name}",
     "fileCount": "{count, plural, other {#件のファイル}}",
     "emptyDrive": "まだファイルがありません",
-    "unlockAccess": "パスワードを入力"
+    "unlockAccess": "パスワードを入力",
+    "couldNotRemoveFromContinue": "続きから外せませんでした"
   },
   "folder": {
     "items": "{count}件",
@@ -224,7 +237,8 @@
     "epubCloseContents": "目次を閉じる",
     "epubUntitled": "（無題）",
     "epubTypographyReset": "標準に戻す",
-    "markdownViewMode": "表示"
+    "markdownViewMode": "表示",
+    "removeFromContinue": "続きから外す"
   },
   "search": {
     "label": "検索",
@@ -267,19 +281,94 @@
     "recentFiles": "最近のファイル",
     "recentSearches": "最近の検索",
     "sceneSearchToggle": "シーン検索",
-    "sceneSearchHint": "動画の中で特定のシーンが映っている箇所を探す",
+    "sceneSearchToggleShort": "シーン",
     "semanticPending": "意味でも探しています…",
+    "showMoreBySimilarity": "似ている順にさらに表示",
     "scopeRemove": "{label}の範囲を外す",
     "scopeSeeAll": "{label}で「{query}」をすべて探す",
     "hintSelect": "選ぶ",
     "hintOpen": "開く",
     "hintRemoveScope": "範囲を外す",
-    "driveRoot": "ドライブ直下"
+    "driveRoot": "ドライブ直下",
+    "queryField": "検索語",
+    "filters": "条件",
+    "removeFilter": "{label} {value} を外す",
+    "removeFilterOnly": "{label} を外す",
+    "addFilter": "条件を追加",
+    "addFilterWord": "条件",
+    "filterTag": "タグ",
+    "filterKind": "種類",
+    "filterPath": "フォルダ",
+    "filterCollection": "コレクション",
+    "filterFavorite": "お気に入り",
+    "filterBack": "戻る",
+    "filterTagSearch": "タグを絞り込む",
+    "filterTagsLoading": "タグを読み込んでいます…",
+    "filterTagsFailed": "タグを読み込めませんでした",
+    "filterTagsNone": "このドライブにタグはありません",
+    "filterTagsNoMatch": "一致するタグはありません",
+    "filterFolderSearch": "フォルダを絞り込む",
+    "filterFoldersLoading": "フォルダを読み込んでいます…",
+    "filterFoldersFailed": "フォルダを読み込めませんでした",
+    "filterFoldersNone": "このドライブにフォルダはありません",
+    "filterFoldersNoMatch": "一致するフォルダはありません",
+    "filterCollectionSearch": "コレクションを絞り込む",
+    "filterCollectionsLoading": "コレクションを読み込んでいます…",
+    "filterCollectionsFailed": "コレクションを読み込めませんでした",
+    "filterCollectionsNone": "このドライブにコレクションはありません",
+    "filterCollectionsNoMatch": "一致するコレクションはありません",
+    "filterSize": "サイズ",
+    "filterLength": "長さ",
+    "filterSizeUnder10MB": "10 MB 未満",
+    "filterSize100MBOrMore": "100 MB 以上",
+    "filterSize1GBOrMore": "1 GB 以上",
+    "filterDurationUnder5Min": "5 分未満",
+    "filterDuration30MinOrMore": "30 分以上",
+    "filterDuration1HourOrMore": "1 時間以上",
+    "filterNoPreset": "追加できる条件はありません",
+    "viewLabel": "表示",
+    "viewFiles": "ファイル",
+    "viewPassages": "箇所",
+    "passageCount": "{files} ファイル・{passages} 箇所",
+    "passageCountShort": "{passages} 箇所",
+    "passageList": "箇所",
+    "passagePictureText": "画像の文字",
+    "passageText": "本文",
+    "passageScreenText": "画面内の文字",
+    "moreInFile": "このファイルの他の箇所 →",
+    "moreInFileName": "{file} の他の箇所",
+    "passagesFailed": "箇所を読み込めませんでした",
+    "showFiles": "ファイルで表示",
+    "clearFilter": "フィルタを解除",
+    "retry": "再試行",
+    "searchByImage": "画像で探す",
+    "image": "画像",
+    "removeImage": "画像を外す",
+    "imageSearch": "画像で検索",
+    "dropToSearchByImage": "ドロップして画像で探す",
+    "imageDocuments": "同じ文字を含む文書",
+    "imagePictures": "似ている画像",
+    "imageScenes": "似ている場面",
+    "imageScopeDocuments": "文書",
+    "imageScopePictures": "画像",
+    "imageScopeScenes": "場面",
+    "imageScopeZero": "0 件",
+    "imageTooLarge": "画像が大きすぎます（20 MB・5000 万画素まで）",
+    "imageUnreadable": "この画像は読み込めませんでした",
+    "imageOneOnly": "画像は1枚だけ選んでください",
+    "imageDriveLocked": "このドライブはロックされています",
+    "imageUnavailable": "このドライブでは画像で探せません",
+    "imageFailed": "画像で探せませんでした",
+    "imageGone": "画像をもう一度選んでください",
+    "imageEmpty": "似ているものは見つかりませんでした",
+    "imageTextFailed": "画像の文字を読み取れませんでした",
+    "imageScenesPartial": "このドライブのシーンを見逃している可能性があります",
+    "imageScopeSeparator": "・"
   },
   "smartFolder": {
     "sectionTitle": "スマートフォルダ",
     "save": "スマートフォルダに保存",
-    "saved": "保存中: {name}",
+    "saved": "保存済み: {name}",
     "update": "更新",
     "delete": "削除",
     "rename": "名前変更",
@@ -374,7 +463,14 @@
     "statusProcessing": "処理中",
     "statusComplete": "完了",
     "statusError": "エラー",
-    "statusCancelled": "キャンセル済み"
+    "statusCancelled": "キャンセル済み",
+    "destinationFolderNotFound": "送り先のフォルダが見つかりません",
+    "lockConfirmTitle": "アップロード中です",
+    "lockConfirmMessage": "ロックすると、実行中のアップロードは中断されます。",
+    "stageSaved": "保存済み",
+    "stageUnavailable": "確認できません",
+    "ready": "使えます",
+    "someStepsFailed": "一部の処理に失敗しました"
   },
   "collection": {
     "addToCollection": "コレクションに追加",
@@ -460,6 +556,7 @@
     "rootBreadcrumb": "書庫",
     "loadFailed": "アーカイブの読み込みに失敗しました: {error}",
     "fileCount": "{count}ファイル/{size}",
+    "resume": "続きから（{position} / {total}）",
     "downloadArchive": "アーカイブをダウンロード",
     "emptyFolder": "このフォルダは空です",
     "downloadFile": "{name}をダウンロード",
@@ -519,7 +616,9 @@
     "homeUnavailableTitle": "このドライブを読み込めませんでした",
     "homeUnavailableDescription": "いま何も取得できませんでした。ドライブが空という意味ではありません。",
     "addFilesAction": "ファイルを追加",
-    "openLibraryAction": "ライブラリを開く"
+    "openLibraryAction": "ライブラリを開く",
+    "noContinueTitle": "途中のファイルはありません",
+    "noContinueDescription": "最近 2 週間に開いて途中まで見たファイルが、ここに並びます。"
   },
   "theme": {
     "system": "システム",
@@ -779,6 +878,13 @@
     "loadFailed": "読み込みに失敗しました: {error}",
     "tooLargeToDecorate": "行番号と色を付けるには大きすぎるため、そのまま表示しています。"
   },
+  "highlight": {
+    "add": "ハイライト",
+    "remove": "削除",
+    "saveFailed": "ハイライトを保存できませんでした",
+    "removeFailed": "ハイライトを削除できませんでした",
+    "limitReached": "ハイライトの上限に達しました"
+  },
   "batchRename": {
     "title": "一括名前変更",
     "modeTemplate": "テンプレート",
@@ -950,6 +1056,7 @@
     },
     "tabs": {
       "info": "情報",
+      "find": "検索",
       "chapters": "チャプター",
       "pages": "ページ",
       "related": "関連"
@@ -969,6 +1076,37 @@
     "tablistLabel": "インスペクタのセクション",
     "collapseSheet": "シートを下げる",
     "expandSheet": "シートを開く"
+  },
+  "find": {
+    "button": "このファイル内を検索",
+    "shortcutLabel": "このファイル内を検索",
+    "inputLabel": "検索語",
+    "inputPlaceholder": "このファイル内を検索",
+    "previous": "前の箇所",
+    "next": "次の箇所",
+    "close": "検索を閉じる",
+    "count": "{count} 件",
+    "countTruncated": "{count}+ 件",
+    "current": "{index} / {total}",
+    "currentTruncated": "{index} / {total}+",
+    "truncatedList": "最初の 2000 件を表示しています",
+    "listLabel": "見つかった箇所",
+    "notIndexed": "このファイルはまだ検索用に読み込まれていません",
+    "noHits": "見つかりません",
+    "unavailable": "このファイルの中は検索できません",
+    "failed": "検索できませんでした",
+    "retry": "再試行",
+    "category": {
+      "all": "すべて",
+      "utterance": "発話",
+      "scene": "画面内の文字",
+      "text": "本文",
+      "picture_text": "画像の文字"
+    },
+    "locator": {
+      "page": "p. {page}",
+      "section": "第 {section} 節"
+    }
   },
   "comments": {
     "title": "コメント",
@@ -1241,10 +1379,30 @@
     "filterUnreviewedHint": "誰も判定していないもの（移行分を含む）",
     "filterLabel": "検証状態"
   },
+  "inbox": {
+    "title": "受信箱",
+    "scope": "{drive} · {count} 件",
+    "scopeOne": "{drive} · 1 件",
+    "markAllDone": "すべて済みにする",
+    "today": "今日",
+    "yesterday": "昨日",
+    "yesterdayAt": "昨日 {time}",
+    "earlier": "それ以前",
+    "root": "ルート",
+    "done": "済み",
+    "markedDone": "{count} 件を済みにしました",
+    "undo": "元に戻す",
+    "emptyTitle": "受信箱は空です",
+    "emptyDescription": "新しく届いたものがここに並びます",
+    "sourceUpload": "アップロード",
+    "sourceShare": "共有",
+    "selectArrival": "{name} を選択"
+  },
   "pageJump": {
     "section": "移動",
     "aliases": {
       "home": "ほーむ,home,start",
+      "inbox": "受信箱,新着,arrivals,new",
       "library": "フォルダ,library,folders",
       "favorites": "おきにいり,favorites,favourites,star",
       "liked": "いいね,like,liked",
@@ -1262,5 +1420,98 @@
     "browseNoMatch": "一致する項目はありません",
     "browseUp": "1 つ上へ",
     "suggestions": "候補"
+  },
+  "videoApp": {
+    "title": "動画",
+    "tabsLabel": "動画の表示",
+    "discover": "発見",
+    "library": "ライブラリ",
+    "videoCount": "{count, plural, other {{formatted} 本の動画}}",
+    "target": "対象",
+    "allVideos": "すべての動画",
+    "targetUnavailable": "対象にできません",
+    "classification": "分類",
+    "classifications": {
+      "folder": "フォルダ",
+      "tag": "タグ",
+      "month": "追加した月",
+      "duration": "長さ",
+      "watch": "視聴状態"
+    },
+    "shelves": {
+      "continue": "続きから",
+      "recommended": "おすすめ",
+      "new": "新着"
+    },
+    "noTag": "タグなし",
+    "watch": {
+      "in_progress": "視聴中",
+      "unwatched": "未視聴",
+      "finished": "視聴済み"
+    },
+    "length": {
+      "under_10m": "10分未満",
+      "10_to_30m": "10〜30分",
+      "30m_plus": "30分以上"
+    },
+    "sort": {
+      "label": "並べ替え",
+      "lastOpened": "最後に開いた順",
+      "addedNewest": "追加日（新しい順）",
+      "addedOldest": "追加日（古い順）",
+      "title": "タイトル",
+      "size": "サイズ"
+    },
+    "seeAllIn": "すべて見る: {name}"
+  },
+  "readingApp": {
+    "title": "読む",
+    "tabsLabel": "読むの表示",
+    "discover": "発見",
+    "library": "ライブラリ",
+    "bookCount": "{count, plural, other {{formatted} 冊}}",
+    "target": "対象",
+    "allBooks": "すべての本",
+    "targetUnavailable": "この対象は使えません",
+    "targetUnusable": "この対象は使えません",
+    "noBooks": "本がありません",
+    "shelves": {
+      "continue": "続きを読む",
+      "notReadYet": "まだ読んでいない本",
+      "new": "新着",
+      "in_progress": "続きを読む",
+      "unwatched": "まだ読んでいない本",
+      "finished": "読了"
+    },
+    "all": "すべて",
+    "group": {
+      "label": "まとめ方",
+      "none": "なし",
+      "byTag": "タグ別"
+    },
+    "state": {
+      "label": "状態",
+      "all": "すべて",
+      "unwatched": "未読",
+      "in_progress": "読書中",
+      "finished": "読了"
+    },
+    "tag": "タグ",
+    "tagNone": "指定なし",
+    "noTags": "タグがありません",
+    "noTag": "タグなし",
+    "sort": {
+      "label": "並び順",
+      "lastOpened": "最後に開いた順",
+      "addedNewest": "追加日（新しい順）",
+      "addedOldest": "追加日（古い順）",
+      "title": "タイトル",
+      "size": "サイズ"
+    },
+    "formats": {
+      "epub": "EPUB",
+      "pdf": "PDF",
+      "archive": "書庫"
+    }
   }
 }

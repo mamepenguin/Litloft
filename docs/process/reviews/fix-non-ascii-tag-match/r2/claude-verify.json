@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "claude-verify:stale-docstring-quotes-removed-predicate",
+      "origin": "verifier",
+      "claim": "The class docstring of TestFolderScopedTagCountAgreement still quotes the removed SQL predicate `func.lower(Tag.name) == tag.lower()` as how list_drive_files matches tags.",
+      "impact": "Documentation only: a reader of the test is pointed at a predicate that no longer exists. The docstring's conclusion still holds, since case-variant rows do make the sidebar count smaller than the listing. No runtime or test effect.",
+      "evidence": "backend/tests/test_api_tags.py:266-269 quotes the predicate. backend/app/routers/drives.py:721-727 now folds in Python and filters with `File.tags.any(Tag.id.in_(by_fold[name.lower()]))`. A grep for `func.lower(...Tag|...name)` under backend finds only this docstring as a Tag-name use.",
+      "repro": "not_reproduced as a run (no shell); confirmed by reading both locations.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Stale comment with no behavioural effect; the conclusion it draws is still correct, so it silently passes no check and gives no wrong result.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Reword the docstring to say the listing matches by Python lower-casing across same-name rows, without quoting the old expression."
+    }
+  ],
+  "verification": [],
+  "specification_compliance": [
+    "No reader findings were listed, so there were no verification records to produce.",
+    "Name resolution within a drive follows the UNSPEC at backend/tests/test_tag_name_matching.py:19-21: backend/app/services/tagops.py:31-32 returns the exact row, otherwise the lowest-id row with the same Python lower(); sorting at tagops.py:24 puts unflushed rows last.",
+    "The tag filter follows the UNSPEC at test_tag_name_matching.py:55-56 and 86-87: backend/app/routers/drives.py:721-727 collects ids of same-fold rows from all drives, and drives.py:684 restricts listed files to the requested drive, so a stale-linked file is listed and no other drive's file is.",
+    "The drive-narrowing regression reported in r1 (claude-read:list-filter-drops-stale-linked-files) is no longer in the code: the `Tag.drive == drive_name` condition is gone from the filter, and the test at test_tag_name_matching.py:88-94 covers the restored behaviour.",
+    "An unknown tag name yields an empty id list through the defaultdict at drives.py:721,726, which reads as no match rather than an error; multiple chosen tags remain ANDed, one filter per name.",
+    "The sweep of the destination drive on a move is stated by the UNSPEC at test_tag_name_matching.py:175-176 and by the docstring at tagops.py:76-77."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Sidebar counts per row and the listing total disagree for coexisting case variants. This is recorded only in the docstring at backend/tests/test_api_tags.py:266-269, not in known-issues.md, and was already raised in r1.",
+    "A file whose only link to a tag is a stale row is listed by ?tag= on its own drive while that drive's sidebar has no such row or does not count it. docs/developer-guide/known-issues.md:74-78 records the sidebar side and says nothing about the listing."
+  ],
+  "regression_risks": [
+    "The filter now reads every Tag row of every drive for each tagged listing request (drives.py:722). This is acceptable at personal-tool scale and is not a defect under the threat model, but the cost grows with the total number of tags rather than the listed drive's.",
+    "test_another_drives_tag_is_not_listed (test_tag_name_matching.py:78-84) guards only File.drive at drives.py:684. Removing that bound would fail this test, which is the correct guard now that Tag rows are not narrowed."
+  ],
+  "test_coverage": [
+    "test_a_file_linked_to_another_drives_row_is_listed (test_tag_name_matching.py:88-94) would fail if a drive condition were put back on the id lookup at drives.py:722, by trace.",
+    "test_coexisting_variants_list_the_files_of_both (test_tag_name_matching.py:69-76) covers the same-fold grouping for both German and fullwidth names.",
+    "TestTagEdits covers the 500 path through replace_file_tags and merge_file_tags for non-ASCII names, including the rename and keep-spelling rules.",
+    "No test covers a `?tag=` name matching nothing together with a non-empty Tag table in the new code path. An empty `in_` was traced by reading, not by a test seen in this file."
+  ],
+  "not_verified": [
+    "No test or mutant was run, because only Read, Glob and Grep were available; every result comes from tracing the code.",
+    "The worktree's files were assumed to match commit e49e4dba7 based on the session's git status; git objects were not inspected, and the parent code's form comes from the r1 triage text.",
+    "SQLAlchemy's emitted SQL for an empty `Tag.id.in_([])` was not checked in its source or by running it.",
+    "Tag names in different Unicode normal forms (NFC against NFD) were not traced through the tag write paths; the tag filter at drives.py:715 applies no normalisation, unlike the search at drives.py:701.",
+    "Addon code that reads Tag rows (addons/knowledge and addons/intelligence) was only grepped, not read in full.",
+    "The frontend tag UI was not read or run in a browser."
+  ],
+  "confidence": 80
+}

@@ -1,6 +1,7 @@
 import io
 import json
 import time
+import zlib
 from datetime import UTC, datetime
 
 import pytest
@@ -204,10 +205,19 @@ def test_import_localizes_image_and_rewrites_markdown(client, monkeypatch):
         .count()
         == 1
     )
-    versions = db.query(FileVersion).filter(FileVersion.file_id == note.id).all()
-    assert len(versions) == 1
-    assert versions[0].kind == "explicit"
-    assert versions[0].viewer_id is None
+    versions = (
+        db.query(FileVersion)
+        .filter(FileVersion.file_id == note.id)
+        .order_by(FileVersion.id)
+        .all()
+    )
+    # The note had no history, so the text before the import is kept first.
+    assert [v.kind for v in versions] == ["explicit", "explicit"]
+    assert all(v.viewer_id is None for v in versions)
+    assert zlib.decompress(versions[0].content_z).decode() == (
+        "Before\n![dish](https://images.example.com/stew.jpg)\nAfter\n"
+    )
+    assert zlib.decompress(versions[1].content_z).decode() == rewritten
 
 
 def test_import_rejects_host_not_in_analysis(client):
@@ -662,6 +672,41 @@ class TestImportFailurePaths:
         assert (drive_dir / "note.md").read_text(encoding="utf-8") == (
             "![](https://images.example.com/a.jpg)\n"
         )
+
+    def test_a_commit_that_fails_after_registration_leaves_no_row_and_no_slot(
+        self, client, monkeypatch
+    ):
+        """The picture was written under an id the rollback then takes away."""
+        import app.config as config
+
+        http, db, drive_dir, _ = client
+        monkeypatch.setattr(
+            importer, "fetch_and_normalize_image", lambda url: _normalized_jpeg()
+        )
+        real_factory = importer.database.SessionLocal
+
+        def failing_factory():
+            session = real_factory()
+
+            def refuse():
+                raise RuntimeError("database is locked")
+
+            session.commit = refuse
+            return session
+
+        monkeypatch.setattr(importer.database, "SessionLocal", failing_factory)
+        _seed_markdown(
+            db, drive_dir, file_id="notecommit01", path="note.md",
+            content="![](https://images.example.com/a.jpg)\n",
+        )
+
+        job = _run_to_completion(http, _analyse(http)["analysis_id"])
+
+        assert job["failed"] == 1
+        db.expire_all()
+        assert db.query(File).filter(File.folder_path == "assets").count() == 0
+        assert list((drive_dir / "assets").glob("*")) == []
+        assert [p for p in config.THUMBNAILS_DIR.rglob("*") if p.is_file()] == []
 
     def test_a_failed_content_write_takes_the_new_asset_with_it(
         self, client, monkeypatch

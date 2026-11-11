@@ -1,15 +1,21 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 
 import {
   cancelUpload as apiCancelUpload,
   completeUpload,
+  getFilesProcessing,
   initUpload,
   uploadChunk,
+  type ProcessingStage,
 } from "@/lib/api";
 
 const MAX_CONCURRENT = 2;
+const PROCESSING_TICK_MS = 30 * 1000;
+const PROCESSING_DEADLINE_MS = 30 * 60 * 1000;
+const PROCESSING_BATCH_SIZE = 100;
+export const DESTINATION_FOLDER_NOT_FOUND = "destination_folder_not_found";
 
 // Pick a chunk size that keeps total chunk count reasonable for large files.
 // Browser File.slice() is cheap, but every chunk is a separate POST round-trip,
@@ -29,6 +35,19 @@ export type UploadStatus =
   | "error"
   | "cancelled";
 
+export type ProcessingViewState =
+  | "waiting"
+  | "in-progress"
+  | "ready"
+  | "gone"
+  | "stopped";
+
+export interface ProcessingView {
+  state: ProcessingViewState;
+  stages: ProcessingStage[];
+  deadline: number;
+}
+
 export interface UploadFileEntry {
   file: File;
   relativePath: string;
@@ -41,9 +60,15 @@ export interface UploadState {
   progress: number;
   status: UploadStatus;
   error?: string;
+  drive: string;
+  folder: string;
+  fileId?: string;
+  processing?: ProcessingView;
 }
 
 interface InternalUpload {
+  drive: string;
+  folderPath: string;
   file: File;
   relativePath: string;
   uploadId?: string;
@@ -56,168 +81,449 @@ function generateId(): string {
   return `upload-${Date.now()}-${nextId}`;
 }
 
-export function useUpload(drive: string, folderPath: string, onFileComplete?: () => void) {
-  const [uploads, setUploads] = useState<UploadState[]>([]);
-  const internalsRef = useRef<Map<string, InternalUpload>>(new Map());
-  const activeCountRef = useRef(0);
-  const queueRef = useRef<string[]>([]);
+const EMPTY_UPLOADS: UploadState[] = [];
+let uploads: UploadState[] = EMPTY_UPLOADS;
+let pendingQueue: string[] = [];
+let activeCount = 0;
+const internals = new Map<string, InternalUpload>();
+const listeners = new Set<() => void>();
+const completionListeners = new Set<(drive: string) => void>();
+let leaveSuppressed = false;
 
-  const updateUpload = useCallback(
-    (id: string, patch: Partial<UploadState>) => {
-      setUploads((prev) =>
-        prev.map((u) => (u.id === id ? { ...u, ...patch } : u))
-      );
-    },
-    []
+function emit() {
+  for (const listener of listeners) listener();
+}
+
+function getSnapshot(): UploadState[] {
+  return uploads;
+}
+
+function getServerSnapshot(): UploadState[] {
+  return EMPTY_UPLOADS;
+}
+
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+function isUnfinished(entry: UploadState): boolean {
+  return (
+    entry.status === "pending" ||
+    entry.status === "uploading" ||
+    entry.status === "processing"
   );
+}
 
-  const processNext = useCallback(() => {
-    while (
-      activeCountRef.current < MAX_CONCURRENT &&
-      queueRef.current.length > 0
+function hasUnfinished(): boolean {
+  return uploads.some(isUnfinished);
+}
+
+function updateUpload(id: string, patch: Partial<UploadState>) {
+  uploads = uploads.map((upload) =>
+    upload.id === id ? { ...upload, ...patch } : upload,
+  );
+  emit();
+}
+
+function notifyComplete(drive: string) {
+  for (const listener of completionListeners) listener(drive);
+}
+
+let processingTimer: ReturnType<typeof setInterval> | null = null;
+let processingInFlight = false;
+let processingRefreshQueued: { all: true } | { ids: Set<string> } | null = null;
+let immediateProcessingFetch: ReturnType<typeof setTimeout> | null = null;
+
+function needsProcessingFetch(entry: UploadState): boolean {
+  return (
+    entry.processing !== undefined &&
+    (entry.processing.state === "waiting" ||
+      entry.processing.state === "in-progress")
+  );
+}
+
+function hasProcessingWork(): boolean {
+  return uploads.some(needsProcessingFetch);
+}
+
+function stopProcessingTimer() {
+  if (processingTimer !== null) {
+    clearInterval(processingTimer);
+    processingTimer = null;
+  }
+}
+
+function stopImmediateProcessingFetch() {
+  if (immediateProcessingFetch !== null) {
+    clearTimeout(immediateProcessingFetch);
+    immediateProcessingFetch = null;
+  }
+}
+
+function ensureProcessingTimer() {
+  if (processingTimer !== null || !hasProcessingWork()) return;
+  processingTimer = setInterval(() => {
+    void refreshProcessing();
+  }, PROCESSING_TICK_MS);
+}
+
+function scheduleImmediateProcessingFetch() {
+  if (immediateProcessingFetch !== null) return;
+  immediateProcessingFetch = setTimeout(() => {
+    immediateProcessingFetch = null;
+    void refreshProcessing();
+  }, 0);
+}
+
+function stopExpiredEntries(now: number) {
+  let changed = false;
+  uploads = uploads.map((upload) => {
+    const processing = upload.processing;
+    if (
+      processing &&
+      needsProcessingFetch(upload) &&
+      now >= processing.deadline
     ) {
-      const id = queueRef.current.shift();
-      if (!id) break;
-      const internal = internalsRef.current.get(id);
-      if (!internal || internal.aborted) continue;
-      activeCountRef.current += 1;
-      processUpload(id, internal);
+      changed = true;
+      return { ...upload, processing: { ...processing, state: "stopped" } };
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [drive, folderPath]);
+    return upload;
+  });
+  if (changed) emit();
+}
 
-  async function processUpload(id: string, internal: InternalUpload) {
-    const { file } = internal;
+function applyProcessingAnswer(
+  fileIds: string[],
+  answer: Awaited<ReturnType<typeof getFilesProcessing>>,
+) {
+  if (!answer || typeof answer !== "object" || !answer.files) return;
+  const wanted = new Set(fileIds);
+  let changed = false;
+  uploads = uploads.map((upload) => {
+    const fileId = upload.fileId;
+    if (!fileId || !wanted.has(fileId) || !needsProcessingFetch(upload)) {
+      return upload;
+    }
+    const processing = upload.processing;
+    if (!processing) return upload;
+    const result = answer.files[fileId];
+    changed = true;
+    if (!result) {
+      return {
+        ...upload,
+        processing: { ...processing, state: "gone", stages: [] },
+      };
+    }
+    return {
+      ...upload,
+      processing: {
+        ...processing,
+        state: result.ready ? "ready" : "in-progress",
+        stages: Array.isArray(result.stages) ? result.stages : [],
+      },
+    };
+  });
+  if (changed) emit();
+}
 
-    const chunkSize = pickChunkSize(file.size);
+function queueProcessingRefresh(fileIds?: string[]) {
+  if (fileIds === undefined) {
+    processingRefreshQueued = { all: true };
+    return;
+  }
+  const held = fileIds.filter((fileId) =>
+    uploads.some(
+      (entry) => entry.fileId === fileId && needsProcessingFetch(entry),
+    ),
+  );
+  if (held.length === 0) return;
+  if (processingRefreshQueued && "all" in processingRefreshQueued) return;
+  const ids =
+    processingRefreshQueued && "ids" in processingRefreshQueued
+      ? processingRefreshQueued.ids
+      : new Set<string>();
+  for (const fileId of held) ids.add(fileId);
+  processingRefreshQueued = { ids };
+}
 
+async function refreshProcessing(fileIds?: string[]) {
+  if (processingInFlight) {
+    // The in-flight answer may predate the change that asked for this one,
+    // so a call made now earns one more request after it ends.
+    queueProcessingRefresh(fileIds);
+    return;
+  }
+  processingInFlight = true;
+  try {
+    await refreshProcessingOnce(fileIds);
+  } finally {
+    processingInFlight = false;
+    const queued = processingRefreshQueued;
+    processingRefreshQueued = null;
+    if (queued) {
+      if ("all" in queued) void refreshProcessing();
+      else void refreshProcessing([...queued.ids]);
+    }
+  }
+}
+
+async function refreshProcessingOnce(fileIds?: string[]) {
+  stopExpiredEntries(Date.now());
+  if (!hasProcessingWork()) {
+    stopProcessingTimer();
+    return;
+  }
+
+  const wanted = fileIds ? new Set(fileIds) : null;
+  const targets = uploads.filter(
+    (upload) =>
+      needsProcessingFetch(upload) &&
+      (!wanted || (upload.fileId !== undefined && wanted.has(upload.fileId))),
+  );
+  const ids = [
+    ...new Set(
+      targets
+        .map((upload) => upload.fileId)
+        .filter((fileId): fileId is string => fileId !== undefined),
+    ),
+  ];
+
+  for (let start = 0; start < ids.length; start += PROCESSING_BATCH_SIZE) {
+    const batch = ids.slice(start, start + PROCESSING_BATCH_SIZE);
     try {
-      updateUpload(id, { status: "uploading", progress: 0 });
-
-      const initResult = await initUpload(drive, {
-        filename: file.name,
-        file_size: file.size,
-        folder_path: folderPath,
-        chunk_size: chunkSize,
-        relative_path: internal.relativePath,
-      });
-
-      internal.uploadId = initResult.upload_id;
-
-      if (internal.aborted) {
-        await apiCancelUpload(drive, initResult.upload_id);
-        return;
-      }
-
-      const totalChunks = initResult.total_chunks;
-
-      for (let i = 0; i < totalChunks; i++) {
-        if (internal.aborted) {
-          await apiCancelUpload(drive, initResult.upload_id);
-          return;
-        }
-
-        const start = i * chunkSize;
-        const end = Math.min(start + chunkSize, file.size);
-        const chunk = file.slice(start, end);
-
-        await uploadChunk(drive, initResult.upload_id, i, chunk);
-
-        const progress = Math.round(((i + 1) / totalChunks) * 95);
-        updateUpload(id, { progress });
-      }
-
-      if (internal.aborted) {
-        await apiCancelUpload(drive, initResult.upload_id);
-        return;
-      }
-
-      updateUpload(id, { status: "processing", progress: 95 });
-      await completeUpload(drive, initResult.upload_id);
-      updateUpload(id, { status: "complete", progress: 100 });
-      onFileComplete?.();
-    } catch (err) {
-      if (!internal.aborted) {
-        const message =
-          err instanceof Error ? err.message : "Upload failed";
-        updateUpload(id, { status: "error", error: message });
-      }
-    } finally {
-      activeCountRef.current -= 1;
-      processNext();
+      const answer = await getFilesProcessing(batch);
+      applyProcessingAnswer(batch, answer);
+    } catch {
+      // Keep the last line; the next tick asks again.
     }
   }
 
-  const addFileEntries = useCallback(
-    (entries: UploadFileEntry[]) => {
-      const newUploads: UploadState[] = entries.map((entry) => {
-        const id = generateId();
-        internalsRef.current.set(id, {
-          file: entry.file,
-          relativePath: entry.relativePath,
-          aborted: false,
-        });
-        queueRef.current.push(id);
-        return {
-          id,
-          filename: entry.file.name,
-          relativePath: entry.relativePath,
-          progress: 0,
-          status: "pending" as const,
-        };
-      });
+  if (!hasProcessingWork()) stopProcessingTimer();
+}
 
-      setUploads((prev) => [...prev, ...newUploads]);
-      setTimeout(() => processNext(), 0);
-    },
-    [processNext]
-  );
+export function handleProcessingUpdated(fileIds: string[]) {
+  if (fileIds.length === 0) return;
+  void refreshProcessing(fileIds);
+}
 
-  const addFiles = useCallback(
-    (files: File[]) => {
-      addFileEntries(files.map((file) => ({ file, relativePath: "" })));
-    },
-    [addFileEntries]
-  );
+function processNext() {
+  while (activeCount < MAX_CONCURRENT && pendingQueue.length > 0) {
+    const id = pendingQueue.shift();
+    if (!id) break;
+    const internal = internals.get(id);
+    if (!internal || internal.aborted) continue;
+    activeCount += 1;
+    void processUpload(id, internal);
+  }
+}
 
-  const cancelUploadById = useCallback(
-    (id: string) => {
-      const internal = internalsRef.current.get(id);
-      if (internal) {
-        internal.aborted = true;
-        if (internal.uploadId) {
-          apiCancelUpload(drive, internal.uploadId).catch(() => {
-            // Best-effort cancel
-          });
-        }
-      }
-      updateUpload(id, { status: "cancelled" });
-      queueRef.current = queueRef.current.filter((qId) => qId !== id);
-    },
-    [drive, updateUpload]
-  );
+async function processUpload(id: string, internal: InternalUpload) {
+  const { file, drive, folderPath } = internal;
+  const chunkSize = pickChunkSize(file.size);
 
-  const clearCompleted = useCallback(() => {
-    setUploads((prev) =>
-      prev.filter(
-        (u) =>
-          u.status !== "complete" &&
-          u.status !== "error" &&
-          u.status !== "cancelled"
-      )
-    );
-    for (const [id, internal] of internalsRef.current.entries()) {
-      if (internal.aborted) {
-        internalsRef.current.delete(id);
-      }
+  try {
+    updateUpload(id, { status: "uploading", progress: 0 });
+
+    const initResult = await initUpload(drive, {
+      filename: file.name,
+      file_size: file.size,
+      folder_path: folderPath,
+      chunk_size: chunkSize,
+      relative_path: internal.relativePath,
+      require_folder: true,
+      inbox_source: "upload",
+    });
+
+    internal.uploadId = initResult.upload_id;
+
+    if (internal.aborted) {
+      await apiCancelUpload(drive, initResult.upload_id);
+      return;
     }
-  }, []);
+
+    const totalChunks = initResult.total_chunks;
+
+    for (let i = 0; i < totalChunks; i++) {
+      if (internal.aborted) {
+        await apiCancelUpload(drive, initResult.upload_id);
+        return;
+      }
+
+      const start = i * chunkSize;
+      const end = Math.min(start + chunkSize, file.size);
+      const chunk = file.slice(start, end);
+
+      await uploadChunk(drive, initResult.upload_id, i, chunk);
+
+      const progress = Math.round(((i + 1) / totalChunks) * 95);
+      updateUpload(id, { progress });
+    }
+
+    if (internal.aborted) {
+      await apiCancelUpload(drive, initResult.upload_id);
+      return;
+    }
+
+    updateUpload(id, { status: "processing", progress: 95 });
+    const result = await completeUpload(drive, initResult.upload_id);
+    const completedId = (result as { id?: unknown } | undefined)?.id;
+    const fileId = typeof completedId === "string" ? completedId : undefined;
+    if (fileId) {
+      updateUpload(id, {
+        status: "complete",
+        progress: 100,
+        fileId,
+        processing: {
+          state: "waiting",
+          stages: [],
+          deadline: Date.now() + PROCESSING_DEADLINE_MS,
+        },
+      });
+      ensureProcessingTimer();
+      scheduleImmediateProcessingFetch();
+    } else {
+      updateUpload(id, { status: "complete", progress: 100 });
+    }
+    notifyComplete(drive);
+  } catch (err) {
+    if (!internal.aborted) {
+      const message = err instanceof Error ? err.message : "Upload failed";
+      updateUpload(id, { status: "error", error: message });
+    }
+  } finally {
+    activeCount -= 1;
+    processNext();
+  }
+}
+
+function addFileEntries(
+  drive: string,
+  folderPath: string,
+  entries: UploadFileEntry[],
+) {
+  const added = entries.map((entry) => {
+    const id = generateId();
+    internals.set(id, {
+      drive,
+      folderPath,
+      file: entry.file,
+      relativePath: entry.relativePath,
+      aborted: false,
+    });
+    pendingQueue.push(id);
+    return {
+      id,
+      filename: entry.file.name,
+      relativePath: entry.relativePath,
+      progress: 0,
+      status: "pending" as const,
+      drive,
+      folder: folderPath,
+    };
+  });
+
+  uploads = [...uploads, ...added];
+  emit();
+  setTimeout(processNext, 0);
+}
+
+function addFiles(drive: string, folderPath: string, files: File[]) {
+  addFileEntries(
+    drive,
+    folderPath,
+    files.map((file) => ({ file, relativePath: "" })),
+  );
+}
+
+function cancelUploadById(id: string) {
+  const entry = uploads.find((upload) => upload.id === id);
+  if (!entry || (entry.status !== "pending" && entry.status !== "uploading")) {
+    return;
+  }
+
+  const internal = internals.get(id);
+  if (internal) {
+    internal.aborted = true;
+    if (internal.uploadId) {
+      apiCancelUpload(internal.drive, internal.uploadId).catch(() => {
+        // Best-effort cancel
+      });
+    }
+  }
+  pendingQueue = pendingQueue.filter((queuedId) => queuedId !== id);
+  updateUpload(id, { status: "cancelled" });
+}
+
+function clearCompleted() {
+  const removed = new Set(
+    uploads
+      .filter(
+        (upload) =>
+          upload.status === "complete" ||
+          upload.status === "error" ||
+          upload.status === "cancelled",
+      )
+      .map((upload) => upload.id),
+  );
+  if (removed.size === 0) return;
+  uploads = uploads.filter((upload) => !removed.has(upload.id));
+  for (const id of removed) internals.delete(id);
+  if (!hasProcessingWork()) stopProcessingTimer();
+  emit();
+}
+
+/** The lock's own reload must not ask the leave-page question again. */
+export function disarmLeaveConfirmation() {
+  leaveSuppressed = true;
+}
+
+/** Whether the browser's leave-page confirmation should hold the tab. */
+export function leaveConfirmationArmed(): boolean {
+  return !leaveSuppressed && hasUnfinished();
+}
+
+/** Empty the store. Tests call this between cases; the app never does. */
+export function resetUploadStore() {
+  stopProcessingTimer();
+  stopImmediateProcessingFetch();
+  uploads = EMPTY_UPLOADS;
+  pendingQueue = [];
+  activeCount = 0;
+  internals.clear();
+  leaveSuppressed = false;
+  emit();
+}
+
+export function useUpload() {
+  const snapshot = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   return {
-    uploads,
+    uploads: snapshot,
     addFiles,
     addFileEntries,
     cancelUpload: cancelUploadById,
     clearCompleted,
   };
+}
+
+/** Runs `onComplete` when a file finishes uploading to `drive`. */
+export function useUploadCompleted(drive: string, onComplete: () => void) {
+  const callbackRef = useRef(onComplete);
+
+  useEffect(() => {
+    callbackRef.current = onComplete;
+  }, [onComplete]);
+
+  useEffect(() => {
+    const listener = (completedDrive: string) => {
+      if (completedDrive === drive) callbackRef.current();
+    };
+    completionListeners.add(listener);
+    return () => {
+      completionListeners.delete(listener);
+    };
+  }, [drive]);
 }

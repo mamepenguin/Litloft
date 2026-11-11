@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "docs/developer-guide/architecture.md:45 has the added sentence; the main checkout's copy of the same line lacks it. The spec's touch points name only INDEX.md, known-issues.md and monitoring.md for docs. The sentence agrees with thumbnail_slot_rel and the state table in the spec."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "backend/tests/test_atomic_write.py:209-211 adds app/services/thumbnail.py to ROLES['rename-by-os']; the pre-change copy lacks it. The touch-point list does not name it. The entry is needed because thumbnail.py:782 calls os.replace, and the detector's comment at lines 196-199 allows a reasoned entry."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "test_transparent_thumbnails.py:720-721 now assigns the pointer and commits; the pre-change copy at line 720 had the assertion png_row.thumbnail_path == jpg_row.thumbnail_path. This is more than a value change. The test still reaches the shared-row check (lines 727-732)."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-4",
+      "status": "confirmed",
+      "note": "test_copy.py:795-796 asserts landed is on its slot and the ghost keeps root_thumb_rel; the pre-change copy asserted landed == root_thumb_rel and ghost is None. Docstring reworded at line 757. The test is not named in the touch points. Minor correction to the evidence: the neighbouring test lost one comment line ('And stops pointing at the thumbnail slot the copy has taken over'), and the other three comment lines remain at test_copy.py:427-429."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F-5",
+      "status": "confirmed",
+      "note": "scanner.py:657-679 sets path columns and has no thumbnail step, and the only later use of moved_ids is the files.moved event (scanner.py:786-787). The pre-change code called _relocate_thumbnail here, which regenerated when no old file existed. The row generates at the next scan through scanner.py:500-512, because it then matches at its path. The spec section 1 requires a detected move to change only path columns and leave thumbnail_path as it is, so this follows the spec text. It does narrow spec section 9 and I1 ('after the first scan') for a shared-slot row whose file was moved on disk before the first scan after upgrade."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F-6",
+      "status": "confirmed",
+      "note": "thumbnail.py:707-710 returns ('absent', rel) on any OSError. A sole row then reaches thumbnail.py:793-798, which empties the pointer when the slot is not a file. Traced in the code only, not run. The commit at line 801 or 806 makes the loss durable, and the old file is left stranded. Whether a stat error other than not-found occurs in normal use on this cache was not established."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "Same as claude-read TP-1: docs/developer-guide/architecture.md:45 gains the sentence and the file is not in the touch-point list."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "Same as claude-read TP-2. A grep of backend/app confirms thumbnail.py:782 is that module's only os.replace, and it moves a complete file."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "Same as claude-read TP-3: test_transparent_thumbnails.py:720-721 replaces the assertion with a hand-set pointer and a commit."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "TP-4",
+      "status": "confirmed",
+      "note": "test_copy.py:796 asserts the ghost keeps root_thumb_rel; the pre-change copy asserted is None. Docstring reworded at line 757."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "TEST-1",
+      "status": "confirmed",
+      "note": "fileops.py:336 and :412 make the removals. test_thumbnail_slots.py covers only a move (lines 369, 416) and an upload (line 444) over a trashed ghost. test_copy.py has no deleted_at. test_fileops.py sets no trashed ghost. test_frontmatter_tags_on_create.py:156 copies onto a trashed ghost but seeds no picture and asserts only tags. test_database_migration_drive_scoped_file_path.py:380 calls resolve_db_path_conflict directly, so it does not reach the caller's removal; its assertions were not read. The search was by name and pattern, not exhaustive across all 31 files that set deleted_at."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "TEST-2",
+      "status": "confirmed",
+      "note": "The branch is markdown_image_import.py:424-425. The only register_single_file patch in test_markdown_image_import.py is line 661, which raises, so asset_id stays None. That file has no commit-failure injection: its .commit calls at lines 46, 78 and 806 were matched by a grep, and no monkeypatch of a session or commit was found. test_thumbnail_slots.py:158 calls register_single_file directly."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "MIG-1",
+      "status": "confirmed",
+      "note": "Same defect as claude-read F-6: thumbnail.py:707-710 and thumbnail.py:793-798. Spec section 1 groups by 'when the file exists' and 'the string when it does not', and I9 keeps the pointer only for an os.replace failure, so no spec line covers a stat failure. Traced in the code only, not run."
+    }
+  ],
+  "specification_compliance": [
+    "Touch-point departures TP-1 to TP-4 are present at this commit, as read from the working tree and compared with the pre-change test and doc copies in the main checkout.",
+    "The detected-move branch (scanner.py:657-679) matches spec section 1: only path columns change.",
+    "Spec section 2 says an OSError from os.replace keeps the pointer; the code does so at thumbnail.py:783-789. Spec section 1 does not state what a stat error other than not-found should do."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "A stat failure other than not-found during migration is treated as an absent file (thumbnail.py:707-710), and the spec does not define this case.",
+    "A non-regular file at a pointer's path is also treated as absent (thumbnail.py:711-712), and the spec does not state this."
+  ],
+  "regression_risks": [
+    "A row with an empty pointer that a scan detects as moved shows the placeholder until the following scan; the old code regenerated it in the same scan."
+  ],
+  "test_coverage": [
+    "No test found for removal of a trashed ghost's picture by rename_file or copy_file; move and upload are covered in test_thumbnail_slots.py.",
+    "No test found for the failed-commit branch at markdown_image_import.py:424-425.",
+    "No test found that makes stat fail with an error other than not-found in migration; this comes from the test names in test_thumbnail_slots.py, whose bodies were not all read."
+  ],
+  "not_verified": [
+    "No test or code was run: the tools allow reading only, so every confirmation comes from reading the code.",
+    "The main checkout at /Users/libre/Sources/video_share served as the pre-change copy; its exact commit was not confirmed to equal origin/develop.",
+    "The working tree was taken to match commit 57538c57a from the git status snapshot and r1/head.txt; the commit objects were not read.",
+    "The bodies of the 31 test files that set deleted_at were not all read for TEST-1; only pattern searches and selected files were checked.",
+    "The addons/media_import code, main.py lifespan ordering beyond the call site at main.py:277, and purge code were not reviewed."
+  ],
+  "confidence": 86
+}

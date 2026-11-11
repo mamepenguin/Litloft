@@ -146,9 +146,9 @@ const POPUPS: Record<string, PopupEntry> = {
     dismissedIn: null,
     why: "the drag bubble above the slider thumb, shown only while the thumb is held",
   },
-  "frontend/src/components/SmartFolderSaveButton.tsx": {
-    dismissedIn: "frontend/src/components/SmartFolderSaveButton.tsx",
-    why: "the saved-search menu",
+  "frontend/src/components/search/ConditionMenu.tsx": {
+    dismissedIn: "frontend/src/components/search/ConditionMenu.tsx",
+    why: "the search page's add-filter menu",
   },
   "frontend/src/components/SortButton.tsx": {
     dismissedIn: "frontend/src/components/SortButton.tsx",
@@ -157,6 +157,20 @@ const POPUPS: Record<string, PopupEntry> = {
   "frontend/src/components/ToolbarMenu.tsx": {
     dismissedIn: "frontend/src/components/ToolbarMenu.tsx",
     why: "the labelled toolbar menus, and the surface FilterMenu shares",
+  },
+  "frontend/src/components/appshell/ManageTargetsDialog.tsx": {
+    dismissedIn: null,
+    why: "a modal dialog with its own backdrop",
+  },
+  "frontend/src/components/appshell/TargetMenu.tsx": {
+    dismissedIn: "frontend/src/components/ToolbarMenu.tsx",
+    why:
+      "draws its rows inside ToolbarMenu, which owns the scrim; Manage opens " +
+      "the modal above, which has its own backdrop",
+  },
+  "frontend/src/components/readingapp/LibraryControls.tsx": {
+    dismissedIn: "frontend/src/components/ToolbarMenu.tsx",
+    why: "draws its tag rows inside ToolbarMenu, which owns the scrim",
   },
   "frontend/src/components/archive/ArchiveToolbar.tsx": {
     dismissedIn: "frontend/src/components/archive/ArchiveToolbar.tsx",

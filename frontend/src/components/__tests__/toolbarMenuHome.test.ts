@@ -74,10 +74,13 @@ describe("the shared toolbar menu has one home", () => {
       "addons/knowledge/frontend/AllNotes.tsx",
       "frontend/src/components/OverflowMenu.tsx",
       "frontend/src/components/PdfPreview.tsx",
+      "frontend/src/components/SmartFolderSaveButton.tsx",
       "frontend/src/components/SortButton.tsx",
       "frontend/src/components/ViewMenu.tsx",
       "frontend/src/components/__tests__/ToolbarMenu.test.tsx",
+      "frontend/src/components/__tests__/readingVideoLayoutFixtureParity.test.tsx",
       "frontend/src/components/__tests__/toolbarMenuFixtureParity.test.tsx",
+      "frontend/src/components/appshell/TargetMenu.tsx",
       "frontend/src/components/archive/ArchiveToolbar.tsx",
       "frontend/src/components/archive/ArchiveToolbar.tsx",
       "frontend/src/components/folder/FilterMenu.tsx",
@@ -85,6 +88,9 @@ describe("the shared toolbar menu has one home", () => {
       "frontend/src/components/folder/FolderToolbar.tsx",
       "frontend/src/components/folder/SortMenu.tsx",
       "frontend/src/components/folder/__tests__/toolbarBarScope.test.tsx",
+      "frontend/src/components/readingapp/LibraryControls.tsx",
+      "frontend/src/components/search/ConditionMenu.tsx",
+      "frontend/src/components/videoapp/LibraryControls.tsx",
     ]);
   });
 

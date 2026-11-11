@@ -3,7 +3,14 @@ import re
 from datetime import UTC, datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_serializer,
+    model_validator,
+)
 
 from app.models import TRUST_TIERS
 from app.services.chapters import ChapterRow, normalise_chapters
@@ -283,6 +290,8 @@ class UploadInitRequest(BaseModel):
     folder_path: str = ""
     relative_path: str = ""
     chunk_size: int = 5_242_880
+    require_folder: bool = False
+    inbox_source: Literal["upload", "share"] | None = None
 
 
 class UploadInitResponse(BaseModel):
@@ -291,10 +300,39 @@ class UploadInitResponse(BaseModel):
     total_chunks: int
 
 
+class SubtitleUploadResponse(BaseModel):
+    """Answer for an uploaded subtitle: a sidecar file, so it has no record."""
+
+    status: Literal["sidecar"] = "sidecar"
+    drive: str
+    file_path: str
+
+
 class ChunkResponse(BaseModel):
     chunk_index: int
     received_chunks: int
     total_chunks: int
+
+
+class FilesProcessingRequest(BaseModel):
+    file_ids: list[str] = Field(min_length=1, max_length=100)
+
+
+class ProcessingStageResponse(BaseModel):
+    addon: str | None
+    key: str
+    i18n_key: str
+    state: Literal["pending", "running", "done", "failed"]
+    required: bool
+
+
+class FileProcessingResponse(BaseModel):
+    stages: list[ProcessingStageResponse]
+    ready: bool
+
+
+class FilesProcessingResponse(BaseModel):
+    files: dict[str, FileProcessingResponse]
 
 
 class FolderCreateRequest(BaseModel):
@@ -302,10 +340,18 @@ class FolderCreateRequest(BaseModel):
     name: str
 
 
+class ArrivalRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source: str = Field(pattern=r"^[a-z][a-z0-9_.]{0,63}$")
+    i18n_key: str = Field(pattern=r"^[A-Za-z][A-Za-z0-9_.]{0,127}$")
+
+
 class TextFileCreateRequest(BaseModel):
     path: str
     content: str = ""
     conflict_mode: Literal["rename", "error"] = "rename"
+    arrival: ArrivalRequest | None = None
 
 
 class FolderRenameRequest(BaseModel):
@@ -339,6 +385,73 @@ def _validate_batch_ids(v: list[str]) -> list[str]:
         if not _NANOID_RE.match(fid):
             raise ValueError(f"Invalid file ID: {fid}")
     return v
+
+
+class InboxDoneRequest(BaseModel):
+    file_ids: list[str] | None = None
+    all: bool = False
+    up_to: datetime | None = None
+
+    @field_validator("file_ids")
+    @classmethod
+    def validate_file_ids(cls, v: list[str] | None) -> list[str] | None:
+        if v is None:
+            return v
+        if not 1 <= len(v) <= 1000:
+            raise ValueError("Choose between 1 and 1000 file IDs")
+        for file_id in v:
+            if not _NANOID_RE.match(file_id):
+                raise ValueError(f"Invalid file ID: {file_id}")
+        return v
+
+    @model_validator(mode="after")
+    def validate_shape(self):
+        has_ids = self.file_ids is not None
+        wants_all = self.all
+        if has_ids == wants_all:
+            raise ValueError("Send either file_ids or all with up_to")
+        if wants_all and self.up_to is None:
+            raise ValueError("up_to is required with all")
+        if not wants_all and self.up_to is not None:
+            raise ValueError("up_to only applies with all")
+        return self
+
+
+class InboxUndoRequest(BaseModel):
+    done_at: datetime
+
+
+class InboxItemResponse(BaseModel):
+    file: FileResponse
+    arrived_at: str
+    source: str
+    source_i18n_key: str
+
+
+class InboxListResponse(BaseModel):
+    items: list[InboxItemResponse]
+    next: str | None
+    open_count: int
+
+
+class InboxCountResponse(BaseModel):
+    open: int
+
+
+class InboxDoneResponse(BaseModel):
+    done: int
+    done_at: str
+
+
+class InboxUndoResponse(BaseModel):
+    reopened: int
+
+
+class InboxNeighborsResponse(BaseModel):
+    prev_id: str | None
+    next_id: str | None
+    position: int | None
+    total: int | None
 
 
 class BatchIdsRequest(BaseModel):
@@ -516,6 +629,50 @@ class ProgressUpdateRequest(BaseModel):
         return self
 
 
+PLAYED_RANGES_MAX = 256
+PLAYED_RANGE_MAX_SECONDS = 604800
+PLAYED_SEGMENT_SECONDS = 5
+
+
+class PlayedRange(BaseModel):
+    start: float
+    end: float
+
+    @model_validator(mode="before")
+    @classmethod
+    def drop_non_finite(cls, data: Any) -> Any:
+        # The 422 body echoes each rejected input, and a NaN or an infinity
+        # there cannot be encoded as JSON, which turns the 422 into a 500.
+        if not isinstance(data, dict):
+            return data
+        return {
+            key: None if isinstance(value, float) and not math.isfinite(value) else value
+            for key, value in data.items()
+        }
+
+    @model_validator(mode="after")
+    def validate_bounds(self):
+        if not (0 <= self.start < self.end <= PLAYED_RANGE_MAX_SECONDS):
+            raise ValueError(
+                f"range must satisfy 0 <= start < end <= {PLAYED_RANGE_MAX_SECONDS}"
+            )
+        return self
+
+
+class PlayedRangesRequest(BaseModel):
+    ranges: list[PlayedRange] = Field(min_length=1, max_length=PLAYED_RANGES_MAX)
+
+
+class PlayedSegmentItem(BaseModel):
+    index: int
+    played_seconds: float
+
+
+class PlayedSegmentsResponse(BaseModel):
+    segment_seconds: int = PLAYED_SEGMENT_SECONDS
+    segments: list[PlayedSegmentItem]
+
+
 class ProgressResponse(BaseModel):
     position: float
     duration: float
@@ -557,6 +714,31 @@ class WatchHistoryItemResponse(_UtcDateTimeMixin, BaseModel):
 
 class WatchHistoryResponse(BaseModel):
     data: list[WatchHistoryItemResponse]
+
+
+class ShelfItemResponse(FileResponse):
+    watch_progress: WatchProgressInfo | None = None
+
+    @model_serializer(mode="wrap")
+    def _omit_absent_progress(self, handler):
+        data = handler(self)
+        if data.get("watch_progress") is None:
+            data.pop("watch_progress", None)
+        return data
+
+
+class ShelfResponse(BaseModel):
+    key: str
+    label: str
+    count: int
+    items: list[ShelfItemResponse]
+
+
+class ShelvesResponse(BaseModel):
+    by: str
+    shelves: list[ShelfResponse]
+    total_shelves: int
+    base: str = ""
 
 
 def _validate_collection_name(v: str) -> str:
@@ -772,6 +954,41 @@ class CommentResponse(_UtcDateTimeMixin, BaseModel):
 class CommentsListResponse(BaseModel):
     comments: list[CommentResponse]
     total: int
+
+
+class HighlightCreateRequest(BaseModel):
+    page: int | None = None
+    quote: str
+    prefix: str = ""
+    suffix: str = ""
+
+    @field_validator("quote")
+    @classmethod
+    def validate_quote(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("quote is required")
+        if len(v) > 2000:
+            raise ValueError("quote exceeds 2000 characters")
+        return v
+
+    @field_validator("prefix", "suffix")
+    @classmethod
+    def validate_context(cls, v: str) -> str:
+        if len(v) > 64:
+            raise ValueError("prefix and suffix are limited to 64 characters")
+        return v
+
+
+class HighlightResponse(_UtcDateTimeMixin, BaseModel):
+    id: str
+    page: int | None
+    quote: str
+    prefix: str
+    suffix: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
 
 
 class RelatedFileSummary(_UtcDateTimeMixin, BaseModel):

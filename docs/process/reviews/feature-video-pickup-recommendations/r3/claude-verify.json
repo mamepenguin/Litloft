@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "I1: backend/app/routers/shelves.py:392,413-417,435-436 declares `ids` as a repeated list parameter. It returns 422 for more than 60 elements (duplicates are counted because the check uses len) and for any empty element. It applies `File.id IN ids` after `filtered_drive_files` for the requested drive, so the other filters and the drive scope still apply.",
+    "I2: when `ids` is None, both new branches (shelves.py:413 and :435) are skipped, so the request runs the same path as before.",
+    "I3/I14: useDiscover.ts:65-108 creates one `accepted` map per provider call (lines 178 and 222). buildShelf (:51-63) only draws ids found in that call's map. restrict sends chunks of at most 60, returns early for [], keeps the order it was given (:104), and calls onViewerRejected only when isCurrent(). Recommended passes watch=unwatched.",
+    "I4: useDiscover.ts:190-193 walks the entries sorted by priority, skips those whose provider is null, and stops at the first function. A rejection goes to catch and becomes 'failed', and no later entry is tried. No random request remains. recommendedInputs requires hasProfile. buildShelf deduplicates and caps the result at 12.",
+    "I5: each shelf settles independently in the per-entry run at :230-240, and a missing provider settles to loaded with an empty list. Whether an empty shelf is hidden is up to DiscoverFace, which I did not read in full.",
+    "I11/I13: inputs require catalogueDrive === drive and params !== null. useVideoApp.ts:81-82 sets params to null for an empty target. A profile switch changes the identity of rejectViewer (useVideoApp.ts:95 depends on nickname), so the inputs memo changes and held states from the old inputs are ignored at :249 and :254.",
+    "I8/I12: pickupShelfProvider.ts:43-66 reads pages of 60 and stops at 40 matches, at a short page, at offset >= total, or after MAX_PAGES=5. It keeps the first 40 matches and shuffles them with a seed built from drive and local date, then slices to `limit`.",
+    "I9: watchShelfProviders.ts:9-20 restricts the ids of each lane in that lane's order and does not depend on a profile."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The Media Import lane providers fetch only the first 60 items of a lane (watchShelfProviders.ts:13). Entries after 60 can never reach the shelf, even when earlier ones are filtered out by restrict. The invariants do not specify this.",
+    "I11 for a profile switch relies on the identity of rejectViewer changing with nickname, not on an explicit profile key in the inputs.",
+    "Addon shelf states are keyed by entry.id alone (useDiscover.ts:217,255). If two addons used the same entry id in video-discover-shelves, their states would collide. This does not happen with first-party addons."
+  ],
+  "regression_risks": [
+    "loadAddonSlotModule caches the import promise even when it rejects (addons.ts:156-165), so a failed import stays absent until the page reloads. This looks pre-existing and I did not verify it."
+  ],
+  "test_coverage": [
+    "I did not read the test files. Coverage was not assessed beyond confirming that the touch-point test files exist (pickupShelfProvider.test.ts was not opened)."
+  ],
+  "not_verified": [
+    "DiscoverFace.tsx rendering order, empty-state conditions and See all links (I6, I7)",
+    "AddonSlot.tsx / SlotEntryRenderer sharing of the module cache (I10)",
+    "Backend and frontend tests and the e2e-layout fixtures",
+    "Docs updates and the manifest/ADDON_META slot declarations",
+    "fetchPickup/listWatch API semantics, and whether the pickup feed is per viewer"
+  ],
+  "confidence": 75
+}

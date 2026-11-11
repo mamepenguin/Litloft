@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "Commit 8642f6f79 only records review r2 under docs/process/reviews/.../r2/. It changes no code and no user-visible behaviour.",
+    "The fix 95af29d resolves r2's R2-1 (I11, I5). useDiscover.ts now memoizes recommendedInputs and shelvesInputs from the same deps the effects used. Each settled answer is held together with the inputs object it was computed for (setRecommendedHeld / setShelvesHeld). During render, the state is idle when the inputs are null, the held state when held.inputs === the current inputs, and loading otherwise. This is the same rule as useLoad.ts:49-52. So the first render after a change of drive, target, profile, catalogue readiness or entries key cannot hand DiscoverFace the previous inputs' loaded items.",
+    "settle() is guarded by `current`, and setShelvesHeld merges per-entry states only when held.inputs === inputs, so a late answer from superseded inputs can neither be drawn nor mixed into the new inputs' states (I11).",
+    "The memo deps for the inputs are stable in normal use. `params` comes from a memo keyed on the listed smart folder (useVideoApp.ts:71-82), and `rejectViewer` changes only with the nickname (useVideoApp.ts:95). So the new inputs objects do not churn and cause no extra provider calls (I13, and the re-run rule).",
+    "The new test 'I5 no render after a target change hands the face the old target's answer' records every DiscoverFace render from the click on and asserts that neither Recommended nor shelf-a is ever 'loaded'. With the pre-fix code, the first render after the click would carry the old loaded state, so this test kills the R2-1 regression."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "addonShelves maps the current entries to states by entry.id alone. Two video-discover-shelves entries from different addons with the same id would share one state. All addons are first-party and their ids differ, so this is outside the threat model."
+  ],
+  "regression_risks": [
+    "When the inputs become null (catalogue reloading, empty target, Discover not yet asked), the held state is no longer cleared. It stays in memory, but render ignores it because the identity comparison fails. This is harmless.",
+    "A deps array that is not memoized upstream (params or onViewerRejected getting a new identity on every render) would now make the provider shelves loop between loading and re-running. The old effect-based code had the same exposure, and today's callers are memoized."
+  ],
+  "test_coverage": [
+    "VideoApp.discoverProviders.test.tsx now wraps DiscoverFace to record the props of every render, which catches a single stale commit that a waitFor-based assertion would miss. It covers the target change only. A profile gain or a change in catalogue readiness goes through the same identity rule, but no test checks those render by render.",
+    "The drive-switch case ('I11 on a drive switch ...') still uses waitFor. In the app a drive switch remounts VideoApp with key={driveName}, so no state is carried over."
+  ],
+  "not_verified": [
+    "I did not run any test, so I did not confirm that the new faceRenders test fails on the pre-fix code. That conclusion comes from reading the code.",
+    "I did not read the bumped addon submodule sources beyond the provided diff.",
+    "I did not check the r2 artifacts in 8642f6f79 byte for byte against the record quoted in the prompt."
+  ],
+  "confidence": 80,
+  "trajectory": "Round 95af29d does not repeat a branch or state that an earlier round added. Rounds before r2 (6217b72, the develop merge and the submodule pins) added nothing to the provider-state design. 95af29d removes branches: the effect-time resets to idle and loading, and the per-call `if (!current) return` checks, which are folded into one guarded settle(). In their place it adds one mechanism: state held together with its inputs and compared by identity at render time, the same approach as useLoad. That is a correction of the design, not a patch on top of it. 8642f6f79 is documentation only and adds nothing."
+}

@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "ASK-1",
+      "status": "confirmed",
+      "note": "Confirmed by reading. MobileInspectorSheet.tsx:206-219 returns only the peek strip when !expanded, and `children` is rendered only inside the Drawer at :282. FileDetailShell.tsx:196-204 passes `mobileSheet ?? inspector` as those children, so going to peek unmounts InspectorShell and every inspector-tabs SlotEntryRenderer (ShellLayout.tsx:326-341). AskTab.tsx:246-248 runs `releaseAskEntry(fileId)` on unmount. askStore.ts:117-127 aborts the controller and, when status === 'streaming', calls entries.delete(fileId). The ask loop then returns early on the aborted signal (AskTab.tsx:291/308/315), so nothing writes the entry back and the question and partial answer are lost. Crossing the breakpoint switches between two different InspectorShell elements (ShellLayout.tsx:344-359, FileDetailShell.tsx:194 vs :203), which remounts the tab with the same result. Spec 056 step 6 (docs/specs/ask-about-this-file.md:131-135) and I11 require these to be kept. Related path: a pill click calls lowerInspector (AskTab.tsx:410, FileDetailShell.tsx:144-149). The citations event arrives before meta/done, so clicking a pill in that window also drops the sheet to peek and deletes the streaming entry. Closing the desktop pane (FileDetailShell.tsx:194) unmounts the tab in the same way."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "ASK-2",
+      "status": "confirmed",
+      "note": "Confirmed. askStore.ts:36 declares `const entries = new Map` at module scope. releaseAskEntry (askStore.ts:117-127) keeps every non-streaming entry and only clears its controller. dropAskEntry (askStore.ts:105-111) is called only from AskTab.tsx:238-244, when fileId changes within one mount. When the file page unmounts, only releaseAskEntry runs, so an answered or failed entry stays. A later visit to the same fileId reads it back through getAskEntry (AskTab.tsx:191-195) and shows the old question and answer. This contradicts spec 056 step 6 (docs/specs/ask-about-this-file.md:134-135): leaving the file page drops the file's entry, and returning shows an empty tab."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "ASK-3",
+      "status": "confirmed",
+      "note": "Confirmed. file_question.py:34 `_CITATION_MARKER = re.compile(r\"\\[(\\d{1,3})\\]\")` does not match `[1000]`: the `]` must follow at most three digits. citations() (file_question.py:211-216) therefore never emits n >= 1000. The prompt numbers passages with an unbounded `loop.index` (prompts/rag/file_question_user.jinja2:6). On the frontend, AnswerText splits on `\\[\\d+\\]` (AskTab.tsx:145-149) and returns null for a number missing from the citations map, so the valid marker disappears from the text. This is reachable in normal use. The budget may be set as high as 200,000 (config.py:801-828, search-config.yml.example:352), and refine re-chunks transcripts into single sentences (refine.py:310-323). A long refined transcript under a raised budget can therefore send more than 999 chunks. Under the 16,000 default, more than 999 chunks would require an average of about 16 characters per chunk."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "ASK-4",
+      "status": "confirmed",
+      "note": "The divergence is real. available() (file_question.py:80-89) checks EXISTS on transcript_chunks/fts_text_content with no text filter. load_material skips rows with falsy text (file_question.py:165-166, 180-181) and returns None when no rows remain (file_question.py:192-193). The router turns None into a 404 (routers/rag.py:352-353). Reachability looks narrow. The writers I checked filter empty text before storing: extractors/base.py:103 returns [] for blank text, whisper segments are stripped and kept only when non-empty (whisper.py:447-448), and words are filtered at whisper.py:587-589. refine.py:342 builds chunks from `w.text or \"\"`, so an empty-text chunk is not ruled out there, but I did not find a path that produces one. Whitespace-only text passes both checks, so the two functions agree on that case."
+    }
+  ],
+  "specification_compliance": [
+    "Spec 056 step 6 / I11 (keep the entry across a sheet close or a breakpoint crossing): violated, see ASK-1.",
+    "Spec 056 step 6 (leaving the file page drops the entry; returning shows an empty tab): violated, see ASK-2.",
+    "I3 (only sent chunk numbers are cited): holds, because citations() bounds n by len(chunks). Valid numbers of 1000 or more are dropped (ASK-3).",
+    "I6 vs the question route: the availability check and load_material disagree on what counts as a text chunk (ASK-4)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Closing the desktop inspector pane (ctrl+\\) while an answer streams unmounts the tab and deletes the entry. The spec does not list a desktop pane close among the cases that keep the entry, but it says the entry lives while the file page is mounted.",
+    "A pill clicked after `citations` arrives and before `done` calls lowerInspector. On mobile this unmounts the tab and deletes the still-streaming entry."
+  ],
+  "regression_risks": [
+    "A fix for ASK-1 that keeps streaming entries on release must still abort and drop them on a fileId change or a page unmount, or the semaphore slot leaks (I11)."
+  ],
+  "test_coverage": [
+    "I did not inspect whether AskTab.test.tsx covers unmount during streaming or remounting after leaving the page."
+  ],
+  "not_verified": [
+    "Did not run any tests or a browser; all four claims were checked by reading the code.",
+    "Did not check whether InspectorShell keeps hidden panels mounted across tab switches; this does not affect the sheet/peek path.",
+    "Did not trace every transcription provider and the refine aligner exhaustively for empty-text chunk rows (ASK-4 reachability).",
+    "Did not measure real chunk counts for long refined transcripts (ASK-3 reachability)."
+  ],
+  "confidence": 85
+}

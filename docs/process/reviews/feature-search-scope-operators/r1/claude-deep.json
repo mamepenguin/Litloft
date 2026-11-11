@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The diff edits three test and build files that are not in the touch-point list: coarseNeedleSources.test.ts (REQUIRED count 64 to 68), semanticSearch.passages.test.ts (SearchFilter literal gains the new fields), and e2e-layout/build-fixture-css.ts (four new required class names).",
+      "impact": "build-fixture-css.ts REQUIRED is shared by every layout fixture and the coarse-needle source test pins its length. A future change to that list now has to touch this feature's count. The reader of the touch-point list would not look there.",
+      "evidence": "frontend/e2e-layout/build-fixture-css.ts adds .max-w-full, .min-w-0, .truncate and .shrink-0 to REQUIRED. frontend/src/__tests__/coarseNeedleSources.test.ts changes toHaveLength(64) to 68. frontend/src/lib/__tests__/semanticSearch.passages.test.ts adds folders and collections to a SearchFilter literal. None of the three paths is listed. The list names only 'e2e-layout/: a fixture' and the vocabulary test.",
+      "repro": "not_reproduced (read-only comparison of the diff file list against the touch points)",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant is broken. The touch-point list is incomplete.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The change reaches existing behaviour in places the touch points do not name: the tokenizer rewrite changes parsing for every parseSearchQuery caller, and SearchFilterChips changes the layout and title of the existing tag, type and is chips as well.",
+      "impact": "Callers outside the list now parse quoted values differently and read the new hasOperators and text. These include GlobalSearch.tsx, SearchResultsList.tsx, useLauncherRows.ts, FolderBrowser.tsx and app/drive/[name]/search/page.tsx. The modal's activeOperatorValue and completeOperator also change, so a tag with a space is now written quoted. The spec mentions the modal in prose, but no modal file is in the touch points. The existing chips gain a title attribute, truncation and max-w-full wrapping. I did not read the callers; they are listed only because they use the changed functions.",
+      "evidence": "grep found parseSearchQuery, completeOperator and activeOperatorValue in GlobalSearch.tsx, SearchResultsList.tsx, useLauncherRows.ts, FolderBrowser.tsx and search/page.tsx. None is in the touch points. searchQuery.ts replaces the OPERATOR regex split with tokenize/interpret for all operators. SearchFilterChips.tsx adds title and the class changes to all chips, not only the new kinds.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "I8 covers listing and filter parameters only. These reach-through effects on other consumers are neither listed nor pinned by a test I could confirm, but I found no concrete invariant break.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "Setting extra=forbid on FileMatchingRequest, and reusing the shared normalisers in drives.py, reaches every existing caller of POST /files/matching and of apply_file_filters beyond the intelligence addon fetch.",
+      "impact": "Any other client that sends an extra key to /files/matching now gets 422. The spec asserts that only fetch_matching_file_ids calls it and I did not verify that. The new drive parameter of apply_file_filters is optional, so an unlisted caller that passes collections without a drive would raise ValueError, a 500.",
+      "evidence": "backend/app/routers/internal.py adds ConfigDict(extra='forbid'). drives.py apply_file_filters raises ValueError when collections is given and drive is None. The grep found only drives.py and internal.py as backend callers.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Both callers shown pass drive. The risk is limited to callers outside the diff, which I did not find.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "The files the diff changes in the core, the addon, the docs and the frontend are mostly in the touch-point list. The exceptions are the three test and build files in F1 and the reach-through to other consumers in F2.",
+    "I did not judge the invariants I1 to I14 for correctness. This review answered only the touch-point question."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Existing tag, type and is chips now carry a title and truncate.",
+    "The modal's tag completion now quotes values that contain whitespace.",
+    "apply_file_filters raises ValueError when collections is given without drive."
+  ],
+  "regression_risks": [
+    "The tokenizer rewrite changes parsing of values that start with a quote for existing operators, as the spec says.",
+    "extra=forbid on FileMatchingRequest rejects unknown keys from any caller I did not find."
+  ],
+  "test_coverage": [
+    "Backend and frontend tests exist for folders, collections, parity, caps and unknown keys. I read them only to check the file list and did not audit their strength or run any mutation."
+  ],
+  "not_verified": [
+    "I ran no tests, because I only have Read, Glob and Grep.",
+    "I did not read the callers of parseSearchQuery outside the diff.",
+    "I did not audit the invariants I1 to I14 for logic defects.",
+    "I did not read the addon submodule beyond the diff.",
+    "I did not check whether anything other than the intelligence addon calls POST /files/matching."
+  ],
+  "confidence": 75
+}

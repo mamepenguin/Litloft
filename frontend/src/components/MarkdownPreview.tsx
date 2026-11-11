@@ -1,8 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useContext, useEffect, useMemo, useRef } from "react";
 import { useHighlightPassage } from "@/hooks/useHighlightPassage";
+import { useFindMarksIn } from "@/hooks/useFindMarksIn";
+import { useFindTextBody } from "@/components/FileDetail/find/FindContext";
+import { isTextFindRow } from "@/lib/findMarks";
+import { HighlightFileContext } from "@/lib/highlightStore";
+import { HighlightControls } from "@/components/HighlightControls";
 import { useDocumentCapturePublisher } from "@/hooks/useDocumentCapturePublisher";
+import {
+  TextScrollFileIdContext,
+  useTextScrollProgress,
+} from "@/lib/textScrollProgress";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
 import MarkdownIt from "markdown-it";
 import type Token from "markdown-it/lib/token.mjs";
@@ -73,6 +82,11 @@ function renderWikiLinkHtml({
     `<span class="wiki-link wiki-unresolved" ` +
     `data-wiki-target="${safeTarget}">${safeDisplay}</span>`
   );
+}
+
+function sourceLinesAttribute(token: Token): string {
+  const lines = token.attrGet("data-source-lines");
+  return lines ? ` data-source-lines="${lines}"` : "";
 }
 
 function createMarkdownRenderer({ withMermaid }: { withMermaid: boolean }): MarkdownIt {
@@ -246,10 +260,11 @@ function createMarkdownRenderer({ withMermaid }: { withMermaid: boolean }): Mark
   md.renderer.rules.fence = (tokens, idx) => {
     const token = tokens[idx];
     const lang = token.info.trim().split(/\s+/)[0] ?? "";
+    const lines = sourceLinesAttribute(token);
 
     if (withMermaid && lang === "mermaid") {
       const escaped = md.utils.escapeHtml(token.content);
-      return `<pre class="mermaid-source">${escaped}</pre>\n`;
+      return `<pre class="mermaid-source"${lines}>${escaped}</pre>\n`;
     }
 
     if (lang && hljs.getLanguage(lang)) {
@@ -257,12 +272,28 @@ function createMarkdownRenderer({ withMermaid }: { withMermaid: boolean }): Mark
         language: lang,
         ignoreIllegals: true,
       }).value;
-      return `<pre class="code-block"><code class="hljs language-${lang}">${highlighted}</code></pre>\n`;
+      return `<pre class="code-block"${lines}><code class="hljs language-${lang}">${highlighted}</code></pre>\n`;
     }
 
     const escaped = md.utils.escapeHtml(token.content);
-    return `<pre class="code-block"><code class="hljs">${escaped}</code></pre>\n`;
+    return `<pre class="code-block"${lines}><code class="hljs">${escaped}</code></pre>\n`;
   };
+
+  // The find mark follows a text row's source line, so each block carries the
+  // lines it came from. gray-matter has already removed the frontmatter, so
+  // the offset in `env` restores full-source line numbers.
+  md.core.ruler.push("source_lines", (state) => {
+    const offset = Number(
+      (state.env as { sourceLineOffset?: number }).sourceLineOffset ?? 0,
+    );
+    for (const token of state.tokens) {
+      if (!token.map || token.nesting === -1 || token.type === "inline") continue;
+      token.attrSet(
+        "data-source-lines",
+        `${token.map[0] + offset}-${token.map[1] + offset}`,
+      );
+    }
+  });
 
   // A core rule (not an inline rule) because grouping needs lookahead.
   // Whitespace-only separators are dropped from the group rather than
@@ -338,12 +369,21 @@ function renderMarkdownToSafeHtml(
 ): {
   frontmatter: Record<string, unknown>;
   html: string;
+  frontmatterLines: number;
 } {
   const parsed = matter(source);
+  const removed = source.slice(0, source.length - parsed.content.length);
+  let frontmatterLines = 0;
+  for (const character of removed) {
+    if (character === "\n") frontmatterLines += 1;
+  }
   const md = withMermaid ? mdWithMermaid : mdPlain;
   // On the env object rather than a module-level singleton, which would
   // race on concurrent renders.
-  const env: { wikiResolution?: Record<string, WikiResolveResult> } = {};
+  const env: {
+    wikiResolution?: Record<string, WikiResolveResult>;
+    sourceLineOffset?: number;
+  } = { sourceLineOffset: frontmatterLines };
   if (wikiResolution) env.wikiResolution = wikiResolution;
   const rawHtml = md.render(parsed.content, env);
   const safeHtml = DOMPurify.sanitize(rawHtml, {
@@ -353,7 +393,11 @@ function renderMarkdownToSafeHtml(
     // alongside it, so there is no tabnabbing risk.
     ADD_ATTR: ["target", "checked", "disabled", "data-wiki-target", "loading"],
   });
-  return { frontmatter: parsed.data as Record<string, unknown>, html: safeHtml };
+  return {
+    frontmatter: parsed.data as Record<string, unknown>,
+    html: safeHtml,
+    frontmatterLines,
+  };
 }
 
 /**
@@ -412,18 +456,34 @@ export function MarkdownPreview({
   onSourceChange?: (nextSource: string) => void;
   highlight?: string;
 }) {
-  const { frontmatter, html } = useMemo(
+  const { frontmatter, html, frontmatterLines } = useMemo(
     () => renderMarkdownToSafeHtml(source, mermaid, drive, wikiResolution),
     [source, mermaid, drive, wikiResolution],
   );
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const highlightFileId = useContext(HighlightFileContext);
+  useTextScrollProgress({
+    fileId: useContext(TextScrollFileIdContext),
+    targetRef: containerRef,
+    hasExplicitTarget: Boolean(highlight),
+  });
+  // React compares this object, not its string: a fresh one on each render
+  // resets the body's innerHTML, dropping the citation and find marks.
+  const bodyHtml = useMemo(() => ({ __html: html }), [html]);
   useDocumentCapturePublisher(
     containerRef,
     onDocumentCaptureController,
     { includeHeading: true },
   );
   useHighlightPassage(containerRef, highlight, html.length > 0);
+  const ownsText = useFindTextBody();
+  useFindMarksIn(
+    () => containerRef.current,
+    (row) => ownsText && isTextFindRow(row),
+    true,
+    { text: source, bodyStartLine: frontmatterLines, mode: "markdown" },
+  );
 
   // Deliberately does NOT depend on [html]: React may re-apply
   // dangerouslySetInnerHTML when the parent re-renders, wiping out
@@ -481,12 +541,25 @@ export function MarkdownPreview({
     <div
       ref={containerRef}
       className={bodyClass}
-      dangerouslySetInnerHTML={{ __html: html }}
+      dangerouslySetInnerHTML={bodyHtml}
+    />
+  );
+
+  const controls = (
+    <HighlightControls
+      getContainer={() => containerRef.current}
+      fileId={highlightFileId}
+      renderKey={html}
     />
   );
 
   if (!chrome) {
-    return body;
+    return (
+      <>
+        {body}
+        {controls}
+      </>
+    );
   }
 
   return (
@@ -504,6 +577,7 @@ export function MarkdownPreview({
         </div>
       )}
       {body}
+      {controls}
     </div>
   );
 }

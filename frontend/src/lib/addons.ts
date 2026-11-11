@@ -1,4 +1,5 @@
 import type { AddonNavigation } from "./addonNavigation";
+import type { ComponentType, LazyExoticComponent } from "react";
 
 export type AddonScope = "drive" | "global" | "both";
 
@@ -48,6 +49,8 @@ export interface SlotEntry {
   i18n_key?: string;
   priority: number;
   addonName?: string;
+  /** A path relative to `/drive/{drive}/`, for a shelf's See all. */
+  href?: string;
 }
 
 export interface AddonsStatus {
@@ -122,6 +125,99 @@ export function hasSlotEntries(
 export function invalidateAddonsCache(): void {
   _cached.clear();
   _fetchPromise.clear();
+}
+
+export type ShelfProvider = (args: {
+  drive: string;
+  limit: number;
+  restrict: (ids: string[]) => Promise<string[]>;
+}) => Promise<string[]>;
+
+export interface ShelfPageItem {
+  id: string;
+  byline?: string;
+}
+
+export type ShelfPageAnswer = {
+  items: ShelfPageItem[];
+  cursor: string | null;
+};
+
+export type ShelfPageProvider = (args: {
+  drive: string;
+  locale: string;
+  limit: number;
+  cursor: string | null;
+  restrict: (ids: string[]) => Promise<string[]>;
+}) => Promise<ShelfPageAnswer>;
+
+export type SlotModule = {
+  slotComponents?: Record<
+    string,
+    LazyExoticComponent<ComponentType<Record<string, unknown>>>
+  >;
+  slotProviders?: Record<string, ShelfProvider>;
+  slotPageProviders?: Record<string, ShelfPageProvider>;
+};
+
+// Shared with `SlotEntryRenderer`, so a provider resolves from a module the
+// component loader (or the catalogue preload) already imported.
+const moduleCache = new Map<string, SlotModule>();
+const modulePromiseCache = new Map<string, Promise<SlotModule>>();
+
+const VALID_ADDON_NAME = /^[a-z][a-z0-9_-]*$/;
+
+export function loadAddonSlotModule(addonName: string): Promise<SlotModule> {
+  if (!VALID_ADDON_NAME.test(addonName)) {
+    return Promise.reject(new Error(`Invalid addon name: ${addonName}`));
+  }
+
+  const cached = modulePromiseCache.get(addonName);
+  if (cached) return cached;
+
+  const promise = import(`@/addons/${addonName}/slots.ts`).then((mod: SlotModule) => {
+    moduleCache.set(addonName, mod);
+    return mod;
+  });
+
+  modulePromiseCache.set(addonName, promise);
+  return promise;
+}
+
+export function getCachedSlotModule(addonName: string): SlotModule | undefined {
+  return moduleCache.get(addonName);
+}
+
+/**
+ * The provider an entry names, or `null` when the module, `slotProviders` or
+ * a function under the entry's id is missing. A failed import is "absent",
+ * not an error the caller has to handle.
+ */
+export async function loadSlotProvider(entry: SlotEntry): Promise<ShelfProvider | null> {
+  if (!entry.addonName) return null;
+  try {
+    const mod = await loadAddonSlotModule(entry.addonName);
+    const provider = mod.slotProviders?.[entry.id];
+    return typeof provider === "function" ? provider : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The page provider an entry names, or `null` when the module,
+ * `slotPageProviders` or a function under the entry's id is missing. A failed
+ * import is "absent", not an error the caller has to handle.
+ */
+export async function loadSlotPageProvider(entry: SlotEntry): Promise<ShelfPageProvider | null> {
+  if (!entry.addonName) return null;
+  try {
+    const mod = await loadAddonSlotModule(entry.addonName);
+    const provider = mod.slotPageProviders?.[entry.id];
+    return typeof provider === "function" ? provider : null;
+  } catch {
+    return null;
+  }
 }
 
 /**

@@ -45,6 +45,7 @@ const AT_THE_PHONE_WIDTH = [
   "immersive-viewer-layer.spec.ts",
   "chrome-buttons.spec.ts",
   "page-frame.spec.ts",
+  "page-header-actions.spec.ts",
   "player-captions.spec.ts",
   "player-menu-layer.spec.ts",
   "player-seek-indicator.spec.ts",
@@ -53,6 +54,7 @@ const AT_THE_PHONE_WIDTH = [
   "popup-dismiss.spec.ts",
   "quick-note-footer.spec.ts",
   "scoped-search.spec.ts",
+  "search-results-bar.spec.ts",
   "view-transition-push.spec.ts",
   "viewer-zoom.spec.ts",
   "sheet-gesture.spec.ts",
@@ -60,11 +62,19 @@ const AT_THE_PHONE_WIDTH = [
   "document-bleed.spec.ts",
   "epub-bar.spec.ts",
   "markdown-table-scroll.spec.ts",
+  "plain-text-document.spec.ts",
+  "played-ranges.spec.ts",
+  "scenes-section.spec.ts",
   "spec-viewport.spec.ts",
+  "home-app-entries.spec.ts",
+  "discover-prefix.spec.ts",
+  "video-card-byline.spec.ts",
+  "video-card-spacing.spec.ts",
 ] as const;
 
 const AT_THE_DESKTOP_WIDTH = [
   "add-menu-desktop.spec.ts",
+  "condition-menu-desktop.spec.ts",
   "anchored-direction-desktop.spec.ts",
   "view-transition-desktop.spec.ts",
   "citation-seams-desktop.spec.ts",
@@ -72,6 +82,17 @@ const AT_THE_DESKTOP_WIDTH = [
   "segmented-control-desktop.spec.ts",
   "epub-bar-desktop.spec.ts",
   "justified-hold-desktop.spec.ts",
+  "image-search-drag-desktop.spec.ts",
+  "image-drop-target-desktop.spec.ts",
+  "text-resume-desktop.spec.ts",
+  "persistent-highlights-desktop.spec.ts",
+  "ask-thread-desktop.spec.ts",
+  "search-results-bar-desktop.spec.ts",
+  "home-app-entries-desktop.spec.ts",
+  "discover-prefix-desktop.spec.ts",
+  "scenes-section-desktop.spec.ts",
+  "video-card-byline-desktop.spec.ts",
+  "video-card-spacing-desktop.spec.ts",
 ] as const;
 
 test.describe("the component fixture lays out at the width it was given", () => {

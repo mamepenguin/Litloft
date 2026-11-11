@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2-1",
+      "status": "confirmed",
+      "note": "addons/knowledge/frontend/__tests__/Editor.versions.test.tsx:891-895: the it.each rows in the I7 describe (line 837) are b, i, e and k+shift only. addons/knowledge/frontend/Editor.tsx:1138-1143 defines { key: \"ctrl+k\", label: tShortcuts(\"insertLink\"), handler: () => handleToolbar({ kind: \"link\" }) }. A Grep for \"k\"/ctrl+k/Mod-k under addons/knowledge/frontend/__tests__ found only Editor.versions.test.tsx:895 (shift), MarkdownEditor.test.tsx:270 (Shift-Mod-k) and PlainTextEditor.test.tsx:695/697 (the plain-text side, where nothing should happen). A Grep for 'insertLink' finds only Editor.tsx and the message files, so no help-overlay test asserts it. No e2e spec uses Control/Meta+k. The link insertion logic is tested only through the toolbar and the pure helper (EditorToolbar.test.tsx:282, editor.test.ts:149), not through the shortcut. Deleting the ctrl+k entry would therefore fail no test I could find. I did not run the suite."
+    }
+  ],
+  "specification_compliance": [
+    "I7 (a .md keeps its formatting shortcuts) is implemented: Editor.tsx:1124-1156 still registers ctrl+b/i/k/e and ctrl+shift+k, but only four of the five are pinned by tests on the .md path."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "A future refactor of markdownShortcuts (for example, splitting it by mode) could drop Ctrl/Cmd+K insert link for .md with no test failing."
+  ],
+  "test_coverage": [
+    "Ctrl/Cmd+K (insert link) on a .md has no keyboard-level test; only the toolbar action and the pure link helper are tested."
+  ],
+  "not_verified": [
+    "Did not run the test suite or a mutant that removes the ctrl+k entry; the conclusion comes from static search only.",
+    "Did not inspect test files outside addons/knowledge/frontend/__tests__ and *.ts/*.tsx e2e specs for other indirect coverage of the link shortcut.",
+    "Did not review the other invariants beyond what R2-1 touches."
+  ],
+  "confidence": 88
+}

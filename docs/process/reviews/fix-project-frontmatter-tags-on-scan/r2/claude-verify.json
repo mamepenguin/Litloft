@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2-F1-later-save-still-respells-shared-row",
+      "status": "confirmed",
+      "note": "Traced by reading, not run. Registration leaves disk `python` joined to row `Python` (tagops.py:100-105 with respell=False; pinned by test_scanner_md_id.py:178-192; observed in decisions.md third run step 1). A body-only PUT then reaches files.py:1616-1617 with `python` and the default respell=True; index.get misses the exact map, hits the folded map, and tagops.py:78-82 renames the shared row. Bulk add: files.py:399 -> :721, where _merged_tag_list keeps `python` (files.py:692-693), and :756 calls replace_file_tags with the default, so the same rename happens. It also fires when bulk changes no bytes, because :755-756 runs outside the `new_bytes != current` block. The non-Markdown path keeps the spelling (merge_file_tags, files.py:155-166; test_tag_name_matching.py:131-139). docs/user-guide/tags-and-relations.md:15 says 'The first spelling is kept', so the rename also contradicts the user guide. A UI chip add does not trigger this: it writes the row spelling to disk (decisions.md third run step 3). The trigger is a body save or a bulk add. The third run could not reach an editor without the addon, so the body-save route was exercised only by curl, and with a changed spelling (step 4). Also: a bulk add of a case variant the note does not yet hold renames the row directly for `.md`, which the test at test_tag_name_matching.py:131-139 forbids for non-Markdown."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F1-unattended-respell-survives-on-other-projections",
+      "status": "confirmed",
+      "note": "files.py:1617 and internal.py:165 call replace_file_tags without respell; the default is True at tagops.py:50 and the rename is at tagops.py:78-82. docs/ADDON-DEVELOPMENT.md:531 and .claude/rules/design-decisions.md:73 name the internal route as the knowledge scanner's. decisions.md third run step 4 records the rename across a.md, b.md and c.md after a PUT, and step 1 records b.md keeping `python` against row `Python`. Test gap checked: test_internal_files_tags.py:160-175 posts the same spelling twice; test_tag_name_matching.py:141-172 keeps the same spelling; no test in test_api_md_tags.py, test_content_put.py or test_internal_files_tags.py was seen combining a case variant with an assertion on another note, though the first two were searched only by name pattern. Limit of this confirmation: addons/ has no code in this worktree, so the knowledge scanner's real payload could not be read. The route's rename is confirmed in core; that the scanner sends disk spellings rests on the documentation."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F2-joined-row-overrides-the-only-carriers-new-spelling",
+      "status": "confirmed",
+      "note": "Traced by reading, not run. In complete_upload the reused row keeps its tag links (upload.py:278-301 does not touch tags). project_frontmatter_tags at upload.py:323 loads the index with the old row `Alpha` still present (tagops.py:71), and `alpha` resolves to it through the folded map with respell=False, so the row keeps `Alpha` (tagops.py:78). cleanup_orphan_tags at upload.py:324 does not remove it because the file is still linked. Create over a missing row has the same order at drives.py:1014 -> :892-893. TestReusedRow uses `stale` against `Alpha, beta`, which do not fold together (test_frontmatter_tags_on_create.py:89-116). Context for triage: frontmatter is canonical per design-decisions.md:62, but tags-and-relations.md:15 says the first spelling is kept, so which rule governs a sole carrier's replaced content is not declared. A later body-only save would rename the row to the disk spelling through R2-F1's path."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F3-upload-skip-branch-still-keeps-stale-tags",
+      "status": "confirmed",
+      "note": "upload.py:321 has no else branch and upload.py:325-326 is a bare `pass`, so neither path logs or changes file.tags on a row reused at upload.py:278-301. upload.py:281 says reuse keeps tags, while the same block resets other content-derived state at :294-300. files.py:1620-1625 logs the equivalent PUT case. test_upload_of_non_utf8_note_succeeds_without_tags (test_frontmatter_tags_on_create.py:82-85) starts with no row; a search of backend/tests for the size constants found no over-limit `.md` upload. Worse than stated: the web UI saves its chip list (known-issues.md:81-91), so a chip edit on such a note, where the note is readable, would write the old tags to disk."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F4-copy-size-limit-still-differs",
+      "status": "confirmed",
+      "note": "fileops.py:38 returns None above 1_000_000 bytes. scanner.py:57 and :284, upload.py:321 and drives.py:885/:939 use 1 MiB. fileops.py:334-336 then skips the projection, and the File built at fileops.py:313-329 inherits no tags, so a note of 1,000,001 to 1,048,576 bytes has chips on the source and none on the copy, with nothing logged. The same reader gates project_markdown_thumbnail at fileops.py:337. No test covers the boundary (no match for the limit in backend/tests outside unrelated size tests). Consequence beyond the claim: known-issues.md:81-85 and decisions.md first run step 4 show that adding a chip to a note with no chips writes only that tag, so the copy's frontmatter tags would be lost from disk on the next chip add."
+    }
+  ],
+  "specification_compliance": [
+    "docs/user-guide/tags-and-relations.md:15 ('Tags that differ only in case count as one. The first spelling is kept.') holds at registration after this change, but not on body-only PUT, Markdown bulk add or the internal route, which rename the row.",
+    ".claude/rules/design-decisions.md:62 makes frontmatter canonical for `.md`; a chip can read differently from its note's disk spelling after registration by design of respell=False (test_scanner_md_id.py:178-192).",
+    "No invariants or spec file for this change was found in docs/process/reviews/fix-project-frontmatter-tags-on-scan/ at the listed paths."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Which spelling wins when a note's frontmatter differs in case from its shared row is declared differently by the user guide (first spelling kept) and the design rules (frontmatter canonical), and differs by path: registration keeps the row, PUT and Markdown bulk rename it.",
+    "project_frontmatter_tags' docstring at tagops.py:90 says 'Same rules as PUT /api/files/{id}/content', yet it passes respell=False while the PUT uses the default True.",
+    "Create parses the raw body (drives.py:1014, :1100) while scan, upload and copy parse read_text output, which normalises line endings. frontmatter.py:149 says parse treats a CRLF block as no frontmatter, so a CRLF note sent to create gets no tags, and over a missing row loses its old ones, where the same bytes uploaded project tags. Browser-entered text is expected to be LF, so this needs an API caller or pasted bytes; not run."
+  ],
+  "regression_risks": [
+    "A fix that passes respell=False on the PUT would remove the only route by which a frontmatter spelling edit renames a row; decisions.md third run step 4 and test_tag_name_matching.py:110-117 show that rename exists for explicit edits, the latter on a non-Markdown file.",
+    "A fix for F3 that clears tags on an unreadable upload would also clear tags on a transient OSError, because upload.py:325 catches both errors together."
+  ],
+  "test_coverage": [
+    "test_scanner_md_id.py:178-192 stops at registration and makes no later write.",
+    "test_frontmatter_tags_on_create.py:88-116 reuses rows only with names that do not fold together.",
+    "test_frontmatter_tags_on_create.py:82-85 covers non-UTF-8 upload only with no existing row; no over-limit upload or copy boundary case was found.",
+    "test_internal_files_tags.py:160-175 covers same-spelling reuse only, with no case variant asserted against another note."
+  ],
+  "not_verified": [
+    "No code or test was executed, because this verifier has only Read, Glob and Grep; every confirmation comes from reading code and decisions.md, whose R-5 observations were not repeated.",
+    "addons/ holds no Python code in this worktree, so the knowledge scanner's actual calls to the internal tag route and its reconciliation were not read.",
+    "The commit diff could not be read, so the working tree was assumed to match db7aa7e74, and which lines were introduced was not checked against origin/develop.",
+    "Scanner recovery of a missing row whose file returns with changed content was not traced.",
+    "Test files were searched by pattern rather than read in full, apart from those cited, so a test using other names for a case-variant write could have been missed.",
+    "Frontend callers of the batch tag route and the knowledge editor's save path were not read."
+  ],
+  "confidence": 86
+}

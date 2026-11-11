@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The diff adds a new test module, addons/intelligence/tests/test_rag_shortlist_exact_match.py, which is not on the touch-point list. The list names only the existing tests tests/test_rag_hierarchical.py, tests/test_rag_hierarchical_personal_history.py and tests/test_event_loop_discipline.py.",
+      "impact": "No user-visible impact. The file is test-only and holds most of the evidence for I1 to I10. A reader of the touch-point list would not know it exists. They would also think the spec-mandated I5 test ('I5 is checked by its own test', step 13) lives in one of the listed files.",
+      "evidence": "The diff creates addons/intelligence/tests/test_rag_shortlist_exact_match.py (729 lines, new file). The touch-point list in docs/specs/ask-shortlist-exact-match.md names no new test file. Its helpers (patch_everywhere, Seed.text_chunk(page=), statements.on_loop) already exist in tests/search_endpoint_db.py:28,56,203, so the diff does not reach that helper module.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An unlisted but harmless reach. It is a test file that breaks no invariant. It only makes the touch-point list incomplete.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add tests/test_rag_shortlist_exact_match.py to the touch-point list as the new spec test module."
+    }
+  ],
+  "specification_compliance": [
+    "Every reached path other than the new test module is on the list. The submodule pointer, docs/addons/intelligence.md (Ask steps and the config block), docs/specs/INDEX.md and the spec file itself are covered, the last two being implicit. In the addon: app/config.py (the HierarchicalRagConfig field, plus _checked_hierarchical called from _parse_rag) and app/rag/coarse_retriever.py (the ShortlistResult field). app/rag/exact_match.py is the 'new module beside it' that the list explicitly allows. The app/rag/service.py changes are confined to _run_hierarchical_retrieval and the shortlist event in _stream_answer. search-config.yml.example is also on the list.",
+    "app/config.py: _checked_hierarchical runs after merge_into_rag_dict. rag_overrides.py only translates personal_history/category_expansion booleans (app/rag_overrides.py:104-124), so the GUI override path is not reached and does not need listing.",
+    "The AnswerEventKind literal (service.py:1335) is unchanged because 'shortlist' already existed. No router or schema file is reached."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "service.py changes the access-filter-empty check from `not accessible` to `not any(fid in accessible for fid in shortlist.file_ids)`. This is still inside _run_hierarchical_retrieval and matches step 8, so it is not an unlisted reach."
+  ],
+  "regression_risks": [
+    "Indirect reach that is not edited but changes behaviour: answer_question / _answer_question is used by the eval harness (app/evals/stages.py). The spec's 'Effect on existing features' section covers it, but it is not on the touch-point list. Eval baselines can move."
+  ],
+  "test_coverage": [
+    "The touch-point list says tests/test_rag_hierarchical.py and tests/test_rag_hierarchical_personal_history.py 'move with the change' and are updated. The diff does not touch either file. tests/conftest.py does not initialize the search DB, and get_search_engine raises when _search_engine is None (app/database.py:2066). If those tests do not set it up themselves, the lookup takes the whole-failure path there (a warning, returning ()). They would then pass unchanged without exercising the widened scope. The new module covers that behaviour instead."
+  ],
+  "not_verified": [
+    "I did not read the full test_rag_hierarchical.py or test_rag_hierarchical_personal_history.py to confirm whether they initialize a search DB.",
+    "I did not inspect the docs/process/reviews records or the actual contents of commit 0accbc70c, as opposed to the provided diff.",
+    "I did not run any tests."
+  ],
+  "confidence": 85
+}

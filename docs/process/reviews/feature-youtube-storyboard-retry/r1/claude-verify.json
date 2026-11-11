@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "V1",
+      "origin": "verifier",
+      "claim": "Invariant I1 says an `accepted` reindex answer is a 202. The route actually answers `accepted` with HTTP 200, because it returns ReindexResponse and the decorator sets no status_code. Only `already_queued` is a 202. The code is not wrong; the invariant's wording is.",
+      "impact": "There is no runtime defect. The spec text does not match the route's real status code, which could mislead a later reader or a test author. The SPEC-ADDON-085 tests assert 200 for `accepted`, which matches the code and differs from the invariant text.",
+      "evidence": "addons/intelligence/app/routers/files.py:877 `@router.post(\"/files/{file_id}/reindex\")` sets no status_code. files.py:1030-1038 returns JSONResponse(status_code=202) only for already_queued. files.py:1075 returns ReindexResponse, which is 200. tests/test_spec_addon_085_storyboard_retry.py:170-171 asserts 200 together with accepted(...).",
+      "repro": "Read files.py:877 and 1075 and test line 170. A POST with {\"tasks\":[\"clip\"]} to a queued-free file is answered with 200 and status `accepted`.",
+      "introduced": "pre-existing",
+      "bucket_proposal": {
+        "bucket": "C",
+        "reason": "Only the spec wording is inaccurate. The status code was 200 before this change, and I7 requires it to stay unchanged.",
+        "invariant_ref": "I1"
+      },
+      "severity": "INFO"
+    }
+  ],
+  "verification": [],
+  "specification_compliance": [
+    "I1: clip.py:1017 always calls `_consume_storyboard_retry` first, because the `not ... and` expression short-circuits after the consume. A pending retry therefore bypasses the `_storyboard_failed` guard. files.py:1015-1016 records the retry before the already-queued split, so both the `accepted` path and the `already_queued` path record it.",
+    "I2: if a request arrives while a leg is running and that leg did not consume a retry at its start, the token stays in `_storyboard_retry`. When that leg fails, the next leg consumes the token and calls the lookup. Test TestARequestWhileTheLegRuns covers this.",
+    "I3: a leg with no token returns False at clip.py:1017-1018, before read_loft or run_lookup. `_storyboard_failed` is an in-memory set, so it is cleared on restart.",
+    "I4: request_storyboard_retry is called at files.py:1015, after every 422 check (lines 911-992), the 404 check (944) and the 409 checks (998-1004). None of those paths records a retry.",
+    "I5: the consume at clip.py:960 removes the token atomically. After a classified failure, `_storyboard_failure` re-adds the file to `_storyboard_failed`. After an unhandled exception, the file stays in the failed set because nothing discards it. Either way the next leg is guarded.",
+    "I6: a retried leg runs the same code path (lines 1019-1074) as a first leg. The only difference is the guard line.",
+    "I7: the only change to the route is the inserted call to request_storyboard_retry, which returns nothing and does not alter any response."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "A retry token is recorded for every file named with `clip`, including non-.loft files and files that never failed. For a non-.loft file, `_index_youtube_storyboard` never runs, so the token stays in `_storyboard_retry` until the process restarts. The memory cost is trivial and nothing observable changes.",
+    "Stale token case: a request arrives during a running leg and is answered `already_queued`, then that running leg succeeds. The token remains pending. If a later automatic leg of the same file fails, the leg after it (for example on resume) consumes the stale token and makes one more YouTube call. This fits the spec's 'one request permits exactly one full leg', but no test covers it.",
+    "files.py:1057 raises a 404 inside `_reset_flags`, after the retry has already been recorded at line 1016. This happens only if the file is soft-deleted between the first lookup and the flag reset. I4 covers only 404s answered before the already-queued split, so this race is out of the invariant's scope."
+  ],
+  "regression_risks": [
+    "The guard at clip.py:1017 depends on Python's evaluation order and short-circuiting. If someone swaps the operands to `file_id in _storyboard_failed and not _consume(...)`, a file that never failed would no longer consume its token, and the stale-token behaviour would change.",
+    "The module-level sets `_storyboard_failed` and `_storyboard_retry` are shared between the event-loop thread and the worker threads. Safety relies on single set operations being atomic under the GIL."
+  ],
+  "test_coverage": [
+    "tests/test_spec_addon_085_storyboard_retry.py has tests for I1 (both accepted and already_queued), I2 (a threaded concurrent request), I3 (no request, plus another file's request), I4 (no clip, 422 variants including clip+ocr, cross-drive 404, 409 corrected, 409 busy), I5 (a classified failure and an OSError exception), I6 (rows, tiles and flag equal to a first success) and I7 (response bodies for every branch).",
+    "No test covers the stale-token case, where a token recorded during a leg that then succeeds is consumed by a later automatic leg."
+  ],
+  "not_verified": [
+    "I could not run the test suite (no shell available), so I did not confirm that the tests pass at this commit.",
+    "I did not confirm that the addon gitlink in the core repo points to the addon commit that contains these changes.",
+    "I did not review the docs/addons/intelligence.md sentence or the docs/specs/INDEX.md row.",
+    "I did not trace every caller of `_index_clip_loft` (resume, reconciliation, startup recovery) to confirm they all reach the guard."
+  ],
+  "confidence": 80
+}

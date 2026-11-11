@@ -1,4 +1,5 @@
 import io
+import shutil
 import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
@@ -6,6 +7,7 @@ from pathlib import Path
 import pytest
 from fastapi import HTTPException
 
+import app.config as config
 from app.models import File
 from app.services import scanner as scanner_module
 from app.services import upload as upload_service
@@ -298,7 +300,7 @@ class TestUploadThumbnailIsNotWrittenInPlace:
         assert res.status_code == 200
 
         assert len(handed) == 1
-        expected = data_dir / "thumbnails" / TEST_DRIVE / "photo.jpg"
+        expected = data_dir / "thumbnails" / ".by-id" / f"{res.json()['id']}.jpg"
         assert handed[0] != str(expected)
         assert Path(handed[0]).parent == expected.parent
         assert expected.exists()
@@ -430,3 +432,171 @@ class TestAudioOnlyMp4Upload:
         db.expire_all()
         row = db.query(File).filter(File.filename == "talk.mp4").one()
         assert (row.file_type, row.mime_type) == ("audio", "audio/mp4")
+
+
+class TestRequireFolder:
+    """SPEC-CORE-030 I10 — a destination folder that is no longer there.
+
+    The check is opt-in so that the callers which rely on the upload creating
+    the folder keep working; only a request that asks for it is refused.
+    """
+
+    DETAIL = "destination_folder_not_found"
+    BODY = b"body"
+
+    def _init(self, c, **overrides):
+        payload = {
+            "filename": "note.txt",
+            "file_size": len(self.BODY),
+            "chunk_size": len(self.BODY),
+        }
+        payload.update(overrides)
+        return c.post(f"/api/drives/{TEST_DRIVE}/upload/init", json=payload)
+
+    def _send(self, c, upload_id):
+        return c.post(
+            f"/api/drives/{TEST_DRIVE}/upload/{upload_id}/chunk",
+            data={"chunk_index": "0"},
+            files={
+                "chunk": ("chunk", io.BytesIO(self.BODY), "application/octet-stream")
+            },
+        )
+
+    def _complete(self, c, upload_id):
+        return c.post(f"/api/drives/{TEST_DRIVE}/upload/{upload_id}/complete")
+
+    def _tree(self, root: Path) -> list[str]:
+        return sorted(str(path.relative_to(root)) for path in root.rglob("*"))
+
+    def _temp_entries(self) -> set[str]:
+        upload_dir = config.UPLOAD_DIR
+        if not upload_dir.exists():
+            return set()
+        return {entry.name for entry in upload_dir.iterdir()}
+
+    @pytest.mark.parametrize(
+        "folder_path",
+        ["gone", "gone/2019", "a-file.txt"],
+        ids=["missing", "missing-nested", "a-file"],
+    )
+    def test_init_refuses_a_path_that_is_not_an_existing_directory(
+        self, client, folder_path
+    ):
+        c, _, drive_dir, _ = client
+        if folder_path == "a-file.txt":
+            (drive_dir / folder_path).write_bytes(b"not a folder")
+
+        tree_before = self._tree(drive_dir)
+        sessions_before = set(upload_service._upload_sessions)
+        temp_before = self._temp_entries()
+
+        res = self._init(
+            c,
+            folder_path=folder_path,
+            relative_path="dropped/note.txt",
+            require_folder=True,
+        )
+
+        assert res.status_code == 404
+        assert res.json() == {"detail": self.DETAIL}
+        assert self._tree(drive_dir) == tree_before
+        assert not (drive_dir / "dropped").exists()
+        assert set(upload_service._upload_sessions) == sessions_before
+        assert self._temp_entries() == temp_before
+
+    def test_init_accepts_the_drive_root_as_the_destination(self, client):
+        c, _, drive_dir, _ = client
+
+        res = self._init(c, folder_path="", require_folder=True)
+
+        assert res.status_code == 200
+        upload_id = res.json()["upload_id"]
+        assert self._send(c, upload_id).status_code == 200
+        assert self._complete(c, upload_id).status_code == 200
+        assert (drive_dir / "note.txt").read_bytes() == self.BODY
+
+    def test_an_existing_folder_still_takes_the_dropped_subfolder(self, client):
+        c, _, drive_dir, _ = client
+        (drive_dir / "uploads").mkdir()
+
+        res = self._init(
+            c,
+            folder_path="uploads",
+            relative_path="trip/note.txt",
+            require_folder=True,
+        )
+        assert res.status_code == 200
+        upload_id = res.json()["upload_id"]
+        assert self._send(c, upload_id).status_code == 200
+        assert self._complete(c, upload_id).status_code == 200
+        assert (drive_dir / "uploads" / "trip" / "note.txt").read_bytes() == self.BODY
+
+    @pytest.mark.parametrize(
+        "overrides",
+        [{}, {"require_folder": False}],
+        ids=["field-absent", "field-false"],
+    )
+    def test_without_require_folder_a_missing_folder_is_created(self, client, overrides):
+        c, _, drive_dir, _ = client
+
+        res = self._init(
+            c,
+            folder_path="gone",
+            relative_path="trip/note.txt",
+            **overrides,
+        )
+        assert res.status_code == 200
+        upload_id = res.json()["upload_id"]
+        assert self._send(c, upload_id).status_code == 200
+        assert self._complete(c, upload_id).status_code == 200
+        assert (drive_dir / "gone" / "trip" / "note.txt").read_bytes() == self.BODY
+
+    @pytest.mark.parametrize("disappear", ["deleted", "renamed"])
+    def test_complete_refuses_a_folder_that_left_after_init(self, client, disappear):
+        c, _, drive_dir, _ = client
+        (drive_dir / "uploads").mkdir()
+
+        res = self._init(
+            c,
+            folder_path="uploads",
+            relative_path="trip/note.txt",
+            require_folder=True,
+        )
+        assert res.status_code == 200
+        upload_id = res.json()["upload_id"]
+        assert self._send(c, upload_id).status_code == 200
+        assert (config.UPLOAD_DIR / upload_id).is_dir()
+
+        if disappear == "deleted":
+            shutil.rmtree(drive_dir / "uploads")
+        else:
+            (drive_dir / "uploads").rename(drive_dir / "elsewhere")
+        tree_before = self._tree(drive_dir)
+
+        done = self._complete(c, upload_id)
+
+        assert done.status_code == 404
+        assert done.json() == {"detail": self.DETAIL}
+        assert self._tree(drive_dir) == tree_before
+        assert not (drive_dir / "uploads").exists()
+        assert upload_id not in upload_service._upload_sessions
+        assert not (config.UPLOAD_DIR / upload_id).exists()
+
+    def test_without_require_folder_complete_still_recreates_the_folder(self, client):
+        c, _, drive_dir, _ = client
+        (drive_dir / "uploads").mkdir()
+
+        res = self._init(
+            c,
+            folder_path="uploads",
+            relative_path="trip/note.txt",
+        )
+        assert res.status_code == 200
+        upload_id = res.json()["upload_id"]
+        assert self._send(c, upload_id).status_code == 200
+        shutil.rmtree(drive_dir / "uploads")
+
+        done = self._complete(c, upload_id)
+
+        assert done.status_code == 200
+        assert (drive_dir / "uploads" / "trip" / "note.txt").read_bytes() == self.BODY

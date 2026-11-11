@@ -206,6 +206,13 @@ def _apply_cap(db: Session, file_id: str) -> None:
             db.flush()
 
 
+def has_versions(db: Session, file_id: str) -> bool:
+    return (
+        db.query(FileVersion.id).filter(FileVersion.file_id == file_id).first()
+        is not None
+    )
+
+
 def record_version(
     db: Session,
     *,

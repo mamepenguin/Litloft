@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!-- Without this, a context that sets `isMobile` lays the page out at
+         Chromium's mobile default instead of the viewport the spec asked for. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>search results header — layout fixture</title>
+    <!-- No <style> of its own: every declaration measured here has to come
+         out of the app's own stylesheet. -->
+    <link rel="stylesheet" href="./globals.built.css" />
+  </head>
+  <body class="bg-bg-primary">
+    <!--
+      The search results page above the results. The field has its row to
+      itself; the type and operator chips sit under it; one results bar under
+      them holds the Files / Passages switch, Scene search, the count, View,
+      Sort and the … menu. At a phone width the field takes the content width
+      and the bar stays one row; at desktop it does the same with View and Sort
+      on the bar.
+    -->
+    <header id="header" class="flex flex-col gap-1 px-4 py-2">
+      <div id="subject" class="min-w-0">
+        <h1 class="sr-only text-2xl font-bold text-text-primary">Search: "cats tag:会議"</h1>
+        <input
+          data-role="query-field"
+          type="text"
+          value="cats tag:会議"
+          aria-label="Search query"
+          class="w-full rounded-2xl border border-warm-silver/40 bg-bg-card px-3 py-1.5 text-lg text-text-primary outline-none focus:ring-2 focus:ring-[var(--focus-ring)]"
+        />
+      </div>
+      <div data-role="filter-chips" class="mt-2 flex flex-wrap items-center gap-2">
+        <span
+          class="inline-flex min-w-0 max-w-full items-center gap-1 rounded-full bg-sand py-0.5 pl-2 pr-1 text-xs text-text-primary"
+        >
+          <span class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+            <span class="font-semibold">Type</span> Video
+          </span>
+          <button
+            type="button"
+            aria-label="Remove Type Video"
+            class="shrink-0 rounded-full p-0.5 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+          >
+            ×
+          </button>
+        </span>
+        <span
+          class="inline-flex min-w-0 max-w-full items-center gap-1 rounded-full bg-sand py-0.5 pl-2 pr-1 text-xs text-text-primary"
+        >
+          <span class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+            <span class="font-semibold">Tag</span> 会議
+          </span>
+          <button
+            type="button"
+            aria-label="Remove Tag 会議"
+            class="shrink-0 rounded-full p-0.5 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+          >
+            ×
+          </button>
+        </span>
+        <button
+          type="button"
+          aria-haspopup="menu"
+          aria-expanded="false"
+          aria-label="Add filter"
+          class="inline-flex items-center gap-1 rounded-full border border-dashed border-warm-silver px-2.5 py-1 text-xs text-text-muted transition-colors hover:text-text-primary"
+        >
+          <span aria-hidden="true">＋</span>
+          <span>Filter</span>
+        </button>
+      </div>
+    </header>
+
+    <div
+      id="bar"
+      class="sticky top-0 z-20 mb-2 flex flex-wrap items-center gap-2 border-b border-bg-border bg-bg-primary px-4 py-2"
+    >
+      <div class="flex w-[148px] flex-none sm:w-48">
+        <div
+          role="group"
+          aria-label="Show"
+          class="flex w-full gap-0.5 rounded-2xl border border-bg-border p-0.5"
+        >
+          <button
+            type="button"
+            aria-pressed="true"
+            class="flex h-8 min-w-0 flex-1 items-center justify-center rounded-xl border border-accent px-1 text-xs font-medium text-text-primary pointer-coarse:h-11"
+          >
+            <span class="truncate">Files</span>
+          </button>
+          <button
+            type="button"
+            aria-pressed="false"
+            class="flex h-8 min-w-0 flex-1 items-center justify-center rounded-xl border border-transparent px-1 text-xs text-text-muted pointer-coarse:h-11"
+          >
+            <span class="truncate">Passages</span>
+          </button>
+        </div>
+      </div>
+
+      <label class="inline-flex cursor-pointer select-none items-center gap-1.5 text-sm text-text-primary pointer-coarse:min-h-11 sm:gap-2">
+        <input type="checkbox" class="h-4 w-4" />
+        <span class="sm:hidden">Scenes</span>
+        <span class="hidden sm:inline">Scene search</span>
+      </label>
+
+      <div class="flex-1"></div>
+
+      <span id="count" class="whitespace-nowrap text-xs text-text-muted">42 items</span>
+
+      <button
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded="false"
+        aria-label="View: Grid view"
+        class="hidden items-center gap-1.5 rounded-2xl border border-bg-border bg-bg-card px-2 py-1 text-xs text-text-muted transition-colors hover:text-text-primary md:flex"
+      >
+        View
+      </button>
+      <button
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded="false"
+        aria-label="Sort: Relevance"
+        class="hidden items-center gap-1.5 rounded-2xl border border-bg-border bg-bg-card px-2 py-1 text-xs text-text-muted transition-colors hover:text-text-primary md:flex"
+      >
+        Sort
+      </button>
+      <button
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded="false"
+        aria-label="More actions"
+        class="flex items-center justify-center rounded-2xl border border-bg-border bg-bg-card p-2 text-text-muted transition-colors pointer-coarse:h-11 pointer-coarse:w-11"
+      >
+        …
+      </button>
+    </div>
+
+    <script>
+      window.measureHeader = function () {
+        const box = (el) => {
+          if (!el) return null;
+          const r = el.getBoundingClientRect();
+          return {
+            top: r.top,
+            bottom: r.bottom,
+            left: r.left,
+            right: r.right,
+            width: r.width,
+            height: r.height,
+          };
+        };
+        const header = document.getElementById("header");
+        const bar = document.getElementById("bar");
+        const count = document.getElementById("count");
+        const style = getComputedStyle(header);
+        const shown = (selector) =>
+          Array.from(bar.querySelectorAll(selector)).filter(
+            (el) => el.getBoundingClientRect().width > 1,
+          );
+        return {
+          viewport: { width: window.innerWidth, height: window.innerHeight },
+          documentWidth: document.documentElement.clientWidth,
+          documentScrollWidth: document.documentElement.scrollWidth,
+          header: box(header),
+          contentWidth:
+            header.clientWidth -
+            parseFloat(style.paddingLeft) -
+            parseFloat(style.paddingRight),
+          field: box(document.querySelector('[data-role="query-field"]')),
+          chips: box(document.querySelector('[data-role="filter-chips"]')),
+          bar: box(bar),
+          switch: box(bar.querySelector('[aria-label="Show"]')),
+          scene: box(bar.querySelector('label')),
+          count: box(count),
+          countLineHeight: parseFloat(getComputedStyle(count).lineHeight),
+          views: shown('[aria-label^="View"]').map(box),
+          sorts: shown('[aria-label^="Sort"]').map(box),
+          mores: shown('[aria-label="More actions"]').map(box),
+        };
+      };
+      document.body.dataset.ready = "1";
+    </script>
+  </body>
+</html>

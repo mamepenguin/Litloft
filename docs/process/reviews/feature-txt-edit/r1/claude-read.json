@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The diff adds a core jsdom test file, frontend/src/components/FileDetail/__tests__/PlainTextDocument.test.tsx, which is not in the touch-point list. The list names only frontend/src/lib/__tests__/fileDetailShell.test.ts and frontend/e2e-layout/ or frontend/e2e-components/ as test locations in core.",
+      "impact": "Nothing a user can hit. A reader who checks the plan against the diff finds a core test location the plan did not declare. The file also tests page-row count and the layout in jsdom, which the spec's Verification section says is checked in a real browser.",
+      "evidence": "The diff header 'new file mode 100644 frontend/src/components/FileDetail/__tests__/PlainTextDocument.test.tsx'. docs/specs/txt-edit.md:300 and :308 are the only core test touch points.",
+      "repro": "Compare the file list in the diff with docs/specs/txt-edit.md:278-330. This path matches no entry.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is broken. The touch-point list is incomplete for a test file.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add the path to the touch-point list, or note that the jsdom suite only adds to the Playwright layout check."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The diff adds an addon test file, addons/knowledge/frontend/__tests__/PlainTextEditor.test.tsx, which is not in the touch-point list. The list names no addon test location.",
+      "impact": "Nothing a user can hit. It is an undeclared place the change reaches inside the submodule bump.",
+      "evidence": "The submodule diff shows 'new file mode 100644 addons/knowledge/frontend/__tests__/PlainTextEditor.test.tsx'. docs/specs/txt-edit.md:309-323 lists only addon source and message files.",
+      "repro": "Compare the submodule file list with docs/specs/txt-edit.md:309-323.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is broken. The touch-point list leaves out the addon's test file.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add addons/knowledge/frontend/__tests__/PlainTextEditor.test.tsx to the touch points."
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "In addons/knowledge/frontend/api.ts the diff also changes the existing writer putFileContent: its content parameter becomes string | Uint8Array and its body is cast to BodyInit. The touch point for api.ts declares only a new plain-text loader and encoder, with getFileContent unchanged.",
+      "impact": "The Markdown save path now goes through a function with a wider type. A Markdown call site that passed a non-string by mistake would no longer fail to compile. No user-visible behaviour changes for .md, because Editor.writeBody passes the string as before.",
+      "evidence": "In api.ts:324-341, 'content: string | Uint8Array' and 'body: content as BodyInit'. The touch point at docs/specs/txt-edit.md:317-318 does not mention putFileContent.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An existing shared writer is widened without being declared. No invariant is broken.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Name putFileContent's widened body type in the api.ts touch point."
+    }
+  ],
+  "specification_compliance": [
+    "Every other path in the diff is on the list: the addons/knowledge gitlink, plus Editor.tsx, EditorToolbar.tsx, KnowledgeEditSection.tsx, MarkdownEditor.tsx, VersionHistoryPanel.tsx, api.ts and messages/{en,ja}.json in the addon.",
+    "Editor.tsx imports the core component @/components/TextLines. That file is not edited in this diff; it was extracted in the earlier commit 365007a15 under the TextPreview touch point. Addon-to-core imports are allowed, and I9 forbids only the core-to-addon direction.",
+    "No core source file outside the list is edited. Core gains only the new test file (TP-1)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The diff does not touch VersionHistoryMenuItem.tsx, although it is on the list. A not-editable document hides the version-history entry only because the toolbar (and its … menu) is hidden while plainBlock is set. Any other mount point of the menu item was not checked."
+  ],
+  "regression_risks": [
+    "putFileContent now accepts Uint8Array bodies; the Markdown path relies on writeBody passing a string unchanged when plainText is false."
+  ],
+  "test_coverage": [
+    "PlainTextDocument.test.tsx covers the gate's fallbacks, the wait for the slot list, the page row, the Read/Edit switch, the rename suffix and tag chips in jsdom. It does not cover real layout.",
+    "PlainTextEditor.test.tsx covers form preservation on autosave, explicit, unmount, Overwrite and restore writes; the notUtf8 and mixed-endings blocks; the held state; the keymap; paste and drop; Read rendering; and the raw version preview."
+  ],
+  "not_verified": [
+    "Whether the submodule bump 007e38dc..ea54ceb3 contains addon files beyond those shown in the provided diff",
+    "Whether the tests pass (no commands can be run)",
+    "Whether the core-side touch points (fileDetailShell.ts, ShellLayout.tsx, etc.) were changed in earlier commits on the branch rather than in this commit",
+    "Playwright e2e coverage under frontend/e2e-layout/"
+  ],
+  "confidence": 80
+}

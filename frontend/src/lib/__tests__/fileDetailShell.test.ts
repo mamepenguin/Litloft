@@ -9,19 +9,19 @@ import {
 
 describe("usesDocumentShell", () => {
   it("sends Markdown to the shell when the drive allows the editor", () => {
-    expect(usesDocumentShell("text/markdown", true)).toBe(true);
+    expect(usesDocumentShell("text/markdown", true, false)).toBe(true);
   });
 
   it("keeps Markdown out of it on a drive that turned the editor off", () => {
-    expect(usesDocumentShell("text/markdown", false)).toBe(false);
+    expect(usesDocumentShell("text/markdown", false, false)).toBe(false);
   });
 
   it("sends HTML there whatever the editor policy says", () => {
     // The HTML preview rides the shell for the single-scroll layout and
     // never mounts the editor slot, so the editor policy is not its
     // business either way.
-    expect(usesDocumentShell("text/html", true)).toBe(true);
-    expect(usesDocumentShell("text/html", false)).toBe(true);
+    expect(usesDocumentShell("text/html", true, false)).toBe(true);
+    expect(usesDocumentShell("text/html", false, false)).toBe(true);
   });
 
   it("leaves every other type to its host", () => {
@@ -33,32 +33,47 @@ describe("usesDocumentShell", () => {
       "application/zip",
       "text/plain",
     ]) {
-      expect(usesDocumentShell(mime, true)).toBe(false);
+      expect(usesDocumentShell(mime, true, false)).toBe(false);
     }
+  });
+
+  it("sends a plain-text document to the shell whatever the editor policy says", () => {
+    expect(usesDocumentShell("text/plain", true, true)).toBe(true);
+    expect(usesDocumentShell("text/plain", false, true)).toBe(true);
   });
 
   it("says no before the file has resolved", () => {
     // Both hosts ask this while `file` is still null. Answering "yes"
     // there would suppress the row for the whole of the fetch and then
     // add it, which is the jump the row is drawn early to avoid.
-    expect(usesDocumentShell(undefined, true)).toBe(false);
+    expect(usesDocumentShell(undefined, true, false)).toBe(false);
   });
 });
 
 describe("ridesFileDetailShell", () => {
-  const canonical = (file: { mimeType?: string; fileType?: string }) =>
+  const canonical = (file: {
+    mimeType?: string;
+    fileType?: string;
+    plainTextDocument?: boolean;
+  }) =>
     ridesFileDetailShell({
       surface: "canonical",
       mimeType: file.mimeType,
       fileType: file.fileType,
       knowledgeEditorEnabled: true,
+      plainTextDocument: file.plainTextDocument ?? false,
     });
-  const collection = (file: { mimeType?: string; fileType?: string }) =>
+  const collection = (file: {
+    mimeType?: string;
+    fileType?: string;
+    plainTextDocument?: boolean;
+  }) =>
     ridesFileDetailShell({
       surface: "collection",
       mimeType: file.mimeType,
       fileType: file.fileType,
       knowledgeEditorEnabled: true,
+      plainTextDocument: file.plainTextDocument ?? false,
     });
 
   it("routes media through the shell on the canonical surface", () => {
@@ -181,6 +196,16 @@ describe("ridesFileDetailShell", () => {
       true,
       true,
     ]);
+  });
+
+  it("keeps a plain-text document on the shell on both surfaces", () => {
+    const file = {
+      mimeType: "text/plain",
+      fileType: "document",
+      plainTextDocument: true,
+    };
+    expect(canonical(file)).toBe(true);
+    expect(collection(file)).toBe(true);
   });
 
   it("says no before the file has resolved, so the host keeps drawing the row", () => {

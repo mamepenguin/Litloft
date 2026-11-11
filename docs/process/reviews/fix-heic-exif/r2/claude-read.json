@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "CR-5",
+      "origin": "reviewer",
+      "claim": "The move of extract_exif above the row writes does not take it out of the write lock on the trashed-ghost path, because that path flushes a delete and runs cleanup_orphan_tags before the read, and the new lock test covers only a fresh upload.",
+      "impact": "When a trashed row's file has gone from disk and a large PNG without an eXIf chunk is uploaded to that path, other writers wait while the PNG decodes, and with the default 5 second busy timeout could fail with 'database is locked'. This is rare: a normal trash keeps the file on disk, so init_upload answers 409 and the path is not reached.",
+      "evidence": "backend/app/services/upload.py:288-296 runs db.delete(existing), db.flush() and cleanup_orphan_tags; extract_exif runs afterwards at :308; the commit is at :371. backend/app/services/fileops.py:671-687 shows the soft delete keeps the file on disk, and upload.py:136-137 rejects a live path, so the ghost needs the file removed outside the app while it is in the trash. backend/tests/test_exif.py test_reading_an_upload_holds_no_write_lock uploads only a new a.png. read_image_dimensions at :306 has the same placement and predates this change.",
+      "repro": "not_reproduced. Predicted: trash a.png through the API, unlink it from disk, then run the test's stubbed extract_exif during an upload to a.png. writable should be [False]. Commands cannot be run in this review.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is declared. The result stays correct, and the cost appears only on a rare path with a large PNG and a concurrent writer.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Compute dimensions and exif before the `if existing is not None and existing.deleted_at is not None` block, and add the ghost case to the lock test."
+    },
+    {
+      "id": "CR-6",
+      "origin": "reviewer",
+      "claim": "The EXIF call in register_single_file is still not asserted by any test, although the new scan test closes the other two scanner call sites.",
+      "impact": "A photo brought in through note image import reaches the library through this function. If its EXIF call broke, that photo would silently have no Photo Info until a later scan backfilled it, and no test would fail.",
+      "evidence": "backend/app/services/scanner.py:387-389 calls extract_exif and adds the row. backend/app/services/markdown_image_import.py:416 is its production caller. A grep of backend/tests for '/exif', 'file_exif' and 'extract_exif' matches only test_exif.py and two database migration or rebuild test files. A grep for register_single_file across backend/tests, limited to its first 30 matches, showed no hit in test_exif.py, and the test_exif.py diff imports only _scan_and_register. The callers listed in test_image_dimensions.py, test_scanner.py and others are outside the EXIF match set.",
+      "repro": "not_reproduced. Predicted mutation, not run: delete scanner.py:387-389. No test should fail, because no test asserts a file_exif result after register_single_file. Deleting :549-552 or :754-756 should now fail test_a_scan_reads_a_photo_it_finds_and_one_with_no_exif_row.",
+      "introduced": "pre-existing",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is declared. This is the remainder of the r1 coverage findings CR-1 and DEEP-1; the code reads correct and a later scan would backfill the row.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add to TestEveryWayIn a test that calls register_single_file on a HEIC with EXIF and asserts the /exif response."
+    }
+  ],
+  "specification_compliance": [
+    "No invariants file exists for this change, so bucket A is unavailable and there is no touch-point list to compare against.",
+    "No approved spec was consulted for this behavior. The earlier review record reports no spec entry for heic or exif, and the new tests mark their behavior with UNSPEC comments. I did not search docs/specs again.",
+    "r1 CR-2 is addressed: the TIFF case is now in test_exif_is_read_from_every_container, which also catches moving get_ifd out of the `with` block, by reading of how TIFF loads tags lazily.",
+    "r1 CR-1 and DEEP-1 are addressed for scanner.py:549-552 and :754-756, and not for :387-389 (CR-6).",
+    "r1 CR-3 and DEEP-2 are addressed for a new upload and a reused row, and not for the trashed-ghost path (CR-5).",
+    "r1 CR-4 and DEEP-4 are unchanged by the fix: the scanner still fills only absent rows, and a copy still inherits the source row. Neither is restated as a new finding. No code in fba3915ca touches them.",
+    "decisions.md records its app run at be9a0fcb0, before the extract_exif move in fba3915ca, so that run does not exercise the commit's upload ordering, and it times no PNG."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "An upload extracts EXIF immediately, and an upload over a reused row deletes the old row even when the new file has no EXIF (upload.py:355-360).",
+    "A copy duplicates the source's EXIF row, GPS included and across drives, without reading the copied file (fileops.py:298-313).",
+    "TIFF files with EXIF tags now get file_exif rows, now pinned by a test but still with no approved spec (exif.py:69-72).",
+    "Image formats with no _getexif, such as BMP and GIF, now return None without the warning they used to log, a log-only change.",
+    "A SVG or other .image-classified file Pillow cannot open now logs an 'EXIF extraction failed' warning at upload as well as at scan, a log-only change, if such a file reaches upload.py:308; the classification was not traced."
+  ],
+  "regression_risks": [
+    "A large PNG without an eXIf chunk is now decoded twice during POST /complete, once in read_image_dimensions and once in extract_exif, both outside the lock on the normal path. The latency is unmeasured, since decisions.md item (6) timed only JPEG and HEIC.",
+    "A scan's pending db.merge(FileExif) at scanner.py:552 could conflict with an upload committing a row for the same id before the scan's flush. This needs an upload over a row with no EXIF landing during a scan, so it is narrow; it was recorded in r1 and is unchanged by the fix. Not reproduced.",
+    "A photo whose ISOSpeedRatings holds several values makes int(iso_raw) at exif.py:107 raise, and the outer except drops all its EXIF. This is pre-existing, but more formats now reach the line. No real phone HEIC has been exercised.",
+    "A photo moved outside the app and matched by hash in scanner Pass 2 skips the EXIF backfill for that scan (scanner.py:657-706), so a pre-fix HEIC moved that way gets its row only on the following scan."
+  ],
+  "test_coverage": [
+    "test_reading_an_upload_holds_no_write_lock tries BEGIN IMMEDIATE on a second connection from inside the stubbed extract_exif. Moving the call back after the flush at upload.py:352 should make writable [False], so that mutant is predicted killed. The test runs without the WAL mode production sets, but a held write lock blocks BEGIN IMMEDIATE in either mode, so the check still applies.",
+    "test_a_scan_reads_a_photo_it_finds_and_one_with_no_exif_row covers both Pass 2 (scanner.py:754) and the Pass 1 backfill (:549) with a HEIC, using /exif. Deleting either block should fail it at a different assertion.",
+    "test_exif_is_read_from_every_container now covers JPEG, HEIF, WEBP and TIFF with values in the root, Exif and GPS IFDs.",
+    "test_a_copied_photo_has_the_same_exif compares whole /exif responses, so dropping a response field from the copy in fileops.py:301-312 should fail it.",
+    "Deleting only the db.flush() at upload.py:358 would probably survive, because SQLAlchemy can turn a delete and add of one primary key in a single flush into an update; the visible behavior would stay the same.",
+    "Not covered: EXIF after register_single_file (CR-6), the lock on the trashed-ghost path (CR-5), upload over a trashed row asserting EXIF, a PNG containing EXIF, batch_copy, and a copy to another folder or drive. The last two share copy_file's code with the tested same-folder copy."
+  ],
+  "not_verified": [
+    "No test, mutation or command was run; every mutation result and repro is a prediction from reading.",
+    "The pinned Pillow 11.2.1 and pillow-heif 0.22.0 sources were not read; Pillow behavior here comes from memory and the earlier review record.",
+    "Real phone HEIC files were not checked.",
+    "Decode time and lock wait for a large PNG were not measured.",
+    "The commit's contents were not checked with git; the review used the supplied diff and the working tree.",
+    "The grep for register_single_file in backend/tests was cut off at 30 matches, so its remaining callers were not listed; the absence of an EXIF assertion rests on the separate grep for '/exif', 'file_exif' and 'extract_exif'. That grep did not match 'FileExif', and r1's search for it found only test_exif.py and migration tests.",
+    "docs/process/review.md, testing-and-comments.md, backend-conventions.md and docs/specs were not read; only .claude/rules/process.md was.",
+    "The classification of SVG files at upload and addon code paths were not traced."
+  ],
+  "confidence": 78,
+  "trajectory": "Two commits follow r1. fba3915ca moves one existing line, the extract_exif call, from after the flush to beside read_image_dimensions in upload.py, and adds tests: a TIFF parameter, a lock test and a scan test. 7a68cc9ac adds only review documents. Neither adds a branch, a state or a prediction in production code, so this round does not repeat what the round before it added and the design is not being patched. Neither removes one either: the delete-and-replace branch and the copy branch from before r1 remain as they were. The move leaves one path behind (CR-5), which comes from where the line was placed and not from a new condition."
+}

@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "Reproduced by tracing both parses by hand. askNoteFormat.ts:240-247 replaces every `[n]` with `${prefix}${index}`. Line 264 parses only sentinelText, using a MarkdownIt with html:false, linkify:true, typographer:false and breaks:false (206-211). The on-screen renderer, MarkdownPreview.tsx:93-98, uses the same block options; its only additions are taskLists and an inline wiki_link rule, and neither changes block parsing. Input traced: `[1]: https://example.com\\n    code [2]`.\n\nOriginal text: reference.mjs:11 accepts the leading `[`, the label `1` ends at the `:` (line 90), and parseLinkDestination takes the URL, so destEndLineNo is 1. The space-skipping loop (127-141) reaches `\\n` and calls getNextLine(1). The next line has sCount 4 (>3), so it is treated as a continuation (line 25) and `code [2]` is appended. parseLinkTitle fails on `c`, and the else branch at 160-164 rolls back to pos=destEndPos and nextLine=1. Line 173 then sees `\\n`, so the definition is valid and state.line=1 (line 210). Line 1 is parsed fresh, and the code rule makes it a code_block. AnswerMarkdown.tsx:232 then skips its `[2]`.\n\nSentinel text: the first line starts with `L`, so reference.mjs:11 returns false and the line becomes a paragraph. The 4-space line is a lazy continuation, because indented code cannot interrupt a paragraph. The sentinel therefore ends up in an inline text token, not a code_inline, fence or code_block token, and codeIndexes (249-263) misses it. markerReplacement (271-273) then rewrites `[2]` into a loft:// link, or removes it, inside text that is code on screen and still code when the saved note is rendered. This breaks I7's rule that the text inside code stays as received. askNoteFormat.test.ts has no case with a reference definition."
+    }
+  ],
+  "specification_compliance": [
+    "I7: violated for an answer in which a line starting with a `[n]: <url>` reference definition is directly followed by a line indented 4 or more spaces. A `[n]` in that indented code block is rewritten or removed (R1 confirmed)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Other block constructs whose recognition depends on a leading `[n]` may also differ between the original text and the sentinel text. A reference definition that spans lines through a title is one example. Only the case R1 describes was traced."
+  ],
+  "regression_risks": [
+    "The parity between the sentinel parse and the renderer rests on the `[`-led syntax being unchanged. Any markdown-it rule keyed on `[` can make the two parses disagree."
+  ],
+  "test_coverage": [
+    "askNoteFormat.test.ts has no case with a link reference definition `[n]: url` followed by an indented line, so R1 is not covered."
+  ],
+  "not_verified": [
+    "The trace was not run in markdown-it. It was done by reading reference.mjs, the paragraph rule's behavior and the code rule's behavior.",
+    "Whether gray-matter frontmatter stripping in MarkdownPreview (line 374) can shift the parse for an answer that starts with `---` was not checked.",
+    "How often a model answer in normal use contains a `[n]: url` line followed by indented code was not assessed."
+  ],
+  "confidence": 85
+}

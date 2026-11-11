@@ -21,8 +21,11 @@ Below it are tabs, shown only when there is more than one:
 - **Chapters**: on media with chapters.
 - **Transcript**: on media that has one (intelligence addon).
 - **Pages**: the contents and page thumbnails of a PDF, or an index of an archive.
+- **検索**: the places found by [finding in this file](#finding-in-this-file), while the find bar is open.
 
 A tab appears only when it has something in it, so a video that was never transcribed has no Transcript tab.
+
+**Correcting a transcript.** In the **Transcript** tab, the **分割テキスト** (Text chunks) view offers **修正** (Edit) on each line. Enter or **保存** saves, Escape or **キャンセル** cancels, and an emptied line disappears. A corrected line is marked **修正済み** (Edited). **元の結果に戻す** (Restore original) in the same header puts the whole transcript back to what the machine produced before the first correction. A corrected file is not transcribed again by automatic indexing; only **Index details** → **再生成** replaces it, after a confirmation. The player's subtitles show a correction the next time the file's page is opened.
 
 AI sections (intelligence addon) appear once they have been generated. To generate one, use the **AI** menu in the inspector.
 
@@ -37,6 +40,23 @@ The inspector is a bottom sheet. While it rests, a strip along the bottom shows 
 - On a video, the sheet first rises only to the bottom of the player, so the whole picture stays visible.
 - The tab strip sticks to the top of the sheet once you scroll down to it.
 - The video player sticks to the top of the page as you scroll.
+
+## Finding in this file
+
+With the intelligence addon, the search button in the page row (or `Cmd/Ctrl+F` on a computer) opens a find bar over the file. Type a word, and the **検索** tab lists every place it occurs in this file, in order: speech with its time, text on screen in a video, PDF pages, EPUB chapters, body text and the text in a picture. Click a place, or press `Enter` / `Shift+Enter`, to go there.
+
+- A video or audio file seeks to that moment and keeps playing or stays paused.
+- A PDF opens that page with the word marked. Markdown and text files mark the word too.
+- An EPUB opens the chapter, without marking the word inside it.
+- Office files are listed, but there is no place to go to. A picture's hits outline the lines over the picture.
+
+A picture read before its lines were kept, or one whose text was corrected, shows the hits without an outline until it is read again or its original text is restored.
+
+The chips at the top of the tab narrow the list to one kind. Matching is exact text; case is ignored for Latin letters only.
+
+Only what the addon has already read is found. A file that has not been indexed yet says so instead of showing no results. Text shown in a video and the text of a scanned PDF page are read too: a video's frame text is listed under 「画面内の文字」 with its time, and a scanned page's hits as 「p. N」, which opens the page (a scanned page has no text layer, so no word is marked on it).
+
+`Cmd/Ctrl+F` a second time, while the find bar has focus, opens the browser's own find. `Esc` closes the bar and puts the inspector back as it was.
 
 ## Chapters and the transcript, beside or below
 
@@ -66,11 +86,12 @@ Litloft draws its own control bar over the video. It looks different with a mous
 - Gestures: on touch, tap to show the controls, double-tap the left or right half to skip 10 s (keep tapping to skip further), press and hold to play at 2x, and swipe up or down or pinch for full screen. With a mouse, click to play or pause and double-click for full screen. See [keyboard shortcuts and gestures](keyboard-shortcuts.md).
 - **Settings**: subtitles and playback speed, plus **Picture-in-Picture**, **Autoplay** (off by default), a subtitle track picker when there is more than one, and **Browser controls**. On an iPhone there is also **Open in the iOS player**.
 - **Browser controls** hands the video to the browser's own bar, which is where AirPlay lives. **Use Litloft controls**, under the player, switches back.
-- **Subtitles**: put `movie.srt` or `movie.vtt` next to `movie.mp4`, or `movie.en.srt`, `movie.ja.vtt` and so on for several languages. They load automatically, for `.loft` files too, and do not appear in the file list. Without one, the intelligence addon's generated track is offered.
+- **Subtitles**: put `movie.srt` or `movie.vtt` next to `movie.mp4`, or `movie.en.srt`, `movie.ja.vtt` and so on for several languages. They load automatically, for `.loft` files too, and do not appear in the file list. Renaming or moving the video in Litloft takes them along. Without one, the intelligence addon's generated track is offered.
 - Resume: a video starts where you left off. A link with a time in it, such as an Ask citation, starts there instead.
 - Mini player: on a computer, scrolling the video out of view shrinks it into a small window at the bottom right. It has only play, time, mute and seeking; set speed and subtitles before you scroll away, or restore the full player.
 - The lock screen and media keys control playback, including next and previous in a collection.
 - **Cast**: a Chromecast button appears when one is found.
+- `.mts` files have no player, because that extension also names a TypeScript module. For footage from a camcorder, rename them to `.m2ts`.
 
 In the [iOS app](ios-app.md), leaving the app moves the video into picture-in-picture, and there is no mini player.
 
@@ -94,6 +115,10 @@ The maximise button opens the full-screen viewer, which turns through the folder
 - **Reading direction**: **LTR** or **RTL**, shown while **Spread** is on. RTL mirrors the edge taps, arrows and keys, not the swipe.
 - HEIC photos from an iPhone are shown too.
 
+## Highlights
+
+In a PDF, a Markdown note or a text file, select text and choose **Highlight** to keep a mark that is there when you open the file again. Click a mark and choose **Remove** to take it away.
+
 ## Markdown viewer
 
 ![Markdown viewer with frontmatter chips and a rendered Mermaid diagram](../images/user-guide/markdown-viewer-frontmatter-mermaid.png)
@@ -101,6 +126,8 @@ The maximise button opens the full-screen viewer, which turns through the folder
 Notes show highlighted code blocks, Mermaid diagrams, task lists, and the frontmatter (`title`, `tags` and so on) as chips you can edit. Editing the tag chips changes the file. A `loft://<file id>` link opens that file, and the linked file shows up under **Related**.
 
 With the [knowledge addon](../addons/knowledge.md) and its editor enabled for the drive, you can edit the note in the page with **Edit / Split / Preview**. Changes save as you type. Without it, notes are read-only apart from the chips.
+
+A note longer than two screens reopens where you left it, and one you read nearly to the end (the last tenth) opens at the top.
 
 ## PDF viewer
 
@@ -133,6 +160,7 @@ There is no viewer for Office files. The page offers **Download** and **Open in 
 An archive opens as a listing of its contents, without extracting it on the server. It has its own grid and list views, sorting, a type filter, and a path for folders inside it.
 
 - Click an image to open it in a page-turner that works like the [image viewer](#image-viewer), with a **Download** button. Click a text file to read it under the listing.
+- Closing an archive remembers the image you were on. When you open the archive again, a **Resume (12 / 80)** button above the listing opens that image, moving to its folder first. The viewer never opens on its own.
 - An entry that cannot be shown says **No preview** and offers **Download** instead.
 - Source files such as `main.rs`, `Cargo.toml` or `Makefile` open as text; unknown files like `app.bin` do not.
 - The **Pages** tab lists every entry at every depth, with a filter by path, so you can find a file without opening folders.
@@ -142,9 +170,11 @@ An archive opens as a listing of its contents, without extracting it on the serv
 
 Text and source files are shown read-only, with line numbers. Copying the text leaves the numbers out. Source code is coloured when the file's extension names its language. Arriving from a search highlights the term you searched for.
 
+Like a long note, a long text or source file reopens where you left it.
+
 A file over 1 MB asks before it loads. A very large file is shown without numbers or colour.
 
-Only Markdown notes can be edited in the app (see above).
+Markdown notes can be edited in the app (see above), and so can a `.txt` file up to 1 MB when the knowledge editor is on. A `.txt` opens in **Preview** and has an **Edit** switch beside the name; see [the editor](../addons/knowledge.md#the-editor). A `.txt` that is not UTF-8 text, or whose line endings are mixed, opens read-only. Other text and source files stay read-only.
 
 ## Imported videos (media_import addon)
 
@@ -156,7 +186,7 @@ A `.loft` file from the [media_import addon](../addons/media-import.md) plays th
 
 ## Watch progress
 
-Your position is saved every few seconds, and a video resumes where you left off unless you were within a few seconds of the start or end. Reaching the end keeps the record, so the file drops out of **Continue watching**. Live streams are not resumed. See [comments and watch history](comments-history.md).
+Your position is saved every few seconds, and a video resumes where you left off unless you were within a few seconds of the start or end. Reaching the end keeps the record, so the file drops out of **Continue**. Live streams are not resumed. See [comments and watch history](comments-history.md).
 
 ## The `⋮` menu
 

@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "deep-r2-1",
+      "origin": "reviewer",
+      "claim": "The core's processing call puts the raw drive name in the X-Lit-Drive header. httpx 0.28 encodes str header values as ASCII, so for a drive whose name is non-ASCII (for example Japanese) the request raises before it is sent, and intelligence is never asked about that drive's files.",
+      "impact": "Every file uploaded to a drive with a non-ASCII name gets intelligence's required `unavailable` stage on every answer. The drawer never shows Ready, shows 確認できません with a spinner for 30 minutes, then switches to grey dashes, even though the file is indexed. The WARNING log fires once a minute. Non-ASCII drive names are a supported case: the proxy and the frontend percent-encode them for exactly this reason.",
+      "evidence": "backend/app/routers/files_processing.py:152 sends `headers={\"X-Lit-Drive\": drive}` with the unencoded name. The proxy receives the header already percent-encoded by the browser (frontend/src/lib/semanticSearch.ts:14 uses `encodeURIComponent(drive)`) and its comment at backend/app/routers/addon_proxy.py:496-498 says 'Header values are ISO-8859-1 only; the frontend percent-encodes drive names so non-ASCII (e.g. Japanese) names round-trip safely'. The addon decodes with `unquote` (addons/intelligence/app/drive_context.py:30). backend/requirements.txt:9 pins httpx==0.28.1, whose header normalisation calls `value.encode('ascii')`; the UnicodeEncodeError is swallowed by `except Exception` at files_processing.py:160 and turns into the unavailable stage. Every test uses the ASCII TEST_DRIVE or 'other-drive', so none would catch this.",
+      "repro": "Mutation in head: add a drive named with Japanese characters to drives.json in test_spec_core_031_i2_each_call_carries_one_drives_ids_and_its_name, put a file on it, and register a stub addon. Expected: the stub records no call for that drive, and the file's stages are [saved, unavailable]. Not executed (read-only review).",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "For a drive with a non-ASCII name, the stages of an external addon that declares processing_status and has index on are never returned. That addon also never receives the drive's ids under X-Lit-Drive, so the file can never be ready.",
+        "invariant_ref": "I2"
+      },
+      "severity": "HIGH",
+      "proposed_fix": "Send `quote(drive, safe='')` in X-Lit-Drive, the same way the frontend encodes it for the proxy. Add a test with a non-ASCII drive name that asserts the stub receives the decoded drive and the ids."
+    },
+    {
+      "id": "deep-r2-2",
+      "origin": "reviewer",
+      "claim": "handleProcessingUpdated drops an event-driven refresh, without queuing it, when a request is already in flight. An event that arrives during a tick request is therefore lost even though the drawer received it.",
+      "impact": "A file whose search index finishes while a drawer request is running keeps its old pending line for up to 30 s more, instead of switching to Ready when the event arrives. This is cosmetic, and the next tick recovers it.",
+      "evidence": "frontend/src/hooks/useUpload.ts refreshProcessing: `if (processingInFlight) { if (fileIds === undefined) processingRefreshQueued = true; return; }`. Only tick-driven or entry-driven calls are queued; event-driven calls (fileIds defined) are discarded. The in-flight answer may have been computed by the core before the addon's write committed.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The spec allows a lost event to be picked up by the next tick, so no invariant is broken. The drop here is deliberate, not a burst loss, and it reads wrong next to the comment's rationale.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Queue event-driven refreshes too, either by setting processingRefreshQueued for both cases or by keeping a pending id set."
+    }
+  ],
+  "specification_compliance": [
+    "r1 scope findings (TP-1/scope-1, TP-2, TP-3/scope-2/scope-3): the I14 revision now names addon_events.py and the refine, summaries, vision, chapter_suggestions and video_visual workers as touch points. Every caller of post_addon_event in addons/intelligence/app now passes a drive. I checked this by grep: whisper.py:928,1120,1139,1170; chapter_suggestions.py:395,437,455,484; video_visual.py:826,842,873,1106,1182; vision.py:765-918; refine.py:700-870; summaries worker:84 and router:1020,1099.",
+    "vision._process_file resolves `drive` at vision.py:749 before the first event at :763, so the vision events that r1 found drive-less now carry a drive.",
+    "summaries.generate_detailed_summary passes indexed_file['drive'], and _get_indexed_file (summaries.py:402-404) returns 'drive'. Both router background tasks pass `drive`. The test stubs of _recalculate_citations use *args, so the new third argument breaks no existing test.",
+    "scope-4: the only two callers of _record_failed_job pass drive=, which r1's verifier confirmed.",
+    "I10: the intelligence manifest route table has no POST route for /files/processing; the only /files/{file_id}/... patterns need a further path segment.",
+    "I11: resolve_target_url falls back to target_default when the env var is unset or empty, and addon_proxy imports it from the registry.",
+    "I2 (in-process): get_external_addons filters on type == external_service, and load_external_manifests keeps the processing_status key."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "refine: when the snapshot read raises, or the file row is gone, drive is None and refine.failed/started are now refused with a WARNING instead of being broadcast. A viewer watching a refine whose row vanished gets no failure event.",
+    "intelligence.refine.started is now emitted after the DB snapshot instead of before it, so the started event arrives slightly later."
+  ],
+  "regression_risks": [
+    "Any future intelligence event that forgets the drive is now silently dropped. Only a WARNING is logged, and no test guards that new posters include one; test_addon_event_drive.py covers refine, summaries citations and vision only.",
+    "Synchronous 3 s posts run inside worker write paths and inside fail_orphaned_running_jobs at startup, when the core may not be up yet."
+  ],
+  "test_coverage": [
+    "backend/tests/test_files_processing.py uses only ASCII drive names, so the X-Lit-Drive encoding defect (deep-r2-1) passes every test.",
+    "test_addon_event_drive.py checks drive scoping at the wire level for refine (success and failure), summaries citations_ready and vision (success and load failure). It does not cover the vision decode, unsupported or request_failed paths, chapter_suggestions, video_visual or whisper transcription events, though grep shows they all carry a drive.",
+    "test_ws_event_drive_scope.py now asserts that drive-less posts are refused for whisper, refine and summaries.",
+    "No frontend test covers an event arriving while a request is in flight."
+  ],
+  "not_verified": [
+    "I did not execute any test. The httpx ASCII header behaviour comes from httpx 0.28 source knowledge and the pinned version, not from a run.",
+    "I did not check whether any configured drive in the user's drives.json actually has a non-ASCII name.",
+    "I did not read backend/app/routers/internal.py or ws.py again to confirm how processing.updated is drive-filtered; I rely on r1's verification.",
+    "I did not review every hunk of the truncated submodule diff, such as the remainder of the processing-events tests or the docs/addons/intelligence.md change.",
+    "I did not check the frontend consumers of intelligence.refine.* to see whether the reordered started event matters."
+  ],
+  "confidence": 80,
+  "trajectory": "The record holds three commits since r1. 9f90576 (docs) widened the spec with I14. 13dc968 changed code. 30a9962 (docs) recorded R-5. The code round added a new guard branch to the shared poster: it refuses drive-less posts. This repeats the earlier pattern of the previous fix (97bb107), which added the secret header to the same helper. Each review round has added one more precondition to app/addon_events.py after an earlier change made previously dropped events deliverable. So the poster's contract is being patched step by step rather than designed once. The round also removed a branch: _payload's conditional 'add drive only if present' is gone, and drive is now always set at the top level. It moved refine.started after the snapshot, so that event can name the drive. The core endpoint and the frontend did not change in these rounds."
+}

@@ -8,7 +8,14 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
 from fastapi.responses import PlainTextResponse
-from pydantic import BaseModel, StringConstraints, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StrictBool,
+    StringConstraints,
+    field_validator,
+)
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
@@ -18,10 +25,22 @@ from app.auth import filter_drives, get_unlocked_groups
 from app.database import get_db
 from app.models import (
     TRUST_TIERS,
+    Collection,
+    CollectionItem,
     File,
     FileRelation,
     WatchHistory,
     active_file_filter,
+)
+from app.routers.drives import (
+    FileKind,
+    FileKindParam,
+    _normalize_kind,
+    apply_file_filters,
+    normalize_collections,
+    normalize_durations,
+    normalize_folders,
+    normalize_sizes,
 )
 from app.routers.files import replace_file_tags
 from app.services.tagops import cleanup_orphan_tags
@@ -29,9 +48,11 @@ from app.schemas import (
     ChapterPromotionRequest,
     TagUpdate,
     TrustTierUpdate,
+    _NANOID_RE,
     file_to_response,
 )
 from app.services.chapters import replace_chapters
+from app.services.diskpath import resolve_on_disk
 from app.services.ws import manager as ws_manager
 
 logger = logging.getLogger(__name__)
@@ -44,6 +65,10 @@ _CONTENT_READ_ALLOWED_MIMES = frozenset({"text/markdown", "text/plain"})
 _CONTENT_READ_MAX_BYTES = int(
     os.environ.get("CORE_INTERNAL_CONTENT_MAX_BYTES", 10 * 1024 * 1024)
 )
+
+_MATCHING_MAX_TAGS = 20
+_MATCHING_MAX_TAG_LENGTH = 200
+_MATCHING_MAX_KINDS = 8
 
 
 def verify_internal_secret(
@@ -210,7 +235,8 @@ def _resolve_text_content_path(file: File) -> Path:
     FastAPI surface into this module.
     """
     drive_path = config.get_drive_path(file.drive)
-    real_path = Path(os.path.realpath(str(drive_path / file.file_path)))
+    on_disk = resolve_on_disk(drive_path, file.file_path, cached=True)
+    real_path = Path(os.path.realpath(str(on_disk)))
     real_base = Path(os.path.realpath(drive_path))
     base_str = str(real_base)
     if not (
@@ -393,6 +419,49 @@ def viewer_history(
     return {"file_ids": [row.id for row in not_viewed_q.all()]}
 
 
+@router.get(
+    "/collections/{collection_id}/file-ids",
+    dependencies=[Depends(verify_internal_secret)],
+)
+def collection_file_ids(
+    collection_id: str,
+    drive: Annotated[str, Query(...)],
+    db=Depends(get_db),
+):
+    """Return the active file ids of a collection in its order.
+
+    The caller passes a drive it has already validated; answering only for a
+    collection of that same drive keeps the drive boundary intact even if a
+    caller holds a collection id from elsewhere.
+    """
+    if not _NANOID_RE.fullmatch(collection_id):
+        raise HTTPException(status_code=400, detail="Invalid collection_id")
+
+    if drive not in {d["name"] for d in config.load_drives()}:
+        raise HTTPException(status_code=404, detail="Drive not found")
+
+    collection = (
+        db.query(Collection.id)
+        .filter(Collection.id == collection_id, Collection.drive == drive)
+        .first()
+    )
+    if not collection:
+        raise HTTPException(status_code=404, detail="Collection not found")
+
+    rows = (
+        db.query(CollectionItem.file_id)
+        .join(File, CollectionItem.file_id == File.id)
+        .filter(
+            CollectionItem.collection_id == collection_id,
+            File.drive == drive,
+            active_file_filter(),
+        )
+        .order_by(CollectionItem.position, CollectionItem.id)
+        .all()
+    )
+    return {"file_ids": [row.file_id for row in rows]}
+
+
 class FilterFileIdsRequest(BaseModel):
     file_ids: list[str]
     trust_tier: str | None = None
@@ -560,6 +629,103 @@ def files_bulk(
     not_found = [fid for fid in body.file_ids if fid not in by_id]
 
     return {"files": files, "not_found": not_found}
+
+
+class FileMatchingRequest(BaseModel):
+    # An addon that sends a field this core does not know must fail rather
+    # than be answered as if the field were absent.
+    model_config = ConfigDict(extra="forbid")
+
+    drive: str
+    tags: list[str] = Field(default_factory=list)
+    kinds: list[FileKindParam] = Field(default_factory=list)
+    # strict: the lax bool parser would read "yes" and 1 as True.
+    favorite: StrictBool | None = None
+    liked: StrictBool | None = None
+    folders: list[str] = Field(default_factory=list)
+    collections: list[str] = Field(default_factory=list)
+    sizes: list[str] = Field(default_factory=list)
+    durations: list[str] = Field(default_factory=list)
+
+    @field_validator("tags")
+    @classmethod
+    def validate_tags(cls, tags: list[str]) -> list[str]:
+        deduped: dict[str, str] = {}
+        for raw in tags:
+            tag = raw.strip()
+            if not tag:
+                continue
+            if len(tag) > _MATCHING_MAX_TAG_LENGTH:
+                raise ValueError(
+                    f"Tag exceeds {_MATCHING_MAX_TAG_LENGTH} characters"
+                )
+            deduped.setdefault(tag.lower(), tag)
+        if len(deduped) > _MATCHING_MAX_TAGS:
+            raise ValueError(f"Maximum {_MATCHING_MAX_TAGS} tags")
+        return list(deduped.values())
+
+    @field_validator("kinds")
+    @classmethod
+    def validate_kinds(cls, kinds: list[FileKindParam]) -> list[FileKind]:
+        deduped: dict[FileKind, None] = {}
+        for kind in kinds:
+            deduped.setdefault(_normalize_kind(kind), None)
+        if len(deduped) > _MATCHING_MAX_KINDS:
+            raise ValueError(f"Maximum {_MATCHING_MAX_KINDS} kinds")
+        return list(deduped)
+
+    @field_validator("folders")
+    @classmethod
+    def validate_folders(cls, folders: list[str]) -> list[str]:
+        return normalize_folders(folders)
+
+    @field_validator("collections")
+    @classmethod
+    def validate_collections(cls, collections: list[str]) -> list[str]:
+        return normalize_collections(collections)
+
+    @field_validator("sizes")
+    @classmethod
+    def validate_sizes(cls, sizes: list[str]) -> list[str]:
+        return normalize_sizes(sizes)
+
+    @field_validator("durations")
+    @classmethod
+    def validate_durations(cls, durations: list[str]) -> list[str]:
+        return normalize_durations(durations)
+
+
+@router.post("/files/matching")
+def files_matching(
+    body: FileMatchingRequest,
+    db=Depends(get_db),
+):
+    """Return the drive's active file ids matching a search filter.
+
+    No viewer access check: the addon proxy has already validated the drive
+    it forwards, and a locked drive answers here like any other.
+    """
+    if body.drive not in config.get_drive_names():
+        raise HTTPException(status_code=404, detail="Drive not found")
+
+    query = db.query(File.id).filter(
+        File.drive == body.drive,
+        active_file_filter(),
+    )
+    query = apply_file_filters(
+        query,
+        db,
+        tags=body.tags,
+        kinds=body.kinds,
+        favorite=body.favorite,
+        liked=body.liked,
+        folders=body.folders,
+        collections=body.collections,
+        sizes=body.sizes,
+        durations=body.durations,
+        drive=body.drive,
+    )
+    return {"file_ids": [row.id for row in query.order_by(File.id).all()]}
 
 
 class FileRelationCreate(BaseModel):

@@ -1,15 +1,31 @@
+import asyncio
+import re
 import unicodedata
 import logging
+from collections import defaultdict
+from decimal import Decimal
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import case, func, or_
+from sqlalchemy import Integer, case, cast, func, not_, or_
 from sqlalchemy.orm import Session
 
 import app.config as config
 from app.auth import check_drive_access, filter_drives, get_unlocked_groups
 from app.database import get_db
-from app.models import TRUST_UNVERIFIED, EmptyFolder, File, PinnedFolder, Tag, WatchHistory, active_file_filter, file_tags
+from app.models import (
+    TRUST_UNVERIFIED,
+    Collection,
+    CollectionItem,
+    EmptyFolder,
+    File,
+    PinnedFolder,
+    Tag,
+    WatchHistory,
+    active_file_filter,
+    continue_desk_filter,
+    file_tags,
+)
 from app.routers.progress import get_viewer_id
 from app.services import event_hooks
 from app.schemas import (
@@ -37,11 +53,14 @@ from app.schemas import (
     file_to_response,
 )
 from app.services import fileops
+from app.services import inbox as inbox_service
+from app.services.tagops import cleanup_orphan_tags, project_frontmatter_tags
 from app.services.file_versions import record_version
 from app.services.filetype import classify
 from app.services.markdown_relations import sync_markdown_file_relations
 from app.services.atomic_write import replace_file_contents
-from app.services.safepath import resolve_safe_path
+from app.services.diskpath import existing_or_409, name_taken, new_or_409
+from app.services.safepath import _contains_symlink, resolve_safe_path
 from app.services.scanner import scan_drive
 
 logger = logging.getLogger(__name__)
@@ -87,6 +106,169 @@ def _validate_folder_path(path: str) -> str:
     return path
 
 
+MAX_SCOPE_FOLDERS = 10
+MAX_SCOPE_FOLDER_LENGTH = 1024
+MAX_SCOPE_COLLECTIONS = 10
+MAX_SCOPE_COLLECTION_LENGTH = 100
+
+
+def normalize_folder(value: str) -> str:
+    """A drive-relative folder as the listing and the Internal API take it.
+
+    Raises ``ValueError`` for a value that names no folder, so both surfaces
+    can turn it into the status code they owe their caller.
+    """
+    folder = unicodedata.normalize("NFC", value).strip("/")
+    if (
+        not folder
+        or "\x00" in folder
+        or any(segment in ("", ".", "..") for segment in folder.split("/"))
+    ):
+        raise ValueError("Invalid folder")
+    if len(folder) > MAX_SCOPE_FOLDER_LENGTH:
+        raise ValueError(f"Folder exceeds {MAX_SCOPE_FOLDER_LENGTH} characters")
+    return folder
+
+
+def normalize_folders(values: list[str]) -> list[str]:
+    folders: list[str] = []
+    for raw in values:
+        folder = normalize_folder(raw)
+        if folder not in folders:
+            folders.append(folder)
+    if len(folders) > MAX_SCOPE_FOLDERS:
+        raise ValueError(f"Maximum {MAX_SCOPE_FOLDERS} folders")
+    return folders
+
+
+def normalize_collections(values: list[str]) -> list[str]:
+    collections: list[str] = []
+    seen: set[str] = set()
+    for raw in values:
+        name = raw.strip()
+        if not name:
+            continue
+        if len(name) > MAX_SCOPE_COLLECTION_LENGTH:
+            raise ValueError(
+                f"Collection exceeds {MAX_SCOPE_COLLECTION_LENGTH} characters"
+            )
+        key = name.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        collections.append(name)
+    if len(collections) > MAX_SCOPE_COLLECTIONS:
+        raise ValueError(f"Maximum {MAX_SCOPE_COLLECTIONS} collections")
+    return collections
+
+
+MAX_RANGE_COMPARISONS = 4
+MAX_SIZE_BYTES = 2**53 - 1
+MAX_DURATION_SECONDS = Decimal("10000000")
+
+# Wire form: one of the four comparison words, a colon, a plain decimal.
+# `=` and `gt`/`GTE` spellings are not the form: the frontend writes exactly
+# these four, and the comparison is case-sensitive everywhere.
+_WIRE_FORM = re.compile(r"^(gt|gte|lt|lte):(.*)$")
+_SIZE_NUMBER = re.compile(r"^(0|[1-9]\d*)$")
+
+
+def _plain_decimal(text: str, places: int) -> str | None:
+    if not re.fullmatch(r"(0|[1-9]\d*)(\.\d+)?", text):
+        return None
+    if "." in text:
+        fraction = text.split(".", 1)[1]
+        if len(fraction) > places or fraction.endswith("0"):
+            return None
+    return text
+
+
+def parse_size_comparison(item: str) -> str:
+    """Rewrite one listing / ``/files/matching`` size item in the wire form."""
+    match = _WIRE_FORM.match(item)
+    if match is None:
+        raise ValueError(f"Invalid size comparison: {item!r}")
+    operator, amount = match.groups()
+    if not _SIZE_NUMBER.fullmatch(amount):
+        raise ValueError(f"Invalid size comparison: {item!r}")
+    number = int(amount)
+    if number > MAX_SIZE_BYTES:
+        raise ValueError(f"Invalid size comparison: {item!r}")
+    return f"{operator}:{number}"
+
+
+def parse_duration_comparison(item: str) -> str:
+    """Rewrite one listing / ``/files/matching`` duration item in the wire form."""
+    match = _WIRE_FORM.match(item)
+    if match is None:
+        raise ValueError(f"Invalid duration comparison: {item!r}")
+    operator, amount = match.groups()
+    text = _plain_decimal(amount, 3)
+    if text is None or Decimal(text) > MAX_DURATION_SECONDS:
+        raise ValueError(f"Invalid duration comparison: {item!r}")
+    return f"{operator}:{text}"
+
+
+def _normalise_comparisons(
+    values: list[str], parse, label: str
+) -> list[str]:
+    comparisons: list[str] = []
+    for raw in values:
+        comparison = parse(raw)
+        if comparison not in comparisons:
+            comparisons.append(comparison)
+    if len(comparisons) > MAX_RANGE_COMPARISONS:
+        raise ValueError(f"Maximum {MAX_RANGE_COMPARISONS} {label}")
+    return comparisons
+
+
+def normalize_sizes(values: list[str]) -> list[str]:
+    return _normalise_comparisons(values, parse_size_comparison, "sizes")
+
+
+def normalize_durations(values: list[str]) -> list[str]:
+    return _normalise_comparisons(values, parse_duration_comparison, "durations")
+
+
+_COMPARISONS = {
+    "gt": lambda column, number: column > number,
+    "gte": lambda column, number: column >= number,
+    "lt": lambda column, number: column < number,
+    "lte": lambda column, number: column <= number,
+}
+
+
+def _split_comparison(item: str) -> tuple[str, str]:
+    operator, number = item.split(":", 1)
+    return operator, number
+
+
+def _apply_range_filters(
+    query,
+    sizes: list[str] | None,
+    durations: list[str] | None,
+):
+    for item in normalize_sizes(sizes or []):
+        operator, number = _split_comparison(item)
+        query = query.filter(_COMPARISONS[operator](File.file_size, int(number)))
+    # CAST truncates toward zero, which is the whole second the UI shows for
+    # a non-negative duration; a NULL duration stays NULL and never passes.
+    whole_seconds = cast(File.duration, Integer)
+    for item in normalize_durations(durations or []):
+        operator, number = _split_comparison(item)
+        query = query.filter(_COMPARISONS[operator](whole_seconds, float(number)))
+    return query
+
+
+def _folder_subtree(folder: str):
+    # substr, not LIKE: SQLite's LIKE folds ASCII case, and the decision is
+    # that `Photos` and `photos` are different folders.
+    return or_(
+        File.folder_path == folder,
+        func.substr(File.folder_path, 1, len(folder) + 1) == folder + "/",
+    )
+
+
 # The one vocabulary for "what kind of file is this", shared by the
 # listing's ``?type=`` and the tree's ``?type_filter=``.
 #
@@ -106,6 +288,7 @@ FileKind = Literal[
     "other",
     "text",
     "pdf",
+    "epub",
     "subtitle",
 ]
 
@@ -137,6 +320,14 @@ _KIND_MIMES: dict[str, tuple[str, ...]] = {
 _KIND_SUFFIXES: dict[str, tuple[str, ...]] = {
     "text": (".md", ".markdown", ".txt"),
     "pdf": (".pdf",),
+}
+
+
+# Kinds only the kind predicate accepts. `epub` is here, not in the two
+# tables above, because the folder card's roll-up reads those and must keep
+# counting an EPUB as `document`.
+_FILTER_ONLY_KINDS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
+    "epub": (("application/epub+zip",), (".epub",)),
 }
 
 
@@ -228,11 +419,86 @@ def _apply_kinds_filter(query, kinds: list[FileKind]):
     return query.filter(or_(*(_kind_predicate(kind) for kind in kinds)))
 
 
+def apply_file_filters(
+    query,
+    db: Session,
+    *,
+    tags: list[str] | None = None,
+    kinds: list[FileKindParam] | None = None,
+    favorite: bool | None = None,
+    liked: bool | None = None,
+    folders: list[str] | None = None,
+    collections: list[str] | None = None,
+    sizes: list[str] | None = None,
+    durations: list[str] | None = None,
+    drive: str | None = None,
+):
+    """Shared by the listing and the Internal API's filter resolution.
+
+    One implementation, so the same conditions cannot answer two different
+    id sets. ``drive`` is required to resolve ``collections``: a collection
+    belongs to one drive, and only that drive's collections may match.
+    """
+    if favorite is not None:
+        query = query.filter(File.is_favorite == favorite)
+    if liked is not None:
+        query = query.filter(
+            File.liked_at.is_not(None) if liked else File.liked_at.is_(None)
+        )
+    chosen = [name for name in tags or [] if name]
+    if chosen:
+        # Folded in Python: SQLite's lower() leaves non-ASCII capitals alone.
+        # Not narrowed to this drive's rows: a file moved before tags followed
+        # their drive links to its old drive's row, and File.drive on the
+        # caller's query already bounds what is listed.
+        by_fold: dict[str, list[int]] = defaultdict(list)
+        for tag_id, tag_name in db.query(Tag.id, Tag.name):
+            by_fold[tag_name.lower()].append(tag_id)
+        for name in chosen:
+            query = query.filter(
+                File.tags.any(Tag.id.in_(by_fold[name.lower()]))
+            )
+    chosen_folders = normalize_folders(folders or [])
+    if chosen_folders:
+        query = query.filter(
+            or_(*(_folder_subtree(folder) for folder in chosen_folders))
+        )
+    chosen_collections = normalize_collections(collections or [])
+    if chosen_collections:
+        if drive is None:
+            raise ValueError("drive is required to resolve collections")
+        # Folded in Python for the same reason as tags.
+        wanted = {name.lower() for name in chosen_collections}
+        collection_ids = [
+            collection_id
+            for collection_id, name in db.query(Collection.id, Collection.name).filter(
+                Collection.drive == drive
+            )
+            if name.lower() in wanted
+        ]
+        query = query.filter(
+            File.id.in_(
+                db.query(CollectionItem.file_id).filter(
+                    CollectionItem.collection_id.in_(collection_ids)
+                )
+            )
+        )
+    query = _apply_range_filters(query, sizes, durations)
+    return _apply_kinds_filter(
+        query, [_normalize_kind(kind) for kind in kinds or []]
+    )
+
+
 def _kind_predicate(kind: FileKind):
-    mimes = _KIND_MIMES.get(kind)
-    if mimes is None:
-        # The six flat kinds are `file_type` itself.
-        return File.file_type == kind
+    filter_only = _FILTER_ONLY_KINDS.get(kind)
+    if filter_only is not None:
+        mimes, suffixes = filter_only
+    else:
+        mimes = _KIND_MIMES.get(kind)
+        if mimes is None:
+            # The six flat kinds are `file_type` itself.
+            return File.file_type == kind
+        suffixes = _KIND_SUFFIXES[kind]
 
     # A nested kind: recognised by mime, or by extension for rows whose
     # mime was never recorded.
@@ -244,7 +510,6 @@ def _kind_predicate(kind: FileKind):
     # predicate would undo the extension fallback for exactly the rows
     # it exists for: one whose mime was never recorded may well have
     # been given the wrong ``file_type`` by the same writer.
-    suffixes = _KIND_SUFFIXES[kind]
     return or_(
         File.mime_type.in_(mimes),
         *(func.lower(File.filename).like(f"%{suffix}") for suffix in suffixes),
@@ -651,34 +916,39 @@ def list_folder_tree(
     return folder_nodes + file_nodes
 
 
-@router.get("/{drive_name}/files", response_model=PaginatedResponse)
-def list_drive_files(
+def filtered_drive_files(
+    db: Session,
     drive_name: str,
-    db: Annotated[Session, Depends(get_db)],
-    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    *,
     path: str | None = None,
     recursive: bool = False,
-    search: str | None = Query(None, max_length=200),
+    search: str | None = None,
     favorite: bool | None = None,
     liked: bool | None = None,
-    tag: list[str] | None = Query(None),
-    type: list[FileKindParam] | None = Query(None),
-    trust: str | None = Query(None, pattern="^(verified|unverified|unreviewed)$"),
-    sort: str = Query(
-        "created_at", pattern="^(created_at|title|file_size|liked_at|updated_at|random)$"
-    ),
-    order: str = Query("desc", pattern="^(asc|desc)$"),
-    page: int = Query(1, ge=1),
-    limit: int = Query(30, ge=1, le=500),
+    tag: list[str] | None = None,
+    type: list[FileKindParam] | None = None,
+    folder: list[str] | None = None,
+    collection: list[str] | None = None,
+    size: list[str] | None = None,
+    duration: list[str] | None = None,
+    trust: str | None = None,
 ):
-    """List a drive's active files.
+    """The active files of one drive under the listing's filters.
 
-    `path` is an exact `folder_path` match by default — direct children only.
-    `recursive=True` widens it to the folder's whole subtree.
+    Shared by the listing and the shelves endpoint so both answer the same
+    set for the same parameters. Returns the query and the NFC-normalised
+    search text (``None`` without a search). A filter that does not
+    normalise raises 400.
     """
-    _validate_drive(drive_name, unlocked_groups)
     if path is not None and path:
         path = _validate_folder_path(path)
+    try:
+        folder = normalize_folders(folder or [])
+        collection = normalize_collections(collection or [])
+        size = normalize_sizes(size or [])
+        duration = normalize_durations(duration or [])
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     query = db.query(File).filter(File.drive == drive_name, active_file_filter())
 
@@ -705,16 +975,19 @@ def list_drive_files(
             File.title.ilike(pattern, escape="\\"),
             File.folder_path.ilike(pattern, escape="\\"),
         ))
-    if favorite is not None:
-        query = query.filter(File.is_favorite == favorite)
-    if liked is not None:
-        query = query.filter(
-            File.liked_at.is_not(None) if liked else File.liked_at.is_(None)
-        )
-    for name in tag or []:
-        if name:
-            query = query.filter(File.tags.any(func.lower(Tag.name) == name.lower()))
-    query = _apply_kinds_filter(query, [_normalize_kind(kind) for kind in type or []])
+    query = apply_file_filters(
+        query,
+        db,
+        tags=tag,
+        kinds=type,
+        favorite=favorite,
+        liked=liked,
+        folders=folder,
+        collections=collection,
+        sizes=size,
+        durations=duration,
+        drive=drive_name,
+    )
     if trust == "unreviewed":
         # Not a tier: the review queue is "nobody has ruled on this", which
         # spans both tiers. Bulk-migrated rows are verified but unjudged, and
@@ -722,6 +995,55 @@ def list_drive_files(
         query = query.filter(File.trust_reviewed_at.is_(None))
     elif trust:
         query = query.filter(File.trust_tier == trust)
+    return query, normalized_search
+
+
+@router.get("/{drive_name}/files", response_model=PaginatedResponse)
+def list_drive_files(
+    drive_name: str,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    path: str | None = None,
+    recursive: bool = False,
+    search: str | None = Query(None, max_length=200),
+    favorite: bool | None = None,
+    liked: bool | None = None,
+    tag: list[str] | None = Query(None),
+    type: list[FileKindParam] | None = Query(None),
+    folder: list[str] | None = Query(None),
+    collection: list[str] | None = Query(None),
+    size: list[str] | None = Query(None),
+    duration: list[str] | None = Query(None),
+    trust: str | None = Query(None, pattern="^(verified|unverified|unreviewed)$"),
+    sort: str = Query(
+        "created_at", pattern="^(created_at|title|file_size|liked_at|updated_at|random)$"
+    ),
+    order: str = Query("desc", pattern="^(asc|desc)$"),
+    page: int = Query(1, ge=1),
+    limit: int = Query(30, ge=1, le=500),
+):
+    """List a drive's active files.
+
+    `path` is an exact `folder_path` match by default — direct children only.
+    `recursive=True` widens it to the folder's whole subtree.
+    """
+    _validate_drive(drive_name, unlocked_groups)
+    query, normalized_search = filtered_drive_files(
+        db,
+        drive_name,
+        path=path,
+        recursive=recursive,
+        search=search,
+        favorite=favorite,
+        liked=liked,
+        tag=tag,
+        type=type,
+        folder=folder,
+        collection=collection,
+        size=size,
+        duration=duration,
+        trust=trust,
+    )
 
     total = query.count()
 
@@ -863,15 +1185,46 @@ async def create_folder(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     _validate_drive(drive_name, unlocked_groups)
-    result = fileops.create_folder(drive_name, body.path, body.name, db)
+    result = await asyncio.to_thread(fileops.create_folder, drive_name, body.path, body.name, db)
     await event_hooks.emit(
         "folders.created", {"drive": drive_name, "path": result["path"]}
     )
     return FolderResponse(**result)
 
 
+def _checked_inside(target, drive_root):
+    """Re-run ``resolve_safe_path``'s symlink and containment rejections on the on-disk spelling."""
+    import os as _os
+    from pathlib import Path as _Path
+
+    if _contains_symlink(target, drive_root):
+        raise HTTPException(status_code=400, detail="Symbolic links in path not allowed")
+    real = _Path(_os.path.realpath(target))
+    try:
+        real.relative_to(drive_root)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Path escapes drive root")
+    return real
+
+
+def _on_disk_new_target(resolved, drive_root):
+    rel = resolved.relative_to(drive_root).as_posix()
+    return _checked_inside(new_or_409(drive_root, rel), drive_root)
+
+
+def _on_disk_existing_target(rel, drive_root):
+    return _checked_inside(existing_or_409(drive_root, rel), drive_root)
+
+
 _TEXT_CREATE_MAX_BYTES = 1 * 1024 * 1024  # 1 MB
 _SUFFIX_MAX_ATTEMPTS = 99
+
+
+def _project_created_markdown_tags(db: Session, file: File, content: str) -> None:
+    if not fileops._is_markdown_file(file):
+        return
+    project_frontmatter_tags(db, file, content)
+    cleanup_orphan_tags(db, file.drive)
 
 
 def _sync_created_markdown_relations(db: Session, file: File, content: str) -> None:
@@ -937,6 +1290,7 @@ async def create_text_file(
     normalized_rel = unicodedata.normalize(
         "NFC", str(resolved.relative_to(drive_root))
     )
+    resolved = await asyncio.to_thread(_on_disk_new_target, resolved, drive_root)
 
     if body.conflict_mode == "error":
         path_row = (
@@ -944,7 +1298,7 @@ async def create_text_file(
             .filter(File.drive == drive_name, File.file_path == normalized_rel)
             .first()
         )
-        if path_row is not None or resolved.exists():
+        if path_row is not None or await asyncio.to_thread(name_taken, resolved):
             raise HTTPException(status_code=409, detail="Path already exists")
 
     # Missing-state precedence: if a row exists with missing_since set,
@@ -966,6 +1320,7 @@ async def create_text_file(
         # Use os.replace via a same-dir tmp for atomic content swap.
         import tempfile as _tempfile
 
+        resolved = await asyncio.to_thread(_on_disk_existing_target, normalized_rel, drive_root)
         resolved.parent.mkdir(parents=True, exist_ok=True)
         filename = resolved.name
         file_type, mime_type = classify(filename)
@@ -992,9 +1347,20 @@ async def create_text_file(
         existing_missing.filename = nfc_name
         existing_missing.folder_path = folder_path
         _record_created_file_version(db, existing_missing, content_bytes)
+        _project_created_markdown_tags(db, existing_missing, body.content)
+        if body.arrival is not None:
+            inbox_service.record_arrival(
+                db,
+                drive_name,
+                existing_missing.id,
+                body.arrival.source,
+                body.arrival.i18n_key,
+            )
         db.commit()
         db.refresh(existing_missing)
         _sync_created_markdown_relations(db, existing_missing, body.content)
+        if body.arrival is not None:
+            await inbox_service.notify(drive_name)
         # Recovered-from-missing reuses the existing row; emit
         # files.recovered (mirroring scanner / upload paths) rather than
         # files.created so subscribers can distinguish if needed. Both
@@ -1022,11 +1388,20 @@ async def create_text_file(
         if attempt > 0:
             candidate_rel = f"{base} ({attempt}){ext}"
             try:
-                candidate_resolved = resolve_safe_path(drive_name, candidate_rel)
+                candidate_resolved = await asyncio.to_thread(
+                    _on_disk_new_target,
+                    resolve_safe_path(drive_name, candidate_rel),
+                    drive_root,
+                )
             except HTTPException:
                 continue
 
         if _row_taken(candidate_rel):
+            if body.conflict_mode == "error":
+                raise HTTPException(status_code=409, detail="Path already exists")
+            continue
+
+        if await asyncio.to_thread(name_taken, candidate_resolved):
             if body.conflict_mode == "error":
                 raise HTTPException(status_code=409, detail="Path already exists")
             continue
@@ -1077,6 +1452,15 @@ async def create_text_file(
         try:
             db.flush()
             _record_created_file_version(db, new_file, content_bytes)
+            _project_created_markdown_tags(db, new_file, body.content)
+            if body.arrival is not None:
+                inbox_service.record_arrival(
+                    db,
+                    drive_name,
+                    new_file.id,
+                    body.arrival.source,
+                    body.arrival.i18n_key,
+                )
             db.commit()
         except IntegrityError:
             db.rollback()
@@ -1096,6 +1480,9 @@ async def create_text_file(
 
     _sync_created_markdown_relations(db, new_file, body.content)
 
+    if body.arrival is not None:
+        await inbox_service.notify(drive_name)
+
     await event_hooks.emit("files.created", {"file_ids": [new_file.id]})
 
     from fastapi.responses import JSONResponse
@@ -1113,7 +1500,7 @@ async def rename_folder(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     _validate_drive(drive_name, unlocked_groups)
-    result = fileops.rename_folder(drive_name, body.path, body.new_name, db)
+    result = await asyncio.to_thread(fileops.rename_folder, drive_name, body.path, body.new_name, db)
     file_ids = result.get("file_ids") or []
     if file_ids:
         await event_hooks.emit("files.moved", {"file_ids": file_ids})
@@ -1133,7 +1520,7 @@ async def move_folder(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     _validate_drive(drive_name, unlocked_groups)
-    result = fileops.move_folder(drive_name, body.path, body.target_path, db)
+    result = await asyncio.to_thread(fileops.move_folder, drive_name, body.path, body.target_path, db)
     file_ids = result.get("file_ids") or []
     if file_ids:
         await event_hooks.emit("files.moved", {"file_ids": file_ids})
@@ -1152,8 +1539,10 @@ async def delete_folder(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     _validate_drive(drive_name, unlocked_groups)
-    fileops.delete_folder(drive_name, path, db)
+    closed = await asyncio.to_thread(fileops.delete_folder, drive_name, path, db)
     await event_hooks.emit("folders.deleted", {"drive": drive_name, "path": path})
+    if closed:
+        await inbox_service.notify(drive_name)
     return {"status": "deleted"}
 
 
@@ -1240,7 +1629,7 @@ def get_watch_history(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
     viewer_id: Annotated[str | None, Depends(get_viewer_id)],
     limit: int = Query(20, ge=1, le=50),
-    filter: str = Query("unfinished", pattern=r"^(unfinished|all)$"),
+    filter: str = Query("unfinished", pattern=r"^(unfinished|all|continue|not_continue)$"),
     type: FileKindParam | None = None,
 ):
     _validate_drive(drive_name, unlocked_groups)
@@ -1258,7 +1647,11 @@ def get_watch_history(
         )
     )
 
-    if filter == "unfinished":
+    if filter == "continue":
+        query = query.filter(continue_desk_filter())
+    elif filter == "not_continue":
+        query = query.filter(not_(continue_desk_filter()))
+    elif filter == "unfinished":
         query = query.filter(
             WatchHistory.playback_position < WatchHistory.duration * 0.9,
         )
@@ -1403,7 +1796,7 @@ async def empty_trash(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     _validate_drive(drive_name, unlocked_groups)
-    purged_ids = fileops.purge_all_trash(db, drive_name)
+    purged_ids = await asyncio.to_thread(fileops.purge_all_trash, db, drive_name)
     if purged_ids:
         # The rows are gone, so the drive cannot be looked up afterwards.
         await event_hooks.emit(
@@ -1455,7 +1848,7 @@ async def purge_all_missing_endpoint(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     _validate_drive(drive_name, unlocked_groups)
-    purged_ids = fileops.purge_all_missing(db, drive_name)
+    purged_ids = await asyncio.to_thread(fileops.purge_all_missing, db, drive_name)
     if purged_ids:
         await event_hooks.emit(
             "files.purged", {"file_ids": purged_ids}, drives=[drive_name]

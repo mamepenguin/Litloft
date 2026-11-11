@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "I read addons/intelligence/tests/test_llm_caller_inventory.py in full (126 lines). It has no reference to generate_stream, generate_stream_with_image or vision. Its five tests cover only client construction, resolve_without_ceiling, reads of settings.llm, imports of the client types, and imports of evals or resolver internals. generate_stream_with_image exists only in app/llm.py and app/routers/rag.py, so no test checks the new streaming-with-image caller. The file is a declared touch point and was not changed. The claim that it should register the new call is a judgement about the spec. The factual part holds. The impact is a missing guard test, not a runtime defect."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "AnswerMarkdown.tsx:185-209: withoutImagesAndRefusedLinks detects fences only with /^ {0,3}(`{3,}|~{3,})/ (line 191) and does not treat 4-space indented code as code. A fence inside a blockquote ('> ```') or a list item indented 4 or more spaces is also missed. For those lines stripInlineMarkup runs (line 206), so an image inside them becomes its alt text and a refused link becomes its label. The effect is limited to code shown with altered text. The change errs toward not fetching images, so it does not open a security hole. It does depart from I10's rule that code is rendered literally."
+    }
+  ],
+  "specification_compliance": [
+    "I10: images are never fetched and refused links lose their href, but source inside indented or blockquote code is altered (F2).",
+    "Touch point test_llm_caller_inventory.py was not updated (F1)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Code blocks that are indented or sit inside a blockquote or list may show rewritten Markdown links and images."
+  ],
+  "test_coverage": [
+    "The inventory test has no assertion on the new image-streaming caller.",
+    "I did not inspect the frontend tests for AnswerMarkdown."
+  ],
+  "not_verified": [
+    "Backend invariants I1-I9, I11 and I12 were not examined.",
+    "No tests were run; I only had read-only tools.",
+    "Frontend rendering was checked by reading the code, not by rendering it in markdown-it."
+  ],
+  "confidence": 85
+}

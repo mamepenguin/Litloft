@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R3-1",
+      "origin": "reviewer",
+      "claim": "In plain-text mode a paste whose clipboard carries an image item next to its text inserts nothing: MarkdownEditor's paste handler still claims the event and calls preventDefault whenever any image/* item is present, and Editor passes onPasteImages undefined for plain text, so neither the image nor the clipboard's text/plain reaches the buffer.",
+      "impact": "Copying cells from a spreadsheet or a selection from some desktop apps puts both text/plain and image/png on the clipboard on macOS. Pasting that into a .txt editor silently does nothing, so the user gets no text and no message. For a .md the same paste uploads an image, which is existing behaviour.",
+      "evidence": "addons/knowledge/frontend/MarkdownEditor.tsx:392-411: files = clipboard items with type image/*; when files.length > 0 the handler calls event.preventDefault() and onPasteImages?.(…), then returns true. Editor.tsx (diff): onPasteImages={plainText ? undefined : handlePasteImages}. PlainTextEditor.test.tsx 'pasting or dropping an image inserts nothing' asserts exactly this outcome for an image-only clipboard and has no case with text plus image.",
+      "repro": "not_reproduced. In a browser, copy a cell range from Excel or Numbers on macOS, open a .txt in Edit and press Cmd+V. Expected from the code: the buffer is unchanged.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "I4 forbids inserting anything other than typed or pasted text and forbids uploads. Inserting nothing does not break it, but a normal text paste is silently dropped.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "In plain-text mode, have the paste handler return false when no onPasteImages is given, so CodeMirror inserts the clipboard's text/plain. Add a test with a clipboard that has both text/plain and image/png."
+    }
+  ],
+  "specification_compliance": [
+    "The commit under review, a13796d3f, only records review prose (docs/process). It changes no code. The judgement below covers the branch diff that was supplied.",
+    "I1: writeBody re-encodes every write path through encodePlainText(plainFormRef): autosave/explicit (performSave), unmount, restore's draft save, restore and Overwrite (performSave after loadBody). Overwrite and Reload refresh plainFormRef from the current file.",
+    "I2: performSave, keepCurrentVersion, handleRestoreVersion and the unmount cleanup check plainBlockRef. Overwrite sets held before any PUT when loadBody reports blocked. Reload sets a non-held block through applyLoaded.",
+    "I3: EditableTitle with fixedSuffix always sends name + suffix, and the empty or unchanged value is rejected by the existing commit() guard. ShellLayout passes file.filename as title (ShellLayout.tsx:403), so title.slice(-4) is the real suffix and keeps its case. The plain-text editor skips markdownContentRegistry, so tag chips stay on File.tags.",
+    "I4: the plain keymap replaces insertNewlineAndIndent with insertNewline and drops the indent commands. Tab maps to insertTab. The drop handler claims every file drop whatever the callback (MarkdownEditor.tsx:372-391), so CodeMirror's built-in file-text drop never runs.",
+    "I5: MarkdownDocumentLayout hides Split for plainText and maps any 'split' request to 'preview'. cycleViewMode in Editor alternates preview and edit.",
+    "I8: usePlainTextDocument returns decided=false until the slot list for this drive and the policy have loaded, and FileDetailContainer draws the skeleton meanwhile. The settled state keyed by file.id keeps a mounted document across catalogue reloads. usePolicy is synchronous over a shared cache, so the container and FileDetailFullScreen instances read the same policy.",
+    "I9: core passes plainTextDocument only through slot props. KnowledgeEditSection also requires the inline flag for text/plain.",
+    "I10: the plain-text mode skips wiki resolutions, resync-tags and the registry. VersionHistoryPanel is unmounted while plainBlock is set, so VersionHistoryMenuItem (which renders only while a panel is registered) disappears too. rawPreview shows body.content verbatim."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "In edit mode the title form uses gap-2, so the fixed suffix sits 0.5rem from the input. Only the non-editing button had its padding removed, and the e2e checks only the non-editing state.",
+    "Typing 'foo.txt' into the stem field sends 'foo.txt.txt'. This meets I3 but may surprise the user.",
+    "FileDetailFullScreen ignores `decided`, so while a .txt is undecided the collection host draws its own row. Once the decision lands, the content's row replaces it. This is a jump, not two rows."
+  ],
+  "regression_risks": [
+    "EditableTitle now derives its title by slicing when fixedSuffix is set. A caller that passes a fixedSuffix the title does not end with would show a wrong stem; today only MarkdownDocumentLayout passes it, with title.slice(-4).",
+    "The two e2e tightening rounds (gap < 8, then < 1 px) pin a sub-pixel layout. They may be flaky across font rendering."
+  ],
+  "test_coverage": [
+    "The title row is covered by jsdom (stem, suffix, case-preserving rename) and by Playwright at 1280 and 390 px (gap and vertical alignment).",
+    "No test pastes a clipboard that has both text and an image in plain-text mode (R3-1).",
+    "The edit-mode suffix placement is not covered by e2e."
+  ],
+  "not_verified": [
+    "I did not run any test or Playwright spec.",
+    "I did not check CodeMirror's Escape-then-Tab focus behaviour in a real browser.",
+    "I did not check which clipboard types Excel or Numbers expose in Chrome or Safari.",
+    "I did not check that FileDetailSkeleton draws no row on the collection surface while FileDetailFullScreen also draws one."
+  ],
+  "confidence": 78,
+  "trajectory": "The rounds since r2 are c39cdf459 (knowledge pointer only), 8fde838e2 (the core feature), 208318d01 (e2e), 7afd125ad (docs), a2d6895f0, 70746a2b3, 6a82e5231 and a13796d3f (docs only). a2d6895f0 replaced the earlier stuckFileId state with a single `settled` state and added one new wait condition (policy isLoading). It swapped one state for another, and no later round touches it again. 70746a2b3 and 6a82e5231 both patch the same suffix branch of the EditableTitle button className, first flex-initial and then pl-1 instead of px-1, and each round tightens the same e2e gap check (< 8, then < 1). That is two successive cosmetic patches to one layout prediction, a small sign of fixing by measurement rather than by design, limited to styling. No round removed a branch or state except the stuckFileId replacement."
+}

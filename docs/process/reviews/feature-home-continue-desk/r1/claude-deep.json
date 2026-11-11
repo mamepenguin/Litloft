@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "SCOPE-1",
+      "origin": "reviewer",
+      "claim": "The diff edits docs/user-guide/viewers-and-players.md, which is not among the Docs listed in the touch points.",
+      "impact": "None for a user: the edit only renames 'Continue watching' to 'Continue' in the Watch progress section, and the prose ('reaching the end ... drops out of Continue') matches the code, because a desk row needs position*10 < duration*9. The touch-point list is incomplete for docs.",
+      "evidence": "docs/user-guide/viewers-and-players.md:189 (diff hunk @@ -186,7 +186,7 @@). The touch points list docs/reference/api.md, overview.md, file-browsing.md, comments-history.md, playlists-favorites.md, profile-preferences.md, video.md, reading.md, media-import.md and ADDON-DEVELOPMENT.md, but not viewers-and-players.md.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An unplanned reach that breaks no invariant. The text is consistent with continue_desk_filter.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add docs/user-guide/viewers-and-players.md to the spec's Docs touch points."
+    },
+    {
+      "id": "SCOPE-2",
+      "origin": "reviewer",
+      "claim": "Sidebar and page-jump tests outside the touch-point list were changed, while the parity tests that the list names were not changed.",
+      "impact": "No user-facing effect. The touch points name app/drive/[name]/__tests__/page.test.tsx and components/sidebar/__tests__/pageJumpParity.test.tsx as gaining the view, but the diff instead edits fixedRows.ts, SidebarActiveRow.test.tsx (12 -> 13), SidebarAddonNav.test.tsx, SidebarDriveSwitcher.test.tsx and lib/__tests__/pageJump.test.ts. A reader who checks the list against the diff is misled about which tests guard sidebar/page-jump parity.",
+      "evidence": "frontend/src/components/sidebar/__tests__/fixedRows.ts:14 adds {label:'Continue', view:'continue'}; frontend/src/components/__tests__/SidebarActiveRow.test.tsx:132 changes toBe(12) to toBe(13); SidebarAddonNav.test.tsx:121,177 and SidebarDriveSwitcher.test.tsx:199 insert 'Continue'; frontend/src/lib/__tests__/pageJump.test.ts:68,93 add 'continue'. page.test.tsx and pageJumpParity.test.tsx do not appear in the diff.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The assertions are tightened to the new row, not loosened. No invariant is broken. Only the plan's list differs from the reach.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "List these five files in the touch points, or replace page.test.tsx and pageJumpParity.test.tsx with them."
+    },
+    {
+      "id": "SCOPE-3",
+      "origin": "reviewer",
+      "claim": "frontend/src/components/__tests__/EmptyState.test.tsx is changed but is not in the touch-point list.",
+      "impact": "None. The variant count goes from 12 to 13 and an icon mapping is added for no-continue, which follows from the listed EmptyState.tsx change.",
+      "evidence": "frontend/src/components/__tests__/EmptyState.test.tsx:23 toHaveLength(12) -> 13; :69 adds 'no-continue': 'lucide-play'.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An unplanned but consequential test edit that breaks no invariant.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add the file to the frontend tests in the touch points."
+    },
+    {
+      "id": "SCOPE-4",
+      "origin": "reviewer",
+      "claim": "Six new frontend test files are added that the touch points do not name, because the list covers only existing frontend tests whose assertions change.",
+      "impact": "None for a user. The scope list understates the frontend test surface. Backend new tests are covered by the directory entry backend/tests/.",
+      "evidence": "New files in the diff: frontend/src/__tests__/homeContinueDesk.test.tsx, frontend/src/components/__tests__/FolderBrowser.continueView.test.tsx, frontend/src/components/folder/__tests__/useFolderFiles.continue.test.tsx, frontend/src/components/sidebar/__tests__/continueRow.test.tsx, frontend/src/components/readingapp/__tests__/ReadingApp.continueDesk.test.tsx, frontend/src/components/videoapp/__tests__/VideoApp.continueDesk.test.tsx.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "These are the acceptance tests for I9 and I10. Adding them breaks nothing. Only the declared scope omits them.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add a line such as 'frontend acceptance tests for I9/I10 (new files)' to the touch points."
+    }
+  ],
+  "specification_compliance": [
+    "Backend reach matches the touch points: models.py (dismissed_at, continue_desk_filter), database.py (guarded ALTER), drives.py (filter=continue), shelves.py (_key_filter continue), progress.py (dismiss).",
+    "Touch points listed but not edited: frontend/src/components/videoapp/VideoShelfPage.tsx, frontend/src/components/readingapp/labels.ts and a shelves key type in api.ts. VideoShelfPage already titles through videoapp/labels.ts shelfTitle, which the diff does change. readingapp/labels.ts:63 already maps by=watch to t(`shelves.${key}`), so key=continue resolves to shelves.continue without an edit. ShelfWatchState is deliberately left unchanged, as the spec says.",
+    "VideoApp.navigation.test.tsx, VideoApp.states.test.tsx, VideoApp.test.tsx and ReadingApp.discover.test.tsx fall under 'the video and reading app Discover tests that assert in_progress'.",
+    "Implicit touch points (docs/specs/home-continue-desk.md, docs/specs/INDEX.md, docs/process/reviews/...) are not reported."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "decisions.md records that the app shelf See all page for key=continue lists the desk by created_at desc rather than last played. I10 and I4 do not fix the shelf page's order, so this is not an invariant break, but it reads differently from Discover's order."
+  ],
+  "regression_risks": [
+    "Persistence: dismissed_at is written as an aware datetime.now(UTC). SQLAlchemy's SQLite DateTime drops tzinfo and stores the same string format as last_played_at, so the string comparison dismissed_at < last_played_at stays consistent. A different backend (not SQLite) would need re-checking.",
+    "Concurrency: dismiss is a single-row read-then-write. A POST /progress that lands in the same instant could order either way. This is outside the single-user threat model.",
+    "Submodules/addons: media_import (subscription/db.py:461) and intelligence (pickup/profile.py) read watch_history with explicit column lists, so the added column does not affect them."
+  ],
+  "test_coverage": [
+    "Migration: three tests cover an old DB gaining a NULL column with no rows lost, a second startup as a no-op, and a fresh DB (test_database_migration_dismissed_at.py).",
+    "The desk predicate's boundaries, the shelf/filter parity, dismiss scope and the 404/204 matrix are covered in test_continue_desk.py and test_api_shelves_continue.py.",
+    "Sidebar/page-jump parity is covered by the edited fixedRows-based tests and pageJump.test.ts rather than by the parity tests named in the touch points."
+  ],
+  "not_verified": [
+    "Did not run any backend or frontend test.",
+    "Did not read the current content of app/drive/[name]/__tests__/page.test.tsx or components/sidebar/__tests__/pageJumpParity.test.tsx to see whether they enumerate views dynamically and so need no edit.",
+    "Did not inspect the actual contents of commit c84d58635 alone. The review used the full branch diff supplied.",
+    "Did not check the iOS app or any non-SQLite database."
+  ],
+  "confidence": 82,
+  "perspectives": [
+    {
+      "name": "scope",
+      "notes": "Compared every file in the diff with the touch points. Unplanned reaches: viewers-and-players.md, EmptyState.test.tsx, five sidebar/page-jump tests, and six new frontend test files."
+    },
+    {
+      "name": "submodules",
+      "notes": "The addons (intelligence, media_import) read watch_history with explicit columns and are unaffected. The MCP server keeps unfinished/all."
+    },
+    {
+      "name": "persistence",
+      "notes": "The ALTER is guarded by an inspector column check and adds a nullable column with no default, so existing rows get NULL. Timestamps are stored naive in SQLite."
+    },
+    {
+      "name": "concurrency",
+      "notes": "The dismiss is a single-row update in its own commit, with no cross-row write. Races are outside the threat model."
+    }
+  ]
+}

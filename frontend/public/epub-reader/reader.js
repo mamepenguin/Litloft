@@ -12,6 +12,7 @@ import {
   readColors,
   readTypography,
   keyAction,
+  isFindShortcut,
   restoreAnchor,
   swipeAction,
   typographyCss,
@@ -59,6 +60,7 @@ const state = {
   colors: null,
   typography: readTypography(null),
   pendingTypography: null,
+  interceptFind: false,
   // The place the reader chose (a move, the restore, a seek), kept apart from
   // the places a reflow lands on, which start a little earlier each time.
   readingPlace: null,
@@ -172,6 +174,11 @@ const MOVES = {
 
 const onKeyDown = (e) => {
   if (state.fullscreen) post("activity", { kind: "key" });
+  if (state.interceptFind && isFindShortcut(e, navigator.platform)) {
+    e.preventDefault();
+    post("find-shortcut");
+    return;
+  }
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const action = keyAction(e.key, { shift: e.shiftKey, fullscreen: state.fullscreen });
   if (!action) return;
@@ -375,6 +382,7 @@ window.addEventListener("message", (e) => {
     case "open":
       if (state.opened || !isValidOpen(d)) return;
       state.opened = true;
+      state.interceptFind = d.interceptFind === true;
       if (!cspIsActive()) {
         post("error", { code: "isolation" });
         return;
@@ -388,6 +396,14 @@ window.addEventListener("message", (e) => {
       if (!state.ready || !isValidTocIndex(d.index, state.tocHrefs)) return;
       const href = state.tocHrefs[d.index];
       turn((v) => v.goTo(href));
+      return;
+    }
+    case "goToSection": {
+      const sections = state.view?.book?.sections;
+      if (!state.ready || !sections) return;
+      const index = d.section - 1;
+      if (!Number.isInteger(d.section) || index < 0 || index >= sections.length) return;
+      state.view.renderer.goTo({ index, anchor: 0 }).catch(() => {});
       return;
     }
     case "seek":
@@ -407,6 +423,9 @@ window.addEventListener("message", (e) => {
       return;
     case "mode":
       if (typeof d.fullscreen === "boolean") state.fullscreen = d.fullscreen;
+      return;
+    case "set-find-intercept":
+      if (typeof d.interceptFind === "boolean") state.interceptFind = d.interceptFind;
       return;
   }
 });

@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "addons/intelligence/app/indexer.py:136-162 `_drifted_file_ids` computes path_drift as `snap[file_path] != expected_path and os.path.exists(expected_path)`, applied to every row, and reconcile calls it via `asyncio.to_thread` at line 506. Both are behavior beyond the NFD case. The existence guard follows I14 (an unreadable drive must not change the stored path), so this is an intended consequence, but it is unlisted in the touch points."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "test_listing_call_inventory.py:22 adds an INVENTORY entry for app/diskpath.py os.scandir. test_reconcile_drift.py monkeypatches app.indexer.resolve_file_path (line 130). I did not diff the old and new versions of the drift test, so I cannot say how the assertion itself changed."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "addons/cloud-sync/backend/service.py:184-186 adds the `_on_disk` helper. Line 265 computes `source` with `await asyncio.to_thread(self._on_disk, drive_path, path)` before the `_source_usable` call at 268. Line 630 also uses `_on_disk` in `_folder_inside_drive`. The sync run path is changed beyond the two listed functions."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F4",
+      "status": "confirmed",
+      "note": "media_import imports AmbiguousPath and name_taken from app.diskpath (manager.py:34, service.py:25). Both `_allocate_loft_path` (manager.py:148, 158) and loft creation (service.py:696, 710) handle AmbiguousPath and use name_taken. The shared API and the ambiguity refusal are present. I did not read the handlers' bodies, so I did not confirm they raise ValueError."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F5",
+      "status": "confirmed",
+      "note": "config.py:1286-1296 `resolve_stored_path` calls `resolve_on_disk('/', path.lstrip('/'))`, so it lists ancestors from the filesystem root. document_text.py:120-121 calls it before `validate_file_path`. routers/files.py:1020-1023 calls it before validation too. This is factually accurate. Under the single-user, no-adversary threat model it is only a design observation, with no wrong result in normal use."
+    }
+  ],
+  "specification_compliance": [
+    "I14: the drift guard in _drifted_file_ids (indexer.py:151) matches the requirement that an unreadable drive does not change the stored path.",
+    "I15: media_import and cloud-sync both route through resolve_on_disk (service.py:18 and 265 in cloud-sync, manager.py:34 in media_import).",
+    "I10: not checked in the addon copies."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Reconcile drift now requires that the target path exists on disk, for all files and not only NFD ones.",
+    "cloud-sync runs path resolution in a thread inside the sync run.",
+    "media_import refuses loft creation when the folder is ambiguous."
+  ],
+  "regression_risks": [
+    "A file that is genuinely moved to a path that does not yet exist will no longer be flagged as drifted until the path exists.",
+    "The intelligence resolver lists directories from '/' before validation, which adds I/O on rejected paths."
+  ],
+  "test_coverage": [
+    "I read no test bodies beyond grepping the two edited intelligence tests, and I ran nothing."
+  ],
+  "not_verified": [
+    "Parity table contents and the copies of the resolver.",
+    "Core backend changes (files.py, fileops.py, main.py).",
+    "Inventory test seeding behavior.",
+    "How the old drift assertion was rewritten in test_reconcile_drift.py.",
+    "Whether the media_import handlers raise ValueError on AmbiguousPath."
+  ],
+  "confidence": 80
+}

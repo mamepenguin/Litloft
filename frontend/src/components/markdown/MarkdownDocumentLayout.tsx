@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useCallback,
   useMemo,
   useState,
   type ReactElement,
@@ -17,6 +18,7 @@ import {
   type MarkdownViewMode,
 } from "@/lib/markdownChromeContext";
 import { FileDetailShell } from "../FileDetailShell";
+import { FindButton } from "../FileDetail/find/FindButton";
 import { MarkdownViewModeToggle } from "../MarkdownViewModeToggle";
 import { EditableTitle } from "./EditableTitle";
 import { SaveDot } from "./SaveDot";
@@ -25,6 +27,7 @@ interface MarkdownDocumentLayoutProps {
   drive: string;
   folderPath?: string;
   title: string;
+  fileId?: string;
   onRename?: (newFilename: string) => Promise<void>;
   onBack?: () => void;
   inspector: ReactNode;
@@ -34,12 +37,16 @@ interface MarkdownDocumentLayoutProps {
   onScrollRootChange?: (node: HTMLElement | null) => void;
   resetKey?: string;
   previewOnly?: boolean;
+  /** Read and Edit only: there is no rendering that differs from the source. */
+  plainText?: boolean;
+  findEnabled?: boolean;
 }
 
 export function MarkdownDocumentLayout({
   drive,
   folderPath,
   title,
+  fileId,
   onRename,
   onBack,
   inspector,
@@ -49,6 +56,8 @@ export function MarkdownDocumentLayout({
   onScrollRootChange,
   resetKey,
   previewOnly = false,
+  plainText = false,
+  findEnabled = false,
 }: MarkdownDocumentLayoutProps): ReactElement {
   const searchParams = useSearchParams();
   const isMobile = useIsMobile();
@@ -56,8 +65,13 @@ export function MarkdownDocumentLayout({
   // the rendered output first. `useCreateFile` carries `?edit=1` through
   // the canonical-URL redirect for freshly created notes; that's the one
   // case where landing in "edit" is the desired UX.
-  const [viewMode, setViewMode] = useState<MarkdownViewMode>(() =>
+  const [viewMode, setViewModeState] = useState<MarkdownViewMode>(() =>
     searchParams?.get("edit") === "1" ? "edit" : "preview",
+  );
+  const setViewMode = useCallback(
+    (next: MarkdownViewMode) =>
+      setViewModeState(plainText && next === "split" ? "preview" : next),
+    [plainText],
   );
   const [saveState, setSaveState] = useState<MarkdownSaveState>({
     status: "idle",
@@ -81,7 +95,7 @@ export function MarkdownDocumentLayout({
   // standalone, and the chrome owns it when mounted under us).
   useEffect(() => {
     if (isMobile && viewMode === "split") setViewMode("preview");
-  }, [isMobile, viewMode]);
+  }, [isMobile, viewMode, setViewMode]);
 
   const chromeValue: MarkdownChromeContextValue = useMemo(
     () => ({
@@ -90,7 +104,7 @@ export function MarkdownDocumentLayout({
       publishSaveState: setSaveState,
       isMobile,
     }),
-    [viewMode, isMobile],
+    [viewMode, setViewMode, isMobile],
   );
 
   return (
@@ -99,20 +113,28 @@ export function MarkdownDocumentLayout({
         drive={drive}
         folderPath={folderPath}
         title={title}
+        fileId={fileId}
         onBack={onBack}
         titleNode={
           onRename && !previewOnly ? (
-            <EditableTitle title={title} onRename={onRename} />
+            <EditableTitle
+              title={title}
+              onRename={onRename}
+              fixedSuffix={plainText ? title.slice(-4) : undefined}
+            />
           ) : undefined
         }
         chromeControls={
-          previewOnly ? undefined : (
+          previewOnly ? (
+            findEnabled ? <FindButton /> : undefined
+          ) : (
             <>
+              {findEnabled && <FindButton />}
               <SaveDot state={saveState} />
               <MarkdownViewModeToggle
                 mode={viewMode}
                 onChange={setViewMode}
-                hideSplit={isMobile}
+                hideSplit={isMobile || plainText}
               />
             </>
           )
@@ -122,6 +144,7 @@ export function MarkdownDocumentLayout({
         sheetPeek={sheetPeek}
         onScrollRootChange={onScrollRootChange}
         resetKey={resetKey}
+        findEnabled={findEnabled}
       >
         {children}
       </FileDetailShell>

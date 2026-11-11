@@ -28,6 +28,8 @@ import { SortGroup, SortMenu } from "./SortMenu";
 import { DismissScrim } from "@/components/DismissScrim";
 import { ViewGroup, ViewMenu } from "@/components/ViewMenu";
 import { WidenTagScopeLink, type WidenTagScope } from "./WidenTagScopeLink";
+import { SmartFolderMenuItems } from "@/components/SmartFolderSaveButton";
+import { SegmentedControl } from "@/components/SegmentedControl";
 
 /**
  * Addon rows in the `…` menu: commands over the files the listing holds.
@@ -35,6 +37,34 @@ import { WidenTagScopeLink, type WidenTagScope } from "./WidenTagScopeLink";
  * The row contract is the Add menu's.
  */
 export const BULK_ACTIONS_MENU_SLOT = "folder-bulk-actions-menu";
+
+/**
+ * What the results bar shows on top of the ordinary toolbar. Present only on
+ * the search page: every other listing has no Files / Passages switch, no
+ * Scene search and no results count of its own.
+ */
+export interface FolderToolbarSearch {
+  /** The switch renders only where a meaning search can run. */
+  passagesApplicable: boolean;
+  show: "files" | "passages";
+  onShowChange: (next: "files" | "passages") => void;
+  /** Absent for a query with operators: the filtered search ignores it. */
+  showSceneSearch: boolean;
+  sceneSearch: boolean;
+  onSceneSearchChange: (next: boolean) => void;
+  /** Files' count; `null` until the listing settles. */
+  countLabel: string | null;
+  /** Passages' counts; `null` while the meaning search is loading or failed. */
+  passageCountLabel: string | null;
+  passageCountShort: string | null;
+  query: string;
+  smartFolderId: string | null;
+  /** The intelligence probe is asked for each time this is true. */
+  showFind: boolean;
+  onSelect: (url: string) => void;
+  /** The tree pane is holding a selected file: Sort and View are put away. */
+  hideArranging: boolean;
+}
 
 interface FolderToolbarProps {
   isSpecialView: boolean;
@@ -46,6 +76,9 @@ interface FolderToolbarProps {
    */
   isWriteDestination: boolean;
   isSearch?: boolean;
+  search?: FolderToolbarSearch;
+  /** The Passages view: sort, view mode, select, Play all and the … menu do not apply. */
+  isPassages?: boolean;
   tagFilter?: string | null;
   hasPlayableFiles: boolean;
   sort: SortField;
@@ -90,7 +123,7 @@ interface FolderToolbarProps {
 }
 
 export function FolderToolbar({
-  isSpecialView, isWriteDestination, isSearch, tagFilter, hasPlayableFiles,
+  isSpecialView, isWriteDestination, isSearch, search, isPassages, tagFilter, hasPlayableFiles,
   sort, order, typeFilter, trustFilter, total, folderCount, selectable, scanning,
   creatingFolder, newFolderName, folderError, fileIds, drive, folderPath,
   viewMode, widenTagScope,
@@ -100,17 +133,19 @@ export function FolderToolbar({
   isPinned, onTogglePin,
 }: FolderToolbarProps) {
   const hideMutatingActions = !isWriteDestination;
-  const hidePlayAll = isSpecialView || !!tagFilter || !!isSearch;
+  const hidePlayAll = isSpecialView || !!tagFilter || !!isSearch || !!isPassages;
   // When a filter is what emptied the listing, the chip that produced the
   // empty result is also the way back out of it.
   const isFiltered =
     typeFilter !== null || !!trustFilter || !!tagFilter || !!isSearch;
 
   const hideArrangingControls = total === 0 && folderCount === 0 && !isFiltered;
+  const hideArranging = hideArrangingControls || !!search?.hideArranging;
   const t = useTranslations("toolbar");
   const tc = useTranslations("common");
   const ts = useTranslations("selection");
   const tf = useTranslations("folder");
+  const tSearch = useTranslations("search");
   const ime = useImeKeyGuard();
 
   const [moreOpen, setMoreOpen] = useState(false);
@@ -223,8 +258,41 @@ export function FolderToolbar({
           sticky has sufficient height to actually stick.
           z-20 matches the Header so that FilterField's absolute search icon
           (z-10) is covered when the bar sticks. */}
-      <div className="sticky top-0 z-20 mb-2 flex flex-wrap items-center gap-2 bg-bg-primary px-4 py-2">
+      <div
+        // The search bar never wraps: when a wide font leaves no room, the
+        // Scene search label truncates instead of pushing `…` to a second row.
+        className={`sticky top-0 z-20 mb-2 flex items-center gap-2 bg-bg-primary px-4 py-2 ${
+          isSearch ? "flex-nowrap border-b border-bg-border" : "flex-wrap"
+        }`}
+      >
         {leftActions}
+
+        {isSearch && search?.passagesApplicable && (
+          <div className="w-[148px] flex-none sm:w-48">
+            <SegmentedControl
+              label={tSearch("viewLabel")}
+              options={[
+                { value: "files", label: tSearch("viewFiles") },
+                { value: "passages", label: tSearch("viewPassages") },
+              ]}
+              value={search.show}
+              onChange={search.onShowChange}
+            />
+          </div>
+        )}
+
+        {isSearch && search?.showSceneSearch && (
+          <label className="inline-flex min-w-0 cursor-pointer select-none items-center gap-1.5 text-sm text-text-primary pointer-coarse:min-h-11 sm:gap-2">
+            <input
+              type="checkbox"
+              checked={search.sceneSearch}
+              onChange={(e) => search.onSceneSearchChange(e.target.checked)}
+              className="h-4 w-4 flex-none"
+            />
+            <span className="min-w-0 truncate sm:hidden">{tSearch("sceneSearchToggleShort")}</span>
+            <span className="hidden min-w-0 truncate sm:inline">{tSearch("sceneSearchToggle")}</span>
+          </label>
+        )}
 
         {/* `flex` on this div is what keeps the link at its content width.
             Without it the div is a block and the link fills it.
@@ -241,6 +309,35 @@ export function FolderToolbar({
           <div className="flex-1" />
         )}
 
+        {isSearch && search && (
+          isPassages ? (
+            <>
+              {search.passageCountLabel && (
+                <span
+                  data-testid="passage-count"
+                  className="hidden whitespace-nowrap text-xs text-text-muted sm:inline"
+                >
+                  {search.passageCountLabel}
+                </span>
+              )}
+              {search.passageCountShort && (
+                <span
+                  data-testid="passage-count"
+                  className="whitespace-nowrap text-xs text-text-muted sm:hidden"
+                >
+                  {search.passageCountShort}
+                </span>
+              )}
+            </>
+          ) : (
+            search.countLabel && (
+              <span className="whitespace-nowrap text-xs text-text-muted">
+                {search.countLabel}
+              </span>
+            )
+          )
+        )}
+
         {/* Not accent-filled: the screen gets one fill and `Add` holds it.
             Below 768 Play is the control that leaves the bar, so Add, Filter
             and `…` share one row down to 320px. */}
@@ -253,26 +350,31 @@ export function FolderToolbar({
           </div>
         )}
 
-        {!hideArrangingControls && (
+        {!hideArranging && (
           <>
-            <ViewMenu mode={view.mode} onSelect={view.select} {...BAR_WIDE} />
-            <SortMenu
-              sort={sort}
-              order={order}
-              onChange={onSortChange}
-              allowRelevance={isSearch}
-              onReshuffle={sort === "random" ? onReshuffle : undefined}
-              {...BAR_WIDE}
-            />
-            <FilterMenu
-              typeFilter={typeFilter}
-              onTypeFilterChange={onTypeFilterChange}
-              trustFilter={trustFilter}
-              onTrustFilterChange={onTrustFilterChange}
-            />
+            {!isPassages && <ViewMenu mode={view.mode} onSelect={view.select} {...BAR_WIDE} />}
+            {!isPassages && (
+              <SortMenu
+                sort={sort}
+                order={order}
+                onChange={onSortChange}
+                allowRelevance={isSearch}
+                onReshuffle={sort === "random" ? onReshuffle : undefined}
+                {...BAR_WIDE}
+              />
+            )}
+            {!isSearch && (
+              <FilterMenu
+                typeFilter={typeFilter}
+                onTypeFilterChange={onTypeFilterChange}
+                trustFilter={trustFilter}
+                onTrustFilterChange={onTrustFilterChange}
+              />
+            )}
           </>
         )}
 
+        {(!isPassages || isSearch) && (
         <div ref={moreSurface.wrapperRef} className="relative">
             <button
               ref={moreTriggerRef}
@@ -312,7 +414,7 @@ export function FolderToolbar({
                     <MenuSeparator />
                   </div>
                 )}
-                {!hideArrangingControls && (
+                {!hideArranging && !isPassages && (
                   <div className="md:hidden" role="presentation">
                     <ViewGroup
                       mode={view.mode}
@@ -342,76 +444,112 @@ export function FolderToolbar({
                     <MenuSeparator />
                   </div>
                 )}
-                <ActionMenuItem
-                  icon={CheckSquare}
-                  label={ts("selectMode")}
-                  active={selectable}
-                  onClick={() => {
-                    onToggleSelectable();
-                    closeMore();
-                  }}
-                />
-                {!isSearch && (
-                  <button
-                    role="menuitem"
-                    onClick={() => {
-                      if (!scanning) onScan();
-                      closeMore();
-                    }}
-                    disabled={scanning}
-                    className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-text-primary transition-colors hover:bg-bg-elevated disabled:opacity-50"
-                  >
-                    <RefreshCw
-                      size={16}
-                      className={`flex-shrink-0 ${scanning ? "animate-spin" : ""}`}
+                {isSearch && search ? (
+                  <>
+                    <SmartFolderMenuItems
+                      closeMenu={closeMore}
+                      separated={!isPassages}
                     />
-                    <span className="flex-1">{t("rescan")}</span>
-                  </button>
-                )}
-                {pinnablePath && (
-                  <button
-                    role="menuitem"
-                    onClick={() => {
-                      onTogglePin!(pinnablePath);
-                      closeMore();
-                    }}
-                    className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-text-primary transition-colors hover:bg-bg-elevated"
-                  >
-                    {isPinned ? (
-                      <PinOff size={16} className="flex-shrink-0" />
-                    ) : (
-                      <Pin size={16} className="flex-shrink-0" />
+                    {!isPassages && (
+                      <ActionMenuItem
+                        icon={CheckSquare}
+                        label={ts("selectMode")}
+                        active={selectable}
+                        onClick={() => {
+                          onToggleSelectable();
+                          closeMore();
+                        }}
+                      />
                     )}
-                    <span className="flex-1">
-                      {isPinned ? t("unpinFolder") : t("pinFolder")}
-                    </span>
-                  </button>
-                )}
-                {showBulkRows && (
-                  /* The rule is this element's own border so `empty:hidden`
-                     removes it with the rows when every entry draws nothing. */
-                  <div
-                    role="none"
-                    className="mt-1 border-t border-bg-border pt-1 empty:hidden"
-                  >
-                    <AddonSlot
-                      id={BULK_ACTIONS_MENU_SLOT}
-                      layout="stack"
-                      props={{
-                        drive,
-                        path: folderPath ?? "",
-                        fileIds,
-                        surface: "library",
-                        onRequestClose: closeMore,
-                        onDialogOpenChange: setMoreDialogOpen,
+                    {search.showFind && (
+                      <AddonSlot
+                        id="search-modes"
+                        layout="stack"
+                        props={{
+                          query: search.query,
+                          drive,
+                          filter: typeFilter ?? "all",
+                          onSelect: search.onSelect,
+                          closeMenu: closeMore,
+                        }}
+                      />
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <ActionMenuItem
+                      icon={CheckSquare}
+                      label={ts("selectMode")}
+                      active={selectable}
+                      onClick={() => {
+                        onToggleSelectable();
+                        closeMore();
                       }}
                     />
-                  </div>
+                    {!isSearch && (
+                      <button
+                        role="menuitem"
+                        onClick={() => {
+                          if (!scanning) onScan();
+                          closeMore();
+                        }}
+                        disabled={scanning}
+                        className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-text-primary transition-colors hover:bg-bg-elevated disabled:opacity-50"
+                      >
+                        <RefreshCw
+                          size={16}
+                          className={`flex-shrink-0 ${scanning ? "animate-spin" : ""}`}
+                        />
+                        <span className="flex-1">{t("rescan")}</span>
+                      </button>
+                    )}
+                    {pinnablePath && (
+                      <button
+                        role="menuitem"
+                        onClick={() => {
+                          onTogglePin!(pinnablePath);
+                          closeMore();
+                        }}
+                        className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-text-primary transition-colors hover:bg-bg-elevated"
+                      >
+                        {isPinned ? (
+                          <PinOff size={16} className="flex-shrink-0" />
+                        ) : (
+                          <Pin size={16} className="flex-shrink-0" />
+                        )}
+                        <span className="flex-1">
+                          {isPinned ? t("unpinFolder") : t("pinFolder")}
+                        </span>
+                      </button>
+                    )}
+                    {showBulkRows && (
+                      /* The rule is this element's own border so `empty:hidden`
+                         removes it with the rows when every entry draws nothing. */
+                      <div
+                        role="none"
+                        className="mt-1 border-t border-bg-border pt-1 empty:hidden"
+                      >
+                        <AddonSlot
+                          id={BULK_ACTIONS_MENU_SLOT}
+                          layout="stack"
+                          props={{
+                            drive,
+                            path: folderPath ?? "",
+                            fileIds,
+                            surface: "library",
+                            onRequestClose: closeMore,
+                            onDialogOpenChange: setMoreDialogOpen,
+                          }}
+                        />
+                      </div>
+                    )}
+                  </>
                 )}
                 </div>
               </DismissScrim>
             )}
         </div>
+        )}
 
         {createFolderRow}
       </div>

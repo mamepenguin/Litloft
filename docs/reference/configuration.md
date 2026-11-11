@@ -64,6 +64,7 @@ Each entry under `addons` is either a `bool` for the whole addon or an object of
 - `"knowledge": false`: every feature of that addon is off for this drive.
 - `"intelligence": {"rag": false}`: `rag` is off; every other feature is on.
 - Key absent: everything is on.
+- `"intelligence": {"llm_cloud": false, "_all": false}`: `_all: false` in an object turns the whole addon off, and the other keys are kept so `/admin/settings` can bring them back when the addon is turned on again.
 
 Unlisted addons and features are on. The core does not interpret addon or feature names. `GET /api/drives/{name}/addon-policies` returns the normalised `{default, features}` view to the frontend, and `GET /api/internal/drive-policy` returns the same to addons. The settings API rejects a policy that names an unknown drive or an addon that is not installed.
 
@@ -131,14 +132,26 @@ Read once when the intelligence container starts, from `SEARCH_CONFIG_PATH` (def
 | `rag` | Top-k, context budgets, retrieval options, personal history |
 | `models` | Whisper, text embedding, CLIP, BLIP model IDs |
 | `search` | Vector/keyword weighting, limits, score floors |
-| `transcription` | Provider (`whisper_local`, `openai_compatible`, `deepgram`, `elevenlabs_scribe`, `assemblyai`, `gemini`) and provider settings |
+| `transcription` | Provider (`whisper_local`, `haas_local`, `openai_compatible`, `deepgram`, `elevenlabs_scribe`, `assemblyai`, `gemini`) and provider settings |
 | `indexing` | Reconciliation interval, frame extraction, text chunking |
 | `workers` | Concurrency and batch sizes |
-| `memory` | Idle-unload thresholds for Whisper and BLIP |
+| `memory` | Idle-unload thresholds for Whisper (and the `haas_local` recognizer), BLIP, the OCR engine and the SigLIP image model used by an image query |
 
 The intelligence sections of `/admin/settings` save JSON override files in its data directory for `features`, `llm`, `rag`, the embedding model, and the transcription provider. They are merged over the yaml. LLM profiles and routing saved there replace `llm.profiles` and `llm.routing` in the yaml as a whole and apply without a restart. Keys come only from the environment (`LLM_API_KEY`, `LLM_API_KEY_<NAME>`).
 
 The full key list with defaults is on the [intelligence page](../addons/intelligence.md#configuration-reference).
+
+### features.image_ocr
+
+Reads the text in pictures with a local engine and stores it as the picture's text, so search and Ask find the words in a screenshot, a slide or a photo of a sign. The values are `"false"` (never), `"manual"` (only when a picture is queued for a reading by hand) and `"on_index"` (as each picture is indexed, with existing pictures read in the background). Default `"on_index"`. It needs no LLM, and a change takes effect after an intelligence restart. Turning it off keeps the text already stored. It also decides whether the text in a picture given to an image search is read. See [text in pictures](../addons/intelligence.md#text-in-pictures).
+
+### features.video_frame_ocr
+
+Reads the text shown in a video — slides, terminal output, captions burned into the picture — at one frame per second with a 10-second minimum gap between read frames, and stores it as the video's text chunks so search, Ask and find-in-file find it. The values are `"false"` (never), `"manual"` (only when a video is queued by hand) and `"on_index"` (as each video is indexed, with existing videos read in the background). Default `"on_index"`. It needs no LLM. A change takes effect after an intelligence restart, and turning it off keeps the text already stored. Videos taller than 1080 lines decode only key frames and read at 1080 lines. See [text in videos and scanned pages](../addons/intelligence.md#text-in-videos-and-scanned-pages).
+
+### features.scanned_pdf_ocr
+
+Reads the pages of a PDF that have no text layer at 300 dpi with the same local OCR engine, and stores the text per page so the page's text is searchable, askable and readable through `read_document`. The values are `"false"`, `"manual"` and `"on_index"`, default `"on_index"`. A change takes effect after an intelligence restart, and turning it off keeps the text already stored. A page with any text layer, even a page number, is not read. See [text in videos and scanned pages](../addons/intelligence.md#text-in-videos-and-scanned-pages).
 
 ---
 

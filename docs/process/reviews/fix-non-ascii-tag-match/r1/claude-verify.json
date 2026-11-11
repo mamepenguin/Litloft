@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "list-filter-drops-stale-linked-files",
+      "status": "confirmed",
+      "note": "Confirmed by tracing the code; no test was run. drives.py:719 loads only rows with Tag.drive == drive_name, and drives.py:723 filters on those ids. For a file on drive A linked only to B's row `alpha`, GET /api/drives/A/files?tag=alpha finds no id for that file, so it is left out; if A has no such row the filter is an empty IN and lists nothing. The removed predicate, read at drives.py:716 in the sibling checkout, was File.tags.any(func.lower(Tag.name) == name.lower()) with no drive condition, so it matched. This occurs in normal use: docs/developer-guide/known-issues.md:74-78 says such links remain on databases that had cross-drive moves before the tag fix, with no migration. Besides the `tag:` operator (useFolderFiles.ts:193), the chip on that file also reaches this filter: schemas.py:1035 returns the stale row's name and TagList.tsx:35 pushes ?tag=<name>, so clicking a file's own chip gives a listing without that file. known-issues.md:74-78 does not mention this new symptom. Mitigating: the sidebar count (drives.py:826) was already scoped to the drive, so the listing now agrees with it, and a later cross-drive move or a tag edit relinks the file."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "drive-scope-test-cannot-fail",
+      "status": "confirmed",
+      "note": "Confirmed by tracing the code; the mutant was not run. If `.filter(Tag.drive == drive_name)` is removed from drives.py:719, by_fold gains DST's `übung` id, but the only file holding it is b.mp4 on DST, which drives.py:684 excludes through File.drive == drive_name. The result stays {f.id}, so test_tag_name_matching.py:78-84 still passes. The evidence's line range 80-86 is slightly off; the test spans 78-84. The other tag-filter requests found by grep (test_api_tags.py, test_api_drives.py) use the single TEST_DRIVE, and no test listing seeds a file linked to another drive's row, so nothing found pins this condition."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "move-now-sweeps-destination-drive-orphans",
+      "status": "confirmed",
+      "note": "Confirmed by tracing the code; no test was run. tagops.py:88 can put dst_drive in left_drives, and tagops.py:98-99 sweeps every member. The sibling checkout's tagops.py:61 has `sorted(left_drives - {dst_drive})`. test_tag_name_matching.py:167-180 pins the removal of `leftover`. Further detail: under TagIndex (tagops.py:31-32) with uq_tags_drive_name (models.py:47), a held destination row always resolves to itself by exact name, so it stays attached. The destination sweep therefore never removes a row this move left; it removes only rows already unreferenced before the move, which is what the claim describes. Impact looks small: all Tag creation sites (tagops.py:93, files.py:162, files.py:194) attach the row to a file, and ordinary tag edits already sweep the same drive (files.py:809). The behaviour is deliberate per the docstring at tagops.py:76-77."
+    }
+  ],
+  "specification_compliance": [
+    "The tag filter, replace_file_tags, merge_file_tags and retarget_file_tags all fold names with Python str.lower() at the commit, through TagIndex or by_fold, as the docstring at tagops.py:13-16 describes.",
+    "The UNSPEC comment at test_tag_name_matching.py:55-56 says a tag choice lists nothing from another drive. The code does this for both files and rows, but the row half is what drops stale-linked files."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "A file with a stale link to another drive's Tag row shows a chip for that tag, but the chip's ?tag= listing on the file's own drive leaves the file out. Neither a test nor known-issues.md:74-78 records this.",
+    "A cross-drive move removes rows on the destination that were already unreferenced when the moved file holds a stale link to that drive. Only the one test at test_tag_name_matching.py:167-180 records this."
+  ],
+  "regression_risks": [
+    "On databases with cross-drive moves from before the tag fix, tag filters and `tag:` searches silently omit stale-linked files until the file is moved between drives again or its tags are edited.",
+    "Removing the Tag.drive condition at drives.py:719 would not be caught by the tests read for this review."
+  ],
+  "test_coverage": [
+    "Covered: non-ASCII and case-variant filter matches, and coexisting variants (test_tag_name_matching.py:58-76).",
+    "Covered: exact-row-first resolution, tag edits, batch tagging, note projection and moves to a destination holding variants.",
+    "Not covered: a tag listing of a file on the listed drive linked to another drive's row.",
+    "Not effective: test_another_drives_tag_is_not_listed does not exercise Tag.drive == drive_name at drives.py:719."
+  ],
+  "not_verified": [
+    "No test or mutant was run, because only Read, Glob and Grep were available; every result comes from tracing the code.",
+    "The parent code was read from the sibling checkout /Users/libre/Sources/video_share; I did not confirm that checkout is at origin/develop, or inspect git objects for the commit.",
+    "The worktree's files were assumed to match commit c317e9de1; the only check was r1/head.txt naming that commit.",
+    "How many stale links exist in a real database was not measured.",
+    "The full bodies of the single-drive filter tests in test_api_tags.py and test_api_drives.py were not all read; their requests were found by grep.",
+    "Frontend rendering of the chip and the search flow was not run in a browser."
+  ],
+  "confidence": 85
+}

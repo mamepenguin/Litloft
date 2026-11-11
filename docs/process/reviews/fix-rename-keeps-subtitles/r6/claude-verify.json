@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "unreadable-first-subtitle-upload-is-a-dead-end",
+      "status": "confirmed",
+      "note": "Confirmed by reading the code; nothing was run. upload.py:132-133 refuses any existing path. upload.py:222-231 checks only size, and upload.py:246-247 finishes a subtitle with no content check and no row. files.py:1358 calls read_text(encoding=\"utf-8-sig\") unguarded, and backend/app has no exception_handler, so a Shift_JIS file with Japanese text should give a 500. useShellCaptions.ts:39-51 and VideoPlayer.tsx:240-259 offer the generated track only when no sidecar is listed; useShellCaptions.ts:68 and :78 turn the failure into empty cues and `unavailable`. delete_folder (fileops.py:930-944) only soft-deletes rows and removes no sidecar, and renaming or moving the video carries the sidecar along (subtitle.py:106-139), so neither removes it. One limit on the claim: the bad file cannot be corrected or removed, but the user can upload a good file under another track name, such as movie.ja.srt, and pick it. The generated track stays hidden and a bare bad file still sorts first (subtitle.py:102). The unguarded read is older than this change per r5/triage.md:150; the dead end comes from 57dcc7303 together with the removal of the row and card. The docs and test greps match the finding."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "undecodable-uploaded-subtitle-cannot-be-undone-and-hides-generated-track",
+      "status": "confirmed",
+      "note": "Confirmed by reading the code; nothing was run. It has the same root as the claude-read finding. upload.py:132-133, :222-231 and :246-247, files.py:1354-1358 and useShellCaptions.ts:38-51, :67-69 and :78 all say what is claimed, and VideoPlayer.tsx:250-259 hides the generated track in the same way. known-issues.md:265-269 records that the file cannot be replaced or removed, but not the false success or the lost generated track. Earlier escape routes are supported by decisions.md:33, which records a card for an uploaded .srt, decisions.md:37, where purge removed the file from disk, and r5/triage.md:148-149, which records that replacement was possible in r5. The seventh R-5 run at decisions.md:78-80 used readable text. The claim of no in-app way to fix or remove the file holds for that file, with one limit: a differently named track can still be uploaded and selected."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "other-type-refusal-test-holds-no-property-of-its-own",
+      "status": "confirmed",
+      "note": "Confirmed by reading the tests against upload.py:132-133, a single unconditional check; mutations were reasoned through, not run. test_upload.py:97-106 asserts a 409 for an existing .txt, and test_sidecar_subtitles_follow_video.py:358-371 asserts a 409 in a subfolder for a subtitle. Removing the check, restricting it to subtitles, exempting subtitles, or ignoring folder_path is each killed by at least one of those two tests, so none needs test_an_existing_file_of_another_type_still_refuses_the_upload (lines 373-383). Only a contrived mutation that special-cases .md would be killed by this test alone. testing-and-comments.md:37-38 says such a test is deleted or folded into the test that holds the property."
+    }
+  ],
+  "specification_compliance": [
+    "known-issues.md:265-269 documents that an uploaded subtitle cannot be replaced or removed from the UI, but not the case where the file landed unreadable or the hidden generated track.",
+    "The refusal in upload.py:132-133 matches the 409 documented in known-issues.md and the seventh R-5 run at decisions.md:79."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "A non-UTF-8 subtitle upload completes with a 200 and a sidecar answer, while the serving route's read at files.py:1358 has no guard against a decode error.",
+    "A subtitle over 5 MB also lands with a success answer and is then refused with a 413 by files.py:1355-1356, leaving the same dead end. Both players still list it, so it also hides the generated track."
+  ],
+  "regression_risks": [
+    "If the serving route starts decoding more encodings, the 500 goes away, but a wrongly decoded file would still have no in-app way to be replaced or removed.",
+    "Deleting the duplicate test loses no mutation kill by this analysis, provided test_duplicate_filename stays."
+  ],
+  "test_coverage": [
+    "No test named for subtitles uploads or serves a non-UTF-8 subtitle. The encoding-related matches in test_subtitle.py and test_sidecar_subtitles_follow_video.py are all encoding=\"utf-8\" writes.",
+    "No test in those two files covers an oversized uploaded subtitle was not established by search; only encoding terms were searched.",
+    "test_an_existing_file_of_another_type_still_refuses_the_upload overlaps test_duplicate_filename and the second-upload refusal test."
+  ],
+  "not_verified": [
+    "No command, test or mutation was run. The 500, the mutation results and the browser behaviour are inferred from reading the code.",
+    "What the browser does when a default <track> gets a 500 in the native player was not observed.",
+    "The origin/develop code and commit diffs were not read through git; the history claims rest on decisions.md and r5/triage.md.",
+    "The frontend upload drawer's handling of a subtitle answer was not read beyond a grep of hooks, which found no client-side content check there.",
+    "Other in-app file operations, such as addon routes or other routers beyond the grep for subtitle and sidecar names, were not walked exhaustively for a way to delete a sidecar."
+  ],
+  "confidence": 85
+}

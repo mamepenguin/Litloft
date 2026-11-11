@@ -21,6 +21,7 @@ import {
   type AddonPolicy,
   type AddonPolicyFeature,
   type AddonStatusEntry,
+  withAddonSwitched,
 } from "@/lib/adminConfig";
 
 function describeError(err: unknown, t: (key: string) => string): string {
@@ -118,7 +119,7 @@ export function AddonPolicySection(): React.ReactElement {
     async (drive: string, addon: string) => {
       const current = isAddonOn(policy, drive, addon);
       const driveEntry = { ...(policy[drive] ?? {}) };
-      driveEntry[addon] = !current;
+      driveEntry[addon] = withAddonSwitched(driveEntry[addon], !current);
       const next: AddonPolicy = { ...policy, [drive]: driveEntry };
       setPolicy(next);
       setSaveError(null);
@@ -184,24 +185,22 @@ export function AddonPolicySection(): React.ReactElement {
       {saveError && <p className="mb-4 text-xs text-danger">{saveError}</p>}
 
       {loaded && drives.length > 0 && addons.length > 0 && (
-        // `tabindex` is what makes the right-hand columns reachable at all
-        // without a pointer: a scroll region that cannot take focus cannot
-        // be scrolled by keyboard.
+        // On touch, `tabindex` is what makes the right-hand columns reachable
+        // at all without a pointer: a scroll region that cannot take focus
+        // cannot be scrolled by keyboard.
         <div className="relative">
           <div
             ref={scrollRef}
             // Bounded, and that is what makes the column headings stick.
             // `position: sticky` resolves against the nearest scrollport,
-            // and `overflow-x: auto` already made this element one in both
+            // and `overflow-y: auto` already made this element one in both
             // axes.
-            className="max-h-[70vh] overflow-x-auto overflow-y-auto"
+            className="max-h-[70vh] overflow-y-auto pointer-coarse:overflow-x-auto"
             tabIndex={0}
             role="region"
             aria-label={t("tableLabel")}
           >
-            {/* `min-w-full`, not `w-full`: `w-full` makes the table fold its
-                own headings mid-word to fit the container. */}
-            <table className="min-w-full border-collapse text-sm">
+            <table className="w-full border-collapse text-sm pointer-coarse:w-auto pointer-coarse:min-w-full">
               {/* `sticky top-0` on the cells, not on the row: a `<tr>` is
                   not a positioned box in most engines, so the offset has to
                   go on the `<th>`s. They need their own background too —
@@ -209,11 +208,11 @@ export function AddonPolicySection(): React.ReactElement {
                   travelling underneath it. */}
               <thead>
                 <tr>
-                  <th className="sticky top-0 z-10 whitespace-nowrap bg-bg-card py-2 pr-6 text-left text-xs font-semibold tracking-wide text-text-muted" />
+                  <th className="sticky top-0 z-10 wrap-anywhere pointer-coarse:whitespace-nowrap bg-bg-card py-2 pr-6 text-left text-xs font-semibold tracking-wide text-text-muted" />
                   {addons.map((addon) => (
                     <th
                       key={addon.name}
-                      className="sticky top-0 z-10 whitespace-nowrap bg-bg-card px-4 py-2 text-center text-sm font-medium text-text-primary"
+                      className="sticky top-0 z-10 wrap-anywhere pointer-coarse:whitespace-nowrap bg-bg-card px-4 py-2 text-center text-sm font-medium text-text-primary"
                     >
                       {addon.label ?? addon.name}
                     </th>
@@ -224,7 +223,7 @@ export function AddonPolicySection(): React.ReactElement {
                 {drives.map((drive) => (
                   <Fragment key={drive}>
                     <tr className="border-t border-bg-border">
-                      <td className="whitespace-nowrap py-3 pr-6 text-xs font-semibold tracking-wide text-text-muted">
+                      <td className="wrap-anywhere pointer-coarse:whitespace-nowrap py-3 pr-6 text-xs font-semibold tracking-wide text-text-muted">
                         {drive}
                       </td>
                       {addons.map((addon) => {
@@ -257,7 +256,7 @@ export function AddonPolicySection(): React.ReactElement {
                             key={`${drive}-${addon.name}-${feature.name}`}
                             data-testid={`feature-row-${drive}-${addon.name}-${feature.name}`}
                           >
-                            <td className="whitespace-nowrap py-2 pr-6 pl-4">
+                            <td className="wrap-anywhere pointer-coarse:whitespace-nowrap py-2 pr-6 pl-4">
                               <div className="flex items-center gap-2">
                                 <span
                                   className="text-text-muted"

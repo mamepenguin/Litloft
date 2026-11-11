@@ -1,0 +1,84 @@
+{
+  "risk": "HIGH",
+  "score": 7,
+  "base": 3,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "addons/intelligence",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "docs/addons/intelligence.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/reference/configuration.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/frame-ocr.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/search.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/viewers-and-players.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/src/__tests__/core-search-vocabulary.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/search/PassageList.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/PassageList.screenText.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/__tests__/passageMessages.screenText.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/__tests__/searchPassages.screenText.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/searchMerge.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/searchPassages.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/tools/search.ts",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}

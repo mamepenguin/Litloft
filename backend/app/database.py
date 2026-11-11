@@ -194,6 +194,18 @@ def _migrate(engine_) -> None:
     if "watch_history" not in tables:
         Base.metadata.tables["watch_history"].create(bind=engine_, checkfirst=True)
 
+    inspector_history = inspect(engine_)
+    if "watch_history" in inspector_history.get_table_names():
+        history_columns = {
+            column["name"] for column in inspector_history.get_columns("watch_history")
+        }
+        if "dismissed_at" not in history_columns:
+            logger.info("Migrating: adding 'dismissed_at' column to watch_history")
+            with engine_.begin() as conn:
+                conn.execute(
+                    text("ALTER TABLE watch_history ADD COLUMN dismissed_at DATETIME")
+                )
+
     tables = inspector.get_table_names()
     if "files" in tables:
         file_columns = {col["name"] for col in inspector.get_columns("files")}
@@ -557,6 +569,31 @@ def _migrate(engine_) -> None:
             if "image_height" not in dimension_columns:
                 logger.info("Migrating: adding 'image_height' column to files")
                 conn.execute(text("ALTER TABLE files ADD COLUMN image_height INTEGER"))
+
+    cleanup_tables = set(inspect(engine_).get_table_names())
+    if {"files", "collections", "collection_items"} <= cleanup_tables:
+        try:
+            with engine_.begin() as conn:
+                result = conn.execute(text("""
+                    DELETE FROM collection_items
+                    WHERE EXISTS (
+                        SELECT 1
+                        FROM collections
+                        JOIN files ON files.id = collection_items.file_id
+                        WHERE collections.id = collection_items.collection_id
+                          AND files.drive <> collections.drive
+                    )
+                """))
+            if result.rowcount:
+                logger.info(
+                    "Removed %d collection item(s) whose file is in another drive",
+                    result.rowcount,
+                )
+        except Exception as exc:  # noqa: BLE001
+            # A failed cleanup must not stop startup: the endpoint and
+            # get_collection filter on File.drive, so the leftover rows never
+            # reach an AI.
+            logger.error("Collection item cleanup failed: %s", exc)
 
 
 def _backfill_mangled_titles(engine_) -> None:

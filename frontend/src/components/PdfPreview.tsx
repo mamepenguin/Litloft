@@ -17,6 +17,7 @@ import "react-pdf/dist/Page/TextLayer.css";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 
 import { getStreamUrl } from "@/lib/api";
+import type { DocumentController } from "@/lib/documentController";
 import { rasterCacheFor, type RasterRequest } from "@/lib/pdfRasterCache";
 import { declaredReadingDirection } from "@/lib/pdfReadingDirection";
 import { usePdfPageProgress } from "@/lib/pdfPageProgress";
@@ -32,6 +33,7 @@ import {
   type PdfZoomMode,
 } from "@/lib/pdfZoomMode";
 import { MenuRadioGroup, ToolbarMenu } from "@/components/ToolbarMenu";
+import { HighlightControls } from "@/components/HighlightControls";
 import { PdfCanvas } from "@/components/pdf/PdfCanvas";
 import { PdfPageInput } from "@/components/pdf/PdfPageInput";
 import { usePdfPageBoxes } from "@/components/pdf/usePdfPageBoxes";
@@ -40,6 +42,7 @@ import {
   type DocumentSlotProps,
 } from "@/components/pdf/PdfFullscreenViewer";
 import { useFocusScope } from "@/hooks/useFocusScope";
+import { useFindMarksIn } from "@/hooks/useFindMarksIn";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import {
   flattenOutline,
@@ -47,6 +50,7 @@ import {
   type PdfController,
 } from "@/lib/pdfController";
 import {
+  clearSelectionWithin,
   DocumentCaptureStore,
   readDocumentSelection,
   type DocumentCaptureController,
@@ -96,6 +100,7 @@ export function PdfPreview({
   initialPage,
   onDocumentCaptureController,
   onPdfController,
+  onDocumentController,
   documentSlotProps,
 }: {
   fileId: string;
@@ -107,6 +112,7 @@ export function PdfPreview({
     controller: DocumentCaptureController | null,
   ) => void;
   onPdfController?: (controller: PdfController | null) => void;
+  onDocumentController?: (controller: DocumentController | null) => void;
 }) {
   const t = useTranslations("file");
   const rootRef = useRef<HTMLDivElement>(null);
@@ -121,6 +127,9 @@ export function PdfPreview({
   // fraction of the canvas, which is not the window.
   const [availableHeight, setAvailableHeight] = useState(600);
   const pageBoxRef = useRef<HTMLDivElement>(null);
+  const pageSectionRef = useRef<HTMLElement>(null);
+  const [textLayerRevision, setTextLayerRevision] = useState(0);
+  const textLayerPageRef = useRef<number | null>(null);
   const [pageBox, setPageBox] = useState<PageBox | null>(null);
   const [zoomMode, setZoomMode] = useState<PdfZoomMode>(DEFAULT_PDF_ZOOM_MODE);
   const [renderFailed, setRenderFailed] = useState(false);
@@ -180,6 +189,19 @@ export function PdfPreview({
   }, []);
   const src = getStreamUrl(fileId);
   const pdfStore = useMemo(() => new PdfDocumentStore(), []);
+  const documentController = useMemo<DocumentController>(
+    () => ({
+      goTo: (target) => {
+        if ("page" in target) pdfStore.goToPage(target.page);
+      },
+    }),
+    [pdfStore],
+  );
+
+  useEffect(() => {
+    onDocumentController?.(documentController);
+    return () => onDocumentController?.(null);
+  }, [documentController, onDocumentController]);
 
   /**
    * The reset below must not run on the first pass: `<Document>` reports
@@ -219,7 +241,8 @@ export function PdfPreview({
 
   useEffect(() => {
     store.setCapture({ kind: "page", locator: { page } });
-    window.getSelection()?.removeAllRanges();
+    const root = rootRef.current;
+    if (root) clearSelectionWithin(root, window.getSelection());
   }, [page, store]);
 
   useEffect(() => {
@@ -351,6 +374,14 @@ export function PdfPreview({
     },
     [numPages, turnTo],
   );
+
+  const handleTextLayerRendered = useCallback(() => {
+    // The layer that just rendered is the page currently in the DOM. A page
+    // turn keeps the previous layer mounted for one commit, so the current
+    // mark must wait for this signal rather than trust `page`.
+    textLayerPageRef.current = pageRef.current;
+    setTextLayerRevision((value) => value + 1);
+  }, []);
 
   /**
    * `ShortcutsProvider` calls `preventDefault` on every match, so an
@@ -495,13 +526,28 @@ export function PdfPreview({
         // reader has no way to know that zooming out is the way back.
         onRenderError={() => setRenderFailed(true)}
         onRenderSuccess={() => setRenderFailed(false)}
+        // The text layer is rebuilt whenever its viewport changes, which
+        // wipes the marks inside it; this asks for one more render so the
+        // effect that marks it runs again.
+        onRenderTextLayerSuccess={handleTextLayerRendered}
         renderMode="custom"
         customRenderer={PdfCanvas}
         renderTextLayer
         renderAnnotationLayer
       />
     ),
-    [page, drawWidth, currentBox, deviceRatio],
+    [page, drawWidth, currentBox, deviceRatio, handleTextLayerRendered],
+  );
+
+  useFindMarksIn(
+    () =>
+      pageSectionRef.current?.querySelector<HTMLElement>(
+        ".react-pdf__Page__textContent",
+      ) ?? null,
+    (row) =>
+      row.kind === "page" &&
+      row.page === page &&
+      row.page === textLayerPageRef.current,
   );
 
   return (
@@ -631,7 +677,7 @@ export function PdfPreview({
             <p className="py-16 text-sm text-danger">{t("pdfLoadFailed")}</p>
           }
         >
-          <section data-pdf-page={page} aria-label={`${title}, ${page}`}>
+          <section ref={pageSectionRef} data-pdf-page={page} aria-label={`${title}, ${page}`}>
             {renderFailed && (
               <p
                 data-testid="pdf-render-failed"
@@ -645,6 +691,7 @@ export function PdfPreview({
           {fullscreen && loaded && (
             <PdfFullscreenViewer
               pdf={loaded.pdf}
+              fileId={fileId}
               declaredDirection={loaded.declaredDirection}
               title={title}
               initialPage={page}
@@ -660,6 +707,17 @@ export function PdfPreview({
           )}
         </Document>
       </div>
+
+      <HighlightControls
+        getContainer={() =>
+          pageSectionRef.current?.querySelector<HTMLElement>(
+            ".react-pdf__Page__textContent",
+          ) ?? null
+        }
+        fileId={fileId}
+        page={page}
+        renderKey={`${page}:${textLayerRevision}`}
+      />
     </div>
   );
 }

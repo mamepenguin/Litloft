@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "fileops.py:670 calls existing_or_409 (strict, diskpath.py:131-136 raises HTTPException 409 on several matches). Line 673 unlinks the file. purge_all_trash (:756-759) loops physical_delete with one db.commit after the loop. A 409 on a later file therefore leaves the earlier files unlinked on disk, while the uncommitted row deletions roll back. The claim that purge_all_missing is not affected in practice is plausible, because missing rows have no on-disk match, but I did not test it."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "Same code as above. purge_all_trash has a single commit after the loop (:759). purge_all_missing commits per batch (:811-814), so a raise mid-batch leaves the earlier files in that batch unlinked with their rows rolled back. The 409 is raised before the unlink of the ambiguous file, but not before the unlinks of earlier files in the loop."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "backend/tests/fixtures/diskpath_parity.json has exactly 8 cases: exact, nfd leaf, nfd ancestor, both, twin, nothing, real ancestor, dot-dot. None covers several matching entries, the sorted-bytes tie rule (diskpath.py:55), an empty or absolute component, or an unreadable directory. test_diskpath_parity.py:38 calls resolve_on_disk without strict, so the strict path is not covered by the table. I14-I16 require each copy to match the table, so the table's coverage is thin."
+    }
+  ],
+  "specification_compliance": [
+    "I12 (409 and nothing changed when ambiguous) is not held atomically for bulk purge: earlier files in the loop are unlinked before the 409 (fileops.py:670-673, :756-759).",
+    "I16 holds only for the 8 table cases; the table has no ambiguity, tie-rule, or unreadable-directory cases."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Bulk purge of trash can now partly fail with 409, leaving DB rows for files already deleted from disk. Before the change the strict check did not exist."
+  ],
+  "test_coverage": [
+    "Parity table: 8 non-strict cases only. I did not check whether a separate test covers 409 in bulk purge."
+  ],
+  "not_verified": [
+    "I did not run any tests.",
+    "I did not check addon copies of the resolver.",
+    "I did not check whether the inventory test or the other mutating-site tests cover ambiguity.",
+    "I did not test the purge_all_missing ambiguity scenario."
+  ],
+  "confidence": 85
+}

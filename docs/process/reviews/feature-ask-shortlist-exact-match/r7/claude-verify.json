@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "I1/I10: service.py:830-900 adds the exact-match ids after the coarse ids. It drops ids that are already coarse, keeps only ids inside pre_scope when that is set, and builds scope_ids as the surviving coarse ids followed by the surviving exact-match ids. That scope_ids is passed as file_id_scope to every clue search (service.py:939). exact_match.py:96 extends the list in token order, sorted by file_id within a token, and skips duplicates.",
+    "I2: exact_match.py:20,39 skip a token shorter than 2 characters after quote removal. exact_match.py:92-95 skip a token that matches 0 files or more than max_files. _TABLES (exact_match.py:25-30) does not include fts_files*.",
+    "I3: exact_match.py:49-53 join indexed_files with i.drive = :drive AND i.active = 1 and use the column filter `text : \"token\"`. The text column exists in all four tables (app/database.py:1277-1314). service.py:842 applies pre_scope.",
+    "I4: service.py:853-855 sends the union to the access filter in a single call. service.py:887 and 896-898 keep only accessible ids. The SSE payload (service.py:1699-1710) is built from filtered_shortlist.",
+    "I5: exact_match.py:110 runs the lookup through asyncio.to_thread.",
+    "I6: service.py:911-918 fetch summaries for filtered_shortlist.file_ids only, which are the coarse ids in coarse order.",
+    "I7: exact_match.py:82-90 handle a failure on one table: that token is voided, a WARNING is logged, and the loop continues with the next token. exact_match.py:113-115 handle a total failure: () is returned and a WARNING is logged. No error event is sent.",
+    "I8: service.py:831 skips the lookup when the cap is 0. In that case exact_match_ids is empty, so the access-filter argument and scope_ids are the same as before the change. config.py:754-777 drop a value that is absent, null, negative, bool or not an int, so the dataclass default of 10 applies (config.py:356).",
+    "I9: the disabled/no-drive branch (service.py:745-757) and the small/empty/low-confidence branch (service.py:806-825) return before the lookup. The access-filter-empty branch (service.py:856-878) uses bypass_scope = pre_scope_file_ids."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The SQLite connection is reused for later tokens after one table raises (exact_match.py:75-90). For FTS5 syntax or missing-table errors SQLite keeps the connection usable. For other error classes I did not check whether a broken connection could make every later token fail too. This would still degrade safely to adding no files."
+  ],
+  "regression_risks": [
+    "The clue-search scope can now be larger than coarse_top_k, by up to tokens × cap ids. The spec allows this, but it raises the size of the access-filter request and the scoped query."
+  ],
+  "test_coverage": [
+    "tests/test_rag_shortlist_exact_match.py has dedicated SPEC-ADDON-035 tests for each invariant: ordering, the cap, the four tables, the text-column-only match, fts_files exclusion, drive and active filtering, pre_scope, access filtering, coarse-only clue input, top_score, every bypass branch, per-table and total failure, the event-loop check, and config validation."
+  ],
+  "not_verified": [
+    "I did not run the test suite: I have no shell access.",
+    "I read the addons/intelligence submodule working tree. I did not confirm that it is checked out at the exact pointer recorded by commit 00ccbe4bd.",
+    "I did not read the bodies of the updated tests in tests/test_rag_hierarchical.py or tests/test_rag_hierarchical_personal_history.py to check that their assertions were not loosened.",
+    "I did not check the updates to docs/addons/intelligence.md or search-config.yml.example."
+  ],
+  "confidence": 80
+}

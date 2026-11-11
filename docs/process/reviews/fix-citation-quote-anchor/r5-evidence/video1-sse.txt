@@ -1,0 +1,402 @@
+event: keywords
+data: {"keywords": "最強の充電器 世代交代"}
+
+event: shortlist
+data: {"file_ids": ["532Tz9YssoCP", "ZLjxMzGCnWWw", "YjXcBiGfWOG1", "7kygJvUoBAxj", "aWhA8ZQjZ8Fm", "lFWGHZsZGZK1", "Ak7ONDTp5cWH", "wISBe_MX_Pf6", "aYzXICOfCz4Z", "E4_WfZ4-rqco", "7OgMO7sm5kqs", "rlsrrvAia3ll", "l1DymJWkW8hl", "wOeotDwi2z_e", "Abe9wszX00T2", "DRfzsqXQkcOE", "baC0HTJFhuZP", "fqW9hJl8nv-7", "iBwmMwhU19Nd", "9lHqBrpDyEcP", "BvvxN7xajmvo"], "exact_match_file_ids": ["BvvxN7xajmvo"], "drive_file_count": 794, "top_score": 0.9255744758063531}
+
+event: clues
+data: {"clues": ["最強の充電器 世代交代"]}
+
+event: sources
+data: {"sources": [{"file_id": "532Tz9YssoCP", "drive": "動画", "filename": "【徹底検証】”新世代の充電器”vs”これまでの最強”→「世代交代」が起こってる。【最強充電器”防衛戦”2026初夏 ～140W部門～】.loft", "file_type": "video", "score": 0.019672131147540985, "match_types": ["clip_thumbnail", "metadata", "tfidf_keywords", "whisper"]}, {"file_id": "Ak7ONDTp5cWH", "drive": "動画", "filename": "いつも荷物が多い人へ。あのTORRASから新発想なモバイルバッテリーが誕生しました。.loft", "file_type": "video", "score": 0.0189033189033189, "match_types": ["clip_thumbnail", "whisper"]}, {"file_id": "ZLjxMzGCnWWw", "drive": "動画", "filename": "【流行る寸前か？】満充電で「自動的にケーブルを抜く」新発想ガジェットを検証。本当に役に立つのか…？【フルチャージセパレーター】.loft", "file_type": "video", "score": 0.018099976308931533, "match_types": ["clip_thumbnail", "whisper"]}, {"file_id": "7kygJvUoBAxj", "drive": "動画", "filename": "めちゃ進化してる..‼︎ 初代iPhoneと最新iPhoneを比較してみたぞ。.loft", "file_type": "video", "score": 0.017606837606837608, "match_types": ["clip_thumbnail", "whisper"]}]}
+
+event: answer_chunk
+data: {"delta": "最強"}
+
+event: answer_chunk
+data: {"delta": "の"}
+
+event: answer_chunk
+data: {"delta": "充電"}
+
+event: answer_chunk
+data: {"delta": "器"}
+
+event: answer_chunk
+data: {"delta": "の"}
+
+event: answer_chunk
+data: {"delta": "検証"}
+
+event: answer_chunk
+data: {"delta": "で"}
+
+event: answer_chunk
+data: {"delta": "「"}
+
+event: answer_chunk
+data: {"delta": "世代"}
+
+event: answer_chunk
+data: {"delta": "交代"}
+
+event: answer_chunk
+data: {"delta": "」"}
+
+event: answer_chunk
+data: {"delta": "と言"}
+
+event: answer_chunk
+data: {"delta": "われている"}
+
+event: answer_chunk
+data: {"delta": "のは"}
+
+event: answer_chunk
+data: {"delta": "、"}
+
+event: answer_chunk
+data: {"delta": "**"}
+
+event: answer_chunk
+data: {"delta": "1"}
+
+event: answer_chunk
+data: {"delta": "年前"}
+
+event: answer_chunk
+data: {"delta": "の"}
+
+event: answer_chunk
+data: {"delta": "最強"}
+
+event: answer_chunk
+data: {"delta": "充電"}
+
+event: answer_chunk
+data: {"delta": "器"}
+
+event: answer_chunk
+data: {"delta": "**"}
+
+event: answer_chunk
+data: {"delta": "と"}
+
+event: answer_chunk
+data: {"delta": "、"}
+
+event: answer_chunk
+data: {"delta": "その後"}
+
+event: answer_chunk
+data: {"delta": "登場"}
+
+event: answer_chunk
+data: {"delta": "した"}
+
+event: answer_chunk
+data: {"delta": "**"}
+
+event: answer_chunk
+data: {"delta": "新"}
+
+event: answer_chunk
+data: {"delta": "世代"}
+
+event: answer_chunk
+data: {"delta": "の"}
+
+event: answer_chunk
+data: {"delta": "充電"}
+
+event: answer_chunk
+data: {"delta": "器"}
+
+event: answer_chunk
+data: {"delta": "**"}
+
+event: answer_chunk
+data: {"delta": "を"}
+
+event: answer_chunk
+data: {"delta": "比較"}
+
+event: answer_chunk
+data: {"delta": "している"}
+
+event: answer_chunk
+data: {"delta": "状況"}
+
+event: answer_chunk
+data: {"delta": "です"}
+
+event: answer_chunk
+data: {"delta": "。"}
+
+event: answer_chunk
+data: {"delta": "\n"}
+
+event: answer_chunk
+data: {"delta": "\n"}
+
+event: answer_chunk
+data: {"delta": "この"}
+
+event: answer_chunk
+data: {"delta": "企画"}
+
+event: answer_chunk
+data: {"delta": "では"}
+
+event: answer_chunk
+data: {"delta": "、"}
+
+event: answer_chunk
+data: {"delta": "同じ"}
+
+event: answer_chunk
+data: {"delta": "スペック"}
+
+event: answer_chunk
+data: {"delta": "帯"}
+
+event: answer_chunk
+data: {"delta": "の"}
+
+event: answer_chunk
+data: {"delta": "有名"}
+
+event: answer_chunk
+data: {"delta": "メーカー"}
+
+event: answer_chunk
+data: {"delta": "製品"}
+
+event: answer_chunk
+data: {"delta": "を"}
+
+event: answer_chunk
+data: {"delta": "徹底"}
+
+event: answer_chunk
+data: {"delta": "比較"}
+
+event: answer_chunk
+data: {"delta": "する"}
+
+event: answer_chunk
+data: {"delta": "「"}
+
+event: answer_chunk
+data: {"delta": "最強"}
+
+event: answer_chunk
+data: {"delta": "充電"}
+
+event: answer_chunk
+data: {"delta": "器"}
+
+event: answer_chunk
+data: {"delta": "」"}
+
+event: answer_chunk
+data: {"delta": "シリーズ"}
+
+event: answer_chunk
+data: {"delta": "の一"}
+
+event: answer_chunk
+data: {"delta": "環"}
+
+event: answer_chunk
+data: {"delta": "として"}
+
+event: answer_chunk
+data: {"delta": "、"}
+
+event: answer_chunk
+data: {"delta": "特に"}
+
+event: answer_chunk
+data: {"delta": "**"}
+
+event: answer_chunk
+data: {"delta": "1"}
+
+event: answer_chunk
+data: {"delta": "4"}
+
+event: answer_chunk
+data: {"delta": "0"}
+
+event: answer_chunk
+data: {"delta": "W"}
+
+event: answer_chunk
+data: {"delta": "部門"}
+
+event: answer_chunk
+data: {"delta": "**"}
+
+event: answer_chunk
+data: {"delta": "に"}
+
+event: answer_chunk
+data: {"delta": "焦"}
+
+event: answer_chunk
+data: {"delta": "点を"}
+
+event: answer_chunk
+data: {"delta": "当て"}
+
+event: answer_chunk
+data: {"delta": "ています"}
+
+event: answer_chunk
+data: {"delta": "。"}
+
+event: answer_chunk
+data: {"delta": "この"}
+
+event: answer_chunk
+data: {"delta": "動画"}
+
+event: answer_chunk
+data: {"delta": "では"}
+
+event: answer_chunk
+data: {"delta": "、"}
+
+event: answer_chunk
+data: {"delta": "前回"}
+
+event: answer_chunk
+data: {"delta": "王者"}
+
+event: answer_chunk
+data: {"delta": "と"}
+
+event: answer_chunk
+data: {"delta": "やら"}
+
+event: answer_chunk
+data: {"delta": "（"}
+
+event: answer_chunk
+data: {"delta": "1"}
+
+event: answer_chunk
+data: {"delta": "年前"}
+
+event: answer_chunk
+data: {"delta": "の"}
+
+event: answer_chunk
+data: {"delta": "最強"}
+
+event: answer_chunk
+data: {"delta": "充電"}
+
+event: answer_chunk
+data: {"delta": "器"}
+
+event: answer_chunk
+data: {"delta": "）"}
+
+event: answer_chunk
+data: {"delta": "が"}
+
+event: answer_chunk
+data: {"delta": "、"}
+
+event: answer_chunk
+data: {"delta": "新"}
+
+event: answer_chunk
+data: {"delta": "世代"}
+
+event: answer_chunk
+data: {"delta": "の"}
+
+event: answer_chunk
+data: {"delta": "充電"}
+
+event: answer_chunk
+data: {"delta": "器"}
+
+event: answer_chunk
+data: {"delta": "たち"}
+
+event: answer_chunk
+data: {"delta": "に対"}
+
+event: answer_chunk
+data: {"delta": "しても"}
+
+event: answer_chunk
+data: {"delta": "優"}
+
+event: answer_chunk
+data: {"delta": "位"}
+
+event: answer_chunk
+data: {"delta": "性を"}
+
+event: answer_chunk
+data: {"delta": "保"}
+
+event: answer_chunk
+data: {"delta": "てる"}
+
+event: answer_chunk
+data: {"delta": "のか"}
+
+event: answer_chunk
+data: {"delta": "、"}
+
+event: answer_chunk
+data: {"delta": "あるいは"}
+
+event: answer_chunk
+data: {"delta": "新たな"}
+
+event: answer_chunk
+data: {"delta": "王"}
+
+event: answer_chunk
+data: {"delta": "者が"}
+
+event: answer_chunk
+data: {"delta": "誕生"}
+
+event: answer_chunk
+data: {"delta": "する"}
+
+event: answer_chunk
+data: {"delta": "のか"}
+
+event: answer_chunk
+data: {"delta": "を"}
+
+event: answer_chunk
+data: {"delta": "検証"}
+
+event: answer_chunk
+data: {"delta": "しています"}
+
+event: answer_chunk
+data: {"delta": "。"}
+
+event: citation
+data: {"citation": {"file_id": "532Tz9YssoCP", "drive": "動画", "filename": "【徹底検証】”新世代の充電器”vs”これまでの最強”→「世代交代」が起こってる。【最強充電器”防衛戦”2026初夏 ～140W部門～】.loft", "file_type": "video", "quote": "このチャンネルでは、同じ階級の急速充電器を一度に買いそろえたうえでその性能を徹底比較する企画を定期的にやっていて1年ほど前に、主要な階級の王者は出そろいました が当然それは”その時点での”最強であってそれから時が流れる間、様々な新製品が続々と登場そんな”新世代の充電器”と”1年前の王者”が対戦したとき これまでの最強はその王座を保つことができるのでしょうかそれとも新たなる王者が誕生するのでしょうか…", "relevance": 0.0, "segment_location": "0:00", "section_title": null}, "index": 1}
+
+event: citation
+data: {"citation": {"file_id": "532Tz9YssoCP", "drive": "動画", "filename": "【徹底検証】”新世代の充電器”vs”これまでの最強”→「世代交代」が起こってる。【最強充電器”防衛戦”2026初夏 ～140W部門～】.loft", "file_type": "video", "quote": "これを超える選択肢はしばらく現れない気がしますがとはいえさらにこれを超えてくるメーカーが出現することを期待しながら今回はここまでとしましょうというわけで今回は、 1年前の最強充電器とその後登場した新世代を比較して", "relevance": 0.0, "segment_location": "29:20", "section_title": null}, "index": 2}
+
+event: citations
+data: {"citations": [{"file_id": "532Tz9YssoCP", "drive": "動画", "filename": "【徹底検証】”新世代の充電器”vs”これまでの最強”→「世代交代」が起こってる。【最強充電器”防衛戦”2026初夏 ～140W部門～】.loft", "file_type": "video", "quote": "このチャンネルでは、同じ階級の急速充電器を一度に買いそろえたうえでその性能を徹底比較する企画を定期的にやっていて1年ほど前に、主要な階級の王者は出そろいました が当然それは”その時点での”最強であってそれから時が流れる間、様々な新製品が続々と登場そんな”新世代の充電器”と”1年前の王者”が対戦したとき これまでの最強はその王座を保つことができるのでしょうかそれとも新たなる王者が誕生するのでしょうか…", "relevance": 0.0, "segment_location": "0:00", "section_title": null}, {"file_id": "532Tz9YssoCP", "drive": "動画", "filename": "【徹底検証】”新世代の充電器”vs”これまでの最強”→「世代交代」が起こってる。【最強充電器”防衛戦”2026初夏 ～140W部門～】.loft", "file_type": "video", "quote": "これを超える選択肢はしばらく現れない気がしますがとはいえさらにこれを超えてくるメーカーが出現することを期待しながら今回はここまでとしましょうというわけで今回は、 1年前の最強充電器とその後登場した新世代を比較して", "relevance": 0.0, "segment_location": "29:20", "section_title": null}]}
+
+event: done
+data: {"retrieved_count": 4, "took_ms": 23011}
+

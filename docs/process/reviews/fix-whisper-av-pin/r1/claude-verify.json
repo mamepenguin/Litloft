@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-1",
+      "status": "confirmed",
+      "note": "docs/process/reviews/fix-whisper-av-pin/ holds decisions.md and r1/ only, while other fix branches do have an invariants.md (for example fix-refine-response-key, fix-embed-numpy-truthiness). A grep of docs/ for metadata_errors, av== and whisper-av-pin matches only decisions.md. docs/specs/INDEX.md has no row for this fix and no UNSPEC entry. docs/process/workflow.md:69 requires the correct behavior to be stated as a SPEC or UNSPEC. docs/specs/haas-local-transcription.md:299-300 names this failure only as a separate defect outside that spec and does not state correct behavior. The reached sites exist as listed. The paths are app/workers/transcription/retry.py:209 and app/evals_transcription/runner.py:309."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-2",
+      "status": "confirmed",
+      "note": "Traced in code. app/workers/whisper.py:552-563 returns [] for IndexError, RuntimeError and any other Exception (after the VAD retry for the first two). whisper_local.py:107-110 passes [] through. whisper.py:1135-1148 calls _persist_transcript, and :1394-1400 sets whisper_indexed=True and finishes the job as succeeded. splitting_transcriber.py:179-190 appends nothing for an empty chunk and continues, so a middle chunk can be lost while the job succeeds. tests/test_whisper_local_provider.py:272-288 pins RuntimeError and ValueError to []. The behavior predates this commit and the commit keeps it. haas-local-transcription.md:92-96 describes the same trade-off for read errors in haas_local. No code separates undecodable input from other causes."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-3",
+      "status": "confirmed",
+      "note": "Dockerfile.test:23-28 copies requirements.txt but installs a fixed list without faster-whisper or av. conftest.py:18-31 stubs faster_whisper. The tests raise the error from MagicMock (test_whisper_local_provider.py:236-269), so they cover classification only. Greps of tests/ for requirements.txt and importlib.metadata find only the comment at test_gemini_provider.py:45. The only av matches are the error strings at test_whisper_local_provider.py:240-241. Greps of .github/, addons/intelligence/.github/ and scripts/ find no check of the pin. Only the manual R-5 run in decisions.md exercised the real av contract. The production Dockerfile:23 does install the pin."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-4",
+      "status": "confirmed",
+      "note": "whisper.py:893-901 points file_path at the .loft temp audio. A FatalError reaches :1099 and returns False. :989-992 then runs _mark_loft_stt_temp_consumed, which sets whisper_indexed=True (:150-166), and the finally at :994-995 deletes the temp file. test_whisper_skip_jobrecord.py:253-296 pins this for FatalError in general. decisions.md R-5 has no .loft step. Before this commit the same error returned [], which also set whisper_indexed=True with the temp file deleted, so the file was not retried then either. What the commit changes is the job status, now failed and visible instead of succeeded."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-5",
+      "status": "confirmed",
+      "note": "The try at whisper.py:489-551 covers kwargs construction, model.transcribe, info access and segment iteration including segment.text and segment.words. The handler at :546-551 converts any TypeError, AttributeError or ImportError to FatalError with the fixed prefix and no attempt retry. Nothing checks the source of the exception. transcription/retry.py:209 re-raises it. splitting_transcriber.py:179-195 has no handler, so segments_all from earlier chunks is discarded. The failure is visible and not silent. The file keeps whisper_indexed false and the next scan re-queues it, as R-5 step 5 records (attempts 2), so it is permanent in classification, not in final state. Whether faster-whisper actually raises such errors on specific files was not checked, because its source is not in the repository. The structural claim holds."
+    }
+  ],
+  "specification_compliance": [
+    "No SPEC or UNSPEC states the correct behavior for this fix, as docs/process/workflow.md:69 requires. See CR-1.",
+    "The whisper_local empty-result behavior for undecodable input matches the description in docs/specs/haas-local-transcription.md:92-96."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The split between FatalError (TypeError, AttributeError, ImportError) and an empty success (all other exceptions) at app/workers/whisper.py:546-563 is stated by no spec.",
+    "A failed job on an already-indexed file keeps the old transcript but sets Transcription to Pending, and each scan re-queues it (decisions.md R-5 step 5). No spec states this."
+  ],
+  "regression_risks": [
+    "A file-specific TypeError or AttributeError that previously closed as an empty success now fails the whole file, and in the split path discards earlier chunks (CR-5).",
+    "A later change to the av or faster-whisper versions is not caught by the test image (CR-3)."
+  ],
+  "test_coverage": [
+    "tests/test_whisper_local_provider.py:236-288 covers classification in the sequential path, the batched fallback and the [] cases, all with MagicMock errors.",
+    "tests/test_whisper_skip_jobrecord.py:253-296 covers the loft temp failure path with a generic FatalError, not an error raised from _transcribe_sequential.",
+    "No test exercises the real av.open contract or checks the pin.",
+    "No test covers a contract error on a later chunk through SplittingTranscriber, or one raised during segment iteration."
+  ],
+  "not_verified": [
+    "No command was run: tests, the build and pip resolution were not executed. Code was read in the working tree, and the submodule HEAD c5b864d3981b82a365dd7d07da81c66a3ccc8675 was matched only against the build recorded in decisions.md, not against the tree of 917da44d6.",
+    "The source of faster-whisper and av was not available, so the claim in the requirements.txt comment about av 19 and faster-whisper 1.2.1 is unchecked, as is whether faster-whisper raises TypeError or AttributeError on specific files.",
+    "The R-5 results in decisions.md were read as recorded and not reproduced, including the screenshots and logs under the scratchpad path.",
+    "Gates outside .github/, addons/intelligence/.github/ and scripts/ were not searched for a pin check."
+  ],
+  "confidence": 88
+}

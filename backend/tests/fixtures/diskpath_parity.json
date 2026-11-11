@@ -1,0 +1,13 @@
+{
+  "format": "A path component written as `nfc:NAME` or `nfd:NAME` is that name in that Unicode form; a component with no prefix is used as written. `disk` lists files that exist, `rel` is the stored NFC path handed to the resolver, `expect` is the path the resolver returns, relative to the root.",
+  "cases": [
+    {"id": "exact-nfc", "disk": ["nfc:がぎ/nfc:ぱぴ.mp4"], "rel": "がぎ/ぱぴ.mp4", "expect": "nfc:がぎ/nfc:ぱぴ.mp4"},
+    {"id": "nfd-leaf", "disk": ["nfc:がぎ/nfd:ぱぴ.mp4"], "rel": "がぎ/ぱぴ.mp4", "expect": "nfc:がぎ/nfd:ぱぴ.mp4"},
+    {"id": "nfd-ancestor", "disk": ["nfd:がぎ/nfc:ぱぴ.mp4"], "rel": "がぎ/ぱぴ.mp4", "expect": "nfd:がぎ/nfc:ぱぴ.mp4"},
+    {"id": "nfd-ancestor-and-leaf", "disk": ["nfd:がぎ/nfd:ぱぴ.mp4"], "rel": "がぎ/ぱぴ.mp4", "expect": "nfd:がぎ/nfd:ぱぴ.mp4"},
+    {"id": "exact-wins-over-twin", "disk": ["nfc:がぎ/nfc:ぱぴ.mp4", "nfc:がぎ/nfd:ぱぴ.mp4"], "rel": "がぎ/ぱぴ.mp4", "expect": "nfc:がぎ/nfc:ぱぴ.mp4"},
+    {"id": "nothing-matches", "disk": ["nfc:other/x.mp4"], "rel": "がぎ/ぱぴ.mp4", "expect": "nfc:がぎ/nfc:ぱぴ.mp4"},
+    {"id": "real-ancestor-stored-leaf", "disk": ["nfd:がぎ/other.mp4"], "rel": "がぎ/ぱぴ.mp4", "expect": "nfd:がぎ/nfc:ぱぴ.mp4"},
+    {"id": "dot-dot-matches-nothing", "disk": ["nfd:がぎ/nfd:ぱぴ.mp4"], "rel": "がぎ/../ぱぴ.mp4", "expect": "nfc:がぎ/../nfc:ぱぴ.mp4"}
+  ]
+}

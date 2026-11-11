@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1-short-body-now-reported-as-success",
+      "status": "confirmed",
+      "note": "Confirmed by code trace; not executed (read-only verifier). service.py:546-550 has no length check. shutil.py:256 (`while buf := fsrc_read(length)`) stops at the first empty read. urllib/request.py:1337,1356 returns the raw HTTPResponse from urlopen, and http/client.py:494-498 returns the empty read on early EOF with a Content-Length body, without raising. Over TLS, ssl.py:1153 turns a ragged EOF into an empty read by default, so HTTPS takes the same path. On clean exit atomic_write.py:60-61 publishes the temporary file. service.py:613-614 then stops at that candidate, so later fallback URLs are not tried, and service.py:624-629 commits the pointer and removes any old picture. urllib/request.py:247-250 shows the check `urlretrieve` had. `_save_subscription_avatar` (service.py:577) shares this path, so avatars are affected too. Chunked bodies are different: `_read_chunked` is the branch at http/client.py:487-488 and was not traced here. Spec section 5 says the download's failure handling is unchanged, which this contradicts. The stdlib read is 3.14.8, while the deployed image is python:3.12-slim (backend/Dockerfile:1); no 3.12 source was available locally to compare."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2-no-test-drives-a-successful-real-download",
+      "status": "confirmed",
+      "note": "Confirmed by grep across all .py files in the repository. The only `urlopen` patch in the addon's tests is test_loft_thumbnail.py:495, which uses `_DroppingResponse` and asserts `rel is None` at line 504. No addon test uses `urlretrieve`, `http.server` or a similar local server. Every test that gets a saved thumbnail patches `service._download_thumbnail_sync`, including test_subscription_manager.py:394, 435 and 483. `_save_subscription_avatar` is itself patched in its tests (test_subscription_router.py:1189, test_subscription_manager.py:1108, 1207), so it does not reach the real body either."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3-removal-before-commit-still-untested",
+      "status": "confirmed",
+      "note": "Confirmed by code trace of the mutant; the suite was not run. service.py:625-629 commits, closes the session and then removes, as claimed. The only `db.commit` calls in test_loft_thumbnail.py are seed helpers (lines 46, 247, 287, 350), and a grep of the addon's tests finds no commit made to fail; the `SessionLocal` patches at conftest.py:40-52 only install the test session. With the removal moved before `db.commit()`: f7 (line 266) and k3 (line 448) still see the old file gone after a successful commit; k1 returns at service.py:616 before any removal; k2 absorbs the error inside `remove_thumbnail_quietly`; f8 skips removal because old_rel equals thumb_rel. All stay green. The r1 proposal (r1/claude-read.json:37) did ask for both a failed-download test and a commit-failure test, and only the first exists (test_loft_thumbnail.py:356)."
+    }
+  ],
+  "specification_compliance": [
+    "docs/specs/thumbnail-slot-ownership.md:155 says Media Import's download failure handling is unchanged. A short Content-Length body was a failure under `urlretrieve` and is a success now, as traced in F1.",
+    "The ordering required by the states table at docs/specs/thumbnail-slot-ownership.md:133 holds in the code: the old picture is removed after the pointer commit (service.py:625-629)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "A connection that ends early without a socket error replaces a good slot with a truncated picture, stops the fallback chain, and can remove the old path-form picture. Subscription avatars share the same download function."
+  ],
+  "test_coverage": [
+    "`_download_thumbnail_sync` is reached only by the dropped-connection test (test_loft_thumbnail.py:480-507); no test drives its success path or a clean early EOF.",
+    "No test makes the commit in `_save_loft_thumbnail` fail, so the order of commit and removal is unguarded."
+  ],
+  "not_verified": [
+    "Nothing was executed: the early-EOF behaviour and the F3 mutant were traced by reading code, not reproduced.",
+    "The Python 3.12 stdlib used by the deployed image was not read; only the local 3.14.8 source was available.",
+    "`_read_chunked` behaviour on an early EOF was not traced, so chunked responses are outside the F1 confirmation.",
+    "That the addon checkout's HEAD matches the gitlink pinned at 23030903d was not checked; the addon code was read from the working tree.",
+    "How often a CDN thumbnail transfer actually ends early in normal use was not measured."
+  ],
+  "confidence": 88
+}

@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "Confirmed by reading ImageQueryDropTarget.tsx. dragClass is set only when null (:50-52). onDragLeave returns early when dragClass !== 'one_image' (:66), so an upload-class drag that leaves the frame without a drop never calls reset(). reset() runs only in onDrop (:78) and the effect cleanup (:93). The stale 'upload' class then persists, and the next one-image drag is not reclassified (:50 is false), so it gets no overlay and no preventDefault. This violates I8, which says the class is given at dragenter for each drag. It is a silent functional defect in normal use: drag a non-image file in, drag it out, then drag an image. I did not run it."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "Confirmed. image-drop-target-desktop.spec.ts:53-57 evaluates `el?.closest('[data-page-frame]') !== null`. When elementFromPoint returns null, `el?.closest(...)` is undefined, and undefined !== null is true, so the hit-test assertion passes vacuously. The events are also sent with dispatchEvent on the frame (:59-61), not by a real CDP drag, so the hit test does not influence them."
+    }
+  ],
+  "specification_compliance": [
+    "I8: the stale drag class in ImageQueryDropTarget can violate the rule that the action of a drop is the class given at dragenter. This is the F1 case. Nothing else was checked against the invariants."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Resetting dragClass on upload-class dragleave must keep depth counting correct for nested elements inside the frame."
+  ],
+  "test_coverage": [
+    "ImageQueryDropTarget.test.tsx covers a one-image drag leaving, but not an upload-class drag leaving followed by a one-image drag. The e2e drop-target spec has a vacuous hit-test assertion."
+  ],
+  "not_verified": [
+    "I did not run any test or browser.",
+    "I did not review the addon, the other frontend files or the other invariants.",
+    "I did not check whether a dragend or Escape cancellation reaches the frame as a dragleave."
+  ],
+  "confidence": 85
+}

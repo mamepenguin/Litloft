@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "R1-1",
+      "origin": "reviewer",
+      "claim": "The continuation gate `canOfferContinuation` in useFolderFiles.ts gains `!searchKinds.impossible` in addition to `!rangeImpossible`, which changes behavior for existing impossible-kind queries that have no size or duration token.",
+      "impact": "For a query with contradictory `type:` operators and no `size:`/`duration:`, the \"show more by similarity\" continuation was previously decided without this check and now is not offered. This is outside the touch-point list's stated scope (the impossible-range check) and is a behavior change for queries that should be unchanged.",
+      "evidence": "frontend/src/components/folder/useFolderFiles.ts, hunk at `canOfferContinuation`: added lines `!searchKinds.impossible &&` and `!rangeImpossible &&`. The spec only says the impossible-range check applies wherever the impossible-kinds check applies today. No test in the diff covers the impossible-kinds continuation.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The effect is in practice unobservable (no meaning results exist when kinds are impossible), but it is an unplanned and untested change to the continuation gate for queries without the new operators; it does not clearly break I11, which names listing parameters and `filter`.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Remove `!searchKinds.impossible` from the gate, or add a test that pins the intended behavior."
+    },
+    {
+      "id": "R1-2",
+      "origin": "reviewer",
+      "claim": "The diff edits two existing tests that the touch-point list does not name: SearchQueryHeader.scope.test.tsx (the first-level menu order expectation) and the addon's test_filtered_search_contract.py (the allowed key set of the matching request).",
+      "impact": "Both edits change pinned existing expectations (the menu rows, and the set of keys the addon may send to /files/matching) without being declared, so a reader of the touch points would not look for them.",
+      "evidence": "frontend/src/components/search/__tests__/SearchQueryHeader.scope.test.tsx: the expected rows list gains \"Size\", \"Length\". addons/intelligence/tests/test_filtered_search_contract.py: the `set(sent) <= {...}` gains \"sizes\", \"durations\". The touch points name only tests that build a SearchFilter or ParsedQuery literal and the addon's acceptance tests for the new fields.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The edits are necessary consequences of the change and break no invariant; the touch-point list is merely incomplete.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add these two test files to the touch-point list."
+    }
+  ],
+  "specification_compliance": [
+    "Core listing and Internal API share one parser and validator (normalize_sizes/normalize_durations), which supports I1 and I8 on the backend.",
+    "The duration comparison uses CAST to Integer on a nullable column; NULL stays NULL and never passes, consistent with I3 and I12 on SQLite.",
+    "Not-listed places the diff reaches are limited to R1-1 and R1-2; all other touched files are in the touch-point list or are implicit touch points."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "canOfferContinuation now also checks searchKinds.impossible, which the spec does not ask for."
+  ],
+  "regression_risks": [
+    "Changing the continuation gate could alter the continuation for impossible-kind queries.",
+    "CAST(duration AS INTEGER) truncation is database-dialect dependent; PostgreSQL would round instead of truncating."
+  ],
+  "test_coverage": [
+    "Backend tests cover boundaries, NULL durations, parity, caps and wire-form rejection on both surfaces.",
+    "Frontend tests cover parsing, chips, the menu and the hooks.",
+    "No test covers the continuation gate for impossible kinds."
+  ],
+  "not_verified": [
+    "I did not read the source files beyond the diff, so I did not check for other callers of the changed functions.",
+    "I did not check the contents of the review directory or invariants.md revisions.",
+    "I could not run any tests."
+  ],
+  "confidence": 72
+}

@@ -7,55 +7,96 @@ import { fakeClient } from "./testClient.js";
 
 const expectedToolNames = [
   "add_comment",
+  "add_tags",
   "add_to_playlist",
   "ask",
   "clip_pasted",
   "clip_url",
+  "copy_files",
+  "create_folder",
   "create_playlist",
+  "edit_file_content",
+  "get_collection",
   "get_file",
+  "get_file_by_path",
   "get_file_content",
   "get_transcript",
+  "get_video_frame",
   "get_watch_history",
+  "list_collections",
   "list_comments",
   "list_drives",
   "list_folders",
+  "list_inbox",
+  "list_video_scenes",
   "move_file",
+  "move_files",
+  "move_folder",
+  "read_document",
   "rename_file",
+  "rename_folder",
   "restore_file",
+  "restore_files",
+  "search_exact",
   "search_files",
+  "search_video_scenes",
   "semantic_search",
   "trash_file",
+  "trash_files",
+  "trash_folder",
   "update_file_content",
   "update_tags",
   "upload_file",
 ];
 
 const readOnlyTools = new Set([
+  "get_collection",
   "get_file",
+  "get_file_by_path",
   "get_file_content",
   "get_transcript",
+  "get_video_frame",
   "get_watch_history",
+  "list_collections",
   "list_comments",
   "list_drives",
   "list_folders",
+  "list_inbox",
+  "list_video_scenes",
+  "read_document",
+  "search_exact",
   "search_files",
+  "search_video_scenes",
   "semantic_search",
 ]);
 
 const destructiveTools = new Set([
+  "edit_file_content",
   "move_file",
+  "move_files",
+  "move_folder",
   "rename_file",
+  "rename_folder",
   "trash_file",
+  "trash_files",
+  "trash_folder",
   "update_file_content",
   "update_tags",
 ]);
 
 const idempotentTools = new Set([
   ...readOnlyTools,
+  "add_tags",
   "move_file",
+  "move_files",
+  "move_folder",
   "rename_file",
+  "rename_folder",
   "restore_file",
+  "restore_files",
   "trash_file",
+  "trash_files",
+  "trash_folder",
   "update_file_content",
   "update_tags",
 ]);
@@ -109,6 +150,29 @@ describe("advertised tool safety metadata", () => {
         openWorldTools.has(tool.name)
       );
     }
+  });
+
+  it("SPEC-CORE-008 SPEC-CORE-009: the server instructions name both video frame tools", () => {
+    const instructions = client.getInstructions() ?? "";
+    expect(instructions).toContain("get_video_frame");
+    expect(instructions).toContain("list_video_scenes");
+  });
+
+  it("SPEC-CORE-017 SPEC-CORE-018: the server instructions name both search tools", () => {
+    const instructions = client.getInstructions() ?? "";
+    expect(instructions).toContain("search_exact");
+    expect(instructions).toContain("search_video_scenes");
+  });
+
+  it("SPEC-CORE-019: the server instructions name read_document", () => {
+    const instructions = client.getInstructions() ?? "";
+    expect(instructions).toContain("read_document");
+  });
+
+  it("SPEC-CORE-038 I12: the server instructions name both collection tools", () => {
+    const instructions = client.getInstructions() ?? "";
+    expect(instructions).toContain("list_collections");
+    expect(instructions).toContain("get_collection");
   });
 
   it("discloses Ask's possible file-excerpt transfer to the configured LLM provider", () => {

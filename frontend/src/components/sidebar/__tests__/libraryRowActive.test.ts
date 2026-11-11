@@ -14,7 +14,7 @@ const DECODED_BASE = `/drive/${ODD_DRIVE}`;
 const FIXED_ROWS: { name: string; href: string }[] = [
   ...FIXED_SIDEBAR_ROWS.filter((r) => r.label !== "Library").map((r) => ({
     name: r.label,
-    href: r.view ? `${BASE}?view=${r.view}` : BASE,
+    href: r.path ? `${BASE}${r.path}` : r.view ? `${BASE}?view=${r.view}` : BASE,
   })),
   { name: "Dashboard", href: "/admin" },
   { name: "Ask", href: `${BASE}/addons/intelligence` },

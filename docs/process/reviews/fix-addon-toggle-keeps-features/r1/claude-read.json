@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "CR-1",
+      "origin": "reviewer",
+      "claim": "A feature switch in /admin/settings does nothing when the addon's stored map holds `_all: true`: the click saves successfully but the row stays on, with no error.",
+      "impact": "An owner who wrote `{\"editor\": false, \"_all\": true}` by hand in drives.json sees the feature on, presses its switch to turn it off, and the feature stays on with no message. Pressing the addon's own switch off and on afterwards removes `_all` and turns `editor` off. The UI never writes `_all: true`, so only a hand-edited config reaches this.",
+      "evidence": "frontend/src/lib/adminConfig.ts:31 returns `_all` before looking at the feature. frontend/src/app/admin/settings/AddonPolicySection.tsx:138 therefore reads current=true, and :145 stores `editor: false`, which leaves the map unchanged. backend/app/config.py:148 lets `_all` win, so the value on screen matches the backend but the switch cannot change it. toggleFeature is not in the diff, and no test presses a feature switch on such a map. The fixture case `_all true over a feature false` pins only the read.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "No invariants are declared, and this needs a hand-written `_all: true` that the settings screens never store and docs/reference/configuration.md does not describe. Normal toggling cannot reach it."
+      },
+      "severity": "LOW",
+      "proposed_fix": "Have toggleFeature drop `_all` from the map when it writes a feature, or treat `_all: true` as absent in isAddonFeatureOn and accept the parity table change."
+    }
+  ],
+  "specification_compliance": [
+    "No invariants file exists for this change, so there is no touch-point list to compare the diff against. I raised no finding for each changed file, because every file would qualify and that would carry no information.",
+    "Files the diff reaches directly, all consistent with the change's purpose: backend/app/routers/drive_policies.py, frontend/src/lib/adminConfig.ts, AddonPolicySection.tsx, AddonPolicyStep.tsx, their tests and fixture, and three documents.",
+    "Places the new stored shape `{...map, _all: false}` reaches without being edited, read for agreement: config.is_addon_feature_enabled (used by main.py:390, addon_proxy.py:156, event_hooks.py:60), internal.py:100, usePolicy.ts via the public view, addons/intelligence/app/policy_client.py:79-93, purge_disabled_drives, and PUT validation at admin_config.py:171-218. All of them treat the shape as off, except toggleFeature with `_all: true` (CR-1).",
+    "`_normalize_policy` now gives the same answer as internal.py:100-105 for maps with `_all`, and frontend isAddonFeatureOn matches backend is_addon_feature_enabled on the shared table."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "`_all: true` in a map overrides every feature value in all views, including the settings screens. Only `_all: false` is documented in docs/reference/configuration.md, and the `_all: true` case is pinned only by a fixture row.",
+    "Turning an addon on removes any stored `index` key from its map, including a hand-written `index: true`. This does not change the behaviour, because an absent key reads as on.",
+    "A hand-written `_all: true` map is reduced by off then on to its bare feature keys, so a feature it had been masking takes effect."
+  ],
+  "regression_risks": [
+    "Keeping the map does not keep the data. purge_disabled_drives still purges the drive's index when the intelligence addon restarts while it is off, the same as for a plain `false`.",
+    "Any future reader of raw drives.json addon maps must check `_all` first, or an off addon reads as on. The readers present today are config.get_drive_addon_policy, _normalize_policy and adminConfig.ts, and all three do."
+  ],
+  "test_coverage": [
+    "Removing the `_all` branch in `_normalize_policy` fails test_all_false_map_is_off_in_both_policy_views.",
+    "Removing the `_all` check in isAddonFeatureOn fails the two new rows in addonPolicy.parity.test.ts and the AddonPolicySection test for a map with `_all: false`.",
+    "Keeping `index` when switching on fails `stores true when there is nothing to restore`, because `{index: false}` would stay off. Dropping the map on switch-off fails `returns the original feature map after off then on`.",
+    "The rollback after a failed save is covered by `restores the previous map when the save fails`.",
+    "Gap: no test presses a feature switch on a map holding `_all` (CR-1).",
+    "Gap: AddonPolicyStep.test.tsx has no map case. This has low impact because SetupWizard.tsx:142 starts from `{}` and that step offers no feature switches, so its value only ever holds plain booleans."
+  ],
+  "not_verified": [
+    "I ran no tests, lint, type check or the app; every statement comes from reading the code, including the mutation reasoning and CR-1.",
+    "I read the working tree at the review head and did not inspect the commit objects, so I relied on the supplied diff for what changed.",
+    "The in-app record in decisions.md was read but not repeated, and its screenshots and logs were not opened.",
+    "I did not read every addon's policy client. Only intelligence's policy_client.py was read in full for the response handling, and knowledge, media_import and cloud-sync were only searched for raw drives.json access.",
+    "docs/process/spec-and-design.md was not read, so I did not confirm how a change with no invariants file should be treated."
+  ],
+  "confidence": 80
+}

@@ -426,7 +426,7 @@ class TestCallersWriteWebpIntoTheJpgSlot:
 
         record = _row(db_session, "logo.png")
         assert record.thumbnail_path is not None
-        assert record.thumbnail_path.endswith("logo.jpg")
+        assert record.thumbnail_path == f".by-id/{record.id}.jpg"
         stored = config.THUMBNAILS_DIR / record.thumbnail_path
         assert _signature(stored.read_bytes()) == "webp"
         assert _alpha_at(stored, (1, 1)) == 0
@@ -460,7 +460,7 @@ class TestCallersWriteWebpIntoTheJpgSlot:
         ).status_code == 200
 
         record = _row(db, "logo.png")
-        assert record.thumbnail_path.endswith("logo.jpg")
+        assert record.thumbnail_path == f".by-id/{record.id}.jpg"
         res = c.get(f"/api/files/{record.id}/thumbnail")
         assert res.status_code == 200
         assert res.headers["content-type"].split(";")[0] == "image/webp"
@@ -717,7 +717,8 @@ class TestScanReplacesJpegThumbnailsOfTransparentPictures:
             Image.new("RGB", (640, 480), (30, 90, 160)).save(path, format="JPEG")
 
         _src, jpg_row, _slot = _register(db_session, drive_dir, "logo.jpg", same_size_jpeg)
-        assert png_row.thumbnail_path == jpg_row.thumbnail_path
+        jpg_row.thumbnail_path = png_row.thumbnail_path
+        db_session.commit()
         _old_jpeg(slot, logo_png)
 
         other_source, _r, other = _register(db_session, drive_dir, "other.png", _rgba_png)

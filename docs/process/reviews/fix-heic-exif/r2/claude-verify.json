@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-5",
+      "status": "confirmed",
+      "note": "Confirmed by reading; not executed. upload.py:288-296 runs db.delete(existing), db.flush() and cleanup_orphan_tags on a trashed row. That DML opens the transaction, which stays open until db.commit() at :371, and extract_exif runs inside it at :308. test_reading_an_upload_holds_no_write_lock uploads only a new a.png, and test_exif.py has no match for trash or deleted_at. Reachability is as claimed: delete_file (fileops.py:671-687) and delete_folder (fileops.py:876-880) keep the file on disk, and init_upload rejects an existing path with 409 (upload.py:136-137). The app's purge paths were not read in full. I found no in-app route to this state, so the ghost needs the file removed outside the app while it is in the trash. The claim that the read_image_dimensions placement predates this change was not checked, because git history is unavailable."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-6",
+      "status": "confirmed",
+      "note": "Confirmed by reading; the mutant was not run. scanner.py:387-389 is the EXIF call in register_single_file, and markdown_image_import.py:416 is its only production caller. An uncapped grep of backend/tests for register_single_file shows no hit in test_exif.py. A case-insensitive grep for exif matches only test_exif.py, test_image_dimensions.py, test_safe_image_fetch.py and two database test files. Outside test_exif.py, the test_image_dimensions.py and test_safe_image_fetch.py hits are fixtures, a comment and a check on the normalized image, not a file_exif row. test_markdown_image_import.py has no EXIF assertion. One correction to the evidence: the exif match set is wider than the three files the finding lists, but the extra files do not change the conclusion."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "DEEP-R2-1",
+      "status": "confirmed",
+      "note": "Same code path as CR-5: upload.py:294-295 flushes the delete, :305-308 read dimensions and EXIF, and :371 commits. No test in test_exif.py uses a trashed row. The cited catch-all handlers exist at image_dimensions.py:32 and exif.py:138. Moving both reads before the try at :287 therefore looks safe, because file_type and target_full are known by then. One caveat: the lazy `from app.services import heic` at image_dimensions.py:25 sits outside its try, so an import failure there would escape, and from that position it would skip the thumbnail cleanup at :372-375. That failure is not expected in normal use. The same reachability limit as CR-5 applies: the file must be removed outside the app while in the trash. That the first fix moved only the extract_exif line was not checked against the diff."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "DEEP-R2-2",
+      "status": "confirmed",
+      "note": "Confirmed by reading; the mutant was not run. test_a_scan_reads_a_photo_it_finds_and_one_with_no_exif_row calls only _scan_and_register. Its first scan reaches the new-file branch at scanner.py:754, and after the row is deleted its second scan reaches the backfill at :549-552. Neither scan reaches :387-389 in register_single_file. test_scanner.py, test_image_dimensions.py and test_transparent_thumbnails.py do call register_single_file, but test_scanner.py and test_transparent_thumbnails.py have no exif match at all. test_image_dimensions.py:78-94 uses EXIF only as an orientation fixture. test_safe_image_fetch.py:538 asserts the normalized fetch result has no EXIF, and that function was not traced into the import path, so the suggestion that imports arrive without EXIF stays unproven; it does not affect the coverage claim."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "DEEP-R2-3",
+      "status": "confirmed",
+      "note": "Confirmed by reading; not executed. test_exif.py:252 patches upload_service.extract_exif and :256 asserts writable == [True]. If the call moved to a helper in another module that holds its own reference, the patch would not be hit, writable would be [] and the test would fail with no behavior change. If upload.py stopped importing the name, setattr would raise AttributeError. The probe is not vacuous: conftest.py:76-78 uses a real file database, and the test opens a separate sqlite3 connection with timeout=0 and runs BEGIN IMMEDIATE."
+    }
+  ],
+  "specification_compliance": [
+    "The code at the reviewed commit keeps extract_exif above the first row flush on the fresh-upload and row-reuse paths (upload.py:308 and :352), but not on the trashed-ghost path, where the flush at :295 comes first.",
+    "The scanner call sites at scanner.py:549-552 and :754 are exercised by the new scan test. The one at :387-389 is not asserted by any test."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "scanner.py:549-552 re-reads every image with no file_exif row on every scan, because an image with no EXIF never gets a row. If the Pillow decode of EXIF-less PNG described in test_exif.py:234 holds, each rescan pays that decode again. I did not report this as a defect because neither the decode nor its cost was verified, and whether this predates the change was not checked."
+  ],
+  "regression_risks": [
+    "If the ghost-path fix moves read_image_dimensions and extract_exif before the try at upload.py:287, any exception escaping them skips the thumbnail cleanup at :372-375. The only visible route is the lazy heic import at image_dimensions.py:25."
+  ],
+  "test_coverage": [
+    "test_reading_an_upload_holds_no_write_lock covers only an upload to a path with no row. It covers neither the trashed-ghost path nor the row-reuse path.",
+    "No test asserts a file_exif row from register_single_file or from the Markdown image import that calls it."
+  ],
+  "not_verified": [
+    "No test or mutant was run, because this role has no way to execute commands; all confirmations come from reading the code.",
+    "Lock behavior at runtime was not observed. How long extract_exif holds the lock on the ghost path was not measured.",
+    "The Pillow source was not available in the backend tree, so the whole-image decode for EXIF-less PNG was not checked.",
+    "Git history and the diff were not read, so the claims that read_image_dimensions placement predates this change and that the first fix moved only the extract_exif line are unchecked.",
+    "The purge paths in fileops.py were not read in full, so the absence of an in-app route to a trashed row with no file rests on the soft-delete, init_upload and grep evidence."
+  ],
+  "confidence": 88
+}

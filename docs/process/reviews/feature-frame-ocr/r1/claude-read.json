@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R1",
+      "origin": "reviewer",
+      "claim": "The diff edits addons/intelligence/app/routers/document_text.py (a new _page_ocr_texts helper and a changed extract_units call), a file that is not in the touch-point list; only app/document_text.py is listed.",
+      "impact": "The GET /files/{id}/document-text route now does an extra search.db read for every PDF and passes the stored page texts to the extractor. Reviewers who rely on the touch-point list would not look at this route. If the helper fails or is slow, read_document for PDFs is affected.",
+      "evidence": "addons/intelligence/app/routers/document_text.py: new _page_ocr_texts(file_id) querying PdfPageOcrText, and get_document_text calling asyncio.to_thread(_page_ocr_texts, file_id) when mime == document_text.PDF, then passing page_ocr_texts to document_text.extract_units. The touch points name only `app/document_text.py` for stored page texts.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The change is needed to carry out I5/I6 (document-text returns the stored text), so no invariant is broken. The touch-point list is incomplete, which is a reading problem.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add addons/intelligence/app/routers/document_text.py to the touch points."
+    },
+    {
+      "id": "R2",
+      "origin": "reviewer",
+      "claim": "The diff changes frontend/src/__tests__/core-search-vocabulary.test.ts (a PassageList.tsx caller count and a key-population count) and the addon frontend tests AdminFeaturesSettingsSection.test.tsx and AdminFeaturesSettingsSectionOcr.test.tsx (combobox counts 12 to 14), none of which are in the touch-point list.",
+      "impact": "These are count-pinned tests that break whenever a message key or a setting is added. They are not listed, so the list gives no warning that adding a key or setting needs these updates.",
+      "evidence": "core-search-vocabulary.test.ts: PassageList.tsx 12 to 13 and used.length 105 to 106; the two admin tests: toHaveLength(12) to toHaveLength(14).",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "These are test adjustments that follow from the planned changes and break no invariant. Only the list is incomplete.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Name these count-pinned tests among the touch points."
+    }
+  ],
+  "specification_compliance": [
+    "Everything else visible in the diff falls within the listed touch points: indexer, workers, pdf.py, metadata.py, document_text.py, models, database, file_find, search.py, rag, exact_search, citations, config, admin, files router, schemas, main, the frontends and the docs. Only the two findings above are outside the list.",
+    "The diff does not show ocr.py changed, which matches the 'picture path unchanged' touch point."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "citations.py adds an lru_cache(maxsize=1024) on _is_video(file_id). A file that changes type is never refreshed, and the cache is not cleared on purge. This is inside a listed file but it is new behavior.",
+    "The routers/document_text.py change adds a DB read to every PDF document-text request."
+  ],
+  "regression_risks": [
+    "The count-pinned frontend tests will break again whenever a setting or message key is added.",
+    "The document-text route now depends on the pdf_page_ocr_texts table. A missing table on an old DB is probably handled only by a broad catch in the metadata path, but not in the router helper, which has no try/except."
+  ],
+  "test_coverage": [
+    "This question was about scope, so I did not assess test adequacy. The diff was truncated before most of the addon tests."
+  ],
+  "not_verified": [
+    "The diff was truncated at 200000 bytes, so any file touched after test_frame_page_ocr_queue.py (the rest of the addon tests, other fixtures) was not seen and may include more unlisted places.",
+    "I did not open the repository to confirm that the files named in the list exist, or that no other callers of extract_units or PdfExtractor.extract were left unchanged.",
+    "I did not assess the correctness of the code against the invariants beyond the scope question."
+  ],
+  "confidence": 75
+}

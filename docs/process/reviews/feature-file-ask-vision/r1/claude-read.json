@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The diff adds an app-wide RequestValidationError exception handler in addons/intelligence/app/main.py, a place the touch-point list does not name.",
+      "impact": "Every route of the intelligence addon, not only the file-question route, now returns 422 bodies built by this handler (non-finite floats turned into repr strings). A later validation-error shape difference on any other route would come from here, and no declared invariant or test covers the other routes.",
+      "evidence": "addons/intelligence/app/main.py: new `_finite_json` and `@app.exception_handler(RequestValidationError) _invalid_body`; main.py is absent from the touch points.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant is broken. I7 (422 for NaN/Infinity) is made true by this handler, but the touch-point list was incomplete and the handler's scope is global.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Add main.py to the touch points, or scope the handling to the file-ask request model."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The touch points say llm_routing.has_vision_profile is only read and that routing is unchanged, but the diff rewrites has_vision_profile onto a new _active_for helper and adds profile_can_see and any_profile_can_see.",
+      "impact": "has_vision_profile is used by the description path. Its refactor is untested by the new tests, which cover only the new functions, so a regression there would pass.",
+      "evidence": "addons/intelligence/app/llm_routing.py: _active_for added, has_vision_profile body replaced.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The file is listed but the scope description ('is read') is wrong. No invariant is broken.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "The touch points list tests/test_llm_caller_inventory.py as registering the new streaming call, but the diff does not change it and it has no reference to generate_stream_with_image.",
+      "impact": "The inventory test that pins every LLM call to resolve does not know about the two new generate_stream_with_image methods, so the declared touch is missing and the new calls are not pinned.",
+      "evidence": "Grep of generate_stream_with_image in addons/intelligence/tests/test_llm_caller_inventory.py returns 0 matches; that file is not in the diff.",
+      "repro": "Grep the file for the method name.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "A planned touch point is missing from the diff, the reverse of an unplanned one. I2 is protected by other tests that read the wire, so no invariant is shown broken.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "F4",
+      "origin": "reviewer",
+      "claim": "The diff also edits tests/file_question_doubles.py, an existing shared test fixture that is not in the touch points.",
+      "impact": "The earlier file-question tests share this helper, so their seeding now takes file_path, file_size and duration.",
+      "evidence": "addons/intelligence/tests/file_question_doubles.py: SearchDB.file gains file_path, file_size and duration parameters.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "C",
+        "reason": "Not a design fault. It is a test-support edit outside the list, with defaults that keep the old behavior.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "I2, I3, I6 and I9 appear to be implemented in rag.py from reading only. The 409 comes before the semaphore, the image is prepared under the slot, and the retry runs under the same slot.",
+    "The touch-point list was incomplete: app/main.py, the llm_routing refactor and file_question_doubles.py are not named."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Global 422 handler for the whole addon.",
+    "On a generic failure the route now emits a meta event before done; before this change it did not.",
+    "The new text-only retry path sends meta.image whenever the profile can see, even when no image applies."
+  ],
+  "regression_risks": [
+    "The global validation handler changes the 422 body of every addon route.",
+    "has_vision_profile was refactored and is used by the description path."
+  ],
+  "test_coverage": [
+    "The new tests cover the file-question route, the wire for both clients, the position range, availability and the tab.",
+    "test_llm_caller_inventory.py is not updated.",
+    "No test is aimed at the global 422 handler on other routes."
+  ],
+  "not_verified": [
+    "I did not run any tests.",
+    "I did not check the frontend renderer against I10 line by line.",
+    "I did not check whether other routes depend on the previous 422 body shape.",
+    "I did not read the full inventory test or workers/vision.py."
+  ],
+  "confidence": 75
+}

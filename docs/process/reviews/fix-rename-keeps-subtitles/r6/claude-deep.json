@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "undecodable-uploaded-subtitle-cannot-be-undone-and-hides-generated-track",
+      "origin": "reviewer",
+      "claim": "With replacement removed, a subtitle upload that lands with content the serving route cannot read stays beside the video with no in-app way to fix or remove it, and its presence keeps the generated track from being offered.",
+      "impact": "A user uploads a Shift_JIS `movie.srt`, an ordinary encoding for Japanese subtitles. The drawer shows success. The video then shows no captions: the track request fails, the player reports captions as unavailable with no reason, and the Intelligence generated track is no longer offered because a sidecar exists. Uploading a UTF-8 copy under the same name answers 409, the file has no card to trash or purge, and renaming the video carries the bad file along. The user has to edit the drive from the host, or upload under a different language suffix, which leaves the bad track in the list. A correctly encoded but wrong subtitle, or one over 5 MB, gets stuck the same way, except that a readable wrong file shows wrong captions rather than none.",
+      "evidence": "backend/app/services/upload.py:132-133 answers 409 for any existing file since 57dcc7303. upload.py:222-231 checks only the declared size, and upload.py:246-247 finishes with no content check. backend/app/routers/files.py:1354-1358 answers 413 over 5 MB and calls `read_text(encoding=\"utf-8-sig\")` with no guard, so a decode error becomes a 500. frontend/src/hooks/useShellCaptions.ts:38-51 offers the `intelligence-auto` track only when `subtitles` is empty, :67-69 turns a non-OK response into empty text, and :78 reports `unavailable`. docs/developer-guide/known-issues.md:265-269 records that the file cannot be replaced or removed, but not the upload's false success or the loss of the generated track. backend/tests/test_subtitle.py and test_sidecar_subtitles_follow_video.py have no non-UTF-8 upload. The seventh R-5 run used readable text only (decisions.md:78-80). Before this branch the uploaded subtitle had a row and a card, so it could be trashed and purged; r5 allowed a corrected upload to replace it. This round removes the last in-app way out.",
+      "repro": "not_reproduced (read-only review). Steps from reading the code: upload `a/movie.mp4` and a Shift_JIS `a/movie.srt` holding Japanese text; complete answers 200. GET `/api/files/<id>/subtitles/0` is expected to answer 500, and the detail page should offer that one track with no cues. Upload a UTF-8 `a/movie.srt`; init is expected to answer 409.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariants are declared, so A is unavailable. Normal input reaches it. The refusal itself is a recorded owner decision, but its combination with an unchecked first upload and the masked generated track is silently wrong and not recorded.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Refuse at complete, before landing, a subtitle the serving route could not read (size and decoding), or make the route decode common Japanese encodings. Add a test that uploads a non-UTF-8 subtitle and asserts the chosen outcome."
+    },
+    {
+      "id": "other-type-refusal-test-holds-no-property-of-its-own",
+      "origin": "reviewer",
+      "claim": "Now that `init_upload` has no subtitle branch, `test_an_existing_file_of_another_type_still_refuses_the_upload` duplicates the existing 409 test and kills no mutation on its own.",
+      "impact": "No user effect. A test named for a distinction the code no longer makes suggests that `init_upload` still treats file types differently, which could mislead a later change to that check.",
+      "evidence": "backend/app/services/upload.py:132-133 is one unconditional check. backend/tests/test_upload.py:98-106 already asserts a 409 for an existing `.txt`. The test in test_sidecar_subtitles_follow_video.py was added to guard the `replaces_subtitle` exception that 57dcc7303 removed. docs/process/testing-and-comments.md:37-38 says a test that kills no mutation alone is deleted or folded into the test that holds the property.",
+      "repro": "Mutation reasoned, not run: remove upload.py:132-133. test_upload.py's existing-file test and `test_a_second_upload_of_the_same_subtitle_is_refused_and_the_first_stays` are both predicted to fail too, so the `note.md` test adds no unique kill.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This goes against the repository's own test rule, but no behavior is wrong.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Delete the test, with the human consent the repository asks for, since the second-upload test and test_upload.py hold the property."
+    }
+  ],
+  "specification_compliance": [
+    "No invariants file exists, so bucket A is unavailable and no touch-point list applies.",
+    "The fix did what it claimed. `replaces_subtitle` is gone from `init_upload`; upload.py:132-133 refuses any existing path, including a subtitle and a directory with a subtitle name. By reading, `test_a_second_upload_of_the_same_subtitle_is_refused_and_the_first_stays` fails if the exception returns. The seventh R-5 run recorded the 409, unchanged checksum and intact track (decisions.md:79).",
+    "r5 replaced-vtt-keeps-old-transcript-in-index and replaced-vtt-leaves-search-index-on-old-captions are void for uploads, because a chunked loft's VTT can no longer be replaced through this path.",
+    "r5 subtitle-upload-silently-overwrites-with-no-undo is closed for sequential uploads: a folder re-upload now answers 409 for subtitles as for other files. Uploads that overlap are noted under regression risks.",
+    "r5 directory-at-subtitle-path-guard-unpinned is void because the `is_file()` half was removed; `exists()` covers directories. The two rejected NFD findings no longer have a replacement path to apply to.",
+    "r5 unreadable-replacement-discards-a-working-track is void as a replacement, but the same missing check now reaches a first upload that cannot be corrected (finding undecodable-uploaded-subtitle-cannot-be-undone-and-hides-generated-track).",
+    "r4 purged-video-leaves-uploaded-subtitle-that-reattaches, which r5 narrowed, is fully back: a corrected subtitle after a purge is refused again. known-issues.md:271-274 now records the re-attachment, the kept directory and the refusal.",
+    "r5 subtitle-only-folder-upload-stays-unlisted is unchanged in code and recorded. r4's scan.complete fix stays: uploads.py:82-88 still emits for a first subtitle upload.",
+    "The comment at upload.py:277-280, that init guarantees no live file at the path, is true again for all types. The non-subtitle branch below it still relies on that.",
+    "All file rename and move paths in backend/app were rechecked by grep: fileops.py:423 (rename), :504 (move), :1102 (batch rename) reach the carry; :681 and :895 relocate whole folders; the rest are thumbnails or reversals. The tree showed no other file relocation in backend/app.",
+    "The MCP tool `upload_file` (mcp-server/src/tools/write.ts:340-367) is a consumer earlier rounds did not name. It passes the complete answer through as text, so the new shape reaches its caller without an error, and a 409 surfaces through the client."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "No document says what a user should do about an uploaded subtitle that is wrong. known-issues.md says it cannot be replaced or removed from the UI, while the 409 tells the user only `API error: 409 Conflict`, for a file the listing does not show.",
+    "A subtitle uploaded under a mistyped stem answers 200 and matches no video. It has no card and no track, and a retry under that name is refused. The drawer's check mark is the only trace.",
+    "A folder holding only hidden subtitles is listed as 0 items. Deleting it through the UI removes the EmptyFolder row and leaves the directory and subtitles on disk (fileops.py:918-944), so a later scan lists it again. The folder cannot be removed in the app.",
+    "The MCP `upload_file` caller receives an answer with no `id` for a subtitle name, and no test or tool text states this shape. mcp-server/src/__tests__/write.test.ts mocks only an `id` answer.",
+    "Reviving Missing videos by uploading their folder again now reports an Error row for each subtitle still on disk, although the video's track is fine."
+  ],
+  "regression_risks": [
+    "A complete request can land the file and then fail in `_finish_subtitle_upload` (upload.py:179-188), or lose its answer on the way to the client. The drawer shows an error and a retry now answers 409, as r4 noted and r5 had eased. The landed file is served as the track, so the harm is a false error, or a stuck file if it was wrong.",
+    "The refusal holds only at init. Two uploads of one subtitle name that overlap both pass upload.py:132, and `os.replace` at atomic_write.py:61 lets the last one win with no message, while the first is reported complete. All file types share this shape, and the new test covers only sequential uploads. Rare with one user.",
+    "The route's two `scan.complete` emits (uploads.py:83-87 and :91-95) differ only in counts. A later change to one can miss the other.",
+    "Removing the 409 exception and restoring it across two rounds leaves `_finish_subtitle_upload` deleting a row at the path. With a file on disk the upload is refused first, so that delete now runs only for rows whose file is gone, and it still removes comments and tags through the cascade."
+  ],
+  "test_coverage": [
+    "Judged effective by reading: refusal of a second subtitle upload with the first file's bytes unchanged. Restoring the exception would fail it.",
+    "The three deleted tests (replace, failed replace, cancelled replace) held behavior that no longer exists, and the commit message records human consent. `_init_and_send` left with them, and no remaining test used it.",
+    "Not covered: a non-UTF-8 or over-5 MB subtitle upload, a mistyped-stem upload, a `.vtt` or upper-case extension second upload, a trashed row at a subtitle path with the file on disk (expected 409, row kept), and overlapping uploads.",
+    "`test_an_existing_file_of_another_type_still_refuses_the_upload` now duplicates backend/tests/test_upload.py:98-106.",
+    "mcp-server/src/__tests__/write.test.ts and frontend/src/hooks/__tests__/useUpload.test.ts have no case for the sidecar answer. Both consumers pass it through or ignore it, so no defect follows today."
+  ],
+  "not_verified": [
+    "No test, command, application or mutant was run, because this role has only Read, Glob and Grep. Every repro and mutation result is traced from the code. The screenshots and logs cited in decisions.md were not opened.",
+    "The worktree was read as it stands and assumed to match 2e229211e, since the status snapshot shows that commit at HEAD with only the r6 directory untracked. Git could not confirm this or the submodule checkouts.",
+    "A Shift_JIS upload was not observed answering 500 in the running app; it is inferred from `read_text` with no handler. The earlier reviewers' grep of backend/app/main.py for an exception handler was relied on and not repeated.",
+    "Only `useShellCaptions` was read for caption fallback. Whether the Browser controls or native player path also drops the generated track when a sidecar exists was not traced.",
+    "Whether Intelligence is what a typical deployment uses for the generated track, and the upload of a subtitle under another language suffix as a workaround, were not exercised.",
+    "Of the repository's conventions, docs/process/testing-and-comments.md was read as far as line 70. The other docs/process files and .claude/rules were not read this round.",
+    "SQLite locking from the scan's early flush, raised in r4 and r5, was not reexamined."
+  ],
+  "confidence": 80,
+  "perspectives": [
+    {
+      "name": "scope",
+      "notes": "This round's code change is one branch removed from `init_upload`, plus tests and docs. fea03492a and 2e229211e are records only. No unrelated code is touched. Against the base, the change still reaches past the rename fix into upload answers and scan row drops."
+    },
+    {
+      "name": "submodules",
+      "notes": "No addon code or pin is in this round's diff. Intelligence no longer faces a replaced VTT from uploads. The knowledge editor's dead link is unchanged and recorded, and a re-drop of an existing subtitle now gets a refusal at init rather than that link. The MCP server, in the main repository, passes the answer through."
+    },
+    {
+      "name": "persistence",
+      "notes": "Refusing keeps the first file's bytes and has no row effect. The on-disk subtitle now has no version, no row and no overwrite path. Row deletion in `_finish_subtitle_upload` now only runs for rows whose file is gone."
+    },
+    {
+      "name": "concurrency",
+      "notes": "Sequential uploads are refused at init. Overlapping sessions still end with last-rename-wins through `os.replace`, which is shared with all types. The carry's exists-then-move gap is unchanged since r1."
+    }
+  ],
+  "trajectory": "Read in order, this round is a removal, and it removes what the round before added. aa4806aed and 57dcc7303 delete r5's `replaces_subtitle` branch, its three tests and its helper, and add one refusal test. fea03492a and 2e229211e only record reviews and R-5. No branch, state or prediction is added. The upload path goes from three subtitle special cases back to two: the branch in `complete_upload` and the one in the route, which keeps its r5 emit. The history on this point is 409, then replace, then 409, so the design decision was reversed and not patched further, and r5's replacement findings go with it. The cost of the reversal is that r4's purged-video finding returns in full, and a subtitle that lands wrong now has no in-app way out, which is the one new finding. The ledger gained text on the 409 but no new entry this round. The older strands stay as they were: the per-sidecar `target.exists()` prediction from r1 is untouched and its limits stay in known-issues.md, and the row state stays removed. What remains is the same edge r4 and r5 described, that a subtitle is a file with no record. Its missing capabilities are now accepted as limits, not answered with branches."
+}

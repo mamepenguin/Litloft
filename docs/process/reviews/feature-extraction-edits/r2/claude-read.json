@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "IndexDetailsDialog's handleCancel clears pendingTask but not forceCorrected, so a cancelled 409-corrected confirmation leaves forceCorrected true for the next regenerate request.",
+      "impact": "After the viewer cancels the stale-details corrected dialog, the next regenerate of any task on that dialog (for example clip, or a task whose kind is not corrected) shows the corrected-file warning text and sends overwrite_corrections true without a matching dialog. The server ignores the flag on a kind that is not corrected, so the effect is a wrong message and a flag sent on a path the viewer never confirmed for that task.",
+      "evidence": "addons/intelligence/frontend/IndexDetailsDialog.tsx:232-234 (handleCancel only calls setPendingTask(null)); :239-240 (overwrite = forceCorrected || ...); :274 setForceCorrected(true); only handleConfirm (:247) resets it. handleRequestRegenerate (:228-230) does not reset it either.",
+      "repro": "Open Index details on a file whose details say not corrected but whose server state is corrected. Regenerate ocr, confirm, receive 409 corrected, then click キャンセル. Click regenerate on another task: the corrected warning is shown and, on confirm, the body carries overwrite_corrections true.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I7 says the frontend sends the flag only after the viewer confirms a dialog for that file. A confirmation that was cancelled is reused for a later request.",
+        "invariant_ref": "I7"
+      },
+      "severity": "LOW",
+      "proposed_fix": "Reset forceCorrected in handleCancel and in handleRequestRegenerate."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "TranscriptSection keeps per-line edit drafts in editDraftsRef keyed by chunk index and clears them only when fileId changes, not when the transcript is refetched after a Refine, restore or other renumbering.",
+      "impact": "After a refetch that renumbers or replaces utterances, opening line N can fill the field with a draft typed for a different utterance. Saving then writes that text over the new utterance, with expected_text taken from the new row, so the server accepts it. The owner sees the field, so the result is not silent, but the stale draft is misleading.",
+      "evidence": "TranscriptSection.tsx beginEdit: setEditText(editDraftsRef.current[cue.index] ?? cue.text); editDraftsRef reset only in the [fileId] effect. rechunk_from_words renumbers indexes 0..n-1 per the spec C10.",
+      "repro": "Start editing line 0, type a draft, open line 1 (the draft for 0 is kept). Refine finishes and the transcript is refetched with different utterances. Open line 0: the old draft appears.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant covers client-side drafts, and the owner has to save explicitly.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Drop the drafts whenever the chunk list is replaced by a refetch, or key them by start plus original text."
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "A follow-up item whose realignment raises for a retry (load_failed or unreachable) fails before the keyword-vector recompute and the corrected event, so those steps wait for the 10-minute retry or the third attempt.",
+      "impact": "For up to about 20 minutes, with the model unavailable, tfidf_keywords_indexed stays false and an open panel is not told that the text changed. Semantic search for the file has no keyword vector in that time. The spec accepts a retry, but it does not say the keyword vector is held back.",
+      "evidence": "workers/followup.py _process_utterance: _embed_utterance, then _realign_utterance (raises RuntimeError on retry), then _recompute_keywords and post_addon_event_sync are skipped; process_item catches and calls _record_failure.",
+      "repro": "Stub align_span to return load_failed. After one process_item call the item remains, the keyword embedding is absent and no event was sent.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "A8 lets the parts commit separately and I2 allows the flag to stay false until the vector is rebuilt, so no invariant is broken. It is a delay.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    }
+  ],
+  "specification_compliance": [
+    "Read only the fix diffs after r1 and the visible diff, not the whole implementation. The r1 findings were all scope-listing findings, and the fixes in this round address other review items.",
+    "I14, I8, I9, I10 and I12 were not re-traced. The followup _park and attempt-counter fixes agree with A10 and A8. The Refine 'ended' event emission matches I15 on both failure paths I could see."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Per-line edit drafts kept across line switches (TranscriptSection) are not in the spec.",
+    "A cancelled corrected-confirmation leaves forceCorrected set in IndexDetailsDialog.",
+    "Rows other than the edited one are dimmed and their seek buttons are disabled while a line is edited. The spec says only that the edited row does not seek."
+  ],
+  "regression_risks": [
+    "The ConfirmDialog replacement of the inline confirmations in TranscriptSection and PictureTextSection changes focus and keyboard handling. The ime-enter-guard test lists these files.",
+    "Parking an item for an inactive file delays it by 10 minutes after the file is restored from the trash.",
+    "Removing the duplicate _active_refine_files.discard is harmless but touches the Refine claim lifecycle that I9 depends on."
+  ],
+  "test_coverage": [
+    "New frontend tests cover edit-state reset on file change, 409 changed, the corrected and busy answers of Refine, the picture events and the design classes. ExtractionEditsErrors covers the reindex 409 corrected and busy paths.",
+    "New backend tests cover the picture vectors, restore vectors, the startup sweep, the three-attempt limit and the parked inactive file.",
+    "No test covers a cancelled corrected confirmation (F1), stale drafts after a refetch (F2), or the missing keyword vector and event during a retry (F3)."
+  ],
+  "not_verified": [
+    "whisper.py, workers/refine.py in full, the rest of ocr.py, manifest.json and addon_events.py. The diff was truncated, so they were not read.",
+    "Backend behaviour at run time. I could not run any test.",
+    "Whether TranscriptSection's doRestore resets confirmRestore on every path.",
+    "Whether the invariants hold beyond the files I read."
+  ],
+  "confidence": 70,
+  "trajectory": "The fix rounds were mostly corrections. The submodule was repointed twice: the first time for the renumbering of SPEC-ADDON-065 to 070 (identifiers and test names only), the second for review fixes. The review fixes removed things: the duplicate discard in Refine's finally block, and the inline confirmation panels that were replaced by ConfirmDialog. They also added missing behaviour that a spec rule required: _park for inactive files, persisting the attempt counter before the retry raise, the 'ended' events, and the 409 busy and corrected handling in the frontend. The frontend rounds did add state: forceCorrected, editDraftsRef, loadedFileRef, refreshTick and actionError. Each of these has a reset path that the next round may need to patch (F1 and F2 are examples), so the frontend is where patching shows. The backend fixes were local and did not add a new branch on top of an earlier one.\""
+}

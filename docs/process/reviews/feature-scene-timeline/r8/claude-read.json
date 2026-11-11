@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R8-1",
+      "origin": "reviewer",
+      "claim": "A playback jump clears the browse point whatever set it, so a mouse browse point is dropped while the pointer is still inside the section.",
+      "impact": "With a mouse, the user hovers the ruler, then moves onto the grid to click a tile they browsed to. If the playback position jumps in the meantime (a keyboard seek shortcut, a loop back to 0, a YouTube ad ending, or a seek from another panel), the grid and the scene card snap back to the playback position. The pointer is still in the section, and moving over the grid does not set the point again, because only pointermove on the ruler does. The tile the user was aiming at may no longer be on screen.",
+      "evidence": "ScenesSectionContainer.tsx:112-113: handleJump runs `if (browseRef.current !== null) setBrowsePoint(null);` and never checks browseSource. The r7 fix added browseSource to make pointer-leave (line 403) and blur (line 412) depend on the source, but the jump path was left as it was. Spec §1 step 5 and I2 say: 'A mouse browse point stays while the pointer is inside the section and is cleared when it leaves.' The jump trigger appears only in the touch list (I3, step 8) and the keyboard list (step 9). The latest fix commit (e5f0863) changed every clock-jump case in ScenesSectionSeek.test.tsx from a mouse browse point to a touch tap. No test now checks what a jump does to a mouse browse point. Before that change, the suite asserted that a jump clears a mouse browse point, which is the opposite of I2.",
+      "repro": "not_reproduced (read only). Steps: native video playing with a mediaController. Move the mouse over the ruler at 60 s (source 'mouse'), then onto a grid tile. Change the controller's currentTime by more than 2 s beyond the steady advance in one tick. handleJump calls setBrowsePoint(null), and aria-valuenow returns to the playback time while the pointer is still inside the section. Mutation check: adding `if (browseSource.current === \"mouse\") return;` to handleJump fails no test.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I2 says a mouse browse point stays while the pointer is inside the section. The jump clears it anyway, in normal use.",
+        "invariant_ref": "I2"
+      },
+      "severity": "LOW",
+      "proposed_fix": "In handleJump, return without clearing when browseSource.current === \"mouse\". Add a jump case with a mouse browse point that expects the point to be kept."
+    }
+  ],
+  "specification_compliance": [
+    "r7 V2 (A, I6) is fixed. The WS reload effect now returns when `!expandedRef.current`. The reset effect is declared before the WS effect and sets expandedRef to false first, so a leftover WS event for the new file no longer requests visual-index before that file is expanded. The new test 'a WS event left over from file A does not request visual-index for file B before B expands' covers this.",
+    "The WS effect now also returns while the policy is loading or off. This closes the r7 unspecified item about I9 policy-off, and a new test covers it.",
+    "r7 V1 (C, I3) is fixed in the code. handleSectionBlur clears only when browseSource is 'keyboard', so a touch browse point survives focus leaving (step 8's list). A parametrised test covers the touch-survives and keyboard-cleared cases. Pointer-leave clears only a mouse-sourced point. pointercancel restores both the previous point and its previous source.",
+    "The play-start fix: isJump treats a paused→playing sample as a jump only when it goes back more than 0.5 s, or forward more than elapsed×rate + 2 s. This reads §9 as 'more than 2 s from any position steady playback could have reached in the interval'. Playback runs at the 1000 ms idle cadence (mediaClock.ts:27-28,131), so the forward allowance is about 3 s at rate 1. A paused→paused sample still uses 0.5 s, and a playing sample still uses 2 s from the expected position.",
+    "The I2 'stays while inside' clause is still broken on the jump path (R8-1)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Paused→playing allowance: a seek and play issued together from a paused state, for example by another panel, that lands up to about elapsed×rate + 2 s ahead (about 3 s at rate 1, more after a throttled background-tab interval) is not treated as a jump. A touch or keyboard browse point then survives a real seek. §9 does not say how to judge the transition sample.",
+    "Changing the source: once a keyboard browse point exists, a mouse hover over the ruler turns it into a mouse browse point. A later focus-leave then keeps it, and only pointer-leave clears it. The reverse also holds. The spec gives no rule for a point re-set by a different input.",
+    "If the YouTube controller throws during tick, mediaClock skips notifying (mediaClock.ts:119-125), so previous.at in usePlaybackClock grows stale. The next paused→playing sample then gets a larger forward allowance."
+  ],
+  "regression_risks": [
+    "The browse-point lifetime now depends on browseSource being set correctly at every setBrowsePoint call site. A new call site that leaves the source at its default (null) would make that point immune to both pointer-leave and blur clearing.",
+    "The jump tests now use only touch browse points, so a change to handleJump's source handling (in either direction) for mouse or keyboard browse points is not covered."
+  ],
+  "test_coverage": [
+    "The WS guards (expandedRef, policy) have direct tests in ScenesSectionRequests.test.tsx. Removing either guard would fail a test.",
+    "The blur-by-source change is covered by the it.each in ScenesSectionSeek.test.tsx. Removing the `browseSource !== \"keyboard\"` early return fails the touch-survives case.",
+    "No test checks that a touch browse point survives a mouse pointer-leave. Dropping the `browseSource.current === \"mouse\"` check at line 403 would go unnoticed.",
+    "The isJump paused→playing branch has six new cases: forward keep and clear, backward clear and keep at exactly 0.5 s, and rate 2. Mutating `-step > 0.5` to `>= 0.5`, or dropping the `* rate`, would each fail a case.",
+    "Nothing tests a jump with a mouse or keyboard browse point (see R8-1)."
+  ],
+  "not_verified": [
+    "I ran nothing (vitest, Playwright). The pass and fail claims about the mutations come from reading the code.",
+    "I did not check that submodule commit e5f0863 contains exactly the files and lines shown in the diff, beyond grepping the working tree.",
+    "I did not re-check the parts of the change that the fix rounds did not touch (I1, I5, I7, I8, I10, I11, the docs and the e2e fixtures).",
+    "I did not check how Chromium's background-tab timer throttling interacts with the paused→playing allowance."
+  ],
+  "confidence": 78,
+  "trajectory": "Three code-changing rounds since r6. r6→r7 (2b58368) only moved code: it carried the Ruler's state and effects into hooks and added nothing. The r7 fix (52d0c43 → e36738a) added new state, a `browseSource` ref, threaded through every setBrowsePoint call and through dragStart, plus two new guards on the WS effect (expandedRef, policy). The play-start fix (eb7e5b0 → e5f0863) then added a third case, paused→playing, to the jump detector, which is a new prediction branch. Both rounds patch the same thing, the rules for when a browse point dies. One splits clearing by source and the other refines what counts as a jump. Neither round removed a branch or a state. The split by source is still incomplete: handleJump ignores browseSource (R8-1). So yes: the browse-point lifetime design is being patched one trigger at a time rather than stated once, as one rule per source.",
+  "perspectives": [
+    {
+      "name": "fix verification (r7 V1, V2)",
+      "notes": "Both are fixed in the code and covered by new tests."
+    },
+    {
+      "name": "consistency of browseSource",
+      "notes": "The source check is applied to pointer-leave and blur but not to the jump path. That gap is R8-1."
+    },
+    {
+      "name": "jump detector change",
+      "notes": "I checked it against the mediaClock cadence (1000 ms idle, 250 ms active). The allowance is bounded in normal use."
+    }
+  ]
+}

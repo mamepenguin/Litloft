@@ -30,6 +30,18 @@ class ContentWriteResult:
     version_action: str | None
 
 
+def _can_be_baseline(body: bytes) -> bool:
+    from app.services import file_versions
+
+    if len(body) > file_versions.FILE_VERSION_MAX_BODY_BYTES:
+        return False
+    try:
+        body.decode("utf-8")
+    except UnicodeDecodeError:
+        return False
+    return True
+
+
 def compute_content_etag(body: bytes) -> str:
     return hashlib.sha256(body).hexdigest()
 
@@ -58,18 +70,34 @@ def write_text_content(
     file.file_hash = compute_file_hash(file_path)
     version_action: str | None = None
     try:
-        from app.services.file_versions import record_version_with_action
+        from app.services import file_versions
 
         with db.begin_nested():
-            version_result = record_version_with_action(
-                db,
-                file_id=file.id,
-                body=body,
-                kind=kind,
-                viewer_id=viewer_id,
-                nickname=nickname,
-            )
-            version_action = version_result.action
+            baseline_recorded = False
+            if _can_be_baseline(current) and not file_versions.has_versions(db, file.id):
+                file_versions.record_version_with_action(
+                    db,
+                    file_id=file.id,
+                    body=current,
+                    kind="explicit",
+                    viewer_id=None,
+                    nickname=None,
+                )
+                baseline_recorded = True
+            # The dedup rule only folds identical explicit saves, so an identical
+            # auto save would add a +0/-0 row right after the baseline.
+            if baseline_recorded and body == current:
+                version_action = "unchanged"
+            else:
+                version_result = file_versions.record_version_with_action(
+                    db,
+                    file_id=file.id,
+                    body=body,
+                    kind=kind,
+                    viewer_id=viewer_id,
+                    nickname=nickname,
+                )
+                version_action = version_result.action
     except Exception:
         logger.exception(
             "Could not record file version: file_id=%s drive=%s",

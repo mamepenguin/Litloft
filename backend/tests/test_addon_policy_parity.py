@@ -17,7 +17,7 @@ CASES = json.loads(FIXTURE.read_text(encoding="utf-8"))["cases"]
 
 
 def test_the_whole_table_is_read():
-    assert len(CASES) == 9
+    assert len(CASES) == 11
 
 
 @pytest.fixture

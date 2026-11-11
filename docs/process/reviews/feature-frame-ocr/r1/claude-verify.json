@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "addons/intelligence/app/routers/document_text.py:46 defines _page_ocr_texts(file_id), and lines 82-90 call it through asyncio.to_thread and pass the result to extract_units. That file is not in the touch-point list, which names only app/document_text.py. The edit is a small wiring change that I5 and I6 need so that document-text returns stored page text. It is a scope note, not a defect."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2",
+      "status": "confirmed",
+      "note": "frontend/src/__tests__/core-search-vocabulary.test.ts:29 has PassageList.tsx at 13 and line 97 has used.length at 106. AdminFeaturesSettingsSection.test.tsx:81 and AdminFeaturesSettingsSectionOcr.test.tsx:84 expect 14 comboboxes. None of these test files is in the touch-point list. The changes are consequences of adding screen_text and the two settings. I could not see the base values in the diff, so the 12-to-14 and 105-to-106 transitions are not checked."
+    }
+  ],
+  "specification_compliance": [
+    "Both findings are about files outside the declared touch points. The listed invariants are not violated by either. The edits support SPEC-ADDON-069 and SPEC-CORE-040 behaviour."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The routers/document_text.py edit and the updated test counts are not in the touch-point list."
+  ],
+  "regression_risks": [
+    "The document-text route now opens the database for every PDF request to read pdf_page_ocr_texts. I did not check how it fails if the table is missing."
+  ],
+  "test_coverage": [
+    "I only checked that the test count assertions match the findings' stated new values. I did not run any tests."
+  ],
+  "not_verified": [
+    "The git diff itself, because I have only Read, Glob and Grep and could not see the old values.",
+    "Behaviour of all invariants I1 to I10.",
+    "Test execution."
+  ],
+  "confidence": 80
+}

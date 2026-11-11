@@ -1,0 +1,5 @@
+spec: docs/specs/ask-about-this-file.md
+
+## Revisions
+
+I11. (r1) While a file's answer is streaming no second request is sent for it. The question, the answer and a stream in flight outlive the tab: closing the mobile sheet to its bar, switching tabs or crossing the mobile breakpoint keeps them, and a stream that was running while the tab was away is shown where it got to when the tab returns. Moving to another file or leaving the file page aborts that file's stream, frees its semaphore slot and drops its entry, so returning shows an empty tab. The core's file page tells addons this with a `litloft:file-page-closed` event on `window` carrying `{ fileId }`, sent when the file it shows changes and when it unmounts, and never for a sheet, tab or breakpoint change. A stream that fails or closes without `done` keeps the text received and shows the failure line. Touch points add core `frontend/src/lib/addonEvents.ts`, `frontend/src/components/FileDetail/ShellLayout.tsx` (or the file-page component that owns `fileId`) and `docs/ADDON-DEVELOPMENT.md`, and in the addon `frontend/askStore.ts` and `frontend/AskTab.tsx`.

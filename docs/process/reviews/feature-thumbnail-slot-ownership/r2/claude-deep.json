@@ -1,0 +1,186 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "TEST-3",
+      "origin": "reviewer",
+      "claim": "No test fails if the scan's path-form guard at scanner.py:501 is removed, although test_path_form_row_is_left_alone is labelled I16 and I16 forbids a generator or rewrite for such a row.",
+      "impact": "A regression could let a scan regenerate or rewrite a row whose migration failed, with every test green. The row's picture would change, or its old file would be stranded while the next startup still tries to move it. Nothing is wrong in the code today.",
+      "evidence": "backend/app/services/scanner.py:501 is the guard. test_thumbnail_slots.py test_path_form_row_is_left_alone uses an opaque RGB PNG, a seeded row with image_width None and an existing thumbnail file whose bytes start with \\xff\\xd8l. With the guard gone, line 503 finds the file, _is_flattened_transparent_picture returns False at scanner.py:215 because the signature differs, and _is_letterboxed_image_thumbnail returns False at scanner.py:180 because the width is None. The pointer and bytes therefore stay as asserted. No path-form row with an absent file, a transparent source or letterboxed dimensions is scanned in this test. Other scans over path-form seeds (test_markdown_images.py:256-283, test_missing.py:84 and :288) target other behaviour, and I found no assertion in them that this guard would decide; I read them through search hits only.",
+      "repro": "not_reproduced (read-only reviewer). Predicted mutation: replace `gen_fn is not None and _is_slot_or_empty(file_record.thumbnail_path)` with `gen_fn is not None` at scanner.py:501; predicted result is that the mutant survives.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The code as read satisfies I16, so the invariant holds. The gap is a test that does not exercise the invariant it cites.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Parametrise the test over three rows: a path-form pointer with its file absent, a transparent PNG with a real JPEG-signature thumbnail, and an image with stored dimensions and a 320x180 thumbnail. Assert the pointer and bytes are unchanged and no slot appears."
+    },
+    {
+      "id": "TEST-4",
+      "origin": "reviewer",
+      "claim": "The failure branch of complete_upload has no test: neither the removal of a new slot when the commit fails nor the rule that a trashed ghost keeps its picture when the upload fails.",
+      "impact": "Deleting upload.py:361-362 would strand a slot under an id no row holds, and moving the removal at upload.py:364 ahead of the commit would destroy a ghost's picture while the rollback restores its row. Either change would pass every test I found. I13's failure half is exercised only for a move.",
+      "evidence": "backend/app/services/upload.py:360-364. test_upload_over_a_trashed_ghost_removes_the_ghosts_picture covers only the success path. A search of backend/tests for a replaced session commit finds only test_trash_purge_loop.py, test_markdown_image_import.py and test_thumbnail_slots.py:912, which is the migration test. test_upload.py has no match for commit failure, SQLAlchemyError or untrack_empty_folder. Spec section 2 states 'Upload with a new id, the commit fails: the slot just written is removed'. The r1 coverage notes listed the first half and the fix round did not cover it.",
+      "repro": "not_reproduced (read-only reviewer). Predicted mutations: delete upload.py:361-362, or move upload.py:364 before the try at upload.py:297; predicted result is that both survive.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The code as read meets I13 and the failure case. The gap is coverage only.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Add one upload test over a trashed ghost in which a call inside the try raises. Assert the upload fails, the ghost row and its picture remain, and no new slot file exists."
+    },
+    {
+      "id": "TEST-5",
+      "origin": "reviewer",
+      "claim": "The NotADirectoryError half of the new absent test in _reach_key has no test.",
+      "impact": "If that exception were dropped from the except clause, a pointer whose parent component is a regular file would become unknown, keeping its pointer, logging a warning and counting as failed at every startup, with the scan skipping it forever. I10 says such a row is emptied. This shape is rare in a real cache.",
+      "evidence": "backend/app/services/thumbnail_migration.py:28 catches (FileNotFoundError, NotADirectoryError). In test_thumbnail_slots.py the absent cases use a missing leaf or missing directories, and test_a_stat_that_fails_for_another_reason uses PermissionError. test_unavailable_cache_does_not_fail_the_operation replaces the thumbnail directory with a file, but it seeds a .by-id pointer, which migration does not select, and it does not restart.",
+      "repro": "not_reproduced (read-only reviewer). Predicted mutation: change thumbnail_migration.py:28 to `except FileNotFoundError:`; predicted result is that the mutant survives.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The code as read is correct. This new branch of the fix round simply has no test.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Seed a pointer `<drive>/f.jpg/a.jpg` where `<drive>/f.jpg` is a file, restart, and assert the pointer is empty and the warning count is zero."
+    },
+    {
+      "id": "MIG-2",
+      "origin": "reviewer",
+      "claim": "The fix adds an unknown state that keeps the pointer for a stat error or a non-file at the path, and neither the spec nor a recorded revision states this state.",
+      "impact": "A pointer naming a directory is never repaired. Each startup logs one warning and counts one failure, the scan skips the row as path form, and the thumbnail endpoint finds that the path exists and tries to serve a directory. While a stat error lasts, the run log records a 500 from the endpoint. No user path I found creates a directory at a pointer, because the old generator could not publish a file over one; the stat case needs a faulty cache mount.",
+      "evidence": "backend/app/services/thumbnail_migration.py:30-33 and :82-87. Spec section 3 lists path form to .by-id or empty only, and section 1 groups only by file exists or does not. I10 says a row whose file is absent with no slot is emptied, while test_a_pointer_naming_something_that_is_not_a_file_is_kept pins the opposite for a directory. docs/process/reviews/feature-thumbnail-slot-ownership/invariants.md has an empty Revisions section. r1 raised these two cases as unspecified behaviour needing a person, and decisions.md records the observed behaviour (run 2, item 2: 500s at routers/files.py get_thumbnail) but no human decision. routers/files.py:1195-1196 uses exists(), not is_file().",
+      "repro": "not_reproduced by me. decisions.md run 2 item 2 records the stat case: 'moved 11, emptied 6, failed 2', then 500s until the mode was restored. The directory case is by reading plus the pinned test.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Keeping the pointer is the safer reading and is outside ordinary use under the threat model. It still extends the approved state table without a recorded revision, and process rule 5 says to ask when the spec is silent.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Record the unknown state in a revision: stat errors keep the pointer. Have a person decide whether a non-file at the pointer keeps it or is treated as absent, as I10 reads."
+    },
+    {
+      "id": "CONC-1",
+      "origin": "reviewer",
+      "claim": "complete_upload now generates the thumbnail after flushing a trashed ghost's delete, so the SQLite write transaction stays open for the whole generation.",
+      "impact": "Uploading a video over a trashed ghost holds the write lock while ffmpeg runs, including its retries. Another writer in that window, such as watch progress or a rename, can fail with 'database is locked' once the driver's wait runs out. It needs a ghost whose file has left the disk, because init_upload otherwise answers 409, so it is uncommon.",
+      "evidence": "backend/app/services/upload.py:278-280 deletes, flushes and cleans tags, and upload.py:290 then generates. Before this change the generator ran ahead of the lookup, as the diff of upload.py shows. backend/app/database.py:15-27 sets no timeout, so the sqlite3 driver's default applies; I took that default of 5 seconds from memory of the Python documentation. Only the trashed branch flushes first. A reused row reads only, so it takes no write lock before generation.",
+      "repro": "not_reproduced. By reading: trash a large video, remove its file from disk, upload a video to the same path, and issue a write while generation runs.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant covers lock duration, and the spec requires only that the row be looked up before generation.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Look up the row and choose the id first, generate, then delete and flush the ghost inside the try."
+    },
+    {
+      "id": "SCOPE-1",
+      "origin": "reviewer",
+      "claim": "The fix round creates backend/app/services/thumbnail_migration.py, while the touch-point list still places the migration in thumbnail.py, and no touch-point departure is recorded in a revision.",
+      "impact": "No user effect. A reader of the approved list looks for the migration in the wrong module, and the atomic-write detector's allow-list entry for the new module is not named. r1's TP-1, TP-3 and TP-4 also remain unrecorded in the same way.",
+      "evidence": "Touch points: 'backend/app/services/thumbnail.py: thumbnail_slot_rel, the migration step'. invariants.md has an empty Revisions section. backend/tests/test_atomic_write.py:209-211 now names thumbnail_migration.py. Moving the module does narrow r1's TP-2 concern: thumbnail.py is off the allow-list, and the detector sees the file holding only the migration's os.replace at thumbnail_migration.py:109. The commit also replaces fileops._cleanup_empty_parents with prune_empty_dirs, including in physical_delete, which is unlisted; the behaviour is the same by reading.",
+      "repro": "Compare the diff's file list with the Touch points section and read invariants.md.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Unplanned reach with no invariant at risk.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add the module, the allow-list entry and r1's listed test and document edits to a touch-point revision."
+    },
+    {
+      "id": "LOG-1",
+      "origin": "reviewer",
+      "claim": "The new unknown-state warning names only the path, not the row.",
+      "impact": "An operator with a failed row gets a thumbnail path and no file id. Several rows reaching one unknown string log identical lines. The picture is unaffected.",
+      "evidence": "backend/app/services/thumbnail_migration.py:83-84 discards the id with `for _, rel in members`. Spec section 8 says each failed migration row logs one warning 'naming the row and the path', and the os.replace warning at thumbnail_migration.py:111-113 does name both.",
+      "repro": "Read the code. test_a_stat_that_fails_for_another_reason asserts only that one message contains a.jpg.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "A departure from spec prose in a log line. No declared invariant covers it.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Keep the id in the loop and include it in the warning."
+    }
+  ],
+  "specification_compliance": [
+    "r1 fix check, MIG-1 and F-6: fixed. thumbnail_migration.py:26-33 treats only FileNotFoundError and NotADirectoryError as absent, and any other failure keeps the pointer and counts as failed. test_a_stat_that_fails_for_another_reason would fail on a revert, and decisions.md run 2 records a real EACCES case.",
+    "r1 fix check, TEST-1: fixed. test_trashed_ghost_picture_is_removed_when_an_operation_takes_its_path covers move, rename and copy. The rename case seeds its source in the destination folder, so it reaches fileops.py:406.",
+    "r1 fix check, TEST-2: fixed. test_a_commit_that_fails_after_registration_leaves_no_row_and_no_slot fails the first commit in _apply_import at markdown_image_import.py:417, the only earlier commit on that path. It uses a real JPEG, so a slot is written before the failure if ffmpeg runs in the test environment. The test does not assert that the slot existed before cleanup, so it would pass vacuously if generation failed.",
+    "r1 fix check, TP-2: narrowed by moving the migration to a module with no generators. It is not recorded as a touch-point revision (SCOPE-1).",
+    "Read against the code, I1-I14 and I16-I21 hold, and I15's migration half holds. I10 has the reading noted in MIG-2 for a non-file at the pointer. I15's Media Import half is not at this commit: addons/media_import/backend/service.py:606-622 still writes the path form, which Delivery step 1 expects.",
+    "Every in-app caller of resolve_db_path_conflict now takes the returned ghost picture and removes it after its commit: fileops.py:262/330, :386/406 and :457/488. No addon calls it. Tests that call it directly discard the value, and I found no production caller that does.",
+    "No Python file imports the removed _move_thumbnail, path_thumbnail_rel, _relocate_thumbnail, _expected_thumbnail_path or fileops._cleanup_empty_parents. markdown_images.py keeps its own private copy of the prune helper.",
+    "thumbnail.py no longer imports app.models or SQLAlchemy, so r1's concern about generator importers loading the ORM is gone with the module move.",
+    "Deleted tests match the spec's list. The 'Any further deletion stops and goes to the human' rule is not newly crossed by the fix round."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "A stat error or non-file at a pointer now keeps it and counts as failed. The spec's state table and failure cases do not state this, and I10 reads the other way for a non-file (MIG-2).",
+    "Still undecided from r1: a scan-detected move of a row with an empty or dangling .by-id pointer does not generate until the next scan, because scanner.py:657-679 has no thumbnail step. This narrows I1's 'after the first scan' for a shared row renamed on disk before that scan.",
+    "Still undecided from r1: two rows naming one absent path string are both emptied at thumbnail_migration.py:88-93 even if a slot exists, whereas I10 repoints a row with a slot. I found no ordinary path to that state.",
+    "Still undecided from r1: with the old addon pin, Media Import's caption retry rewrites .loft rows to path form with a new mtime and ETag, so startups repeat the move during the delivery window (decisions.md first run, item 5).",
+    "A commit failure on upload over a reused row leaves the slot holding the new file's picture while the row rolls back. Spec section 2 defines only the new-id case."
+  ],
+  "regression_risks": [
+    "Grouping trusts (st_dev, st_ino). A cache mount returning non-unique inode numbers would make sole owners look shared and delete their pictures after emptying their pointers. Only the Compose bind mount in decisions.md was observed.",
+    "prune_empty_dirs can remove .by-id when its last slot goes. A generator starting between generating_file's directory creation and its temporary file would get an error, and such an error is not caught in a scan or upload. The window is very narrow.",
+    "An is_dir() or is_file() call that raises outside the OSError guards at thumbnail_migration.py:117 or :120 stops the whole run. By reading, main.py logs it, startup continues and the next start repoints the row, but rows after that point wait a full restart.",
+    "When a failed or unknown row crosses a multiple of 1,000, the `continue` at thumbnail_migration.py:87 or :116 skips that progress line. Only the log is affected."
+  ],
+  "test_coverage": [
+    "Now covered by read tests: I13's success path for move, rename, copy and upload; I13's failure half for a move; I17's failed-commit half; a migration stat error and a non-file pointer.",
+    "Gap: I16's path-form guard in the scan is not decided by any test I found (TEST-3).",
+    "Gap: upload's failed-commit branch and I13's upload failure half (TEST-4).",
+    "Gap: the NotADirectoryError absent case (TEST-5).",
+    "Gap carried from r1: I11's second half, a projection serving after its source migrates with no re-copy, has no direct test. It rests on the mtime asserted under I7 and on project_markdown_thumbnail's unchanged comparison at markdown_images.py:406-411.",
+    "Gap carried from r1: I14 is tested only for a Missing row, not an Active row whose file vanished. Both use upload.py:307.",
+    "Gap carried from r1: I18 asserts thumbnail_path only, though routers/internal.py is unchanged.",
+    "I4 is tested by replacing the thumbnail directory with a file, not by unwritable permissions. decisions.md records a chmod run for the permission case."
+  ],
+  "not_verified": [
+    "I ran nothing: no tests, mutations or application. Every mutation outcome here is predicted from reading the code.",
+    "That the thumbnail endpoint answers 500 for a directory at the pointer; I read the exists() check in routers/files.py but not _revalidating_image's or Starlette's handling of a directory.",
+    "The actual lock wait on the configured connection and how long ffmpeg holds it for CONC-1.",
+    "Every body of the five other test files that complete uploads (test_transparent_thumbnails.py, test_purge_orphan_tags.py, test_image_dimensions.py, test_frontmatter_tags_on_create.py, test_chapter_ingest.py) for a failure injection; I relied on searches for replaced commits.",
+    "The full bodies of test_missing.py and test_markdown_images.py for TEST-3; I read search hits only.",
+    "The evidence directory cited in decisions.md, which is outside this worktree; its claims are quoted, not checked.",
+    "The Media Import half of I15 and SPEC-ADDON-040, which are not at this commit.",
+    "Inode stability on case-folding, FUSE or network cache mounts, and migration timing against the healthcheck window on a large library.",
+    "The Intelligence reconcile in full; I read search hits for its thumbnail handling only."
+  ],
+  "confidence": 80,
+  "perspectives": [
+    {
+      "name": "scope",
+      "notes": "I compared the fix commits and the whole diff with the touch points and read invariants.md, whose Revisions section is empty. The new module and r1's unlisted edits are reported as SCOPE-1. The six test deletions still match the list."
+    },
+    {
+      "name": "submodules",
+      "notes": "I searched addons for removed helpers, resolve_db_path_conflict and thumbnail_path. No addon imports a removed helper or calls that function. media_import still writes path form, as Delivery step 1 expects, and it and Intelligence read the column as an opaque value in the hits I read. No new addon problem found."
+    },
+    {
+      "name": "persistence",
+      "notes": "I traced the migration's grouping, commit ordering, crash recovery and the new unknown state, plus ghost removal after commit in every caller and upload's superseded picture. No lost picture in ordinary use was found. The unspecified unknown state is MIG-2."
+    },
+    {
+      "name": "concurrency",
+      "notes": "I checked that the lifespan awaits migration before the scan, purge task, addon startup and yield, and that a migration exception is logged while startup continues. One new lock-duration issue on upload over a trashed ghost is CONC-1. The .by-id prune race remains a regression risk."
+    }
+  ],
+  "trajectory": "Only one round since r1 changes production code: 3ba3a824c. The other three commits are tests (e22ce7a75) or review records (1da095a54, 134c1042a), so no earlier fix round exists for this one to repeat. That round adds one state, 'unknown', to _reach_key, plus one early-exit branch in the migration loop and the prediction that the next startup retries such a row. It answers r1's stat-error finding directly and does not rework an earlier patch, so this is not yet a design being patched. It also removes things: the migration leaves thumbnail.py, along with its SQLAlchemy and models imports and thumbnail.py's allow-list entry, and fileops._cleanup_empty_parents is gone in favour of prune_empty_dirs. The added state is not in the spec's state table and has no recorded revision. It also leaves a pointer that may never repair itself when a non-file sits at the path, so a further round around this state should be read as a warning sign."
+}

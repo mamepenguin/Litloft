@@ -256,7 +256,8 @@ calls back into the core through the [Internal API](#internal-api).
 | `slots` | No | UI slot entries (see [UI Slot System](#ui-slot-system)) |
 | `policy_features` | No | Per-drive feature toggles in the admin GUI |
 | `event_hooks` | No | Lifecycle webhooks (see [Event Hooks](#event-hooks)) |
-| `proxy` | Yes for a proxied service | `target_env`, `target_default`, `routes`. The target URL is the value of `target_env`, or `target_default` when it is unset. No URL: the proxy answers 503. An addon without `proxy` gets no proxy routes |
+| `proxy` | Yes for a proxied service | `target_env`, `target_default`, `routes`. The target URL is the value of `target_env`, or `target_default` when it is unset or empty. No URL: the proxy answers 503. An addon without `proxy` gets no proxy routes |
+| `processing_status` | No | `{ "path": "/files/processing" }`. Makes the addon part of the upload drawer's stage list (see [`processing_status`](#processing_status)) |
 
 #### `navigation`
 
@@ -298,10 +299,13 @@ Rows sort by `priority`, then by addon name. The label is the translation of
 `i18n_key` when it resolves, otherwise `label`. The row is highlighted on the
 addon's route and every page under it.
 
-Icon tokens the sidebar knows: `download`, `message-circle-question`,
+Icon tokens that are drawn: `download`, `images`, `message-circle-question`,
 `notebook-pen`, `package`, `rss`. A missing or unknown token draws `package`.
-To add one, extend `ADDON_NAV_ICONS` in
-`frontend/src/components/sidebar/AddonNavRows.tsx`.
+To add one, extend `ADDON_NAV_ICONS` in `frontend/src/lib/addonNavIcons.ts`.
+The sidebar, page jump and the drive's Home entry row all read that one table.
+
+A `primary` entry is also drawn on every drive's Home, in the row of app
+destinations above the rows, in the same order.
 
 #### `policy_features`
 
@@ -355,6 +359,55 @@ What the proxy does with a request:
   or an unreachable service is 502.
 - JSON object responses get `"available": true` added when absent.
   Non-JSON responses (for example `text/vtt`) pass through unfiltered.
+
+### processing_status
+
+An external-service addon that prepares uploaded files can report their stages
+to the upload drawer. Declare a top-level key in `manifest.json`:
+
+```json
+"processing_status": { "path": "/files/processing" }
+```
+
+The key is ignored on an in-process addon. When the file's drive has the
+addon's `index` feature on, the core calls `POST <target><path>` directly,
+where `<target>` is the same URL the proxy resolves. The request carries
+`X-Lit-Drive` with the percent-encoded drive name, decoded as the proxy
+decodes the [Drive context header (`X-Lit-Drive`)](#drive-context-header-x-lit-drive),
+and `{ "file_ids": [...] }` (at most 100), with no secret.
+
+Answer with the stages of each requested file:
+
+```json
+{
+    "files": {
+        "<file_id>": {
+            "stages": [
+                {"key": "search", "i18n_key": "myService.processing.search", "state": "pending", "required": true}
+            ]
+        }
+    }
+}
+```
+
+| Field | Meaning |
+|-------|---------|
+| `key` | Stage identifier, matching `^[a-z][a-z0-9_.]*$` |
+| `i18n_key` | Translation key in the addon's own catalogue |
+| `state` | `pending`, `running`, `done` or `failed` |
+| `required` | Boolean. The file is ready only when every required stage is `done` |
+
+Stages are listed in display order. A file id the addon does not hold in that
+drive may be left out. An empty `stages` list contributes no stage. A stage
+list that breaks this shape counts as that file left out; a body that is not
+this shape counts as every requested file left out. Ids the core did not ask
+for are dropped. A file left out gets one required, `pending` stage saying it
+cannot be checked, and the addon is called again on the drawer's next request.
+
+An addon that reports stages also posts `processing.updated` with
+`{ "file_ids": [...] }` and `drive` through `POST /api/internal/addon-events`
+whenever a stage changes, so the drawer refreshes before its next 30-second
+request.
 
 ### Response filters
 
@@ -521,17 +574,19 @@ Secrets are compared in constant time.
 | `POST /filter-file-ids` | Caller credential | Body `{file_ids: [], trust_tier?}` → `{accessible: [], trust_filtered: bool}`. Keeps the active files in drives the caller can open. With `trust_tier` (`verified` \| `unverified`) it also keeps only that tier; any other value is 422. `trust_filtered` is `true` exactly when `trust_tier` was sent. A core too old to know `trust_tier` ignores it and omits `trust_filtered`, so a caller that asked for a tier and does not get `trust_filtered: true` must treat the list as unfiltered. |
 | `POST /files/bulk-state` | None | Body `{file_ids: []}` → `{statuses: [{id, drive, state}], not_found: []}`. `state` is `active`, `missing` or `trash`. Unknown ids are in `not_found`. |
 | `POST /files/bulk` | None | Body `{file_ids: []}` → `{files: [FileResponse], not_found: []}`, in request order. Missing, trashed and unknown files are in `not_found`. `subtitles` is always `[]`; use `GET /files/{file_id}` or the public API when you need them. |
+| `POST /files/matching` | None | Body `{drive, tags: [], kinds: [], favorite?, liked?, folders: [], collections: [], sizes: [], durations: []}` → `{file_ids: []}`, sorted ascending. The ids of the drive's active files matching the same `tag` / `type` / `favorite` / `liked` / `folder` / `collection` / `size` / `duration` predicates as `GET /api/drives/{drive}/files`: tags are ANDed, kinds are ORed with `markdown` read as `text` and `epub` accepted as `application/epub+zip` or a name ending `.epub`, and a non-null flag compares `is_favorite` / `liked_at`. Several folders keep the union of their subtrees, compared case-sensitively by whole path segment; several collections keep the union of their items, and only collections of `drive` are considered. `sizes` and `durations` are comparisons in the wire form `<operator>:<number>` with `gt`, `gte`, `lt` or `lte`; every comparison must hold. A size is bytes; a duration compares the whole seconds the UI shows, and a NULL duration never passes. Unknown keys are `422`, so a caller and the core cannot silently disagree about a filter field. 404 for an unknown drive; password-protected drives answer like any other and no viewer credential is checked. Caps: at most 20 tags after empty-name dropping and case-insensitive dedup, each at most 200 characters; at most 8 kinds after dedup; at most 10 folders of up to 1024 characters, NFC-normalised and trimmed of `/`, deduplicated after normalisation; at most 10 collections of up to 100 characters, trimmed with blanks dropped and deduplicated case-insensitively; at most 4 distinct size comparisons and 4 distinct duration comparisons, counted after dedup. A size is a whole number from 0 to 2⁵³ − 1; a duration is a number from 0 to 10,000,000 with at most three decimals, written plainly (no exponent, no trailing `.0`). An impossible range is not an error and answers no ids. 422 outside these rules. |
 | `GET /file_relations?file_id=&drive=&kind=&limit=` | None | List of `{id, file_id_a, file_id_b, kind, created_at, created_by}`. At least one of `file_id` (relations on either side) or `drive` is required, else 400; both together are ANDed. `kind` filters. `limit` defaults to 5000, max 20000. |
 
 #### Secret-gated endpoints (optional secret)
 
 | Endpoint | Description |
 |----------|-------------|
-| `GET /files/{file_id}/content` | The file's UTF-8 text as `text/plain; charset=utf-8`. Ignores drive locks. Only `text/markdown` and `text/plain` files (415 otherwise); 413 above `CORE_INTERNAL_CONTENT_MAX_BYTES` (default 10 MB); 415 when not valid UTF-8; 404 when the file is not active or not on disk. |
+| `GET /files/{file_id}/content` | The file's UTF-8 text as `text/plain; charset=utf-8`. Ignores drive locks. Only `text/markdown` and `text/plain` files (415 otherwise); 413 above `CORE_INTERNAL_CONTENT_MAX_BYTES` (default 10 MB); 415 when not valid UTF-8; 404 when the file is not active or not on disk. The stored path is resolved to the on-disk name first, so a file whose name is stored in NFC but written to disk in NFD is found. |
 | `POST /files/{file_id}/tags` | Body `{tags: []}` → 204. Replaces the file's tags with the validation of `PUT /api/files/{id}/tags` (at most 10, each at most 30 word characters or `-`, case-insensitive dedup; 422 otherwise). 404 for a file that is not active. Used by the knowledge scanner to project frontmatter tags. |
 | `POST /file_relations` | Body `{file_id_a, file_id_b, kind, viewer_id?}` → 201 with the relation. `kind` matches `^[a-z][a-z0-9_.-]*$`, 1–32 characters; `viewer_id` is 16 hex characters and is stored as `created_by`. 400 when the two ids are equal or in different drives, 404 when either file does not exist, 409 for a duplicate. The core's Markdown link sync never removes or rewrites a relation created here. |
 | `DELETE /file_relations/{relation_id}` | 204, or 404 for an unknown id. |
 | `GET /viewer-history?viewer_id=&drive=&after=&before=&kind=` | `{file_ids: []}`, unordered, active files in `drive` only. `kind=viewed` (default): files the viewer opened within `[after, before)`. `kind=not_viewed`: active files in the drive the viewer did not open in that window. `after` / `before` are optional ISO-8601; a value with an offset is converted to UTC. 400 for a `viewer_id` that is not 16 hex characters, another `kind`, an unparsable time, or `after` not earlier than `before`. 404 for an unknown drive. |
+| `GET /collections/{collection_id}/file-ids?drive=` | `{file_ids: []}`: the active files of the collection in `drive`, in `position` then item-id order. A trashed or missing file, and a file whose drive is not `drive`, is left out; an empty collection answers `[]`. 400 for a `collection_id` that is not 12 characters of `A-Z a-z 0-9 _ -`; 404 for an unknown drive, and 404 `Collection not found` for a collection that does not exist or belongs to another drive. |
 | `POST /restart-pending` | Body `{source, reason?}` → 204. Touches `data/restart_pending` so the admin screens show the pending-restart banner. `source` is the addon name (`^[a-z][a-z0-9_.-]*$`, 1–64 characters). 500 when the file cannot be written. Call it after changing configuration that needs a restart. |
 
 #### Strict write endpoints
@@ -620,6 +675,7 @@ Chapter events addons use:
 | `intelligence.chapter_suggestions.ready` | `POST /addon-events` | `{file_id, drive, created_at}` | A new candidate set is stored; the Intelligence UI reloads it. |
 | `intelligence.chapter_suggestions.failed` | `POST /addon-events` | `{file_id, drive, reason}` | Generation ended without a usable candidate set; the UI stops its progress state and keeps any existing chapters. `reason` is diagnostic. |
 | `litloft:chapters-updated` | Browser `CustomEvent` | `{fileId}` | An addon UI promoted a chapter set. Dispatch it with `FILE_CHAPTERS_UPDATED_EVENT` from `frontend/src/lib/addonEvents.ts`; core's chapter panel refetches on it. |
+| `litloft:file-page-closed` | Browser `CustomEvent` | `{fileId}` | Core's file page stopped showing that file: it moved to another file or unmounted, and never for a sheet, tab or breakpoint change. Core dispatches it with `FILE_PAGE_CLOSED_EVENT` from `frontend/src/lib/addonEvents.ts`; in-flight work an addon holds for that file is the addon's to abort and drop. |
 
 #### Drive policy shape
 
@@ -732,28 +788,34 @@ entries renders nothing.
 ### Available slots
 
 Every file-page slot (`file-detail-sections`, `file-detail-actions`,
-`file-actions-menu`, `file-relations`, `player-side`, `file-preview-actions`)
-receives `{ fileId, drive, filename, fileType, mimeType, videoRef,
-mediaController, subtitles, documentCaptureController, trustTier,
-trustReviewedAt, onFileChange }` plus what its row lists.
+`file-actions-menu`, `file-relations`, `player-side`, `inspector-tabs`,
+`file-preview-actions`) receives `{ fileId, drive, filename, fileType, mimeType,
+videoRef, mediaController, subtitles, documentCaptureController,
+documentController, lowerInspector, trustTier, trustReviewedAt, onFileChange }`
+plus what its row lists.
 
 | Slot ID | Location | Props / contract |
 |---------|----------|------------------|
-| `search-modes` | Search results page (`/drive/{drive}/search`). Not the header search modal | `{ query, drive, filter, onSelect }`. Draws a results-page mode such as semantic search |
+| `search-modes` | Search results page (`/drive/{drive}/search`), inside the results bar's `…` menu. Not the header search modal, and not drawn for a query with operators | `{ query, drive, filter, onSelect, closeMenu }`. Draw each entry as an `ActionMenuItem` row and call `closeMenu` before `onSelect`, so the menu closes before the page changes. The slot mounts on every open of the menu |
+| `search-results-top` | Search results page (`/drive/{drive}/search`), under the results bar and above the results. Not drawn for a query with operators, nor in Passages with a non-blank query | `{ query, drive, includeSceneClip, typeFilter, smartFolderId }`. `typeFilter` and `smartFolderId` are `null` when unset. Draw nothing when you have nothing to show: the host adds no wrapper |
 | `search-result-actions` | Next to a match excerpt in search results | `{ capture }` |
 | `file-detail-sections` | File detail inspector, **Info** tab | File props. The entries with id `detailed-summary` and `knowledge-edit` are placed outside the tab by the core (the canvas or the sheet). Not for a transcript (`player-side`) or derived relations (`file-relations`); an entry in two slots renders twice |
 | `file-relations` | Inspector **Related** tab, after the core's own relation lists | File props. See [below](#contributing-to-the-related-tab) |
 | `player-side` | Beside a media player as an inspector tab, or in a box under the description, as the viewer chooses | File props plus `fillHeight`, `labelledByHost`, `onAvailability`. See [Occupying the player-side slot](#occupying-the-player-side-slot) |
+| `inspector-tabs` | File detail inspector, as a tab after the core tabs and after any `player-side` tabs, on every file page with an inspector (including the HTML preview; not the collection surface) | File props plus `fillHeight`, `labelledByHost`, `onAvailability`, and a required `i18n_key`. See [Occupying the inspector-tabs slot](#occupying-the-inspector-tabs-slot) |
 | `file-preview-actions` | Under the media player, right-aligned | File props. Inline buttons |
 | `loft-metadata` | Beside the player, `.loft` (external URL) files only | `{ fileId, drive }` |
 | `file-detail-actions` | The file page's action row, before the `[...]` menu | File props. See [Contributing to the file action row](#contributing-to-the-file-action-row) |
 | `file-actions-menu` | The file page's `[...]` menu | File props plus `onRequestClose`, `onDialogOpenChange`. See [Contributing to the file actions menu](#contributing-to-the-file-actions-menu) |
 | `folder-actions-menu` | The folder toolbar's **Add** menu, below the core rows | See [Contributing to the add menu](#contributing-to-the-add-menu) |
 | `folder-bulk-actions-menu` | The folder toolbar's `…` menu, below the core rows. Only on a folder or the drive root | See [Contributing to the folder `…` menu](#contributing-to-the-folder--menu) |
+| `collection-actions` | The collection page's header, between **再生** and the `…` menu | `{ drive, collectionId, collectionName }`. `layout="stack"` draws the entries side by side in the actions row; with no entry the slot draws nothing |
 | `document-viewer-actions` | Top bar of the full-screen PDF viewer | File props plus `documentCaptureController` and `tone: "on-dark"`. The bar is black: draw a transparent control with a white glyph. The controller publishes the page in view or the selected text, never an anchor |
 | `header-actions` | App header | `{ drive }` |
 | `active-summary-view` | File detail, with the summaries | `{ fileId, drive, summaryNote }`. Drawn only when `GET /api/addons/knowledge/file_active_summary/{id}/note` reports an active summary; without an entry the core draws the note itself |
-| `drive-home-sections` | Drive home, between **Continue Watching** and **Recently Viewed** | `{ drive }` |
+| `drive-home-sections` | Drive home, between **Continue** and **Recently Viewed** | `{ drive }` |
+| `video-discover-recommended` | Video app, **Discover** face, the **Recommended** shelf | A provider slot; see [Frontend slot providers](#frontend-slot-providers). The first entry by `priority` whose `slotProviders` has a function under its `id` supplies Recommended. Called only with a profile; its `restrict` adds `watch=unwatched` |
+| `video-discover-shelves` | Video app, **Discover** face, one shelf per entry between Recommended and New | A provider slot, with or without a profile. Each entry's provider supplies one shelf, in `priority` order. `i18n_key` (or `label`) titles it. **See all** opens the core page `/drive/{drive}/apps/video/shelf?entry={id}` when the entry has a page provider (below), otherwise the entry's `href` relative to `/drive/{drive}/`, and is absent when it has neither |
 | `sidebar-sections` | Sidebar, end of the library section | No props |
 | `dashboard-widgets` | Admin dashboard (`/admin`) | No props. Cards |
 | `dashboard-alerts` | Admin dashboard, above the drive cards | No props. For something an operator must see first. Render nothing when nothing is wrong: the host draws no wrapper |
@@ -775,6 +837,10 @@ The key is resolved against the merged catalogue and belongs in your addon's
 (`.claude/rules/frontend-conventions.md`). Keep `label`: it is shown when
 there is no key or the key does not resolve. The backend passes the field
 through, so no core change is needed.
+
+An `inspector-tabs` entry must declare `i18n_key`: its label is the tab
+button, and falling back to the English `label` in a Japanese strip is the
+failure the field exists to prevent.
 
 ### Occupying the `player-side` slot
 
@@ -816,6 +882,36 @@ tab strip.
   yourself.
 - If every entry answers `false` and the file has no chapters, the core also
   hides the beside/below toggle.
+
+### Occupying the `inspector-tabs` slot
+
+One entry is one tab on any file page that has an inspector: a PDF, an EPUB,
+media, a Markdown note or the HTML preview. The collection surface has no
+inspector and draws no `inspector-tabs` entry.
+
+The entry receives the same `fillHeight`, `labelledByHost` and `onAvailability`
+as a [player-side](#occupying-the-player-side-slot) entry, and must declare an
+`i18n_key` for its tab label. The tab is drawn after the core tabs and after
+any `player-side` tabs.
+
+- **Silence means unavailable.** Unlike `player-side`, an entry that has not
+  called `onAvailability` gets no tab button. Report `false` when you mount,
+  before your fetch settles, and `true` once you have something for this file.
+- Reporting `false` keeps you mounted and takes only the button away, so you
+  can report `true` later.
+- Availability, tab ids and DOM ids are keyed by slot and entry id. An entry
+  may share an id with a `player-side` entry or a core tab without taking its
+  button or panel.
+
+### Moving the open viewer and lowering the sheet
+
+Two more file props are for controls that act on the page rather than on the
+file:
+
+| Prop | Meaning |
+|---|---|
+| `documentController: { goTo(location) } \| null` | Non-null while the PDF viewer is mounted or the EPUB reader has finished opening, and `null` otherwise and after it unmounts. `goTo({ page })` on a PDF lands where the **Pages** panel lands and does nothing for a page out of range. `goTo({ section })` on an EPUB moves to the start of that spine section, the 1-based numbering `?section=` uses, and writes no reading progress; an out-of-range section does nothing. `{ page }` on an EPUB and `{ section }` on a PDF do nothing. Its identity changes only when the viewer mounts, becomes ready or unmounts. |
+| `lowerInspector(): void` | A stable function. On a phone with the inspector sheet at half or full height it drops the sheet to its bar; at the bar, closed, or on desktop it does nothing. Use it after moving the viewer, so the page underneath becomes visible. |
 
 ### Contributing to the Related tab
 
@@ -1000,6 +1096,99 @@ export const slotComponents = {
 `slots.ts` is imported for every listed addon as soon as the catalogue loads,
 so it is also the place for registrations that must run early, such as a
 `.loft` player.
+
+### Frontend slot providers
+
+A slot entry can return data instead of a component. Beside `slotComponents`,
+`slots.ts` may export `slotProviders`; the core draws the shelf with its own
+cards, after narrowing the ids through its own filter for the app's target.
+
+```typescript
+// addons/{name}/frontend/slots.ts
+import { listWatch } from "./api";
+
+export const slotProviders = {
+  "shelf-a": async ({ drive, limit, restrict }) => {
+    const items = await listWatch(drive, { limit: 60 });
+    return restrict(items.map((item) => item.id));
+  },
+};
+```
+
+A provider is `({ drive, limit, restrict }) => Promise<string[]>`, returning
+ordered file ids, best first. It is found the same way as a component: the
+slot's entries sorted by `priority`, then `addonName` → that addon's `slots.ts`
+→ `slotProviders[entry.id]`. It shares the module cache with `AddonSlot`. An
+entry whose module or function is missing is absent, as is one whose provider
+rejects.
+
+`restrict(ids)` calls the core shelves endpoint with the app's target and
+returns the subset of `ids` that matched, in the order given. It sends at most
+60 ids per request and returns `[]` without a request for an empty list. Only
+ids that `restrict` returned may be drawn: an id the provider never passed
+through it is dropped.
+
+### Page providers
+
+A `video-discover-shelves` entry may page instead of returning one list.
+Export `slotPageProviders` beside `slotProviders`:
+
+```typescript
+// addons/{name}/frontend/slots.ts
+import { listWatch } from "./api";
+
+export const slotPageProviders = {
+  "shelf-a": async ({ drive, locale, limit, cursor, restrict }) => {
+    const page = await listWatch(drive, { limit, cursor, locale });
+    const accepted = new Set(await restrict(page.items.map((item) => item.id)));
+    return {
+      items: page.items
+        .filter((item) => accepted.has(item.id))
+        .map((item) => ({ id: item.id, byline: `${item.channel} · ${item.date}` })),
+      cursor: page.next, // an opaque string, or null at the end
+    };
+  },
+};
+```
+
+A page provider is
+`({ drive, locale, limit, cursor, restrict }) => Promise<{ items, cursor }>`:
+
+| Argument | Meaning |
+|---|---|
+| `drive` | The drive, as for a list provider |
+| `locale` | The viewer's UI locale, e.g. `"ja"`. Format the byline with it |
+| `limit` | Items wanted: 12 on Discover, 60 on the core page |
+| `cursor` | `null` for the first page; afterwards exactly the string the previous answer returned |
+| `restrict` | The same filter a list provider receives |
+
+`items` is ordered, best first. Each item is `{ id, byline? }`: `byline` is
+drawn as one muted, truncated line under the card's title (a channel name and
+publish date, say), as text and never as HTML. The core draws it only when it is
+a non-empty string; it does not parse, translate or format it. A reader sees it
+on Discover and on the core page.
+
+Two requirements:
+
+- **Fill the page.** Keep reading your source until you hold `limit` restricted
+  items or the source ends, so that a page is short only at the end.
+- **Never repeat an earlier item.** Use a keyset cursor (the last item's sort
+  key and id, say), not an offset over a list that grows. The core stops at a
+  page that adds nothing new, whatever cursor it returns, so a cursor that
+  repeats items ends the list early.
+
+Only a non-empty string cursor continues; `null`, `undefined`, an empty string
+or any other value means there is no further page. The core drops an item that
+is not an object or whose `id` is not a non-empty string, and draws the rest of
+the page; an answer whose `items` is not an array counts as rejected.
+
+The page provider is found like the list provider: the entry's `addonName` →
+that addon's `slots.ts` → `slotPageProviders[entry.id]`. It is consulted only
+for `video-discover-shelves`, so **Recommended** keeps `slotProviders`. A list
+provider receives no `locale`. On Discover a page provider is called with
+`cursor: null` and `limit: 12`, and its cursor is not followed. The entry's
+**See all** opens the core page; a module that fails to import counts as having
+no page provider, and the list provider is tried next.
 
 ### Registering a `.loft` player
 
@@ -1230,6 +1419,25 @@ code into the addon.
 
 ---
 
+## Extension-point changes
+
+Core internals are reworked often; the surface listed in this guide is what an
+addon, or a fork that carries its own addon, is meant to build on. When a change
+breaks that surface, it gets a row here in the same pull request. Breaking means
+an existing addon stops working or silently behaves differently:
+
+- a slot id renamed or removed, or a prop a slot passes removed, renamed or
+  given a different type or meaning;
+- a manifest or `ADDON_META` field removed or reinterpreted;
+- an Internal API endpoint removed, or its request or response shape changed;
+- a name in [Core API surface for in-process addons](#core-api-surface-for-in-process-addons)
+  removed or changed.
+
+Adding a slot, a prop, a field or an endpoint is not breaking and gets no row.
+
+| Date | What changed | What an addon does instead |
+|---|---|---|
+
 ## Existing addons
 
 | Addon | Type | Scope | Page | Guide |
@@ -1249,13 +1457,15 @@ Slot entries each addon declares, for reference when designing your own.
 | Addon | Slot | Entry IDs |
 |-------|------|-----------|
 | `intelligence` | `search-modes` | `find-mode` |
-| `intelligence` | `file-detail-sections` | `unverified-source`, `suggested-tags`, `suggested-chapters`, `summary`, `detailed-summary`, `visual-description`, `visual-index`, `clip-frames` |
+| `intelligence` | `search-results-top` | `scene-segments` |
+| `intelligence` | `file-detail-sections` | `unverified-source`, `suggested-tags`, `suggested-chapters`, `summary`, `detailed-summary`, `visual-description`, `scenes` |
 | `intelligence` | `file-relations` | `similar-files` |
 | `intelligence` | `player-side` | `transcript` |
 | `intelligence` | `file-detail-actions` | `file-ai-actions` |
 | `intelligence` | `file-actions-menu` | `index-details` |
 | `intelligence` | `folder-bulk-actions-menu` | `folder-ai-actions` |
 | `intelligence` | `drive-home-sections` | `pickup` |
+| `intelligence` | `video-discover-recommended` | `pickup` |
 | `intelligence` | `dashboard-widgets` | `index-status` |
 | `intelligence` | `dashboard-alerts` | `failed-jobs` |
 | `intelligence` | `admin-intelligence-sections` | `admin-features`, `admin-llm`, `admin-embedding`, `admin-transcription`, `admin-rag` |
@@ -1271,4 +1481,5 @@ Slot entries each addon declares, for reference when designing your own.
 | `media_import` | `loft-metadata` | `loft-metadata` |
 | `media_import` | `folder-actions-menu` | `media-import-url` |
 | `media_import` | `file-actions-menu` | `loft-refresh` |
+| `media_import` | `video-discover-shelves` | `media-import-regular`, `media-import-feed` |
 | `cloud-sync` | `dashboard-widgets`, `admin-settings-sections` | `cloud-sync`, `cloud-sync-settings` |

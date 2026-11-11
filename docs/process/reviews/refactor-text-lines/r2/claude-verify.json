@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "rejected_with_evidence",
+      "note": "The marking half of the claim is wrong. An existing test marks a `highlight` term in TextPreview after the text loads. frontend/e2e-components/fixtures/app.tsx:1095-1123 (CodeViewer) renders `<TextPreview fileId=\"codeviewer1\" filename=\"main.rs\" highlight=\"message); }\">` with a fetch stub that resolves. frontend/e2e-components/code-viewer-desktop.spec.ts:261-282 then asserts that `mark.ask-citation-highlight` elements exist (count > 1, on 2 `.code-line`s, none outside a line, text 'message); }'). That goes through TextPreview -> TextLines.tsx:86 `useHighlightPassage(preRef, highlight, true)` after content loads. The reviewer looked only at the vitest file (TextPreview.test.tsx:42-57, the only `highlight` test there). The narrower part does hold: no vitest or e2e test asserts that `scrollIntoView` runs after the text loads. Grep shows that the only `scrollIntoView` assertion around TextPreview is the not-called check at TextPreview.test.tsx:53."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "Reproduced by reading the code. useHighlightPassage.ts:65 keeps `scrolledRef` per hook instance, and useHighlightPassage.ts:67-69 resets it only when `quote` changes. The hook is now called inside TextLines (TextLines.tsx:86). TextPreview.tsx:152-158 returns the loading block whenever `loading || content === null`, so TextLines unmounts. When `fileId` changes, the effect at TextPreview.tsx:100-125 sets loading=true, which unmounts TextLines. On load a fresh TextLines mounts with scrolledRef=false, so useHighlightPassage.ts:117-121 (or :95-98 when nothing matches) scrolls again. Before the change, according to the r1 record (docs/process/reviews/refactor-text-lines/r1/claude-read.json:26), the hook lived in TextPreview with ready=`content !== null`, so its ref survived the fileId change and no second scroll happened. FilePreview.tsx:236-242 and MediaPlayerBlock.tsx:92-104 pass no `key`. I did not check every ancestor up to the route for a key that would remount on file change. Whether a second scroll is undesirable in normal use (the same highlight on a different file) is a product question."
+    }
+  ],
+  "specification_compliance": [
+    "I6 (Read view highlights a search term, same rendering as TextPreview): TextLines carries the highlight hook, and marking after load is exercised by e2e-components/code-viewer-desktop.spec.ts:261-282 through TextPreview.",
+    "I8 (TextPreview keeps its behaviour): the per-instance scroll-once state now resets on every load, which changes scroll timing when fileId changes under the same highlight (F2)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The invariants do not say whether a highlight should scroll again when TextPreview switches to another file while `highlight` stays the same."
+  ],
+  "regression_risks": [
+    "Extra scroll to the citation when TextPreview's fileId changes while highlight stays the same (F2).",
+    "Clicking 'Load' for a file over 1 MB mounts TextLines for the first time, so the scroll happens on load, as before."
+  ],
+  "test_coverage": [
+    "Vitest TextPreview.test.tsx:42-57 checks only that nothing scrolls while loading.",
+    "Playwright component spec code-viewer-desktop.spec.ts:261-282 checks that marks are applied after load via TextPreview.",
+    "No test asserts that scrollIntoView runs after load, and none covers the fileId-change rescroll."
+  ],
+  "not_verified": [
+    "I could not run any test. Whether code-viewer-desktop.spec.ts passes at this commit, or runs in CI, is not checked.",
+    "I did not read the origin/develop version of TextPreview.tsx directly. The prior hook placement and the ready flag come from the r1 review record.",
+    "I did not check every ancestor of FilePreview for a key that would remount TextPreview on a file change.",
+    "Other invariants (I1-I5, I7, I9, I10) are outside the findings and were not reviewed."
+  ],
+  "confidence": 82
+}

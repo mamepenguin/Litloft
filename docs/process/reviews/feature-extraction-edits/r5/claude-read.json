@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "The only commit since r4 is e5585c7b4, which moves the submodule pointer to 4d70675. That moves the addon by three frontend edits and by test changes only. The frontend edits are `text-base sm:text-sm` on the two edit fields, and `tabIndex={-1}` on the hidden 修正 buttons of the other rows while one row is being edited. No backend file is touched, so I1-I6, I8-I15 are unchanged by this round.",
+    "I7 and the single-open-edit rule still hold. The `tabIndex=-1` change removes the invisible focus stop that r4 F2 reported. Pointer clicks were already blocked by pointer-events none.",
+    "The new backend test assertions agree with I15. After three failed alignment attempts, exactly one `corrected` event is expected, and the parked-item test now checks that the vector and the cleared `words_pending` mark exist after the file is active again."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The r4 F1 edge (a stale item can still emit `corrected`) is not addressed by this round. It remains a redundant refetch only.",
+    "`text-base sm:text-sm` changes the edit field's font size on narrow screens (the usual reason is to avoid iOS focus zoom). It could shift the row layout on narrow screens; this is only a cosmetic risk."
+  ],
+  "test_coverage": [
+    "The frontend test now asserts `tabIndex === -1` on the hidden buttons and `text-base` on the field. Removing either class or the tabIndex makes the test fail.",
+    "The backend test asserts the exact event sequence after three failed attempts and the vectors and cleared pending mark after the file is reactivated. Both are stronger than the earlier `embeddings(...)` truthiness checks.",
+    "No test covers a stale item emitting an event (r4 F1)."
+  ],
+  "not_verified": [
+    "I did not run any test or code, because I only have read tools.",
+    "I did not re-read the full body of TranscriptSection.tsx, PictureTextSection.tsx or followup.py after this commit. I judged only from the diff text.",
+    "I did not re-trace the invariants outside the fix commit. The earlier diff for whisper.py, refine.py and ocr.py was truncated in my input.",
+    "I did not check whether `text-base` breaks any other existing class-based test."
+  ],
+  "confidence": 78,
+  "trajectory": "The last round (after r4) is small. It adds no new state, no new branch and no prediction. It resolves the one INFO item from r4 (the invisible focus stop) by a single `tabIndex` attribute, which makes the existing hide mechanism complete instead of adding a second one. The other changes are a font-size class on the two edit fields and test assertions that tighten earlier checks. Across r2 to r4 each round fixed the previous finding locally. The r3 reorder of the `corrected` event briefly broke I15, and r4 corrected it; the stale-item emission edge (r4 F1) is a leftover that this round did not touch. The design is not being patched in layers."
+}

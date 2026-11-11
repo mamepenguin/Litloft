@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import type { FileItem } from "@/types";
 import type { MediaController } from "@/lib/mediaController";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
+import type { DocumentController } from "@/lib/documentController";
 import { playerKind } from "@/lib/playerKind";
 import {
   ridesFileDetailShell,
@@ -17,12 +18,22 @@ import { usePolicy } from "@/hooks/usePolicy";
 import { useAddonSlots } from "../AddonSlotsProvider";
 import { MarkdownAwareTagChips } from "../MarkdownAwareTagChips";
 import { FileDetailPresenter } from "./FileDetailPresenter";
+import { FindProvider } from "./find/FindContext";
+import { useFindInFile } from "./find/useFindInFile";
 import { FileActionRow } from "./FileActionRow";
 import { FileMetaBlock } from "./FileMetaBlock";
 import { useCompanionMetrics } from "./hooks/useCompanionMetrics";
 import { useFileDetailData } from "./hooks/useFileDetailData";
 import { FileDetailSkeleton } from "./FileDetailSkeleton";
-import { useSlotAvailability } from "./hooks/useSlotAvailability";
+import { usePlainTextDocument } from "./hooks/usePlainTextDocument";
+import {
+  slotAvailabilityKey,
+  useSlotAvailability,
+} from "./hooks/useSlotAvailability";
+import {
+  LowerInspectorProvider,
+  useLowerInspectorRegistry,
+} from "./lowerInspector";
 
 export interface FileDetailContentProps {
   fileId: string;
@@ -31,6 +42,7 @@ export interface FileDetailContentProps {
   initialPage?: number;
   initialSection?: number;
   highlight?: string;
+  initialFind?: string;
   onMediaController?: (mc: MediaController | null) => void;
   miniPlayerRoot?: Element | null;
   onRequestImageGallery?: () => void;
@@ -48,6 +60,7 @@ export function FileDetailContainer({
   initialPage,
   initialSection,
   highlight,
+  initialFind,
   onMediaController,
   miniPlayerRoot,
   onRequestImageGallery,
@@ -58,7 +71,7 @@ export function FileDetailContainer({
   surface = "canonical",
 }: FileDetailContentProps) {
   const tPane = useTranslations("rightPane");
-  const { getSlotEntries, hasSlot } = useAddonSlots();
+  const { getSlotEntries, hasSlot, addons, catalogueDrive } = useAddonSlots();
   const slotAvailability = useSlotAvailability(fileId);
   const isMobile = useIsMobile();
   const data = useFileDetailData(fileId);
@@ -69,6 +82,22 @@ export function FileDetailContainer({
     useState<MediaController | null>(null);
   const [documentCaptureController, setDocumentCaptureController] =
     useState<DocumentCaptureController | null>(null);
+  const [documentController, setDocumentController] =
+    useState<DocumentController | null>(null);
+  const lowerInspector = useLowerInspectorRegistry();
+
+  const addonCatalogue = catalogueDrive === drive ? addons : {};
+  const findEnabled =
+    surface === "canonical" && Boolean(addonCatalogue["intelligence"]);
+  const find = useFindInFile({
+    fileId,
+    drive,
+    enabled: findEnabled,
+    isMobile,
+    initialFind,
+    mediaController,
+    documentController,
+  });
 
   // Drive-scope policy lookup for the Knowledge editor. `usePolicy` is
   // fail-open: during the initial load AND during the 30s-TTL background
@@ -79,11 +108,18 @@ export function FileDetailContainer({
   // `useEffect([fileId])`.
   const knowledgeEditorPolicy = usePolicy(drive, "knowledge", "editor");
 
+  const { decided, plainTextDocument } = usePlainTextDocument(
+    file,
+    drive,
+    knowledgeEditorPolicy,
+  );
+
   const ridesShell = ridesFileDetailShell({
     surface,
     mimeType: file?.mime_type,
     fileType: file?.file_type,
     knowledgeEditorEnabled: knowledgeEditorPolicy.enabled,
+    plainTextDocument,
   });
 
   // The shell owns the element that scrolls the canvas, so on the shell
@@ -112,7 +148,7 @@ export function FileDetailContainer({
     );
   }
 
-  if (!file) {
+  if (!file || !decided) {
     return (
       <FileDetailSkeleton
         drive={drive}
@@ -148,7 +184,7 @@ export function FileDetailContainer({
   const companionOccupied =
     data.chaptersPresent ||
     getSlotEntries("player-side").some((entry) =>
-      slotAvailability.isAvailable(entry.id),
+      slotAvailability.isAvailable(slotAvailabilityKey("player-side", entry.id)),
     );
 
   const isHtmlPreview = file.mime_type === "text/html";
@@ -159,6 +195,7 @@ export function FileDetailContainer({
   const useDocumentLayout = usesDocumentShell(
     file.mime_type,
     knowledgeEditorPolicy.enabled,
+    plainTextDocument,
   );
 
   /**
@@ -202,8 +239,10 @@ export function FileDetailContainer({
     fileType: file.file_type,
     mimeType: file.mime_type,
     documentCaptureController,
+    documentController,
     trustTier: file.trust_tier,
     trustReviewedAt: file.trust_reviewed_at,
+    lowerInspector: lowerInspector.lower,
     onFileChange: setFile,
   };
 
@@ -266,46 +305,54 @@ export function FileDetailContainer({
     ) : undefined;
 
   return (
-    <FileDetailPresenter
-      file={file}
-      fileId={fileId}
-      drive={drive}
-      isMobile={isMobile}
-      ridesShell={ridesShell}
-      isHtmlPreview={isHtmlPreview}
-      hasPlayer={hasPlayer}
-      usesCanvasViewer={usesCanvasViewer}
-      descriptionInCanvas={descriptionInCanvas}
-      playerFramed={playerFramed}
-      companionKind={companionKind}
-      railEligible={railEligible}
-      companionMountable={companionMountable}
-      companionOccupied={companionOccupied}
-      slotAvailability={slotAvailability}
-      isTimedMedia={isTimedMedia}
-      chaptersPresent={data.chaptersPresent}
-      chaptersVersion={data.chaptersVersion}
-      onChaptersResolved={data.onChaptersResolved}
-      metrics={metrics}
-      addonSlotProps={addonSlotProps}
-      mediaController={mediaController}
-      onMediaController={handleMediaController}
-      onDocumentCaptureController={setDocumentCaptureController}
-      videoRef={videoRef}
-      initialTime={initialTime}
-      initialPage={initialPage}
-      initialSection={initialSection}
-      highlight={highlight}
-      miniPlayerRoot={scrollRoot}
-      onScrollRootChange={setShellScrollRoot}
-      onEnded={onEnded}
-      autoPlay={autoPlay}
-      markdownReloadKey={data.tagSaveVersion}
-      onMarkdownTagsSaved={data.onTagsSaved}
-      onRename={data.rename}
-      onBack={onBack}
-      meta={meta}
-      sheetPeek={sheetPeek}
-    />
+    <FindProvider value={find}>
+      <LowerInspectorProvider registry={lowerInspector}>
+        <FileDetailPresenter
+          file={file}
+          fileId={fileId}
+          drive={drive}
+          isMobile={isMobile}
+          ridesShell={ridesShell}
+          findEnabled={findEnabled}
+        isHtmlPreview={isHtmlPreview}
+        hasPlayer={hasPlayer}
+        usesCanvasViewer={usesCanvasViewer}
+        plainTextDocument={plainTextDocument}
+        hasInspector={surface === "canonical"}
+        descriptionInCanvas={descriptionInCanvas}
+        playerFramed={playerFramed}
+        companionKind={companionKind}
+        railEligible={railEligible}
+        companionMountable={companionMountable}
+        companionOccupied={companionOccupied}
+        slotAvailability={slotAvailability}
+        isTimedMedia={isTimedMedia}
+        chaptersPresent={data.chaptersPresent}
+        chaptersVersion={data.chaptersVersion}
+        onChaptersResolved={data.onChaptersResolved}
+        metrics={metrics}
+        addonSlotProps={addonSlotProps}
+        mediaController={mediaController}
+        onMediaController={handleMediaController}
+        onDocumentCaptureController={setDocumentCaptureController}
+        onDocumentController={setDocumentController}
+        videoRef={videoRef}
+        initialTime={initialTime}
+        initialPage={initialPage}
+        initialSection={initialSection}
+        highlight={highlight}
+        miniPlayerRoot={scrollRoot}
+        onScrollRootChange={setShellScrollRoot}
+        onEnded={onEnded}
+        autoPlay={autoPlay}
+        markdownReloadKey={data.tagSaveVersion}
+        onMarkdownTagsSaved={data.onTagsSaved}
+        onRename={data.rename}
+        onBack={onBack}
+        meta={meta}
+        sheetPeek={sheetPeek}
+      />
+      </LowerInspectorProvider>
+    </FindProvider>
   );
 }

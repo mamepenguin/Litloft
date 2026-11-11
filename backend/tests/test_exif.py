@@ -1,13 +1,18 @@
 """Tests for EXIF extraction service and GET /api/files/{id}/exif endpoint."""
+import sqlite3
 import struct
 from datetime import UTC, datetime
 from io import BytesIO
 from pathlib import Path
 
 import pytest
-from PIL import Image
+from PIL import ExifTags, Image, TiffImagePlugin
 
+import app.services.heic  # noqa: F401  (registers the HEIF opener, as the running backend does)
 from app.models import File, FileExif
+from app.services import upload as upload_service
+from app.services.scanner import _scan_and_register
+from tests.conftest import TEST_DRIVE
 from app.services.exif import (
     _exposure_time_str,
     _gps_decimal,
@@ -118,6 +123,177 @@ class TestExtractExif:
         img.save(str(png), "PNG")
         result = extract_exif(png)
         assert result is None
+
+
+# UNSPEC: a photo's EXIF is read the same way whatever its container, so a HEIC
+# photo from a phone keeps its capture time, camera and location.
+@pytest.mark.parametrize(("name", "fmt"), [("a.jpg", "JPEG"), ("a.heic", "HEIF"), ("a.webp", "WEBP"), ("a.tiff", "TIFF")])
+def test_exif_is_read_from_every_container(tmp_path, name, fmt):
+    exif = _exif_with_everything()
+    path = tmp_path / name
+    Image.new("RGB", (64, 64), "red").save(path, fmt, exif=exif.tobytes())
+
+    result = extract_exif(path)
+
+    assert result is not None
+    assert result["make"] == "Apple"
+    assert result["model"] == "iPhone 15 Pro"
+    assert result["datetime_original"] == "2024-03-15T14:23:01"
+    assert result["f_number"] == pytest.approx(2.8)
+    assert result["exposure_time"] == "1/250"
+    assert result["iso_speed"] == 400
+    assert result["focal_length"] == pytest.approx(24.0)
+    assert result["gps_lat"] == pytest.approx(-35.6762, abs=0.001)
+    assert result["gps_lon"] == pytest.approx(-139.6503, abs=0.001)
+
+
+def _exif_with_everything(taken="2024:03:15 14:23:01"):
+    exif = Image.Exif()
+    exif[ExifTags.Base.Make] = "Apple"
+    exif[ExifTags.Base.Model] = "iPhone 15 Pro"
+    details = exif.get_ifd(ExifTags.IFD.Exif)
+    details[ExifTags.Base.DateTimeOriginal] = taken
+    details[ExifTags.Base.FNumber] = TiffImagePlugin.IFDRational(28, 10)
+    details[ExifTags.Base.ExposureTime] = TiffImagePlugin.IFDRational(1, 250)
+    details[ExifTags.Base.ISOSpeedRatings] = 400
+    details[ExifTags.Base.FocalLength] = TiffImagePlugin.IFDRational(240, 10)
+    gps = exif.get_ifd(ExifTags.IFD.GPSInfo)
+    gps[ExifTags.GPS.GPSLatitudeRef] = "S"
+    gps[ExifTags.GPS.GPSLatitude] = (35.0, 40.0, 34.32)
+    gps[ExifTags.GPS.GPSLongitudeRef] = "W"
+    gps[ExifTags.GPS.GPSLongitude] = (139.0, 39.0, 1.08)
+    return exif
+
+
+def _photo_bytes(fmt="JPEG", exif=None):
+    buffer = BytesIO()
+    options = {"exif": exif.tobytes()} if exif is not None else {}
+    Image.new("RGB", (64, 64), "red").save(buffer, fmt, **options)
+    return buffer.getvalue()
+
+
+def _upload(c, filename, payload):
+    res = c.post(f"/api/drives/{TEST_DRIVE}/upload/init", json={
+        "filename": filename,
+        "file_size": len(payload),
+        "folder_path": "",
+        "chunk_size": len(payload),
+    })
+    assert res.status_code == 200, res.text
+    upload_id = res.json()["upload_id"]
+    res = c.post(
+        f"/api/drives/{TEST_DRIVE}/upload/{upload_id}/chunk",
+        data={"chunk_index": "0"},
+        files={"chunk": ("chunk", BytesIO(payload), "application/octet-stream")},
+    )
+    assert res.status_code == 200, res.text
+    res = c.post(f"/api/drives/{TEST_DRIVE}/upload/{upload_id}/complete")
+    assert res.status_code == 200, res.text
+    return res.json()["id"]
+
+
+# UNSPEC: a photo has its EXIF as soon as it is in the library, however it got
+# there, so nobody has to rescan before its capture time and location appear.
+class TestEveryWayIn:
+    @pytest.mark.parametrize(("name", "fmt"), [("a.jpg", "JPEG"), ("a.heic", "HEIF")])
+    def test_an_uploaded_photo_has_its_exif_at_once(self, client, name, fmt):
+        c, _, _, _ = client
+
+        file_id = _upload(c, name, _photo_bytes(fmt, _exif_with_everything()))
+
+        res = c.get(f"/api/files/{file_id}/exif")
+        assert res.status_code == 200, res.text
+        assert res.json()["datetime_original"] == "2024-03-15T14:23:01"
+        assert res.json()["gps_lat"] == pytest.approx(-35.6762, abs=0.001)
+
+    def test_re_uploading_over_a_path_replaces_the_exif(self, client):
+        c, _, drive_dir, _ = client
+        first = _upload(c, "a.jpg", _photo_bytes(exif=_exif_with_everything()))
+        # The API rejects an upload onto a live path. A file gone from disk keeps
+        # its row, and an upload to that path revives the row.
+        (drive_dir / "a.jpg").unlink()
+
+        second = _upload(c, "a.jpg", _photo_bytes(exif=_exif_with_everything("2025:01:02 03:04:05")))
+
+        assert second == first
+        assert c.get(f"/api/files/{second}/exif").json()["datetime_original"] == "2025-01-02T03:04:05"
+
+    def test_re_uploading_a_photo_without_exif_removes_the_old_exif(self, client):
+        c, _, drive_dir, _ = client
+        first = _upload(c, "a.jpg", _photo_bytes(exif=_exif_with_everything()))
+        # The API rejects an upload onto a live path. A file gone from disk keeps
+        # its row, and an upload to that path revives the row.
+        (drive_dir / "a.jpg").unlink()
+
+        second = _upload(c, "a.jpg", _photo_bytes())
+
+        assert second == first
+        assert c.get(f"/api/files/{second}/exif").status_code == 404
+
+    def test_reading_an_upload_holds_no_write_lock(self, client, monkeypatch):
+        # A large PNG with no eXIf chunk is decoded whole by this read, and every
+        # other writer would wait on it.
+        c, db, _, _ = client
+        path = db.get_bind().url.database
+        writable = []
+
+        def read_while_another_connection_writes(image_path):
+            other = sqlite3.connect(path, timeout=0)
+            try:
+                other.execute("BEGIN IMMEDIATE")
+                other.rollback()
+                writable.append(True)
+            except sqlite3.OperationalError:
+                writable.append(False)
+            finally:
+                other.close()
+            return None
+
+        monkeypatch.setattr(upload_service, "extract_exif", read_while_another_connection_writes)
+
+        _upload(c, "a.png", _photo_bytes("PNG"))
+
+        assert writable == [True]
+
+    def test_a_scan_reads_a_photo_it_finds_and_one_with_no_exif_row(self, client):
+        # The second case is every HEIC already in a library: a row, and no EXIF.
+        c, db, drive_dir, _ = client
+        (drive_dir / "a.heic").write_bytes(_photo_bytes("HEIF", _exif_with_everything()))
+
+        _scan_and_register(db, TEST_DRIVE)
+        db.commit()
+        record = db.query(File).filter(File.filename == "a.heic").one()
+        assert c.get(f"/api/files/{record.id}/exif").json()["datetime_original"] == "2024-03-15T14:23:01"
+
+        db.delete(db.get(FileExif, record.id))
+        db.commit()
+        assert c.get(f"/api/files/{record.id}/exif").status_code == 404
+
+        _scan_and_register(db, TEST_DRIVE)
+        db.commit()
+        res = c.get(f"/api/files/{record.id}/exif")
+        assert res.status_code == 200, res.text
+        assert res.json()["gps_lat"] == pytest.approx(-35.6762, abs=0.001)
+
+    def test_a_copied_photo_has_the_same_exif(self, client):
+        c, _, _, _ = client
+        source = _upload(c, "a.jpg", _photo_bytes(exif=_exif_with_everything()))
+
+        res = c.post(f"/api/files/{source}/copy", json={"target_folder_path": ""})
+        assert res.status_code == 200, res.text
+        copy = res.json()["id"]
+
+        assert copy != source
+        assert c.get(f"/api/files/{copy}/exif").json() == c.get(f"/api/files/{source}/exif").json()
+
+    def test_copying_a_photo_without_exif_leaves_none(self, client):
+        c, _, _, _ = client
+        source = _upload(c, "a.jpg", _photo_bytes())
+
+        res = c.post(f"/api/files/{source}/copy", json={"target_folder_path": ""})
+        assert res.status_code == 200, res.text
+
+        assert c.get(f"/api/files/{res.json()['id']}/exif").status_code == 404
 
 
 class TestHelpers:

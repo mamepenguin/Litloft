@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useState, type ReactNode, type RefObject } from "react";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import type { FileItem } from "@/types";
 import type { MediaController } from "@/lib/mediaController";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
+import type { DocumentController } from "@/lib/documentController";
 import type { PdfController } from "@/lib/pdfController";
 import type { ArchiveController } from "@/lib/archiveController";
 import { PdfPagesTab } from "./pdf/PdfPagesTab";
@@ -31,20 +33,30 @@ import { FileNavControls } from "./FileNavControls";
 import { MediaCanvas } from "./MediaCanvas";
 import { InspectorShell } from "./inspector/InspectorShell";
 import { buildInspectorTabs } from "./inspector/tabs";
+import { FindBar } from "./find/FindBar";
+import { FindButton } from "./find/FindButton";
+import { FindTab } from "./find/FindTab";
+import { FindTextBodyProvider, useFind } from "./find/FindContext";
 import type { CompanionMetrics } from "./hooks/useCompanionMetrics";
 import type { SlotAvailability } from "./hooks/useSlotAvailability";
+import { slotAvailabilityKey } from "./hooks/useSlotAvailability";
 import { useSheetHalfSnap } from "./hooks/useSheetHalfSnap";
 import { RelatedPanel } from "./related/RelatedPanel";
 import { useFileRelations } from "./related/useFileRelations";
+import { TextScrollFileIdContext } from "@/lib/textScrollProgress";
+import { HighlightFileContext } from "@/lib/highlightStore";
 
 export interface ShellLayoutProps {
   file: FileItem;
   fileId: string;
   drive: string;
   isMobile: boolean;
+  findEnabled: boolean;
   isHtmlPreview: boolean;
   hasPlayer: boolean;
   usesCanvasViewer: boolean;
+  plainTextDocument: boolean;
+  hasInspector: boolean;
   descriptionInCanvas: boolean;
   companionMountable: boolean;
   companionOccupied: boolean;
@@ -59,6 +71,7 @@ export interface ShellLayoutProps {
   mediaController: MediaController | null;
   onMediaController: (mc: MediaController | null) => void;
   onDocumentCaptureController: (c: DocumentCaptureController | null) => void;
+  onDocumentController: (c: DocumentController | null) => void;
   videoRef: RefObject<HTMLVideoElement | null>;
   initialTime?: number;
   initialPage?: number;
@@ -81,9 +94,12 @@ export function ShellLayout({
   fileId,
   drive,
   isMobile,
+  findEnabled,
   isHtmlPreview,
   hasPlayer,
   usesCanvasViewer,
+  plainTextDocument,
+  hasInspector,
   descriptionInCanvas,
   companionMountable,
   companionOccupied,
@@ -98,6 +114,7 @@ export function ShellLayout({
   mediaController,
   onMediaController,
   onDocumentCaptureController,
+  onDocumentController,
   videoRef,
   initialTime,
   initialPage,
@@ -115,6 +132,9 @@ export function ShellLayout({
   sheetPeek,
 }: ShellLayoutProps) {
   const tabLabels = useTranslations("inspector.tabs");
+  const searchParams = useSearchParams();
+  const inboxWalk = searchParams.get("nav") === "inbox";
+  const find = useFind();
 
   /**
    * On a phone the player is stuck to the top of the canvas, so a sheet
@@ -165,12 +185,21 @@ export function ShellLayout({
 
   const playerSideEntries = hasPlayer ? getSlotEntries("player-side") : [];
 
-  const playerSideProps = (entryId: string, labelledByHost: boolean) => ({
+  const entryProps = (
+    slotId: "player-side" | "inspector-tabs",
+    entryId: string,
+    labelledByHost: boolean,
+  ) => ({
     ...addonSlotProps,
     fillHeight: true,
     labelledByHost,
-    onAvailability: slotAvailability.reporterFor(entryId),
+    onAvailability: slotAvailability.reporterFor(
+      slotAvailabilityKey(slotId, entryId),
+    ),
   });
+
+  const playerSideProps = (entryId: string, labelledByHost: boolean) =>
+    entryProps("player-side", entryId, labelledByHost);
 
   /**
    * Built here rather than by `AddonSlot` inside the canvas because the
@@ -184,6 +213,10 @@ export function ShellLayout({
       props={playerSideProps(entry.id, false)}
     />
   ));
+
+  const inspectorTabEntries = hasInspector
+    ? getSlotEntries("inspector-tabs")
+    : [];
 
   /**
    * The inspector excludes exactly these, so a section lands in one
@@ -240,6 +273,11 @@ export function ShellLayout({
       },
       coreTabs: [
         {
+          id: "find",
+          label: tabLabels("find"),
+          content: find.open ? <FindTab /> : null,
+        },
+        {
           id: "pages",
           label: tabLabels("pages"),
           content: pdfController ? (
@@ -279,7 +317,9 @@ export function ShellLayout({
         ? playerSideEntries.map((entry) => ({
             entry,
             label: slotEntryLabel(entry, tGlobal),
-            available: slotAvailability.isAvailable(entry.id),
+            available: slotAvailability.isAvailable(
+              slotAvailabilityKey("player-side", entry.id),
+            ),
             // In the desktop pane (`buildTabs(false)`) the panel is the
             // height budget, so this continues the flex chain and the
             // occupant fills it and scrolls inside itself. Without it the
@@ -300,10 +340,32 @@ export function ShellLayout({
             ),
           }))
         : [],
+      inspectorTabs: inspectorTabEntries.map((entry) => ({
+        entry,
+        label: slotEntryLabel(entry, tGlobal),
+        available:
+          slotAvailability.reportedValue(
+            slotAvailabilityKey("inspector-tabs", entry.id),
+          ) === true,
+        content: (
+          <div className="flex h-full min-h-0 flex-col">
+            <SlotEntryRenderer
+              entry={entry}
+              props={entryProps("inspector-tabs", entry.id, true)}
+            />
+          </div>
+        ),
+      })),
     });
 
   const inspector = (
-    <InspectorShell header={meta} tabs={buildTabs(false)} resetKey={fileId} />
+    <InspectorShell
+      header={meta}
+      tabs={buildTabs(false)}
+      resetKey={fileId}
+      selectRequest={find.selectRequest}
+      onSelect={(tabId) => find.reportTab("pane", tabId)}
+    />
   );
 
   // Only when actually on mobile, so the sections inside mount exactly
@@ -316,6 +378,8 @@ export function ShellLayout({
       tabs={buildTabs(true)}
       resetKey={fileId}
       scroll="column"
+      selectRequest={find.selectRequest}
+      onSelect={(tabId) => find.reportTab("sheet", tabId)}
     />
   ) : undefined;
 
@@ -325,11 +389,14 @@ export function ShellLayout({
         drive={drive}
         folderPath={file.folder_path}
         title={file.title || file.filename}
+        fileId={fileId}
         onBack={onBack}
         onScrollRootChange={onScrollRootChange}
+        findEnabled={findEnabled}
         canvasFloor={viewerTakesCanvasFloor(file.file_type, file.mime_type)}
         chromeControls={
           <>
+            {findEnabled && <FindButton />}
             {/* `!isMobile` is not only about space: `onBeside` opens the
                 desktop pane, and a phone's sheet is `FileDetailShell`'s own
                 state, not this store. Rendering the toggle on a phone would
@@ -340,8 +407,9 @@ export function ShellLayout({
             {/* Images only. The arrow keys walk the folder for archives,
                 PDFs and text as well, but those are surfaces for reading
                 into a file, and a pair of arrows in their page row reads
-                as the viewer's own paging instead. */}
-            {file.file_type === "image" && <FileNavControls />}
+                as the viewer's own paging instead. The inbox's row is the
+                exception: there every kind walks the arrivals. */}
+            {file.file_type === "image" && !inboxWalk && <FileNavControls />}
           </>
         }
         inspector={inspector}
@@ -350,6 +418,7 @@ export function ShellLayout({
         halfSnap={sheetHalfSnap}
         resetKey={fileId}
       >
+        {findEnabled && find.open && <FindBar />}
         <MediaCanvas
           showDescription={descriptionInCanvas}
           file={file}
@@ -381,6 +450,7 @@ export function ShellLayout({
           highlight={highlight}
           onMediaController={onMediaController}
           onDocumentCaptureController={onDocumentCaptureController}
+          onDocumentController={onDocumentController}
           onPdfController={setPdfController}
           onArchiveController={setArchiveController}
           markdownReloadKey={markdownReloadKey}
@@ -399,6 +469,7 @@ export function ShellLayout({
       drive={drive}
       folderPath={file.folder_path}
       title={file.filename}
+      fileId={fileId}
       onRename={isHtmlPreview ? undefined : onRename}
       onBack={onBack}
       onScrollRootChange={onScrollRootChange}
@@ -407,6 +478,8 @@ export function ShellLayout({
       sheetPeek={sheetPeek}
       resetKey={fileId}
       previewOnly={isHtmlPreview}
+      plainText={plainTextDocument}
+      findEnabled={findEnabled}
     >
       {/* The canvas is at least as tall as the scroll viewport (`flex-1`
           against the layout's scrolling <main>), and the editor region
@@ -414,16 +487,28 @@ export function ShellLayout({
           ended at its own content height and the sections under it
           floated in the middle of the screen with dead space below. */}
       <div className="flex flex-1 flex-col">
+        {findEnabled && find.open && <FindBar />}
         <div className="relative isolate flex flex-1 flex-col bg-bg-primary">
           {isHtmlPreview ? (
             <FilePreview file={file} />
           ) : (
-            <AddonSlot
-              id="file-detail-sections"
-              layout="stack"
-              includeIds={["knowledge-edit"]}
-              props={{ ...addonSlotProps, fillHeight: true }}
-            />
+            <FindTextBodyProvider>
+              <TextScrollFileIdContext.Provider value={file.id}>
+                <HighlightFileContext.Provider value={file.id}>
+                  <AddonSlot
+                    id="file-detail-sections"
+                    layout="stack"
+                    includeIds={["knowledge-edit"]}
+                    props={{
+                      ...addonSlotProps,
+                      fillHeight: true,
+                      highlight,
+                      ...(plainTextDocument ? { plainTextDocument: true } : {}),
+                    }}
+                  />
+                </HighlightFileContext.Provider>
+              </TextScrollFileIdContext.Provider>
+            </FindTextBodyProvider>
           )}
         </div>
         {!isMobile && !isHtmlPreview && (

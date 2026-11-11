@@ -12,12 +12,31 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 import app.config as config
-from app.models import EmptyFolder, File, active_file_filter
+from app.models import (
+    Collection,
+    CollectionItem,
+    EmptyFolder,
+    File,
+    FileExif,
+    active_file_filter,
+)
 from app.nanoid import generate_nanoid
 from app.services.atomic_write import generating_file
+from app.services.diskpath import existing_or_409, name_taken, new_or_409, resolve_on_disk
 from app.services.heic import cleanup_heic_cache
 from app.services.markdown_images import project_markdown_thumbnail
-from app.services.tagops import cleanup_orphan_tags
+from app.services import inbox as inbox_service
+from app.services.subtitle import move_sidecar_subtitles
+from app.services.thumbnail import (
+    prune_empty_dirs,
+    remove_thumbnail_quietly,
+    thumbnail_slot_rel,
+)
+from app.services.tagops import (
+    cleanup_orphan_tags,
+    project_frontmatter_tags,
+    retarget_file_tags,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -100,32 +119,6 @@ def _filename_to_title(filename: str) -> str:
     return name[0].upper() + name[1:]
 
 
-def _move_thumbnail(file: File, new_thumb_rel: str) -> None:
-    if not file.thumbnail_path:
-        return
-    old_thumb = config.THUMBNAILS_DIR / file.thumbnail_path
-    new_thumb = config.THUMBNAILS_DIR / new_thumb_rel
-    if old_thumb.exists():
-        new_thumb.parent.mkdir(parents=True, exist_ok=True)
-        old_thumb.rename(new_thumb)
-        _cleanup_empty_parents(old_thumb.parent, config.THUMBNAILS_DIR)
-
-
-def _cleanup_empty_parents(directory: Path, stop_at: Path) -> None:
-    current = directory
-    while current != stop_at and current.is_dir():
-        try:
-            current.rmdir()
-            current = current.parent
-        except OSError:
-            break
-
-
-def path_thumbnail_rel(drive: str, folder_path: str, stem: str) -> str:
-    """The thumbnail cache slot a file at this path owns."""
-    return f"{drive}/{folder_path}/{stem}.jpg" if folder_path else f"{drive}/{stem}.jpg"
-
-
 def untrack_empty_folder(db: Session, drive: str, folder_path: str) -> None:
     existing = (
         db.query(EmptyFolder)
@@ -155,7 +148,7 @@ def _ensure_empty_folder_tracked(db: Session, drive: str, folder_path: str) -> N
     if already_tracked:
         return
     drive_path = config.get_drive_path(drive)
-    full_path = drive_path / folder_path
+    full_path = resolve_on_disk(drive_path, folder_path)
     if full_path.exists() and full_path.is_dir():
         db.add(EmptyFolder(drive=drive, path=folder_path))
 
@@ -170,11 +163,11 @@ def resolve_db_path_conflict(db: Session, new_rel: str, drive: str) -> str | Non
 
     Per record state:
       • Active → 409; the user must rescan and purge it deliberately.
-      • Trashed → purge the ghost.
+      • Trashed → purge the ghost. The file its thumbnail pointer names is
+        returned for the caller to remove once its own commit has succeeded, so
+        a rollback leaves the ghost its picture.
       • Missing → retire its file_path to a placeholder, keeping the row
-        (watch history, tags, comments). Its id is returned because it still
-        names the thumbnail cache slot of the freed path; the caller clears
-        that pointer only after writing the slot.
+        (watch history, tags, comments) and its own thumbnail slot.
     """
     conflict = (
         db.query(File)
@@ -189,26 +182,22 @@ def resolve_db_path_conflict(db: Session, new_rel: str, drive: str) -> str | Non
             detail=f"A database record already exists at '{new_rel}' (id={conflict.id})",
         )
     if conflict.deleted_at is not None:
+        ghost_picture = conflict.thumbnail_path
         db.delete(conflict)
         db.flush()
         cleanup_orphan_tags(db, drive)
-        return None
+        return ghost_picture
     conflict.file_path = f"__missing_{conflict.id}_{new_rel}"
     db.flush()
-    return conflict.id
+    return None
 
 
-def _rename_thumbnail_owner(
-    db: Session, owner: File, thumb_rel: str, retired_id: str | None
-) -> None:
-    """Point ``owner`` at the JPEG just written, and stop a record retired out
-    of that path from naming it. Its own commit, because the JPEG is a cache: a
-    database error here must not take back a file that has already arrived."""
+def _rename_thumbnail_owner(db: Session, owner: File, thumb_rel: str) -> None:
+    """Point ``owner`` at the JPEG just written. Its own commit, because the
+    JPEG is a cache: a database error here must not take back a file that has
+    already arrived."""
     try:
         owner.thumbnail_path = thumb_rel
-        retired = db.get(File, retired_id) if retired_id is not None else None
-        if retired is not None and retired.thumbnail_path == thumb_rel:
-            retired.thumbnail_path = None
         db.commit()
     except Exception:
         db.rollback()
@@ -217,20 +206,20 @@ def _rename_thumbnail_owner(
 
 def _resolve_copy_filename(target_dir: Path, original_filename: str) -> str:
     """Generate a unique filename for copy, adding _copy, _copy_2, etc. on collision."""
-    if not (target_dir / original_filename).exists():
+    if not name_taken(target_dir / original_filename):
         return original_filename
 
     stem = Path(original_filename).stem
     ext = Path(original_filename).suffix
 
     candidate = f"{stem}_copy{ext}"
-    if not (target_dir / candidate).exists():
+    if not name_taken(target_dir / candidate):
         return candidate
 
     counter = 2
     while counter <= 1000:
         candidate = f"{stem}_copy_{counter}{ext}"
-        if not (target_dir / candidate).exists():
+        if not name_taken(target_dir / candidate):
             return candidate
         counter += 1
     raise HTTPException(status_code=409, detail="Too many copies of this file exist")
@@ -248,11 +237,11 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
     src_drive_path = config.get_drive_path(src_drive)
     dst_drive_path = resolve_drive_path(dst_drive)
 
-    old_full = src_drive_path / source.file_path
+    old_full = existing_or_409(src_drive_path, source.file_path)
     if not old_full.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
 
-    target_dir = dst_drive_path / target_folder if target_folder else dst_drive_path
+    target_dir = existing_or_409(dst_drive_path, target_folder) if target_folder else dst_drive_path
     validate_within_drive(target_dir, dst_drive_path)
     target_dir.mkdir(parents=True, exist_ok=True)
 
@@ -263,7 +252,7 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
     new_id = generate_nanoid()
     new_rel = f"{target_folder}/{new_filename}" if target_folder else new_filename
 
-    new_thumb_rel = path_thumbnail_rel(dst_drive, target_folder, Path(new_filename).stem)
+    new_thumb_rel = thumbnail_slot_rel(new_id)
     new_thumb = config.THUMBNAILS_DIR / new_thumb_rel
     # Markdown thumbnails are projections owned by the note ID, so they are
     # regenerated from the copy's own content instead of taking this slot.
@@ -272,25 +261,14 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
         if source.thumbnail_path and not _is_markdown_file(source)
         else None
     )
-    # Only video thumbnails follow a move, so an image moved out of a folder
-    # still points at the thumbnail it left there, and copying it back names one
-    # file on both sides — which `copy2` refuses. `samefile` rather than a path
-    # comparison, because the drive is read through a mount that folds case and
-    # Unicode normalisation. The copy takes no pointer in that case: the slot
-    # belongs to the row already naming it, and two rows sharing one JPEG means
-    # purging either blanks the other.
-    fills_thumbnail_slot = (
-        old_thumb is not None
-        and old_thumb.exists()
-        and not (new_thumb.exists() and old_thumb.samefile(new_thumb))
-    )
+    fills_thumbnail_slot = old_thumb is not None and old_thumb.exists()
 
     # Free the UNIQUE file_path slot if a stale ghost holds it. Done BEFORE
     # creating the FS file so an active 409 conflict doesn't leave an orphan
     # file on disk. (_resolve_copy_filename only avoids FS collisions; a DB
     # ghost with no FS copy would otherwise pass that check and then blow up
     # at db.commit with an IntegrityError.)
-    retired_id = resolve_db_path_conflict(db, new_rel, dst_drive)
+    ghost_picture = resolve_db_path_conflict(db, new_rel, dst_drive)
 
     # Atomic copy: create exclusive target then copy content to prevent TOCTOU race
     projected_thumb: Path | None = None
@@ -326,9 +304,26 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
 
         try:
             db.add(new_file)
+            source_exif = db.get(FileExif, source.id)
+            if source_exif is not None:
+                db.add(
+                    FileExif(
+                        file_id=new_id,
+                        datetime_original=source_exif.datetime_original,
+                        make=source_exif.make,
+                        model=source_exif.model,
+                        f_number=source_exif.f_number,
+                        exposure_time=source_exif.exposure_time,
+                        iso_speed=source_exif.iso_speed,
+                        focal_length=source_exif.focal_length,
+                        gps_lat=source_exif.gps_lat,
+                        gps_lon=source_exif.gps_lon,
+                    )
+                )
             if _is_markdown_file(new_file):
                 content = _read_markdown_for_projection(new_full)
                 if content is not None:
+                    project_frontmatter_tags(db, new_file, content)
                     project_markdown_thumbnail(db, new_file, content)
                     if new_file.thumbnail_path:
                         projected_thumb = (
@@ -352,16 +347,17 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
         if projected_thumb is not None:
             try:
                 projected_thumb.unlink()
-                _cleanup_empty_parents(projected_thumb.parent, config.THUMBNAILS_DIR)
+                prune_empty_dirs(projected_thumb.parent, config.THUMBNAILS_DIR)
             except OSError:
                 pass
         raise
 
+    remove_thumbnail_quietly(ghost_picture)
+
     # A thumbnail is a cache the scanner can rebuild, so it is filled after the
     # row is durable and never inside the handler that reverses the filesystem:
-    # a copy that arrived must not be undone because its picture did not. Which
-    # row names the JPEG is decided here too, from the write that happened —
-    # naming it beforehand hands the picture to whoever the write then missed.
+    # a copy that arrived must not be undone because its picture did not. The
+    # row names the JPEG only once the write has happened.
     if fills_thumbnail_slot:
         try:
             with generating_file(new_thumb) as staged_thumb:
@@ -369,10 +365,24 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
         except OSError:
             logger.warning("Copied %s but could not fill %s", new_rel, new_thumb_rel)
         else:
-            _rename_thumbnail_owner(db, new_file, new_thumb_rel, retired_id)
+            _rename_thumbnail_owner(db, new_file, new_thumb_rel)
 
     db.refresh(new_file)
     return new_file
+
+
+def _serves_subtitles(file: File) -> bool:
+    return file.file_type == "video" or file.mime_type == "application/vnd.litloft.loft+json"
+
+
+def _carry_sidecars(file: File, old_full: Path, new_full: Path) -> None:
+    """Best effort: a failure here never undoes the video's own change."""
+    if not _serves_subtitles(file):
+        return
+    try:
+        move_sidecar_subtitles(old_full, new_full)
+    except Exception:
+        logger.exception("sidecar subtitles: could not carry %s to %s", old_full, new_full)
 
 
 def rename_file(db: Session, file_id: str, new_filename: str) -> File:
@@ -388,31 +398,21 @@ def rename_file(db: Session, file_id: str, new_filename: str) -> File:
     old_filename = file.filename
     old_drive = file.drive
 
-    old_full = drive_path / file.file_path
+    old_full = existing_or_409(drive_path, file.file_path)
     new_rel = f"{file.folder_path}/{new_filename}" if file.folder_path else new_filename
-    new_full = drive_path / new_rel
+    new_full = new_or_409(drive_path, new_rel)
     validate_within_drive(new_full, drive_path)
 
-    if new_full.exists():
+    if name_taken(new_full):
         raise HTTPException(status_code=409, detail="File already exists")
     if not old_full.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
 
-    resolve_db_path_conflict(db, new_rel, file.drive)
+    ghost_picture = resolve_db_path_conflict(db, new_rel, file.drive)
 
     old_full.rename(new_full)
 
     try:
-        if file.file_type == "video" and file.thumbnail_path:
-            new_stem = Path(new_filename).stem
-            new_thumb_rel = (
-                f"{file.drive}/{file.folder_path}/{new_stem}.jpg"
-                if file.folder_path
-                else f"{file.drive}/{new_stem}.jpg"
-            )
-            _move_thumbnail(file, new_thumb_rel)
-            file.thumbnail_path = new_thumb_rel
-
         file.filename = new_filename
         file.file_path = new_rel
         file.title = _filename_to_title(new_filename)
@@ -427,6 +427,9 @@ def rename_file(db: Session, file_id: str, new_filename: str) -> File:
             status_code=500,
             detail=f"Rename failed (DB error, filesystem reversed): {exc}",
         ) from exc
+
+    remove_thumbnail_quietly(ghost_picture)
+    _carry_sidecars(file, old_full, new_full)
 
     # Best-effort: a rewrite failure must NOT roll back the user-visible rename
     # (FS + DB row are already durable).
@@ -452,7 +455,7 @@ def rename_file(db: Session, file_id: str, new_filename: str) -> File:
     return file
 
 
-def move_file(db: Session, file_id: str, target_drive: str | None, target_folder: str) -> File:
+def move_file(db: Session, file_id: str, target_drive: str | None, target_folder: str) -> tuple[File, bool]:
     # A pure move preserves ``file.filename``, so the wiki-link basename never
     # changes and no rewrite hook is needed here.
     file = db.query(File).filter(File.id == file_id).first()
@@ -466,36 +469,40 @@ def move_file(db: Session, file_id: str, target_drive: str | None, target_folder
     src_drive_path = resolve_drive_path(src_drive)
     dst_drive_path = resolve_drive_path(dst_drive) if dst_drive != src_drive else src_drive_path
 
-    old_full = src_drive_path / file.file_path
+    old_full = existing_or_409(src_drive_path, file.file_path)
     new_rel = f"{target_folder}/{file.filename}" if target_folder else file.filename
-    new_full = dst_drive_path / new_rel
+    new_full = new_or_409(dst_drive_path, new_rel)
     validate_within_drive(new_full, dst_drive_path)
 
-    if new_full.exists():
+    if name_taken(new_full):
         raise HTTPException(status_code=409, detail="File already exists at target")
     if not old_full.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
 
-    resolve_db_path_conflict(db, new_rel, dst_drive)
+    ghost_picture = resolve_db_path_conflict(db, new_rel, dst_drive)
 
     new_full.parent.mkdir(parents=True, exist_ok=True)
     shutil.move(str(old_full), str(new_full))
 
+    inbox_changed = False
     try:
-        if file.file_type == "video" and file.thumbnail_path:
-            new_thumb_rel = (
-                f"{dst_drive}/{target_folder}/{file.filename.rsplit('.', 1)[0]}.jpg"
-                if target_folder
-                else f"{dst_drive}/{file.filename.rsplit('.', 1)[0]}.jpg"
-            )
-            _move_thumbnail(file, new_thumb_rel)
-            file.thumbnail_path = new_thumb_rel
-
         old_drive = file.drive
         old_folder = file.folder_path
+        if dst_drive == src_drive:
+            inbox_changed = inbox_service.close(db, src_drive, file_id)
+        else:
+            inbox_changed = inbox_service.remove(db, src_drive, file_id)
+        retarget_file_tags(db, file, old_drive, dst_drive)
         file.drive = dst_drive
         file.folder_path = target_folder
         file.file_path = new_rel
+        if dst_drive != src_drive:
+            db.query(CollectionItem).filter(
+                CollectionItem.file_id == file.id,
+                CollectionItem.collection_id.in_(
+                    db.query(Collection.id).filter(Collection.drive != dst_drive)
+                ),
+            ).delete(synchronize_session=False)
         if _is_markdown_file(file):
             content = _read_markdown_for_projection(new_full)
             if content is not None:
@@ -515,8 +522,11 @@ def move_file(db: Session, file_id: str, target_drive: str | None, target_folder
             detail=f"Move failed (DB error, filesystem reversed): {exc}",
         ) from exc
 
+    remove_thumbnail_quietly(ghost_picture)
+    _carry_sidecars(file, old_full, new_full)
+
     db.refresh(file)
-    return file
+    return file, inbox_changed
 
 
 def _update_pinned_folders(
@@ -579,28 +589,6 @@ def _update_folder_paths(
         },
     )
 
-    files_in_folder = (
-        db.query(File)
-        .filter(
-            File.drive == drive,
-            (File.folder_path == new_path) | File.folder_path.like(new_path + "/%"),
-        )
-        .all()
-    )
-    for f in files_in_folder:
-        if f.file_type == "video" and f.thumbnail_path:
-            old_thumb = config.THUMBNAILS_DIR / f.thumbnail_path
-            new_thumb_rel = (
-                f"{drive}/{f.folder_path}/{Path(f.filename).stem}.jpg"
-                if f.folder_path
-                else f"{drive}/{Path(f.filename).stem}.jpg"
-            )
-            new_thumb = config.THUMBNAILS_DIR / new_thumb_rel
-            if old_thumb.exists():
-                new_thumb.parent.mkdir(parents=True, exist_ok=True)
-                old_thumb.rename(new_thumb)
-            f.thumbnail_path = new_thumb_rel
-
     db.execute(
         text("""
             UPDATE empty_folders
@@ -638,16 +626,16 @@ def move_folder(drive: str, path: str, target_path: str, db: Session) -> dict:
         raise HTTPException(status_code=400, detail="Folder is already in this location")
 
     drive_path = resolve_drive_path(drive)
-    old_full = drive_path / path
+    old_full = existing_or_409(drive_path, path)
     validate_within_drive(old_full, drive_path)
 
     if not old_full.exists() or not old_full.is_dir():
         raise HTTPException(status_code=404, detail="Folder not found")
 
-    new_full = drive_path / new_path
+    new_full = new_or_409(drive_path, new_path)
     validate_within_drive(new_full, drive_path)
 
-    if new_full.exists():
+    if name_taken(new_full):
         raise HTTPException(status_code=409, detail="Target folder already exists")
 
     new_full.parent.mkdir(parents=True, exist_ok=True)
@@ -679,7 +667,7 @@ def move_folder(drive: str, path: str, target_path: str, db: Session) -> dict:
 def physical_delete(db: Session, file: File) -> None:
     """Remove file from filesystem, caches, and DB. Caller must commit."""
     drive_path = config.get_drive_path(file.drive)
-    full_path = drive_path / file.file_path
+    full_path = existing_or_409(drive_path, file.file_path)
 
     if full_path.exists():
         full_path.unlink()
@@ -688,7 +676,7 @@ def physical_delete(db: Session, file: File) -> None:
         thumb = config.THUMBNAILS_DIR / file.thumbnail_path
         if thumb.exists():
             thumb.unlink()
-            _cleanup_empty_parents(thumb.parent, config.THUMBNAILS_DIR)
+            prune_empty_dirs(thumb.parent, config.THUMBNAILS_DIR)
 
     cleanup_heic_cache(str(full_path.resolve()), config.CONVERTED_DIR)
 
@@ -701,7 +689,7 @@ def physical_delete(db: Session, file: File) -> None:
     _ensure_empty_folder_tracked(db, drive, folder_path)
 
 
-def delete_file(db: Session, file_id: str) -> None:
+def delete_file(db: Session, file_id: str) -> bool:
     """Soft delete: set deleted_at, keep file on disk.
 
     Missing files cannot be moved to trash (the file is not on disk to
@@ -715,9 +703,11 @@ def delete_file(db: Session, file_id: str) -> None:
     file.deleted_at = datetime.now(UTC)
     drive = file.drive
     folder_path = file.folder_path
+    closed = inbox_service.close(db, drive, file_id)
     db.flush()
     _ensure_empty_folder_tracked(db, drive, folder_path)
     db.commit()
+    return closed
 
 
 def restore_file(db: Session, file_id: str) -> File:
@@ -727,7 +717,7 @@ def restore_file(db: Session, file_id: str) -> File:
         raise HTTPException(status_code=404, detail="File not found in trash")
 
     drive_path = config.get_drive_path(file.drive)
-    full_path = drive_path / file.file_path
+    full_path = existing_or_409(drive_path, file.file_path)
     if not full_path.exists():
         raise HTTPException(status_code=404, detail="File no longer exists on disk")
 
@@ -831,10 +821,10 @@ def create_folder(drive: str, parent_path: str, name: str, db: Session) -> dict:
     drive_path = resolve_drive_path(drive)
 
     folder_path = f"{parent_path}/{name}" if parent_path else name
-    full_path = drive_path / folder_path
+    full_path = new_or_409(drive_path, folder_path)
     validate_within_drive(full_path, drive_path)
 
-    if full_path.exists():
+    if name_taken(full_path):
         raise HTTPException(status_code=409, detail="Folder already exists")
 
     full_path.mkdir(parents=True)
@@ -853,7 +843,7 @@ def rename_folder(drive: str, path: str, new_name: str, db: Session) -> dict:
         raise HTTPException(status_code=400, detail="Cannot rename drive root")
 
     drive_path = resolve_drive_path(drive)
-    old_full = drive_path / path
+    old_full = existing_or_409(drive_path, path)
     validate_within_drive(old_full, drive_path)
 
     if not old_full.exists() or not old_full.is_dir():
@@ -861,10 +851,10 @@ def rename_folder(drive: str, path: str, new_name: str, db: Session) -> dict:
 
     parent = str(Path(path).parent)
     new_path = f"{parent}/{new_name}" if parent != "." else new_name
-    new_full = drive_path / new_path
+    new_full = new_or_409(drive_path, new_path)
     validate_within_drive(new_full, drive_path)
 
-    if new_full.exists():
+    if name_taken(new_full):
         raise HTTPException(status_code=409, detail="Target folder already exists")
 
     old_full.rename(new_full)
@@ -890,33 +880,43 @@ def rename_folder(drive: str, path: str, new_name: str, db: Session) -> dict:
     }
 
 
-def delete_folder(drive: str, path: str, db: Session) -> None:
+def delete_folder(drive: str, path: str, db: Session) -> bool:
     path = validate_path_safe(path)
     if not path:
         raise HTTPException(status_code=400, detail="Cannot delete drive root")
 
     drive_path = resolve_drive_path(drive)
-    full_path = drive_path / path
+    full_path = existing_or_409(drive_path, path)
     validate_within_drive(full_path, drive_path)
 
     if not full_path.exists() or not full_path.is_dir():
         raise HTTPException(status_code=404, detail="Folder not found")
 
     now = datetime.now(UTC)
+    folder_condition = (File.folder_path == path) | File.folder_path.like(path + "/%")
+    affected_ids = [
+        row[0]
+        for row in db.query(File.id)
+        .filter(File.drive == drive, active_file_filter(), folder_condition)
+        .all()
+    ]
     # Only active files (not trashed, not missing) get soft-deleted.
     # Missing files stay as-is; they already have no on-disk presence
     # and must be purged individually from the Missing view.
     db.query(File).filter(
         File.drive == drive,
         active_file_filter(),
-        (File.folder_path == path) | File.folder_path.like(path + "/%"),
+        folder_condition,
     ).update({"deleted_at": now}, synchronize_session="fetch")
+
+    closed = inbox_service.close_files(db, drive, affected_ids, now=now)
 
     db.query(EmptyFolder).filter(
         EmptyFolder.drive == drive,
         (EmptyFolder.path == path) | EmptyFolder.path.like(path + "/%"),
     ).delete(synchronize_session="fetch")
     db.commit()
+    return closed
 
 
 def _compute_new_stem_template(
@@ -1001,7 +1001,9 @@ def _validate_no_duplicates(rename_plan: list[tuple[File, str]], drive_path: Pat
     for file, new_name in rename_plan:
         folder_key = unicodedata.normalize("NFC", file.folder_path or "")
         if folder_key not in held_by_folder:
-            folder_dir = drive_path / file.folder_path if file.folder_path else drive_path
+            folder_dir = (
+                existing_or_409(drive_path, file.folder_path) if file.folder_path else drive_path
+            )
             held_by_folder[folder_key] = (
                 {_fold_name(p.name) for p in folder_dir.iterdir() if p.is_file()}
                 if folder_dir.exists()
@@ -1064,11 +1066,11 @@ def batch_rename(
                 results.append({"id": file.id, "old_name": old_name, "new_name": new_name})
                 continue
 
-            old_full = drive_path / file.file_path
+            old_full = existing_or_409(drive_path, file.file_path)
             new_rel = (
                 f"{file.folder_path}/{new_name}" if file.folder_path else new_name
             )
-            new_full = drive_path / new_rel
+            new_full = new_or_409(drive_path, new_rel)
             validate_within_drive(new_full, drive_path)
 
             if not old_full.exists():
@@ -1089,22 +1091,32 @@ def batch_rename(
         db.rollback()
         raise
 
+    _carry_batch_sidecars(db, rename_plan, completed_fs)
     return results
+
+
+def _carry_batch_sidecars(
+    db: Session,
+    rename_plan: list[tuple[File, str]],
+    completed_fs: list[tuple[Path, Path]],
+) -> None:
+    """Carry sidecars in rename order, so a name freed by an earlier rename is
+    free again when a later one needs it.
+    """
+    by_new_path = {new: old for new, old in completed_fs}
+    for file, _ in rename_plan:
+        try:
+            new_full = new_or_409(resolve_drive_path(file.drive), file.file_path)
+            old_full = by_new_path.get(new_full)
+            if old_full is not None:
+                _carry_sidecars(file, old_full, new_full)
+        except Exception:
+            logger.exception("batch rename: could not carry sidecar subtitles of %s", file.id)
 
 
 def _update_file_after_rename(
     file: File, new_name: str, new_rel: str, drive_path: Path
 ) -> None:
-    if file.file_type == "video" and file.thumbnail_path:
-        new_stem = Path(new_name).stem
-        new_thumb_rel = (
-            f"{file.drive}/{file.folder_path}/{new_stem}.jpg"
-            if file.folder_path
-            else f"{file.drive}/{new_stem}.jpg"
-        )
-        _move_thumbnail(file, new_thumb_rel)
-        file.thumbnail_path = new_thumb_rel
-
     file.filename = new_name
     file.file_path = new_rel
     file.title = _filename_to_title(new_name)

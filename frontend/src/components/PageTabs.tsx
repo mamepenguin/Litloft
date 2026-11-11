@@ -26,6 +26,8 @@ export interface PageTabsProps {
   current: string;
   onSelect?: (key: string) => void;
   label: string;
+  /** Wrap onto further lines instead of scrolling sideways. */
+  wrap?: boolean;
 }
 
 const BASE_CLASS =
@@ -35,6 +37,11 @@ const BASE_CLASS =
 
 const SELECTED_CLASS = "border-accent font-semibold text-text-primary";
 const UNSELECTED_CLASS = "border-transparent text-text-muted hover:text-text-primary";
+
+const WRAP_ROW_CLASS = "flex gap-1 border-b border-bg-border flex-wrap";
+const ROW_CLASS =
+  "flex flex-wrap gap-1 border-b border-bg-border " +
+  "pointer-coarse:flex-nowrap pointer-coarse:overflow-x-auto";
 
 /**
  * A row that navigates is not a tablist: `role="tab"` promises a screen
@@ -46,14 +53,14 @@ function navigates(items: readonly PageTabItem[]): boolean {
   return items.some((item) => item.href !== undefined);
 }
 
-export function PageTabs({ items, current, onSelect, label }: PageTabsProps) {
+export function PageTabs({ items, current, onSelect, label, wrap = false }: PageTabsProps) {
   const isNav = navigates(items);
 
   return (
     <nav
       aria-label={label}
       role={isNav ? undefined : "tablist"}
-      className="flex gap-1 overflow-x-auto border-b border-bg-border"
+      className={wrap ? WRAP_ROW_CLASS : ROW_CLASS}
     >
       {/* The icons carry no `aria-hidden`: lucide-react adds it itself unless
           an a11y prop is passed. */}

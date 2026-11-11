@@ -9,11 +9,15 @@ import { playerKind } from "./playerKind";
  *   must pass only its `enabled`, never its `isLoading`. Reading the
  *   loading flag here would let the periodic refetch flip the layout out
  *   from under an open editor, which unmounts the textarea.
+ * @param plainTextDocument  `usePlainTextDocument`'s decision, the only
+ *   place a `.txt` is judged; this does not look at the name.
  */
 export function usesDocumentShell(
   mimeType: string | undefined,
   knowledgeEditorEnabled: boolean,
+  plainTextDocument: boolean,
 ): boolean {
+  if (plainTextDocument) return true;
   if (mimeType === "text/html") return true;
   return mimeType === "text/markdown" && knowledgeEditorEnabled;
 }
@@ -71,8 +75,17 @@ export function ridesFileDetailShell(args: {
   mimeType: string | undefined;
   fileType: string | undefined;
   knowledgeEditorEnabled: boolean;
+  plainTextDocument: boolean;
 }): boolean {
-  if (usesDocumentShell(args.mimeType, args.knowledgeEditorEnabled)) return true;
+  if (
+    usesDocumentShell(
+      args.mimeType,
+      args.knowledgeEditorEnabled,
+      args.plainTextDocument,
+    )
+  ) {
+    return true;
+  }
   if (args.surface !== "canonical") return false;
   return args.fileType !== undefined;
 }

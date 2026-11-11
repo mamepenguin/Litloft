@@ -1,0 +1,126 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "shortening-rename-loses-language-track",
+      "origin": "reviewer",
+      "claim": "The longest-name-first order fixes a rename that extends the stem but breaks the reverse rename, so renaming `movie.ja.mp4` back to `movie.mp4` strands the language track.",
+      "impact": "Undoing the rename the new test pins (`movie.mp4` to `movie.ja.mp4`, then back) returns 200, but `movie.ja.ja.srt` stays under its old name and the Japanese track disappears from the player. A rename the user reverses does not restore the tracks, and only a backend warning records it.",
+      "evidence": "backend/app/services/subtitle.py:135 sorts longest first unconditionally. With old stem `movie.ja`, new stem `movie`, and sidecars `movie.ja.ja.srt` and `movie.ja.srt`: the first item targets `movie.ja.srt` (subtitle.py:140), which still exists, so subtitle.py:143-147 logs and skips it. The second then moves to `movie.srt`. `_parse_subtitle_filename('movie', movie.ja.ja.srt)` returns None because `ja.ja` fails the regex at subtitle.py:64. `test_language_suffixed_stem_does_not_depend_on_listing_order` tests only the extending direction.",
+      "repro": "not_reproduced (read-only review). Steps: seed a/movie.mp4 with a/movie.srt and a/movie.ja.srt, PUT rename to movie.ja.mp4, then PUT rename back to movie.mp4. Expected from the code: a/ holds movie.mp4, movie.srt and movie.ja.ja.srt, and detect_subtitles offers only the bare track, where it offered two before the round trip.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariants are declared. Plain filenames in normal use reach this, though only for a stem that gains and loses a language-like suffix.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Stop depending on one fixed order, for example by retrying skipped items after the others have moved, and add the round trip as a test row."
+    },
+    {
+      "id": "batch-sidecar-blocked-by-later-rename-gets-wrong-track",
+      "origin": "reviewer",
+      "claim": "Batch rename carries sidecars strictly in rename order, so a video whose new stem is still held by a later row's sidecar is blocked and ends up with that other video's subtitle.",
+      "impact": "Renaming `a.mp4` and `clip_1.mkv` with template `clip_{n}` returns 200. `clip_1.mp4` (formerly `a.mp4`) plays the captions of the former `clip_1.mkv`, its own `a.srt` stays behind unattached, and the user is told nothing. The wrong text appears under an ordinary track label.",
+      "evidence": "backend/app/services/fileops.py:1153-1174 runs one pass in plan order. `_validate_no_duplicates` (fileops.py:1026-1060) compares full names, so `clip_1.mp4` beside `clip_1.mkv` is allowed. Step 1: `a.srt` targets `clip_1.srt`, which exists, so subtitle.py:143-147 skips it. Step 2: old stem `clip_1`, and the earlier row now named `clip_1.mp4` counts as a sibling (fileops.py:1172-1173), so `clip_1.srt` is shared and copied to `clip_2.srt` and the original stays (subtitle.py:141, :148-149). detect_subtitles for `clip_1.mp4` then returns the former `clip_1.mkv` subtitle. `test_a_name_freed_earlier_in_the_batch_takes_its_sidecar` covers only the opposite order, and the known-issues collision entry describes a subtitle already at the destination, not one that the same batch is moving away.",
+      "repro": "not_reproduced (read-only review). Steps: seed a/a.mp4, a/clip_1.mkv, a/a.srt and a/clip_1.srt, then PUT /api/files/batch/rename with those ids in that order, mode template, template clip_{n}. Expected from the code: a/ holds clip_1.mp4, clip_1.srt (text of the old clip_1.srt), clip_2.mkv, clip_2.srt and a.srt.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is declared. This is a silent wrong result in normal use, but it needs mixed extensions and an overlapping name in one batch.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Plan the sidecar renames for the whole batch before moving any, ordering them by which targets are freed, and add this input as a test row."
+    },
+    {
+      "id": "same-stem-pair-acted-on-together-leaves-orphan-copy",
+      "origin": "reviewer",
+      "claim": "When same-stem videos are moved or batch-renamed together under one destination stem, the first step copies the shared sidecar and the last step cannot move it, so a stale copy stays under the old name.",
+      "impact": "Selecting `movie.mp4` and `movie.mkv` and moving or prefixing them both leaves `movie.srt` behind in the old place, where no video needs it. Subtitle files do not appear in the file list, so the user cannot see it. A video later given the stem `movie` in that folder silently gets this stale text as its track. On a cross-drive move, a copy stays on the source drive after the user moved everything away.",
+      "evidence": "Batch rename: fileops.py:1172-1173 makes the later row claim the old stem, so subtitle.py:148-149 copies. The second row sees only the earlier row's new stem, so `shared` is false, and its target exists, so subtitle.py:143-147 skips and the source stays. Batch move: backend/app/routers/files.py:395-402 calls `move_file` per id, and fileops.py:556 evaluates siblings each time, which gives the same sequence. `test_siblings_renamed_together_share_the_moved_sidecar` asserts only `_tracks` of the new names and never the directory listing. No test seeds a same-stem pair through PUT /batch/move.",
+      "repro": "not_reproduced (read-only review). Steps: seed a/one.mp4, a/one.mkv and a/one.srt, then PUT /api/files/batch/rename with mode prefix_suffix, action add_prefix, value x_. Expected from the code: a/ holds x_one.mp4, x_one.mkv, x_one.srt and also one.srt, plus one warning in the backend log. The same pair through PUT /api/files/batch/move to b leaves a/one.srt.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is declared. The tracks of both videos are correct now, and the harm is a leftover that can attach to a later video.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "When the source is no longer claimed and its target holds identical content, remove the source, and assert the directory listing in the together test."
+    },
+    {
+      "id": "batch-inner-sibling-logic-unpinned",
+      "origin": "reviewer",
+      "claim": "No test depends on the loop that counts other batch rows as siblings, so deleting it or forcing its `later` choice survives the suite.",
+      "impact": "A later edit to `_carry_batch_sidecars` could drop the claim of a row still to come. Then `one.mp4` and `one.mkv` batch-renamed to different stems would move `one.srt` to the first video, and the second would silently lose its track. This is the regression the fix exists to prevent, and only the manual walk would notice, but the second R-5 run's batch rename step had no shared stem.",
+      "evidence": "backend/app/services/fileops.py:1165-1173 is the logic. The only batch test with a shared stem, `test_siblings_renamed_together_share_the_moved_sidecar`, gives both rows the same new stem `x_one` and checks only tracks. With the loop deleted, the first row moves `one.srt` to `x_one.srt` and the second finds nothing, so both still report the track. The other batch tests have no stem shared within the batch. decisions.md second run step 1 used `ep1` and `ep2`, which share nothing.",
+      "repro": "Mutation reasoned, not run. Replace fileops.py:1172 with `later = False`, or `later = True`, or delete lines 1165-1173. Tracing each batch test in backend/tests/test_sidecar_subtitles_follow_video.py predicts all three survive. A batch with `one.mp4` and `one.mkv`, template `clip_{n}`, asserting both tracks, would kill the first and third.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The code reads correctly for this input. This is a coverage gap on new logic of a kind the repository's testing rule asks about directly.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add a batch row in which same-stem videos get different new stems, and assert that each has the track."
+    },
+    {
+      "id": "uploaded-sidecar-row-left-pointing-at-old-path",
+      "origin": "reviewer",
+      "claim": "A subtitle uploaded through the UI has a File row, and carrying that sidecar moves the file without updating the row.",
+      "impact": "A user who drops `movie.mp4` and `movie.ja.srt` together and then renames the video keeps a `movie.ja.srt` entry whose file is gone, so opening it should fail with not-found until a scan marks it missing. The rename itself reports full success.",
+      "evidence": "backend/app/services/upload.py:222-224 classifies with no subtitle guard, and upload.py:302-316 adds a File row, reached from backend/app/routers/uploads.py:77. The guards at scanner.py:344 and :451 are on scanner paths only. subtitle.py:148-151 moves the file on disk with no database write, and neither `_carry_sidecars` (fileops.py:401-410) nor `_carry_batch_sidecars` updates rows. A grep found no subtitle filter on listings in routers/drives.py beyond the kind vocabulary (:97-109, :205). Every test in test_sidecar_subtitles_follow_video.py writes sidecars straight to disk through `_sidecars`.",
+      "repro": "not_reproduced (read-only review). Steps: upload a/movie.mp4 and a/movie.ja.srt through the upload API, PUT rename movie.mp4 to film.mp4, then GET the listing of a and the row for movie.ja.srt. Expected from the code: the row keeps file_path a/movie.ja.srt, and a/film.ja.srt exists on disk.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is declared. The row is already in a poor state before this change, because scanner.py:451 and :591 treat it as unseen on the next scan, so this change only makes the stale state arrive sooner.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Decide whether uploads should register subtitle files at all. If they should not, skip the row in `complete_upload` the same way `scanner` does."
+    }
+  ],
+  "specification_compliance": [
+    "No invariants file exists, so no bucket A finding is possible. Measured against r1 instead: batch rename now carries sidecars (fileops.py:1133), and shared stems now copy instead of taking the file (subtitle.py:148-149), including trashed siblings (`_sibling_stems` applies no state filter).",
+    "The r1 listing-order finding is fixed for the rename it named, because subtitle.py:135 makes the outcome independent of listing order. The fixed order itself fails in the reverse direction (finding shortening-rename-loses-language-track).",
+    "The r1 NFD gap is closed: `test_a_decomposed_sidecar_name_lands_under_the_composed_target` slices wrongly and fails if subtitle.py:139 is dropped, because `動画が濁点` has a different NFD length.",
+    "The r1 collision and case-only findings were recorded in known-issues.md and not changed in code. The loft display gap was also recorded there.",
+    "`_serves_subtitles` remains the only gate for both carrying and sibling claims, and non-video files are unaffected. The move path passes the old drive and folder to the sibling query (fileops.py:556), and the batch path scopes siblings by folder (fileops.py:1168)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "A shared sidecar becomes two independent files after a rename or move, so a later edit to one does not reach the other.",
+    "A sibling row marked missing claims sidecars just as a trashed one does, so renaming the surviving video leaves a copy for a file that may never return. No test covers the missing state.",
+    "Purging a trashed sibling removes only its own file (fileops.py:719-741), so the original the trashed row was claiming stays with no owner.",
+    "With a same-stem sibling, renaming `movie.mp4` to `movie.ja.mp4` copies `movie.ja.srt` and then finds the bare target occupied, because the claimed original was not moved away. The new video's bare track is then the old language track. This is reasoned from subtitle.py:141-149 and no test covers it.",
+    "A partial `shutil.copy2` failure can leave a truncated target, which detect_subtitles offers and later runs skip because the target exists."
+  ],
+  "regression_risks": [
+    "The sort at subtitle.py:135 measures on-disk name length, while targets are built from NFC names. Mixed NFC and NFD sidecars of one stem can therefore sort against the intended order. This is rare.",
+    "`_carry_sidecars` now runs a database query after the commit. If that query fails, the exception is logged at fileops.py:409-410 with no rollback, and `db.refresh(file)` follows on the same session. This is unlikely in normal use.",
+    "`_serves_subtitles(file)` at fileops.py:404 and :1154 sits outside the `try`, so it reloads an expired row after the commit where a failure would surface as a 500 after a durable rename. This is unlikely in normal use.",
+    "Each batch row now runs a folder listing and rebuilds the sibling stems for every row in the plan, which adds quadratic work on the event loop for a large batch in a large folder."
+  ],
+  "test_coverage": [
+    "Newly covered: batch rename following, a name freed earlier in the batch, an outside sibling in a batch, shared stems on rename and move, a language-stem sibling, a trashed sibling, both listing orders, and an NFD sidecar name.",
+    "Not pinned: the batch inner sibling loop (fileops.py:1165-1173), raised as a finding.",
+    "`test_siblings_renamed_together_share_the_moved_sidecar` passes while an orphan `one.srt` remains, because it never asserts the directory listing.",
+    "Not covered: a same-stem pair through PUT /batch/move, a missing-state sibling, a reverse language-suffix rename, a batch where a target is freed by a later row, shared-copy failure through `shutil.copy2`, and a failure inside `_sibling_stems`.",
+    "`test_failing_sidecar_does_not_fail_the_rename` replaces only `shutil.move`, so the copy branch's failure handling has no test."
+  ],
+  "not_verified": [
+    "No test, command or application was run, because this review is read-only. Every repro and mutation result is predicted from reading the code.",
+    "The review was read from the worktree without using git, so I did not confirm that the files on disk are exactly the tree of c5fcadfab beyond their matching the supplied diff.",
+    "Whether the frontend lets a user upload `.srt` files without a filter was checked only by a grep of upload-named frontend files, and the listing and detail response for a stale subtitle row was not traced end to end.",
+    "The R-5 logs and screenshots cited in decisions.md were not opened.",
+    "Behavior on a real case-insensitive or normalization-folding mount was not observed.",
+    "Addon reactions to sidecars copied rather than moved (intelligence and media_import) were not traced."
+  ],
+  "confidence": 84,
+  "trajectory": "Yes, the design is being patched. ff3771cf5 and c5fcadfab are records only and change no code, so c37fb760a is the single code round since r1. The first implementation predicted disk state one sidecar at a time with `target.exists()`. c37fb760a adds more predictions of the same kind on top of it: a fixed longest-first order that predicts which names free up, a sibling list with a new copy-or-move branch, and in the batch path a `later` state that replays the name each row holds at each step. No branch, state or prediction was removed. Each new prediction covers the input it was written for and misses a neighbouring one: the reverse language-suffix rename, a batch target freed by a later row, and a same-stem pair acted on together. All three come from choosing per sidecar without first planning the final set of names."
+}

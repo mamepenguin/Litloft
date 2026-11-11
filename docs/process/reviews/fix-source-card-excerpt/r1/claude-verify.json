@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "Reproduced by tracing the code. frontend/src/lib/textExcerpt.ts:17-18 lets every text/* mime through when file_type is document or other. frontend/src/components/TextThumbnail.tsx:69-83 sends every non-Office file to stripPreviewText. backend/app/services/filetype.py:136-188 classifies .c/.h/.bat/.ksh/.pl as other+text/plain, .py as text/x-python, .css as text/css, .js/.mjs as text/javascript, .xml as text/xml, .sgm/.sgml as text/x-sgml, .vcf as text/x-vcard and .n3 as text/n3. Traced on ordinary source text: (1) `#include <stdio.h>` becomes `#include ` because :41 `<[^>]+>` removes `<stdio.h>`. (2) `/* comment */` becomes `/ comment /` because :48 `\\*([^*]+)\\*` matches it. (3) `def f(*args, **kwargs):` becomes `def f(args, *kwargs):`: :47 finds no closing `**`, then :48 matches `*args, *`. (4) A Python line `# comment` loses its leading `# ` (:42 `^#+ `, multiline). (5) An XML file loses every tag, and so does C code that has `a < b ... c > d` across lines, because `[^>]` also matches newlines. All of this is normal use of the single user's own files, so it is inside the threat model. The R-5 example (decisions.md:25-27) is `#!/usr/bin/env python3` followed by a docstring and `def greet(name: str) -> str:`. None of those lines triggers these patterns, so the record does not show the problem. I could not run git diff, so I did not confirm directly that these files were blank cards at origin/develop. The commit messages (`fix: show an excerpt on a source file's card`) and behavior.md:30 ('in place of the blank') are consistent with that."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "The test gap is real. The FileType union (frontend/src/types/index.ts:1) has seven members, including subtitle. The rows table (sourceCardExcerpt.test.tsx:112-139) has no subtitle row. Video and image are always excluded earlier by hasThumbnail (textExcerpt.ts:6). So if :18 is rewritten as a denylist `file_type !== \"audio\" && file_type !== \"archive\"`, it gives the same result as the allowlist on every row, and the mutation survives. backend/app/services/filetype.py:260-262 classifies .vtt as subtitle + text/vtt, so a subtitle row with a text/* mime is a realistic input. Mitigating context: backend/app/routers/drives.py:100-101 says the scanner never registers subtitle files as rows. If that is true, the mutation has no effect a user can see today, and the gap matters only for test strength."
+    }
+  ],
+  "specification_compliance": [
+    "behavior.md describes which bucket/mime combinations draw an excerpt. textExcerpt.ts matches the listed rows. behavior.md does not define the excerpt content (raw first lines vs. sanitized), and that is where F1 sits."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "What a source/XML file's excerpt should show: raw first lines, or text passed through the Markdown/clip sanitizer stripPreviewText.",
+    "Whether a subtitle file with text/vtt should draw an excerpt (unspecified; per drives.py:100-101 such rows are not registered today)."
+  ],
+  "regression_risks": [
+    "Source files whose first lines contain `<...>`, `*...*`, `# ` or `[x](y)` show changed text on the card (C includes, C comments, Python *args, XML).",
+    "whitespace-pre-line in TextThumbnail.tsx:110 collapses leading indentation, which also changes how code looks."
+  ],
+  "test_coverage": [
+    "sourceCardExcerpt.test.tsx only checks whether text-thumbnail is present, never the excerpt text, so it cannot catch F1.",
+    "There is no subtitle row, so the allowlist/denylist mutation at textExcerpt.ts:18 survives (F2)."
+  ],
+  "not_verified": [
+    "I did not run the vitest suite or the mutation; the survival in F2 was derived by reading the code.",
+    "I did not diff against origin/develop to confirm that other+text/* cards were blank before this commit.",
+    "I did not check whether the scanner really skips subtitle files, beyond the comment at drives.py:100-101.",
+    "I did not look at the R-5 screenshots."
+  ],
+  "confidence": 85
+}

@@ -340,4 +340,45 @@ describe("useHighlightPassage", () => {
     view.rerender(fixture());
     expect(scrollSpy).toHaveBeenCalledTimes(1);
   });
+
+  describe("when the frame runs after the container was rebuilt", () => {
+    let frames: FrameRequestCallback[];
+    beforeEach(() => {
+      frames = [];
+      vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
+        frames.push(cb);
+        return frames.length;
+      });
+    });
+    const runFrames = () => {
+      const pending = frames.splice(0);
+      pending.forEach((cb) => cb(0));
+    };
+    const fixture = () => (
+      <HarnessFixture
+        html="<p>The quick brown fox jumps.</p>"
+        quote="brown fox"
+      />
+    );
+
+    it("ends with one scroll, on a mark that is still in the document", () => {
+      const view = render(fixture());
+      view.rerender(fixture());
+      runFrames();
+      expect(scrollSpy).toHaveBeenCalledTimes(1);
+      const target = scrollSpy.mock.instances[0] as Element;
+      expect(target.isConnected).toBe(true);
+      expect(target.textContent).toBe("brown fox");
+    });
+
+    it("does not scroll again on a re-render after it scrolled", () => {
+      const view = render(fixture());
+      runFrames();
+      expect(scrollSpy).toHaveBeenCalledTimes(1);
+      view.rerender(fixture());
+      view.rerender(fixture());
+      runFrames();
+      expect(scrollSpy).toHaveBeenCalledTimes(1);
+    });
+  });
 });

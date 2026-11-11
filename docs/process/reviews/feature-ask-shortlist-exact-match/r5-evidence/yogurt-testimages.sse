@@ -1,0 +1,84 @@
+event: keywords
+data: {"keywords": "ヨーグルト 動画"}
+
+event: shortlist
+data: {"file_ids": ["baRXfCYLoxlc", "VyQgbyf8Z4hL", "Raim26SrsDi3", "h479oEpFbXVm", "vmntp_rEOxK9", "dtnxRUWnUEYg", "xeZaPp-cAZTx", "Ogs5lIeOfV2R", "q-Sj4PtZ7trm", "0OrxWlAUUb2f", "WVrcxaxkGAcZ", "SZfndubilhEV", "YVAGyWw9J5Pb", "DdYVPnFZKAOj", "WjqZIuu2QDMV", "z0NZ4HaIO7bZ", "1KCvGDRCF7SI", "2G5v2nrJq5kq", "YNiVq56QUd3Q", "_mW_3HEF2U6s"], "exact_match_file_ids": [], "drive_file_count": 1347, "top_score": 0.8228940919348258}
+
+event: clues
+data: {"clues": ["ヨーグルト 食べ物 ボウル", "ヨーグルト スープ 具材", "ヨーグルト 料理 前菜"]}
+
+event: sources
+data: {"sources": [{"file_id": "baRXfCYLoxlc", "drive": "テスト画像", "filename": "158773033_06a0283b82_o.jpg", "file_type": "image", "score": 0.002857142857142857, "match_types": ["clip_thumbnail"]}, {"file_id": "WjqZIuu2QDMV", "drive": "テスト画像", "filename": "0098263ae56016d3.jpg", "file_type": "image", "score": 0.0025974025974025974, "match_types": ["clip_thumbnail"]}, {"file_id": "q-Sj4PtZ7trm", "drive": "テスト画像", "filename": "6040061824_dd9c4f1224_o.jpg", "file_type": "image", "score": 0.002531645569620253, "match_types": ["clip_thumbnail"]}, {"file_id": "dtnxRUWnUEYg", "drive": "テスト画像", "filename": "5429477262_998d3dcc82_o.jpg", "file_type": "image", "score": 0.0018181818181818182, "match_types": ["clip_thumbnail"]}]}
+
+event: answer_chunk
+data: {"delta": "ヨー"}
+
+event: answer_chunk
+data: {"delta": "グ"}
+
+event: answer_chunk
+data: {"delta": "ルト"}
+
+event: answer_chunk
+data: {"delta": "に関する"}
+
+event: answer_chunk
+data: {"delta": "画像"}
+
+event: answer_chunk
+data: {"delta": "は"}
+
+event: answer_chunk
+data: {"delta": "、"}
+
+event: answer_chunk
+data: {"delta": "ボ"}
+
+event: answer_chunk
+data: {"delta": "ウル"}
+
+event: answer_chunk
+data: {"delta": "に"}
+
+event: answer_chunk
+data: {"delta": "何か"}
+
+event: answer_chunk
+data: {"delta": "を"}
+
+event: answer_chunk
+data: {"delta": "混ぜ"}
+
+event: answer_chunk
+data: {"delta": "ている"}
+
+event: answer_chunk
+data: {"delta": "様子"}
+
+event: answer_chunk
+data: {"delta": "が"}
+
+event: answer_chunk
+data: {"delta": "写"}
+
+event: answer_chunk
+data: {"delta": "っている"}
+
+event: answer_chunk
+data: {"delta": "画像"}
+
+event: answer_chunk
+data: {"delta": "です"}
+
+event: answer_chunk
+data: {"delta": "。"}
+
+event: citation
+data: {"citation": {"file_id": "q-Sj4PtZ7trm", "drive": "テスト画像", "filename": "6040061824_dd9c4f1224_o.jpg", "file_type": "image", "quote": "a bowl with a whised whised whised whised whised whised whised whised w", "relevance": 0.0, "segment_location": null, "section_title": null}, "index": 1}
+
+event: citations
+data: {"citations": [{"file_id": "q-Sj4PtZ7trm", "drive": "テスト画像", "filename": "6040061824_dd9c4f1224_o.jpg", "file_type": "image", "quote": "a bowl with a whised whised whised whised whised whised whised whised w", "relevance": 0.0, "segment_location": null, "section_title": null}]}
+
+event: done
+data: {"retrieved_count": 4, "took_ms": 25130}
+

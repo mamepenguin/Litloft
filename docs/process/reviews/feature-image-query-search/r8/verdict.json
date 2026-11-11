@@ -1,0 +1,1 @@
+{"verdict":"FAIL","reasons":["open finding claude-read:F1 is bucket A or BLOCKER"],"findings":[{"reviewer":"claude-read","id":"F1","state":"open"},{"reviewer":"claude-read","id":"F2","state":"open"}],"needs_human":[]}

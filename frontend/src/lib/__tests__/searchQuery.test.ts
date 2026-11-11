@@ -27,8 +27,13 @@ describe("parseSearchQuery", () => {
       text: "",
       tags: [],
       types: [],
+      kinds: [],
       favorite: false,
       liked: false,
+      folders: [],
+      collections: [],
+      sizes: [],
+      durations: [],
       hasOperators: false,
     });
   });

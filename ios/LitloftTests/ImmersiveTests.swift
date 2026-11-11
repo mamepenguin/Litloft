@@ -22,7 +22,7 @@ struct ImmersiveTests {
     private let server = URL(string: "http://litloft.local:3000/")!
 
     private func coordinator() -> (Litloft.WebView.Coordinator, WebViewModel, WKWebView) {
-        let model = WebViewModel(serverURL: server)
+        let model = WebViewModel(serverURL: server, sharedSession: FakeSharedSession())
         let coordinator = Litloft.WebView.Coordinator(model: model)
         coordinator.isActive = { false }
         let webView = WKWebView(frame: .zero, configuration: WKWebViewConfiguration())
@@ -120,7 +120,7 @@ struct ImmersiveTests {
         let windows = UIApplication.shared.connectedScenes.compactMap { ($0 as? UIWindowScene)?.windows.first }
         let window = try #require(windows.first)
         let previousRoot = window.rootViewController
-        let model = WebViewModel(serverURL: url)
+        let model = WebViewModel(serverURL: url, sharedSession: FakeSharedSession())
         window.rootViewController = UIHostingController(rootView: WebShell(model: model) {})
         window.makeKeyAndVisible()
 

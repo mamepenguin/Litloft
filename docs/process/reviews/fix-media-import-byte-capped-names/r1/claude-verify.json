@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "The working-tree copy of addons/media_import/backend/service.py:46-55 and subscription/manager.py:101-108 limits a sanitized title to 200 characters and 200 UTF-8 bytes. It applies NFC first, then truncates to the byte limit with decode('utf-8','ignore') so no partial multibyte character is left, then strips trailing combining marks. The decisions.md record of an in-app run and a pre-fix control matches this behavior.",
+    "Headroom check: a 200-byte stem, plus ' (n)' and a sidecar suffix such as '.stt_temp.<ext>.part', stays under the 255-byte name limit on Linux file systems for any realistic n and extension."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "After the byte cut, the code strips trailing combining marks but not other trailing characters. A cut can therefore leave a trailing space or '.', which the earlier strip('. ') would have removed. This is cosmetic only on Linux file systems."
+  ],
+  "regression_risks": [
+    "The two sanitizers are duplicated, one in service.py and one in subscription/manager.py, so they can drift apart. tests/test_nfc_names.py checks that both return the same name, which limits this risk.",
+    "The subscription-driven import path was not exercised in the app, as decisions.md acknowledges."
+  ],
+  "test_coverage": [
+    "addons/media_import/backend/tests/test_nfc_names.py:51-74 covers the byte cut ('あ'*100 -> 'あ'*66), NFD input that is truncated after NFC, and the assertion len(encode()) <= 200, for both sanitizers."
+  ],
+  "not_verified": [
+    "I could not confirm that the submodule SHA pinned by commit 85d01b025 equals the working-tree checkout I read. I have no git access, so I read the files as checked out.",
+    "I did not run the test suite.",
+    "I did not check behavior on the production NFS-backed NAS drive.",
+    "I did not check the subscription-import UI flow."
+  ],
+  "confidence": 80
+}

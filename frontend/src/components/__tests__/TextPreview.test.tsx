@@ -39,6 +39,24 @@ describe("TextPreview document capture", () => {
   });
 });
 
+describe("TextPreview highlight", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("scrolls nothing while the text is still loading", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>(() => {})));
+    const scrollIntoView = vi.fn();
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scrollIntoView;
+    try {
+      render(<TextPreview fileId="f1" fileSize={10} highlight="beta" />);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(scrollIntoView).not.toHaveBeenCalled();
+    } finally {
+      Element.prototype.scrollIntoView = original;
+    }
+  });
+});
+
 describe("TextPreview rendering", () => {
   afterEach(() => vi.unstubAllGlobals());
 

@@ -115,10 +115,14 @@ export function useHighlightPassage(
       const marks = markRange(range);
       const first = marks[0];
       if (first && !scrolledRef.current) {
+        // A re-render can rebuild the container before this frame runs;
+        // the mark is then detached and the next effect run marks and
+        // schedules again, so the flag is set only by a scroll that happened.
         requestAnimationFrame(() => {
+          if (scrolledRef.current || !first.isConnected) return;
           first.scrollIntoView({ block: "center", behavior: "smooth" });
+          scrolledRef.current = true;
         });
-        scrolledRef.current = true;
       }
       if (isDev) {
         console.info("[useHighlightPassage] match wrapped in <mark>", {

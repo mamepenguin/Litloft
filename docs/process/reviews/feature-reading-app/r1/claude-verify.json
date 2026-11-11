@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "frontend/src/components/PageTabs.tsx:30 declares `wrap?: boolean`, :51 defaults it to false, and :58 uses `${wrap ? \"flex-wrap\" : \"overflow-x-auto\"}`. The touch points (docs/specs/reading-app.md, touch-point list around :300-330) do not name PageTabs.tsx. The default keeps the old overflow-x-auto, so the existing callers keep their behavior."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "frontend/src/app/drive/[name]/apps/video/shelf/page.tsx:17-18 passes `initialSort={search.get(\"sort\")}` and `from={search.get(\"from\")}`. The touch points name only the new Reading routes. Section 7 of the spec does require Video's See all to open on the Library sort, so the edit implements a required change, but the touch-point list leaves this file out."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "frontend/src/lib/readingAppTarget.ts exists with NEGATED_OPERATOR at :27, intersect at :40 and resolveReadingTarget at :50. No touch point names this module."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-4",
+      "status": "confirmed",
+      "note": "frontend/e2e-layout/spec-viewport.spec.ts:37 adds \"reading-video-faces.html\" and :48 sets FIXTURE_COUNT = 23, which :91 checks against the files on disk. The touch point names only a new spec file, its fixture and a fixture-parity vitest; it does not name this existing spec. The edit is a mechanical consequence of adding a fixture."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-5",
+      "status": "confirmed",
+      "note": "frontend/src/__tests__/card-grid.test.ts:164,187,188 expect 8 sites. frontend/src/__tests__/section-rows.test.tsx:89 lists components/readingapp/LibraryFace.tsx. frontend/src/__tests__/popup-dismissal.test.ts:165,169,175 register appshell/ManageTargetsDialog, appshell/TargetMenu and readingapp/LibraryControls. No touch point names these guard tests. I did not diff toolbarMenuHome.test.ts against the base, and I could not confirm the exact earlier values (6 sites, removal of videoapp/ShelfBlock) without git."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-6",
+      "status": "confirmed",
+      "note": "frontend/src/components/videoapp/useVideoApp.ts:65-68 reads the saved target and falls back to the default for display only; nothing in the file writes `target: \"default\"` (grep for `stale` and `target: \"default\"` finds nothing). frontend/src/components/videoapp/__tests__/VideoApp.test.tsx:463-469 now expects readAppPrefs(DRIVE).target to stay \"deleted-id\". The Video spec docs/specs/video-library-app.md:151-153 (SPEC-CORE-055 failure case) still says \"The saved value is replaced by the default.\" Section 7 of docs/specs/reading-app.md (:218-222) lists only three Video changes: folder base descent, the shown-set Target menu, and the See all sort. Keeping a stale saved id is not one of them. The Reading failure case at reading-app.md:168-170 (\"the saved id is left in storage\") describes \"the app\", meaning Reading, and I16a sits under the Reading invariants. Video's behavior therefore now differs from its own unchanged spec text, outside the declared three changes."
+    }
+  ],
+  "specification_compliance": [
+    "TP-6: Video's handling of a deleted saved target now contradicts docs/specs/video-library-app.md:151-153 (SPEC-CORE-055 failure case), and reading-app.md section 7 does not list this among the three Video changes.",
+    "TP-1 to TP-5: the edited files fall outside the declared touch points. Each edit is either the default-preserving `wrap` prop, an implementation of a required change (the Video See all sort), or a mechanical consequence (a fixture count, guard-test allowlists)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Video now keeps a stale saved target id in storage rather than replacing it with default, which differs from the SPEC-CORE-055 failure-case text."
+  ],
+  "regression_risks": [
+    "If a smart folder is deleted and a new one later reuses the same id, Video could silently switch to that folder as the target, because the stale id is no longer cleared. Whether ids are ever reused was not checked."
+  ],
+  "test_coverage": [
+    "VideoApp.test.tsx:463-473 pins the new keep-the-saved-id behavior for Video, the opposite of what video-library-app.md:153 states."
+  ],
+  "not_verified": [
+    "I could not diff against origin/develop (no git access), so the earlier values (card-grid 6 sites, ShelfBlock in the section-rows allowlist, the removed stale useEffect) are inferred from the current tree and the spec text.",
+    "toolbarMenuHome.test.ts was not inspected.",
+    "Whether smart-folder ids can be reused after deletion was not checked."
+  ],
+  "confidence": 85
+}

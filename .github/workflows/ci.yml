@@ -297,14 +297,20 @@ jobs:
     # on localhost:3000 and a seeded library, and skip themselves when no drive
     # answers, so in CI they would report green having run almost nothing.
     #
-    # No submodules and no setup-addons.sh: the fixture links a sheet
-    # compiled from src/app/globals.css, and its `@source "../addons"` names
-    # the gitignored link tree, which Tailwind skips silently when absent.
-    # No addon writes a rule the justified grid reads.
     name: frontend (layout invariants and components in a browser)
-    runs-on: ubuntu-latest
+    # Pinned because Playwright refuses to install browsers on ubuntu-26.04,
+    # which ubuntu-latest now resolves to. Return to ubuntu-latest once the
+    # pinned @playwright/test supports it.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The Ask thread case renders the intelligence addon's AskTab, so the
+          # job needs the pinned addon commits and their link tree.
+          submodules: recursive
+
+      - name: Link addons into backend/ and frontend/
+        run: ./setup-addons.sh
 
       - uses: pnpm/action-setup@v4
         with:

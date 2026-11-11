@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "Reproduced by reading the code; the CLI was not run. `addons/intelligence/app/evals_transcription/__main__.py:68-69` builds the `--providers` help as 'Default: all available (<ALL_PROVIDERS joined>)', and `runner.py:46-54` now puts `haas_local` in `ALL_PROVIDERS`, so the help lists it as a default. With no `--providers`, `__main__.py:89-95` passes `None` to `resolve_providers`, and `runner.py:134-135` then uses `_DEFAULT_PROVIDERS`, which `runner.py:58-60` defines without `haas_local`. `__main__.py:44` also says 'Run every available transcription provider', and `app/evals_transcription/__init__.py:3` has the same wording. The touch points name only `runner.py` for the harness. A search of `tests/` finds no import of `__main__` and no assertion on the help text; only `tests/test_evals_transcription_runner.py:103` covers the default, through `resolve_providers(None)`. The behaviour itself meets I10, so the defect is limited to misleading help text."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "Reproduced by reading the code. `addons/intelligence/app/workers/transcription/haas_local.py:71-77` imports `hf_hub_download`, `snapshot_download` and four error classes from `huggingface_hub` and `huggingface_hub.errors`. A case-insensitive search of `app/` finds no other import, so this is the addon's first direct use. `addons/intelligence/requirements.txt` adds only `sherpa-onnx==2.0.1` at line 43 and has no `huggingface_hub` line; neither does `requirements-test.txt` or `requirements-dev.txt`. `decisions.md` step 8 records behaviour measured at 0.36.2, and `haas_local.py:108-110` relies on that behaviour. `Dockerfile.test:24-28` and its later install lines do not name the package, and `tests/haas_fakes.py:297-341` replaces it in `sys.modules`, so the suite never exercises the real library. Qualification: the package still reaches the production image transitively, as decisions.md records 0.36.2 running in the stack. The defect is therefore an unpinned version, not a missing module. If the module were absent, `haas_local.py:78-79` would raise `FatalError`. Which requirement bounds the transitive version was not checked, because no lock file exists and package metadata was not available."
+    }
+  ],
+  "specification_compliance": [
+    "I10, eval part: `runner.py:46-60` and `:134-143` accept `haas_local` by name and leave it out of a run that names no providers; TP-1 concerns only the CLI help text.",
+    "The touch points list only `sherpa-onnx==2.0.1` for `requirements.txt`, and the file matches that. TP-2 is therefore a gap in the spec's dependency list as well as in the file."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "A rebuild can resolve a different `huggingface_hub` version through transitive requirements. `_fetch_model_dir` depends on behaviour measured at 0.36.2, so its offline and incomplete-snapshot handling or its error classification could change without any test failing, because `tests/haas_fakes.py` replaces the module."
+  ],
+  "test_coverage": [
+    "`tests/test_evals_transcription_runner.py:103` covers `resolve_providers(None)`. Nothing covers the `__main__.py` help text.",
+    "The Haas tests use a fake `huggingface_hub` from `tests/haas_fakes.py:297-341`. The real library was exercised only in the manual runs recorded in `decisions.md`, not in CI."
+  ],
+  "not_verified": [
+    "No command was run: neither `python -m app.evals_transcription --help` nor a pip resolve, because only Read, Glob and Grep were available.",
+    "The upper and lower bounds that transformers, tokenizers, faster-whisper and others place on `huggingface_hub` were not checked, because package metadata is not in the repository.",
+    "Whether the packages installed by `Dockerfile.test` pull in `huggingface_hub` transitively was not checked. The fake in `sys.modules` makes this irrelevant to the Haas tests.",
+    "The submodule tree was read from the working directory, not extracted from the commit object. The session's git status showed no modification to `addons/intelligence`, which is the basis for treating it as the pinned tree.",
+    "The invariants other than I10's eval part were not checked, because this pass verified only the two listed findings."
+  ],
+  "confidence": 92
+}

@@ -23,6 +23,8 @@ interface InspectorShellProps {
   tabs: InspectorTab[];
   resetKey?: string;
   scroll?: InspectorScroll;
+  selectRequest?: { tabId: string; seq: number } | null;
+  onSelect?: (tabId: string) => void;
 }
 
 /**
@@ -34,6 +36,8 @@ export function InspectorShell({
   tabs,
   resetKey,
   scroll = "panel",
+  selectRequest = null,
+  onSelect,
 }: InspectorShellProps) {
   const t = useTranslations("inspector");
   // Only a listed tab can be selected. An unlisted one is mounted so it
@@ -59,6 +63,20 @@ export function InspectorShell({
   useEffect(() => {
     if (active && active.id !== activeId) setActiveId(active.id);
   }, [active, activeId]);
+
+  useEffect(() => {
+    if (!selectRequest) return;
+    if (listed.some((tab) => tab.id === selectRequest.tabId)) {
+      setActiveId(selectRequest.tabId);
+    }
+    // Only a new request moves the selection; the strip's own composition
+    // must not re-apply the previous one.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectRequest?.seq]);
+
+  useEffect(() => {
+    if (active) onSelect?.(active.id);
+  }, [active, onSelect]);
   const strip = showsTabStrip(tabs);
 
   const onKeyDown = useCallback(
@@ -132,13 +150,14 @@ export function InspectorShell({
           aria-label={t("tablistLabel")}
           data-testid="inspector-tabs"
           onKeyDown={onKeyDown}
-          // Scrolls rather than wraps: a strip that wraps to two lines takes
-          // the height back off the region it is labelling. In column mode it
+          // On touch it scrolls rather than wraps, because a wrapped strip
+          // hands the height back to the region it labels. A mouse has no
+          // sideways gesture, so there it wraps instead. In column mode it
           // needs a ground of its own or the rows travelling under it show
           // through. The shadow is that ground one pixel higher: an engine
           // that rounds a stuck strip down from a fractional scroller top
           // leaves a row of content visible above it.
-          className={`flex gap-1 overflow-x-auto border-b border-bg-border px-2 pointer-coarse:min-h-11 ${
+          className={`flex flex-wrap gap-1 border-b border-bg-border px-2 pointer-coarse:min-h-11 pointer-coarse:flex-nowrap pointer-coarse:overflow-x-auto ${
             column
               ? "sticky top-0 z-10 bg-bg-card shadow-[0_-1px_0_var(--color-bg-card)]"
               : "shrink-0"

@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "CR-1",
+      "origin": "reviewer",
+      "claim": "The change alters what the three scanner call sites of extract_exif store, including the backfill that is the only way photos already in a library get their EXIF, and no test exercises any of those call sites.",
+      "impact": "HEIC photos already in a library get their capture time and location only through a rescan. If that path broke, these photos would silently show no Photo Info and no test would fail. The recorded app run does not cover it either: it used uploads and copies, and its final rescan changed no file_exif row.",
+      "evidence": "backend/app/services/scanner.py:549-552 (backfill), :387 (register_single_file) and :754 (new file in a scan) all call extract_exif, and none is in the diff. A grep of backend/tests for FileExif, file_exif and extract_exif finds EXIF use only in test_exif.py and in the migration and rebuild tests. In test_exif.py, a grep for 'scan' finds nothing; its tests call extract_exif directly, go through upload and copy, or insert rows by hand. decisions.md item (8) records file_exif as identical before and after the rescan.",
+      "repro": "not_reproduced. Predicted mutation, not run: delete scanner.py:549-552, then run backend/tests/test_exif.py; every test should still pass.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is declared and reading the code shows the path working; the defect is that a place the change reaches has no test.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Add a test that places a HEIC with EXIF on disk under a row with no file_exif row, runs a scan, and asserts /exif returns the capture time and GPS. Add the same check for a file first found by a scan."
+    },
+    {
+      "id": "CR-2",
+      "origin": "reviewer",
+      "claim": "Replacing _getexif() with getexif() also changes results for image formats other than HEIC: TIFF files with EXIF tags now produce file_exif rows, where before they always failed with AttributeError and produced none.",
+      "impact": "After a rescan or upload, a TIFF with camera tags gains a file_exif row and a Photo Info section, a change no test checks. The move of get_ifd inside the `with` block matters only for TIFF, which reads lazily from the open file, and no test would catch that being undone.",
+      "evidence": "backend/app/services/exif.py:69-72. In Pillow 12.1.1 source, the pinned 11.2.1 not being available, `def _getexif` exists only in the JPEG, PNG and WebP plugins. backend/app/services/filetype.py:68-69 classifies .tif and .tiff as image. test_exif_is_read_from_every_container (backend/tests/test_exif.py) covers only JPEG, HEIF and WEBP.",
+      "repro": "not_reproduced. Predicted: save a TIFF with Make and an Exif sub-IFD, call extract_exif before and after the change; before gives None with a warning, after gives a dict. Moving get_ifd outside the `with` should leave all tests green.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is declared and the new result looks correct, but it is a behavior change outside the HEIC scope with no test.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add a TIFF case to test_exif_is_read_from_every_container."
+    },
+    {
+      "id": "CR-3",
+      "origin": "reviewer",
+      "claim": "complete_upload runs extract_exif after db.flush(), so uploading a PNG without an eXIf chunk decodes the whole image a second time while the transaction holds the SQLite write lock.",
+      "impact": "While a large PNG decodes, other writers wait on the lock, and the app sets no longer SQLite timeout, so a very long decode could surface as 'database is locked' elsewhere. The upload itself also gets slower. The recorded timing run covered only JPEG and HEIC, so it does not show this cost.",
+      "evidence": "backend/app/services/upload.py:351 flushes and :358 calls extract_exif; commit is at :371. upload.py:291-292 shows the code already avoids holding the write lock during heavy work. PngImagePlugin.py:1094-1098 (Pillow 12.1.1) calls self.load() in getexif when 'exif' is not in info. read_image_dimensions at upload.py:306 already does that decode once, before the first flush on most paths. backend/app/database.py:17 sets only check_same_thread. decisions.md item (6) lists only JPEG and HEIC.",
+      "repro": "not_reproduced. Commands cannot be run in this review, and the decode was read in Pillow 12.1.1, not the pinned 11.2.1.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is declared and the result is correct; this is a cost and contention concern in normal use, limited to large PNGs.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Compute exif next to `dimensions` at upload.py:305-307, before the row writes and flush, and only add the row after the flush."
+    },
+    {
+      "id": "CR-4",
+      "origin": "reviewer",
+      "claim": "Replacing a photo's bytes on disk at the same path keeps its old file_exif row, because the upload path now replaces the row but the scanner still only fills rows that are absent.",
+      "impact": "If a photo is overwritten outside the app, for example re-exported from an editor, and the drive is rescanned, the page keeps showing the old capture time, camera and location with no sign they are stale.",
+      "evidence": "backend/app/services/scanner.py:549 enters extraction only when db.get(FileExif, id) is None, and a grep shows no scanner code deleting or updating a FileExif row. backend/app/services/upload.py:352-357 handles the same staleness for uploads only.",
+      "repro": "not_reproduced. Predicted: scan a JPEG with EXIF, overwrite it with a JPEG with a different DateTimeOriginal, rescan, and /exif still returns the old date.",
+      "introduced": "pre-existing",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a pre-existing silent stale result on a path next to the change, with no declared invariant. Whether to fix it here is a person's decision.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    }
+  ],
+  "specification_compliance": [
+    "No invariants file and no touch-point list exist for this change, so every place below is unlisted and bucket A is unavailable.",
+    "No spec under docs/specs covers this fix: a grep for heic or exif finds only transparent-image-thumbnails.md and similar-files-on-open.md, which I did not read. The new tests mark their behavior with UNSPEC comments.",
+    "Places reached beyond the edited files: scanner.py:387, :549 and :754 through extract_exif; routers/files.py:2030-2041 (/exif), which now returns data for more files; and the Photo Info display fed by that endpoint."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "An upload extracts EXIF immediately, and a re-upload over a reused row deletes the old row, even when the new file has no EXIF (upload.py:352-360).",
+    "A copy duplicates the source's EXIF row, GPS included, and also across drives, without reading the copied file (fileops.py:298-313). extracted_at is set fresh and is not exposed by ExifResponse.",
+    "TIFF files with EXIF tags now get file_exif rows (exif.py:69-72).",
+    "Formats with no _getexif, such as BMP and GIF, now return None without the warning they used to log, which is a log-only change."
+  ],
+  "regression_risks": [
+    "JPEG, PNG and WebP still appear to read the same values: the Exif sub-IFD still takes precedence over the base IFD, as in _get_merged_dict, and the existing JPEG tests still apply.",
+    "An exception raised while reading the GPS sub-IFD still loses all EXIF for that file through the outer except, the same as the merged-dict read before.",
+    "HEIC extraction has been exercised only on pillow-heif output, not on a real phone file (decisions.md, pending), so vendor-specific tag shapes are untested.",
+    "routers/drives.py:982-1015 reuses a missing row for new content without clearing file_exif. This matters only if text is created at a former image path, since the /exif endpoint serves images only; I did not raise it as a finding."
+  ],
+  "test_coverage": [
+    "Covered: extraction from JPEG, HEIF and WEBP; upload of JPEG and HEIC; re-upload over a missing row with and without EXIF; same-folder copy with and without EXIF.",
+    "Not covered: any scanner EXIF path (CR-1); TIFF and PNG files containing EXIF (CR-2); copy to another drive or folder; upload over a trashed row; re-upload that changes an image to a non-image at a reused row.",
+    "test_a_copied_photo_has_the_same_exif compares /exif responses, which leave out extracted_at, so differing timestamps cannot make it flaky.",
+    "Removing the previous_exif delete should fail the re-upload tests with an IntegrityError or a 404 mismatch; this is predicted from reading, not run."
+  ],
+  "not_verified": [
+    "No tests or code were run; every mutation and repro result is a prediction from reading.",
+    "The pinned Pillow 11.2.1 and pillow-heif 0.22.0 sources were not available; Pillow behavior was read in a Homebrew install of 12.1.1, and get_ifd and pillow-heif behavior comes from memory.",
+    "Real phone HEIC files were not checked.",
+    "The frontend Photo Info component was not read.",
+    "The actual decode time and lock wait for large PNGs were not measured.",
+    "Addon paths other than those found by grep for File( and register_single_file were not traced in full.",
+    "docs/process/review.md, spec-and-design.md and workflow.md were not read in full; touch-point handling was inferred from earlier triage records."
+  ],
+  "confidence": 78
+}

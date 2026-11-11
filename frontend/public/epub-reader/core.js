@@ -5,7 +5,22 @@ export const isValidOpen = (d) =>
   d.bytes instanceof ArrayBuffer &&
   (d.fraction === null || (typeof d.fraction === "number" && Number.isFinite(d.fraction))) &&
   (d.section === null || Number.isInteger(d.section)) &&
+  (d.interceptFind === undefined || typeof d.interceptFind === "boolean") &&
   (d.theme === "light" || d.theme === "dark");
+
+const MAC_PLATFORM = /Mac|iPhone|iPad|iPod/;
+
+export const isMacPlatform = (platform) => MAC_PLATFORM.test(platform ?? "");
+
+// The parent owns "is this press ours": the frame only checks that the
+// modifiers form the platform's find chord.
+export const isFindShortcut = (event, platform) => {
+  if (event.shiftKey || event.altKey) return false;
+  const mac = isMacPlatform(platform);
+  const primary = mac ? event.metaKey : event.ctrlKey;
+  const other = mac ? event.ctrlKey : event.metaKey;
+  return primary && !other && event.key === "f";
+};
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const isHex = (value) => typeof value === "string" && HEX.test(value);

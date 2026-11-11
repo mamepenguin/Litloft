@@ -1,0 +1,121 @@
+{
+  "risk": "CRITICAL",
+  "score": 14,
+  "base": 3,
+  "zone_max": "HIGH",
+  "modifiers": [
+    "persistence",
+    "concurrency",
+    "schema"
+  ],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "backend/app/main.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/routers/admin_markdown_images.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/routers/drives.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/routers/files.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/routers/internal.py",
+      "level": "HIGH"
+    },
+    {
+      "path": "backend/app/routers/uploads.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/services/diskpath.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/services/fileops.py",
+      "level": "HIGH"
+    },
+    {
+      "path": "backend/app/services/markdown_image_import.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/services/markdown_images.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/services/markdown_relations.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/services/scanner.py",
+      "level": "HIGH"
+    },
+    {
+      "path": "backend/app/services/subtitle.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/services/upload.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/tests/nfd_helpers.py",
+      "level": "LOW"
+    },
+    {
+      "path": "backend/tests/test_diskpath.py",
+      "level": "LOW"
+    },
+    {
+      "path": "backend/tests/test_diskpath_cache.py",
+      "level": "LOW"
+    },
+    {
+      "path": "backend/tests/test_diskpath_inventory.py",
+      "level": "LOW"
+    },
+    {
+      "path": "backend/tests/test_diskpath_walk.py",
+      "level": "LOW"
+    },
+    {
+      "path": "backend/tests/test_listing_call_inventory.py",
+      "level": "LOW"
+    },
+    {
+      "path": "backend/tests/test_nfd_path_resolution.py",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/ADDON-DEVELOPMENT.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/admin-guide/docker-compose.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/nfd-path-resolution.md",
+      "level": "LOW"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone HIGH (8 points)",
+    "modifiers: persistence concurrency schema"
+  ]
+}

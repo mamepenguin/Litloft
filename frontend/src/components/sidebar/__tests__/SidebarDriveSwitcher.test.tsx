@@ -190,9 +190,13 @@ describe("sidebar top — item 10", () => {
     );
     expect(labels).toEqual([
       "Home",
+      "Inbox",
       "Library",
+      "Video",
+      "Reading",
       "Favorites",
       "Liked",
+      "Continue",
       "Recently Viewed",
       "Recently Added",
       "All Files",

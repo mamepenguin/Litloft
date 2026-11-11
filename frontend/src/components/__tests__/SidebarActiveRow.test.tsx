@@ -123,13 +123,13 @@ describe("the drive's fixed sidebar rows", () => {
         view: url.searchParams.get("view"),
       };
     });
-    expect(seen).toEqual(FIXED_SIDEBAR_ROWS);
+    expect(seen).toEqual(FIXED_SIDEBAR_ROWS.map(({ label, view }) => ({ label, view })));
   });
 
   it("renders more than nothing, so the table above is not vacuous", () => {
     render(<Sidebar />);
     expect(driveRows().length).toBe(FIXED_SIDEBAR_ROWS.length);
-    expect(FIXED_SIDEBAR_ROWS.length).toBe(9);
+    expect(FIXED_SIDEBAR_ROWS.length).toBe(13);
   });
 });
 
@@ -213,7 +213,8 @@ describe("what Sidebar hands the system section", () => {
 });
 
 describe("which row the sidebar highlights", () => {
-  it.each(FIXED_SIDEBAR_ROWS)("lights $label alone at its own URL", ({ label, view }) => {
+  it.each(FIXED_SIDEBAR_ROWS)("lights $label alone at its own URL", ({ label, view, path }) => {
+    if (path) pathname = `${ENCODED}${path}`;
     if (view) search = new URLSearchParams({ view });
     render(<Sidebar />);
     expect(highlighted()).toEqual([label]);
@@ -222,8 +223,8 @@ describe("which row the sidebar highlights", () => {
   // `usePathname()` reports the encoded or the decoded spelling depending
   // on how the navigation happened, and the rows' hrefs are always
   // encoded. Both spellings are the same page.
-  it.each(FIXED_SIDEBAR_ROWS)("lights $label on the decoded path too", ({ label, view }) => {
-    pathname = DECODED;
+  it.each(FIXED_SIDEBAR_ROWS)("lights $label on the decoded path too", ({ label, view, path }) => {
+    pathname = `${DECODED}${path ?? ""}`;
     if (view) search = new URLSearchParams({ view });
     render(<Sidebar />);
     expect(highlighted()).toEqual([label]);

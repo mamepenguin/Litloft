@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The change modifies addons/intelligence/frontend/SceneCandidatesSection.tsx (and its test), a frontend place absent from the touch-point list, while the spec states no UI change is planned.",
+      "impact": "In the Scene candidates grid, any candidate whose filename ends in .loft now always shows a blank card and never requests its frame. This UI behaviour is not covered by any declared invariant, and the approved spec says the opposite ('the UI never requests a .loft frame, so no new UI'; Checked, no action: 'no UI change is planned').",
+      "evidence": "addons/intelligence/frontend/SceneCandidatesSection.tsx:48 `const isLoft = segment.filename.toLowerCase().endsWith(\".loft\")` and :62 `frameFailed || isLoft ? <div .../> : <img src={getFrameUrl(...)}>`. The new test SceneCandidatesSection.test.tsx asserts no <img> for ref.loft / ref.LOFT. The touch-point list names no frontend file. decisions.md (second R-5 run) records two blank cards for nn-youtube.loft with no /frame request.",
+      "repro": "Read the diff: the submodule change adds the isLoft branch. Mutation: remove `|| isLoft` and the new SceneCandidatesSection test fails (it expects no img for a .loft candidate); no backend test notices.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The change breaks no declared invariant, but it touches an unplanned place, the frontend, against the spec's own statement. Either the touch-point list or the spec's 'no UI change' needs to own this change.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Name addons/intelligence/frontend/SceneCandidatesSection.tsx in the change's touch points (via invariants.md revision or the review record), or drop the frontend change."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The new user-guide paragraph in docs/user-guide/search.md says a YouTube candidate's picture is read from YouTube when the candidates load and stays blank only when YouTube cannot be read, but the code never requests a frame for a .loft candidate.",
+      "impact": "A reader who trusts the user guide would treat the always-blank card as a bug and remove the isLoft gate. That change would make every YouTube candidate fire a 2-7 s YouTube lookup and frame read when the search page loads, which is the cost the spec rejected ('frame_url for YouTube scene passages' in Checked, no action).",
+      "evidence": "docs/user-guide/search.md (new paragraph after line 113): 'Its picture is read from YouTube when the candidates load, so it can appear a few seconds after the others and stays blank when YouTube cannot be read.' The code at addons/intelligence/frontend/SceneCandidatesSection.tsx:62 always renders the blank div for .loft. docs/addons/intelligence.md (new 'YouTube references' paragraph) correctly says 'shows a blank card rather than asking the frame route'.",
+      "repro": "Compare the two documents with SceneCandidatesSection.tsx:48-72. The R-5 record in decisions.md shows only /thumbnail requested and no /frame.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Prose that contradicts the code and could lead to a wrong code change; no invariant is broken.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Delete the sentence 'Its picture is read from YouTube when the candidates load, so it can appear a few seconds after the others and stays blank when YouTube cannot be read.' Keeping only that the reference can be found by a moment and opens at that time is enough."
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "Importing app.youtube_source installs a filter on the process-wide 'httpx' logger, which is shared logging configuration and not in the touch-point list.",
+      "impact": "Every httpx log record in the intelligence process whose message matches youtube.com, ytimg.com, googlevideo.com, 'sigh=' or 'sqp=' is now dropped, whoever logs it. No other addon code contacts those hosts today (grep of addons/intelligence/app finds only this module), so a user sees no change now. A future httpx caller would silently lose matching log lines.",
+      "evidence": "addons/intelligence/app/youtube_source.py:39-55: `_SIGNED_FETCH` regex, `_SignedFetchFilter`, and `_drop_signed_fetches()`, which adds the filter to `logging.getLogger(\"httpx\")` at module import. The module is imported by clip.py, scenes.py and file_question.py at import time.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Breaks no declared invariant (it serves I5). It is a global side effect outside the listed touch points.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "List the httpx logger filter among the touch points, or confine the suppression to the storyboard fetch (e.g. a dedicated httpx.Client with event hooks or a scoped logger level) so the shared logger is not altered."
+    }
+  ],
+  "specification_compliance": [
+    "Diff files checked against the touch-point list. Listed and present: frame_cache.py; the new youtube_source.py (the 'new module beside it'); routers/files.py; rag/file_question.py; workers/clip.py; routers/scenes.py; mcp-server/src/tools/video.ts with its tests (loftUrl.test.ts, loftYoutube.test.ts); mcp-server/README.md; Dockerfile and Dockerfile.test; docs/addons/intelligence.md; docs/user-guide/search.md; the submodule pointer bump. docs/specs/* and INDEX.md are implicit.",
+    "Not listed: addons/intelligence/frontend/SceneCandidatesSection.tsx and SceneCandidatesSection.test.tsx (TP-1), and the process-wide httpx logger filter (TP-3).",
+    "workers/clip.py: the change also edits _index_clip_sync, which now dispatches LOFT_MIME to _index_clip_loft before the generic thumbnail fallback. The touch point names _handle_thumbnail_fallback and the storyboard leg after it. The dispatch is in the same file and is needed to reach the storyboard leg, so it is not reported as unplanned.",
+    "Outside the question: the frame route answers 404 'Video file not accessible' when the .loft path fails validation (routers/files.py _extract_loft_frame, LoftNotAccessible). I1 says an unreadable .loft answers 400. This mirrors the native route's path-validation 404 and is tested as intended (test_spec_addon_076_youtube_loft_access.py), but it is a literal divergence from I1's wording."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Scene candidate cards for any filename ending in .loft are always blank (SceneCandidatesSection.tsx:48,62). The spec states no UI change.",
+    "The httpx logger globally drops records matching YouTube host names or 'sigh='/'sqp=' (youtube_source.py:39-55)."
+  ],
+  "regression_risks": [
+    "tests/test_z_clip_thumbnail_dispatch.py: existing .loft tests now seed a readable vimeo .loft. Before this change, a .loft whose file the worker could not read went through the thumbnail fallback and ended True with clip_indexed set. Now the storyboard leg returns False (loft_unreadable), clip_indexed stays false, and the file is skipped until restart. This matches the spec's failure table, but it changes behaviour for legacy .loft rows whose file is missing or unreadable.",
+    "ClipFramesSection.tsx:182 still hides scene frames for every .loft, so the new YouTube clip rows (about 100 per video) do not trigger per-row /frame requests on the file page. Checked: gated."
+  ],
+  "test_coverage": [
+    "SceneCandidatesSection.test.tsx covers the new isLoft branch (no img for ref.loft/ref.LOFT, img still for mp4).",
+    "No test covers the httpx logger filter's effect on non-YouTube httpx records. test_spec_addon_078_youtube_storyboard.py only checks that sheet URLs are not logged.",
+    "Frontend frame consumers checked by grep: SceneCandidatesSection (gated by isLoft), ClipFramesSection (gated by LOFT mime), VisualIndexSection (Visual Index refuses .loft), and core frontend frame_url users (the backend never sets frame_url for a .loft per _frame_url and the test in test_spec_addon_078_youtube_reset_sites.py)."
+  ],
+  "not_verified": [
+    "Did not run any test; all conclusions are from reading the diff and the repository.",
+    "Did not read CLAUDE.md, risk-zones.conf or the rules documents in full for touch-point conventions.",
+    "Did not check whether VisualIndexSection or the clip-timestamps route expose YouTube clip rows elsewhere in the core frontend beyond the grep for getFrameUrl and frame_url.",
+    "Did not verify the submodule commit order required by CLAUDE.md (Git)."
+  ],
+  "confidence": 80
+}

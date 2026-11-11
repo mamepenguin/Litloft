@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The change edits the encoder loaders `app/workers/clip.py` and `app/workers/embedder.py` and adds `app/workers/ml_imports.py`, none of which is in the touch-point list, and no declared invariant covers concurrent cold loading.",
+      "impact": "These loaders serve `/search`, `/search/scenes` and indexing as well as the new route, so a process-wide load path changed without a plan. Without the change, turning on Scene search on a cold process made `/search` answer 502 and silently shortened the file list (D1 in decisions.md). The first load of either CLIP loader now also imports `sentence_transformers`, and a failure importing either library now fails every encoder loader. No invariant states that `/search` and the route must both answer on a cold process, so a regression here would break no declared check; I8 speaks of results and is the nearest fit.",
+      "evidence": "`addons/intelligence/app/workers/clip.py:111` and `:230`, and `addons/intelligence/app/workers/embedder.py:113-115`, call `ml_imports.import_ml_libraries()`; `addons/intelligence/app/workers/ml_imports.py:11` imports both libraries under one lock. The spec's Touch points name only `routers/search.py`, a new segment-logic module, `manifest.json`, `schemas.py` and the frontend on the addon side, and the spec never mentions `transformers`, `sentence_transformers` or `embedder`. `decisions.md` records D1 and a cold route time of 5.33 and 5.55 s against 3.58 s before this fix, the difference being measured on one setup.",
+      "repro": "Read the diff against the spec's Touch points. For the missing invariant, mutation in the head: remove `ml_imports.import_ml_libraries()` from `clip._ensure_siglip_text_loaded`; `tests/test_ml_imports.py` should fail on the loader-order case, but that is a structural check that stubs the import, and no test runs a real concurrent cold import. Mutation not executed (read-only reviewer).",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant is broken: R-5 reports the race gone at this commit and I read no wrong result in the code. The place is an omission from the touch points and a candidate for a new invariant such as: on a cold process with the toggle on, `/search` and `/search/scene-segments` both answer without an import failure, and `/search` results match the warm results.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Add the three worker modules to the spec's touch points and declare the cold-concurrency invariant in invariants.md under Revisions."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The change edits two existing repository-wide guard tests outside the touch-point list: `frontend/src/__tests__/coarseNeedleSources.test.ts` and `frontend/src/__tests__/section-rows.test.tsx`.",
+      "impact": "No user can hit this; the production code is unaffected. Both edits widen an existing guard: the count of required fixture CSS needles goes from 61 to 64, and the allow-list of `overflow-x-auto` files gains `SceneCandidatesSection.tsx`. A reader of the touch points would not expect shared guards to move.",
+      "evidence": "`frontend/src/__tests__/coarseNeedleSources.test.ts:155` now expects 64, matching the three classes added in `frontend/e2e-layout/build-fixture-css.ts`. `frontend/src/__tests__/section-rows.test.tsx:90` adds the section to the set. Each edit corresponds directly to a listed touch point (the row measurement and the section), and neither loosens a check for any other file.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is an unlisted place that follows mechanically from listed ones and needs no new invariant.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "The change adds test files that the touch-point list does not name: `addons/intelligence/tests/test_search_scene_segments_endpoint.py`, `addons/intelligence/tests/test_ml_imports.py`, `addons/intelligence/frontend/SceneCandidatesSection.test.tsx`, `addons/intelligence/frontend/sceneSegments.api.test.ts`, `addons/intelligence/frontend/sceneSegmentsSlot.test.ts`, and `frontend/src/components/__tests__/{FolderBrowser.sceneUrl,GlobalSearch.sceneFlag,SearchPage.sceneSlot,sceneCandidatesFixtureParity}.test.tsx`.",
+      "impact": "No user-visible effect. The list stays incomplete only in the literal sense: the spec's Checked section expects acceptance tests, so these are planned in substance. `test_ml_imports.py` is the exception and belongs with TP-1.",
+      "evidence": "The spec's Touch points name `frontend/e2e-layout/` as the only test location, and the addon frontend line enumerates the section, `api.ts`, `slots.ts` and the messages. The spec's 'Items held by the acceptance tests' entry assumes tests exist.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "These files are unlisted but add no reach into production code, so no invariant is missing.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "Answer to the first-review question: the diff reaches three kinds of place outside the touch-point list. They are the encoder loaders (`app/workers/clip.py`, `app/workers/embedder.py`, new `app/workers/ml_imports.py`, TP-1), two existing frontend guard tests (TP-2), and new test files (TP-3). Only TP-1 is a candidate for a missing invariant.",
+    "All other changed paths are listed or implicit: `routers/search.py`, `scene_segments.py`, `schemas.py`, `manifest.json`, the addon frontend files, `search/page.tsx`, `FolderBrowser.tsx`, `GlobalSearch.tsx`, `frontend/e2e-layout/*`, the three docs, the spec, `INDEX.md` and the submodule pointer.",
+    "I1 to I6 read as implemented in `addons/intelligence/app/scene_segments.py`: eligibility filters on drive and active, `T` comes from the seed list in KNN order, groups split on gaps over 45 seconds, `end` is always later than the last frame, and `partial` matches the stated condition. This is from reading the code; nothing was run."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The first load of the open_clip or SigLIP text loader now also imports `sentence_transformers`, and the first load of the text embedder also imports `transformers`. The spec does not describe this coupling or its added cold time.",
+    "`clip._ensure_siglip_text_loaded` and `embedder._ensure_loaded` hold their own lock while waiting on the `ml_imports` lock. The `ml_imports` lock never takes another lock, so I see no deadlock, but one slow import now delays every cold loader.",
+    "A whitespace-only `q` in the URL passes the section's `query !== \"\"` check at `SceneCandidatesSection.tsx`, and the endpoint answers 422 after stripping, so the section would show the failure line rather than idle. I did not find a UI path that produces such a URL."
+  ],
+  "regression_risks": [
+    "`blip.py:69` imports `transformers` without going through `ml_imports`. In the indexing paths I read, BLIP runs after CLIP embedding, which has already passed the shared import, so I raise no finding. A future caller that loads BLIP first would reopen the import race.",
+    "The shared import sits on the load path of `/search`, `/search/scenes` and indexing, so a failed import of either library now surfaces through all of them rather than only through the encoder that needs it.",
+    "`/search` results were not compared against a pre-change build: decisions.md says so for I8, and the fix in TP-1 sits on the `/search` load path."
+  ],
+  "test_coverage": [
+    "`tests/test_ml_imports.py` stubs `importlib.import_module`. It covers serialisation, retry after failure and that each of the three loaders calls the shared import, but no test exercises a real concurrent cold import of `transformers`. The evidence that the race is gone is the manual R-5 run in decisions.md.",
+    "`test_search_scene_segments_endpoint.py` runs the endpoint against a real sqlite-vec database and covers thresholds, gaps, the `end` rule, ordering, `partial` and failures.",
+    "`SceneCandidatesSection.test.tsx` covers the state transitions and stale responses for I7, and the idle conditions for I10.",
+    "I8 has no automated before-and-after comparison in this diff."
+  ],
+  "not_verified": [
+    "I ran no tests, mutations or application code; this reviewer has read-only tools, and repro statements describe expected results only.",
+    "The R-5 figures and observations in decisions.md were read, not reproduced.",
+    "I did not check whether anything imports `transformers` indirectly on a thread outside the loaders I read, beyond a direct-import search of `addons/intelligence/app`.",
+    "I did not check whether the import race can still occur if CLIP embedding fails before a BLIP load during indexing.",
+    "I did not read the proxy implementation behind I9, or the rest of `FolderBrowser.tsx` and `GlobalSearch.tsx` beyond the diff."
+  ],
+  "confidence": 85
+}

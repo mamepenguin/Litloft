@@ -111,8 +111,15 @@ export const REQUIRED = [
   ".w-14 {",
   ".line-clamp-2 {",
   ".wrap-anywhere {",
+  ".max-w-full {",
+  ".min-w-0 {",
+  ".truncate {",
+  ".shrink-0 {",
   ".gap-x-2 {",
   ".gap-y-0\\.5 {",
+  ".grid {",
+  ".gap-3 {",
+  ".aspect-video {",
 ];
 /**
  * The compiler that emits this sheet is the compiler that builds the app.

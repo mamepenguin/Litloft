@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "frontend/e2e-components/spec-viewport.spec.ts:68 lists \"home-app-entries.spec.ts\" and :87 lists \"home-app-entries-desktop.spec.ts\". The touch-point list in docs/specs/home-app-entries.md:287-290 does not name spec-viewport.spec.ts, and invariants.md does not add it. This is a scope deviation in test bookkeeping, not a behaviour defect."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "componentFixtureParity.test.tsx:318 contains \"home-app-entries\". Neither the spec's touch-point list nor invariants.md names this file. It mirrors the fixture registration, which the list does name."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "frontend/e2e-components/home-app-entries.cases.ts exists next to the two named spec files. The touch-point list names only the two spec files. A grep of the spec and of invariants.md finds no mention of a cases module."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F4",
+      "status": "confirmed",
+      "note": "All four files exist at the commit: backend/tests/test_watch_history_not_continue.py, frontend/src/__tests__/homeAppEntries.test.tsx, frontend/src/__tests__/homeResumeRows.test.tsx and frontend/src/components/search/__tests__/jumpAddonIcon.test.tsx. A grep of docs/specs/home-app-entries.md and invariants.md finds none of these names and no backend/tests entry. I could not run git, so I took their newness from the finding."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F5",
+      "status": "confirmed",
+      "note": "DriveHome.test.tsx:625 asserts `container.querySelector(\"nav:not([aria-label])\")` inside describe \"the drive root's header\" (starting at :561). The comment at :623-624 explains that the entry row's named nav is the reason. Breadcrumb.tsx:118 renders a <nav> with no aria-label, so the narrowed probe still finds the trail. DriveHome.test.tsx:346-347 expects 2 \"See all (619)\" links inside describe \"the drive home's content rows\" (starting at :299), which is consistent with Liked's removal (I5). The spec's entry at :275-276 gives only the liked:true and \"all\" reasons for this file. I could not see the earlier count of 3 without git."
+    }
+  ],
+  "specification_compliance": [
+    "All five findings are about test or bookkeeping files that the touch-point list does not name. None changes product behaviour."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "None found in what I checked."
+  ],
+  "regression_risks": [
+    "The narrowed nav:not([aria-label]) probe would miss a breadcrumb regression if Breadcrumb's nav ever gained an aria-label."
+  ],
+  "test_coverage": [
+    "New tests exist for not_continue (backend), the entry row, the resume-first rows and the jump-dialog addon icon."
+  ],
+  "not_verified": [
+    "I did not see the diff against origin/develop (no git access), so the earlier values (for example, the See all count of 3) and whether each file is new were taken from the findings.",
+    "I did not run any tests or browser measurements.",
+    "I did not check invariants I1–I12 beyond what the findings needed."
+  ],
+  "confidence": 85
+}

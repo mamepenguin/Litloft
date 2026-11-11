@@ -13,7 +13,7 @@ Litloft pushes live updates to browsers over one WebSocket. It also POSTs lifecy
 
 ## Browser events
 
-The core broadcasts these five events.
+The core broadcasts these six events.
 
 `drive.structure_changed`
 - When: files or folders in a drive were created, trashed, moved, renamed, restored, recovered, found missing or purged, or a scan or upload finished.
@@ -23,7 +23,11 @@ The core broadcasts these five events.
 - When: a file's content, title, description, tags, favourite, like or trust tier changed.
 - Payload: `{ "drive": "..." }`.
 
-Both are derived from the [webhook events](#event-hook-webhooks) below: `files.updated` becomes `drive.file_updated`, and every other webhook event becomes `drive.structure_changed`. They are sent once per affected drive, with no file ids. When the drive cannot be determined, nothing is sent.
+The two `drive.*` events are derived from the [webhook events](#event-hook-webhooks) below: `files.updated` becomes `drive.file_updated`, and every other webhook event becomes `drive.structure_changed`. They are sent once per affected drive, with no file ids. When the drive cannot be determined, nothing is sent.
+
+`inbox.updated`
+- When: a drive's inbox changed — an upload or create recorded an arrival, or a row was marked done, undone, or closed by a move, trash or tag write.
+- Payload: `{ "drive": "..." }`. At most once per request per drive, and only when a row changed.
 
 `scan:progress`
 - When: during a scan, every 50 files or at least once per second.
@@ -35,7 +39,7 @@ Both are derived from the [webhook events](#event-hook-webhooks) below: `files.u
 
 `upload:complete`
 - When: a chunked upload finished, including one that revived a Missing file at the same path.
-- Payload: `{ "drive", "file_id", "filename" }`.
+- Payload: `{ "drive", "file_id", "filename" }`. An uploaded subtitle has no file record, so its payload is `{ "drive", "filename" }`.
 
 The core sends no event for chapters or version history.
 
@@ -49,8 +53,10 @@ Events in use (each addon's page describes its payloads):
 
 - cloud-sync: `sync:progress` (`{ drive, path, bytes_transferred, total_bytes, speed, eta, percent, transfers, total_transfers }`), `sync:complete` (`{ drive, path, transferred_files, transferred_bytes, errors, elapsed_seconds }`), `sync:error` (`{ drive, path, message, kind }`, where `kind` is `"auth_expired"`, `"source_empty"`, `"delete_limit"` or `null`). These are broadcast without a drive scope, so every connection receives them.
 - media_import: `media_import.subscription.sync_started`, `media_import.subscription.sync_completed` (both `{ subscription_id, drive, ... }`).
-- intelligence: `intelligence.transcription.completed` / `.failed`; `intelligence.refine.started` / `.progress` / `.completed` / `.failed`; `intelligence.vision_describe.started` / `.succeeded` / `.failed` / `.unsupported`; `intelligence.video_visual.started` / `.progress` / `.partial` / `.succeeded` / `.failed`; `intelligence.chapter_suggestions.ready` / `.failed`; `intelligence.detailed_summary.updated` / `.citations_ready`. `intelligence.vision_describe.failed` carries a `reason`: `load`, `decode`, `model_missing`, `image_rejected`, `vision_rejected`, `token_budget`, `malformed`, `empty` or `request_failed`. See [Vision describe](../addons/intelligence.md#vision-describe).
+- intelligence: `intelligence.transcription.completed` / `.failed`; `intelligence.transcript.updated` (`{ file_id, drive, reason }`, where `reason` is `corrected`, `replaced`, `rebuilt`, `ended` or `restored`); `intelligence.picture_text.updated` (the same shape and reasons); `intelligence.refine.started` / `.progress` / `.completed` / `.failed`; `intelligence.vision_describe.started` / `.succeeded` / `.failed` / `.unsupported`; `intelligence.video_visual.started` / `.progress` / `.partial` / `.succeeded` / `.failed`; `intelligence.chapter_suggestions.ready` / `.failed`; `intelligence.detailed_summary.updated` / `.citations_ready`. `intelligence.vision_describe.failed` carries a `reason`: `load`, `decode`, `model_missing`, `image_rejected`, `vision_rejected`, `token_budget`, `malformed`, `empty` or `request_failed`. See [Vision describe](../addons/intelligence.md#vision-describe) and [correcting extracted text](../addons/intelligence.md#correcting-a-transcript-or-a-pictures-text).
 - knowledge: `knowledge.active_summary.changed`, `knowledge.note.created`, `knowledge.distilled.created`, `knowledge.clip.ready` / `.failed`.
+
+An addon that declares [`processing_status`](../ADDON-DEVELOPMENT.md#processing_status) sends `processing.updated` with `{ "file_ids": [...] }` (at most 100) and `drive`, through `POST /api/internal/addon-events`. The upload drawer refreshes those entries. A lost event is picked up by the drawer's next 30-second request.
 
 ## Event-hook webhooks
 

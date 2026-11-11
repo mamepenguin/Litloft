@@ -169,9 +169,12 @@ Rules:
 
 ## Transcript Refine
 
-- **Refine is destructive and there is nothing to revert to.** It re-chunks the transcript at sentence boundaries derived from LLM-inserted punctuation, so no per-chunk snapshot of the original survives it; `text_refined_at` being non-NULL is all that marks a chunk as refined. Recovering the original text means re-running transcription. Do not add a revert that implies a stored original exists.
+- **One kept original.** A file keeps exactly one machine-produced original per kind (transcript, picture text): its chunks and words, or its text, as they were immediately before the first correction or the first applied Refine window, whichever comes first. Restore puts it back and deletes it; there is no edit history. The original is written in the same transaction as that first write.
+- **Automatic paths never overwrite a correction.** A corrected file without a confirmed redo is never transcribed or read again by startup recovery, reconciliation, the `.loft` reset, the OCR backlog or the embedding-model rebuild. Those paths only rebuild its search rows from the stored text. Replacing a correction needs an explicit reindex or Refine carrying `overwrite_corrections`, sent only after the owner confirms; folder Refine skips a corrected file.
+- **A picture's OCR lines are the machine's and are never corrected.** They are used only while the stored picture text still equals them joined by newlines.
 - The LLM is applied per chunk → words are rebuilt by WhisperX forced alignment → embeddings are recomputed from the refined text.
-- If the aligner fails (missing audio / unsupported language / OOM), keep the old word rows. Do not introduce a time-proportional fallback.
+- If a Refine window's alignment ends in any non-success outcome (unsupported, load failure, no result, an error), keep the old word rows. Do not introduce a time-proportional fallback.
+- A **corrected** utterance whose alignment ends in a non-success outcome has no word rows, rather than keeping the words that belonged to the replaced text; its subtitles fall back to its own text over its span. This is the one place the two rules differ.
 
 ## HEIC images
 

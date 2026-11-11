@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "R2-F1",
+      "origin": "reviewer",
+      "claim": "The API reference still says that a re-upload over a trashed file at the same path replaces the ghost and gets a new record. After this fix, init answers 409 whenever the trashed file is still on disk, so that sentence describes the behavior the fix removed.",
+      "impact": "A reader who takes api.md as the contract would believe a same-name upload over a trashed file succeeds, and could re-add the init bypass the fix just removed. Doing so would destroy the trashed copy again. Users are not affected directly.",
+      "evidence": "docs/reference/api.md:188 (the upload complete row): \"a re-upload over a trashed file at that path replaces the ghost and gets a new record.\" backend/app/services/upload.py:151-152 now raises 409 unconditionally when target_full exists. The only way to reach the ghost purge at upload.py:317-326 is when the trashed row's file is gone from disk, which backend/tests/test_inbox_arrival.py::test_trashed_ghost_is_replaced_and_gets_a_new_row now sets up with an explicit unlink.",
+      "repro": "Read api.md:188, then upload.py:151-152 and the new test test_upload_over_a_trashed_file_still_on_disk_is_refused, which asserts 409 for this exact case.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Documentation that no longer matches the code and invites re-adding the reverted bypass. No declared invariant covers it.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Delete the clause \"and a re-upload over a trashed file at that path replaces the ghost and gets a new record\" from docs/reference/api.md:188."
+    }
+  ],
+  "specification_compliance": [
+    "The fix restores spec §2, 'Upload to a path that already holds a file: 409 at init as today': init_upload (upload.py:151-152) raises 409 unconditionally again, and the router no longer injects db into init (routers/uploads.py:28-44).",
+    "upload.py is back within its declared touch points (the session field and the arrival in complete_upload). The stale comment at upload.py:293-296 about init's guarantee is accurate again.",
+    "The complete_upload trashed-ghost purge (upload.py:317-326) is unchanged and is pre-existing behavior. It now runs only when the trashed row's on-disk file is already gone, which matches spec step 3, 'deletes the ghost as today'.",
+    "The r1 scope findings (F2–F5, SCOPE-2..5: unlisted frontend files FileDetailChrome, ShellLayout, FileDetailShell, MarkdownDocumentLayout, useSelectedFile, ProcessingStageMark/UploadProgress, inboxGrouping, inboxStage, useInboxCount) are not addressed by this fix commit. They remain touch-list gaps."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "None introduced by this fix. It only removes the _has_trashed_ghost branch and the db parameter."
+  ],
+  "regression_risks": [
+    "None in code found. The fix reverts init_upload to its pre-change body, plus the inbox_source pass-through. The only residual risk is documentary: api.md:188 still advertises the reverted behavior."
+  ],
+  "test_coverage": [
+    "test_upload_over_a_trashed_file_still_on_disk_is_refused is parametrized over inbox_source None and 'upload'. It asserts 409, unchanged on-disk content and the row still in Trash, so it would fail if the bypass returned, with or without inbox_source.",
+    "test_trashed_ghost_is_replaced_and_gets_a_new_row now unlinks the file before uploading, so it exercises the complete_upload ghost purge and the cascade of the old inbox row on a path init accepts.",
+    "No test covers a complete_upload failure after replacing_file over a ghost path. That path is pre-existing and unchanged."
+  ],
+  "not_verified": [
+    "I ran no tests. In particular I did not confirm that the trash endpoint's response shape (`data`) matches what the new test reads, beyond seeing the same key used in test_missing.py:225.",
+    "I did not re-read the truncated frontend and MCP portion of the full change. My review covered the fix commit and the backend files it touches.",
+    "I did not check the frontend upload store's handling of a 409 at init for inbox uploads.",
+    "I did not inspect the knowledge submodule."
+  ],
+  "confidence": 85,
+  "trajectory": "One fix round (95d10b9c2). It removes a branch rather than adding one: the _has_trashed_ghost check, its db parameter on init_upload and the db dependency on the init route are all deleted, and init returns to an unconditional 409 when the target exists on disk. The ghost test gains a setup step (unlink) so it models a real ghost, and the new parametrized test pins the restored refusal. It adds no new state or prediction, so this is not a sign of the design being patched. The api.md sentence describing the removed behavior was left behind."
+}

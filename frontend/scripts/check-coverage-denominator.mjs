@@ -25,12 +25,15 @@ const SUMMARY = join(FRONTEND, "coverage", "coverage-summary.json");
  */
 const NO_INSTRUMENTABLE_CODE = [
   "src/addons/cloud-sync/CloudSyncSettings/index.ts",
-  "src/addons/media_import/watch/index.ts",
+  "src/addons/intelligence/ScenesSection/index.ts",
+  "src/components/FileDetail/find/types.ts",
+  "src/components/inbox/index.ts",
   "src/components/loft/types.ts",
   "src/components/player/MediaControls/index.ts",
   "src/components/player/MediaControls/types.ts",
   "src/components/player/NativeSettingsRows/index.ts",
   "src/components/quick-note/index.ts",
+  "src/lib/documentController.ts",
   "src/types/index.ts",
   "src/types/smartFolder.ts",
 ];

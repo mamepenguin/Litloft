@@ -27,10 +27,31 @@ export function isAddonFeatureOn(
 ): boolean {
   const value = policy[drive]?.[addon];
   if (typeof value === "boolean") return value;
-  if (typeof value === "object" && value !== null && feature in value) {
-    return Boolean(value[feature]);
+  if (typeof value === "object" && value !== null) {
+    if ("_all" in value) return Boolean(value._all);
+    if (feature in value) return Boolean(value[feature]);
   }
   return true;
+}
+
+/**
+ * The stored value after the addon's own switch is pressed. A feature map
+ * survives being turned off, as `{...map, _all: false}`, so that turning it
+ * back on returns the feature switches the owner had set.
+ */
+export function withAddonSwitched(
+  value: AddonPolicy[string][string] | undefined,
+  on: boolean,
+): AddonPolicy[string][string] {
+  const isMap = typeof value === "object" && value !== null;
+  if (!on) {
+    return isMap && Object.keys(value).length > 0
+      ? { ...value, _all: false }
+      : false;
+  }
+  if (!isMap) return true;
+  const { _all: _dropAll, index: _dropIndex, ...rest } = value;
+  return Object.keys(rest).length > 0 ? rest : true;
 }
 
 export function isAddonOn(policy: AddonPolicy, drive: string, addon: string): boolean {

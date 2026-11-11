@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "UploadZone.handleDragEnter's overlay condition now also accepts `dataTransfer.files.length > 0`, which the original `types.includes(\"Files\")` check did not, and this applies to folder pages as well as the search page.",
+      "impact": "Browsers normally report an empty `files` list at dragenter, so in practice the added term is a no-op, but it is an unrequested change to the existing upload overlay path that I8 says must not change.",
+      "evidence": "frontend/src/components/UploadZone.tsx:62-67: `hasFiles = types.includes(\"Files\") || files.length > 0`; with acceptUpload defaulting to true and no onImageQuery, this differs from the pre-change condition. No test covers the folder-page overlay with this input.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant is observably broken; the extra term is almost certainly inert and only widens the diff to a protected-by-intent path.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Use `e.dataTransfer.types.includes(\"Files\")` alone."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "Spec prose (step 0 and step 2: 'every drop on the results page goes to the upload zone as today', 'uploads exactly as before') still describes uploads on the text-query page, while the code now does nothing for an upload-class drop there.",
+      "impact": "A reader of the spec could change the code back to uploading from the search page.",
+      "evidence": "docs/specs/image-query-search.md step 0 and I8 text versus FolderBrowser.tsx:903-915 with acceptUpload={false} and UploadZone.tsx:109.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Prose disagreement only; the code matches the actual pre-change behaviour (no upload on the search page).",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Delete the 'uploads as today' claim for the text-query page from the spec."
+    }
+  ],
+  "specification_compliance": [
+    "The r1 findings F1/V1 are fixed in code: FolderBrowser.tsx:903-915 passes acceptUpload={false} on the search branch, and UploadZone.tsx:109 returns before any addFiles/addFileEntries call, so an upload-class drop does nothing and shows no overlay.",
+    "The 'upload-files' custom event, the only other route into the zone's upload code, is dispatched only by useFilePicker/AddButton. FolderToolbar renders AddButton only when isWriteDestination holds, which requires isLocation, which is false on the search page. So the new zone does not open an upload path there.",
+    "A one-image drop still calls onImageQuery and never uploads, as in I8.",
+    "Folder pages keep uploads (acceptUpload defaults to true, onImageQuery undefined)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The overlay condition on folder pages gained an extra `files.length > 0` term (F1)."
+  ],
+  "regression_risks": [
+    "Any later code that dispatches 'upload-files' while the search page is mounted would now be heard by the search page's zone, which uploads into the drive root even with acceptUpload={false}. The listener at UploadZone.tsx:37-52 does not check acceptUpload.",
+    "The upload overlay on folder pages depends on the changed hasFiles condition."
+  ],
+  "test_coverage": [
+    "UploadZone.noUpload.test.tsx covers non-image, several images, folder, text-selection and one-image drops with acceptUpload off.",
+    "FolderBrowser.imageQuery.upload.test.tsx checks the prop passed on the search branch and its absence on a folder page; the zone is mocked there.",
+    "No test dispatches 'upload-files' to a zone with acceptUpload={false}, and none checks the folder-page overlay for a non-file drag."
+  ],
+  "not_verified": [
+    "Addon Python code, which this commit does not touch.",
+    "Nothing was run; findings come from reading UploadZone.tsx, FolderBrowser.tsx, useFilePicker.tsx and FolderToolbar.tsx.",
+    "Real-browser values of dataTransfer.files at dragenter.",
+    "Other callers of UploadZone and dispatchUploadEvent outside the files grepped."
+  ],
+  "confidence": 80,
+  "trajectory": "The one fix commit since r1 adds a single boolean prop, acceptUpload, with one guard in handleDrop and a changed overlay condition. It removes the r1 defect (upload-class drops and non-file overlays on the search page) and adds no state or prediction. The overlay condition is simpler than r1's, though it picked up the extra `files.length` term. Round one's flaw was a missing guard, and this round supplies it, so I see no patching trend yet."
+}

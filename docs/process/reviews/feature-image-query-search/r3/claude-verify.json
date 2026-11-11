@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "UploadZone.tsx:66-67 computes hasFiles as types.includes('Files') || files.length > 0, as claimed. I could not read the pre-change source, so I could not check the wording of the old condition. In real browsers dataTransfer.files is empty during dragenter, so the practical effect is likely nil. Confirmed as a textual difference only."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "FolderBrowser.tsx:903-915 returns the inner content inside an UploadZone on the search page, with enabled={!!onImageQuery}. UploadZone.tsx:161-170 always renders the wrapper div with class 'relative flex-1 flex flex-col'. Only the drag handlers and data-upload-zone are conditional. The old code returned the content with no wrapper. This adds a DOM and layout wrapper while image search is unavailable. The spec requires behaviour 'exactly as before' for drag and upload; it says nothing explicit about layout, so a flex-column wrapper is a small risk."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "UploadZone.tsx:166-169 sets the handlers to undefined when enabled is false. Nothing resets dragCounterRef, dragClassRef or isDragging. The reset happens only in handleDragLeave (lines 76-85) and handleDrop (95-103). If enabled turns false mid-drag, the drag's dragleave and drop are never seen, so the counter and class stay stale. When enabled turns true again, the next drag would reuse the old class, because the null check at line 62 fails. The overlay, if shown, would also stay up. This needs availability to flip during a drag, which is rare, so impact is low."
+    }
+  ],
+  "specification_compliance": [
+    "I8: handleDrop (UploadZone.tsx:95-113) uses the class stored at dragenter. A one_image drop starts a query only with exactly one image file, and returns without uploading. A drop classed upload on the search page does nothing because acceptUpload is false. Consistent with the clarification.",
+    "Only the UploadZone and FolderBrowser parts of the change were checked."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The search page now always has a flex-col wrapper div around its content, even when image search is unavailable."
+  ],
+  "regression_risks": [
+    "Stale drag refs in UploadZone after enabled flips during a drag (F3).",
+    "Layout change from the always-present wrapper on the search page (F2)."
+  ],
+  "test_coverage": [
+    "I did not inspect the tests. F1 reports no test covers the folder-page overlay condition."
+  ],
+  "not_verified": [
+    "The pre-change source of UploadZone and FolderBrowser, because I cannot run git.",
+    "Backend invariants I1 to I6 and I12.",
+    "The e2e layout tests.",
+    "Runtime behaviour in a browser."
+  ],
+  "confidence": 80
+}

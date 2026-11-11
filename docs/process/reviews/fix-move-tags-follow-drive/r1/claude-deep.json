@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "F1-non-ascii-capital-tag-fails-move",
+      "origin": "reviewer",
+      "claim": "A cross-drive move fails with a 500 when the file carries a tag with a non-ASCII capital and the destination drive already has a row of that exact name.",
+      "impact": "A user with a tag such as `Übung` or a full-width capital name on both drives cannot move that file: the single move returns 500 and a batch move or paste reports it as not moved, with no way forward except renaming the tag. For a video with a thumbnail the failure also leaves the JPEG in the destination slot while the row keeps the source path, so the file that stayed on the source drive loses its thumbnail.",
+      "evidence": "`backend/app/services/tagops.py:49` builds the key with Python `str.lower()`, which folds non-ASCII capitals. `tagops.py:54` compares it with SQL `lower(Tag.name)`, which folds ASCII only: no custom `lower` or ICU is registered in `backend/app`, and `docs/developer-guide/known-issues.md:182` records the same ASCII-only behaviour. The lookup therefore misses the existing row, `tagops.py:57` builds a second `Tag` with the same (drive, name), and `uq_tags_drive_name` (`backend/app/models.py:47`) rejects it at the flush in `cleanup_orphan_tags`. `backend/app/services/fileops.py:508-517` catches the error, rolls back and reverses the media file only. The thumbnail was already renamed at `fileops.py:491`, and that rename is not reversed. Before this change a move never queried tags, so this failure path is new.",
+      "repro": "not_reproduced (no command execution available; derived by reading). Steps: tag a file on drive A `Übung`, move it to drive B, which creates the row on B. Tag another file on A `Übung` and move it to B. Expected from the code: 500 from `PUT /api/files/{id}/move`, or an entry in `errors` from `PUT /api/files/batch/move`. No test in `backend/tests/test_move_tags_follow_drive.py` uses a non-ASCII capital, and its failed-move test seeds no thumbnail.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariants are declared, and the move is refused loudly with the media file restored, so this is a wrong result in normal use rather than a design error.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Compare in SQL on both sides, `func.lower(Tag.name) == func.lower(tag.name)`, so an identical name always matches, and add a test with a non-ASCII capital on both drives."
+    },
+    {
+      "id": "F2-tag-lost-via-pending-delete-row",
+      "origin": "reviewer",
+      "claim": "When the move's destination path is held by a trashed row whose file is gone from disk and that row was the only user of a tag, the moved file silently loses that tag.",
+      "impact": "The move answers 200 and the file arrives, but the tag is gone from both drives. For a non-`.md` file `File.tags` is the canonical store, so the tag cannot be recovered. The trigger is narrow: the trashed file must have been removed from the drive outside the app, because a file still on disk gives a 409 first at `fileops.py:474`.",
+      "evidence": "`backend/app/services/fileops.py:191-194`: `resolve_db_path_conflict` deletes the ghost and calls `cleanup_orphan_tags(db, drive)`, which only marks the now-orphan destination `Tag` with `db.delete` (`tagops.py:30-31`) and does not flush. The session uses `autoflush=False` (`backend/app/database.py:38`), so the query at `tagops.py:52-56` still returns that row and `retarget_file_tags` attaches it at `tagops.py:58`. The object remains in the identity map, so the save-update cascade does not take it out of the pending delete set. The flush at `tagops.py:59` then inserts the `file_tags` row and deletes the tag, and `ondelete=CASCADE` with `PRAGMA foreign_keys=ON` (`models.py:28`, `database.py:35`) removes the new association. The source row is swept in the same call.",
+      "repro": "not_reproduced (no command execution available; the SQLAlchemy flush order is reasoned from its unit-of-work behaviour, not observed). Steps: on drive B, tag `b/a.mp4` with `alpha` as the only user of that tag, trash it, and delete the file from the drive by hand. On drive A, tag `a.mp4` with `alpha` and move it to B's root. Expected from the code: 200, and no `alpha` on the file, on A or on B. No test covers a ghost at the destination, and a grep of the move, conflict and ghost named test files for `resolve_db_path_conflict` and `deleted_at` found nothing.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariants are declared; this is a silently wrong result from how two helpers compose, not a wrong design.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Add `db.flush()` after `cleanup_orphan_tags(db, drive)` in the trashed branch of `resolve_db_path_conflict`, so the lookup can no longer see the row, and add a test for this case."
+    },
+    {
+      "id": "F3-existing-cross-drive-links-not-repaired",
+      "origin": "reviewer",
+      "claim": "Tag links written by earlier cross-drive moves are not repaired, and moving such a file again leaves its old tag row behind on the drive it first came from.",
+      "impact": "On an existing database, files moved before this fix still count in the old drive's tag list and stay absent from the current drive's list until they are moved again or their tags are edited. Moving such a file A to B (old code) and then B to C (new code) gives the correct links on C but leaves a row on A that lists with count 0, because the list query outer-joins. Moving it back to the tag's own drive repairs it, so the result depends on the route taken.",
+      "evidence": "`backend/app/services/fileops.py:494-496` passes `file.drive` as the source, and `tagops.py:59` sweeps only that drive, not the drive of the rows the file actually held. `tagops.py:45-46` also returns early on a same-drive move, leaving the mismatch. A grep of `backend/app/database.py` finds no migration that touches tag rows by drive, and the diff adds none. `backend/app/routers/drives.py:813-821` lists tags with no files. The `known-issues.md` row deleted by this change describes the state these rows are still in.",
+      "repro": "not_reproduced (no command execution available). Set up an old-code state by inserting a `file_tags` link from a file on B to a `Tag` on A, then move the file to C through `PUT /api/files/{id}/move`. Expected from the code: C has the tag, and A still lists a row with count 0. All tests in `backend/tests/test_move_tags_follow_drive.py` seed tags on the file's own drive.",
+      "introduced": "pre-existing",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The stale data comes from the defect this change fixes; no invariant is declared. Whether to repair it is a decision for a person.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Add a one-time startup repair that retargets every file whose tag row names another drive, and make `retarget_file_tags` sweep the drives of the rows the file actually held."
+    }
+  ],
+  "specification_compliance": [
+    "First-review question: no invariants file exists for this change, so there is no touch-point list and no place can qualify as outside it. No finding is raised for this question and bucket A is not used.",
+    "For the record, the diff reaches `backend/app/services/fileops.py` (`move_file`), `backend/app/services/tagops.py` (new `retarget_file_tags`), `backend/tests/test_move_tags_follow_drive.py` (new) and `docs/developer-guide/known-issues.md` (row removed).",
+    "`move_file` is the only place found that reassigns `File.drive`: a grep of `backend/app` finds no other ORM assignment or SQL `SET drive`, and `move_folder` stays within one drive. Both the single and the batch endpoint go through it, so the fix has no second entry point to miss.",
+    "The diff's stated reuse behaviour holds for ASCII names: an existing destination row is reused without renaming, and a new row keeps the source spelling. F1 is the exception for non-ASCII capitals.",
+    "Project rule checked: `.claude/rules/design-decisions.md` says a drive is a security boundary and drive tables are keyed per drive. The change brings tag links into line with that rule for new moves; F3 covers the links already stored."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Moving a file merges case variants of a tag on that file into one tag on the destination (`tagops.py:50-51`), which is a visible change only if a file holds both spellings.",
+    "A `.md` file moved onto a destination row with a different spelling keeps the row's spelling in `File.tags` while its frontmatter keeps its own. A later `replace_file_tags` from the frontmatter renames the destination row for every file on that drive (`backend/app/routers/files.py:169-172`), so the row's spelling is only preserved until then.",
+    "Each cross-drive move also sweeps every other orphan tag row on the source drive, not only rows this file left (`tagops.py:59`).",
+    "A non-ASCII tag differing only in case between drives, such as `Übung` and `übung`, does not match and produces two rows on the destination, because of the same folding mismatch as F1."
+  ],
+  "regression_risks": [
+    "A database error during a video move now has a new common trigger (F1), which exposes the thumbnail rename that the except block in `move_file` does not reverse.",
+    "`retarget_file_tags` flushes inside the move's transaction, so the SQLite write lock is taken before markdown projection and held until commit. The window is short, and a conflict surfaces as a reversed 500, not as silent damage.",
+    "Two concurrent requests creating the same destination tag can make one fail on `uq_tags_drive_name`; that move is reversed and reported, which is acceptable under the single-user threat model."
+  ],
+  "test_coverage": [
+    "Removing `cleanup_orphan_tags` from `retarget_file_tags` would fail `test_tag_lists_of_both_drives_after_a_move`, and removing the call in `move_file` would fail most of the class.",
+    "Removing the destination lookup would fail `test_existing_destination_tag_is_reused_without_renaming` through the listing assertion, and removing the same-drive guard would be caught by `test_same_drive_move_leaves_tags_alone` only if the tag row's id changed.",
+    "`test_failed_move_keeps_the_file_and_its_source_tags` covers rollback of tags and the media file, but it seeds no thumbnail, so the unreversed thumbnail rename is not exercised.",
+    "Not covered: non-ASCII capitals (F1), a trashed ghost at the destination (F2), a file already linked to another drive's tag row (F3), two case variants on one file, and `.md` files. The test session uses `autoflush=False` like production, so the fixture does not mask F2; only the scenario is missing."
+  ],
+  "not_verified": [
+    "Nothing was executed: F1, F2 and F3 come from reading the code, and the SQLAlchemy flush order in F2 was not observed in a run.",
+    "Whether SQLite in the backend image was built with ICU; the claim rests on no registration in `backend/app` and on the known-issues note.",
+    "Whether the knowledge addon's scanner re-posts tags often enough to rewrite a destination row's spelling after a `.md` move.",
+    "How addon code other than `tag_knn.py` and `auto_tags.py` reads core tag rows; the addon grep output was truncated at 20 lines. The diff changes no submodule pointer.",
+    "The frontend's handling of tag lists after a move; I did not read that code."
+  ],
+  "confidence": 78,
+  "perspectives": [
+    {
+      "name": "scope",
+      "notes": "Four paths changed, and no invariants file exists to compare them with. `move_file` is the only place found that changes a file's drive, so no other caller needs the retarget."
+    },
+    {
+      "name": "submodules",
+      "notes": "The diff changes no gitlink under `addons/`. `addons/intelligence/app/workers/tag_knn.py` checks the tag's drive as a second layer and logs drift, so correct links should reduce that drift. Not read in full."
+    },
+    {
+      "name": "persistence",
+      "notes": "The retarget runs inside the move's try block, so a failure rolls back tags with the rest of the row. F1 and F2 are the failure and silent-loss cases, and F3 covers stored rows with no repair."
+    },
+    {
+      "name": "concurrency",
+      "notes": "`move_file` is synchronous inside async endpoints and commits per file in a batch, and the batch loop rolls back after each failure. Competing writers end in a reversed 500, not silent corruption, and no finding is raised."
+    }
+  ]
+}

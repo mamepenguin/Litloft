@@ -21,6 +21,7 @@ export type ReaderMessage =
   | { type: "seeked"; id: number }
   | { type: "turned"; fraction: number; atEnd: boolean }
   | { type: "key"; key: ReaderKey }
+  | { type: "find-shortcut" }
   | { type: "link"; url: string }
   | { type: "error"; code: "unsupported" | "parse" | "isolation" };
 
@@ -41,11 +42,15 @@ export type ReaderCommand =
       theme: "light" | "dark";
       colors: ReaderColors;
       typography: Typography;
+      interceptFind: boolean;
     }
+  | { type: "set-find-intercept"; interceptFind: boolean }
   | { type: "typography"; typography: Typography }
   | { type: "turn"; direction: "next" | "prev" | "left" | "right" }
   | { type: "seek"; fraction: number; id: number }
   | { type: "goToToc"; index: number }
+  /** 1-based, the numbering `?section=` uses. */
+  | { type: "goToSection"; section: number }
   | { type: "theme"; theme: "light" | "dark"; colors: ReaderColors }
   | { type: "mode"; fullscreen: boolean };
 
@@ -128,6 +133,8 @@ export function parseReaderMessage(
     case "key":
       if (typeof m.key !== "string" || !KEYS.has(m.key)) return null;
       return { type: "key", key: m.key as ReaderKey };
+    case "find-shortcut":
+      return { type: "find-shortcut" };
     case "link":
       if (!isHttpUrl(m.url)) return null;
       return { type: "link", url: m.url };

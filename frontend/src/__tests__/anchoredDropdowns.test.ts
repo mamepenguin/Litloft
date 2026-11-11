@@ -62,7 +62,6 @@ const DIRECTION_ROLES = {
   "frontend/src/components/EditableTagChips.tsx": "measures",
   "frontend/src/components/FileActions.tsx": "measures",
   "frontend/src/components/FolderPicker.tsx": "measures",
-  "frontend/src/components/SmartFolderSaveButton.tsx": "measures",
   "frontend/src/components/ToolbarMenu.tsx": "measures",
   "frontend/src/components/folder/FilterField.tsx": "measures",
   "frontend/src/components/trash/TrashToolbar.tsx": "measures",
@@ -72,6 +71,7 @@ const DIRECTION_ROLES = {
   "frontend/src/components/archive/ArchiveToolbar.tsx": "takes-the-surface",
   "frontend/src/components/folder/FilterMenu.tsx": "takes-the-surface",
   "frontend/src/components/folder/FolderToolbar.tsx": "takes-the-surface",
+  "frontend/src/components/search/ConditionMenu.tsx": "takes-the-surface",
 
   "frontend/src/components/SelectionBar.tsx": "pinned",
   "frontend/src/components/epub/EpubPositionBar.tsx": "pinned",
@@ -118,8 +118,8 @@ describe("every anchored dropdown in core", () => {
     expect(byRole.supplies).toEqual([
       "frontend/src/hooks/useAnchoredDirection.ts",
     ]);
-    expect(byRole.measures).toHaveLength(8);
-    expect(byRole["takes-the-surface"]).toHaveLength(5);
+    expect(byRole.measures).toHaveLength(7);
+    expect(byRole["takes-the-surface"]).toHaveLength(6);
   });
 
   it.each(Object.entries(DIRECTION_ROLES))(

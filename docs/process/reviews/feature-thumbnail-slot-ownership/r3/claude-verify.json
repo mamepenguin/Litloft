@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R3-TEST-1",
+      "status": "confirmed",
+      "note": "Reproduced by reading. The only assertion on the return value is test_thumbnail_slots.py:1179, and its rows are one sole move, one shared pair, one absent row with no slot and one PermissionError from stat, giving moved 1, emptied 3, failed 1. thumbnail_migration.py:119, :106 and :127 are never reached with their count read. test_failed_replace_keeps_pointer_and_next_startup_moves_it (:848) has no caplog and no count. test_shared_file_that_cannot_be_removed (:1065) checks only that a message contains book.jpg. test_absent_file_with_existing_slot_is_repointed (:876) restarts and discards the counts. A search of backend and addons Python files finds 'Could not move thumbnail' only at thumbnail_migration.py:117. A search of the thumbnail_slots, upload, fileops and copy test files finds no 'Thumbnail migration' line assertion. Mutants were predicted, not run."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R3-TEST-2",
+      "status": "confirmed",
+      "note": "test_thumbnail_slots.py:516-526 and :543-546 wrap the operation in try/except Exception: pass. _upload_png's assert at :212 and :220 raises AssertionError inside that block and is swallowed. The chunk response at :214 is never checked. The rename and copy responses at :518 and :520 are discarded. By reading, today's cases do reach the intended point: the ghost is seeded with no file on disk (_seed :61), rename fails at fileops.py:393, copy at fileops.py:281 and upload at upload.py:360. So this is a test weakness, not a current false pass. Commit 0154854d8's earlier seed was not read, because git objects are unavailable; only the current seed at :504 and the subject of 819742a01 fit that history."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R3-SPEC-1",
+      "status": "confirmed",
+      "note": "thumbnail_migration.py:31-32 returns unknown and :83-92 keeps the pointer and counts it failed. :33-34 treats a non-regular file as absent. Spec section 1 groups by whether the file exists, section 2's keep rule covers only os.replace failure, and section 3 has no kept-after-stat-error transition. invariants.md has only the Revisions heading. r1 and r2 triage both list the question under Needs a human. decisions.md records the behaviour in its runs and has no ruling. monitoring.md:87 mentions only the move warning. routers/files.py:1195 calls exists(). The ruling itself remains the human's."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "TEST-6",
+      "status": "confirmed",
+      "note": "Same code as R3-TEST-2. The I13 test asserts only the ghost row and picture (:528-529). The new-id test asserts only _slot_files() == [] (:548) and never shows a slot existed first, so a generation that failed, or an upload stopped in setup, also passes. The failure point is reachable today: upload.py:360 raises and :363-364 removes the slot, so deleting that cleanup would still fail the test. Only the 0154854d8 history is unread, because git objects are unavailable."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "TEST-7",
+      "status": "confirmed",
+      "note": "upload.py:280-283 generates and :293-294 deletes and flushes the ghost, with the reason only in the comment at :290-291. test_upload_over_a_trashed_ghost_removes_the_ghosts_picture (:468) and the upload case at :488 assert outcomes that do not depend on the order. test_upload.py:277-304 records the generator's destination, not the transaction state. A search of the thumbnail_slots, upload, fileops and copy test files finds no in_transaction or BEGIN IMMEDIATE. Test files outside that glob were not searched for an ordering check. The mutant was predicted, not run."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "MIG-3",
+      "status": "confirmed",
+      "note": "thumbnail_migration.py:31-32 and :83-92 keep the pointer. The spec and invariants.md have no such state. routers/files.py:1195 calls thumb_path.exists() with no handler, ahead of the placeholder branch at :1198. decisions.md second run item 2 and third run item 2 record the 500 with PermissionError. backend/Dockerfile:1 is python:3.12-slim. monitoring.md:87 names only 'Could not move thumbnail', not the warning at thumbnail_migration.py:86. The route's Python 3.12 behaviour rests on those recorded runs; nothing was executed here. The state needs an unsearchable cache directory and clears at the next start with the mode restored."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "COPY-1",
+      "status": "confirmed",
+      "note": "fileops.py:255 is outside any try and runs before resolve_db_path_conflict at :262 and the exclusive create at :267. The try at :337-341 covers only the later write, so a PermissionError from exists() fails the whole copy where I12 and spec section 2 say a picture failure leaves the copy in place. By reading it leaves no half state, because nothing has been created except the target folder from :237. test_a_picture_that_cannot_be_copied_leaves_copy_and_no_partial_slot (:338) puts a directory at the pointer, for which exists() succeeds, and test_copy.py has no PermissionError case. Python 3.12's re-raise comes from the recorded route 500s in decisions.md, not from a run here. The claim that this exists() call predates the diff was not checked, because the base was not read."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "SCOPE-2",
+      "status": "confirmed",
+      "note": "Spec Touch points still say 'backend/app/services/thumbnail.py: thumbnail_slot_rel, the migration step', while main.py:27 imports from thumbnail_migration. invariants.md has only the Revisions heading. test_atomic_write.py:209-211 carries the allow-list entry. architecture.md:45 has the .by-id sentence and is not in the list. test_transparent_thumbnails.py:720-721 hand-sets the shared pointer. test_copy.py:796 asserts the retained path, and the r1 triage records that it previously asserted None. This has no user effect."
+    }
+  ],
+  "specification_compliance": [
+    "Checked only as far as the listed findings reach. Stat-error handling in the migration, I12's stat-failure case and the touch-point list each depart from the approved spec as those findings state, and invariants.md records no revision.",
+    "Spec section 2's new-id cleanup is present at upload.py:363-364, and removal of a ghost's picture after the commit is present at upload.py:366, fileops.py:330 and fileops.py:406."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "A stat error other than not-found keeps the pointer and counts as failed (thumbnail_migration.py:31-32, :83-92), and the thumbnail route then answers 500 while the error lasts. No spec section or revision states this, and no ruling is recorded.",
+    "A non-regular file at a pointer counts as absent (thumbnail_migration.py:33-34), and the directory stays in the cache. The spec groups by whether the file exists and does not address this.",
+    "A stat error on the source's picture fails the whole copy at fileops.py:255. I12 covers a failure copying the picture, and whether it covers this case is for a human to read.",
+    "slot.is_file() at thumbnail_migration.py:125 sits outside any OSError handler. If Path.is_file re-raises a permission error, an absent-file row stops the run rather than failing that row alone. The lifespan catches it at main.py:278, and the next startup retries. This was inferred from reading and was not run."
+  ],
+  "regression_risks": [
+    "The failure-path tests swallow every exception, so a later change to setup or routing that stops them reaching the ghost's path would leave them green.",
+    "Moving the trashed ghost's delete back ahead of the generator would reintroduce the write lock held during generation with no test failing, by reading.",
+    "The os.replace warning and three count updates can change with no test failing, though the admin guide tells the operator to read that log line."
+  ],
+  "test_coverage": [
+    "test_the_returned_counts_say_what_happened pins one moved kind (a real move) and one failed kind (a stat failure). It does not pin a repoint, an os.replace failure or a failed removal of a shared file.",
+    "test_a_picture_that_cannot_be_copied_leaves_copy_and_no_partial_slot covers a copy failure from a directory at the pointer. It does not cover a stat error at fileops.py:255.",
+    "No test reads the ordering at upload.py:280-294."
+  ],
+  "not_verified": [
+    "Nothing was run: no tests, mutations or application. Every mutation outcome and failure point comes from reading the code.",
+    "Git objects were not read. The worktree was taken as commit 58e9d36d6 from the status snapshot, so the base code, the seed in 0154854d8 and the claim that the exists() call predates this diff were not checked directly.",
+    "Python 3.12's Path.exists and Path.is_file source was not read. Their re-raise behaviour rests on my recollection and on the runs recorded in decisions.md.",
+    "The evidence directory cited in decisions.md is outside this worktree, so its records were taken as written.",
+    "Searches for ordering tests covered the thumbnail_slots, upload, fileops and copy test files only. Other test files were not read for this.",
+    "Media Import's writer and its tests, which belong to the later addon PR, were not reviewed."
+  ],
+  "confidence": 86
+}

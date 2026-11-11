@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "ImageQueryDropTarget keeps the drag class 'upload' after an upload-class drag leaves the page without dropping, because onDragLeave returns early unless the class is one_image and only onDrop or unmount reset it.",
+      "impact": "On the text-query page with image search available, drag a PDF or several files over the page, move out, then drag a single image in. dragClass is still 'upload', so it is not reclassified: no overlay shows and the image drop does nothing. The class is no longer taken at the dragenter of each drag, as I8 requires. Only a later drop or a remount clears it.",
+      "evidence": "frontend/src/components/search/ImageQueryDropTarget.tsx:50-53 classifies only when dragClass === null; :65-69 onDragLeave returns when dragClass !== 'one_image', so reset() is not called for the upload class; reset runs only in onDrop (:78) and the effect cleanup (:93). ImageQueryDropTarget.test.tsx 'classes again after the drag leaves' covers only a one-image drag leaving, not an upload-class one.",
+      "repro": "not_reproduced (read only). Steps: dragenter with a text file on the frame, dragleave, dragenter with one PNG, then drop. Expected: overlay and onImageQuery. Actual by reading: no overlay, no call. Mutation: none needed; add a test with an upload-class dragenter then dragleave then a one-image dragenter and drop; it would fail.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I8 says the action of a drop is the class given to that drag at its dragenter; a stale class from an earlier abandoned drag changes the outcome of a later one-image drag.",
+        "invariant_ref": "I8"
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Count depth for every file drag regardless of class and call reset() when depth reaches 0 in dragleave, or also reset on dragend and on a dragenter after the counter reached zero."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The real-browser drop-target spec dispatches synthetic DragEvents on the frame element and its hit-test assertion `el?.closest(...) !== null` is also true when elementFromPoint returns null.",
+      "impact": "The spec proves the overlay does not block hit testing in the normal case, but it cannot catch a real dragleave/dragenter sequence on the frame, and a null hit would pass. Weak guard for the r7 overlay finding.",
+      "evidence": "frontend/e2e-components/image-drop-target-desktop.spec.ts: page.evaluate uses `el?.closest(\"[data-page-frame]\") !== null`; undefined !== null is true. Events are dispatched with dispatchEvent, not by CDP drag as image-search-drag-desktop.spec.ts does.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is broken by the code; the test is weaker than it reads.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Assert `el !== null && el.closest(...) !== null`, and drive the drag with Input.dispatchDragEvent."
+    }
+  ],
+  "specification_compliance": [
+    "r7 F1 (overlay intercepting the drop) is addressed: the overlay has pointer-events-none and a real-browser fixture checks elementFromPoint falls through to the frame.",
+    "r7 F2 (no test for absent onImageQuery) is addressed by two unavailable-state tests, although the two new tests are nearly identical.",
+    "r7 F3 (listener churn) is addressed: the callback is held in a ref and the effect depends on the boolean enabled.",
+    "I8 is only partly met: a one-image drop starts a query and never uploads, but the drag class can go stale after an abandoned upload-class drag (F1).",
+    "I7: with no onImageQuery no listener is attached and no preventDefault is called, which matches the tests."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The effect looks up [data-page-frame] once at mount. If the frame element is replaced later (a loading state rendering a different PageFrame), the listeners stay on the detached element.",
+    "hasFiles now accepts any item of kind file, which widens what counts as a file drag on the page."
+  ],
+  "test_coverage": [
+    "ImageQueryDropTarget.test.tsx now covers unavailable state, pointer-events-none on the overlay, class kept through nested dragenters, no fallback to upload and reclass after a one-image drag leaves.",
+    "No test covers an upload-class drag that leaves without dropping followed by a one-image drag (F1).",
+    "The new real-browser spec uses synthetic events and a weak null check (F2)."
+  ],
+  "not_verified": [
+    "Addon Python code; this commit does not touch it.",
+    "Nothing was run; findings come from reading ImageQueryDropTarget.tsx and the diff.",
+    "Real-browser dragenter/dragleave ordering on the frame with nested children.",
+    "Whether PageFrame is replaced between renders on the search page.",
+    "The diff handed to this review was truncated, so the rest of the branch was not re-read."
+  ],
+  "confidence": 74,
+  "trajectory": "The round removes more than it adds. It holds the callback in a ref and keys the effect on a boolean, which removes listener churn and mid-drag resets. It adds pointer-events-none, which is a class and not a state. It adds one branch to hasFiles (the items check). It adds tests, with no new flag or state. The defect left is the same shape as before: a drag class held in a closure variable that only some paths reset, which is the drag logic that moved out of UploadZone. I see convergence, not further patching, but the reset logic still needs a single path."
+}

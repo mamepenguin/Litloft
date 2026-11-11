@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "I1: backend/app/routers/progress.py:134-144 splits each range at 5 s boundaries (floor(start/5)..ceil(end/5)), so {12,47.5} gives 3/5x6/2.5. GET orders by segment_index (progress.py:197), and PlayedSegmentsResponse defaults segment_seconds to 5 (schemas.py:567).",
+    "I2: an SQLite upsert with played_seconds = played_seconds + excluded.played_seconds (progress.py:161-177) adds atomically in a single statement.",
+    "I3/I4/I5: frontend/src/lib/playedRanges.ts:68-109 follows spec section 1 step 3. Ineligible ticks reset tracking. On re-entry the stretch continues only within 1 s of stretch.end. A forward move within the allowance (wall time x rate + 1) extends the stretch. A move of 0 to -1 s keeps the reference wall time. Any other move closes the stretch and opens a new one. Eligibility is built in playbackProgress.ts:208-213 (paused, interrupted, duration, resumePending, rate readable).",
+    "I6: playedRanges.ts:47-66. counted is set at >= 10 media seconds. cut pushes [sentUpTo, end] only when end > sentUpTo. Final teardown drops an uncounted stretch.",
+    "I7: observeTick runs inside try/catch before onTick (playbackProgress.ts:195-233) and changes only closure state. flushCapture and the notifyEnded flush are wrapped in try/catch. No setState is used.",
+    "I8: POST returns 204 for no viewer before the 404 check (progress.py:155-158). GET checks for 404 and then returns an empty list for no viewer (progress.py:189-192). Body validation runs first through FastAPI/pydantic. Unavailable files go through _get_file_or_404 with active_file_filter and check_drive_access.",
+    "I9: DELETE /progress deletes the viewer's PlayedSegment rows for the file in the same commit, whether or not a WatchHistory row exists (progress.py:124-129). The FK on played_segments.file_id has ON DELETE CASCADE with PRAGMA foreign_keys=ON (models.py:214, database.py:35). No code path deletes these rows on trash, missing, rename or move.",
+    "I10: a 15 s setInterval, visibilitychange to hidden, pagehide, teardown (final) and notifyEnded all call flush without reading the controller. sendPlayedRanges uses keepalive: true. Pending is trimmed to the newest 256. A 5xx or a rejection retries only while active. A 4xx is dropped. The schema enforces min_length 1 and max_length 256, plus 0 <= start < end <= max with non-finite values rejected (schemas.py:532-558)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The touch points list frontend/src/lib/api.ts as changed, but api.ts has no played-ranges or played-segments helper. sendPlayedRanges lives in playedRanges.ts and calls the literal '/api/files/...' path, which matches API_BASE='/api'. Nothing in the frontend calls GET /played-segments.",
+    "After a long stall the player is not paused, so the position stays unchanged and the reference wall time is kept. A forward seek afterwards then fits inside the allowance and counts the skipped span as played. Spec line ~274 lists this as an accepted limitation, so I did not raise it as a defect."
+  ],
+  "regression_risks": [
+    "observeTick now runs before onTick in every media-clock listener call. It is guarded by try/catch and has no shared side effects, so the saveWatchProgress timing should be unchanged. Any controller whose getPlaybackRate always throws would silently never capture.",
+    "DELETE /progress now also deletes played_segments rows. This relies on the delete and the watch_history delete sharing a single commit."
+  ],
+  "test_coverage": [
+    "backend/tests/test_played_segments.py covers the worked example, segment boundaries, doubling, concurrency, viewer isolation, no-viewer handling, 422 and its precedence, 404 for missing, trashed and locked files, watch_history being left untouched, the 500 rollback, DELETE scoping, hard delete, trash/restore, missing/recovery, and rename/move.",
+    "frontend/src/lib/__tests__/playbackProgress.playedRanges.test.ts exists and covers the capture behaviour, including a throwing getPlaybackRate. I did not read its cases in full."
+  ],
+  "not_verified": [
+    "I did not run any tests, backend or frontend. I have no command execution.",
+    "I did not read the e2e-components fixtures or registration, or the componentFixtureParity test.",
+    "I did not check the YouTube controller's ENDED/interrupted handling and getPlaybackRate behaviour beyond mediaController.ts line references.",
+    "I did not check docs/reference/api.md against the implementation.",
+    "I did not inspect the trash, restore and recovery code paths directly. I relied on the absence of any PlayedSegment or WatchHistory rekeying code and on the backend tests' names."
+  ],
+  "confidence": 80
+}

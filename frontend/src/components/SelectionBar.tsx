@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, type ComponentType } from "react";
+import { flushSync } from "react-dom";
 import {
   Check,
   ClipboardCopy,
@@ -50,9 +51,24 @@ interface SelectionBarProps {
   drive: string;
   currentPath?: string;
   isTrashView?: boolean;
+  /** The inbox closes its rows as done, and files still land in the drive. */
+  isInboxView?: boolean;
+  onInboxDone?: (ids: string[]) => void;
   onSelectAll: () => void;
   onClear: () => void;
-  onComplete: () => void;
+  /** `removed` is true when the files left the drive's listing (trash or purge). */
+  onComplete: (removed?: boolean) => void;
+}
+
+/** The server accepts at most 100 ids per batch. */
+const INBOX_BATCH_SIZE = 100;
+
+function inBatches<T>(items: readonly T[], size: number): T[][] {
+  const batches: T[][] = [];
+  for (let start = 0; start < items.length; start += size) {
+    batches.push(items.slice(start, start + size));
+  }
+  return batches;
 }
 
 export function groupSurvivesNarrow(
@@ -73,6 +89,8 @@ export function SelectionBar({
   drive,
   currentPath,
   isTrashView,
+  isInboxView,
+  onInboxDone,
   onSelectAll,
   onClear,
   onComplete,
@@ -82,6 +100,7 @@ export function SelectionBar({
   const tc = useTranslations("common");
   const tcb = useTranslations("clipboard");
   const tt = useTranslations("trash");
+  const ti = useTranslations("inbox");
   const ime = useImeKeyGuard();
   const clipboard = useClipboard();
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -115,7 +134,7 @@ export function SelectionBar({
       await batchPurge(ids);
       setPurgeOpen(false);
       onClear();
-      onComplete();
+      onComplete(true);
     } catch {
       // keep dialog open
     }
@@ -126,7 +145,7 @@ export function SelectionBar({
       await batchDelete(ids);
       setDeleteOpen(false);
       onClear();
-      onComplete();
+      onComplete(true);
     } catch {
       // keep dialog open
     }
@@ -134,7 +153,13 @@ export function SelectionBar({
 
   async function handleBatchMove(path: string) {
     try {
-      await batchMove(ids, path);
+      if (isInboxView) {
+        for (const batch of inBatches(ids, INBOX_BATCH_SIZE)) {
+          await batchMove(batch, path);
+        }
+      } else {
+        await batchMove(ids, path);
+      }
       setMoveOpen(false);
       onClear();
       onComplete();
@@ -150,7 +175,13 @@ export function SelectionBar({
       .filter(Boolean);
     if (tags.length === 0) return;
     try {
-      await batchTag(ids, tags);
+      if (isInboxView) {
+        for (const batch of inBatches(ids, INBOX_BATCH_SIZE)) {
+          await batchTag(batch, tags);
+        }
+      } else {
+        await batchTag(ids, tags);
+      }
       setTagInput("");
       setTagging(false);
       onClear();
@@ -177,6 +208,13 @@ export function SelectionBar({
     onComplete();
   }
 
+  function handleInboxDone() {
+    if (!onInboxDone) return;
+    onInboxDone(ids);
+    onClear();
+    onComplete();
+  }
+
   const actions: BulkAction[] = isTrashView
     ? [
         {
@@ -196,7 +234,33 @@ export function SelectionBar({
           keepOnBar: true,
         },
       ]
-    : [
+    : isInboxView
+      ? [
+          {
+            id: "done",
+            icon: Check,
+            label: ti("done"),
+            onClick: handleInboxDone,
+            keepOnBar: true,
+          },
+          {
+            id: "tag",
+            icon: Tag,
+            label: t("tagging"),
+            displayLabel: t("tag"),
+            onClick: () => flushSync(() => setTagging(true)),
+            keepOnBar: true,
+            startsGroup: true,
+          },
+          {
+            id: "move",
+            icon: Move,
+            label: tc("move"),
+            onClick: () => setMoveOpen(true),
+            keepOnBar: true,
+          },
+        ]
+      : [
         {
           id: "tag",
           icon: Tag,
@@ -325,7 +389,7 @@ export function SelectionBar({
               )}
 
               <button
-                onClick={onClear}
+                onClick={() => flushSync(onClear)}
                 className="ml-auto rounded-2xl p-1.5 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
                 aria-label={t("deselect")}
               >

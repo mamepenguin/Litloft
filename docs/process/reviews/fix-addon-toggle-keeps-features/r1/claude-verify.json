@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-1",
+      "status": "confirmed",
+      "note": "Reproduced by tracing the code; nothing was executed. With stored `{editor:false,_all:true}`: isAddonOn is true (adminConfig.ts:31), so the feature row renders (AddonPolicySection.tsx:250-254). toggleFeature reads current=true (:138) and sets editor=false (:145), keeping `_all` through the spread at :143, so the map is unchanged. put_addon_policy accepts and writes it (admin_config.py:204-216, 585-590) and the catch at :152 does not fire, so no error is shown. The next render still reads `_all` first and the switch stays on. The backend agrees (config.py:148-149, drive_policies.py:34-35, internal.py:100-101). Variant: `{editor:true,_all:true}` does store editor=false, with the same on-screen result and no effect until `_all` is removed. Reachability: no production code writes `_all: true`. withAddonSwitched writes only `_all:false` (adminConfig.ts:49) and strips `_all` when turning on (:53). The only `_all: true` map in the repository is the fixture at backend/tests/fixtures/addon_policy.json:14, and docs/reference/configuration.md:67 documents only `_all:false`. So the state arises only from hand-editing drives.json or a direct API call, for example changing a stored `_all:false` to true by hand. Once there, the addon's own off/on pair clears it (adminConfig.ts:49, :53). No test in AddonPolicySection.test.tsx:541-608 presses a feature switch on such a map."
+    }
+  ],
+  "specification_compliance": [
+    "docs/reference/configuration.md:67 specifies `_all: false` in a map and says the other keys are kept. withAddonSwitched (adminConfig.ts:42-55) matches this. `_all: true` is not specified there."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The docs do not specify what `_all: true` in a map means or how the feature switches should behave with it. The code treats it as overriding every feature (config.py:148-149, adminConfig.ts:31)."
+  ],
+  "regression_risks": [
+    "Any future writer of `_all: true` would expose the inert feature switch in CR-1. No such writer exists now."
+  ],
+  "test_coverage": [
+    "The parity fixture case `_all true over a feature false` (backend/tests/fixtures/addon_policy.json:14) pins only the read.",
+    "AddonPolicySection.test.tsx:541-608 covers `_all:false` display, off/on restore, collapse to true and save failure. None of these tests presses a feature switch on a map holding `_all`."
+  ],
+  "not_verified": [
+    "Nothing was executed: no tests were run and the UI was not driven, because this verifier has read-only tools. The reproduction is a code trace.",
+    "Whether adminConfig.ts:31 is new in this diff or pre-existing was not checked, because git history and diffs are not readable with these tools.",
+    "Whether the owner's real drives.json holds a `_all: true` map was not checked.",
+    "Addon-side policy consumers were not read; addon lookups were only seen through grep and the internal drive-policy endpoint."
+  ],
+  "confidence": 90
+}

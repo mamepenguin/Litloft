@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "No reader finding was supplied, so there was nothing to confirm or reject and the verification list is empty.",
+    "No invariants.md or touch-point list exists for this topic (only decisions.md, r1/ and r2/ are in the review directory), so compliance was read against code comments and the run record in decisions.md.",
+    "The comment at frontend/src/hooks/useSelectedFile.ts:10 now matches the code: highlight is in FILE_LOCATION_PARAMS (line 11) and is deleted only when the selected id differs (lines 43-45). This resolves the r1 inconsistency in which highlight was kept on a file change.",
+    "The first-Read rule in the comment at addons/knowledge/frontend/Editor.tsx:1272-1273 holds in the code read: lines 1276-1284 set highlightSpent after Read has been shown and then left, and lines 1456 and 1489-1491 withhold highlight once it is spent."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "A note opened with a phrase that has no match scrolls its container to the top (frontend/src/hooks/useHighlightPassage.ts:94-98). decisions.md records scrollTop 153 with the frontmatter table above the visible area and does not say this was chosen. docs/specs/citation-quote-anchor.md has no text on this case in a keyword search. This was raised in r1; the commits since then do not change it. It is no longer reached by selecting another file, only by opening a URL that carries a phrase with no match.",
+    "clearFile keeps highlight in the URL (frontend/src/hooks/useSelectedFile.ts:58-59), so pressing the folder row leaves /drive/<path>?highlight=<phrase>, as decisions.md run 4 records. The next selectFile drops it because the absent file param differs from the new id (line 43), so no later note is marked. The only remaining effect is a stale parameter in the address bar, plus any other page or link that copies the query string, which I did not trace.",
+    "Selecting the same file keeps the phrase by design (useSelectedFile.test.tsx:78), so the mark stays when the current file is pressed again; decisions.md run 4 records no repeated scroll in that case."
+  ],
+  "regression_risks": [
+    "selectFile is shared by the tree (TwoPaneLayout.tsx:77), keyboard file navigation (RightPaneFile.tsx:81), the image gallery close (RightPaneFile.tsx:139) and CollectionItemsPane.tsx:112. All of them now drop highlight on a file change, which is the intended result. For non-note files, the only consumer found under components/folder is RightPaneFile.tsx:90, so there is no other reader of the parameter there to lose it.",
+    "Links that open a file with its own ?highlight= do not go through selectFile: buildCanonicalFileUrl (frontend/src/lib/canonicalFileUrl.ts:10-19) still carries highlight, so citation links keep their phrase on redirect."
+  ],
+  "test_coverage": [
+    "frontend/src/hooks/__tests__/useSelectedFile.test.tsx:77 pins highlight being dropped on a file change, with an unrelated param (view) kept; line 78 pins all location params being kept when the same file is selected.",
+    "Removing highlight from FILE_LOCATION_PARAMS would fail the row at line 77 by reading the assertion; this was not run.",
+    "The test mocks next/navigation, so the end-to-end path from a tree press to an unmarked note is covered only by R-5 run 4 in decisions.md, whose scripts and screenshots I did not open."
+  ],
+  "not_verified": [
+    "Nothing was executed: no tests, no browser and no running app, because this role has read-only tools.",
+    "The diff against origin/develop was not read directly; the working tree was read and assumed to match 85e610287, with r2/head.txt naming that commit.",
+    "The addons/knowledge checkout was read as present and its pin was not compared with the commit named in decisions.md (f12e5ad0f).",
+    "The Ask citation link with a real LLM, the only producer of ?highlight= in the code, was not checked; decisions.md also lists it as pending.",
+    "The R-5 scripts, logs and screenshots named in decisions.md were not opened.",
+    "The matching fallbacks in useHighlightPassage.ts after line 135 and every consumer that might copy the query string after clearFile were not read in this pass.",
+    "docs/specs/citation-quote-anchor.md was only searched by keyword, not read in full."
+  ],
+  "confidence": 80
+}

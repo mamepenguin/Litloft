@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "source-folder-vanishes-after-uploaded-sidecar-row-follows",
+      "status": "confirmed",
+      "note": "Traced by reading; not executed. fileops.py:579 runs while the subtitle row is still active in old_folder, so :148-154 returns early. The carry at :592 reaches _follow_sidecar_row (:396-421), which has no empty-folder step. drives.py:284-302 and :424-441 build folders only from active File and EmptyFolder rows. The directory stays on disk and scanner.py:849-863 restores the record. The defect needs a sidecar with a row: with no row, :579 already sees the folder as empty and tracks it."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "batch-move-reports-failure-for-a-subtitle-already-carried",
+      "status": "confirmed",
+      "note": "Traced by reading; not executed. After the video's move the row is in the destination, so fileops.py:542-548 makes old and new the same path, finds it exists and raises 409; files.py:364-369 records the error. The subtitle row is selectable: decisions.md:33 shows the uploaded .srt listed as a card. The file itself lands correctly, so only the report is wrong. The toast appears only through ClipboardProvider.tsx:135-138 and :158-160. SelectionBar.tsx:135-140 ignores the response body, so that route shows no error and does not count the subtitle as moved. The reverse order gives no error because _serves_subtitles (fileops.py:384-385) is false for a row of file_type subtitle."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "sidecar-row-tags-title-and-root-unpinned",
+      "status": "confirmed",
+      "note": "Read test_sidecar_subtitles_follow_video.py: _place (:263-266) returns only drive, folder_path, filename and file_path. The parametrized destinations (:295-298) use folders a, b and z, so the root branch at fileops.py:418 never runs. No test in that file reads row.title or row.tags, and _upload sets no tags. Only three other test files mention .srt or .vtt (test_sidecar_match.py, test_classify_table.py, test_subtitle.py), and only test_sidecar_subtitles_follow_video.py mentions _follow_sidecar_row or _carry_sidecars by way of the routes. retarget_file_tags is a no-op on a same-drive move (tagops.py:147-148), so only the cross-drive case could pin it. Mutation not run, as no execution tool is available."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "last-sidecar-row-leaving-drops-the-source-folder",
+      "status": "confirmed",
+      "note": "Same defect as source-folder-vanishes-after-uploaded-sidecar-row-follows, traced along the same path: fileops.py:579, :148-154, :592 and :388-421, with drives.py:284-302 and :424-441. The test file has no EmptyFolder or empty_folder match, and decisions.md:35 and :47 show keep.txt left in the source folder in both walks."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "carried-sidecar-onto-a-ghost-row-can-be-purged",
+      "status": "confirmed",
+      "note": "Traced by reading; not executed. subtitle.py:134 checks only the disk, so the carry lands on a path held by a missing row. fileops.py:401-402 returns without checking the target when the source has no row, and :403-412 logs and returns when the target is taken, leaving the source row at a path with no file. The ghost then names the live file. purge_missing_file (:849-866) and purge_all_missing (:872-901) both reach physical_delete, whose :760-761 unlinks it; decisions.md:37 observed this for a missing row. A rescan first clears the risk for a missing ghost: existing at scanner.py:434-437 includes all rows, and :462-464 recovers it. Reachable in normal use: decisions.md:49 shows how a row becomes missing, after which a rename onto that name and a purge before any rescan delete the carried subtitle. A trashed ghost additionally needs its file gone from disk, because otherwise :134 refuses the move. The test at test_sidecar_subtitles_follow_video.py:313-330 pins only the source row's place and the video's filename."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "sidecar-row-lookup-uses-the-listed-name",
+      "status": "confirmed",
+      "note": "Traced by reading; not executed. subtitle.py:120-124 and :140 keep the listed Path, fileops.py:439 passes its raw relative path, and :398 compares it for equality, while scanner.py:458 normalizes. A miss returns silently at :401-402 with no log, and the row then keeps the old path. The trigger is narrower than the claim's wording suggests: upload.py:118 and :186-190 write the file under the NFC name, so an uploaded sidecar is listed in NFD only where the filesystem rewrites names to NFD or the file was renamed outside the app. test_listing_call_inventory.py:3-6 names that host condition. The test at test_sidecar_subtitles_follow_video.py:194-205 has no row, and the decisions.md:17 NFD walk used placed files."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "follow-row-branches-unpinned",
+      "status": "confirmed",
+      "note": "Read the tests. _place, the tagless upload and the folders a, b and z leave tags, title and the root branch unpinned. test_failing_sidecar_does_not_fail_the_rename (:125-142) makes shutil.move fail, not the row update, so fileops.py:442-444 is not forced. TestScanKeepsUploadedSubtitles uses ASCII names and reads only missing_since, so scanner.py:458 normalization is unpinned; removing :464 would drop the files.recovered event (:802-803) and the count (:876) without failing it. One detail in the evidence is imprecise: the manual walks observed the title more than once (decisions.md:33, :35 and :47), not once. The drive root (:35) is covered and tags are not, as claimed. Mutation not run, as no execution tool is available."
+    }
+  ],
+  "specification_compliance": [
+    "The specification documents themselves were not checked. The records above were checked against the code at the working tree and the decisions.md run log.",
+    "decisions.md:47 records no difference in the fourth run, but that walk left keep.txt in the source folder and moved only the video card, so it could not expose the empty-folder or batch-move findings."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "move_file's files.moved event lists only the ids the caller moved (files.py:361-363 and :379-382). A carried subtitle row changes its drive and path without appearing in that event. Whether any addon needs it was not checked, so this is not reported as a defect.",
+    "SelectionBar.tsx:135-140 discards the batch move response body, so per-file errors from that route are not shown. This code path appears independent of the change; its history was not checked."
+  ],
+  "regression_risks": [
+    "The row carry runs after the video's commit, in its own commit per sidecar, so a failed row update leaves the file moved and the row at the old path, with only a log entry (fileops.py:442-444).",
+    "Scanner recovery at scanner.py:462-464 can reactivate a ghost row that a carried sidecar landed on, attaching the ghost's metadata to that file while the carried row is later flagged missing."
+  ],
+  "test_coverage": [
+    "test_sidecar_subtitles_follow_video.py has no /batch/move case and no EmptyFolder assertion.",
+    "Row-follow tests compare only drive, folder_path, filename and file_path.",
+    "No test puts a row on an NFD-listed sidecar, and no test asserts the ghost row or the on-disk file after a target collision."
+  ],
+  "not_verified": [
+    "No test, app or mutant was executed, because only Read, Glob and Grep are available; every confirmation comes from reading the code.",
+    "The working tree was read as the commit under review; the commit and its diff against origin/develop could not be compared directly.",
+    "introduced versus pre-existing was not established from a diff for any finding.",
+    "Actual NFD listing behavior on the deployment filesystem was not observed.",
+    "Other references that could depend on a subtitle row's path, such as the search index or addon consumers of files.moved, were not traced."
+  ],
+  "confidence": 85
+}

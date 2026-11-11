@@ -1,0 +1,275 @@
+{
+  "risk": "CRITICAL",
+  "score": 12,
+  "base": 3,
+  "zone_max": "HIGH",
+  "modifiers": [
+    "schema"
+  ],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "backend/app/database.py",
+      "level": "HIGH"
+    },
+    {
+      "path": "backend/app/models.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/routers/drives.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/routers/progress.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/routers/shelves.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/tests/test_api_shelves_continue.py",
+      "level": "LOW"
+    },
+    {
+      "path": "backend/tests/test_continue_desk.py",
+      "level": "LOW"
+    },
+    {
+      "path": "backend/tests/test_database_migration_dismissed_at.py",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/ADDON-DEVELOPMENT.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/addons/media-import.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/reference/api.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/home-continue-desk.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/comments-history.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/file-browsing.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/overview.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/playlists-favorites.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/profile-preferences.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/reading.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/video.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/viewers-and-players.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/src/__tests__/DriveHome.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/accent-budget.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/driveHomeFailureState.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/driveHomeSectionOrder.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/homeContinueDesk.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/drive/[name]/__tests__/layout.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/ContinueWatchingSection.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/DriveHome.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/EmptyState.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileContextMenu.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FolderBrowser.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/DriveHome.driveChange.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/DriveHome.icons.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/EmptyState.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/FolderBrowser.continueView.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/SidebarActiveRow.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/SidebarAddonNav.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/folder/FolderContent.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/useFolderFiles.continue.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/folder/useFolderFiles.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/DiscoverFace.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/ReadingShelfPage.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingApp.continueDesk.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingApp.discover.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/useDiscover.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/SidebarLibrarySection.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/SidebarDriveSwitcher.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/continueRow.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/fixedRows.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/DiscoverFace.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.continueDesk.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.navigation.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.states.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/labels.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/useDiscover.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/hooks/useFileMenuItems.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/__tests__/pageJump.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/api.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/driveViews.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/pageJump.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone HIGH (8 points)",
+    "modifiers: schema"
+  ]
+}

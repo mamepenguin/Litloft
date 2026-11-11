@@ -29,6 +29,13 @@
       "confirmLabel": "Discard and navigate"
     }
   },
+  "appShell": {
+    "manage": "Manage…",
+    "manageTitle": "Shown targets",
+    "done": "Done",
+    "searchTargets": "Search smart folders",
+    "seeAllIn": "See all: {name}"
+  },
   "metadata": {
     "description": "Home LAN file management & media streaming"
   },
@@ -37,6 +44,7 @@
   },
   "sidebar": {
     "home": "Home",
+    "inbox": "Inbox",
     "library": "Library",
     "views": "Views",
     "sources": "Sources",
@@ -70,21 +78,26 @@
     },
     "clearTag": "Clear tag filter",
     "lock": "Lock",
-    "administration": "Administration"
+    "administration": "Administration",
+    "video": "Video",
+    "reading": "Reading",
+    "continue": "Continue"
   },
   "drive": {
+    "appsNav": "Apps",
     "empty": "No drives found",
     "emptyDescription": "Configure drives.json to add drives.",
     "pickup": "Pickup",
     "recentAdded": "Recently Added",
     "favorites": "Favorites",
     "liked": "Liked",
-    "continueWatching": "Continue Watching",
+    "continueWatching": "Continue",
     "recentlyViewed": "Recently Viewed",
     "greeting": "Welcome back, {name}",
     "fileCount": "{count, plural, one {# file} other {# files}}",
     "emptyDrive": "No files yet",
-    "unlockAccess": "Enter password"
+    "unlockAccess": "Enter password",
+    "couldNotRemoveFromContinue": "Could not remove from Continue"
   },
   "folder": {
     "items": "{count} items",
@@ -224,7 +237,8 @@
     "epubCloseContents": "Close contents",
     "epubUntitled": "Untitled",
     "epubTypographyReset": "Reset",
-    "markdownViewMode": "View"
+    "markdownViewMode": "View",
+    "removeFromContinue": "Remove from Continue"
   },
   "search": {
     "label": "Search",
@@ -267,14 +281,89 @@
     "recentFiles": "Recent files",
     "recentSearches": "Recent searches",
     "sceneSearchToggle": "Scene search",
-    "sceneSearchHint": "Find specific moments inside videos",
+    "sceneSearchToggleShort": "Scenes",
     "semanticPending": "Also searching by meaning…",
+    "showMoreBySimilarity": "Show more by similarity",
     "scopeRemove": "Remove the {label} scope",
     "scopeSeeAll": "See all {label} matching “{query}”",
     "hintSelect": "Select",
     "hintOpen": "Open",
     "hintRemoveScope": "Remove scope",
-    "driveRoot": "Drive root"
+    "driveRoot": "Drive root",
+    "queryField": "Search query",
+    "filters": "Filters",
+    "removeFilter": "Remove {label} {value}",
+    "removeFilterOnly": "Remove {label}",
+    "addFilter": "Add filter",
+    "addFilterWord": "Filter",
+    "filterTag": "Tag",
+    "filterKind": "Type",
+    "filterPath": "Folder",
+    "filterCollection": "Collection",
+    "filterFavorite": "Favorites",
+    "filterBack": "Back",
+    "filterTagSearch": "Filter tags",
+    "filterTagsLoading": "Loading tags…",
+    "filterTagsFailed": "Could not load tags",
+    "filterTagsNone": "This drive has no tags",
+    "filterTagsNoMatch": "No matching tags",
+    "filterFolderSearch": "Filter folders",
+    "filterFoldersLoading": "Loading folders…",
+    "filterFoldersFailed": "Could not load folders",
+    "filterFoldersNone": "This drive has no folders",
+    "filterFoldersNoMatch": "No matching folders",
+    "filterCollectionSearch": "Filter collections",
+    "filterCollectionsLoading": "Loading collections…",
+    "filterCollectionsFailed": "Could not load collections",
+    "filterCollectionsNone": "This drive has no collections",
+    "filterCollectionsNoMatch": "No matching collections",
+    "filterSize": "Size",
+    "filterLength": "Length",
+    "filterSizeUnder10MB": "Under 10 MB",
+    "filterSize100MBOrMore": "100 MB or more",
+    "filterSize1GBOrMore": "1 GB or more",
+    "filterDurationUnder5Min": "Under 5 min",
+    "filterDuration30MinOrMore": "30 min or more",
+    "filterDuration1HourOrMore": "1 hour or more",
+    "filterNoPreset": "No more conditions available",
+    "viewLabel": "Show",
+    "viewFiles": "Files",
+    "viewPassages": "Passages",
+    "passageCount": "{files, plural, one {# file} other {# files}} · {passages, plural, one {# passage} other {# passages}}",
+    "passageCountShort": "{passages, plural, one {# passage} other {# passages}}",
+    "passageList": "Passages",
+    "passagePictureText": "Text in picture",
+    "passageText": "Text",
+    "passageScreenText": "Text in video",
+    "moreInFile": "More in this file →",
+    "moreInFileName": "More passages in {file}",
+    "passagesFailed": "Couldn't load passages",
+    "showFiles": "Show files",
+    "clearFilter": "Clear filters",
+    "retry": "Retry",
+    "searchByImage": "Search by image",
+    "image": "Image",
+    "removeImage": "Remove image",
+    "imageSearch": "Image search",
+    "dropToSearchByImage": "Drop to search by this image",
+    "imageDocuments": "Documents with this text",
+    "imagePictures": "Similar pictures",
+    "imageScenes": "Similar scenes in videos",
+    "imageScopeDocuments": "Documents",
+    "imageScopePictures": "Pictures",
+    "imageScopeScenes": "Scenes",
+    "imageScopeZero": "0 results",
+    "imageTooLarge": "This image is too large (up to 20 MB and 50 megapixels)",
+    "imageUnreadable": "This image couldn't be read",
+    "imageOneOnly": "Choose one image",
+    "imageDriveLocked": "This drive is locked",
+    "imageUnavailable": "Image search isn't available on this drive",
+    "imageFailed": "Couldn't search by this image",
+    "imageGone": "Choose the image again",
+    "imageEmpty": "Nothing similar was found",
+    "imageTextFailed": "Couldn't read the text in this image",
+    "imageScenesPartial": "Some scenes in this drive may be missing",
+    "imageScopeSeparator": " · "
   },
   "smartFolder": {
     "sectionTitle": "Smart Folders",
@@ -374,7 +463,14 @@
     "statusProcessing": "Processing",
     "statusComplete": "Complete",
     "statusError": "Error",
-    "statusCancelled": "Cancelled"
+    "statusCancelled": "Cancelled",
+    "destinationFolderNotFound": "The destination folder was not found",
+    "lockConfirmTitle": "Uploads in progress",
+    "lockConfirmMessage": "Locking interrupts the uploads in progress.",
+    "stageSaved": "Saved",
+    "stageUnavailable": "Not available right now",
+    "ready": "Ready",
+    "someStepsFailed": "Some steps failed"
   },
   "collection": {
     "addToCollection": "Add to collection",
@@ -460,6 +556,7 @@
     "rootBreadcrumb": "Archive",
     "loadFailed": "Failed to load archive: {error}",
     "fileCount": "{count} files / {size}",
+    "resume": "Resume ({position} / {total})",
     "downloadArchive": "Download archive",
     "emptyFolder": "This folder is empty",
     "downloadFile": "Download {name}",
@@ -519,7 +616,9 @@
     "homeUnavailableTitle": "Couldn't load this drive",
     "homeUnavailableDescription": "Nothing could be fetched just now. This does not mean the drive is empty.",
     "addFilesAction": "Add files",
-    "openLibraryAction": "Open Library"
+    "openLibraryAction": "Open Library",
+    "noContinueTitle": "Nothing in progress",
+    "noContinueDescription": "Files you opened in the last two weeks and stopped part-way appear here."
   },
   "theme": {
     "system": "System",
@@ -779,6 +878,13 @@
     "loadFailed": "Failed to load: {error}",
     "tooLargeToDecorate": "Too large for line numbers and colour — shown as plain text."
   },
+  "highlight": {
+    "add": "Highlight",
+    "remove": "Remove",
+    "saveFailed": "Could not save the highlight",
+    "removeFailed": "Could not remove the highlight",
+    "limitReached": "Highlight limit reached"
+  },
   "batchRename": {
     "title": "Batch Rename",
     "modeTemplate": "Template",
@@ -950,6 +1056,7 @@
     },
     "tabs": {
       "info": "Info",
+      "find": "Find",
       "chapters": "Chapters",
       "pages": "Pages",
       "related": "Related"
@@ -969,6 +1076,37 @@
     "tablistLabel": "Inspector sections",
     "collapseSheet": "Collapse the sheet",
     "expandSheet": "Open the sheet"
+  },
+  "find": {
+    "button": "Find in this file",
+    "shortcutLabel": "Find in this file",
+    "inputLabel": "Search term",
+    "inputPlaceholder": "Find in this file",
+    "previous": "Previous occurrence",
+    "next": "Next occurrence",
+    "close": "Close find",
+    "count": "{count} found",
+    "countTruncated": "{count}+ found",
+    "current": "{index} / {total}",
+    "currentTruncated": "{index} / {total}+",
+    "truncatedList": "Showing the first 2000 matches",
+    "listLabel": "Matches",
+    "notIndexed": "This file has not been indexed for search yet",
+    "noHits": "No matches",
+    "unavailable": "This file cannot be searched",
+    "failed": "Search failed",
+    "retry": "Retry",
+    "category": {
+      "all": "All",
+      "utterance": "Utterance",
+      "scene": "On-screen text",
+      "text": "Body text",
+      "picture_text": "Text in image"
+    },
+    "locator": {
+      "page": "p. {page}",
+      "section": "Section {section}"
+    }
   },
   "comments": {
     "title": "Comments",
@@ -1241,10 +1379,30 @@
     "filterUnreviewedHint": "Nobody has ruled on these, migrated files included",
     "filterLabel": "Verification"
   },
+  "inbox": {
+    "title": "Inbox",
+    "scope": "{drive} · {count} items",
+    "scopeOne": "{drive} · 1 item",
+    "markAllDone": "Mark all done",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "yesterdayAt": "Yesterday {time}",
+    "earlier": "Earlier",
+    "root": "Root",
+    "done": "Done",
+    "markedDone": "Marked {count} done",
+    "undo": "Undo",
+    "emptyTitle": "Inbox is empty",
+    "emptyDescription": "New arrivals appear here",
+    "sourceUpload": "Upload",
+    "sourceShare": "Shared",
+    "selectArrival": "Select {name}"
+  },
   "pageJump": {
     "section": "Go to",
     "aliases": {
       "home": "start",
+      "inbox": "arrivals,new",
       "library": "folders",
       "favorites": "favourites,star,starred",
       "liked": "like,thumbs up",
@@ -1262,5 +1420,98 @@
     "browseNoMatch": "Nothing here matches",
     "browseUp": "Up one level",
     "suggestions": "Suggestions"
+  },
+  "videoApp": {
+    "title": "Video",
+    "tabsLabel": "Video views",
+    "discover": "Discover",
+    "library": "Library",
+    "videoCount": "{formatted} {count, plural, one {video} other {videos}}",
+    "target": "Target",
+    "allVideos": "All videos",
+    "targetUnavailable": "Not available as a target",
+    "classification": "Classification",
+    "classifications": {
+      "folder": "Folder",
+      "tag": "Tag",
+      "month": "Month added",
+      "duration": "Length",
+      "watch": "Watch state"
+    },
+    "shelves": {
+      "continue": "Continue",
+      "recommended": "Recommended",
+      "new": "New"
+    },
+    "noTag": "No tag",
+    "watch": {
+      "in_progress": "In progress",
+      "unwatched": "Unwatched",
+      "finished": "Finished"
+    },
+    "length": {
+      "under_10m": "Under 10 min",
+      "10_to_30m": "10 to 30 min",
+      "30m_plus": "30 min or more"
+    },
+    "sort": {
+      "label": "Sort",
+      "lastOpened": "Last opened",
+      "addedNewest": "Added (newest first)",
+      "addedOldest": "Added (oldest first)",
+      "title": "Title",
+      "size": "Size"
+    },
+    "seeAllIn": "See all: {name}"
+  },
+  "readingApp": {
+    "title": "Reading",
+    "tabsLabel": "Reading views",
+    "discover": "Discover",
+    "library": "Library",
+    "bookCount": "{formatted} {count, plural, one {book} other {books}}",
+    "target": "Target",
+    "allBooks": "All books",
+    "targetUnavailable": "This target cannot be used",
+    "targetUnusable": "This target cannot be used",
+    "noBooks": "No books",
+    "shelves": {
+      "continue": "Continue reading",
+      "notReadYet": "Not read yet",
+      "new": "New",
+      "in_progress": "Continue reading",
+      "unwatched": "Not read yet",
+      "finished": "Finished"
+    },
+    "all": "All",
+    "group": {
+      "label": "Group",
+      "none": "None",
+      "byTag": "By tag"
+    },
+    "state": {
+      "label": "State",
+      "all": "All",
+      "unwatched": "Unread",
+      "in_progress": "In progress",
+      "finished": "Finished"
+    },
+    "tag": "Tag",
+    "tagNone": "None specified",
+    "noTags": "No tags",
+    "noTag": "No tag",
+    "sort": {
+      "label": "Sort",
+      "lastOpened": "Last opened",
+      "addedNewest": "Added (newest first)",
+      "addedOldest": "Added (oldest first)",
+      "title": "Title",
+      "size": "Size"
+    },
+    "formats": {
+      "epub": "EPUB",
+      "pdf": "PDF",
+      "archive": "Archive"
+    }
   }
 }

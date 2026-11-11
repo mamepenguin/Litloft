@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "CR-1",
+      "origin": "reviewer",
+      "claim": "The change declares no touch-point list (no spec under docs/specs/ and no invariants.md for topic feature-design-conformance-check), so both places it reaches, the new .claude/agents/design-checker.md and the new review rule in docs/process/PROJECT.md:72-86, are outside any declared touch-point list.",
+      "impact": "No user-facing behavior is affected; the change is docs/process only. A reader cannot check the scope against a plan, and future reviews have no invariant to hold the new design-check rule to.",
+      "evidence": "Grep for 'design-check|design-checker|conformance' finds only PROJECT.md, the new agent file and earlier review records; docs/process/reviews/feature-design-conformance-check/ contains only r1/ (head.txt, expected.txt, classification.json, fixes.txt), with no spec or invariants.md. classification.json lists zones_touched .claude/agents/design-checker.md and docs/process/PROJECT.md, docs_only true.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant exists to break; this is a process/scope gap in a docs-only change, not a defect a user can hit.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Either add a short spec with ## Touch points listing these two files, or accept the docs-only change without a spec explicitly in decisions.md."
+    }
+  ],
+  "specification_compliance": [
+    "No spec or invariants file exists for this change, so there is no touch-point list to compare against; every reached place is therefore undeclared (CR-1).",
+    "The change touches only .claude/agents/design-checker.md (new) and docs/process/PROJECT.md (lines 72-86); no code, tests, gates or CI files are touched."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "PROJECT.md:80-81 now requires R-5 to screenshot every artboard at the artboard's width plus the phone width, but .claude/agents/r5-runner.md, the agent that performs R-5, was not updated and gives no such instruction; this is a place the diff does not reach rather than an extra place it reaches."
+  ],
+  "regression_risks": [
+    "The ship rule in PROJECT.md:84-86 (no ship while a D- finding is neither fixed nor accepted in decisions.md) is prose only; nothing in review.sh, precheck or CI checks for design-check.md or D- acceptance, so a change can still ship with unresolved D- findings unnoticed.",
+    "r5-runner.md was not updated to take the artboard-width screenshots, so design-checker may report many 'not shown in R-5' findings until it is."
+  ],
+  "test_coverage": [
+    "Docs-only change; no tests apply and none were added. No gate enforces the new design-check step."
+  ],
+  "not_verified": [
+    "Did not read scripts/process/review.sh or process/process.conf to confirm none of them reference design-check.md or need updating.",
+    "Did not read docs/process/workflow.md R-5 section to check consistency with the new screenshot requirement.",
+    "Did not check whether any harness hook restricts the design-checker agent's Write tool to the review directory."
+  ],
+  "confidence": 80
+}

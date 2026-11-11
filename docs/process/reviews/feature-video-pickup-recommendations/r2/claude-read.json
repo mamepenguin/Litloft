@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R2-1",
+      "origin": "reviewer",
+      "claim": "When a provider shelf's inputs change, useDiscover resets Recommended and the addon shelf states to loading/idle inside useEffect, so the first render after the change still gives DiscoverFace the previous target's loaded items. useLoad, by contrast, derives loading during render.",
+      "impact": "For one React commit after a target, catalogue or profile change, Recommended or an addon shelf is in the DOM with the previous target's videos. A target picked by a click is a discrete event, so React flushes the passive effect before paint and the user is unlikely to see it. A params change from a non-discrete source, such as an async smart-folder refresh, can paint that frame. The spec's own unit test for this case does not catch it.",
+      "evidence": "frontend/src/components/videoapp/useDiscover.ts:152-158 and :201-210 call setRecommended({status:'loading'}) and setShelfStates(...) only inside the effect. useDiscover.ts:290-300 return the stale `recommended` and `shelfStates` in the same render. frontend/src/components/appshell/useLoad.ts:17-21 and :49-52 document and implement the rule that a changed `load` reads as loading at once, so no frame shows the old inputs' result. VideoApp.discoverProviders.test.tsx 'I11 hides a shelf while it re-runs for a new target' asserts with waitFor, so a single stale commit passes it.",
+      "repro": "not_reproduced. Read the code: render N+1 with new params reaches DiscoverFace with recommended.state still {status:'loaded', data: old}, and providerDrawn() returns true until the effect commits.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I11 says a provider result whose target or profile has since changed is never drawn, and the spec says the shelf is not drawn until its new answer settles. The DOM briefly holds the old result.",
+        "invariant_ref": "I11"
+      },
+      "severity": "LOW",
+      "proposed_fix": "Tag each provider state with the inputs it was computed for (drive, params, hasProfile, entries key, onViewerRejected), as useLoad does with `load`. Treat a mismatch as loading during render, and add a test that asserts synchronously right after a target change."
+    },
+    {
+      "id": "R2-2",
+      "origin": "reviewer",
+      "claim": "The page-jump entry `continue`, which came in with the develop merge, has no `pageJump.aliases.continue` message, so every page logs MISSING_MESSAGE.",
+      "impact": "Console noise on every page, and the Continue jump has no aliases. Discover is not affected.",
+      "evidence": "frontend/src/lib/pageJump.ts adds key 'continue'. frontend/src/components/search/useJumpDestinations.ts:137 reads t(`pageJump.aliases.${jump.key}`). frontend/src/messages-core/en.json:1402-1414 has no `continue` alias. decisions.md records MISSING_MESSAGE pageJump.aliases.continue as seen in R-5 and identical on origin/develop.",
+      "repro": "Open any drive page and check the console for MISSING_MESSAGE pageJump.aliases.continue (recorded in decisions.md).",
+      "introduced": "pre-existing",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is on origin/develop, outside this change, and breaks no declared invariant.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add pageJump.aliases.continue in en.json and ja.json, in develop rather than on this branch."
+    }
+  ],
+  "specification_compliance": [
+    "The merge resolution is consistent with I7 and the revised SPEC-CORE-057 I8. useDiscover's Continue uses key=continue (useDiscover.ts:252-275), and DiscoverFace's See all goes to key=continue. Recommended has no See all, and the shelves are drawn Continue · Recommended · addon · New.",
+    "I6: with no slot entries, no restrict or random request is sent. The tests VideoApp.test.tsx and discoverProviders 'I6' were updated to key=continue in 6217b72.",
+    "I11: a drive switch remounts VideoApp (app/drive/[name]/apps/video/page.tsx:10, key={driveName}), so no cross-drive state carries over. A nickname change alters rejectViewer's identity, which is in both provider effects' deps, so the providers rerun.",
+    "The commit under review, fc2eec906, records the R-5 rerun in docs/process. Its evidence (decisions.md) matches the merged code paths."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "addonShelves is built from the current catalogue entries even while catalogueReady is false. Titles and hrefs could come from a stale catalogue, but the states are idle then, so nothing is drawn."
+  ],
+  "regression_risks": [
+    "The develop merge changed Continue from in_progress to the desk (key=continue). Discover's empty state now counts a desk that can be empty while in-progress videos exist. This is intended by SPEC-CORE-071.",
+    "Provider-state resets happen in effects (R2-1). This is safe only while target changes come from discrete events."
+  ],
+  "test_coverage": [
+    "VideoApp.discoverProviders.test.tsx covers I3–I7, I10, I11, I13 and I14 with mocks. The re-run and drive-switch cases use waitFor, so they cannot detect a single stale commit.",
+    "VideoApp.continueDesk.test.tsx now waits on the Continue card instead of the removed random Recommended card.",
+    "Backend test_api_shelves_ids.py covers I1 limits and narrowing. No test combines ids with by=watch&key=continue, and Discover does not use that combination."
+  ],
+  "not_verified": [
+    "I did not run any test, e2e spec or the app. R2-1 is inferred from React's commit and effect ordering.",
+    "I did not read the bumped submodule sources beyond the provided diff.",
+    "I did not verify that no non-discrete path changes params while Discover is shown."
+  ],
+  "confidence": 75,
+  "trajectory": "The rounds since r1 do not patch this design. b8ecfe1 changes only spec status. The develop commits (c5bda03, 55c6541 and the test-wait fixes) are separate features. The merge b637710 swaps the Continue key from in_progress to continue in useDiscover and DiscoverFace, and adds no branch, state or prediction to the provider design. 848db3b only pins submodules. 6217b72 updates test fixtures to the new key and removes a wait on the deleted random Recommended. fc2eec9 records the R-5 rerun. No round re-adds a branch that an earlier round added, and no round removes one."
+}

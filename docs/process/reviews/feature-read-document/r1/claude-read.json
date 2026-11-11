@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The diff changes `mcp-server/src/tools/search.ts`, a file that is not in the touch-point list: it exports `withoutAvailable` and `intelligenceGet`, which were private to the search tools, so `read_document` can reuse them.",
+      "impact": "Today the change has no behavioral effect. It does make `read_document`'s request path (URL prefix, the X-Lit-Drive encoding) and its response post-processing (dropping a top-level `available` key) depend on helpers owned by the search tools. A later edit to those helpers for search reasons would silently change `read_document`, and no invariant at this touch point names that coupling. I10 requires the body to be returned 'unchanged in content', and `withoutAvailable` deletes a key.",
+      "evidence": "mcp-server/src/tools/search.ts:7 `export function withoutAvailable`, :15 `export function intelligenceGet`; mcp-server/src/tools/documents.ts:2 imports both and wraps the endpoint body in `withoutAvailable(...)`.",
+      "repro": "not_reproduced. In a read of the code, the document-text response has no `available` field (addons/intelligence/app/schemas.py DocumentTextResponse), so stripping it is a no-op today.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is an unplanned touch point. It breaks no declared invariant today, but it is a candidate for an I10-style invariant at the shared helpers.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add `mcp-server/src/tools/search.ts` (the shared intelligence request helpers) to the touch points, or call the client directly in documents.ts without `withoutAvailable`."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The diff adds a new module, `addons/intelligence/app/document_text.py`, which is not in the touch-point list. It holds the reader slots, the PyMuPDF lock acquisition for reads, the per-format unit extraction and the cursor arithmetic (`page_units`).",
+      "impact": "Almost all of the logic behind I2, I5 and I8 lives in a module that the touch points do not name. The list names only `app/routers/` (a new module), the extractors and schemas. Invariants were scoped against those places, not against a separate module-level semaphore and lock-acquisition path.",
+      "evidence": "addons/intelligence/app/document_text.py:43-45 `_slots = threading.BoundedSemaphore(SLOTS)`; :82-89 `extract_units`; :92-112 `page_units`; :130-137 `_pdf_units` takes `pdf.PYMUPDF_LOCK`; it also reaches the private EPUB internals `epub._ByteBudget`, `epub._read_book` and `epub._encrypted_paths` (:207-213).",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is an unplanned touch point. The behavior is covered by the existing invariants I2, I5 and I8, so no invariant is broken.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add `addons/intelligence/app/document_text.py` to the touch points."
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "The diff changes `addons/intelligence/Dockerfile.test`, which is not in the touch-point list: it installs PyMuPDF, pymupdf4llm, python-docx, openpyxl and python-pptx into the test image.",
+      "impact": "The test image's dependency set changes. The other office libraries are pinned with `>=` rather than to the requirements.txt versions, so the image used to check I9 (extract output unchanged) can drift from production, and the check could pass on library versions that production does not run.",
+      "evidence": "addons/intelligence/Dockerfile.test:45-49 `PyMuPDF==1.25.5 pymupdf4llm==0.0.17 \"python-docx>=1.1.0\" \"openpyxl>=3.1.0\" \"python-pptx>=1.0.0\"`.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is an unplanned touch point (build/test infrastructure). It breaks no declared invariant.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add `addons/intelligence/Dockerfile.test` to the touch points; install the readers from requirements.txt so the versions match."
+    },
+    {
+      "id": "TP-4",
+      "origin": "reviewer",
+      "claim": "Through `PYMUPDF_LOCK` in `PdfExtractor.extract`, the diff reaches the indexing worker's text-content path (`app/workers/metadata.py` `index_text_content`, run by `app/indexer.py` in `asyncio.to_thread`). The touch-point list names `pdf.py` only for per-unit text functions shared with `extract()`, not for indexing concurrency.",
+      "impact": "PDF indexing now serializes with every PDF read and with other PDF indexing, and it waits on the lock with no timeout. A text-content worker therefore blocks for as long as a read holds the lock (up to 10 page conversions). The human-decided revision covers this intent, but no invariant covers what happens to indexing at that point (for example, that indexing still makes progress, or does not wait without bound).",
+      "evidence": "addons/intelligence/app/extractors/pdf.py:64-69 `with PYMUPDF_LOCK:` wraps both the primary and the fallback extraction; app/workers/metadata.py:344 calls `_extract_file_content` → `extractor.extract`; app/indexer.py:1421 `await asyncio.to_thread(index_text_content, ...)`.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is an unplanned reach into the indexing worker's concurrency. The decision was made by the human, but it is not in the touch-point list and no declared invariant covers it.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add the indexing text-content worker (PDF extraction under the shared PyMuPDF lock) to the touch points."
+    }
+  ],
+  "specification_compliance": [
+    "Files changed in the core repo map to listed touch points: the submodule pointer, docs/addons/intelligence.md, mcp-server/README.md, mcp-server/src/tools/{documents,index,read}.ts, src/server.ts and src/__tests__/*. The exception is mcp-server/src/tools/search.ts (TP-1).",
+    "Files changed in the submodule map to listed touch points: extractors/{pdf,office,epub}.py, routers/document_text.py, main.py, schemas.py, manifest.json and tests/. The exceptions are app/document_text.py (TP-2) and Dockerfile.test (TP-3).",
+    "docs/specs/* and INDEX.md are implicit touch points and are not reported.",
+    "All PyMuPDF imports in app/ are in extractors/pdf.py and app/document_text.py, so the lock covers every PyMuPDF use, as the revision requires."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "PDF indexing waits on PYMUPDF_LOCK with no timeout while reads hold it; nothing specifies indexing's behavior there.",
+    "read_document applies the search tools' `withoutAvailable` post-processing to the endpoint body."
+  ],
+  "regression_risks": [
+    "A change to search.ts helpers made for search reasons would silently alter read_document's requests or responses.",
+    "Office libraries pinned with >= in Dockerfile.test can drift from production, weakening the I9 check."
+  ],
+  "test_coverage": [
+    "test_document_text_pymupdf_lock.py covers a read overlapping indexing, but not indexing latency while reads hold the lock.",
+    "readDocument.test.ts checks that the body comes back unchanged, but only with a body that has no `available` key."
+  ],
+  "not_verified": [
+    "I did not run any tests or builds.",
+    "I did not inspect the submodule commit history to confirm the diff shown equals commit 0da36fcf4's tree.",
+    "I did not check whether Dockerfile.test's unpinned versions differ from requirements.txt in practice.",
+    "I did not deeply verify the correctness of the cursor or EPUB budget logic against I2 and I5; the question was scoped to touch points."
+  ],
+  "confidence": 85
+}

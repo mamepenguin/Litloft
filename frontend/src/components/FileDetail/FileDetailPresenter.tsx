@@ -5,6 +5,7 @@ import type { ReactNode, RefObject } from "react";
 import type { FileItem } from "@/types";
 import type { MediaController } from "@/lib/mediaController";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
+import type { DocumentController } from "@/lib/documentController";
 import { ActiveSummaryHost } from "../ActiveSummaryHost";
 import { AddonSlot } from "../AddonSlot";
 import { CommentSection } from "../CommentSection";
@@ -21,10 +22,13 @@ export interface FileDetailPresenterProps {
   drive: string;
   isMobile: boolean;
   ridesShell: boolean;
+  findEnabled: boolean;
   isHtmlPreview: boolean;
   companionKind: string | null;
   hasPlayer: boolean;
   usesCanvasViewer: boolean;
+  plainTextDocument: boolean;
+  hasInspector: boolean;
   descriptionInCanvas: boolean;
   playerFramed: boolean;
   railEligible: boolean;
@@ -40,6 +44,7 @@ export interface FileDetailPresenterProps {
   mediaController: MediaController | null;
   onMediaController: (mc: MediaController | null) => void;
   onDocumentCaptureController: (c: DocumentCaptureController | null) => void;
+  onDocumentController: (c: DocumentController | null) => void;
   videoRef: RefObject<HTMLVideoElement | null>;
   initialTime?: number;
   initialPage?: number;
@@ -67,10 +72,13 @@ export function FileDetailPresenter({
   drive,
   isMobile,
   ridesShell,
+  findEnabled,
   isHtmlPreview,
   companionKind,
   hasPlayer,
   usesCanvasViewer,
+  plainTextDocument,
+  hasInspector,
   descriptionInCanvas,
   playerFramed,
   railEligible,
@@ -86,6 +94,7 @@ export function FileDetailPresenter({
   mediaController,
   onMediaController,
   onDocumentCaptureController,
+  onDocumentController,
   videoRef,
   initialTime,
   initialPage,
@@ -109,9 +118,12 @@ export function FileDetailPresenter({
         fileId={fileId}
         drive={drive}
         isMobile={isMobile}
+        findEnabled={findEnabled}
         isHtmlPreview={isHtmlPreview}
         hasPlayer={hasPlayer}
         usesCanvasViewer={usesCanvasViewer}
+        plainTextDocument={plainTextDocument}
+        hasInspector={hasInspector}
         descriptionInCanvas={descriptionInCanvas}
         companionMountable={companionMountable}
         companionOccupied={companionOccupied}
@@ -126,6 +138,7 @@ export function FileDetailPresenter({
         mediaController={mediaController}
         onMediaController={onMediaController}
         onDocumentCaptureController={onDocumentCaptureController}
+        onDocumentController={onDocumentController}
         videoRef={videoRef}
         initialTime={initialTime}
         initialPage={initialPage}
@@ -175,6 +188,7 @@ export function FileDetailPresenter({
       highlight={highlight}
       onMediaController={onMediaController}
       onDocumentCaptureController={onDocumentCaptureController}
+      onDocumentController={onDocumentController}
       markdownReloadKey={markdownReloadKey}
       onMarkdownTagsSaved={onMarkdownTagsSaved}
       miniPlayerRoot={miniPlayerRoot}

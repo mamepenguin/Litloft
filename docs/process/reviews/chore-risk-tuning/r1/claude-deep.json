@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [],
+  "specification_compliance": [
+    "First-review question (places the diff reaches outside the touch-point list): the answer is empty. This change has no invariants file, so there is no declared touch-point list to compare against. The only places reached are process/reviewers.conf (from the branch commit ac703453d) and docs/process/reviews/chore-risk-tuning/decisions.md (from the reviewed commit 3306844cb, 'record R-5'). The second is an implicit touch point under docs/process/reviews/.",
+    "The new row at process/reviewers.conf:24 has 5 '|'-separated fields and the id 'claude-deep', which matches [a-z0-9._-] and is not on the reserved-id list. Engine is claude and role is read, which parse_conf accepts. min_risk CRITICAL passes rank(). No sixth field is present, so the 'too many fields' check at scripts/process/review.sh:110 does not fire. The id is not a duplicate of claude-read or claude-verify.",
+    "docs/process/reviews/chore-risk-tuning/r1/expected.txt lists claude-read, claude-verify and claude-deep for a CRITICAL classification. This is consistent with min_risk CRITICAL joining CRITICAL changes.",
+    "all_perspectives (scripts/process/review.sh:487-492) trims the comma list and removes duplicates. 'scope,submodules,persistence,concurrency' renders as the four perspectives this brief received."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The perspective names 'persistence' and 'concurrency' are the same strings as the modifier names in process/risk-zones.conf:59-60. Nothing in review.sh links them, so they are prompt text only and do not affect classification."
+  ],
+  "regression_risks": [
+    "The row only adds a read reviewer to CRITICAL reviews. A malformed row would make parse_conf die and stop every /review run, but this row parses cleanly against the code at scripts/process/review.sh:95-126. Litloft runtime code (backend, frontend, addons, Dockerfiles) does not read process/, so no user-facing behavior changes."
+  ],
+  "test_coverage": [
+    "No test covers parse_conf with the new row. I checked validity by reading the parser line by line instead. The reviewed commit 3306844cb changes only a decisions record, which has no executable behavior to test."
+  ],
+  "not_verified": [
+    "I could not run git, so I did not read the literal diff of 3306844cb. I inferred that it adds docs/process/reviews/chore-risk-tuning/decisions.md from the commit message and from grep results showing that only decisions.md and reviewers.conf mention this change.",
+    "I did not run scripts/process/review.sh or the classifier to confirm the row parses at runtime.",
+    "I did not check docs/specs/ or docs/specs/INDEX.md for a spec entry for this change."
+  ],
+  "confidence": 85,
+  "perspectives": [
+    {
+      "name": "scope",
+      "notes": "Only process/reviewers.conf (branch) and decisions.md (this commit) are reached. No backend, frontend, addon or build file is involved."
+    },
+    {
+      "name": "submodules",
+      "notes": "No submodule pointer or .gitmodules is touched. No change crosses into a submodule."
+    },
+    {
+      "name": "persistence",
+      "notes": "No database, filesystem-deletion or schema code is touched. Review artifacts under docs/process/reviews/ are the only written state."
+    },
+    {
+      "name": "concurrency",
+      "notes": "No async, thread or lock code is touched. An extra read reviewer runs as one more independent claude -p process, and each reviewer has its own artifact file named by its unique id."
+    }
+  ]
+}

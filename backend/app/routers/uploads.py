@@ -1,3 +1,4 @@
+import asyncio
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -8,6 +9,7 @@ from app.database import get_db
 from app.schemas import (
     ChunkResponse,
     FileResponse,
+    SubtitleUploadResponse,
     UploadInitRequest,
     UploadInitResponse,
     file_to_response,
@@ -38,6 +40,8 @@ def init_upload(
         folder_path=body.folder_path,
         chunk_size=body.chunk_size,
         relative_path=body.relative_path,
+        require_folder=body.require_folder,
+        inbox_source=body.inbox_source,
     )
     return UploadInitResponse(
         upload_id=session.upload_id,
@@ -65,7 +69,10 @@ async def upload_chunk(
     )
 
 
-@router.post("/{drive_name}/upload/{upload_id}/complete", response_model=FileResponse)
+@router.post(
+    "/{drive_name}/upload/{upload_id}/complete",
+    response_model=FileResponse | SubtitleUploadResponse,
+)
 async def complete_upload(
     drive_name: str,
     upload_id: str,
@@ -74,7 +81,16 @@ async def complete_upload(
 ):
     check_drive_access(drive_name, unlocked_groups)
     _validate_session_drive(upload_id, drive_name)
-    file_record, was_recovered = upload_service.complete_upload(upload_id, db)
+    file_record, was_recovered = await asyncio.to_thread(
+        upload_service.complete_upload, upload_id, db
+    )
+    if isinstance(file_record, SubtitleUploadResponse):
+        await event_hooks.emit("scan.complete", {
+            "drive": drive_name,
+            "added": 0,
+            "removed": 0,
+        })
+        return file_record
     if was_recovered:
         await event_hooks.emit("files.recovered", {"file_ids": [file_record.id]})
     await event_hooks.emit("scan.complete", {

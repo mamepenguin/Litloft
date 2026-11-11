@@ -10,16 +10,21 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 import app.config as config
-from app.models import TRUST_UNVERIFIED, File
+from app.models import TRUST_UNVERIFIED, File, FileExif
+from app.nanoid import generate_nanoid
 from app.services.atomic_write import replacing_file
+from app.services.diskpath import name_taken, new_or_409, resolve_on_disk
 from app.services.chapters import probe_file_chapters
+from app.services.exif import extract_exif
 from app.services.filetype import (
     classify,
     is_probeable_media,
     refine_classification_with_probe,
 )
 from app.services.image_dimensions import read_image_dimensions
-from app.services.tagops import cleanup_orphan_tags
+from app.services.scanner import _MD_READ_MAX_BYTES
+from app.schemas import SubtitleUploadResponse
+from app.services.tagops import cleanup_orphan_tags, project_frontmatter_tags
 from app.services.fileops import (
     _filename_to_title,
     untrack_empty_folder,
@@ -28,9 +33,13 @@ from app.services.fileops import (
     validate_path_safe,
     validate_within_drive,
 )
+from app.services.subtitle import is_subtitle_file
+from app.services import inbox as inbox_service
 from app.services.thumbnail import (
     get_thumbnail_generator,
     get_video_duration,
+    remove_thumbnail_quietly,
+    thumbnail_slot_rel,
     write_thumbnail_atomically,
 )
 from app.services.ws import broadcast_from_thread
@@ -65,6 +74,9 @@ class UploadSession:
     received_chunks: set[int] = field(default_factory=set)
     temp_dir: Path = field(default_factory=Path)
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    require_folder: bool = False
+    required_folder_path: str = ""
+    inbox_source: str | None = None
 
 
 def _merge_relative_into_folder(folder_path: str, relative_path: str) -> str:
@@ -105,6 +117,13 @@ def _check_disk_capacity(drive_path: Path, file_size: int) -> None:
         )
 
 
+def _require_destination_folder(drive_path: Path, folder_path: str) -> None:
+    target = resolve_on_disk(drive_path, folder_path) if folder_path else drive_path
+    validate_within_drive(target, drive_path)
+    if not target.is_dir():
+        raise HTTPException(status_code=404, detail="destination_folder_not_found")
+
+
 def init_upload(
     drive: str,
     filename: str,
@@ -112,21 +131,25 @@ def init_upload(
     folder_path: str,
     chunk_size: int,
     relative_path: str = "",
+    require_folder: bool = False,
+    inbox_source: str | None = None,
 ) -> UploadSession:
-    resolve_drive_path(drive)
+    drive_path = resolve_drive_path(drive)
     filename = validate_filename(filename)
     folder_path = validate_path_safe(folder_path)
     relative_path = validate_path_safe(relative_path) if relative_path else ""
+    destination_folder = folder_path
+    if require_folder:
+        _require_destination_folder(drive_path, destination_folder)
     folder_path = _merge_relative_into_folder(folder_path, relative_path)
 
     _validate_upload_sizes(file_size, chunk_size)
 
-    drive_path = config.get_drive_path(drive)
     target_rel = f"{folder_path}/{filename}" if folder_path else filename
-    target_full = drive_path / target_rel
+    target_full = new_or_409(drive_path, target_rel)
     validate_within_drive(target_full, drive_path)
 
-    if target_full.exists():
+    if name_taken(target_full):
         raise HTTPException(status_code=409, detail="File already exists")
 
     _check_disk_capacity(drive_path, file_size)
@@ -145,6 +168,9 @@ def init_upload(
         chunk_size=chunk_size,
         total_chunks=total_chunks,
         temp_dir=temp_dir,
+        require_folder=require_folder,
+        required_folder_path=destination_folder,
+        inbox_source=inbox_source,
     )
     _upload_sessions[upload_id] = session
     logger.info("Upload initiated: %s (%s, %d bytes, %d chunks)", upload_id, filename, file_size, total_chunks)
@@ -173,8 +199,40 @@ def receive_chunk(upload_id: str, chunk_index: int, chunk_data: bytes) -> Upload
     return session
 
 
-def complete_upload(upload_id: str, db: Session) -> tuple[File, bool]:
+def _finish_subtitle_upload(db: Session, drive: str, target_rel: str) -> SubtitleUploadResponse:
+    """A subtitle is a sidecar the scanner never records, so the upload records
+    none either, and drops a record left at its path.
+    """
+    db.query(File).filter(File.drive == drive, File.file_path == target_rel).delete(
+        synchronize_session=False
+    )
+    db.flush()
+    cleanup_orphan_tags(db, drive)
+    db.commit()
+    logger.info("Subtitle upload complete: %s/%s", drive, target_rel)
+    broadcast_from_thread(
+        "upload:complete",
+        {"drive": drive, "filename": Path(target_rel).name},
+        drive=drive,
+    )
+    return SubtitleUploadResponse(drive=drive, file_path=target_rel)
+
+
+def complete_upload(
+    upload_id: str, db: Session
+) -> tuple[File | SubtitleUploadResponse, bool]:
     session = get_session(upload_id)
+
+    if session.require_folder:
+        try:
+            _require_destination_folder(
+                config.get_drive_path(session.drive),
+                session.required_folder_path,
+            )
+        except HTTPException:
+            shutil.rmtree(session.temp_dir, ignore_errors=True)
+            del _upload_sessions[upload_id]
+            raise
 
     if len(session.received_chunks) != session.total_chunks:
         missing = session.total_chunks - len(session.received_chunks)
@@ -186,7 +244,8 @@ def complete_upload(upload_id: str, db: Session) -> tuple[File, bool]:
         if session.folder_path
         else session.filename
     )
-    target_full = drive_path / target_rel
+    parent_full = new_or_409(drive_path, target_rel)
+    target_full = resolve_on_disk(parent_full.parent, parent_full.name)
 
     # Assembled beside the destination and renamed, not written into it. The
     # chunks live under `UPLOAD_DIR`, which may be another filesystem — that is
@@ -219,6 +278,9 @@ def complete_upload(upload_id: str, db: Session) -> tuple[File, bool]:
     shutil.rmtree(session.temp_dir, ignore_errors=True)
     del _upload_sessions[upload_id]
 
+    if is_subtitle_file(session.filename):
+        return _finish_subtitle_upload(db, session.drive, target_rel), False
+
     file_type, mime_type = refine_classification_with_probe(
         target_full, *classify(session.filename)
     )
@@ -226,23 +288,6 @@ def complete_upload(upload_id: str, db: Session) -> tuple[File, bool]:
     duration = None
     if is_probeable_media(file_type, mime_type):
         duration = get_video_duration(str(target_full))
-
-    thumbnail_rel = None
-    gen_fn = get_thumbnail_generator(file_type, mime_type)
-    if gen_fn is not None:
-        thumbnail_rel = (
-            f"{session.drive}/{session.folder_path}/{Path(session.filename).stem}.jpg"
-            if session.folder_path
-            else f"{session.drive}/{Path(session.filename).stem}.jpg"
-        )
-        thumbnail_full = config.THUMBNAILS_DIR / thumbnail_rel
-        # Atomically: a thumbnail is kept when its file goes missing and is
-        # still served, and an upload to the same path revives that record,
-        # so this destination can be one the thumbnail endpoint is reading.
-        if not write_thumbnail_atomically(
-            gen_fn, str(target_full), str(thumbnail_full)
-        ):
-            thumbnail_rel = None
 
     # Reconcile any DB record already holding this file_path so the UNIQUE
     # constraint can't blow up at commit.
@@ -256,68 +301,118 @@ def complete_upload(upload_id: str, db: Session) -> tuple[File, bool]:
         .filter(File.drive == session.drive, File.file_path == target_rel)
         .first()
     )
-    if existing is not None and existing.deleted_at is not None:
-        # Trashed ghost: the user re-uploaded to this path, superseding the
-        # earlier delete intent. Purge the ghost so the fresh upload takes
-        # the slot cleanly (no fake-path leftover, no IntegrityError).
-        db.delete(existing)
-        db.flush()
-        cleanup_orphan_tags(db, session.drive)
-        existing = None
+    reused_row = existing is not None and existing.deleted_at is None
+    file_id = existing.id if reused_row else generate_nanoid()
+    thumbnail_rel = None
+    gen_fn = get_thumbnail_generator(file_type, mime_type)
+    if gen_fn is not None:
+        thumbnail_rel = thumbnail_slot_rel(file_id)
+        # Atomically: a reused row keeps its id, so this destination can be one
+        # the thumbnail endpoint is reading.
+        if not write_thumbnail_atomically(
+            gen_fn, str(target_full), str(config.THUMBNAILS_DIR / thumbnail_rel)
+        ):
+            thumbnail_rel = None
 
-    # Read from the file that just landed, not from whatever the row
-    # said before. A re-upload to the same path replaces the picture, and
-    # the scanner's backfill only visits rows whose width is still NULL —
-    # so a stale value here would never be corrected.
-    dimensions = (
-        read_image_dimensions(target_full) if file_type == "image" else None
-    )
+    superseded_picture: str | None = None
+    try:
+        if existing is not None and existing.deleted_at is not None:
+            # Trashed ghost: the user re-uploaded to this path, superseding the
+            # earlier delete intent. Purge the ghost so the fresh upload takes
+            # the slot cleanly (no fake-path leftover, no IntegrityError). This
+            # follows the generator so the write lock is not held while it runs.
+            superseded_picture = existing.thumbnail_path
+            db.delete(existing)
+            db.flush()
+            cleanup_orphan_tags(db, session.drive)
+            existing = None
+        elif existing is not None and existing.thumbnail_path != thumbnail_rel:
+            superseded_picture = existing.thumbnail_path
 
-    recovered_missing = False
-    if existing is not None and existing.deleted_at is None:
-        # Reuse the row in place. Covers a Missing ghost (classic recover)
-        # and an Active row whose FS file had vanished and is now restored
-        # by this upload — reusing keeps its watch-history / tags / comments.
-        recovered_missing = existing.missing_since is not None
-        existing.missing_since = None
-        existing.filename = session.filename
-        existing.title = _filename_to_title(session.filename)
-        existing.folder_path = session.folder_path
-        existing.file_size = target_full.stat().st_size
-        existing.file_type = file_type
-        existing.mime_type = mime_type
-        existing.thumbnail_path = thumbnail_rel
-        existing.duration = duration
-        existing.image_width = dimensions[0] if dimensions else None
-        existing.image_height = dimensions[1] if dimensions else None
-        existing.file_hash = None
-        existing.chapters_probed_at = None
-        # An earlier verification was about content this upload just
-        # replaced, so it cannot carry over: new material would inherit
-        # a person's vouch and start grounding Ask answers under it.
-        existing.trust_tier = TRUST_UNVERIFIED
-        existing.trust_reviewed_at = None
-        file_record = existing
-    else:
-        file_record = File(
-            filename=session.filename,
-            title=_filename_to_title(session.filename),
-            drive=session.drive,
-            folder_path=session.folder_path,
-            file_path=target_rel,
-            file_size=target_full.stat().st_size,
-            file_type=file_type,
-            mime_type=mime_type,
-            thumbnail_path=thumbnail_rel,
-            duration=duration,
-            image_width=dimensions[0] if dimensions else None,
-            image_height=dimensions[1] if dimensions else None,
+        # Read from the file that just landed, not from whatever the row
+        # said before. A re-upload to the same path replaces the picture, and
+        # the scanner's backfill only visits rows whose width is still NULL —
+        # so a stale value here would never be corrected.
+        dimensions = (
+            read_image_dimensions(target_full) if file_type == "image" else None
         )
-        db.add(file_record)
-    db.flush()
-    probe_file_chapters(db, file_record, target_full)
-    untrack_empty_folder(db, session.drive, session.folder_path)
-    db.commit()
+        exif = extract_exif(target_full) if file_type == "image" else None
+
+        recovered_missing = False
+        if existing is not None and existing.deleted_at is None:
+            # Reuse the row in place. Covers a Missing ghost (classic recover)
+            # and an Active row whose FS file had vanished and is now restored
+            # by this upload — reusing keeps its watch-history / tags / comments.
+            recovered_missing = existing.missing_since is not None
+            existing.missing_since = None
+            existing.filename = session.filename
+            existing.title = _filename_to_title(session.filename)
+            existing.folder_path = session.folder_path
+            existing.file_size = target_full.stat().st_size
+            existing.file_type = file_type
+            existing.mime_type = mime_type
+            existing.thumbnail_path = thumbnail_rel
+            existing.duration = duration
+            existing.image_width = dimensions[0] if dimensions else None
+            existing.image_height = dimensions[1] if dimensions else None
+            existing.file_hash = None
+            existing.chapters_probed_at = None
+            # An earlier verification was about content this upload just
+            # replaced, so it cannot carry over: new material would inherit
+            # a person's vouch and start grounding Ask answers under it.
+            existing.trust_tier = TRUST_UNVERIFIED
+            existing.trust_reviewed_at = None
+            file_record = existing
+        else:
+            file_record = File(
+                id=file_id,
+                filename=session.filename,
+                title=_filename_to_title(session.filename),
+                drive=session.drive,
+                folder_path=session.folder_path,
+                file_path=target_rel,
+                file_size=target_full.stat().st_size,
+                file_type=file_type,
+                mime_type=mime_type,
+                thumbnail_path=thumbnail_rel,
+                duration=duration,
+                image_width=dimensions[0] if dimensions else None,
+                image_height=dimensions[1] if dimensions else None,
+            )
+            db.add(file_record)
+        db.flush()
+        # Replaced rather than left to the scanner, whose backfill only visits
+        # files with no row, so a stale row would never be corrected.
+        previous_exif = db.get(FileExif, file_record.id)
+        if previous_exif is not None:
+            db.delete(previous_exif)
+            db.flush()
+        if exif is not None:
+            db.add(FileExif(file_id=file_record.id, **exif))
+        if mime_type == "text/markdown" or session.filename.lower().endswith(".md"):
+            try:
+                if target_full.stat().st_size <= _MD_READ_MAX_BYTES:
+                    content = target_full.read_text(encoding="utf-8")
+                    project_frontmatter_tags(db, file_record, content)
+                    cleanup_orphan_tags(db, session.drive)
+            except (OSError, UnicodeDecodeError):
+                pass
+        probe_file_chapters(db, file_record, target_full)
+        untrack_empty_folder(db, session.drive, session.folder_path)
+        if session.inbox_source:
+            inbox_service.record_arrival(
+                db,
+                session.drive,
+                file_record.id,
+                session.inbox_source,
+                inbox_service.I18N_KEYS[session.inbox_source],
+            )
+        db.commit()
+    except Exception:
+        if not reused_row:
+            remove_thumbnail_quietly(thumbnail_rel)
+        raise
+    remove_thumbnail_quietly(superseded_picture)
     db.refresh(file_record)
 
     logger.info("Upload complete: %s → %s", upload_id, target_rel)
@@ -327,6 +422,8 @@ def complete_upload(upload_id: str, db: Session) -> tuple[File, bool]:
         "file_id": file_record.id,
         "filename": file_record.filename,
     }, drive=session.drive)
+    if session.inbox_source:
+        inbox_service.notify_from_thread(session.drive)
 
     return file_record, recovered_missing
 

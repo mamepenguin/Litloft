@@ -16,6 +16,7 @@ export const CARRIED_QUERY_KEYS = [
   "order",
   "edit",
   "nav",
+  "find",
 ] as const;
 
 export function buildCanonicalFileUrl(

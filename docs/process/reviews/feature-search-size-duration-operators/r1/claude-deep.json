@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The change to canOfferContinuation in useFolderFiles.ts also adds the existing impossible-kinds check, so it changes the continuation for queries that have no size or duration token.",
+      "impact": "For a query with impossible kinds (for example conflicting type: operators), the 'show more by similarity' continuation is now withheld where it was offered before. The touch-point list only covers the new range check there.",
+      "evidence": "frontend/src/components/folder/useFolderFiles.ts, canOfferContinuation: the diff adds `!searchKinds.impossible && !rangeImpossible`. The spec asks only for the range check on the continuation. The new tests cover only the range cases for continuation.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "It is a reach beyond the planned touch points. It almost certainly has no user-visible effect, because meaningEligible is already false for impossible kinds. It does not break a declared invariant, since I11 is about listing parameters and filter text, not the continuation.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Either drop `!searchKinds.impossible` from canOfferContinuation, or name it in the spec and add a test."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "Setting hasOperators for size: and duration: tokens changes the behavior of three frontend consumers that are not in the touch-point list: GlobalSearch, FolderBrowser and SearchResultsList.",
+      "impact": "A modal query such as `size:>1GB` now routes to the search page (GlobalSearch.tsx:314). FolderBrowser hides the AddonSlot (FolderBrowser.tsx:649). SearchResultsList highlights only the leftover text (SearchResultsList.tsx:53-54). The behavior is plausible, but no listed touch point or test covers it.",
+      "evidence": "frontend/src/components/GlobalSearch.tsx:314, frontend/src/components/FolderBrowser.tsx:649, frontend/src/components/search/SearchResultsList.tsx:53-54 all branch on parseSearchQuery(...).hasOperators, which the diff now sets for the two new operators.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "It follows from the spec's intent that these are operators. It breaks no declared invariant, but the reach is unlisted and untested.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add these three files to the touch-point list as read-only consumers, or add one test that a size: query routes to the search page."
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "The existing test frontend/src/components/search/__tests__/SearchQueryHeader.scope.test.tsx is edited for the new menu order. It is neither a SearchFilter or ParsedQuery literal nor named in the touch points.",
+      "impact": "None for users. The touch-point list undercounts the existing tests that change.",
+      "evidence": "The diff changes the first-level menu expectation to [Tag, Type, Folder, Collection, Size, Length, Favorites].",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Documentation and scope drift only.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "Backend: the only apply_file_filters callers are list_drive_files and files_matching, and both are in the touch points and both pass sizes and durations. The wire parser is shared by the listing and the Internal API model (I1, I8). The addon has its own copy of the parser, which the spec allows.",
+    "Row 15 of the internal API policy and the docs are updated as listed.",
+    "The pointer bump and the addon files match the touch points."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "canOfferContinuation now also checks impossible kinds (F1).",
+    "hasOperators drives GlobalSearch routing, the FolderBrowser AddonSlot and the SearchResultsList highlighting for the new operators (F2)."
+  ],
+  "regression_risks": [
+    "A word such as `size:>1GB`, previously searched as text, is now an operator, as the spec declares.",
+    "The continuation gating in useFolderFiles.ts changed for impossible kinds."
+  ],
+  "test_coverage": [
+    "Backend tests cover the size and duration boundaries, NULL durations, parity, caps and impossible ranges.",
+    "Frontend tests cover the hooks, chips, menu and parser.",
+    "No test covers the continuation change in F1, or the GlobalSearch, FolderBrowser and SearchResultsList paths for size/duration queries."
+  ],
+  "not_verified": [
+    "I did not run any test.",
+    "I did not read the full bodies of searchQuery.ts, useFolderFiles.ts or drives.py beyond the diff.",
+    "I did not diff the submodule against its own repository.",
+    "I did not check whether other non-test code outside frontend/src and backend/app builds a SearchFilter or ParsedQuery.",
+    "I did not review the correctness of the parser, the SQL CAST or concurrency, only the scope question."
+  ],
+  "confidence": 78
+}

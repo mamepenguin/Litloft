@@ -269,3 +269,33 @@ class TestAddonPoliciesLoadFailures:
         # other than 200 is acceptable; we explicitly forbid silently
         # treating broken config as "all enabled".
         assert res.status_code != 200
+
+
+# UNSPEC: the public addon-policies view and the internal drive-policy view
+# give the same answer for a map carrying `_all: false`: off, no features.
+def test_all_false_map_is_off_in_both_policy_views(tmp_path, monkeypatch):
+    drive_dir = tmp_path / "drives" / "kept"
+    drive_dir.mkdir(parents=True)
+    _rewrite_drives(
+        monkeypatch,
+        tmp_path,
+        [
+            {
+                "name": "kept",
+                "path": str(drive_dir),
+                "addons": {
+                    "knowledge": {"editor": True, "llm_cloud": False, "_all": False},
+                },
+            }
+        ],
+    )
+    from app.main import app
+
+    with TestClient(app) as c:
+        public = c.get("/api/drives/kept/addon-policies").json()["addons"]["knowledge"]
+        internal = c.get(
+            "/api/internal/drive-policy",
+            params={"drive": "kept", "addon": "knowledge"},
+        ).json()
+    assert public == {"default": False, "features": {}}
+    assert internal == public

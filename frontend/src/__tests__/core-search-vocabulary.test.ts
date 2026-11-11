@@ -16,21 +16,28 @@ import en from "@/messages-core/en.json";
 const SRC_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 const CALLERS: Record<string, number> = {
-  "app/drive/[name]/search/page.tsx": 2,
-  "components/FolderBrowser.tsx": 1,
-  "components/GlobalSearch.tsx": 7,
+  "components/FolderBrowser.tsx": 6,
+  "components/folder/FolderContent.tsx": 1,
+  "components/GlobalSearch.tsx": 12,
   // Two each: the badge words come from `MATCH_BADGES`, and `matchedPages`
   // and `matchedSectionNumber` are the lines that are not a badge.
   "components/MatchOverlay.tsx": 2,
+  "components/search/ImageQueryDropTarget.tsx": 1,
+  "components/search/ImageQueryViewPresenter.tsx": 24,
   "components/search/MergedResultItem.tsx": 2,
+  "components/search/PassageList.tsx": 13,
   "components/search/ScopedSearchParts.tsx": 6,
   "components/search/SearchEmptyState.tsx": 4,
+  "components/search/SearchFilterChips.tsx": 9,
   "components/search/SearchFooter.tsx": 2,
+  "components/search/SearchQueryHeader.tsx": 8,
+  "components/search/ConditionMenu.tsx": 30,
   "components/search/SearchResultsList.tsx": 2,
   "components/search/useLauncherRows.ts": 1,
   // None by name: the legend draws every word it shows out of
   // `MATCH_BADGES`.
   "components/search/MatchLegend.tsx": 0,
+  "components/folder/FolderToolbar.tsx": 5,
 };
 
 const HANDLE = /(?:const|let)\s+(\w+)\s*=\s*useTranslations\(\s*"search"\s*\)/;
@@ -88,7 +95,7 @@ describe("the search vocabulary core draws", () => {
     ].sort();
     // The check below is true of no keys at all, so the population is
     // asserted first.
-    expect(used.length).toBe(40);
+    expect(used.length).toBe(115);
     const missing = used.filter((key) => !(key in namespaces[locale]));
     // Named, not counted: a failure should say which word is missing.
     expect(missing).toEqual([]);

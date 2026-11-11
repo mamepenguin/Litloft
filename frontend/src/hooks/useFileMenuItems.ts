@@ -5,6 +5,7 @@ import {
   ClipboardCopy,
   Download,
   ExternalLink,
+  EyeOff,
   Hash,
   ListMusic,
   Move,
@@ -34,6 +35,7 @@ export interface FileMenuContext {
   onStartInlineRename?: () => void;
   onRename: () => void;
   onMove: () => void;
+  onRemoveFromContinue?: () => void;
   onRemoveFromHistory?: () => void;
   onTrash: () => void;
 }
@@ -107,6 +109,14 @@ export function useFileMenuItems(
       },
       { icon: Move, label: tc("move"), onClick: ctx.onMove },
     );
+
+    if (ctx.onRemoveFromContinue) {
+      items.push({
+        icon: EyeOff,
+        label: tf("removeFromContinue"),
+        onClick: ctx.onRemoveFromContinue,
+      });
+    }
 
     if (ctx.onRemoveFromHistory) {
       items.push({
