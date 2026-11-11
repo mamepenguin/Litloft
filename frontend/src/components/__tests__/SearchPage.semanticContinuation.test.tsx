@@ -150,7 +150,7 @@ vi.mock("@/hooks/useWebSocketRefresh", () => ({
   },
 }));
 
-const observer = vi.hoisted(() => ({ instances: [] as MockIntersectionObserver[] }));
+const observer = vi.hoisted(() => ({ instances: [] as MockIntersectionObserver[], fired: 0 }));
 
 class MockIntersectionObserver {
   readonly root: Element | Document | null = null;
@@ -327,6 +327,7 @@ function resetServer() {
   server.imagesHandler = null;
   searchCache.hit = null;
   observer.instances = [];
+  observer.fired = 0;
   stableRouter.push.mockClear();
   stableRouter.replace.mockClear();
   invalidateAddonsCache();
@@ -372,7 +373,22 @@ async function clickShowMore(container: HTMLElement) {
   return container;
 }
 
+/**
+ * Both sentinels' observers are replaced whenever the rows or the loading
+ * state change, in an effect that runs after the commit; until then the old
+ * one holds the state it was created with, and firing it reveals nothing.
+ */
 async function reveal() {
+  await waitFor(() =>
+    expect(
+      observer.instances.slice(observer.fired).some((instance) => instance.targets.size > 0),
+    ).toBe(true),
+  );
+  fireSentinels();
+}
+
+function fireSentinels() {
+  observer.fired = observer.instances.length;
   act(() => {
     for (const instance of [...observer.instances]) {
       for (const target of instance.targets) {
@@ -657,7 +673,7 @@ describe("SPEC-CORE-035 I10 the answer is revealed 100 rows at a time", () => {
     ]);
 
     await reveal();
-    await reveal();
+    fireSentinels();
 
     await waitFor(() => expect(drawnIds()).toHaveLength(31 + 30 + 100));
     expect(drawnIds()).not.toContain("cont-101");
