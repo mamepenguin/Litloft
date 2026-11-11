@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship. The human chose to ship r6 and to record the scene card's height reservation as a revision: "出荷する（記録を足す）", 2026-11-11.
 ran_in_app: yes
 at: 67d01afa6233541b8527e5c33b1fa136bd24a520
 by: agent
