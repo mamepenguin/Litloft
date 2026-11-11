@@ -217,7 +217,7 @@ function shape(el: Element | null | undefined): string[] {
   return el ? [...el.querySelectorAll("*")].map((e) => `${e.tagName}.${e.getAttribute("class") ?? ""}`) : [];
 }
 
-const BYLINE = ".mt-0\\.5.block.truncate.text-xs.text-text-muted";
+const BYLINE = ".mt-1.block.truncate.text-sm.text-text-muted";
 
 const skeleton = () => document.querySelector(".animate-pulse") !== null;
 const heading = (name: string) => screen.queryByRole("heading", { name });
@@ -696,6 +696,34 @@ describe("SPEC-CORE-078 the provider shelf page: waiting", () => {
   );
 });
 
+describe("SPEC-CORE-080 the provider shelf page's skeleton rows", () => {
+  it.runIf(addonsLinked)(
+    "SPEC-CORE-080 I6 draws two rows of skeleton cards before the first page and one row while the next loads, on the two-column floor while unmeasured",
+    async () => {
+      mediaPage.feed = vi.fn<PageProvider>(async ({ cursor, restrict }) => {
+        if (cursor !== null) return new Promise<never>(() => {});
+        const accepted = await restrict(ids("v", 5));
+        return { items: accepted.map((id) => ({ id })), cursor: "c1" };
+      });
+      shelves([FEED]);
+      catalogue.loading = true;
+      const view = renderEntryPage({ entry: "feed" });
+      await settle();
+      expect(skeleton()).toBe(true);
+      expect(view.container.querySelectorAll("li")).toHaveLength(4);
+
+      catalogue.loading = false;
+      view.rerender(pageElement({ entry: "feed" }));
+      await screen.findByText(title("v0"));
+      expect(view.container.querySelectorAll("li")).toHaveLength(5);
+
+      await nearEnd();
+      expect(mediaPage.feed).toHaveBeenCalledTimes(2);
+      expect(view.container.querySelectorAll("li")).toHaveLength(7);
+    },
+  );
+});
+
 describe("SPEC-CORE-078 I8 the provider shelf page starts again", () => {
   it.runIf(addonsLinked)(
     "SPEC-CORE-078 I8 a target change restarts from cursor null with an empty grid, and never draws the old load's answer",
@@ -863,7 +891,7 @@ describe("SPEC-CORE-079 bylines on the provider shelf page", () => {
       renderEntryPage({ entry: "feed" });
 
       const one = await screen.findByText("Channel One · Nov 1");
-      expect(one).toHaveClass("mt-0.5", "block", "truncate", "text-xs", "text-text-muted");
+      expect(one).toHaveClass("mt-1", "block", "truncate", "text-sm", "text-text-muted");
       const v1 = screen.getByText(title("v1"));
       expect(v1.closest("li")?.contains(one)).toBe(true);
       expect(v1.closest(".line-clamp-2")).not.toBeNull();

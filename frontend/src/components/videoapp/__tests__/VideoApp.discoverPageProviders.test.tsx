@@ -188,7 +188,7 @@ function shape(el: Element): string[] {
   return [...el.querySelectorAll("*")].map((e) => `${e.tagName}.${e.getAttribute("class") ?? ""}`);
 }
 
-const BYLINE = ".mt-0\\.5.block.truncate.text-xs.text-text-muted";
+const BYLINE = ".mt-1.block.truncate.text-sm.text-text-muted";
 
 function card(videoTitle: string): HTMLElement {
   const li = screen.getByText(videoTitle).closest("li");
@@ -455,7 +455,7 @@ describe("SPEC-CORE-079 bylines on Discover", () => {
       const byline = await screen.findByText("Channel One · 2026-11-01");
       const a1 = card(title("a1"));
       expect(a1.contains(byline)).toBe(true);
-      expect(byline).toHaveClass("mt-0.5", "block", "truncate", "text-xs", "text-text-muted");
+      expect(byline).toHaveClass("mt-1", "block", "truncate", "text-sm", "text-text-muted");
       const titleEl = screen.getByText(title("a1"));
       expect(titleEl.closest(".line-clamp-2")).not.toBeNull();
       expect(titleEl.compareDocumentPosition(byline) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
