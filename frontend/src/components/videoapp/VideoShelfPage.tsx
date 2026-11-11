@@ -9,8 +9,10 @@ import { EmptyState } from "@/components/EmptyState";
 import { RetryButton } from "@/components/appshell/RetryButton";
 import { useNearEnd } from "@/components/appshell/useNearEnd";
 import { usePaged } from "@/components/appshell/usePaged";
+import { VideoGrid } from "@/components/appshell/VideoGrid";
 import { PageFrame } from "@/components/PageFrame";
 import { builtinApps } from "@/lib/builtinApps";
+import { MIN_CARD_COLUMNS } from "@/lib/cardGrid";
 import { getShelves, type ShelfGrouping, type ShelfItem } from "@/lib/api";
 import { slotEntryLabel } from "@/lib/slotLabel";
 import { SortChoiceMenu } from "./LibraryControls";
@@ -34,16 +36,24 @@ export function parseGrouping(raw: string | null): ShelfGrouping | null {
   return GROUPINGS.find((grouping) => grouping === raw) ?? null;
 }
 
-function SkeletonGrid() {
+function SkeletonCard() {
   return (
-    <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" aria-hidden="true">
-      {Array.from({ length: 10 }).map((_, i) => (
-        <li key={i} className="animate-pulse">
-          <div className="aspect-video rounded-2xl bg-bg-elevated" />
-          <div className="mt-2 h-4 w-3/4 rounded-lg bg-bg-elevated" />
-        </li>
-      ))}
-    </ul>
+    <li className="animate-pulse" aria-hidden="true">
+      <div className="aspect-video rounded-2xl bg-bg-elevated" />
+      <div className="mt-3 h-[1.375rem] w-3/4 rounded-lg bg-bg-elevated" />
+    </li>
+  );
+}
+
+function SkeletonGrid({ rows }: { rows: number }) {
+  return (
+    <VideoGrid>
+      {(columns) =>
+        Array.from({
+          length: rows * (columns > 0 ? columns : MIN_CARD_COLUMNS),
+        }).map((_, i) => <SkeletonCard key={i} />)
+      }
+    </VideoGrid>
   );
 }
 
@@ -143,20 +153,30 @@ export function VideoShelfPage({
         <EmptyState variant="no-files" />
       ) : (
         <>
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-            {provider.items.map((item) => (
-              <li key={item.id} className="min-w-0">
-                <VideoCard item={item} byline={provider.bylines.get(item.id)} />
-              </li>
-            ))}
-          </ul>
+          <VideoGrid>
+            {() =>
+              provider.items.map((item) => (
+                <li key={item.id} className="min-w-0">
+                  <VideoCard item={item} byline={provider.bylines.get(item.id)} />
+                </li>
+              ))
+            }
+          </VideoGrid>
           <div ref={sentinel} aria-hidden="true" className="h-px" />
-          {provider.more === "loading" && <SkeletonGrid />}
-          {provider.more === "failed" && <RetryButton onRetry={provider.loadMore} />}
+          {provider.more === "loading" && (
+            <div className="mt-8">
+              <SkeletonGrid rows={1} />
+            </div>
+          )}
+          {provider.more === "failed" && (
+            <div className="mt-8">
+              <RetryButton onRetry={provider.loadMore} />
+            </div>
+          )}
         </>
       )
     ) : (
-      <SkeletonGrid />
+      <SkeletonGrid rows={2} />
     )
   ) : by === null || state.empty || watchBlocked || (paged.phase === "ready" && paged.items.length === 0) ? (
     <EmptyState variant="no-files" />
@@ -164,19 +184,29 @@ export function VideoShelfPage({
     <RetryButton onRetry={paged.retry} />
   ) : paged.phase === "ready" ? (
     <>
-      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-        {paged.items.map((item) => (
-          <li key={item.id} className="min-w-0">
-            <VideoCard item={item} />
-          </li>
-        ))}
-      </ul>
+      <VideoGrid>
+        {() =>
+          paged.items.map((item) => (
+            <li key={item.id} className="min-w-0">
+              <VideoCard item={item} />
+            </li>
+          ))
+        }
+      </VideoGrid>
       <div ref={sentinel} aria-hidden="true" className="h-px" />
-      {paged.more === "loading" && <SkeletonGrid />}
-      {paged.more === "failed" && <RetryButton onRetry={paged.loadMore} />}
+      {paged.more === "loading" && (
+        <div className="mt-8">
+          <SkeletonGrid rows={1} />
+        </div>
+      )}
+      {paged.more === "failed" && (
+        <div className="mt-8">
+          <RetryButton onRetry={paged.loadMore} />
+        </div>
+      )}
     </>
   ) : (
-    <SkeletonGrid />
+    <SkeletonGrid rows={2} />
   );
 
   return (

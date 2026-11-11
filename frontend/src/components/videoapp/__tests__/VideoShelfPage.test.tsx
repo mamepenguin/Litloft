@@ -174,6 +174,26 @@ describe("See all", () => {
     expect(await screen.findByText("Video p1-0")).toBeInTheDocument();
   });
 
+  it("SPEC-CORE-080 I6 draws two rows of skeleton cards before the first page and one row while the next loads, on the two-column floor while unmeasured", async () => {
+    getShelves.mockReset().mockImplementation(never);
+    const first = render(<VideoShelfPage drive={DRIVE} by="folder" shelfKey="Movies" />);
+    await waitFor(() => expect(first.container.querySelectorAll(".animate-pulse").length).toBeGreaterThan(0));
+    expect(first.container.querySelectorAll("li")).toHaveLength(4);
+    first.unmount();
+
+    getShelves.mockReset().mockImplementation((_d, p: Params) =>
+      Number(p.page) === 1 ? Promise.resolve(pageOf(p)) : never(),
+    );
+    const view = render(<VideoShelfPage drive={DRIVE} by="folder" shelfKey="Movies" />);
+    await screen.findByText("Video p1-0");
+    expect(view.container.querySelectorAll("li")).toHaveLength(60);
+
+    act(() => FakeObserver.instances.at(-1)!.trigger());
+
+    await waitFor(() => expect(getShelves.mock.calls.at(-1)![1]).toMatchObject({ page: 2 }));
+    await waitFor(() => expect(view.container.querySelectorAll("li")).toHaveLength(62));
+  });
+
   it("draws the empty state for a shelf with nothing in it", async () => {
     getShelves.mockImplementation(async (_d, p: Params) => ({
       by: p.by,

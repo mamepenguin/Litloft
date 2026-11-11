@@ -14,7 +14,7 @@ import { join } from "node:path";
 import { Tag } from "lucide-react";
 
 import { writeAppPrefs } from "@/lib/appPrefs";
-import { BOOK_GRID, cardGridTemplate } from "@/lib/cardGrid";
+import { BOOK_GRID, VIDEO_GRID, cardGridTemplate } from "@/lib/cardGrid";
 import type { ShelfItem } from "@/lib/api";
 
 const DRIVE = "main";
@@ -224,7 +224,7 @@ async function renderShape(name: string): Promise<Element> {
       expect(root).not.toBeNull();
       const grid = root!.querySelector("ul") as HTMLElement;
       expect(grid.style.gridTemplateColumns).toBe(
-        cardGridTemplate(2, reading ? BOOK_GRID : undefined),
+        cardGridTemplate(2, reading ? BOOK_GRID : VIDEO_GRID),
       );
       return root!;
     }

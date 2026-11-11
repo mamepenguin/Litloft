@@ -318,6 +318,7 @@ describe("the component fixture's page", () => {
       "home-app-entries",
       "discover-prefix",
       "video-card-byline",
+      "video-card-spacing",
       "persistent-highlights",
     ]);
   });

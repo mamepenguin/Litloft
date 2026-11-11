@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "Every file in the diff maps to a declared touch point or an implicit one. Code and test touch points: frontend/src/components/videoapp/VideoCard.tsx, appshell/ShelfBlock.tsx, appshell/VideoGrid.tsx (new), lib/cardGrid.ts, __tests__/card-grid.test.ts, videoapp/VideoShelfPage.tsx, videoapp/DiscoverFace.tsx, videoapp/LibraryFace.tsx, readingapp/DiscoverFace.tsx, readingapp/LibraryFace.tsx, componentFixtureParity.test.tsx, readingVideoLayoutFixtureParity.test.tsx, e2e-layout/fixtures/reading-video-faces.html, e2e-layout/reading-video-faces.spec.ts, VideoShelfPage.test.tsx, VideoShelfPage.provider.test.tsx, VideoApp.discoverPageProviders.test.tsx and DESIGN.md (§6 and Card grids).",
+    "The diff edits frontend/e2e-components/fixtures/app.tsx (it imports VideoCardSpacingArrangement and registers it in ARRANGEMENTS), and it adds videoCardSpacing.data.ts and video-card-spacing.cases.ts. The touch-point list does not name these files. They sit under `frontend/e2e-components/`, which the list names as a directory for the new fixture and spec pair, so they are covered. They are not unplanned places.",
+    "docs/specs/video-card-spacing.md, docs/specs/INDEX.md and docs/process/reviews/feature-video-card-spacing/** are implicit touch points and are not reported.",
+    "ShelfBlock.tsx stops exporting `ShelfGrid` (it is replaced by the private `BookGrid`). A grep over frontend/ finds no other importer of `ShelfGrid`, so removing it reaches no file outside the list.",
+    "Every file that the changed components reach without an edit is either named in the list or a test. The ShelfBlock consumers are videoapp/VideoApp.tsx, readingapp/ReadingApp.tsx and readingapp/ReadingShelfPage.tsx, all named; useDiscover.ts imports only the ShelfView type, which did not change. VideoCard is consumed by DiscoverFace, LibraryFace and VideoShelfPage, all named, and by e2e-components/fixtures/videoCardByline.tsx, which the list covers under 'the byline spec keeps passing unchanged'. appshell/__tests__/ShelfBlock.test.tsx renders ShelfBlock without an edit, which falls under 'other unit tests'."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The video LibraryFace's loaded, failed and loading branches now sit inside a new wrapper `<div>`. Its toolbar spacing (`space-y-6`) now applies between the toolbar and that wrapper instead of between the toolbar and each branch. The visible result should be the same, but I did not lay it out to confirm."
+  ],
+  "regression_risks": [
+    "appshell/__tests__/ShelfBlock.test.tsx is not in the diff and still renders ShelfBlock. If it pins `mb-3`, `gap-3` or the old skeleton bar classes, it would fail, or it may pass while no longer checking anything. I did not read it.",
+    "e2e-layout/fixtures/video-app.html still names ShelfBlock and VideoCard classes. The spec deliberately leaves it stale under 'Checked, no action', so it no longer tells anyone about class drift."
+  ],
+  "test_coverage": [
+    "card-grid.test.ts raises the expected site count and the useCardColumns call sites from 8 to 9, adds VideoGrid.tsx to the expected file set, and checks gaps per file and per axis (VideoGrid: column gap 16, row gap 32).",
+    "The new e2e-components spec pair (375 and 1280) measures I1, I2, I4, I5, I6, I7 and I8 on the real faces and the real See all page.",
+    "Unit tests pin the 2-column floor for skeleton counts (4 before the first page, columns more while the next page loads) on both the grouped and the provider see-all pages."
+  ],
+  "not_verified": [
+    "I did not run the unit or Playwright suites. Everything here comes from reading the code.",
+    "I did not read the contents of commit 9b08e8c4c on its own. The review compared the full branch diff given in the prompt against the touch-point list.",
+    "I did not read appshell/__tests__/ShelfBlock.test.tsx to see whether it pins the old classes.",
+    "I did not check that `@/messages-core/en.json` resolves in the e2e-components bundle."
+  ],
+  "confidence": 80
+}

@@ -101,45 +101,55 @@ export function LibraryFace({
         <SortChoiceMenu value={sortId} onChange={onSort} />
       </div>
 
-      {empty || (shelves.phase === "ready" && shelves.items.length === 0) ? (
-        <EmptyState variant="no-files" />
-      ) : shelves.phase === "failed" ? (
-        <RetryButton onRetry={shelves.retry} />
-      ) : shelves.phase === "ready" ? (
-        <div className="space-y-8">
-          {shelves.items.map((shelf) => {
-            const title = shelfTitle({ by, shelf, drive, locale, t: (key) => t(key) });
-            return (
-              <ShelfBlock
-                key={shelf.key}
-                title={title}
-                count={number.format(shelf.count)}
-                seeAllHref={seeAllHref(drive, by, shelf.key, sortId)}
-                view={{ status: "loaded", items: shelf.items }}
-                onRetry={shelves.retry}
-                renderItem={(item) => <VideoCard item={item} />}
-              />
-            );
-          })}
-          <div ref={sentinel} aria-hidden="true" className="h-px" />
-          {shelves.more === "loading" && (
-            <ShelfBlock
-              title=""
-              view={{ status: "loading" }}
-              onRetry={shelves.loadMore}
-              renderItem={() => null}
-            />
-          )}
-          {shelves.more === "failed" && <RetryButton onRetry={shelves.loadMore} />}
-        </div>
-      ) : (
-        <ShelfBlock
-          title=""
-          view={{ status: "loading" }}
-          onRetry={shelves.retry}
-          renderItem={() => null}
-        />
-      )}
+      <div>
+        {empty || (shelves.phase === "ready" && shelves.items.length === 0) ? (
+          <EmptyState variant="no-files" />
+        ) : shelves.phase === "failed" ? (
+          <RetryButton onRetry={shelves.retry} />
+        ) : shelves.phase === "ready" ? (
+          <>
+            <div className="space-y-10">
+              {shelves.items.map((shelf) => {
+                const title = shelfTitle({ by, shelf, drive, locale, t: (key) => t(key) });
+                return (
+                  <ShelfBlock
+                    key={shelf.key}
+                    title={title}
+                    count={number.format(shelf.count)}
+                    seeAllHref={seeAllHref(drive, by, shelf.key, sortId)}
+                    view={{ status: "loaded", items: shelf.items }}
+                    onRetry={shelves.retry}
+                    renderItem={(item) => <VideoCard item={item} />}
+                  />
+                );
+              })}
+            </div>
+            <div ref={sentinel} aria-hidden="true" className="h-px" />
+            {shelves.more === "loading" && (
+              <div className="mt-10">
+                <ShelfBlock
+                  title=""
+                  view={{ status: "loading" }}
+                  onRetry={shelves.loadMore}
+                  renderItem={() => null}
+                />
+              </div>
+            )}
+            {shelves.more === "failed" && (
+              <div className="mt-10">
+                <RetryButton onRetry={shelves.loadMore} />
+              </div>
+            )}
+          </>
+        ) : (
+          <ShelfBlock
+            title=""
+            view={{ status: "loading" }}
+            onRetry={shelves.retry}
+            renderItem={() => null}
+          />
+        )}
+      </div>
     </div>
   );
 }
