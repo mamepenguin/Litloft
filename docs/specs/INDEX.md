@@ -188,6 +188,6 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-091 | implemented | docs/specs/media-import-page-providers.md | sha256:a06bd6856fa916ccd11811aaba68f48cd7e334d0f8de52af5f34fddfba0cda62 |
 | SPEC-ADDON-092 | implemented | docs/specs/media-import-page-providers.md | sha256:a06bd6856fa916ccd11811aaba68f48cd7e334d0f8de52af5f34fddfba0cda62 |
 | SPEC-CORE-080 | implemented | docs/specs/video-card-spacing.md | sha256:08c61928e4b2265f43399452e0c1fe9a26882aff2c98a5f68dc5b4bf1ea63f6d |
-| SPEC-CORE-081 | draft | docs/specs/inspector-responsive-layout.md | |
-| SPEC-CORE-082 | draft | docs/specs/inspector-responsive-layout.md | |
-| SPEC-CORE-083 | draft | docs/specs/inspector-responsive-layout.md | |
+| SPEC-CORE-081 | approved | docs/specs/inspector-responsive-layout.md | sha256:fea82ee561a276893564fc5100b78c8df5975729860059480447f7f2298c3f11 |
+| SPEC-CORE-082 | approved | docs/specs/inspector-responsive-layout.md | sha256:fea82ee561a276893564fc5100b78c8df5975729860059480447f7f2298c3f11 |
+| SPEC-CORE-083 | approved | docs/specs/inspector-responsive-layout.md | sha256:fea82ee561a276893564fc5100b78c8df5975729860059480447f7f2298c3f11 |
