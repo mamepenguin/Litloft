@@ -6,7 +6,7 @@ export const SCENES_FRAMES = 60;
 
 export const SCENES_SHORT_LABEL = "Opening shot of the harbour";
 export const SCENES_LONG_LABEL =
-  "Two people talk across a table while the camera pushes in slowly and the light behind them shifts from blue to amber";
+  "Two people talk across a table while the camera pushes in slowly and the light behind them shifts from blue to amber, then the shot cuts to the street outside where a bus passes in the rain and a dog waits under the awning of a closed shop, its owner nowhere in sight, while across the road a woman with a red umbrella reads the timetable at the stop, checks her phone twice, and finally walks away toward the station as the bus pulls off without her";
 export const SCENES_LONG_TEXT =
   "The subtitle reads: we should have left before the rain started.";
 
