@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R9-1",
+      "origin": "reviewer",
+      "claim": "A mouse browse point is not cleared when the pointer leaves the section straight out of the document, for example off the window edge or directly into the YouTube player iframe. Since the r8 fix, nothing else clears it either.",
+      "impact": "With a mouse, the user hovers the ruler and then moves off the browser window, perhaps to another monitor, or moves quickly into the embedded player iframe. The grid and the scene card stay frozen on the browsed point and stop following playback, even though the pointer has left the section. Before aae6904 the next playback jump cleared it as a side effect. Now that `mouse` no longer lists `jump`, only a seek, a collapse, a file change, or re-entering and leaving through an in-document element clears it.",
+      "evidence": "ScenesSectionPresenter.tsx:164-174 has two clear paths. The first is onPointerLeave, which clears only when `event.target === event.currentTarget`. React's synthetic leave event is targeted at the node the pointer left from, so this holds only when the pointer leaves from the root's own box and not from the ruler or a tile. The second is onPointerOut, which clears only when `relatedTarget` is non-null and outside the section. When the pointer leaves the window or enters a cross-document iframe, relatedTarget is null. browseLifetime.ts:18 now has `mouse: [\"pointerleave\", \"seek\", \"collapse\", \"filechange\"]` with no jump. The only test of the leave path (ScenesSectionTimeline.test.tsx:281) fires pointerOut with `relatedTarget: document.body`. No test covers a null relatedTarget leaving from a child.",
+      "repro": "not_reproduced (read only). Steps: native video playing in the inspector. Move the mouse over the ruler, which sets a mouse browse point, then move it off the window's edge directly from the ruler. pointerout reaches the root with relatedTarget null, and the synthetic pointerleave has target = ruler, not the root. Neither handler calls onSectionPointerLeave. aria-valuenow stays at the browse time while playback advances, and jumps no longer clear it. Mutation: removing the `next &&` guard in onPointerOut fails no test.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I2 says a mouse browse point 'is cleared when it leaves' the section. Leaving through the window edge or into the player iframe is normal mouse use, and the r8 fix removed the jump that used to hide the gap.",
+        "invariant_ref": "I2"
+      },
+      "severity": "LOW",
+      "proposed_fix": "In onPointerOut, treat a null relatedTarget as leaving the section. Or, in onPointerLeave, drop the `target === currentTarget` check, because React dispatches leave on the root only when the pointer has left the root's subtree. Add a test that fires pointerOut from the ruler with relatedTarget null and expects the mouse browse point to be cleared."
+    }
+  ],
+  "specification_compliance": [
+    "r8 R8-1 (A, I2) is fixed. handleJump now calls clearBrowseOn(\"jump\"), and browseLifetime.ts gives `mouse` no `jump` entry, so a mouse browse point survives a playback jump while the pointer is inside the section. Touch and keyboard points are still cleared by a jump (I3, §1 step 9).",
+    "The lifetime table matches the spec. Mouse is cleared by pointerleave, seek, collapse and filechange (§1 steps 5–7, I2). Touch is cleared by seek, jump, collapse and filechange (I3, step 8). Keyboard is cleared by focusleave, jump, seek, collapse and filechange (step 9).",
+    "Dropping setBrowse(null) from expand() is safe. The ruler exists only while expanded, collapse and filechange clear a point from every source, and the native 'hidden' path can only be reached from an expand with browse already null. So no browse point can survive into a later expand.",
+    "handleSectionPointerLeave no longer takes pointerType. The source table keeps the touch/pen point alive on the pointerleave a browser fires after a finger lifts.",
+    "The e2e height case now moves the mouse off the section (stopBrowsing) before moving the window with playback. This is consistent with the new mouse rule: without it, the mouse point would hold the grid and the 'moved' measurement would not be a window move.",
+    "Commit 688e49c, the reviewed commit itself, only adds review records under docs/process/reviews and changes no code."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "A touch or mouse browse point is cleared by Enter on the focused ruler, because activate() maps every seek to the 'seek' event. I3's touch list names only tapping a tile or the card. The spec does not say what Enter does to a point that touch set.",
+    "When the source changes, the point takes the new source's lifetime. For example, a mouse hover over the ruler after arrow keys turns a keyboard point into a mouse point that survives focus leaving. The spec gives no rule for this; r8 noted it and it is still open."
+  ],
+  "regression_risks": [
+    "Every setBrowsePoint call that sets a point must pass a source. A null source makes browseClearedBy return false for every event, so that point could never be cleared.",
+    "Because a mouse point survives jumps, the leave handlers are the only practical way to clear it, so any gap in them (R9-1) now lasts until the user collapses the section or seeks."
+  ],
+  "test_coverage": [
+    "The LIFETIME table in ScenesSectionSeek.test.tsx covers all 18 combinations of source and event. Adding or removing any entry in CLEARED_BY would fail a case. For example, adding 'jump' to mouse fails 'a mouse browse point survives a playback jump'.",
+    "The mouse pointerleave case fires pointerLeave on the root itself (target === currentTarget). No case covers a leave from a child with relatedTarget null (R9-1).",
+    "No direct unit test covers browseClearedBy. It is reached only through the section tests, which is enough given the table test."
+  ],
+  "not_verified": [
+    "I ran no tests (vitest, Playwright). The mutation results come from reading the code.",
+    "I did not check how the inspector is laid out, so I do not know whether the Scenes ruler actually touches the window's edge on desktop. That decides how often the window-leave path in R9-1 happens.",
+    "I did not confirm in the React source which version is in use, or whether that version targets synthetic pointerleave at the 'from' node.",
+    "I did not re-check the invariants the fix round did not touch (I1, I5–I11) beyond what r6–r8 already recorded."
+  ],
+  "confidence": 76,
+  "trajectory": "The fix round since r8 (aae6904, intelligence 21db863) removes branches rather than adding them. Before it, the browse-point lifetime was spread across three places: an inline pointerType+source check in handleSectionPointerLeave, a `!== \\\"keyboard\\\"` early return in handleSectionBlur, and an unconditional clear in handleJump. Separate browseRef/browseSource/setBrowse(null) resets also sat in the file-change effect, expand() and collapse(). The round replaces all of these with one declarative table (browseLifetime.ts: CLEARED_BY by source) and a single clearBrowseOn(event) entry point. It removes the pointerType parameter from onSectionPointerLeave and drops the redundant clear in expand(). It adds no new state, because browseSource already existed in r7→r8, and no new prediction. r8 noted that the lifetime was being patched one trigger at a time, and this round states it once, as one rule per source. The leave detection itself was not revisited, so the jump that used to mask it is gone and the gap in R9-1 is exposed. The earlier rounds did add things: the r7 fix added browseSource and the WS guards, and the r8 play-start fix added the paused→playing jump branch. This round consolidates those additions.",
+  "perspectives": [
+    {
+      "name": "fix verification (r8 R8-1)",
+      "notes": "Fixed. The mouse source no longer lists jump, and the LIFETIME test asserts this."
+    },
+    {
+      "name": "consolidation side effects",
+      "notes": "I checked the removed clears in expand(), file change and collapse. None leaves a point stuck, and the table now has the only clear logic."
+    },
+    {
+      "name": "leave detection",
+      "notes": "With jumps no longer clearing a mouse point, the onPointerLeave/onPointerOut guards carry all of I2's 'cleared when it leaves' clause. A leave out of the document with a null relatedTarget slips through (R9-1)."
+    }
+  ]
+}

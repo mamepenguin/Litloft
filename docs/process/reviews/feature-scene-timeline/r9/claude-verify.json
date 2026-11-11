@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R9-1",
+      "status": "confirmed",
+      "note": "I traced this through the code. ScenesSectionPresenter.tsx:164-168 calls onSectionPointerLeave only when event.target === event.currentTarget. React's EnterLeaveEventPlugin builds the synthetic leave event from the native pointerout and sets leave.target to the node the pointer left from, which is the deepest node, for example a tile or the ruler. So when the pointer leaves from a child, the root's handler does not clear. The second path, ScenesSectionPresenter.tsx:169-173, clears only when relatedTarget is non-null and outside the root. When the pointer leaves the browser window, the native pointerout has relatedTarget null, so that path does not clear either. ScenesSectionContainer.tsx calls clearBrowseOn from only six places: jump at 124, filechange at 147, collapse at 189, seek at 293, pointerleave at 406 and focusleave at 413. browseLifetime.ts:18 does not list 'jump' for the mouse source. So a mouse browse point set over a tile or the ruler stays after the pointer leaves the window from that child, until a seek, a collapse or a file change. This breaks I2: 'A mouse browse point ... is cleared when it leaves.' The tests do not cover this case. ScenesSectionTimeline.test.tsx:281 fires pointerOut on the root with relatedTarget document.body, and ScenesSectionSeek.test.tsx:667 fires pointerLeave on the root itself. I confirmed the window-edge path. I did not confirm the iframe path. Whether a cross-origin iframe reports relatedTarget as null or as the iframe element in the parent document depends on the browser. If it reports the iframe element, the onPointerOut path would clear correctly in that case."
+    }
+  ],
+  "specification_compliance": [
+    "I2 (a mouse browse point is cleared when the pointer leaves the section) is not met when the pointer leaves from a child of the section straight out of the window, where relatedTarget is null. See R9-1."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "When the pointer moves from the section into a cross-origin iframe (the YouTube player), whether the browse point clears depends on the browser, because relatedTarget may be null or the iframe element."
+  ],
+  "regression_risks": [
+    "Before r8, the mouse source listed 'jump', which ended a stale mouse browse point on the next playback jump. Removing it leaves leave events as the only way the point clears without a seek, a collapse or a file change."
+  ],
+  "test_coverage": [
+    "No test fires a pointerout with relatedTarget null from a tile or the ruler, so the leave-the-window path is untested.",
+    "The leave tests target only the section root itself (ScenesSectionTimeline.test.tsx:281-282 and ScenesSectionSeek.test.tsx:667)."
+  ],
+  "not_verified": [
+    "I did not run the tests or a browser, so the React leave-event targeting comes from my knowledge of React's EnterLeaveEventPlugin and was not observed.",
+    "I did not check how each browser sets relatedTarget when the pointer moves into a cross-origin iframe.",
+    "I did not check the React version pinned in this repository."
+  ],
+  "confidence": 85
+}
