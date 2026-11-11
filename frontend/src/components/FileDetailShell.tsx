@@ -119,6 +119,13 @@ export function FileDetailShell({
   const floorActive = !!canvasFloor && !isMobile;
   const measureCanvas = useCanvasFloor(floorActive);
   const canvasRef = useRef<HTMLElement | null>(null);
+  // The position before find's bar is inserted above the content: scroll
+  // anchoring folds the bar's height into `scrollTop`, so reading it after
+  // the bar mounts remembers a position the closed page cannot hold.
+  const lastCanvasScroll = useRef(0);
+  const noteCanvasScroll = useCallback(() => {
+    if (!find.open) lastCanvasScroll.current = canvasRef.current?.scrollTop ?? 0;
+  }, [find.open]);
   const fitHostRef = useRef<HTMLDivElement | null>(null);
   const attachCanvas = useCallback(
     (node: HTMLElement | null) => {
@@ -141,6 +148,16 @@ export function FileDetailShell({
   const previousFindOpen = useRef(false);
   const restoreScroll = useRef<number | null>(null);
   const scrollRestorePending = useRef(false);
+  const restoreFrame = useRef<number | null>(null);
+  const stopRestoreWatch = useRef<(() => void) | null>(null);
+  const cancelScrollRestore = useCallback(() => {
+    if (restoreFrame.current !== null) {
+      cancelAnimationFrame(restoreFrame.current);
+      restoreFrame.current = null;
+    }
+    stopRestoreWatch.current?.();
+    stopRestoreWatch.current = null;
+  }, []);
   const sheetExpanded = isSheetExpanded(sheetOverride ?? sheetState);
   const desktopInspectorOpen = inspectorOverride ?? open;
   const { form: fitForm, stacked: stackedLayout } = useInspectorForm(fileId);
@@ -247,10 +264,11 @@ export function FileDetailShell({
     if (find.open === previousFindOpen.current) return;
     previousFindOpen.current = find.open;
     if (find.open) {
+      cancelScrollRestore();
       // Find's override turns the stacked layout on when the stored state
       // had it closed; the canvas content it displaces comes back on close.
       if (!desktopInspectorOpen && fitForm === "stacked") {
-        restoreScroll.current = canvasRef.current?.scrollTop ?? null;
+        restoreScroll.current = lastCanvasScroll.current;
       }
       rememberedInspector.current = open;
       rememberedSheet.current = sheetState;
@@ -278,11 +296,14 @@ export function FileDetailShell({
     layoutTouched,
     desktopInspectorOpen,
     fitForm,
+    cancelScrollRestore,
   ]);
 
   // A passive effect: the content the stacked layout displaced is put back
   // by the commit that publishes the new open state, which is after this
-  // shell's own.
+  // shell's own. Its height arrives over the frames that follow, so the
+  // position is written again until the canvas can hold it. A scroll the
+  // reader makes ends the attempts, and so does the frame bound.
   useEffect(() => {
     if (!scrollRestorePending.current) return;
     if (fitForm === "stacked" && desktopInspectorOpen) return;
@@ -290,8 +311,44 @@ export function FileDetailShell({
     const remembered = restoreScroll.current;
     restoreScroll.current = null;
     const canvas = canvasRef.current;
-    if (canvas && remembered !== null) canvas.scrollTop = remembered;
-  }, [fitForm, desktopInspectorOpen]);
+    if (!canvas || remembered === null) return;
+
+    cancelScrollRestore();
+    let frames = 0;
+    let writing = false;
+    const onScroll = () => {
+      if (writing) {
+        writing = false;
+        return;
+      }
+      cancelScrollRestore();
+    };
+    canvas.addEventListener("scroll", onScroll, { passive: true });
+    stopRestoreWatch.current = () =>
+      canvas.removeEventListener("scroll", onScroll);
+
+    const step = () => {
+      restoreFrame.current = null;
+      if (!canvas.isConnected || frames >= 60) {
+        cancelScrollRestore();
+        return;
+      }
+      frames += 1;
+      if (canvas.scrollHeight - canvas.clientHeight >= remembered) {
+        writing = true;
+        canvas.scrollTop = remembered;
+        if (Math.abs(canvas.scrollTop - remembered) <= 1) {
+          cancelScrollRestore();
+          return;
+        }
+        writing = false;
+      }
+      restoreFrame.current = requestAnimationFrame(step);
+    };
+    restoreFrame.current = requestAnimationFrame(step);
+  }, [fitForm, desktopInspectorOpen, cancelScrollRestore]);
+
+  useEffect(() => cancelScrollRestore, [cancelScrollRestore]);
 
   // Without this, resizing across the viewport boundary leaves
   // `useInspectorOpen` reading a stale viewport-derived snapshot when
@@ -425,6 +482,7 @@ export function FileDetailShell({
       >
         <main
           ref={attachCanvas}
+          onScroll={noteCanvasScroll}
           data-canvas-floor={floorActive ? "true" : undefined}
           className="flex min-w-0 min-h-0 flex-1 flex-col overflow-auto"
           // The sheet rests over the bottom of the page, so the page

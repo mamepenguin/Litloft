@@ -31,6 +31,7 @@ export default async function buildComponentFixture(): Promise<void> {
       // one addon file by a relative path on purpose, so the package aliases
       // below let that file's bare imports resolve to the fixture's copies.
       alias: [
+        { find: /^@\/lib\/addons$/, replacement: resolve(__dirname, "stubs", "addons.ts") },
         { find: /^@\/addons\/.*$/, replacement: resolve(__dirname, "stubs", "addon-slots.ts") },
         { find: "@", replacement: resolve(__dirname, "..", "src") },
         { find: "next/navigation", replacement: resolve(__dirname, "stubs", "next-navigation.ts") },
