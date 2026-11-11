@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "r6 V-1 (C) is resolved in the code. ScenesSectionPresenter.tsx no longer imports or calls useState, useEffect, useLayoutEffect or useRef; a grep over ScenesSection/ finds those hooks only in the Container and in hooks/. The Ruler now gets `rulerRef` and `rulerWidth` as props (ScenesSectionPresenter.tsx Ruler props). That matches .claude/rules/frontend-conventions.md:47-54 (Container owns hooks; hooks/ is an optional part of the layout; the Presenter works from props only).",
+    "The relocation keeps behaviour. useRulerKeys(rulerRef, handleRulerKeyDown, view === \"expanded\") gates the listener exactly as the old in-Ruler effect did with `disabled = view === \"loading\"`, because the Ruler is only drawn while expanded. useRulerWidth(rulerRef, view !== \"collapsed\") measures in a layout effect. It runs when the Ruler mounts, because `active` flips in the same commit that mounts the ruler, and the old version ran its measurement on mount ([]).",
+    "Every hook call in ScenesSectionContainer (including the two new ones) comes before the early `return null` branches, so hook order is stable across the hidden, .loft-empty and non-video paths.",
+    "The Ruler element stays mounted, at the same tree position, across loading→expanded, so the native keydown listener attached by useRulerKeys stays on the live node. That listener is what keeps I4's key isolation from ShortcutsProvider's document listener.",
+    "The r6 touch-point findings TP-1/TP-2/TP-3 (B) are unchanged: the touch-point list was not widened, and the fix adds two more files under hooks/ that are not listed by name (covered by the optional hooks/ in the convention)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "useRulerKeys and useRulerWidth depend on the ref object, not the DOM node. If a later change remounts the ruler element while `enabled`/`active` stays true (for example by adding a `key` that changes inside the expanded state), the listener would stay on the detached node and the keys would reach ShortcutsProvider again. No current code path does this."
+  ],
+  "regression_risks": [
+    "I4 key isolation now depends on the Container passing `view === \"expanded\"` to useRulerKeys and on the Presenter attaching `rulerRef` to the role=slider element. The keyboard suite (ScenesSectionKeyboard.test.tsx, which checks defaultPrevented and checks that the root/document listeners are not reached) would catch a broken wiring.",
+    "Under jsdom the I11 label row depends on useRulerWidth giving a non-zero width; jsdom gives 0, so only the Chromium e2e case (scenesTimeLabelCases expecting '2:00:00') would catch a broken measurement."
+  ],
+  "test_coverage": [
+    "Moving the keydown listener is covered by ScenesSectionKeyboard.test.tsx: all five keys are checked for preventDefault, for the page shortcut not firing, and for no propagation to the root or the document. Mutating `enabled` to false, or leaving `rulerRef` off the slider, would fail these tests.",
+    "Moving the width measurement is covered only by the e2e-components I11 cases (351/384/390 px). The vitest I11 cases call timeLabels directly and would not notice a hook that always returns 0.",
+    "No unit test targets useRulerKeys or useRulerWidth directly. Their behaviour is reached through the section tests."
+  ],
+  "not_verified": [
+    "I did not run vitest or Playwright, so the claim that the suites still pass after the refactor rests on reading the code.",
+    "I did not check that submodule commit 03f079af contains exactly the files shown in the diff, beyond grepping the working tree.",
+    "I did not re-review the behavioural invariants I1–I3 and I5–I10 beyond the code the fix commit touched.",
+    "I did not check whether React StrictMode double-invoking effects affects the listener attach and detach in the dev build."
+  ],
+  "confidence": 82,
+  "trajectory": "One code-changing round since r6 (2b58368, the submodule bump to 03f079af). The other two commits (8225838, a8c2ed2) are review records only. The round moves the Ruler's width state, ResizeObserver layout effect and native keydown listener out of the Presenter into two Container hooks (hooks/useRulerWidth.ts, hooks/useRulerKeys.ts), and passes rulerRef and rulerWidth down as props. It adds no new branch, state or prediction. The `disabled` gate inside the Ruler effect becomes the equivalent `enabled = view === \\\"expanded\\\"` argument, and the mount-only measurement becomes `active = view !== \\\"collapsed\\\"`. The `onKeyDown` prop is removed. This is a relocation that removes state from the Presenter, not a patch that adds to the design.",
+  "perspectives": [
+    {
+      "name": "fix verification (r6 V-1)",
+      "notes": "The Presenter is now props-only for React state and effects. useTranslations stays, as it does in other Presenters."
+    },
+    {
+      "name": "behavioural equivalence",
+      "notes": "I compared the old in-Ruler effects with the new hooks for mount timing, gating and listener target. They match for every current state transition."
+    }
+  ]
+}

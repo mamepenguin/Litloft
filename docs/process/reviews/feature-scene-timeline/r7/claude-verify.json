@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "V1",
+      "origin": "verifier",
+      "claim": "The section-level blur handler clears the browse point for every pointer type. I3 says a touch or pen browse point stays until a tile or card is tapped, the playback jumps, the section collapses or the file changes. The spec lists \"focus leaves the section\" only under Keyboard (§1 step 9).",
+      "impact": "A finger tap on the ruler focuses it, because it has tabIndex=0. Any later tap outside the section moves focus to the body or another element, and that silently drops the touch browse point. Tapping the player is one example. I3 lists no such trigger.",
+      "evidence": "ScenesSectionContainer.tsx:382-389: handleSectionBlur calls setBrowsePoint(null) whenever relatedTarget is outside the section, with no pointer-type check. Presenter.tsx:175 wires onBlur on the section root. Presenter.tsx:431 sets tabIndex=0 on the ruler, so a tap focuses it. docs/specs/scene-timeline.md:116-120 gives an exhaustive clearing list for touch, without blur. Line 138 puts the blur rule under Keyboard. No test covers blur (grep for blur/focusout in __tests__ finds nothing).",
+      "repro": "Reproduced by reading the code, not by running it. Touch environment: tap the ruler, which sets the browse point and focuses the ruler. Then tap a non-focusable area or the video outside the section. focusout reaches the section root with relatedTarget null or outside, and setBrowsePoint(null) runs.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "C",
+        "reason": "The spec's keyboard rule (clear on focus leave) and the touch rule (only four clearing triggers) conflict once a tap focuses the ruler. A human has to decide whether the blur rule applies to touch.",
+        "invariant_ref": "I3"
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "V2",
+      "origin": "verifier",
+      "claim": "On a fileId change while the section is expanded, the WS reload effect still sees the render-time expanded=true. It can then request visual-index for the new file before that file's first expand.",
+      "impact": "An extra GET visual-index goes out for a native video that was never expanded, against I6's \"requests no ... visual-index ... before its first expand\". The result is written into state while the section is collapsed. It is not drawn, because the header needs view==='expanded', and the next expand resets it. So the user sees nothing wrong. The only cost is the spurious request.",
+      "evidence": "ScenesSectionContainer.tsx:118-137: the reset effect sets expandedRef=false and calls setExpanded(false). It does not change the `expanded` value captured in the current render. Lines 224-240: the WS effect re-runs because fileId and loadVisual changed. It checks `expanded` (still true in this commit) but not expandedRef.current, unlike the initial-load effect at line 205. useWebSocket.ts:7-19 returns the global lastEvent, which persists. If that event is a video_visual event whose file_id equals the new fileId, loadVisual(true) runs at line 229 after resetVisual has already bumped the generation, so its result is applied.",
+      "repro": "Reproduced by reading the code, not by running it. Expand Scenes on file A. A WS intelligence.video_visual.progress event for file B arrives and is the latest event. Navigate to file B without collapsing. The WS effect calls getVideoVisualIndex(B) before any expand of B.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "Normal use (navigating while a batch run emits events) and a declared invariant (I6). The fix is small: guard with expandedRef.current as the initial-load effect does.",
+        "invariant_ref": "I6"
+      },
+      "severity": "LOW",
+      "proposed_fix": "In the WS effect at ScenesSectionContainer.tsx:225, also return when `!expandedRef.current`. Consider also skipping when `!policy.enabled`."
+    }
+  ],
+  "verification": [],
+  "specification_compliance": [
+    "I1: the ticks use rulerFraction(row.start, L) for every row (Presenter.tsx:414-417). windowStartFor matches clamp(3*floor(i/3)-3, 0, max(0, n-9)) (scenesModel.ts:82-85). frameIndexAt returns the last start <= point, or 0 (scenesModel.ts:68-79). rulerLength matches §2 (scenesModel.ts:43-65). Checked by reading.",
+    "I2: the playback marker and the playing outline use playback.time whatever the browse point is (Presenter.tsx:249, 487-493). The seeks are limited to activate() through ruler click (mouse only), Enter with a browse point, a tile and the scene card. activate seeks and then plays through mediaController, or else through videoRef (Container.tsx:270-287).",
+    "I3: for touch or pen, a click does not seek (Container.tsx:291). The 8 px drag threshold, the tap on pointerup and the restore on pointercancel are implemented (Container.tsx:334-373). See V1 for the blur deviation.",
+    "I4: a native keydown listener on the ruler calls preventDefault and stopPropagation for the five keys (useRulerKeys.ts, Container.tsx:297-332). ShortcutsProvider listens on document in the bubble phase (ShortcutsProvider.tsx:119), so the keys do not reach it.",
+    "I8: useWindowPictures debounces the window by 150 ms, and only the window's times are requested (useWindowPictures.ts).",
+    "I9/I10: buildVisualView returns null when the response is not eligible, not available or failed. It picks the first matching row of the table, offers no action while staged is queued or running, and offers no retry when N is 0. The scene card uses the last succeeded, labelled scene at or before the point, falling back to the first. Dots use the 0.05 s tolerance (Presenter.tsx:254). The waiting_clip and other-failure messages are mapped (Container.tsx:258-262, 433-438).",
+    "I11: timeLabels drops an interior label whose estimated box would come closer than 4 px to the 0:00 label, the previous kept label or the duration label. The width estimate of 7 px per character is conservative (scenesModel.ts:91-112)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "A mouse browse point is not cleared when the pointer leaves the browser window directly from a child of the section. onPointerOut needs a non-null relatedTarget, and onPointerLeave needs target === currentTarget (Presenter.tsx:164-174). This matters only when the section touches the window edge.",
+    "The WS effect does not check policy.enabled. A visual_video event for the current file, while expanded with the policy off or still loading, would fetch visual-index and draw Visual Index parts, against I9's policy-off clause. Unlikely in normal use, because a policy-off drive should emit no such events.",
+    "After re-expanding, a stale global lastEvent for the same file triggers a second visual-index request, which supersedes the initial one. The visible result is the same."
+  ],
+  "regression_risks": [
+    "The keyboard isolation relies on ShortcutsProvider's listener staying a bubble-phase document listener. A capture-phase listener would break I4.",
+    "The section's fixed height (I5) relies on the scene card's min-h and on pictureRatio being set once. The tile height changes once, when the first picture loads."
+  ],
+  "test_coverage": [
+    "No test covers blur or focus-leave clearing of the browse point, for either keyboard or touch.",
+    "No test covers a fileId change while expanded combined with a pending WS event (V2)."
+  ],
+  "not_verified": [
+    "Nothing was run: no tests, no e2e, no layout checks. Every conclusion comes from reading the code.",
+    "The core changes (section-rows.test, line-clamp-display.test, e2e-layout and e2e-components fixtures, docs) and the manifest and slots changes were not read.",
+    "usePlaybackClock jump detection (§9) and useRulerWidth were not read.",
+    "The I5 no-scroll and max-width checks across real viewports and pointers were not checked."
+  ],
+  "confidence": 72
+}
