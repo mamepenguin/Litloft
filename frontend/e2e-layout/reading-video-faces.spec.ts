@@ -11,7 +11,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { BOOK_GRID, cardGridTemplate, columnsFor, rowsFor } from "../src/lib/cardGrid";
+import { BOOK_GRID, VIDEO_GRID, cardGridTemplate, columnsFor, rowsFor } from "../src/lib/cardGrid";
 
 const FIXTURE_FILE = resolve(
   __dirname,
@@ -99,7 +99,7 @@ async function layout(
   await page.evaluate(([a, f]) => window.buildApp(a, f), [app, face]);
 
   const gridWidth = await page.evaluate(() => window.firstGridWidth());
-  const metrics = app === "reading" ? BOOK_GRID : undefined;
+  const metrics = app === "reading" ? BOOK_GRID : VIDEO_GRID;
   const columns = columnsFor(gridWidth, metrics);
   const capacity = columns * rowsFor(columns);
   await page.evaluate(

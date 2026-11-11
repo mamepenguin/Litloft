@@ -239,15 +239,21 @@ export function LibraryFace({
             />
             <div ref={flatSentinel} aria-hidden="true" className="h-px" />
             {flat.more === "loading" && (
-              <ShelfBlock
-                title=""
-                view={{ status: "loading" }}
-                onRetry={flat.loadMore}
-                book
-                renderItem={() => null}
-              />
+              <div className="mt-10">
+                <ShelfBlock
+                  title=""
+                  view={{ status: "loading" }}
+                  onRetry={flat.loadMore}
+                  book
+                  renderItem={() => null}
+                />
+              </div>
             )}
-            {flat.more === "failed" && <RetryButton onRetry={flat.loadMore} />}
+            {flat.more === "failed" && (
+              <div className="mt-10">
+                <RetryButton onRetry={flat.loadMore} />
+              </div>
+            )}
           </>
         );
     } else {
@@ -269,7 +275,7 @@ export function LibraryFace({
         <EmptyState icon={BookOpen} title={t("noBooks")} />
       ) : (
         <>
-          <div className="space-y-8">
+          <div className="space-y-10">
             {grouped.items.map((shelf) => (
               <ShelfBlock
                 key={shelf.key}
@@ -285,15 +291,21 @@ export function LibraryFace({
           </div>
           <div ref={groupedSentinel} aria-hidden="true" className="h-px" />
           {grouped.more === "loading" && (
-            <ShelfBlock
-              title=""
-              view={{ status: "loading" }}
-              onRetry={grouped.loadMore}
-              book
-              renderItem={() => null}
-            />
+            <div className="mt-10">
+              <ShelfBlock
+                title=""
+                view={{ status: "loading" }}
+                onRetry={grouped.loadMore}
+                book
+                renderItem={() => null}
+              />
+            </div>
           )}
-          {grouped.more === "failed" && <RetryButton onRetry={grouped.loadMore} />}
+          {grouped.more === "failed" && (
+            <div className="mt-10">
+              <RetryButton onRetry={grouped.loadMore} />
+            </div>
+          )}
         </>
       );
   } else {

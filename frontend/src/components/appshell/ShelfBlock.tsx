@@ -13,6 +13,7 @@ import {
   useCardColumns,
 } from "@/lib/cardGrid";
 import { RetryButton } from "./RetryButton";
+import { VideoGrid } from "./VideoGrid";
 
 export type ShelfView<T> =
   | { status: "loading" }
@@ -31,7 +32,13 @@ function SkeletonCard({ book }: { book: boolean }) {
             : "aspect-video rounded-2xl bg-bg-elevated"
         }
       />
-      <div className="mt-2 h-4 w-3/4 rounded-lg bg-bg-elevated" />
+      <div
+        className={
+          book
+            ? "mt-2 h-4 w-3/4 rounded-lg bg-bg-elevated"
+            : "mt-3 h-[1.375rem] w-3/4 rounded-lg bg-bg-elevated"
+        }
+      />
     </li>
   );
 }
@@ -42,35 +49,38 @@ function capacityOf(columns: number): number {
   return effective * rowsFor(effective);
 }
 
-export function ShelfGrid<T extends { id: string }>({
+function cardsOf<T extends { id: string }>(
+  view: GridView<T>,
+  columns: number,
+  renderItem: (item: T) => ReactNode,
+  book: boolean,
+): ReactNode {
+  const capacity = capacityOf(columns);
+  return view.status === "loading"
+    ? Array.from({ length: capacity }).map((_, i) => <SkeletonCard key={i} book={book} />)
+    : view.items.slice(0, capacity).map((item) => (
+        <li key={item.id} className="min-w-0">
+          {renderItem(item)}
+        </li>
+      ));
+}
+
+function BookGrid<T extends { id: string }>({
   view,
   renderItem,
-  book = false,
 }: {
   view: GridView<T>;
   renderItem: (item: T) => ReactNode;
-  book?: boolean;
 }) {
-  const { ref, columns } = useCardColumns(book ? BOOK_GRID : undefined);
-  const capacity = capacityOf(columns);
+  const { ref, columns } = useCardColumns(BOOK_GRID);
 
   return (
     <ul
       ref={ref}
-      className={`grid ${book ? "gap-5" : "gap-3"}`}
-      style={{
-        gridTemplateColumns: cardGridTemplate(columns, book ? BOOK_GRID : undefined),
-      }}
+      className="grid gap-5"
+      style={{ gridTemplateColumns: cardGridTemplate(columns, BOOK_GRID) }}
     >
-      {view.status === "loading"
-        ? Array.from({ length: capacity }).map((_, i) => (
-            <SkeletonCard key={i} book={book} />
-          ))
-        : view.items.slice(0, capacity).map((item) => (
-            <li key={item.id} className="min-w-0">
-              {renderItem(item)}
-            </li>
-          ))}
+      {cardsOf(view, columns, renderItem, true)}
     </ul>
   );
 }
@@ -98,7 +108,7 @@ export function ShelfBlock<T extends { id: string }>({
 
   return (
     <section className="min-w-0">
-      <div className="mb-3 flex min-w-0 items-baseline gap-2">
+      <div className="mb-4 flex min-w-0 items-baseline gap-2">
         {title ? (
           <h2 className="min-w-0 truncate text-lg font-bold text-text-primary">{title}</h2>
         ) : (
@@ -121,8 +131,12 @@ export function ShelfBlock<T extends { id: string }>({
 
       {view.status === "failed" ? (
         <RetryButton onRetry={onRetry} />
+      ) : book ? (
+        <BookGrid view={view} renderItem={renderItem} />
       ) : (
-        <ShelfGrid view={view} renderItem={renderItem} book={book} />
+        <VideoGrid>
+          {(columns) => cardsOf(view, columns, renderItem, false)}
+        </VideoGrid>
       )}
     </section>
   );

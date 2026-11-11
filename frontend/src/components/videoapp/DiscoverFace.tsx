@@ -24,7 +24,7 @@ export function DiscoverFace({
   if (empty) return <EmptyState variant="no-files" />;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       {shelves.map(({ id, title, href, state, bylines, retry }) => (
         <ShelfBlock<ShelfItem>
           key={id}

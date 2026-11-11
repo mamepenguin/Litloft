@@ -50,13 +50,13 @@ export function VideoCard({ item, byline }: { item: ShelfItem; byline?: string }
           </div>
         )}
       </div>
-      <span className="mt-2 line-clamp-2 text-sm font-semibold text-text-primary">
+      <span className="mt-3 line-clamp-2 text-base/[1.375rem] font-medium text-text-primary">
         {item.title}
       </span>
       {typeof byline === "string" && byline !== "" && (
         <>
           {" "}
-          <span className="mt-0.5 block truncate text-xs text-text-muted">{byline}</span>
+          <span className="mt-1 block truncate text-sm text-text-muted">{byline}</span>
         </>
       )}
     </Link>
