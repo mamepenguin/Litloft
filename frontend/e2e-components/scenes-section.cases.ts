@@ -20,16 +20,19 @@ type Pointer = "mouse" | "touch";
 export interface ScenesCase {
   hostWidth: number;
   pointer: Pointer;
+  /** The 9:46:37 file whose 500 frames end at 4:09:30. */
+  long?: boolean;
 }
 
 async function open(
   page: Page,
-  { hostWidth, pointer }: ScenesCase,
+  { hostWidth, pointer, long = false }: ScenesCase,
 ): Promise<void> {
-  await page.goto(`${FIXTURE}#scenes-${hostWidth}`);
+  const arrangement = `${long ? "scenes-long" : "scenes"}-${hostWidth}`;
+  await page.goto(`${FIXTURE}#${arrangement}`);
   await expect(page.locator("body")).toHaveAttribute(
     "data-arrangement",
-    `scenes-${hostWidth}`,
+    arrangement,
   );
   expect(
     await page.evaluate(
@@ -189,6 +192,70 @@ export function scenesSectionCases(cases: ScenesCase[]): void {
 
         for (const height of [browsed, again, moved]) {
           expect(height).toBeCloseTo(opened, 0);
+        }
+      });
+    }
+  });
+}
+
+interface LabelBox {
+  text: string;
+  left: number;
+  right: number;
+}
+
+interface LabelReading {
+  rulerLeft: number;
+  rulerRight: number;
+  labels: LabelBox[];
+}
+
+/** The label row's spans as the browser drew them, against the ruler's box. */
+async function timeLabelBoxes(page: Page): Promise<LabelReading> {
+  return page.locator(SECTION).evaluate((root) => {
+    const slider = root.querySelector<HTMLElement>('[role="slider"]');
+    if (!slider) throw new Error("no ruler is drawn");
+    const row = slider.nextElementSibling as HTMLElement | null;
+    if (!row) throw new Error("no label row is drawn");
+    const ruler = slider.getBoundingClientRect();
+    return {
+      rulerLeft: ruler.left,
+      rulerRight: ruler.right,
+      labels: Array.from(row.querySelectorAll<HTMLElement>("span")).map(
+        (label) => {
+          const box = label.getBoundingClientRect();
+          return {
+            text: label.textContent ?? "",
+            left: box.left,
+            right: box.right,
+          };
+        },
+      ),
+    };
+  });
+}
+
+export function scenesTimeLabelCases(cases: ScenesCase[]): void {
+  test.describe("I11 — the drawn time labels leave 4 px between boxes", () => {
+    for (const scenesCase of cases) {
+      const { hostWidth, pointer } = scenesCase;
+      test(`${hostWidth}px host, ${pointer}`, async ({ page }) => {
+        await page.clock.install();
+        await open(page, scenesCase);
+
+        const reading = await timeLabelBoxes(page);
+        expect(reading.labels.map((label) => label.text)).toEqual(
+          expect.arrayContaining(["0:00", "2:00:00", "9:46:37"]),
+        );
+
+        for (const label of reading.labels) {
+          expect(label.left).toBeGreaterThanOrEqual(reading.rulerLeft - 0.5);
+          expect(label.right).toBeLessThanOrEqual(reading.rulerRight + 0.5);
+        }
+        for (let i = 1; i < reading.labels.length; i += 1) {
+          expect(
+            reading.labels[i].left - reading.labels[i - 1].right,
+          ).toBeGreaterThanOrEqual(4);
         }
       });
     }

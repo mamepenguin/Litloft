@@ -68,3 +68,36 @@ export const SCENES_VISUAL_INDEX = {
  * polls this object rather than listening to it.
  */
 export const SCENES_PLAYBACK = { time: 0, paused: true };
+
+export const SCENES_LONG_FILE = "vidscenes002";
+export const SCENES_LONG_DURATION = 35197;
+export const SCENES_LONG_FRAME_STEP = 30;
+export const SCENES_LONG_FRAMES = 500;
+
+/** 500 frames ending at 4:09:30, in a file the player reports as 9:46:37. */
+export const SCENES_LONG_TIMESTAMPS = Array.from(
+  { length: SCENES_LONG_FRAMES },
+  (_, index) => ({
+    start: index * SCENES_LONG_FRAME_STEP,
+    content_preview: `frame ${index}`,
+  }),
+);
+
+export const SCENES_LONG_VISUAL_INDEX = {
+  eligible: true,
+  available: true,
+  file_id: SCENES_LONG_FILE,
+  active_run: {
+    run_id: "run-long",
+    status: "succeeded",
+    selected_count: 0,
+    completed_count: 0,
+    succeeded_count: 0,
+    failed_count: 0,
+    created_at: "2026-01-01T00:00:00Z",
+    completed_at: "2026-01-01T00:01:00Z",
+  },
+  scenes: [],
+  staged_run: null,
+  stale: false,
+};

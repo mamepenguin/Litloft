@@ -2419,9 +2419,19 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "home-app-entries": HomeAppEntriesArrangement,
   "discover-prefix": DiscoverPrefixArrangement,
   "persistent-highlights": PersistentHighlightsArrangement,
+  "scenes-351": () => <ScenesSectionArrangement hostWidth={351} />,
   "scenes-384": () => <ScenesSectionArrangement hostWidth={384} />,
   "scenes-390": () => <ScenesSectionArrangement hostWidth={390} />,
   "scenes-900": () => <ScenesSectionArrangement hostWidth={900} />,
+  "scenes-long-351": () => (
+    <ScenesSectionArrangement hostWidth={351} long />
+  ),
+  "scenes-long-384": () => (
+    <ScenesSectionArrangement hostWidth={384} long />
+  ),
+  "scenes-long-390": () => (
+    <ScenesSectionArrangement hostWidth={390} long />
+  ),
 };
 
 function App(): ReactElement {

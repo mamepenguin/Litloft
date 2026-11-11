@@ -3,6 +3,11 @@
  * width a phone's Bottom Sheet gives it, browsed by tapping the ruler.
  */
 
-import { scenesSectionCases } from "./scenes-section.cases";
+import {
+  scenesSectionCases,
+  scenesTimeLabelCases,
+} from "./scenes-section.cases";
 
 scenesSectionCases([{ hostWidth: 390, pointer: "touch" }]);
+
+scenesTimeLabelCases([{ hostWidth: 390, pointer: "touch", long: true }]);
