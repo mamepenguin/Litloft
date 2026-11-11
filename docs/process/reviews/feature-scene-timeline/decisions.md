@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: continue. The human chose to fix V-1 (r6) rather than ship or discard: "続ける（直す）", 2026-11-11.
 ran_in_app: yes
 at: d7cf0a62e5f7dfdf5a790262588cee8f76281303
 by: agent
@@ -66,3 +66,5 @@ pending: Rows 3 (partial/failed with Retry), the stale line, the waiting_clip an
 - D-4: fixed in this change by the human's decision, 2026-11-11: time labels are left out by their drawn width instead of the 8% rule (invariants.md I11).
 - D-5: fixed (addons/intelligence 7d89b9f).
 - D-6: accepted by the human, 2026-11-11. A re-run keeps the current scene count, and shows "…" while `selected_count` is 0.
+- D-7: accepted by the human, 2026-11-11. The states R-5 could not reach (row 3 with Retry, the stale line, the card's hover, the long board's window-band edges, the 900 px host, reduced motion) are covered by the acceptance tests for behaviour; their look is unchecked.
+- The ruler and the scene card use `bg-bg-elevated` instead of §9's `bg-bg-card`: decided by the human, 2026-11-11, that the implementation is right and §9's value is an error, because the inspector panel is itself `bg-bg-card` and §9's value makes both invisible; the boards draw them one step lighter than the panel.
