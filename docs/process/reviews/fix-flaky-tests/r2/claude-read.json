@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "CR-1",
+      "origin": "reviewer",
+      "claim": "The doc comment on reveal() in SearchPage.semanticContinuation.test.tsx gives the wrong reason the old fire was lost. It says the old observer \"holds the state it was created with, and firing it reveals nothing\", but neither production callback reads closed-over state.",
+      "impact": "A user cannot hit this, because only test code is involved. A maintainer who trusts the comment might go looking for a stale-closure bug in useFolderFiles or useInfiniteScroll that does not exist, or might wrap a callback in a ref for no reason.",
+      "evidence": "In useFolderFiles.ts:427-433, revealMore uses a functional setContinuation updater and has empty deps, so an older continuation observer that still observes the sentinel would still reveal. In useInfiniteScroll.ts:157-175, the callback reads pageRef.current, and while loadingMore or loading is true no observer exists at all, because the cleanup disconnects it and the guard at line 158 creates none. The real cause of the lost fire is that no live observer exists (all targets have been cleared) until the passive effect runs. reveal() handles that correctly by waiting for an observer that has targets.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is declared. This is prose that misstates the mechanism; the code is correct.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Delete the clause \"until then the old one holds the state it was created with, and firing it reveals nothing\" from the reveal() doc comment."
+    }
+  ],
+  "specification_compliance": [
+    "No invariants file exists for fix-flaky-tests, so there is no declared touch-point list to check against.",
+    "Commit 2368e26 changes only frontend/src/components/__tests__/SearchPage.semanticContinuation.test.tsx. No production code changes in it.",
+    "Across the branch, the only production edit is the data-testid=\"scenes-visual-placeholder\" attribute in addons/intelligence ScenesSectionPresenter.tsx:309-316. It does not change behavior."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "reveal() relies on every production sentinel effect disconnecting its observer in cleanup (MockIntersectionObserver.disconnect clears targets). A future sentinel effect that skips disconnect would leave stale observers with targets. The wait would then always pass and could fire before the new observer exists."
+  ],
+  "regression_risks": [
+    "If a reveal does not cause a new observer, for example because the continuation reaches state \"done\", any later reveal() call will wait forever and time out. That is a loud failure, not a silent pass. Today the last reveal() in each test is followed by an end state, and no reveal() call comes after it.",
+    "waitForVisualIndex() requires getVideoVisualIndex to have been called. Using it in a policy-off test would time out, and the policy-off tests (ScenesSectionRequests.test.tsx:146-153, 155-) correctly do not use it."
+  ],
+  "test_coverage": [
+    "reveal() now waits until an observer created after the previous fire has a target. For the continuation, the effect deps include revealedContinuation (useFolderFiles.ts:594), so every reveal causes a fresh observer while the state is \"open\". For filename pages, the observer is recreated only once loadingMore and loading are false (useInfiniteScroll.ts:158). The wait therefore keys on exactly the observer that will act.",
+    "The \"reloading or remain\" test (SearchPage.semanticContinuation.test.tsx:675-679) keeps an immediate fireSentinels() after reveal(), but that second fire does nothing. act() flushes the passive effects of the first fire, the infinite-scroll observer is disconnected while loadingMore is true, and continuationState is \"hidden\", so no continuation observer exists. Removing the filenameComplete gate from continuationState is already caught by the first fire, which bumps revealed to 200, so cont-101 is drawn. The second fire adds no coverage. This was already true of the old back-to-back `await reveal()`.",
+    "Intelligence waitForVisualIndex(): expand() calls resetVisual(), which sets visualLoaded to false (ScenesSectionContainer.tsx:130-137,166). So the placeholder-gone wait after a second expand really waits for the second loadVisual to resolve. It is not satisfied by the first expand's state.",
+    "The VideoShelfPage `live` flag is set to false by disconnect(), and nearEnd() fires only live observers. This matches the real IntersectionObserver, where a disconnected observer does not fire."
+  ],
+  "not_verified": [
+    "I did not run vitest, Playwright or pytest. I cannot run commands.",
+    "I did not reproduce the \"expected 203 but got 103\" CI failure, and I did not confirm that the new wait removes it under load.",
+    "I did not read every SearchPage test that might call fireSentinels or reveal under a hydration or revalidation path in useInfiniteScroll.",
+    "I did not confirm with git that the intelligence gitlink 21938cf contains exactly the diff shown."
+  ],
+  "confidence": 80,
+  "trajectory": "Every round after r1 applies the same fix: wait for an asynchronous commit or passive effect before acting. Each round adds new test-harness state for this. d5abda5 adds per-test waits and a `live` flag on FakeObserver in two files. 5196ef6 adds a production data-testid and the waitForVisualIndex helper, used in about 50 places. 2368e26 adds a `fired` counter to the SearchPage observer mock and splits fireSentinels out of reveal. The production design is not being patched: the only production edit is a test id. The test harness is, though: each file gets its own observer-readiness state, and there is no shared helper. The one removal is the `if (gapMs > 0)` branch in sheet-gesture.spec.ts swipe(), from the r1-era change. The double reveal in the I10 \\\"reloading or remain\\\" test became one waited reveal plus one unwaited fire."
+}

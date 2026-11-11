@@ -375,8 +375,7 @@ async function clickShowMore(container: HTMLElement) {
 
 /**
  * Both sentinels' observers are replaced whenever the rows or the loading
- * state change, in an effect that runs after the commit; until then the old
- * one holds the state it was created with, and firing it reveals nothing.
+ * state change, in an effect that runs after the commit.
  */
 async function reveal() {
   await waitFor(() =>
