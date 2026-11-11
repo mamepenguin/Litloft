@@ -237,6 +237,9 @@ export function scenesSectionCases(cases: ScenesCase[]): void {
         const first = await card(page);
         expect(first.label).toBe(SCENES_SHORT_LABEL);
         expect(first.text).toBe("");
+        // The card reserves its height as a whole, so a one-line label takes
+        // one line and the text follows it directly.
+        expect(first.labelLines).toBe(1);
 
         // Frame 5: still the same window, another scene in the card.
         await browse(page, scenesCase, 0.09);
