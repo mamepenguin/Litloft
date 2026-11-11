@@ -183,3 +183,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-077 | implemented | docs/specs/discover-shelves-never-shift.md | sha256:ebc0d007063679aa4ea448c924dbe61702c0cb0e9e60023138c6b7c6e55bb0f7 |
 | SPEC-ADDON-089 | implemented | docs/specs/scene-timeline.md | sha256:b4e54db683000fddc69a9ec97c7f9c2cb858e41b2de94e26777d2adaf1022b33 |
 | SPEC-ADDON-090 | implemented | docs/specs/scene-timeline.md | sha256:b4e54db683000fddc69a9ec97c7f9c2cb858e41b2de94e26777d2adaf1022b33 |
+| SPEC-CORE-078 | implemented | docs/specs/provider-shelf-page.md | sha256:6bc0fac3b6ca4a54032719bfc77ff5451276aad4f5117e82c314abe9d816e844 |
+| SPEC-CORE-079 | implemented | docs/specs/provider-shelf-page.md | sha256:6bc0fac3b6ca4a54032719bfc77ff5451276aad4f5117e82c314abe9d816e844 |
+| SPEC-ADDON-091 | implemented | docs/specs/media-import-page-providers.md | sha256:a06bd6856fa916ccd11811aaba68f48cd7e334d0f8de52af5f34fddfba0cda62 |
+| SPEC-ADDON-092 | implemented | docs/specs/media-import-page-providers.md | sha256:a06bd6856fa916ccd11811aaba68f48cd7e334d0f8de52af5f34fddfba0cda62 |

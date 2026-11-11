@@ -100,26 +100,20 @@ Core search finds a `.loft` by its filename, which is the video title. With the 
 
 ## YouTube & Feeds
 
-The page is at `/drive/{drive}/addons/media_import` and has two views.
+The page is at `/drive/{drive}/addons/media_import`. It has the **Add a source** form, your subscriptions, and **Recent activity**. In the form, a single video URL becomes a `.loft`, and a YouTube channel or playlist URL becomes a subscription.
 
-**Manage** has the **Add a source** form, your subscriptions, and **Recent activity**. In the form, a single video URL becomes a `.loft`, and a YouTube channel or playlist URL becomes a subscription.
+You watch subscription videos in the drive's [Video](../user-guide/video.md) app. Its **Discover** face shows two shelves between Recommended and New:
 
-**Watch** shows videos from subscriptions you chose to show, in two lanes:
+- **よく見るソース** / **Regular sources**: subscriptions set to **Regular source**, at most the two newest videos from each.
+- **購読の新着** / **New from subscriptions**: subscriptions set to **購読の新着に表示** / **Show in New from subscriptions**, newest first.
 
-- **Regular sources**: subscriptions set to **Regular source**. At most two of the newest videos from each, and at most 12 in total. This lane has no **Show more**.
-- **Recent videos**: subscriptions set to **Show in recent videos**, newest first, 12 at a time with **Show more**.
+Each card shows the channel and the publish date under the title. A shelf shows up to 12 videos, and its **See all** opens the whole lane in the Video app, under the same type and smart folder as Discover, with more videos loading as you scroll. A video that two subscriptions share appears once.
 
-The same two lanes also appear on the drive's [Video](../user-guide/video.md) page under **Discover**, as **よく見るソース** / **Regular sources** and **購読の新着** / **New from subscriptions**, between Recommended and New. Each shows up to 12 videos, and its **See all** opens this page.
+Each subscription has a **Show in the video app** setting, chosen when you add it and changeable in its details:
 
-Each subscription has a **Show in Watch** setting, chosen when you add it and changeable in its details in Manage:
-
-- **Library only**: videos are imported and searchable, including by Ask, but are not shown in Watch.
-- **Show in recent videos**
+- **Library only**: videos are imported and searchable, including by Ask, but are not shown on Discover.
+- **Show in New from subscriptions**
 - **Regular source**
-
-A video that two subscriptions share appears once. A card shows how far you have watched, and **Watched** when you have finished. It offers **Add to collection** and **Open the source page**.
-
-The page opens on Watch when any subscription on the drive is set to something other than **Library only**, and on Manage otherwise. Videos you are part-way through are listed on Home under **Continue**, not here.
 
 ## Subscriptions
 

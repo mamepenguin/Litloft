@@ -1,6 +1,11 @@
 import type { VideoTargetParams } from "@/lib/videoAppTarget";
 
-const stored = new Map<string, readonly string[]>();
+export interface CachedItem {
+  id: string;
+  byline?: string;
+}
+
+const stored = new Map<string, readonly CachedItem[]>();
 
 /** Sorted, so a target built in another key order reads as the same target. */
 function ordered(value: unknown): unknown {
@@ -29,6 +34,7 @@ export interface DiscoverCacheKey {
   entriesKey?: string;
   addonName?: string | null;
   entryId?: string;
+  locale?: string;
 }
 
 export function discoverCacheKey(key: DiscoverCacheKey): string {
@@ -41,15 +47,16 @@ export function discoverCacheKey(key: DiscoverCacheKey): string {
     key.entriesKey ?? null,
     key.addonName ?? null,
     key.entryId ?? null,
+    key.locale ?? null,
   ]);
 }
 
-export function readCachedIds(key: string): readonly string[] | undefined {
+export function readCachedItems(key: string): readonly CachedItem[] | undefined {
   return stored.get(key);
 }
 
-export function writeCachedIds(key: string, ids: readonly string[]): void {
-  stored.set(key, [...ids]);
+export function writeCachedItems(key: string, items: readonly CachedItem[]): void {
+  stored.set(key, items.map((item) => ({ ...item })));
 }
 
 export function resetDiscoverCache(): void {

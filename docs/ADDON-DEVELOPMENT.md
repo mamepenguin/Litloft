@@ -815,7 +815,7 @@ plus what its row lists.
 | `active-summary-view` | File detail, with the summaries | `{ fileId, drive, summaryNote }`. Drawn only when `GET /api/addons/knowledge/file_active_summary/{id}/note` reports an active summary; without an entry the core draws the note itself |
 | `drive-home-sections` | Drive home, between **Continue** and **Recently Viewed** | `{ drive }` |
 | `video-discover-recommended` | Video app, **Discover** face, the **Recommended** shelf | A provider slot; see [Frontend slot providers](#frontend-slot-providers). The first entry by `priority` whose `slotProviders` has a function under its `id` supplies Recommended. Called only with a profile; its `restrict` adds `watch=unwatched` |
-| `video-discover-shelves` | Video app, **Discover** face, one shelf per entry between Recommended and New | A provider slot, with or without a profile. Each entry's provider supplies one shelf, in `priority` order. `i18n_key` (or `label`) titles it; `href`, relative to `/drive/{drive}/`, adds **See all** |
+| `video-discover-shelves` | Video app, **Discover** face, one shelf per entry between Recommended and New | A provider slot, with or without a profile. Each entry's provider supplies one shelf, in `priority` order. `i18n_key` (or `label`) titles it. **See all** opens the core page `/drive/{drive}/apps/video/shelf?entry={id}` when the entry has a page provider (below), otherwise the entry's `href` relative to `/drive/{drive}/`, and is absent when it has neither |
 | `sidebar-sections` | Sidebar, end of the library section | No props |
 | `dashboard-widgets` | Admin dashboard (`/admin`) | No props. Cards |
 | `dashboard-alerts` | Admin dashboard, above the drive cards | No props. For something an operator must see first. Render nothing when nothing is wrong: the host draws no wrapper |
@@ -1127,6 +1127,68 @@ returns the subset of `ids` that matched, in the order given. It sends at most
 60 ids per request and returns `[]` without a request for an empty list. Only
 ids that `restrict` returned may be drawn: an id the provider never passed
 through it is dropped.
+
+### Page providers
+
+A `video-discover-shelves` entry may page instead of returning one list.
+Export `slotPageProviders` beside `slotProviders`:
+
+```typescript
+// addons/{name}/frontend/slots.ts
+import { listWatch } from "./api";
+
+export const slotPageProviders = {
+  "shelf-a": async ({ drive, locale, limit, cursor, restrict }) => {
+    const page = await listWatch(drive, { limit, cursor, locale });
+    const accepted = new Set(await restrict(page.items.map((item) => item.id)));
+    return {
+      items: page.items
+        .filter((item) => accepted.has(item.id))
+        .map((item) => ({ id: item.id, byline: `${item.channel} · ${item.date}` })),
+      cursor: page.next, // an opaque string, or null at the end
+    };
+  },
+};
+```
+
+A page provider is
+`({ drive, locale, limit, cursor, restrict }) => Promise<{ items, cursor }>`:
+
+| Argument | Meaning |
+|---|---|
+| `drive` | The drive, as for a list provider |
+| `locale` | The viewer's UI locale, e.g. `"ja"`. Format the byline with it |
+| `limit` | Items wanted: 12 on Discover, 60 on the core page |
+| `cursor` | `null` for the first page; afterwards exactly the string the previous answer returned |
+| `restrict` | The same filter a list provider receives |
+
+`items` is ordered, best first. Each item is `{ id, byline? }`: `byline` is
+drawn as one muted, truncated line under the card's title (a channel name and
+publish date, say), as text and never as HTML. The core draws it only when it is
+a non-empty string; it does not parse, translate or format it. A reader sees it
+on Discover and on the core page.
+
+Two requirements:
+
+- **Fill the page.** Keep reading your source until you hold `limit` restricted
+  items or the source ends, so that a page is short only at the end.
+- **Never repeat an earlier item.** Use a keyset cursor (the last item's sort
+  key and id, say), not an offset over a list that grows. The core stops at a
+  page that adds nothing new, whatever cursor it returns, so a cursor that
+  repeats items ends the list early.
+
+Only a non-empty string cursor continues; `null`, `undefined`, an empty string
+or any other value means there is no further page. The core drops an item that
+is not an object or whose `id` is not a non-empty string, and draws the rest of
+the page; an answer whose `items` is not an array counts as rejected.
+
+The page provider is found like the list provider: the entry's `addonName` →
+that addon's `slots.ts` → `slotPageProviders[entry.id]`. It is consulted only
+for `video-discover-shelves`, so **Recommended** keeps `slotProviders`. A list
+provider receives no `locale`. On Discover a page provider is called with
+`cursor: null` and `limit: 12`, and its cursor is not followed. The entry's
+**See all** opens the core page; a module that fails to import counts as having
+no page provider, and the list provider is tried next.
 
 ### Registering a `.loft` player
 

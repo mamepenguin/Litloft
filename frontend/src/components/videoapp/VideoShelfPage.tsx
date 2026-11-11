@@ -12,6 +12,7 @@ import { usePaged } from "@/components/appshell/usePaged";
 import { PageFrame } from "@/components/PageFrame";
 import { builtinApps } from "@/lib/builtinApps";
 import { getShelves, type ShelfGrouping, type ShelfItem } from "@/lib/api";
+import { slotEntryLabel } from "@/lib/slotLabel";
 import { SortChoiceMenu } from "./LibraryControls";
 import {
   CONTINUE_SORT_CHOICES,
@@ -20,6 +21,7 @@ import {
   shelfTitle,
   type ShelfSortChoice,
 } from "./labels";
+import { useProviderShelfPage } from "./useProviderShelfPage";
 import { isViewerRequired, useVideoApp } from "./useVideoApp";
 import { VideoAppHeader } from "./VideoAppHeader";
 import { VideoCard } from "./VideoCard";
@@ -52,16 +54,21 @@ export function VideoShelfPage({
   shelfKey,
   initialSort,
   from,
+  entry,
 }: {
   drive: string;
   by: ShelfGrouping | null;
   shelfKey: string;
   initialSort?: string | null;
   from?: string | null;
+  /** An addon shelf to page through its page provider. */
+  entry?: string | null;
 }) {
   const t = useTranslations("videoApp");
+  const tGlobal = useTranslations();
   const locale = useLocale();
   const state = useVideoApp(drive);
+  const entryMode = typeof entry === "string" && entry !== "";
   const offered: readonly ShelfSortChoice[] =
     by === "watch" && shelfKey === "continue" ? CONTINUE_SORT_CHOICES : SORT_CHOICES;
   const initialChoice = parseShelfSortId(initialSort ?? null, offered) ?? offered[0].id;
@@ -75,11 +82,11 @@ export function VideoShelfPage({
   const sort = offered.find((choice) => choice.id === sortId) ?? offered[0];
 
   // Watch state reads the viewer's rows; without a profile there is no shelf to open.
-  const watchBlocked = by === "watch" && !state.hasProfile;
+  const watchBlocked = !entryMode && by === "watch" && !state.hasProfile;
   const { params, rejectViewer } = state;
   const fetchPage = useMemo(
     () =>
-      by === null || params === null || watchBlocked
+      entryMode || by === null || params === null || watchBlocked
         ? null
         : (page: number) =>
             getShelves(drive, {
@@ -100,38 +107,77 @@ export function VideoShelfPage({
                 throw error;
               },
             ),
-    [drive, by, shelfKey, params, watchBlocked, sort.sort, sort.order, rejectViewer],
+    [entryMode, drive, by, shelfKey, params, watchBlocked, sort.sort, sort.order, rejectViewer],
   );
   const paged = usePaged<ShelfItem>(fetchPage);
-  const sentinel = useNearEnd(paged.hasMore && paged.more === "idle", paged.loadMore);
+  const provider = useProviderShelfPage({
+    enabled: entryMode,
+    entryId: entryMode ? entry : null,
+    drive,
+    params,
+    ready: state.ready,
+    empty: state.empty,
+    onViewerRejected: rejectViewer,
+  });
+  const sentinel = useNearEnd(
+    entryMode ? provider.hasMore : paged.hasMore && paged.more === "idle",
+    entryMode ? provider.loadMore : paged.loadMore,
+  );
 
-  const title =
-    by === null
+  const title = entryMode
+    ? provider.entry
+      ? slotEntryLabel(provider.entry, tGlobal)
+      : t("title")
+    : by === null
       ? t("title")
       : shelfTitle({ by, shelf: { key: shelfKey, label: shelfKey }, drive, locale, from, t: (key) => t(key) });
   const app = builtinApps.find((candidate) => candidate.id === "video")!;
 
-  const body =
-    by === null || state.empty || watchBlocked || (paged.phase === "ready" && paged.items.length === 0) ? (
+  const body = entryMode ? (
+    provider.phase === "no-target" || provider.phase === "absent" ? (
       <EmptyState variant="no-files" />
-    ) : paged.phase === "failed" ? (
-      <RetryButton onRetry={paged.retry} />
-    ) : paged.phase === "ready" ? (
-      <>
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          {paged.items.map((item) => (
-            <li key={item.id} className="min-w-0">
-              <VideoCard item={item} />
-            </li>
-          ))}
-        </ul>
-        <div ref={sentinel} aria-hidden="true" className="h-px" />
-        {paged.more === "loading" && <SkeletonGrid />}
-        {paged.more === "failed" && <RetryButton onRetry={paged.loadMore} />}
-      </>
+    ) : provider.phase === "failed" ? (
+      <RetryButton onRetry={provider.retryFirst} />
+    ) : provider.phase === "ready" || provider.phase === "ended" ? (
+      provider.items.length === 0 ? (
+        <EmptyState variant="no-files" />
+      ) : (
+        <>
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {provider.items.map((item) => (
+              <li key={item.id} className="min-w-0">
+                <VideoCard item={item} byline={provider.bylines.get(item.id)} />
+              </li>
+            ))}
+          </ul>
+          <div ref={sentinel} aria-hidden="true" className="h-px" />
+          {provider.more === "loading" && <SkeletonGrid />}
+          {provider.more === "failed" && <RetryButton onRetry={provider.loadMore} />}
+        </>
+      )
     ) : (
       <SkeletonGrid />
-    );
+    )
+  ) : by === null || state.empty || watchBlocked || (paged.phase === "ready" && paged.items.length === 0) ? (
+    <EmptyState variant="no-files" />
+  ) : paged.phase === "failed" ? (
+    <RetryButton onRetry={paged.retry} />
+  ) : paged.phase === "ready" ? (
+    <>
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        {paged.items.map((item) => (
+          <li key={item.id} className="min-w-0">
+            <VideoCard item={item} />
+          </li>
+        ))}
+      </ul>
+      <div ref={sentinel} aria-hidden="true" className="h-px" />
+      {paged.more === "loading" && <SkeletonGrid />}
+      {paged.more === "failed" && <RetryButton onRetry={paged.loadMore} />}
+    </>
+  ) : (
+    <SkeletonGrid />
+  );
 
   return (
     <PageFrame
@@ -151,11 +197,13 @@ export function VideoShelfPage({
             </Link>
           }
           actions={
-            <SortChoiceMenu
-              choices={offered}
-              value={sortId}
-              onChange={(id) => setSelection({ scope, id })}
-            />
+            entryMode ? undefined : (
+              <SortChoiceMenu
+                choices={offered}
+                value={sortId}
+                onChange={(id) => setSelection({ scope, id })}
+              />
+            )
           }
         />
       }

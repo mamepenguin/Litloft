@@ -36,8 +36,10 @@ same tab that day.
 
 **See all** appears on each shelf that has one: **Continue** opens the Continue desk,
 **New** opens all videos newest first, and an addon shelf opens its addon page when the
-addon offers one. **Recommended** has no **See all**. The shelf page shows 60 videos at a
-time. **Continue**'s page opens most recently played first, with **最後に開いた順** /
+addon offers one. An addon shelf whose addon supplies a page provider opens a page in the
+video app instead, under the same target (type and smart folder) as Discover, and more
+videos load as you scroll. **Recommended** has no **See all**. The shelf page shows 60
+videos at a time. **Continue**'s page opens most recently played first, with **最後に開いた順** /
 **Last opened** in its sort menu.
 
 ## Library
