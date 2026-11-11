@@ -43,6 +43,12 @@ from app.config import DATA_DIR
 - ZIP extraction: `asyncio.Semaphore(3)` to cap concurrent extractions.
 - Atomic file writes: write to `.tmp` then `os.replace()`.
 
+## Database migrations
+- A migration only adds: tables, nullable columns, columns with a default, indexes. A rebuild that changes a constraint keeps every column and its values.
+- Dropping or renaming a table or column, or changing what a column's values mean, cuts off every older build. Do it only when the approved spec names that break.
+- The reason is that an older build must still open the database a newer build wrote: rolling back is `git checkout` of an earlier commit and a rebuild against the same `data/`, and a fork runs older core code against the same schema. An older build ignores what it does not know; it cannot survive a table or column it expects being gone or reinterpreted.
+- When a column has to change meaning, add a new column, write both, and read the new one.
+
 ## Prohibitions
 - LLM and string-processing logic must not embed language-dependent rules (e.g. searching for the literal word "タイトル" to detect a title).
 

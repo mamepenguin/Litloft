@@ -81,6 +81,7 @@ Shapes and sizes are specified in `backend-conventions.md`. `GET /api/files/{id}
 - Change the model in `models.py`.
 - Add the migration to `_migrate()` in `database.py`. It must be idempotent and safe on a database that already has rows.
 - A new NOT NULL column needs a default and a backfill in the migration.
+- Migrations only add, so that an older build can still open the same database. Dropping or renaming a table or column, or changing what a column means, needs an approved spec that names the break; the rule is *Database migrations* in `.claude/rules/backend-conventions.md`.
 
 ## Logging
 
