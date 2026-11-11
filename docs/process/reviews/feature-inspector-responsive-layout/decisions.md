@@ -62,8 +62,21 @@ evidence: |
     closed, find turned the stacked layout on and closing find returned to closed.
     (r5/900x700-video-stacked-find-open.png, r5/900x700-video-inspector-closed-find-open.png,
     r5/900x700-video-inspector-closed-after-find-roundtrip.png, r5/744x1133-video-playing-after-resize.png)
-  - Not exercised: the canvas scrollTop kept across a find round-trip (I2 last clause). This video's
-    canvas does not scroll with the inspector closed (no description), so there was nothing to keep.
+  - BUG, canvas scroll across find (082.9, I2 last clause): 900x700, inspector closed (form stacked),
+    transcript moved under the player with "Move transcript below the player" (the only write of
+    media-layout-preference in the run, a user action), canvas wheel-scrolled to scrollTop 298 (and
+    200 in two re-runs). Open find (find button, or Cmd+F), type a term, close find (Close find
+    button, or Escape): playback continues on the same <video>, the inspector goes back to closed,
+    but the canvas is at scrollTop 0 and stays there (checked 0.3s, 1.5s, 4s after closing). 3/3.
+    (r5/900x700-video-inspector-closed-transcript-below-scrolled.png,
+    r5/900x700-video-inspector-closed-transcript-below-find-open.png,
+    r5/900x700-video-inspector-closed-transcript-below-after-find.png)
+  - media-layout-preference stayed unset through every resize, form change, inspector toggle, yield
+    and reopen in cases 1-5; only the layout-toggle press above wrote it.
+  - 744x1133 sheet opened with the inspector button (half snap): grabber bottom 541 = strip top 541,
+    strip first in inspector-shell, tabs Info/Related/Transcript/Ask, header in Info,
+    --inspector-sticky-top 35px; Transcript selected hides Info.
+    (r5/744x1133-video-sheet-open-info-dark.png, r5/744x1133-video-sheet-transcript-tab-dark.png)
 
   Case 3, 390x844: resting strip shows the file name, Like, Favorites, more. Opening the sheet (half
   snap): grabber, then the tab strip directly under it (handle bottom 341 = strip top 341), header
@@ -89,5 +102,11 @@ evidence: |
   - Main / MiniLandscapeInfo / SmallWindow: the artboards separate the header from Visual index with
     a rule and spacing. In the app "Scenes" follows "+ Add tag" about 20px below with no rule.
   - SmallWindow: the artboard frame is about 536x300; the app's is 473x266.
-  - Screenshots are in the light scheme; the artboards are drawn dark.
+  - Dark-scheme shots at each artboard's size and state, tree on, opened from the listing:
+    r5/1180x820-video-info-dark-artboard-Main.png (beside), r5/1133x650-video-transcript-dark-artboard-MiniLandscape.png
+    (beside), r5/1133x650-video-info-dark-artboard-MiniLandscapeInfo.png (beside),
+    r5/820x1180-video-transcript-dark-artboard-Portrait.png (stacked),
+    r5/900x700-video-info-dark-artboard-SmallWindow.png (stacked),
+    r5/744x1133-video-sheet-transcript-tab-dark.png (MiniPortrait), r5/390x844-video-sheet-info-dark-artboard-PhoneInfo.png.
+    The other screenshots are in the light scheme.
 pending: The iOS app on a real device (rotation between forms, full-screen playback, PiP) per agent_cannot_verify; audio/video as seen and heard.
