@@ -189,3 +189,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-092 | implemented | docs/specs/media-import-page-providers.md | sha256:a06bd6856fa916ccd11811aaba68f48cd7e334d0f8de52af5f34fddfba0cda62 |
 | SPEC-CORE-080 | implemented | docs/specs/video-card-spacing.md | sha256:08c61928e4b2265f43399452e0c1fe9a26882aff2c98a5f68dc5b4bf1ea63f6d |
 | SPEC-ADDON-093 | implemented | docs/specs/scene-timeline-width.md | sha256:bc14055f5e03adbae3110b55d6ebcd1600ce152e53064a9943c84a8843087b69 |
+| SPEC-CORE-081 | implemented | docs/specs/recommended-see-all.md | sha256:7e88fa758b58027379adb1347d85b48163f7fb358890fa3ac8ade95161f45cda |
+| SPEC-ADDON-094 | implemented | docs/specs/recommended-see-all.md | sha256:7e88fa758b58027379adb1347d85b48163f7fb358890fa3ac8ade95161f45cda |

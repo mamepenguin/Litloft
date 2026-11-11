@@ -17,6 +17,11 @@ export function videoShelfHref(
   return `/drive/${encodeURIComponent(drive)}/apps/video/shelf?${query.toString()}`;
 }
 
-export function providerShelfHref(drive: string, entryId: string): string {
-  return `/drive/${encodeURIComponent(drive)}/apps/video/shelf?entry=${encodeURIComponent(entryId)}`;
+export function providerShelfHref(
+  drive: string,
+  entryId: string,
+  slot?: "recommended",
+): string {
+  const query = `entry=${encodeURIComponent(entryId)}${slot ? `&slot=${slot}` : ""}`;
+  return `/drive/${encodeURIComponent(drive)}/apps/video/shelf?${query}`;
 }

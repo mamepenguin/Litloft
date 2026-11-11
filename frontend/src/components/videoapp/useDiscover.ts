@@ -113,6 +113,8 @@ interface Visit {
   entries: VisitEntries | null;
   /** Entries whose addon exports a page provider, so See all opens the core page. */
   pageEntries: Set<string>;
+  /** Recommended's See all, once the chosen entry's page provider lookup settles. */
+  recommendedHref: string | null;
   addonsVisible: boolean;
   states: Map<string, ProviderRuntime>;
   continueSettled: boolean;
@@ -207,6 +209,7 @@ export function useDiscover({
       date: "",
       entries: null,
       pageEntries: new Set(),
+      recommendedHref: null,
       addonsVisible: true,
       states: new Map(),
       continueSettled: false,
@@ -317,7 +320,7 @@ export function useDiscover({
       id: string,
       entries: readonly SlotEntry[],
       cacheKey: string,
-      options: { watch?: "unwatched"; preferPageProvider?: boolean } = {},
+      options: { watch?: "unwatched"; preferPageProvider?: boolean; recommended?: boolean } = {},
     ) => {
       if (entries.length === 0) {
         commit(() => {
@@ -361,10 +364,14 @@ export function useDiscover({
           }
         }
         let provider: ShelfProvider | null = null;
+        let providerEntry: SlotEntry | null = null;
         if (!pageProvider) {
           for (const entry of sortSlotEntries(entries)) {
             provider = await loadSlotProvider(entry);
-            if (provider) break;
+            if (provider) {
+              providerEntry = entry;
+              break;
+            }
           }
         }
         if (!pageProvider && !provider) {
@@ -373,6 +380,17 @@ export function useDiscover({
             runtime.status = "absent";
           });
           return;
+        }
+
+        if (options.recommended && providerEntry) {
+          const chosen = providerEntry;
+          void (async () => {
+            const page = await loadSlotPageProvider(chosen);
+            if (!page) return;
+            commit(() => {
+              visit.recommendedHref = providerShelfHref(visit.drive, chosen.id, "recommended");
+            });
+          })();
         }
 
         const stored = readCachedItems(cacheKey);
@@ -448,7 +466,7 @@ export function useDiscover({
         "recommended",
         visit.entries.recommended,
         recommendedCacheKey(visit, visit.entries.recommended),
-        { watch: "unwatched" },
+        { watch: "unwatched", recommended: true },
       );
     }
     for (const entry of sortSlotEntries(visit.entries.addons)) {
@@ -463,7 +481,12 @@ export function useDiscover({
   const positions: Position[] = [];
   if (current !== null) {
     positions.push({ id: "continue", kind: "core", shelf: "continue" });
-    positions.push({ id: "recommended", kind: "provider", title: t("recommended") });
+    positions.push({
+      id: "recommended",
+      kind: "provider",
+      title: t("recommended"),
+      ...(current.recommendedHref ? { href: current.recommendedHref } : {}),
+    });
     if (current.addonsVisible) {
       if (current.entries === null) {
         positions.push({ id: "addons", kind: "placeholder" });
