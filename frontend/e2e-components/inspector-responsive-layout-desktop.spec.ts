@@ -69,9 +69,6 @@ async function rowBox(page: Page): Promise<Box> {
   return row!;
 }
 
-const fitOf = (page: Page) =>
-  page.getByTestId("inspector-fit-host").getAttribute("data-inspector-fit");
-
 /**
  * Records the form the row carries on every frame, before the page is
  * mounted. A form that exists for a single frame is what "no stacked frame"
@@ -214,7 +211,6 @@ for (const viewport of [
 
     const stripBox = (await box(page, '[data-testid="mobile-inspector-peek"]'))!;
     expect(stripBox.bottom).toBeCloseTo(viewport.height, 0);
-    // The sheet is the inspector on a phone, never the desktop pane.
     await expect(page.getByTestId("inspector-pane")).toHaveCount(0);
   });
 
@@ -360,8 +356,6 @@ for (const viewport of [
     expect(run).not.toContain("overlay");
     expect(run).toContain("beside");
 
-    // The pane is collapsed in the layout phase, so the first frame that
-    // carries the file page already has it at zero width.
     const widths = await page.evaluate(() =>
       (
         window as unknown as {
@@ -410,16 +404,17 @@ test("the player element and its position survive a resize from beside to stacke
     "beside",
   );
 
-  await page.locator("video").evaluate((video) => {
+  await page.locator("video").evaluate((element) => {
+    const video = element as HTMLVideoElement & { __probe?: string };
     video.currentTime = 1.5;
-    (video as unknown as { __probe: string }).__probe = "same";
+    video.__probe = "same";
     (window as unknown as { __video: HTMLVideoElement }).__video = video;
     const pane = document.querySelector('[data-testid="inspector-pane"]')!;
     (window as unknown as { __pane: Element }).__pane = pane;
   });
   await page.waitForFunction(() => {
-    const video = document.querySelector("video")!;
-    return Math.abs(video.currentTime - 1.5) < 0.2;
+    const video = document.querySelector("video") as HTMLVideoElement | null;
+    return video !== null && Math.abs(video.currentTime - 1.5) < 0.2;
   });
 
   await page.setViewportSize({ width: 820, height: 820 });
@@ -469,7 +464,6 @@ test("a PDF at 900×700 gets the overlay, not the stacked layout", async ({
   const pane = (await box(page, '[data-testid="inspector-pane"]'))!;
   const canvas = (await box(page, "main"))!;
 
-  // Over the canvas, not beside it: the canvas keeps the row's full width.
   expect(await page.getByTestId("inspector-pane").evaluate((el) => getComputedStyle(el).position)).toBe(
     "absolute",
   );

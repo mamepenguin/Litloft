@@ -22,9 +22,9 @@ import { seedFiles } from "@/lib/fileSeed";
 import type { FileItem } from "@/types";
 import enMessages from "@/messages-core/en.json";
 
-export const DRIVE = "fixture";
-export const VIDEO_ID = "video0000001";
-export const PDF_ID = "pdf000000001";
+const DRIVE = "fixture";
+const VIDEO_ID = "video0000001";
+const PDF_ID = "pdf000000001";
 
 /**
  * A 3-second 16×16 VP8 clip: a `<video>` reports no metadata for anything
@@ -367,9 +367,6 @@ if (
 export function InspectorVideoTwoPaneArrangement(): ReactElement {
   installFetch();
   installMedia();
-  useEffect(() => {
-    document.body.dataset.twoPane = "1";
-  }, []);
   return (
     <Providers>
       <div className="h-[100dvh]">
