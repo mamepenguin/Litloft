@@ -1292,7 +1292,7 @@ describe("what the canvas keeps and what the inspector takes", () => {
     expect(canvas!.classList.contains("p-4")).toBe(true);
   });
 
-  it("keeps the desktop pane's header pinned, which is where the split earns its keep", async () => {
+  it("keeps the desktop pane on the panel form, so only the tab body scrolls", async () => {
     await renderMedia();
 
     const shell = screen.getByTestId("inspector-shell");

@@ -12,9 +12,9 @@ During collection playback the row also keeps a way back to the collection you w
 
 ## The inspector
 
-The top of the inspector stays in place while the rest scrolls. It holds the title, one fact about the file (see [the table in *Browsing files*](file-browsing.md#file-grid-and-list-modes)), the like, favourite, **AI** and `⋮` buttons, and the tags.
+The tab strip is the top of the inspector. The first tab, **Info**, starts with the file's title, one fact about the file (see [the table in *Browsing files*](file-browsing.md#file-grid-and-list-modes)), the like, favourite, **AI** and `⋮` buttons, and the tags; all of it scrolls away with the rest of Info.
 
-Below it are tabs, shown only when there is more than one:
+The tabs are the inspector's first row, shown only when there is more than one:
 
 - **Info**: EXIF where the file has it, comments, and addon sections such as AI summaries.
 - **Related**: the file's relations, and similar files with the intelligence addon.
@@ -33,12 +33,12 @@ Open and close the inspector with the toggle at the end of the page row, or `Cmd
 
 ### On a phone
 
-The inspector is a bottom sheet. While it rests, a strip along the bottom shows the file's name with like, favourite and `⋮`. Raise the sheet with the toggle or by dragging its handle; the full set of buttons is at the top of the sheet.
+The inspector is a bottom sheet. While it rests, a strip along the bottom shows the file's name with like, favourite and `⋮`. Raise the sheet with the toggle or by dragging its handle; the full set of buttons is at the top of the **Info** tab.
 
 - Dragging anywhere else in the sheet scrolls it. Once you are at the top of the sheet, pull down or press `Esc` to send it back to the strip.
 - The page above stays usable while the sheet is up: you can pause and seek the video.
 - On a video, the sheet first rises only to the bottom of the player, so the whole picture stays visible.
-- The tab strip sticks to the top of the sheet once you scroll down to it.
+- The tab strip is the top of the sheet from the start and stays there while the tab scrolls under it.
 - The video player sticks to the top of the page as you scroll.
 
 ## Finding in this file

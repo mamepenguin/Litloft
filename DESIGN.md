@@ -721,8 +721,9 @@ this file from the one beside it?*
 
 ### Inspector tab strip
 
-The tabs under the inspector's fixed header. What it contains is decided by the
-file, not the layout.
+The inspector's first row, above the panels. The file's header block (title,
+action row, tags) is the top of Info, not a row above the strip. What the strip
+contains is decided by the file, not the layout.
 
 - **One tab is no strip.**
 - **A tab with nothing to show is not a tab**, and it appears the moment it has
@@ -809,8 +810,9 @@ higher than whatever it currently sits under.
 - **At rest the drawer is not mounted.** An open drawer is a dialog layer that
   takes every Escape on the page and lifts itself over the keyboard for any
   focused field.
-- **On a phone the sheet is one scroller.** The inspector's header scrolls away
-  with the content; only the tab strip sticks.
+- **On a phone the sheet is one scroller.** The tab strip is the first row and
+  sticks; the inspector's header block sits at the top of Info and scrolls with
+  it.
 - **The player is never moved into or re-parented by the sheet**; re-parenting
   restarts playback. At `full` it stays behind the sheet.
 - **Nothing goes inside the player's box but the player and the controls that act

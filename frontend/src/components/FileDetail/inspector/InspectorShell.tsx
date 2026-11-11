@@ -27,10 +27,6 @@ interface InspectorShellProps {
   onSelect?: (tabId: string) => void;
 }
 
-/**
- * In `column` mode the header and its action row scroll away. Trading the
- * pinned header for the height it takes is the user's confirmed decision.
- */
 export function InspectorShell({
   header,
   tabs,
@@ -139,10 +135,6 @@ export function InspectorShell({
       // instead of extending it.
       className={column ? "flex flex-col" : "flex h-full min-h-0 flex-col"}
     >
-      <div className={column ? "px-4 pt-4 pb-3" : "shrink-0 px-4 pt-4 pb-3"}>
-        {header}
-      </div>
-
       {strip && (
         <div
           ref={stripRef}
@@ -223,6 +215,7 @@ export function InspectorShell({
                 : "min-h-0 flex-1 space-y-4 overflow-auto p-4"
             }
           >
+            {tab.id === "info" && header}
             {tab.content}
           </div>
         );
