@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The diff adds `addons/media_import/frontend/api.test.ts` (a new `SPEC-ADDON-091 listWatch reads one keyset page` describe block), and the spec's Touch points list does not name this file; it names only `frontend/api.ts`.",
+      "impact": "No user-visible effect. A reader of the touch-point list would not know that a test file outside `__tests__/watchShelfProviders.test.ts`, `Page.test.tsx` and `DisplayMode.test.tsx` now pins the `listWatch` query shape (no `offset`, `after` only when given).",
+      "evidence": "diff: `addons/media_import/frontend/api.test.ts` @@ -48,3 +48,35 adds two tests. docs/specs/media-import-page-providers.md Touch points list `addons/media_import/frontend/api.ts` only. The catch-all bullet covers tests that assert 'removed or changed text', and this new test checks query parameters, not text.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The touch-point list is incomplete. No invariant breaks, and no invariants file exists.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add `addons/media_import/frontend/api.test.ts` to the Touch points next to `api.ts`."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The diff edits `addons/media_import/frontend/DisplayModeField.tsx`, rewording its doc comment and dropping the spec reference, and the Touch points do not list this file. They say the display-mode change lives in the messages and `DisplayMode.test.tsx`.",
+      "impact": "None at runtime: only a comment changed, and the component's options and values are untouched. Listed for completeness of the touch-point answer.",
+      "evidence": "diff: `addons/media_import/frontend/DisplayModeField.tsx` @@ -13,15 +13,13 changes only the JSDoc above `DisplayModeField`. The spec's Touch points name `messages/{ja,en}.json` and `DisplayMode.test.tsx` for the display-mode wording, not the component.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The touch-point list is incomplete for a comment-only edit. No behavior changes.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Either list `DisplayModeField.tsx` (comment only) in the Touch points, or leave it as an accepted comment edit."
+    }
+  ],
+  "specification_compliance": [
+    "Core files in the diff (submodule pointer, docs/addons/media-import.md, check-coverage-denominator.mjs, line-clamp-display.test.ts, VideoApp.discoverProviders.test.tsx, VideoShelfPage.provider.test.tsx) all match listed touch points; spec file and INDEX.md are implicit.",
+    "Addon files router.py, schemas.py, subscription/db.py, backend/tests/* (test_addon_meta.py, new test_watch_keyset.py, trimmed test_watch_surface.py), api.ts, watchShelfProviders.ts, slots.ts, __tests__/watchShelfProviders.test.ts, Page.tsx, Page.test.tsx, watch/ removal, messages, DisplayMode.test.tsx and README.md are all listed.",
+    "Unlisted: frontend/api.test.ts (TP-1) and frontend/DisplayModeField.tsx comment (TP-2).",
+    "Docstring edits inside listed files (patch_subscription in router.py, DisplayMode in schemas.py, count_surfaced_subscriptions in db.py) stay within listed files."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "`subdb.count_surfaced_subscriptions` is now referenced only by test_watch_surface.py (grep finds no production caller); its docstring was rewritten rather than the function removed. The spec says nothing about it."
+  ],
+  "regression_risks": [
+    "Removing the `href` from both slot entries depends on the core page provider path (SPEC-CORE-078) being present on develop. If core lacks it, See all disappears."
+  ],
+  "test_coverage": [
+    "The new api.test.ts covers the listWatch query shape (no offset, after only when given).",
+    "test_watch_keyset.py covers paging order, ties, the regular cap, and the 422 cases for non-base64 and non-JSON cursors. It does not cover a JSON value that decodes but is not a 3-string array (the second 422 branch in _parse_after)."
+  ],
+  "not_verified": [
+    "Did not run any tests or inspect git history to confirm which files the single commit 98ad3c93d itself touches versus the branch as a whole; relied on the provided diff.",
+    "Did not check whether other repo files (e.g. docs/user-guide/video.md, docs/ADDON-DEVELOPMENT.md) should have changed but did not.",
+    "Did not read docs/process/review.md in full for touch-point conventions."
+  ],
+  "confidence": 80
+}

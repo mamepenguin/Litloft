@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "addons/media_import/frontend/api.test.ts:52-82 has the describe block 'SPEC-ADDON-091 listWatch reads one keyset page' with two tests. They check the query parameters lane, limit, after and offset, not any text. The Touch points in docs/specs/media-import-page-providers.md:208-271 name `addons/media_import/frontend/api.ts` (lines 243-244) but not api.test.ts. The catch-all at lines 253-254 covers only tests that assert removed or changed text. The new file is therefore outside the listed touch points. This is a documentation gap only: the test exercises behaviour that the spec requires."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "addons/media_import/frontend/DisplayModeField.tsx:15-23: the JSDoc now says 'Picks where a subscription's new videos appear in the video app.' It has no spec reference and no mention of Watch, and the component body (lines 24-73) only reads the `mediaImport.displayMode` translation keys. The Touch points (spec lines 251-254) name messages/{ja,en}.json and DisplayMode.test.tsx for the display-mode wording, not DisplayModeField.tsx. The edit is comment-only, so it has no runtime effect, but the file is not listed."
+    }
+  ],
+  "specification_compliance": [
+    "Both files are confirmed to be outside the Touch points list in docs/specs/media-import-page-providers.md:208-271.",
+    "The api.test.ts tests match the listWatch(drive, lane, { limit, after? }) signature required at spec lines 243-244."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "None found. The DisplayModeField.tsx change is comment-only."
+  ],
+  "regression_risks": [
+    "None from these two findings: one adds a test and the other edits only a comment."
+  ],
+  "test_coverage": [
+    "api.test.ts covers listWatch both with and without `after`, and asserts that `offset` is never sent."
+  ],
+  "not_verified": [
+    "I could not run git, so I did not look at the raw diff hunks (@@ -48,3 +48,35 and @@ -13,15 +13,13). I checked the files' current state at the worktree HEAD instead.",
+    "I did not check that the removed DisplayModeField JSDoc actually contained a spec reference.",
+    "I ran no tests."
+  ],
+  "confidence": 85
+}
