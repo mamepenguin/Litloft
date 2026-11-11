@@ -75,6 +75,8 @@ household can have several profiles; each has its own feed per drive, as today.
   checks them before shipping (item 10).
 - **Kept row**: a history row of a live video (not trashed, not missing) in the drive with
   `e > 0`.
+- **Reference time**: the instant ages, the 365-day window and "newest" are measured from.
+  The worker uses the current time. The replay uses each cut point.
 
 ## Required items
 
@@ -112,21 +114,39 @@ household can have several profiles; each has its own feed per drive, as today.
 7. The feed is stored as today. `PROFILE_VERSION` becomes 3, so every viewer's feed is
    rebuilt on the first sweep after deployment.
 
-To make the replay possible (SPEC-ADDON-098), the profile functions that compute ages,
-the window and the cap take an explicit reference time. The worker passes the current
-time, which is today's behaviour.
+**Code shape (needed by the replay, SPEC-ADDON-098).**
+
+- `profile_history(drive, viewer_id, *, now, cap, window_days)` returns kept rows newest
+  first as `WatchedFile(file_id, last_played_at, engagement)`.
+- `build_lanes(history, *, key, now, vectors=representative_vectors)` takes the
+  reference time and a vector source. The vector source is any callable
+  `(file_ids, channel) -> {file_id: unit vector}`. The worker passes nothing, which
+  keeps today's DB reads. The replay passes a lookup into vectors it loaded once.
+- `engagement(...)` is a pure function of the fields in the Definitions, so the worker,
+  the replay and the tests compute `e` the same way.
+
+**Settled and retrying empty feeds.** An empty feed stores its checkpoint (settled) in
+exactly one case: the viewer has history rows in the drive but no kept row. Every other
+empty outcome stores a null checkpoint (retrying), as every empty feed does today,
+because indexing may still catch up:
+- kept rows, but none has a vector;
+- the drive has no video candidate row;
+- lanes and candidates exist, but no candidate survives the exclusion and the score
+  floor.
 
 **Rebuild trigger (SPEC-ADDON-095).** The worker's watch signature gains, per history
 row: the file's liked state (`liked_at IS NOT NULL`), its favourite state, `p`, and
 whether the row is dismissed. Liking or unliking, favouriting or unfavouriting, recording
 played ranges, or dismissing moves the checkpoint even when `last_played_at` did not
 move, and the next sweep rebuilds that viewer's feed. The signature still covers every
-history row of the drive (not only videos), as today.
+history row of the drive (not only videos), as today. `p` enters the signature rounded
+to one decimal and written with a fixed format, so an unchanged history hashes the
+same on every sweep.
 
 **Recording the feed (SPEC-ADDON-097).** After `_store` commits a feed with at least one
 item, the worker writes one `pickup_feed_log` row in its own transaction:
 `(drive_id, viewer_id, computed_at, profile_version, file_ids)`. `computed_at` equals the
-`computed_at` just stored in `pickup_profiles`. `file_ids` is a JSON array of the first
+`computed_at` just stored in `pickup_profile`. `file_ids` is a JSON array of the first
 40 stored file ids in rank order (fewer when the feed is shorter). In the same
 transaction, rows of any drive and viewer with `computed_at` older than 180 days are
 deleted. An empty feed writes no log row.
@@ -140,10 +160,13 @@ python -m app.pickup.evaluate online --drive <name> [--days 30] [--viewer <id>]
 ```
 
 Both open the core DB (`HOMEVAULT_DB_PATH`) and the Intelligence DB
-(`INTELLIGENCE_SEARCH_DB_PATH`, or the default path) read-only: an SQLite `mode=ro`
-URI connection with sqlite-vec loaded. They never call `init_search_db` or anything else
-that creates tables or migrates. They write nothing, and print Markdown tables to
-stdout.
+(`INTELLIGENCE_SEARCH_DB_PATH`, or the default path) through a new read-only opener in
+`app/database.py`. It sets the same module-level engines and session factories that
+`get_litloft_db`, `get_search_db_read` and `get_search_engine` use, so the unchanged
+readers work. Its connections are SQLite `mode=ro` URIs with sqlite-vec loaded, and it
+attaches no listener that issues a `PRAGMA` write (no WAL switch). The commands never
+call `init_search_db`, `init_litloft_db` or anything else that creates tables or
+migrates. They write nothing, and print Markdown tables to stdout.
 
 `replay`, per viewer with history in the drive (or the one given). Let `T0` be today's
 00:00 UTC. The cut points are `t = T0 - horizon - i days` for `i = 0 .. days - 1`, so
@@ -153,20 +176,27 @@ every cut point's target window `[t, t + horizon)` has fully passed. For each cu
    built by the same steps as above with `t` as the reference time: window and cap
    measured from `t`, ages measured from `t`. A file's live state and its liked,
    favourite and dismissed state are today's, because the core keeps no history of them.
-2. **Targets at t**: videos in the drive with a history row for that viewer whose
-   `last_played_at` falls in `[t, t + horizon)` and whose `e` is above 0. A file in the
-   history at `t` cannot be a target, because a file has only one history row.
-3. **Candidates at t**: live files of the drive created before `t`
-   (`files.created_at < t`), excluding every file with a history row before `t`. Each
-   configuration then applies its own kind filter.
-4. A cut point with no target is skipped and counted as skipped.
+2. **Targets at t**: live videos in the drive created before `t`
+   (`files.created_at < t`), with a history row for that viewer whose `last_played_at`
+   falls in `[t, t + horizon)` and whose `e` is above 0. A file in the history at `t`
+   cannot be a target, because a file has only one history row. Every target is
+   therefore also a candidate.
+3. **Candidates at t**: live files of the drive created before `t`, excluding every file
+   with a history row before `t`. Each configuration then applies its own kind filter.
+   `files.created_at` is when the core inserted the row, so a rescanned drive has few
+   early candidates. The table header therefore prints the number of candidate videos at
+   the earliest and at the latest cut point.
+4. A cut point with no target is skipped and counted as skipped. A cut point with a
+   target always has a candidate (step 2).
 5. Each configuration ranks the candidates with the production code path
    (`build_lanes`, `score_lanes`, `interleave`) at reference time `t`. Candidate vectors
    are loaded once per channel and masked per cut point. History vectors are loaded once
    per viewer and channel and looked up per cut point. Configurations:
    - `before`: every kind of history row, `e = 1` for every row (no row dropped), every
      kind of candidate. This reproduces version 2's ranking at reference time `t`.
-   - `depth`: engagement as defined, every kind.
+   - `depth`: every kind. Video rows get engagement as defined. Rows of other kinds keep
+     `e = 1`, as in version 2, because the rules measure watching and say nothing about
+     reading.
    - `video`: `e = 1` for every row, videos only.
    - `after`: engagement and videos only, which is the shipped behaviour.
    - `random`: candidate videos in a random order seeded by drive, viewer and `t`.
@@ -182,9 +212,10 @@ cut points and targets. Viewers are never pooled.
 `online`, per viewer, over log rows with `computed_at` in the last `--days` days, in
 `computed_at` order:
 
-1. A log row's targets are videos with a history row for that viewer whose
-   `last_played_at` falls in `[computed_at, next log row's computed_at)` (until now for the
-   last row) and whose `e` is above 0.
+1. A log row's targets are live videos created before its `computed_at`, with a history
+   row for that viewer whose `last_played_at` falls in
+   `[computed_at, next log row's computed_at)` (until now for the last row) and whose `e`
+   is above 0.
 2. `recall@12` and `recall@40` against the logged ids (the first 12, and all of them), and
    `hit@40`, as in `replay`. A log row with no target is skipped and counted.
 
@@ -202,25 +233,24 @@ comma-separated. When `pickup_feed_log` does not exist yet, `online` prints
   opens, only dismissed videos): the stored feed becomes empty (`total = 0`) and the
   checkpoint is stored. The viewer is not rebuilt again until their history moves, as
   with an empty history today.
-- **A viewer has kept rows but no lane** (no kept file has a vector yet): the stored feed
-  becomes empty with a null checkpoint, as today, so the next sweep tries again once
-  indexing catches up.
-- **A drive has no video with embeddings**: no candidates, so the feed is empty with its
-  checkpoint stored.
+- **A viewer has kept rows but no lane** (no kept file has a vector yet), **the drive has
+  no video candidate row**, or **no candidate survives the exclusion and the score
+  floor**: the stored feed becomes empty with a null checkpoint, as today, so the next
+  sweep tries again once indexing catches up.
 - **The log write fails** (disk, lock): the error is logged as a warning, the feed already
   committed stays, and the next rebuild writes a new log row. A log row is never written
   for a feed that was not committed.
-- **`replay` on a drive with no history or no videos**: prints tables with zero evaluated
-  cut points. Exits 0.
-- **`online` with no log rows in the window**: prints a total row of zero counts. Exits 0.
-- **An unknown drive or viewer passed to a command**: as above (no rows). The command
-  does not check the drive against `drives.json`.
+- **No viewer to evaluate** (the drive has no history, an unknown drive or viewer, or for
+  `online` no log row in the window): the command prints the single line `no viewers` to
+  stdout and exits 0. It does not check the drive against `drives.json`.
+- **A viewer with history but no evaluated cut point or log row**: that viewer's table is
+  printed with zero counts. Exits 0.
 - **A database file is missing or unreadable for a command**: exits non-zero with the
   error on stderr.
 
 ### 3. States
 
-A viewer's feed per drive is one `pickup_profiles` row plus its `pickup_items`. Its
+A viewer's feed per drive is one `pickup_profile` row plus its `pickup_item` rows. Its
 states, with the checkpoint each leaves:
 
 | State | `total` | checkpoint |
@@ -238,9 +268,9 @@ Transitions happen only in a rebuild for that viewer and drive:
   changed rows, likes, favourites, played ranges, dismissal, the date, the profile
   version).
 - empty, retrying → any present state: every sweep, regardless of the signature.
-- populated → empty, settled: the signature moved and no kept row remains, or no video
-  candidate remains.
-- populated → empty, retrying: kept rows exist but none has a vector.
+- populated → empty, settled: the signature moved and no kept row remains.
+- populated → empty, retrying: the signature moved, kept rows exist, and the feed came
+  out empty for any other reason (see "Settled and retrying empty feeds").
 - populated → populated: the signature moved.
 - Nothing returns a feed to absent. This change does not alter that.
 
@@ -257,7 +287,7 @@ state.
 | Core DB `watch_history` | read | `viewer_id`, `file_id`, `playback_position`, `duration`, `last_played_at`, `dismissed_at` |
 | Core DB `played_segments` | read | per (viewer, file), the sum of `played_seconds` |
 | Intelligence DB `embeddings`, `indexed_files`, `vec_clip`, `vec_text` | read | as today |
-| Intelligence DB `pickup_items`, `pickup_profiles` | written | as today |
+| Intelligence DB `pickup_item`, `pickup_profile` | written | as today, plus the settled checkpoint for a history with no kept row |
 | Intelligence DB `pickup_feed_log` (new) | written by the worker, read by `online` | see below |
 
 `pickup_feed_log`: `drive_id TEXT`, `viewer_id VARCHAR(16)`, `computed_at DATETIME`
@@ -292,9 +322,12 @@ made.
   (`PickupWidget` returns null). Recommended's `restrict` (type=video plus the smart
   folder plus `watch=unwatched`) now drops fewer rows, so its 5-page cap is reached later
   or not at all.
-- **SPEC-ADDON-094** (Recommended's page provider, approved 2026-11-12, not yet
-  implemented) pages the same feed. It needs no change, because the feed's shape is
-  unchanged.
+- **SPEC-ADDON-094** (Recommended's page provider, approved 2026-11-12, on another
+  branch) pages the same feed. It needs no change, because the feed's shape is
+  unchanged. Both branches bump the `addons/intelligence` pointer, so whichever merges
+  second rebases its addon commit onto the first's. That spec's remark that the Pickup
+  page lists every kind of file stops being true here. That is a rationale there, not an
+  invariant.
 - **Continue watching, history, likes, favourites, dismissal**: read-only here,
   unchanged.
 - **The 90% completion gate** (`drives.py`) is untouched. Engagement is a separate reading
@@ -339,40 +372,55 @@ database.
   filter shrinks the candidate matrices.
 - **Command time**: `replay` with the defaults on the production `videos` drive must
   finish in under 10 minutes on the Mac mini.
-- **Size**: about 40 ids per logged feed, a few rebuilds per viewer and drive a day,
+- **Size**: about 40 ids per logged feed. Every viewer is rebuilt at least once a day,
+  because the checkpoint includes the date, plus once per watch-driven rebuild. Rows are
   pruned at 180 days. A few MB at most.
+- **Lock**: the log write takes the Intelligence DB's write lock after the feed commit.
+  A lock timeout is the "log write fails" path.
 - **Privacy**: the log holds the same kind of data as `pickup_items` (file ids per
   viewer). It stays in the Intelligence DB and is never served by an endpoint.
 - **Shipping bar** (user decision 2026-11-12): before merge, `replay` runs with the
   defaults against copies of the production databases, never against the live files:
   1. Inside the running production `backend` and `intelligence` containers, the user
-     takes an SQLite `.backup` of the core DB and of `search.db` into a scratch
-     directory.
+     takes a copy of the core DB (`/app/data/data.db`) and of
+     `/intelligence-data/search.db` with Python's `sqlite3` backup API (the images have
+     no `sqlite3` CLI). The copies go into a scratch directory under the bind-mounted data
+     directory, so the host sees them. Each copy is then switched out of WAL
+     (`PRAGMA journal_mode=DELETE`), so it can be opened `mode=ro` from a read-only
+     mount.
   2. On the Mac mini, the Intelligence image is built from this branch, and the command
      runs with `docker run --rm`, the copies mounted read-only and pointed at by
      `HOMEVAULT_DB_PATH` and `INTELLIGENCE_SEARCH_DB_PATH`. The running stack is not
      touched.
   3. The user runs the commands themselves (`!`). The author supplies them, each line
-     under about 60 characters.
+     under about 60 characters. The copies are deleted afterwards.
 
   It passes when, for every viewer with at least 10 evaluated cut points on the `videos`
-  drive, `after` has `recall@40` at least `before`'s and above `random`'s. When no viewer
-  reaches 10 evaluated cut points, it has not passed. In either failing case the author
-  stops and shows the table to the human, and only the human revises the constants. The
-  table goes into the review topic's `decisions.md`.
+  drive, `after` has `recall@40` at least `before`'s. `random` and `newest` are printed
+  for reference and are not part of the bar. Replay flatters every content-based
+  configuration against them (see "Historical accuracy of replay"), so beating them in
+  replay proves little. `online` answers that question after shipping. When no viewer
+  reaches 10 evaluated cut points, the bar has not passed. In either failing case the
+  author stops and shows the table to the human, and only the human revises the
+  constants. The table goes into the review topic's `decisions.md`.
 
 ## Touch points
 
 - `addons/intelligence/app/pickup/profile.py`: the history read (video filter,
-  engagement fields, filter before the cap), engagement, weighted means, a reference-time
-  parameter, the watch signature, `PROFILE_VERSION`.
+  engagement fields, filter before the cap), `engagement`, weighted means, the
+  `now` and `vectors` parameters of `profile_history` and `build_lanes`, the
+  `engagement` field of `WatchedFile`, the watch signature, `PROFILE_VERSION`.
+- The existing pickup tests (`tests/test_z_pickup_*.py` and the worker tests): updated
+  where they pin unweighted means, `raw_weight(ages)`, every-kind candidates or a null
+  checkpoint for an empty history with no kept row. None is deleted or loosened.
 - `addons/intelligence/app/pickup/retrieval.py`: candidates restricted to a given file-id
   set.
 - `addons/intelligence/app/workers/pickup.py`: the per-drive video set, the settled
   checkpoint for a history with no kept row, the feed log write and pruning.
 - `addons/intelligence/app/models.py`: `PickupFeedLog`.
 - `addons/intelligence/app/database.py`: the new table through `create_all` (no
-  `ALTER`), and a read-only opener for the commands.
+  `ALTER`), and a read-only opener for the commands that fills the same module state
+  without WAL or other write listeners.
 - `addons/intelligence/app/pickup/evaluate.py` (new): the `replay` and `online`
   commands.
 - `addons/intelligence/app/routers/pickup.py`: read, unchanged in shape.
@@ -386,16 +434,16 @@ database.
 
 ## Invariants
 
-I1. In the stored profile, each kept video weighs, in both its lane's centroid and its lane's raw weight, exactly its engagement as defined: 1 when liked or a favourite whatever it was watched, else 0 when dismissed, else `min(1, f / 0.5)` from a watched fraction of 0.10 up, else 0.5 for a `.loft` without a reported duration.
-I2. Adding or removing a history row for a non-video file, or for a video with engagement 0, changes the stored feed only by excluding or re-admitting that file, including when the viewer's history exceeds 2000 rows or spans the 365-day window.
+I1. For any history and reference time, the lanes `build_lanes` returns weight each kept video by exactly its engagement: each lane's centroid is the normalized `e`-weighted mean of its members' vectors and its raw weight is `log1p(sum(e * decay(age)))`, where `e` is 1 for a liked or favourite video however little was watched, else 0 when dismissed, else `min(1, f / 0.5)` from `f = 0.10` up and 0 below, else 0.5 for a `.loft` without a reported duration, else 0.
+I2. At a fixed reference time, adding or removing a history row for a non-video file, or for a video with engagement 0, changes the built feed only by excluding or re-admitting that file, including when the viewer has more than 2000 kept rows and when rows lie on both sides of the 365-day window.
 I3. No file whose core `file_type` is not `video` appears in a stored feed.
 I4. A file the viewer has opened in the drive, of any kind and any engagement, trashed or missing included, never appears in that viewer's feed for the drive.
 I5. A feed is built only from the history and files of its own drive.
-I6. Liking, unliking, favouriting, unfavouriting, adding played ranges to, or dismissing a video the viewer has opened, and deploying a new `PROFILE_VERSION`, each cause that viewer's feed for the drive to be rebuilt on the next sweep with no change to `last_played_at`.
-I7. A failure to write `pickup_feed_log` leaves the stored feed and its profile row as committed, and no log row exists for a feed that was not committed.
-I8. Each committed feed with `total > 0` has exactly one `pickup_feed_log` row, holding its first `min(40, total)` file ids in rank order with the profile's `computed_at`; an empty feed has none; and after any log write no row older than 180 days remains.
-I9. Neither evaluation command changes either database file.
-I10. In `replay` at cut point `t`, no configuration ranks a file that had a history row before `t` or was created at or after `t`, and targets are exactly the videos with engagement above 0 whose `last_played_at` is in `[t, t + horizon)`; in `online`, a log row's targets are exactly those in `[computed_at, next computed_at)`.
+I6. With `last_played_at` unchanged, liking, unliking, favouriting, unfavouriting, adding played ranges to or dismissing a video the viewer has opened, or deploying a new `PROFILE_VERSION`, causes that viewer's feed for the drive to be rebuilt on the next sweep; with nothing changed, a viewer whose history has no kept row is not rebuilt again that day, and a viewer whose feed came out empty for any other reason is rebuilt on every sweep.
+I7. A committed feed with `total > 0` has at most one `pickup_feed_log` row, and exactly one when the log write succeeds, holding its first `min(40, total)` file ids in rank order with the profile's `computed_at`; an empty feed has none; a failed log write leaves the feed and its profile row as committed; after any log write no row older than 180 days remains.
+I8. Neither evaluation command changes either database file or creates a table, including when `pickup_feed_log` does not exist.
+I9. In `replay` at cut point `t`, no configuration ranks a file that had a history row before `t` or was created at or after `t`, and targets are exactly the live videos created before `t` with engagement above 0 whose `last_played_at` is in `[t, t + horizon)`; in `online`, a log row's targets are exactly the live videos created before its `computed_at`, with engagement above 0, whose `last_played_at` is in `[computed_at, next computed_at)`.
+I10. For the same history, candidates and reference time, `replay`'s `after` ranks exactly as the worker builds the feed, and `before` ranks exactly as the version-2 code did.
 
 ## Checked, no action
 
@@ -405,11 +453,15 @@ I10. In `replay` at cut point `t`, no configuration ranks a file that had a hist
   before any surface's `restrict` (smart folder, `watch=unwatched`), not what a surface
   drew.
 - **Historical accuracy of replay.** `watch_history` keeps one row per (viewer, file).
-  A rewatch moves `last_played_at` past the cut point and drops the file from the history
-  at `t`. Engagement, like, favourite, dismissal and live state are today's values, not
-  those at `t`. Replay therefore sees a slightly shorter, slightly better-informed history
-  than the real one at `t`. The bias is the same for every configuration, so the
-  comparison stands. `online` has no such leak.
+  A video opened before `t` and resumed or rewatched after it has `last_played_at >= t`,
+  so replay treats it as an unseen candidate and a target, although production would
+  have excluded it. A video watched across a cut point is common, because progress saves
+  run during playback. Content-based configurations rank such files highly, since they
+  resemble the history. `random` and `newest` do not. Engagement, like, favourite,
+  dismissal and live state are also today's values. So replay flatters `before` and
+  `after` alike, which keeps their comparison fair, but it flatters both against
+  `random` and `newest`. The shipping bar therefore compares only `after` with `before`
+  (user decision pending at approval). `online` has neither leak.
 - **Rewatch targets in `online`.** A file opened before a log row and rewatched after it
   counts as a target that the feed could never have held, which deflates recall a little.
   Telling them apart needs per-play history, which the core does not keep.
