@@ -1,0 +1,132 @@
+import type { ReactElement } from "react";
+import { cardGridTemplate, useCardColumns } from "@/lib/cardGrid";
+
+const VIDEO = { minWidthPx: 256, minWidth: "16rem", gapPx: 16 } as const;
+
+function MeasuredPage({ children }: { children: ReactElement[] }): ReactElement {
+  const { ref, columns } = useCardColumns(VIDEO);
+  return (
+    <ul ref={ref} className="grid" style={{ columnGap: 16, rowGap: 32, gridTemplateColumns: cardGridTemplate(columns, VIDEO) }}>
+      {children}
+    </ul>
+  );
+}
+
+import { NextIntlClientProvider } from "next-intl";
+
+import { ShelfBlock } from "@/components/appshell/ShelfBlock";
+import { VideoCard } from "@/components/videoapp/VideoCard";
+import type { ShelfItem } from "@/lib/api";
+import jaMessages from "@/messages-core/ja.json";
+
+const TITLES = [
+  "【作業用BGM】雨の日に聴きたい落ち着くジャズピアノ 3時間",
+  "初心者向け Rust 入門 #12 所有権と借用をもう一度ていねいに",
+  "週末キャンプ飯：ダッチオーブンで作るローストチキン",
+  "京都の紅葉 2026 早朝の嵐山を歩く",
+  "M5 MacBook Pro 1か月使ってわかったこと",
+  "プロが教える 失敗しないパスタの茹で方",
+  "ゆっくり解説 宇宙の大規模構造とボイド",
+  "Live: 東京駅から新大阪まで 車窓 全区間",
+  "猫が初めて雪を見た日",
+  "3 分でわかる今週のテックニュース",
+];
+const CHANNELS = ["Jazz Cafe Lounge", "Rust 道場", "そとごはん", "旅と写真", "ガジェット通信", "キッチン研究所", "宇宙ちゃんねる", "鉄道車窓チャンネル", "ねこの日常", "テックダイジェスト"];
+const DATES = ["2026/11/10", "2026/11/09", "2026/11/07", "2026/11/05", "2026/11/03", "2026/10/30", "2026/10/28", "2026/10/25", "2026/10/21", "2026/10/18"];
+
+function video(i: number, progress = false): ShelfItem {
+  return {
+    id: `v${i}`,
+    filename: `v${i}.mp4`,
+    title: TITLES[i % TITLES.length],
+    description: "",
+    drive: "fixture",
+    folder_path: "",
+    file_type: "video",
+    mime_type: "video/mp4",
+    thumbnail_url: "",
+    has_thumbnail: false,
+    file_size: 1024,
+    duration: 300 + i * 437,
+    image_width: null,
+    image_height: null,
+    liked_at: null,
+    is_favorite: false,
+    tags: [],
+    subtitles: [],
+    deleted_at: null,
+    missing_since: null,
+    trust_tier: "verified",
+    trust_reviewed_at: null,
+    created_at: "2026-01-01T00:00:00",
+    updated_at: "2026-01-01T00:00:00",
+    ...(progress ? { watch_progress: { position: 40 + i * 30, duration: 300 + i * 437 } } : {}),
+  } as ShelfItem;
+}
+
+const items = (from: number, n: number, progress = false) =>
+  Array.from({ length: n }, (_, k) => video(from + k, progress));
+const byline = (it: ShelfItem) => {
+  const i = Number(it.id.slice(1));
+  return `${CHANNELS[i % CHANNELS.length]} · ${DATES[i % DATES.length]}`;
+};
+
+const PROPOSED = `
+[data-variant="a"] .space-y-8 > :not(:last-child) { margin-bottom: 2.5rem; }
+[data-variant="a"] section > div:first-child { margin-bottom: 1rem; }
+[data-variant="a"] ul.grid { column-gap: 16px; row-gap: 32px; }
+[data-variant="a"] a.group > span:first-of-type { margin-top: 12px; }
+[data-variant="a"] a.group > span.truncate { margin-top: 4px; }
+[data-variant="b"] .space-y-8 > :not(:last-child) { margin-bottom: 2.5rem; }
+[data-variant="b"] section > div:first-child { margin-bottom: 1rem; }
+[data-variant="b"] ul.grid { column-gap: 16px; row-gap: 32px; }
+[data-variant="b"] a.group > span:first-of-type { margin-top: 12px; font-size: 1rem; line-height: 1.375rem; font-weight: 500; }
+[data-variant="b"] a.group > span.truncate { margin-top: 4px; font-size: 0.875rem; line-height: 1.25rem; }
+`;
+
+const THUMBS = `
+#spacing-mock .aspect-video { background: linear-gradient(135deg, #6b7a8f, #2f3a4a); }
+#spacing-mock li:nth-child(3n+1) .aspect-video { background: linear-gradient(135deg, #8f6b6b, #3a2f2f); }
+#spacing-mock li:nth-child(3n+2) .aspect-video { background: linear-gradient(135deg, #6b8f74, #2f3a33); }
+#spacing-mock .aspect-video svg { opacity: 0; }
+`;
+
+export function VideoSpacingMock(): ReactElement {
+  const variant = new URLSearchParams(location.search).get("variant") ?? "current";
+  const page = new URLSearchParams(location.search).get("page") === "1";
+  return (
+    <NextIntlClientProvider locale="ja" messages={jaMessages}>
+      <style>{PROPOSED + THUMBS}</style>
+      <div id="spacing-mock" data-variant={variant} className="bg-bg-primary px-4 pb-8 pt-4">
+        {page ? (
+          <section>
+            <h1 className="mb-4 text-xl font-bold text-text-primary">購読の新着</h1>
+            {variant === "current" ? (
+              <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+              {items(0, 15).map((it) => (
+                <li key={it.id} className="min-w-0">
+                  <VideoCard item={it} byline={byline(it)} />
+                </li>
+              ))}
+              </ul>
+            ) : (
+              <MeasuredPage>
+                {items(0, 16).map((it) => (
+                  <li key={it.id} className="min-w-0">
+                    <VideoCard item={it} byline={byline(it)} />
+                  </li>
+                ))}
+              </MeasuredPage>
+            )}
+          </section>
+        ) : (
+          <div className="space-y-8">
+            <ShelfBlock<ShelfItem> title="続きから" view={{ status: "loaded", items: items(3, 12, true) }} onRetry={() => {}} renderItem={(it) => <VideoCard item={it} />} />
+            <ShelfBlock<ShelfItem> title="購読の新着" seeAllHref="#" view={{ status: "loaded", items: items(0, 12) }} onRetry={() => {}} renderItem={(it) => <VideoCard item={it} byline={byline(it)} />} />
+            <ShelfBlock<ShelfItem> title="最近追加" seeAllHref="#" view={{ status: "loaded", items: items(5, 12) }} onRetry={() => {}} renderItem={(it) => <VideoCard item={it} />} />
+          </div>
+        )}
+      </div>
+    </NextIntlClientProvider>
+  );
+}
