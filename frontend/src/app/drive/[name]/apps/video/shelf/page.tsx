@@ -17,6 +17,7 @@ export default function VideoShelfRoute() {
       initialSort={search.get("sort")}
       from={search.get("from")}
       entry={search.get("entry")}
+      slot={search.get("slot")}
     />
   );
 }
