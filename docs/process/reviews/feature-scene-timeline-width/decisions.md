@@ -10,3 +10,7 @@ pending: Real iOS/Android device rotation and touch on the sheet (PROJECT.md age
 ## Human decisions
 
 - No maximum column count: the human approved the spec with no cap on `c`, 2026-11-11, accepting that a wider host requests more pictures per window.
+
+## Design differences (design-check.md)
+
+- D-1: fixed by the human's decision, 2026-11-11: the scene card reserves its height as a whole (`min-h-[7.6rem]`, the same total), so a one-line label is followed directly by the text and the spare space sits at the card's foot.
