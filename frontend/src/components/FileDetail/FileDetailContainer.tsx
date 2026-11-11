@@ -14,6 +14,7 @@ import {
   type FileDetailSurface,
 } from "@/lib/fileDetailShell";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { useInspectorForm } from "@/hooks/useInspectorForm";
 import { usePolicy } from "@/hooks/usePolicy";
 import { useAddonSlots } from "../AddonSlotsProvider";
 import { MarkdownAwareTagChips } from "../MarkdownAwareTagChips";
@@ -131,6 +132,9 @@ export function FileDetailContainer({
   const scrollRoot = ridesShell ? shellScrollRoot : (miniPlayerRoot ?? null);
 
   const metrics = useCompanionMetrics(file?.id, scrollRoot);
+  // In the stacked layout the canvas has no room for a description under the
+  // player: it belongs to the header block at the top of Info, with the title.
+  const { stacked: stackedLayout } = useInspectorForm(fileId);
 
   const handleMediaController = useCallback(
     (mc: MediaController | null) => {
@@ -270,7 +274,7 @@ export function FileDetailContainer({
         videoRef={videoRef}
         addonSlotProps={addonSlotProps}
         tagChips={tagChipNode}
-        hoistDescription={descriptionInCanvas}
+        hoistDescription={descriptionInCanvas && !stackedLayout}
       />
     </div>
   );

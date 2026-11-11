@@ -1107,6 +1107,48 @@ pre mark.ask-citation-highlight {
 }
 
 /* ------------------------------------------------------------------
+   The inspector, stacked under the player.
+
+   A player file in a narrow row is not covered: the row becomes a column,
+   the canvas takes at most 60% of its height and the inspector has the
+   rest at full width. Written from attributes for the same reason as the
+   overlay: the pane and the player keep their elements across a form
+   change, and a transcript's clock and scroll position live in them.
+   ------------------------------------------------------------------ */
+[data-inspector-fit="stacked"][data-inspector-open="true"] {
+  flex-direction: column;
+}
+
+/* `flex: 0 1 auto` rather than a 60% basis: a short player takes its own
+   height and hands the rest to the inspector. */
+[data-inspector-fit="stacked"][data-inspector-open="true"] > main {
+  flex: 0 1 auto;
+  max-height: 60%;
+}
+
+[data-inspector-fit="stacked"][data-inspector-open="true"] .inspector-pane {
+  width: 100%;
+  height: auto;
+  flex: 1 1 40%;
+  min-height: 0;
+  border-inline-start: 0;
+  border-block-start: 1px solid var(--color-bg-border);
+}
+
+/* A framed player is capped at half the row, less the find bar, the action
+   row and the canvas padding that share the canvas with it: together they
+   fit the 60% without scrolling, so the controls are always on screen.
+   `--fit-player-h` is measured by the shell. An audio player has no frame
+   to cap. */
+[data-inspector-fit="stacked"][data-inspector-open="true"]
+  .media-detail-player[data-framed="true"] {
+  max-width: min(
+    calc(var(--player-avail, 100dvh) * 16 / 9),
+    calc(var(--fit-player-h, calc(var(--fit-row-h, 100dvh) / 2)) * 16 / 9)
+  );
+}
+
+/* ------------------------------------------------------------------
    The action row in the Bottom Sheet's resting strip.
 
    Grown here rather than by a class on each control, because three of

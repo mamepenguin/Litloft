@@ -22,6 +22,13 @@ export const INSPECTOR_BESIDE_MIN_REM =
   PLAYER_MIN_REM + CANVAS_PADDING_REM + COLUMN_REM;
 
 /**
+ * The stacked form, where the two share the row's height instead of its
+ * width. A framed player at most fills half the row, controls included. The
+ * canvas's 60% cap lives in the stylesheet with the rest of the form.
+ */
+export const STACKED_PLAYER_SHARE = 0.5;
+
+/**
  * The canvas's scrollbar is deliberately not a term here: whether there is
  * one depends on the canvas width this decides, and on overlay scrollbars
  * it is 0.

@@ -197,6 +197,58 @@ describe("inspector overlay placement", () => {
   });
 });
 
+describe("inspector stacked under the player", () => {
+  it("turns the row into a column, canvas first", () => {
+    const rule = globalsCss().match(
+      /\[data-inspector-fit="stacked"\]\[data-inspector-open="true"\]\s*\{[^}]*\}/,
+    );
+    expect(rule).not.toBeNull();
+    expect(rule![0]).toMatch(/flex-direction:\s*column;/);
+  });
+
+  it("caps the canvas at 60% so the inspector keeps 40%", () => {
+    const rule = globalsCss().match(
+      /\[data-inspector-fit="stacked"\]\[data-inspector-open="true"\]\s*>\s*main\s*\{[^}]*\}/,
+    );
+    expect(rule).not.toBeNull();
+    expect(rule![0]).toMatch(/max-height:\s*60%;/);
+  });
+
+  it("gives the pane the full width under it", () => {
+    // Not narrowed: under 320px Japanese wraps at 12–14 characters a line.
+    const rule = globalsCss().match(
+      /\[data-inspector-fit="stacked"\]\[data-inspector-open="true"\]\s+\.inspector-pane\s*\{[^}]*\}/,
+    );
+    expect(rule).not.toBeNull();
+    expect(rule![0]).toMatch(/width:\s*100%;/);
+    expect(rule![0]).toMatch(/flex:\s*1 1 40%;/);
+    expect(rule![0]).toMatch(/border-inline-start:\s*0;/);
+  });
+
+  it("caps a framed player at half the row, less the bars sharing the canvas", () => {
+    // The find bar, the action row and the padding come out of the half, so
+    // the frame's controls are always on screen and the canvas never scrolls
+    // to reach them.
+    const rule = globalsCss().match(
+      /\[data-inspector-fit="stacked"\]\[data-inspector-open="true"\]\s+\.media-detail-player\[data-framed="true"\]\s*\{[^}]*\}/,
+    );
+    expect(rule).not.toBeNull();
+    expect(rule![0]).toMatch(/max-width:\s*min\(/);
+    expect(rule![0]).toMatch(/var\(--player-avail/);
+    expect(rule![0]).toMatch(/var\(--fit-player-h/);
+    expect(rule![0]).toMatch(/\*\s*16\s*\/\s*9/);
+    expect(rule![0]).not.toMatch(/max-height/);
+  });
+
+  it("keeps the overlay rule for a file the row cannot hold", () => {
+    const rule = globalsCss().match(
+      /\[data-inspector-fit="overlay"\]\s+\.inspector-pane\s*\{[^}]*\}/,
+    );
+    expect(rule).not.toBeNull();
+    expect(rule![0]).toMatch(/position:\s*absolute;/);
+  });
+});
+
 describe("the sheet's resting action row", () => {
   it("grows its controls to the touch floor on a coarse pointer", () => {
     // Grown rather than overhung: the controls sit 2-4px apart, so 44px hit

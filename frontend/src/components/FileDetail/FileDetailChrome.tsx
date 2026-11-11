@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { ChevronLeft, PanelRight, PanelRightClose } from "lucide-react";
+import { ChevronLeft, PanelBottom, PanelBottomClose, PanelRight, PanelRightClose } from "lucide-react";
 
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { Breadcrumb } from "../Breadcrumb";
@@ -20,6 +20,8 @@ interface FileDetailChromeProps {
   inspector?: {
     open: boolean;
     onToggle: () => void;
+    /** The inspector is under the canvas, so its button says bottom. */
+    stacked?: boolean;
   };
 }
 
@@ -164,7 +166,13 @@ export function FileDetailChrome({
           className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
         >
           {inspector.open ? (
-            <PanelRightClose size={16} />
+            inspector.stacked ? (
+              <PanelBottomClose size={16} />
+            ) : (
+              <PanelRightClose size={16} />
+            )
+          ) : inspector.stacked ? (
+            <PanelBottom size={16} />
           ) : (
             <PanelRight size={16} />
           )}

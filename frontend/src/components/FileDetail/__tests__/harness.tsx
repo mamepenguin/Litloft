@@ -359,3 +359,18 @@ export function setViewport(width = 1400) {
   });
   inspectorOpenStore.notifyViewportChange();
 }
+
+/**
+ * jsdom lays nothing out, so every element reports a zero width and the shell
+ * has no row to measure. A measured row is what a browser always has; the
+ * inspector's form — and the content that waits for it — comes from this.
+ */
+export function measureRow(width = 1200) {
+  vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockImplementation(
+    function (this: HTMLElement) {
+      return this.getAttribute("data-testid") === "inspector-fit-host"
+        ? width
+        : 0;
+    },
+  );
+}

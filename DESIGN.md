@@ -1130,9 +1130,15 @@ Info tab. Only the canvas differs, and there are two:
 
 | Token | Value | Meaning |
 |---|---|---|
-| inspector width | `24rem` (384px) | Fixed. Where the row cannot hold it beside the canvas it covers the canvas at the same width rather than narrowing — at 320px Japanese wraps at 12–14 characters a line. |
+| inspector width | `24rem` (384px) | Fixed. Where the row cannot hold it beside the canvas it covers the canvas at the same width rather than narrowing — at 320px Japanese wraps at 12–14 characters a line. A player file (video, audio, `.loft`) instead stacks it under the player, so the width becomes the row's. |
 | canvas padding | `2rem` (32px) | Around the canvas contents; part of the sum below because the player is inside it. |
 | beside threshold | player minimum + canvas padding + inspector width | Measured on the row that holds both — never on the canvas, whose width is what is being decided. |
+| stacked canvas | at most `60%` of the row's height | The canvas takes the find bar and the player, and scrolls inside itself; the inspector keeps the rest at full width. |
+| stacked frame | half the row's height, less the bars sharing the canvas | A framed player is capped at `min(today's height budget, that half) × 16 / 9`, so the frame, the find bar and the action row fit without scrolling and the controls stay on screen. |
+
+The stacked form is chosen by the row's width and by the file kind, never by
+whether the inspector is open: opening and closing it only turns the layout on
+and off, so a window drag cannot close what it opened.
 
 The companion rail below has the same width for the same reason, not by sharing a
 value; a change to one is not a change to the other.
@@ -1175,6 +1181,10 @@ playback clock, so it has no companion region.
 | File page | a tab in the inspector | a bounded box in the canvas, under the description |
 | Collection playback | a second column beside the player | the same box, under the player |
 
+In the stacked layout (a player file in a narrow row with the inspector open)
+the companion is a tab whatever the preference says, and the toggle is not
+drawn: there is no second column and no room under the player for the box.
+
 **The companion is moved, never duplicated**: it holds a fetch, a playback clock
 and a scroll position.
 
@@ -1193,8 +1203,8 @@ and a scroll position.
 | Question | Measured against |
 |---|---|
 | Can a rail sit beside the player? | The host's own width |
-| Can the inspector sit beside the canvas, or must it cover it? | The width of the row holding both |
-| Does the inspector *start* open? | The viewport (1120px). A default only; the reader's choice outranks it |
+| Can the inspector sit beside the canvas, or must it cover it? | The width of the row holding both; a player file in a row that cannot hold it is stacked instead of covered |
+| Does the inspector *start* open? | The file kind and the viewport. A video, audio or `.loft` file: open off a phone. Anything else: the viewport (1120px). A default only; the reader's choice outranks it |
 | Is the inspector a pane or a Bottom Sheet? | The viewport (768px) |
 
 Placement is a fact about the space, so it is measured on the container; whether

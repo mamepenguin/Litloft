@@ -29,7 +29,12 @@ A tab appears only when it has something in it, so a video that was never transc
 
 AI sections (intelligence addon) appear once they have been generated. To generate one, use the **AI** menu in the inspector.
 
-Open and close the inspector with the toggle at the end of the page row, or `Cmd/Ctrl+\`. When the window is too narrow for both, it covers the right side of the page.
+Open and close the inspector with the toggle at the end of the page row, or `Cmd/Ctrl+\`. A video, audio or `.loft` file starts with the inspector open unless you closed it before; every other kind starts the way it always has.
+
+When the window is too narrow for the inspector beside the page, it changes places instead of narrowing:
+
+- For a video, audio or `.loft` file it moves **under the player**, which shrinks to at most half of the page's height and stays centred, so nothing covers the picture. The toggle then shows a bottom-panel icon, and the description and the summaries move into **Info**.
+- For every other kind it covers the right side of the page.
 
 ### On a phone
 
@@ -65,7 +70,7 @@ On video, audio and `.loft` files, a button in the page row decides where the ch
 - **Beside** (the default): as tabs in the inspector, next to the player. Choosing it opens the inspector. If the window starts with the inspector closed, the panels are in there; open it to see them.
 - **Below**: under the description, with the chapter list beside the transcript.
 
-The button appears only when the file has chapters or a transcript. On a phone both always go into the bottom sheet. The choice is remembered on the device.
+The button appears only when the file has chapters or a transcript. On a phone both always go into the bottom sheet, and in a narrow window they go into the inspector under the player, with no button to choose. The choice is remembered on the device.
 
 ## Chapters
 
