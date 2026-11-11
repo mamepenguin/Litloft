@@ -28,7 +28,8 @@ Everything else in `docs/specs/scene-timeline.md` (its revision I11 included) st
 3. The column count is `c = max(3, floor((W + 0.5rem) / 7.5rem))`.
    - 7rem is the narrowest a tile may be, its width at three columns in the 384px inspector.
    - 0.5rem is the column gap.
-   - rem is read from the root font size, so scaled text keeps the same layout.
+   - rem is read from the root element's computed font size when `c` is worked out, so scaled text keeps the same layout. A value that is not a positive number counts as 16px.
+   - `c` is worked out again whenever `W` is measured again.
 4. The grid shows three rows of `c` tiles. That is the frames from `s` to `s + 3c − 1`, where `s = clamp(c × floor(i / c) − c, 0, max(0, n − 3c))`.
    - `i` is the frame holding the point being looked at, as in SPEC-ADDON-089.
    - `n` is the number of frames.
@@ -37,10 +38,12 @@ Everything else in `docs/specs/scene-timeline.md` (its revision I11 included) st
 6. When `W` changes (rotation, opening a sidebar, resizing the window):
    - `c` and the window are derived again from the same point being looked at.
    - The grid snaps to the new layout with no travel animation, as DESIGN.md §7 says for a listing whose own width changed.
+   - A window that changes this way is like any other new window. Its pictures are requested once it has stayed 150 ms, and until then its new tiles are the empty `bg-bg-elevated` box with their time, as SPEC-ADDON-089 §9 already draws a tile whose picture has not been requested. A tile kept from the previous window keeps its picture.
 
 ### 2. Failure cases
 
 - **The width is not known yet.** Before the ruler has been measured (`W` is 0, for example on the first paint), the grid uses three columns.
+- **The root font size cannot be read.** A value that is not a positive number counts as 16px (step 3).
 - **A width too narrow for three columns.** Three columns are kept. Tiles narrower than 7rem are allowed rather than dropping below three columns, which SPEC-ADDON-089 never did.
 
 ### 3. States
@@ -64,7 +67,7 @@ Unchanged.
 
 ### 7. Effect on existing features
 
-- **Only the Scenes section changes.** Collapsed, the header row is as before.
+- **Only the Scenes section changes.** Every row of the section spans its full width, the collapsed header included. On a host wider than 24rem, the header's chevron, the action row's buttons and the stale line therefore reach the host's right edge rather than 384px, as the `Wide.dc.html` board draws them.
 - **The collection surface.** Here `file-detail-sections` is drawn in the canvas. The section now fills that width too, for example seven columns at 900px.
 - **The core real-browser case.** `frontend/e2e-components/scenes-section*` asserts a 24rem maximum width. That assertion is replaced by the column count and the full width.
 
@@ -77,23 +80,24 @@ None. Nothing new can fail.
 - The section is as wide as its host's content box. There is no `max-width`.
 - The number of columns depends on the width:
 
-  | Host | `W` | Columns | Frames in the window |
+  | `W`, the section's own width | Where it occurs | Columns | Frames in the window |
   |---|---|---|---|
-  | The 384px inspector | 352px | 3 | 9 |
-  | A 390px Bottom Sheet | 358px | 3 | 9 |
-  | A 720px Bottom Sheet | 688px | 5 | 15 |
-  | A 900px collection surface | 900px | 7 | 21 |
+  | 352px | the 384px inspector (16px padding each side) | 3 | 9 |
+  | 358px | a 390px Bottom Sheet | 3 | 9 |
+  | 688px | a 720px Bottom Sheet | 5 | 15 |
+  | 900px | a 900px collection canvas with no padding | 7 | 21 |
 
 - The tile, the outline, the scene dot and the time label are as in SPEC-ADDON-089. The gap is 8px between columns and 12px between rows.
-- The ruler, its labels and the scene card span the full width.
-- The window band on the ruler covers the `3c` frames shown.
+- Every row spans the full width: the header (its chevron at the right edge), the ruler and its labels, the grid, the scene card, the stale line and the action row (its buttons at the right edge).
+- The window band on the ruler runs from the first drawn tile's start to the start of the frame after the last drawn tile, or to `L` when there is none.
 - No user-guide change: this is layout (CLAUDE.md).
 
 ### 10. Non-functional
 
-- **Requests.** Only the `3c` pictures of the current window are requested. While the browse point moves, a window's pictures are requested only after that window has stayed 150 ms, as before.
+- **Requests.** Only the `3c` pictures of the current window are requested, once the window has stayed 150 ms, as before. A playback step changes one row, so it adds `c` new pictures. A frame the cache already holds costs no ffmpeg run.
 - **Measurement.** The `frontend/e2e-components` Scenes case measures, in Chromium:
-  - **Widths.** A 384px host with a mouse, a 390px host and a 720px host with a coarse pointer, and a 900px host.
+  - **Widths.** The fixture's host has no padding, so its width is `W`. The hosts are 384px with a mouse (3 columns), 390px with a coarse pointer (3), 688px with a coarse pointer (5) and 900px with a mouse (7). The 351px time-label case stays and keeps 3.
+  - **Window moves.** Each width's scripted window move crosses a row boundary at that width's `c`, and is checked by the first drawn tile's time.
   - **Fill.** The section's width equals its host's content width.
   - **Columns.** The column count, from the tiles' distinct left edges, matches the table in §9.
   - **Tile width.** No tile is narrower than 7rem when `c` > 3.
@@ -118,7 +122,8 @@ None. Nothing new can fail.
 
 - `frontend/e2e-components/scenes-section.cases.ts`.
 - `frontend/e2e-components/scenes-section-desktop.spec.ts` and `scenes-section.spec.ts`.
-- `frontend/e2e-components/fixtures/scenesSection.tsx`: a 720px host.
+- `frontend/e2e-components/fixtures/scenesSection.tsx` and `fixtures/app.tsx`: a 688px host arrangement.
+- `frontend/e2e-components/spec-viewport.spec.ts`, if a new spec file is added.
 - The `addons/intelligence` gitlink.
 
 **Rules passed through**
@@ -134,13 +139,15 @@ No protected path is edited.
 
 ## Invariants
 
-I1. The grid has `c = max(3, floor((W + 0.5rem) / 7.5rem))` columns, where `W` is the section's measured content width; with `W` unknown it has 3.
-I2. The grid shows the frames from `s = clamp(c × floor(i / c) − c, 0, max(0, n − 3c))` to `s + 3c − 1`, or every frame when there are fewer than `3c`, where `i` is the last frame whose start is at or before the point being looked at (frame 0 before the first).
-I3. Only the `3c` pictures of the current window are requested, and while the browse point moves a window's pictures are requested only after it has stayed 150 ms.
-I4. The section is as wide as its host's content box at every host width; no tile is narrower than 7rem when `c` is greater than 3; no element inside the section scrolls on either axis with either pointer.
-I5. At a fixed width, the section's height does not change when the window moves or the browse point changes.
-I6. A change of `W` that changes `c` redraws the grid in the new column count around the same point being looked at, without a travel animation.
-I7. The loading skeleton draws `3c` blocks in `c` columns.
+The window formula, the requests, the fill, the scrolling and the height are stated once, in the Revises lines for SPEC-ADDON-089 I1, I5 and I8. The lines below are only what this spec adds. Tests of the revised properties cite SPEC-ADDON-089, and tests of these lines cite SPEC-ADDON-093.
+
+I1. The grid has `c = max(3, floor((W + 0.5rem) / 7.5rem))` columns, where `W` is the section's measured width and rem is the root font size (16px when it is not a positive number). With `W` unknown, it has 3.
+I2. When `c` is greater than 3, no tile is narrower than 7rem.
+I3. Once a window has stayed 150 ms, the picture of every drawn tile is requested. The pictures requested are exactly those of the drawn tiles.
+I4. The ruler's window band runs from the first drawn tile's start to the start of the frame after the last drawn tile, or to `L`.
+I5. A change of `W` that changes `c` redraws the grid in the new column count around the same point being looked at, without a travel animation.
+I6. The loading skeleton draws `3c` blocks in `c` columns.
+I7. The header, the ruler, the grid, the scene card and the action row each span the section's full width.
 
 ## Revises
 
@@ -150,7 +157,8 @@ SPEC-ADDON-089 I8. Only the pictures of the current window (`3c` of them) are re
 
 ## Checked, no action
 
-- **A maximum column count.** A very wide host gets many columns, for example 11 at 1400px. The window then covers more time, which is what a wide host is for, and every picture is still the size it is in the inspector. No cap is set until a host shows that one is needed.
+- **A maximum column count.** A very wide host gets many columns, for example 11 at 1400px. The window then covers more time, which is what a wide host is for, and every picture is still the size it is in the inspector. The cost of more columns is more pictures per window: 33 at 1400px instead of 9. Each one is a single ffmpeg run on its first request, and then cached. A playback step adds one row of `c` pictures. No cap is set until a host shows that one is needed (the human's decision, recorded at approval).
+- **Recomputing `c` when only the font size changes.** `c` is worked out again on the next width measurement. A text-size change that leaves the section's pixel width unchanged keeps the old column count until then.
 - **Growing the tiles instead of adding columns.** The reader rejected this. Three columns at 720px make a 220px tile and a section nearly 900px tall.
 - **A container query instead of script measurement.** DESIGN.md §8.5 forbids a containment context around media because of iOS Safari, and the width is already measured for the time labels.
 - **Changing the number of rows with the height.** Three rows stay. The reader did not raise height, and a fixed row count keeps I5.
