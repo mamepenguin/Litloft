@@ -57,9 +57,12 @@ Visible decisions, each checkable at 1280px and 375px:
    each non-book shelf grid is a `VideoGrid` (a new component in `components/appshell/`),
    which measures its own width, takes as many 16rem columns as fit with a 16px gap (at
    least two), and lays its cards out with a 32px row gap. `VideoGrid` is the only element
-   that draws a video card grid; it hands its measured column count to its caller, which
-   uses `MIN_CARD_COLUMNS` (2) for counting cards while the count is still 0 (not yet
-   measured, or in jsdom), as `ShelfBlock` does today.
+   that draws a video card grid. It hands its measured column count to its children as a
+   render prop (`children: (columns) => ReactNode`), measured in the callback ref during
+   commit as `useCardColumns` does today, so the first painted frame already holds the
+   measured count and capacity, with no later re-render that changes it. Callers use
+   `MIN_CARD_COLUMNS` (2) for counting cards while the count is still 0 (jsdom, or a
+   server render), as `ShelfBlock` does today.
 2. Each `VideoCard` draws its thumbnail, the title 12px below it, and the byline (when
    there is one) 4px below the title.
 3. The viewer clicks See all. The see-all page (`VideoShelfPage`, both the grouped Library
@@ -75,7 +78,8 @@ Visible decisions, each checkable at 1280px and 375px:
 ### 2. Failure cases
 
 None new: this changes layout only. A failed shelf still shows its Retry in place of the
-grid, and a failed page on the see-all page still shows Retry under the grid.
+grid, and a failed later page on the see-all page still shows Retry under the grid, now
+32px to 33px below the grid's bottom edge (where the appended skeleton would start).
 
 ### 3. States
 
@@ -110,9 +114,11 @@ None: no access path changes.
   `DiscoverFace` (`space-y-8` → `space-y-10`, including SPEC-CORE-076's trailing skeleton)
   and the grouped shelves of video and reading `LibraryFace`. In both Libraries the
   sentinel, the "load more" skeleton shelf and its Retry sit after the shelf stack, not in
-  it (the video Library moves them out, as the reading Library already has them), in a
-  block whose top is 40px below the last shelf; the 1px sentinel is that block's first
-  child and the skeleton or Retry follows it directly. The video Library's toolbar keeps
+  it (the video Library moves them out, as the reading Library already has them). The
+  sentinel stays flush under the stack, so nothing adds space after the last shelf when
+  nothing is loading; the skeleton shelf or Retry, only while shown, starts 40px below the
+  sentinel (`mt-10`). The video Library's trailing space after its last shelf shrinks from
+  about 33px to the sentinel's 1px; the page's own bottom padding remains. The video Library's toolbar keeps
   its 24px (`space-y-6`) above the first shelf.
 - `lib/cardGrid.ts`: `CARD_GAP_PX` (12) and `HOME_GRID` stay as they are, so the drive's
   file grids (`FileGrid`, `FolderContent`, `RightPaneFolder`, `SectionRow`, trash,
@@ -187,12 +193,14 @@ in a callback ref) like the Discover shelves; nothing heavier.
   stays as strict.
 - `frontend/e2e-layout/reading-video-faces.spec.ts` — video shelves are checked with
   `columnsFor(width, VIDEO_GRID)`, book shelves as today.
-- `frontend/e2e-layout/fixtures/video-app.html` and `e2e-layout/video-app.spec.ts` — the
-  fixture copies the new header margin, shelf stack and card title classes.
 - `videoapp/__tests__/VideoShelfPage.test.tsx` — its skeleton assertions still find
   skeleton cards (at least 4 before the first page, from the 2-column floor).
 - `videoapp/__tests__/VideoShelfPage.provider.test.tsx` and
-  `videoapp/__tests__/VideoApp.discoverPageProviders.test.tsx` — the byline class
+  `videoapp/__tests__/VideoApp.discoverPageProviders.test.tsx` — the `BYLINE` selector
+  constant in each (today `".mt-0\\.5.block.truncate.text-xs.text-text-muted"`, used both
+  to find a byline and in `toBeNull()` checks that none is drawn) is changed to match the
+  new byline classes exactly, so the negative checks still fail when a byline is drawn;
+  the byline class
   assertions name the new classes (`mt-1 … text-sm`); what they check (a byline is drawn,
   as text, truncated) is unchanged.
 - Other unit tests that pin the old classes or the breakpoint columns, updated to the new
@@ -205,8 +213,8 @@ No protected path is edited.
 
 ## Invariants
 
-I1. On Discover, the Library and the see-all page, adjacent video cards in one grid are
-16px apart horizontally and 32px apart vertically (card box to card box).
+I1. On Discover, the Library and the see-all page, adjacent grid cells (`li`) in one video
+grid are 16px apart horizontally and 32px apart vertically (cell box to cell box).
 
 I2. A video grid's column count is `max(2, floor((W + 16) / (256 + 16)))` for its own
 width W in px, on Discover, the Library and the see-all page alike; the see-all page never
@@ -222,24 +230,34 @@ below the title's bottom and it is 14px with a 20px line height.
 I5. In the video and reading apps, consecutive shelves in Discover's stack and in the
 Library's grouped stack are 40px apart (shelf box to shelf box), including Discover's
 trailing skeleton shelf of SPEC-CORE-076; a Library's "load more" skeleton shelf or Retry
-starts 40px to 41px below the last shelf (the 1px sentinel lies between); and in every
+starts 40px to 41px below the last shelf (the 1px sentinel lies between), and when
+neither is shown nothing but the 1px sentinel follows the last shelf; and in every
 `ShelfBlock` the grid (or Retry) starts 16px below the header row.
 
 I6. A video shelf's or see-all page's skeleton grid has the same column count, column gap
 and row gap as the loaded grid at the same width, and a video skeleton card's title bar
 starts 12px below its thumbnail and is 22px tall. On the see-all page the first-load
 skeleton is two rows of cards and the appended one is one row (with columns not yet
-measured, 4 and 2 cards), and the appended one's top
-is 32px to 33px below the bottom of the last row of cards (the 1px sentinel lies between
-them).
+measured, 4 and 2 cards), and the appended skeleton's top, or the later-page Retry's top,
+is 32px to 33px below the loaded grid's bottom edge (the 1px sentinel lies between them).
 
 I7. On the see-all page, scrolling to the end still loads the next page and appends its
 cards to the same grid element, with no repeated or missing card at the page boundary
 (SPEC-CORE-078's paging, I3 and I4 of `provider-shelf-page.md`, unchanged by the measured
 grid).
 
+I8. A video shelf draws exactly `c × rowsFor(c)` cards (or skeleton cards), where c is
+its I2 column count once measured and 2 before; so a shelf grid 792–799px wide draws 4
+cards in two rows and one 1060–1071px wide draws 3 in one row.
+
 ## Checked, no action
 
+- **SPEC-CORE-078 I1 ("a card given no byline renders the same markup as before").** It
+  states what that change left alone, relative to the code before it; this change is the
+  one that restyles every card, deliberately, so I1 is not revised.
+- **`e2e-layout/fixtures/video-app.html` and `video-app.spec.ts`.** That fixture still
+  draws horizontal scroll rows, a shape `ShelfBlock` no longer has, and no parity test
+  reads it; copying a few classes into it would verify nothing. Left out of this change.
 - **Channel and date on two lines, as YouTube does.** The byline is one string from the
   provider; splitting it in core would parse provider text, and changing the contract is a
   separate SPEC-CORE-078 change. Kept on one line.
