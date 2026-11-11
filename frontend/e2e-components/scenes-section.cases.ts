@@ -3,6 +3,7 @@ import { pathToFileURL } from "node:url";
 
 import { PAGE } from "./build-bundle";
 import {
+  SCENES_FRAME_STEP,
   SCENES_LONG_LABEL,
   SCENES_LONG_TEXT,
   SCENES_SHORT_LABEL,
@@ -11,17 +12,25 @@ import {
 const FIXTURE = pathToFileURL(PAGE).href;
 const HOST = "#scenes-host";
 const SECTION = `${HOST} > div`;
-/** `24rem`, the inspector's width, at the default font size. */
-const MAX_SECTION_WIDTH = 384;
 const TOLERANCE = 1;
+/** The narrowest tile the spec allows, 7rem at the default font size. */
+const MIN_TILE_WIDTH = 112;
 
 type Pointer = "mouse" | "touch";
 
 export interface ScenesCase {
   hostWidth: number;
   pointer: Pointer;
+  /** Columns the spec's measurement table gives this host. */
+  columns: number;
   /** The 9:46:37 file whose 500 frames end at 4:09:30. */
   long?: boolean;
+}
+
+function timeLabel(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds % 60;
+  return `${minutes}:${String(rest).padStart(2, "0")}`;
 }
 
 async function open(
@@ -45,9 +54,9 @@ async function open(
   if (pointer === "touch") await header.tap();
   else await header.click();
 
-  await expect(page.locator(`${HOST} button[aria-label^="Play from"]`)).toHaveCount(
-    9,
-  );
+  await expect(
+    page.locator(`${HOST} button[aria-label^="Play from"]`).first(),
+  ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Regenerate scenes" }),
   ).toBeVisible();
@@ -59,10 +68,55 @@ async function sectionHeight(page: Page): Promise<number> {
   return box!.height;
 }
 
-async function sectionWidth(page: Page): Promise<number> {
-  const box = await page.locator(SECTION).boundingBox();
-  expect(box).not.toBeNull();
-  return box!.width;
+/** The section's border box against its host's content box. */
+async function fill(page: Page): Promise<{ section: number; host: number }> {
+  return page.locator(SECTION).evaluate((section) => ({
+    section: section.getBoundingClientRect().width,
+    host: (section.parentElement as HTMLElement).clientWidth,
+  }));
+}
+
+/** Columns as the browser laid them out: one distinct left edge per column. */
+async function drawnColumns(page: Page): Promise<number> {
+  return page.locator(SECTION).evaluate(
+    (section) =>
+      new Set(
+        Array.from(
+          section.querySelectorAll<HTMLElement>(
+            'button[aria-label^="Play from"]',
+          ),
+        ).map((tile) => Math.round(tile.getBoundingClientRect().left)),
+      ).size,
+  );
+}
+
+async function drawnTileWidths(page: Page): Promise<number[]> {
+  return page.locator(SECTION).evaluate((section) =>
+    Array.from(
+      section.querySelectorAll<HTMLElement>('button[aria-label^="Play from"]'),
+    ).map((tile) => tile.getBoundingClientRect().width),
+  );
+}
+
+/** The rows that must span the section: the header's chevron and its buttons. */
+async function rightEdges(
+  page: Page,
+): Promise<{ host: number; chevron: number; action: number }> {
+  return page.locator(SECTION).evaluate((section) => {
+    const host = section.parentElement as HTMLElement;
+    const header = section.querySelector<HTMLElement>("button[aria-expanded]");
+    if (!header) throw new Error("no header is drawn");
+    const chevron = header.lastElementChild as HTMLElement;
+    const action = Array.from(
+      section.querySelectorAll<HTMLElement>("button"),
+    ).find((button) => (button.textContent ?? "").trim() === "Regenerate scenes");
+    if (!action) throw new Error("no action row button is drawn");
+    return {
+      host: host.getBoundingClientRect().right,
+      chevron: chevron.getBoundingClientRect().right,
+      action: action.getBoundingClientRect().right,
+    };
+  });
 }
 
 /** Every element in the section that has more content than its box. */
@@ -154,19 +208,28 @@ async function stopBrowsing(page: Page, { pointer }: ScenesCase): Promise<void> 
 export function scenesSectionCases(cases: ScenesCase[]): void {
   test.describe("SPEC-ADDON-089 I5 — the Scenes section never scrolls and keeps its height", () => {
     for (const scenesCase of cases) {
-      const { hostWidth, pointer } = scenesCase;
-      test(`${hostWidth}px host, ${pointer}`, async ({ page }) => {
+      const { hostWidth, pointer, columns } = scenesCase;
+      test(`${hostWidth}px host, ${pointer}, ${columns} columns`, async ({
+        page,
+      }) => {
         // Fake timers, so the clock sample that moves the window happens when
         // this case says it does.
         await page.clock.install();
         await open(page, scenesCase);
 
-        expect(await sectionWidth(page)).toBeGreaterThan(
-          MAX_SECTION_WIDTH - TOLERANCE,
-        );
-        expect(await sectionWidth(page)).toBeLessThanOrEqual(
-          MAX_SECTION_WIDTH + TOLERANCE,
-        );
+        const tiles = page.locator(`${HOST} button[aria-label^="Play from"]`);
+        await expect(tiles).toHaveCount(3 * columns);
+
+        const width = await fill(page);
+        expect(width.section).toBeCloseTo(width.host, 0);
+        expect(await drawnColumns(page)).toBe(columns);
+        if (columns > 3) {
+          for (const tileWidth of await drawnTileWidths(page)) {
+            expect(tileWidth).toBeGreaterThanOrEqual(
+              MIN_TILE_WIDTH - TOLERANCE,
+            );
+          }
+        }
         expect(await overflowing(page)).toEqual([]);
 
         // Frame 0 holds the scene with no `visible_text`.
@@ -175,7 +238,7 @@ export function scenesSectionCases(cases: ScenesCase[]): void {
         expect(first.label).toBe(SCENES_SHORT_LABEL);
         expect(first.text).toBe("");
 
-        // Frame 5: still the same nine tiles, another scene in the card.
+        // Frame 5: still the same window, another scene in the card.
         await browse(page, scenesCase, 0.09);
         const browsed = await sectionHeight(page);
         const second = await card(page);
@@ -184,23 +247,26 @@ export function scenesSectionCases(cases: ScenesCase[]): void {
         expect(second.labelLines).toBe(2);
         expect(second.labelClipped).toBe(true);
 
-        // Back to frame 0, still on the same nine tiles.
+        // Back to frame 0, still on the same window.
         await browse(page, scenesCase, 0.005);
         const again = await sectionHeight(page);
         expect((await card(page)).label).toBe(SCENES_SHORT_LABEL);
 
         await stopBrowsing(page, scenesCase);
 
-        // Frame 18 moves the grid from frames 0–8 to frames 15–23.
-        await page.evaluate(() => {
-          window.__scenesPlayback.time = 216;
-        });
+        // The first frame of the third row moves the window by two rows.
+        const moveFrame = 3 * columns;
+        await page.evaluate((time) => {
+          window.__scenesPlayback.time = time;
+        }, moveFrame * SCENES_FRAME_STEP);
         await page.clock.runFor(1_000);
-        const tiles = page.locator(`${HOST} button[aria-label^="Play from"]`);
-        await expect(tiles.first()).toHaveAttribute("aria-label", "Play from 3:00");
+        await expect(tiles.first()).toHaveAttribute(
+          "aria-label",
+          `Play from ${timeLabel(2 * columns * SCENES_FRAME_STEP)}`,
+        );
         // The window's pictures arrive after the section's settle delay.
         await page.clock.runFor(500);
-        await expect(tiles.locator("img")).toHaveCount(9);
+        await expect(tiles.locator("img")).toHaveCount(3 * columns);
         const moved = await sectionHeight(page);
 
         expect(await overflowing(page)).toEqual([]);
@@ -208,6 +274,14 @@ export function scenesSectionCases(cases: ScenesCase[]): void {
         for (const height of [browsed, again, moved]) {
           expect(height).toBeCloseTo(opened, 0);
         }
+
+        const edges = await rightEdges(page);
+        expect(Math.abs(edges.host - edges.chevron)).toBeLessThanOrEqual(
+          TOLERANCE,
+        );
+        expect(Math.abs(edges.host - edges.action)).toBeLessThanOrEqual(
+          TOLERANCE,
+        );
       });
     }
   });
