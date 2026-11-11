@@ -25,16 +25,23 @@ that drew them; its see-all grid is measured with the video metric (16rem, 16px 
 the 16px gap in CSS over a grid measured with 12px; at the mock's width both give 4
 columns. The human chose this design (plan B) over a spacing-only variant.
 
+There is no artifact URL: the design was drawn only in the harness and shown to the human
+as images. It covers two screens in the loaded state, Discover (Continue, a subscription
+shelf with bylines, Recently added) and the see-all page with bylines, each at 1280px and
+375px. The Library, the reading app and every skeleton state have no drawing; they are
+governed by the visible decisions below alone.
+
 Visible decisions, each checkable at 1280px and 375px:
 
 - Video card: title 12px under the thumbnail, 16px with a 22px line height, weight 500,
   clamped to two lines; byline 4px under the title, 14px with a 20px line height, muted,
   one truncated line. Tailwind: title `mt-3 line-clamp-2 text-base/[1.375rem]
-  font-medium`, byline `mt-1 block truncate text-sm text-text-muted`.
+  font-medium text-text-primary`, byline `mt-1 block truncate text-sm text-text-muted`.
 - Video grid (Discover and Library shelves, see-all page): 16px between columns, 32px
   between rows; at least 16rem per card and at least two columns.
 - Shelves (video and reading apps, Discover and Library): 40px between consecutive shelves;
-  16px between a shelf's header row and its grid.
+  16px between a shelf's header row and its grid. In both apps' Library, the "load more"
+  skeleton shelf or its Retry also starts 40px below the last shelf.
 - See-all page: at 1280px viewport the grid has the same column count as a Discover shelf
   in the same frame (4 at the measured width, where today it has 5).
 - Column counts on Discover and Library shelves also move where the 16px gap changes the
@@ -47,16 +54,21 @@ Visible decisions, each checkable at 1280px and 375px:
 ### 1. Normal flow
 
 1. The viewer opens the video app. Discover and Library draw shelves through `ShelfBlock`;
-   each non-book shelf grid measures its width, takes as many 16rem columns as fit with a
-   16px gap (at least two), and lays its cards out with a 32px row gap.
+   each non-book shelf grid is a `VideoGrid` (a new component in `components/appshell/`),
+   which measures its own width, takes as many 16rem columns as fit with a 16px gap (at
+   least two), and lays its cards out with a 32px row gap. `VideoGrid` is the only element
+   that draws a video card grid; it hands its measured column count to its caller, which
+   uses `MIN_CARD_COLUMNS` (2) for counting cards while the count is still 0 (not yet
+   measured, or in jsdom), as `ShelfBlock` does today.
 2. Each `VideoCard` draws its thumbnail, the title 12px below it, and the byline (when
    there is one) 4px below the title.
 3. The viewer clicks See all. The see-all page (`VideoShelfPage`, both the grouped Library
-   mode and `entry` mode) measures its own grid the same way and appends pages to that
-   grid as the viewer scrolls. Before the first page it draws a skeleton grid of two rows
-   (2 × columns cards); while the next page loads it draws one skeleton row (columns
-   cards) below the 1px sentinel. Each skeleton grid measures its own width with its own
-   ref; at the page's width it gets the same count as the loaded grid.
+   mode and `entry` mode) draws its cards in one `VideoGrid` and appends pages to that same
+   element as the viewer scrolls. Before the first page it draws a skeleton `VideoGrid` of
+   two rows (2 × columns cards); while the next page loads it draws a skeleton `VideoGrid`
+   of one row (columns cards) below the 1px sentinel. Each skeleton grid measures its own
+   width; at the page's width it gets the same count as the loaded grid. With columns 0
+   the counts use 2 columns (4 and 2 cards).
 4. In the reading app, shelves are 40px apart and their headers 16px above their grids;
    book cards and the book grid are unchanged.
 
@@ -69,8 +81,8 @@ grid, and a failed page on the see-all page still shows Retry under the grid.
 
 Unchanged: loading (skeleton grid), loaded, failed, empty. The skeleton grid of a video
 shelf and of the see-all page use the loaded grid's column count, column gap and row gap,
-and a skeleton card's title bar sits 12px under its thumbnail and is 22px tall (one title
-line).
+and a video skeleton card's title bar sits 12px under its thumbnail and is 22px tall (one
+title line). The book skeleton card keeps its `mt-2 h-4` bar.
 
 ### 4. Data read and written
 
@@ -96,9 +108,12 @@ None: no access path changes.
   minimum and capacity.
 - Space between shelves (40px) applies to the shelf stacks: video and reading
   `DiscoverFace` (`space-y-8` → `space-y-10`, including SPEC-CORE-076's trailing skeleton)
-  and the grouped shelves of video and reading `LibraryFace`. The Library's "load more"
-  skeleton keeps today's place relative to its sentinel; the video Library's toolbar
-  keeps its 24px (`space-y-6`) above the first shelf.
+  and the grouped shelves of video and reading `LibraryFace`. In both Libraries the
+  sentinel, the "load more" skeleton shelf and its Retry sit after the shelf stack, not in
+  it (the video Library moves them out, as the reading Library already has them), in a
+  block whose top is 40px below the last shelf; the 1px sentinel is that block's first
+  child and the skeleton or Retry follows it directly. The video Library's toolbar keeps
+  its 24px (`space-y-6`) above the first shelf.
 - `lib/cardGrid.ts`: `CARD_GAP_PX` (12) and `HOME_GRID` stay as they are, so the drive's
   file grids (`FileGrid`, `FolderContent`, `RightPaneFolder`, `SectionRow`, trash,
   missing, and the intelligence addon's `SceneCandidatesSection`) keep their columns and
@@ -136,25 +151,36 @@ in a callback ref) like the Discover shelves; nothing heavier.
 ## Touch points
 
 - `frontend/src/components/videoapp/VideoCard.tsx` — title and byline classes.
-- `frontend/src/components/appshell/ShelfBlock.tsx` — header margin; non-book grid metrics,
-  gaps and skeleton card.
+- `frontend/src/components/appshell/ShelfBlock.tsx` — header margin; the non-book branch
+  draws `VideoGrid` (and the video skeleton card); the book branch keeps its own `grid
+  gap-5` element and skeleton card.
+- `frontend/src/components/appshell/VideoGrid.tsx` (new) — the measured video grid:
+  `useCardColumns(VIDEO_GRID)`, `cardGridTemplate(columns, VIDEO_GRID)`, `gap-x-4 gap-y-8`,
+  its own measuring ref.
 - `frontend/src/lib/cardGrid.ts` — `VIDEO_GRID` (min 16rem, gap 16px) next to
   `BOOK_GRID`.
-- `frontend/src/__tests__/card-grid.test.ts` — the guard over every card grid. The
-  see-all page's grids join its scanned sites, so the expected site set and call counts
-  grow by exactly those sites. The gap rule gains a video set: the non-book `ShelfBlock`
-  grid and the see-all page's grids must use exactly 16px (`gap-x-4`), book sites 20px,
-  every other site 12px. Each new grid element gets its own measuring ref. Nothing is
-  removed from the guard.
-- `frontend/src/components/videoapp/VideoShelfPage.tsx` — measured grid instead of
-  breakpoint columns, gaps, skeleton grid.
+- `frontend/src/__tests__/card-grid.test.ts` — the guard over every card grid.
+  `VideoGrid.tsx` becomes one new site; `ShelfBlock.tsx` keeps one site (now book only);
+  `VideoShelfPage.tsx` draws no grid element of its own. So the expected sites go from 8
+  to 9 and the `useCardColumns` call sites from 8 to 9, and the expected file set gains
+  `VideoGrid.tsx`. The gap rule is per file: `VideoGrid.tsx` must have exactly a 16px
+  column gap (`gap-x-4`) and a 32px row gap (`gap-y-8`); `ShelfBlock.tsx` and
+  `ReadingGrid.tsx` exactly 20px; every other site 12px. Nothing is removed from the guard.
+- `frontend/src/components/videoapp/VideoShelfPage.tsx` — `VideoGrid` for the cards and
+  both skeletons instead of breakpoint columns.
 - `frontend/src/components/videoapp/DiscoverFace.tsx`, `videoapp/LibraryFace.tsx`,
   `readingapp/DiscoverFace.tsx`, `readingapp/LibraryFace.tsx` — space between shelves.
 - Reached through `ShelfBlock` without an edit: `videoapp/VideoApp.tsx`,
   `readingapp/ReadingApp.tsx`, `readingapp/ReadingShelfPage.tsx`.
-- `frontend/e2e-components/` — a spec drawing the real components to measure gaps,
-  columns and type (jsdom lays nothing out); the byline spec (`video-card-byline*`,
+- `frontend/e2e-components/` — a new fixture and spec pair (phone and desktop, registered
+  in `projects.ts` and `spec-viewport.spec.ts` like `video-card-byline`). It draws the real
+  `ShelfBlock` + `VideoCard` shelves and the real `VideoGrid` as the see-all page lays it
+  out (cards, sentinel, appended skeleton), inside a container narrower than the viewport,
+  and measures gaps, column counts against the container width, card type and offsets,
+  and skeleton rows. jsdom lays nothing out. The byline spec (`video-card-byline*`,
   SPEC-CORE-079 I7) keeps passing unchanged.
+- `frontend/src/components/__tests__/componentFixtureParity.test.tsx` — the new fixture id
+  joins its expected set.
 - `frontend/e2e-layout/fixtures/reading-video-faces.html` and
   `src/components/__tests__/readingVideoLayoutFixtureParity.test.tsx` — the fixture
   mirrors the new classes (`mb-4`, `space-y-10`, the video grid gaps); the parity test
@@ -163,13 +189,16 @@ in a callback ref) like the Discover shelves; nothing heavier.
   `columnsFor(width, VIDEO_GRID)`, book shelves as today.
 - `frontend/e2e-layout/fixtures/video-app.html` and `e2e-layout/video-app.spec.ts` — the
   fixture copies the new header margin, shelf stack and card title classes.
+- `videoapp/__tests__/VideoShelfPage.test.tsx` — its skeleton assertions still find
+  skeleton cards (at least 4 before the first page, from the 2-column floor).
 - `videoapp/__tests__/VideoShelfPage.provider.test.tsx` and
   `videoapp/__tests__/VideoApp.discoverPageProviders.test.tsx` — the byline class
   assertions name the new classes (`mt-1 … text-sm`); what they check (a byline is drawn,
   as text, truncated) is unchanged.
 - Other unit tests that pin the old classes or the breakpoint columns, updated to the new
   ones without weakening what they assert.
-- `DESIGN.md` — "Card grids" rule.
+- `DESIGN.md` — "Card grids" rule (§8.5) and §6 "Cards" (the video card's title and byline
+  roles).
 - `docs/process/reviews/feature-video-card-spacing/design/` — the agreed design.
 
 No protected path is edited.
@@ -192,12 +221,15 @@ below the title's bottom and it is 14px with a 20px line height.
 
 I5. In the video and reading apps, consecutive shelves in Discover's stack and in the
 Library's grouped stack are 40px apart (shelf box to shelf box), including Discover's
-trailing skeleton shelf of SPEC-CORE-076; and in every `ShelfBlock` the grid (or Retry)
-starts 16px below the header row.
+trailing skeleton shelf of SPEC-CORE-076; a Library's "load more" skeleton shelf or Retry
+starts 40px to 41px below the last shelf (the 1px sentinel lies between); and in every
+`ShelfBlock` the grid (or Retry) starts 16px below the header row.
 
 I6. A video shelf's or see-all page's skeleton grid has the same column count, column gap
-and row gap as the loaded grid at the same width. On the see-all page the first-load
-skeleton is two rows of cards and the appended one is one row, and the appended one's top
+and row gap as the loaded grid at the same width, and a video skeleton card's title bar
+starts 12px below its thumbnail and is 22px tall. On the see-all page the first-load
+skeleton is two rows of cards and the appended one is one row (with columns not yet
+measured, 4 and 2 cards), and the appended one's top
 is 32px to 33px below the bottom of the last row of cards (the 1px sentinel lies between
 them).
 
@@ -216,9 +248,6 @@ grid).
   (SPEC-CORE-079).** That is prose, not an invariant; the byline invariant (I7 of that
   file: one truncated line, at most one line taller) still holds, so there is no
   `## Revises`.
-- **The Library's "load more" skeleton shelf.** It stays where it is relative to its
-  sentinel (video: inside the shelf stack; reading: after it). It shows for the moment a
-  page loads; aligning the two is not part of this change.
 - **Phone-width title size.** At 375px a card is about 165px wide; a 16px title wraps
   earlier and a byline truncates sooner. The human saw this in the 375px screenshots and
   chose plan B anyway.
