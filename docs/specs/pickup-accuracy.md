@@ -84,6 +84,17 @@ household can have several profiles; each has its own feed per drive, as today.
   (`_FUTURE_TOLERANCE_DAYS`, as today), is before `until` when one is given, and is no
   more than 365 days before `now`.
 - **Kept row**: a window row of a live video with `e > 0`.
+- **Timestamps**: every comparison of `last_played_at`, `dismissed_at`,
+  `files.created_at`, `computed_at`, a cut point or a window edge is made in Python on
+  values parsed to naive UTC by `_parse_naive_utc` (which accepts a `T` or space
+  separator and an offset), never on SQL text. New rows (`pickup_feed_log.computed_at`)
+  are written as naive UTC.
+  - An unparseable `last_played_at` keeps the file in the exclusion set, as today. In
+    the commands it counts as opened before every cut point and before every log row,
+    and is never a target.
+  - An unparseable `dismissed_at` counts as not dismissed.
+  - An unparseable `files.created_at` makes the file neither a candidate nor a target in
+    the commands.
 
 ## Required items
 
@@ -92,8 +103,11 @@ household can have several profiles; each has its own feed per drive, as today.
 **Building a feed (SPEC-ADDON-095, SPEC-ADDON-096).** The worker keeps its triggers
 (`scan.complete` webhook, hourly sweep) and its per-drive, per-viewer loop. Changes:
 
-1. Per drive, once per sweep, the worker reads the set of live videos in the drive from
-   the core DB (`files` with `drive = :drive`, `file_type = 'video'`, live).
+1. Per drive, once per `_compute_for_drive` run (sweep, webhook or missed-trigger
+   rerun), and only when some viewer is stale, the worker reads the set of live videos
+   in the drive from the core DB (`files` with `drive = :drive`, `file_type = 'video'`,
+   live). It does this alongside `load_candidates`. If the read fails, the run abandons
+   the drive, as a failed `load_candidates` does today.
 2. Candidate rows for each channel (`clip_thumbnail`, `tfidf_keywords`, `text_content`)
    are loaded as today, and then only rows whose file is in that set are kept, with
    `CandidateSet.file_ids` and the matrix rows filtered together. A channel that no video
@@ -118,18 +132,24 @@ household can have several profiles; each has its own feed per drive, as today.
 
 **Code shape.** The worker and the replay go through the same functions:
 
-- `profile_history(drive, viewer_id, *, now, until=None, videos_only=True, weighted=True)`
-  returns `WatchedFile(file_id, last_played_at, engagement)` rows, newest first, cut to
-  2000.
+- `profile_history(drive, viewer_id, cap=PROFILE_VECTOR_CAP,
+  window_days=PROFILE_WINDOW_DAYS, *, now=None, until=None, videos_only=True,
+  weighted=True)` returns `WatchedFile(file_id, last_played_at, engagement)` rows,
+  newest first, cut to `cap`.
+  - `now=None` means the current time.
   - `videos_only` keeps live videos only; otherwise live files of every kind.
   - `weighted` gives video rows their `e` and drops those with `e = 0`; rows of other
     kinds get `e = 1`. When `weighted` is false, every row gets `e = 1` and none is
     dropped.
-  - The worker calls it with the defaults.
-- `build_lanes(history, *, key, now, vectors=representative_vectors)` takes the reference
-  time and a vector source, a callable `(file_ids, channel) -> {file_id: unit vector}`.
-  The worker passes nothing, which keeps today's reads. The replay passes a lookup into
-  vectors it loaded once.
+  - The worker calls it with the defaults, so existing calls keep working.
+- `age_days(last_played_at, now=None)` measures from `now` (the current time when
+  `None`).
+- `raw_weight(ages, weights=None)` returns `log1p(sum(w * decay(a)))`, with every
+  weight 1 when `weights` is `None`.
+- `build_lanes(history, *, key, now=None, vectors=representative_vectors)` takes the
+  reference time and a vector source, a callable
+  `(file_ids, channel) -> {file_id: unit vector}`. The worker passes neither, which keeps
+  today's reads. The replay passes a lookup into vectors it loaded once.
 - `engagement(...)` is a pure function of the fields in the Definitions.
 - `load_candidates` stays as it is. A new `restrict_candidates(candidates, file_ids)`
   returns the subset, with ids and matrix rows filtered together.
@@ -220,7 +240,8 @@ every cut point's target window `[t, t + horizon)` has fully passed. For each cu
 7. Per viewer and configuration, each metric is the mean over the evaluated cut points.
    Viewers are never pooled.
 
-`online`, per viewer:
+`online`, per viewer with history in the drive (`viewer_ids`, or the one given). A viewer
+without log rows gets a table with zero counts.
 
 1. **Targets**: live videos of the drive with this viewer's history row whose
    `last_played_at` is in the last `--days` days and whose `e` is above 0.
@@ -240,8 +261,10 @@ exits 0.
 **Output.** Markdown on stdout, viewers ordered by viewer id. Each viewer starts with a
 line `viewer <id>`. Ratios have three decimals. A mean over zero items prints `-`.
 
-- `replay`: then a line `candidate videos: <n at the earliest cut point> .. <n at the
-  latest cut point>`, then a table with the columns
+- `replay`: then a line `candidate videos: <a> .. <b>`, where `a` and `b` are the
+  numbers of videos `random` draws from (the viewer's universe videos with a vector) at
+  the earliest and the latest evaluated cut point (`-` when none is evaluated), then a
+  table with the columns
   `config | cuts | skipped | targets | recall@12 | recall@40 | hit@40`, one row per
   configuration in the order above. `cuts` counts evaluated cut points. `targets` sums
   the targets over them, so a file can count at several cut points.
@@ -249,7 +272,7 @@ line `viewer <id>`. Ratios have three decimals. A mean over zero items prints `-
   `week | targets | unscored | recall@12 | recall@40 | versions`. There is one row per
   ISO week of the target's `last_played_at` (`YYYY-Www`), oldest first, then a row
   `total`. `targets` counts evaluated targets. `versions` lists the `profile_version`
-  values of the feeds used, ascending and comma-separated.
+  values of every feed of the row's evaluated targets, ascending and comma-separated.
 
 ### 2. Failure cases
 
@@ -342,16 +365,16 @@ made.
 
 - **Drive home Pickup row, Pickup page, video app Recommended**: all read the same stored
   feed through `GET /pickup`, so all become videos only. On a drive with no videos, the
-  home row and the Pickup page show nothing, as they already do for an empty feed
-  (`PickupWidget` returns null). Recommended's `restrict` (type=video plus the smart
+  home row and Recommended are absent, as they already are for an empty feed
+  (`PickupWidget` returns null). The Pickup page, opened directly, shows its existing
+  empty text (`pickup.empty`). Recommended's `restrict` (type=video plus the smart
   folder plus `watch=unwatched`) now drops fewer rows, so its 5-page cap is reached later
   or not at all.
-- **SPEC-ADDON-094** (Recommended's page provider, approved 2026-11-12, on another
-  branch) pages the same feed. It needs no change, because the feed's shape is
-  unchanged. Both branches bump the `addons/intelligence` pointer, so whichever merges
-  second rebases its addon commit onto the first's. That spec's remark that the Pickup
-  page lists every kind of file stops being true here. That is a rationale there, not an
-  invariant.
+- **SPEC-ADDON-094** (Recommended's page provider, implemented and merged into develop,
+  which this branch is based on) pages the same feed through `pickupPageProvider`. It
+  needs no change, because the feed's shape and endpoint are unchanged. That spec's
+  remark that the Pickup page lists every kind of file stops being true here. That is a
+  rationale there, not an invariant.
 - **Continue watching, history, likes, favourites, dismissal**: read-only here,
   unchanged.
 - **The 90% completion gate** (`drives.py`) is untouched. Engagement is a separate reading
@@ -383,7 +406,13 @@ database.
 - Liking or favouriting a video affects Pickup from the next sweep (within an hour), even
   without watching more of it, and so does undoing either.
 - The daily twelve on the home row and Recommended are still drawn from the top 40, and
-  the full feed keeps a stable order. No text, layout or control changes.
+  the full feed keeps a stable order. No layout or control changes.
+- The Pickup page's description says videos instead of files:
+  - en `pickup.description`: "Videos you have not opened yet, drawn from what you have
+    been watching." (was "Files …");
+  - ja: 「視聴履歴から見つけた、まだ開いていない動画です。」 (was 「…ファイルです。」);
+  - en `pickup.empty`: "Nothing to suggest yet." is unchanged;
+  - ja `pickup.empty`: 「まだおすすめできる動画がありません。」 (was 「…ファイルがありません。」).
 - `docs/addons/intelligence.md`:
   - the feature table's Pickup row says it is a feed of videos you have never opened;
   - the Pickup section says that Pickup lists videos only, that how much of a video was
@@ -397,9 +426,11 @@ database.
 
 ### 10. Non-functional
 
-- **Time**: a rebuild adds one query per drive for the video set and one per viewer for
-  likes, dismissal and segments. The weighted k-means costs the same as today. The video
-  filter shrinks the candidate matrices.
+- **Time**: the hourly stale check stays one query per viewer. `watch_signature` joins
+  `files` for likes and favourites and a per-file grouped `played_segments` sum, so it
+  reads more per row than today, which is accepted. A rebuild adds one query per drive
+  for the video set and per viewer the history read with the same joins. The weighted
+  k-means costs the same as today. The video filter shrinks the candidate matrices.
 - **Command time**: `replay` with the defaults on the production `videos` drive must
   finish in under 10 minutes on the Mac mini.
 - **Size**: about 40 ids per logged feed. Every viewer is rebuilt at least once a day,
@@ -445,7 +476,7 @@ database.
 
 - `addons/intelligence/app/pickup/profile.py`:
   - `profile_history` (`now`, `until`, `videos_only`, `weighted`; filters before the
-    cap);
+    cap), `age_days` (`now`), `raw_weight` (`weights`);
   - `engagement`, and the `engagement` field of `WatchedFile`;
   - `build_lanes` (`now`, `vectors`), with every member mean weighted by `e`
     (`_kmeans`, `_centroid`, `_merge_singletons`) and with `raw_weight`;
@@ -455,16 +486,19 @@ database.
   - the per-drive video set;
   - `_stale_work` and `_checkpoint` for the extended signature;
   - `_compute_for_viewer` for the settled and retrying empty outcomes;
-  - `_store` returning `computed_at`;
+  - `_store` returning `computed_at`, and the log taking the stored positions (not the per-lane `FeedItem.rank`) for its rank order;
   - the feed log write and pruning.
 - `addons/intelligence/app/models.py`: `PickupFeedLog`.
 - `addons/intelligence/app/database.py`: the new table through `create_all` (no `ALTER`),
   and the read-only opener.
 - `addons/intelligence/app/pickup/evaluate.py` (new): `replay` and `online`.
 - `addons/intelligence/app/routers/pickup.py`: read, unchanged in shape.
+- `addons/intelligence/frontend/messages/en.json` and `ja.json`: `pickup.description`,
+  and ja `pickup.empty`.
 - The existing pickup tests (`tests/test_z_pickup_*.py` and the worker tests). They are
-  updated where they pin unweighted means, `raw_weight(ages)`, every-kind candidates, or
-  lanes built from a history with no kept row. None is deleted or loosened.
+  updated where they pin unweighted means, every-kind candidates, lanes built from a
+  history with no kept row, or a call signature that changes. None is deleted or
+  loosened.
 - Core DB tables read: `files`, `watch_history`, `played_segments`.
 - `docs/addons/intelligence.md` (feature table and Pickup section), `docs/specs/INDEX.md`,
   the `addons/intelligence` submodule pointer.
@@ -477,12 +511,12 @@ database.
 ## Invariants
 
 I1. For any history and reference time, `build_lanes` weights each kept video by exactly its engagement in every mean of member vectors (the k-means update, the singleton merge choice, the directionless check and the lane centroid, each normalized) and in the lane raw weight `log1p(sum(e * decay(age)))`, where `e` is 1 for a liked or favourite video however little was watched, else 0 when dismissed, else `min(1, f / 0.5)` from `f = 0.10` up and 0 below, else 0.5 for a `.loft` without a reported duration, else 0.
-I2. At a fixed reference time, adding or removing a history row for a non-video file, or for a video with engagement 0, changes the built feed only by excluding or re-admitting that file, including when the viewer has more than 2000 kept rows and when rows lie on both sides of the 365-day window.
-I3. No file whose core `file_type` is not `video` appears in a stored feed.
+I2. At a fixed reference time, adding a history row for a non-video file, or for a video with engagement 0, gives exactly the feed built from the unchanged kept history with that file added to the exclusion set (and removing such a row, the feed with it taken out of the exclusion set), including when the viewer has more than 2000 kept rows and when rows lie on both sides of the 365-day window.
+I3. No file appears in a stored feed unless its core row is a live video (`file_type = 'video'`, neither trashed nor missing).
 I4. A feed is built only from its own drive's history and files, and never contains a file the viewer has opened in that drive, of any kind and any engagement, trashed or missing included.
-I5. With `last_played_at` unchanged, liking, unliking, favouriting, unfavouriting, adding played ranges to or dismissing a video the viewer has opened, or deploying a new `PROFILE_VERSION`, causes that viewer's feed for the drive to be rebuilt on the next sweep, and two sweeps over an unchanged history compute the same checkpoint.
+I5. With `last_played_at` unchanged, liking, unliking, favouriting, unfavouriting, adding played ranges to or dismissing a video the viewer has opened, or deploying a new `PROFILE_VERSION`, causes that viewer's feed for the drive to be rebuilt on the next sweep, and two sweeps over an unchanged history on the same UTC date and `PROFILE_VERSION` compute the same checkpoint.
 I6. With the signature unchanged, a viewer with no kept row is not rebuilt again that day, and a viewer whose feed came out empty while kept rows exist is rebuilt on every sweep.
-I7. A committed feed with `total > 0` has at most one `pickup_feed_log` row, and exactly one when the log write succeeds, holding its first `min(40, total)` file ids in rank order with the profile's `computed_at`; an empty feed has none; a failed log write leaves the feed and its profile row as committed; after any log write no row older than 180 days remains.
+I7. A committed feed with `total > 0` has at most one `pickup_feed_log` row, and exactly one when the log write succeeds, holding its first `min(40, total)` file ids in rank order with the profile's `computed_at`; an empty feed has none; a failed log write leaves the feed and its profile row as committed; after any successful log write no row older than 180 days remains.
 I8. Neither evaluation command changes either database file or creates a table, including when `pickup_feed_log` does not exist.
 I9. In `replay` at cut point `t`, no configuration ranks a file the viewer opened before `t` or one created at or after `t`; the targets are exactly the live videos created before `t` with engagement above 0 and `last_played_at` in `[t, t + horizon)`; `recall@k = |T ∩ R_k| / |T|` is averaged per viewer over evaluated cut points only; and `after` ranks exactly as the worker builds the feed for the same history, candidates and reference time.
 I10. In `online`, a target is a hit at `k` exactly when it is among the first `k` ids of one of that viewer's log rows for the drive computed in the 48 hours before its `last_played_at`, and a target with no such row is unscored rather than counted as a miss.
