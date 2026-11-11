@@ -172,6 +172,7 @@ ships it:
 | An operator-facing screen or procedure | `docs/admin-guide/` |
 | An Internal API endpoint | `docs/ADDON-DEVELOPMENT.md` (also required by `.claude/rules/internal-api-policy.md`) |
 | An addon's own surface | `docs/addons/<name>.md` |
+| A slot, slot prop, manifest field, Internal API shape or core API name that addons use, removed or changed incompatibly | `docs/ADDON-DEVELOPMENT.md` → *Extension-point changes* |
 
 `docs/user-guide/` is a manual, not a record of behaviour. It gets a sentence
 only when a viewer, without it, could not do what they came to do or would take

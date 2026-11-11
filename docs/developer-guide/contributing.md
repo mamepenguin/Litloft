@@ -7,6 +7,18 @@ Litloft is developed mainly for personal use, but pull requests are welcome. Rev
 - Read the [architecture](architecture.md) and the [Internal API policy](addon-dev.md#internal-api-policy). Most "not in core" decisions come from them.
 - Read the rules in `.claude/rules/`, starting with `design-decisions.md`. `CLAUDE.md` at the repo root says which rule file applies to which part of the code.
 
+## Where a change fits
+
+Core is reworked often, so a pull request that edits core internals tends to conflict before it is reviewed. The stable surface is the one an addon builds on: the UI slots, the manifest, the Internal API and the core API listed in [ADDON-DEVELOPMENT.md](../ADDON-DEVELOPMENT.md). Breaking changes to it are logged there under *Extension-point changes*.
+
+- Build a feature as an addon (in its own repository) where you can. If it needs a hook core does not have, the core pull request adds only that hook, in a generic shape that names no addon (see the Internal API policy for what qualifies).
+- For a change to core internals, open an issue first.
+- Base a fork on a tagged commit rather than an arbitrary point on `develop`; tags mark stable points.
+
+## Specs
+
+New behaviour starts with a spec in `docs/specs/`, approved by the maintainer before implementation. The process is in `docs/process/` (start at `spec-and-design.md`); bug fixes, refactors and docs-only changes need less, as `docs/process/workflow.md` → *Skips* lists. The `process` workflow in CI checks every pull request against it and labels risky changes for human review.
+
 ## Branches and commits
 
 - Branch off `develop` with a descriptive name (`feat/scene-search-toggle`, `fix/upload-resume-race`), and open the pull request against `develop`.

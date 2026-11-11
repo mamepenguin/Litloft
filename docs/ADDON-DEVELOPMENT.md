@@ -1419,6 +1419,25 @@ code into the addon.
 
 ---
 
+## Extension-point changes
+
+Core internals are reworked often; the surface listed in this guide is what an
+addon, or a fork that carries its own addon, is meant to build on. When a change
+breaks that surface, it gets a row here in the same pull request. Breaking means
+an existing addon stops working or silently behaves differently:
+
+- a slot id renamed or removed, or a prop a slot passes removed, renamed or
+  given a different type or meaning;
+- a manifest or `ADDON_META` field removed or reinterpreted;
+- an Internal API endpoint removed, or its request or response shape changed;
+- a name in [Core API surface for in-process addons](#core-api-surface-for-in-process-addons)
+  removed or changed.
+
+Adding a slot, a prop, a field or an endpoint is not breaking and gets no row.
+
+| Date | What changed | What an addon does instead |
+|---|---|---|
+
 ## Existing addons
 
 | Addon | Type | Scope | Page | Guide |
