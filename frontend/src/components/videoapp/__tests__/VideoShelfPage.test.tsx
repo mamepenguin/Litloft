@@ -74,8 +74,11 @@ class FakeObserver {
   constructor(private callback: IntersectionObserverCallback) {
     FakeObserver.instances.push(this);
   }
+  live = true;
   observe() {}
-  disconnect() {}
+  disconnect() {
+    this.live = false;
+  }
   unobserve() {}
   takeRecords() {
     return [];
@@ -83,6 +86,12 @@ class FakeObserver {
   trigger() {
     this.callback([{ isIntersecting: true } as IntersectionObserverEntry], this as never);
   }
+}
+
+/** The observer is created in a passive effect, which may land after the text of the same commit. */
+async function liveSentinel() {
+  await waitFor(() => expect(FakeObserver.instances.some((o) => o.live)).toBe(true));
+  return FakeObserver.instances.filter((o) => o.live).at(-1)!;
 }
 
 const never = () => new Promise<never>(() => {});
@@ -141,7 +150,8 @@ describe("See all", () => {
     render(<VideoShelfPage drive={DRIVE} by="folder" shelfKey="Movies" />);
     await screen.findByText("Video p1-0");
 
-    act(() => FakeObserver.instances.at(-1)!.trigger());
+    const sentinel = await liveSentinel();
+    act(() => sentinel.trigger());
 
     expect(await screen.findByText("Video p2-0")).toBeInTheDocument();
     expect(getShelves.mock.calls.at(-1)![1]).toMatchObject({ page: 2 });
@@ -188,7 +198,8 @@ describe("See all", () => {
     await screen.findByText("Video p1-0");
     expect(view.container.querySelectorAll("li")).toHaveLength(60);
 
-    act(() => FakeObserver.instances.at(-1)!.trigger());
+    const sentinel = await liveSentinel();
+    act(() => sentinel.trigger());
 
     await waitFor(() => expect(getShelves.mock.calls.at(-1)![1]).toMatchObject({ page: 2 }));
     await waitFor(() => expect(view.container.querySelectorAll("li")).toHaveLength(62));

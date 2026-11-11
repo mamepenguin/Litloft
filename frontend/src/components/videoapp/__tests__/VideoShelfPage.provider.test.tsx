@@ -163,8 +163,11 @@ class FakeObserver {
   constructor(private callback: IntersectionObserverCallback) {
     FakeObserver.instances.push(this);
   }
+  live = true;
   observe() {}
-  disconnect() {}
+  disconnect() {
+    this.live = false;
+  }
   unobserve() {}
   takeRecords() {
     return [];
@@ -174,10 +177,18 @@ class FakeObserver {
   }
 }
 
+/**
+ * Waits for a near-end sentinel to be observed. The observer is created in a passive effect,
+ * which may land after the text that came with the same commit; firing before it exists is lost.
+ */
+async function sentinelArmed() {
+  await waitFor(() => expect(FakeObserver.instances.some((o) => o.live)).toBe(true));
+}
+
 /** Fires every live near-end sentinel. */
 async function nearEnd() {
   await act(async () => {
-    for (const o of FakeObserver.instances) o.trigger();
+    for (const o of FakeObserver.instances) if (o.live) o.trigger();
   });
   await settle();
 }
@@ -369,11 +380,13 @@ describe("SPEC-CORE-078 the provider shelf page: further pages", () => {
       renderEntryPage({ entry: "feed" });
       await screen.findByText(title("v2"));
 
+      await sentinelArmed();
       await nearEnd();
       await screen.findByText(title("v3"));
       expect(feed.mock.calls[1][0]).toMatchObject({ cursor: "opaque:/?&= 1", limit: 60, drive: DRIVE, locale: "en" });
       expect(drawn()).toEqual([title("v1"), title("v2"), title("v3")]);
 
+      await sentinelArmed();
       await nearEnd();
       await screen.findByText(title("v4"));
       expect(feed.mock.calls[2][0]).toMatchObject({ cursor: "c2", limit: 60 });
@@ -418,10 +431,12 @@ describe("SPEC-CORE-078 the provider shelf page: further pages", () => {
       renderEntryPage({ entry: "feed" });
       await screen.findByText(title("v1"));
 
+      await sentinelArmed();
       await nearEnd();
       await screen.findByText(title("v3"));
       expect(drawn()).toEqual([title("v1"), title("v2"), title("v3")]);
 
+      await sentinelArmed();
       await nearEnd();
       await waitFor(() => expect(feed).toHaveBeenCalledTimes(3));
       await nearEnd();
@@ -444,6 +459,7 @@ describe("SPEC-CORE-078 the provider shelf page: further pages", () => {
       renderEntryPage({ entry: "feed" });
       await screen.findByText(title("v1"));
 
+      await sentinelArmed();
       for (let i = 0; i < 4; i++) await nearEnd();
       expect(feed).toHaveBeenCalledTimes(2);
       expect(drawn()).toEqual([title("v1")]);
@@ -483,6 +499,7 @@ describe("SPEC-CORE-078 the provider shelf page: further pages", () => {
       renderEntryPage({ entry: "feed" });
       await screen.findByText(title("v1"));
 
+      await sentinelArmed();
       await nearEnd();
       const retry = await screen.findByRole("button", { name: /retry/i });
       expect(drawn()).toEqual([title("v1")]);
@@ -508,6 +525,7 @@ describe("SPEC-CORE-078 the provider shelf page: further pages", () => {
       renderEntryPage({ entry: "feed" });
       await screen.findByText(title("v1"));
 
+      await sentinelArmed();
       await nearEnd();
       expect(await screen.findByRole("button", { name: /retry/i })).toBeInTheDocument();
       expect(drawn()).toEqual([title("v1")]);
@@ -717,6 +735,7 @@ describe("SPEC-CORE-080 the provider shelf page's skeleton rows", () => {
       await screen.findByText(title("v0"));
       expect(view.container.querySelectorAll("li")).toHaveLength(5);
 
+      await sentinelArmed();
       await nearEnd();
       expect(mediaPage.feed).toHaveBeenCalledTimes(2);
       expect(view.container.querySelectorAll("li")).toHaveLength(7);
@@ -747,6 +766,7 @@ describe("SPEC-CORE-078 I8 the provider shelf page starts again", () => {
       renderEntryPage({ entry: "feed" });
       await screen.findByText(title("v1"));
 
+      await sentinelArmed();
       await nearEnd();
       await waitFor(() => expect(call).toBe(2));
 
@@ -863,6 +883,7 @@ describe("SPEC-CORE-078 I8 the provider shelf page starts again", () => {
       shelves([FEED]);
       const view = renderEntryPage({ entry: "feed" });
       await screen.findByText(title("v1"));
+      await sentinelArmed();
       await nearEnd();
       await waitFor(() => expect(call).toBe(2));
 
@@ -898,6 +919,7 @@ describe("SPEC-CORE-079 bylines on the provider shelf page", () => {
       expect(v1.compareDocumentPosition(one) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(screen.getByText(title("v2")).closest("li")?.querySelector(BYLINE)).toBeNull();
 
+      await sentinelArmed();
       await nearEnd();
       const three = await screen.findByText("Channel Three · Nov 3");
       expect(screen.getByText(title("v3")).closest("li")?.contains(three)).toBe(true);
