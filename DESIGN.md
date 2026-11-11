@@ -1140,6 +1140,12 @@ The stacked form is chosen by the row's width and by the file kind, never by
 whether the inspector is open: opening and closing it only turns the layout on
 and off, so a window drag cannot close what it opened.
 
+The two-pane route's left pane — the folder tree, or a collection's item list —
+steps aside when it is what stops a player file's inspector fitting beside the
+player. The collapse belongs to the file page, not to the tree setting:
+`tree:enabled:{drive}` is not written, the tree button brings the pane back,
+and the sidebar keeps its overlay form while the pane is away.
+
 The companion rail below has the same width for the same reason, not by sharing a
 value; a change to one is not a change to the other.
 

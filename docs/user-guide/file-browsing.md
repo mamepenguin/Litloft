@@ -98,6 +98,8 @@ The tree button at the top left opens a folder tree beside the listing. It lists
 
 While the tree is open, the sidebar steps aside. Close the tree and the sidebar returns.
 
+On a narrow window the tree steps aside while a video's inspector is open, and the tree button brings it back.
+
 ## Trusted sources and the review queue
 
 Each file is either **Verified** or **Unverified**. The shield button on the file page switches between them. Files already in your drive start as verified.
