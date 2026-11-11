@@ -233,8 +233,10 @@ describe("inspector stacked under the player", () => {
       /\[data-inspector-fit="stacked"\]\[data-inspector-open="true"\]\s+\.media-detail-player\[data-framed="true"\]\s*\{[^}]*\}/,
     );
     expect(rule).not.toBeNull();
-    expect(rule![0]).toMatch(/max-width:\s*min\(/);
-    expect(rule![0]).toMatch(/var\(--player-avail/);
+    expect(rule![0]).toMatch(/max-width:/);
+    // The canvas is as tall as the player here, so a cap measured from it
+    // would shrink the player to nothing.
+    expect(rule![0]).not.toMatch(/--player-avail/);
     expect(rule![0]).toMatch(/var\(--fit-player-h/);
     expect(rule![0]).toMatch(/\*\s*16\s*\/\s*9/);
     expect(rule![0]).not.toMatch(/max-height/);

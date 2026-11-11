@@ -1139,12 +1139,13 @@ pre mark.ask-citation-highlight {
    row and the canvas padding that share the canvas with it: together they
    fit the 60% without scrolling, so the controls are always on screen.
    `--fit-player-h` is measured by the shell. An audio player has no frame
-   to cap. */
+   to cap.
+   Not `--player-avail`: it is measured from the canvas, which here is as tall
+   as the player, so each measurement shrinks the next one down to zero. */
 [data-inspector-fit="stacked"][data-inspector-open="true"]
   .media-detail-player[data-framed="true"] {
-  max-width: min(
-    calc(var(--player-avail, 100dvh) * 16 / 9),
-    calc(var(--fit-player-h, calc(var(--fit-row-h, 100dvh) / 2)) * 16 / 9)
+  max-width: calc(
+    var(--fit-player-h, calc(var(--fit-row-h, 100dvh) / 2)) * 16 / 9
   );
 }
 
