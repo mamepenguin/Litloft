@@ -10,7 +10,7 @@ import { ShortcutsProvider } from "../../ShortcutsProvider";
 import type { FileItem } from "@/types";
 import type { MediaController } from "@/lib/mediaController";
 import type { DocumentController } from "@/lib/documentController";
-import { makeFile, relationMocks, setViewport, shellLoaded, usePolicyMock, withRelations } from "./harness";
+import { claimSlot, makeFile, relationMocks, setViewport, shellLoaded, slotMocks, usePolicyMock, withRelations } from "./harness";
 
 const shared = vi.hoisted(() => ({
   params: new URLSearchParams(),
@@ -2497,5 +2497,54 @@ describe("SPEC-CORE-028 I3 the chip text", () => {
     await findCount("2000+ 件");
 
     expect(chipTexts()).toEqual(["すべて 2000+", "発話 1500+", "画面内の文字 500+"]);
+  });
+});
+
+/* ---------- the stacked inspector ---------- */
+
+describe("SPEC-CORE-082 082.9 find in a stacked row with the inspector closed", () => {
+  beforeEach(() => {
+    // A tablet with a narrow row: the form is stacked, and the closed
+    // inspector leaves the companion in the canvas under preference stacked.
+    setViewport(1024);
+    window.localStorage.setItem(`inspector-open:${DRIVE}`, "false");
+    window.localStorage.setItem("media-layout-preference", "stacked");
+    claimSlot("player-side", [
+      { id: "transcript", label: "Transcript", priority: 10, addonName: "intelligence" },
+    ]);
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(900);
+    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(700);
+  });
+
+  afterEach(() => {
+    slotMocks.occupied.clear();
+    slotMocks.entries.clear();
+    vi.restoreAllMocks();
+  });
+
+  const below = () => document.querySelector(".media-detail-below");
+  const fit = () => screen.getByTestId("inspector-fit-host").dataset.inspectorFit;
+
+  it("SPEC-CORE-082 turns the stacked layout on while find is open, and back off when it closes, without writing a preference", async () => {
+    reply = () => answer(THREE_UTTERANCES());
+    await openPage(VIDEO);
+    await waitFor(() => expect(fit()).toBe("stacked"));
+    expect(below()).not.toBeNull();
+
+    const input = await openBar();
+    typeInto(input, TERM);
+
+    await waitFor(() => expect(below()).toBeNull());
+    expect(screen.getAllByTestId("slot-entry-transcript")).toHaveLength(1);
+    expect(screen.getByTestId("inspector-pane")).toContainElement(
+      screen.getByTestId("slot-entry-transcript"),
+    );
+
+    fireEvent.keyDown(focusedInput(), { key: "Escape" });
+
+    await waitFor(() => expect(below()).not.toBeNull());
+    expect(fit()).toBe("stacked");
+    expect(window.localStorage.getItem(`inspector-open:${DRIVE}`)).toBe("false");
+    expect(window.localStorage.getItem("media-layout-preference")).toBe("stacked");
   });
 });
