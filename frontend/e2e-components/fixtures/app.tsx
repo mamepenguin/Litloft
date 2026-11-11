@@ -85,6 +85,11 @@ import { VideoCardBylineArrangement } from "./videoCardByline";
 import { VideoCardSpacingArrangement } from "./videoCardSpacing";
 import { PersistentHighlightsArrangement } from "./persistentHighlights";
 import { ScenesSectionArrangement } from "./scenesSection";
+import {
+  InspectorPdfArrangement,
+  InspectorVideoArrangement,
+  InspectorVideoTwoPaneArrangement,
+} from "./inspectorResponsive";
 import AskTab from "../../src/addons/intelligence/AskTab";
 import { getAskThread } from "../../src/addons/intelligence/askStore";
 import intelligenceEn from "../../src/addons/intelligence/messages/en.json";
@@ -2436,6 +2441,9 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "scenes-long-390": () => (
     <ScenesSectionArrangement hostWidth={390} long />
   ),
+  "inspector-video": InspectorVideoArrangement,
+  "inspector-pdf": InspectorPdfArrangement,
+  "inspector-video-two-pane": InspectorVideoTwoPaneArrangement,
 };
 
 function App(): ReactElement {

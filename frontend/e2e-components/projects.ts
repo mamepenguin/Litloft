@@ -25,6 +25,7 @@ export const DESKTOP_ONLY = [
   "**/scenes-section-desktop.spec.ts",
   "**/video-card-byline-desktop.spec.ts",
   "**/video-card-spacing-desktop.spec.ts",
+  "**/inspector-responsive-layout-desktop.spec.ts",
 ];
 
 /** Literals rather than a device preset, which can change under it. */
