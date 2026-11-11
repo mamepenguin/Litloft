@@ -84,6 +84,7 @@ import { DiscoverPrefixArrangement } from "./discoverPrefix";
 import { VideoCardBylineArrangement } from "./videoCardByline";
 import { VideoCardSpacingArrangement } from "./videoCardSpacing";
 import { PersistentHighlightsArrangement } from "./persistentHighlights";
+import { ScenesSectionArrangement } from "./scenesSection";
 import AskTab from "../../src/addons/intelligence/AskTab";
 import { getAskThread } from "../../src/addons/intelligence/askStore";
 import intelligenceEn from "../../src/addons/intelligence/messages/en.json";
@@ -2422,6 +2423,19 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "video-card-byline": VideoCardBylineArrangement,
   "video-card-spacing": VideoCardSpacingArrangement,
   "persistent-highlights": PersistentHighlightsArrangement,
+  "scenes-351": () => <ScenesSectionArrangement hostWidth={351} />,
+  "scenes-384": () => <ScenesSectionArrangement hostWidth={384} />,
+  "scenes-390": () => <ScenesSectionArrangement hostWidth={390} />,
+  "scenes-900": () => <ScenesSectionArrangement hostWidth={900} />,
+  "scenes-long-351": () => (
+    <ScenesSectionArrangement hostWidth={351} long />
+  ),
+  "scenes-long-384": () => (
+    <ScenesSectionArrangement hostWidth={384} long />
+  ),
+  "scenes-long-390": () => (
+    <ScenesSectionArrangement hostWidth={390} long />
+  ),
 };
 
 function App(): ReactElement {

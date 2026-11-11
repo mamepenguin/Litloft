@@ -109,6 +109,16 @@ Also works for YouTube videos imported with the media_import addon.
 
 Media keys on your keyboard and the lock screen also control playback.
 
+### Scenes timeline (intelligence addon)
+
+On a video's page, the ruler in the **Scenes** section is one tab stop; these keys work while it has focus and stay out of the page's other shortcuts.
+
+| Key | Action |
+|---|---|
+| `←` / `→` | Move the point you are browsing one frame back / forward (the first press starts from the playing frame) |
+| `Home` / `End` | Move it to the first / last frame |
+| `Enter` | Play from the point you are browsing; with none set, nothing happens |
+
 ## File navigation
 
 | Key | Action |

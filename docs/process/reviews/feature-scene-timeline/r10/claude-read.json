@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "r9 R9-1 (bucket A, I2) is fixed. ScenesSectionPresenter.tsx:164 now wires `onPointerLeave={onSectionPointerLeave}` directly. The `event.target === event.currentTarget` guard and the `onPointerOut` handler with its non-null `relatedTarget` check are both gone. React 19.2.4 (frontend/package.json:37) builds onPointerLeave in EnterLeaveEventPlugin from native pointerout/pointerover. When the pointer leaves the root's subtree, including leaving with a null relatedTarget (out of the window) or into a node outside the section such as the player iframe element, React dispatches the leave to every ancestor from the 'from' node up to the common ancestor, and that includes the section root. A move between two children of the section stops at the common ancestor, which is inside the root, so the root gets no leave. That matches I2: the point stays while the pointer is inside the section and is cleared when it leaves.",
+    "The by-source lifetime table (browseLifetime.ts) still decides what a leave does. A mouse point is cleared, and a touch or keyboard point is kept, so the pointerleave that browsers fire after a finger lifts with relatedTarget null still leaves a touch point in place (I3).",
+    "The new tests in ScenesSectionTimeline.test.tsx fire pointerout from the ruler and from a tile with relatedTarget null and expect the point to be cleared. They would fail with either of the r9 guards. With the old `target === currentTarget` check, the synthetic leave's target is the 'from' child, so the root handler would not clear. With the old `next &&` onPointerOut check, a null relatedTarget never cleared.",
+    "The existing 'keeps the point over the grid' test now fires pointerOut from the ruler to a tile. That is a move inside the section, so React dispatches no leave to the root, and the test still expects the point to be kept. The LIFETIME table's pointerleave cases use RTL's fireEvent.pointerLeave, which in @testing-library/react 16 also fires pointerout, so the root still receives React's synthetic leave.",
+    "Commits 7b3e840 and c8a538a (the reviewed commit) add only review records under docs/process/reviews. ef0732a is the submodule bump that carries the Presenter and test change."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Still open from r8 and r9, and not touched by this round: when a different input re-sets a browse point, the point takes the new input's lifetime, and Enter on the ruler clears a point that touch set (activate maps every seek to 'seek'). The spec has no rule for either case."
+  ],
+  "regression_risks": [
+    "Clearing a mouse point on leave now relies completely on React's synthetic onPointerLeave. If a future change moved the section into a portal, or wrapped it so the 'from' and 'to' nodes no longer share the expected React ancestry, leave dispatch could change. React computes the common ancestor over the fiber tree, not the DOM tree.",
+    "If pointer capture is ever added to the ruler (setPointerCapture), the pointerout/pointerleave sequence during a mouse drag would change. No current code captures the pointer."
+  ],
+  "test_coverage": [
+    "Leaving the document from a child with a null relatedTarget is now covered from both the ruler and a tile. Restoring either r9 guard would fail these cases.",
+    "A move inside the section (ruler to tile) is covered by the 'keeps the point over the grid' case.",
+    "No test fires a pointerout whose relatedTarget is an element outside the section that is not document.body, such as an iframe. React handles that the same way as the document.body case, which is already covered.",
+    "The tests run in jsdom and go through RTL's pointerLeave→pointerOut aliasing. No Chromium e2e case checks a real window-edge leave."
+  ],
+  "not_verified": [
+    "I ran no vitest or Playwright tests. The mutation conclusions come from reading the code and from my knowledge of React's EnterLeaveEventPlugin and RTL's fireEvent aliasing.",
+    "I did not check in a real browser how pointerout relatedTarget behaves when the pointer enters the cross-origin YouTube iframe.",
+    "I did not re-check the invariants this round did not touch (I1, I3–I11) beyond what r6–r9 recorded.",
+    "I did not confirm that submodule commit 03359fc contains only the shown Presenter and test changes compared with 21db863, beyond grepping the working tree."
+  ],
+  "confidence": 82,
+  "trajectory": "The round since r9 (ef0732a, intelligence 21db863→03359fc) removes branches and adds none. The section root had two leave handlers: onPointerLeave guarded by `target === currentTarget`, and onPointerOut guarded by a non-null `relatedTarget` outside the root. The round replaces both with one unconditional `onPointerLeave={onSectionPointerLeave}` and relies on React's own enter/leave computation. It adds no state and no prediction, and the by-source lifetime table from the r8→r9 consolidation is unchanged. Over the whole run: r7 moved code without adding anything. The r7 fix added state (browseSource) and guards (the WS expandedRef and policy checks). The r8 fix added a prediction branch (paused→playing in the jump detector) and patched the same browse-point lifetime again. The r9 round folded the per-trigger lifetime checks into one table. This round removes the hand-written leave detection that the r9 round exposed. The last two rounds have simplified rather than patched, so the design is no longer being patched.",
+  "perspectives": [
+    {
+      "name": "fix verification (r9 R9-1)",
+      "notes": "Fixed. The root receives React's synthetic leave whenever the pointer leaves its subtree, including with a null relatedTarget, and the new tests would kill the old guards."
+    },
+    {
+      "name": "false clears inside the section",
+      "notes": "When the window moves, tiles keyed by start time are replaced under the pointer. Chrome fires no pointerout for a removed node, and React ignores pointerover with a managed related node, so the change causes no spurious leave."
+    }
+  ]
+}

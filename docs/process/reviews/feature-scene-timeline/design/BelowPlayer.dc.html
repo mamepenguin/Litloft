@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>CLIP フレーム プレイヤーの下</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#1a0e10}
+.f{background-image:url(/_blob/6a1275016e762411e838f81a83d9fea2);background-size:2400% 1200%;background-repeat:no-repeat}
+.tile{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:4px;min-width:0}
+.tab{all:unset;font-size:13px;padding:8px 2px;color:#c4a0a4}
+</style>
+</helmet>
+<div style="width: 1120px; height: 760px; box-sizing: border-box; background: #1a0e10; color: #f5e6e8; font-family: -apple-system, system-ui, 'Hiragino Sans', sans-serif; display: grid; grid-template-columns: minmax(0, 1fr) 384px">
+  <div style="padding: 32px; display: flex; flex-direction: column; gap: 20px">
+    <div style="position: relative; aspect-ratio: 16 / 9; border-radius: 12px; background: #000; overflow: hidden; display: flex; justify-content: center">
+      <div class="f" style="height: 100%; aspect-ratio: 4 / 3; background-position: {{bigPos}}"></div>
+      <div style="position: absolute; left: 12px; right: 12px; bottom: 44px; height: 3px; border-radius: 2px; background: rgba(255,255,255,0.3)">
+        <div style="width: 22.4%; height: 100%; border-radius: 2px; background: #e85d5e"></div>
+      </div>
+      <div style="position: absolute; left: 16px; bottom: 14px; font-size: 12px; font-variant-numeric: tabular-nums; color: #fff">4:12 / 18:44</div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px">
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <div role="img" aria-label="フレームの時間軸" style="position: relative; height: 28px; border-radius: 8px; background: #231216; overflow: hidden">
+          <div style="position: absolute; top: 0; bottom: 0; left: {{bandLeft}}; width: {{bandWidth}}; background: rgba(245,230,232,0.10)"></div>
+          <sc-for list="{{ticks}}" as="t" hint-placeholder-count="40">
+            <div style="position: absolute; top: 6px; bottom: 6px; width: 1px; left: {{t.left}}; background: rgba(196,160,164,0.55)"></div>
+          </sc-for>
+          <div style="position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; left: 22.4%; background: #e85d5e"></div>
+        </div>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px">
+        <sc-for list="{{tiles}}" as="tile" hint-placeholder-count="7">
+          <button class="tile" aria-label="{{tile.label}} から再生">
+            <div class="f" style="aspect-ratio: 4 / 3; border-radius: 8px; background-position: {{tile.pos}}; {{tile.ring}}"></div>
+            <span style="font-size: 12px; text-align: center; font-variant-numeric: tabular-nums; color: {{tile.labelColor}}">{{tile.label}}</span>
+          </button>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <div style="border-left: 1px solid rgba(255,255,255,0.08); padding: 24px 16px; display: flex; flex-direction: column; gap: 16px">
+    <div style="font-size: 18px; font-weight: 700; line-height: 1.4">110-「遅刻だ、遅刻だっ」「父、結果オーライ」</div>
+    <div style="display: flex; gap: 16px; border-bottom: 1px solid rgba(255,255,255,0.08)">
+      <span class="tab" style="color: #f5e6e8; box-shadow: inset 0 -2px 0 #e85d5e">Info</span>
+      <span class="tab">Related</span>
+      <span class="tab">Transcript</span>
+      <span class="tab">Ask</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px; font-size: 14px; color: #c4a0a4">
+      <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18"></rect><path d="M7 2v20M17 2v20M2 12h20M2 7h5M2 17h5M17 17h5M17 7h5"></path></svg>
+      <span>Visual index</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1120,"height":760}}'>
+var TIMES = [6.46, 9.44, 12.86, 15.52, 18.78, 21.4, 24.65, 28.95, 34.71, 35.8, 37.71, 38.82, 41.21, 42.57, 44.21, 45.54, 47.87, 51.91, 54.46, 55.63, 56.59, 60.05, 74.97, 77.41, 79.9, 87.88, 89.83, 91.3, 92.77, 96.24, 104.25, 106.21, 110.17, 112.85, 122.35, 125.79, 127.76, 132.23, 134.71, 142.18, 144.17, 144.49, 146.14, 150.58, 154.08, 166.97, 172.93, 174.9, 177.34, 182.82, 186.31, 200.27, 202.24, 204.69, 206.64, 208.63, 212.6, 220.55, 223.02, 225.99, 234.47, 236.44, 242.92, 244.38, 245.85, 248.32, 248.36, 250.29, 256.26, 256.6, 258.25, 264.22, 266.03, 266.08, 273.7, 282.67, 287.12, 289.61, 292.06, 296.05, 299.01, 301.98, 304.96, 307.17, 314.14, 317.08, 319.05, 322.02, 325.49, 327.49, 330.43, 331.9, 337.4, 344.34, 345.84, 347.21, 348.59, 352.05, 356.03, 361.92, 363.26, 366.25, 368.7, 371.18, 372.68, 377.17, 378.9, 380.51, 384.22, 386.19, 391.68, 394.72, 397.66, 401.16, 403.1, 406.6, 412.05, 416.02, 417.99, 429.96, 431.89, 434.4, 435.88, 440.87, 443.83, 445.54, 446.0, 447.79, 452.24, 454.69, 456.45, 458.89, 460.89, 462.33, 469.36, 476.31, 483.65, 488.03, 489.51, 494.46, 497.95, 505.77, 507.21, 510.2, 512.15, 520.15, 527.65, 529.1, 531.09, 540.45, 542.91, 546.4, 548.61, 556.09, 558.56, 561.03, 563.5, 568.99, 571.96, 575.41, 579.4, 581.37, 586.32, 588.79, 592.26, 593.73, 596.2, 605.7, 609.14, 611.55, 614.52, 618.48, 619.95, 624.45, 627.42, 636.37, 643.84, 647.34, 649.79, 652.76, 657.22, 658.69, 663.19, 664.66, 671.1, 679.85, 682.82, 691.79, 694.79, 696.49, 701.46, 703.93, 705.87, 710.68, 722.21, 722.66, 724.12, 729.62, 732.1, 736.07, 739.54, 742.03, 747.0, 751.95, 755.43, 759.72, 761.66, 771.16, 773.63, 781.13, 787.29, 795.27, 798.76, 801.1, 807.35, 810.32, 816.79, 818.76, 824.25, 825.7, 831.37, 835.33, 839.31, 844.8, 848.77, 853.95, 856.43, 862.9, 865.89, 868.83, 876.81, 881.31, 884.78, 886.71, 889.18, 892.12, 897.12, 904.07, 908.07, 915.01, 917.99, 919.95, 921.95, 925.92, 933.87, 937.36, 939.1, 942.04, 947.01, 949.51, 952.98, 955.92, 958.42, 962.37, 968.36, 974.31, 980.78, 982.25, 986.91, 992.92, 996.26, 1028.3, 1032.3, 1048.95, 1054.49, 1056.66, 1060.93, 1063.26, 1065.43, 1093.93, 1096.43, 1102.96, 1105.44, 1113.97, 1116.47, 1119.45];
+var DUR = 1124;
+
+function fmt(s) {
+  var m = Math.floor(s / 60);
+  var r = Math.floor(s % 60);
+  return m + ':' + (r < 10 ? '0' : '') + r;
+}
+
+function pos(i) {
+  return ((i % 24) / 23 * 100).toFixed(3) + '% ' + (Math.floor(i / 24) / 11 * 100).toFixed(3) + '%';
+}
+
+function pct(t) {
+  return (t / DUR * 100).toFixed(3) + '%';
+}
+
+class Component extends DCLogic {
+  renderVals() {
+    var playIdx = 67;
+    var start = playIdx - 3;
+    var tiles = [];
+    for (var i = start; i < start + 7; i++) {
+      var playing = i === playIdx;
+      tiles.push({
+        pos: pos(i),
+        label: fmt(TIMES[i]),
+        ring: playing ? 'outline: 2px solid #e85d5e; outline-offset: 2px;' : '',
+        labelColor: playing ? '#f5e6e8' : '#c4a0a4'
+      });
+    }
+    return {
+      bigPos: pos(playIdx),
+      ticks: TIMES.map(function (t) { return { left: pct(t) }; }),
+      tiles: tiles,
+      bandLeft: pct(TIMES[start]),
+      bandWidth: pct(TIMES[start + 7] - TIMES[start])
+    };
+  }
+}
+</script>
+</body>
+</html>

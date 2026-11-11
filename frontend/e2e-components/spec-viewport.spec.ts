@@ -64,6 +64,7 @@ const AT_THE_PHONE_WIDTH = [
   "markdown-table-scroll.spec.ts",
   "plain-text-document.spec.ts",
   "played-ranges.spec.ts",
+  "scenes-section.spec.ts",
   "spec-viewport.spec.ts",
   "home-app-entries.spec.ts",
   "discover-prefix.spec.ts",
@@ -89,6 +90,7 @@ const AT_THE_DESKTOP_WIDTH = [
   "search-results-bar-desktop.spec.ts",
   "home-app-entries-desktop.spec.ts",
   "discover-prefix-desktop.spec.ts",
+  "scenes-section-desktop.spec.ts",
   "video-card-byline-desktop.spec.ts",
   "video-card-spacing-desktop.spec.ts",
 ] as const;

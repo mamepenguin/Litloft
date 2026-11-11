@@ -1439,7 +1439,7 @@ Slot entries each addon declares, for reference when designing your own.
 |-------|------|-----------|
 | `intelligence` | `search-modes` | `find-mode` |
 | `intelligence` | `search-results-top` | `scene-segments` |
-| `intelligence` | `file-detail-sections` | `unverified-source`, `suggested-tags`, `suggested-chapters`, `summary`, `detailed-summary`, `visual-description`, `visual-index`, `clip-frames` |
+| `intelligence` | `file-detail-sections` | `unverified-source`, `suggested-tags`, `suggested-chapters`, `summary`, `detailed-summary`, `visual-description`, `scenes` |
 | `intelligence` | `file-relations` | `similar-files` |
 | `intelligence` | `player-side` | `transcript` |
 | `intelligence` | `file-detail-actions` | `file-ai-actions` |

@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>CLIP フレーム 分ごとの縦タイムライン</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#1a0e10}
+.f{background-image:url(/_blob/6a1275016e762411e838f81a83d9fea2);background-size:2400% 1200%;background-repeat:no-repeat}
+.tile{all:unset;cursor:pointer;display:block;min-width:0}
+</style>
+</helmet>
+<div style="width: 384px; height: 960px; box-sizing: border-box; padding: 16px; background: #1a0e10; color: #f5e6e8; font-family: -apple-system, system-ui, 'Hiragino Sans', sans-serif; display: flex; flex-direction: column; gap: 16px; overflow: hidden">
+  <button style="all: unset; display: flex; align-items: center; gap: 8px; font-size: 14px; color: #c4a0a4">
+    <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18"></rect><path d="M7 2v20M17 2v20M2 12h20M2 7h5M2 17h5M17 17h5M17 7h5"></path></svg>
+    <span>CLIP フレーム</span>
+    <span style="font-variant-numeric: tabular-nums">276</span>
+    <svg aria-hidden="true" style="margin-left: auto" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"></path></svg>
+  </button>
+
+  <div style="display: flex; flex-direction: column">
+    <sc-for list="{{minutes}}" as="m" hint-placeholder-count="4">
+      <div style="display: grid; grid-template-columns: 44px minmax(0, 1fr); column-gap: 8px">
+        <div style="position: relative; border-right: 1px solid rgba(255,255,255,0.08)">
+          <div style="font-size: 11px; font-variant-numeric: tabular-nums; color: {{m.labelColor}}; padding-top: 2px">{{m.label}}</div>
+          <div style="position: absolute; right: -4px; top: 6px; width: 7px; height: 7px; border-radius: 9999px; background: {{m.dot}}"></div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 2px 0 20px">
+          <sc-for list="{{m.frames}}" as="tile" hint-placeholder-count="6">
+            <button class="tile" aria-label="{{tile.label}} から再生" title="{{tile.label}}">
+              <div class="f" style="aspect-ratio: 4 / 3; border-radius: 6px; background-position: {{tile.pos}}; {{tile.ring}}"></div>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":384,"height":960}}'>
+var TIMES = [6.46, 9.44, 12.86, 15.52, 18.78, 21.4, 24.65, 28.95, 34.71, 35.8, 37.71, 38.82, 41.21, 42.57, 44.21, 45.54, 47.87, 51.91, 54.46, 55.63, 56.59, 60.05, 74.97, 77.41, 79.9, 87.88, 89.83, 91.3, 92.77, 96.24, 104.25, 106.21, 110.17, 112.85, 122.35, 125.79, 127.76, 132.23, 134.71, 142.18, 144.17, 144.49, 146.14, 150.58, 154.08, 166.97, 172.93, 174.9, 177.34, 182.82, 186.31, 200.27, 202.24, 204.69, 206.64, 208.63, 212.6, 220.55, 223.02, 225.99, 234.47, 236.44, 242.92, 244.38, 245.85, 248.32, 248.36, 250.29, 256.26, 256.6, 258.25, 264.22, 266.03, 266.08, 273.7, 282.67, 287.12, 289.61, 292.06, 296.05, 299.01, 301.98, 304.96, 307.17, 314.14, 317.08, 319.05, 322.02, 325.49, 327.49, 330.43, 331.9, 337.4, 344.34, 345.84, 347.21, 348.59, 352.05, 356.03, 361.92, 363.26, 366.25, 368.7, 371.18, 372.68, 377.17, 378.9, 380.51, 384.22, 386.19, 391.68, 394.72, 397.66, 401.16, 403.1, 406.6, 412.05, 416.02, 417.99];
+
+function fmt(s) {
+  var m = Math.floor(s / 60);
+  var r = Math.floor(s % 60);
+  return m + ':' + (r < 10 ? '0' : '') + r;
+}
+
+class Component extends DCLogic {
+  renderVals() {
+    var playIdx = 67;
+    var minutes = [];
+    for (var mm = 3; mm <= 6; mm++) {
+      var frames = [];
+      var hasPlay = false;
+      for (var i = 0; i < TIMES.length; i++) {
+        if (Math.floor(TIMES[i] / 60) !== mm) continue;
+        var col = i % 24;
+        var row = Math.floor(i / 24);
+        var playing = i === playIdx;
+        if (playing) hasPlay = true;
+        frames.push({
+          pos: (col / 23 * 100).toFixed(3) + '% ' + (row / 11 * 100).toFixed(3) + '%',
+          label: fmt(TIMES[i]),
+          ring: playing ? 'outline: 2px solid #e85d5e; outline-offset: 2px;' : ''
+        });
+      }
+      minutes.push({
+        label: mm + ':00',
+        frames: frames,
+        labelColor: hasPlay ? '#f5e6e8' : '#c4a0a4',
+        dot: hasPlay ? '#e85d5e' : '#4a3236'
+      });
+    }
+    return { minutes: minutes };
+  }
+}
+</script>
+</body>
+</html>

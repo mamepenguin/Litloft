@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "I1: scenesModel.ts:82-85 windowStartFor computes clamp(3*floor(i/3)-3, 0, max(0,n-9)); frameIndexAt (68-79) returns the last frame with start <= point, or 0 before the first frame; rulerFraction (131-134) uses min(max(t,0),L)/L. This matches I1.",
+    "I2: ScenesSectionContainer.tsx:291-308 activate() seeks and plays through mediaController, or else through videoRef. Mouse pointermove only sets the browse point (373-375). The ruler click seeks only for mouse (310-316). Enter seeks only when a browse point is set (335-338). This matches I2.",
+    "I3: Touch and pen never seek from the ruler (312). An 8 px drag threshold applies (51, 379). pointercancel restores the previous point and its source (395-403). browseLifetime.ts:19 clears touch points only on seek, jump, collapse and filechange. This matches I3.",
+    "I4: handleRulerKeyDown calls preventDefault and stopPropagation for the five keys before any other check (Container.tsx:322-332).",
+    "I6: For a native video, requests are gated on expand (160-185). WS reloads require expanded and a matching fileId (242-248). Stale responses are dropped through requestGeneration and visualGeneration (155, 171, 209, 275, 278). Policy-off never requests visual-index (224).",
+    "I7: A .loft requests clip-timestamps only in the fileId effect (140-158), takes its pictures from getSceneTileUrl (467-471), and never requests visual-index (223, 243).",
+    "I9/I10: buildVisualView (519-622) returns null when the result is not loaded, not eligible or not available. It offers no actions in rows 1 and 2 (staged queued or running) and no retry when failedCount is 0. The card uses visible_text only. A waiting_clip refusal maps to visualIndexWaitingPrerequisite, and any other failure to visualIndexActionError."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "A mouse click on the ruler clears the mouse browse point through activate() -> clearBrowseOn('seek') (browseLifetime.ts:18), even though the pointer is still inside the section. §1 step 5 does not say whether a ruler click clears the point. The next pointermove sets it again, so this has no visible effect in normal use."
+  ],
+  "regression_risks": [
+    "The frame-to-tile dot matching within 0.05 s (I9) is done in the Presenter, which was not read in this pass."
+  ],
+  "test_coverage": [
+    "Test files exist for timeline, seek, keyboard, requests, visibility, visual index and manifest under ScenesSection/__tests__. Their assertions were not read."
+  ],
+  "not_verified": [
+    "ScenesSectionPresenter.tsx rendering: tick placement, the 0.05 s dot rule, height stability, 24rem width and no-scroll CSS (I5, I9 dot rule, I11 drawn-label overlap at real widths)",
+    "useWindowPictures 150 ms settle (I8), useRulerKeys listener attachment, usePlaybackClock jump detection",
+    "Core e2e and layout tests, the manifest.json scenes entry, and the docs changes",
+    "No tests were run; this verifier can only read files"
+  ],
+  "confidence": 72
+}

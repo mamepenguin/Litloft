@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "V-1",
+      "origin": "verifier",
+      "claim": "ScenesSectionPresenter.tsx is not a props-only Presenter. Its `Ruler` sub-component holds state and runs effects, which `.claude/rules/frontend-conventions.md:54` forbids: \"Presenter: ... No `useState`, no `useEffect`, no API calls.\" That rule is one of the rules passed through.",
+      "impact": "This breaks the declared Container/Presenter convention. It does not change behaviour: the ruler-width measurement and the native keydown listener (added to keep keys from reaching ShortcutsProvider, per I4) live in the Presenter rather than in the Container or in hooks/.",
+      "evidence": "addons/intelligence/frontend/ScenesSection/ScenesSectionPresenter.tsx:3 imports useEffect, useLayoutEffect, useRef and useState. Inside the Presenter file, Ruler has `useState(0)` for rulerWidth at :402, a `useLayoutEffect` with a ResizeObserver at :417-426, and a `useEffect` that calls `el.addEventListener(\"keydown\", ...)` at :428-437.",
+      "repro": "Static reading: grep `use(State|Effect|LayoutEffect)\\(` in ScenesSectionPresenter.tsx finds lines 402, 417 and 428.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "C",
+        "reason": "This is a convention or structure deviation with no wrong result in normal use. The listener could move into a hook under hooks/, or the Container could own it.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    }
+  ],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "addons/intelligence/frontend/ScenesSection/scenesModel.ts exists. ScenesSectionContainer.tsx:24-29 imports LOFT_MIME_TYPE, frameIndexAt, rulerLength and windowStartFor from it, and ScenesSectionPresenter.tsx:14 imports from it as well. The layout in .claude/rules/frontend-conventions.md:45-51 lists only Container, Presenter, an optional hooks/ and index.ts. The touch points do not name scenesModel.ts."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "ScenesSectionContainer.tsx:11 has `import { normalizeKey } from \"@/lib/shortcuts\"`. ScenesSectionPresenter.tsx:12 and scenesModel.ts:1 import formatDuration from \"@/lib/format\". Both frontend/src/lib/shortcuts.ts and frontend/src/lib/format.ts exist. Neither is in the 'core, read only' list."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "frontend/e2e-components/fixtures/app.tsx:85 imports ScenesSectionArrangement, and lines 2422-2432 add the 7 scenes-* arrangements. frontend/e2e-components/projects.ts:25 adds \"**/scenes-section-desktop.spec.ts\". frontend/e2e-components/spec-viewport.spec.ts:67 and :91 list both scenes specs. These are existing shared harness files, not new Scenes files. One could argue the registry edit is part of 'the fixture it needs', but the touch points do not name these files."
+    }
+  ],
+  "specification_compliance": [
+    "The touch-point list does not cover scenesModel.ts, the core lib imports (shortcuts.ts, format.ts), or the edits to shared e2e-components harness files.",
+    "The Presenter keeps state and effects, which goes against the frontend-conventions Container/Presenter rule."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The hooks/ directory (usePlaybackClock, useWindowPictures) is not named in the touch points either, though the convention rule allows hooks/ as an optional part of the layout."
+  ],
+  "regression_risks": [
+    "The edits to shared e2e-components harness files (projects.ts DESKTOP_ONLY, spec-viewport width lists) could change which specs run under which project."
+  ],
+  "test_coverage": [
+    "Tests were not run. This verification was static reading only."
+  ],
+  "not_verified": [
+    "I did not confirm through git that the three harness files were changed by this branch rather than already present on origin/develop. The conclusion rests on scenes-specific content that only this feature would add.",
+    "I did not check the behavioural invariants I1-I11.",
+    "I did not check whether the design/ documents grant any of the touch-point deviations."
+  ],
+  "confidence": 85
+}

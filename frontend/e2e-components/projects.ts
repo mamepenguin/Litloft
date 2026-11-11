@@ -22,6 +22,7 @@ export const DESKTOP_ONLY = [
   "**/search-results-bar-desktop.spec.ts",
   "**/home-app-entries-desktop.spec.ts",
   "**/discover-prefix-desktop.spec.ts",
+  "**/scenes-section-desktop.spec.ts",
   "**/video-card-byline-desktop.spec.ts",
   "**/video-card-spacing-desktop.spec.ts",
 ];
