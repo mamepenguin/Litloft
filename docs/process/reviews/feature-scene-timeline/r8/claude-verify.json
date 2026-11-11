@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R8-1",
+      "status": "confirmed",
+      "note": "addons/intelligence/frontend/ScenesSection/ScenesSectionContainer.tsx:112-114: handleJump runs `if (browseRef.current !== null) setBrowsePoint(null);` and does not check browseSource. The source is recorded (line 93, set at 346 keyboard, 370 mouse, 376/385 touch), and it gates only pointer-leave (line 403: `browseSource.current === \"mouse\"`) and blur (line 412: `!== \"keyboard\"`). The spec puts the jump trigger only in step 8 (touch, docs/specs/scene-timeline.md:118) and step 9 (keyboard, :138-139). Step 5 (mouse, :92-94) and I2 say a mouse browse point stays while the pointer is inside the section and is cleared when it leaves. Neither invariants.md nor the design folder mentions jumps. So a mouse hover browse point is cleared by a jump while the pointer is still inside, which goes against I2. Tests: ScenesSectionSeek.test.tsx:358-485 sets the browse point with touch pointerDown/pointerUp in every jump case (lines 470-471). No test covers a jump with a mouse browse point, so the suite would not catch this."
+    }
+  ],
+  "specification_compliance": [
+    "I2 (a mouse browse point stays while the pointer is inside the section) is broken by handleJump at ScenesSectionContainer.tsx:112-114, which clears the browse point whatever set it.",
+    "I3 and §1 step 9 (a jump clears touch and keyboard browse points) are met by the same handler."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The spec does not say what happens when a jump occurs while a mouse browse point exists and the pointer is inside the section. Read literally, I2 says the browse point stays."
+  ],
+  "regression_risks": [
+    "If handleJump is fixed to skip mouse sources, check that a jump still clears touch and keyboard browse points (the cases at ScenesSectionSeek.test.tsx:358-485)."
+  ],
+  "test_coverage": [
+    "ScenesSectionSeek.test.tsx:358-485 covers jump detection thresholds only with a touch-set browse point. No case covers a mouse browse point or a keyboard browse point during a jump."
+  ],
+  "not_verified": [
+    "I could not run the test suite or reproduce the behaviour at runtime (read-only tools).",
+    "I did not read usePlaybackClock's jump-detection implementation in detail.",
+    "I did not review the git history of commit e5f0863 to confirm what the earlier tests asserted for mouse browse points."
+  ],
+  "confidence": 90
+}
