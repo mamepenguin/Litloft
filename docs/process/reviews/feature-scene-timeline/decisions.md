@@ -41,3 +41,12 @@ evidence: Second run, after the fix commits (addons/intelligence e8913f4, b323a2
   - React error #418 (hydration) on every phone-width load, outside this change.
   Data changed by this run: a Visual Index was created for 6ZGQI6Ub5WvW (then regenerated twice) and for XN1lPMKvrM7S (24 scenes). Neither is a "no Visual Index" file any more. desktop-384-no-visual-index.png is 6ZGQI6 before that.
 pending: Rows 3 (partial/failed with Retry), the stale line, the waiting_clip and action-error messages, a failed reload, policy-off, a scene without a matching frame or label, and a .loft tile that fails to load could not be produced by ordinary use on this data (no failing run, no stale index, the policy could not be changed without restarting the stack). Rows 1, 2, 4 and 5 were captured at both widths (row 1 and the 24-scene row 4 on XN1lPMKvrM7S, row 2 on 6ZGQI6Ub5WvW). Not checked: the 900 px collection-surface host, prefers-reduced-motion, a pen pointer. agent_cannot_verify: playback as seen on a real iOS device and household devices.
+
+## Design differences (design-check.md)
+
+- D-1: accepted by the human, 2026-11-11. The scene card keeps the reserved height of two label lines and two text lines, so the section's height does not change while browsing (I5).
+- D-2: the window band and the playback line on the loading ruler are fixed (addons/intelligence 7d89b9f). The loading ruler's 44 px height, against the board's 36 px, is accepted by the human, 2026-11-11: it is the real ruler's height, so nothing moves when the frames arrive.
+- D-3: accepted by the human, 2026-11-11. A first run has no scenes yet, so its header shows no dot.
+- D-4: fixed in this change by the human's decision, 2026-11-11: time labels are left out by their drawn width instead of the 8% rule (invariants.md I11).
+- D-5: fixed (addons/intelligence 7d89b9f).
+- D-6: accepted by the human, 2026-11-11. A re-run keeps the current scene count, and shows "…" while `selected_count` is 0.
