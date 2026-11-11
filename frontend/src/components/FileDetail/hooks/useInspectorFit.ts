@@ -14,6 +14,24 @@ interface UseInspectorFitOptions {
    * from.
    */
   onMeasure?: (form: Exclude<InspectorForm, "absent"> | null) => void;
+  /**
+   * The left pane while it is still open and a yield is possible. Its width
+   * is part of the row the form is decided from, because it is about to
+   * give that width back.
+   */
+  paneToYield?: () => HTMLElement | null;
+  /** The row is too narrow to hold the pane and the inspector together. */
+  onYield?: () => void;
+}
+
+interface InspectorFit {
+  attach: (node: HTMLElement | null) => void;
+  /**
+   * Decides the yield now, with the inputs as they are. The form is
+   * published only when the pane does step aside, so a page that never
+   * yields keeps waiting for its first measured frame.
+   */
+  evaluateYield: () => void;
 }
 
 /**
@@ -28,15 +46,21 @@ export function useInspectorFit({
   isMobile,
   isPlayerFile,
   onMeasure,
-}: UseInspectorFitOptions): (node: HTMLElement | null) => void {
+  paneToYield,
+  onYield,
+}: UseInspectorFitOptions): InspectorFit {
   const hostRef = useRef<HTMLElement | null>(null);
   const observerRef = useRef<ResizeObserver | null>(null);
   const frameRef = useRef<number | null>(null);
   const onMeasureRef = useRef(onMeasure);
   onMeasureRef.current = onMeasure;
+  const paneToYieldRef = useRef(paneToYield);
+  paneToYieldRef.current = paneToYield;
+  const onYieldRef = useRef(onYield);
+  onYieldRef.current = onYield;
 
-  const measure = useCallback(
-    (publish: boolean) => {
+  const run = useCallback(
+    (mode: "publish" | "yield") => {
       const host = hostRef.current;
       if (!host) return;
       // The stacked player's height budget is half of this, and it cannot be
@@ -52,14 +76,22 @@ export function useInspectorFit({
       // that justified it, and absent already reads as "assume there is
       // room", which is the safe way to be wrong about an unknown.
       if (host.clientWidth === 0) {
-        delete host.dataset.inspectorFit;
-        if (publish) onMeasureRef.current?.(null);
+        if (mode === "publish") {
+          delete host.dataset.inspectorFit;
+          onMeasureRef.current?.(null);
+        }
         return;
       }
+      const pane = paneToYieldRef.current?.() ?? null;
+      const paneWidth = pane?.offsetWidth ?? 0;
       const rootFontSize =
         Number.parseFloat(getComputedStyle(document.documentElement).fontSize) ||
         16;
-      const fits = host.clientWidth >= INSPECTOR_BESIDE_MIN_REM * rootFontSize;
+      const threshold = INSPECTOR_BESIDE_MIN_REM * rootFontSize;
+      // The pane's width is part of the row because it is about to give it
+      // back; read once, before it collapses.
+      const fits = host.clientWidth + paneWidth >= threshold;
+      const narrow = host.clientWidth < threshold;
       // On a phone nothing depends on the form — the inspector is the sheet
       // — so the attribute keeps its two old values there.
       const form: Exclude<InspectorForm, "absent"> = isMobile
@@ -71,11 +103,15 @@ export function useInspectorFit({
           : fits
             ? "beside"
             : "overlay";
-      // Published first: the content the form places is rendered by it, and
-      // the attribute is what the stylesheet reads for the same row, so no
-      // observer sees the two out of step.
-      if (publish) onMeasureRef.current?.(form);
-      host.dataset.inspectorFit = form;
+      const yields = paneWidth > 0 && narrow;
+      if (mode === "publish" || yields) {
+        // Published first: the content the form places is rendered by it,
+        // and the attribute is what the stylesheet reads for the same row,
+        // so no observer sees the two out of step.
+        onMeasureRef.current?.(form);
+        if (host.dataset.inspectorFit !== form) host.dataset.inspectorFit = form;
+      }
+      if (yields) onYieldRef.current?.();
     },
     [isMobile, isPlayerFile],
   );
@@ -85,19 +121,19 @@ export function useInspectorFit({
 
   const measureFirst = useCallback(() => {
     if (!defersToFirstFrame) {
-      measure(true);
+      run("publish");
       return;
     }
     frameRef.current = requestAnimationFrame(() => {
       frameRef.current = null;
-      measure(true);
+      run("publish");
     });
-  }, [defersToFirstFrame, measure]);
+  }, [defersToFirstFrame, run]);
 
   useEffect(() => {
     measureFirst();
     if (typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(() => measure(true));
+    const observer = new ResizeObserver(() => run("publish"));
     observerRef.current = observer;
     if (hostRef.current) observer.observe(hostRef.current);
     return () => {
@@ -108,12 +144,12 @@ export function useInspectorFit({
         frameRef.current = null;
       }
     };
-  }, [measure, measureFirst]);
+  }, [run, measureFirst]);
 
   // A callback ref rather than a dependency: the row exists from the
   // first commit, but the effect and the ref land in an order that is
   // not fixed, and whichever runs second finds the other done.
-  return useCallback(
+  const attach = useCallback(
     (node: HTMLElement | null) => {
       const previous = hostRef.current;
       if (previous && observerRef.current) {
@@ -129,4 +165,8 @@ export function useInspectorFit({
     },
     [measureFirst],
   );
+
+  const evaluateYield = useCallback(() => run("yield"), [run]);
+
+  return { attach, evaluateYield };
 }

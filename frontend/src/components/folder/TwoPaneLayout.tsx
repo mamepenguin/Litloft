@@ -3,17 +3,28 @@
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { ReactNode } from "react";
 
 import { ScrollContainerContext } from "@/lib/scrollContainer";
 import { folderTransitionKind } from "@/lib/folderTransition";
+import { LeftPaneContext } from "@/lib/leftPaneContext";
 import { navigateWithTransition } from "@/lib/viewTransitions";
 
 import { useGuardedRouter } from "@/hooks/useGuardedRouter";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
+import { useTreeBeside } from "@/hooks/useTreeBeside";
+import { useTreeEnabled } from "@/hooks/useTreeEnabled";
 import { useTreeVisible } from "@/hooks/useTreeVisible";
 import { treeNarrowOpenStore } from "@/lib/treeNarrowOpenStore";
+import { treeYieldStore } from "@/lib/treeYieldStore";
 import { driveHref } from "@/lib/driveViews";
 import { TreeRefreshContext } from "@/components/TreeRefreshContext";
 import { useOverlaySidebarWhen } from "@/components/SidebarProvider";
@@ -88,12 +99,30 @@ export function TwoPaneLayout({
   // `FolderTreePane` itself is lazy-mounted, and once enabled kept
   // mounted, so the tree's expansion / scroll state survives toggles.
   const sectionRef = useRef<HTMLElement | null>(null);
+  const [paneElement, setPaneElement] = useState<HTMLElement | null>(null);
 
-  const { visible: treeOpen, beside: treeBeside } = useTreeVisible(drive);
+  const { visible: treeOpen, beside: treeBeside, yielded } = useTreeVisible(drive);
+  const { enabled: treeEnabled } = useTreeEnabled(drive);
+  const besideViewport = useTreeBeside();
+
+  // The yield is a state of the file page, not of the setting: it ends with
+  // the page, and a reopened pane starts from the setting on the next one.
+  useLayoutEffect(() => {
+    if (hasFile) treeYieldStore.setFilePage(drive, true);
+    else treeYieldStore.clear(drive);
+  }, [drive, hasFile]);
+
+  useEffect(() => () => treeYieldStore.clear(drive), [drive]);
+
+  const leftPaneState = useMemo(
+    () => ({ element: paneElement, shownBySetting: treeEnabled && besideViewport }),
+    [paneElement, treeEnabled, besideViewport],
+  );
 
   // The sidebar and the tree both name where you are, and only one such
-  // surface is allowed at a time.
-  useOverlaySidebarWhen(treeBeside);
+  // surface is allowed at a time. A yielded pane still owns the place it
+  // gave back, so the sidebar stays in its overlay form.
+  useOverlaySidebarWhen(treeBeside || yielded);
 
   const [hasEverEnabled, setHasEverEnabled] = useState(treeOpen);
   useEffect(() => {
@@ -109,9 +138,13 @@ export function TwoPaneLayout({
   return (
     <TreeRefreshContext.Provider value={refreshTree}>
     <ScrollContainerContext.Provider value={sectionRef}>
+      <LeftPaneContext.Provider value={leftPaneState}>
       <div className="flex h-below-header w-full overflow-clip">
         <aside
-          className={`h-full flex-shrink-0 overflow-hidden transition-[width] duration-150 ease-out ${treeAsideWidth}`}
+          className={`h-full flex-shrink-0 overflow-hidden ${
+            yielded ? "" : "transition-[width] duration-150 ease-out"
+          } ${treeAsideWidth}`}
+          ref={setPaneElement}
           aria-label={leftPaneAriaLabel ?? "Folder tree"}
           aria-hidden={!treeOpen}
           // aria-hidden alone lets keyboard focus still land on the
@@ -160,6 +193,7 @@ export function TwoPaneLayout({
           {!hasFile && <span className="sr-only">{t("noSelection")}</span>}
         </section>
       </div>
+      </LeftPaneContext.Provider>
     </ScrollContainerContext.Provider>
     </TreeRefreshContext.Provider>
   );

@@ -26,7 +26,9 @@ import {
   inspectorFormStore,
   type InspectorForm,
 } from "@/lib/inspectorFormStore";
+import { useLeftPane } from "@/lib/leftPaneContext";
 import { STACKED_PLAYER_SHARE } from "@/lib/layoutSizes";
+import { treeYieldStore } from "@/lib/treeYieldStore";
 import { FileDetailChrome } from "./FileDetail/FileDetailChrome";
 import { useInspectorFit } from "./FileDetail/hooks/useInspectorFit";
 import { useRegisterLowerInspector } from "./FileDetail/lowerInspector";
@@ -155,10 +157,28 @@ export function FileDetailShell({
     },
     [publishesForm, fileId, isMobile],
   );
-  const attachFitHost = useInspectorFit({
+  const leftPane = useLeftPane();
+  const yieldable =
+    leftPane !== null &&
+    leftPane.shownBySetting &&
+    isPlayerFile &&
+    !isMobile &&
+    open;
+  const paneToYield = useCallback(() => {
+    if (!yieldable) return null;
+    const state = treeYieldStore.get(drive);
+    if (state.yielded || state.reopened) return null;
+    return leftPane?.element ?? null;
+  }, [yieldable, leftPane, drive]);
+  const handleYield = useCallback(() => {
+    treeYieldStore.collapse(drive);
+  }, [drive]);
+  const { attach: attachFitHost, evaluateYield } = useInspectorFit({
     isMobile,
     isPlayerFile,
     onMeasure: handleMeasuredForm,
+    paneToYield,
+    onYield: handleYield,
   });
   const attachInspectorFitHost = useCallback(
     (node: HTMLDivElement | null) => {
@@ -167,6 +187,12 @@ export function FileDetailShell({
     },
     [attachFitHost],
   );
+
+  // The layout phase, not an effect: a deferred evaluation would paint one
+  // frame with the pane still at full width.
+  useLayoutEffect(() => {
+    evaluateYield();
+  }, [evaluateYield, open, isMobile, isPlayerFile, leftPane]);
 
   // The form is the shell's to publish; the open state is a separate fact
   // about the same file, so it is written without touching the form.
