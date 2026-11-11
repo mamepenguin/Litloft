@@ -191,7 +191,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-093 | implemented | docs/specs/scene-timeline-width.md | sha256:bc14055f5e03adbae3110b55d6ebcd1600ce152e53064a9943c84a8843087b69 |
 | SPEC-CORE-081 | implemented | docs/specs/recommended-see-all.md | sha256:7e88fa758b58027379adb1347d85b48163f7fb358890fa3ac8ade95161f45cda |
 | SPEC-ADDON-094 | implemented | docs/specs/recommended-see-all.md | sha256:7e88fa758b58027379adb1347d85b48163f7fb358890fa3ac8ade95161f45cda |
-| SPEC-ADDON-095 | draft | docs/specs/pickup-accuracy.md | |
-| SPEC-ADDON-096 | draft | docs/specs/pickup-accuracy.md | |
-| SPEC-ADDON-097 | draft | docs/specs/pickup-accuracy.md | |
-| SPEC-ADDON-098 | draft | docs/specs/pickup-accuracy.md | |
+| SPEC-ADDON-095 | approved | docs/specs/pickup-accuracy.md | sha256:d2befb3d3294d8745a35316447b32c243a91a680f20b4b74610c3a0f0e2441a0 |
+| SPEC-ADDON-096 | approved | docs/specs/pickup-accuracy.md | sha256:d2befb3d3294d8745a35316447b32c243a91a680f20b4b74610c3a0f0e2441a0 |
+| SPEC-ADDON-097 | approved | docs/specs/pickup-accuracy.md | sha256:d2befb3d3294d8745a35316447b32c243a91a680f20b4b74610c3a0f0e2441a0 |
+| SPEC-ADDON-098 | approved | docs/specs/pickup-accuracy.md | sha256:d2befb3d3294d8745a35316447b32c243a91a680f20b4b74610c3a0f0e2441a0 |
