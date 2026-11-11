@@ -2,9 +2,61 @@
 
 decision:
 ran_in_app: yes
-at: 4efad1144a2395eb47c639fb526faa613e3968f3
+at: 246ed978a703ebc3d7f755757e2fe27a410b60d8
 by: agent
 evidence: |
+  Re-run at 246ed978a (after 580c0f784 "keep the tree-yield store across a layout remount" and
+  246ed978a "restore the stacked canvas scroll after find"), for the two FAILs of the run at
+  4efad1144 and a short regression. Same environment as below: the worktree's frontend image rebuilt
+  at 246ed978a, run as one extra container on video_share_default published on :3100, against the
+  running backend; Playwright with channel "chrome", headless. New screenshots are the
+  r5/rerun-*.png files.
+
+  Case 1 again (was BUG), 1180x820, tree:enabled:動画 = true, video Alx1ShvKJ5ny:
+  - Direct load by URL, 3/3: tree yielded on load (data-inspector-fit=beside, row x=0 w=1180,
+    inspector 383px at x=797, button "Show tree", tree:enabled still "true"). First press of the tree
+    button: pane back (row x=280 w=900, form stacked, inspector 900 wide under the player), label
+    "Hide tree", aria-pressed true, tree:enabled still "true" (nothing written). Second press hides
+    it and writes "false" (beside again), as a user hide should. PASS.
+    (r5/rerun-1180x820-video-directload-tree-button-pane-back.png,
+    r5/rerun-1180x820-video-directload-tree-button-second-press-hides.png)
+  - Listing, "Show tree" pressed there, SPA open, F5, then the tree button, 3/3: after F5 yielded
+    (beside, "Show tree", "true"); the press brings the pane back (row x=280 w=900, stacked, "Hide
+    tree") with tree:enabled still "true"; going back to the listing shows the tree on. PASS.
+    (r5/rerun-1180x820-video-reload-then-tree-button-pane-back.png)
+  - React error #418 (hydration mismatch) was reported in 3/3 of these runs. Located: it fires on
+    the plain page load of the folder listing with tree:enabled = true stored (not on the file page,
+    not on reload of it). The develop stack on :3000 (frontend image built 2026-11-11, main checkout
+    at bf57da0a5) reports the same error at the same step 3/3.
+
+  Case 2 again (was BUG), 900x700, media-layout-preference = stacked, inspector closed with the
+  chrome button, canvas (main) wheel-scrolled to scrollTop 200 (max 298), find opened with the find
+  button (2 runs) or Cmd+F (1 run), "色" typed, closed with Close find / Escape: scrollTop 200 at
+  +0.3s, +1.8s and +5.8s after closing, find bar gone, inspector closed, transcript under the player.
+  3/3 PASS. (r5/rerun-900x700-video-inspector-closed-transcript-below-scrolled.png,
+  r5/rerun-900x700-video-inspector-closed-transcript-below-find-open.png,
+  r5/rerun-900x700-video-inspector-closed-transcript-below-after-find.png)
+
+  Regression:
+  - Open from the listing at 1180x820 with the tree on, 3/3: tree yields (beside), tree:enabled stays
+    "true"; the tree button brings the pane back (row x=280 w=900, stacked) with nothing written;
+    still back 3s later and after closing and reopening the inspector. PASS.
+    (r5/rerun-1180x820-video-spa-open-tree-yielded.png, r5/rerun-1180x820-video-spa-tree-reopened.png)
+  - Playback across a find round-trip at 900x700 (inspector open, stacked), 3/3 (find button twice,
+    Cmd+F/Escape once): the same <video> element (marker kept), not paused, currentTime advancing
+    (e.g. 1.24 -> 3.48 with find open -> 5.02 after close). PASS.
+    (r5/rerun-900x700-video-playing-after-find-roundtrip.png)
+  - Reader scrolling right after closing find (setup as case 2): a wheel up of 1000px at the canvas
+    150ms or 400ms after Close find moves the canvas to 0 and it stays 0 at +0.1s, +0.4s, +1.9s,
+    +5.9s; a further wheel down of 100px then moves it to 100. The restore does not pull it back.
+    Wheel down of 300px at 400ms goes to the transcript list's own scroller (canvas stays at 200,
+    list at 300), the same as with no find round-trip (control run).
+    Seen, for the author: a wheel sent 0ms or 50ms after Close find lands while the canvas has no
+    scrollable content yet (main scrollTop 0, scrollHeight = clientHeight, nothing scrollable under
+    the pointer); that wheel does nothing and the canvas then shows the restored 200. The control
+    run without find moves the canvas to 0 with the same wheel. (r5/rerun-900x700-video-scroll-right-after-find-close.png)
+
+  Earlier run at 4efad1144 (cases 1 and 2 above supersede its two BUG entries):
   Environment: the worktree's frontend image (frontend/Dockerfile, context = repo root) run as one
   extra container on the running stack's network (video_share_default), published on :3100, against
   the running backend and its test data. Browser: Google Chrome (Playwright channel "chrome",
