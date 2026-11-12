@@ -446,3 +446,25 @@ describe("SPEC-CORE-073 I11 I12 the row as navigation", () => {
     for (const a of entryLinks(nav)) expect(a.hasAttribute("data-next-link"), compact(a)).toBe(true);
   });
 });
+
+describe("SPEC-CORE-093 an addon with several entrances on Home", () => {
+  it("SPEC-CORE-093 I10 draws one entry per entrance, Clips right after Notes with lucide Newspaper", async () => {
+    catalogue = {
+      ...BUNDLED,
+      knowledge: addon([
+        { label: "Notes", placement: "primary", priority: 20, icon: "notebook-pen" },
+        { label: "Clips", placement: "primary", priority: 21, icon: "newspaper", path: "clips" },
+      ] as unknown as AddonMeta["navigation"]),
+    };
+    render(<Live drive={DRIVE} />);
+    const nav = await findAppsNav();
+    await waitFor(() => expect(entryLinks(nav).map(compact)).toContain("Clips"));
+
+    const base = enc(DRIVE);
+    const rows = entryLinks(nav).map((a) => [compact(a), opens(a)]);
+    const notes = rows.findIndex(([label]) => label === "Notes");
+    expect(rows[notes]).toEqual(["Notes", `${base}/addons/knowledge`]);
+    expect(rows[notes + 1]).toEqual(["Clips", `${base}/addons/knowledge/clips`]);
+    expect(iconOf(entryLinks(nav)[notes + 1])).toEqual(["lucide-newspaper"]);
+  });
+});

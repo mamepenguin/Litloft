@@ -243,6 +243,7 @@ describe("addon destinations in the sidebar", () => {
     ["the notebook-pen token", "notebook-pen", "lucide-notebook-pen"],
     ["the package token", "package", "lucide-package"],
     ["the rss token", "rss", "lucide-rss"],
+    ["the newspaper token (SPEC-CORE-093)", "newspaper", "lucide-newspaper"],
   ])("draws the row with %s", (_, icon, expected) => {
     catalogue = { intelligence: addon({ label: "Ask", placement: "primary", priority: 1, icon }) };
     render(<Sidebar />);
@@ -315,5 +316,66 @@ describe("addon destinations in the sidebar", () => {
     render(<Sidebar />);
     rowFor(name)!.click();
     expect(mockClose).not.toHaveBeenCalled();
+  });
+});
+
+describe("SPEC-CORE-093 an addon with several entrances", () => {
+  const LISTED: Record<string, AddonMeta> = {
+    ...BUNDLED,
+    knowledge: addon([
+      { label: "Notes", placement: "primary", priority: 20, icon: "notebook-pen" },
+      { label: "Clips", placement: "primary", priority: 21, icon: "newspaper", path: "clips" },
+    ] as unknown as AddonMeta["navigation"]),
+  };
+  const clipsRow = () =>
+    Array.from(document.querySelectorAll<HTMLAnchorElement>("nav a")).find(
+      (a) => a.getAttribute("href") === `${addonHref("knowledge")}/clips`,
+    ) ?? null;
+
+  it("SPEC-CORE-093 I10 draws one row per entrance, Clips right after Notes", () => {
+    catalogue = LISTED;
+    render(<Sidebar />);
+    const labels = rowLabels();
+    expect(labels.indexOf("Clips")).toBe(labels.indexOf("Notes") + 1);
+    expect(rowFor("knowledge")?.textContent).toBe("Notes");
+    expect(clipsRow()?.textContent).toBe("Clips");
+  });
+
+  it("SPEC-CORE-093 draws the newspaper token with lucide Newspaper", () => {
+    catalogue = LISTED;
+    render(<Sidebar />);
+    expect(clipsRow()?.querySelector("svg")?.getAttribute("class")?.split(/\s+/)).toContain("lucide-newspaper");
+  });
+
+  it.each([
+    ["the deeper entrance's page", "knowledge/clips", ["Clips"]],
+    ["a page under the deeper entrance", "knowledge/clips/x", ["Clips"]],
+    ["the shallower entrance's page", "knowledge", ["Notes"]],
+    ["a sibling page under the shallower entrance", "knowledge/connections", ["Notes"]],
+    ["a page whose segment only starts like the deeper one", "knowledge/clipsx", ["Notes"]],
+  ])("SPEC-CORE-093 I11 lights only the longest matching href on %s", (_, route, expected) => {
+    catalogue = LISTED;
+    pathname = `${ENCODED}/addons/${route}`;
+    render(<Sidebar />);
+    expect(lit()).toEqual(expected);
+  });
+
+  it("SPEC-CORE-093 I11 lights only Clips on the decoded path too", () => {
+    catalogue = LISTED;
+    pathname = `/drive/${DRIVE}/addons/knowledge/clips`;
+    render(<Sidebar />);
+    expect(lit()).toEqual(["Clips"]);
+  });
+
+  it("SPEC-CORE-093 I11 compares across placements", () => {
+    catalogue = {
+      feeds: addon([
+        { label: "Feeds", placement: "sources", priority: 1 },
+        { label: "Feed settings", placement: "utility", priority: 1, path: "settings" },
+      ] as unknown as AddonMeta["navigation"]),
+    };
+    pathname = `${ENCODED}/addons/feeds/settings`;
+    render(<Sidebar />);
+    expect(lit()).toEqual(["Feed settings"]);
   });
 });
