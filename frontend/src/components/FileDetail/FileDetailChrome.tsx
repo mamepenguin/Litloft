@@ -8,6 +8,10 @@ import { ChevronLeft, PanelBottom, PanelBottomClose, PanelRight, PanelRightClose
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { Breadcrumb } from "../Breadcrumb";
 import { InboxDetailActions } from "../inbox/InboxDetailActions";
+import {
+  FileHeaderRowPortal,
+  useFileHeaderRowHost,
+} from "../FileHeaderRowProvider";
 
 interface FileDetailChromeProps {
   drive: string;
@@ -16,6 +20,11 @@ interface FileDetailChromeProps {
   titleNode?: ReactNode;
   fileId?: string;
   onBack?: () => void;
+  /**
+   * A file that is not known yet has no name, so it has no trail: the row
+   * shows the host's back control alone.
+   */
+  trail?: boolean;
   children?: ReactNode;
   inspector?: {
     open: boolean;
@@ -32,6 +41,7 @@ export function FileDetailChrome({
   titleNode,
   fileId,
   onBack,
+  trail = true,
   children,
   inspector,
 }: FileDetailChromeProps) {
@@ -46,6 +56,7 @@ export function FileDetailChrome({
   // half-typed filename would be saved by turning the phone sideways.
   // One instance, placed.
   const isMobile = useIsMobile();
+  const hosted = useFileHeaderRowHost() !== null;
 
   const segments = folderPath ? folderPath.split("/").filter(Boolean) : [];
   const parentName = segments.length > 0 ? segments[segments.length - 1] : drive;
@@ -89,48 +100,63 @@ export function FileDetailChrome({
     </Link>
   );
 
-  return (
+  // A file that is not known yet has no name; the wide trail still ends in
+  // an empty segment so the drive stays a link the reader can leave by.
+  const wideLeaf =
+    titleNode ?? (title !== "" ? title : <span className="truncate" />);
+
+  const row = (
     <div
       data-testid="file-detail-chrome"
-      className="flex h-12 shrink-0 items-center gap-2 border-b border-bg-border bg-bg-card px-3"
+      className={
+        hosted
+          ? "flex min-w-0 flex-1 items-center gap-2"
+          : "flex h-12 shrink-0 items-center gap-2 border-b border-bg-border bg-bg-card px-3"
+      }
     >
-      {/* Two forms of the same statement, one per width. Rendering both
-          and hiding one costs a duplicate DOM node and buys a layout
-          that needs no measurement to decide between them.
+      {trail ? (
+        <>
+          {/* Two forms of the same statement, one per width. Rendering both
+              and hiding one costs a duplicate DOM node and buys a layout
+              that needs no measurement to decide between them.
 
-          Where the host supplied `onBack`, the breadcrumb cannot express
-          where back goes, so the control it gave has to survive the width
-          at which the breadcrumb takes over. */}
-      <div
-        className={
-          onBack
-            ? "flex min-w-0 flex-1 items-center md:max-w-[45%] md:flex-none"
-            : "flex min-w-0 flex-1 items-center md:hidden"
-        }
-      >
-        {backControl}
-        {/* The leaf comes along below `md`, where the breadcrumb is
-            hidden. Dropping the file's name there is what the sizing
-            rules ask for — but for a Markdown note the leaf *is* the
-            rename control, and dropping a function is not the same as
-            dropping a label. */}
-        {/* `flex` on a box with one child, and `flex-auto` rather than
-            `flex-1`: the rename control is nowrap text, whose minimum
-            contribution is the whole filename, so it only narrows as a flex
-            item, and only a basis of its own content wins it any width
-            against the back control beside it. Without both it lays itself
-            out at full length over the buttons to its right. */}
-        {isMobile && titleNode && (
-          <span className="flex min-w-0 flex-auto md:hidden">{titleNode}</span>
-        )}
-      </div>
-      <div className="hidden min-w-0 flex-1 md:flex">
-        <Breadcrumb
-          driveName={drive}
-          folderPath={folderPath}
-          trailingSegment={isMobile ? title : (titleNode ?? title)}
-        />
-      </div>
+              Where the host supplied `onBack`, the breadcrumb cannot express
+              where back goes, so the control it gave has to survive the width
+              at which the breadcrumb takes over. */}
+          <div
+            className={
+              onBack
+                ? "flex min-w-0 flex-1 items-center md:max-w-[45%] md:flex-none"
+                : "flex min-w-0 flex-1 items-center md:hidden"
+            }
+          >
+            {backControl}
+            {/* The leaf comes along below `md`, where the breadcrumb is
+                hidden. Dropping the file's name there is what the sizing
+                rules ask for — but for a Markdown note the leaf *is* the
+                rename control, and dropping a function is not the same as
+                dropping a label. */}
+            {/* `flex` on a box with one child, and `flex-auto` rather than
+                `flex-1`: the rename control is nowrap text, whose minimum
+                contribution is the whole filename, so it only narrows as a flex
+                item, and only a basis of its own content wins it any width
+                against the back control beside it. Without both it lays itself
+                out at full length over the buttons to its right. */}
+            {isMobile && titleNode && (
+              <span className="flex min-w-0 flex-auto md:hidden">{titleNode}</span>
+            )}
+          </div>
+          <div className="hidden min-w-0 flex-1 md:flex">
+            <Breadcrumb
+              driveName={drive}
+              folderPath={folderPath}
+              trailingSegment={isMobile ? title : wideLeaf}
+            />
+          </div>
+        </>
+      ) : (
+        <div className="flex min-w-0 flex-1 items-center">{backControl}</div>
+      )}
 
       {children}
 
@@ -178,6 +204,17 @@ export function FileDetailChrome({
           )}
         </button>
       )}
+
+      {/* Separates the file's own row from the header's ordinary controls,
+          so it exists only where those controls follow it. */}
+      {hosted && <div className="hidden h-5 w-px shrink-0 bg-bg-border md:block" />}
     </div>
   );
+
+  if (!hosted) {
+    // No header to draw into: a host outside the shell keeps the row it
+    // has always drawn for itself.
+    return row;
+  }
+  return <FileHeaderRowPortal>{row}</FileHeaderRowPortal>;
 }

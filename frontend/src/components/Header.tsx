@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { User } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -10,6 +10,7 @@ import { GlobalSearch } from "./GlobalSearch";
 import { QuickNote } from "./quick-note";
 import { AddonSlot } from "./AddonSlot";
 import { useCurrentDrive } from "./CurrentDriveProvider";
+import { useFileHeaderRowHost } from "./FileHeaderRowProvider";
 
 export function Header() {
   const tp = useTranslations("profile");
@@ -44,6 +45,59 @@ export function Header() {
     };
   }, []);
 
+  // The file page's row starts at whichever is further right: 12px past
+  // the fixed menu/tree buttons, or the box the file's content occupies.
+  // Both are measured live because the tree pane animates its width and
+  // the sidebar moves the whole frame when it opens.
+  const rowHost = useFileHeaderRowHost();
+  const setRowContainer = rowHost?.setContainer;
+  const align = rowHost?.align ?? null;
+  const chromeButtons = rowHost?.chromeButtons ?? null;
+  const filePageRow = !!rowHost?.top;
+  const rowRef = useRef<HTMLDivElement | null>(null);
+  const [rowInset, setRowInset] = useState(0);
+
+  const attachRow = useCallback(
+    (node: HTMLDivElement | null) => {
+      rowRef.current = node;
+      setRowContainer?.(node);
+    },
+    [setRowContainer],
+  );
+
+  useLayoutEffect(() => {
+    const row = rowRef.current;
+    if (!row || !filePageRow) {
+      setRowInset(0);
+      return;
+    }
+    const measure = () => {
+      const frame = row.getBoundingClientRect();
+      const content = align
+        ? align.getBoundingClientRect().left +
+          (Number.parseFloat(getComputedStyle(align).paddingLeft) || 0)
+        : 0;
+      const wanted = Math.max(
+        chromeButtons ? chromeButtons.getBoundingClientRect().right + 12 : 0,
+        content,
+      );
+      setRowInset(Math.max(0, wanted - frame.left));
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    let observer: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined") {
+      observer = new ResizeObserver(measure);
+      observer.observe(row);
+      if (chromeButtons) observer.observe(chromeButtons);
+      if (align) observer.observe(align);
+    }
+    return () => {
+      window.removeEventListener("resize", measure);
+      observer?.disconnect();
+    };
+  }, [align, chromeButtons, filePageRow]);
+
   return (
     <header
       ref={headerRef}
@@ -54,11 +108,16 @@ export function Header() {
         paddingTop: "env(safe-area-inset-top, 0px)",
         minHeight: "calc(3.5rem + env(safe-area-inset-top, 0px))",
       }}
-      className="sticky top-0 z-20 flex flex-shrink-0 items-center border-b border-bg-border bg-bg-primary px-4"
+      className="sticky top-0 z-20 flex flex-shrink-0 items-center border-b border-bg-border bg-bg-primary"
     >
-      <div className="flex-1" />
+      <div
+        ref={attachRow}
+        data-testid="file-header-row"
+        style={rowInset > 0 ? { paddingLeft: rowInset } : undefined}
+        className="flex min-w-0 flex-1 items-center"
+      />
 
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 pr-4">
         <GlobalSearch />
         {/* Mounted directly, not through the addon slot: Quick Note has to be
             reachable from root, admin, and settings screens too, and those

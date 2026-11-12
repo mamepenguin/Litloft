@@ -72,24 +72,26 @@ export function FileDetailSkeleton({
   }
 
   return (
-    <div
-      role="status"
-      aria-label={t("loading")}
-      data-testid="file-detail-skeleton"
-      className="contents"
+    <FileDetailShell
+      drive={drive}
+      title=""
+      onBack={onBack}
+      onScrollRootChange={onScrollRootChange}
+      inspector={<InspectorSkeleton />}
+      mobileSheet={isMobile ? <InspectorSkeleton /> : undefined}
+      sheetPeek={isMobile ? <Skeleton className="h-4 w-2/3" /> : undefined}
+      resetKey={resetKey}
     >
-      <FileDetailShell
-        drive={drive}
-        title=""
-        onBack={onBack}
-        onScrollRootChange={onScrollRootChange}
-        inspector={<InspectorSkeleton />}
-        mobileSheet={isMobile ? <InspectorSkeleton /> : undefined}
-        sheetPeek={isMobile ? <Skeleton className="h-4 w-2/3" /> : undefined}
-        resetKey={resetKey}
+      {/* Inside the shell, so the page's first box is the shell's own and
+          the loading state starts where the loaded one does. */}
+      <div
+        role="status"
+        aria-label={t("loading")}
+        data-testid="file-detail-skeleton"
+        className="contents"
       >
         <CanvasSkeleton />
-      </FileDetailShell>
-    </div>
+      </div>
+    </FileDetailShell>
   );
 }
