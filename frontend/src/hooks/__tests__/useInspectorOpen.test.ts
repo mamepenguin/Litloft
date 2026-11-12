@@ -41,6 +41,52 @@ afterEach(() => {
   localStorage.clear();
 });
 
+describe("useInspectorOpen on a player file", () => {
+  it("starts open on every non-phone viewport, without a stored value", () => {
+    for (const width of [768, 1024, 1119]) {
+      setViewportWidth(width);
+      const { result } = renderHook(() => useInspectorOpen("work", true));
+      expect({ width, open: result.current.open }).toEqual({ width, open: true });
+    }
+  });
+
+  it("stays a sheet's closed default on a phone", () => {
+    // The sheet is not "open" in the desktop sense, and the peek state is
+    // what a phone shows.
+    setViewportWidth(767);
+    const { result } = renderHook(() => useInspectorOpen("work", true));
+    expect(result.current.open).toBe(false);
+  });
+
+  it("lets a stored value win over the player default", () => {
+    setViewportWidth(1024);
+    localStorage.setItem(driveKey("work"), "false");
+    const { result } = renderHook(() => useInspectorOpen("work", true));
+    expect(result.current.open).toBe(false);
+  });
+
+  it("keeps a file without a player on the viewport default", () => {
+    // The same width that opens a player's inspector leaves a document's
+    // closed: a stacked inspector would take half of what is being read.
+    setViewportWidth(1024);
+    const player = renderHook(() => useInspectorOpen("work", true));
+    const document = renderHook(() => useInspectorOpen("work", false));
+    expect(player.result.current.open).toBe(true);
+    expect(document.result.current.open).toBe(false);
+  });
+
+  it("closes the default it opened and persists that", () => {
+    setViewportWidth(1024);
+    const { result } = renderHook(() => useInspectorOpen("work", true));
+    expect(result.current.open).toBe(true);
+
+    act(() => result.current.toggle());
+
+    expect(result.current.open).toBe(false);
+    expect(localStorage.getItem(driveKey("work"))).toBe("false");
+  });
+});
+
 describe("useInspectorOpen", () => {
   it("defaults to open on wide viewport (>= 1120px) when no localStorage", () => {
     setViewportWidth(1440);

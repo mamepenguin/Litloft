@@ -1,0 +1,136 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "U1",
+      "origin": "reviewer",
+      "claim": "The diff changes production file frontend/src/components/FileDetail/FileMetaBlock.tsx, which the touch-point list does not name.",
+      "impact": "FileMetaBlock now has a new `inspector` prop. That prop drops the block's `mt-4` and the tags' `mt-3`, adds the `data-inspector-header-*` hooks and draws a rule under the header. The stacked one-row CSS in globals.css only works through these hooks, so a reviewer who scopes to the list would miss the place that defines the header block's look on every surface.",
+      "evidence": "frontend/src/components/FileDetail/FileMetaBlock.tsx:66 (`data-inspector-header-block`) and the new rule div. FileDetailContainer.tsx passes `inspector={ridesShell}`. The touch-point list names FileDetailContainer only for `hoistDescription`.",
+      "repro": "Compare the diff's file list with the touch-point list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is broken. It is an unlisted place the change reaches.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "U2",
+      "origin": "reviewer",
+      "claim": "The mini-player suppression reaches four unlisted files: FilePreview.tsx, MiniPlayerContainer.tsx, hooks/useMiniPlayer.ts and its test useMiniPlayer.test.ts.",
+      "impact": "FilePreview now reads the form store through `useInspectorForm(file.id)` and passes `stacked` to MiniPlayerContainer and on to `shouldShowMini`. This changes when the floating mini player appears for every video or `.loft` FilePreview render. Spec item 082.3 asks for this, but the list leaves out every file that implements it.",
+      "evidence": "frontend/src/components/FilePreview.tsx:116,126,152; frontend/src/components/MiniPlayerContainer.tsx:19; frontend/src/hooks/useMiniPlayer.ts:56 and the `if (inputs.stacked) return false` in shouldShowMini.",
+      "repro": "Compare the diff's file list with the touch-point list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is unlisted scope. The behaviour matches 082.3 and no declared invariant is broken.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "U3",
+      "origin": "reviewer",
+      "claim": "Two new modules, hooks/useInspectorForm.ts and lib/leftPaneContext.ts, are not in the touch-point list.",
+      "impact": "These are the read paths of the form store and of the left-pane context. ShellLayout, FileDetailContainer, FilePreview and FileDetailShell all read the form through useInspectorForm, and FileDetailShell reads the left pane through leftPaneContext. The list names only inspectorFormStore.ts and treeYieldStore.ts as new files.",
+      "evidence": "frontend/src/hooks/useInspectorForm.ts:10; frontend/src/lib/leftPaneContext.ts (new); imported at FileDetailShell.tsx:18, ShellLayout.tsx:18, FileDetailContainer.tsx:17 and FilePreview.tsx:19.",
+      "repro": "Compare the diff's file list with the touch-point list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "These are unlisted new files and no invariant is broken.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "U4",
+      "origin": "reviewer",
+      "claim": "frontend/src/hooks/useIsMobile.ts is changed to export MOBILE_BREAKPOINT, and lib/inspectorOpenStore.ts now imports it from a hook module. useIsMobile.ts is not in the list.",
+      "impact": "After this change a lib module depends on a hooks module. The phone boundary used by the player default-open rule is now shared with useIsMobile, so if useIsMobile's threshold changes, the default-open threshold changes with it.",
+      "evidence": "frontend/src/hooks/useIsMobile.ts:5; frontend/src/lib/inspectorOpenStore.ts:10,48.",
+      "repro": "Compare the diff's file list with the touch-point list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is unlisted scope. Sharing the constant is consistent with the spec's definition of a phone.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "U5",
+      "origin": "reviewer",
+      "claim": "The global test setup frontend/src/test/setup.ts gains an afterEach that removes `data-media-layout` from <html> after every test, and setup.ts is not in the touch-point list.",
+      "impact": "The change reaches every vitest suite in the frontend. A test that leaked or relied on the attribute from an earlier test now passes or fails differently. Without the cleanup, the stores and attributes added by this change could make suites depend on run order.",
+      "evidence": "frontend/src/test/setup.ts:125. The production attribute is written by lib/mediaLayout.ts:17 and lib/preferenceInitScript.ts:35.",
+      "repro": "Compare the diff's file list with the touch-point list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is unlisted test infrastructure and no invariant is broken.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "U6",
+      "origin": "reviewer",
+      "claim": "The component fixture build gains a global `@/lib/addons` alias to the new stubs/addons.ts, and the shared stubs/next-navigation.ts changes behaviour. Neither change is the new bundle entry the touch-point list allows for.",
+      "impact": "The alias replaces `loadAddonSlotModule` and `getCachedSlotModule` for every component bundled into the fixture, not only the new inspector arrangements. Any existing arrangement whose components load addon slot modules through `@/lib/addons` now gets the fixture transcript or a rejection. `useSearchParams` in every arrangement now reads `window.__fixtureSearchParams`, but only the two-pane arrangement sets it.",
+      "evidence": "frontend/e2e-components/build-bundle.ts:34 (new alias); frontend/e2e-components/stubs/addons.ts (new); frontend/e2e-components/stubs/next-navigation.ts (useSearchParams); new stubs/transcriptSlot.tsx.",
+      "repro": "Compare the diff's file list with the touch-point list. I did not run the other arrangements.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is unlisted test infrastructure with fixture-wide reach. It breaks no product invariant.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "U7",
+      "origin": "reviewer",
+      "claim": "The diff adds or changes unit tests, harness helpers and fixture registries that the touch-point list does not name.",
+      "impact": "The unlisted tests are new: FileDetailShellYield, InspectorForm, StackedInspector, InspectorShell.headerInInfo, folder/__tests__/TreeYield and TreeYieldRemount, the new harness.tsx measureRow, and useMiniPlayer.test.ts. The unlisted registries are e2e-components/fixtures/app.tsx, fixtures/inspectorResponsive.tsx, spec-viewport.spec.ts and componentFixtureParity.test.tsx. TreeYield.test.tsx and TreeYieldRemount.test.tsx duplicate about 250 lines of mocks, which is a maintenance cost. Meanwhile the listed TwoPaneLayout, TreeToggle and DriveTreeToggle tests are not changed.",
+      "evidence": "See the diff headers for each file named above.",
+      "repro": "Compare the diff's file list with the touch-point list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Only test-side scope differs and no invariant is broken.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "Several listed touch points do not appear in the diff: InspectorPane.tsx, MediaCanvas.tsx, useCompanionMetrics.ts, mediaHostStyle.ts, TreeToggle.tsx, DriveTreeToggle.tsx, SidebarProvider.tsx, FileDetailSkeleton.tsx, MarkdownDocumentLayout.tsx, and the TwoPaneLayout, TreeToggle and DriveTreeToggle tests. The behaviour those entries describe is implemented elsewhere: in globals.css, useTreeVisible and TwoPaneLayout's useOverlaySidebarWhen.",
+    "The places the diff reaches outside the list are FileMetaBlock, FilePreview, MiniPlayerContainer, useMiniPlayer, useInspectorForm, leftPaneContext, useIsMobile, test/setup.ts, the e2e-components stubs and alias, and new unit tests."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The global `@/lib/addons` alias in the component fixture bundle changes addon slot loading for every arrangement, not only the new ones."
+  ],
+  "regression_risks": [
+    "Through the fixture-wide addon alias, other e2e-components arrangements that render addon slots may change behaviour.",
+    "The global afterEach in test/setup.ts may mask cross-test leakage of `data-media-layout`."
+  ],
+  "test_coverage": [
+    "The new mini-player suppression has a unit test (useMiniPlayer.test.ts). No integration test checks that FilePreview passes `stacked` through.",
+    "The FileMetaBlock header hooks are covered by real-browser measurements in inspector-responsive-layout-desktop.spec.ts."
+  ],
+  "not_verified": [
+    "I did not run any tests: vitest, Playwright e2e-components or e2e-layout.",
+    "I did not check whether the new `@/lib/addons` alias changes the behaviour of existing e2e-components arrangements.",
+    "I did not trace how collection playback reaches FilePreview, or whether it ever shares a fileId with a publishing shell.",
+    "I did not analyse invariant compliance beyond the scope question."
+  ],
+  "confidence": 80
+}

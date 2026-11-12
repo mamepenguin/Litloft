@@ -191,6 +191,9 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-093 | implemented | docs/specs/scene-timeline-width.md | sha256:bc14055f5e03adbae3110b55d6ebcd1600ce152e53064a9943c84a8843087b69 |
 | SPEC-CORE-081 | implemented | docs/specs/recommended-see-all.md | sha256:7e88fa758b58027379adb1347d85b48163f7fb358890fa3ac8ade95161f45cda |
 | SPEC-ADDON-094 | implemented | docs/specs/recommended-see-all.md | sha256:7e88fa758b58027379adb1347d85b48163f7fb358890fa3ac8ade95161f45cda |
+| SPEC-CORE-082 | implemented | docs/specs/inspector-responsive-layout.md | sha256:ec15c16390a7291e4be557a27fbabf05e343f16454874e15802a7c537c866c97 |
+| SPEC-CORE-083 | implemented | docs/specs/inspector-responsive-layout.md | sha256:ec15c16390a7291e4be557a27fbabf05e343f16454874e15802a7c537c866c97 |
+| SPEC-CORE-084 | implemented | docs/specs/inspector-responsive-layout.md | sha256:ec15c16390a7291e4be557a27fbabf05e343f16454874e15802a7c537c866c97 |
 | SPEC-ADDON-095 | implemented | docs/specs/pickup-accuracy.md | sha256:d2befb3d3294d8745a35316447b32c243a91a680f20b4b74610c3a0f0e2441a0 |
 | SPEC-ADDON-096 | implemented | docs/specs/pickup-accuracy.md | sha256:d2befb3d3294d8745a35316447b32c243a91a680f20b4b74610c3a0f0e2441a0 |
 | SPEC-ADDON-097 | implemented | docs/specs/pickup-accuracy.md | sha256:d2befb3d3294d8745a35316447b32c243a91a680f20b4b74610c3a0f0e2441a0 |

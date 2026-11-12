@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, act, within } from "@testing-library/react";
 import { useState } from "react";
 
@@ -13,6 +13,7 @@ import {
   overlaySidebarSpy,
   relationMocks,
   withRelations,
+  measureRow,
   setApiResponses,
   setViewport,
   usePolicyMock,
@@ -110,6 +111,11 @@ describe("FileDetailContent", () => {
     // Title, action row and tags live in the inspector, and jsdom's
     // 1024px would leave it collapsed.
     setViewport();
+    measureRow();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("calls recordFileView exactly once when mounted with a fileId", async () => {
@@ -565,6 +571,12 @@ describe("FileDetailContent", () => {
     );
     render(<FileDetailContent fileId="f1" drive="work" />);
     await loaded();
+    // The summaries land in the canvas in the first frame the row is measured.
+    await waitFor(() =>
+      expect(
+        screen.queryByTestId("addon-slot-include:detailed-summary"),
+      ).not.toBeNull(),
+    );
     expect(
       screen.queryByTestId("markdown-document-layout"),
     ).not.toBeInTheDocument();
@@ -623,6 +635,12 @@ describe("FileDetailContent", () => {
     );
     render(<FileDetailContent fileId="f1" drive="work" />);
     await loaded();
+    // The summaries land in the canvas in the first frame the row is measured.
+    await waitFor(() =>
+      expect(
+        screen.queryByTestId("addon-slot-include:detailed-summary"),
+      ).not.toBeNull(),
+    );
     expect(
       screen.queryByTestId("markdown-document-layout"),
     ).not.toBeInTheDocument();

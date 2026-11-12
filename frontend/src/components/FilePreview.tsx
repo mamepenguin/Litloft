@@ -16,6 +16,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { OfficeExcerpt } from "./OfficeExcerpt";
 import LoftPlayer from "./loft/LoftPlayer";
 import { MiniPlayerContainer } from "./MiniPlayerContainer";
+import { useInspectorForm } from "@/hooks/useInspectorForm";
 import { formatFileSize } from "@/lib/format";
 import { getStreamUrl, getThumbnailUrl } from "@/lib/api";
 import { playerKind } from "@/lib/playerKind";
@@ -112,13 +113,18 @@ export function FilePreview({
     [onMediaController],
   );
 
+  const { stacked: stackedLayout } = useInspectorForm(file.id);
   const kind = playerKind(file);
   const posterUrl = file.has_thumbnail ? getThumbnailUrl(file.id) : undefined;
 
   if (kind === "loft") {
     return (
       <div className="-mx-4 -mt-4 bg-black md:mx-0 md:mt-0">
-        <MiniPlayerContainer mc={localMc} root={miniPlayerRoot}>
+        <MiniPlayerContainer
+          mc={localMc}
+          root={miniPlayerRoot}
+          stacked={stackedLayout}
+        >
           <LoftPlayer
             fileId={file.id}
             onMediaController={relayMc}
@@ -140,7 +146,11 @@ export function FilePreview({
   if (kind === "video") {
     return (
       <div className="-mx-4 -mt-4 bg-black md:mx-0 md:mt-0">
-        <MiniPlayerContainer mc={localMc} root={miniPlayerRoot}>
+        <MiniPlayerContainer
+          mc={localMc}
+          root={miniPlayerRoot}
+          stacked={stackedLayout}
+        >
           <VideoPlayer
             ref={videoRef}
             videoId={file.id}

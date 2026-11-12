@@ -15,6 +15,7 @@ import { usePdfState } from "./pdf/usePdfState";
 import { ArchivePagesPanel } from "./archive/ArchivePagesPanel";
 import { useArchiveState } from "./archive/useArchiveState";
 import { inspectorOpenStore } from "@/lib/inspectorOpenStore";
+import { useInspectorForm } from "@/hooks/useInspectorForm";
 import { useMediaLayoutPreference } from "@/lib/mediaLayout";
 import { sortSlotEntries } from "@/lib/addons";
 import { viewerTakesCanvasFloor } from "@/lib/fileDetailShell";
@@ -157,6 +158,7 @@ export function ShellLayout({
   const tGlobal = useTranslations();
   const { getSlotEntries } = useAddonSlots();
   const [mediaLayout] = useMediaLayoutPreference();
+  const { form, stacked: stackedLayout } = useInspectorForm(fileId);
   const relations = useFileRelations(fileId);
   const relatedListed =
     (relations?.length ?? 0) > 0 ||
@@ -181,7 +183,13 @@ export function ShellLayout({
    * On a phone there is no beside — the inspector is a sheet — so the
    * tabs are where they go regardless of the stored preference.
    */
-  const companionInTabs = isMobile || mediaLayout === "beside";
+  const companionInTabs =
+    isMobile || stackedLayout || mediaLayout === "beside";
+
+  // The row has not measured this file yet. A player file off a phone waits
+  // for that answer before mounting what has to land in one place only;
+  // everything else renders as it always did.
+  const awaitingForm = hasPlayer && !isMobile && form === "absent";
 
   const playerSideEntries = hasPlayer ? getSlotEntries("player-side") : [];
 
@@ -361,7 +369,7 @@ export function ShellLayout({
   const inspector = (
     <InspectorShell
       header={meta}
-      tabs={buildTabs(false)}
+      tabs={buildTabs(stackedLayout)}
       resetKey={fileId}
       selectRequest={find.selectRequest}
       onSelect={(tabId) => find.reportTab("pane", tabId)}
@@ -394,14 +402,17 @@ export function ShellLayout({
         onScrollRootChange={onScrollRootChange}
         findEnabled={findEnabled}
         canvasFloor={viewerTakesCanvasFloor(file.file_type, file.mime_type)}
+        isPlayerFile={hasPlayer}
+        publishesForm
         chromeControls={
           <>
             {findEnabled && <FindButton />}
             {/* `!isMobile` is not only about space: `onBeside` opens the
                 desktop pane, and a phone's sheet is `FileDetailShell`'s own
                 state, not this store. Rendering the toggle on a phone would
-                write a preference and open nothing. */}
-            {!isMobile && hasPlayer && companionOccupied && (
+                write a preference and open nothing. In the stacked layout
+                the companion has no beside to return to. */}
+            {!isMobile && hasPlayer && companionOccupied && !stackedLayout && (
               <MediaLayoutToggle onBeside={() => setInspectorOpen(true)} />
             )}
             {/* Images only. The arrow keys walk the folder for archives,
@@ -420,7 +431,9 @@ export function ShellLayout({
       >
         {findEnabled && find.open && <FindBar />}
         <MediaCanvas
-          showDescription={descriptionInCanvas}
+          showDescription={
+            descriptionInCanvas && !stackedLayout && !awaitingForm
+          }
           file={file}
           fileId={fileId}
           metrics={metrics}
@@ -428,7 +441,10 @@ export function ShellLayout({
           isTimedMedia={isTimedMedia}
           mediaController={mediaController}
           companion={
-            companionInTabs || !hasPlayer || !companionMountable
+            companionInTabs ||
+            awaitingForm ||
+            !hasPlayer ||
+            !companionMountable
               ? null
               : {
                   chaptersPresent,
@@ -441,8 +457,11 @@ export function ShellLayout({
           // On a phone the sheet takes them instead: a 90vh drawer at
           // viewport width has room for a markdown table and a 384px
           // column does not, and drawing them in both places mounts
-          // `ActiveSummaryHost` twice — two fetches for one file.
-          heavySummaries={isMobile ? null : heavySummaries}
+          // `ActiveSummaryHost` twice — two fetches for one file. The
+          // stacked layout makes the same move for the same reason.
+          heavySummaries={
+            isMobile || stackedLayout || awaitingForm ? null : heavySummaries
+          }
           videoRef={videoRef}
           initialTime={initialTime}
           initialPage={initialPage}

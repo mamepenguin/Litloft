@@ -320,6 +320,9 @@ describe("the component fixture's page", () => {
       "video-card-byline",
       "video-card-spacing",
       "persistent-highlights",
+      "inspector-video",
+      "inspector-pdf",
+      "inspector-video-two-pane",
     ]);
   });
 });

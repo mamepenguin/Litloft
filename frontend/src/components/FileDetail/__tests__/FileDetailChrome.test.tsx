@@ -157,6 +157,49 @@ describe("FileDetailChrome", () => {
     expect(screen.queryAllByRole("button", { name: /tree/i })).toHaveLength(0);
   });
 
+  it("draws the bottom form's icon where the inspector is under the player", () => {
+    // The button says what the press does: the pane it opens is below.
+    const cases = [
+      { open: true, icon: "lucide-panel-bottom-close" },
+      { open: false, icon: "lucide-panel-bottom" },
+    ];
+    for (const { open, icon } of cases) {
+      const { unmount } = render(
+        <FileDetailChrome
+          drive="main"
+          title="x.mp4"
+          inspector={{ open, onToggle: vi.fn(), stacked: true }}
+        />,
+      );
+      const svg = screen.getByTestId("inspector-toggle").querySelector("svg")!;
+      expect({ open, icon: [...svg.classList].find((c) => c.startsWith("lucide-panel")) }).toEqual(
+        { open, icon },
+      );
+      unmount();
+    }
+  });
+
+  it("keeps the side icon in every other form", () => {
+    const cases = [
+      { open: true, icon: "lucide-panel-right-close" },
+      { open: false, icon: "lucide-panel-right" },
+    ];
+    for (const { open, icon } of cases) {
+      const { unmount } = render(
+        <FileDetailChrome
+          drive="main"
+          title="x.mp4"
+          inspector={{ open, onToggle: vi.fn() }}
+        />,
+      );
+      const svg = screen.getByTestId("inspector-toggle").querySelector("svg")!;
+      expect({ open, icon: [...svg.classList].find((c) => c.startsWith("lucide-panel")) }).toEqual(
+        { open, icon },
+      );
+      unmount();
+    }
+  });
+
   it("puts a caller's own leaf where the file name would go", () => {
     render(
       <FileDetailChrome
