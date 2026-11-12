@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "docs/addons/intelligence.md:822 is '## Operational notes'. Lines 829-831 document the 180-day pickup_feed_log retention and the replay and online commands. The touch-point list (docs/specs/pickup-accuracy.md:503) names only 'feature table and Pickup section'. Spec section 9 (docs/specs/pickup-accuracy.md:421-422) asks for an 'operator part' with the two commands and the 180-day log, so the change is planned in the spec body but missing from the touch-point list. invariants.md has no revisions that change this."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "addons/intelligence/tests/pickup_accuracy_rig.py exists and does not match test_z_pickup_*.py. test_z_pickup_engagement.py, test_z_pickup_accuracy_worker.py, test_z_pickup_evaluate.py and test_z_pickup_evaluate_after.py all exist. The touch-point list (spec:498-501) speaks only of 'existing' pickup tests. No doc under docs/ mentions the rig file. SearchDB.__init__ calls Base.metadata.create_all when create_models=True (rig:182-183). create_feed_log (rig:239-246) builds pickup_feed_log from hand-written SQL. Its columns and primary key match PickupFeedLog (models.py:557-569), but it omits idx_pickup_feed_log_computed_at. I could not confirm from git that these files are new in this diff; I relied on their content and on the spec's wording."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "addons/intelligence/app/pickup/profile.py:412-423 defines public live_video_ids(drive) with SQL filtering file_type = 'video' AND deleted_at IS NULL AND missing_since IS NULL. app/workers/pickup.py:206 calls profile_mod.live_video_ids(drive). tests/test_z_pickup_worker.py:91 monkeypatches it. The spec touch points list 'the per-drive video set' only under workers/pickup.py (spec:486). The profile.py bullets (spec:477-483) do not name live_video_ids."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-4",
+      "status": "confirmed",
+      "note": "addons/intelligence/app/pickup/evaluate.py:50 imports _CANDIDATES_PER_LANE and _FEED_DEPTH from app.workers.pickup, where they are defined at lines 64 and 52. evaluate.py uses them at lines 334 and 341. The workers/pickup.py touch points (spec:485-490) do not mention these constants or evaluate.py's dependence on them. The import means evaluate's 'after' uses the same depth and per-lane limit as the worker, which supports I9."
+    }
+  ],
+  "specification_compliance": [
+    "All four findings are scope or bookkeeping differences between the touch-point list and the files and symbols actually edited. None of them shows a behavioural violation of I1-I10.",
+    "The edit to the Operational notes section is required by spec section 9 ('its operator part documents the two commands ... and the 180-day log'), even though the touch-point list leaves it out."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The test rig's hand-written pickup_feed_log DDL omits idx_pickup_feed_log_computed_at, so tests that use create_feed_log run against a table that differs slightly from the one create_all builds in production. This does not affect correctness."
+  ],
+  "regression_risks": [
+    "evaluate.py depends on private worker constants. Renaming them in the worker would break the evaluate module's import, which fails loudly rather than silently."
+  ],
+  "test_coverage": [
+    "test_z_pickup_worker.py:91 monkeypatches profile_mod.live_video_ids, so the worker's video-set path is exercised through a stub there."
+  ],
+  "not_verified": [
+    "I could not confirm with git diff that pickup_accuracy_rig.py, the four new test modules, live_video_ids and the Operational notes lines are new relative to origin/develop, because I cannot run git. My judgement rests on the file contents and the spec's wording.",
+    "I did not check invariants I1-I10 against the implementation beyond what the four scope findings required.",
+    "I did not run any tests."
+  ],
+  "confidence": 85
+}
