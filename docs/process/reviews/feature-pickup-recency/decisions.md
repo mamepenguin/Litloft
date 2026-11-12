@@ -1,5 +1,48 @@
 # Decisions: feature-pickup-recency
 
+decision:
+ran_in_app: yes
+at: e7874b64dc6f2520955193e2e2aaec21e808b489
+by: agent
+evidence: |
+  Compose project litloft-r5-recency at http://localhost:3997 (base docker-compose.yml
+  plus .r5/override.yml); core DB, thumbnails and search.db from the prepared copies
+  under .r5/data/; drive 動画 mounted from .r5/drive-video/, holding the 63 videos of
+  YouTube/おでかけ子ザメ/ in their folder layout, so 63 live videos. Viewer nickname
+  r5recency in Settings → Profile (id 31659880d4570580); history made by opening
+  第10話, 第11話 and 第12話 from the folder and playing each to the end.
+  1. Forced computation (restart of intelligence): pickup_profile total 60,
+  computed_at 2026-11-12 13:49:42.516542, checkpoint
+  e99b093058025e9295512fa9f4f64022; a new pickup_feed_log row with profile_version 4;
+  the top 40 pickup_item rows joined with files.created_at were all 子ザメ videos
+  (rank 1 第36話 score 0.629102, rank 2 第30話 0.638341), with no watched file. The
+  drive-home Pickup row (4 cards, See all (60)), the Pickup page and Video Recommended
+  (3 cards) showed videos only. Screenshots:
+  docs/process/reviews/feature-pickup-recency/shots/13-drive-home-pickup-check1.png,
+  docs/process/reviews/feature-pickup-recency/shots/11-pickup-page-check1.png,
+  docs/process/reviews/feature-pickup-recency/shots/12-video-recommended-check1.png.
+  2. Restart with nothing changed: computed_at, checkpoint, total (60) and pickup_item
+  unchanged, and no new pickup_feed_log row.
+  3. A byte-identical copy of 第36話「3D」 named 第36話「3D」_r5copy.mp4 (file id
+  BOoNhSoKiNcm, created_at 2026-11-12 13:53:41.603549), rescanned from the folder's
+  Rescan (added=1, total=64) and indexed with clip_thumbnail, tfidf_keywords and
+  text_content as the original is. History did not move, but the checkpoint and
+  computed_at moved to 13:55:27.263628 / 1196e70e36ee3eee984d852d2ee79c41 when the
+  video row arrived and to 13:56:42.548559 / 7bc7fec2ee8868490f1e08063709f779 when its
+  embeddings did, total 61; the copy ranked 1 (0.951986) and the original 3 (0.629096),
+  same similarity and a newer date. Screenshot:
+  docs/process/reviews/feature-pickup-recency/shots/16-pickup-page-check3.png.
+  4. A PNG added to the drive root, rescanned and indexed; two further forced
+  computations left computed_at 2026-11-12 13:56:42.548559 and checkpoint
+  7bc7fec2ee8868490f1e08063709f779 unchanged.
+  5. python -m app.pickup.evaluate replay --drive 動画 printed before, depth, video,
+  after, fresh_h7_f0 through fresh_h365_f0.5, random and newest in that order, with *
+  on fresh_h365_f0; the md5 of search.db and data.db were identical before and after.
+  6. docs/user-guide/video.md (Recommended) and docs/addons/intelligence.md (Pickup)
+  match checks 1-4: newer first among equal matches, videos only, an arrival within the
+  hour, and picks that can change during the day.
+pending: none
+
 ## Ship bar (2026-11-12)
 
 Procedure: copies of the production core DB and `search.db` taken with the sqlite3
@@ -55,13 +98,6 @@ check after shipping.
   finished within a few minutes; `replay` alone was not timed separately.
 
 ## R-5 (2026-11-12)
-
-```
-ran_in_app: yes
-at: e7874b64dc6f2520955193e2e2aaec21e808b489
-by: agent
-pending: none
-```
 
 Nothing under `agent_cannot_verify` bears on this change. Playback was driven muted in
 headless Chromium, so audio and picture quality were not judged.
