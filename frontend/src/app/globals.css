@@ -873,61 +873,15 @@ pre mark.ask-citation-highlight {
 }
 
 /* ------------------------------------------------------------------
-   Media file detail: player column with an optional companion rail.
-
-   The companion must not be mounted twice — it fetches, subscribes to
-   the playback clock and holds scroll state — so the grid moves it
-   rather than the markup duplicating it.
+   Media file detail: the player column.
 
    Not a container query: `container-type` establishes a containment
    context, and on iOS Safari one wrapped around a <video> or a
    cross-origin iframe renders the whole subtree rotated and spinning.
    ------------------------------------------------------------------ */
-/* The one height budget the companion gets, so the box below the player
-   and the rail beside it cannot end up with two different answers. */
-.media-detail-host {
-  --companion-box-h: calc(var(--rail-avail, 100dvh) * 0.6);
-}
 
 .reading-measure {
   max-width: 860px;
-}
-
-.media-detail-grid {
-  display: grid;
-  gap: 1.5rem;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-areas:
-    "player"
-    "companion"
-    "rest";
-}
-
-.media-detail-player {
-  grid-area: player;
-}
-
-/* The occupant under the player gets a row, **and only when it is
-   there.** A named row is laid out whether or not anything occupies it,
-   and `gap` is drawn on **both** sides of it.
-
-   A sibling of the player rather than a box around it: sticky travels
-   only inside its own containing block, and a wrapper whose height is
-   the player's own leaves it none.
-
-   The condition has to be the occupant's own class, un-negated:
-   `:has(.media-detail-player)` and `:not(:has(…))` are both conditions
-   that read as conditional and are not. */
-.media-detail-grid:has(> .media-detail-player-aside:not(:empty)) {
-  grid-template-areas:
-    "player"
-    "player-aside"
-    "companion"
-    "rest";
-}
-
-.media-detail-player-aside {
-  grid-area: player-aside;
 }
 
 /* Expressed as a width cap rather than `max-height`, because the `.loft`
@@ -937,155 +891,11 @@ pre mark.ask-citation-highlight {
    those. */
 .media-detail-player[data-framed="true"] {
   /* `width` before the auto margins, and not optional: an auto inline
-     margin turns off a grid item's default `stretch`, and a <video> with
-     no metadata yet reports the CSS default 300x150. */
+     margin turns off a block-level box's default `stretch`, and a <video>
+     with no metadata yet reports the CSS default 300x150. */
   width: 100%;
   max-width: calc(var(--player-avail, 100dvh) * 16 / 9);
   margin-inline: auto;
-}
-.media-detail-companion { grid-area: companion; }
-.media-detail-rest { grid-area: rest; }
-
-/* The host bounds the companion in BOTH forms, not just the rail: the
-   occupant cannot know which form it is in and must not be the one
-   holding the height. */
-.media-detail-companion-inner {
-  display: flex;
-  flex-direction: column;
-  max-height: var(--companion-box-h);
-  overflow: hidden;
-}
-
-/* Lead — **must not shrink**. This container has `max-height` rather
-   than `height`, so the fill's `flex-basis: 0%` falls back to content,
-   and the lead's share of that shortfall collapses it to a sliver. The
-   cap is what bounds the lead, not shrinking. */
-.media-detail-companion-lead {
-  flex: 0 0 auto;
-  min-height: 0;
-  max-height: 12rem;
-}
-
-/* Fill — whatever the slot machinery puts here has to take the
-   remaining height and hand it on, or the occupant lays itself out at
-   full length and this box silently clips it. */
-.media-detail-companion-fill {
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 0%;
-  min-height: 0;
-}
-
-.media-detail-companion-fill > * {
-  flex: 1 1 0%;
-  min-height: 0;
-}
-
-/* Hidden until the rules below turn it on. Those carry an extra
-   attribute selector, so they win on specificity rather than on source
-   order. */
-.media-detail-layout-toggle {
-  display: none;
-}
-
-/* The rail needs BOTH a wide enough host and the viewer having asked
-   for it; either saying no leaves the stacked layout.
-
-   Threshold 60rem = 552px player + 384px rail + 24px gap. */
-[data-media-layout="beside"] [data-media-width="wide"] .media-detail-grid {
-  grid-template-columns: minmax(0, 1fr) 24rem;
-  grid-template-areas:
-    "player   companion"
-    "rest     companion";
-}
-
-/* Written out rather than inherited: `grid-template-areas` is one value,
-   so the variant above replaces the whole template and a row added only
-   to the base is lost here. */
-[data-media-layout="beside"]
-  [data-media-width="wide"]
-  .media-detail-grid:has(> .media-detail-player-aside:not(:empty)) {
-  grid-template-areas:
-    "player       companion"
-    "player-aside companion"
-    "rest         companion";
-}
-
-[data-media-width="wide"] .media-detail-layout-toggle {
-  display: inline-flex;
-}
-
-/* --rail-avail is the scroll container's visible height, measured by
-   the host. It cannot be computed in CSS: a self-scrolling pane carries
-   its own chrome as well as the app header. */
-[data-media-layout="beside"]
-  [data-media-width="wide"]
-  .media-detail-companion-inner {
-  position: sticky;
-  top: calc(var(--rail-top, 0px) + 1rem);
-  max-height: calc(var(--rail-avail, 100dvh) - 2rem);
-}
-
-/* Bounded by the measured rail as well as by the absolute value,
-   because the lead does not shrink: on a short window 22rem could be
-   most of the region, and nothing else would give it back. */
-[data-media-layout="beside"]
-  [data-media-width="wide"]
-  .media-detail-companion-lead {
-  max-height: min(22rem, calc(var(--rail-avail, 100dvh) * 0.4));
-}
-
-/* ------------------------------------------------------------------
-   The companion, below the player, on the shell.
-
-   A time-ordered transcript must not be set in two text columns, so the
-   width that is left over goes to the index instead of to a second
-   column of text. The box is bounded and scrolls inside itself: letting
-   it run to full length puts the page in motion every time playback
-   crosses a cue.
-   ------------------------------------------------------------------ */
-.media-detail-below {
-  display: flex;
-  gap: 1.5rem;
-  align-items: stretch;
-  max-height: var(--companion-box-h);
-  /* Belt and braces: an occupant that ignores `fillHeight` would
-     otherwise run past the box unnoticed. */
-  overflow: hidden;
-}
-
-/* Hidden, not removed. The occupants of this box are what report
-   whether they have anything for the file, so a box the layout dropped
-   would drop the reporters with it and freeze the answer at its first
-   guess. */
-.media-detail-below[data-occupied="false"] {
-  display: none;
-}
-
-/* The body has to claim its measure as its flex base, not merely as a
-   cap: free space is shared from the bases, so a body based at 0 hands
-   the surplus to the index. 22rem is a ceiling of its own: past it a
-   column of timestamps and short titles starts competing with what it
-   indexes. */
-.media-detail-below-index {
-  flex: 1 1 12.5rem;
-  min-width: 12.5rem;
-  max-width: 22rem;
-  min-height: 0;
-}
-
-.media-detail-below-body {
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 68ch;
-  min-width: 0;
-  min-height: 0;
-  max-width: 68ch;
-}
-
-.media-detail-below-body > * {
-  flex: 1 1 0%;
-  min-height: 0;
 }
 
 /* ------------------------------------------------------------------

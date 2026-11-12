@@ -12,12 +12,6 @@ export const SECTION_GAP_REM = 1.5;
  */
 export const CANVAS_PADDING_REM = 2;
 
-/**
- * Must stay in step with the `[data-media-width="wide"]` rules in
- * `globals.css`.
- */
-export const RAIL_MIN_REM = PLAYER_MIN_REM + COLUMN_REM + SECTION_GAP_REM;
-
 export const INSPECTOR_BESIDE_MIN_REM =
   PLAYER_MIN_REM + CANVAS_PADDING_REM + COLUMN_REM;
 

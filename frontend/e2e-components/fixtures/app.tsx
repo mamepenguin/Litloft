@@ -25,7 +25,6 @@ import { ToolbarMenu } from "@/components/ToolbarMenu";
 import { SortButton } from "@/components/SortButton";
 import { ArchiveImageViewer } from "@/components/archive/ArchiveImageViewer";
 import { FileDetailChrome } from "@/components/FileDetail/FileDetailChrome";
-import { MediaLayoutToggle } from "@/components/MediaLayoutToggle";
 import { MarkdownViewModeToggle } from "@/components/MarkdownViewModeToggle";
 import { MarkdownDocumentLayout } from "@/components/markdown/MarkdownDocumentLayout";
 import { TextLines } from "@/components/TextLines";
@@ -1669,6 +1668,19 @@ function FolderListingHeaderShallowArrangement(): ReactElement {
   );
 }
 
+/** A control in the page row, standing in for whatever sits there. */
+function RowControl(): ReactElement {
+  return (
+    <button
+      type="button"
+      aria-label="File options"
+      className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-bg-card text-text-muted"
+    >
+      <FolderTree size={16} aria-hidden />
+    </button>
+  );
+}
+
 function FileDetailChromeArrangement(): ReactElement {
   const noop = () => {};
   return (
@@ -1680,7 +1692,7 @@ function FileDetailChromeArrangement(): ReactElement {
           title={DEEP_LEAF}
           inspector={{ open: false, onToggle: noop }}
         >
-          <MediaLayoutToggle />
+          <RowControl />
         </FileDetailChrome>
       </div>
     </NextIntlClientProvider>
@@ -1879,7 +1891,7 @@ function FileDetailChromePlainPhoneArrangement(): ReactElement {
           title={DEEP_LEAF}
           inspector={{ open: false, onToggle: noop }}
         >
-          <MediaLayoutToggle />
+          <RowControl />
         </FileDetailChrome>
       </div>
     </NextIntlClientProvider>
@@ -1904,7 +1916,7 @@ function FileDetailChromeCollectionArrangement(): ReactElement {
           onBack={noop}
           inspector={{ open: false, onToggle: noop }}
         >
-          <MediaLayoutToggle />
+          <RowControl />
         </FileDetailChrome>
       </div>
     </NextIntlClientProvider>

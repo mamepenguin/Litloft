@@ -245,17 +245,12 @@ describe("SPEC-CORE-090 the collection surface's workbench", () => {
     },
   );
 
-  it("SPEC-CORE-090 I3 offers no beside/below toggle and neither reads nor removes the old preference", async () => {
-    window.localStorage.setItem("media-layout-preference", "stacked");
+  it("SPEC-CORE-090 I3 writes no panel list just by drawing the collection surface", async () => {
     claimSlot("player-side", [TRANSCRIPT]);
     await renderCollection(VIDEO);
 
     expect(toggleLabels()).toEqual(["Transcript"]);
-    expect(
-      screen.queryByRole("button", { name: /(beside|below) the player/i }),
-    ).toBeNull();
-    expect(document.documentElement.hasAttribute("data-media-layout")).toBe(false);
-    expect(window.localStorage.getItem("media-layout-preference")).toBe("stacked");
+    expect(storedPanels()).toBeNull();
   });
 
   it("SPEC-CORE-089 I9 mounts the summary note once, only as the Note panel, on a player file", async () => {

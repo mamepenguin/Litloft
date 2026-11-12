@@ -208,7 +208,7 @@
         player.append(frame);
 
         const below = document.createElement("div");
-        below.dataset.testid = "media-detail-below";
+        below.dataset.testid = "media-detail-body";
         below.style.height = `${bodyPx}px`;
         // Empty at zero, or the text gives the box a line's height.
         below.textContent = bodyPx
@@ -262,7 +262,7 @@
           "[data-testid='file-detail-canvas']",
         );
         const below = document.querySelector(
-          "[data-testid='media-detail-below']",
+          "[data-testid='media-detail-body']",
         );
 
         if (scrollTo !== undefined) scroller.scrollTop = scrollTo;

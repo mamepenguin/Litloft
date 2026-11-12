@@ -12,7 +12,6 @@ import { playerKind } from "@/lib/playerKind";
 import { useAddonSlots } from "../AddonSlotsProvider";
 import { AddonSlot } from "../AddonSlot";
 import { FilePreview } from "../FilePreview";
-import { MediaLayoutToggle } from "../MediaLayoutToggle";
 
 /**
  * Content goes outside `.media-detail-player`: that box is the playable
@@ -52,11 +51,6 @@ export interface MediaPlayerBlockProps {
    * are mounted once there instead of here.
    */
   showPreviewActions?: boolean;
-  /**
-   * `null` means the toggle is not this block's to draw — the shell puts
-   * it in the page row instead, where the confirmed layout has it.
-   */
-  layoutToggle: { railGated: boolean } | null;
 }
 
 export function MediaPlayerBlock({
@@ -81,7 +75,6 @@ export function MediaPlayerBlock({
   framed,
   bleed = false,
   showPreviewActions = true,
-  layoutToggle,
 }: MediaPlayerBlockProps) {
   const { hasSlot } = useAddonSlots();
   const aside =
@@ -131,9 +124,6 @@ export function MediaPlayerBlock({
               layout="stack"
               props={addonSlotProps}
             />
-          )}
-          {layoutToggle && (
-            <MediaLayoutToggle railGated={layoutToggle.railGated} />
           )}
         </div>
       </div>

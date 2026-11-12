@@ -122,11 +122,6 @@ async function fitRun(page: Page): Promise<(string | null)[]> {
 
 const inspectorToggle = (page: Page) => page.getByTestId("inspector-toggle");
 
-const layoutToggle = (page: Page) =>
-  page.locator(
-    '[aria-label="Move transcript below the player"], [aria-label="Move transcript beside the player"]',
-  );
-
 /**
  * The sheet's snap is a transition, so its box is still moving when the
  * drawer becomes visible; measuring mid-travel compares two different frames.
@@ -428,7 +423,7 @@ async function expectStacked(page: Page) {
   expect(controls.bottom).toBeLessThanOrEqual(viewport.height);
   expect(controls.bottom).toBeLessThanOrEqual(frame.bottom + 1);
 
-  await expect(layoutToggle(page)).toHaveCount(0);
+  await expect(page.getByRole("group", { name: "Panels" })).toHaveCount(0);
   expect(await descriptionInCanvas(page)).toBe(false);
   expect(await descriptionInInfo(page)).toBe(true);
   await expect(inspectorToggle(page).locator("svg")).toHaveClass(

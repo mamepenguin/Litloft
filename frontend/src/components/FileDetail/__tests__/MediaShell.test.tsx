@@ -131,7 +131,6 @@ beforeEach(() => {
   slotMocks.occupied.clear();
   slotMocks.entries.clear();
   window.localStorage.clear();
-  document.documentElement.removeAttribute("data-media-layout");
   setViewport();
   measureRow();
 });
@@ -177,11 +176,6 @@ async function renderMediaAwaitingChrome(
 const tabs = () =>
   screen.queryAllByRole("tab").map((tab) => tab.textContent?.trim());
 
-const layoutToggle = () =>
-  screen.queryByRole("button", {
-    name: /transcript (beside|below) the player/i,
-  });
-
 describe("media on the shell, wide", () => {
   it("grows one toggle per occupant and no panel tab", async () => {
     withTranscript();
@@ -213,7 +207,7 @@ describe("media on the shell, wide", () => {
 
     expect(screen.getAllByTestId("slot-entry-transcript")).toHaveLength(1);
     expect(screen.getAllByTestId("chapters-panel")).toHaveLength(1);
-    expect(container.querySelector(".media-detail-below")).toBeNull();
+    expect(container.querySelector(".media-detail-workbench")).not.toBeNull();
     expect(isHidden(entryNode("transcript"))).toBe(true);
   });
 
@@ -292,12 +286,13 @@ describe("media on the shell, wide", () => {
     expect(tabs()).toEqual(["Info", "Chapters"]);
   });
 
-  it("draws no beside/below toggle on the canonical page", async () => {
+  it("draws no toggle row on the canonical page on a phone", async () => {
     withTranscript();
     setViewport(400);
-    await renderMediaAwaitingChrome();
+    const { container } = await renderMediaAwaitingChrome();
 
-    expect(layoutToggle()).toBeNull();
+    expect(panelGroup()).toBeNull();
+    expect(container.querySelector(".media-detail-workbench")).toBeNull();
   });
 
   it("tells the occupant its name is already on the button", async () => {
@@ -536,34 +531,32 @@ describe("switching between the two forms", () => {
     expect(entryNode("transcript")).toBeInTheDocument();
   });
 
-  it("offers no swap from the page row", async () => {
+  it("draws the panels under the player, not in the page row", async () => {
     withTranscript();
     await renderMedia();
 
     const row = screen.getByTestId("file-detail-chrome");
-    expect(layoutToggle()).toBeNull();
+    expect(panelGroup()).not.toBeNull();
     expect(row).not.toContainElement(panelGroup());
   });
 
-  it("offers nothing when the region has no occupant to move", async () => {
+  it("draws no panel row when no panel is available", async () => {
     await renderMedia(makeFile({ has_chapters: false }));
 
-    expect(layoutToggle()).toBeNull();
     expect(panelGroup()).toBeNull();
   });
 });
 
 describe("media on the shell, on a phone", () => {
   beforeEach(() => {
-    window.localStorage.setItem("media-layout-preference", "stacked");
     setViewport(400);
   });
 
-  it("keeps the panels out of the canvas whatever the preference says", async () => {
+  it("keeps the panels out of the canvas on a phone", async () => {
     withTranscript();
     const { container } = await renderMediaAwaitingChrome();
 
-    expect(container.querySelector(".media-detail-below")).toBeNull();
+    expect(container.querySelector(".media-detail-workbench")).toBeNull();
     expect(panelGroup()).toBeNull();
     expect(screen.queryAllByTestId("slot-entry-transcript")).toHaveLength(0);
   });
@@ -773,7 +766,6 @@ describe("the sheet's half, derived from the player", () => {
   let playerBottom = PLAYER_BOTTOM;
 
   beforeEach(() => {
-    window.localStorage.setItem("media-layout-preference", "stacked");
     setViewport(400);
     setViewportHeight(VIEWPORT_HEIGHT);
     playerBottom = PLAYER_BOTTOM;
@@ -1208,7 +1200,6 @@ describe("the layout fixture's page, against the shell", () => {
     className.split(/\s+/).filter(Boolean).sort();
 
   beforeEach(() => {
-    window.localStorage.setItem("media-layout-preference", "stacked");
     setViewport(400);
   });
 
@@ -1389,6 +1380,5 @@ describe("what the canvas keeps and what the inspector takes", () => {
     await waitFor(() => {
       expect(host?.style.getPropertyValue("--rail-avail")).toBe("500px");
     });
-    expect(host?.style.getPropertyValue("--rail-top")).toBe("0px");
   });
 });

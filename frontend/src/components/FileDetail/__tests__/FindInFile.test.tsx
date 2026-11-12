@@ -2508,7 +2508,6 @@ describe("SPEC-CORE-083 083.9 find in a stacked row with the inspector closed", 
     // inspector leaves the panels under the player.
     setViewport(1024);
     window.localStorage.setItem(`inspector-open:${DRIVE}`, "false");
-    window.localStorage.setItem("media-layout-preference", "stacked");
     claimSlot("player-side", [
       { id: "transcript", label: "Transcript", priority: 10, addonName: "intelligence" },
     ]);
@@ -2526,7 +2525,7 @@ describe("SPEC-CORE-083 083.9 find in a stacked row with the inspector closed", 
   const transcriptNode = () => screen.getByTestId("slot-entry-transcript");
   const fit = () => screen.getByTestId("inspector-fit-host").dataset.inspectorFit;
 
-  it("SPEC-CORE-083 turns the stacked layout on while find is open, and back off when it closes, without writing a preference", async () => {
+  it("SPEC-CORE-083 turns the stacked layout on while find is open, and back off when it closes, without writing the panel list", async () => {
     reply = () => answer(THREE_UTTERANCES());
     await openPage(VIDEO);
     await waitFor(() => expect(fit()).toBe("stacked"));
@@ -2549,7 +2548,6 @@ describe("SPEC-CORE-083 083.9 find in a stacked row with the inspector closed", 
     expect(screen.queryByTestId("inspector-pane")).toBeNull();
     expect(transcriptNode().closest("[hidden]")).not.toBeNull();
     expect(window.localStorage.getItem(`inspector-open:${DRIVE}`)).toBe("false");
-    expect(window.localStorage.getItem("media-layout-preference")).toBe("stacked");
     expect(window.localStorage.getItem("workbench-panels")).toBeNull();
   });
 });

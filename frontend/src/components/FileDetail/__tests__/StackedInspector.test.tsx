@@ -131,7 +131,6 @@ beforeEach(() => {
   slotMocks.occupied.clear();
   slotMocks.entries.clear();
   window.localStorage.clear();
-  document.documentElement.removeAttribute("data-media-layout");
   // A tablet: not a phone, and under the 1120px viewport default.
   setViewport(1024);
   rowWidth = NARROW_ROW;
@@ -177,8 +176,6 @@ const fit = () => screen.getByTestId("inspector-fit-host").dataset.inspectorFit;
 const pane = () => screen.queryByTestId("inspector-pane");
 const infoPanel = () => document.getElementById("inspector-panel-info");
 const tabs = () => screen.queryAllByRole("tab").map((t) => t.textContent?.trim());
-const layoutToggle = () =>
-  screen.queryByRole("button", { name: /transcript (beside|below) the player/i });
 const panelGroup = () => screen.queryByRole("group", { name: "Panels" });
 
 /** The lucide icon the chrome row's inspector button draws. */
@@ -321,92 +318,86 @@ describe("SPEC-CORE-083 083.6 the inspector's default open state", () => {
   });
 });
 
-describe.each(["stacked", "beside"])(
-  "SPEC-CORE-083 the stacked layout, with media-layout-preference %s",
-  (preference) => {
-    beforeEach(() => {
-      window.localStorage.setItem("media-layout-preference", preference);
-      storeOpen(true);
-      claimSlot("player-side", [TRANSCRIPT]);
-    });
+describe("SPEC-CORE-083 the stacked layout", () => {
+  beforeEach(() => {
+    storeOpen(true);
+    claimSlot("player-side", [TRANSCRIPT]);
+  });
 
-    it("SPEC-CORE-083 I4 mounts every companion exactly once, as an inspector tab", async () => {
-      const { container } = await renderFile(VIDEO);
-      await waitFor(() => expect(fit()).toBe("stacked"));
+  it("SPEC-CORE-083 I4 mounts every panel exactly once, as an inspector tab", async () => {
+    const { container } = await renderFile(VIDEO);
+    await waitFor(() => expect(fit()).toBe("stacked"));
 
-      expect(tabs()).toEqual(expect.arrayContaining(["Info", "Chapters", "Transcript"]));
-      const transcript = screen.getAllByTestId("slot-entry-transcript");
-      const chapters = screen.getAllByTestId("chapters-panel");
-      expect(transcript).toHaveLength(1);
-      expect(chapters).toHaveLength(1);
-      expect(pane()).toContainElement(transcript[0]);
-      expect(pane()).toContainElement(chapters[0]);
-      expect(container.querySelector(".media-detail-below")).toBeNull();
-    });
+    expect(tabs()).toEqual(expect.arrayContaining(["Info", "Chapters", "Transcript"]));
+    const transcript = screen.getAllByTestId("slot-entry-transcript");
+    const chapters = screen.getAllByTestId("chapters-panel");
+    expect(transcript).toHaveLength(1);
+    expect(chapters).toHaveLength(1);
+    expect(pane()).toContainElement(transcript[0]);
+    expect(pane()).toContainElement(chapters[0]);
+    expect(container.querySelector(".media-detail-workbench")).toBeNull();
+  });
 
-    it("SPEC-CORE-083 I3 draws no layout toggle", async () => {
-      await renderFile(VIDEO);
-      await waitFor(() => expect(fit()).toBe("stacked"));
+  it("SPEC-CORE-083 I3 draws no toggle row while the inspector is open", async () => {
+    await renderFile(VIDEO);
+    await waitFor(() => expect(fit()).toBe("stacked"));
 
-      expect(layoutToggle()).toBeNull();
-    });
+    expect(panelGroup()).toBeNull();
+  });
 
-    it("SPEC-CORE-083 I3 puts the description in Info, not under the player", async () => {
-      await renderFile(VIDEO);
-      await waitFor(() => expect(fit()).toBe("stacked"));
+  it("SPEC-CORE-083 I3 puts the description in Info, not under the player", async () => {
+    await renderFile(VIDEO);
+    await waitFor(() => expect(fit()).toBe("stacked"));
 
-      const description = screen.getAllByText(DESCRIPTION);
-      expect(description).toHaveLength(1);
-      expect(infoPanel()).toContainElement(description[0]);
-    });
+    const description = screen.getAllByText(DESCRIPTION);
+    expect(description).toHaveLength(1);
+    expect(infoPanel()).toContainElement(description[0]);
+  });
 
-    it("SPEC-CORE-083 mounts the summary note once, as a panel, not at the end of Info", async () => {
-      await renderFile(VIDEO);
-      await waitFor(() => expect(fit()).toBe("stacked"));
+  it("SPEC-CORE-083 mounts the summary note once, as a panel, not at the end of Info", async () => {
+    await renderFile(VIDEO);
+    await waitFor(() => expect(fit()).toBe("stacked"));
 
-      const summary = screen.getAllByTestId("active-summary-host");
-      expect(summary).toHaveLength(1);
-      expect(
-        screen.queryAllByTestId("addon-slot-include:detailed-summary"),
-      ).toHaveLength(0);
-      expect(infoPanel()).not.toContainElement(summary[0]);
-      expect(pane()).toContainElement(summary[0]);
-    });
+    const summary = screen.getAllByTestId("active-summary-host");
+    expect(summary).toHaveLength(1);
+    expect(
+      screen.queryAllByTestId("addon-slot-include:detailed-summary"),
+    ).toHaveLength(0);
+    expect(infoPanel()).not.toContainElement(summary[0]);
+    expect(pane()).toContainElement(summary[0]);
+  });
 
-    it("SPEC-CORE-083 I3 shows PanelBottomClose on the inspector button", async () => {
-      await renderFile(VIDEO);
-      await waitFor(() => expect(fit()).toBe("stacked"));
+  it("SPEC-CORE-083 I3 shows PanelBottomClose on the inspector button", async () => {
+    await renderFile(VIDEO);
+    await waitFor(() => expect(fit()).toBe("stacked"));
 
-      expect(toggleIcon()).toBe("lucide-panel-bottom-close");
-    });
+    expect(toggleIcon()).toBe("lucide-panel-bottom-close");
+  });
 
-    it("SPEC-CORE-083 I4 writes no media-layout-preference across a form change and an inspector toggle", async () => {
-      rowWidth = WIDE_ROW;
-      await renderFile(VIDEO);
-      resizeRowTo(NARROW_ROW);
-      expect(fit()).toBe("stacked");
-      fireEvent.click(screen.getByTestId("inspector-toggle"));
-      fireEvent.click(screen.getByTestId("inspector-toggle"));
-      resizeRowTo(WIDE_ROW);
+  it("SPEC-CORE-083 I4 writes no workbench-panels across a form change and an inspector toggle", async () => {
+    rowWidth = WIDE_ROW;
+    await renderFile(VIDEO);
+    resizeRowTo(NARROW_ROW);
+    expect(fit()).toBe("stacked");
+    fireEvent.click(screen.getByTestId("inspector-toggle"));
+    fireEvent.click(screen.getByTestId("inspector-toggle"));
+    resizeRowTo(WIDE_ROW);
 
-      expect(window.localStorage.getItem("media-layout-preference")).toBe(preference);
-    });
-  },
-);
+    expect(window.localStorage.getItem("workbench-panels")).toBeNull();
+  });
+});
 
 describe("SPEC-CORE-083 form stacked with the inspector closed is today's page", () => {
   beforeEach(() => {
-    window.localStorage.setItem("media-layout-preference", "stacked");
     storeOpen(false);
     claimSlot("player-side", [TRANSCRIPT]);
   });
 
-  it("SPEC-CORE-083 I3 I4 shows PanelBottom, no layout toggle, and the panels under the player", async () => {
+  it("SPEC-CORE-083 I3 I4 shows PanelBottom, no toggle row in the pane, and the panels under the player", async () => {
     const { container } = await renderFile(VIDEO);
     await waitFor(() => expect(fit()).toBe("stacked"));
 
     expect(toggleIcon()).toBe("lucide-panel-bottom");
-    expect(layoutToggle()).toBeNull();
     expect(panelGroup()).not.toBeNull();
     expect(container.querySelector("main")).toContainElement(
       screen.getByTestId("slot-entry-transcript"),
@@ -416,7 +407,7 @@ describe("SPEC-CORE-083 form stacked with the inspector closed is today's page",
     );
     expect(container.querySelector("main")).toContainElement(panelGroup());
     expect(screen.queryByText(DESCRIPTION)).toBeNull();
-    expect(container.querySelector(".media-detail-below")).toBeNull();
+    expect(container.querySelector(".media-detail-workbench")).not.toBeNull();
   });
 
   it("SPEC-CORE-083 I2 keeps the same player element when the inspector opens and closes in stacked", async () => {
@@ -496,7 +487,6 @@ describe("SPEC-CORE-083 I2 a form change keeps what was mounted", () => {
 
 describe("SPEC-CORE-083 083.8 the first frame of a player file", () => {
   beforeEach(() => {
-    window.localStorage.setItem("media-layout-preference", "stacked");
     storeOpen(true);
     claimSlot("player-side", [TRANSCRIPT]);
   });

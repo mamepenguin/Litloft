@@ -70,7 +70,7 @@ export function FileDetailContainer({
   surface = "canonical",
 }: FileDetailContentProps) {
   const tPane = useTranslations("rightPane");
-  const { hasSlot, addons, catalogueDrive } = useAddonSlots();
+  const { addons, catalogueDrive } = useAddonSlots();
   const slotAvailability = useSlotAvailability(fileId);
   const isMobile = useIsMobile();
   const data = useFileDetailData(fileId);
@@ -167,19 +167,11 @@ export function FileDetailContainer({
    */
   const isTimedMedia = file.file_type === "video" || file.file_type === "audio";
 
-  const companionKind = playerKind(file);
+  const kind = playerKind(file);
   // Asked once and passed down. Two spellings of "does a player play
   // this" is how the description ends up rendered twice, or nowhere.
-  const hasPlayer = companionKind !== null;
-  const railEligible = companionKind === "video" || companionKind === "loft";
-  const playerFramed = railEligible;
-
-  // `companionMountable` is "could anyone fill it", and it is what
-  // decides whether the occupants are mounted at all. It must not
-  // consult availability: the occupants are what report availability, so
-  // a region unmounted because nothing was available yet would take the
-  // reporters down with it and freeze that answer for good.
-  const companionMountable = hasSlot("player-side") || data.chaptersPresent;
+  const hasPlayer = kind !== null;
+  const playerFramed = kind === "video" || kind === "loft";
 
   const isHtmlPreview = file.mime_type === "text/html";
   // Whether the Knowledge editor is the thing in the canvas. Narrower
@@ -316,9 +308,6 @@ export function FileDetailContainer({
         plainTextDocument={plainTextDocument}
         hasInspector={surface === "canonical"}
         playerFramed={playerFramed}
-        companionKind={companionKind}
-        railEligible={railEligible}
-        companionMountable={companionMountable}
         slotAvailability={slotAvailability}
         chaptersPresent={data.chaptersPresent}
         chaptersVersion={data.chaptersVersion}

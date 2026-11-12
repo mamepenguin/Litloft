@@ -38,14 +38,11 @@ export interface FileDetailPresenterProps {
   ridesShell: boolean;
   findEnabled: boolean;
   isHtmlPreview: boolean;
-  companionKind: string | null;
   hasPlayer: boolean;
   usesCanvasViewer: boolean;
   plainTextDocument: boolean;
   hasInspector: boolean;
   playerFramed: boolean;
-  railEligible: boolean;
-  companionMountable: boolean;
   slotAvailability: SlotAvailability;
   chaptersPresent: boolean;
   chaptersVersion: number;
@@ -157,7 +154,7 @@ function CollectionPlayerCanvas({
     <div
       className="media-detail-host w-full p-4 [&>*+*]:mt-4"
       data-collection-workbench="true"
-      style={mediaHostStyle(metrics, miniPlayerRoot)}
+      style={mediaHostStyle(metrics)}
     >
       <MediaPlayerBlock
         file={file}
@@ -178,7 +175,6 @@ function CollectionPlayerCanvas({
         playerWrapperRef={metrics.playerWrapperRef}
         framed={playerFramed}
         showPreviewActions={false}
-        layoutToggle={null}
       />
       <Workbench
         items={items}
@@ -208,14 +204,11 @@ export function FileDetailPresenter({
   ridesShell,
   findEnabled,
   isHtmlPreview,
-  companionKind,
   hasPlayer,
   usesCanvasViewer,
   plainTextDocument,
   hasInspector,
   playerFramed,
-  railEligible,
-  companionMountable,
   slotAvailability,
   chaptersPresent,
   chaptersVersion,
@@ -344,7 +337,6 @@ export function FileDetailPresenter({
   return (
     <FileDetailCanvas
       file={file}
-      fileId={fileId}
       videoRef={videoRef}
       initialTime={initialTime}
       initialPage={initialPage}
@@ -360,18 +352,7 @@ export function FileDetailPresenter({
       autoPlay={autoPlay}
       metrics={metrics}
       addonSlotProps={addonSlotProps}
-      mediaController={mediaController}
-      chaptersPresent={chaptersPresent}
-      chaptersVersion={chaptersVersion}
-      onChaptersResolved={onChaptersResolved}
-      companionKind={companionKind}
-      railEligible={railEligible}
       playerFramed={playerFramed}
-      // The legacy stack keeps the mountable question: it has no split
-      // between mounting an occupant and drawing chrome around it, so
-      // gating the mount on availability would unmount the occupant
-      // that reports it and freeze the answer at its first guess.
-      companionMountable={companionMountable}
       rest={rest}
     />
   );

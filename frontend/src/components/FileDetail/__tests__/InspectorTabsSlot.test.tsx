@@ -151,7 +151,6 @@ beforeEach(() => {
   slotMocks.entries.clear();
   publishedPdfState.value = null;
   window.localStorage.clear();
-  document.documentElement.removeAttribute("data-media-layout");
   setViewport();
   measureRow(900);
 });

@@ -14,7 +14,6 @@ interface MediaCanvasProps
     | "playerWrapperRef"
     | "framed"
     | "bleed"
-    | "layoutToggle"
     | "showPreviewActions"
   > {
   file: FileItem;
@@ -53,7 +52,7 @@ export function MediaCanvas({
     <div
       className={MEDIA_HOST_CLASS}
       data-workbench={workbenchActive ? "on" : undefined}
-      style={mediaHostStyle(metrics, miniPlayerRoot)}
+      style={mediaHostStyle(metrics)}
     >
       <MediaPlayerBlock
         {...playerProps}
@@ -64,7 +63,6 @@ export function MediaCanvas({
         framed={framed}
         bleed={isDocumentViewer(file.mime_type)}
         showPreviewActions={showPreviewActions}
-        layoutToggle={null}
       />
 
       {workbench}

@@ -18,8 +18,10 @@ import {
 import {
   entryNode,
   panelCard,
+  panelGroup,
   shownPanels,
   storePanels,
+  storedPanels,
   toggleLabels,
 } from "./workbenchHelpers";
 
@@ -207,9 +209,6 @@ describe("FileDetailContent workbench (collection route)", () => {
     const { container } = await renderFile(makeFile());
     const host = container.querySelector<HTMLElement>(".media-detail-host");
     await waitFor(() => {
-      expect(host?.style.getPropertyValue("--rail-top")).toBe(
-        "var(--app-header-h, 0px)",
-      );
       expect(host?.style.getPropertyValue("--rail-avail")).toBe("612px");
       expect(host?.style.getPropertyValue("--player-avail")).toBe("508px");
     });
@@ -275,7 +274,6 @@ describe("FileDetailContent workbench (collection route)", () => {
 
     const host = container.querySelector<HTMLElement>(".media-detail-host");
     await waitFor(() => {
-      expect(host?.style.getPropertyValue("--rail-top")).toBe("0px");
       expect(host?.style.getPropertyValue("--rail-avail")).toBe("500px");
       expect(host?.style.getPropertyValue("--player-avail")).toBe("402px");
     });
@@ -494,13 +492,12 @@ describe("FileDetailContent workbench (collection route)", () => {
   });
 });
 
-describe("FileDetailContent layout toggle", () => {
+describe("FileDetailContent collection panels", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     usePolicyMock.mockReturnValue({ enabled: true, isLoading: false });
     slotMocks.occupied.clear();
     slotMocks.entries.clear();
-    document.documentElement.removeAttribute("data-media-layout");
     window.localStorage.clear();
   });
 
@@ -514,44 +511,37 @@ describe("FileDetailContent layout toggle", () => {
     return utils;
   }
 
-  const toggle = () =>
-    screen.queryByRole("button", { name: /transcript (beside|below) the player/i });
-
-  it("offers no swap for a video with an occupant", async () => {
+  it("draws the panel row for a video with a panel", async () => {
     claimSlot("player-side", [TRANSCRIPT]);
     await renderFile(makeFile());
-    expect(toggle()).toBeNull();
+    expect(toggleLabels()).toEqual(["Transcript"]);
   });
 
-  it("offers no swap for audio, which never had a rail", async () => {
+  it("draws the panel row for audio too", async () => {
     claimSlot("player-side", [TRANSCRIPT]);
     await renderFile(
       makeFile({ filename: "ep.mp3", file_type: "audio", mime_type: "audio/mpeg" }),
     );
-    expect(toggle()).toBeNull();
+    expect(toggleLabels()).toEqual(["Transcript"]);
   });
 
-  it("offers no swap when no panel is available", async () => {
+  it("draws no panel row when no panel is available", async () => {
     await renderFile(makeFile());
-    expect(toggle()).toBeNull();
+    expect(panelGroup()).toBeNull();
   });
 
-  it("offers no swap for a chapters-only file", async () => {
+  it("makes chapters a toggle once the file's chapters are known", async () => {
     await renderFile(makeFile({ has_chapters: true }));
-    expect(toggle()).toBeNull();
+    fireEvent.click(screen.getByTestId("chapters-resolved-some"));
+
+    await waitFor(() => expect(toggleLabels()).toEqual(["Chapters"]));
   });
 
-  it("neither reads nor writes the old preference, and removes no stored value", async () => {
-    window.localStorage.setItem("media-layout-preference", "stacked");
+  it("writes no panel list just by drawing the page", async () => {
     claimSlot("player-side", [TRANSCRIPT]);
     await renderFile(makeFile());
 
-    expect(document.documentElement.hasAttribute("data-media-layout")).toBe(
-      false,
-    );
-    expect(window.localStorage.getItem("media-layout-preference")).toBe(
-      "stacked",
-    );
+    expect(storedPanels()).toBeNull();
   });
 
   it("draws the workbench instead of moving the panel between forms", async () => {
@@ -574,7 +564,6 @@ describe("FileDetailContent workbench width", () => {
     usePolicyMock.mockReturnValue({ enabled: true, isLoading: false });
     slotMocks.occupied.clear();
     slotMocks.entries.clear();
-    document.documentElement.removeAttribute("data-media-layout");
     resizeCallbacks = [];
     class ResizeObserverMock {
       constructor(callback: () => void) {
