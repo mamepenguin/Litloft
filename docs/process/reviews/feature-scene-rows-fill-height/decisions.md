@@ -48,3 +48,14 @@ evidence: Ran on the e2e-components fixture app, not the Docker stack. The fixtu
   (a) D2 says two panels side by side at 1024x1400 give 4 columns x 4 rows. Observed: 3 columns x 3 rows, from opening and from toggling, with slack 45.5 against a 115.6 step, so the I1 rule holds for that box. The design canvas title for Two.dc.html ("3 x 3") and the acceptance test (AT_THREE, which expects 3 rows) agree with what was observed.
   (b) D6 says the phone sheet at its full snap gives 4 rows of 3 columns. Observed at 390x844: 3 rows of 3, slack 28 against a 96.1 step. 4 rows appear at 390x1000. The Phone.dc.html canvas title ("3 rows at full; 4 rows from a 1000px screen height") agrees with what was observed.
 pending: Pictures, video and playback as seen and heard (agent_cannot_verify). The real stack: real ffmpeg frames and their ratio arriving over the network, and the first-load volume of R x c picture requests (spec section 10). These cannot be exercised on the fixture with stubbed blank pictures. The sheet drag on a real touch device and iOS Safari. Mobile was checked only as Chromium Pixel 5 emulation with CDP touch events.
+
+## Spec design statements that differ from the rule, decided by the human 2026-11-12
+
+- D2 (two panels at 1024x1400, "4x4") and D6 (phone full snap at 390x844, "4 rows"): accepted. The I1 rule is the standard; the design numbers were estimated before the real hosts were measured. The artboards Two.dc.html (3x3) and Phone.dc.html (3 rows at 844, 4 from 1000) were redrawn to the measured values.
+
+## Design differences (design-check.md, first check), decided by the human 2026-11-12
+
+- D-1: accepted. The play/time button in the design's action row is a mock control for trying playback inside the mock, carried over from the earlier Wide.dc.html. The product never had it, and the spec keeps the action row as it is.
+- D-2: accepted. The scene card's background matching the workbench panel predates this change (the workbench); not touched here.
+- D-3: accepted. Screenshots are light theme only; this change touches no colour.
+- D-4: accepted. The action row was not in frame in the scrolled 900px and tablet shots; its look is unchanged by this change and its order was measured in the other states.
