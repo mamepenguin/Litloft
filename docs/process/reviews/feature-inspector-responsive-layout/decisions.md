@@ -162,3 +162,17 @@ evidence: |
     r5/744x1133-video-sheet-transcript-tab-dark.png (MiniPortrait), r5/390x844-video-sheet-info-dark-artboard-PhoneInfo.png.
     The other screenshots are in the light scheme.
 pending: The iOS app on a real device (rotation between forms, full-screen playback, PiP) per agent_cannot_verify; audio/video as seen and heard.
+
+## Design differences (design-check.md at 4efad1144)
+
+Decided by the owner in the session on 2026-11-12, by id:
+
+- D-1, D-10: fixed in ef4c02629 (rule and rhythm of the Info header block).
+- D-3: fixed in ef4c02629 and the follow-up that puts the duration beside the title
+  (stacked Info header on one row, sections at full width).
+- D-4: accepted. The frame follows the spec's cap (half the row less the bars); the
+  artboard's 536x301 is slightly over that cap.
+- D-2, D-5, D-6, D-7, D-8, D-9, D-11: accepted for this change. They are differences in
+  parts this branch does not change (section labels, the player's compact controls, the
+  transcript's line length, the phone top bar, the chips' unset state, the toggle's
+  pressed background); the artboards simplify them.
