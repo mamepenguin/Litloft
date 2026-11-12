@@ -1089,6 +1089,179 @@ pre mark.ask-citation-highlight {
 }
 
 /* ------------------------------------------------------------------
+   The workbench under the player.
+
+   The host claims the scroll container's visible height only while a panel
+   is shown, so the panels reach the bottom of the viewport and the player is
+   capped at half of it. Without a panel the host keeps its content height
+   and the player is its full size.
+   ------------------------------------------------------------------ */
+.media-detail-host[data-workbench="on"] {
+  display: flex;
+  flex-direction: column;
+  min-height: var(--rail-avail, 100dvh);
+}
+
+.media-detail-host[data-workbench="on"] > .media-detail-player,
+.media-detail-host[data-workbench="on"] > .media-detail-player-aside {
+  flex: 0 0 auto;
+}
+
+.media-detail-host[data-workbench="on"]
+  .media-detail-player[data-framed="true"] {
+  max-width: calc(
+    var(--rail-avail, 100dvh) * var(--workbench-player-share, 0.5) * 16 / 9
+  );
+}
+
+.media-detail-workbench {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  gap: 0.75rem;
+}
+
+.media-detail-workbench-row {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.media-detail-workbench-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.media-detail-workbench-actions {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+
+.workbench-toggle {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0 0.875rem;
+  border: 1px solid transparent;
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  transition:
+    color 150ms,
+    border-color 150ms;
+}
+
+.workbench-toggle:hover {
+  color: var(--color-text-primary);
+}
+
+.workbench-toggle.is-on {
+  border-color: var(--color-accent);
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+@media (pointer: coarse) {
+  .workbench-toggle {
+    min-height: 2.75rem;
+  }
+}
+
+.media-detail-workbench-grid {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 1rem;
+  min-width: 0;
+  min-height: 0;
+}
+
+.media-detail-workbench[data-workbench-width="wide"]
+  .media-detail-workbench-grid {
+  flex-direction: row;
+  align-items: stretch;
+}
+
+.media-detail-workbench[data-workbench-width="narrow"]
+  .media-detail-workbench-grid {
+  flex-direction: column;
+}
+
+.media-detail-workbench-panel {
+  display: flex;
+  flex: 1 1 0%;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-bg-border);
+  border-radius: 12px;
+  background: var(--color-bg-card);
+}
+
+.media-detail-workbench-panel[hidden] {
+  display: none;
+}
+
+.media-detail-workbench-panel-header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.5rem 0.5rem 0.875rem;
+  border-bottom: 1px solid var(--color-bg-border);
+}
+
+.media-detail-workbench-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 8px;
+  color: var(--color-text-muted);
+}
+
+.media-detail-workbench-close:hover {
+  background: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+}
+
+.media-detail-workbench-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+  padding: 0.5rem 0.875rem 0.875rem;
+}
+
+.media-detail-workbench-body > * {
+  flex: 1 1 0%;
+  min-height: 0;
+}
+
+/* The collection surface gives the panels together 60% of the visible
+   height and no floor on the player. A gap between stacked panels would
+   make their combined height exceed that budget. */
+.media-detail-host[data-collection-workbench="true"]
+  .media-detail-workbench-grid {
+  flex: 0 0 auto;
+  height: max(18rem, calc(var(--rail-avail, 100dvh) * 0.6));
+  gap: 0;
+}
+
+/* ------------------------------------------------------------------
    The inspector, when the row cannot hold it beside the canvas.
 
    It keeps its width and covers the canvas instead of narrowing it:

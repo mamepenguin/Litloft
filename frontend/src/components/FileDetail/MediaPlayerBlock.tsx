@@ -48,6 +48,11 @@ export interface MediaPlayerBlockProps {
   framed: boolean;
   bleed?: boolean;
   /**
+   * False where the shell moves the actions onto the workbench row, so they
+   * are mounted once there instead of here.
+   */
+  showPreviewActions?: boolean;
+  /**
    * `null` means the toggle is not this block's to draw — the shell puts
    * it in the page row instead, where the confirmed layout has it.
    */
@@ -75,6 +80,7 @@ export function MediaPlayerBlock({
   playerWrapperRef,
   framed,
   bleed = false,
+  showPreviewActions = true,
   layoutToggle,
 }: MediaPlayerBlockProps) {
   const { hasSlot } = useAddonSlots();
@@ -119,11 +125,13 @@ export function MediaPlayerBlock({
           data-preview-actions="true"
           className="flex items-center justify-end gap-2 px-3 pt-2 empty:hidden"
         >
-          <AddonSlot
-            id="file-preview-actions"
-            layout="stack"
-            props={addonSlotProps}
-          />
+          {showPreviewActions && (
+            <AddonSlot
+              id="file-preview-actions"
+              layout="stack"
+              props={addonSlotProps}
+            />
+          )}
           {layoutToggle && (
             <MediaLayoutToggle railGated={layoutToggle.railGated} />
           )}

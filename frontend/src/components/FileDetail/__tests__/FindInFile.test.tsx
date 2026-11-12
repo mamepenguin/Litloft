@@ -2505,7 +2505,7 @@ describe("SPEC-CORE-028 I3 the chip text", () => {
 describe("SPEC-CORE-083 083.9 find in a stacked row with the inspector closed", () => {
   beforeEach(() => {
     // A tablet with a narrow row: the form is stacked, and the closed
-    // inspector leaves the companion in the canvas under preference stacked.
+    // inspector leaves the panels under the player.
     setViewport(1024);
     window.localStorage.setItem(`inspector-open:${DRIVE}`, "false");
     window.localStorage.setItem("media-layout-preference", "stacked");
@@ -2522,29 +2522,34 @@ describe("SPEC-CORE-083 083.9 find in a stacked row with the inspector closed", 
     vi.restoreAllMocks();
   });
 
-  const below = () => document.querySelector(".media-detail-below");
+  const panels = () => screen.queryByRole("group", { name: "パネル" });
+  const transcriptNode = () => screen.getByTestId("slot-entry-transcript");
   const fit = () => screen.getByTestId("inspector-fit-host").dataset.inspectorFit;
 
   it("SPEC-CORE-083 turns the stacked layout on while find is open, and back off when it closes, without writing a preference", async () => {
     reply = () => answer(THREE_UTTERANCES());
     await openPage(VIDEO);
     await waitFor(() => expect(fit()).toBe("stacked"));
-    expect(below()).not.toBeNull();
+    await waitFor(() => expect(panels()).not.toBeNull());
+    expect(transcriptNode().closest("[hidden]")).not.toBeNull();
 
     const input = await openBar();
     typeInto(input, TERM);
 
-    await waitFor(() => expect(below()).toBeNull());
+    await waitFor(() => expect(panels()).toBeNull());
     expect(screen.getAllByTestId("slot-entry-transcript")).toHaveLength(1);
     expect(screen.getByTestId("inspector-pane")).toContainElement(
-      screen.getByTestId("slot-entry-transcript"),
+      transcriptNode(),
     );
 
     fireEvent.keyDown(focusedInput(), { key: "Escape" });
 
-    await waitFor(() => expect(below()).not.toBeNull());
+    await waitFor(() => expect(panels()).not.toBeNull());
     expect(fit()).toBe("stacked");
+    expect(screen.queryByTestId("inspector-pane")).toBeNull();
+    expect(transcriptNode().closest("[hidden]")).not.toBeNull();
     expect(window.localStorage.getItem(`inspector-open:${DRIVE}`)).toBe("false");
     expect(window.localStorage.getItem("media-layout-preference")).toBe("stacked");
+    expect(window.localStorage.getItem("workbench-panels")).toBeNull();
   });
 });

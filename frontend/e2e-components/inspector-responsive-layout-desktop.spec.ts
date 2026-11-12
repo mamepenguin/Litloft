@@ -194,7 +194,8 @@ test("the pane at 1180×820: the strip is the first row and the header is at the
   const title = await box(page, "#inspector-panel-info h1");
   expect(title!.top).toBeGreaterThanOrEqual(strip!.bottom);
 
-  await page.getByRole("tab", { name: "Transcript" }).click();
+  await expect(page.getByRole("group", { name: "Panels" })).toBeVisible();
+  await page.getByRole("tab", { name: "Chapters" }).click();
   await expect(page.locator("#inspector-panel-info")).toBeHidden();
   await expect(page.locator("#inspector-panel-info h1")).toBeHidden();
   await expect(
@@ -612,28 +613,28 @@ test("find with the inspector closed in a stacked row restores the canvas scroll
   page,
 }) => {
   await page.setViewportSize({ width: 900, height: 700 });
-  await page.addInitScript(() =>
-    localStorage.setItem("inspector-open:fixture", "false"),
-  );
+  await page.addInitScript(() => {
+    localStorage.setItem("inspector-open:fixture", "false");
+    localStorage.setItem("workbench-panels", JSON.stringify(["transcript"]));
+  });
   await open(page, VIDEO);
   await expect(page.getByTestId("inspector-fit-host")).toHaveAttribute(
     "data-inspector-fit",
     "stacked",
   );
 
-  await page
-    .getByRole("button", { name: "Move transcript below the player" })
-    .click();
-  await expect(
-    page.locator('.media-detail-below [data-testid="fixture-transcript"]'),
-  ).toBeVisible();
+  await expect(page.getByTestId("fixture-transcript")).toBeVisible();
 
   const canvas = page.locator("main");
-  await canvas.evaluate((element) => {
-    element.scrollTop = 300;
-  });
+  const target = await canvas.evaluate((element) =>
+    Math.min(300, Math.max(0, element.scrollHeight - element.clientHeight)),
+  );
+  expect(target).toBeGreaterThan(0);
+  await canvas.evaluate((element, value) => {
+    element.scrollTop = value;
+  }, target);
   await expect.poll(() => canvas.evaluate((element) => element.scrollTop)).toBe(
-    300,
+    target,
   );
 
   await page.getByTestId("find-button").click();
@@ -644,8 +645,9 @@ test("find with the inspector closed in a stacked row restores the canvas scroll
   await page.getByRole("button", { name: "Close find" }).click();
 
   await expect(page.getByTestId("inspector-pane")).toHaveCount(0);
+  await expect(page.getByTestId("fixture-transcript")).toBeVisible();
   await expect.poll(() => canvas.evaluate((element) => element.scrollTop)).toBe(
-    300,
+    target,
   );
 });
 

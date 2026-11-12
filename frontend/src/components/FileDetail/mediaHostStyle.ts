@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 
+import { WORKBENCH_PLAYER_SHARE } from "@/lib/layoutSizes";
 import type { CompanionMetrics } from "./hooks/useCompanionMetrics";
 
 /**
@@ -17,5 +18,6 @@ export function mediaHostStyle(
     ...(playerAvailable != null
       ? { "--player-avail": `${playerAvailable}px` }
       : {}),
+    "--workbench-player-share": String(WORKBENCH_PLAYER_SHARE),
   } as CSSProperties;
 }

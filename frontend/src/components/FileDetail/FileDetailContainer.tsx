@@ -14,7 +14,6 @@ import {
   type FileDetailSurface,
 } from "@/lib/fileDetailShell";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { useInspectorForm } from "@/hooks/useInspectorForm";
 import { usePolicy } from "@/hooks/usePolicy";
 import { useAddonSlots } from "../AddonSlotsProvider";
 import { MarkdownAwareTagChips } from "../MarkdownAwareTagChips";
@@ -28,7 +27,6 @@ import { useFileDetailData } from "./hooks/useFileDetailData";
 import { FileDetailSkeleton } from "./FileDetailSkeleton";
 import { usePlainTextDocument } from "./hooks/usePlainTextDocument";
 import {
-  slotAvailabilityKey,
   useSlotAvailability,
 } from "./hooks/useSlotAvailability";
 import {
@@ -72,7 +70,7 @@ export function FileDetailContainer({
   surface = "canonical",
 }: FileDetailContentProps) {
   const tPane = useTranslations("rightPane");
-  const { getSlotEntries, hasSlot, addons, catalogueDrive } = useAddonSlots();
+  const { hasSlot, addons, catalogueDrive } = useAddonSlots();
   const slotAvailability = useSlotAvailability(fileId);
   const isMobile = useIsMobile();
   const data = useFileDetailData(fileId);
@@ -132,9 +130,6 @@ export function FileDetailContainer({
   const scrollRoot = ridesShell ? shellScrollRoot : (miniPlayerRoot ?? null);
 
   const metrics = useCompanionMetrics(file?.id, scrollRoot);
-  // In the stacked layout the canvas has no room for a description under the
-  // player: it belongs to the header block at the top of Info, with the title.
-  const { stacked: stackedLayout } = useInspectorForm(fileId);
 
   const handleMediaController = useCallback(
     (mc: MediaController | null) => {
@@ -185,11 +180,6 @@ export function FileDetailContainer({
   // a region unmounted because nothing was available yet would take the
   // reporters down with it and freeze that answer for good.
   const companionMountable = hasSlot("player-side") || data.chaptersPresent;
-  const companionOccupied =
-    data.chaptersPresent ||
-    getSlotEntries("player-side").some((entry) =>
-      slotAvailability.isAvailable(slotAvailabilityKey("player-side", entry.id)),
-    );
 
   const isHtmlPreview = file.mime_type === "text/html";
   // Whether the Knowledge editor is the thing in the canvas. Narrower
@@ -217,8 +207,6 @@ export function FileDetailContainer({
    * A PDF's is a property of the file, so it stays with the title and
    * the size where every other kind's is.
    */
-  const descriptionInCanvas = ridesShell && hasPlayer;
-
   const tagChipNode = (
     <MarkdownAwareTagChips
       fileId={fileId}
@@ -278,7 +266,6 @@ export function FileDetailContainer({
         videoRef={videoRef}
         addonSlotProps={addonSlotProps}
         tagChips={tagChipNode}
-        hoistDescription={descriptionInCanvas && !stackedLayout}
         inspector={ridesShell}
       />
     </div>
@@ -328,14 +315,11 @@ export function FileDetailContainer({
         usesCanvasViewer={usesCanvasViewer}
         plainTextDocument={plainTextDocument}
         hasInspector={surface === "canonical"}
-        descriptionInCanvas={descriptionInCanvas}
         playerFramed={playerFramed}
         companionKind={companionKind}
         railEligible={railEligible}
         companionMountable={companionMountable}
-        companionOccupied={companionOccupied}
         slotAvailability={slotAvailability}
-        isTimedMedia={isTimedMedia}
         chaptersPresent={data.chaptersPresent}
         chaptersVersion={data.chaptersVersion}
         onChaptersResolved={data.onChaptersResolved}

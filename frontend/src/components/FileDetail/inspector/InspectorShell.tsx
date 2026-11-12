@@ -11,6 +11,7 @@ import {
 import { useTranslations } from "next-intl";
 
 import { listedTabs, showsTabStrip, type InspectorTab } from "./tabs";
+import { InspectorActiveTabContext } from "./activeTab";
 
 /**
  * `column` makes the whole inspector one column: the inspector adds no
@@ -125,6 +126,7 @@ export function InspectorShell({
   }, [column, strip]);
 
   return (
+    <InspectorActiveTabContext.Provider value={active?.id ?? null}>
     <div
       ref={rootRef}
       data-testid="inspector-shell"
@@ -221,5 +223,6 @@ export function InspectorShell({
         );
       })}
     </div>
+    </InspectorActiveTabContext.Provider>
   );
 }

@@ -27,6 +27,15 @@ export interface BuildInspectorTabsInput {
     available?: boolean;
   }>;
   /**
+   * Drawn after `addonTabs` and before `inspectorTabs`. Used for a core tab
+   * that has to follow a slot's tabs, such as Related on a player file.
+   */
+  postAddonTabs?: Array<{
+    id: string;
+    label: string;
+    content: ReactNode | null;
+  }>;
+  /**
    * Drawn after `addonTabs` whatever the priorities say. Here an entry
    * that has not answered is unlisted: only `true` gives it a button.
    */
@@ -43,6 +52,7 @@ export function buildInspectorTabs({
   info,
   coreTabs = [],
   addonTabs = [],
+  postAddonTabs = [],
   inspectorTabs = [],
 }: BuildInspectorTabsInput): InspectorTab[] {
   return [
@@ -68,6 +78,14 @@ export function buildInspectorTabs({
         label: tab.label,
         content: tab.content,
         listed: tab.available !== false,
+      })),
+    ...postAddonTabs
+      .filter((tab) => tab.content != null && tab.content !== false)
+      .map((tab) => ({
+        id: tab.id,
+        label: tab.label,
+        content: tab.content,
+        listed: true,
       })),
     ...sortSlotEntries(
       inspectorTabs.map((tab) => ({ ...tab, priority: tab.entry.priority })),

@@ -162,6 +162,10 @@ function storeOpen(open: boolean) {
   window.localStorage.setItem(inspectorOpenStorageKey("main"), String(open));
 }
 
+function storePanels(ids: unknown) {
+  window.localStorage.setItem("workbench-panels", JSON.stringify(ids));
+}
+
 async function renderFile(file: FileItem = VIDEO) {
   setApiResponses(file);
   const utils = render(<FileDetailContent fileId={file.id} drive="main" />);
@@ -175,6 +179,7 @@ const infoPanel = () => document.getElementById("inspector-panel-info");
 const tabs = () => screen.queryAllByRole("tab").map((t) => t.textContent?.trim());
 const layoutToggle = () =>
   screen.queryByRole("button", { name: /transcript (beside|below) the player/i });
+const panelGroup = () => screen.queryByRole("group", { name: "Panels" });
 
 /** The lucide icon the chrome row's inspector button draws. */
 function toggleIcon(): string | null {
@@ -355,16 +360,17 @@ describe.each(["stacked", "beside"])(
       expect(infoPanel()).toContainElement(description[0]);
     });
 
-    it("SPEC-CORE-083 puts the summaries at the end of Info, once each", async () => {
+    it("SPEC-CORE-083 mounts the summary note once, as a panel, not at the end of Info", async () => {
       await renderFile(VIDEO);
       await waitFor(() => expect(fit()).toBe("stacked"));
 
       const summary = screen.getAllByTestId("active-summary-host");
-      const detailed = screen.getAllByTestId("addon-slot-include:detailed-summary");
       expect(summary).toHaveLength(1);
-      expect(detailed).toHaveLength(1);
-      expect(infoPanel()).toContainElement(summary[0]);
-      expect(infoPanel()).toContainElement(detailed[0]);
+      expect(
+        screen.queryAllByTestId("addon-slot-include:detailed-summary"),
+      ).toHaveLength(0);
+      expect(infoPanel()).not.toContainElement(summary[0]);
+      expect(pane()).toContainElement(summary[0]);
     });
 
     it("SPEC-CORE-083 I3 shows PanelBottomClose on the inspector button", async () => {
@@ -395,32 +401,38 @@ describe("SPEC-CORE-083 form stacked with the inspector closed is today's page",
     claimSlot("player-side", [TRANSCRIPT]);
   });
 
-  it("SPEC-CORE-083 I3 I4 shows PanelBottom, the layout toggle, the description and the companion in the canvas", async () => {
+  it("SPEC-CORE-083 I3 I4 shows PanelBottom, no layout toggle, and the panels under the player", async () => {
     const { container } = await renderFile(VIDEO);
     await waitFor(() => expect(fit()).toBe("stacked"));
 
     expect(toggleIcon()).toBe("lucide-panel-bottom");
-    expect(layoutToggle()).not.toBeNull();
+    expect(layoutToggle()).toBeNull();
+    expect(panelGroup()).not.toBeNull();
     expect(container.querySelector("main")).toContainElement(
-      screen.getByText(DESCRIPTION),
+      screen.getByTestId("slot-entry-transcript"),
     );
-    const below = container.querySelector(".media-detail-below");
-    expect(below).not.toBeNull();
-    expect(below).toContainElement(screen.getByTestId("slot-entry-transcript"));
+    expect(container.querySelector(".media-detail-workbench-grid")).toContainElement(
+      screen.getByTestId("slot-entry-transcript"),
+    );
+    expect(container.querySelector("main")).toContainElement(panelGroup());
+    expect(screen.queryByText(DESCRIPTION)).toBeNull();
+    expect(container.querySelector(".media-detail-below")).toBeNull();
   });
 
   it("SPEC-CORE-083 I2 keeps the same player element when the inspector opens and closes in stacked", async () => {
     await renderFile(VIDEO);
     await waitFor(() => expect(fit()).toBe("stacked"));
     const player = screen.getByTestId("file-preview");
+    expect(panelGroup()).not.toBeNull();
 
     fireEvent.click(screen.getByTestId("inspector-toggle"));
-    await waitFor(() => expect(layoutToggle()).toBeNull());
+    await waitFor(() => expect(panelGroup()).toBeNull());
     expect(screen.getByTestId("file-preview")).toBe(player);
     expect(infoPanel()).toContainElement(screen.getByText(DESCRIPTION));
+    expect(tabs()).toContain("Transcript");
 
     fireEvent.click(screen.getByTestId("inspector-toggle"));
-    await waitFor(() => expect(layoutToggle()).not.toBeNull());
+    await waitFor(() => expect(panelGroup()).not.toBeNull());
     expect(screen.getByTestId("file-preview")).toBe(player);
   });
 });
@@ -452,10 +464,9 @@ describe("SPEC-CORE-083 083.7 the inspector button's icon in every form", () => 
 });
 
 describe("SPEC-CORE-083 I2 a form change keeps what was mounted", () => {
-  it("SPEC-CORE-083 I2 keeps the player, the pane, the Info panel and a tab listed on both sides", async () => {
-    // Preference beside: the transcript is a tab on both sides of the crossing.
-    window.localStorage.setItem("media-layout-preference", "beside");
+  it("SPEC-CORE-083 I2 keeps the player, the pane and Info, and moves the panel to a tab", async () => {
     storeOpen(true);
+    storePanels(["transcript"]);
     claimSlot("player-side", [TRANSCRIPT]);
     rowWidth = WIDE_ROW;
     await renderFile(VIDEO);
@@ -466,6 +477,7 @@ describe("SPEC-CORE-083 I2 a form change keeps what was mounted", () => {
       info: infoPanel(),
       transcript: screen.getByTestId("slot-entry-transcript"),
     };
+    expect(panelGroup()).not.toBeNull();
 
     resizeRowTo(NARROW_ROW);
     expect(fit()).toBe("stacked");
@@ -473,7 +485,12 @@ describe("SPEC-CORE-083 I2 a form change keeps what was mounted", () => {
     expect(screen.getByTestId("file-preview")).toBe(before.player);
     expect(screen.getByTestId("inspector-pane")).toBe(before.pane);
     expect(infoPanel()).toBe(before.info);
-    expect(screen.getByTestId("slot-entry-transcript")).toBe(before.transcript);
+    // A form change remounts the panel by design; it is a tab now.
+    expect(tabs()).toContain("Transcript");
+    expect(panelGroup()).toBeNull();
+    expect(screen.getByTestId("slot-entry-transcript")).not.toBe(
+      before.transcript,
+    );
   });
 });
 
@@ -498,11 +515,11 @@ describe("SPEC-CORE-083 083.8 the first frame of a player file", () => {
 
     expect(fit()).toBeUndefined();
     expect(deferred()).toEqual({
-      description: 0,
+      description: 1,
       summary: 0,
       detailed: 0,
       transcript: 0,
-      chapters: 0,
+      chapters: 1,
     });
   });
 
@@ -516,7 +533,7 @@ describe("SPEC-CORE-083 083.8 the first frame of a player file", () => {
     expect(deferred()).toEqual({
       description: 1,
       summary: 1,
-      detailed: 1,
+      detailed: 0,
       transcript: 1,
       chapters: 1,
     });

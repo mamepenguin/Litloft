@@ -26,6 +26,19 @@ import {
   withRelations,
   shellLoaded,
 } from "./harness";
+import {
+  NARROW_ROW,
+  WIDE_ROW,
+  entryNode,
+  installRow,
+  isHidden,
+  panelCard,
+  panelGroup,
+  resizeRowTo,
+  shownPanels,
+  storePanels,
+  toggleLabels,
+} from "./workbenchHelpers";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/drive/main",
@@ -169,19 +182,21 @@ const layoutToggle = () =>
     name: /transcript (beside|below) the player/i,
   });
 
-describe("media on the shell, beside", () => {
-  it("grows one tab per occupant and no more", async () => {
+describe("media on the shell, wide", () => {
+  it("grows one toggle per occupant and no panel tab", async () => {
     withTranscript();
     await renderMedia();
 
-    expect(tabs()).toEqual(["Info", "Chapters", "Transcript"]);
+    expect(toggleLabels()).toEqual(["Transcript"]);
+    expect(tabs()).toEqual(["Info", "Chapters"]);
   });
 
   it("leaves the chapters tab out for a file that has none", async () => {
     withTranscript();
     await renderMedia(makeFile({ has_chapters: false }));
 
-    expect(tabs()).toEqual(["Info", "Transcript"]);
+    expect(toggleLabels()).toEqual(["Transcript"]);
+    expect(tabs()).toEqual([]);
   });
 
   it("draws no strip at all when the file has only Info", async () => {
@@ -189,15 +204,17 @@ describe("media on the shell, beside", () => {
 
     expect(tabs()).toEqual([]);
     expect(screen.queryByTestId("inspector-tabs")).toBeNull();
+    expect(panelGroup()).toBeNull();
   });
 
-  it("mounts the occupant in the tab and nowhere else", async () => {
+  it("mounts the occupant in the workbench and nowhere else", async () => {
     withTranscript();
     const { container } = await renderMedia();
 
     expect(screen.getAllByTestId("slot-entry-transcript")).toHaveLength(1);
     expect(screen.getAllByTestId("chapters-panel")).toHaveLength(1);
     expect(container.querySelector(".media-detail-below")).toBeNull();
+    expect(isHidden(entryNode("transcript"))).toBe(true);
   });
 
   it("gives every tab the touch floor, on the row", async () => {
@@ -227,16 +244,16 @@ describe("media on the shell, beside", () => {
     withTranscript();
     await renderMedia();
 
-    expect(tabs()).toEqual(["Info", "Chapters", "Transcript"]);
+    expect(tabs()).toEqual(["Info", "Chapters"]);
     expect(screen.queryByTestId("related-panel")).toBeNull();
   });
 
-  it("lists Related after the core tabs and before the addon tabs when the file has a relation", async () => {
+  it("lists Related after the core tabs when the file has a relation", async () => {
     withTranscript();
     withRelations(2);
     await renderMedia();
 
-    expect(tabs()).toEqual(["Info", "Chapters", "Related", "Transcript"]);
+    expect(tabs()).toEqual(["Info", "Chapters", "Related"]);
     const panel = screen.getByTestId("related-panel");
     expect(panel).toHaveAttribute("data-count", "2");
     expect(
@@ -272,10 +289,10 @@ describe("media on the shell, beside", () => {
     withTranscript();
     await renderMedia();
 
-    expect(tabs()).toEqual(["Info", "Chapters", "Transcript"]);
+    expect(tabs()).toEqual(["Info", "Chapters"]);
   });
 
-  it("keeps the beside/below toggle off a phone", async () => {
+  it("draws no beside/below toggle on the canonical page", async () => {
     withTranscript();
     setViewport(400);
     await renderMediaAwaitingChrome();
@@ -308,217 +325,229 @@ describe("document viewers bleed to the canvas edges", () => {
 });
 
 describe("an occupant with nothing for this file", () => {
-  it("loses its tab but not its mount", async () => {
+  it("loses its toggle but not its mount", async () => {
     withTranscript();
     await renderMedia();
-    expect(tabs()).toEqual(["Info", "Chapters", "Transcript"]);
-    const before = screen.getByTestId("slot-entry-transcript");
+    expect(toggleLabels()).toEqual(["Transcript"]);
+    const before = entryNode("transcript");
 
     fireEvent.click(screen.getByTestId("slot-entry-transcript-empty"));
 
-    expect(tabs()).toEqual(["Info", "Chapters"]);
-    expect(screen.getByTestId("slot-entry-transcript")).toBe(before);
+    expect(panelGroup()).toBeNull();
+    expect(entryNode("transcript")).toBe(before);
+    expect(isHidden(before)).toBe(true);
   });
 
-  it("gets the tab back the moment it has something", async () => {
+  it("gets the toggle back the moment it has something", async () => {
     withTranscript();
     await renderMedia();
     fireEvent.click(screen.getByTestId("slot-entry-transcript-empty"));
-    expect(tabs()).toEqual(["Info", "Chapters"]);
+    expect(panelGroup()).toBeNull();
 
     fireEvent.click(screen.getByTestId("slot-entry-transcript-filled"));
 
-    expect(tabs()).toEqual(["Info", "Chapters", "Transcript"]);
+    expect(toggleLabels()).toEqual(["Transcript"]);
   });
 
-  it("takes the layout toggle with it when it is the only occupant", async () => {
+  it("draws no row once its only toggle is gone", async () => {
     withTranscript();
     await renderMedia(makeFile({ has_chapters: false }));
-    expect(layoutToggle()).not.toBeNull();
+    expect(panelGroup()).not.toBeNull();
 
     fireEvent.click(screen.getByTestId("slot-entry-transcript-empty"));
 
-    expect(layoutToggle()).toBeNull();
+    expect(panelGroup()).toBeNull();
   });
 
-  it("leaves the toggle alone while core still fills the region", async () => {
+  it("keeps the chapters tab while the only panel answers false", async () => {
     withTranscript();
     await renderMedia(makeFile({ has_chapters: true }));
+    expect(tabs()).toEqual(["Info", "Chapters"]);
 
     fireEvent.click(screen.getByTestId("slot-entry-transcript-empty"));
 
-    expect(layoutToggle()).not.toBeNull();
+    expect(tabs()).toEqual(["Info", "Chapters"]);
   });
 
   it("forgets the answer when the reader opens another file", async () => {
     withTranscript();
     const { rerender } = await renderMedia();
     fireEvent.click(screen.getByTestId("slot-entry-transcript-empty"));
-    expect(tabs()).toEqual(["Info", "Chapters"]);
+    expect(panelGroup()).toBeNull();
 
     setApiResponses(makeFile({ id: "f2", has_chapters: true }));
     rerender(<FileDetailContent fileId="f2" drive="main" />);
     await loaded();
+    await rowMeasured();
 
-    expect(tabs()).toEqual(["Info", "Chapters", "Transcript"]);
+    expect(toggleLabels()).toEqual(["Transcript"]);
   });
 });
 
-describe("an occupant with nothing for this file, below", () => {
-  beforeEach(() => {
-    window.localStorage.setItem("media-layout-preference", "stacked");
-  });
-
-  it("hides the box without unmounting what is in it", async () => {
+describe("a stored panel that has nothing for this file", () => {
+  it("hides the card without unmounting what is in it", async () => {
     withTranscript();
-    const { container } = await renderMedia(makeFile({ has_chapters: false }));
-    const box = () => container.querySelector(".media-detail-below");
-    expect(box()).toHaveAttribute("data-occupied", "true");
-    const before = screen.getByTestId("slot-entry-transcript");
+    storePanels(["transcript"]);
+    await renderMedia(makeFile({ has_chapters: false }));
+    expect(shownPanels()).toEqual(["Transcript"]);
+    const before = entryNode("transcript");
 
     fireEvent.click(screen.getByTestId("slot-entry-transcript-empty"));
 
-    expect(box()).toHaveAttribute("data-occupied", "false");
-    expect(screen.getByTestId("slot-entry-transcript")).toBe(before);
+    expect(shownPanels()).toEqual([]);
+    expect(entryNode("transcript")).toBe(before);
+    expect(isHidden(before)).toBe(true);
 
     fireEvent.click(screen.getByTestId("slot-entry-transcript-filled"));
-    expect(box()).toHaveAttribute("data-occupied", "true");
+    expect(shownPanels()).toEqual(["Transcript"]);
   });
 
   it("keeps the order the addons declared", async () => {
     // Declared out of order on purpose: with them already sorted an
     // unsorted build would be indistinguishable from a sorted one.
     claimSlot("player-side", [
-      { ...TRANSCRIPT, id: "late", priority: 90 },
-      { ...TRANSCRIPT, id: "early", priority: 10 },
+      { ...TRANSCRIPT, id: "late", label: "Late", priority: 90 },
+      { ...TRANSCRIPT, id: "early", label: "Early", priority: 10 },
     ]);
-    const { container } = await renderMedia();
+    storePanels(["late", "early"]);
+    await renderMedia();
 
-    const body = container.querySelector(".media-detail-below-body")!;
-    const ids = [...body.querySelectorAll("[data-testid^='slot-entry-']")]
+    expect(shownPanels()).toEqual(["Early", "Late"]);
+    const ids = [...document.querySelectorAll("[data-testid^='slot-entry-']")]
       .map((node) => node.getAttribute("data-testid"))
       .filter((id) => id && !id.endsWith("-empty") && !id.endsWith("-filled"));
     expect(ids).toEqual(["slot-entry-early", "slot-entry-late"]);
   });
 
-  it("does not claim the canvas already named the occupant", async () => {
+  it("names the panel in the host's heading", async () => {
     withTranscript();
+    storePanels(["transcript"]);
     await renderMedia();
 
-    expect(screen.getByTestId("slot-entry-transcript")).toHaveAttribute(
+    expect(entryNode("transcript")).toHaveAttribute(
       "data-labelled-by-host",
-      "false",
+      "true",
     );
+    expect(panelCard("Transcript")).toContainElement(entryNode("transcript"));
   });
 });
 
-describe("media on the shell, below", () => {
-  beforeEach(() => {
-    window.localStorage.setItem("media-layout-preference", "stacked");
-  });
-
-  it("puts the companion in the canvas and takes the strip away", async () => {
+describe("media on the shell, panels under the player", () => {
+  it("draws a stored panel as a card in the canvas and keeps it out of the strip", async () => {
     withTranscript();
-    const { container } = await renderMedia();
+    storePanels(["transcript"]);
+    await renderMedia();
 
-    const box = container.querySelector(".media-detail-below");
-    expect(box).not.toBeNull();
-    expect(box!.querySelector(".media-detail-below-index")).not.toBeNull();
-    expect(box!.querySelector(".media-detail-below-body")).not.toBeNull();
-    expect(tabs()).toEqual([]);
+    expect(shownPanels()).toEqual(["Transcript"]);
+    expect(panelCard("Transcript")).toContainElement(entryNode("transcript"));
+    expect(tabs()).toEqual(["Info", "Chapters"]);
+    expect(tabs()).not.toContain("Transcript");
   });
 
   it("still mounts each occupant exactly once", async () => {
     withTranscript();
-    const { container } = await renderMedia();
+    storePanels(["transcript"]);
+    await renderMedia();
 
     const entries = screen.getAllByTestId("slot-entry-transcript");
     expect(entries).toHaveLength(1);
-    expect(container.querySelector(".media-detail-below-body")).toContainElement(
-      entries[0],
-    );
-    expect(tabs()).toEqual([]);
+    expect(panelCard("Transcript")).toContainElement(entries[0]);
+    expect(tabs()).toEqual(["Info", "Chapters"]);
     expect(screen.getAllByTestId("chapters-panel")).toHaveLength(1);
   });
 
-  it("draws no box at all when nothing would go in it", async () => {
+  it("draws no panel area at all when nothing would go in it", async () => {
     const { container } = await renderMedia(makeFile({ has_chapters: false }));
 
     expect(container.querySelector(".media-detail-below")).toBeNull();
-    expect(layoutToggle()).toBeNull();
+    expect(panelGroup()).toBeNull();
+    expect(shownPanels()).toEqual([]);
   });
 
-  it("gives the body the index's width back when there are no chapters", async () => {
+  it("gives the card the full width when there are no chapters", async () => {
     withTranscript();
-    const { container } = await renderMedia(makeFile({ has_chapters: false }));
+    storePanels(["transcript"]);
+    await renderMedia(makeFile({ has_chapters: false }));
 
-    const box = container.querySelector(".media-detail-below");
-    expect(box).not.toBeNull();
-    expect(box!.querySelector(".media-detail-below-index")).toBeNull();
-    expect(box!.querySelector(".media-detail-below-body")).not.toBeNull();
+    expect(panelCard("Transcript")).toContainElement(entryNode("transcript"));
+    expect(
+      panelCard("Transcript").querySelector("[data-testid='chapters-panel']"),
+    ).toBeNull();
   });
 });
 
 describe("switching between the two forms", () => {
-  it("moves the companion without rebuilding the player", async () => {
+  it("moves a panel between the workbench and the tabs without rebuilding the player", async () => {
+    installRow(WIDE_ROW);
     withTranscript();
-    const { container } = await renderMedia();
+    storePanels(["transcript"]);
+    await renderMedia();
     const player = screen.getByTestId("file-preview");
-    expect(container.querySelector(".media-detail-below")).toBeNull();
+    expect(shownPanels()).toEqual(["Transcript"]);
+    expect(tabs()).not.toContain("Transcript");
 
-    fireEvent.click(layoutToggle()!);
+    resizeRowTo(NARROW_ROW);
 
-    await waitFor(() =>
-      expect(container.querySelector(".media-detail-below")).not.toBeNull(),
-    );
+    await waitFor(() => expect(tabs()).toContain("Transcript"));
+    expect(panelGroup()).toBeNull();
+    expect(shownPanels()).toEqual([]);
     expect(screen.getByTestId("file-preview")).toBe(player);
-    const entries = screen.getAllByTestId("slot-entry-transcript");
-    expect(entries).toHaveLength(1);
-    expect(container.querySelector(".media-detail-below-body")).toContainElement(
-      entries[0],
-    );
+
+    resizeRowTo(WIDE_ROW);
+
+    await waitFor(() => expect(shownPanels()).toEqual(["Transcript"]));
+    expect(tabs()).not.toContain("Transcript");
+    expect(screen.getByTestId("file-preview")).toBe(player);
   });
 
-  it("opens the inspector when the swap puts the panel in it", async () => {
-    window.localStorage.setItem("media-layout-preference", "stacked");
+  it("moves the panel into the tabs when the inspector opens in a narrow row", async () => {
+    installRow(NARROW_ROW);
     window.localStorage.setItem(inspectorOpenStorageKey("main"), "false");
     withTranscript();
+    storePanels(["transcript"]);
     await renderMediaAwaitingChrome();
     expect(screen.queryByTestId("inspector-pane")).toBeNull();
+    expect(shownPanels()).toEqual(["Transcript"]);
 
-    fireEvent.click(layoutToggle()!);
+    fireEvent.click(screen.getByTestId("inspector-toggle"));
 
     await screen.findByTestId("inspector-pane");
-    expect(screen.getAllByTestId("slot-entry-transcript")).toHaveLength(1);
+    expect(panelGroup()).toBeNull();
+    expect(tabs()).toContain("Transcript");
+    expect(screen.getByTestId("inspector-pane")).toContainElement(
+      entryNode("transcript"),
+    );
   });
 
   it("leaves the inspector alone going the other way", async () => {
-    window.localStorage.setItem(inspectorOpenStorageKey("main"), "false");
+    installRow(NARROW_ROW);
     withTranscript();
-    const { container } = await renderMediaAwaitingChrome();
+    storePanels(["transcript"]);
+    await renderMedia();
+    expect(screen.getByTestId("inspector-pane")).toBeInTheDocument();
+    expect(tabs()).toContain("Transcript");
 
-    fireEvent.click(layoutToggle()!);
+    fireEvent.click(screen.getByTestId("inspector-toggle"));
 
-    expect(screen.queryByTestId("inspector-pane")).toBeNull();
-    const entries = screen.getAllByTestId("slot-entry-transcript");
-    expect(entries).toHaveLength(1);
-    expect(container.querySelector(".media-detail-below-body")).toContainElement(
-      entries[0],
-    );
+    await waitFor(() => expect(screen.queryByTestId("inspector-pane")).toBeNull());
+    expect(shownPanels()).toEqual(["Transcript"]);
+    expect(entryNode("transcript")).toBeInTheDocument();
   });
 
-  it("offers the swap from the page row", async () => {
+  it("offers no swap from the page row", async () => {
     withTranscript();
     await renderMedia();
 
     const row = screen.getByTestId("file-detail-chrome");
-    expect(row).toContainElement(layoutToggle());
+    expect(layoutToggle()).toBeNull();
+    expect(row).not.toContainElement(panelGroup());
   });
 
   it("offers nothing when the region has no occupant to move", async () => {
     await renderMedia(makeFile({ has_chapters: false }));
 
     expect(layoutToggle()).toBeNull();
+    expect(panelGroup()).toBeNull();
   });
 });
 
@@ -528,11 +557,13 @@ describe("media on the shell, on a phone", () => {
     setViewport(400);
   });
 
-  it("keeps the companion out of the canvas whatever the preference says", async () => {
+  it("keeps the panels out of the canvas whatever the preference says", async () => {
     withTranscript();
     const { container } = await renderMediaAwaitingChrome();
 
     expect(container.querySelector(".media-detail-below")).toBeNull();
+    expect(panelGroup()).toBeNull();
+    expect(screen.queryAllByTestId("slot-entry-transcript")).toHaveLength(0);
   });
 
   it("rests at the peek row, with the file's name and its actions", async () => {
@@ -602,7 +633,7 @@ describe("media on the shell, on a phone", () => {
     fireEvent.click(screen.getByTestId("inspector-toggle"));
     await screen.findByTestId("mobile-inspector-sheet");
 
-    expect(tabs()).toEqual(["Info", "Chapters", "Related", "Transcript"]);
+    expect(tabs()).toEqual(["Info", "Chapters", "Transcript", "Related"]);
     expect(screen.getAllByTestId("related-panel")).toHaveLength(1);
   });
 
@@ -710,15 +741,15 @@ describe("media on the shell, on a phone", () => {
     expect(screen.getAllByTestId("slot-entry-transcript")).toHaveLength(1);
   });
 
-  it("hands the heavy summaries to the sheet and not also to the canvas", async () => {
+  it("draws the summary note only through the Note panel, inside the sheet", async () => {
     await renderMediaAwaitingChrome(makeFile({ has_chapters: false }));
     fireEvent.click(screen.getByTestId("inspector-toggle"));
     await screen.findByTestId("mobile-inspector-sheet");
 
     expect(screen.getAllByTestId("active-summary-host")).toHaveLength(1);
     expect(
-      screen.getAllByTestId("addon-slot-include:detailed-summary"),
-    ).toHaveLength(1);
+      screen.queryAllByTestId("addon-slot-include:detailed-summary"),
+    ).toHaveLength(0);
     expect(screen.getByTestId("mobile-inspector-sheet")).toContainElement(
       screen.getByTestId("active-summary-host"),
     );
@@ -1274,14 +1305,15 @@ describe("the pseudo-fullscreen fixture's chain, against the shell", () => {
 });
 
 describe("what the canvas keeps and what the inspector takes", () => {
-  it("shows the description in the canvas, not the inspector", async () => {
+  it("shows the description in Info, not under the player", async () => {
     const { container } = await renderMedia(
       makeFile({ has_chapters: false, description: "Recorded on location." }),
     );
 
     const description = screen.getByText("Recorded on location.");
-    expect(container.querySelector("main")).toContainElement(description);
-    expect(screen.getByTestId("inspector-pane")).not.toContainElement(
+    const info = document.getElementById("inspector-panel-info")!;
+    expect(info).toContainElement(description);
+    expect(container.querySelector(".media-detail-host")).not.toContainElement(
       description,
     );
   });

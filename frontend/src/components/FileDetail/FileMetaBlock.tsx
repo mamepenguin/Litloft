@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode, RefObject } from "react";
+import { useEffect, useState } from "react";
 import { primaryMetaLine } from "@/lib/primaryMeta";
 import type { MediaController } from "@/lib/mediaController";
 import type { FileItem } from "@/types";
@@ -28,7 +29,6 @@ interface FileMetaBlockProps {
   videoRef: RefObject<HTMLVideoElement | null>;
   addonSlotProps: Record<string, unknown>;
   tagChips: ReactNode;
-  hoistDescription?: boolean;
   /**
    * The block is the top of the inspector's Info tab, so it ends with the
    * rule that separates it from the sections below.
@@ -56,10 +56,16 @@ export function FileMetaBlock({
   videoRef,
   addonSlotProps,
   tagChips,
-  hoistDescription = false,
   inspector = false,
 }: FileMetaBlockProps) {
   const metaLine = primaryMetaLine(file);
+  // Above the swap to the editor, so saving an edit keeps the description
+  // expanded. A new file or a new mount starts collapsed.
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
+
+  useEffect(() => {
+    setDescriptionExpanded(false);
+  }, [file.id]);
 
   return (
     <div
@@ -92,14 +98,14 @@ export function FileMetaBlock({
               {metaLine}
             </div>
           )}
-          {!hoistDescription && (
-            <FileDescription
-              file={file}
-              isTimedMedia={isTimedMedia}
-              mediaController={mediaController}
-              className="mt-1"
-            />
-          )}
+          <FileDescription
+            file={file}
+            isTimedMedia={isTimedMedia}
+            mediaController={mediaController}
+            className="mt-1"
+            expanded={descriptionExpanded}
+            onToggleExpanded={() => setDescriptionExpanded((value) => !value)}
+          />
           {/* Also drawn by the sheet's peek row on a phone — in one of
               the two places, never both: the strip exists only while
               the sheet is resting, and this block only while it is up. */}

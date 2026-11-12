@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 
 import { FileDetailContent } from "../../FileDetailContent";
 import type { FileItem } from "@/types";
@@ -8,6 +8,7 @@ import {
   claimSlot,
   loaded,
   makeFile,
+  measureRow,
   publishedPdfState,
   relationMocks,
   setApiResponses,
@@ -152,6 +153,7 @@ beforeEach(() => {
   window.localStorage.clear();
   document.documentElement.removeAttribute("data-media-layout");
   setViewport();
+  measureRow(900);
 });
 
 async function renderKind(kind: Partial<FileItem>) {
@@ -164,6 +166,11 @@ async function renderKind(kind: Partial<FileItem>) {
   );
   const utils = render(<FileDetailContent fileId="f1" drive="main" />);
   await loaded();
+  await waitFor(() =>
+    expect(screen.getByTestId("inspector-fit-host")).toHaveAttribute(
+      "data-inspector-fit",
+    ),
+  );
   return utils;
 }
 
@@ -195,15 +202,17 @@ function propsOf(node: Element): Record<string, unknown> {
 
 describe("SPEC-CORE-036 I10 - an inspector-tabs entry is a tab on every file page with an inspector", () => {
   it.each(KINDS)(
-    "%s lists it after Info once it reports available",
+    "%s lists it after Info, and drops it when it answers false",
     async (_name, kind) => {
       claimSlot("inspector-tabs", [ASK]);
       await renderKind(kind);
 
-      // Silence is unavailable on this slot: nothing has been claimed yet.
+      // Silence is available on this slot, as on a player-side entry.
+      expect(tabs()).toEqual(["Info", "Ask"]);
+      report("ask", false);
       expect(tabs()).toEqual([]);
-      report("ask", true);
 
+      report("ask", true);
       expect(tabs()).toEqual(["Info", "Ask"]);
     },
   );
@@ -225,9 +234,6 @@ describe("SPEC-CORE-036 I10 - an inspector-tabs entry is a tab on every file pag
     claimSlot("inspector-tabs", [{ ...ASK, priority: 1 }]);
     await renderKind({ ...VIDEO, has_chapters: true });
 
-    expect(tabs()).toEqual(["Info", "Chapters", "Transcript"]);
-    report("ask", true);
-
     expect(tabs()).toEqual(["Info", "Chapters", "Transcript", "Ask"]);
   });
 
@@ -235,7 +241,6 @@ describe("SPEC-CORE-036 I10 - an inspector-tabs entry is a tab on every file pag
     withRelations(1);
     claimSlot("inspector-tabs", [ASK]);
     await renderKind(VIDEO);
-    report("ask", true);
 
     expect(tabs()).toEqual(["Info", "Related", "Ask"]);
   });
@@ -252,13 +257,13 @@ describe("SPEC-CORE-036 I10 - an inspector-tabs entry is a tab on every file pag
   });
 });
 
-describe("SPEC-CORE-036 I10 - an inspector-tabs entry that has not reported is unavailable", () => {
-  it("keeps it mounted, with no button, until it answers", async () => {
+describe("SPEC-CORE-036 I10 - an inspector-tabs entry that says nothing keeps its tab", () => {
+  it("keeps it mounted, and leaves it listed until it answers", async () => {
     claimSlot("inspector-tabs", [ASK]);
     await renderKind(PDF);
 
     const before = entryNode("ask");
-    expect(tabs()).not.toContain("Ask");
+    expect(tabs()).toEqual(["Info", "Ask"]);
 
     report("ask", false);
     expect(tabs()).not.toContain("Ask");
@@ -268,11 +273,12 @@ describe("SPEC-CORE-036 I10 - an inspector-tabs entry that has not reported is u
     expect(tabs()).toEqual(["Info", "Ask"]);
   });
 
-  it.each(KINDS)("%s draws no tab for an entry that stays silent", async (_name, kind) => {
+  it.each(KINDS)("%s draws no tab once the entry says it has nothing", async (_name, kind) => {
     claimSlot("inspector-tabs", [ASK]);
     await renderKind(kind);
 
-    expect(screen.queryAllByRole("tab")).toHaveLength(0);
+    report("ask", false);
+    expect(tabs()).toEqual([]);
     expect(entryNode("ask")).toBeInTheDocument();
   });
 });
@@ -290,12 +296,8 @@ describe("SPEC-CORE-036 I10 - an id shared with another slot or a core tab does 
     claimSlot("inspector-tabs", [ASK]);
     await renderKind(VIDEO);
 
-    // The player-side entry is silent, and silence means available there.
-    expect(tabs()).toEqual(["Info", "Player Ask"]);
-    report("ask", true);
+    // Both are silent, and silence means available on each slot.
     expect(tabs()).toEqual(["Info", "Player Ask", "Ask"]);
-
-    // Saying no for one slot's entry must not take the other one's tab.
     report("ask", false);
     expect(tabs()).toEqual(["Info", "Player Ask"]);
 
@@ -328,8 +330,6 @@ describe("SPEC-CORE-036 I10 - an id shared with another slot or a core tab does 
     claimSlot("inspector-tabs", [{ ...ASK, id: "pages", label: "Pages" }]);
     await renderKind(PDF);
 
-    expect(tabs()).toEqual(["Info", "Pages"]);
-    report("pages", true);
     expect(tabs()).toEqual(["Info", "Pages", "Pages"]);
 
     const tabButtons = screen.getAllByRole("tab");

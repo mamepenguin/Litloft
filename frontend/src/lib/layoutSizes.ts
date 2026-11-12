@@ -29,6 +29,18 @@ export const INSPECTOR_BESIDE_MIN_REM =
 export const STACKED_PLAYER_SHARE = 0.5;
 
 /**
+ * The width at which two workbench panels sit side by side. Below it they
+ * stack, and share the panel region's height equally.
+ */
+export const WORKBENCH_COLUMNS_MIN_REM = 41;
+
+/** The panel region's floor. Below it the page scrolls instead of shrinking. */
+export const WORKBENCH_MIN_REM = 18;
+
+/** A framed player's cap while a panel is shown under it. */
+export const WORKBENCH_PLAYER_SHARE = 0.5;
+
+/**
  * The canvas's scrollbar is deliberately not a term here: whether there is
  * one depends on the canvas width this decides, and on overlay scrollbars
  * it is 0.

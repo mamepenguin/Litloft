@@ -15,6 +15,21 @@ import {
   usePolicyMock,
   withRelations,
 } from "./harness";
+import {
+  entryNode,
+  panelCard,
+  shownPanels,
+  storePanels,
+  toggleLabels,
+} from "./workbenchHelpers";
+
+const TRANSCRIPT = {
+  id: "transcript",
+  label: "Transcript",
+  priority: 10,
+  addonName: "intelligence",
+};
+const TIE = { id: "tie", label: "Tie", priority: 50, addonName: "other" };
 
 // `vi.mock` has to stay in this file because it is hoisted per file.
 
@@ -97,13 +112,14 @@ vi.mock("../../SidebarProvider", async () => {
 
 /**
  * The collection-playback route's layout (`?collection=` or `?folder_play=1`).
- * It is still shipped behaviour, not a leftover of the older stack.
+ * It has no inspector, so every available panel is a workbench panel.
  */
-describe("FileDetailContent companion region (collection route)", () => {
+describe("FileDetailContent workbench (collection route)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     usePolicyMock.mockReturnValue({ enabled: true, isLoading: false });
     slotMocks.occupied.clear();
+    slotMocks.entries.clear();
   });
 
   afterEach(() => {
@@ -111,10 +127,6 @@ describe("FileDetailContent companion region (collection route)", () => {
     vi.restoreAllMocks();
     document.documentElement.style.removeProperty("--app-header-h");
   });
-
-  function grid(container: HTMLElement) {
-    return container.querySelector(".media-detail-grid");
-  }
 
   async function renderFile(file: FileItem) {
     setApiResponses(file);
@@ -126,6 +138,12 @@ describe("FileDetailContent companion region (collection route)", () => {
     return utils;
   }
 
+  function chaptersLoaded() {
+    for (const button of screen.queryAllByTestId("chapters-resolved-some")) {
+      fireEvent.click(button);
+    }
+  }
+
   it.each([
     ["a PDF", "application/pdf"],
     ["an EPUB", "application/epub+zip"],
@@ -134,46 +152,29 @@ describe("FileDetailContent companion region (collection route)", () => {
     expect(container.querySelector("[data-bleed]")).toBeNull();
   });
 
-  it("renders nothing at all when no addon claims the slot", async () => {
+  it("draws no row when no panel is available", async () => {
     const { container } = await renderFile(makeFile());
 
     expect(screen.queryByTestId("addon-slot-player-side")).toBeNull();
-    expect(grid(container)).toBeNull();
+    expect(container.querySelector(".media-detail-grid")).toBeNull();
+    expect(toggleLabels()).toBeNull();
   });
 
-  it("wraps the player on the no-companion, promoted, and grid branches", async () => {
-    const noCompanion = await renderFile(makeFile());
+  it("draws the player, the row and the panels in one column", async () => {
+    claimSlot("player-side", [TRANSCRIPT]);
+    const { container } = await renderFile(makeFile());
+
     expect(
-      noCompanion.container.querySelector(
+      container.querySelector(
         ".media-detail-player > [data-testid='file-preview']",
       ),
     ).not.toBeNull();
-    noCompanion.unmount();
-
-    slotMocks.occupied.add("player-side");
-    const promoted = await renderFile(
-      makeFile({
-        filename: "ep.mp3",
-        file_type: "audio",
-        mime_type: "audio/mpeg",
-      }),
-    );
-    expect(
-      promoted.container.querySelector(
-        ".media-detail-player > [data-testid='file-preview']",
-      ),
-    ).not.toBeNull();
-    promoted.unmount();
-
-    const gridLayout = await renderFile(makeFile());
-    expect(
-      gridLayout.container.querySelector(
-        ".media-detail-grid .media-detail-player > [data-testid='file-preview']",
-      ),
-    ).not.toBeNull();
+    expect(container.querySelector(".media-detail-grid")).toBeNull();
+    expect(container.querySelector(".media-detail-workbench")).not.toBeNull();
+    expect(toggleLabels()).toEqual(["Transcript"]);
   });
 
-  it("publishes both height budgets without a companion and recomputes them", async () => {
+  it("publishes both height budgets without a panel and recomputes them", async () => {
     let resize: (() => void) | undefined;
     class ResizeObserverMock {
       constructor(callback: () => void) {
@@ -221,7 +222,7 @@ describe("FileDetailContent companion region (collection route)", () => {
     expect(host?.style.getPropertyValue("--rail-avail")).toBe("736px");
   });
 
-  it("keeps the existing rail budgets exact in a self-scrolling pane", async () => {
+  it("keeps the height budgets exact in a self-scrolling pane", async () => {
     let resize: (() => void) | undefined;
     class ResizeObserverMock {
       constructor(callback: () => void) {
@@ -290,12 +291,12 @@ describe("FileDetailContent companion region (collection route)", () => {
     );
   });
 
-  it("gives video the rail layout", async () => {
-    slotMocks.occupied.add("player-side");
+  it("gives video the workbench under the player", async () => {
+    claimSlot("player-side", [TRANSCRIPT]);
     const { container } = await renderFile(makeFile());
 
-    expect(screen.getByTestId("addon-slot-player-side")).toBeInTheDocument();
-    expect(grid(container)).not.toBeNull();
+    expect(container.querySelector(".media-detail-grid")).toBeNull();
+    expect(toggleLabels()).toEqual(["Transcript"]);
   });
 
   it("marks video and .loft as framed, and nothing else", async () => {
@@ -325,8 +326,8 @@ describe("FileDetailContent companion region (collection route)", () => {
     ).toBeUndefined();
   });
 
-  it("gives .loft the rail layout even though its file_type is video", async () => {
-    slotMocks.occupied.add("player-side");
+  it("gives .loft the workbench under the player even though its file_type is video", async () => {
+    claimSlot("player-side", [TRANSCRIPT]);
     const { container } = await renderFile(
       makeFile({
         filename: "clip.loft",
@@ -334,23 +335,24 @@ describe("FileDetailContent companion region (collection route)", () => {
       }),
     );
 
-    expect(grid(container)).not.toBeNull();
+    expect(container.querySelector(".media-detail-grid")).toBeNull();
+    expect(toggleLabels()).toEqual(["Transcript"]);
   });
 
-  it("never gives audio the rail, but still shows the companion", async () => {
+  it("gives audio the workbench instead of a rail", async () => {
     // The audio player is ~200px tall; a column beside it would leave
-    // half the width empty. It keeps the promoted position instead.
-    slotMocks.occupied.add("player-side");
+    // half the width empty.
+    claimSlot("player-side", [TRANSCRIPT]);
     const { container } = await renderFile(
       makeFile({ filename: "ep.mp3", file_type: "audio", mime_type: "audio/mpeg" }),
     );
 
-    expect(screen.getByTestId("addon-slot-player-side")).toBeInTheDocument();
-    expect(grid(container)).toBeNull();
+    expect(container.querySelector(".media-detail-grid")).toBeNull();
+    expect(toggleLabels()).toEqual(["Transcript"]);
   });
 
-  it("places the audio companion directly below the player", async () => {
-    slotMocks.occupied.add("player-side");
+  it("places the audio panels directly below the player", async () => {
+    claimSlot("player-side", [TRANSCRIPT]);
     withRelations(1);
     const { container } = await renderFile(
       makeFile({ filename: "ep.mp3", file_type: "audio", mime_type: "audio/mpeg" }),
@@ -358,53 +360,44 @@ describe("FileDetailContent companion region (collection route)", () => {
 
     const order = Array.from(
       container.querySelectorAll(
-        "[data-testid='file-preview'], [data-testid='addon-slot-player-side'], [data-testid='related-panel']",
+        "[data-testid='file-preview'], [role='group'], [data-testid='related-panel']",
       ),
-    ).map((el) => el.getAttribute("data-testid"));
+    ).map((el) => el.getAttribute("data-testid") ?? "panels");
 
-    expect(order).toEqual([
-      "file-preview",
-      "addon-slot-player-side",
-      "related-panel",
-    ]);
+    expect(order).toEqual(["file-preview", "panels", "related-panel"]);
   });
 
-  it("gives the rail to a file with chapters and no addon occupant", async () => {
+  it("gives Chapters a toggle on a file that has them", async () => {
     const { container } = await renderFile(makeFile({ has_chapters: true }));
+    chaptersLoaded();
 
-    expect(screen.getByTestId("chapters-panel")).toBeInTheDocument();
-    expect(screen.queryByTestId("addon-slot-player-side")).toBeInTheDocument();
-    expect(grid(container)).not.toBeNull();
+    expect(toggleLabels()).toEqual(["Chapters"]);
+    expect(container.querySelector(".media-detail-grid")).toBeNull();
   });
 
-  it("puts chapters above the addon occupant, not behind a tab", async () => {
-    slotMocks.occupied.add("player-side");
-    const { container } = await renderFile(makeFile({ has_chapters: true }));
+  it("orders the Chapters toggle ahead of a slot entry of equal priority", async () => {
+    claimSlot("player-side", [TIE]);
+    await renderFile(makeFile({ has_chapters: true }));
+    chaptersLoaded();
 
-    const order = Array.from(
-      container.querySelectorAll(
-        "[data-testid='chapters-panel'], [data-testid='addon-slot-player-side']",
-      ),
-    ).map((el) => el.getAttribute("data-testid"));
-
-    expect(order).toEqual(["chapters-panel", "addon-slot-player-side"]);
+    expect(toggleLabels()).toEqual(["Chapters", "Tie"]);
   });
 
-  it("leaves the panel out for a file with no chapters", async () => {
-    slotMocks.occupied.add("player-side");
+  it("leaves the Chapters toggle out for a file with none", async () => {
+    claimSlot("player-side", [TRANSCRIPT]);
     await renderFile(makeFile());
 
-    expect(screen.queryByTestId("chapters-panel")).toBeNull();
+    expect(toggleLabels()).toEqual(["Transcript"]);
+    expect(toggleLabels()).not.toContain("Chapters");
   });
 
-  it("keeps the chapters through a mutation that answers without them", async () => {
+  it("keeps the Chapters toggle through a mutation that answers without has_chapters", async () => {
     // like / dislike / favourite / metadata / rename all reply with the
     // plain FileResponse, which has no `has_chapters`.
-    const { container } = await renderFile(makeFile({ has_chapters: true }));
-    expect(grid(container)).not.toBeNull();
+    await renderFile(makeFile({ has_chapters: true }));
+    chaptersLoaded();
+    expect(toggleLabels()).toEqual(["Chapters"]);
 
-    // The distinct title is what is waited for: the panel is already on
-    // screen, so waiting on the mock call would not wait for the merge.
     (api.likeFile as ReturnType<typeof vi.fn>).mockResolvedValue(
       makeFile({ liked_at: "2026-09-01T00:00:00Z", title: "Sample (liked)" }),
     );
@@ -412,25 +405,16 @@ describe("FileDetailContent companion region (collection route)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Mark as liked" }));
     expect(await screen.findByText("Sample (liked)")).toBeInTheDocument();
 
-    expect(screen.getByTestId("chapters-panel")).toBeInTheDocument();
-    expect(grid(container)).not.toBeNull();
+    expect(toggleLabels()).toEqual(["Chapters"]);
   });
 
-  it("mounts chapters immediately after an addon promotes them", async () => {
+  it("mounts the chapters panel as a hidden item before it has anything", async () => {
     const { container } = await renderFile(makeFile({ has_chapters: false }));
-    expect(screen.queryByTestId("chapters-panel")).toBeNull();
-    expect(grid(container)).toBeNull();
-
-    act(() => {
-      window.dispatchEvent(
-        new CustomEvent(FILE_CHAPTERS_UPDATED_EVENT, {
-          detail: { fileId: "f1" },
-        }),
-      );
-    });
-
-    expect(screen.getByTestId("chapters-panel")).toBeInTheDocument();
-    expect(grid(container)).not.toBeNull();
+    expect(screen.queryByTestId("chapters-panel")).not.toBeNull();
+    expect(
+      screen.getByTestId("chapters-panel").closest("[hidden]"),
+    ).not.toBeNull();
+    expect(container.querySelector(".media-detail-workbench")).not.toBeNull();
   });
 
   it("refreshes an already-mounted chapter panel after promotion", async () => {
@@ -454,66 +438,59 @@ describe("FileDetailContent companion region (collection route)", () => {
     );
   });
 
-  it("folds the region away when the chapters turn out to be unreadable", async () => {
-    // The panel hiding itself is not enough when it is the only
-    // occupant: the region would stay as an empty 24rem column with the
-    // player squeezed beside it.
-    const { container } = await renderFile(makeFile({ has_chapters: true }));
-    expect(grid(container)).not.toBeNull();
+  it("takes the Chapters toggle away when the chapters turn out to be unreadable", async () => {
+    await renderFile(makeFile({ has_chapters: true }));
+    chaptersLoaded();
+    expect(toggleLabels()).toEqual(["Chapters"]);
 
     fireEvent.click(screen.getByTestId("chapters-resolved-empty"));
 
-    expect(screen.queryByTestId("chapters-panel")).toBeNull();
-    expect(grid(container)).toBeNull();
+    expect(toggleLabels()).toBeNull();
   });
 
-  it("keeps the region when an addon occupies it and the chapters fail", async () => {
-    slotMocks.occupied.add("player-side");
-    const { container } = await renderFile(makeFile({ has_chapters: true }));
+  it("keeps a slot entry's toggle when the chapters fail", async () => {
+    claimSlot("player-side", [TRANSCRIPT]);
+    await renderFile(makeFile({ has_chapters: true }));
+    chaptersLoaded();
+    expect(toggleLabels()).toEqual(["Transcript", "Chapters"]);
 
     fireEvent.click(screen.getByTestId("chapters-resolved-empty"));
 
-    expect(screen.queryByTestId("chapters-panel")).toBeNull();
-    expect(screen.getByTestId("addon-slot-player-side")).toBeInTheDocument();
-    expect(grid(container)).not.toBeNull();
+    expect(toggleLabels()).toEqual(["Transcript"]);
   });
 
-  it("gives the slot a wrapper that carries the height on", async () => {
-    slotMocks.occupied.add("player-side");
-    const { container } = await renderFile(makeFile({ has_chapters: true }));
+  it("gives a shown slot entry a body that carries the height", async () => {
+    claimSlot("player-side", [TRANSCRIPT]);
+    storePanels(["transcript"]);
+    await renderFile(makeFile({ has_chapters: true }));
 
-    const slot = screen.getByTestId("addon-slot-player-side");
-    expect(slot.parentElement).toHaveClass("media-detail-companion-fill");
-    expect(
-      container.querySelector(".media-detail-companion-fill"),
-    ).not.toBeNull();
+    const entry = entryNode("transcript");
+    expect(entry).toHaveAttribute("data-fill-height", "true");
+    expect(panelCard("Transcript")).toContainElement(entry);
+    expect(shownPanels()).toEqual(["Transcript"]);
   });
 
-  it("offers no companion for a file no player plays", async () => {
-    slotMocks.occupied.add("player-side");
+  it("draws no workbench for a file no player plays", async () => {
+    claimSlot("player-side", [TRANSCRIPT]);
     const { container } = await renderFile(
       makeFile({ filename: "photo.jpg", file_type: "image", mime_type: "image/jpeg" }),
     );
 
-    expect(screen.queryByTestId("addon-slot-player-side")).toBeNull();
-    expect(grid(container)).toBeNull();
+    expect(container.querySelector(".media-detail-workbench")).toBeNull();
+    expect(screen.queryAllByTestId("slot-entry-transcript")).toHaveLength(0);
   });
 
   it("always asks the occupant to fill, because the host always bounds", async () => {
-    slotMocks.occupied.add("player-side");
+    claimSlot("player-side", [TRANSCRIPT]);
 
     const video = await renderFile(makeFile());
-    expect(
-      screen.getByTestId("addon-slot-player-side").getAttribute("data-fill-height"),
-    ).toBe("true");
+    expect(entryNode("transcript")).toHaveAttribute("data-fill-height", "true");
     video.unmount();
 
     await renderFile(
       makeFile({ filename: "ep.mp3", file_type: "audio", mime_type: "audio/mpeg" }),
     );
-    expect(
-      screen.getByTestId("addon-slot-player-side").getAttribute("data-fill-height"),
-    ).toBe("true");
+    expect(entryNode("transcript")).toHaveAttribute("data-fill-height", "true");
   });
 });
 
@@ -522,6 +499,7 @@ describe("FileDetailContent layout toggle", () => {
     vi.clearAllMocks();
     usePolicyMock.mockReturnValue({ enabled: true, isLoading: false });
     slotMocks.occupied.clear();
+    slotMocks.entries.clear();
     document.documentElement.removeAttribute("data-media-layout");
     window.localStorage.clear();
   });
@@ -539,61 +517,68 @@ describe("FileDetailContent layout toggle", () => {
   const toggle = () =>
     screen.queryByRole("button", { name: /transcript (beside|below) the player/i });
 
-  it("offers the swap for a video with an occupant", async () => {
-    slotMocks.occupied.add("player-side");
+  it("offers no swap for a video with an occupant", async () => {
+    claimSlot("player-side", [TRANSCRIPT]);
     await renderFile(makeFile());
-    expect(toggle()).toBeInTheDocument();
+    expect(toggle()).toBeNull();
   });
 
-  it("offers nothing for audio, which never gets the rail", async () => {
-    slotMocks.occupied.add("player-side");
+  it("offers no swap for audio, which never had a rail", async () => {
+    claimSlot("player-side", [TRANSCRIPT]);
     await renderFile(
       makeFile({ filename: "ep.mp3", file_type: "audio", mime_type: "audio/mpeg" }),
     );
     expect(toggle()).toBeNull();
   });
 
-  it("offers nothing when no addon claims the slot", async () => {
+  it("offers no swap when no panel is available", async () => {
     await renderFile(makeFile());
     expect(toggle()).toBeNull();
   });
 
-  it("offers the swap for a chapters-only file, with no addon at all", async () => {
-    // The toggle gates placement, not occupancy. Tying it to `hasSlot`
-    // alone would leave a rail the viewer cannot put back.
+  it("offers no swap for a chapters-only file", async () => {
     await renderFile(makeFile({ has_chapters: true }));
-    expect(toggle()).toBeInTheDocument();
+    expect(toggle()).toBeNull();
   });
 
-  it("flips the attribute the layout is driven by", async () => {
-    slotMocks.occupied.add("player-side");
+  it("neither reads nor writes the old preference, and removes no stored value", async () => {
+    window.localStorage.setItem("media-layout-preference", "stacked");
+    claimSlot("player-side", [TRANSCRIPT]);
     await renderFile(makeFile());
 
-    // Starts at the default, so the first press is the one that leaves it.
-    fireEvent.click(toggle()!);
-    expect(document.documentElement.getAttribute("data-media-layout")).toBe("stacked");
+    expect(document.documentElement.hasAttribute("data-media-layout")).toBe(
+      false,
+    );
+    expect(window.localStorage.getItem("media-layout-preference")).toBe(
+      "stacked",
+    );
+  });
 
-    fireEvent.click(toggle()!);
-    expect(document.documentElement.getAttribute("data-media-layout")).toBe("beside");
+  it("draws the workbench instead of moving the panel between forms", async () => {
+    claimSlot("player-side", [TRANSCRIPT]);
+    storePanels(["transcript"]);
+    await renderFile(makeFile());
+
+    expect(shownPanels()).toEqual(["Transcript"]);
   });
 });
 
-describe("FileDetailContent rail width", () => {
+describe("FileDetailContent workbench width", () => {
   // Measured rather than a container query: on iOS Safari a containment
   // context around a <video> or cross-origin iframe renders the subtree
   // rotated and spinning.
-  let resize: (() => void) | undefined;
+  let resizeCallbacks: Array<() => void> = [];
 
   beforeEach(() => {
     vi.clearAllMocks();
     usePolicyMock.mockReturnValue({ enabled: true, isLoading: false });
     slotMocks.occupied.clear();
-    slotMocks.occupied.add("player-side");
+    slotMocks.entries.clear();
     document.documentElement.removeAttribute("data-media-layout");
-    resize = undefined;
+    resizeCallbacks = [];
     class ResizeObserverMock {
       constructor(callback: () => void) {
-        resize = callback;
+        resizeCallbacks.push(callback);
       }
       observe() {}
       unobserve() {}
@@ -616,69 +601,68 @@ describe("FileDetailContent rail width", () => {
     await loaded();
     expect(api.getFile).toHaveBeenCalledWith("f1");
     const host = await waitFor(() => {
-      const found = container.querySelector<HTMLElement>("[data-media-width]");
+      const found = container.querySelector<HTMLElement>(
+        "[data-workbench-width]",
+      );
       expect(found).not.toBeNull();
       return found!;
     });
     return host;
   }
 
-  it("calls a host with room for both columns wide", async () => {
-    // 60rem at the 16px default root size.
-    const host = await renderAtWidth(960);
-    expect(host.dataset.mediaWidth).toBe("wide");
+  it("calls a workbench with room for both columns wide", async () => {
+    // 41rem at the 16px default root size.
+    const host = await renderAtWidth(656);
+    expect(host.dataset.workbenchWidth).toBe("wide");
   });
 
-  it("calls a host one pixel short of that narrow", async () => {
-    const host = await renderAtWidth(959);
-    expect(host.dataset.mediaWidth).toBe("narrow");
+  it("calls a workbench one pixel short of that narrow", async () => {
+    const host = await renderAtWidth(655);
+    expect(host.dataset.workbenchWidth).toBe("narrow");
   });
 
-  it("re-measures when the host is resized", async () => {
-    const host = await renderAtWidth(959);
-    expect(host.dataset.mediaWidth).toBe("narrow");
+  it("re-measures when the workbench is resized", async () => {
+    const host = await renderAtWidth(655);
+    expect(host.dataset.workbenchWidth).toBe("narrow");
 
     vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(1200);
-    resize?.();
-    await waitFor(() => expect(host.dataset.mediaWidth).toBe("wide"));
+    act(() => {
+      for (const callback of resizeCallbacks) callback();
+    });
+    await waitFor(() => expect(host.dataset.workbenchWidth).toBe("wide"));
   });
 
-  it("measures a wrapper that only appears once an addon claims the slot", async () => {
+  it("measures a workbench that only appears once the file resolves", async () => {
     // `getFile` routinely wins the race against the addon catalogue, so
-    // the wrapper mounts on a later commit than the measuring effect.
-    slotMocks.occupied.clear();
+    // the workbench mounts on a later commit than the measuring effect.
     vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(1200);
     setApiResponses(makeFile());
-    const { container, rerender } = render(
+    const { container } = render(
       <FileDetailContent fileId="f1" drive="main" surface="collection" />,
     );
     await loaded();
     expect(api.getFile).toHaveBeenCalledWith("f1");
-    expect(container.querySelector("[data-media-width]")).toBeNull();
-
-    slotMocks.occupied.add("player-side");
-    rerender(
-      <FileDetailContent fileId="f1" drive="main" surface="collection" />,
-    );
 
     const host = await waitFor(() => {
-      const found = container.querySelector<HTMLElement>("[data-media-width]");
+      const found = container.querySelector<HTMLElement>(
+        "[data-workbench-width]",
+      );
       expect(found).not.toBeNull();
       return found!;
     });
-    expect(host.dataset.mediaWidth).toBe("wide");
+    expect(host.dataset.workbenchWidth).toBe("wide");
   });
 
   it("scales the threshold with the root font size", async () => {
-    // 60rem at a 20px root is 1200px, so 960 is no longer enough.
+    // 41rem at a 20px root is 820px, so 800 is no longer enough.
     vi.spyOn(window, "getComputedStyle").mockImplementation(
       ((element: Element) =>
         element === document.documentElement
           ? ({ fontSize: "20px", getPropertyValue: () => "" } as unknown as CSSStyleDeclaration)
           : ({ fontSize: "16px", getPropertyValue: () => "" } as unknown as CSSStyleDeclaration)) as typeof window.getComputedStyle,
     );
-    const host = await renderAtWidth(960);
-    expect(host.dataset.mediaWidth).toBe("narrow");
+    const host = await renderAtWidth(800);
+    expect(host.dataset.workbenchWidth).toBe("narrow");
   });
 });
 

@@ -70,6 +70,7 @@ const VIDEO = fileJson({
   title: "Fixture clip",
   description: FIXTURE_QUERY.get("description") ?? "Recorded on location.",
   duration: 3,
+  has_chapters: true,
   tags: ["design"],
 });
 
@@ -173,7 +174,14 @@ function installFetch(): void {
       if (rest === "/comments") {
         return Promise.resolve(json({ comments: [], total: 0 }));
       }
-      if (rest === "/chapters") return Promise.resolve(json({ chapters: [] }));
+      if (rest === "/chapters")
+        return Promise.resolve(
+          json({
+            chapters: [
+              { ordering: 1, title: "Opening", start_time: 0, end_time: null },
+            ],
+          }),
+        );
       if (rest === "/neighbors") {
         return Promise.resolve(json({ prev_id: null, next_id: null }));
       }
