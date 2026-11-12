@@ -25,6 +25,7 @@ from app.services.image_dimensions import read_image_dimensions
 from app.services.scanner import _MD_READ_MAX_BYTES
 from app.schemas import SubtitleUploadResponse
 from app.services.tagops import cleanup_orphan_tags, project_frontmatter_tags
+from app.services.origin import project_frontmatter_origin
 from app.services.fileops import (
     _filename_to_title,
     untrack_empty_folder,
@@ -394,6 +395,7 @@ def complete_upload(
                 if target_full.stat().st_size <= _MD_READ_MAX_BYTES:
                     content = target_full.read_text(encoding="utf-8")
                     project_frontmatter_tags(db, file_record, content)
+                    project_frontmatter_origin(db, file_record, content)
                     cleanup_orphan_tags(db, session.drive)
             except (OSError, UnicodeDecodeError):
                 pass
