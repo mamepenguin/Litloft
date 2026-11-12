@@ -80,3 +80,40 @@ pending: |
   The spec's shipping bar (item 10) `replay` on copies of the production
   databases, run by the user. Nothing else: the change's user-visible path was
   all driven in a real browser.
+
+## Shipping bar (2026-11-12)
+
+Drive: `main`, not `videos` as the spec names. The human chose it before the run:
+`videos` holds a few anime series, so they could not tell whether its
+recommendations are sensible, and they do not watch a video there because it was
+recommended. `videos` was run as well, for reference and for the command time.
+
+Procedure as the spec states: copies taken with the sqlite3 backup API inside the
+running production `backend` and `intelligence` containers, switched to
+`journal_mode=DELETE`, image built from the addon branch at d949f61, `docker run --rm`
+with the copies mounted read-only. Copies, clone and image removed afterwards.
+
+`main` (bar), 11 s:
+
+| config | cuts | skipped | targets | recall@12 | recall@40 | hit@40 |
+| --- | --- | --- | --- | --- | --- | --- |
+| before | 55 | 5 | 397 | 0.006 | 0.046 | 0.182 |
+| depth | 55 | 5 | 397 | 0.017 | 0.055 | 0.218 |
+| video | 55 | 5 | 397 | 0.014 | 0.057 | 0.255 |
+| after | 55 | 5 | 397 | 0.041 | 0.098 | 0.364 |
+| random | 55 | 5 | 397 | 0.006 | 0.012 | 0.109 |
+| newest | 55 | 5 | 397 | 0.060 | 0.127 | 0.455 |
+
+One viewer (02bb286b0179327f), 55 cut points. `after` recall@40 0.098 >= `before`
+0.046 and `video` 0.057: PASS.
+
+`videos` (reference), 17 s:
+
+| config | cuts | skipped | targets | recall@12 | recall@40 | hit@40 |
+| --- | --- | --- | --- | --- | --- | --- |
+| before | 49 | 11 | 129 | 0.080 | 0.202 | 0.327 |
+| depth | 49 | 11 | 129 | 0.036 | 0.220 | 0.327 |
+| video | 49 | 11 | 129 | 0.080 | 0.202 | 0.327 |
+| after | 49 | 11 | 129 | 0.036 | 0.225 | 0.327 |
+| random | 49 | 11 | 129 | 0.000 | 0.010 | 0.020 |
+| newest | 49 | 11 | 129 | 0.094 | 0.094 | 0.224 |
