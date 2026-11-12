@@ -210,3 +210,8 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-093 | draft | docs/specs/clips-app.md | |
 | SPEC-ADDON-100 | draft | docs/specs/clips-app.md | |
 | SPEC-ADDON-101 | draft | docs/specs/clips-app.md | |
+| SPEC-CORE-091 | approved | docs/specs/clips-app.md | sha256:d1d401dd7d6f89f47a97e0f715443a96d7e5bf310ca2d3eac832774676615389 |
+| SPEC-CORE-092 | approved | docs/specs/clips-app.md | sha256:d1d401dd7d6f89f47a97e0f715443a96d7e5bf310ca2d3eac832774676615389 |
+| SPEC-CORE-093 | approved | docs/specs/clips-app.md | sha256:d1d401dd7d6f89f47a97e0f715443a96d7e5bf310ca2d3eac832774676615389 |
+| SPEC-ADDON-100 | approved | docs/specs/clips-app.md | sha256:d1d401dd7d6f89f47a97e0f715443a96d7e5bf310ca2d3eac832774676615389 |
+| SPEC-ADDON-101 | approved | docs/specs/clips-app.md | sha256:d1d401dd7d6f89f47a97e0f715443a96d7e5bf310ca2d3eac832774676615389 |
