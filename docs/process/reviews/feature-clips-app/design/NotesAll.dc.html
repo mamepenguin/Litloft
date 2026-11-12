@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>ノート すべて（クリップの切り替え）</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#211922;text-decoration:none}a:hover{color:#d63031}
+</style>
+</helmet>
+<div style="width: 1280px; height: 760px; box-sizing: border-box; display: flex; background: #ffffff; font-family: -apple-system, system-ui, 'ヒラギノ角ゴ Pro W3', Meiryo, sans-serif; color: #211922">
+  <div aria-hidden="true" style="width: 240px; flex-shrink: 0; border-right: 1px solid rgba(145,145,140,0.2)"></div>
+  <main style="flex: 1; min-width: 0; padding: 40px 48px 0; display: flex; flex-direction: column">
+    <div style="display: flex; align-items: center; gap: 14px">
+      <span aria-hidden="true" style="width: 44px; height: 44px; border-radius: 12px; background: #f6f6f3; display: flex; align-items: center; justify-content: center; color: #62625b">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4"></path><path d="M2 6h4"></path><path d="M2 10h4"></path><path d="M2 14h4"></path><path d="M2 18h4"></path><path d="M21.4 5.6a2.1 2.1 0 1 0-3-3L13 8l-1 4 4-1Z"></path></svg>
+      </span>
+      <div style="flex: 1; min-width: 0">
+        <h1 style="margin: 0; font-size: 24px; font-weight: 700; line-height: 1.35">ノート</h1>
+        <div style="font-size: 13px; color: #62625b">main · {{count}} 件</div>
+      </div>
+    </div>
+    <div style="margin-top: 28px; display: flex; gap: 32px; align-items: flex-start">
+      <aside style="width: 200px; flex-shrink: 0; display: flex; flex-direction: column; gap: 2px; font-size: 14px">
+        <sc-for list="{{folders}}" as="f" hint-placeholder-count="5">
+          <a href="#" style="{{f.style}}"><span>{{f.name}}</span><span style="color: #62625b; font-size: 12px">{{f.n}}</span></a>
+        </sc-for>
+      </aside>
+      <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px">
+          <label style="flex: 1; min-width: 220px; height: 40px; display: flex; align-items: center; gap: 10px; padding: 0 14px; border: 1px solid rgba(145,145,140,0.4); border-radius: 16px">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#62625b" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+            <input type="search" placeholder="この範囲で探す" aria-label="この範囲で探す" style="flex: 1; border: 0; outline: none; font-size: 14px; background: transparent">
+          </label>
+          <button type="button" style="height: 40px; padding: 0 14px; border: 0; border-radius: 999px; background: #f6f6f3; font-size: 14px; color: #211922">タグ</button>
+          <button type="button" style="height: 40px; padding: 0 14px; border: 0; border-radius: 999px; background: #f6f6f3; font-size: 14px; color: #211922">更新日</button>
+          <button type="button" aria-pressed="{{pressed}}" onClick="{{toggle}}" style="{{toggleStyle}}">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"></path><path d="M18 14h-8"></path><path d="M15 18h-5"></path></svg>
+            クリップを含める
+          </button>
+        </div>
+        <div style="display: flex; flex-direction: column">
+          <sc-for list="{{rows}}" as="r" hint-placeholder-count="5">
+            <a href="#" style="display: flex; align-items: flex-start; gap: 14px; padding: 12px; border-radius: 12px">
+              <span aria-hidden="true" style="width: 36px; height: 36px; border-radius: 12px; background: #f6f6f3; flex-shrink: 0"></span>
+              <span style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+                <span style="font-size: 15px; font-weight: 600; line-height: 1.45">{{r.title}}</span>
+                <span style="margin-top: 2px; font-size: 13px; color: #62625b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.excerpt}}</span>
+              </span>
+              <span style="flex-shrink: 0; font-size: 12px; color: #62625b; padding-top: 3px">{{r.when}}</span>
+            </a>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":760}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { on: false }; }
+  renderVals() {
+    const on = this.state.on;
+    const own = [
+      { title: '読書メモ: 『データ指向アプリケーション設計』', excerpt: '第 3 章。LSM ツリーと B ツリーの書き込み増幅の比較…', when: '今日' },
+      { title: '週次ふりかえり 11/10', excerpt: 'クリップと自分のノートが混ざる件、出どころで分ける方針に…', when: '昨日' },
+      { title: 'NAS 移行の手順', excerpt: 'NFS の共有ルートは chmod できないので、マウント先を…', when: '11月8日' }
+    ];
+    const clips = [
+      { title: 'SQLite の WAL モードを理解する', excerpt: 'WAL では書き込みが別ファイルに追記され…', when: '今日' },
+      { title: 'React 19 の use フックで変わること', excerpt: 'Promise をそのまま読めるようになり…', when: '昨日' }
+    ];
+    const rows = on ? [own[0], clips[0], own[1], clips[1], own[2]] : own;
+    const base = 'height: 40px; padding: 0 14px; border-radius: 999px; font-size: 14px; display: flex; align-items: center; gap: 8px; cursor: pointer';
+    const toggleStyle = on
+      ? base + '; border: 1px solid #211922; background: #211922; color: #ffffff'
+      : base + '; border: 1px solid rgba(145,145,140,0.4); background: #ffffff; color: #211922';
+    const row = 'display: flex; justify-content: space-between; padding: 7px 12px; border-radius: 10px; color: #211922';
+    const folders = [
+      { name: 'すべて', n: on ? 128 : 86, style: row + '; background: #f6f6f3; font-weight: 600' },
+      { name: 'Inbox', n: on ? 31 : 12, style: row },
+      { name: 'journal', n: 40, style: row },
+      { name: 'tech', n: on ? 37 : 22, style: row },
+      { name: 'projects', n: 12, style: row }
+    ];
+    return { rows, toggleStyle, pressed: on ? 'true' : 'false', toggle: () => this.setState({ on: !on }), count: on ? 128 : 86, folders };
+  }
+}
+</script>
+</body>
+</html>

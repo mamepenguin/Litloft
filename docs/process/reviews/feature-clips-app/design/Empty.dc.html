@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>クリップ 空の状態</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#d63031}a:hover{color:#b52425}
+</style>
+</helmet>
+<div style="width: 1280px; height: 560px; box-sizing: border-box; display: flex; background: #ffffff; font-family: -apple-system, system-ui, 'ヒラギノ角ゴ Pro W3', Meiryo, sans-serif; color: #211922">
+  <div aria-hidden="true" style="width: 240px; flex-shrink: 0; border-right: 1px solid rgba(145,145,140,0.2)"></div>
+  <main style="flex: 1; min-width: 0; display: flex; justify-content: center; padding: 40px 48px 0">
+    <div style="width: 100%; max-width: 760px; display: flex; flex-direction: column">
+      <div style="display: flex; align-items: center; gap: 14px">
+        <span aria-hidden="true" style="width: 44px; height: 44px; border-radius: 12px; background: #f6f6f3; display: flex; align-items: center; justify-content: center; color: #62625b">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"></path><path d="M18 14h-8"></path><path d="M15 18h-5"></path><path d="M10 6h8v4h-8V6Z"></path></svg>
+        </span>
+        <div style="flex: 1; min-width: 0">
+          <h1 style="margin: 0; font-size: 24px; font-weight: 700; line-height: 1.35">クリップ</h1>
+          <div style="font-size: 13px; color: #62625b">main · 0 件</div>
+        </div>
+        <button type="button" style="height: 40px; padding: 0 18px; border: 0; border-radius: 999px; background: #d63031; color: #ffffff; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+          Web ページをクリップ
+        </button>
+      </div>
+      <div style="margin-top: 72px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center">
+        <span aria-hidden="true" style="width: 56px; height: 56px; border-radius: 16px; background: #f6f6f3; display: flex; align-items: center; justify-content: center; color: #91918c">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"></path><path d="M18 14h-8"></path><path d="M15 18h-5"></path><path d="M10 6h8v4h-8V6Z"></path></svg>
+        </span>
+        <p style="margin: 0; font-size: 15px; font-weight: 600">まだクリップがありません</p>
+        <p style="margin: 0; max-width: 420px; font-size: 13px; line-height: 1.6; color: #62625b">クリップした Web ページはここに集まります。フォルダのメニューやブックマークレットからもクリップできます。</p>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":560}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

@@ -205,3 +205,8 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-089 | implemented | docs/specs/player-workbench.md | sha256:ce54fa3c850c8a6716af16cc777c927c8e401b4727f48c783d6b8b30540cd58d |
 | SPEC-CORE-090 | implemented | docs/specs/player-workbench.md | sha256:ce54fa3c850c8a6716af16cc777c927c8e401b4727f48c783d6b8b30540cd58d |
 | SPEC-ADDON-099 | implemented | docs/specs/player-workbench.md | sha256:ce54fa3c850c8a6716af16cc777c927c8e401b4727f48c783d6b8b30540cd58d |
+| SPEC-CORE-091 | draft | docs/specs/clips-app.md | |
+| SPEC-CORE-092 | draft | docs/specs/clips-app.md | |
+| SPEC-CORE-093 | draft | docs/specs/clips-app.md | |
+| SPEC-ADDON-100 | draft | docs/specs/clips-app.md | |
+| SPEC-ADDON-101 | draft | docs/specs/clips-app.md | |
