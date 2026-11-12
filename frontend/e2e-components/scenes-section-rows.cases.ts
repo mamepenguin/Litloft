@@ -80,6 +80,8 @@ export interface RowsReading {
   scrollHeight: number;
   /** The scroller has a classic scrollbar taking width. */
   scrollbar: number;
+  /** Columns at the scroller's width without that scrollbar. */
+  fullWidthColumns: number;
   lastPart: string;
   scrollerTestId: string | null;
   scrollerClass: string;
@@ -153,7 +155,15 @@ export async function readRows(page: Page): Promise<RowsReading> {
       )) {
         const name = (button.textContent ?? "").replace(/\s+/g, " ").trim();
         if (actionName.test(name) && visible(button)) {
-          candidates.push(["action row", button.parentElement as HTMLElement]);
+          let row = button.parentElement as HTMLElement;
+          while (
+            row.parentElement &&
+            row.parentElement !== scroller &&
+            !row.parentElement.contains(grid)
+          ) {
+            row = row.parentElement;
+          }
+          candidates.push(["action row", row]);
         }
       }
       const placeholder = scroller.querySelector<HTMLElement>(
@@ -195,6 +205,18 @@ export async function readRows(page: Page): Promise<RowsReading> {
         scroller.scrollTop +
         below +
         px(scrollerStyle.paddingBottom);
+      const scrollbar =
+        scroller.offsetWidth -
+        scroller.clientWidth -
+        px(scrollerStyle.borderLeftWidth) -
+        px(scrollerStyle.borderRightWidth);
+      // 7rem is the section's narrowest tile and 0.5rem its column gap.
+      const rem =
+        Number.parseFloat(
+          getComputedStyle(document.documentElement).fontSize,
+        ) || 16;
+      const columnsAt = (width: number) =>
+        Math.max(3, Math.floor((width + 0.5 * rem) / (7.5 * rem)));
 
       return {
         tiles: tiles.length,
@@ -205,11 +227,10 @@ export async function readRows(page: Page): Promise<RowsReading> {
         slack: scroller.clientHeight - used,
         clientHeight: scroller.clientHeight,
         scrollHeight: scroller.scrollHeight,
-        scrollbar:
-          scroller.offsetWidth -
-          scroller.clientWidth -
-          px(scrollerStyle.borderLeftWidth) -
-          px(scrollerStyle.borderRightWidth),
+        scrollbar,
+        fullWidthColumns: columnsAt(
+          grid.getBoundingClientRect().width + scrollbar,
+        ),
         lastPart: lastName,
         scrollerTestId: scroller.getAttribute("data-testid"),
         scrollerClass: String(scroller.className),
