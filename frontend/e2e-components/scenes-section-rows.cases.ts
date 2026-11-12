@@ -300,6 +300,7 @@ export function expectMoreThanThreeRows(reading: RowsReading): void {
 
 /** Waits until two readings a frame apart agree on the rows and the tiles. */
 export async function settledRows(page: Page): Promise<RowsReading> {
+  await expect(page.locator(TILE).first()).toBeVisible();
   let last = "";
   let reading: RowsReading | null = null;
   await expect
