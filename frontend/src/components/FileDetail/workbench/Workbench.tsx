@@ -117,7 +117,7 @@ export function Workbench({
             >
               {itemShown && (
                 <div className="media-detail-workbench-panel-header">
-                  <h2 id={headingId} className="text-sm font-semibold">
+                  <h2 id={headingId} className="text-[0.8125rem] font-semibold">
                     {item.label}
                   </h2>
                   <button
