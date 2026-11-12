@@ -296,6 +296,7 @@ export function FileDetailContainer({
               aria-label={ti("expandSheet")}
               className="flex min-w-0 flex-1 items-center gap-1 text-left pointer-coarse:min-h-11"
             >
+              <ChevronUp size={14} aria-hidden="true" className="shrink-0 text-text-muted" />
               {/* Not a heading. The name is announced by the sheet's own
                   title when it is up, and a second heading for the same file
                   at a shallower level than the inspector's `h1` inverted the
@@ -303,7 +304,6 @@ export function FileDetailContainer({
               <span className="min-w-0 truncate text-sm font-semibold text-text-primary">
                 {fileDisplayName}
               </span>
-              <ChevronUp size={14} aria-hidden="true" className="shrink-0 text-text-muted" />
             </button>
             <div inert={!data.fresh} className="contents">
               <FileActionRow

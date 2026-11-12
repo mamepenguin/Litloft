@@ -472,6 +472,20 @@ describe("SPEC-CORE-095 the resting strip raises the sheet", () => {
     setWidth(NARROW);
   });
 
+  it("SPEC-CORE-095 D8: the chevron-up glyph comes before the name inside the button", async () => {
+    serve(video());
+    render(page());
+    const button = await waitFor(() => {
+      const found = stripButton();
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    const glyph = button.querySelector("svg.lucide-chevron-up");
+    const name = within(button).getByText("holiday.mp4");
+    expect(glyph).not.toBeNull();
+    expect(glyph!.compareDocumentPosition(name) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("SPEC-CORE-095 flow 2 / I7 / D8: the strip's file name is one button that raises the sheet to half", async () => {
     serve(video());
     render(page());
