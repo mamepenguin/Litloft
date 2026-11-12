@@ -4,7 +4,12 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
-import { useLayoutEffect, type ComponentType } from "react";
+import {
+  lazy,
+  useLayoutEffect,
+  type ComponentType,
+  type LazyExoticComponent,
+} from "react";
 
 import type { SlotEntry, SlotModule } from "@/lib/addons";
 import type { FileItem } from "@/types";
@@ -90,11 +95,26 @@ function AnswersFalse({
 }
 
 function moduleWith(
-  component: ComponentType<Record<string, unknown>>,
+  component:
+    | ComponentType<Record<string, unknown>>
+    | LazyExoticComponent<ComponentType<Record<string, unknown>>>,
 ): SlotModule {
   return {
     slotComponents: { transcript: component },
   } as unknown as SlotModule;
+}
+
+/**
+ * A slot component shaped like production's: `React.lazy` over a chunk the
+ * test releases by hand.
+ */
+function gatedLazy(component: ComponentType<Record<string, unknown>>) {
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const Lazy = lazy(() => gate.then(() => ({ default: component })));
+  return { Lazy, release };
 }
 
 let resolveModule: (mod: SlotModule) => void;
@@ -143,6 +163,63 @@ describe("a player-side entry whose module is still loading", () => {
 
     await act(async () => {
       resolveModule(moduleWith(AnswersFalse));
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId("answers-false-entry")).toBeInTheDocument(),
+    );
+
+    expect(panelGroup()).toBeNull();
+    expect(shownTranscript()).toHaveLength(0);
+  });
+});
+
+describe("a player-side entry whose lazy chunk is still loading", () => {
+  it("has no toggle and no panel while the chunk is unresolved", async () => {
+    const { Lazy } = gatedLazy(Silent);
+    render(<Host stored={["transcript"]} />);
+
+    await act(async () => {
+      resolveModule(moduleWith(Lazy));
+    });
+
+    expect(screen.queryByTestId("silent-entry")).toBeNull();
+    expect(panelGroup()).toBeNull();
+    expect(shownTranscript()).toHaveLength(0);
+  });
+
+  it("gets its toggle and its panel from silence once the chunk resolves", async () => {
+    const { Lazy, release } = gatedLazy(Silent);
+    render(<Host stored={["transcript"]} />);
+
+    await act(async () => {
+      resolveModule(moduleWith(Lazy));
+    });
+    expect(panelGroup()).toBeNull();
+
+    await act(async () => {
+      release();
+    });
+
+    expect(screen.getByTestId("silent-entry")).toBeInTheDocument();
+    await waitFor(() => expect(panelGroup()).not.toBeNull());
+    expect(
+      screen.getByRole("button", { name: "Transcript" }),
+    ).toBeInTheDocument();
+    expect(shownTranscript()).toHaveLength(1);
+  });
+
+  it("is never listed when it answers false before paint", async () => {
+    const { Lazy, release } = gatedLazy(AnswersFalse);
+    render(<Host stored={["transcript"]} />);
+
+    await act(async () => {
+      resolveModule(moduleWith(Lazy));
+    });
+    expect(panelGroup()).toBeNull();
+    expect(shownTranscript()).toHaveLength(0);
+
+    await act(async () => {
+      release();
     });
     await waitFor(() =>
       expect(screen.getByTestId("answers-false-entry")).toBeInTheDocument(),
