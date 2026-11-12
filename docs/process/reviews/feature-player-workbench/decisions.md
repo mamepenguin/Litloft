@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship — the human, 2026-11-12, in their own message: "ship". r1 was HUMAN_REVIEW_REQUIRED for two unspecified behaviours (the Sidebar/Theme/Profile providers no longer remount the page after hydration; SlotEntryRenderer carries the onRendered pending signal); both were introduced to fix R-5 finding 3 and ship with this change. The touch-point omissions of r1 TP-1..TP-5 are recorded in the PR description.
 ran_in_app: yes
 at: 2ef70ee95b5affe1207d74aa9e98b7d711cec77a
 by: agent
