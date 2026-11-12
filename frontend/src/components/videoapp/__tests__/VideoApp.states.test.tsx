@@ -107,13 +107,22 @@ const defaultFiles = (_d: string, p: Params) => ({
 
 const never = () => new Promise<never>(() => {});
 
+/** The observer is created in a passive effect, which may land after the text of the same commit. */
+async function liveSentinel() {
+  await waitFor(() => expect(FakeObserver.instances.some((o) => o.live)).toBe(true));
+  return FakeObserver.instances.filter((o) => o.live).at(-1)!;
+}
+
 class FakeObserver {
   static instances: FakeObserver[] = [];
   constructor(private callback: IntersectionObserverCallback) {
     FakeObserver.instances.push(this);
   }
+  live = true;
   observe() {}
-  disconnect() {}
+  disconnect() {
+    this.live = false;
+  }
   unobserve() {}
   takeRecords() {
     return [];
@@ -275,7 +284,8 @@ describe("the Library while it pages and fails", () => {
     render(<VideoApp drive={DRIVE} />);
     await screen.findByText("Shelf 0");
 
-    act(() => FakeObserver.instances.at(-1)!.trigger());
+    const sentinel = await liveSentinel();
+    act(() => sentinel.trigger());
 
     expect(await screen.findByText("Shelf 12")).toBeInTheDocument();
     expect(getShelves.mock.calls.at(-1)![1]).toMatchObject({ offset: 12, shelf_limit: 12 });
@@ -289,7 +299,8 @@ describe("the Library while it pages and fails", () => {
       throw new Error("boom");
     });
 
-    act(() => FakeObserver.instances.at(-1)!.trigger());
+    const sentinel = await liveSentinel();
+    act(() => sentinel.trigger());
 
     expect(await screen.findByRole("button", { name: /retry/i })).toBeInTheDocument();
     expect(screen.getByText("Shelf 0")).toBeInTheDocument();

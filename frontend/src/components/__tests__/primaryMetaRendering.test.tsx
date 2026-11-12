@@ -529,7 +529,10 @@ describe("DuplicatesSection — a file row with a name and a fact under it", () 
   const openGroup = async (files: FileItem[]) => {
     vi.mocked(getDuplicates).mockResolvedValue(group(files) as never);
     const view = render(<DuplicatesSection />);
-    fireEvent.change(await screen.findByRole("combobox"), {
+    // The select is drawn before the drive list arrives, and a value with no
+    // matching option is read as no drive at all.
+    await screen.findByRole("option", { name: "media" });
+    fireEvent.change(screen.getByRole("combobox"), {
       target: { value: "media" },
     });
     fireEvent.click(await screen.findByRole("button", { name: new RegExp(files[0].filename.slice(0, 6)) }));
