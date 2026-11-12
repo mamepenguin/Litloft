@@ -51,10 +51,11 @@ class Component extends DCLogic {
   renderVals() {
     var vh = this.props.vh ?? 1400;
     var two = (this.props.panels ?? 'one') === 'two';
-    var playerH = Math.round(Math.min(vh / 2, 1024 * 9 / 16));
+    var playerH = Math.round(Math.min(vh / 2, (this.props.cw ?? 1024) * 9 / 16));
     var playerW = Math.round(playerH * 16 / 9);
     var panelH = Math.max(288, vh - 32 - playerH - 12 - 30 - 12);
-    var panelW = two ? (1024 - 12) / 2 : 1024;
+    var cw = this.props.cw ?? 1024;
+    var panelW = two ? (cw - 12) / 2 : cw;
     var widths = ['78%', '64%', '86%', '52%', '71%', '80%', '45%', '68%', '74%', '58%'];
     return {
       vh: vh,

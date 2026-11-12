@@ -13,12 +13,12 @@ body{margin:0}
 </style>
 </helmet>
 <div style="width: 1056px; height: 1400px; background: #1a0e10">
-  <dc-import name="Main" vh="{{vh}}" panels="two" cardpos="below" hint-size="1056px,1400px"></dc-import>
+  <dc-import name="Main" vh="{{vh}}" cw="{{cw}}" panels="two" cardpos="below" hint-size="1056px,1400px"></dc-import>
 </div>
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1056,"height":1400}}'>
 class Component extends DCLogic {
-  renderVals() { return { vh: 1400 }; }
+  renderVals() { return { vh: 1400, cw: 980 }; }
 }
 </script>
 </body>
