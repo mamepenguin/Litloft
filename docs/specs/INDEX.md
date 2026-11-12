@@ -191,6 +191,6 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-093 | implemented | docs/specs/scene-timeline-width.md | sha256:bc14055f5e03adbae3110b55d6ebcd1600ce152e53064a9943c84a8843087b69 |
 | SPEC-CORE-081 | implemented | docs/specs/recommended-see-all.md | sha256:7e88fa758b58027379adb1347d85b48163f7fb358890fa3ac8ade95161f45cda |
 | SPEC-ADDON-094 | implemented | docs/specs/recommended-see-all.md | sha256:7e88fa758b58027379adb1347d85b48163f7fb358890fa3ac8ade95161f45cda |
-| SPEC-CORE-082 | approved | docs/specs/inspector-responsive-layout.md | sha256:fea82ee561a276893564fc5100b78c8df5975729860059480447f7f2298c3f11 |
-| SPEC-CORE-083 | approved | docs/specs/inspector-responsive-layout.md | sha256:fea82ee561a276893564fc5100b78c8df5975729860059480447f7f2298c3f11 |
-| SPEC-CORE-084 | approved | docs/specs/inspector-responsive-layout.md | sha256:fea82ee561a276893564fc5100b78c8df5975729860059480447f7f2298c3f11 |
+| SPEC-CORE-082 | implemented | docs/specs/inspector-responsive-layout.md | sha256:ec15c16390a7291e4be557a27fbabf05e343f16454874e15802a7c537c866c97 |
+| SPEC-CORE-083 | implemented | docs/specs/inspector-responsive-layout.md | sha256:ec15c16390a7291e4be557a27fbabf05e343f16454874e15802a7c537c866c97 |
+| SPEC-CORE-084 | implemented | docs/specs/inspector-responsive-layout.md | sha256:ec15c16390a7291e4be557a27fbabf05e343f16454874e15802a7c537c866c97 |
