@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "addons/intelligence/tests/test_z_pickup_evaluate.py:165-172 now builds `expected` with the eight fresh_h{7,30,90,365}_f{0,0.5} rows and asserts `[name.rstrip(\"*\") for name in rows] == expected`. Those row names are new in this feature: evaluate.py:350 builds them, evaluate.py:372 adds the `*` mark, and evaluate.py:448 ranks them. That means the old six-name `list(rows)` assertion must have been edited in this change. Spec §7 (docs/specs/pickup-recency.md:232-242) and the touch points (lines 298-300) list only five existing tests: accuracy_worker, worker, retrieval, feed and evaluate_after. test_z_pickup_evaluate.py is not among them, and nothing under docs/process/reviews/feature-pickup-recency mentions it. The edit does not loosen the test: it still asserts the exact row order, and stripping the `*` is needed because the shipped-constants row is now marked. So this is a documentation gap in the touch-point list, not a weakened check. Without git I could not see the diff directly; I inferred the edit from the new row names."
+    }
+  ],
+  "specification_compliance": [
+    "Spec §7 says existing tests are updated only where they pin version 3, and lists five. The update to test_z_pickup_evaluate.py is a sixth file, outside that list. It is needed because replay now emits the fresh_* rows and the `*` mark."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The `rstrip(\"*\")` normalisation means this test does not check which row carries the `*` mark. That is presumably covered by test_z_pickup_evaluate_after.py, which I did not verify."
+  ],
+  "test_coverage": [
+    "test_spec_addon_098_i9_replay_scores_each_configuration checks the full ordered list of config rows, including the eight fresh grid rows, once the `*` is stripped."
+  ],
+  "not_verified": [
+    "Did not see the git diff or base content directly. Without git I inferred the edit from the new fresh_* row names.",
+    "Did not check whether other test files outside the five listed were also changed.",
+    "Did not run the test suite.",
+    "Did not verify invariants I1-I10 beyond this finding."
+  ],
+  "confidence": 85
+}

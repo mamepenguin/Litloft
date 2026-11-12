@@ -1,6 +1,6 @@
 # Decisions: feature-pickup-recency
 
-decision:
+decision: ship. The human answered "出荷" to the review r1 verdict HUMAN_REVIEW_REQUIRED (unspecified_behavior); the unlisted edits to test_z_pickup_accuracy_worker.py (fixed created_at for the 095 I5 test) and test_z_pickup_evaluate.py (grid rows in the row list, TP-1) are accepted as they are.
 ran_in_app: yes
 at: e7874b64dc6f2520955193e2e2aaec21e808b489
 by: agent

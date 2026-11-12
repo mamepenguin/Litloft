@@ -198,5 +198,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-096 | implemented | docs/specs/pickup-accuracy.md | sha256:d2befb3d3294d8745a35316447b32c243a91a680f20b4b74610c3a0f0e2441a0 |
 | SPEC-ADDON-097 | implemented | docs/specs/pickup-accuracy.md | sha256:d2befb3d3294d8745a35316447b32c243a91a680f20b4b74610c3a0f0e2441a0 |
 | SPEC-ADDON-098 | implemented | docs/specs/pickup-accuracy.md | sha256:d2befb3d3294d8745a35316447b32c243a91a680f20b4b74610c3a0f0e2441a0 |
-| SPEC-ADDON-102 | approved | docs/specs/pickup-recency.md | sha256:37ab5c30c12c4080ec924415c4d1484e95df77abef5279ac2b1af8d87e08928a |
-| SPEC-ADDON-103 | approved | docs/specs/pickup-recency.md | sha256:37ab5c30c12c4080ec924415c4d1484e95df77abef5279ac2b1af8d87e08928a |
+| SPEC-ADDON-102 | implemented | docs/specs/pickup-recency.md | sha256:37ab5c30c12c4080ec924415c4d1484e95df77abef5279ac2b1af8d87e08928a |
+| SPEC-ADDON-103 | implemented | docs/specs/pickup-recency.md | sha256:37ab5c30c12c4080ec924415c4d1484e95df77abef5279ac2b1af8d87e08928a |
