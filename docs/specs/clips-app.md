@@ -111,7 +111,9 @@ phone. The iOS app is not changed.
 
 6. A manifest's `navigation` is either one object, as today, or a list of 1 to 4 objects.
    Each object has today's fields plus an optional `path`, one URL segment matching
-   `^[a-z0-9-]{1,40}$`.
+   `^[a-z][a-z0-9-]{0,39}$`. This is the slug rule of the addon subpage route
+   (`frontend/src/app/drive/[name]/addons/[addon]/[slug]/page.tsx`, `VALID_SLUG`) with
+   a length cap, so every accepted `path` names a route that can load.
    - The registry validates each object with today's `_navigation_error` (same name and
      signature), plus the `path` check.
    - An invalid object is dropped with a warning naming the addon and its index.
@@ -157,9 +159,12 @@ phone. The iOS app is not changed.
       `files?origin=webclip&limit=1`. While that count loads, or if it fails, the scope
       line shows the drive alone, never `0`;
     - the primary action **Web ページをクリップ** / **Clip a web page**, which opens and
-      closes Notes' existing clip form (`ClipSection`) under the header, unchanged
-      (destination folder, duplicate check, bookmarklet). On a phone the action is an
-      icon-only button with that label as its accessible name;
+      closes Notes' existing clip form (`ClipSection`) under the header (destination
+      folder, duplicate check, bookmarklet). On a phone the action is an icon-only button
+      with that label as its accessible name. Once opened, the form stays mounted for the
+      page's lifetime and is only hidden when closed, as on Notes, so a clip in flight is
+      not dropped. A URL carrying `prefill` opens the page with the form open, and
+      `ClipSection` reads `prefill`, `title` and `autosubmit` itself as it does on Notes;
     - a tabs row: **ホーム** / **Home** (the landing, no `view`) and **すべて** / **All**
       (`?view=all`).
 11. The landing draws its shelves in this order.
@@ -176,25 +181,53 @@ phone. The iOS app is not changed.
     - Recently opened is not drawn;
     - Unverified, as with a profile.
 12. Shelf drawing:
+    - Under the header, nothing is drawn until the count request answers or fails. Then
+      either the tabs and the shelves (or the All list) are drawn, or, at a count of 0,
+      the empty state of step 15. So the tabs never appear and then vanish.
     - A shelf with no files is not drawn.
-    - A shelf is not drawn while it loads.
+    - A shelf is not drawn while it loads. Loading includes the Knowledge
+      `/note-openings` request for its rows, as Notes' `notesWithOpenings` does. If that
+      request fails, the rows are drawn without excerpts.
     - Each shelf lists its clips as rows: title, folder, the opening excerpt (as Notes
       rows show it), and the clip date from the file's `created_at`.
+    - A clip still being fetched, or whose fetch failed, is a file with `origin:
+      webclip`, and is listed like any clip. Its excerpt is the placeholder body.
     - Notes' `NoteRows` and `groupNotesByAge` gain a date-field choice. The default stays
       `updated_at`, so Notes is unchanged, and Clips passes `created_at`.
     - Opening a row opens the core file page, which records the opening as for any file.
       So a clip leaves Unread and enters Recently opened the next time the landing loads.
-13. If a request answers 400 `viewer_required`, or the profile is cleared or set while the
-    page is open, the landing re-runs in the matching mode:
-    - without a profile, it requests New clips and removes Recently opened;
-    - with a profile, it requests Unread and Recently opened.
+13. The mode is "with a profile" when `useProfile()` reports a nickname and no Clips
+    request has answered 400 `viewer_required` since that nickname was set. Otherwise it
+    is "without a profile".
+    - A 400 switches the page to without-profile mode. It stays there until the
+      nickname changes, so the page never re-requests Unread in a loop.
+    - On a switch the landing re-runs in the new mode. Without a profile it requests New
+      clips and removes Recently opened. With a profile it requests Unread and Recently
+      opened.
+    - Refresh: the page re-fetches its count and its landing shelves, or page 1 of the
+      All list, when:
+      - its own `ClipSection` reports a submitted clip;
+      - a `knowledge.clip.ready` event for the current drive arrives (the event
+        `ClipNotifier` already receives).
+
+      So the first clip replaces the empty state, and a finished clip shows its title.
 14. `?view=all` lists every clip (`files?origin=webclip`), newest first (`created_at
     desc`), 60 per page. It groups by the age of `created_at` and has Notes' "load more".
     Folder, tag and sort controls are not part of this view.
-15. If the count is 0, the page draws one empty state instead of the tabs and shelves: an
-    icon, まだクリップがありません / No clips yet, and one line saying clipped web pages
-    gather here and can also be clipped from a folder's menu or the bookmarklet. The
-    header and its primary action stay.
+15. If the count is 0, the page draws one empty state instead of the tabs and shelves,
+    on the landing and on `?view=all` alike:
+    - an icon;
+    - まだクリップがありません / No clips yet;
+    - one line saying that clipped web pages gather here, and that pages can also be
+      clipped from a folder's menu or with the bookmarklet.
+
+    The header and its primary action stay.
+15a. The bookmarklet snippet (`BookmarkletSnippet.tsx`, shown by `ClipSection` on both
+    pages) opens `/drive/{drive}/addons/knowledge/clips?prefill=…&title=…&autosubmit=1`,
+    so a bookmarklet clip is made on the Clips page and shows there.
+    - Bookmarklets already installed keep opening Notes, and Notes keeps handling
+      `prefill` and `autosubmit` as today.
+    - Notes keeps its clip tile.
 
 **Notes leaves clips out (ADDON-101)**
 
@@ -213,6 +246,10 @@ phone. The iOS app is not changed.
     parameter is added only at the call sites in 16 and 17, never as a default inside
     `getDriveFiles` or `appendListingFilters`, which `NoteResults`, `FileLinkModal` and
     core screens share.
+19. The global search's "See all" for notes (`NoteSearchScope.tsx`, `seeAllHref`) points
+    to the landing's search, `/drive/{drive}/addons/knowledge?q=…`, instead of
+    `?view=all&q=…`. The dropdown and the page it opens then use the same request, and
+    neither drops clips.
 
 ### 2. Failure cases
 
@@ -247,8 +284,13 @@ phone. The iOS app is not changed.
     re-reads restored and recovered files.
 - A clip for one viewer: unopened (no history row) → opened (a row exists). It goes back
   only when the viewer removes it from history.
-- A clip's trust: unverified → verified when the viewer rules on it in the existing
-  control. It leaves the Unverified shelf then.
+- A clip's trust tier, as the core holds it: unverified ⇄ verified, through the
+  existing control. A new clip starts unverified. The Unverified shelf shows the tier
+  `trust=unverified`, not `unreviewed`, so a clip leaves the shelf when set to verified
+  and returns when set back to unverified.
+- A clip's fetch: fetching (placeholder body) → ready, or → failed (the placeholder
+  stays). Each state is a file with `origin: webclip` and is listed alike.
+- Clips page mode: with a profile ⇄ without (step 13).
 - Clips page: landing | `view=all`; with a profile | without. Each shelf: loading |
   failed | empty (not drawn) | drawn.
 - All notes: `clips` absent (own notes) | `clips=1` (every text file).
@@ -405,8 +447,27 @@ Unchanged:
     (`active_file_filter`), watch history, "No core-to-addon dependencies";
   - `.claude/rules/backend-conventions.md`: migrations only add;
   - `.claude/rules/frontend-conventions.md`: DESIGN.md, translation files.
-- Risk zones: `backend/app/services/scanner.py` and `backend/app/database.py`. No
-  protected path is edited.
+- Risk zones (HIGH): `backend/app/services/scanner.py`, `backend/app/database.py` and
+  `backend/app/services/fileops.py`. The new column and index in `_migrate` also bring in
+  the `schema` modifier. No protected path is edited.
+- Also in Knowledge: `addons/knowledge/frontend/BookmarkletSnippet.tsx` (URL to Clips),
+  `addons/knowledge/frontend/NoteSearchScope.tsx` (`seeAllHref`), and
+  `addons/knowledge/frontend/__tests__/manifest.test.ts`. The manifest test then asserts
+  that `navigation` is exactly [the Notes object as today, the Clips object of step 9],
+  and that `knowledge.nav.clips` exists in both locales.
+- Core read only: `frontend/src/app/drive/[name]/addons/[addon]/[slug]/page.tsx` (the
+  slug rule that `path` follows).
+- Real-browser measurements in `frontend/e2e-components/`, each drawing the real
+  components through a fixture:
+  - D2: at 390px the primary action is a 44px icon-only button; at 1280px it shows its
+    label;
+  - D4: at 390px and 1280px, title and excerpt each stay on one line with a long
+    title; the meta sits right at 1280px and under the excerpt at 390px;
+  - D7: at 1280px the toggle is the last control of the All notes toolbar on the same
+    row as Sort; at 390px it wraps without overflowing the page.
+
+  D1, D3, D5 and D6 are order and presence, checked by the jsdom tests and the design
+  check.
 
 ## Invariants
 
@@ -414,7 +475,7 @@ I1. A Markdown file written through any path in step 1 with a readable frontmatt
 I2. A write, upload, copy or scan of a file whose frontmatter `has_unreadable_frontmatter` reports never changes its `md_origin`.
 I3. After a scan, every active `.md` file of up to 1 MB that the scanner could read has the `md_origin` its on-disk frontmatter gives under I1 and I2, including a file edited outside Litloft since the last scan.
 I4. A failure to project `origin` never fails or rolls back the write, upload, copy or scan that triggered it, and never changes the file's content, tags, `md_id` or `md_aliases`.
-I5. For `files`, `shelves`, `watch-history` and `folder-counts`, `origin=X` returns only files whose `md_origin` is `X`, and `exclude_origin=X` returns exactly the files the same request without it returns, minus those whose `md_origin` is `X`.
+I5. Over the uncapped result (every page of `files`; `shelves` and `watch-history` with a limit no smaller than the result; `folder-counts` per folder), `origin=X` yields only files whose `md_origin` is `X`, and `exclude_origin=X` yields exactly the files the same request without it yields, minus those whose `md_origin` is `X`; `files`' `total` equals that set's size.
 I6. For the same conditions, `files`' `total` equals the `count` of `shelves?by=all&key=all`.
 I7. `shelves?opened=false` returns only files for which the requesting viewer has no `watch_history` row, and `opened=true` only files for which it has one, whatever the position or duration. Another viewer's rows never change either answer.
 I8. A request to `files`, `shelves`, `watch-history` or `folder-counts` without `origin`, `exclude_origin` or `opened` returns the same files, order and counts as before this change.
@@ -426,6 +487,12 @@ I13. With `clips` absent, the Notes landing (Recent notes, its total, Continue w
 I14. With `clips=1`, All notes lists the same files as before this change, and every link inside the view keeps `clips=1`.
 I15. The Notes landing search returns files whose `md_origin` is `webclip` that match the query.
 I16. The core never compares `md_origin` with a literal value; only a request parameter decides which value is kept or dropped.
+I17. `origin` or `exclude_origin` empty or over 32 characters is a 422. `opened` with `by=watch`, `watch=` or `sort=last_played` is a 422 with or without a viewer; `opened` otherwise without a viewer is a 400 `viewer_required`.
+I18. An existing database gains `files.md_origin` as a nullable column with every row `NULL`, and a startup against a database that already has it changes nothing.
+I19. The catalogue keeps a `navigation` object as an object and a list as the list of its surviving elements. An empty list, a list of more than 4, a list with no survivor, or a value that is neither drops the whole block, and the addon stays registered. Every accepted `path` matches the subpage route's slug rule.
+I20. The Clips scope line never shows `0` while its count loads or after the count request fails.
+I21. The Notes landing and All notes rows keep their `updated_at` dates and age groups.
+I22. The global search's "See all" for notes opens a page that lists every text file the dropdown's request matched, clips included.
 
 ## Checked, no action
 
@@ -466,3 +533,12 @@ I16. The core never compares `md_origin` with a literal value; only a request pa
 - **MCP and the iOS app**: they send no new parameter and see no change.
 - **Clips without Knowledge**: the entrance and the page are Knowledge's. Without the
   addon the column still fills, and nothing reads it.
+- **`unreviewed` for the Unverified shelf**: rejected with the user. It would fill the
+  shelf with old clips the bulk migration marked verified, and drop a clip the viewer
+  looked at and kept unverified, which Ask still cannot use.
+- **Hiding fetching and failed clips**: rejected with the user. A failed clip would then
+  show nowhere, and telling the states apart needs Knowledge's job table.
+- **Removing Notes' clip tile, or moving installed bookmarklets**: not done. The tile and
+  old bookmarklets keep working. Only the snippet handed out from now on points to Clips.
+- **A clip registered by the scanner** (dropped in from outside) dates from its file
+  mtime, as `created_at` does for every scanned file.
