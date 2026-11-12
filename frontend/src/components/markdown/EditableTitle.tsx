@@ -4,6 +4,8 @@ import { useEffect, useRef, useState, type ReactElement } from "react";
 import { useTranslations } from "next-intl";
 import { AlertCircle } from "lucide-react";
 
+import { useMarkdownChrome } from "@/lib/markdownChromeContext";
+
 /**
  * Passes the user's value verbatim to the host (matching the file browser
  * rename dialog) — no automatic `.md` suffix, no extension normalisation.
@@ -29,6 +31,15 @@ export function EditableTitle({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+
+  // The chrome hides what it would otherwise share the row with while this
+  // field is open. Its own effect is the cleanup, so an unmount mid-rename
+  // puts the row back.
+  const setRenaming = useMarkdownChrome()?.setRenaming;
+  useEffect(() => {
+    setRenaming?.(editing);
+    return () => setRenaming?.(false);
+  }, [setRenaming, editing]);
 
   useEffect(() => {
     if (!editing) setValue(title);

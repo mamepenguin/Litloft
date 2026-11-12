@@ -11,6 +11,7 @@ import { QuickNote } from "./quick-note";
 import { AddonSlot } from "./AddonSlot";
 import { useCurrentDrive } from "./CurrentDriveProvider";
 import { useFileHeaderRowHost } from "./FileHeaderRowProvider";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 export function Header() {
   const tp = useTranslations("profile");
@@ -54,6 +55,13 @@ export function Header() {
   const align = rowHost?.align ?? null;
   const chromeButtons = rowHost?.chromeButtons ?? null;
   const filePageRow = !!rowHost?.top;
+  const isMobile = useIsMobile();
+  // A phone's file page is the file's own screen: the quick note button and
+  // the profile avatar are on every other screen, and the row's own content
+  // can need the search button's room too.
+  const narrowFileRow = filePageRow && isMobile;
+  const rowNeeds = rowHost && rowHost.top ? rowHost.rowNeeds[rowHost.top] : undefined;
+  const hideSearch = narrowFileRow && !!rowNeeds?.hideSearch;
   const rowRef = useRef<HTMLDivElement | null>(null);
   const [rowInset, setRowInset] = useState(0);
 
@@ -118,34 +126,35 @@ export function Header() {
       />
 
       <div className="flex items-center gap-1 pr-4">
-        <GlobalSearch />
+        {!hideSearch && <GlobalSearch />}
         {/* Mounted directly, not through the addon slot: Quick Note has to be
             reachable from root, admin, and settings screens too, and those
             have no active drive. */}
-        <QuickNote />
+        {!narrowFileRow && <QuickNote />}
         {drive && (
           <AddonSlot id="header-actions" props={{ drive }} layout="stack" />
         )}
 
-        {nickname ? (
-          <button
-            type="button"
-            onClick={goToSettings}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-sm font-semibold text-white transition-opacity hover:opacity-80"
-            aria-label={nickname}
-          >
-            {nickname.charAt(0).toUpperCase()}
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={goToSettings}
-            className="rounded-2xl p-2 text-text-muted hover:bg-bg-elevated hover:text-text-primary"
-            aria-label={tp("setup")}
-          >
-            <User size={20} />
-          </button>
-        )}
+        {!narrowFileRow &&
+          (nickname ? (
+            <button
+              type="button"
+              onClick={goToSettings}
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-sm font-semibold text-white transition-opacity hover:opacity-80"
+              aria-label={nickname}
+            >
+              {nickname.charAt(0).toUpperCase()}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={goToSettings}
+              className="rounded-2xl p-2 text-text-muted hover:bg-bg-elevated hover:text-text-primary"
+              aria-label={tp("setup")}
+            >
+              <User size={20} />
+            </button>
+          ))}
       </div>
     </header>
   );

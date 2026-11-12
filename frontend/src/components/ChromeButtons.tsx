@@ -4,6 +4,7 @@ import { useCallback } from "react";
 import { Menu } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { DriveTreeToggle } from "./DriveTreeToggle";
 import { useFileHeaderRowHost } from "./FileHeaderRowProvider";
 import { useSidebar } from "./SidebarProvider";
@@ -38,11 +39,16 @@ function MenuButton() {
  * resolves to 0.
  */
 export function ChromeButtons() {
-  const setChromeButtons = useFileHeaderRowHost()?.setChromeButtons;
+  const rowHost = useFileHeaderRowHost();
+  const setChromeButtons = rowHost?.setChromeButtons;
   const attach = useCallback(
     (node: HTMLDivElement | null) => setChromeButtons?.(node),
     [setChromeButtons],
   );
+  // The tree has no width beside a file on a phone, so its toggle would do
+  // nothing there.
+  const isMobile = useIsMobile();
+  const hideTree = !!rowHost?.top && isMobile;
 
   return (
     <div
@@ -52,7 +58,7 @@ export function ChromeButtons() {
       className="fixed left-3 z-50 flex items-center gap-2"
     >
       <MenuButton />
-      <DriveTreeToggle />
+      {!hideTree && <DriveTreeToggle />}
     </div>
   );
 }

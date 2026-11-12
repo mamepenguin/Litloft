@@ -24,6 +24,15 @@ import { createPortal } from "react-dom";
  * mounted one is the one drawn. A file page must never fall back to the
  * header's ordinary form in the middle of such a swap.
  */
+/**
+ * What a narrow file page's row needs from the header's own controls: the
+ * row can grow into space the header gives up, but only the card's owner
+ * knows whether it needs it.
+ */
+export interface FileRowNeeds {
+  hideSearch: boolean;
+}
+
 interface FileHeaderRowValue {
   container: HTMLElement | null;
   top: string | null;
@@ -31,10 +40,13 @@ interface FileHeaderRowValue {
   align: HTMLElement | null;
   /** The fixed menu and tree buttons, whose right edge the trail starts past. */
   chromeButtons: HTMLElement | null;
+  /** Keyed by drawer, so a drawer that is no longer on top leaves nothing behind. */
+  rowNeeds: Record<string, FileRowNeeds>;
   register: (id: string) => () => void;
   alignTo: (id: string, element: HTMLElement | null) => void;
   setContainer: (element: HTMLElement | null) => void;
   setChromeButtons: (element: HTMLElement | null) => void;
+  setRowNeeds: (id: string, needs: FileRowNeeds | null) => void;
 }
 
 const FileHeaderRowContext = createContext<FileHeaderRowValue | null>(null);
@@ -49,6 +61,24 @@ export function FileHeaderRowProvider({ children }: { children: ReactNode }) {
     element: HTMLElement | null;
   } | null>(null);
   const [chromeButtons, setChromeButtons] = useState<HTMLElement | null>(null);
+  const [rowNeeds, setRowNeedsState] = useState<Record<string, FileRowNeeds>>(
+    {},
+  );
+
+  const setRowNeeds = useCallback(
+    (id: string, needs: FileRowNeeds | null) => {
+      setRowNeedsState((prev) => {
+        if (needs === null) {
+          if (!(id in prev)) return prev;
+          const next = { ...prev };
+          delete next[id];
+          return next;
+        }
+        return { ...prev, [id]: needs };
+      });
+    },
+    [],
+  );
 
   const register = useCallback((id: string) => {
     setDrawers((prev) => (prev.includes(id) ? prev : [...prev, id]));
@@ -73,12 +103,14 @@ export function FileHeaderRowProvider({ children }: { children: ReactNode }) {
       top,
       align: aligned && aligned.id === top ? aligned.element : null,
       chromeButtons,
+      rowNeeds,
       register,
       alignTo,
       setContainer,
       setChromeButtons,
+      setRowNeeds,
     }),
-    [container, top, aligned, chromeButtons, register, alignTo],
+    [container, top, aligned, chromeButtons, rowNeeds, register, alignTo, setRowNeeds],
   );
 
   return (
@@ -116,7 +148,13 @@ export function FileRowAlignProvider({
  * page; `null` before the header exists, so a page outside the shell keeps
  * the row it draws itself.
  */
-export function FileHeaderRowPortal({ children }: { children: ReactNode }) {
+export function FileHeaderRowPortal({
+  children,
+  needs,
+}: {
+  children: ReactNode;
+  needs?: FileRowNeeds;
+}) {
   const host = useContext(FileHeaderRowContext);
   const id = useId();
   const register = host?.register;
@@ -132,6 +170,14 @@ export function FileHeaderRowPortal({ children }: { children: ReactNode }) {
     if (!top || !alignTo) return;
     alignTo(id, alignElement);
   }, [alignTo, alignElement, id, top]);
+
+  const setRowNeeds = host?.setRowNeeds;
+  const hideSearch = needs?.hideSearch ?? false;
+  useLayoutEffect(() => {
+    if (!top || !setRowNeeds) return;
+    setRowNeeds(id, { hideSearch });
+    return () => setRowNeeds(id, null);
+  }, [top, setRowNeeds, id, hideSearch]);
 
   if (!host || !top || !host.container) return null;
   return createPortal(children, host.container);
