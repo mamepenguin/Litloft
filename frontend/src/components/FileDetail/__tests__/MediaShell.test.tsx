@@ -19,6 +19,7 @@ import {
   makeFile,
   relationMocks,
   setApiResponses,
+  measureRow,
   setViewport,
   slotMocks,
   usePolicyMock,
@@ -119,12 +120,30 @@ beforeEach(() => {
   window.localStorage.clear();
   document.documentElement.removeAttribute("data-media-layout");
   setViewport();
+  measureRow();
 });
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+/**
+ * Waits for the first frame the row was measured in: the description, the
+ * summaries and the companions are not mounted until then.
+ */
+async function rowMeasured() {
+  await waitFor(() =>
+    expect(
+      screen.getByTestId("inspector-fit-host").dataset.inspectorFit,
+    ).not.toBeUndefined(),
+  );
+}
 
 async function renderMedia(file: FileItem = makeFile({ has_chapters: true })) {
   setApiResponses(file);
   const utils = render(<FileDetailContent fileId="f1" drive="main" />);
   await loaded();
+  await rowMeasured();
   return utils;
 }
 
@@ -138,6 +157,7 @@ async function renderMediaAwaitingChrome(
   setApiResponses(file);
   const utils = render(<FileDetailContent fileId="f1" drive="main" />);
   await shellLoaded();
+  await rowMeasured();
   return utils;
 }
 
@@ -1292,7 +1312,7 @@ describe("what the canvas keeps and what the inspector takes", () => {
     expect(canvas!.classList.contains("p-4")).toBe(true);
   });
 
-  it("keeps the desktop pane's header pinned, which is where the split earns its keep", async () => {
+  it("keeps the desktop pane on the panel form, so only the tab body scrolls", async () => {
     await renderMedia();
 
     const shell = screen.getByTestId("inspector-shell");

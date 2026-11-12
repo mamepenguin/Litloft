@@ -100,7 +100,7 @@ vi.mock("@/hooks/useSelectedFile", () => ({
   useSelectedFile: () => ({ fileId: pane.fileId }),
 }));
 vi.mock("@/hooks/useTreeVisible", () => ({
-  useTreeVisible: () => ({ visible: pane.treeVisible, beside: pane.treeVisible, toggle: vi.fn() }),
+  useTreeVisible: () => ({ visible: pane.treeVisible, beside: pane.treeVisible, toggle: vi.fn(), yielded: false }),
 }));
 vi.mock("@/hooks/useTreeEnabled", () => ({
   useTreeEnabled: () => ({ enabled: pane.treeVisible }),

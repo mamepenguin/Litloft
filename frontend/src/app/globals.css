@@ -1107,6 +1107,118 @@ pre mark.ask-citation-highlight {
 }
 
 /* ------------------------------------------------------------------
+   The inspector, stacked under the player.
+
+   A player file in a narrow row is not covered: the row becomes a column,
+   the canvas takes at most 60% of its height and the inspector has the
+   rest at full width. Written from attributes for the same reason as the
+   overlay: the pane and the player keep their elements across a form
+   change, and a transcript's clock and scroll position live in them.
+   ------------------------------------------------------------------ */
+[data-inspector-fit="stacked"][data-inspector-open="true"] {
+  flex-direction: column;
+}
+
+/* `flex: 0 1 auto` rather than a 60% basis: a short player takes its own
+   height and hands the rest to the inspector. */
+[data-inspector-fit="stacked"][data-inspector-open="true"] > main {
+  flex: 0 1 auto;
+  max-height: 60%;
+}
+
+[data-inspector-fit="stacked"][data-inspector-open="true"] .inspector-pane {
+  width: 100%;
+  height: auto;
+  flex: 1 1 40%;
+  min-height: 0;
+  border-inline-start: 0;
+  border-block-start: 1px solid var(--color-bg-border);
+}
+
+/* A framed player is capped at half the row, less the find bar, the action
+   row and the canvas padding that share the canvas with it: together they
+   fit the 60% without scrolling, so the controls are always on screen.
+   `--fit-player-h` is measured by the shell. An audio player has no frame
+   to cap.
+   Not `--player-avail`: it is measured from the canvas, which here is as tall
+   as the player, so each measurement shrinks the next one down to zero. */
+[data-inspector-fit="stacked"][data-inspector-open="true"]
+  .media-detail-player[data-framed="true"] {
+  max-width: calc(
+    var(--fit-player-h, calc(var(--fit-row-h, 100dvh) / 2)) * 16 / 9
+  );
+}
+
+/* ------------------------------------------------------------------
+   The Info header in the stacked form.
+
+   One row, as the SmallWindow artboard draws it: title and duration at
+   the leading edge, the action row at the trailing edge, the tag row
+   under them. A grid on the block's own children rather than a second
+   header tree, because the same elements have to survive a form change.
+   ------------------------------------------------------------------ */
+[data-inspector-fit="stacked"][data-inspector-open="true"]
+  #inspector-panel-info
+  [data-inspector-header-body] {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 0.75rem;
+}
+
+[data-inspector-fit="stacked"][data-inspector-open="true"]
+  #inspector-panel-info
+  [data-inspector-header-title] {
+  grid-area: 1 / 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 1rem;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-inspector-fit="stacked"][data-inspector-open="true"]
+  #inspector-panel-info
+  [data-inspector-header-meta] {
+  grid-area: 1 / 2;
+  margin-top: 0;
+  white-space: nowrap;
+}
+
+[data-inspector-fit="stacked"][data-inspector-open="true"]
+  #inspector-panel-info
+  [data-testid="file-action-row"] {
+  grid-area: 1 / 4;
+  flex-wrap: nowrap;
+  justify-self: end;
+  margin-top: 0;
+}
+
+[data-inspector-fit="stacked"][data-inspector-open="true"]
+  #inspector-panel-info
+  [data-inspector-header-body]
+  > p {
+  grid-area: 3 / 1 / 4 / -1;
+}
+
+[data-inspector-fit="stacked"][data-inspector-open="true"]
+  #inspector-panel-info
+  [data-inspector-header-tags] {
+  grid-area: 2 / 1 / 3 / -1;
+  margin-top: 0;
+}
+
+/* A section that caps itself for the 384px pane would leave most of a
+   full-width stacked inspector empty. */
+[data-inspector-fit="stacked"][data-inspector-open="true"]
+  #inspector-panel-info
+  > [data-inspector-header]
+  ~ * {
+  max-width: none;
+}
+
+/* ------------------------------------------------------------------
    The action row in the Bottom Sheet's resting strip.
 
    Grown here rather than by a class on each control, because three of

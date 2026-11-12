@@ -15,6 +15,8 @@ interface MiniPlayerContainerProps {
    * scroll element here.
    */
   root?: Element | null;
+  /** The inspector is stacked under this player. */
+  stacked?: boolean;
   children: ReactNode;
 }
 
@@ -30,6 +32,7 @@ export function MiniPlayerContainer({
   mc,
   mediaEl,
   root,
+  stacked,
   children,
 }: MiniPlayerContainerProps) {
   const anchorRef = useRef<HTMLDivElement>(null);
@@ -39,6 +42,7 @@ export function MiniPlayerContainer({
     mc,
     mediaEl,
     root,
+    stacked,
   });
 
   useEffect(() => {

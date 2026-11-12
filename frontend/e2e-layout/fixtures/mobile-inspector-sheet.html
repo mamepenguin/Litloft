@@ -29,11 +29,9 @@
         "scroller": "min-h-0 flex-1 overflow-auto overscroll-contain",
         "scrollerPaddingBottom": "calc(env(safe-area-inset-bottom, 0px) + 16px)",
         "columnRoot": "flex flex-col",
-        "columnHeader": "px-4 pt-4 pb-3",
         "columnStrip": "flex flex-wrap gap-1 border-b border-bg-border px-2 pointer-coarse:min-h-11 pointer-coarse:flex-nowrap pointer-coarse:overflow-x-auto sticky top-0 z-10 bg-bg-card shadow-[0_-1px_0_var(--color-bg-card)]",
         "columnPanel": "space-y-4 p-4",
         "panelRoot": "flex h-full min-h-0 flex-col",
-        "panelHeader": "shrink-0 px-4 pt-4 pb-3",
         "panelStrip": "flex flex-wrap gap-1 border-b border-bg-border px-2 pointer-coarse:min-h-11 pointer-coarse:flex-nowrap pointer-coarse:overflow-x-auto shrink-0",
         "panelPanel": "min-h-0 flex-1 space-y-4 overflow-auto p-4",
         "tab": "whitespace-nowrap border-b-2 px-3 py-2 text-xs font-medium transition-colors pointer-coarse:min-h-11 border-transparent text-text-muted hover:text-text-primary",
@@ -120,11 +118,6 @@
         root.className = column ? SPEC.columnRoot : SPEC.panelRoot;
         root.dataset.testid = "inspector-shell";
 
-        const header = document.createElement("div");
-        header.className = column ? SPEC.columnHeader : SPEC.panelHeader;
-        header.dataset.testid = "inspector-header";
-        header.style.height = `${headerPx}px`;
-
         const strip = document.createElement("div");
         strip.className = column ? SPEC.columnStrip : SPEC.panelStrip;
         strip.dataset.testid = "inspector-tabs";
@@ -142,7 +135,14 @@
         panel.className = column ? SPEC.columnPanel : SPEC.panelPanel;
         panel.dataset.testid = "inspector-panel";
 
+        // The Info panel opens with the file's header block; its height is
+        // whatever the title, action row and tags take.
+        const header = document.createElement("div");
+        header.dataset.testid = "inspector-header";
+        header.style.height = `${headerPx}px`;
+
         const body = document.createElement("div");
+        body.dataset.testid = "inspector-body";
         body.style.height = `${bodyPx}px`;
         // Positioned, standing in for tab content that is (an addon
         // section with a `relative` wrapper, a popover anchor).
@@ -154,9 +154,9 @@
         // satisfied by a zero-height marker under rounding.
         end.style.height = "24px";
         end.textContent = "the end of the tab";
-        panel.append(body, end);
+        panel.append(header, body, end);
 
-        root.append(header, strip, panel);
+        root.append(strip, panel);
         scroller.append(root);
         frame.append(drawer);
       };
@@ -308,7 +308,7 @@
             header.getBoundingClientRect().top - scrollerBox.top,
           stripPosition: getComputedStyle(strip).position,
           bodyPosition: getComputedStyle(
-            drawer.querySelector("[data-testid='inspector-panel'] > div"),
+            drawer.querySelector("[data-testid='inspector-body']"),
           ).position,
           // A strip pinned to the right place and painted under the tab
           // body is not on screen either, and no rectangle says so.

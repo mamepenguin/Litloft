@@ -12,9 +12,9 @@ During collection playback the row also keeps a way back to the collection you w
 
 ## The inspector
 
-The top of the inspector stays in place while the rest scrolls. It holds the title, one fact about the file (see [the table in *Browsing files*](file-browsing.md#file-grid-and-list-modes)), the like, favourite, **AI** and `⋮` buttons, and the tags.
+The tab strip is the top of the inspector. The first tab, **Info**, starts with the file's title, one fact about the file (see [the table in *Browsing files*](file-browsing.md#file-grid-and-list-modes)), the like, favourite, **AI** and `⋮` buttons, and the tags; all of it scrolls away with the rest of Info.
 
-Below it are tabs, shown only when there is more than one:
+The tabs are the inspector's first row, shown only when there is more than one:
 
 - **Info**: EXIF where the file has it, comments, and addon sections such as AI summaries.
 - **Related**: the file's relations, and similar files with the intelligence addon.
@@ -29,16 +29,21 @@ A tab appears only when it has something in it, so a video that was never transc
 
 AI sections (intelligence addon) appear once they have been generated. To generate one, use the **AI** menu in the inspector.
 
-Open and close the inspector with the toggle at the end of the page row, or `Cmd/Ctrl+\`. When the window is too narrow for both, it covers the right side of the page.
+Open and close the inspector with the toggle at the end of the page row, or `Cmd/Ctrl+\`. A video, audio or `.loft` file starts with the inspector open unless you closed it before; every other kind starts the way it always has.
+
+When the window is too narrow for the inspector beside the page, it changes places instead of narrowing:
+
+- For a video, audio or `.loft` file it moves **under the player**, which shrinks to at most half of the page's height and stays centred, so nothing covers the picture. The toggle then shows a bottom-panel icon, and the description and the summaries move into **Info**.
+- For every other kind it covers the right side of the page.
 
 ### On a phone
 
-The inspector is a bottom sheet. While it rests, a strip along the bottom shows the file's name with like, favourite and `⋮`. Raise the sheet with the toggle or by dragging its handle; the full set of buttons is at the top of the sheet.
+The inspector is a bottom sheet. While it rests, a strip along the bottom shows the file's name with like, favourite and `⋮`. Raise the sheet with the toggle or by dragging its handle; the full set of buttons is at the top of the **Info** tab.
 
 - Dragging anywhere else in the sheet scrolls it. Once you are at the top of the sheet, pull down or press `Esc` to send it back to the strip.
 - The page above stays usable while the sheet is up: you can pause and seek the video.
 - On a video, the sheet first rises only to the bottom of the player, so the whole picture stays visible.
-- The tab strip sticks to the top of the sheet once you scroll down to it.
+- The tab strip is the top of the sheet from the start and stays there while the tab scrolls under it.
 - The video player sticks to the top of the page as you scroll.
 
 ## Finding in this file
@@ -65,7 +70,7 @@ On video, audio and `.loft` files, a button in the page row decides where the ch
 - **Beside** (the default): as tabs in the inspector, next to the player. Choosing it opens the inspector. If the window starts with the inspector closed, the panels are in there; open it to see them.
 - **Below**: under the description, with the chapter list beside the transcript.
 
-The button appears only when the file has chapters or a transcript. On a phone both always go into the bottom sheet. The choice is remembered on the device.
+The button appears only when the file has chapters or a transcript. On a phone both always go into the bottom sheet, and in a narrow window they go into the inspector under the player, with no button to choose. The choice is remembered on the device.
 
 ## Chapters
 

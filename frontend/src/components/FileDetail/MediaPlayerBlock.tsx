@@ -115,7 +115,10 @@ export function MediaPlayerBlock({
           that bar belongs to the .loft embed and native video does not
           have one, so a button there would appear for some media and
           not others. */}
-        <div className="flex items-center justify-end gap-2 px-3 pt-2 empty:hidden">
+        <div
+          data-preview-actions="true"
+          className="flex items-center justify-end gap-2 px-3 pt-2 empty:hidden"
+        >
           <AddonSlot
             id="file-preview-actions"
             layout="stack"

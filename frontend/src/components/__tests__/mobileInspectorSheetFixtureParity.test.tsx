@@ -85,7 +85,7 @@ function renderShell(scroll: InspectorScroll) {
   return {
     ...view,
     root,
-    header: screen.getByTestId("header").parentElement!,
+    header: screen.getByTestId("header"),
     strip: screen.getByTestId("inspector-tabs"),
     // The selected one. The hidden panels carry the same list, and
     // picking by role keeps this reading the panel the reader sees.
@@ -188,8 +188,8 @@ describe("the sheet's own chrome", () => {
 
 describe("both forms of the inspector", () => {
   const FORMS = [
-    { scroll: "column", keys: ["columnRoot", "columnHeader", "columnStrip", "columnPanel"] },
-    { scroll: "panel", keys: ["panelRoot", "panelHeader", "panelStrip", "panelPanel"] },
+    { scroll: "column", keys: ["columnRoot", "columnStrip", "columnPanel"] },
+    { scroll: "panel", keys: ["panelRoot", "panelStrip", "panelPanel"] },
   ] as const;
   const compared: string[] = [];
 
@@ -199,11 +199,9 @@ describe("both forms of the inspector", () => {
     expect(compared).toEqual(["column", "panel"]);
     expect(FORMS.flatMap((form) => [...form.keys]).sort()).toEqual(
       [
-        "columnHeader",
         "columnPanel",
         "columnRoot",
         "columnStrip",
-        "panelHeader",
         "panelPanel",
         "panelRoot",
         "panelStrip",
@@ -212,16 +210,17 @@ describe("both forms of the inspector", () => {
   });
 
   for (const form of FORMS) {
-    const [rootKey, headerKey, stripKey, panelKey] = form.keys;
+    const [rootKey, stripKey, panelKey] = form.keys;
 
-    it(`declares the ${form.scroll} form's four boxes`, () => {
+    it(`declares the ${form.scroll} form's three boxes`, () => {
       const shell = renderShell(form.scroll);
 
       expect(shell.root.dataset.scroll).toBe(form.scroll);
       expectSameClasses(shell.root.className, str(rootKey));
-      expectSameClasses(shell.header.className, str(headerKey));
       expectSameClasses(shell.strip.className, str(stripKey));
       expectSameClasses(shell.panel.className, str(panelKey));
+      expect(shell.root.firstElementChild).toBe(shell.strip);
+      expect(shell.panel).toContainElement(shell.header);
     });
     compared.push(form.scroll);
   }
@@ -244,7 +243,6 @@ describe("both forms of the inspector", () => {
       );
 
     expect(overflowing(str("columnRoot"))).toEqual([]);
-    expect(overflowing(str("columnHeader"))).toEqual([]);
     expect(overflowing(str("columnPanel"))).toEqual([]);
     expect(overflowing(str("panelPanel"))).toEqual(["overflow-auto"]);
     expect(overflowing(str("scroller"))).toEqual(["overflow-auto"]);
@@ -299,14 +297,12 @@ describe("the fixture's declarations", () => {
    * elsewhere.
    */
   const COMPARED_HERE = [
-    "columnHeader",
     "columnPanel",
     "columnRoot",
     "columnStrip",
     "drawer",
     "drawerVh",
     "handle",
-    "panelHeader",
     "panelPanel",
     "panelRoot",
     "panelStrip",
@@ -327,7 +323,7 @@ describe("the fixture's declarations", () => {
     "player",
   ];
   const COMPARED_IN_FILE_PREVIEW = ["playerBleed"];
-  expect(COMPARED_HERE).toHaveLength(17);
+  expect(COMPARED_HERE).toHaveLength(15);
   expect(COMPARED_IN_MEDIA_SHELL).toHaveLength(7);
   expect(COMPARED_IN_FILE_PREVIEW).toHaveLength(1);
 

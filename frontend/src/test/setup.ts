@@ -119,5 +119,9 @@ vi.mock("next-intl", () => {
 afterEach(() => {
   if (typeof document !== "undefined") {
     document.dispatchEvent(new Event("pointercancel"));
+    // The layout preference lives on `<html>` as an attribute the preference
+    // hook writes, so a test that renders a player leaves the next test a
+    // layout it did not choose.
+    document.documentElement.removeAttribute("data-media-layout");
   }
 });

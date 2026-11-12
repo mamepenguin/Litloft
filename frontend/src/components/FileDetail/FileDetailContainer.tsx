@@ -14,6 +14,7 @@ import {
   type FileDetailSurface,
 } from "@/lib/fileDetailShell";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { useInspectorForm } from "@/hooks/useInspectorForm";
 import { usePolicy } from "@/hooks/usePolicy";
 import { useAddonSlots } from "../AddonSlotsProvider";
 import { MarkdownAwareTagChips } from "../MarkdownAwareTagChips";
@@ -131,6 +132,9 @@ export function FileDetailContainer({
   const scrollRoot = ridesShell ? shellScrollRoot : (miniPlayerRoot ?? null);
 
   const metrics = useCompanionMetrics(file?.id, scrollRoot);
+  // In the stacked layout the canvas has no room for a description under the
+  // player: it belongs to the header block at the top of Info, with the title.
+  const { stacked: stackedLayout } = useInspectorForm(fileId);
 
   const handleMediaController = useCallback(
     (mc: MediaController | null) => {
@@ -249,7 +253,11 @@ export function FileDetailContainer({
   // Until the file's own answer arrives, what is on screen may be a list's
   // older copy, and every control in here writes a field of it back.
   const meta = (
-    <div inert={!data.fresh} className="contents">
+    <div
+      inert={!data.fresh}
+      data-inspector-header={ridesShell ? "" : undefined}
+      className="contents"
+    >
       <FileMetaBlock
         file={file}
         editing={data.editing}
@@ -270,7 +278,8 @@ export function FileDetailContainer({
         videoRef={videoRef}
         addonSlotProps={addonSlotProps}
         tagChips={tagChipNode}
-        hoistDescription={descriptionInCanvas}
+        hoistDescription={descriptionInCanvas && !stackedLayout}
+        inspector={ridesShell}
       />
     </div>
   );
