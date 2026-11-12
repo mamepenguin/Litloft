@@ -2,6 +2,7 @@
 
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
+import { X } from "lucide-react";
 
 import { WORKBENCH_COLUMNS_MIN_REM, WORKBENCH_MIN_REM } from "@/lib/layoutSizes";
 import type { WorkbenchPanelItem } from "./panels";
@@ -54,6 +55,7 @@ export function Workbench({
   }, []);
 
   const available = items.filter((item) => item.available);
+  const shown = shownPanelIds(items, stored);
 
   return (
     <div
@@ -96,19 +98,24 @@ export function Workbench({
 
       <div
         className="media-detail-workbench-grid"
-        style={{ minHeight: `${WORKBENCH_MIN_REM}rem` }}
+        hidden={shown.length === 0}
+        style={
+          shown.length > 0
+            ? { minHeight: `${WORKBENCH_MIN_REM}rem` }
+            : undefined
+        }
       >
         {items.map((item) => {
-          const shown = item.available && stored.includes(item.id);
+          const itemShown = item.available && stored.includes(item.id);
           const headingId = `workbench-panel-${item.id}`;
           return (
             <section
               key={item.id}
-              hidden={!shown}
-              aria-labelledby={shown ? headingId : undefined}
+              hidden={!itemShown}
+              aria-labelledby={itemShown ? headingId : undefined}
               className="media-detail-workbench-panel"
             >
-              {shown && (
+              {itemShown && (
                 <div className="media-detail-workbench-panel-header">
                   <h2 id={headingId} className="text-sm font-semibold">
                     {item.label}
@@ -119,12 +126,12 @@ export function Workbench({
                     onClick={() => onClose(item.id)}
                     className="media-detail-workbench-close"
                   >
-                    <span aria-hidden="true">×</span>
+                    <X size={16} aria-hidden />
                   </button>
                 </div>
               )}
               <div className="media-detail-workbench-body">
-                {item.render(shown)}
+                {item.render(itemShown)}
               </div>
             </section>
           );

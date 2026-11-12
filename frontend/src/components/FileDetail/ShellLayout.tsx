@@ -353,9 +353,10 @@ export function ShellLayout({
       inspectorTabs: inspectorTabEntries.map((entry) => ({
         entry,
         label: slotEntryLabel(entry, tGlobal),
-        available: slotAvailability.isAvailable(
-          slotAvailabilityKey("inspector-tabs", entry.id),
-        ),
+        available:
+          slotAvailability.reportedValue(
+            slotAvailabilityKey("inspector-tabs", entry.id),
+          ) === true,
         content: (
           <div className="flex h-full min-h-0 flex-col">
             <SlotEntryRenderer

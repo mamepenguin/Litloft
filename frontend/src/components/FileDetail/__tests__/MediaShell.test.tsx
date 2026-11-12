@@ -456,10 +456,12 @@ describe("media on the shell, panels under the player", () => {
     expect(screen.getAllByTestId("chapters-panel")).toHaveLength(1);
   });
 
-  it("draws no panel area at all when nothing would go in it", async () => {
+  it("draws no panel box when nothing would go in it", async () => {
     const { container } = await renderMedia(makeFile({ has_chapters: false }));
 
-    expect(container.querySelector(".media-detail-below")).toBeNull();
+    const area = container.querySelector(".media-detail-workbench-grid");
+    expect(area).not.toBeNull();
+    expect(area).toHaveAttribute("hidden");
     expect(panelGroup()).toBeNull();
     expect(shownPanels()).toEqual([]);
   });

@@ -27,6 +27,7 @@ export const DESKTOP_ONLY = [
   "**/video-card-spacing-desktop.spec.ts",
   "**/inspector-responsive-layout-desktop.spec.ts",
   "**/player-workbench-desktop.spec.ts",
+  "**/workbench-no-panel-desktop.spec.ts",
 ];
 
 /** Literals rather than a device preset, which can change under it. */

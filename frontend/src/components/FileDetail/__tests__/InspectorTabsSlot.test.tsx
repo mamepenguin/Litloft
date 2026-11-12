@@ -202,17 +202,15 @@ function propsOf(node: Element): Record<string, unknown> {
 
 describe("SPEC-CORE-036 I10 - an inspector-tabs entry is a tab on every file page with an inspector", () => {
   it.each(KINDS)(
-    "%s lists it after Info, and drops it when it answers false",
+    "%s lists it after Info once it reports available",
     async (_name, kind) => {
       claimSlot("inspector-tabs", [ASK]);
       await renderKind(kind);
 
-      // Silence is available on this slot, as on a player-side entry.
-      expect(tabs()).toEqual(["Info", "Ask"]);
-      report("ask", false);
+      // Silence is unavailable on this slot: nothing has been claimed yet.
       expect(tabs()).toEqual([]);
-
       report("ask", true);
+
       expect(tabs()).toEqual(["Info", "Ask"]);
     },
   );
@@ -234,6 +232,9 @@ describe("SPEC-CORE-036 I10 - an inspector-tabs entry is a tab on every file pag
     claimSlot("inspector-tabs", [{ ...ASK, priority: 1 }]);
     await renderKind({ ...VIDEO, has_chapters: true });
 
+    expect(tabs()).toEqual(["Info", "Chapters", "Transcript"]);
+    report("ask", true);
+
     expect(tabs()).toEqual(["Info", "Chapters", "Transcript", "Ask"]);
   });
 
@@ -241,6 +242,7 @@ describe("SPEC-CORE-036 I10 - an inspector-tabs entry is a tab on every file pag
     withRelations(1);
     claimSlot("inspector-tabs", [ASK]);
     await renderKind(VIDEO);
+    report("ask", true);
 
     expect(tabs()).toEqual(["Info", "Related", "Ask"]);
   });
@@ -257,13 +259,13 @@ describe("SPEC-CORE-036 I10 - an inspector-tabs entry is a tab on every file pag
   });
 });
 
-describe("SPEC-CORE-036 I10 - an inspector-tabs entry that says nothing keeps its tab", () => {
-  it("keeps it mounted, and leaves it listed until it answers", async () => {
+describe("SPEC-CORE-036 I10 - an inspector-tabs entry that has not reported is unavailable", () => {
+  it("keeps it mounted, with no button, until it answers", async () => {
     claimSlot("inspector-tabs", [ASK]);
     await renderKind(PDF);
 
     const before = entryNode("ask");
-    expect(tabs()).toEqual(["Info", "Ask"]);
+    expect(tabs()).not.toContain("Ask");
 
     report("ask", false);
     expect(tabs()).not.toContain("Ask");
@@ -273,12 +275,11 @@ describe("SPEC-CORE-036 I10 - an inspector-tabs entry that says nothing keeps it
     expect(tabs()).toEqual(["Info", "Ask"]);
   });
 
-  it.each(KINDS)("%s draws no tab once the entry says it has nothing", async (_name, kind) => {
+  it.each(KINDS)("%s draws no tab for an entry that stays silent", async (_name, kind) => {
     claimSlot("inspector-tabs", [ASK]);
     await renderKind(kind);
 
-    report("ask", false);
-    expect(tabs()).toEqual([]);
+    expect(screen.queryAllByRole("tab")).toHaveLength(0);
     expect(entryNode("ask")).toBeInTheDocument();
   });
 });
@@ -296,8 +297,12 @@ describe("SPEC-CORE-036 I10 - an id shared with another slot or a core tab does 
     claimSlot("inspector-tabs", [ASK]);
     await renderKind(VIDEO);
 
-    // Both are silent, and silence means available on each slot.
+    // The player-side entry is silent, and silence means available there.
+    expect(tabs()).toEqual(["Info", "Player Ask"]);
+    report("ask", true);
     expect(tabs()).toEqual(["Info", "Player Ask", "Ask"]);
+
+    // Saying no for one slot's entry must not take the other one's tab.
     report("ask", false);
     expect(tabs()).toEqual(["Info", "Player Ask"]);
 
@@ -330,6 +335,8 @@ describe("SPEC-CORE-036 I10 - an id shared with another slot or a core tab does 
     claimSlot("inspector-tabs", [{ ...ASK, id: "pages", label: "Pages" }]);
     await renderKind(PDF);
 
+    expect(tabs()).toEqual(["Info", "Pages"]);
+    report("pages", true);
     expect(tabs()).toEqual(["Info", "Pages", "Pages"]);
 
     const tabButtons = screen.getAllByRole("tab");

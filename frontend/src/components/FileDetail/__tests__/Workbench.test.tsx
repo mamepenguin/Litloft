@@ -557,6 +557,7 @@ describe("SPEC-CORE-087 the narrow forms", () => {
     claimSlot("inspector-tabs", [ASK]);
     withRelations(1);
     await renderFile(VIDEO);
+    fireEvent.click(screen.getByTestId("slot-entry-ask-filled"));
 
     expect(tabs()).toEqual([
       "Info",
@@ -576,6 +577,7 @@ describe("SPEC-CORE-087 the narrow forms", () => {
     claimSlot("inspector-tabs", [ASK]);
     withRelations(1);
     await renderFile(VIDEO);
+    fireEvent.click(screen.getByTestId("slot-entry-ask-filled"));
 
     expect(tabs()).toEqual(["Info", "Chapters", "Related", "Ask"]);
     expect(toggleLabels()).toEqual(["Transcript", "Late"]);

@@ -612,6 +612,10 @@ with a **border in the accent colour**, never a fill.
   are both white in the light theme. The accent border clears WCAG 1.4.11's 3 : 1.
 - **Unselected controls carry `border-transparent`**, so nothing shifts on
   selection.
+- **The workbench's panel toggles are the exception**: they are a row of independent
+  on/off pills, not one of N options, so the off state keeps a neutral
+  `--bg-border` border so each still reads as a control. Both states use a 1px
+  border, so nothing shifts.
 - **On a crowded bar, prefer a labelled menu** (`View: List view`). A border says
   which option is on but not what the options are.
 - **A set of options side by side is `SegmentedControl`**: an outlined
