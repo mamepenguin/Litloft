@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The diff edits frontend/e2e-components/fixtures/inspectorResponsive.tsx, which the touch-point list does not name; the real-host arrangements (Workbench panels, InspectorShell tab, MobileInspectorSheet) were built there behind a `scenes=1` query, not in fixtures/scenesSection.tsx or the `scenes-…` entries of fixtures/app.tsx as listed.",
+      "impact": "No user-facing impact. A reader of the touch points looking for the arrangements in scenesSection.tsx/app.tsx will not find them. That fixture also gains global patches, applied only when `scenes=1`: an `HTMLImageElement.prototype.src` setter override, an `Element.prototype.setAttribute` override, extra fetch routes and an intelligence message merge.",
+      "evidence": "frontend/e2e-components/fixtures/inspectorResponsive.tsx:25-26 (imports intelligence messages and scenesSectionData), :76-80 (SCENES query flags), :125-134 (adds a `scenes` player-side entry), :180-183 and :230-260 (scenesResponse), :262-303 (installScenePictures prototype patches), :414-440 (message merge). The listed fixtures/app.tsx and fixtures/scenesSection.tsx are not modified by this commit.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "It is a test fixture outside the declared touch points. It does not break a declared invariant. All patches are gated on `scenes=1`, so other inspector-responsive arrangements are unaffected.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add fixtures/inspectorResponsive.tsx to the touch-point list, or drop the listed fixtures/app.tsx `scenes-…` entries and the scenesSection.tsx real-host arrangements from it."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The diff edits the shared e2e stub frontend/e2e-components/stubs/addons.ts, which the touch-point list does not name, so that every fixture's `intelligence` slot module now resolves `scenes` to the real addon ScenesSection.",
+      "impact": "No user-facing impact. Every fixture bundle now imports the real Scenes section, and any fixture whose addon status lists a `scenes` entry would mount the real section. Today only inspectorResponsive.tsx under `scenes=1` does that.",
+      "evidence": "frontend/e2e-components/stubs/addons.ts:3 imports `../../src/addons/intelligence/ScenesSection`; :19-23 adds `scenes: ScenesSection` to slotComponents. A grep for a `scenes` addon entry in e2e-components finds only fixtures/inspectorResponsive.tsx:128. Fixtures already import addon code (fixtures/scenesSection.tsx:8, fixtures/app.tsx:93), so this does not newly break the no-core-to-addon rule for production code.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "It is a shared test stub outside the touch points. It breaks no declared invariant, and its effect is limited to fixtures that declare a `scenes` slot.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "List frontend/e2e-components/stubs/addons.ts in the touch points."
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "The diff edits the spec registration lists frontend/e2e-components/projects.ts and frontend/e2e-components/spec-viewport.spec.ts, which the touch-point list does not name.",
+      "impact": "None for users. These edits are mechanical: spec-viewport.spec.ts fails when a spec file is matched by neither project, so the new specs must be registered there.",
+      "evidence": "frontend/e2e-components/projects.ts:26-27 add the two `scenes-section-rows*-desktop.spec.ts` files to DESKTOP_ONLY. frontend/e2e-components/spec-viewport.spec.ts:68 adds `scenes-section-rows.spec.ts` to AT_THE_PHONE_WIDTH, and :95-96 add the two desktop specs to AT_THE_DESKTOP_WIDTH. spec-viewport.spec.ts:37-40 states why the lists must name every spec.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "These are required registration edits outside the listed touch points. They break no invariant.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add projects.ts and spec-viewport.spec.ts to the touch points as the registration that any new e2e spec needs."
+    },
+    {
+      "id": "TP-4",
+      "origin": "reviewer",
+      "claim": "The new helper module is frontend/e2e-components/scenes-section-rows.cases.ts. The touch-point list names only `scenes-section*.spec.ts` and `scenes-section.cases.ts`, so this file falls outside it.",
+      "impact": "None for users. A reader following the list would look in the existing scenes-section.cases.ts for the row measurements (readRows, settledRows, the frame recorder), but they are in a different file.",
+      "evidence": "frontend/e2e-components/scenes-section-rows.cases.ts (new, 445 lines). The existing frontend/e2e-components/scenes-section.cases.ts is not modified by this commit.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a naming mismatch with the listed touch point. It breaks no invariant.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Widen the touch point to `scenes-section*.cases.ts`."
+    }
+  ],
+  "specification_compliance": [
+    "Addon touch points match the list: ScenesSectionContainer.tsx, ScenesSectionPresenter.tsx, scenesModel.ts, hooks/useSceneRows.ts, __tests__/ScenesSectionRows.test.ts and the submodule pointer bump.",
+    "Core touch points named in the list but not modified by this commit: fixtures/scenesSection.tsx and the `scenes-…` entries of fixtures/app.tsx. The real-host arrangements live in fixtures/inspectorResponsive.tsx instead (TP-1).",
+    "Places reached outside the list: fixtures/inspectorResponsive.tsx (TP-1), stubs/addons.ts (TP-2), projects.ts and spec-viewport.spec.ts (TP-3), and scenes-section-rows.cases.ts (TP-4).",
+    "The docs/specs and docs/process/reviews edits are implicit touch points and are not reported. No docs/user-guide page changes."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The scenes=1 fixture overrides HTMLImageElement.prototype.src and Element.prototype.setAttribute for every image URL containing `/api/` (except `/stream`). That would also replace non-Scenes images (posters, thumbnails) in that arrangement with the blue frame picture."
+  ],
+  "regression_risks": [
+    "stubs/addons.ts now eagerly bundles the real ScenesSection into every component fixture. Any future fixture that declares a `scenes` addon entry without the Scenes fetch routes would mount the real section, which would then make unstubbed requests."
+  ],
+  "test_coverage": [
+    "The touch points promise unit tests for `the window`, but no unit test calls windowStartFor with the new `rows` argument. A grep finds only the definition and the Container call site. The window formula is covered only by the e2e cases in scenes-section-rows-desktop.spec.ts.",
+    "sceneRows has table tests for I1 and an I6 round-trip test in __tests__/ScenesSectionRows.test.ts."
+  ],
+  "not_verified": [
+    "I did not run any test, e2e spec or build, so I did not check whether the new specs pass.",
+    "I did not check whether the vite alias for stubs/addons.ts applies to every fixture bundle.",
+    "I did not check the correctness of the useSceneRows measurement against I1–I7; this review answered only the touch-point question.",
+    "I did not read docs/process/reviews/feature-scene-rows-fill-height/design-check.md or decisions.md for an amended touch-point list."
+  ],
+  "confidence": 85
+}

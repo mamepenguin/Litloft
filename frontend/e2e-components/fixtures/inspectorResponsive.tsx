@@ -22,6 +22,9 @@ import { seedFiles } from "@/lib/fileSeed";
 import type { FileItem } from "@/types";
 import enMessages from "@/messages-core/en.json";
 
+import intelligenceEn from "../../src/addons/intelligence/messages/en.json";
+import { scenesFrames, scenesVisualIndex } from "./scenesSectionData";
+
 const DRIVE = "fixture";
 const VIDEO_ID = "video0000001";
 const PDF_ID = "pdf000000001";
@@ -63,6 +66,18 @@ function fileJson(overrides: Partial<FileItem> & { id: string }): FileItem {
 }
 
 const FIXTURE_QUERY = new URLSearchParams(location.search);
+
+/**
+ * `scenes=1` puts the real Scenes section in the player's panels and tabs.
+ * `frames` is how many frames it has, `ratio=4:3` the shape of their
+ * pictures, `vi` the Visual Index answer (`card`, `stale` or `none`) and
+ * `vi-delay` how long that answer takes.
+ */
+const SCENES = FIXTURE_QUERY.get("scenes") === "1";
+const SCENES_FRAMES = scenesFrames(Number(FIXTURE_QUERY.get("frames") ?? 300));
+const SCENES_RATIO = FIXTURE_QUERY.get("ratio") === "4:3" ? 4 / 3 : 16 / 9;
+const SCENES_VI = FIXTURE_QUERY.get("vi") ?? "card";
+const SCENES_VI_DELAY_MS = Number(FIXTURE_QUERY.get("vi-delay") ?? 0);
 
 const VIDEO = fileJson({
   id: VIDEO_ID,
@@ -107,6 +122,16 @@ const ADDONS_STATUS = {
         priority: 10,
         addonName: "intelligence",
       },
+      ...(SCENES
+        ? [
+            {
+              id: "scenes",
+              label: "Scenes",
+              priority: 20,
+              addonName: "intelligence",
+            },
+          ]
+        : []),
       // A second panel only where a case needs two side by side.
       ...(FIXTURE_QUERY.get("panels") === "two"
         ? [
@@ -152,6 +177,10 @@ function installFetch(): void {
     if (path.endsWith("/api/addons/status")) {
       return Promise.resolve(json(ADDONS_STATUS));
     }
+    if (SCENES) {
+      const scenes = scenesResponse(path);
+      if (scenes) return scenes;
+    }
     const fileMatch = path.match(/\/api\/files\/([^/]+)(\/.*)?$/);
     if (fileMatch) {
       const file = FILES[decodeURIComponent(fileMatch[1])];
@@ -195,6 +224,81 @@ function installFetch(): void {
       return Promise.resolve(json({ has_active_summary: false }));
     }
     return nativeFetch(input, init);
+  };
+}
+
+function scenesResponse(path: string): Promise<Response> | null {
+  if (path.includes("/addon-policies")) {
+    return Promise.resolve(
+      json({
+        addons: {
+          intelligence: {
+            default: true,
+            features: { video_visual_index: true },
+          },
+        },
+      }),
+    );
+  }
+  if (path.endsWith(`/files/${VIDEO_ID}/clip-timestamps`)) {
+    return Promise.resolve(
+      json({ file_id: VIDEO_ID, drive: DRIVE, timestamps: SCENES_FRAMES }),
+    );
+  }
+  if (path.endsWith(`/files/${VIDEO_ID}/visual-index`)) {
+    const answer =
+      SCENES_VI === "none"
+        ? new Response("", { status: 404 })
+        : json(scenesVisualIndex(VIDEO_ID, SCENES_VI === "stale"));
+    if (SCENES_VI_DELAY_MS <= 0) return Promise.resolve(answer);
+    return new Promise((resolve) =>
+      setTimeout(() => resolve(answer), SCENES_VI_DELAY_MS),
+    );
+  }
+  return null;
+}
+
+let scenePicturesInstalled = false;
+
+/**
+ * The frame pictures are `<img>` URLs under `/api/`, which `file://` cannot
+ * load. Each is answered with a plain picture of the frame set's ratio.
+ */
+function installScenePictures(): void {
+  if (!SCENES || scenePicturesInstalled) return;
+  scenePicturesInstalled = true;
+  const canvas = document.createElement("canvas");
+  canvas.width = 320;
+  canvas.height = Math.round(320 / SCENES_RATIO);
+  const context = canvas.getContext("2d")!;
+  context.fillStyle = "#5a7d9a";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  const picture = canvas.toDataURL("image/png");
+
+  const isPicture = (value: unknown) =>
+    typeof value === "string" &&
+    value.includes("/api/") &&
+    !value.includes("/stream");
+
+  const descriptor = Object.getOwnPropertyDescriptor(
+    HTMLImageElement.prototype,
+    "src",
+  );
+  if (descriptor?.set) {
+    Object.defineProperty(HTMLImageElement.prototype, "src", {
+      ...descriptor,
+      set(value: string) {
+        descriptor.set!.call(this, isPicture(value) ? picture : value);
+      },
+    });
+  }
+  const nativeSetAttribute = Element.prototype.setAttribute;
+  Element.prototype.setAttribute = function (name, value) {
+    const mapped =
+      this instanceof HTMLImageElement && name === "src" && isPicture(value)
+        ? picture
+        : value;
+    return nativeSetAttribute.call(this, name, mapped);
   };
 }
 
@@ -307,9 +411,33 @@ function installMedia(): void {
   });
 }
 
+type Messages = { [key: string]: string | Messages };
+
+function deepMerge(base: Messages, extra: Messages): Messages {
+  const merged: Messages = { ...base };
+  for (const [key, value] of Object.entries(extra)) {
+    const current = merged[key];
+    merged[key] =
+      typeof value === "object" && typeof current === "object"
+        ? deepMerge(current, value)
+        : value;
+  }
+  return merged;
+}
+
+function withIntelligence(core: typeof enMessages): typeof enMessages {
+  return deepMerge(
+    core as unknown as Messages,
+    intelligenceEn as unknown as Messages,
+  ) as unknown as typeof enMessages;
+}
+
 function Providers({ children }: { children: ReactElement }): ReactElement {
   return (
-    <NextIntlClientProvider locale="en" messages={enMessages}>
+    <NextIntlClientProvider
+      locale="en"
+      messages={SCENES ? withIntelligence(enMessages) : enMessages}
+    >
       <CurrentDriveProvider>
         <SidebarProvider>
           <ShortcutsProvider>
@@ -334,6 +462,7 @@ function FilePage({ fileId }: { fileId: string }): ReactElement {
 export function InspectorVideoArrangement(): ReactElement {
   installFetch();
   installMedia();
+  installScenePictures();
   return (
     <Providers>
       <FilePage fileId={VIDEO_ID} />
@@ -394,6 +523,7 @@ export function InspectorVideoTwoPaneArrangement(): ReactElement {
 export function InspectorVideoCollectionArrangement(): ReactElement {
   installFetch();
   installMedia();
+  installScenePictures();
   return (
     <Providers>
       <FileDetailContent fileId={VIDEO_ID} drive={DRIVE} surface="collection" />

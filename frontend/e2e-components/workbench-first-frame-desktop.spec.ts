@@ -1,8 +1,9 @@
 /**
- * The first second of a video page with a stored panel. The addon's module is
- * held in flight, as a chunk fetch would be, and every frame is sampled: the
- * toggle, the panel and the player cap may each appear once, and never go
- * away again.
+ * A video page with a stored panel, sampled every frame while the addon's
+ * module is held in flight as a chunk fetch would be: the toggle, the panel
+ * and the player cap may each appear once, and never go away again. Sampling
+ * ends on what has been seen plus a settle window, because how long the
+ * bundle and the module take depends on the machine.
  */
 
 import { test, expect, type Page } from "@playwright/test";
@@ -13,7 +14,9 @@ import { PAGE } from "./build-bundle";
 const FIXTURE = pathToFileURL(PAGE).href;
 const CANONICAL = "#inspector-video";
 const VIEWPORT = { width: 1440, height: 900 };
-const SAMPLE_MS = 1000;
+const SETTLE_FRAMES = 30;
+const SETTLE_MS = 500;
+const SAMPLE_LIMIT_MS = 10_000;
 const MODULE_DELAY_MS = 200;
 
 interface Sample {
@@ -34,33 +37,57 @@ let navigation = 0;
 async function open(page: Page) {
   await page.setViewportSize(VIEWPORT);
   await page.addInitScript(
-    ({ sampleMs, label }) => {
+    ({ settleFrames, settleMs, limitMs, halfHeight, label }) => {
       localStorage.setItem("workbench-panels", JSON.stringify(["transcript"]));
       const samples: Sample[] = [];
       window.__workbenchSamples = samples;
       const start = performance.now();
+      let panelSeen = false;
+      let cappedSeen = false;
+      let settledFrame: number | null = null;
+      let settledAt: number | null = null;
       const sample = () => {
         const video = document.querySelector("video");
         const titled = (element: Element | null) =>
           element?.querySelector("h2")?.textContent?.trim() === label;
+        const panel = Array.from(document.querySelectorAll("section")).some(titled);
+        const frame = video ? video.getBoundingClientRect().height : 0;
         samples.push({
           toggle: Array.from(
             document.querySelectorAll(
               '[role="group"][aria-label="Panels"] button',
             ),
           ).some((button) => button.textContent?.trim() === label),
-          panel: Array.from(document.querySelectorAll("section")).some(titled),
-          frame: video ? video.getBoundingClientRect().height : 0,
+          panel,
+          frame,
         });
-        if (performance.now() - start < sampleMs) {
-          requestAnimationFrame(sample);
-        } else {
+        if (panel) panelSeen = true;
+        if (frame > 0 && frame <= halfHeight + 1) cappedSeen = true;
+        const now = performance.now();
+        if (panelSeen && cappedSeen && settledAt === null) {
+          settledFrame = samples.length - 1;
+          settledAt = now;
+        }
+        const settled =
+          settledAt !== null &&
+          settledFrame !== null &&
+          samples.length - 1 - settledFrame >= settleFrames &&
+          now - settledAt >= settleMs;
+        if (settled || now - start >= limitMs) {
           window.__workbenchSamplesDone = true;
+        } else {
+          requestAnimationFrame(sample);
         }
       };
       requestAnimationFrame(sample);
     },
-    { sampleMs: SAMPLE_MS, label: "Transcript" },
+    {
+      settleFrames: SETTLE_FRAMES,
+      settleMs: SETTLE_MS,
+      limitMs: SAMPLE_LIMIT_MS,
+      halfHeight: VIEWPORT.height / 2,
+      label: "Transcript",
+    },
   );
 
   const query = new URLSearchParams({

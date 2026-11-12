@@ -23,6 +23,8 @@ export const DESKTOP_ONLY = [
   "**/home-app-entries-desktop.spec.ts",
   "**/discover-prefix-desktop.spec.ts",
   "**/scenes-section-desktop.spec.ts",
+  "**/scenes-section-rows-desktop.spec.ts",
+  "**/scenes-section-rows-scrollbar-desktop.spec.ts",
   "**/video-card-byline-desktop.spec.ts",
   "**/video-card-spacing-desktop.spec.ts",
   "**/inspector-responsive-layout-desktop.spec.ts",
