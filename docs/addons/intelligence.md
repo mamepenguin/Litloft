@@ -19,7 +19,7 @@ The `intelligence` addon adds meaning-based search, Ask (question answering over
 | **Visual index** | Described scenes marked on a video's Scenes timeline, each one seekable | off | yes, with `llm.vision_model` |
 | **Text in pictures** | Reads the words in pictures with a local OCR engine so search and Ask find them | on | no |
 | **Transcription** | Local faster-Whisper, the local Japanese-only Haas engine, or a cloud provider | local | no |
-| **Pickup** | A feed of files you have never opened, ranked by your watch history | always | no |
+| **Pickup** | A feed of videos you have never opened, ranked by your watch history | always | no |
 
 The LLM itself ships disabled (`llm.provider: "disabled"`), so a new install makes no LLM calls until you configure a provider. Features marked "manual" run only when you press a button.
 
@@ -293,16 +293,17 @@ A question about a picture, or about a video while it plays, sends one image wit
 When the file's chunk text exceeds `rag.file_question_max_chars` (default 16,000, from 1,000 to 200,000), the chunks closest to the question are sent and the answer says it read part of the file. The earlier turns share this limit with the passages, at most half of it, so a follow-up can be answered from part of a file the first question read whole.
 ### Pickup
 
-A row on the drive home of files you have never opened, ranked by how well they match your watch history in that drive. **See all** opens the full feed at `/drive/<name>/addons/intelligence/pickup`.
+A row on the drive home of videos you have never opened, ranked by how well they match your watch history in that drive. Pickup lists videos only, and only your video history shapes it. **See all** opens the full feed at `/drive/<name>/addons/intelligence/pickup`.
 
 Pickup also feeds **Recommended** on the [Video](../user-guide/video.md) page: of the feed's top entries that match the app's target and are still unwatched, up to 12 are picked for the day. **See all** opens the same list in the video app, the day's picks first and then the rest of the feed, all at once. Recommended is absent when that leaves nothing.
 
 - It needs a [profile](../user-guide/profile-preferences.md) and some watch history. It appears after the next rebuild once you have watched something.
 - It makes no LLM calls. It uses the embeddings indexing already made.
+- A video counts by how much of it you watched: half or more counts fully, less counts less, and a video you closed before a tenth of it, or removed from **Continue**, does not count. A video you liked or marked as a favourite always counts fully. An embedded video (`.loft`) whose player reports no length counts half.
 - The last year of history is grouped into interests. An interest loses half its weight for each week you do not touch it, but never drops below a quarter of the strongest one's share.
-- The row shows a different twelve files each day. The full feed keeps a stable order.
+- The row shows a different twelve videos each day. The full feed keeps a stable order.
 - A file you have opened, ever, is never in the feed. Nothing from another drive is used.
-- It is rebuilt when a scan finishes and every hour, for viewers whose history changed.
+- It is rebuilt when a scan finishes and every hour, for viewers whose history changed. Liking, favouriting or removing a video from **Continue** counts as a change.
 
 Watching many episodes of one series pulls the feed toward that series, which is expected.
 
@@ -825,6 +826,9 @@ Changing `models.clip` rebuilds CLIP embeddings at restart only if the new model
 - The addon's log: `docker compose logs -f intelligence`.
 - Files copied onto a drive from outside Litloft (for example from an iOS device) can carry the decomposed form of a name such as `が`. The addon opens such files under the name they have on disk, and corrects the path it stored for a file it indexed earlier on the next pass. A file whose earlier attempts failed with "Cannot stat audio file" is picked up again by that pass.
 - In the first 60 seconds after the addon starts, a job that cannot reach the core is retried instead of recorded as failed.
+- Each rebuilt Pickup feed's first 40 videos are recorded in `search.db` (`pickup_feed_log`) and kept for 180 days, so Pickup's accuracy can be measured. Two read-only commands report it per viewer; neither writes to either database:
+  - `docker compose exec intelligence python -m app.pickup.evaluate replay --drive <name>` replays the last 60 days of history (`--days`, `--horizon` for the 7-day target window, `--viewer`) and compares the current ranking with earlier variants, random order and newest first, by recall at 12 and 40.
+  - `docker compose exec intelligence python -m app.pickup.evaluate online --drive <name>` checks, for each video you watched in the last 30 days (`--days`, `--viewer`), whether a recorded feed from the 48 hours before listed it, by week.
 - If the addon hangs (stops responding while its container still runs), `docker compose ps` shows it `unhealthy` (from the healthcheck), and the log contains a stack dump of every thread once it has been stuck for 120 seconds (`INTELLIGENCE_WATCHDOG_THRESHOLD`). Nothing restarts it automatically: run `docker compose restart intelligence`.
 
 ## Troubleshooting

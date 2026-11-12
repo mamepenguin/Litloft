@@ -194,3 +194,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-082 | implemented | docs/specs/inspector-responsive-layout.md | sha256:ec15c16390a7291e4be557a27fbabf05e343f16454874e15802a7c537c866c97 |
 | SPEC-CORE-083 | implemented | docs/specs/inspector-responsive-layout.md | sha256:ec15c16390a7291e4be557a27fbabf05e343f16454874e15802a7c537c866c97 |
 | SPEC-CORE-084 | implemented | docs/specs/inspector-responsive-layout.md | sha256:ec15c16390a7291e4be557a27fbabf05e343f16454874e15802a7c537c866c97 |
+| SPEC-ADDON-095 | implemented | docs/specs/pickup-accuracy.md | sha256:d2befb3d3294d8745a35316447b32c243a91a680f20b4b74610c3a0f0e2441a0 |
+| SPEC-ADDON-096 | implemented | docs/specs/pickup-accuracy.md | sha256:d2befb3d3294d8745a35316447b32c243a91a680f20b4b74610c3a0f0e2441a0 |
+| SPEC-ADDON-097 | implemented | docs/specs/pickup-accuracy.md | sha256:d2befb3d3294d8745a35316447b32c243a91a680f20b4b74610c3a0f0e2441a0 |
+| SPEC-ADDON-098 | implemented | docs/specs/pickup-accuracy.md | sha256:d2befb3d3294d8745a35316447b32c243a91a680f20b4b74610c3a0f0e2441a0 |
