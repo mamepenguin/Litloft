@@ -354,6 +354,12 @@ test("the stacked Info header is one row and the sections take the full width", 
   expect(title.height).toBeLessThanOrEqual(24);
   expect(chip.left).toBeGreaterThan(title.left + title.width);
 
+  // The duration belongs to the title at the leading edge, not to the
+  // actions at the trailing one.
+  const duration = (await box(page, `${INFO} [data-inspector-header-meta]`))!;
+  expect(duration.left - (title.left + title.width)).toBeLessThanOrEqual(16);
+  expect(chip.left - (duration.left + duration.width)).toBeGreaterThan(16);
+
   const block = (await box(page, HEADER_BLOCK))!;
   expect(block.height).toBeLessThanOrEqual(100);
 
