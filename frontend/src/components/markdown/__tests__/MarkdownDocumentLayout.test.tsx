@@ -198,19 +198,24 @@ describe("MarkdownDocumentLayout — mobile (< 768px)", () => {
     expect(screen.queryByTestId("inspector-content")).toBeNull();
   });
 
-  it("brings up the inspector when the chrome toggle is tapped", async () => {
+  it("SPEC-CORE-094 I3 (narrow): the row holds no inspector toggle; the sheet rests at its strip", () => {
     setViewportWidth(420);
     renderLayout();
-    fireEvent.click(screen.getByTestId("inspector-toggle"));
-    expect(await screen.findByTestId("inspector-content")).toBeInTheDocument();
+    expect(screen.getByTestId("mobile-inspector-peek")).toBeInTheDocument();
+    expect(screen.queryByTestId("inspector-toggle")).toBeNull();
+    expect(screen.queryByTestId("inspector-content")).toBeNull();
   });
 
-  it("hides the split option in the view-mode toggle on mobile", () => {
+  it("SPEC-CORE-094 D6 / I10 (narrow): one view-mode button, showing the mode it switches to", () => {
     setViewportWidth(420);
     renderLayout();
     expect(screen.queryByTestId("view-mode-split")).toBeNull();
-    expect(screen.getByTestId("view-mode-edit")).toBeInTheDocument();
-    expect(screen.getByTestId("view-mode-preview")).toBeInTheDocument();
+    expect(screen.queryByTestId("view-mode-edit")).toBeNull();
+    expect(screen.queryByTestId("view-mode-preview")).toBeNull();
+    const pencil = document.querySelector("header svg.lucide-pencil, svg.lucide-pencil");
+    expect(pencil).not.toBeNull();
+    fireEvent.click(pencil!.closest("button")!);
+    expect(document.querySelector("svg.lucide-eye")).not.toBeNull();
   });
 
   it("uses `mobileSheet` content in the Sheet when the host provides it", async () => {
