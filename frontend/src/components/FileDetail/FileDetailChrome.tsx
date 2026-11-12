@@ -203,7 +203,7 @@ export function FileDetailChrome({
     return row;
   }
   return (
-    <FileHeaderRowPortal needs={{ hideSearch: hideDocumentControls }}>
+    <FileHeaderRowPortal needs={{ hideHeaderControls: hideDocumentControls }}>
       {row}
     </FileHeaderRowPortal>
   );

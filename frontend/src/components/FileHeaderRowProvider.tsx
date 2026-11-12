@@ -30,7 +30,7 @@ import { createPortal } from "react-dom";
  * knows whether it needs it.
  */
 export interface FileRowNeeds {
-  hideSearch: boolean;
+  hideHeaderControls: boolean;
 }
 
 interface FileHeaderRowValue {
@@ -172,12 +172,12 @@ export function FileHeaderRowPortal({
   }, [alignTo, alignElement, id, top]);
 
   const setRowNeeds = host?.setRowNeeds;
-  const hideSearch = needs?.hideSearch ?? false;
+  const hideHeaderControls = needs?.hideHeaderControls ?? false;
   useLayoutEffect(() => {
     if (!top || !setRowNeeds) return;
-    setRowNeeds(id, { hideSearch });
+    setRowNeeds(id, { hideHeaderControls });
     return () => setRowNeeds(id, null);
-  }, [top, setRowNeeds, id, hideSearch]);
+  }, [top, setRowNeeds, id, hideHeaderControls]);
 
   if (!host || !top || !host.container) return null;
   return createPortal(children, host.container);

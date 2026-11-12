@@ -61,7 +61,7 @@ export function Header() {
   // can need the search button's room too.
   const narrowFileRow = filePageRow && isMobile;
   const rowNeeds = rowHost && rowHost.top ? rowHost.rowNeeds[rowHost.top] : undefined;
-  const hideSearch = narrowFileRow && !!rowNeeds?.hideSearch;
+  const hideHeaderControls = narrowFileRow && !!rowNeeds?.hideHeaderControls;
   const rowRef = useRef<HTMLDivElement | null>(null);
   const [rowInset, setRowInset] = useState(0);
 
@@ -126,13 +126,17 @@ export function Header() {
       />
 
       <div className="flex items-center gap-1 pr-4">
-        {!hideSearch && <GlobalSearch />}
+        {!hideHeaderControls && <GlobalSearch />}
         {/* Mounted directly, not through the addon slot: Quick Note has to be
             reachable from root, admin, and settings screens too, and those
             have no active drive. */}
         {!narrowFileRow && <QuickNote />}
         {drive && (
-          <AddonSlot id="header-actions" props={{ drive }} layout="stack" />
+          // Hidden rather than unmounted: a slot entry may draw nothing and
+          // still announce results while the row needs the space.
+          <div className={hideHeaderControls ? "hidden" : "contents"}>
+            <AddonSlot id="header-actions" props={{ drive }} layout="stack" />
+          </div>
         )}
 
         {!narrowFileRow &&

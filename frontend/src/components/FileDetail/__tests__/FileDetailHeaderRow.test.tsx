@@ -372,6 +372,26 @@ describe("SPEC-CORE-094 the file page draws its row in the app header", () => {
     expect(within(appHeader()).getByTestId("addon-slot-header-actions")).toBeInTheDocument();
   });
 
+  it("SPEC-CORE-094 D7 (narrow): a rename hides what the header-actions slot draws, without unmounting it, until the rename ends", async () => {
+    setWidth(NARROW);
+    serve(note());
+    render(page());
+    const slotBox = () =>
+      within(appHeader()).getByTestId("addon-slot-header-actions").parentElement!;
+    const rename = await waitFor(() =>
+      within(appHeader()).getByRole("button", { name: "Click to rename" }),
+    );
+    expect(slotBox()).not.toHaveClass("hidden");
+
+    fireEvent.click(rename);
+    const input = within(appHeader()).getByRole("textbox");
+    expect(slotBox()).toHaveClass("hidden");
+
+    fireEvent.keyDown(input, { key: "Escape" });
+    await waitFor(() => expect(within(appHeader()).queryByRole("textbox")).toBeNull());
+    expect(slotBox()).not.toHaveClass("hidden");
+  });
+
   it("SPEC-CORE-094 flow 4: the most recently mounted file page owns the row, and the one before it returns when it unmounts", async () => {
     serve(
       video({ id: "f1", folder_path: "alpha", filename: "a.mp4", title: "a.mp4" }),
