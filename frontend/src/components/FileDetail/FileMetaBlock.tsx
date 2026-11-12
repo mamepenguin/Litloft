@@ -103,6 +103,7 @@ export function FileMetaBlock({
             isTimedMedia={isTimedMedia}
             mediaController={mediaController}
             className="mt-1"
+            inspector={inspector}
             expanded={descriptionExpanded}
             onToggleExpanded={() => setDescriptionExpanded((value) => !value)}
           />

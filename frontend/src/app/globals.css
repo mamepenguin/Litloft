@@ -1183,8 +1183,7 @@ pre mark.ask-citation-highlight {
 
 [data-inspector-fit="stacked"][data-inspector-open="true"]
   #inspector-panel-info
-  [data-inspector-header-body]
-  > p {
+  [data-inspector-header-description] {
   grid-area: 3 / 1 / 4 / -1;
 }
 

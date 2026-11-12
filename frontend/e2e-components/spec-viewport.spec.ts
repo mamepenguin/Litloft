@@ -96,6 +96,7 @@ const AT_THE_DESKTOP_WIDTH = [
   "inspector-responsive-layout-desktop.spec.ts",
   "player-workbench-desktop.spec.ts",
   "workbench-no-panel-desktop.spec.ts",
+  "stacked-description-desktop.spec.ts",
 ] as const;
 
 test.describe("the component fixture lays out at the width it was given", () => {

@@ -28,6 +28,7 @@ export const DESKTOP_ONLY = [
   "**/inspector-responsive-layout-desktop.spec.ts",
   "**/player-workbench-desktop.spec.ts",
   "**/workbench-no-panel-desktop.spec.ts",
+  "**/stacked-description-desktop.spec.ts",
 ];
 
 /** Literals rather than a device preset, which can change under it. */

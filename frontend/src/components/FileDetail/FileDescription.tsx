@@ -12,6 +12,7 @@ interface FileDescriptionProps {
   isTimedMedia: boolean;
   mediaController: MediaController | null;
   className?: string;
+  inspector: boolean;
   expanded: boolean;
   onToggleExpanded: () => void;
 }
@@ -21,6 +22,7 @@ export function FileDescription({
   isTimedMedia,
   mediaController,
   className,
+  inspector,
   expanded,
   onToggleExpanded,
 }: FileDescriptionProps) {
@@ -52,7 +54,10 @@ export function FileDescription({
   if (!file.description) return null;
 
   return (
-    <div className={className}>
+    <div
+      data-inspector-header-description={inspector ? "" : undefined}
+      className={className}
+    >
       <p
         ref={textRef}
         className={`text-sm whitespace-pre-wrap text-text-muted${
