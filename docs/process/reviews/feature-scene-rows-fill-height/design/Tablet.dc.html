@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>タブレット縦のシーン</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.tab{all:unset;cursor:pointer;flex-shrink:0;height:40px;padding:0 12px;font-size:13px;color:#c4a0a4;border-bottom:2px solid transparent;box-sizing:border-box;display:inline-flex;align-items:center}
+.tab.on{color:#f5e6e8;border-bottom-color:#e85d5e}
+</style>
+</helmet>
+<div style="width: 768px; height: 1024px; display: flex; flex-direction: column; background: #1a0e10; color: #f5e6e8; font-family: -apple-system, system-ui, 'Hiragino Sans', sans-serif">
+  <div style="flex-shrink: 0; width: 768px; height: 432px; background: #000; display: flex; align-items: flex-end">
+    <div style="width: 100%; height: 4px; background: #3a2023"><div style="width: 25%; height: 4px; background: #e85d5e"></div></div>
+  </div>
+  <div role="tablist" aria-label="インスペクタ" style="flex-shrink: 0; display: flex; overflow-x: auto; border-bottom: 1px solid #3a2023; background: #231216">
+    <button class="tab" role="tab" aria-selected="false">情報</button>
+    <button class="tab" role="tab" aria-selected="false">チャプター</button>
+    <button class="tab" role="tab" aria-selected="false">文字起こし</button>
+    <button class="tab on" role="tab" aria-selected="true">シーン</button>
+    <button class="tab" role="tab" aria-selected="false">詳細要約</button>
+    <button class="tab" role="tab" aria-selected="false">ノート</button>
+    <button class="tab" role="tab" aria-selected="false">関連</button>
+  </div>
+  <div role="tabpanel" style="flex: 1 1 0%; min-height: 0; display: flex">
+    <dc-import name="Panel" pw="{{w}}" ph="{{h}}" noheader="{{yes}}" cardpos="below" hint-size="768px,551px"></dc-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":768,"height":1024}}'>
+class Component extends DCLogic {
+  renderVals() { return { w: 768, h: 1024 - 432 - 41, yes: true }; }
+}
+</script>
+</body>
+</html>

@@ -101,3 +101,21 @@ export const SCENES_LONG_VISUAL_INDEX = {
   staged_run: null,
   stale: false,
 };
+
+/** `count` frames 12 s apart, for the Scenes section on the file page. */
+export function scenesFrames(
+  count: number,
+): { start: number; content_preview: string }[] {
+  return Array.from({ length: count }, (_, index) => ({
+    start: index * SCENES_FRAME_STEP,
+    content_preview: `frame ${index}`,
+  }));
+}
+
+/** `SCENES_VISUAL_INDEX` for another file, optionally out of date. */
+export function scenesVisualIndex(
+  fileId: string,
+  stale: boolean,
+): typeof SCENES_VISUAL_INDEX {
+  return { ...SCENES_VISUAL_INDEX, file_id: fileId, stale };
+}
