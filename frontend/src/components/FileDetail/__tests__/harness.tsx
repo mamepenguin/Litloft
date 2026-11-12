@@ -4,9 +4,10 @@
  */
 import { useEffect, useLayoutEffect } from "react";
 import { expect, vi } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 
 import * as api from "@/lib/api";
+import enMessages from "@/messages-core/en.json";
 import type { FileRelationItem } from "@/lib/api";
 import { inspectorOpenStore } from "@/lib/inspectorOpenStore";
 import type { SlotEntry } from "@/lib/addons";
@@ -22,6 +23,15 @@ import {
   type ArchiveController,
   type ArchiveState,
 } from "@/lib/archiveController";
+
+/** Raises the phone's sheet the way a narrow page offers: the strip's name button. */
+export function raiseSheetFromStrip() {
+  fireEvent.click(
+    within(screen.getByTestId("mobile-inspector-peek")).getByRole("button", {
+      name: enMessages.inspector.expandSheet,
+    }),
+  );
+}
 
 export const slotMocks = {
   occupied: new Set<string>(),

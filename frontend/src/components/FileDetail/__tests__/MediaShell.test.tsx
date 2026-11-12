@@ -17,6 +17,7 @@ import {
   claimSlot,
   loaded,
   makeFile,
+  raiseSheetFromStrip,
   relationMocks,
   setApiResponses,
   measureRow,
@@ -587,7 +588,7 @@ describe("media on the shell, on a phone", () => {
     await renderMediaAwaitingChrome(makeFile({ has_chapters: false }));
     await screen.findByTestId("mobile-inspector-peek");
 
-    fireEvent.click(screen.getByTestId("inspector-toggle"));
+    raiseSheetFromStrip();
     await screen.findByTestId("mobile-inspector-sheet");
 
     expect(screen.queryByTestId("mobile-inspector-peek")).toBeNull();
@@ -612,7 +613,7 @@ describe("media on the shell, on a phone", () => {
     expect(peek.querySelector("[data-testid='file-actions']")).not.toBeNull();
     expect(screen.queryAllByTestId("addon-slot-file-detail-actions")).toHaveLength(0);
 
-    fireEvent.click(screen.getByTestId("inspector-toggle"));
+    raiseSheetFromStrip();
     const sheet = await screen.findByTestId("mobile-inspector-sheet");
     expect(screen.getAllByTestId("addon-slot-file-detail-actions")).toHaveLength(1);
     expect(sheet).toContainElement(
@@ -625,7 +626,7 @@ describe("media on the shell, on a phone", () => {
     withRelations(1);
     await renderMediaAwaitingChrome();
 
-    fireEvent.click(screen.getByTestId("inspector-toggle"));
+    raiseSheetFromStrip();
     await screen.findByTestId("mobile-inspector-sheet");
 
     expect(tabs()).toEqual(["Info", "Chapters", "Transcript", "Related"]);
@@ -636,7 +637,7 @@ describe("media on the shell, on a phone", () => {
     await renderMediaAwaitingChrome();
     expect(screen.getByTestId("mobile-inspector-peek")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByTestId("inspector-toggle"));
+    raiseSheetFromStrip();
 
     const sheet = await screen.findByTestId("mobile-inspector-sheet");
     expect(sheet.dataset.snap).toBe("half");
@@ -647,11 +648,11 @@ describe("media on the shell, on a phone", () => {
     await renderMediaAwaitingChrome();
     const player = screen.getByTestId("file-preview");
 
-    fireEvent.click(screen.getByTestId("inspector-toggle"));
+    raiseSheetFromStrip();
     await screen.findByTestId("mobile-inspector-sheet");
     expect(screen.getByTestId("file-preview")).toBe(player);
 
-    fireEvent.click(screen.getByTestId("inspector-toggle"));
+    fireEvent.keyDown(document, { key: "Escape" });
     await screen.findByTestId("mobile-inspector-peek");
     expect(screen.getByTestId("file-preview")).toBe(player);
   });
@@ -661,7 +662,7 @@ describe("media on the shell, on a phone", () => {
     const shell = screen.getByTestId("file-detail-shell");
     expect(shell.dataset.sheetSnap).toBe("peek");
 
-    fireEvent.click(screen.getByTestId("inspector-toggle"));
+    raiseSheetFromStrip();
 
     await waitFor(() => {
       expect(
@@ -674,7 +675,7 @@ describe("media on the shell, on a phone", () => {
     await renderMediaAwaitingChrome();
     const player = screen.getByTestId("file-preview");
 
-    fireEvent.click(screen.getByTestId("inspector-toggle"));
+    raiseSheetFromStrip();
     await screen.findByTestId("mobile-inspector-sheet");
     expect(screen.getByTestId("file-preview")).toBe(player);
 
@@ -685,7 +686,7 @@ describe("media on the shell, on a phone", () => {
 
   it("puts the scroller inside the part of the drawer that is on screen", async () => {
     await renderMediaAwaitingChrome();
-    fireEvent.click(screen.getByTestId("inspector-toggle"));
+    raiseSheetFromStrip();
 
     const visible = await screen.findByTestId("mobile-inspector-visible");
     expect(visible.style.height).toBe(SHEET_VISIBLE_HEIGHT);
@@ -699,7 +700,7 @@ describe("media on the shell, on a phone", () => {
   it("gives the sheet one scroller, and the inspector inside it is not a second", async () => {
     withTranscript();
     await renderMediaAwaitingChrome();
-    fireEvent.click(screen.getByTestId("inspector-toggle"));
+    raiseSheetFromStrip();
 
     const sheet = await screen.findByTestId("mobile-inspector-sheet");
     expect(screen.getByTestId("inspector-shell").dataset.scroll).toBe("column");
@@ -716,7 +717,7 @@ describe("media on the shell, on a phone", () => {
   it("keeps the tab strip reachable by pinning it to that one scroller", async () => {
     withTranscript();
     await renderMediaAwaitingChrome();
-    fireEvent.click(screen.getByTestId("inspector-toggle"));
+    raiseSheetFromStrip();
 
     await screen.findByTestId("mobile-inspector-sheet");
     const strip = screen.getByTestId("inspector-tabs");
@@ -729,7 +730,7 @@ describe("media on the shell, on a phone", () => {
     withTranscript();
     await renderMediaAwaitingChrome();
 
-    fireEvent.click(screen.getByTestId("inspector-toggle"));
+    raiseSheetFromStrip();
 
     await screen.findByTestId("mobile-inspector-sheet");
     expect(tabs()).toEqual(["Info", "Chapters", "Transcript"]);
@@ -738,7 +739,7 @@ describe("media on the shell, on a phone", () => {
 
   it("draws the summary note only through the Note panel, inside the sheet", async () => {
     await renderMediaAwaitingChrome(makeFile({ has_chapters: false }));
-    fireEvent.click(screen.getByTestId("inspector-toggle"));
+    raiseSheetFromStrip();
     await screen.findByTestId("mobile-inspector-sheet");
 
     expect(screen.getAllByTestId("active-summary-host")).toHaveLength(1);
@@ -888,7 +889,7 @@ describe("the sheet's half, derived from the player", () => {
   }
 
   async function openSheet() {
-    fireEvent.click(screen.getByTestId("inspector-toggle"));
+    raiseSheetFromStrip();
     return screen.findByTestId("mobile-inspector-sheet");
   }
 

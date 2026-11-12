@@ -3,9 +3,10 @@
  * unmount when closed.
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
+import enMessages from "@/messages-core/en.json";
 
 // `?edit=1` is carried through `useCreateFile`'s canonical redirect and
 // lands a newly created file in edit mode.
@@ -53,6 +54,16 @@ const CanvasContent = () => (
   <div data-testid="canvas-content">Canvas body</div>
 );
 
+const sheetPeek = (raiseSheet: () => void) => (
+  <button
+    type="button"
+    onClick={raiseSheet}
+    aria-label={enMessages.inspector.expandSheet}
+  >
+    my-note.md
+  </button>
+);
+
 function renderLayout(drive = "work", title = "my-note.md") {
   return render(
     <ShortcutsProvider>
@@ -60,6 +71,7 @@ function renderLayout(drive = "work", title = "my-note.md") {
         drive={drive}
         title={title}
         inspector={<InspectorContent />}
+        sheetPeek={sheetPeek}
       >
         <CanvasContent />
       </MarkdownDocumentLayout>
@@ -198,6 +210,20 @@ describe("MarkdownDocumentLayout — mobile (< 768px)", () => {
     expect(screen.queryByTestId("inspector-content")).toBeNull();
   });
 
+  it("SPEC-CORE-095 flow 2: the strip's name button brings up the inspector", async () => {
+    setViewportWidth(420);
+    renderLayout();
+    expect(screen.queryByTestId("inspector-content")).toBeNull();
+
+    fireEvent.click(
+      within(screen.getByTestId("mobile-inspector-peek")).getByRole("button", {
+        name: enMessages.inspector.expandSheet,
+      }),
+    );
+
+    expect(await screen.findByTestId("inspector-content")).toBeInTheDocument();
+  });
+
   it("SPEC-CORE-094 I3 (narrow): the row holds no inspector toggle; the sheet rests at its strip", () => {
     setViewportWidth(420);
     renderLayout();
@@ -231,12 +257,17 @@ describe("MarkdownDocumentLayout — mobile (< 768px)", () => {
           title="note.md"
           inspector={<div data-testid="inspector-only">inspector only</div>}
           mobileSheet={<div data-testid="sheet-extra">sheet extra</div>}
+          sheetPeek={sheetPeek}
         >
           <CanvasContent />
         </MarkdownDocumentLayout>
       </ShortcutsProvider>,
     );
-    fireEvent.click(screen.getByTestId("inspector-toggle"));
+    fireEvent.click(
+      within(screen.getByTestId("mobile-inspector-peek")).getByRole("button", {
+        name: enMessages.inspector.expandSheet,
+      }),
+    );
     expect(await screen.findByTestId("sheet-extra")).toBeInTheDocument();
     expect(screen.queryByTestId("inspector-only")).toBeNull();
   });

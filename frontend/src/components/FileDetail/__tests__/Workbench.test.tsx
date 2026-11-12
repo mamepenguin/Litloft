@@ -11,6 +11,7 @@ import type { FileItem } from "@/types";
 import {
   claimSlot,
   makeFile,
+  raiseSheetFromStrip,
   relationMocks,
   setApiResponses,
   setViewport,
@@ -170,7 +171,7 @@ async function renderFile(file: FileItem = VIDEO, { measured = true } = {}) {
 }
 
 async function raiseSheet() {
-  fireEvent.click(screen.getByTestId("inspector-toggle"));
+  raiseSheetFromStrip();
   return screen.findByTestId("mobile-inspector-sheet");
 }
 

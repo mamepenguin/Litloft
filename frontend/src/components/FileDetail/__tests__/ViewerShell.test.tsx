@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 
 import { FileDetailContent } from "../../FileDetailContent";
 import { SHEET_SNAP_HALF_FALLBACK } from "@/lib/sheetSnap";
@@ -10,6 +10,7 @@ import {
   makeFile,
   publishedArchiveState,
   publishedPdfState,
+  raiseSheetFromStrip,
   relationMocks,
   setApiResponses,
   setViewport,
@@ -437,7 +438,7 @@ describe("the archive's page-list tab", () => {
       publishedPdfState.value = { numPages: 225, outline: [] };
       await renderKind(PDF);
 
-      fireEvent.click(screen.getByTestId("inspector-toggle"));
+      raiseSheetFromStrip();
       const drawer = await screen.findByTestId("mobile-inspector-sheet");
       const published = Number.parseFloat(
         drawer.style.getPropertyValue("--snap-point-height"),
