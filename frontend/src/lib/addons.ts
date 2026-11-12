@@ -10,7 +10,7 @@ export interface AddonMeta {
   type?: "in_process" | "external_service";
   scope?: AddonScope;
   slots?: Record<string, SlotEntry[]>;
-  navigation?: AddonNavigation;
+  navigation?: AddonNavigation | AddonNavigation[];
 }
 
 export function addonUrlFor(name: string, meta: AddonMeta, currentDrive: string | null): string | null {

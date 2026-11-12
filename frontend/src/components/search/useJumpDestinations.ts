@@ -143,10 +143,10 @@ export function useJumpDestinations(active: boolean, drive: string | null): Jump
     const catalogue = catalogueDrive === drive ? addons : {};
     const addonRows = PLACEMENTS.flatMap((placement) =>
       addonNavEntries(catalogue, drive, placement),
-    ).map<JumpDestination>(({ name, navigation, href }) => {
+    ).map<JumpDestination>(({ key, navigation, href }) => {
       const label = slotEntryLabel(navigation, t);
       return {
-        key: `addon:${name}`,
+        key: `addon:${key}`,
         label,
         names: [label, navigation.label],
         href,

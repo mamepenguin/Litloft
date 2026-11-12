@@ -37,6 +37,7 @@ from app.services.tagops import (
     project_frontmatter_tags,
     retarget_file_tags,
 )
+from app.services.origin import project_frontmatter_origin
 
 logger = logging.getLogger(__name__)
 
@@ -324,6 +325,7 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
                 content = _read_markdown_for_projection(new_full)
                 if content is not None:
                     project_frontmatter_tags(db, new_file, content)
+                    project_frontmatter_origin(db, new_file, content)
                     project_markdown_thumbnail(db, new_file, content)
                     if new_file.thumbnail_path:
                         projected_thumb = (

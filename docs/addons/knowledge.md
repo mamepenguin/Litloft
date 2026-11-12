@@ -5,6 +5,7 @@ The `knowledge` addon adds Markdown notes to Litloft: an editor, version history
 ## What it provides
 
 - **Notes** in the sidebar lists and searches the drive's Markdown and text files. See [Notes](../user-guide/notes.md).
+- **Clips** in the sidebar, right after Notes, gathers the web pages you clipped, apart from the notes you wrote.
 - A Markdown editor with live preview, autosave, `[[wiki links]]`, and image upload by drag and drop or paste.
 - A version history where you browse and restore earlier versions of a note.
 - A capture basket that collects quotes and timestamps from anywhere in Litloft so you can add them to a note.
@@ -147,9 +148,21 @@ Saving adds the items to a note under a `## Captures` heading. Each item has a l
 - **Append to {filename}** adds to your usual note. By default this is `Captures/Inbox.md`. You can instead choose a daily note named `YYYY-MM-DD.md`, and a different folder. This setting is kept per drive in the browser.
 - **Other save methods** offers **New note** or **Existing note**.
 
+## Clips
+
+**Clips** is at `/drive/{drive}/addons/knowledge/clips`, below Notes in the sidebar. It lists only files whose frontmatter has `origin: webclip`, so a clip stays a clip when you move it or write in it, and it becomes a note again when you delete that line.
+
+- **Clip a web page**, at the top right, opens the same URL and pasted-HTML form as on Notes: destination folder, duplicate check and bookmarklet. A clip made there appears on the page without a reload.
+- **Home** draws up to 12 rows in each shelf: **Unread** (no history row for you), **Recently opened** (latest opening first) and **Unverified** (still waiting for **Trust as a source**). Without a [profile](../user-guide/profile-preferences.md), **Unread** becomes **New clips** and **Recently opened** is not drawn; **Unverified** stays.
+- **All** lists every clip newest first, grouped by the date it was clipped, 60 per page with **Load more**.
+- A row shows the title, the opening text, the folder and the clip date; opening it goes to the file page and counts as opening it.
+- A drive with no clips shows one empty state, and the page keeps its header and its **Clip a web page** action.
+
+The bookmarklet on the Clips page opens `/drive/{drive}/addons/knowledge/clips?prefill=…&title=…&autosubmit=1`, so a bookmarklet clip is made and shown on Clips. A bookmarklet installed earlier still opens Notes, which keeps handling the same parameters.
+
 ## Web clipping
 
-Clip a web page from **Web clip** at the bottom of the Notes page, from **Clip web page** in the **Add** menu, or with the bookmarklet offered on the Notes page.
+Clip a web page from **Clip a web page** on the Clips page, from **Web clip** at the bottom of the Notes page, from **Clip web page** in the **Add** menu, or with the bookmarklet offered on either page.
 
 Litloft creates the note at once and fetches the page in the background. It keeps the article, removes scripts and page furniture, converts it to Markdown, and renames the note after the article's title. If you edit the note before the fetch finishes, your edit is kept and the fetched text is discarded.
 

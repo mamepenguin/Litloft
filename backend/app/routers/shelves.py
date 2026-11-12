@@ -394,6 +394,9 @@ def list_drive_shelves(
     duration: list[str] | None = Query(None),
     watch: WatchState | None = Query(None),
     trust: str | None = Query(None, pattern="^(verified|unverified|unreviewed)$"),
+    origin: Annotated[str | None, Query(min_length=1, max_length=32)] = None,
+    exclude_origin: Annotated[str | None, Query(min_length=1, max_length=32)] = None,
+    opened: bool | None = Query(None),
     sort: str = Query(
         "created_at",
         pattern="^(created_at|title|file_size|liked_at|updated_at|random|last_played)$",
@@ -415,7 +418,19 @@ def list_drive_shelves(
             raise HTTPException(status_code=422, detail="ids accepts at most 60 elements")
         if any(not file_id for file_id in ids):
             raise HTTPException(status_code=422, detail="ids cannot contain an empty element")
-    if (by == "watch" or watch is not None or sort == "last_played") and viewer_id is None:
+    if opened is not None and (
+        by == "watch" or watch is not None or sort == "last_played"
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail="opened cannot be combined with watch conditions",
+        )
+    if (
+        by == "watch"
+        or watch is not None
+        or sort == "last_played"
+        or opened is not None
+    ) and viewer_id is None:
         raise HTTPException(status_code=400, detail="viewer_required")
 
     base, _ = filtered_drive_files(
@@ -431,9 +446,19 @@ def list_drive_shelves(
         size=size,
         duration=duration,
         trust=trust,
+        origin=origin,
+        exclude_origin=exclude_origin,
     )
     if ids is not None:
         base = base.filter(File.id.in_(ids))
+    if opened is not None:
+        # A row exists whatever its position, so the join is the whole answer.
+        base = _join_watch(base, viewer_id)
+        base = base.filter(
+            WatchHistory.file_id.isnot(None)
+            if opened
+            else WatchHistory.file_id.is_(None)
+        )
     if by == "watch" or watch is not None:
         base = _join_watch(base, viewer_id)
     if watch is not None:
