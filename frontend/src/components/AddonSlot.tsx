@@ -1,6 +1,13 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import {
+  Suspense,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslations } from "next-intl";
 import { useAddonSlots } from "./AddonSlotsProvider";
 import {
@@ -52,9 +59,16 @@ interface AddonSlotProps {
 export function SlotEntryRenderer({
   entry,
   props,
+  onRendered,
 }: {
   entry: SlotEntry;
   props: Record<string, unknown>;
+  /**
+   * Runs before paint once the entry's component has mounted. The host uses
+   * this to stop treating an entry that has not answered yet as available
+   * while its module is still loading.
+   */
+  onRendered?: () => void;
 }) {
   const [mod, setMod] = useState<SlotModule | null>(
     () => getCachedSlotModule(entry.addonName ?? "") ?? null
@@ -85,8 +99,22 @@ export function SlotEntryRenderer({
   return (
     <Suspense fallback={null}>
       <Component {...props} />
+      {onRendered && <RenderedSignal onRendered={onRendered} />}
     </Suspense>
   );
+}
+
+/**
+ * A sibling of the entry, so it mounts only once the entry's own chunk has
+ * loaded and its first render completed — `Suspense` withholds every child
+ * while any one of them suspends.
+ */
+function RenderedSignal({ onRendered }: { onRendered: () => void }) {
+  const callback = useRef(onRendered);
+  useLayoutEffect(() => {
+    callback.current();
+  }, []);
+  return null;
 }
 
 export function AddonSlot({

@@ -98,7 +98,7 @@ Register page shortcuts with `useShortcuts(id, label, shortcuts, enabled?, prior
 
 ## Preferences on `<html>`
 
-An attribute the CSS reads from `<html>` must be set before first paint. Those go in `lib/preferenceInitScript.ts`, the inline script `app/layout.tsx` puts in `<head>` (currently `data-theme` and `data-media-layout`). Read `localStorage` through `lib/safeStorage.ts`; a direct read throws where site data is blocked.
+An attribute the CSS reads from `<html>` must be set before first paint. Those go in `lib/preferenceInitScript.ts`, the inline script `app/layout.tsx` puts in `<head>` (currently `data-theme`). Read `localStorage` through `lib/safeStorage.ts`; a direct read throws where site data is blocked.
 
 ## Testing
 

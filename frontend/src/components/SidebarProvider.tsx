@@ -97,15 +97,14 @@ export function SidebarProvider({ children }: { children: ReactNode }) {
     setRefreshKey((k) => k + 1);
   }, []);
 
-  if (!hydrated) {
-    return <>{children}</>;
-  }
-
+  // `children` must keep the same parent element in every render: serving
+  // them bare before hydration would remount the whole page subtree when
+  // the provider appears.
   return (
     <SidebarContext
       value={{
-        isOpen,
-        isOverlay,
+        isOpen: hydrated && isOpen,
+        isOverlay: hydrated && isOverlay,
         toggle,
         close,
         setOverlayMode,

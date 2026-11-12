@@ -2,7 +2,7 @@
  * Each suite keeps its own `vi.mock()` lines: `vi.mock` is hoisted per file,
  * so a helper that called it for you would run in the wrong file.
  */
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
 import { expect, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 
@@ -153,10 +153,15 @@ export function claimSlot(slotId: string, entries: SlotEntry[]) {
 export function SlotEntryRendererStub({
   entry,
   props,
+  onRendered,
 }: {
   entry: SlotEntry;
   props: Record<string, unknown>;
+  onRendered?: () => void;
 }) {
+  useLayoutEffect(() => {
+    onRendered?.();
+  }, [onRendered]);
   const report = props?.onAvailability as
     | ((available: boolean) => void)
     | undefined;
@@ -296,6 +301,10 @@ export function ChaptersPanelStub({
       <button
         data-testid="chapters-resolved-empty"
         onClick={() => onResolved?.(0)}
+      />
+      <button
+        data-testid="chapters-resolved-some"
+        onClick={() => onResolved?.(3)}
       />
     </div>
   );

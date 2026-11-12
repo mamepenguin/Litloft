@@ -571,26 +571,24 @@ describe("FileDetailContent", () => {
     );
     render(<FileDetailContent fileId="f1" drive="work" />);
     await loaded();
-    // The summaries land in the canvas in the first frame the row is measured.
     await waitFor(() =>
-      expect(
-        screen.queryByTestId("addon-slot-include:detailed-summary"),
-      ).not.toBeNull(),
+      expect(screen.getAllByTestId("active-summary-host")).toHaveLength(1),
     );
     expect(
       screen.queryByTestId("markdown-document-layout"),
     ).not.toBeInTheDocument();
-    expect(screen.getByTestId("file-detail-shell")).toBeInTheDocument();
+    // The heavy summaries belong to the workbench on a player file, so the
+    // canvas and Info keep neither.
+    expect(
+      screen.queryByTestId("addon-slot-include:detailed-summary"),
+    ).toBeNull();
     expect(screen.queryByTestId("addon-slot-all")).toBeNull();
     expect(
       screen.getByTestId("addon-slot-exclude:detailed-summary"),
     ).toBeInTheDocument();
-    expect(
-      screen.getByTestId("addon-slot-include:detailed-summary"),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByTestId("addon-slot-file-preview-actions"),
-    ).toBeInTheDocument();
+    const summaries = screen.getAllByTestId("active-summary-host");
+    expect(summaries).toHaveLength(1);
+    expect(summaries[0]).not.toBeVisible();
   });
 
   it("hot-switches between DocumentLayout and legacy stack when usePolicy flips mid-session (Phase 5)", async () => {

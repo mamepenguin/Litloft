@@ -2,6 +2,7 @@ import "@testing-library/jest-dom/vitest";
 import { configure } from "@testing-library/react";
 import { afterEach, vi } from "vitest";
 import enMessages from "../messages/en.json";
+import { resetWorkbenchPanels } from "../lib/workbenchPanels";
 
 // Testing Library's 1000 ms default is a wall-clock budget that a starved
 // worker can exceed on a correct wait. `testTimeout` in vitest.config.ts must
@@ -45,6 +46,28 @@ if (typeof window !== "undefined") {
   // reach sessionStorage too.
   define(window, "Storage", TestStorage);
   define(globalThis, "Storage", TestStorage);
+
+  // jsdom's `StorageEvent` converts `storageArea` to its own private Storage
+  // type, which the shim above is not. Keep the event's shape without that
+  // conversion so a test can dispatch the same event a browser would.
+  class TestStorageEvent extends Event {
+    readonly key: string | null;
+    readonly oldValue: string | null;
+    readonly newValue: string | null;
+    readonly url: string;
+    readonly storageArea: unknown;
+
+    constructor(type: string, init: StorageEventInit = {}) {
+      super(type);
+      this.key = init.key ?? null;
+      this.oldValue = init.oldValue ?? null;
+      this.newValue = init.newValue ?? null;
+      this.url = init.url ?? "";
+      this.storageArea = init.storageArea ?? null;
+    }
+  }
+  define(window, "StorageEvent", TestStorageEvent);
+  define(globalThis, "StorageEvent", TestStorageEvent);
 
   for (const key of ["localStorage", "sessionStorage"] as const) {
     const shim = new TestStorage() as unknown as Storage;
@@ -119,9 +142,6 @@ vi.mock("next-intl", () => {
 afterEach(() => {
   if (typeof document !== "undefined") {
     document.dispatchEvent(new Event("pointercancel"));
-    // The layout preference lives on `<html>` as an attribute the preference
-    // hook writes, so a test that renders a player leaves the next test a
-    // layout it did not choose.
-    document.documentElement.removeAttribute("data-media-layout");
   }
+  resetWorkbenchPanels();
 });

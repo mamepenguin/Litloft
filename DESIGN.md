@@ -612,6 +612,10 @@ with a **border in the accent colour**, never a fill.
   are both white in the light theme. The accent border clears WCAG 1.4.11's 3 : 1.
 - **Unselected controls carry `border-transparent`**, so nothing shifts on
   selection.
+- **The workbench's panel toggles are the exception**: they are a row of independent
+  on/off pills, not one of N options, so the off state keeps a neutral
+  `--bg-border` border so each still reads as a control. Both states use a 1px
+  border, so nothing shifts.
 - **On a crowded bar, prefer a labelled menu** (`View: List view`). A border says
   which option is on but not what the options are.
 - **A set of options side by side is `SegmentedControl`**: an outlined
@@ -1095,15 +1099,12 @@ from their old position rather than jumping.
 
 ## 8. Display preferences applied before first paint
 
-The theme and the media layout preference are applied to `<html>` before the
-first paint, so neither flashes the other value for a frame, and both are then
-acted on in CSS.
+The theme is applied to `<html>` before the first paint, so it does not flash
+the other value for a frame, and it is then acted on in CSS.
 
 - **Theme**: `light` and `dark` apply their own rules; `system`, or nothing
   stored, follows `prefers-color-scheme`.
-- **Media layout**: see §8.5.
-- A browser that blocks site data still gets the system theme and the default
-  layout.
+- A browser that blocks site data still gets the system theme.
 
 ---
 
@@ -1117,7 +1118,7 @@ Info tab. Only the canvas differs, and there are two:
 | Canvas | Kinds | What is in it |
 |---|---|---|
 | **Document** | a Markdown note, and HTML shown the same way | the editor, with the note's own controls in the page row |
-| **Viewer** | **everything else** | the viewer, and what belongs to that viewer alone — a media file's description, its long summary, and the transcript when placed below the player |
+| **Viewer** | **everything else** | the viewer, and what belongs to that viewer alone — a player file's workbench panels under the player |
 
 - **The viewer has the column to itself**, rather than getting whatever height
   metadata leaves over.
@@ -1145,9 +1146,6 @@ steps aside when it is what stops a player file's inspector fitting beside the
 player. The collapse belongs to the file page, not to the tree setting:
 `tree:enabled:{drive}` is not written, the tree button brings the pane back,
 and the sidebar keeps its overlay form while the pane is away.
-
-The companion rail below has the same width for the same reason, not by sharing a
-value; a change to one is not a change to the other.
 
 ### The Related tab
 
@@ -1177,38 +1175,37 @@ listed when the file has a relation or when any addon publishes to
 - On the collection route, which has no inspector, the same sections sit under one
   `Related` heading.
 
-### Companion region (media file detail)
+### Workbench (media file detail)
 
-Chapters and the transcript. It belongs to a **player** — a PDF has a viewer but no
-playback clock, so it has no companion region.
-
-| Surface | "Beside" means | "Below" means |
-|---|---|---|
-| File page | a tab in the inspector | a bounded box in the canvas, under the description |
-| Collection playback | a second column beside the player | the same box, under the player |
-
-In the stacked layout (a player file in a narrow row with the inspector open)
-the companion is a tab whatever the preference says, and the toggle is not
-drawn: there is no second column and no room under the player for the box.
-
-**The companion is moved, never duplicated**: it holds a fetch, a playback clock
-and a scroll position.
+The transcript, the scenes, the detailed summary and the summary note, under a
+player. It belongs to a **player** — a PDF has a viewer but no playback clock,
+so it has no workbench.
 
 | Token | Value | Meaning |
 |---|---|---|
-| rail width | `24rem` (384px) | Fixed. 320px wrapped Japanese at 12–14 characters a line. |
-| box height | `60%` of the scroll container | The bounded box below the player. |
-| below: index column | `12.5rem`–`22rem` | The chapter list beside the transcript; wider than about 350px, timestamps compete with what they index. |
-| below: body column | `68ch` | The reading measure, as both base and cap. |
-| player minimum | `34.5rem` (552px) | Narrower and a 16:9 video stops being watchable. |
-| gap | `1.5rem` (24px) | The standard section gap. |
-| switch threshold | rail width + player minimum + gap | A sum, not a feel. |
+| column threshold | `41rem` | At or above it, the panels that are shown sit side by side as equal columns; below it they sit one above the other. |
+| panel floor | `18rem` | The panels are at least this tall. If the room is less, they keep it and the page scrolls. |
+| player cap | half the scroll container's visible height | While a panel is shown under a framed player on the canonical page. An unframed player (audio) is not capped, and neither are pseudo or system full screen and the mini player. |
+| collection height | `60%` of the scroll container, at least `18rem` | The panels together on the collection surface. Two stacked panels share it equally. The player there is not capped. |
 
-**Four questions, four thresholds. Do not merge them.**
+- **The row is the panels' switch**: one toggle per available panel, and the
+  player's `file-preview-actions` entries at its trailing end. With no toggle
+  and no action the row is not drawn.
+- **At most two panels are shown**, in the panel list's order rather than the
+  order they were turned on.
+- **A panel is mounted once per form**: turning it on or off, closing it and
+  switching tabs move nothing and replace no player.
+- **Placement belongs to the space, not to a preference**: the wide forms use
+  the workbench, and the stacked inspector and the phone use tabs. The reader
+  chooses which panels are on, never where they are.
+- **Each panel's body scrolls inside itself.**
+- **A panel is an `--bg-elevated` card with no border.** `--bg-card` is the page's
+  white in the light theme, so a card drawn with it has no visible edge there.
+
+**Three questions, three thresholds. Do not merge them.**
 
 | Question | Measured against |
 |---|---|
-| Can a rail sit beside the player? | The host's own width |
 | Can the inspector sit beside the canvas, or must it cover it? | The width of the row holding both; a player file in a row that cannot hold it is stacked instead of covered |
 | Does the inspector *start* open? | The file kind and the viewport. A video, audio or `.loft` file: open off a phone. Anything else: the viewport (1120px). A default only; the reader's choice outranks it |
 | Is the inspector a pane or a Bottom Sheet? | The viewport (768px) |
@@ -1220,8 +1217,6 @@ and a folder tree have already taken space the viewport does not know about.
 
 - **The host holds the height.** An occupant cannot tell which form it is in and
   must never bound itself.
-- **Lead and fill, not equal shares**: a short index sizes to its content under a
-  cap, and the long body takes the rest. The index does not shrink.
 
 ### The primary pointer decides whether anything scrolls sideways
 

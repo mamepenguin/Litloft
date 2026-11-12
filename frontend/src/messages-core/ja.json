@@ -1513,5 +1513,12 @@
       "pdf": "PDF",
       "archive": "書庫"
     }
+  },
+  "workbench": {
+    "panels": "パネル",
+    "note": "ノート",
+    "close": "{label}を閉じる",
+    "showMore": "もっと見る",
+    "showLess": "折りたたむ"
   }
 }

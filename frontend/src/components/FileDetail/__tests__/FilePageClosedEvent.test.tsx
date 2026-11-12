@@ -95,7 +95,6 @@ beforeEach(() => {
   slotMocks.occupied.clear();
   slotMocks.entries.clear();
   window.localStorage.clear();
-  document.documentElement.removeAttribute("data-media-layout");
   setViewport();
   usePolicyMock.mockReturnValue({ enabled: true, isLoading: false });
   closed.length = 0;

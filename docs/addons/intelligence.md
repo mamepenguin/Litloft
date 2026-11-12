@@ -447,7 +447,7 @@ Automatic runs never redo an image that already has a result.
 
 ### Visual index
 
-For video, the vision model describes representative scenes. The **Scenes** section marks every described scene on its frame timeline and on the tile of the frame it starts at, and the card under the grid describes the last described scene at or before the point you are looking at; click the card to play from there. **Create scenes** starts it, **Regenerate scenes** runs it again, and **Retry the N failed** redoes the scenes that failed. It waits until the video's frames have been indexed.
+For video, the vision model describes representative scenes. The **Scenes** panel marks every described scene on its frame timeline and on the tile of the frame it starts at, and the card under the grid describes the last described scene at or before the point you are looking at; click the card to play from there. **Create scenes** starts it, **Regenerate scenes** runs it again, and **Retry the N failed** redoes the scenes that failed. It waits until the video's frames have been indexed.
 
 Modes (`features.video_visual_index`): `"false"` (default), `"manual"`, `"on_index"`. It needs `llm.vision_model`. Frame images and nearby transcript text are sent to the vision model.
 
@@ -786,9 +786,9 @@ Whisper (or the `haas_local` recognizer, when that is the provider), BLIP, the O
 
 - **Search**: meaning-based results in the ordinary search, and the **Scene search** switch.
 - **Ask** in the sidebar, with the **Ask** and **Find** tabs.
-- Sections on the file page, each shown once it has something in it: **Do you trust this source?**, **AI tag candidates**, **AI chapter candidates**, **AI summary**, **AI detailed summary**, **AI image description**, **Scenes**.
+- Sections on the file page, each shown once it has something in it: **Do you trust this source?**, **AI tag candidates**, **AI chapter candidates**, **AI summary**, **AI image description**.
 - **AI** button in the file's action row. It lists what the file does not have yet (tag candidates, a summary, a detailed summary, chapter candidates, an image description). It is hidden when there is nothing left to create.
-- **Transcript** tab in the inspector, for files that have a transcript. It has **Clean up with AI**, a switch between **Text chunks**, **Words** and **External** when there is more than one source, and a button on each line that adds it to the capture basket. Where it sits: [chapters and the transcript](../user-guide/viewers-and-players.md#chapters-and-the-transcript-beside-or-below).
+- On a player file, **Transcript**, **Scenes** and **Detailed summary** are [panels under the player](../user-guide/viewers-and-players.md#panels-under-the-player); in a narrow window and on a phone they are tabs in the inspector. **Transcript** has **Clean up with AI**, a switch between **Text chunks**, **Words** and **External** when there is more than one source, and a button on each line that adds it to the capture basket. **Detailed summary**'s **Save as file** also makes the note the file's summary note, which appears in the **Note** panel. On a file without a player, **Detailed summary** is a section in **Info** instead.
 - **Similar files** under the inspector's **Related** tab. It searches when the file opens, or when you open the inspector (on a phone, the sheet), so the results are usually there by the time you open the tab, and each result shows keywords it shares with the current file.
 - **Pickup** on the drive home.
 - **Index details** in the file's `…` menu (see below).

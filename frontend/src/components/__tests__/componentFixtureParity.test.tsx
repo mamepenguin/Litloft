@@ -323,6 +323,7 @@ describe("the component fixture's page", () => {
       "inspector-video",
       "inspector-pdf",
       "inspector-video-two-pane",
+      "inspector-video-collection",
     ]);
   });
 });

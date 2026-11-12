@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "At HEAD (r1/head.txt = 7f2b9ae52), the comment at SidebarProvider.tsx:100-117 says children must keep the same parent. The provider always renders <SidebarContext> and exposes `hydrated && isOpen` and `hydrated && isOverlay`. ThemeProvider.tsx:36-70 has no `mounted` state and always renders <ThemeContext>. ProfileProvider.tsx:51-68 uses a `wroteNickname` ref. The test SidebarProviderHydration.test.tsx exists. classification.json zones_touched lists all four paths (lines 270-284). None of them is in the Touch points list. I could not see the base side of the diff; the removed bare-children branches are corroborated by the comments in the code and by r5fix-review.md and flicker-review.md, which describe the old behaviour."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "AddonSlot.tsx:62,71 adds the `onRendered` prop. Lines 100-103 render `<RenderedSignal onRendered=...>` inside `<Suspense fallback={null}>`, and `RenderedSignal` is defined at line 112. classification.json:130 lists AddonSlot.tsx. Touch points list useSlotAvailability.ts but not AddonSlot.tsx."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "docs/addons/media-import.md:83 has the heading '## Where the details are'. classification.json:30 lists the file as touched. Spec §9 (player-workbench.md:445-484) and the Touch points docs list name nine documents, and media-import.md is not among them."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-4",
+      "status": "confirmed",
+      "note": "FileDetailContainer.tsx:236 builds `loftMetadata` and passes it at line 272. FileMetaBlock.tsx:35,106-111 renders it under `data-inspector-header-loft-metadata`. MediaPlayerBlock.tsx:58,83,87 adds `showMetadataAside`, and line 138 adds the `-mx-4 md:mx-0` class when framed. MediaCanvas.tsx:66 passes `showMetadataAside={false}`. FileDetailPresenter.tsx:181 adds the `-mx-4 md:mx-0` wrapper. globals.css:1191 has the `[data-inspector-header-loft-metadata]` rule. ADDON-DEVELOPMENT.md:1462-1464 has three changelog rows, while §9 (spec:479-480) says two. The behaviour is sanctioned by the human-approved I7 revision (invariants.md:13-19, decisions.md D-14), but the Touch points text was not updated to describe these file changes."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-5",
+      "status": "confirmed",
+      "note": "classification.json lists projects.ts (82), spec-viewport.spec.ts (86), mediaLayoutRemoved.test.ts (114), componentFixtureParity.test.tsx (286), and Workbench/WorkbenchCollection/WorkbenchPendingEntry/LoftMetadataPlacement tests and workbenchHelpers.ts (190, 214-230). The new test files exist on disk (Glob). None of these is named in the Touch points list."
+    }
+  ],
+  "specification_compliance": [
+    "All five findings are scope (touch-point) deviations. They are not behavioural defects. TP-4's behaviour is covered by the human-approved I7 revision, but the touch-point list was not updated to match."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The app-wide provider changes (Sidebar/Theme/Profile) change hydration behaviour for every page, not only the file detail page."
+  ],
+  "regression_risks": [
+    "SidebarProvider no longer remounts its subtree after hydration. Hydration attribute mismatches below it are no longer repaired by the remount, as r5fix-review.md F1 notes."
+  ],
+  "test_coverage": [
+    "SidebarProviderHydration.test.tsx, WorkbenchPendingEntry.test.tsx and LoftMetadataPlacement.test.tsx exist for the out-of-list changes. I did not run them."
+  ],
+  "not_verified": [
+    "The base (origin/develop) side of each diff. I cannot run git, so the removed code was inferred from comments and review docs.",
+    "Whether the tests pass.",
+    "The full contents of ProfileProvider.tsx and of the new test files."
+  ],
+  "confidence": 88
+}

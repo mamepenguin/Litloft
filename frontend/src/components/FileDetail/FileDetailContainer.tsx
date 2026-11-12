@@ -14,9 +14,9 @@ import {
   type FileDetailSurface,
 } from "@/lib/fileDetailShell";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { useInspectorForm } from "@/hooks/useInspectorForm";
 import { usePolicy } from "@/hooks/usePolicy";
 import { useAddonSlots } from "../AddonSlotsProvider";
+import { AddonSlot } from "../AddonSlot";
 import { MarkdownAwareTagChips } from "../MarkdownAwareTagChips";
 import { FileDetailPresenter } from "./FileDetailPresenter";
 import { FindProvider } from "./find/FindContext";
@@ -28,7 +28,6 @@ import { useFileDetailData } from "./hooks/useFileDetailData";
 import { FileDetailSkeleton } from "./FileDetailSkeleton";
 import { usePlainTextDocument } from "./hooks/usePlainTextDocument";
 import {
-  slotAvailabilityKey,
   useSlotAvailability,
 } from "./hooks/useSlotAvailability";
 import {
@@ -72,7 +71,7 @@ export function FileDetailContainer({
   surface = "canonical",
 }: FileDetailContentProps) {
   const tPane = useTranslations("rightPane");
-  const { getSlotEntries, hasSlot, addons, catalogueDrive } = useAddonSlots();
+  const { addons, catalogueDrive, hasSlot } = useAddonSlots();
   const slotAvailability = useSlotAvailability(fileId);
   const isMobile = useIsMobile();
   const data = useFileDetailData(fileId);
@@ -132,9 +131,6 @@ export function FileDetailContainer({
   const scrollRoot = ridesShell ? shellScrollRoot : (miniPlayerRoot ?? null);
 
   const metrics = useCompanionMetrics(file?.id, scrollRoot);
-  // In the stacked layout the canvas has no room for a description under the
-  // player: it belongs to the header block at the top of Info, with the title.
-  const { stacked: stackedLayout } = useInspectorForm(fileId);
 
   const handleMediaController = useCallback(
     (mc: MediaController | null) => {
@@ -172,24 +168,11 @@ export function FileDetailContainer({
    */
   const isTimedMedia = file.file_type === "video" || file.file_type === "audio";
 
-  const companionKind = playerKind(file);
+  const kind = playerKind(file);
   // Asked once and passed down. Two spellings of "does a player play
   // this" is how the description ends up rendered twice, or nowhere.
-  const hasPlayer = companionKind !== null;
-  const railEligible = companionKind === "video" || companionKind === "loft";
-  const playerFramed = railEligible;
-
-  // `companionMountable` is "could anyone fill it", and it is what
-  // decides whether the occupants are mounted at all. It must not
-  // consult availability: the occupants are what report availability, so
-  // a region unmounted because nothing was available yet would take the
-  // reporters down with it and freeze that answer for good.
-  const companionMountable = hasSlot("player-side") || data.chaptersPresent;
-  const companionOccupied =
-    data.chaptersPresent ||
-    getSlotEntries("player-side").some((entry) =>
-      slotAvailability.isAvailable(slotAvailabilityKey("player-side", entry.id)),
-    );
+  const hasPlayer = kind !== null;
+  const playerFramed = kind === "video" || kind === "loft";
 
   const isHtmlPreview = file.mime_type === "text/html";
   // Whether the Knowledge editor is the thing in the canvas. Narrower
@@ -217,8 +200,6 @@ export function FileDetailContainer({
    * A PDF's is a property of the file, so it stays with the title and
    * the size where every other kind's is.
    */
-  const descriptionInCanvas = ridesShell && hasPlayer;
-
   const tagChipNode = (
     <MarkdownAwareTagChips
       fileId={fileId}
@@ -250,6 +231,16 @@ export function FileDetailContainer({
     onFileChange: setFile,
   };
 
+  // `ridesShell` keeps this off the collection surface, which has no Info tab
+  // and draws the same slot under the player.
+  const loftMetadata =
+    ridesShell && playerKind(file) === "loft" && hasSlot("loft-metadata") ? (
+      <AddonSlot
+        id="loft-metadata"
+        props={{ fileId: file.id, drive: file.drive }}
+      />
+    ) : null;
+
   // Until the file's own answer arrives, what is on screen may be a list's
   // older copy, and every control in here writes a field of it back.
   const meta = (
@@ -278,7 +269,7 @@ export function FileDetailContainer({
         videoRef={videoRef}
         addonSlotProps={addonSlotProps}
         tagChips={tagChipNode}
-        hoistDescription={descriptionInCanvas && !stackedLayout}
+        loftMetadata={loftMetadata}
         inspector={ridesShell}
       />
     </div>
@@ -328,14 +319,8 @@ export function FileDetailContainer({
         usesCanvasViewer={usesCanvasViewer}
         plainTextDocument={plainTextDocument}
         hasInspector={surface === "canonical"}
-        descriptionInCanvas={descriptionInCanvas}
         playerFramed={playerFramed}
-        companionKind={companionKind}
-        railEligible={railEligible}
-        companionMountable={companionMountable}
-        companionOccupied={companionOccupied}
         slotAvailability={slotAvailability}
-        isTimedMedia={isTimedMedia}
         chaptersPresent={data.chaptersPresent}
         chaptersVersion={data.chaptersVersion}
         onChaptersResolved={data.onChaptersResolved}

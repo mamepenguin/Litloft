@@ -1,0 +1,98 @@
+{
+  "v": 3,
+  "attachments": {},
+  "boards": {
+    "AOff.dc.html": {
+      "h": 900,
+      "title": "案A PC・全部オフ",
+      "w": 1440,
+      "x": 3040,
+      "y": 1300
+    },
+    "AOne.dc.html": {
+      "h": 900,
+      "title": "案A PC・1つだけ",
+      "w": 1440,
+      "x": 1520,
+      "y": 1300
+    },
+    "Current.dc.html": {
+      "h": 900,
+      "title": "現状（PC・横に表示）",
+      "w": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "Main.dc.html": {
+      "h": 900,
+      "is_interactive": true,
+      "title": "案A PC・2つ並べる（操作できます）",
+      "w": 1440,
+      "x": 0,
+      "y": 1300
+    },
+    "Phone.dc.html": {
+      "h": 844,
+      "title": "案A スマホ",
+      "w": 390,
+      "x": 900,
+      "y": 2600
+    },
+    "Tablet.dc.html": {
+      "h": 1180,
+      "title": "案A タブレット縦（stacked）",
+      "w": 820,
+      "x": 0,
+      "y": 2600
+    }
+  },
+  "createdOnFiles": {
+    "at": "2026-11-12T12:00:00Z",
+    "v": 1
+  },
+  "designSystems": [],
+  "launch": {
+    "view": "canvas"
+  },
+  "noteOrder": [
+    "rowCurrent",
+    "rowA",
+    "rowSmall"
+  ],
+  "notes": {
+    "rowA": {
+      "kind": "title1",
+      "maxW": 4480,
+      "text": "案A　プレイヤーの下を作業台に",
+      "w": 240,
+      "x": 0,
+      "y": 1040
+    },
+    "rowCurrent": {
+      "kind": "title1",
+      "maxW": 1440,
+      "text": "現状",
+      "w": 240,
+      "x": 0,
+      "y": -260
+    },
+    "rowSmall": {
+      "kind": "title1",
+      "maxW": 1290,
+      "text": "案A　狭い画面",
+      "w": 240,
+      "x": 0,
+      "y": 2340
+    }
+  },
+  "order": [
+    "Current.dc.html",
+    "Main.dc.html",
+    "AOne.dc.html",
+    "AOff.dc.html",
+    "Tablet.dc.html",
+    "Phone.dc.html"
+  ],
+  "pages": [],
+  "title": "Player Workbench"
+}
