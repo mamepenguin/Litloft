@@ -297,6 +297,10 @@ export function ChaptersPanelStub({
         data-testid="chapters-resolved-empty"
         onClick={() => onResolved?.(0)}
       />
+      <button
+        data-testid="chapters-resolved-some"
+        onClick={() => onResolved?.(3)}
+      />
     </div>
   );
 }

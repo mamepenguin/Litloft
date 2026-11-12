@@ -89,6 +89,7 @@ import {
   InspectorPdfArrangement,
   InspectorVideoArrangement,
   InspectorVideoTwoPaneArrangement,
+  InspectorVideoCollectionArrangement,
 } from "./inspectorResponsive";
 import AskTab from "../../src/addons/intelligence/AskTab";
 import { getAskThread } from "../../src/addons/intelligence/askStore";
@@ -2445,6 +2446,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "inspector-video": InspectorVideoArrangement,
   "inspector-pdf": InspectorPdfArrangement,
   "inspector-video-two-pane": InspectorVideoTwoPaneArrangement,
+  "inspector-video-collection": InspectorVideoCollectionArrangement,
 };
 
 function App(): ReactElement {

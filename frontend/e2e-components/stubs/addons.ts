@@ -10,7 +10,7 @@ export function loadAddonSlotModule(addonName: string): Promise<SlotModule> {
     return Promise.reject(new Error(`No fixture slot module for ${addonName}`));
   }
   return Promise.resolve({
-    slotComponents: { transcript: TranscriptSlot },
+    slotComponents: { transcript: TranscriptSlot, outline: TranscriptSlot },
   } as unknown as SlotModule);
 }
 
