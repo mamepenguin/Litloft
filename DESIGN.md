@@ -1199,6 +1199,8 @@ so it has no workbench.
   the workbench, and the stacked inspector and the phone use tabs. The reader
   chooses which panels are on, never where they are.
 - **Each panel's body scrolls inside itself.**
+- **A panel is an `--bg-elevated` card with no border.** `--bg-card` is the page's
+  white in the light theme, so a card drawn with it has no visible edge there.
 
 **Three questions, three thresholds. Do not merge them.**
 

@@ -1018,7 +1018,7 @@ pre mark.ask-citation-highlight {
   min-height: 0;
   overflow: hidden;
   border-radius: 12px;
-  background: var(--color-bg-card);
+  background: var(--color-bg-elevated);
 }
 
 .media-detail-workbench-panel[hidden] {
