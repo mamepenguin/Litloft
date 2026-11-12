@@ -59,3 +59,9 @@ pending: Pictures, video and playback as seen and heard (agent_cannot_verify). T
 - D-2: accepted. The scene card's background matching the workbench panel predates this change (the workbench); not touched here.
 - D-3: accepted. Screenshots are light theme only; this change touches no colour.
 - D-4: accepted. The action row was not in frame in the scrolled 900px and tablet shots; its look is unchanged by this change and its order was measured in the other states.
+
+## Addon reviews (addon-review.md, addon-fix-review.md), decided by the human 2026-11-13
+
+- addon-review F1, F2: fixed in addons/intelligence 7b0f4db (core b1e269b5a); the fix was reviewed on its own in addon-fix-review.md.
+- addon-review F3, F4: not fixed (below the threshold), listed in the PR.
+- addon-fix-review F1 (3 rows stuck at 7 columns beside a classic scrollbar in a ~15px height band, existing before this change and allowed by spec §10): the human said "出荷" (ship) without fixing it.
