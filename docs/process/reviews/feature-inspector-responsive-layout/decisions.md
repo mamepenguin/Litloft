@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship — the owner chose "出荷する (Recommended)" on 2026-11-12 for r6 (HUMAN_REVIEW_REQUIRED: unspecified_behavior, the stacked mini-player suppression of spec 082.3 implemented in files the touch points did not list).
 ran_in_app: yes
 at: 5d0368f6a54716aba05e34eedad9416b8de24ddd
 by: agent
