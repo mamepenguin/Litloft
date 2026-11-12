@@ -163,9 +163,8 @@ export function FileDetailChrome({
         <InboxDetailActions fileId={fileId} drive={drive} />
       )}
 
-      {/* On a phone the sheet is raised from its resting strip, which is
-          always in reach; a second way from the row would be a toggle that
-          can never say "closed". */}
+      {/* On a phone the sheet never closes: it collapses to its strip, so a
+          toggle here would have no "closed" state to show. */}
       {inspector && !isMobile && (
         <button
           type="button"

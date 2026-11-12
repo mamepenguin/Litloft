@@ -41,9 +41,10 @@ interface BreadcrumbProps {
    */
   driveIsAncestor?: boolean;
   /**
-   * Below `md` the trail becomes two lines, lead by the caller's own control
-   * beside it. A caller whose leaf is a stateful control renders it here so
-   * it keeps its state when the viewport crosses the breakpoint.
+   * Below `md` the trail stacks: its leaf alone on the second line, under
+   * whatever the caller draws above the trail. A caller whose leaf is a
+   * stateful control renders it here so it keeps its state when the viewport
+   * crosses the breakpoint.
    */
   compact?: boolean;
 }
