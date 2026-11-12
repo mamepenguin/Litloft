@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "The changed-file list in docs/process/reviews/feature-scene-rows-fill-height/r6/classification.json:22 includes frontend/e2e-components/fixtures/inspectorResponsive.tsx. The same list does not include fixtures/app.tsx or fixtures/scenesSection.tsx. inspectorResponsive.tsx:76 reads the `scenes=1` query, :125-128 add the `scenes` entry, :230 defines scenesResponse, :267 defines installScenePictures and :439 merges the intelligence messages. The new spec helper navigates to it at scenes-section-rows.cases.ts:52-58 with `scenes: \"1\"`. The touch-point list does not name this file."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "classification.json:54 lists frontend/e2e-components/stubs/addons.ts as changed. stubs/addons.ts:3 imports the real ScenesSection, and :22 maps `scenes: ScenesSection` in the intelligence slot module that every fixture shares. The touch-point list does not name this file. It is test-only code, so it does not count as production core-to-addon code."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "classification.json:30 lists projects.ts and :50 lists spec-viewport.spec.ts as changed. projects.ts:26-27 add the two rows desktop specs. spec-viewport.spec.ts:68 adds scenes-section-rows.spec.ts and :95-96 add the two desktop specs. The touch-point list names neither file."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-4",
+      "status": "confirmed",
+      "note": "classification.json:42 lists frontend/e2e-components/scenes-section-rows.cases.ts as changed, and the file exists. The touch-point list names `scenes-section*.spec.ts` and `scenes-section.cases.ts`. A .cases.ts file does not match the *.spec.ts glob, and it is not scenes-section.cases.ts, which this commit does not list as changed."
+    }
+  ],
+  "specification_compliance": [
+    "The real-host arrangements exist in fixtures/inspectorResponsive.tsx behind `scenes=1`, not in the fixtures/app.tsx `scenes-…` entries that the touch-point list names. This is a difference in location only."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "stubs/addons.ts now resolves `scenes` to the real ScenesSection for every fixture that loads the intelligence slot module. Only inspectorResponsive.tsx declares a `scenes` entry, so other fixtures should not render it."
+  ],
+  "regression_risks": [
+    "Because stubs/addons.ts imports the real addon ScenesSection, a breakage in that addon's imports could fail to build every e2e-components fixture bundle."
+  ],
+  "test_coverage": [
+    "I did not assess coverage. The verifier's scope here was limited to the touch-point findings."
+  ],
+  "not_verified": [
+    "I could not run git diff. I used r6/classification.json as the record of which files changed and did not check it against git independently.",
+    "I did not run the e2e specs or check whether they pass.",
+    "I did not review the addon submodule changes or the invariant coverage."
+  ],
+  "confidence": 85
+}
