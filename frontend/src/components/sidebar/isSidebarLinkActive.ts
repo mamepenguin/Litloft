@@ -1,3 +1,5 @@
+import type { AddonNavEntry } from "@/lib/addonNavigation";
+
 /**
  * Tag rows do not go through here: their href is a toggle, so it drops
  * `?tag=` exactly when the row is selected.
@@ -66,4 +68,20 @@ export function isAddonNavRowActive(pathname: string, href: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Every placement's addon entries are compared together: one addon can put a
+ * page under two of its own entrances, and only the deepest one is lit.
+ */
+export function activeAddonNavKey(
+  pathname: string,
+  entries: readonly Pick<AddonNavEntry, "key" | "href">[],
+): string | null {
+  let active: Pick<AddonNavEntry, "key" | "href"> | null = null;
+  for (const entry of entries) {
+    if (!isAddonNavRowActive(pathname, entry.href)) continue;
+    if (!active || entry.href.length > active.href.length) active = entry;
+  }
+  return active?.key ?? null;
 }

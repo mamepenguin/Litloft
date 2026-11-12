@@ -22,6 +22,8 @@ interface SidebarLibrarySectionProps {
   close: () => void;
   primaryAddons?: readonly AddonNavEntry[];
   sourceAddons?: readonly AddonNavEntry[];
+  /** The one addon entry lit across every placement, or `null`. */
+  activeAddonKey?: string | null;
   /**
    * Whether the Library row is the selected one. Passed rather than
    * derived from its href: Library is selected on folder URLs it does
@@ -31,7 +33,7 @@ interface SidebarLibrarySectionProps {
   libraryActive: boolean;
 }
 
-export function SidebarLibrarySection({ driveBase, currentDrive, drives = [], linkClass, close, primaryAddons = [], sourceAddons = [], libraryActive }: SidebarLibrarySectionProps) {
+export function SidebarLibrarySection({ driveBase, currentDrive, drives = [], linkClass, close, primaryAddons = [], sourceAddons = [], activeAddonKey = null, libraryActive }: SidebarLibrarySectionProps) {
   const t = useTranslations("sidebar");
   const tRoot = useTranslations();
   const pathname = usePathname() ?? "";
@@ -87,7 +89,7 @@ export function SidebarLibrarySection({ driveBase, currentDrive, drives = [], li
             </Link>
           );
         })}
-      <AddonNavRows entries={primaryAddons} linkClass={linkClass} close={close} />
+      <AddonNavRows entries={primaryAddons} linkClass={linkClass} close={close} activeKey={activeAddonKey} />
       {driveBase && (
         <>
           {/* What the heading names: each row under it is the whole
@@ -126,7 +128,7 @@ export function SidebarLibrarySection({ driveBase, currentDrive, drives = [], li
       {sourceAddons.length > 0 && (
         <>
           <SidebarSectionHeading label={t("sources")} />
-          <AddonNavRows entries={sourceAddons} linkClass={linkClass} close={close} />
+          <AddonNavRows entries={sourceAddons} linkClass={linkClass} close={close} activeKey={activeAddonKey} />
         </>
       )}
 

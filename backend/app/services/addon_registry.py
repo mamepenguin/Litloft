@@ -10,6 +10,7 @@ Provides a unified view of all addons including their slots and proxy config.
 import json
 import logging
 import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -57,15 +58,81 @@ def _navigation_error(nav: Any) -> str | None:
     return None
 
 
+# The addon subpage route's slug rule, with a length cap, so every accepted
+# `path` names a page it can load.
+_NAVIGATION_PATH = re.compile(r"[a-z][a-z0-9-]{0,39}")
+
+
+def _navigation_path_error(nav: dict[str, Any]) -> str | None:
+    if "path" not in nav:
+        return None
+    path = nav["path"]
+    if not isinstance(path, str) or _NAVIGATION_PATH.fullmatch(path) is None:
+        return "path must match ^[a-z][a-z0-9-]{0,39}$"
+    return None
+
+
+def _navigation_kept(name: str, navigation: Any) -> Any:
+    """The block to keep, or ``None`` when the whole block should go."""
+    if isinstance(navigation, dict):
+        error = _navigation_error(navigation) or _navigation_path_error(navigation)
+        if error is None:
+            return navigation
+        logger.warning("Addon %r navigation ignored: %s", name, error)
+        return None
+    if not isinstance(navigation, list):
+        logger.warning("Addon %r navigation ignored: not an object or list", name)
+        return None
+    if not navigation:
+        logger.warning("Addon %r navigation ignored: empty list", name)
+        return None
+    if len(navigation) > 4:
+        logger.warning(
+            "Addon %r navigation ignored: %d entries, at most 4",
+            name,
+            len(navigation),
+        )
+        return None
+
+    kept: list[Any] = []
+    seen_paths: set[str | None] = set()
+    for index, element in enumerate(navigation):
+        # `_navigation_error` also refuses a non-object, which the path check
+        # cannot look inside.
+        error = _navigation_error(element)
+        if error is None:
+            error = _navigation_path_error(element)
+        if error is not None:
+            logger.warning(
+                "Addon %r navigation entry %d dropped: %s", name, index, error
+            )
+            continue
+        path = element.get("path")
+        if path in seen_paths:
+            logger.warning(
+                "Addon %r navigation entry %d dropped: duplicate path %r",
+                name,
+                index,
+                path,
+            )
+            continue
+        seen_paths.add(path)
+        kept.append(element)
+
+    if not kept:
+        logger.warning("Addon %r navigation ignored: no valid entry", name)
+        return None
+    return kept
+
+
 def _without_invalid_navigation(name: str, meta: dict[str, Any]) -> dict[str, Any]:
     """Drop an invalid ``navigation`` block; the addon itself stays registered."""
     if "navigation" not in meta:
         return meta
-    error = _navigation_error(meta["navigation"])
-    if error is None:
-        return meta
-    logger.warning("Addon %r navigation ignored: %s", name, error)
-    return {k: v for k, v in meta.items() if k != "navigation"}
+    kept = _navigation_kept(name, meta["navigation"])
+    if kept is None:
+        return {k: v for k, v in meta.items() if k != "navigation"}
+    return {**meta, "navigation": kept}
 
 # Candidate directories to scan for addon manifests.
 # - Docker: /app/addons (backend Dockerfile places manifests alongside addon code)
