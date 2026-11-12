@@ -67,7 +67,16 @@ type ListingFilters = Pick<
   | "size"
   | "duration"
   | "trust"
+  | "origin"
+  | "exclude_origin"
 >;
+
+export interface OriginFilters {
+  /** Keep only files whose frontmatter origin equals this. */
+  origin?: string;
+  /** Drop files whose frontmatter origin equals this. */
+  exclude_origin?: string;
+}
 
 function appendListingFilters(searchParams: URLSearchParams, params: ListingFilters): void {
   if (params.search) searchParams.set("search", params.search);
@@ -88,6 +97,8 @@ function appendListingFilters(searchParams: URLSearchParams, params: ListingFilt
     if (duration) searchParams.append("duration", duration);
   }
   if (params.trust) searchParams.set("trust", params.trust);
+  if (params.origin) searchParams.set("origin", params.origin);
+  if (params.exclude_origin) searchParams.set("exclude_origin", params.exclude_origin);
 }
 
 export async function getDriveFiles(
@@ -115,6 +126,10 @@ export async function getDriveFiles(
      * the review queue — files nobody has ruled on, which spans both.
      */
     trust?: TrustFilter;
+    /** Keep only files whose frontmatter origin equals this. */
+    origin?: string;
+    /** Drop files whose frontmatter origin equals this. */
+    exclude_origin?: string;
     sort?: ListingSortField;
     order?: SortOrder;
     page?: number;
@@ -148,6 +163,8 @@ export interface ShelvesParams extends ListingFilters {
   key?: string;
   /** Keep only files in this reading state; needs a viewer identity. */
   watch?: ShelfWatchState;
+  /** Whether the viewer has a history row for the file; needs a viewer identity. */
+  opened?: boolean;
   /** Restrict every shelf to these file ids, repeated on the wire. */
   ids?: readonly string[];
   sort?: ListingSortField | "last_played";
@@ -186,6 +203,7 @@ export async function getShelves(
   if (params.key !== undefined) searchParams.set("key", params.key);
   appendListingFilters(searchParams, params);
   if (params.watch) searchParams.set("watch", params.watch);
+  if (params.opened !== undefined) searchParams.set("opened", String(params.opened));
   for (const id of params.ids ?? []) searchParams.append("ids", id);
   if (params.sort) searchParams.set("sort", params.sort);
   if (params.order) searchParams.set("order", params.order);
@@ -230,9 +248,17 @@ export async function getDriveTags(
   return fetchJSON<Tag[]>(`${API_BASE}/drives/${encodeURIComponent(drive)}/tags${qs ? `?${qs}` : ""}`);
 }
 
-export async function getFolderCounts(drive: string, type?: FileKind): Promise<FolderCount[]> {
-  const query = type ? `?${new URLSearchParams({ type })}` : "";
-  return fetchJSON<FolderCount[]>(`${API_BASE}/drives/${encodeURIComponent(drive)}/folder-counts${query}`);
+export async function getFolderCounts(
+  drive: string,
+  type?: FileKind,
+  filters?: OriginFilters,
+): Promise<FolderCount[]> {
+  const params = new URLSearchParams();
+  if (type) params.set("type", type);
+  if (filters?.origin) params.set("origin", filters.origin);
+  if (filters?.exclude_origin) params.set("exclude_origin", filters.exclude_origin);
+  const qs = params.toString();
+  return fetchJSON<FolderCount[]>(`${API_BASE}/drives/${encodeURIComponent(drive)}/folder-counts${qs ? `?${qs}` : ""}`);
 }
 
 export interface ScanResult {
@@ -1064,11 +1090,14 @@ export async function getWatchHistory(
   limit?: number,
   filter?: "unfinished" | "all" | "continue" | "not_continue",
   type?: FileKind | null,
+  filters?: OriginFilters,
 ): Promise<WatchHistoryItem[]> {
   const params = new URLSearchParams();
   if (limit) params.set("limit", String(limit));
   if (filter) params.set("filter", filter);
   if (type) params.set("type", type);
+  if (filters?.origin) params.set("origin", filters.origin);
+  if (filters?.exclude_origin) params.set("exclude_origin", filters.exclude_origin);
   const qs = params.toString();
   const result = await fetchJSON<{ data: WatchHistoryItem[] }>(
     `${API_BASE}/drives/${encodeURIComponent(driveName)}/watch-history${qs ? `?${qs}` : ""}`

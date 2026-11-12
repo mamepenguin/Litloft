@@ -59,8 +59,8 @@ export function HomeAppEntries({ drive, addonEntries, inboxCount }: HomeAppEntri
       label: tRoot(app.labelKey),
       icon: app.icon,
     })),
-    ...addonEntries.map(({ name, navigation, href }) => ({
-      key: name,
+    ...addonEntries.map(({ key, navigation, href }) => ({
+      key,
       href,
       label: slotEntryLabel(navigation, tRoot),
       icon: (navigation.icon && ADDON_NAV_ICONS[navigation.icon]) || Package,

@@ -205,4 +205,11 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-089 | implemented | docs/specs/player-workbench.md | sha256:ce54fa3c850c8a6716af16cc777c927c8e401b4727f48c783d6b8b30540cd58d |
 | SPEC-CORE-090 | implemented | docs/specs/player-workbench.md | sha256:ce54fa3c850c8a6716af16cc777c927c8e401b4727f48c783d6b8b30540cd58d |
 | SPEC-ADDON-099 | implemented | docs/specs/player-workbench.md | sha256:ce54fa3c850c8a6716af16cc777c927c8e401b4727f48c783d6b8b30540cd58d |
+| SPEC-ADDON-102 | implemented | docs/specs/pickup-recency.md | sha256:37ab5c30c12c4080ec924415c4d1484e95df77abef5279ac2b1af8d87e08928a |
+| SPEC-ADDON-103 | implemented | docs/specs/pickup-recency.md | sha256:37ab5c30c12c4080ec924415c4d1484e95df77abef5279ac2b1af8d87e08928a |
+| SPEC-CORE-091 | implemented | docs/specs/clips-app.md | sha256:d1d401dd7d6f89f47a97e0f715443a96d7e5bf310ca2d3eac832774676615389 |
+| SPEC-CORE-092 | implemented | docs/specs/clips-app.md | sha256:d1d401dd7d6f89f47a97e0f715443a96d7e5bf310ca2d3eac832774676615389 |
+| SPEC-CORE-093 | implemented | docs/specs/clips-app.md | sha256:d1d401dd7d6f89f47a97e0f715443a96d7e5bf310ca2d3eac832774676615389 |
+| SPEC-ADDON-100 | implemented | docs/specs/clips-app.md | sha256:d1d401dd7d6f89f47a97e0f715443a96d7e5bf310ca2d3eac832774676615389 |
+| SPEC-ADDON-101 | implemented | docs/specs/clips-app.md | sha256:d1d401dd7d6f89f47a97e0f715443a96d7e5bf310ca2d3eac832774676615389 |
 | SPEC-ADDON-104 | implemented | docs/specs/scene-rows-fill-height.md | sha256:f6c531b6906b5bbe5e5d8cf035998960347c7f35260260170946f66f517620e1 |

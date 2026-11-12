@@ -15,6 +15,7 @@
 - **Folders**: choose a folder to see the notes directly in it, not in its subfolders. **All** shows every note.
 - **Tags**: choose a tag. With a folder chosen, only the tags in that folder are listed. Choose the tag again, or press × on it, to clear it.
 - **Search this list** and **Sort** (**Updated**, **Title**, **Created**) work within what you have chosen.
+- **Include clips** shows the web clips in the list as well. It is off by default, so All notes lists the notes you wrote.
 
 On a phone, folders, tags and sort are menus above the list. Going back from a note returns you to the same list. To move or rename folders, use the Library.
 
@@ -30,4 +31,4 @@ While a note is open, `Cmd/Ctrl+K` opens search limited to this drive's notes. T
 
 ## Web clips and connections
 
-At the bottom of the page, **Web clip** opens the form for saving a web page as a note, along with your recent clips. **Note & file connections** shows how the notes and files in the drive link to each other, as a graph.
+Web clips gathered from the web have their own **Clips** page in the sidebar, so they stay apart from the notes you write; **Include clips** in All notes brings them back into the list. At the bottom of the page, **Web clip** still opens the form for saving a web page as a note, along with your recent clips. **Note & file connections** shows how the notes and files in the drive link to each other, as a graph.

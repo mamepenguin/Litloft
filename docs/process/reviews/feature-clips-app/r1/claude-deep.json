@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "CD-1",
+      "origin": "reviewer",
+      "claim": "The diff changes backend/app/services/frontmatter.py by adding extract_origin and _MAX_ORIGIN_LEN, and the touch-point list does not name that module. The list allows only tagops.py or a sibling helper (origin.py); frontmatter.py is the shared parser.",
+      "impact": "No user-visible defect. frontmatter.py is one half of the twin-parser pair kept in sync by PR review (design-decisions.md:72). A reviewer working from the touch-point list would not compare this edit against addons/knowledge/app/services/frontmatter.py. The twin has no origin extractor. The parsing rules themselves are unchanged, so the two parsers do not drift on parsing today.",
+      "evidence": "backend/app/services/frontmatter.py:30 (_MAX_ORIGIN_LEN) and the new extract_origin after extract_valid_tags. backend/app/services/origin.py imports extract_origin and has_unreadable_frontmatter from it. .claude/rules/design-decisions.md:72 names both frontmatter.py implementations. A grep of addons/knowledge/app/services/frontmatter.py for 'origin' finds only a docstring sample at line 7.",
+      "repro": "Compare the files the diff changes with the Touch points list: 'backend/app/services/tagops.py, or a sibling helper' does not cover frontmatter.py.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is broken. The change reaches an unplanned module that sits under a review-time sync rule.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add backend/app/services/frontmatter.py to the touch points, or move extract_origin into origin.py so the shared parser module is left alone."
+    },
+    {
+      "id": "CD-2",
+      "origin": "reviewer",
+      "claim": "The diff edits existing guard tests and fixtures that the touch-point list does not name: test_database_migration_drive_scoped_file_path.py (the FILES_INDEXES table), SidebarDriveSwitcher.test.tsx (the fixture gains key), and Knowledge's reachability.test.ts and popup-dismissal.test.ts (the module counts go from 59 to 66 and from 18 to 19).",
+      "impact": "These are side effects of the planned changes, not defects. Both count guards exclude __tests__, and the 7 new modules (pages/clips.tsx and clips/*, one of which is the .ts file requests.ts) account for the new numbers exactly. The guards therefore still bite.",
+      "evidence": "addons/knowledge/frontend/__tests__/reachability.test.ts:66 skips __tests__ and messages, and :166 expects 19 .ts files. popup-dismissal.test.ts:62 skips __tests__ and *.test.*. backend/tests/test_database_migration_drive_scoped_file_path.py adds idx_files_drive_md_origin to FILES_INDEXES.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "These are unlisted touches. The arithmetic checks out, and no invariant is affected.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "CD-3",
+      "origin": "reviewer",
+      "claim": "The addons/knowledge gitlink is moved to f55f83458, a commit that, in the local refs I could read, exists only on a local branch and not on any remote ref of the Knowledge repository. The core code changes and the bump also ship together, although the touch points plan three separate PRs.",
+      "impact": "If f55f834 has not been pushed and merged, a fresh clone or CI checkout of core at this commit cannot run submodule update for addons/knowledge. Merging core would then pin an addon commit that never passed the addon repo's own CI.",
+      "evidence": "In the submodule gitdir (video_share/.git/worktrees/video_share-clips/modules/addons/knowledge), f55f834 appears only in refs/heads/feature/clips-app and the HEAD log ('feat(knowledge): add the Clips page...'). packed-refs lists refs/remotes/origin/main = a0bd155f0, the old gitlink, and no remote ref holds f55f834. The touch points say the gitlink is 'bumped after the addon PR merges' and that the core PR keeps it at develop's commit.",
+      "repro": "Read packed-refs and refs/heads in the submodule gitdir: origin/main is a0bd155, and f55f834 is on local feature/clips-app only. The remote refs may be stale because no fetch was run.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant covers submodule sequencing. It breaks the planned PR order and can break checkout.",
+        "invariant_ref": null
+      },
+      "severity": "HIGH",
+      "proposed_fix": "Merge the Knowledge PR first, then bump the gitlink to the merged commit in a separate bump change, as the plan says. Keep the core PR's gitlink at a0bd155."
+    },
+    {
+      "id": "CD-4",
+      "origin": "reviewer",
+      "claim": "The change bumps the gitlink but contains none of the bump step's other planned work. It adds no frontend/e2e-components measurements for D2, D4 or D7, and the SPEC-ADDON-100 and SPEC-ADDON-101 rows in INDEX.md stay 'approved'.",
+      "impact": "Regressions in the D2, D4 and D7 layout requirements are not tested in a real browser. In D2 the Clips primary action could lose its 44px icon-only size on a phone. In D4 a row's title or excerpt could wrap. In D7 the Include clips toggle could overflow at 390px. jsdom tests would pass in each case.",
+      "evidence": "A grep of frontend/e2e-components for clips/Clips/includeClips matches no Clips spec, only unrelated files. In docs/specs/INDEX.md the ADDON-100 and ADDON-101 rows read 'approved'.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "A planned measurement is missing. D2, D4 and D7 are design decisions, not declared invariants.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Add the D2, D4 and D7 e2e-components specs and move the ADDON rows to implemented in the change that bumps the gitlink."
+    }
+  ],
+  "specification_compliance": [
+    "Touch-point question: frontmatter.py is the only unlisted production module the diff reaches (CD-1). The other unlisted touches are existing tests and guards, adjusted as side effects (CD-2).",
+    "origin.py is the allowed sibling helper. clips/* and requests.ts are covered by 'pages/clips.tsx and its components'.",
+    "DriveHome.tsx is listed but not edited. It passes addonNavEntries output to HomeAppEntries, which now keys by entry.key, so no edit was needed.",
+    "The Knowledge components import core PageFrame, PageHeader, PageTabs, Button and the common.driveScope message read-only. driveScope exists in en and ja. ApiStatusError exposes .detail (api.ts:272-277), so isViewerRequired can match.",
+    "The PR sequencing in the touch points is not followed: the core changes and the gitlink bump ship together (CD-3), and the bump step's e2e and INDEX work is missing (CD-4)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "_write_md_tags now calls db.commit() after the origin projection, outside the tag projection's try. A commit failure there would surface as a 500 after the tags were already committed. Not verified against the surrounding code."
+  ],
+  "regression_risks": [
+    "A gitlink pointing at a commit that is not on any Knowledge remote can break a fresh clone or CI checkout (CD-3).",
+    "No real-browser measurement covers the D2, D4 or D7 layout (CD-4)."
+  ],
+  "test_coverage": [
+    "Backend: projection on every listed write path, the scan pass, updated_at preservation, migration idempotence, and all origin, exclude_origin and opened conditions are tested with arbitrary origin strings (I16).",
+    "Navigation list validation is tested against a fixture catalogue, as planned.",
+    "Knowledge jsdom tests cover the Clips page, the Notes exclusion, the bookmarklet and the manifest.",
+    "The e2e-components D2, D4 and D7 measurements are missing."
+  ],
+  "not_verified": [
+    "Whether f55f834 exists on the Knowledge remote: no fetch was run, so the local remote refs may be stale.",
+    "What commit 79035747f contains on its own: I reviewed the branch-wide diff I was given, because I cannot run git.",
+    "I ran no tests and checked no TypeScript compilation.",
+    "Concurrency: I checked statically only. No concurrency modifier matched, and the scan/write race is the one the spec already records."
+  ],
+  "perspectives": [
+    {
+      "name": "scope",
+      "notes": "CD-1 and CD-2 are the unlisted touches. CD-4 is planned bump-step work that is missing."
+    },
+    {
+      "name": "submodules",
+      "notes": "CD-3: the gitlink points at a local-only Knowledge commit, and the planned order is not followed."
+    },
+    {
+      "name": "persistence",
+      "notes": "The migration only adds a column and an index, with idempotence tests. The projection uses a savepoint and keeps updated_at. Checked; nothing new found."
+    },
+    {
+      "name": "concurrency",
+      "notes": "No new async or locking code. The scan/write race is already recorded in the spec. Checked; nothing new found."
+    }
+  ],
+  "confidence": 78
+}
