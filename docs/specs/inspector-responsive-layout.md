@@ -1,8 +1,8 @@
 # Inspector layout on tablets and small windows
 
-SPEC-ID: SPEC-CORE-081
 SPEC-ID: SPEC-CORE-082
 SPEC-ID: SPEC-CORE-083
+SPEC-ID: SPEC-CORE-084
 
 Approval: sha256:fea82ee561a276893564fc5100b78c8df5975729860059480447f7f2298c3f11 Yuichi Senga 2026-11-11
 
@@ -10,14 +10,14 @@ Approval: sha256:fea82ee561a276893564fc5100b78c8df5975729860059480447f7f2298c3f1
 
 On the file page, the inspector's header block (title, duration, the action row and the tag
 chips) moves from above the tab strip into the top of the Info tab, on every surface: the
-desktop pane, the new stacked form and the phone sheet (SPEC-CORE-081). On a file with a
+desktop pane, the new stacked form and the phone sheet (SPEC-CORE-082). On a file with a
 player (video, audio, `.loft`), on a non-phone viewport, a row too narrow for the inspector
 beside the canvas (under 60.5rem, about 968px) no longer lays the inspector over the video:
 it stacks the inspector under a smaller player, and the inspector of a player file starts
-open on every non-phone viewport (SPEC-CORE-082). And when the left pane of the two-pane
+open on every non-phone viewport (SPEC-CORE-083). And when the left pane of the two-pane
 route (the folder tree, or a collection's item list) is what stops the inspector fitting
 beside the player, that pane is collapsed for the file page without touching the stored
-tree setting; reopening it is the viewer's call and is not undone (SPEC-CORE-083). It is
+tree setting; reopening it is the viewer's call and is not undone (SPEC-CORE-084). It is
 for the owner watching on an iPad, an iPad mini or a narrow desktop window, where today the
 inspector covers the player's controls and the header leaves the transcript a few lines.
 
@@ -56,14 +56,14 @@ Terms.
 - *Phone*: `useIsMobile()` true (viewport under 768px).
 - *Player file*: `playerKind(file) !== null`.
 - *Inspector open*: the effective desktop state — the stored per-drive value, else the
-  default of 082.6, overridden while in-file find holds it open.
+  default of 083.6, overridden while in-file find holds it open.
 - *File page*: a file is open in the page or in a two-pane right pane. Moving to another
   file with `selectFile` (arrows, inbox Next, the tree, a gallery) stays on the file page.
 - *Left pane present*: the shell is inside a `TwoPaneLayout` that draws a pane (folder
   tree or collection item list); `TwoPaneLayout` says so through a context. Search and
   cross-folder file pages have no left pane.
 
-SPEC-CORE-081, header in the Info tab:
+SPEC-CORE-082, header in the Info tab:
 
 1. `InspectorShell` keeps receiving `header` and `tabs`. It draws the strip first.
 2. The header is rendered as the first block of the Info panel (`#inspector-panel-info`),
@@ -77,7 +77,7 @@ SPEC-CORE-081, header in the Info tab:
    and player files in the stacked layout), it is where `FileMetaBlock` already puts it
    with `hoistDescription` false.
 
-SPEC-CORE-082, stacked inspector:
+SPEC-CORE-083, stacked inspector:
 
 1. The row observer (the existing one in `useInspectorFit`) computes the *form*:
    - `stacked`: not phone, player file, narrow row;
@@ -143,7 +143,7 @@ SPEC-CORE-082, stacked inspector:
     `stacked` with the inspector closed, where it writes `open = true` as today); and
     with the form, on a width change.
 
-SPEC-CORE-083, left pane yields:
+SPEC-CORE-084, left pane yields:
 
 1. The yield is evaluated whenever any of its inputs changes (row width, inspector open,
    file, phone, pane shown). It is set when all hold: left pane present; the pane shown by
@@ -177,7 +177,7 @@ SPEC-CORE-083, left pane yields:
 ### 2. Failure cases
 
 - No width measured yet: form `absent`, layout as beside, no yield; on a player file the
-  deferred content of 082.8 waits one frame.
+  deferred content of 083.8 waits one frame.
 - No `ResizeObserver`: measured once on mount, as today.
 - A video without metadata: the cap is a CSS bound, so the split does not wait for it.
 - A shell with no left-pane context: the yield is a no-op and the form uses the row width
@@ -194,7 +194,7 @@ Left pane, per drive, on a file page with a left pane present:
 
 | From | Event | To |
 |---|---|---|
-| shown by setting | yield conditions of 083.1 hold | yielded (nothing written) |
+| shown by setting | yield conditions of 084.1 hold | yielded (nothing written) |
 | shown by setting | tree button | hidden by setting (`tree:enabled = false` written, as today; no flag) |
 | yielded | tree button | reopened (pane shown, nothing written) |
 | hidden by setting | tree button | reopened (`tree:enabled = true` written) |
@@ -217,7 +217,7 @@ Tab selection: unchanged; reset to the first listed tab (Info) per file.
 - `localStorage` `inspector-open:{drive}`: read; written by the viewer's inspector button
   and by `MediaLayoutToggle`'s `onBeside`, as today. One key per drive for every form: a
   narrow and a wide window on the same browser share the viewer's last choice.
-- New in-memory stores: the form store (082.2) and the per-drive yield store. Neither is
+- New in-memory stores: the form store (083.2) and the per-drive yield store. Neither is
   persisted.
 - No server data, API or DB.
 
@@ -234,7 +234,7 @@ None: no data access changes.
 - Every file page with an inspector (documents, images, PDFs, archives, markdown) gets the
   header inside Info.
 - In-file find: it selects its own tab, so the title is not above find results any more.
-  Its override counts as open; `in-file-find` I8 still holds, through 082.9 for the
+  Its override counts as open; `in-file-find` I8 still holds, through 083.9 for the
   canvas scroll.
 - Crossing into or out of the stacked layout (resize, or opening/closing the inspector in
   `stacked`) moves the description and summaries between canvas and Info, and with
@@ -298,7 +298,7 @@ No new error path; nothing is logged.
   into the Info panel, `column` header block removed.
 - `frontend/src/components/FileDetail/hooks/useInspectorFit.ts` — the four forms,
   `isPlayerFile`, `--fit-row-h`, the yield arithmetic.
-- New `frontend/src/lib/inspectorFormStore.ts` — the store of 082.2.
+- New `frontend/src/lib/inspectorFormStore.ts` — the store of 083.2.
 - `frontend/src/components/FileDetailShell.tsx` — `isPlayerFile`, `publishesForm`; stacked
   layout; effective open published; yield evaluation; canvas scroll kept across find.
 - `frontend/src/components/FileDetail/FileDetailSkeleton.tsx`,
@@ -306,16 +306,16 @@ No new error path; nothing is logged.
   publish nor claim a player.
 - `frontend/src/components/InspectorPane.tsx` — full-width form via CSS only.
 - `frontend/src/components/FileDetail/ShellLayout.tsx` — `companionInTabs`, summaries
-  placement, layout toggle, the deferral of 082.8.
+  placement, layout toggle, the deferral of 083.8.
 - `frontend/src/components/FileDetail/FileDetailContainer.tsx` — `hoistDescription`.
 - `frontend/src/components/FileDetail/MediaCanvas.tsx`,
   `frontend/src/components/FileDetail/MediaPlayerBlock.tsx`,
   `frontend/src/components/FileDetail/hooks/useCompanionMetrics.ts`,
   `frontend/src/components/FileDetail/mediaHostStyle.ts` — canvas content and the player
   cap (only where they hold today's `--player-avail` bound).
-- `frontend/src/components/FileDetail/FileDetailChrome.tsx` — the icon of 082.7.
+- `frontend/src/components/FileDetail/FileDetailChrome.tsx` — the icon of 083.7.
 - `frontend/src/lib/inspectorOpenStore.ts`, `frontend/src/hooks/useInspectorOpen.ts` —
-  the default by file kind (082.6).
+  the default by file kind (083.6).
 - `frontend/src/hooks/useTreeVisible.ts`, `frontend/src/components/folder/TwoPaneLayout.tsx`
   (left-pane context, clearing, no-transition collapse), `frontend/src/components/TreeToggle.tsx`,
   `frontend/src/components/DriveTreeToggle.tsx`, `frontend/src/components/SidebarProvider.tsx`
@@ -426,7 +426,7 @@ resting strip shows the file name and the action row.
 - Squeezing the header into one row is rejected: it does not fit 384px.
 - The action row is one tab switch away while another tab is open; accepted by the owner.
 - Remounts on a crossing (description, summaries, and the transcript under preference
-  `stacked`): accepted, see item 7. The first open is protected by 082.8 instead.
+  `stacked`): accepted, see item 7. The first open is protected by 083.8 instead.
 - One `inspector-open:{drive}` key for every form: different devices have different
   storage, so the shared key only meets one browser resized or rotated, where the last
   choice is the right one to keep.

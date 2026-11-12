@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "I1: useDiscover.ts:385-394 looks up loadSlotPageProvider(providerEntry) only for Recommended and sets recommendedHref = providerShelfHref(drive, chosen.id, 'recommended'). shelfLinks.ts:20-27 builds `/drive/${enc(drive)}/apps/video/shelf?entry=${enc(id)}&slot=recommended`. loadSlotPageProvider (lib/addons.ts:212-221) returns null on an import failure or a missing export, so no link is set. Addon shelf hrefs (useDiscover.ts:494-506) call providerShelfHref without a slot, so they are unchanged.",
+    "I2: The lookup runs fire-and-forget (`void (async ...)()`). The list provider call at useDiscover.ts:433-439 does not await it. With preferPageProvider unset for Recommended, Discover never calls the Recommended page provider. The cache key and the write path are untouched.",
+    "I3: useProviderShelfPage.ts:226-233 creates a per-load restrict with watch 'unwatched' in Recommended mode and the current drive and target. addPage (73-88) draws only ids that are in this load's `accepted` map.",
+    "I4: The entry is resolved in RECOMMENDED_SLOT only when recommended is set (203-205). The title is t('shelves.recommended') in every state (VideoShelfPage.tsx:144-146). The profile is checked after the catalogue, target and module waits (216-219), which give the absent/empty state without a provider call. After viewer_required, rejectViewer sets rejectedFor, so hasProfile flips and loadKey changes. The old load's 'failed' state is keyed to the old loadKey and is never shown.",
+    "I5: In non-Recommended mode the loadKey keeps its old shape (line 160), entry resolution uses SHELVES_SLOT, and restrict gets no watch. Grouping mode is untouched apart from the `slot` prop.",
+    "I6/I8: Both providers use sampleTopForty with the seed `${drive}:${localDateStamp()}` on the first 40 accepted ids. restrict (restrict.ts) preserves input order and filters chunk by chunk, so restricting once over all ids gives the same first 40 accepted ids as restricting page by page. The page answer is dedupe([...sample, ...accepted.slice(40)]). The list provider loop and fetchPickup's swallow-on-failure behaviour are unchanged.",
+    "I7: pickupPageProvider returns {items:[],cursor:null} for a non-null cursor without a request. It reads at most 5 pages of 60, stopping on a short page or when offset >= total. readPickupPage (api.ts:2280-2300) throws on a network error, a non-OK status or a malformed body. A restrict rejection propagates. The answer's cursor is null.",
+    "I9: The Recommended loadKey includes drive, params, entryId, locale, nickname, hasProfile and the Recommended entriesKey only. Shelves entries are excluded when recommended is set (135-146).",
+    "I10: addPage ignores limit and draws every accepted, not-yet-seen item."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "slotPageProviders is keyed by entry id only, not by slot. If a video-discover-shelves entry with id 'pickup' were ever added, Discover would draw that addon shelf from pickupPageProvider. No such entry exists in manifest.json today."
+  ],
+  "regression_risks": [
+    "The Recommended page restricts up to 300 ids in one restrict call, which makes 5 sequential getShelves requests before anything is drawn. Latency is higher than for other shelves, but this is not a correctness issue."
+  ],
+  "test_coverage": [
+    "Tests exist at addons/intelligence/frontend/__tests__/pickupPageProvider.test.ts, frontend/src/components/videoapp/__tests__/VideoApp.recommendedSeeAll.test.tsx and VideoShelfPage.recommended.test.tsx. I did not read their contents in detail."
+  ],
+  "not_verified": [
+    "Tests were not run, and I did not read test contents to confirm that they assert each invariant.",
+    "No diff against origin/develop was inspected (I cannot run git), so I5 and I8 'unchanged from before' rest on reading the current code only.",
+    "Docs updates (video.md, ADDON-DEVELOPMENT.md, addons/intelligence.md, specs INDEX.md) were not checked.",
+    "The submodule pointer for addons/intelligence was not checked.",
+    "React batching timing around viewer_required was reasoned about, not executed."
+  ],
+  "confidence": 78
+}

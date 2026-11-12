@@ -38,8 +38,10 @@ same tab that day.
 **New** opens all videos newest first, and an addon shelf opens its addon page when the
 addon offers one. An addon shelf whose addon supplies a page provider opens a page in the
 video app instead, under the same target (type and smart folder) as Discover, and more
-videos load as you scroll. **Recommended** has no **See all**. The shelf page shows 60
-videos at a time. **Continue**'s page opens most recently played first, with **最後に開いた順** /
+videos load as you scroll. **Recommended**'s **See all** opens a page in the video app
+under the same target, listing your unwatched recommended videos. The shelf page shows 60
+videos at a time, except Recommended's, which shows all of them at once. **Continue**'s
+page opens most recently played first, with **最後に開いた順** /
 **Last opened** in its sort menu.
 
 ## Library

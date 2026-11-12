@@ -1,5 +1,5 @@
 /**
- * SPEC-CORE-081 I1: the tab strip is the inspector's first row on every
+ * SPEC-CORE-082 I1: the tab strip is the inspector's first row on every
  * surface, and the header (title, action row, tags) is the first block of
  * the Info panel, so it is out of sight while another tab is selected.
  */
@@ -48,15 +48,15 @@ const precedes = (a: Node, b: Node) =>
 describe.each<[string, InspectorScroll | undefined]>([
   ["the desktop pane", undefined],
   ["the phone sheet (column)", "column"],
-])("SPEC-CORE-081 I1 header inside Info, %s", (_surface, scroll) => {
-  it("SPEC-CORE-081 I1 draws the tab strip as the shell's first row", () => {
+])("SPEC-CORE-082 I1 header inside Info, %s", (_surface, scroll) => {
+  it("SPEC-CORE-082 I1 draws the tab strip as the shell's first row", () => {
     renderShell({ scroll });
 
     const root = screen.getByTestId("inspector-shell");
     expect(root.firstElementChild).toBe(screen.getByTestId("inspector-tabs"));
   });
 
-  it("SPEC-CORE-081 I1 puts nothing of the header above the strip", () => {
+  it("SPEC-CORE-082 I1 puts nothing of the header above the strip", () => {
     renderShell({ scroll });
 
     const strip = screen.getByTestId("inspector-tabs");
@@ -64,7 +64,7 @@ describe.each<[string, InspectorScroll | undefined]>([
     expect(precedes(strip, header)).toBe(true);
   });
 
-  it("SPEC-CORE-081 renders the header as the Info panel's first block, before Info's own content", () => {
+  it("SPEC-CORE-082 renders the header as the Info panel's first block, before Info's own content", () => {
     renderShell({ scroll });
 
     const panel = infoPanel();
@@ -74,7 +74,7 @@ describe.each<[string, InspectorScroll | undefined]>([
     expect(precedes(header, screen.getByTestId("info-body"))).toBe(true);
   });
 
-  it("SPEC-CORE-081 I1 hides the header with Info when another tab is selected, without unmounting it", () => {
+  it("SPEC-CORE-082 I1 hides the header with Info when another tab is selected, without unmounting it", () => {
     renderShell({ scroll });
     const header = screen.getByTestId("header");
 
@@ -89,7 +89,7 @@ describe.each<[string, InspectorScroll | undefined]>([
     expect(header).toBeVisible();
   });
 
-  it("SPEC-CORE-081 keeps the header the first block of Info when Info is the only tab and no strip is drawn", () => {
+  it("SPEC-CORE-082 keeps the header the first block of Info when Info is the only tab and no strip is drawn", () => {
     renderShell({ scroll, withTab: false });
 
     expect(screen.queryByTestId("inspector-tabs")).toBeNull();
@@ -102,8 +102,8 @@ describe.each<[string, InspectorScroll | undefined]>([
   });
 });
 
-describe("SPEC-CORE-081 in column mode", () => {
-  it("SPEC-CORE-081 I10 keeps the strip sticky now that it is the first row", () => {
+describe("SPEC-CORE-082 in column mode", () => {
+  it("SPEC-CORE-082 I10 keeps the strip sticky now that it is the first row", () => {
     renderShell({ scroll: "column" });
 
     const strip = screen.getByTestId("inspector-tabs");
@@ -111,7 +111,7 @@ describe("SPEC-CORE-081 in column mode", () => {
     expect(screen.getByTestId("inspector-shell").firstElementChild).toBe(strip);
   });
 
-  it("SPEC-CORE-081 has no header block of its own outside the panels", () => {
+  it("SPEC-CORE-082 has no header block of its own outside the panels", () => {
     renderShell({ scroll: "column" });
 
     const root = screen.getByTestId("inspector-shell");

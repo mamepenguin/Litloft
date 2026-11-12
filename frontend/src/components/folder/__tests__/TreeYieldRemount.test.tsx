@@ -1,5 +1,5 @@
 /**
- * SPEC-CORE-083: on a two-pane file page, when the left pane is what stops
+ * SPEC-CORE-084: on a two-pane file page, when the left pane is what stops
  * a player file's inspector fitting beside the player, the pane is collapsed
  * for the file page without touching the stored tree setting, and the tree
  * button brings it back for good.
@@ -307,8 +307,8 @@ const treeButton = () =>
   within(screen.getByTestId("toolbar")).getByRole("button", { name: /(Show|Hide) tree/ });
 
 
-describe("SPEC-CORE-083 a remount while the pane is yielded", () => {
-  it("SPEC-CORE-083 I8 keeps the tree button on the yield path after the layout remounts", async () => {
+describe("SPEC-CORE-084 a remount while the pane is yielded", () => {
+  it("SPEC-CORE-084 I8 keeps the tree button on the yield path after the layout remounts", async () => {
     const utils = await openFile(VIDEO.id);
     expect(paneCollapsed()).toBe(true);
     expect(treeWrites()).toEqual([]);

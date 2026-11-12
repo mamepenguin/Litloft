@@ -2502,7 +2502,7 @@ describe("SPEC-CORE-028 I3 the chip text", () => {
 
 /* ---------- the stacked inspector ---------- */
 
-describe("SPEC-CORE-082 082.9 find in a stacked row with the inspector closed", () => {
+describe("SPEC-CORE-083 083.9 find in a stacked row with the inspector closed", () => {
   beforeEach(() => {
     // A tablet with a narrow row: the form is stacked, and the closed
     // inspector leaves the companion in the canvas under preference stacked.
@@ -2525,7 +2525,7 @@ describe("SPEC-CORE-082 082.9 find in a stacked row with the inspector closed", 
   const below = () => document.querySelector(".media-detail-below");
   const fit = () => screen.getByTestId("inspector-fit-host").dataset.inspectorFit;
 
-  it("SPEC-CORE-082 turns the stacked layout on while find is open, and back off when it closes, without writing a preference", async () => {
+  it("SPEC-CORE-083 turns the stacked layout on while find is open, and back off when it closes, without writing a preference", async () => {
     reply = () => answer(THREE_UTTERANCES());
     await openPage(VIDEO);
     await waitFor(() => expect(fit()).toBe("stacked"));

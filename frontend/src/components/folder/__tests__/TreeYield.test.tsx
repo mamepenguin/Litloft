@@ -1,5 +1,5 @@
 /**
- * SPEC-CORE-083: on a two-pane file page, when the left pane is what stops
+ * SPEC-CORE-084: on a two-pane file page, when the left pane is what stops
  * a player file's inspector fitting beside the player, the pane is collapsed
  * for the file page without touching the stored tree setting, and the tree
  * button brings it back for good.
@@ -351,8 +351,8 @@ async function openFile(fileId: string) {
 const treeButton = () =>
   within(screen.getByTestId("toolbar")).getByRole("button", { name: /(Show|Hide) tree/ });
 
-describe("SPEC-CORE-083 the left pane yields to a player file's inspector", () => {
-  it("SPEC-CORE-083 I7 collapses the pane in the file page's first frame, without writing the tree setting", async () => {
+describe("SPEC-CORE-084 the left pane yields to a player file's inspector", () => {
+  it("SPEC-CORE-084 I7 collapses the pane in the file page's first frame, without writing the tree setting", async () => {
     watchForms();
     await openFile(VIDEO.id);
 
@@ -362,7 +362,7 @@ describe("SPEC-CORE-083 the left pane yields to a player file's inspector", () =
     expect(treeWrites()).toEqual([]);
   });
 
-  it("SPEC-CORE-083 I7 goes straight to beside when the row fits without the pane, with no stacked or overlay frame", async () => {
+  it("SPEC-CORE-084 I7 goes straight to beside when the row fits without the pane, with no stacked or overlay frame", async () => {
     // 1133 - 280 = 853 is narrow; 1133 alone holds both.
     watchForms();
     await openFile(VIDEO.id);
@@ -371,7 +371,7 @@ describe("SPEC-CORE-083 the left pane yields to a player file's inspector", () =
     expect(formsSeen()).toEqual(["beside"]);
   });
 
-  it("SPEC-CORE-083 I7 goes straight to stacked when the row does not fit even without the pane", async () => {
+  it("SPEC-CORE-084 I7 goes straight to stacked when the row does not fit even without the pane", async () => {
     setViewport(900);
     watchForms();
     await openFile(VIDEO.id);
@@ -380,14 +380,14 @@ describe("SPEC-CORE-083 the left pane yields to a player file's inspector", () =
     expect(formsSeen()).toEqual(["stacked"]);
   });
 
-  it("SPEC-CORE-083 I7 keeps the sidebar in its overlay form while the pane is yielded", async () => {
+  it("SPEC-CORE-084 I7 keeps the sidebar in its overlay form while the pane is yielded", async () => {
     await openFile(VIDEO.id);
     await waitFor(() => expect(paneCollapsed()).toBe(true));
 
     expect(overlayRequests.at(-1)).toBe(true);
   });
 
-  it("SPEC-CORE-083 I7 yields only when every condition holds", async () => {
+  it("SPEC-CORE-084 I7 yields only when every condition holds", async () => {
     // The first row yields, so the table cannot pass on a pane that never
     // collapses.
     const cases: Array<{
@@ -417,7 +417,7 @@ describe("SPEC-CORE-083 the left pane yields to a player file's inspector", () =
     }
   });
 
-  it("SPEC-CORE-083 counts a player file's default-open inspector, with nothing stored", async () => {
+  it("SPEC-CORE-084 counts a player file's default-open inspector, with nothing stored", async () => {
     localStorage.removeItem("inspector-open:work");
     await openFile(VIDEO.id);
 
@@ -425,8 +425,8 @@ describe("SPEC-CORE-083 the left pane yields to a player file's inspector", () =
   });
 });
 
-describe("SPEC-CORE-083 a collection's item list is a left pane too", () => {
-  it("SPEC-CORE-083 collapses the item list like the tree, without writing the setting", async () => {
+describe("SPEC-CORE-084 a collection's item list is a left pane too", () => {
+  it("SPEC-CORE-084 collapses the item list like the tree, without writing the setting", async () => {
     mockSearchParams = new URLSearchParams(`file=${VIDEO.id}`);
     render(
       <TwoPaneLayout
@@ -445,8 +445,8 @@ describe("SPEC-CORE-083 a collection's item list is a left pane too", () => {
   });
 });
 
-describe("SPEC-CORE-083 the tree button on a file page (§3 table)", () => {
-  it("SPEC-CORE-083 I8 reports a yielded pane as hidden, and pressing it shows the pane without writing storage", async () => {
+describe("SPEC-CORE-084 the tree button on a file page (§3 table)", () => {
+  it("SPEC-CORE-084 I8 reports a yielded pane as hidden, and pressing it shows the pane without writing storage", async () => {
     await openFile(VIDEO.id);
     expect(paneCollapsed()).toBe(true);
     expect(treeButton()).toHaveAttribute("aria-pressed", "false");
@@ -459,7 +459,7 @@ describe("SPEC-CORE-083 the tree button on a file page (§3 table)", () => {
     expect(localStorage.getItem("tree:enabled:work")).toBe("true");
   });
 
-  it("SPEC-CORE-083 I8 keeps a reopened pane shown across inspector toggles, widths and file changes", async () => {
+  it("SPEC-CORE-084 I8 keeps a reopened pane shown across inspector toggles, widths and file changes", async () => {
     const utils = await openFile(VIDEO.id);
     expect(paneCollapsed()).toBe(true);
     fireEvent.click(treeButton());
@@ -480,7 +480,7 @@ describe("SPEC-CORE-083 the tree button on a file page (§3 table)", () => {
     expect(treeWrites()).toEqual([]);
   });
 
-  it("SPEC-CORE-083 I8 walks yielded → reopened → hidden by setting → reopened, writing only on the last two", async () => {
+  it("SPEC-CORE-084 I8 walks yielded → reopened → hidden by setting → reopened, writing only on the last two", async () => {
     await openFile(VIDEO.id);
     expect(paneCollapsed()).toBe(true);
 
@@ -505,14 +505,14 @@ describe("SPEC-CORE-083 the tree button on a file page (§3 table)", () => {
   });
 });
 
-describe("SPEC-CORE-083 what does not undo a yield, and what clears it", () => {
+describe("SPEC-CORE-084 what does not undo a yield, and what clears it", () => {
   async function yielded() {
     const utils = await openFile(VIDEO.id);
     expect(paneCollapsed()).toBe(true);
     return utils;
   }
 
-  it("SPEC-CORE-083 I9 stays collapsed when the inspector is closed", async () => {
+  it("SPEC-CORE-084 I9 stays collapsed when the inspector is closed", async () => {
     await yielded();
 
     fireEvent.click(screen.getByTestId("inspector-toggle"));
@@ -522,7 +522,7 @@ describe("SPEC-CORE-083 what does not undo a yield, and what clears it", () => {
     expect(treeWrites()).toEqual([]);
   });
 
-  it("SPEC-CORE-083 I9 stays collapsed when the window widens", async () => {
+  it("SPEC-CORE-084 I9 stays collapsed when the window widens", async () => {
     await yielded();
 
     act(() => setViewport(1600));
@@ -532,7 +532,7 @@ describe("SPEC-CORE-083 what does not undo a yield, and what clears it", () => {
     expect(paneCollapsed()).toBe(true);
   });
 
-  it("SPEC-CORE-083 I9 stays collapsed on moving to a file without a player", async () => {
+  it("SPEC-CORE-084 I9 stays collapsed on moving to a file without a player", async () => {
     const utils = await yielded();
 
     utils.rerender(page(IMAGE.id));
@@ -542,7 +542,7 @@ describe("SPEC-CORE-083 what does not undo a yield, and what clears it", () => {
     expect(paneCollapsed()).toBe(true);
   });
 
-  it("SPEC-CORE-083 I9 stays collapsed across a phone crossing and back", async () => {
+  it("SPEC-CORE-084 I9 stays collapsed across a phone crossing and back", async () => {
     await yielded();
 
     act(() => setViewport(700));
@@ -555,7 +555,7 @@ describe("SPEC-CORE-083 what does not undo a yield, and what clears it", () => {
     expect(treeWrites()).toEqual([]);
   });
 
-  it("SPEC-CORE-083 I9 shows the pane again on the listing once the file page is left, as the setting says", async () => {
+  it("SPEC-CORE-084 I9 shows the pane again on the listing once the file page is left, as the setting says", async () => {
     const utils = await yielded();
 
     utils.rerender(page(null));
@@ -565,7 +565,7 @@ describe("SPEC-CORE-083 what does not undo a yield, and what clears it", () => {
     expect(treeButton()).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("SPEC-CORE-083 I9 clears a reopen too, so the next file page yields again", async () => {
+  it("SPEC-CORE-084 I9 clears a reopen too, so the next file page yields again", async () => {
     const utils = await yielded();
     fireEvent.click(treeButton());
     await waitFor(() => expect(paneCollapsed()).toBe(false));
@@ -578,7 +578,7 @@ describe("SPEC-CORE-083 what does not undo a yield, and what clears it", () => {
     expect(paneCollapsed()).toBe(true);
   });
 
-  it("SPEC-CORE-083 I9 clears the yield when TwoPaneLayout unmounts", async () => {
+  it("SPEC-CORE-084 I9 clears the yield when TwoPaneLayout unmounts", async () => {
     const utils = await yielded();
     utils.unmount();
 

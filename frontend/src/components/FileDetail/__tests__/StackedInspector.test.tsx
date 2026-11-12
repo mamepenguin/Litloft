@@ -1,5 +1,5 @@
 /**
- * SPEC-CORE-082: on a non-phone viewport, a player file in a row too narrow
+ * SPEC-CORE-083: on a non-phone viewport, a player file in a row too narrow
  * for the inspector beside the canvas stacks the inspector under the player
  * instead of laying it over the video, and its inspector starts open.
  */
@@ -189,8 +189,8 @@ function toggleIcon(): string | null {
   return known.find((name) => svg.classList.contains(name)) ?? null;
 }
 
-describe("SPEC-CORE-082 082.1 the form the row computes", () => {
-  it("SPEC-CORE-082 I6 stacks a player file in a narrow row, keeps it beside in a wide one, and overlays a file without a player", async () => {
+describe("SPEC-CORE-083 083.1 the form the row computes", () => {
+  it("SPEC-CORE-083 I6 stacks a player file in a narrow row, keeps it beside in a wide one, and overlays a file without a player", async () => {
     storeOpen(true);
     const rows: Array<{
       name: string;
@@ -216,7 +216,7 @@ describe("SPEC-CORE-082 082.1 the form the row computes", () => {
     }
   });
 
-  it("SPEC-CORE-082 moves a player file between beside and stacked as the row is resized", async () => {
+  it("SPEC-CORE-083 moves a player file between beside and stacked as the row is resized", async () => {
     storeOpen(true);
     rowWidth = WIDE_ROW;
     await renderFile(VIDEO);
@@ -229,7 +229,7 @@ describe("SPEC-CORE-082 082.1 the form the row computes", () => {
     expect(fit()).toBe("beside");
   });
 
-  it("SPEC-CORE-082 never changes the form by opening or closing the inspector", async () => {
+  it("SPEC-CORE-083 never changes the form by opening or closing the inspector", async () => {
     storeOpen(true);
     await renderFile(VIDEO);
     await waitFor(() => expect(fit()).toBe("stacked"));
@@ -243,7 +243,7 @@ describe("SPEC-CORE-082 082.1 the form the row computes", () => {
     expect(fit()).toBe("stacked");
   });
 
-  it("SPEC-CORE-082 publishes the row's height on the row", async () => {
+  it("SPEC-CORE-083 publishes the row's height on the row", async () => {
     storeOpen(true);
     await renderFile(VIDEO);
 
@@ -257,8 +257,8 @@ describe("SPEC-CORE-082 082.1 the form the row computes", () => {
   });
 });
 
-describe("SPEC-CORE-082 082.6 the inspector's default open state", () => {
-  it("SPEC-CORE-082 I6 starts a player file's inspector open below 1120px, without writing the stored value", async () => {
+describe("SPEC-CORE-083 083.6 the inspector's default open state", () => {
+  it("SPEC-CORE-083 I6 starts a player file's inspector open below 1120px, without writing the stored value", async () => {
     for (const viewport of [768, 1024, 1119]) {
       setViewport(viewport);
       const { unmount } = await renderFile(VIDEO);
@@ -268,7 +268,7 @@ describe("SPEC-CORE-082 082.6 the inspector's default open state", () => {
     }
   });
 
-  it("SPEC-CORE-082 I6 keeps a file without a player on the 1120px viewport default", async () => {
+  it("SPEC-CORE-083 I6 keeps a file without a player on the 1120px viewport default", async () => {
     // Paired with the player row so the difference is the file kind.
     const cases = [
       { file: VIDEO, viewport: 767, open: false },
@@ -288,7 +288,7 @@ describe("SPEC-CORE-082 082.6 the inspector's default open state", () => {
     }
   });
 
-  it("SPEC-CORE-082 I6 lets a stored closed state win over the player default", async () => {
+  it("SPEC-CORE-083 I6 lets a stored closed state win over the player default", async () => {
     // Paired with the same file and viewport unstored, so the closed answer
     // comes from the stored value and not from the viewport.
     const unstored = await renderFile(VIDEO);
@@ -300,7 +300,7 @@ describe("SPEC-CORE-082 082.6 the inspector's default open state", () => {
     expect(pane()).toBeNull();
   });
 
-  it("SPEC-CORE-082 I6 neither opens nor closes the inspector on a form change", async () => {
+  it("SPEC-CORE-083 I6 neither opens nor closes the inspector on a form change", async () => {
     rowWidth = WIDE_ROW;
     await renderFile(VIDEO);
     await waitFor(() => expect(fit()).toBe("beside"));
@@ -317,7 +317,7 @@ describe("SPEC-CORE-082 082.6 the inspector's default open state", () => {
 });
 
 describe.each(["stacked", "beside"])(
-  "SPEC-CORE-082 the stacked layout, with media-layout-preference %s",
+  "SPEC-CORE-083 the stacked layout, with media-layout-preference %s",
   (preference) => {
     beforeEach(() => {
       window.localStorage.setItem("media-layout-preference", preference);
@@ -325,7 +325,7 @@ describe.each(["stacked", "beside"])(
       claimSlot("player-side", [TRANSCRIPT]);
     });
 
-    it("SPEC-CORE-082 I4 mounts every companion exactly once, as an inspector tab", async () => {
+    it("SPEC-CORE-083 I4 mounts every companion exactly once, as an inspector tab", async () => {
       const { container } = await renderFile(VIDEO);
       await waitFor(() => expect(fit()).toBe("stacked"));
 
@@ -339,14 +339,14 @@ describe.each(["stacked", "beside"])(
       expect(container.querySelector(".media-detail-below")).toBeNull();
     });
 
-    it("SPEC-CORE-082 I3 draws no layout toggle", async () => {
+    it("SPEC-CORE-083 I3 draws no layout toggle", async () => {
       await renderFile(VIDEO);
       await waitFor(() => expect(fit()).toBe("stacked"));
 
       expect(layoutToggle()).toBeNull();
     });
 
-    it("SPEC-CORE-082 I3 puts the description in Info, not under the player", async () => {
+    it("SPEC-CORE-083 I3 puts the description in Info, not under the player", async () => {
       await renderFile(VIDEO);
       await waitFor(() => expect(fit()).toBe("stacked"));
 
@@ -355,7 +355,7 @@ describe.each(["stacked", "beside"])(
       expect(infoPanel()).toContainElement(description[0]);
     });
 
-    it("SPEC-CORE-082 puts the summaries at the end of Info, once each", async () => {
+    it("SPEC-CORE-083 puts the summaries at the end of Info, once each", async () => {
       await renderFile(VIDEO);
       await waitFor(() => expect(fit()).toBe("stacked"));
 
@@ -367,14 +367,14 @@ describe.each(["stacked", "beside"])(
       expect(infoPanel()).toContainElement(detailed[0]);
     });
 
-    it("SPEC-CORE-082 I3 shows PanelBottomClose on the inspector button", async () => {
+    it("SPEC-CORE-083 I3 shows PanelBottomClose on the inspector button", async () => {
       await renderFile(VIDEO);
       await waitFor(() => expect(fit()).toBe("stacked"));
 
       expect(toggleIcon()).toBe("lucide-panel-bottom-close");
     });
 
-    it("SPEC-CORE-082 I4 writes no media-layout-preference across a form change and an inspector toggle", async () => {
+    it("SPEC-CORE-083 I4 writes no media-layout-preference across a form change and an inspector toggle", async () => {
       rowWidth = WIDE_ROW;
       await renderFile(VIDEO);
       resizeRowTo(NARROW_ROW);
@@ -388,14 +388,14 @@ describe.each(["stacked", "beside"])(
   },
 );
 
-describe("SPEC-CORE-082 form stacked with the inspector closed is today's page", () => {
+describe("SPEC-CORE-083 form stacked with the inspector closed is today's page", () => {
   beforeEach(() => {
     window.localStorage.setItem("media-layout-preference", "stacked");
     storeOpen(false);
     claimSlot("player-side", [TRANSCRIPT]);
   });
 
-  it("SPEC-CORE-082 I3 I4 shows PanelBottom, the layout toggle, the description and the companion in the canvas", async () => {
+  it("SPEC-CORE-083 I3 I4 shows PanelBottom, the layout toggle, the description and the companion in the canvas", async () => {
     const { container } = await renderFile(VIDEO);
     await waitFor(() => expect(fit()).toBe("stacked"));
 
@@ -409,7 +409,7 @@ describe("SPEC-CORE-082 form stacked with the inspector closed is today's page",
     expect(below).toContainElement(screen.getByTestId("slot-entry-transcript"));
   });
 
-  it("SPEC-CORE-082 I2 keeps the same player element when the inspector opens and closes in stacked", async () => {
+  it("SPEC-CORE-083 I2 keeps the same player element when the inspector opens and closes in stacked", async () => {
     await renderFile(VIDEO);
     await waitFor(() => expect(fit()).toBe("stacked"));
     const player = screen.getByTestId("file-preview");
@@ -425,8 +425,8 @@ describe("SPEC-CORE-082 form stacked with the inspector closed is today's page",
   });
 });
 
-describe("SPEC-CORE-082 082.7 the inspector button's icon in every form", () => {
-  it("SPEC-CORE-082 I3 draws PanelBottom only in stacked, PanelRight in the other forms", async () => {
+describe("SPEC-CORE-083 083.7 the inspector button's icon in every form", () => {
+  it("SPEC-CORE-083 I3 draws PanelBottom only in stacked, PanelRight in the other forms", async () => {
     const cases: Array<{
       name: string;
       file: FileItem;
@@ -451,8 +451,8 @@ describe("SPEC-CORE-082 082.7 the inspector button's icon in every form", () => 
   });
 });
 
-describe("SPEC-CORE-082 I2 a form change keeps what was mounted", () => {
-  it("SPEC-CORE-082 I2 keeps the player, the pane, the Info panel and a tab listed on both sides", async () => {
+describe("SPEC-CORE-083 I2 a form change keeps what was mounted", () => {
+  it("SPEC-CORE-083 I2 keeps the player, the pane, the Info panel and a tab listed on both sides", async () => {
     // Preference beside: the transcript is a tab on both sides of the crossing.
     window.localStorage.setItem("media-layout-preference", "beside");
     storeOpen(true);
@@ -477,7 +477,7 @@ describe("SPEC-CORE-082 I2 a form change keeps what was mounted", () => {
   });
 });
 
-describe("SPEC-CORE-082 082.8 the first frame of a player file", () => {
+describe("SPEC-CORE-083 083.8 the first frame of a player file", () => {
   beforeEach(() => {
     window.localStorage.setItem("media-layout-preference", "stacked");
     storeOpen(true);
@@ -492,7 +492,7 @@ describe("SPEC-CORE-082 082.8 the first frame of a player file", () => {
     chapters: screen.queryAllByTestId("chapters-panel").length,
   });
 
-  it("SPEC-CORE-082 I5 mounts none of the description, summaries or companions before the row is measured", async () => {
+  it("SPEC-CORE-083 I5 mounts none of the description, summaries or companions before the row is measured", async () => {
     rowWidth = 0;
     await renderFile(VIDEO);
 
@@ -506,7 +506,7 @@ describe("SPEC-CORE-082 082.8 the first frame of a player file", () => {
     });
   });
 
-  it("SPEC-CORE-082 I5 mounts each once, in the place the first measured form gives", async () => {
+  it("SPEC-CORE-083 I5 mounts each once, in the place the first measured form gives", async () => {
     rowWidth = 0;
     await renderFile(VIDEO);
 
@@ -564,7 +564,7 @@ describe("SPEC-CORE-082 082.8 the first frame of a player file", () => {
 
   const inInspector = (el: Element) => el.closest('[data-testid="inspector-pane"]') !== null;
 
-  it("SPEC-CORE-082 I5 inserts each of them once, and only inside the inspector, while the first file opens", async () => {
+  it("SPEC-CORE-083 I5 inserts each of them once, and only inside the inspector, while the first file opens", async () => {
     const watch = watchInsertions();
 
     await renderFile(VIDEO);
@@ -577,7 +577,7 @@ describe("SPEC-CORE-082 082.8 the first frame of a player file", () => {
     expect(watch.inserted.summary.every(inInspector)).toBe(true);
   });
 
-  it("SPEC-CORE-082 I5 hands the next file no stale form from the previous one", async () => {
+  it("SPEC-CORE-083 I5 hands the next file no stale form from the previous one", async () => {
     // File A is measured beside; the row is narrowed without a resize, so the
     // only way B can be drawn beside is a form left over from A.
     const second = makeFile({

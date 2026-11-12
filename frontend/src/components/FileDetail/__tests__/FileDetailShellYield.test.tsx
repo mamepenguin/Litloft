@@ -1,5 +1,5 @@
 /**
- * SPEC-CORE-083: the shell yields the left pane it is given only when every
+ * SPEC-CORE-084: the shell yields the left pane it is given only when every
  * condition holds. The two-pane page covers the happy path end to end; this
  * covers the inputs that page cannot set on its first frame — a tree hidden
  * by its setting, a phone, and the widths a row reports before it is laid
@@ -91,7 +91,7 @@ function renderShell({
 
 const yielded = () => treeYieldStore.get("main").yielded;
 
-describe("SPEC-CORE-083 the shell's yield conditions", () => {
+describe("SPEC-CORE-084 the shell's yield conditions", () => {
   it("collapses the pane when every condition holds", () => {
     localStorage.setItem(inspectorOpenStorageKey("main"), "true");
     renderShell();

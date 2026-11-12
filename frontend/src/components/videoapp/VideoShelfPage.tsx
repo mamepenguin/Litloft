@@ -65,6 +65,7 @@ export function VideoShelfPage({
   initialSort,
   from,
   entry,
+  slot,
 }: {
   drive: string;
   by: ShelfGrouping | null;
@@ -73,12 +74,15 @@ export function VideoShelfPage({
   from?: string | null;
   /** An addon shelf to page through its page provider. */
   entry?: string | null;
+  /** Which slot `entry` belongs to; `recommended` pages Recommended's provider. */
+  slot?: string | null;
 }) {
   const t = useTranslations("videoApp");
   const tGlobal = useTranslations();
   const locale = useLocale();
   const state = useVideoApp(drive);
   const entryMode = typeof entry === "string" && entry !== "";
+  const recommendedMode = entryMode && slot === "recommended";
   const offered: readonly ShelfSortChoice[] =
     by === "watch" && shelfKey === "continue" ? CONTINUE_SORT_CHOICES : SORT_CHOICES;
   const initialChoice = parseShelfSortId(initialSort ?? null, offered) ?? offered[0].id;
@@ -123,6 +127,9 @@ export function VideoShelfPage({
   const provider = useProviderShelfPage({
     enabled: entryMode,
     entryId: entryMode ? entry : null,
+    recommended: recommendedMode,
+    nickname: state.nickname,
+    hasProfile: state.hasProfile,
     drive,
     params,
     ready: state.ready,
@@ -135,9 +142,11 @@ export function VideoShelfPage({
   );
 
   const title = entryMode
-    ? provider.entry
-      ? slotEntryLabel(provider.entry, tGlobal)
-      : t("title")
+    ? recommendedMode
+      ? t("shelves.recommended")
+      : provider.entry
+        ? slotEntryLabel(provider.entry, tGlobal)
+        : t("title")
     : by === null
       ? t("title")
       : shelfTitle({ by, shelf: { key: shelfKey, label: shelfKey }, drive, locale, from, t: (key) => t(key) });

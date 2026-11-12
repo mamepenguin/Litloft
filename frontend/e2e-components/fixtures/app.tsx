@@ -2431,6 +2431,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "scenes-351": () => <ScenesSectionArrangement hostWidth={351} />,
   "scenes-384": () => <ScenesSectionArrangement hostWidth={384} />,
   "scenes-390": () => <ScenesSectionArrangement hostWidth={390} />,
+  "scenes-688": () => <ScenesSectionArrangement hostWidth={688} />,
   "scenes-900": () => <ScenesSectionArrangement hostWidth={900} />,
   "scenes-long-351": () => (
     <ScenesSectionArrangement hostWidth={351} long />

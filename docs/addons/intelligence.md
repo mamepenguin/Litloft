@@ -295,7 +295,7 @@ When the file's chunk text exceeds `rag.file_question_max_chars` (default 16,000
 
 A row on the drive home of files you have never opened, ranked by how well they match your watch history in that drive. **See all** opens the full feed at `/drive/<name>/addons/intelligence/pickup`.
 
-Pickup also feeds **Recommended** on the [Video](../user-guide/video.md) page: of the feed's top entries that match the app's target and are still unwatched, up to 12 are picked for the day. Recommended is absent when that leaves nothing.
+Pickup also feeds **Recommended** on the [Video](../user-guide/video.md) page: of the feed's top entries that match the app's target and are still unwatched, up to 12 are picked for the day. **See all** opens the same list in the video app, the day's picks first and then the rest of the feed, all at once. Recommended is absent when that leaves nothing.
 
 - It needs a [profile](../user-guide/profile-preferences.md) and some watch history. It appears after the next rebuild once you have watched something.
 - It makes no LLM calls. It uses the embeddings indexing already made.
