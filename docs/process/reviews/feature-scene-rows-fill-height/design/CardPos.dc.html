@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>説明カードの位置</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 1688px; height: 800px; box-sizing: border-box; padding: 24px; display: flex; gap: 24px; background: #1a0e10; color: #c4a0a4; font-family: -apple-system, system-ui, 'Hiragino Sans', sans-serif">
+  <div style="display: flex; flex-direction: column; gap: 12px">
+    <span style="font-size: 14px; font-weight: 600">A</span>
+    <dc-import name="Panel" pw="{{w}}" ph="{{h}}" cardpos="below" start="{{t}}" hint-size="530px,700px"></dc-import>
+  </div>
+  <div style="display: flex; flex-direction: column; gap: 12px">
+    <span style="font-size: 14px; font-weight: 600">B</span>
+    <dc-import name="Panel" pw="{{w}}" ph="{{h}}" cardpos="bottom" start="{{t}}" hint-size="530px,700px"></dc-import>
+  </div>
+  <div style="display: flex; flex-direction: column; gap: 12px">
+    <span style="font-size: 14px; font-weight: 600">C</span>
+    <dc-import name="Panel" pw="{{w}}" ph="{{h}}" cardpos="above" start="{{t}}" hint-size="530px,700px"></dc-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1688,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() { return { w: 530, h: 700, t: 450 }; }
+}
+</script>
+</body>
+</html>

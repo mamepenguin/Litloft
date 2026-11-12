@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>ワークベンチのシーン</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.pill{all:unset;cursor:pointer;box-sizing:border-box;display:inline-flex;align-items:center;height:30px;padding:0 12px;border-radius:9999px;font-size:13px;color:#f5e6e8;border:1px solid #4a2c30}
+.pill.on{border-color:#e85d5e}
+</style>
+</helmet>
+<div style="width: 1056px; height: {{vh}}px; box-sizing: border-box; padding: 16px; display: flex; flex-direction: column; gap: 12px; background: #1a0e10; color: #f5e6e8; font-family: -apple-system, system-ui, 'Hiragino Sans', sans-serif">
+  <div style="flex-shrink: 0; display: flex; justify-content: center">
+    <div style="width: {{playerW}}px; height: {{playerH}}px; border-radius: 8px; background: #000; display: flex; align-items: flex-end">
+      <div style="width: 100%; height: 4px; background: #3a2023"><div style="width: 25%; height: 4px; background: #e85d5e"></div></div>
+    </div>
+  </div>
+  <div role="group" aria-label="パネル" style="flex-shrink: 0; display: flex; gap: 8px; flex-wrap: wrap">
+    <button class="{{transcriptClass}}" aria-pressed="{{two}}">文字起こし</button>
+    <button class="pill on" aria-pressed="true">シーン</button>
+    <button class="pill" aria-pressed="false">詳細要約</button>
+    <button class="pill" aria-pressed="false">ノート</button>
+  </div>
+  <div style="flex: 1 1 0%; min-height: 0; display: flex; gap: 12px">
+    <sc-if value="{{two}}" hint-placeholder-val="{{false}}">
+      <section aria-labelledby="tr-h" style="width: {{panelW}}px; height: {{panelH}}px; box-sizing: border-box; border-radius: 12px; background: #231216; display: flex; flex-direction: column">
+        <div style="height: 40px; display: flex; align-items: center; padding: 0 14px">
+          <h2 id="tr-h" style="margin: 0; font-size: 13px; font-weight: 600">文字起こし</h2>
+        </div>
+        <div aria-hidden="true" style="padding: 8px 14px; display: flex; flex-direction: column; gap: 14px">
+          <sc-for list="{{lines}}" as="l" hint-placeholder-count="8">
+            <div style="display: flex; gap: 10px; align-items: center">
+              <div style="width: 34px; height: 10px; border-radius: 4px; background: #3a2023"></div>
+              <div style="width: {{l.w}}; height: 10px; border-radius: 4px; background: #2f191b"></div>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+    </sc-if>
+    <dc-import name="Panel" pw="{{panelW}}" ph="{{panelH}}" cardpos="{{cardpos}}" hint-size="{{panelW}}px,{{panelH}}px"></dc-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"vh":{"editor":"range","default":1400,"min":800,"max":1600,"step":20,"unit":"px"},"panels":{"editor":"enum","default":"one","options":["one","two"]},"cardpos":{"editor":"enum","default":"below","options":["below","bottom","above"]},"$preview":{"width":1056,"height":1400}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var vh = this.props.vh ?? 1400;
+    var two = (this.props.panels ?? 'one') === 'two';
+    var playerH = Math.round(Math.min(vh / 2, 1024 * 9 / 16));
+    var playerW = Math.round(playerH * 16 / 9);
+    var panelH = Math.max(288, vh - 32 - playerH - 12 - 30 - 12);
+    var panelW = two ? (1024 - 12) / 2 : 1024;
+    var widths = ['78%', '64%', '86%', '52%', '71%', '80%', '45%', '68%', '74%', '58%'];
+    return {
+      vh: vh,
+      two: two,
+      transcriptClass: two ? 'pill on' : 'pill',
+      playerW: playerW,
+      playerH: playerH,
+      panelW: panelW,
+      panelH: panelH,
+      cardpos: this.props.cardpos ?? 'below',
+      lines: widths.map(function (w) { return { w: w }; })
+    };
+  }
+}
+</script>
+</body>
+</html>

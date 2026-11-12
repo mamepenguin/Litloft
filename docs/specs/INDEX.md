@@ -205,3 +205,4 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-089 | implemented | docs/specs/player-workbench.md | sha256:ce54fa3c850c8a6716af16cc777c927c8e401b4727f48c783d6b8b30540cd58d |
 | SPEC-CORE-090 | implemented | docs/specs/player-workbench.md | sha256:ce54fa3c850c8a6716af16cc777c927c8e401b4727f48c783d6b8b30540cd58d |
 | SPEC-ADDON-099 | implemented | docs/specs/player-workbench.md | sha256:ce54fa3c850c8a6716af16cc777c927c8e401b4727f48c783d6b8b30540cd58d |
+| SPEC-ADDON-104 | draft | docs/specs/scene-rows-fill-height.md | |
