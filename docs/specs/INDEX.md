@@ -198,3 +198,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-096 | implemented | docs/specs/pickup-accuracy.md | sha256:d2befb3d3294d8745a35316447b32c243a91a680f20b4b74610c3a0f0e2441a0 |
 | SPEC-ADDON-097 | implemented | docs/specs/pickup-accuracy.md | sha256:d2befb3d3294d8745a35316447b32c243a91a680f20b4b74610c3a0f0e2441a0 |
 | SPEC-ADDON-098 | implemented | docs/specs/pickup-accuracy.md | sha256:d2befb3d3294d8745a35316447b32c243a91a680f20b4b74610c3a0f0e2441a0 |
+| SPEC-ADDON-102 | draft | docs/specs/pickup-recency.md | |
+| SPEC-ADDON-103 | draft | docs/specs/pickup-recency.md | |
