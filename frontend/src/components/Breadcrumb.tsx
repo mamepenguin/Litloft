@@ -186,7 +186,12 @@ export function Breadcrumb({
             className={`flex-shrink-0${compact ? " hidden md:block" : ""}`}
           />
           {compact ? (
-            <span className="flex min-w-0 flex-1 items-center gap-1.5">{leaf}</span>
+            // `contents` above `md`: there the leaf is one flex item among
+            // the segments and its own width has to weigh in the line, or
+            // the ancestors keep room the last segment needed.
+            <span className="flex min-w-0 flex-1 items-center gap-1.5 md:contents">
+              {leaf}
+            </span>
           ) : (
             leaf
           )}

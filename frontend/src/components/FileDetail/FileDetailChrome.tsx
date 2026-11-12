@@ -117,34 +117,41 @@ export function FileDetailChrome({
       data-testid="file-detail-chrome"
       className={
         hosted
-          ? "flex min-w-0 flex-1 flex-wrap items-center gap-0 md:flex-nowrap md:gap-2"
-          : "flex h-12 shrink-0 flex-wrap items-center gap-0 border-b border-bg-border bg-bg-card px-3 md:flex-nowrap md:gap-2"
+          ? "flex min-w-0 flex-1 items-center gap-2"
+          : "flex h-12 shrink-0 items-center gap-2 border-b border-bg-border bg-bg-card px-3"
       }
     >
       {trail ? (
         // Where the host supplied `onBack`, the breadcrumb cannot express
         // where back goes, so the control it gave is drawn beside the trail
-        // at every width. Below `md` it takes the first line, which leaves
-        // the trail's leaf alone on the second; `titleNode` sits in that
-        // leaf, which `Breadcrumb` renders once at both widths — two copies
-        // of a control with state would fire a hidden copy's `blur` on
+        // at every width. Below `md` it takes the heading's first line and
+        // the trail's leaf takes the second. `titleNode` lives in that leaf,
+        // which stays in the same place in the tree at both widths — two
+        // copies of a control with state would fire a hidden copy's `blur` on
         // rotation, and for a note that blur commits the rename.
         <>
-          <div
-            className={
-              onBack
-                ? "flex w-full min-w-0 items-center md:w-auto md:max-w-[45%] md:flex-none"
-                : "flex w-full min-w-0 items-center md:hidden"
-            }
-          >
-            {backControl}
+          {!isMobile && (
+            <div
+              className={
+                onBack
+                  ? "flex min-w-0 items-center md:max-w-[45%] md:flex-none"
+                  : "flex min-w-0 items-center md:hidden"
+              }
+            >
+              {backControl}
+            </div>
+          )}
+          <div className="flex min-w-0 flex-1 flex-col md:flex-row md:items-center md:gap-1">
+            {isMobile && (
+              <div className="flex min-w-0 items-center">{backControl}</div>
+            )}
+            <Breadcrumb
+              driveName={drive}
+              folderPath={folderPath}
+              trailingSegment={wideLeaf}
+              compact
+            />
           </div>
-          <Breadcrumb
-            driveName={drive}
-            folderPath={folderPath}
-            trailingSegment={wideLeaf}
-            compact
-          />
         </>
       ) : (
         <div className="flex min-w-0 flex-1 items-center">{backControl}</div>
