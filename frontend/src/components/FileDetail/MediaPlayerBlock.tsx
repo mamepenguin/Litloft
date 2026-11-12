@@ -134,7 +134,9 @@ export function MediaPlayerBlock({
         </div>
       </div>
       {aside && (
-        <div className="media-detail-player-aside empty:hidden">
+        <div
+          className={`media-detail-player-aside empty:hidden${framed ? " -mx-4 md:mx-0" : ""}`}
+        >
           <AddonSlot
             id={MEDIA_ASIDE_SLOT}
             props={{ fileId: file.id, drive: file.drive }}
