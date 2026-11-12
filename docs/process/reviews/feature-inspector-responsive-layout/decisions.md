@@ -2,9 +2,43 @@
 
 decision:
 ran_in_app: yes
-at: 246ed978a703ebc3d7f755757e2fe27a410b60d8
+at: 5d0368f6a54716aba05e34eedad9416b8de24ddd
 by: agent
 evidence: |
+  Re-run 2 at 5d0368f6a (after ef4c02629 "separate the Info header and stack it on one row" and
+  2d0d1af75 "keep the duration beside the title in the stacked header"), for the Info header block.
+  Same environment as below: the worktree's frontend image rebuilt at 5d0368f6a, one extra container
+  on video_share_default published on :3100 (removed afterwards), against the running backend;
+  Playwright channel "chrome", headless, dark colour scheme, video Alx1ShvKJ5ny opened by clicking
+  its card in the アニメ listing, tree:enabled:動画 = true (not set for the phone). New screenshots
+  are the r5/rerun2-*.png files.
+
+  - 900x700 stacked, Info selected: header block is a grid on one row. Title at x=16 w=366, 16px,
+    nowrap, ellipsis (scrollWidth 533 > 366, so the real title is truncated with "..."); duration
+    "17:46" beside it at x=394; Like / Favorites / Verified / AI / quote / more at the right
+    (x=449..884, the pane's right padding). "+ Add tag" on the next row (y=490, full width 868).
+    Rule (1px, rgba(255,255,255,0.08)) at y=518, full width; "Scenes" at y=523 w=868 (max-width
+    none), Comments under it. PASS.
+    (r5/rerun2-900x700-video-stacked-info-dark-artboard-SmallWindow.png)
+  - 820x1180 stacked, Info selected: the same one-row header (title x=16 w=286 truncated with an
+    ellipsis, duration x=314, actions x=369..804), "+ Add tag" under it, rule at y=695 w=788,
+    Scenes full width (788). PASS. (r5/rerun2-820x1180-video-stacked-info-dark-artboard-Portrait.png)
+  - Long title: the title above (533px of text) does not fit at either stacked width; it truncates
+    with an ellipsis and the action row keeps its full width at the right edge, nothing wraps or is
+    pushed off. PASS.
+  - 1180x820 beside, Info: multi-row header as before (title 20px on two lines, duration, Like /
+    Favorites / Verified, AI / quote / more, "+ Add tag"), then the rule at y=337 (w=351), Scenes
+    at y=342 (max-width 384px). PASS. (r5/rerun2-1180x820-video-beside-info-dark-artboard-Main.png)
+  - 390x844 phone, sheet opened with the inspector button, Info: multi-row header, rule at y=574
+    (w=358), Scenes at y=579. PASS. (r5/rerun2-390x844-video-sheet-info-dark-artboard-PhoneInfo.png)
+  - Resize while playing: 1180x820 beside, Info, playing, marker set on the <video>; viewport set to
+    900x700: the same <video> (marker kept), not paused, currentTime 1.67 -> 3.77; form stacked; the
+    header body switched from block to grid and lays out as in the 900x700 case above. PASS.
+    (r5/rerun2-1180x820-video-playing-before-resize.png,
+    r5/rerun2-900x700-video-playing-after-resize-from-1180x820.png)
+  - Measured gaps, for the design check: "+ Add tag" bottom to the rule 8px; the rule line to the
+    "Scenes" row 4px. No page errors in these runs.
+
   Re-run at 246ed978a (after 580c0f784 "keep the tree-yield store across a layout remount" and
   246ed978a "restore the stacked canvas scroll after find"), for the two FAILs of the run at
   4efad1144 and a short regression. Same environment as below: the worktree's frontend image rebuilt
