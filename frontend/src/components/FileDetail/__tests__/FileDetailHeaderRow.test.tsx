@@ -476,6 +476,9 @@ describe("SPEC-CORE-095 the resting strip raises the sheet", () => {
     const like = strip.getByRole("button", { name: /like/i });
     expect(stripButton()!.contains(like)).toBe(false);
 
+    (api.likeFile as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      video({ liked_at: "2026-01-01T00:00:00Z" }),
+    );
     fireEvent.click(like);
     await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
     expect(screen.queryByTestId("mobile-inspector-sheet")).toBeNull();
