@@ -23,7 +23,8 @@ nothing above it moves.
 - **Recommended**: up to 12 videos you have not watched, ranked by your history in
   the drive. It needs a profile and the Intelligence addon with a Pickup feed, and
   it is absent when there is no suggestion for the current target. It is not a
-  random sample.
+  random sample. Among videos that match equally, newer ones come first, and the
+  picks can change during the day while new videos are being added.
 - **Addon shelves**: Media Import adds **よく見るソース** / **Regular sources** and
   **購読の新着** / **New from subscriptions**, for the subscriptions you chose to show.
 - **New**: the most recently added videos.
