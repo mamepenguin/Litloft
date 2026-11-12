@@ -99,3 +99,9 @@ pending: A generated detailed-summary body in a panel, because no player file ha
 - D-8: accepted. The resting phone sheet shows no tabs, as before this change.
 - D-10: accepted as unverifiable: no player file in the test data has a generated detailed summary.
 - D-9, D-11: re-shoot at the final build (the human approved another stack swap), then re-run the design check.
+
+## Design differences (design-check.md, re-check), decided by the human 2026-11-12
+
+- D-12: fix (12px between the two panels on the collection surface, inside the same 60% height).
+- D-13: fix (on the collection surface at 390px the row and panels share the player's side inset).
+- D-14: fix (the `.loft` metadata block moves into Info under the title on the canonical page; I7 revised in invariants.md). The spec had kept it under the player, which contradicted the human's earlier decision that the YouTube description belongs in Info.
