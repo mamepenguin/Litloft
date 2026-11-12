@@ -86,6 +86,13 @@ phone. The iOS app is not changed.
    A scan runs at startup and on a manual rescan, as today. Nothing else changes in the
    pass, and the identity and hash gate (`_refresh_file_identity`) is not touched.
 
+   A write that changes only `md_origin` keeps `files.updated_at` as it was.
+   `File.updated_at` has an ORM `onupdate`, so the scan pass, and any write path whose
+   content is unchanged, sets `md_origin` together with an explicit `updated_at` equal to
+   its current value. The first scan after the upgrade then reorders nothing that sorts
+   by `updated_at`. A write path that changes the content moves `updated_at` as it does
+   today.
+
 **Read conditions (092)**
 
 4. `GET /api/drives/{drive}/files`, `GET /api/drives/{drive}/shelves`,
@@ -206,9 +213,23 @@ phone. The iOS app is not changed.
       opened.
     - Refresh: the page re-fetches its count and its landing shelves, or page 1 of the
       All list, when:
-      - its own `ClipSection` reports a submitted clip;
-      - a `knowledge.clip.ready` event for the current drive arrives (the event
-        `ClipNotifier` already receives).
+      - its own `ClipSection` reports an added clip. `ClipSection` gains one optional
+        prop, `onClipAdded(fileId)`, called from its `handleJobAdded`. That function is
+        the single point the URL form, the pasted-HTML form and the duplicate dialog's
+        "create anyway" all go through. Notes passes no prop and is unchanged. This is
+        the only trigger for a pasted clip, which emits no event;
+      - a `knowledge.clip.ready` event arrives after the page mounted. The event's
+        `data` carries no drive, and `ClipNotifier` matches jobs, not drives. So the page
+        refreshes on any such event and does not filter by drive. A refresh on another
+        drive's clip costs one extra request and changes nothing shown. The last event
+        `useWebSocket` already held when the page mounted does not trigger a refresh.
+    - During a refresh, what is on screen stays until the new answer arrives:
+      - drawn shelves and rows are not blanked, and the count gate in step 12 applies
+        only to the first load;
+      - a refreshed count of 0 replaces the tabs and shelves with the empty state, and a
+        count above 0 replaces the empty state with them;
+      - a failed refresh keeps the rows already drawn and shows no failure line;
+      - on `?view=all` a refresh replaces the loaded pages with page 1.
 
       So the first clip replaces the empty state, and a finished clip shows its title.
 14. `?view=all` lists every clip (`files?origin=webclip`), newest first (`created_at
@@ -429,12 +450,23 @@ Unchanged:
   `frontend/src/components/search/useJumpDestinations.ts`
 - Knowledge (addon repository):
   - `addons/knowledge/manifest.json`;
-  - `addons/knowledge/frontend/pages/clips.tsx` and its components (reusing
-    `ClipSection.tsx` unchanged);
+  - `addons/knowledge/frontend/pages/clips.tsx` and its components;
+  - `addons/knowledge/frontend/ClipSection.tsx` (optional `onClipAdded`);
   - `addons/knowledge/frontend/NotesLanding.tsx`, `AllNotes.tsx`, `allNotesParams.ts`,
     `NoteRow.tsx`, `noteDates.ts`;
   - `addons/knowledge/frontend/messages/{ja,en}.json`
-- Submodule gitlink `addons/knowledge`, bumped after the addon PR merges (core PR first)
+- Submodule gitlink `addons/knowledge`, bumped after the addon PR merges. Three PRs, in
+  this order:
+  1. **Core PR.** Backend (091, 092), the navigation list (093), sidebar, Home and page
+     jump, and the `newspaper` icon, with tests citing SPEC-CORE-091/092/093. Navigation
+     tests use a fixture catalogue with a list-shaped entry, not Knowledge. The gitlink
+     stays at develop's commit.
+  2. **Knowledge PR** (addon repository). Clips page, Notes changes, `ClipSection`,
+     bookmarklet, `NoteSearchScope`, manifest and messages, with jsdom tests citing
+     SPEC-ADDON-100/101. Its CI runs against core develop with the core PR merged.
+  3. **Bump PR** (core). The gitlink moves to the merged Knowledge commit. It adds the
+     `frontend/e2e-components/` measurements for D2, D4 and D7, which draw Knowledge
+     components, and moves the ADDON rows to implemented.
 - Docs:
   - `docs/reference/api.md` (new query parameters);
   - `docs/ADDON-DEVELOPMENT.md` (`navigation` as a list, `path`, the `newspaper` icon,
@@ -493,6 +525,15 @@ I19. The catalogue keeps a `navigation` object as an object and a list as the li
 I20. The Clips scope line never shows `0` while its count loads or after the count request fails.
 I21. The Notes landing and All notes rows keep their `updated_at` dates and age groups.
 I22. The global search's "See all" for notes opens a page that lists every text file the dropdown's request matched, clips included.
+I23. A write that changes only `md_origin`, including every write of the scan pass, leaves `files.updated_at` unchanged. So `files?sort=updated_at` order and values are the same before and after the first scan following the upgrade.
+I24. After a Clips request answers 400 `viewer_required`, the page sends no further request that needs a viewer until the profile nickname changes.
+I25. A clip added through the Clips page's form, by URL, paste or "create anyway", appears on the page without a reload, and a count going from 0 to above 0 replaces the empty state with the tabs. A refresh never blanks shelves or rows already drawn.
+I26. The bookmarklet snippet opens `/drive/{drive}/addons/knowledge/clips` with `prefill`, `title` and `autosubmit=1`. The Clips page opened that way has the clip form open and submits it. Notes opened with the same parameters behaves as today.
+I27. Once opened, the Clips page's clip form is not unmounted by closing it, switching tabs, or a refresh.
+I28. At a count of 0, the empty state replaces the tabs and the shelves or All list on both tabs, and the header with its primary action is drawn.
+I29. Clips `?view=all` lists clips by `created_at` descending, 60 per page, grouped by `created_at` age. Clips rows show the `created_at` date.
+I30. Knowledge's entries come out of `addonNavEntries` as Notes then Clips, with Clips' `href` ending `/addons/knowledge/clips` and its icon drawn as lucide `Newspaper`.
+I31. `_migrate` creates the index on `(drive, md_origin)` once, and a startup against a database that has it changes nothing.
 
 ## Checked, no action
 
@@ -542,3 +583,8 @@ I22. The global search's "See all" for notes opens a page that lists every text 
   old bookmarklets keep working. Only the snippet handed out from now on points to Clips.
 - **A clip registered by the scanner** (dropped in from outside) dates from its file
   mtime, as `created_at` does for every scanned file.
+- **Adding the drive to `knowledge.clip.ready`**: not done. Refreshing on any such event
+  is harmless and needs no Knowledge backend or WebSocket docs change.
+- **One extra round of without-profile requests on a direct load** (`ProfileProvider`
+  renders once with `nickname: null` before its effect runs): not visible and not a
+  loop, since the nickname change re-runs the landing once. Left as is.
