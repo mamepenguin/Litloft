@@ -256,6 +256,130 @@ for (const viewport of [
 }
 
 /* ------------------------------------------------------------------ *
+ * The Info header block: a rule under it on every surface, and one row
+ * in the stacked form.
+ * ------------------------------------------------------------------ */
+
+const INFO = "#inspector-panel-info";
+const HEADER_BLOCK = `${INFO} [data-inspector-header-block]`;
+const HEADER_TAGS = `${INFO} [data-inspector-header-tags]`;
+const HEADER_RULE = `${INFO} [data-inspector-header-rule]`;
+/** The first section after the header: the wrapper is `display: contents`. */
+const FIRST_SECTION = `${INFO} > [data-inspector-header] + *`;
+
+async function panelContentWidth(page: Page): Promise<number> {
+  return page.locator(INFO).evaluate((panel) => {
+    const style = getComputedStyle(panel);
+    return (
+      panel.clientWidth -
+      parseFloat(style.paddingLeft) -
+      parseFloat(style.paddingRight)
+    );
+  });
+}
+
+async function expectHeaderRule(page: Page) {
+  await expect(page.locator(HEADER_RULE)).toHaveCount(1);
+  const rule = (await box(page, HEADER_RULE))!;
+  const tags = (await box(page, HEADER_TAGS))!;
+  const block = (await box(page, HEADER_BLOCK))!;
+  const section = (await box(page, FIRST_SECTION))!;
+
+  const ruleStyle = await page.locator(HEADER_RULE).evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { width: style.borderTopWidth, color: style.borderTopColor };
+  });
+  const tokenColour = await page
+    .locator('[data-testid="inspector-tabs"]')
+    .evaluate((element) => getComputedStyle(element).borderBottomColor);
+
+  expect(ruleStyle.width).toBe("1px");
+  expect(ruleStyle.color).toBe(tokenColour);
+
+  expect(block.top).toBeLessThan(rule.top);
+  expect(tags.bottom).toBeLessThanOrEqual(rule.top);
+  // The 8px the design leaves between the last row and the rule.
+  expect(rule.top - tags.bottom).toBeGreaterThanOrEqual(6);
+  expect(rule.top - tags.bottom).toBeLessThanOrEqual(10);
+  expect(rule.bottom).toBeLessThanOrEqual(section.top + 0.5);
+}
+
+test("the pane's Info header ends in a rule above the first section", async ({
+  page,
+}) => {
+  await page.setViewportSize(PLAYER_FILE);
+  await open(page, VIDEO);
+  await expect(page.getByTestId("inspector-pane")).toBeVisible();
+  await expect(page.getByTestId("inspector-fit-host")).toHaveAttribute(
+    "data-inspector-fit",
+    "beside",
+  );
+
+  await expectHeaderRule(page);
+});
+
+test("the sheet's Info header ends in a rule above the first section", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await open(page, VIDEO);
+  await inspectorToggle(page).click();
+  await expect(page.getByTestId("mobile-inspector-sheet")).toBeVisible();
+  await settleBox(page, '[data-testid="mobile-inspector-sheet"]');
+
+  await expectHeaderRule(page);
+});
+
+test("the stacked Info header is one row and the sections take the full width", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 900, height: 700 });
+  await open(page, VIDEO);
+  await expect(page.getByTestId("inspector-fit-host")).toHaveAttribute(
+    "data-inspector-fit",
+    "stacked",
+  );
+  await expect(page.getByTestId("inspector-pane")).toBeVisible();
+
+  const title = (await box(page, `${INFO} h1`))!;
+  const chip = (await box(
+    page,
+    `${INFO} [data-testid="file-action-row"] > *`,
+  ))!;
+  expect(
+    Math.abs(title.top + title.height / 2 - (chip.top + chip.height / 2)),
+  ).toBeLessThanOrEqual(4);
+
+  // One line of 16px text: a wrapped title is twice this.
+  expect(title.height).toBeLessThanOrEqual(24);
+  expect(chip.left).toBeGreaterThan(title.left + title.width);
+
+  const block = (await box(page, HEADER_BLOCK))!;
+  expect(block.height).toBeLessThanOrEqual(100);
+
+  const section = (await box(page, FIRST_SECTION))!;
+  expect(Math.abs(section.width - (await panelContentWidth(page)))).toBeLessThanOrEqual(
+    2,
+  );
+});
+
+test("the pane's Info header keeps its rows", async ({ page }) => {
+  await page.setViewportSize(PLAYER_FILE);
+  await open(page, VIDEO);
+  await expect(page.getByTestId("inspector-fit-host")).toHaveAttribute(
+    "data-inspector-fit",
+    "beside",
+  );
+
+  const title = (await box(page, `${INFO} h1`))!;
+  const actionRow = (await box(
+    page,
+    `${INFO} [data-testid="file-action-row"]`,
+  ))!;
+  expect(actionRow.top).toBeGreaterThanOrEqual(title.bottom - 1);
+});
+
+/* ------------------------------------------------------------------ *
  * I3 — the stacked layout keeps the inspector off the player, the
  * controls on screen, the frame at most half the row and the inspector at
  * least 40% of it.
