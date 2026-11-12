@@ -52,15 +52,23 @@ The design's visible decisions:
 - **Last part**: the lowest element the section draws in its current state: the action
   row when it is drawn, otherwise the stale note, the scene card or the Visual Index
   placeholder, otherwise the grid.
-- **Slack**: the distance from the bottom of the last part to the bottom of the
-  scroller's content box, less the bottom padding, border and margin of every element
+- **Slack**: the scroller's client height minus the distance, in the scroller's content
+  coordinates (independent of its `scrollTop`), from the top of its content box to the
+  bottom of the last part, minus the bottom padding, border and margin of every element
   between the last part and the scroller (the section's own root included). Slack is
-  negative when the scroller overflows.
+  negative when the scroller overflows. It is evaluated at the **full width**: the width
+  the scroller's content box has without a classic scrollbar (its client width plus the
+  scrollbar's width, `offsetWidth − clientWidth − borders`). When a scrollbar is showing,
+  the tile heights in the measurement are scaled to the tile width at the full width.
 - **Row step**: the height of one drawn tile (picture and time label) plus the grid's
-  row gap. It is measured from a drawn tile, not computed from constants, so it follows
-  the presenter's classes and the picture ratio.
-- **Measurable**: the scroller exists, is displayed, and has a client height above zero.
-  A section mounted inside a `hidden` panel or tab panel is not measurable.
+  row gap, measured from a drawn tile rather than computed from constants, so it follows
+  the presenter's classes and the picture ratio, and scaled to the full width as above.
+- **Measurable**: the section's own box is displayed with a width and height above zero,
+  a tile is drawn with a height above zero, and the scroller exists and has a client
+  height above zero. A section inside a `hidden` panel or tab panel is not measurable,
+  even when its scroller (the phone sheet's) is displayed. A scroller that is sized to
+  its content (no bound on its height) is measurable but gives a slack of 0, so `R`
+  stays at the value it starts with, 3.
 - **`c`**: the column count of SPEC-ADDON-093 I1, unchanged.
 - **`R`**: the number of grid rows.
 
@@ -70,15 +78,17 @@ The design's visible decisions:
 
 1. The section's expanded body is drawn (the section is `active`, or has no `active`
    prop, and its view is `expanded`).
-2. It measures `c` from its width, as today.
+2. It measures `c` from its width, as today. For the row measurement `c` is taken at the
+   full width.
 3. If the scroller is measurable, `R` is the largest whole number of at least 3 for
    which the slack would be at least 0 with `R` rows drawn. With `r` rows drawn and a
    slack of `S`, that is `R = max(3, r + floor(S / step))` where `step` is the row step.
-   If the scroller is not measurable, `R` keeps its last value, or 3 when it has none.
+   If the scroller is not measurable, or `step` is not above 0, or `S` is not finite,
+   `R` keeps its last value, or 3 when it has none.
 4. `R` is measured after the DOM commits and before the browser paints (a layout
-   effect), so a shown body never paints a row count it is about to replace. Opening a
-   panel or a tab, or changing the file, shows the measured `R` in the first painted
-   frame.
+   effect), so a shown body never paints a row count that the parts drawn in that same
+   frame would replace. Opening a panel or a tab, or changing the file, paints the `R`
+   measured from what that frame draws.
 5. The grid shows the window of `R × c` frames starting at
    `s = clamp(c × floor(i / c) − c, 0, max(0, n − R·c))`, with `i` and `n` as
    SPEC-ADDON-089 I1 defines them. The frame being looked at stays in the second row
@@ -87,12 +97,24 @@ The design's visible decisions:
 6. The ruler's band covers the drawn tiles (SPEC-ADDON-093 I4, unchanged in wording).
 7. The pictures of the drawn tiles are requested once the window has stayed 150 ms
    (SPEC-ADDON-093 I3, unchanged in wording).
-8. `R` is measured again when the scroller's size changes, when the section's size
-   changes, and when the parts around the grid change (a Visual Index state change, the
-   first picture reporting its ratio). If that changes `R`, the grid is redrawn with the
-   new `R` around the same point being looked at, without a travel animation. Causes:
-   a window resize, the second panel turned on or off, the workbench switching between
-   side by side and stacked, the inspector resized, the phone sheet settling on a snap.
+8. `R` is measured again after every render of the expanded body, and whenever a
+   `ResizeObserver` reports a size change of the scroller, the section's root, the grid,
+   or any part drawn around the grid (header, ruler, placeholder, card, stale note,
+   action row). Observing the parts, not a list of state changes, covers the policy
+   resolving, the Visual Index answer, an action error's text and the first picture's
+   ratio alike; the workbench stretches the section's root, so the root alone would not
+   report them. If `R` changes, the grid is redrawn with the new `R` around the same
+   point being looked at. Size causes: a window resize, the second panel turned on or
+   off, the workbench switching between side by side and stacked, the inspector resized,
+   the phone sheet settling on a snap.
+9. A change of `R` after the first frame is expected when the parts around the grid
+   change height after opening, and the section accepts it as one step:
+   - the Visual Index placeholder is drawn while the policy and the `visual-index`
+     request are pending, and is removed when there is no Visual Index (policy off,
+     `eligible: false`, `available: false`, 404 or an error), so `R` can grow by one;
+   - the tiles are drawn at 16:9 until the first picture reports its ratio, so a 4:3 or
+     portrait video can lose a row;
+   - the stale note or an action error appearing can lose a row.
 
 ### 2. Failure cases
 
@@ -155,7 +177,11 @@ Nothing new is shown or logged. Every failure above falls back to the last `R`, 
   than one row step) is at the bottom, below the action row.
 - The ruler's band is wider by the added rows.
 - Resizing the window, turning a second panel on or off, or moving the phone sheet to
-  another snap changes the number of rows without animation. During a drag of the sheet
+  another snap changes the number of rows without animation.
+- Just after a panel or tab opens, or the file changes, the row count can change once
+  more by about one row: when it turns out the video has no Visual Index (one row more),
+  or when the first picture shows the video is not 16:9 (fewer rows for 4:3 or
+  portrait). During a drag of the sheet
   the rows may stay as they were until it settles.
 - Where 3 rows do not fit, nothing changes from today: 3 rows, and the panel body, tab or
   sheet scrolls.
@@ -166,12 +192,12 @@ Nothing new is shown or logged. Every failure above falls back to the last `R`, 
   closed that is about 17 columns × 6 rows = 102. Native frames are cut by ffmpeg on the
   first request and served from the cache after; the browser's per-origin connection
   limit spreads the first load out. No extra cap is added.
-- No feedback loop: `R` depends on the scroller's size and on the heights of the parts
-  around the grid, which do not depend on `R`, so drawing `R` rows measures `R` again.
-- Scrollbars: when `R > 3` the slack is not negative, so the scroller does not overflow
-  and shows no classic scrollbar, and the width `c` is computed from is the full width.
-  When `R = 3` and the scroller overflows, `c` follows the width left beside the
-  scrollbar, as it does today. Either way `R` and `c` settle within one extra measurement.
+- No feedback loop: `R` depends on the scroller's size, the full width and the heights
+  of the parts around the grid, none of which depends on `R`. A classic scrollbar cannot
+  feed back either, because the slack and the row step are evaluated at the full width:
+  an `R` above 3 fits without a scrollbar, so none appears. When `R = 3` and the scroller
+  overflows, the drawn `c` follows the width left beside the scrollbar, as it does today,
+  and `R` stays 3.
 - No layout shift while playing or browsing: `R` depends on sizes, not on the point being
   looked at.
 
@@ -200,9 +226,14 @@ In the core repository:
   - the core `InspectorShell` in its `panel` form with the Scenes tab selected;
   - the core `MobileInspectorSheet` at its half and full snaps, holding `InspectorShell`
     in its `column` form with the Scenes tab selected;
-  - an existing unbounded arrangement, unchanged.
+  - an existing unbounded arrangement, unchanged;
+  - a 16:9 and a 4:3 frame set, and Visual Index states with the placeholder, the card,
+    and the stale note with the action row.
 - `frontend/e2e-components/scenes-section*.spec.ts` and `scenes-section.cases.ts`: the
-  measurements.
+  measurements. At least one case styles the scroller's `::-webkit-scrollbar` with a
+  width, so headless Chromium draws a classic scrollbar and I5 is measured with one. I7
+  is measured with a per-animation-frame record of the drawn tile count, not a final
+  state.
 - The submodule pointer bump for `addons/intelligence`.
 - `docs/specs/scene-rows-fill-height.md`, `docs/specs/INDEX.md`,
   `docs/process/reviews/feature-scene-rows-fill-height/`.
@@ -228,12 +259,13 @@ the action row, in that order, with the gaps they have today. Nothing is placed 
 the grid and the card.
 I4. While the sizes of the scroller and of the section's parts stay the same, moving the
 playback position or the browse point never changes `R`.
-I5. A change of size that changes `R` redraws the grid with the new `R` around the same
-point being looked at, without a travel animation.
+I5. After the scroller's size or a part's height changes and the layout has settled,
+`R` equals I1's value for the new sizes, and it does not alternate between two values
+over the following frames, with overlay or classic scrollbars.
 I6. Measuring again after the grid has been redrawn with `R` rows returns `R`.
-I7. The first painted frame of a shown expanded body already has the measured `R`: no
-frame paints a different row count first when a panel or tab is opened or the file
-changes.
+I7. The first painted frame of a shown expanded body already has the `R` measured from
+the parts drawn in that frame: when a panel or tab is opened or the file changes, no
+frame paints 3 rows before that `R`.
 
 ## Revises
 
@@ -266,6 +298,12 @@ SPEC-ADDON-089 I8. Only the pictures of the current window (`R·c` of them, or e
   says nothing about `R`. The slack is measured from the last part instead.
 - **Computing the row step from constants.** Measured from a drawn tile, so the label's
   line box, the tile gap and the picture ratio stay in step with the presenter.
+- **Holding `R` until the Visual Index and the picture ratio resolve, or reserving the
+  placeholder's height.** Not done: holding would paint 3 rows first and jump anyway, and
+  reserving would keep a blank band on every video without a Visual Index. The one-row
+  change after opening is accepted (§1.9, §9).
+- **Four places read the window size.** The grid, the ruler band, the requested
+  pictures and `windowStartFor` all take the same `R × c`; the skeleton alone keeps `3c`.
 - **Rows during a phone-sheet drag.** The sheet moves by transform while dragged, so its
   scroller resizes when a snap settles; rows follow then, not frame by frame.
 - **User guide.** No page: this is a layout change.
