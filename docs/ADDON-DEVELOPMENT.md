@@ -799,11 +799,11 @@ plus what its row lists.
 | `search-modes` | Search results page (`/drive/{drive}/search`), inside the results bar's `…` menu. Not the header search modal, and not drawn for a query with operators | `{ query, drive, filter, onSelect, closeMenu }`. Draw each entry as an `ActionMenuItem` row and call `closeMenu` before `onSelect`, so the menu closes before the page changes. The slot mounts on every open of the menu |
 | `search-results-top` | Search results page (`/drive/{drive}/search`), under the results bar and above the results. Not drawn for a query with operators, nor in Passages with a non-blank query | `{ query, drive, includeSceneClip, typeFilter, smartFolderId }`. `typeFilter` and `smartFolderId` are `null` when unset. Draw nothing when you have nothing to show: the host adds no wrapper |
 | `search-result-actions` | Next to a match excerpt in search results | `{ capture }` |
-| `file-detail-sections` | File detail inspector, **Info** tab | File props. The entries with id `detailed-summary` and `knowledge-edit` are placed outside the tab by the core (the canvas, the sheet, or the end of Info in the stacked inspector). Not for a transcript (`player-side`) or derived relations (`file-relations`); an entry in two slots renders twice |
+| `file-detail-sections` | File detail inspector, **Info** tab | File props. On a file without a player, the entries `detailed-summary` and `knowledge-edit` are placed outside the tab by the core (the canvas, the sheet, or the end of Info in the stacked inspector). On a player file, an entry whose id is also a `player-side` entry is drawn only as that panel; on a file without a player it is drawn here. Not for derived relations (`file-relations`) |
 | `file-relations` | Inspector **Related** tab, after the core's own relation lists | File props. See [below](#contributing-to-the-related-tab) |
-| `player-side` | Beside a media player as an inspector tab, or in a box under the description, as the viewer chooses. Always a tab in the stacked inspector — a player file in a narrow window — where the choice is not offered | File props plus `fillHeight`, `labelledByHost`, `onAvailability`. See [Occupying the player-side slot](#occupying-the-player-side-slot) |
-| `inspector-tabs` | File detail inspector, as a tab after the core tabs and after any `player-side` tabs, on every file page with an inspector (including the HTML preview; not the collection surface) | File props plus `fillHeight`, `labelledByHost`, `onAvailability`, and a required `i18n_key`. See [Occupying the inspector-tabs slot](#occupying-the-inspector-tabs-slot) |
-| `file-preview-actions` | Under the media player, right-aligned | File props. Inline buttons |
+| `player-side` | Under a media player, as a panel: a row of toggles on the wide forms, one above the other below `41rem`; a tab in the stacked inspector and on the phone. Placement belongs to the core | File props plus `fillHeight`, `labelledByHost`, `onAvailability`, `active`. See [Occupying the player-side slot](#occupying-the-player-side-slot) |
+| `inspector-tabs` | File detail inspector, as a tab after the core tabs and after any panel tabs, on every file page with an inspector (including the HTML preview; not the collection surface) | File props plus `fillHeight`, `labelledByHost`, `onAvailability`, and a required `i18n_key`. See [Occupying the inspector-tabs slot](#occupying-the-inspector-tabs-slot) |
+| `file-preview-actions` | Under the media player, right-aligned. On the wide forms of a player file it moves to the trailing end of the panel-toggle row, which spans the canvas width; in the stacked inspector and on the phone it stays in the player box | File props. Inline buttons |
 | `loft-metadata` | Beside the player, `.loft` (external URL) files only | `{ fileId, drive }` |
 | `file-detail-actions` | The file page's action row, before the `[...]` menu | File props. See [Contributing to the file action row](#contributing-to-the-file-action-row) |
 | `file-actions-menu` | The file page's `[...]` menu | File props plus `onRequestClose`, `onDialogOpenChange`. See [Contributing to the file actions menu](#contributing-to-the-file-actions-menu) |
@@ -844,22 +844,31 @@ failure the field exists to prevent.
 
 ### Occupying the `player-side` slot
 
-One entry is one tab. Besides the file props it receives:
+One entry is one panel. Where it is drawn belongs to the core:
+
+- On the canonical page in a wide form, and on the collection surface: a panel
+  under the player, with a toggle in the row above it. Up to two panels are
+  shown, in the panel list's order.
+- In the stacked inspector and on the phone sheet: a tab, in the panel list's
+  order.
+
+Besides the file props it receives:
 
 | Prop | Meaning |
 |---|---|
-| `fillHeight: boolean` | Fill the height you are given as a flex item and scroll inside yourself. Do not use `h-full`: the budget is a `max-height`, and a percentage height against it resolves to `auto`, so the list lays out at full length and is clipped. In the one-column inspector (phone) there is no budget; the sheet scrolls (see below). |
-| `labelledByHost: boolean` | The tab button already shows your name; drop your own title when `true`. |
+| `fillHeight: boolean` | Fill the height you are given as a flex item and scroll inside yourself. Do not use `h-full`: the budget is a `max-height`, and a percentage height against it resolves to `auto`, so the list lays out at full length and is clipped. |
+| `labelledByHost: boolean` | The panel card or the tab already shows your name; drop your own title when `true`. |
 | `onAvailability: (available: boolean) => void` | Report whether you have anything for this file. |
+| `active: boolean` | `true` while your panel is shown under the player, or while your tab is the selected tab of an open inspector or a raised phone sheet. `false` otherwise. |
 
-Treat `labelledByHost` and `onAvailability` as optional: some placements do
-not pass them.
+Treat every one of these as optional: a placement, or a reader who has turned
+nothing on, may not pass them. An entry that reads none of them keeps working:
+it is mounted, listed when silent, and shown when on.
 
-In the one-column inspector your list grows to
-full length and the host scrolls it; a `scrollTo` on your list does nothing.
-The host marks that scroller with `data-inspector-scroller` and sets
-`--inspector-sticky-top` on the inspector root to the height of its pinned
-tab strip.
+In a narrow form your list grows to full length and the host scrolls it; a
+`scrollTo` on your list does nothing. The host marks that scroller with
+`data-inspector-scroller` and sets `--inspector-sticky-top` on the inspector
+root to the height of its pinned tab strip.
 
 - Find the scroller with `element.closest("[data-inspector-scroller]")`.
   When there is one, scroll it, treat its top `--inspector-sticky-top`
@@ -871,17 +880,23 @@ tab strip.
 - Pin your own headers with `position: sticky; top: var(--inspector-sticky-top, 0px)`
   and a `z-index` below `10`, so they sit under the tab strip.
 
-`onAvailability` keeps a tab off files it has nothing for.
+`onAvailability` keeps a panel off files it has nothing for.
 
 - Call it with `false` when you mount, before your fetch settles, and with
   `true` when you find something. Never calling it means available.
-- Answering `false` does not unmount you: the tab loses its button and the
-  panel is hidden, so you can answer `true` later.
+- Answering `false` does not unmount you: your toggle and panel are hidden, so
+  you can answer `true` later.
 - The answer is per file. The core forgets it when the file changes but
   cannot tell which file an in-flight request was for; drop stale responses
   yourself.
-- If every entry answers `false` and the file has no chapters, the core also
-  hides the beside/below toggle.
+- If every entry answers `false`, the row has no toggle. The core still draws
+  it for `file-preview-actions` entries, and not at all when there are none.
+
+**Ids.** An entry whose id equals a core panel id (`active-summary`,
+`chapters`) or a core tab id (`info`, `find`, `pages`, `chapters`, `related`) is
+not mounted; the core's own item is kept. An entry whose id is also a
+`file-detail-sections` entry is drawn only as the panel on a player file, and
+only in that slot on a file without a player.
 
 ### Occupying the `inspector-tabs` slot
 
@@ -891,8 +906,8 @@ inspector and draws no `inspector-tabs` entry.
 
 The entry receives the same `fillHeight`, `labelledByHost` and `onAvailability`
 as a [player-side](#occupying-the-player-side-slot) entry, and must declare an
-`i18n_key` for its tab label. The tab is drawn after the core tabs and after
-any `player-side` tabs.
+`i18n_key` for its tab label. The tab is drawn after the core tabs and, in a
+narrow form, after the panels' tabs.
 
 - **Silence means unavailable.** Unlike `player-side`, an entry that has not
   called `onAvailability` gets no tab button. Report `false` when you mount,
@@ -1444,6 +1459,8 @@ Adding a slot, a prop, a field or an endpoint is not breaking and gets no row.
 
 | Date | What changed | What an addon does instead |
 |---|---|---|
+| 2026-11-12 | `player-side` entries are panels under the player on the wide forms, not tabs beside it; the core chooses the placement, passes `active`, and no longer mounts an entry whose id collides with a core panel or tab id | Treat one entry as one panel, read `active` where it changes what you do, and rename any id that collides with `active-summary`, `chapters`, `info`, `find`, `pages` or `related` |
+| 2026-11-12 | On the wide forms of a player file, `file-preview-actions` entries move from the player box to the trailing end of the panel-toggle row under the player | Draw inline buttons as before; do not position them relative to the player box |
 
 ## Existing addons
 
@@ -1465,9 +1482,9 @@ Slot entries each addon declares, for reference when designing your own.
 |-------|------|-----------|
 | `intelligence` | `search-modes` | `find-mode` |
 | `intelligence` | `search-results-top` | `scene-segments` |
-| `intelligence` | `file-detail-sections` | `unverified-source`, `suggested-tags`, `suggested-chapters`, `summary`, `detailed-summary`, `visual-description`, `scenes` |
+| `intelligence` | `file-detail-sections` | `unverified-source`, `suggested-tags`, `suggested-chapters`, `summary`, `detailed-summary`, `visual-description` |
 | `intelligence` | `file-relations` | `similar-files` |
-| `intelligence` | `player-side` | `transcript` |
+| `intelligence` | `player-side` | `transcript`, `scenes`, `detailed-summary` |
 | `intelligence` | `file-detail-actions` | `file-ai-actions` |
 | `intelligence` | `file-actions-menu` | `index-details` |
 | `intelligence` | `folder-bulk-actions-menu` | `folder-ai-actions` |

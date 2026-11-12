@@ -16,16 +16,17 @@ The tab strip is the top of the inspector. The first tab, **Info**, starts with 
 
 The tabs are the inspector's first row, shown only when there is more than one:
 
-- **Info**: EXIF where the file has it, comments, and addon sections such as AI summaries.
+- **Info**: the description, cut to three lines until **Show more**; EXIF where the file has it; comments; and addon sections such as AI summaries.
 - **Related**: the file's relations, and similar files with the intelligence addon.
 - **Chapters**: on media with chapters.
-- **Transcript**: on media that has one (intelligence addon).
 - **Pages**: the contents and page thumbnails of a PDF, or an index of an archive.
 - **検索**: the places found by [finding in this file](#finding-in-this-file), while the find bar is open.
 
+On a player file in a narrow window or on a phone, the [panels under the player](#panels-under-the-player) — Transcript, Scenes, Detailed summary and Note — are tabs here instead, after Chapters.
+
 A tab appears only when it has something in it, so a video that was never transcribed has no Transcript tab.
 
-**Correcting a transcript.** In the **Transcript** tab, the **分割テキスト** (Text chunks) view offers **修正** (Edit) on each line. Enter or **保存** saves, Escape or **キャンセル** cancels, and an emptied line disappears. A corrected line is marked **修正済み** (Edited). **元の結果に戻す** (Restore original) in the same header puts the whole transcript back to what the machine produced before the first correction. A corrected file is not transcribed again by automatic indexing; only **Index details** → **再生成** replaces it, after a confirmation. The player's subtitles show a correction the next time the file's page is opened.
+**Correcting a transcript.** In the **Transcript** panel (or tab, in a narrow window), the **分割テキスト** (Text chunks) view offers **修正** (Edit) on each line. Enter or **保存** saves, Escape or **キャンセル** cancels, and an emptied line disappears. A corrected line is marked **修正済み** (Edited). **元の結果に戻す** (Restore original) in the same header puts the whole transcript back to what the machine produced before the first correction. A corrected file is not transcribed again by automatic indexing; only **Index details** → **再生成** replaces it, after a confirmation. The player's subtitles show a correction the next time the file's page is opened.
 
 AI sections (intelligence addon) appear once they have been generated. To generate one, use the **AI** menu in the inspector.
 
@@ -33,7 +34,7 @@ Open and close the inspector with the toggle at the end of the page row, or `Cmd
 
 When the window is too narrow for the inspector beside the page, it changes places instead of narrowing:
 
-- For a video, audio or `.loft` file it moves **under the player**, which shrinks to at most half of the page's height and stays centred, so nothing covers the picture. The toggle then shows a bottom-panel icon, and the description and the summaries move into **Info**.
+- For a video, audio or `.loft` file it moves **under the player**, which shrinks to at most half of the page's height and stays centred, so nothing covers the picture. The toggle then shows a bottom-panel icon, and the panels under the player become tabs in the inspector.
 - For every other kind it covers the right side of the page.
 
 ### On a phone
@@ -63,20 +64,25 @@ Only what the addon has already read is found. A file that has not been indexed 
 
 `Cmd/Ctrl+F` a second time, while the find bar has focus, opens the browser's own find. `Esc` closes the bar and puts the inspector back as it was.
 
-## Chapters and the transcript, beside or below
+## Panels under the player
 
-On video, audio and `.loft` files, a button in the page row decides where the chapters and the transcript go:
+On video, audio and `.loft` files, the things you use for a while as you watch sit under the player. A row of buttons there turns each panel on and off: **Transcript**, **Scenes**, **Detailed summary** and **Note**. A panel that has nothing for the file has no button — no transcript, no scenes, no summary, no note.
 
-- **Beside** (the default): as tabs in the inspector, next to the player. Choosing it opens the inspector. If the window starts with the inspector closed, the panels are in there; open it to see them.
-- **Below**: under the description, with the chapter list beside the transcript.
+- Up to two panels are shown at once. Turning a third on closes the one you turned on first, unless that one has nothing on this file.
+- Each panel has a close button. With every panel off, nothing is drawn under the row and the player is at its full size.
+- The choice is remembered on this device and applies to every file you play. Nothing is on until you turn it on.
+- On a wide window the panels sit side by side, and a video keeps at most half of the page's height so they reach the bottom. With less room they sit one above the other, and each panel scrolls inside itself.
+- In a narrow window the inspector moves under the player and the panels become tabs in it. On a phone they are tabs in the bottom sheet.
 
-The button appears only when the file has chapters or a transcript. On a phone both always go into the bottom sheet, and in a narrow window they go into the inspector under the player, with no button to choose. The choice is remembered on the device.
+Transcript and Scenes come from the [intelligence addon](../addons/intelligence.md), and the Note from the [knowledge addon](../addons/knowledge.md).
 
 ## Chapters
 
 Click a chapter to jump to it. The chapter you are in is highlighted, and collapsing the list leaves just its name.
 
 Chapters come from the file itself, from a `.loft` import ([media_import addon](../addons/media-import.md)), or from **AI chapter candidates** in the intelligence addon, which you approve or dismiss. Once you approve a set, a rescan does not replace it. There is no chapter editor.
+
+During collection playback, Chapters is a panel under the player, next to the other panels.
 
 ## Timestamps in a description
 
