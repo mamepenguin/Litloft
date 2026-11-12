@@ -79,7 +79,7 @@ export function FileDetailSkeleton({
       onScrollRootChange={onScrollRootChange}
       inspector={<InspectorSkeleton />}
       mobileSheet={isMobile ? <InspectorSkeleton /> : undefined}
-      sheetPeek={isMobile ? <Skeleton className="h-4 w-2/3" /> : undefined}
+      sheetPeek={isMobile ? () => <Skeleton className="h-4 w-2/3" /> : undefined}
       resetKey={resetKey}
     >
       {/* Inside the shell, so the page's first box is the shell's own and

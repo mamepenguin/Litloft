@@ -18,6 +18,7 @@ import {
   type MarkdownViewMode,
 } from "@/lib/markdownChromeContext";
 import { FileDetailShell } from "../FileDetailShell";
+import type { SheetPeek } from "../MobileInspectorSheet";
 import { FindButton } from "../FileDetail/find/FindButton";
 import { MarkdownViewModeToggle } from "../MarkdownViewModeToggle";
 import { EditableTitle } from "./EditableTitle";
@@ -32,7 +33,7 @@ interface MarkdownDocumentLayoutProps {
   onBack?: () => void;
   inspector: ReactNode;
   mobileSheet?: ReactNode;
-  sheetPeek?: ReactNode;
+  sheetPeek?: SheetPeek;
   children: ReactNode;
   onScrollRootChange?: (node: HTMLElement | null) => void;
   resetKey?: string;

@@ -24,6 +24,7 @@ import { ChaptersPanel } from "../ChaptersPanel";
 import { CommentSection } from "../CommentSection";
 import { ExifSection } from "../ExifSection";
 import { FileDetailShell } from "../FileDetailShell";
+import type { SheetPeek } from "../MobileInspectorSheet";
 import { FilePreview } from "../FilePreview";
 import { MarkdownDocumentLayout } from "../markdown/MarkdownDocumentLayout";
 import { FileNavControls } from "./FileNavControls";
@@ -91,7 +92,7 @@ export interface ShellLayoutProps {
   onRename: (newFilename: string) => Promise<void>;
   onBack?: () => void;
   meta: ReactNode;
-  sheetPeek?: ReactNode;
+  sheetPeek?: SheetPeek;
 }
 
 function PanelTabBody({ item }: { item: WorkbenchPanelItem }) {

@@ -41,6 +41,12 @@ export function FileActionRow({
 }: FileActionRowProps) {
   const t = useTranslations("file");
 
+  // A toggle answers with the updated file. An answer that carries none
+  // leaves the page's own file in place rather than emptying it.
+  const adoptFile = (next: FileItem | null) => {
+    if (next) onFileChange(next);
+  };
+
   return (
     <div
       data-testid="file-action-row"
@@ -61,16 +67,16 @@ export function FileActionRow({
       <LikeButton
         fileId={file.id}
         likedAt={file.liked_at}
-        onToggle={onFileChange}
+        onToggle={adoptFile}
         showLabel={!compact}
       />
       <FavoriteButton
         fileId={file.id}
         isFavorite={file.is_favorite}
-        onToggle={onFileChange}
+        onToggle={adoptFile}
         showLabel={!compact}
       />
-      {!compact && <TrustTierControl file={file} onChange={onFileChange} />}
+      {!compact && <TrustTierControl file={file} onChange={adoptFile} />}
       {!compact && file.file_type === "image" && onRequestImageGallery && (
         <button
           onClick={onRequestImageGallery}

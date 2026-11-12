@@ -39,7 +39,7 @@ When the window is too narrow for the inspector beside the page, it changes plac
 
 ### On a phone
 
-The inspector is a bottom sheet. While it rests, a strip along the bottom shows the file's name with like, favourite and `⋮`. Raise the sheet with the toggle or by dragging its handle; the full set of buttons is at the top of the **Info** tab.
+The inspector is a bottom sheet. While it rests, a strip along the bottom shows the file's name with like, favourite and `⋮`. Press the name, or drag the sheet's handle, to raise it; the full set of buttons is at the top of the **Info** tab.
 
 - Dragging anywhere else in the sheet scrolls it. Once you are at the top of the sheet, pull down or press `Esc` to send it back to the strip.
 - The page above stays usable while the sheet is up: you can pause and seek the video.

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { ChevronUp } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import type { FileItem } from "@/types";
@@ -71,6 +72,7 @@ export function FileDetailContainer({
   surface = "canonical",
 }: FileDetailContentProps) {
   const tPane = useTranslations("rightPane");
+  const ti = useTranslations("inspector");
   const { addons, catalogueDrive, hasSlot } = useAddonSlots();
   const slotAvailability = useSlotAvailability(fileId);
   const isMobile = useIsMobile();
@@ -281,28 +283,44 @@ export function FileDetailContainer({
   // twice with the inspector's copy.
   const fileDisplayName = file.title || file.filename;
   const sheetPeek =
-    ridesShell && isMobile ? (
-      <div inert={!data.fresh} className="contents">
-        {/* Not a heading. The name is announced by the sheet's own
-            title when it is up, and a second heading for the same file
-            at a shallower level than the inspector's `h1` inverted the
-            document outline inside one dialog. */}
-        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-text-primary">
-          {fileDisplayName}
-        </span>
-        <FileActionRow
-          file={file}
-          onFileChange={setFile}
-          onRefetch={data.refetch}
-          onStartEdit={data.startEditing}
-          onAfterDelete={onAfterDelete}
-          onRequestImageGallery={onRequestImageGallery}
-          videoRef={videoRef}
-          addonSlotProps={addonSlotProps}
-          compact
-        />
-      </div>
-    ) : undefined;
+    ridesShell && isMobile
+      ? (raiseSheet: () => void) => (
+          <>
+            {/* The name sits outside the inert wrapper below: raising the
+                sheet needs no fresh data, while every control in that
+                wrapper writes a field back. */}
+            <button
+              type="button"
+              onClick={raiseSheet}
+              aria-expanded="false"
+              aria-label={ti("expandSheet")}
+              className="flex min-w-0 flex-1 items-center gap-1 text-left pointer-coarse:min-h-11"
+            >
+              {/* Not a heading. The name is announced by the sheet's own
+                  title when it is up, and a second heading for the same file
+                  at a shallower level than the inspector's `h1` inverted the
+                  document outline inside one dialog. */}
+              <span className="min-w-0 truncate text-sm font-semibold text-text-primary">
+                {fileDisplayName}
+              </span>
+              <ChevronUp size={14} aria-hidden="true" className="shrink-0 text-text-muted" />
+            </button>
+            <div inert={!data.fresh} className="contents">
+              <FileActionRow
+                file={file}
+                onFileChange={setFile}
+                onRefetch={data.refetch}
+                onStartEdit={data.startEditing}
+                onAfterDelete={onAfterDelete}
+                onRequestImageGallery={onRequestImageGallery}
+                videoRef={videoRef}
+                addonSlotProps={addonSlotProps}
+                compact
+              />
+            </div>
+          </>
+        )
+      : undefined;
 
   return (
     <FindProvider value={find}>

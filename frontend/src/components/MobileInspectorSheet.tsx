@@ -39,6 +39,12 @@ import { useSheetPullToCollapse } from "@/hooks/useSheetPullToCollapse";
  */
 export type SheetState = "peek" | "half" | "full";
 
+/**
+ * The resting strip's contents. The host supplies the way to raise the
+ * sheet, because the sheet's state belongs to the shell above it.
+ */
+export type SheetPeek = (raiseSheet: () => void) => ReactNode;
+
 export const SHEET_STATE_PEEK: SheetState = "peek";
 export const SHEET_STATE_HALF: SheetState = "half";
 export const SHEET_STATE_FULL: SheetState = "full";
