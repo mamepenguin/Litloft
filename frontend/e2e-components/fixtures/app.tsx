@@ -84,6 +84,9 @@ import { VideoCardBylineArrangement } from "./videoCardByline";
 import { VideoCardSpacingArrangement } from "./videoCardSpacing";
 import { PersistentHighlightsArrangement } from "./persistentHighlights";
 import { ScenesSectionArrangement } from "./scenesSection";
+import { ClipsPageArrangement } from "./clipsPage";
+import { ClipsRowArrangement } from "./clipsRow";
+import { NotesAllClipsToggleArrangement } from "./notesAllClipsToggle";
 import {
   InspectorPdfArrangement,
   InspectorVideoArrangement,
@@ -122,6 +125,40 @@ window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
   }
   if (url.includes("/api/addons/intelligence/llm/choices/rag")) {
     return Promise.resolve(jsonResponse({ auto: "local", choices: [] }));
+  }
+  // The Knowledge fixtures draw the real page, rows and toolbar, so they ask
+  // the endpoints those components ask; every answer stays in the fixture.
+  if (url.includes("/api/addons/knowledge/")) {
+    return Promise.resolve(jsonResponse({ openings: {} }));
+  }
+  if (url.includes("/api/drives/fixture/shelves")) {
+    return Promise.resolve(jsonResponse({ shelves: [] }));
+  }
+  if (url.includes("/api/drives/fixture/folder-counts")) {
+    return Promise.resolve(
+      jsonResponse([
+        { path: "研究資料", count: 12 },
+        { path: "Research", count: 8 },
+      ]),
+    );
+  }
+  if (url.includes("/api/drives/fixture/tags")) {
+    return Promise.resolve(
+      jsonResponse([
+        { name: "研究", count: 5 },
+        { name: "clips", count: 2 },
+      ]),
+    );
+  }
+  if (url.includes("/api/drives/fixture/files")) {
+    if (url.includes("origin=webclip")) {
+      return Promise.resolve(
+        jsonResponse({ data: [], meta: { total: 3, page: 1, limit: 1 } }),
+      );
+    }
+    return Promise.resolve(
+      jsonResponse({ data: [], meta: { total: 0, page: 1, limit: 30 } }),
+    );
   }
   return nativeFetch(input, init);
 };
@@ -2437,6 +2474,9 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "played-ranges": PlayedRangesArrangement,
   "text-resume": TextResumeArrangement,
   "home-app-entries": HomeAppEntriesArrangement,
+  "clips-page": ClipsPageArrangement,
+  "clips-row": ClipsRowArrangement,
+  "notes-all-clips-toggle": NotesAllClipsToggleArrangement,
   "discover-prefix": DiscoverPrefixArrangement,
   "video-card-byline": VideoCardBylineArrangement,
   "video-card-spacing": VideoCardSpacingArrangement,

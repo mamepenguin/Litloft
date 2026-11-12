@@ -70,6 +70,9 @@ const AT_THE_PHONE_WIDTH = [
   "discover-prefix.spec.ts",
   "video-card-byline.spec.ts",
   "video-card-spacing.spec.ts",
+  "clips-primary-action.spec.ts",
+  "clips-row.spec.ts",
+  "notes-all-clips-toggle.spec.ts",
 ] as const;
 
 const AT_THE_DESKTOP_WIDTH = [
