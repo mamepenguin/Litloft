@@ -30,6 +30,7 @@ from app.services.frontmatter import (
 )
 from app.services.hash import compute_file_hash
 from app.services.tagops import cleanup_orphan_tags, project_frontmatter_tags
+from app.services.origin import project_frontmatter_origin
 from app.services.image_dimensions import read_image_dimensions
 from app.services.markdown_images import project_markdown_thumbnail
 from app.services.maintenance import (
@@ -262,6 +263,7 @@ def _ensure_md_id_for_new_file(
         return
 
     project_frontmatter_tags(db, file_record, content)
+    project_frontmatter_origin(db, file_record, content)
 
     fm_id_raw = parsed.metadata.get("id")
     now = datetime.now(UTC)
@@ -808,6 +810,7 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
             content = markdown_path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             continue
+        project_frontmatter_origin(db, markdown_file, content)
         try:
             if project_markdown_thumbnail(db, markdown_file, content):
                 updated += 1

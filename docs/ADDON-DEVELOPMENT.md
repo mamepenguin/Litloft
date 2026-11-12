@@ -127,7 +127,7 @@ ADDON_META = {
     "description": "One sentence shown in the setup wizard.",
     "scope": "drive",               # required: "drive" | "global" | "both"
     "href": "/addons/my-addon",     # presence enables the addon page; omit if none
-    "navigation": {                 # optional sidebar row, see `navigation`
+    "navigation": {                 # optional sidebar row(s), see `navigation`
         "label": "My Addon",
         "placement": "utility",
         "priority": 50,
@@ -252,7 +252,7 @@ calls back into the core through the [Internal API](#internal-api).
 | `description` | No | Shown in the setup wizard's addon step |
 | `href` | No | Its presence tells the core the addon has a page. The value is not used as a link; the route is built from the scope and name |
 | `icon` | No | Not drawn by the core. The sidebar uses `navigation.icon` |
-| `navigation` | No | The addon's sidebar row (see [`navigation`](#navigation)) |
+| `navigation` | No | The addon's sidebar row(s) (see [`navigation`](#navigation)) |
 | `slots` | No | UI slot entries (see [UI Slot System](#ui-slot-system)) |
 | `policy_features` | No | Per-drive feature toggles in the admin GUI |
 | `event_hooks` | No | Lifecycle webhooks (see [Event Hooks](#event-hooks)) |
@@ -281,10 +281,27 @@ settings screen can say "Knowledge" while the sidebar says "Notes".
 | `priority` | Yes | Integer (not a boolean); order within the placement |
 | `i18n_key` | No | String key in the addon's own message catalogue |
 | `icon` | No | String icon token |
+| `path` | No | A subpage slug, `^[a-z][a-z0-9-]{0,39}$`. The row points at `/addons/{name}/{path}` (`/drive/{drive}/addons/{name}/{path}` for a drive-scoped addon) instead of the addon's page |
 
-If a check fails, the core logs a warning and drops the whole `navigation`
-block; the addon, its slots and its proxy routes still load. Other keys in
-the block are passed through.
+`navigation` may instead be a list of 1 to 4 such objects, so one addon can
+show several entrances:
+
+```json
+"navigation": [
+    {"label": "Notes", "placement": "primary", "priority": 20},
+    {"label": "Clips", "placement": "primary", "priority": 21, "icon": "newspaper", "path": "clips"}
+]
+```
+
+An entry that fails a check, or whose `path` repeats an earlier entry's
+(absence counts as a value, so two entries without `path` repeat), is dropped
+with a warning naming the addon and its 0-based index; the other entries stay.
+The whole `navigation` block is dropped, with a warning, when it is neither an
+object nor a list, when the list is empty or holds more than 4 objects, or when
+no entry survives. The addon, its slots and its proxy routes still load. Other
+keys in an accepted object are passed through, and the catalogue keeps the
+shape the manifest used: an object stays an object, a list stays a list of the
+surviving objects.
 
 The sidebar draws the row when the addon has a valid `navigation`, an `href`,
 and a route it can build (a `drive`-scoped addon needs a current drive).
@@ -295,14 +312,17 @@ and a route it can build (a `drive`-scoped addon needs a current drive).
 | `sources` | Under a **Sources** heading after the views. The heading appears only when some addon declares `sources` |
 | `utility` | Unheaded, after the user's own sections and before **Trash** |
 
-Rows sort by `priority`, then by addon name. The label is the translation of
-`i18n_key` when it resolves, otherwise `label`. The row is highlighted on the
-addon's route and every page under it.
+Rows sort by `priority`, then by addon name, then by the entry's place in the
+list. The label is the translation of `i18n_key` when it resolves, otherwise
+`label`. Among addon rows of every placement, only the row whose `href` is the
+longest that equals the current page or lies above it is highlighted, so a
+page under `/addons/notes/clips` lights Clips and not Notes.
 
 Icon tokens that are drawn: `download`, `images`, `message-circle-question`,
-`notebook-pen`, `package`, `rss`. A missing or unknown token draws `package`.
-To add one, extend `ADDON_NAV_ICONS` in `frontend/src/lib/addonNavIcons.ts`.
-The sidebar, page jump and the drive's Home entry row all read that one table.
+`newspaper`, `notebook-pen`, `package`, `rss`. A missing or unknown token draws
+`package`. To add one, extend `ADDON_NAV_ICONS` in
+`frontend/src/lib/addonNavIcons.ts`. The sidebar, page jump and the drive's
+Home entry row all read that one table.
 
 A `primary` entry is also drawn on every drive's Home, in the row of app
 destinations above the rows, in the same order.
@@ -1462,6 +1482,7 @@ Adding a slot, a prop, a field or an endpoint is not breaking and gets no row.
 | 2026-11-12 | `player-side` entries are panels under the player on the wide forms, not tabs beside it; the core chooses the placement, passes `active`, and no longer mounts an entry whose id collides with a core panel or tab id | Treat one entry as one panel, read `active` where it changes what you do, and rename any id that collides with `active-summary`, `chapters`, `info`, `find`, `pages` or `related` |
 | 2026-11-12 | On the wide forms of a player file, `file-preview-actions` entries move from the player box to the trailing end of the panel-toggle row under the player | Draw inline buttons as before; do not position them relative to the player box |
 | 2026-11-12 | `loft-metadata` entries move from beside the player into the inspector's **Info** tab, under the title, on the canonical file page; they stay under the player on the collection playback surface, which has no inspector | Draw the same panel as before; the host decides where it sits |
+| 2026-11-12 | `navigation` may be a list of 1 to 4 objects, each with an optional `path` slug; a list entry can be dropped on its own, and the `newspaper` icon token was added | Existing single-object manifests are unchanged. To show more than one entrance, make `navigation` a list. |
 
 ## Existing addons
 

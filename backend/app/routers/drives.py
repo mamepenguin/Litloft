@@ -55,6 +55,7 @@ from app.schemas import (
 from app.services import fileops
 from app.services import inbox as inbox_service
 from app.services.tagops import cleanup_orphan_tags, project_frontmatter_tags
+from app.services.origin import project_frontmatter_origin
 from app.services.file_versions import record_version
 from app.services.filetype import classify
 from app.services.markdown_relations import sync_markdown_file_relations
@@ -932,6 +933,8 @@ def filtered_drive_files(
     size: list[str] | None = None,
     duration: list[str] | None = None,
     trust: str | None = None,
+    origin: str | None = None,
+    exclude_origin: str | None = None,
 ):
     """The active files of one drive under the listing's filters.
 
@@ -995,6 +998,12 @@ def filtered_drive_files(
         query = query.filter(File.trust_reviewed_at.is_(None))
     elif trust:
         query = query.filter(File.trust_tier == trust)
+    if origin is not None:
+        query = query.filter(File.md_origin == origin)
+    if exclude_origin is not None:
+        query = query.filter(
+            or_(File.md_origin.is_(None), File.md_origin != exclude_origin)
+        )
     return query, normalized_search
 
 
@@ -1015,6 +1024,8 @@ def list_drive_files(
     size: list[str] | None = Query(None),
     duration: list[str] | None = Query(None),
     trust: str | None = Query(None, pattern="^(verified|unverified|unreviewed)$"),
+    origin: Annotated[str | None, Query(min_length=1, max_length=32)] = None,
+    exclude_origin: Annotated[str | None, Query(min_length=1, max_length=32)] = None,
     sort: str = Query(
         "created_at", pattern="^(created_at|title|file_size|liked_at|updated_at|random)$"
     ),
@@ -1043,6 +1054,8 @@ def list_drive_files(
         size=size,
         duration=duration,
         trust=trust,
+        origin=origin,
+        exclude_origin=exclude_origin,
     )
 
     total = query.count()
@@ -1166,6 +1179,8 @@ def list_folder_counts(
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
     type: FileKindParam | None = None,
+    origin: Annotated[str | None, Query(min_length=1, max_length=32)] = None,
+    exclude_origin: Annotated[str | None, Query(min_length=1, max_length=32)] = None,
 ):
     """Active files per exact ``folder_path``, optionally of one kind."""
     _validate_drive(drive_name, unlocked_groups)
@@ -1173,6 +1188,12 @@ def list_folder_counts(
         File.drive == drive_name, active_file_filter()
     )
     query = _apply_kind_filter(query, _normalize_kind(type))
+    if origin is not None:
+        query = query.filter(File.md_origin == origin)
+    if exclude_origin is not None:
+        query = query.filter(
+            or_(File.md_origin.is_(None), File.md_origin != exclude_origin)
+        )
     rows = query.group_by(File.folder_path).order_by(File.folder_path).all()
     return [FolderCountResponse(path=path, count=count) for path, count in rows]
 
@@ -1223,6 +1244,7 @@ _SUFFIX_MAX_ATTEMPTS = 99
 def _project_created_markdown_tags(db: Session, file: File, content: str) -> None:
     if not fileops._is_markdown_file(file):
         return
+    project_frontmatter_origin(db, file, content)
     project_frontmatter_tags(db, file, content)
     cleanup_orphan_tags(db, file.drive)
 
@@ -1631,6 +1653,8 @@ def get_watch_history(
     limit: int = Query(20, ge=1, le=50),
     filter: str = Query("unfinished", pattern=r"^(unfinished|all|continue|not_continue)$"),
     type: FileKindParam | None = None,
+    origin: Annotated[str | None, Query(min_length=1, max_length=32)] = None,
+    exclude_origin: Annotated[str | None, Query(min_length=1, max_length=32)] = None,
 ):
     _validate_drive(drive_name, unlocked_groups)
 
@@ -1662,6 +1686,13 @@ def get_watch_history(
     # never holds. Narrowing here also means ``limit`` counts matching
     # rows rather than being spent on rows about to be discarded.
     query = _apply_kind_filter(query, _normalize_kind(type))
+
+    if origin is not None:
+        query = query.filter(File.md_origin == origin)
+    if exclude_origin is not None:
+        query = query.filter(
+            or_(File.md_origin.is_(None), File.md_origin != exclude_origin)
+        )
 
     records = (
         query

@@ -200,6 +200,7 @@ FILES_INDEXES = {
     "idx_files_deleted_at": ["deleted_at"],
     "idx_files_drive_folder_path": ["drive", "folder_path"],
     "idx_files_drive_md_id": ["drive", "md_id"],
+    "idx_files_drive_md_origin": ["drive", "md_origin"],
     "idx_files_file_hash": ["file_hash"],
     "idx_files_file_type": ["file_type"],
     "idx_files_is_favorite": ["is_favorite"],

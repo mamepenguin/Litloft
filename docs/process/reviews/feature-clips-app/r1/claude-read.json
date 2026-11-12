@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "R1-frontmatter-parser",
+      "origin": "reviewer",
+      "claim": "The diff edits backend/app/services/frontmatter.py (new extract_origin and _MAX_ORIGIN_LEN), a module that is not in the touch-point list, which names only tagops.py or a sibling helper for the origin projection.",
+      "impact": "No user-visible defect. A reader who uses the touch-point list to scope a review or the parser drift check would miss the change to the shared core frontmatter parser. .claude/rules/design-decisions.md:72 says this parser is kept in step with addons/knowledge/app/services/frontmatter.py only by PR review.",
+      "evidence": "diff: backend/app/services/frontmatter.py adds `_MAX_ORIGIN_LEN = 32` and `def extract_origin(content)`, which calls `parse(content).metadata.get(\"origin\")`. The new helper backend/app/services/origin.py imports it. The touch points list `backend/app/services/tagops.py, or a sibling helper`. origin.py fits that description, but frontmatter.py is an existing shared module and is not listed. design-decisions.md:72 calls the parser a duplicated implementation whose drift is caught in review.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is broken. The change reaches a file the declared scope does not name. The function is pure and additive, and parse() and has_unreadable_frontmatter are unchanged.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add backend/app/services/frontmatter.py (extract_origin) to the touch points, or move extract_origin into services/origin.py."
+    },
+    {
+      "id": "R1-knowledge-guard-tests",
+      "origin": "reviewer",
+      "claim": "The diff changes two Knowledge guard tests that are not in the touch-point list: __tests__/popup-dismissal.test.ts (FILE_COUNT 59→66) and __tests__/reachability.test.ts (module count 59→66, .ts count 18→19).",
+      "impact": "No user-visible defect. These are pinned counts that guard against orphaned or unscanned modules. Raising them is expected when 7 modules are added (pages/clips.tsx, five clips/*.tsx and clips/requests.ts). Because the list does not name them, a reviewer would not know to check that the new counts match the new files exactly.",
+      "evidence": "diff: addons/knowledge/frontend/__tests__/popup-dismissal.test.ts `const FILE_COUNT = 66;`; reachability.test.ts `expect(moduleFiles.size).toBe(66)` and `.ts` count `toBe(19)`. The touch points name only manifest.test.ts among Knowledge tests, plus jsdom tests citing SPEC-ADDON-100/101.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Scope omission only. The new counts match the added files: 7 modules, of which requests.ts is the only .ts.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "List the two count-pinning guard tests among the Knowledge touch points."
+    },
+    {
+      "id": "R1-existing-core-tests",
+      "origin": "reviewer",
+      "claim": "The diff edits two existing core test files that are not in the touch-point list: backend/tests/test_database_migration_drive_scoped_file_path.py (FILES_INDEXES gains idx_files_drive_md_origin) and frontend/src/components/sidebar/__tests__/SidebarDriveSwitcher.test.tsx (fixture entry gains `key`).",
+      "impact": "No user-visible defect. The first test pins the whole files index set after the drive-scoped file_path migration, so the new index changes an expectation outside the new SPEC-CORE-091 tests. The second follows from the new required AddonNavEntry.key field. Both are consequences of listed changes, but the list does not name them.",
+      "evidence": "diff: test_database_migration_drive_scoped_file_path.py line ~203 adds `\"idx_files_drive_md_origin\": [\"drive\", \"md_origin\"]`; SidebarDriveSwitcher.test.tsx line ~213 adds `key: \"media_import\"`. The touch points mention only new tests citing SPEC-CORE-091/092/093.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Scope omission. Both edits are forced by listed changes (the _migrate index and the AddonNavEntry.key field).",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Note in the touch points that existing tests pinning the files index set and the AddonNavEntry shape are updated."
+    }
+  ],
+  "specification_compliance": [
+    "Every backend, frontend and Knowledge production file in the diff except backend/app/services/frontmatter.py falls under a listed touch point. backend/app/services/origin.py is the allowed 'sibling helper'. addons/knowledge/frontend/clips/*.tsx and clips/requests.ts are covered by 'pages/clips.tsx and its components'.",
+    "The touch points split the work into three PRs, with the Core PR keeping the gitlink at develop's commit and a later Bump PR adding the frontend/e2e-components D2/D4/D7 measurements and moving ADDON rows to implemented. The reviewed range bumps the gitlink (a0bd155→f55f834) with no frontend/e2e-components files, and docs/specs/INDEX.md lists SPEC-ADDON-100/101 as 'approved'. The gitlink itself is a listed touch point, so this is an ordering or completeness gap, not an unplanned reach.",
+    "Listed touch points not reached by the diff: backend/app/services/tagops.py (origin.py used instead, as allowed), frontend/src/components/DriveHome.tsx, and frontend/e2e-components/."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "isAddonNavRowActive is still exported, but AddonNavRows no longer calls it directly. Any other caller keeps the old per-row rule rather than the longest-match rule. I did not search for other callers."
+  ],
+  "regression_risks": [
+    "frontmatter.py is a shared parser duplicated in addons/knowledge (design-decisions.md:72). Adding a core-only helper widens the drift surface that review is relied on to catch."
+  ],
+  "test_coverage": [
+    "New backend tests cover the projection paths, the scan pass, the query conditions and the migration. The navigation list tests use a fixture catalogue, as the touch points require.",
+    "The Knowledge guard counts were updated to 66/19, consistent with the 7 new modules."
+  ],
+  "not_verified": [
+    "I ran no tests. I could not run commands.",
+    "I did not inspect the submodule commit f55f834 on disk to confirm that it is a merged Knowledge commit.",
+    "I did not search the whole frontend for other callers of isAddonNavRowActive or other consumers of AddonNavEntry.name used as a key.",
+    "I did not check whether DriveHome.tsx needs a change for the new entry key."
+  ],
+  "confidence": 80
+}

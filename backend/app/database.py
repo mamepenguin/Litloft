@@ -570,6 +570,24 @@ def _migrate(engine_) -> None:
                 logger.info("Migrating: adding 'image_height' column to files")
                 conn.execute(text("ALTER TABLE files ADD COLUMN image_height INTEGER"))
 
+    # The value is filled by the write paths and the scan's Markdown pass, so
+    # a converted database starts with every row NULL.
+    inspector_origin = inspect(engine_)
+    if "files" in inspector_origin.get_table_names():
+        origin_columns = {
+            column["name"] for column in inspector_origin.get_columns("files")
+        }
+        with engine_.begin() as conn:
+            if "md_origin" not in origin_columns:
+                logger.info("Migrating: adding 'md_origin' column to files")
+                conn.execute(
+                    text("ALTER TABLE files ADD COLUMN md_origin VARCHAR(32)")
+                )
+            conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS idx_files_drive_md_origin "
+                "ON files (drive, md_origin)"
+            ))
+
     cleanup_tables = set(inspect(engine_).get_table_names())
     if {"files", "collections", "collection_items"} <= cleanup_tables:
         try:

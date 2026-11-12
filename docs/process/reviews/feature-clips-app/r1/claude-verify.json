@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1-frontmatter-parser",
+      "status": "confirmed",
+      "note": "backend/app/services/frontmatter.py:30 defines _MAX_ORIGIN_LEN = 32 and :216-226 defines extract_origin, which strips parse(content).metadata.get('origin') and caps it at 32 characters. backend/app/services/origin.py:9 imports extract_origin and has_unreadable_frontmatter. The touch points do not name frontmatter.py. .claude/rules/design-decisions.md:72 says this parser has a twin in addons/knowledge, and review is what keeps the two from drifting."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1-knowledge-guard-tests",
+      "status": "confirmed",
+      "note": "addons/knowledge/frontend/__tests__/popup-dismissal.test.ts:53 has FILE_COUNT = 66. reachability.test.ts:165 expects 66 modules and :166 expects 19 .ts files. Neither test is in the touch-point list. I could not run git, so I did not check the previous values (59 and 18) directly."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1-existing-core-tests",
+      "status": "confirmed",
+      "note": "backend/tests/test_database_migration_drive_scoped_file_path.py:203 has \"idx_files_drive_md_origin\": [\"drive\", \"md_origin\"]. frontend/src/components/sidebar/__tests__/SidebarDriveSwitcher.test.tsx:213 has key: \"media_import\". Neither existing test file is in the touch-point list."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "CD-1",
+      "status": "confirmed",
+      "note": "Same evidence as R1-frontmatter-parser: frontmatter.py:30 and :216-226, imported by origin.py:9. The twin-parser rule is at design-decisions.md:72."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "CD-2",
+      "status": "confirmed",
+      "note": "I confirmed all four edits: reachability.test.ts:165-166 (66 and 19), popup-dismissal.test.ts:53 (66), test_database_migration_drive_scoped_file_path.py:203, and SidebarDriveSwitcher.test.tsx:213. None of these files is in the touch-point list."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "CD-3",
+      "status": "confirmed",
+      "note": "In the submodule gitdir (video_share/.git/worktrees/video_share-clips/modules/addons/knowledge), f55f83458 appears only in refs/heads/feature/clips-app and in the HEAD and branch reflogs, with the commit 'feat(knowledge): add the Clips page...'. packed-refs:4 lists refs/remotes/origin/main = a0bd155f0, and FETCH_HEAD also shows main at a0bd155. refs/remotes holds only origin/HEAD. So in the local refs, no remote ref holds f55f834. The core commit 79035747f ('chore: pin knowledge to the Clips page work') ships the gitlink bump on the same branch as the core feature commits. The touch points instead plan three PRs, with the gitlink kept at develop's commit in the core PR. I cannot see the GitHub remote, so the commit may have been pushed and the local refs never fetched it."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "CD-4",
+      "status": "confirmed",
+      "note": "A case-insensitive grep of frontend/e2e-components for clips, includeClips and webclip matches only unrelated comments: the verb 'clips' in view-transition-push.spec.ts:177, player-seek-indicator.spec.ts:2, fixtures/app.tsx:1316 and :2105, and popup-dismiss.spec.ts:506. No D2, D4 or D7 Clips measurement exists. docs/specs/INDEX.md:204-205 still lists SPEC-ADDON-100 and SPEC-ADDON-101 as 'approved'."
+    }
+  ],
+  "specification_compliance": [
+    "The touch points plan three PRs: core, then Knowledge, then the bump. This branch puts the core changes and the gitlink bump together, and does not include the bump step's e2e measurements or the INDEX status change (CD-3, CD-4).",
+    "Files outside the touch-point list are edited: frontmatter.py and four existing guard tests and fixtures."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "extract_origin exists only in the core frontmatter.py. The Knowledge twin parser has no origin handling, so under design-decisions.md:72 the two parsers may now drift."
+  ],
+  "regression_risks": [
+    "If f55f834 is never pushed to the Knowledge remote, the gitlink cannot be resolved on a fresh clone or in CI."
+  ],
+  "test_coverage": [
+    "No real-browser measurements exist for D2, D4 or D7 in frontend/e2e-components."
+  ],
+  "not_verified": [
+    "Previous values of the guard-test counts (59 and 18); I could not run git diff.",
+    "Whether f55f834 exists on the GitHub remote; I checked only local refs.",
+    "Correctness of the invariants I1-I31 in the code; I verified only the listed findings."
+  ],
+  "confidence": 88
+}

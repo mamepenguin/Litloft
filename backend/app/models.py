@@ -106,6 +106,11 @@ class File(Base):
     md_aliases: Mapped[str | None] = mapped_column(
         Text, nullable=True, default=None
     )
+    # A frontmatter marker kept as an opaque string: the core never compares
+    # it with a value, so a caller's vocabulary stays in the caller.
+    md_origin: Mapped[str | None] = mapped_column(
+        String(32), nullable=True, default=None
+    )
     trust_tier: Mapped[str] = mapped_column(
         String(16), nullable=False, default=TRUST_VERIFIED, server_default=TRUST_VERIFIED
     )
@@ -131,6 +136,7 @@ class File(Base):
         Index("idx_files_missing_since", "missing_since"),
         Index("idx_files_file_hash", "file_hash"),
         Index("idx_files_drive_md_id", "drive", "md_id"),
+        Index("idx_files_drive_md_origin", "drive", "md_origin"),
         Index("idx_files_trust_tier", "trust_tier"),
     )
 

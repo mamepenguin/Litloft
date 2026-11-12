@@ -14,7 +14,7 @@ import { useAddonSlots } from "./AddonSlotsProvider";
 import { useSidebar } from "./SidebarProvider";
 import { useCurrentDrive, useCurrentFolderPath, useSetOverrideDrive } from "./CurrentDriveProvider";
 import { useSidebarData } from "./sidebar/useSidebarData";
-import { isSidebarLinkActive } from "./sidebar/isSidebarLinkActive";
+import { activeAddonNavKey, isSidebarLinkActive } from "./sidebar/isSidebarLinkActive";
 import { AddonNavRows } from "./sidebar/AddonNavRows";
 import { useCollectionManagement } from "./sidebar/useCollectionManagement";
 import { SidebarLibrarySection } from "./sidebar/SidebarLibrarySection";
@@ -81,6 +81,10 @@ function SidebarNav() {
   const primaryAddons = useMemo(() => addonNavEntries(navAddons, currentDrive, "primary"), [navAddons, currentDrive]);
   const sourceAddons = useMemo(() => addonNavEntries(navAddons, currentDrive, "sources"), [navAddons, currentDrive]);
   const utilityAddons = useMemo(() => addonNavEntries(navAddons, currentDrive, "utility"), [navAddons, currentDrive]);
+  const activeAddonKey = useMemo(
+    () => activeAddonNavKey(pathname ?? "", [...primaryAddons, ...sourceAddons, ...utilityAddons]),
+    [pathname, primaryAddons, sourceAddons, utilityAddons],
+  );
 
   const { drives, tags, pins, collectionList, setCollectionList, authStatus, driveSummary } =
     useSidebarData(currentDrive, currentFolderPath, refreshKey);
@@ -152,7 +156,7 @@ function SidebarNav() {
   return (
     <nav className="scrollbar-hover flex h-full flex-col gap-1 overflow-y-auto p-3">
       {/* Library section: fixed at top, never reordered */}
-      <SidebarLibrarySection driveBase={driveBase} currentDrive={currentDrive} drives={drives} linkClass={linkClass} close={closeIfOverlay} primaryAddons={primaryAddons} sourceAddons={sourceAddons} libraryActive={libraryActive} />
+      <SidebarLibrarySection driveBase={driveBase} currentDrive={currentDrive} drives={drives} linkClass={linkClass} close={closeIfOverlay} primaryAddons={primaryAddons} sourceAddons={sourceAddons} activeAddonKey={activeAddonKey} libraryActive={libraryActive} />
 
       {/* Reorderable sections */}
       {order.map((id) => {
@@ -235,7 +239,7 @@ function SidebarNav() {
 
       {/* Below the reader's own sections: these are about the drive
           rather than about what is in it, and are reached rarely. */}
-      <AddonNavRows entries={utilityAddons} linkClass={linkClass} close={closeIfOverlay} />
+      <AddonNavRows entries={utilityAddons} linkClass={linkClass} close={closeIfOverlay} activeKey={activeAddonKey} />
 
       <SidebarSystemSection driveBase={driveBase} linkClass={linkClass} close={closeIfOverlay} driveSummary={driveSummary} isAdmin={authStatus?.is_admin === true} />
 
