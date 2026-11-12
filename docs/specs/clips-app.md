@@ -234,7 +234,13 @@ phone. The iOS app is not changed.
       So the first clip replaces the empty state, and a finished clip shows its title.
 14. `?view=all` lists every clip (`files?origin=webclip`), newest first (`created_at
     desc`), 60 per page. It groups by the age of `created_at` and has Notes' "load more".
-    Folder, tag and sort controls are not part of this view.
+    Folder, tag and sort controls are not part of this view. Loading and failure follow
+    Notes' All notes list:
+    - while page 1 loads, nothing is drawn under the tabs;
+    - if page 1 fails, the "could not load" line shows, and the "load more" button
+      stays as a retry;
+    - if a later page fails, the rows already drawn stay, the line shows, and "load
+      more" retries that page.
 15. If the count is 0, the page draws one empty state instead of the tabs and shelves,
     on the landing and on `?view=all` alike:
     - an icon;
