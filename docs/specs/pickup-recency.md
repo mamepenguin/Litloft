@@ -31,8 +31,11 @@ what they are interested in, and not simply the newest list.
 ## Definitions
 
 - **Reference time** `now`: naive UTC, taken once per drive computation (one call of
-  `_compute_for_drive`, hourly or after `scan.complete`) before any read, and used for
-  every viewer of that drive in that computation. In `replay` it is the cut point `t`.
+  `_compute_for_drive`, hourly or after `scan.complete`) by calling
+  `app.pickup.freshness.reference_now()` before any read. It is used for every viewer of
+  that drive in that computation. It feeds freshness only. The profile window, the lane
+  ages, the checkpoint's date term and `computed_at` keep their own clocks as today.
+  Tests fix it by monkeypatching `reference_now`. In `replay` it is the cut point `t`.
 - **Age** of a candidate at reference time `now`: `(now − files.created_at)` in days.
   `files.created_at` is set by the core scanner from the file's mtime when it inserts the
   row (`backend/app/services/scanner.py`), else the insert time. Nothing updates it later.
@@ -52,8 +55,37 @@ what they are interested in, and not simply the newest list.
   - Version 3's per-lane cut breaks similarity ties by matrix row order. The cut now
     breaks them by file id. It changes which 120 a lane keeps only when the 120th and
     121st candidates have exactly equal similarity.
-- `HALF_LIFE_DAYS` and `FLOOR` are named constants of the candidate side. They are
-  separate from the profile's `HALF_LIFE_DAYS` (interest decay), which does not change.
+- `HALF_LIFE_DAYS` and `FLOOR` are constants of a new module `app/pickup/freshness.py`.
+  They are separate from `app.pickup.profile.HALF_LIFE_DAYS` (interest decay), which
+  does not change.
+
+## Contracts
+
+- `app/pickup/freshness.py`:
+  - `HALF_LIFE_DAYS: float`, `FLOOR: float`.
+  - `reference_now() -> datetime`: naive UTC now.
+  - `freshness(created_at: datetime | None, now: datetime, *, half_life_days: float = HALF_LIFE_DAYS, floor: float = FLOOR) -> float`.
+    `created_at` is naive UTC or `None`. `None` (unparseable) gives `floor`. With
+    `floor = 1` it returns 1.0 for every input.
+- `app.pickup.profile.live_videos(drive) -> dict[str, datetime | None]` replaces
+  `live_video_ids`. It maps each live video id to its `created_at` parsed by
+  `_parse_naive_utc`, or `None` when that fails.
+- `app.pickup.retrieval.arrival_stamp(drive) -> str`: the stamp of step 11, as a
+  deterministic string. It raises on a read failure.
+- `score_lanes(candidates, centroids, *, channel, exclude_file_ids, limit, freshness: Mapping[str, float] | None = None)`:
+  - It returns, per lane, `(file_id, similarity, ranking_score)` triples in ranking
+    order.
+  - `freshness=None` means 1.0 for every file. A file absent from a given mapping gets
+    `FLOOR` (`app.pickup.freshness.FLOOR`).
+  - `similarity` is `float(float32 value)`, as stored at version 3. `ranking_score` is
+    `similarity * freshness` in float64, so it equals `similarity` exactly at freshness
+    1.
+- `interleave(lanes, scored, *, depth)`:
+  - `scored` maps `cluster_id` to those triples.
+  - A file present in several lanes' lists is credited to the lane with the highest
+    `similarity` for it, with ties going to the lane listed first.
+  - Survivors are sorted in ranking order.
+  - `FeedItem` gains `similarity: float`, and `FeedItem.score` is the ranking score.
 
 ## Required items
 
@@ -80,18 +112,21 @@ what they are interested in, and not simply the newest list.
 **Replay (SPEC-ADDON-102).**
 
 7. `python -m app.pickup.evaluate replay` keeps its rows `before`, `depth`, `video`,
-   `after`, `random` and `newest`. `after` keeps its meaning: videos only, engagement
-   weighted, no freshness. This is the ranking that shipped as version 3, kept as the
-   baseline.
-8. It adds one row per grid setting, named `fresh_h<H>_f<F>` (for example
+   `after`, `random` and `newest`.
+   - `before`, `depth`, `video` and `after` call `score_lanes` with `freshness=None`
+     (1.0 everywhere).
+   - `after` is therefore observably the worker's ranking with `FLOOR = 1`: videos
+     only, engagement weighted, no freshness. It is the baseline.
+8. It adds one row per grid setting, named `f"fresh_h{H:g}_f{F:g}"` (`fresh_h7_f0`,
    `fresh_h30_f0.5`). The grid is `HALF_LIFE_DAYS ∈ {7, 30, 90, 365}` ×
-   `FLOOR ∈ {0, 0.5}`.
+   `FLOOR ∈ {0, 0.5}`, and the rows are reported in that order (H outer, F inner).
    - Each row reuses the lanes `after` built at that cut point. It does not run the
      profile and k-means again: freshness does not touch the profile.
    - It re-scores and re-interleaves with freshness computed at the cut point `t` from
      `t − created_at`.
-9. The row whose `(H, F)` equals the worker's constants is marked `*` in the report.
-   When the worker's freshness is off (`FLOOR = 1`, see *Ship bar*), `after` is marked.
+9. The row whose `(H, F)` equals the worker's constants has `*` appended to its name in
+   the report's configuration column (`fresh_h30_f0.5*`). When the worker's `FLOOR` is
+   1 (see *Ship bar*), `after*` is marked instead.
 10. The constants that ship are the grid setting with the highest recall@40 on the main
     drive for viewer `02bb`, run against a production copy as in SPEC-ADDON-098. The
     result is recorded in `docs/process/reviews/<topic>/decisions.md`. The ship bar is in
@@ -155,7 +190,7 @@ change and a date change.
 - `pickup_item` (written, as today): ranks follow the new order, and `score` holds the
   ranking score.
 - `pickup_feed_log` (written, as today): `profile_version = 4` on new rows.
-- No schema change. No migration.
+- No schema change, except the additive index of §10 if the stamp read needs it.
 
 ### 5. External services
 
@@ -185,6 +220,10 @@ existing drive-access and viewer checks in `app/routers/pickup.py`.
   hourly sweep while video embeddings keep arriving. A rebuild is one candidate load per
   channel per sweep (shared by all viewers) plus one matrix product per viewer, which
   SPEC-ADDON-095..098 measured at 11–17 s for a whole multi-configuration replay.
+  - The candidate load is shared by all of a drive's stale viewers, so viewers with no
+    kept rows add no load of their own.
+  - The time of one rebuilding computation on the main drive of the production copy is
+    measured and recorded in `decisions.md`. It must be at most 2 minutes.
 - **Daily picks during the day**: the drive-home row and Recommended draw a date-seeded
   shuffle from the feed's top. A rebuild already changes that top whenever the viewer
   plays something. Arrivals add a second cause, so during a video import the day's picks
@@ -195,6 +234,12 @@ existing drive-access and viewer checks in `app/routers/pickup.py`.
   - `test_z_pickup_worker.py` pins the return shape of `live_video_ids` and the
     signature of `_checkpoint`.
   - `test_z_pickup_retrieval.py` pins the signature of `score_lanes` and its order.
+  - `test_z_pickup_feed.py` calls `interleave` with `(file_id, score)` pairs. It moves to
+    triples, and every property it asserts is kept.
+  - `test_z_pickup_evaluate_after.py` asserts SPEC-ADDON-098 I9. It asserts the revised
+    clause: `after` equals the worker's feed with `FLOOR` patched to 1, and the `*` row
+    equals the worker's feed with its shipped constants. Its fixtures give files
+    different `created_at` values, so that the two differ.
 
 ### 8. Error behavior
 
@@ -216,6 +261,9 @@ They follow the existing `Pickup: could not …; skipping this sweep` wording.
   - The Recommended sentence "up to 12 are picked for the day" also says the picks can
     change during the day as new videos arrive.
   - The *replay* bullet lists the `fresh_…` rows.
+- `docs/user-guide/video.md`: the Recommended paragraph gains one sentence saying that
+  newer videos come first among the ones that match, and that the picks can change
+  during the day as new videos arrive.
 - No text, control or default in the UI changes.
 
 ### 10. Non-functional
@@ -224,7 +272,9 @@ They follow the existing `Pickup: could not …; skipping this sweep` wording.
 - The arrival stamp is three counts on `search.db` plus one aggregate on core `files`.
   It is read per drive computation, only when the drive has viewers. It must take at
   most 1 s per drive on the production copy's main drive. That is measured and recorded
-  in `decisions.md`, and if it fails, an index is proposed before shipping.
+  in `decisions.md`. If it exceeds 1 s, an index on `embeddings(embedding_type)` or on
+  `indexed_files(drive, file_type, active)` is added. That is an additive migration,
+  which `backend-conventions.md` allows, and it is approved with this spec.
 - `replay` re-scores 8 grid rows per cut point without rebuilding lanes. With the
   default `--days 60`, the run on the main drive of the production copy must take at
   most 2 minutes.
@@ -235,21 +285,22 @@ They follow the existing `Pickup: could not …; skipping this sweep` wording.
 
 - `addons/intelligence/app/pickup/retrieval.py`: `score_lanes` takes per-file freshness,
   ranks and cuts by ranking score, and keeps qualification on similarity.
-- `addons/intelligence/app/pickup/feed.py`: `interleave` orders by the ranking score it
-  is handed. No change to the stride or deduplication rules.
-- `addons/intelligence/app/pickup/profile.py`: `live_video_ids` (or a sibling) returns
-  `created_at`. `PROFILE_VERSION = 4`. The arrival-stamp read lives here or in
-  `retrieval.py`.
-- A freshness function and its constants: candidate `HALF_LIFE_DAYS` and `FLOOR`, with
-  the measured grid recorded beside them.
+- `addons/intelligence/app/pickup/feed.py`: `interleave` takes triples, credits by
+  similarity and orders by ranking order (see *Contracts*). The stride is unchanged.
+- `addons/intelligence/app/pickup/profile.py`: `live_videos` replaces `live_video_ids`.
+  `PROFILE_VERSION = 4`.
+- `addons/intelligence/app/pickup/retrieval.py`: `arrival_stamp`.
 - `addons/intelligence/app/workers/pickup.py`: computes freshness once per sweep, reads
   the arrival stamp, and puts it in `_checkpoint`.
 - `addons/intelligence/app/pickup/evaluate.py`: grid rows, the `*` mark, and freshness at
   cut point `t`.
 - `addons/intelligence/tests/`: new tests citing SPEC-ADDON-102/103. These existing tests
   are updated where they pin version 3 (see §7): `test_z_pickup_accuracy_worker.py`,
-  `test_z_pickup_worker.py`, `test_z_pickup_retrieval.py`.
+  `test_z_pickup_worker.py`, `test_z_pickup_retrieval.py`, `test_z_pickup_feed.py`,
+  `test_z_pickup_evaluate_after.py`.
+- `addons/intelligence/app/pickup/freshness.py` (new).
 - Tables written: `pickup_profile`, `pickup_item`, `pickup_feed_log` (no schema change).
+- `docs/user-guide/video.md` (Recommended paragraph).
 - `docs/addons/intelligence.md`: the feature-table row for Pickup, the Pickup section,
   and the evaluation bullet.
 - `docs/process/reviews/feature-pickup-recency/decisions.md`: the replay result, the
@@ -262,10 +313,10 @@ They follow the existing `Pickup: could not …; skipping this sweep` wording.
 ## Invariants
 
 I1. For a fixed history, reference time and candidate set, the set of files that qualify for a lane is exactly the set that qualifies at version 3 (not opened, similarity in `[0.45, 0.999)`). Freshness changes only their order and which 120 a lane keeps.
-I2. Within a lane, of two qualifying candidates with equal similarity, the one with the later `created_at` ranks no lower, and strictly higher whenever their freshness values differ.
+I2. Within a lane, of two qualifying candidates with equal similarity whose `created_at` values parse and lie no more than one day after the reference time, the later one ranks no lower, and strictly higher whenever their freshness values differ.
 I3. A candidate whose `created_at` cannot be parsed, or lies more than one day after the reference time, has freshness exactly `FLOOR`, so it never ranks above a candidate of equal similarity whose freshness is above `FLOOR`. A `created_at` up to one day after the reference time has freshness 1.
 I4. With every candidate at age 0, the feed is identical, in file ids, order and stored score, to the feed version 3 builds from the same history and candidates, whenever no two candidates of a lane at its 120th place have equal similarity.
-I5. A file reachable from several lanes is credited to the lane where its similarity is highest, as at version 3, whatever their freshness.
+I5. A file kept by several lanes' cuts is credited to the one of those lanes where its similarity is highest (ties to the lane listed first), whatever its freshness, including when `FLOOR = 0` has decayed its ranking score to 0.
 I6. Each of these changes the checkpoint of every viewer of the drive, so their feeds are rebuilt on the next computation: a new live video row; a new embedding of any Pickup channel for an already-live video; trashing, restoring, or a video going missing. A new image or document embedding does not. Two computations with no change to history, video embeddings, live videos, date or `PROFILE_VERSION` compute the same checkpoint.
 I7. If the live-video read or the arrival-stamp read fails, no `pickup_item` or `pickup_profile` row of that drive changes in that computation.
 I8. No freshness value, count or date from another drive enters a drive's ranking or checkpoint.
@@ -276,7 +327,7 @@ I10. A stored checkpoint never vouches for data the feed was not built from: a v
 
 SPEC-ADDON-095 I5. With `last_played_at` unchanged, liking, unliking, favouriting, unfavouriting, adding played ranges to or dismissing a video the viewer has opened, deploying a new `PROFILE_VERSION`, or a change to the drive's arrival stamp (SPEC-ADDON-103) causes that viewer's feed for the drive to be rebuilt on the next sweep, and two sweeps over an unchanged history and arrival stamp on the same UTC date and `PROFILE_VERSION` compute the same checkpoint.
 SPEC-ADDON-095 I6. With the signature and the drive's arrival stamp unchanged, a viewer with no kept row is not rebuilt again that day, and a viewer whose feed came out empty while kept rows exist is rebuilt on every sweep.
-SPEC-ADDON-098 I9. In `replay` at cut point `t`, no configuration ranks a file the viewer opened before `t` or one created at or after `t`; the targets are exactly the live videos created before `t` with engagement above 0 and `last_played_at` in `[t, t + horizon)`; `recall@k = |T ∩ R_k| / |T|` is averaged per viewer over evaluated cut points only; `after` ranks as the worker did at version 3 (videos only, engagement weighted, no freshness); and the `fresh_…` row marked `*` ranks exactly as the worker builds the feed for the same history, candidates and reference time.
+SPEC-ADDON-098 I9. In `replay` at cut point `t`, no configuration ranks a file the viewer opened before `t` or one created at or after `t`; the targets are exactly the live videos created before `t` with engagement above 0 and `last_played_at` in `[t, t + horizon)`; `recall@k = |T ∩ R_k| / |T|` is averaged per viewer over evaluated cut points only; `after` ranks exactly as the worker builds the feed with `FLOOR = 1` (videos only, engagement weighted, freshness 1 everywhere); and the `fresh_…` row marked `*` ranks exactly as the worker builds the feed for the same history, candidates and reference time.
 
 ## Checked, no action
 
@@ -290,6 +341,9 @@ SPEC-ADDON-098 I9. In `replay` at cut point `t`, no configuration ranks a file t
   - Until the replay is run, the code carries `HALF_LIFE_DAYS = 30`, `FLOOR = 0.5`.
     Tests do not depend on those values: they pass the constants in, or derive the
     expectation from the module's constants.
+  - "Beats" means a strictly higher recall@40 at the three decimals the report prints.
+    Among grid rows tied for the highest, the larger `HALF_LIFE_DAYS` wins, then the
+    larger `FLOOR` (the gentler setting).
   - If no grid row beats `after`, the worker ships with `FLOOR = 1` (freshness 1 for
     every candidate, so I4 makes the ranking version 3's). SPEC-ADDON-103, the grid rows
     in `replay` and `PROFILE_VERSION = 4` still ship. The docs sentence that newer
@@ -318,6 +372,10 @@ SPEC-ADDON-098 I9. In `replay` at cut point `t`, no configuration ranks a file t
 - **Counts that coincide** (one video indexed and another trashed in the same hour). The
   live-video max `created_at` usually moves, and the daily date term catches the rest
   within a day.
+- **Vectors replaced with the same row count** (an embedding-model rebuild, a reindex,
+  a Refine re-embed with an unchanged chunk count). The stamp does not move, so feeds
+  keep rankings built from the old vectors until the date rolls or the viewer plays
+  something. That is the same as today, and the daily term is the backstop.
 - **Diversity across ages inside the top** (forcing some older videos into the top 12).
   `FLOOR` and the stride over lanes already keep old interests present. Not added.
 - **Documents.** Pickup is videos only (SPEC-ADDON-096). Unchanged.
