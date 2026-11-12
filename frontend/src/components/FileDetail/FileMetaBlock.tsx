@@ -29,6 +29,11 @@ interface FileMetaBlockProps {
   addonSlotProps: Record<string, unknown>;
   tagChips: ReactNode;
   hoistDescription?: boolean;
+  /**
+   * The block is the top of the inspector's Info tab, so it ends with the
+   * rule that separates it from the sections below.
+   */
+  inspector?: boolean;
 }
 
 export function FileMetaBlock({
@@ -52,11 +57,15 @@ export function FileMetaBlock({
   addonSlotProps,
   tagChips,
   hoistDescription = false,
+  inspector = false,
 }: FileMetaBlockProps) {
   const metaLine = primaryMetaLine(file);
 
   return (
-    <div className="mt-4">
+    <div
+      data-inspector-header-block={inspector ? "" : undefined}
+      className={inspector ? undefined : "mt-4"}
+    >
       {editing ? (
         <MetadataEditor
           title={editTitle}
@@ -68,10 +77,20 @@ export function FileMetaBlock({
           onCancel={onCancelEdit}
         />
       ) : (
-        <div>
-          <h1 className="text-xl font-bold text-text-primary">{file.title}</h1>
+        <div data-inspector-header-body={inspector ? "" : undefined}>
+          <h1
+            data-inspector-header-title={inspector ? "" : undefined}
+            className="text-xl font-bold text-text-primary"
+          >
+            {file.title}
+          </h1>
           {metaLine !== null && (
-            <div className="mt-1 text-xs text-text-muted">{metaLine}</div>
+            <div
+              data-inspector-header-meta={inspector ? "" : undefined}
+              className={`${inspector ? "mt-0.5" : "mt-1"} text-xs text-text-muted`}
+            >
+              {metaLine}
+            </div>
           )}
           {!hoistDescription && (
             <FileDescription
@@ -94,8 +113,20 @@ export function FileMetaBlock({
               videoRef={videoRef}
               addonSlotProps={addonSlotProps}
           />
-          <div className="mt-3">{tagChips}</div>
+          <div
+            data-inspector-header-tags={inspector ? "" : undefined}
+            className={inspector ? undefined : "mt-3"}
+          >
+            {tagChips}
+          </div>
         </div>
+      )}
+      {inspector && (
+        <div
+          data-inspector-header-rule=""
+          aria-hidden="true"
+          className="mt-2 border-t border-bg-border pt-1"
+        />
       )}
     </div>
   );

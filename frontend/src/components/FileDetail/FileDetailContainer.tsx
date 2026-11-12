@@ -253,7 +253,11 @@ export function FileDetailContainer({
   // Until the file's own answer arrives, what is on screen may be a list's
   // older copy, and every control in here writes a field of it back.
   const meta = (
-    <div inert={!data.fresh} className="contents">
+    <div
+      inert={!data.fresh}
+      data-inspector-header={ridesShell ? "" : undefined}
+      className="contents"
+    >
       <FileMetaBlock
         file={file}
         editing={data.editing}
@@ -275,6 +279,7 @@ export function FileDetailContainer({
         addonSlotProps={addonSlotProps}
         tagChips={tagChipNode}
         hoistDescription={descriptionInCanvas && !stackedLayout}
+        inspector={ridesShell}
       />
     </div>
   );
