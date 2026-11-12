@@ -123,7 +123,7 @@ describe("the workbench under the player", () => {
     expect(rule![0]).toMatch(/overflow:\s*auto;/);
   });
 
-  it("gives the collection surface 60% of the visible height and no gap", () => {
+  it("gives the collection surface 60% of the visible height, with the panels' gap inside that box", () => {
     const rule = globalsCss().match(
       /\.media-detail-host\[data-collection-workbench="true"\]\s*\.media-detail-workbench-grid:not\(\[hidden\]\)\s*\{[^}]*\}/,
     );
@@ -131,7 +131,14 @@ describe("the workbench under the player", () => {
     expect(rule![0]).toMatch(
       /height:\s*max\(18rem,\s*calc\(var\(--rail-avail,\s*100dvh\)\s*\*\s*0\.6\)\);/,
     );
-    expect(rule![0]).toMatch(/gap:\s*0;/);
+    // The gap is the grid's own, and the fixed height means it is taken out
+    // of the panels rather than added below them.
+    expect(rule![0]).not.toMatch(/gap:/);
+    const grid = globalsCss().match(
+      /\.media-detail-workbench-grid\s*\{[^}]*\}/,
+    );
+    expect(grid).not.toBeNull();
+    expect(grid![0]).toMatch(/gap:\s*0\.75rem;/);
   });
 });
 

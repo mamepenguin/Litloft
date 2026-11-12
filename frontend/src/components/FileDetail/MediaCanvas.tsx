@@ -63,6 +63,7 @@ export function MediaCanvas({
         framed={framed}
         bleed={isDocumentViewer(file.mime_type)}
         showPreviewActions={showPreviewActions}
+        showMetadataAside={false}
       />
 
       {workbench}

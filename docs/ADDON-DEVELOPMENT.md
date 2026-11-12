@@ -804,7 +804,7 @@ plus what its row lists.
 | `player-side` | Under a media player, as a panel: a row of toggles on the wide forms, one above the other below `41rem`; a tab in the stacked inspector and on the phone. Placement belongs to the core | File props plus `fillHeight`, `labelledByHost`, `onAvailability`, `active`. See [Occupying the player-side slot](#occupying-the-player-side-slot) |
 | `inspector-tabs` | File detail inspector, as a tab after the core tabs and after any panel tabs, on every file page with an inspector (including the HTML preview; not the collection surface) | File props plus `fillHeight`, `labelledByHost`, `onAvailability`, and a required `i18n_key`. See [Occupying the inspector-tabs slot](#occupying-the-inspector-tabs-slot) |
 | `file-preview-actions` | Under the media player, right-aligned. On the wide forms of a player file it moves to the trailing end of the panel-toggle row, which spans the canvas width; in the stacked inspector and on the phone it stays in the player box | File props. Inline buttons |
-| `loft-metadata` | Beside the player, `.loft` (external URL) files only | `{ fileId, drive }` |
+| `loft-metadata` | File detail inspector, **Info** tab, under the title, `.loft` (external URL) files only. On the collection playback surface, which has no inspector, under the player | `{ fileId, drive }` |
 | `file-detail-actions` | The file page's action row, before the `[...]` menu | File props. See [Contributing to the file action row](#contributing-to-the-file-action-row) |
 | `file-actions-menu` | The file page's `[...]` menu | File props plus `onRequestClose`, `onDialogOpenChange`. See [Contributing to the file actions menu](#contributing-to-the-file-actions-menu) |
 | `folder-actions-menu` | The folder toolbar's **Add** menu, below the core rows | See [Contributing to the add menu](#contributing-to-the-add-menu) |
@@ -1461,6 +1461,7 @@ Adding a slot, a prop, a field or an endpoint is not breaking and gets no row.
 |---|---|---|
 | 2026-11-12 | `player-side` entries are panels under the player on the wide forms, not tabs beside it; the core chooses the placement, passes `active`, and no longer mounts an entry whose id collides with a core panel or tab id | Treat one entry as one panel, read `active` where it changes what you do, and rename any id that collides with `active-summary`, `chapters`, `info`, `find`, `pages` or `related` |
 | 2026-11-12 | On the wide forms of a player file, `file-preview-actions` entries move from the player box to the trailing end of the panel-toggle row under the player | Draw inline buttons as before; do not position them relative to the player box |
+| 2026-11-12 | `loft-metadata` entries move from beside the player into the inspector's **Info** tab, under the title, on the canonical file page; they stay under the player on the collection playback surface, which has no inspector | Draw the same panel as before; the host decides where it sits |
 
 ## Existing addons
 

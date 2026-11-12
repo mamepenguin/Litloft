@@ -30,6 +30,10 @@ interface FileMetaBlockProps {
   addonSlotProps: Record<string, unknown>;
   tagChips: ReactNode;
   /**
+   * A `.loft`'s provider metadata, drawn under the title in the Info tab.
+   */
+  loftMetadata?: ReactNode;
+  /**
    * The block is the top of the inspector's Info tab, so it ends with the
    * rule that separates it from the sections below.
    */
@@ -56,6 +60,7 @@ export function FileMetaBlock({
   videoRef,
   addonSlotProps,
   tagChips,
+  loftMetadata,
   inspector = false,
 }: FileMetaBlockProps) {
   const metaLine = primaryMetaLine(file);
@@ -96,6 +101,14 @@ export function FileMetaBlock({
               className={`${inspector ? "mt-0.5" : "mt-1"} text-xs text-text-muted`}
             >
               {metaLine}
+            </div>
+          )}
+          {loftMetadata != null && (
+            <div
+              data-inspector-header-loft-metadata={inspector ? "" : undefined}
+              className="mt-1"
+            >
+              {loftMetadata}
             </div>
           )}
           <FileDescription

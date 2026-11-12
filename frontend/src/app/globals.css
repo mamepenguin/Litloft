@@ -912,8 +912,7 @@ pre mark.ask-citation-highlight {
   min-height: var(--rail-avail, 100dvh);
 }
 
-.media-detail-host[data-workbench="on"] > .media-detail-player,
-.media-detail-host[data-workbench="on"] > .media-detail-player-aside {
+.media-detail-host[data-workbench="on"] > .media-detail-player {
   flex: 0 0 auto;
 }
 
@@ -1066,13 +1065,12 @@ pre mark.ask-citation-highlight {
 }
 
 /* The collection surface gives the panels together 60% of the visible
-   height and no floor on the player. A gap between stacked panels would
-   make their combined height exceed that budget. */
+   height and no floor on the player. The gap between them comes out of that
+   box, so two panels still end where one does. */
 .media-detail-host[data-collection-workbench="true"]
   .media-detail-workbench-grid:not([hidden]) {
   flex: 0 0 auto;
   height: max(18rem, calc(var(--rail-avail, 100dvh) * 0.6));
-  gap: 0;
 }
 
 /* ------------------------------------------------------------------
@@ -1185,6 +1183,12 @@ pre mark.ask-citation-highlight {
 [data-inspector-fit="stacked"][data-inspector-open="true"]
   #inspector-panel-info
   [data-inspector-header-description] {
+  grid-area: 4 / 1 / 5 / -1;
+}
+
+[data-inspector-fit="stacked"][data-inspector-open="true"]
+  #inspector-panel-info
+  [data-inspector-header-loft-metadata] {
   grid-area: 3 / 1 / 4 / -1;
 }
 

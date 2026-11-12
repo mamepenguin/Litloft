@@ -191,7 +191,7 @@ Markdown notes can be edited in the app (see above), and so can a `.txt` file up
 
 A `.loft` file from the [media_import addon](../addons/media-import.md) plays the original:
 
-- **YouTube**: in Litloft's own player, with the channel and caption details below it. The **Player** setting switches between **Litloft** and **YouTube** controls. During an ad, Litloft's controls step aside. If the owner does not allow embedding, you get **Watch on YouTube** instead.
+- **YouTube**: in Litloft's own player, with the channel, publication date, description and caption status in the **Info** tab. The **Player** setting switches between **Litloft** and **YouTube** controls. During an ad, Litloft's controls step aside. If the owner does not allow embedding, you get **Watch on YouTube** instead.
 - **Vimeo**: in Vimeo's player.
 - **Other sites**: a link to the original.
 

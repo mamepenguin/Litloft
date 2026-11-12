@@ -51,6 +51,11 @@ export interface MediaPlayerBlockProps {
    * are mounted once there instead of here.
    */
   showPreviewActions?: boolean;
+  /**
+   * False where the file page draws the panel itself, in the inspector's
+   * Info tab, so the entry is mounted once.
+   */
+  showMetadataAside?: boolean;
 }
 
 export function MediaPlayerBlock({
@@ -75,10 +80,11 @@ export function MediaPlayerBlock({
   framed,
   bleed = false,
   showPreviewActions = true,
+  showMetadataAside = true,
 }: MediaPlayerBlockProps) {
   const { hasSlot } = useAddonSlots();
   const aside =
-    playerKind(file) === "loft" && hasSlot(MEDIA_ASIDE_SLOT);
+    showMetadataAside && playerKind(file) === "loft" && hasSlot(MEDIA_ASIDE_SLOT);
   return (
     <>
       <div

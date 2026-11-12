@@ -176,21 +176,25 @@ function CollectionPlayerCanvas({
         framed={playerFramed}
         showPreviewActions={false}
       />
-      <Workbench
-        items={items}
-        stored={stored}
-        onToggle={(id) => toggleWorkbenchPanel(id, available)}
-        onClose={closeWorkbenchPanel}
-        actions={
-          hasSlot("file-preview-actions") ? (
-            <AddonSlot
-              id="file-preview-actions"
-              layout="stack"
-              props={addonSlotProps}
-            />
-          ) : null
-        }
-      />
+      {/* Below `md` the framed player bleeds to the page edge, and the row
+          and panels follow it so all three share one inset. */}
+      <div className={playerFramed ? "-mx-4 md:mx-0" : undefined}>
+        <Workbench
+          items={items}
+          stored={stored}
+          onToggle={(id) => toggleWorkbenchPanel(id, available)}
+          onClose={closeWorkbenchPanel}
+          actions={
+            hasSlot("file-preview-actions") ? (
+              <AddonSlot
+                id="file-preview-actions"
+                layout="stack"
+                props={addonSlotProps}
+              />
+            ) : null
+          }
+        />
+      </div>
       {rest}
     </div>
   );

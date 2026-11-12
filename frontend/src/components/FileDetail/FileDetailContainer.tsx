@@ -16,6 +16,7 @@ import {
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { usePolicy } from "@/hooks/usePolicy";
 import { useAddonSlots } from "../AddonSlotsProvider";
+import { AddonSlot } from "../AddonSlot";
 import { MarkdownAwareTagChips } from "../MarkdownAwareTagChips";
 import { FileDetailPresenter } from "./FileDetailPresenter";
 import { FindProvider } from "./find/FindContext";
@@ -70,7 +71,7 @@ export function FileDetailContainer({
   surface = "canonical",
 }: FileDetailContentProps) {
   const tPane = useTranslations("rightPane");
-  const { addons, catalogueDrive } = useAddonSlots();
+  const { addons, catalogueDrive, hasSlot } = useAddonSlots();
   const slotAvailability = useSlotAvailability(fileId);
   const isMobile = useIsMobile();
   const data = useFileDetailData(fileId);
@@ -230,6 +231,16 @@ export function FileDetailContainer({
     onFileChange: setFile,
   };
 
+  // `ridesShell` keeps this off the collection surface, which has no Info tab
+  // and draws the same slot under the player.
+  const loftMetadata =
+    ridesShell && playerKind(file) === "loft" && hasSlot("loft-metadata") ? (
+      <AddonSlot
+        id="loft-metadata"
+        props={{ fileId: file.id, drive: file.drive }}
+      />
+    ) : null;
+
   // Until the file's own answer arrives, what is on screen may be a list's
   // older copy, and every control in here writes a field of it back.
   const meta = (
@@ -258,6 +269,7 @@ export function FileDetailContainer({
         videoRef={videoRef}
         addonSlotProps={addonSlotProps}
         tagChips={tagChipNode}
+        loftMetadata={loftMetadata}
         inspector={ridesShell}
       />
     </div>
