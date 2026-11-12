@@ -167,7 +167,8 @@ export function buildWorkbenchPanels({
         priority: entry.priority,
         core: false,
         key,
-        available: availability.isAvailable(key),
+        available:
+          !availability.isPending(key) && availability.isAvailable(key),
         render: (active: boolean) => (
           <SlotEntryRenderer
             entry={entry}
@@ -178,6 +179,7 @@ export function buildWorkbenchPanels({
               onAvailability,
               active,
             }}
+            onRendered={availability.renderedFor(key)}
           />
         ),
       };
