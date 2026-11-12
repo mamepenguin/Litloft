@@ -564,11 +564,23 @@ One header for every screen with a subject, in up to three rows:
 - The leading control stays in the same place across the screen's modes.
 - **The title does not move between screens a sidebar row opens.** The same space
   sits above every header, and such a screen's top level has no trail.
+- **A file page has no page header.** Its trail, its kind's controls and — at wide
+  — its inspector toggle are drawn in the app header's one row (§Header): the app
+  header is already that screen's toolbar, and a second bar under it costs a phone
+  about half of a 16:9 video's height.
 - **Controls that change the layout belong to the app toolbar, not the page
   header.** The tree toggle sits beside the menu button, the same size at the same
-  height, so it stays put whichever page or file is open.
+  height, so it stays put whichever page or file is open. A phone's file page does
+  not show it: the tree has no width beside a file there, so the button would
+  change nothing.
 - **The header is as wide as the content under it** (§3.8), and starts at the
   content's left edge.
+- **A file page's trail starts at whichever is further right**: the content's left
+  edge — the right pane's on the canonical route, the centred column's on the
+  collection route — or the fixed menu and tree buttons' right edge plus 12px. The
+  buttons overlap the header's left end, so a trail under them would be unreadable.
+  While the tree pane animates its width the trail may arrive at the new edge when
+  the animation ends.
 - **The icon and title are the sidebar row's.** The icon sits in a tile beside the
   title and the scope line.
 - **The scope line is the drive and the screen's count.** An unknown count shows
@@ -698,6 +710,47 @@ this file from the one beside it?*
 
 - Height `h-14` (56px), `sticky top-0 z-20`.
 - No menu button of its own; see §Sidebar.
+- The trailing end is search, quick note, the `header-actions` slot and the avatar
+  on every screen but a phone's file page.
+- **A file page draws its row into the header.** The content is portalled, not
+  lifted, so it stays part of the page: find, the image arrows, the Inbox actions
+  and a note's editor act on the page that drew them. The newest mounted file page
+  owns the row, and a file-to-file or loading-to-loaded swap replaces its content
+  without passing through the header's ordinary form. A page outside the shell,
+  with no header to draw into, keeps the row it draws itself.
+- **Wide, left to right**: menu button, tree button, the trail (or, where the host
+  supplies a back control, that control and the trail beside it), the file kind's
+  controls, the Inbox actions, the inspector toggle where the page has an
+  inspector, a vertical divider, then search, quick note, the `header-actions`
+  slot and the avatar. The trail begins at the edge §Page Header gives it. The
+  divider marks where the file's own controls end and the controls every screen
+  has begin.
+- **Narrow, left to right**: menu button, a two-line heading, the file kind's
+  controls, search. The heading's first line is `‹` and the parent folder's name
+  (the drive's name at the root, or the host's back label where it supplied one),
+  12px muted, as a link to that folder or as that control; the second line is the
+  file's name, 14px semibold, one line, truncated with an ellipsis. With no name
+  yet the heading shows the first line alone, centred, at the same row height.
+- **A phone's file page gives up the header's own controls**: no quick note, no
+  avatar, and no tree button or inspector toggle beside the row. Quick note and the
+  avatar are on every other screen, the tree has no width beside a file, and the
+  inspector sheet rests rather than closing, so a toggle would have no closed state
+  to show. The `header-actions` slot stays mounted at the row's end, where nothing
+  draws.
+- **Walking the Inbox** on a phone, the row is the menu button, the heading, then
+  previous, next and **Done**. The file kind's controls and search are not shown.
+- **A note's view switch** is the segmented group at wide (§Selected-state
+  controls) and one button at narrow, showing the mode it switches to — pencil
+  while previewing, eye while editing. Two segments do not fit beside a two-line
+  heading.
+- **While a note is renaming on a phone, nothing sits right of the heading.** The
+  input takes the width those controls had, and every one of them — the kind's
+  controls, the Inbox actions, search — is hidden and unpressable until the rename
+  is committed or cancelled. At wide the rename hides nothing.
+- **Finding in the file wears `FileSearch`**, never the magnifier: the magnifier
+  belongs to global search, and two of them in one row would mean two things.
+- **A phone's inspector is raised from its resting strip**, never from the header;
+  see §Context Menus / Dropdowns, the Bottom Sheet.
 
 ### Sidebar
 
@@ -790,9 +843,20 @@ higher than whatever it currently sits under.
 
 | State | What is on screen |
 |---|---|
-| peek | The file's name, like, favourite and `⋮`, above the home indicator |
+| peek | The file's name (a button that raises the sheet), like, favourite and `⋮`, above the home indicator |
 | half | The top of the inspector. On a page with a player, the sheet's top edge meets the player's bottom edge, so the video stays whole; elsewhere a fixed fraction of the window |
 | full | Most of the inspector column, with room to read a tab |
+
+- **The strip's name raises the sheet, and only raises it.** The name and a
+  chevron-up are one button, announcing itself as collapsed, and it exists only at
+  `peek`: the header carries no inspector toggle on a phone, because a sheet that
+  rests instead of closing has no closed state for one to show. The handle, a pull
+  from the content's top and Escape are the ways down.
+- **The name is separate from the strip's action row.** Raising the sheet needs no
+  fresh data, so the name stays pressable while the like, favourite and `⋮` are
+  inert during a refetch.
+- **A press on the name while a strip popup is open only dismisses the popup**,
+  and the press's click is swallowed (§Context Menus).
 
 - **`half` is where the player ends, derived rather than offset**, and only while
   that gives more room than the fixed fraction. `full` never depends on the
@@ -962,10 +1026,13 @@ A row in the search page's Passages view: one picture, one place in one file.
 
 The find bar over a file's canvas, and its places in the inspector's **検索** tab.
 
-- **The bar is a strip, not a card**: `bg-card` with a bottom border, under the page
-  row at the top of the canvas. Field, count, previous, next, then close at the far
-  end, with the status line under them. The count is `tabular-nums` so stepping does
-  not shift the buttons.
+- **The bar is a strip, not a card**: `bg-card` with a bottom border, under the
+  app header's row at the top of the canvas. Field, count, previous, next, then close
+  at the far end, with the status line under them. The count is `tabular-nums` so
+  stepping does not shift the buttons.
+- **The button that opens it sits in the file's row and wears `FileSearch`**, not
+  the magnifier: the magnifier is global search's, and two of them in one header
+  would name two different things.
 - **The places live in the inspector**, not under the bar: the inspector already has
   a desktop form and a phone sheet, and the bar stays one row on a phone.
 - **Kind chips sit at the top of the tab** and follow §Selected-state controls: an
@@ -1112,13 +1179,17 @@ the other value for a frame, and it is then acted on in CSS.
 
 ### File detail: one shell, two canvases
 
-Every kind of file gets the same page row, the same inspector header and the same
-Info tab. Only the canvas differs, and there are two:
+Every kind of file gets the same row in the app header, the same inspector header
+and the same Info tab. Only the canvas differs, and there are two:
 
 | Canvas | Kinds | What is in it |
 |---|---|---|
-| **Document** | a Markdown note, and HTML shown the same way | the editor, with the note's own controls in the page row |
+| **Document** | a Markdown note, and HTML shown the same way | the editor, with the note's own controls in the file's row |
 | **Viewer** | **everything else** | the viewer, and what belongs to that viewer alone — a player file's workbench panels under the player |
+
+- **The row is the app header's row, not a bar of its own** (§Header): the canvas
+  starts at the header's bottom edge on every kind and in every load state, and
+  there is no second row between them.
 
 - **The viewer has the column to itself**, rather than getting whatever height
   metadata leaves over.
