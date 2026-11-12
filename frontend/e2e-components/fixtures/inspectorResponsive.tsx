@@ -62,12 +62,15 @@ function fileJson(overrides: Partial<FileItem> & { id: string }): FileItem {
   } as FileItem;
 }
 
+const FIXTURE_QUERY = new URLSearchParams(location.search);
+
 const VIDEO = fileJson({
   id: VIDEO_ID,
   filename: "clip.webm",
   title: "Fixture clip",
-  description: "Recorded on location.",
+  description: FIXTURE_QUERY.get("description") ?? "Recorded on location.",
   duration: 3,
+  has_chapters: true,
   tags: ["design"],
 });
 
@@ -104,6 +107,17 @@ const ADDONS_STATUS = {
         priority: 10,
         addonName: "intelligence",
       },
+      // A second panel only where a case needs two side by side.
+      ...(FIXTURE_QUERY.get("panels") === "two"
+        ? [
+            {
+              id: "outline",
+              label: "Outline",
+              priority: 20,
+              addonName: "intelligence",
+            },
+          ]
+        : []),
     ],
   },
 };
@@ -160,7 +174,14 @@ function installFetch(): void {
       if (rest === "/comments") {
         return Promise.resolve(json({ comments: [], total: 0 }));
       }
-      if (rest === "/chapters") return Promise.resolve(json({ chapters: [] }));
+      if (rest === "/chapters")
+        return Promise.resolve(
+          json({
+            chapters: [
+              { ordering: 1, title: "Opening", start_time: 0, end_time: null },
+            ],
+          }),
+        );
       if (rest === "/neighbors") {
         return Promise.resolve(json({ prev_id: null, next_id: null }));
       }
@@ -362,6 +383,20 @@ export function InspectorVideoTwoPaneArrangement(): ReactElement {
           </TwoPaneLayout>
         </div>
       </div>
+    </Providers>
+  );
+}
+
+/**
+ * The collection playback surface, which scrolls the document rather than a
+ * box of its own.
+ */
+export function InspectorVideoCollectionArrangement(): ReactElement {
+  installFetch();
+  installMedia();
+  return (
+    <Providers>
+      <FileDetailContent fileId={VIDEO_ID} drive={DRIVE} surface="collection" />
     </Providers>
   );
 }

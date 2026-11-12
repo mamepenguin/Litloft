@@ -12,12 +12,6 @@ export const SECTION_GAP_REM = 1.5;
  */
 export const CANVAS_PADDING_REM = 2;
 
-/**
- * Must stay in step with the `[data-media-width="wide"]` rules in
- * `globals.css`.
- */
-export const RAIL_MIN_REM = PLAYER_MIN_REM + COLUMN_REM + SECTION_GAP_REM;
-
 export const INSPECTOR_BESIDE_MIN_REM =
   PLAYER_MIN_REM + CANVAS_PADDING_REM + COLUMN_REM;
 
@@ -27,6 +21,18 @@ export const INSPECTOR_BESIDE_MIN_REM =
  * canvas's 60% cap lives in the stylesheet with the rest of the form.
  */
 export const STACKED_PLAYER_SHARE = 0.5;
+
+/**
+ * The width at which two workbench panels sit side by side. Below it they
+ * stack, and share the panel region's height equally.
+ */
+export const WORKBENCH_COLUMNS_MIN_REM = 41;
+
+/** The panel region's floor. Below it the page scrolls instead of shrinking. */
+export const WORKBENCH_MIN_REM = 18;
+
+/** A framed player's cap while a panel is shown under it. */
+export const WORKBENCH_PLAYER_SHARE = 0.5;
 
 /**
  * The canvas's scrollbar is deliberately not a term here: whether there is

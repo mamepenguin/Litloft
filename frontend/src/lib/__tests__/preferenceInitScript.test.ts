@@ -27,7 +27,6 @@ function stubThrowingStorage() {
 
 beforeEach(() => {
   document.documentElement.removeAttribute("data-theme");
-  document.documentElement.removeAttribute("data-media-layout");
   stubMatchMedia(false);
 });
 
@@ -35,39 +34,28 @@ afterEach(() => {
   vi.unstubAllGlobals();
   window.localStorage.clear();
   document.documentElement.removeAttribute("data-theme");
-  document.documentElement.removeAttribute("data-media-layout");
 });
 
-describe("the pre-paint preference script", () => {
-  it("writes both attributes from stored values", () => {
+describe("the pre-paint theme script", () => {
+  it("writes the theme from the stored value", () => {
     window.localStorage.setItem("theme-preference", "dark");
-    window.localStorage.setItem("media-layout-preference", "stacked");
 
     runInitScript();
 
     expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
-    expect(document.documentElement.getAttribute("data-media-layout")).toBe(
-      "stacked",
-    );
   });
 
-  it("writes the defaults when nothing has been stored", () => {
+  it("writes the system theme when nothing has been stored", () => {
     runInitScript();
 
     expect(document.documentElement.getAttribute("data-theme")).toBe("light");
-    expect(document.documentElement.getAttribute("data-media-layout")).toBe(
-      "beside",
-    );
   });
 
-  it("still writes both attributes when storage throws", () => {
+  it("still writes the theme when storage throws", () => {
     stubThrowingStorage();
 
     expect(() => runInitScript()).not.toThrow();
 
-    expect(document.documentElement.getAttribute("data-media-layout")).toBe(
-      "beside",
-    );
     expect(document.documentElement.getAttribute("data-theme")).toBe("light");
   });
 
@@ -80,28 +68,10 @@ describe("the pre-paint preference script", () => {
     expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
   });
 
-  it("writes the layout even when matchMedia is missing", () => {
+  it("falls back to light when matchMedia is missing", () => {
     vi.stubGlobal("matchMedia", undefined);
 
     expect(() => runInitScript()).not.toThrow();
-    expect(document.documentElement.getAttribute("data-media-layout")).toBe(
-      "beside",
-    );
     expect(document.documentElement.getAttribute("data-theme")).toBe("light");
-  });
-
-  it("defaults to the same layout the module does", async () => {
-    // The module has to be asked FIRST: `readMediaLayout` prefers the
-    // attribute, so asking it after the script has run only asks the
-    // script what it just wrote.
-    const { readMediaLayout } = await import("../mediaLayout");
-    document.documentElement.removeAttribute("data-media-layout");
-    const moduleDefault = readMediaLayout();
-
-    runInitScript();
-    const scriptDefault =
-      document.documentElement.getAttribute("data-media-layout");
-
-    expect(scriptDefault).toBe(moduleDefault);
   });
 });

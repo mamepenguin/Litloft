@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 
 import { FileDetailContent } from "../../FileDetailContent";
 import type { FileItem } from "@/types";
@@ -8,6 +8,7 @@ import {
   claimSlot,
   loaded,
   makeFile,
+  measureRow,
   publishedPdfState,
   relationMocks,
   setApiResponses,
@@ -150,8 +151,8 @@ beforeEach(() => {
   slotMocks.entries.clear();
   publishedPdfState.value = null;
   window.localStorage.clear();
-  document.documentElement.removeAttribute("data-media-layout");
   setViewport();
+  measureRow(900);
 });
 
 async function renderKind(kind: Partial<FileItem>) {
@@ -164,6 +165,11 @@ async function renderKind(kind: Partial<FileItem>) {
   );
   const utils = render(<FileDetailContent fileId="f1" drive="main" />);
   await loaded();
+  await waitFor(() =>
+    expect(screen.getByTestId("inspector-fit-host")).toHaveAttribute(
+      "data-inspector-fit",
+    ),
+  );
   return utils;
 }
 

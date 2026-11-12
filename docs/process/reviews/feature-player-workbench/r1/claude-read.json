@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The change rewrites the app-wide SidebarProvider, ThemeProvider and ProfileProvider so they no longer render bare children before hydration, and none of the three is in the touch-point list.",
+      "impact": "These providers wrap every page, not only player files. The diff removes the post-hydration remount of the whole app subtree. Any component that relied on that remount now keeps its first-render state. The r5fix review records one such effect: an attribute-only hydration mismatch now stays stale. So the change reaches every route, outside the declared scope of SPEC-CORE-085..090.",
+      "evidence": "frontend/src/components/SidebarProvider.tsx:100-117 drops `if (!hydrated) return <>{children}</>` and exposes `hydrated && isOpen` and `hydrated && isOverlay`. ThemeProvider.tsx drops the `mounted` state and its bare-children branch. ProfileProvider.tsx replaces `mounted` with a `wroteNickname` ref so a child's mount-effect write is not overwritten. A new test, frontend/src/components/__tests__/SidebarProviderHydration.test.tsx, covers this. None of these paths appears in Touch points, and r1/classification.json lists all four among zones_touched.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant covers app-wide provider hydration. The paths are not in the touch-point list, and the change reaches every page.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Add the three providers and their hydration test to the touch points, with the reason (the remount broke I4 single-mount on first load), or split them into their own change."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The shared `SlotEntryRenderer` in AddonSlot.tsx gains an `onRendered` prop and a `RenderedSignal` child, and AddonSlot.tsx is not in the touch-point list.",
+      "impact": "`SlotEntryRenderer` renders entries for every slot that uses it, not only `player-side`. The new signal decides whether a pending `player-side` entry counts as available (revised I1). An entry whose module fails to load never signals, so it never gets a toggle. That rule now lives in a shared component that the declared scope does not name.",
+      "evidence": "frontend/src/components/AddonSlot.tsx:59-118 adds `onRendered` and `RenderedSignal` inside `<Suspense>`. useSlotAvailability.ts adds `isPending`/`renderedFor`; that file is listed, but AddonSlot.tsx is not.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This implements revised I1 correctly as far as I read it, but it is a shared component that the touch-point list omits.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "List frontend/src/components/AddonSlot.tsx (SlotEntryRenderer `onRendered`) in the touch points."
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "docs/addons/media-import.md is changed, and it is not among the nine documents the touch points and §9 list.",
+      "impact": "No user-facing defect. The doc now says the `.loft` panel is in the Info tab under the title, which follows the D-14 revision of I7. The touch-point list did not anticipate this doc.",
+      "evidence": "The diff changes the media-import.md heading from 'Below the player' to 'Where the details are'. r1/classification.json lists docs/addons/media-import.md. The Touch points 'Docs, all as §9 lists' omits it.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is an unplanned path, and the content is consistent with the revised I7.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add docs/addons/media-import.md to the touch-point docs list."
+    },
+    {
+      "id": "TP-4",
+      "origin": "reviewer",
+      "claim": "The `loft-metadata` slot moves from under the player into the Info tab on the canonical page, through a new `loftMetadata` prop on FileMetaBlock, a new `showMetadataAside` prop on MediaPlayerBlock, a new `-mx-4 md:mx-0` inset on the collection aside, and a new globals.css grid rule. The touch points' descriptions of those files do not mention any of this.",
+      "impact": "A `.loft` file's channel, date and description move to a different place on every surface. The commit under review, 7f2b9ae52, changes this aside's inset on the collection surface. The work is covered by the D-14 revision of I7, but the touch-point descriptions of FileDetailContainer, MediaPlayerBlock and FileMetaBlock list other items: description, layoutToggle, preview-actions and the clamp.",
+      "evidence": "FileDetailContainer.tsx builds `loftMetadata` (ridesShell && loft && hasSlot). FileMetaBlock.tsx renders it under `data-inspector-header-loft-metadata`. MediaPlayerBlock.tsx adds `showMetadataAside` and, when framed, the `-mx-4 md:mx-0` aside class. globals.css adds a `[data-inspector-header-loft-metadata]` grid-area rule. The new LoftMetadataPlacement.test.tsx and collection-workbench-metrics-desktop.spec.ts (the 390px inset) test it. The ADDON-DEVELOPMENT.md changelog adds a third row, while §9 says two.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a behaviour the revised I7 covers, but the touch-point entries of the files it changes do not mention it.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Extend the touch points: the `loft-metadata` placement in FileDetailContainer, FileMetaBlock, MediaPlayerBlock and globals.css, plus LoftMetadataPlacement.test.tsx."
+    },
+    {
+      "id": "TP-5",
+      "origin": "reviewer",
+      "claim": "Several test and test-registration files are added or changed outside the touch-point list: e2e-components/projects.ts, spec-viewport.spec.ts, componentFixtureParity.test.tsx, src/__tests__/mediaLayoutRemoved.test.ts, and the new FileDetail tests Workbench, WorkbenchCollection, WorkbenchPendingEntry, LoftMetadataPlacement and workbenchHelpers.ts.",
+      "impact": "None for users. These are scaffolding for the planned new real-browser and unit cases, and the list simply does not name them. FileDetailContent.test.tsx, which the list names under scaffolding, is also changed.",
+      "evidence": "r1/classification.json zones_touched includes all of these paths. The Touch points name only the generic 'new real-browser cases' and the harness/setup files.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "These are unplanned test paths and break no invariant.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "List the new test files and the e2e project registrations in the touch points."
+    }
+  ],
+  "specification_compliance": [
+    "The touch-point files that were changed match their stated purpose: ShellLayout, MediaCanvas, MediaPlayerBlock, FileDetailCanvas, FileDetailPresenter, FileDetailContainer, FileMetaBlock, FileDescription, tabs.ts, InspectorShell, useSlotAvailability, useCompanionMetrics, mediaHostStyle, layoutSizes, the workbench files, workbenchPanels store, the MediaLayoutToggle and mediaLayout removals, preferenceInitScript, globals.css, ActiveSummaryHost, messages, the intelligence addon and the listed docs.",
+    "Some listed touch points show no change in this diff: app/layout.tsx, ChaptersPanel.tsx, FileDetailShell.tsx, FileDetailFullScreen.tsx, e2e scenes-section*.spec.ts and fixtures/scenesSection.tsx, and several of the scaffolding tests (FileDetailPageRow, FileNavInPageRow, FileDetailInboxNav, PlainTextDocument, FindInFile.epub, TreeYield*). That is the opposite direction to the question asked and is not reported as a finding.",
+    "The question asked: the diff reaches these paths outside the touch-point list: SidebarProvider/ThemeProvider/ProfileProvider and their hydration test, AddonSlot.tsx, docs/addons/media-import.md, the loft-metadata relocation inside listed files, and test registration and new test files."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "App-wide provider hydration no longer remounts the page subtree (Sidebar, Theme and Profile providers). Neither the spec nor its invariants describe this.",
+    "SlotEntryRenderer's onRendered signal is a new pending state for addon entries. Revised I1 states the rule for player-side, but the shared component now carries it for any caller that passes onRendered."
+  ],
+  "regression_risks": [
+    "Provider changes affect every route. A component that reads client-only state in a render-time initializer and shows it only through an attribute now keeps the server value (r5fix F1).",
+    "ThemeProvider and ProfileProvider consumers now see the pre-read values ('system', a null nickname) inside a real context before the stored value is read, where before they saw the default context."
+  ],
+  "test_coverage": [
+    "SidebarProviderHydration.test.tsx covers the single mount for all three providers and the overlay request made from a child's mount effect.",
+    "WorkbenchPendingEntry.test.tsx covers the AddonSlot onRendered path, including a lazy chunk.",
+    "LoftMetadataPlacement.test.tsx and collection-workbench-metrics-desktop.spec.ts cover the loft-metadata placement and the 390px inset."
+  ],
+  "not_verified": [
+    "I could not run git, so I could not isolate the files touched by commit 7f2b9ae52 alone from the whole-branch diff provided. My findings are against the diff as given.",
+    "I ran no tests (unit or e2e).",
+    "I did not check whether the listed but unchanged e2e scenes-section specs still pass now that scenes has moved to player-side.",
+    "I did not check consumers of ThemeProvider and ProfileProvider for behaviour that depends on the old bare-children first render."
+  ],
+  "confidence": 75
+}

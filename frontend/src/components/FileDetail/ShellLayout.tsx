@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, type ReactNode, type RefObject } from "react";
+import { useState, type ReactNode, type RefObject } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
@@ -14,10 +14,7 @@ import { PdfPagesTab } from "./pdf/PdfPagesTab";
 import { usePdfState } from "./pdf/usePdfState";
 import { ArchivePagesPanel } from "./archive/ArchivePagesPanel";
 import { useArchiveState } from "./archive/useArchiveState";
-import { inspectorOpenStore } from "@/lib/inspectorOpenStore";
 import { useInspectorForm } from "@/hooks/useInspectorForm";
-import { useMediaLayoutPreference } from "@/lib/mediaLayout";
-import { sortSlotEntries } from "@/lib/addons";
 import { viewerTakesCanvasFloor } from "@/lib/fileDetailShell";
 import { slotEntryLabel } from "@/lib/slotLabel";
 import { ActiveSummaryHost } from "../ActiveSummaryHost";
@@ -28,12 +25,12 @@ import { CommentSection } from "../CommentSection";
 import { ExifSection } from "../ExifSection";
 import { FileDetailShell } from "../FileDetailShell";
 import { FilePreview } from "../FilePreview";
-import { MediaLayoutToggle } from "../MediaLayoutToggle";
 import { MarkdownDocumentLayout } from "../markdown/MarkdownDocumentLayout";
 import { FileNavControls } from "./FileNavControls";
 import { MediaCanvas } from "./MediaCanvas";
 import { InspectorShell } from "./inspector/InspectorShell";
 import { buildInspectorTabs } from "./inspector/tabs";
+import { useInspectorTabActive } from "./inspector/activeTab";
 import { FindBar } from "./find/FindBar";
 import { FindButton } from "./find/FindButton";
 import { FindTab } from "./find/FindTab";
@@ -44,8 +41,19 @@ import { slotAvailabilityKey } from "./hooks/useSlotAvailability";
 import { useSheetHalfSnap } from "./hooks/useSheetHalfSnap";
 import { RelatedPanel } from "./related/RelatedPanel";
 import { useFileRelations } from "./related/useFileRelations";
+import {
+  buildWorkbenchPanels,
+  type WorkbenchPanelItem,
+} from "./workbench/panels";
+import { Workbench, shownPanelIds } from "./workbench/Workbench";
+import {
+  closeWorkbenchPanel,
+  toggleWorkbenchPanel,
+  useWorkbenchPanels,
+} from "@/lib/workbenchPanels";
 import { TextScrollFileIdContext } from "@/lib/textScrollProgress";
 import { HighlightFileContext } from "@/lib/highlightStore";
+
 
 export interface ShellLayoutProps {
   file: FileItem;
@@ -58,12 +66,8 @@ export interface ShellLayoutProps {
   usesCanvasViewer: boolean;
   plainTextDocument: boolean;
   hasInspector: boolean;
-  descriptionInCanvas: boolean;
-  companionMountable: boolean;
-  companionOccupied: boolean;
   slotAvailability: SlotAvailability;
   playerFramed: boolean;
-  isTimedMedia: boolean;
   chaptersPresent: boolean;
   chaptersVersion: number;
   onChaptersResolved: (count: number) => void;
@@ -90,6 +94,13 @@ export interface ShellLayoutProps {
   sheetPeek?: ReactNode;
 }
 
+function PanelTabBody({ item }: { item: WorkbenchPanelItem }) {
+  const active = useInspectorTabActive(item.id);
+  return (
+    <div className="flex h-full min-h-0 flex-col">{item.render(active)}</div>
+  );
+}
+
 export function ShellLayout({
   file,
   fileId,
@@ -101,12 +112,8 @@ export function ShellLayout({
   usesCanvasViewer,
   plainTextDocument,
   hasInspector,
-  descriptionInCanvas,
-  companionMountable,
-  companionOccupied,
   slotAvailability,
   playerFramed,
-  isTimedMedia,
   chaptersPresent,
   chaptersVersion,
   onChaptersResolved,
@@ -156,42 +163,63 @@ export function ShellLayout({
   const archiveState = useArchiveState(archiveController);
   // Global namespace: a slot entry's `i18n_key` names its own addon's.
   const tGlobal = useTranslations();
-  const { getSlotEntries } = useAddonSlots();
-  const [mediaLayout] = useMediaLayoutPreference();
+  const { getSlotEntries, hasSlot } = useAddonSlots();
   const { form, stacked: stackedLayout } = useInspectorForm(fileId);
   const relations = useFileRelations(fileId);
   const relatedListed =
     (relations?.length ?? 0) > 0 ||
     getSlotEntries("file-relations").length > 0;
-  // Writing to the store the shell's own toggle reads, rather than
-  // holding a second copy of the state: choosing "beside" has to be able
-  // to reveal where it just put the panel. The store rather than
-  // `useInspectorOpen`, because this only ever writes — subscribing
-  // would re-render this whole subtree on every open and close for a
-  // value it does not read.
-  const setInspectorOpen = useCallback(
-    (next: boolean) => inspectorOpenStore.set(drive, next),
-    [drive],
-  );
-
-  /**
-   * The tab list and the canvas must not both claim them: the transcript
-   * fetches, subscribes to the playback clock and holds a scroll position,
-   * so a second copy is not a duplicate render but a second, competing
-   * reader of the same file.
-   *
-   * On a phone there is no beside — the inspector is a sheet — so the
-   * tabs are where they go regardless of the stored preference.
-   */
-  const companionInTabs =
-    isMobile || stackedLayout || mediaLayout === "beside";
 
   // The row has not measured this file yet. A player file off a phone waits
   // for that answer before mounting what has to land in one place only;
   // everything else renders as it always did.
   const awaitingForm = hasPlayer && !isMobile && form === "absent";
 
+  // A player file in a row too narrow for the inspector beside it, with the
+  // inspector open, is the one desktop form without a room under the player.
+  const narrowForms = isMobile || stackedLayout;
+  const workbenchWide =
+    hasPlayer && !isMobile && !stackedLayout && !awaitingForm;
+
   const playerSideEntries = hasPlayer ? getSlotEntries("player-side") : [];
+
+  const storedPanels = useWorkbenchPanels();
+  const workbenchItems = buildWorkbenchPanels({
+    surface: "canonical",
+    hasPlayer,
+    file,
+    fileId,
+    drive,
+    slotEntries: playerSideEntries,
+    availability: slotAvailability,
+    translate: (key) => tGlobal(key),
+    addonSlotProps,
+    mediaController,
+    chaptersVersion,
+    onChaptersResolved,
+  });
+  const availablePanelIds = new Set(
+    workbenchItems.filter((item) => item.available).map((item) => item.id),
+  );
+  const shownPanels = shownPanelIds(workbenchItems, storedPanels);
+  const hasPreviewActions = hasSlot("file-preview-actions");
+  const actionsInRow = workbenchWide;
+  const previewActions = (
+    <AddonSlot
+      id="file-preview-actions"
+      layout="stack"
+      props={addonSlotProps}
+    />
+  );
+  const workbench = workbenchWide ? (
+    <Workbench
+      items={workbenchItems}
+      stored={storedPanels}
+      onToggle={(id) => toggleWorkbenchPanel(id, availablePanelIds)}
+      onClose={closeWorkbenchPanel}
+      actions={hasPreviewActions ? previewActions : null}
+    />
+  ) : null;
 
   const entryProps = (
     slotId: "player-side" | "inspector-tabs",
@@ -206,22 +234,6 @@ export function ShellLayout({
     ),
   });
 
-  const playerSideProps = (entryId: string, labelledByHost: boolean) =>
-    entryProps("player-side", entryId, labelledByHost);
-
-  /**
-   * Built here rather than by `AddonSlot` inside the canvas because the
-   * availability callback is per entry, and `AddonSlot` hands one props
-   * object to all of them.
-   */
-  const playerSideNodes = sortSlotEntries(playerSideEntries).map((entry) => (
-    <SlotEntryRenderer
-      key={entry.id}
-      entry={entry}
-      props={playerSideProps(entry.id, false)}
-    />
-  ));
-
   const inspectorTabEntries = hasInspector
     ? getSlotEntries("inspector-tabs")
     : [];
@@ -230,19 +242,22 @@ export function ShellLayout({
    * The inspector excludes exactly these, so a section lands in one
    * column or the other and never in both.
    *
-   * Do not add a third: the general answer is a slot of its own, the
+   * Do not add a third kind: the general answer is a slot of its own, the
    * way `file-relations` is, not another id core has to know.
    */
   const canvasSlotIds = usesCanvasViewer
     ? ["detailed-summary"]
     : ["knowledge-edit", "detailed-summary"];
+  const sectionExcludeIds = Array.from(
+    new Set([
+      ...canvasSlotIds,
+      ...(hasPlayer ? playerSideEntries.map((entry) => entry.id) : []),
+    ]),
+  );
 
-  // Built twice deliberately: the desktop inspector and the mobile sheet
-  // are never mounted at the same time (the pane is desktop-only and the
-  // sheet renders nothing while closed), and the sheet takes the
-  // table-heavy summaries the desktop canvas keeps — a 90vh drawer at
-  // viewport width has room for them, a 384px column does not.
-  const heavySummaries = (
+  // On a player file both are drawn by the workbench, so the canvas and
+  // Info keep neither.
+  const heavySummaries = hasPlayer ? null : (
     <>
       <ActiveSummaryHost fileId={fileId} drive={drive} />
       <AddonSlot
@@ -264,7 +279,7 @@ export function ShellLayout({
         <AddonSlot
           id="file-detail-sections"
           layout="stack"
-          excludeIds={canvasSlotIds}
+          excludeIds={sectionExcludeIds}
           props={addonSlotProps}
         />
       )}
@@ -299,17 +314,31 @@ export function ShellLayout({
         {
           id: "chapters",
           label: tabLabels("chapters"),
-          content:
-            companionInTabs && chaptersPresent ? (
-              <ChaptersPanel
-                fileId={fileId}
-                mediaController={mediaController}
-                refreshToken={chaptersVersion}
-                onResolved={onChaptersResolved}
-                className="h-full"
-              />
-            ) : null,
+          content: chaptersPresent ? (
+            <ChaptersPanel
+              fileId={fileId}
+              mediaController={mediaController}
+              refreshToken={chaptersVersion}
+              onResolved={onChaptersResolved}
+              className="h-full"
+            />
+          ) : null,
         },
+      ],
+      addonTabs:
+        hasPlayer && narrowForms && !awaitingForm
+          ? workbenchItems.map((item) => ({
+              entry: {
+                id: item.id,
+                label: item.label,
+                priority: item.priority,
+              },
+              label: item.label,
+              available: item.available,
+              content: <PanelTabBody item={item} />,
+            }))
+          : [],
+      postAddonTabs: [
         {
           id: "related",
           label: tabLabels("related"),
@@ -321,33 +350,6 @@ export function ShellLayout({
           ) : null,
         },
       ],
-      addonTabs: companionInTabs
-        ? playerSideEntries.map((entry) => ({
-            entry,
-            label: slotEntryLabel(entry, tGlobal),
-            available: slotAvailability.isAvailable(
-              slotAvailabilityKey("player-side", entry.id),
-            ),
-            // In the desktop pane (`buildTabs(false)`) the panel is the
-            // height budget, so this continues the flex chain and the
-            // occupant fills it and scrolls inside itself. Without it the
-            // chain stops here and a transcript lays itself out at full
-            // length inside a bounded box, which clips it silently.
-            // `fillHeight` stays `true` on both — on this path it tells
-            // the occupant about a budget it does not have, and it is
-            // still the right value, because `false` would give
-            // `TranscriptSection` a `max-h-80` and put a second scroller
-            // back inside the sheet.
-            content: (
-              <div className="flex h-full min-h-0 flex-col">
-                <SlotEntryRenderer
-                  entry={entry}
-                  props={playerSideProps(entry.id, true)}
-                />
-              </div>
-            ),
-          }))
-        : [],
       inspectorTabs: inspectorTabEntries.map((entry) => ({
         entry,
         label: slotEntryLabel(entry, tGlobal),
@@ -407,14 +409,6 @@ export function ShellLayout({
         chromeControls={
           <>
             {findEnabled && <FindButton />}
-            {/* `!isMobile` is not only about space: `onBeside` opens the
-                desktop pane, and a phone's sheet is `FileDetailShell`'s own
-                state, not this store. Rendering the toggle on a phone would
-                write a preference and open nothing. In the stacked layout
-                the companion has no beside to return to. */}
-            {!isMobile && hasPlayer && companionOccupied && !stackedLayout && (
-              <MediaLayoutToggle onBeside={() => setInspectorOpen(true)} />
-            )}
             {/* Images only. The arrow keys walk the folder for archives,
                 PDFs and text as well, but those are surfaces for reading
                 into a file, and a pair of arrows in their page row reads
@@ -431,34 +425,15 @@ export function ShellLayout({
       >
         {findEnabled && find.open && <FindBar />}
         <MediaCanvas
-          showDescription={
-            descriptionInCanvas && !stackedLayout && !awaitingForm
-          }
           file={file}
-          fileId={fileId}
           metrics={metrics}
           framed={playerFramed}
-          isTimedMedia={isTimedMedia}
-          mediaController={mediaController}
-          companion={
-            companionInTabs ||
-            awaitingForm ||
-            !hasPlayer ||
-            !companionMountable
-              ? null
-              : {
-                  chaptersPresent,
-                  occupied: companionOccupied,
-                  slots: playerSideNodes,
-                }
-          }
-          chaptersVersion={chaptersVersion}
-          onChaptersResolved={onChaptersResolved}
-          // On a phone the sheet takes them instead: a 90vh drawer at
-          // viewport width has room for a markdown table and a 384px
-          // column does not, and drawing them in both places mounts
-          // `ActiveSummaryHost` twice — two fetches for one file. The
-          // stacked layout makes the same move for the same reason.
+          workbench={workbench ?? undefined}
+          workbenchActive={workbenchWide && shownPanels.length > 0}
+          showPreviewActions={!actionsInRow}
+          // On a phone or in the stacked inspector the other surface takes
+          // them instead: drawing them in both places mounts
+          // `ActiveSummaryHost` twice — two fetches for one file.
           heavySummaries={
             isMobile || stackedLayout || awaitingForm ? null : heavySummaries
           }

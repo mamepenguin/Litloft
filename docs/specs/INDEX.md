@@ -198,5 +198,12 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-096 | implemented | docs/specs/pickup-accuracy.md | sha256:d2befb3d3294d8745a35316447b32c243a91a680f20b4b74610c3a0f0e2441a0 |
 | SPEC-ADDON-097 | implemented | docs/specs/pickup-accuracy.md | sha256:d2befb3d3294d8745a35316447b32c243a91a680f20b4b74610c3a0f0e2441a0 |
 | SPEC-ADDON-098 | implemented | docs/specs/pickup-accuracy.md | sha256:d2befb3d3294d8745a35316447b32c243a91a680f20b4b74610c3a0f0e2441a0 |
+| SPEC-CORE-085 | implemented | docs/specs/player-workbench.md | sha256:ce54fa3c850c8a6716af16cc777c927c8e401b4727f48c783d6b8b30540cd58d |
+| SPEC-CORE-086 | implemented | docs/specs/player-workbench.md | sha256:ce54fa3c850c8a6716af16cc777c927c8e401b4727f48c783d6b8b30540cd58d |
+| SPEC-CORE-087 | implemented | docs/specs/player-workbench.md | sha256:ce54fa3c850c8a6716af16cc777c927c8e401b4727f48c783d6b8b30540cd58d |
+| SPEC-CORE-088 | implemented | docs/specs/player-workbench.md | sha256:ce54fa3c850c8a6716af16cc777c927c8e401b4727f48c783d6b8b30540cd58d |
+| SPEC-CORE-089 | implemented | docs/specs/player-workbench.md | sha256:ce54fa3c850c8a6716af16cc777c927c8e401b4727f48c783d6b8b30540cd58d |
+| SPEC-CORE-090 | implemented | docs/specs/player-workbench.md | sha256:ce54fa3c850c8a6716af16cc777c927c8e401b4727f48c783d6b8b30540cd58d |
+| SPEC-ADDON-099 | implemented | docs/specs/player-workbench.md | sha256:ce54fa3c850c8a6716af16cc777c927c8e401b4727f48c783d6b8b30540cd58d |
 | SPEC-ADDON-102 | implemented | docs/specs/pickup-recency.md | sha256:37ab5c30c12c4080ec924415c4d1484e95df77abef5279ac2b1af8d87e08928a |
 | SPEC-ADDON-103 | implemented | docs/specs/pickup-recency.md | sha256:37ab5c30c12c4080ec924415c4d1484e95df77abef5279ac2b1af8d87e08928a |

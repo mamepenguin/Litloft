@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 
 interface SlotProps {
   onAvailability?: (available: boolean) => void;
@@ -12,11 +12,17 @@ interface SlotProps {
 export function TranscriptSlot({ onAvailability }: SlotProps) {
   const [lines, setLines] = useState<number[] | null>(null);
 
+  // As the addon itself does: `false` before paint, so a host that reads
+  // silence as yes never draws it for a frame it is about to remove.
+  useLayoutEffect(() => {
+    onAvailability?.(false);
+  }, [onAvailability]);
+
   useEffect(() => {
-    onAvailability?.(true);
-    const frame = requestAnimationFrame(() =>
-      setLines(Array.from({ length: 160 }, (_, index) => index)),
-    );
+    const frame = requestAnimationFrame(() => {
+      setLines(Array.from({ length: 160 }, (_, index) => index));
+      onAvailability?.(true);
+    });
     return () => {
       cancelAnimationFrame(frame);
       onAvailability?.(false);

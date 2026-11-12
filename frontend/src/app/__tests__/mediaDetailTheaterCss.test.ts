@@ -7,14 +7,6 @@ function globalsCss(): string {
   return readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
 }
 
-/**
- * Anchored with `^` under `/m`: unanchored, a deleted base rule silently
- * retargets onto a qualified rule such as `[data-sheet-snap] .media-detail-player`.
- */
-function baseRule(): RegExpMatchArray | null {
-  return globalsCss().match(/^\.media-detail-player\s*\{[^}]*\}/m);
-}
-
 describe("media detail theater sizing", () => {
   it("derives the player width from the measured height with a viewport fallback", () => {
     expect(globalsCss()).toMatch(
@@ -22,9 +14,10 @@ describe("media detail theater sizing", () => {
     );
   });
 
-  it("keeps an explicit width alongside the auto margins", () => {
-    // An auto inline margin turns off a grid item's default `stretch`, so
-    // without this a <video> with no metadata yet sizes to 300x150.
+  it("keeps the player's explicit width alongside the auto margins", () => {
+    // An auto inline margin turns off a block-level box's default
+    // `stretch`, so without this a <video> with no metadata yet sizes to
+    // 300x150.
     const rule = globalsCss().match(
       /\.media-detail-player\[data-framed="true"\]\s*\{[^}]*\}/,
     );
@@ -32,135 +25,128 @@ describe("media detail theater sizing", () => {
     expect(rule![0]).toMatch(/width:\s*100%;/);
   });
 
-  it("leaves the unframed player column alone", () => {
-    // The cap inverts a 16:9 ratio, so on an image, PDF or text preview it
-    // would narrow them on a short window for no reason.
-    const rule = baseRule();
-    expect(rule).not.toBeNull();
-    expect(rule![0]).not.toMatch(/max-width/);
-    expect(rule![0]).not.toMatch(/margin-inline/);
-  });
-
-  it("keeps the player itself the grid item, and nothing around it", () => {
-    // A box wrapping the player and its occupant would take away
-    // `position: sticky`'s travel, which exists only inside the containing block.
-    const rule = baseRule();
-    expect(rule).not.toBeNull();
-    expect(rule![0]).toMatch(/grid-area:\s*player;/);
-    const aside = globalsCss().match(
-      /^\.media-detail-player-aside\s*\{[^}]*\}/m,
-    );
-    expect(aside).not.toBeNull();
-    expect(aside![0]).toMatch(/grid-area:\s*player-aside;/);
-  });
-
-  it("gives the occupant a row only where there is an occupant", () => {
-    // A named row is laid out even when empty and `gap` is drawn on both
-    // sides of it, so an unconditional row costs the gap twice.
-    //
-    // Comments are stripped first because the split is on braces, and
-    // globals.css comments contain braces.
-    const withoutComments = globalsCss().replace(/\/\*[\s\S]*?\*\//g, "");
-    const oneLine = (s: string) => s.replace(/\s+/g, " ").trim();
-    const templates = withoutComments
-      .split("}")
-      .map((block) => block.split("{"))
-      .filter(
-        ([selector, body]) =>
-          body?.includes("grid-template-areas:") &&
-          selector.includes(".media-detail-grid"),
-      )
-      .map(([selector, body]) => ({
-        selector: oneLine(selector),
-        areas: oneLine(/grid-template-areas:([^;]*);/.exec(body)?.[1] ?? ""),
-      }));
-
-    const OCCUPIED = ":has(> .media-detail-player-aside:not(:empty))";
-    const WIDE = '[data-media-layout="beside"] [data-media-width="wide"] ';
-    expect(templates).toEqual([
-      { selector: ".media-detail-grid", areas: '"player" "companion" "rest"' },
-      {
-        selector: `.media-detail-grid${OCCUPIED}`,
-        areas: '"player" "player-aside" "companion" "rest"',
-      },
-      {
-        selector: `${WIDE}.media-detail-grid`,
-        areas: '"player companion" "rest companion"',
-      },
-      {
-        selector: `${WIDE}.media-detail-grid${OCCUPIED}`,
-        areas:
-          '"player companion" "player-aside companion" "rest companion"',
-      },
-    ]);
+  it("caps only a framed player", () => {
+    // The cap inverts a 16:9 ratio, so on an image, PDF or text preview, or
+    // an audio player, it would narrow them on a short window for no reason.
+    const capped = [
+      ...globalsCss().matchAll(
+        /\.media-detail-player[^{]*\{[^}]*max-width:[^}]*\}/g,
+      ),
+    ].map((match) => match[0]);
+    expect(capped.length).toBeGreaterThan(0);
+    for (const rule of capped) {
+      expect(rule).toMatch(/\[data-framed="true"\]/);
+    }
   });
 });
 
-describe("media detail, companion below the player", () => {
-  it("gives both surfaces one height budget, measured", () => {
-    const host = globalsCss().match(/\.media-detail-host\s*\{[^}]*\}/);
-    expect(host).not.toBeNull();
-    expect(host![0]).toMatch(
-      /--companion-box-h:\s*calc\(var\(--rail-avail,\s*100dvh\)\s*\*\s*0\.6\);/,
+describe("the workbench under the player", () => {
+  it("claims the scroll container's visible height only while a panel is shown", () => {
+    const host = globalsCss().match(
+      /\.media-detail-host\[data-workbench="on"\]\s*\{[^}]*\}/,
     );
-    for (const selector of [
-      /\.media-detail-companion-inner\s*\{[^}]*\}/,
-      /\.media-detail-below\s*\{[^}]*\}/,
-    ]) {
-      const rule = globalsCss().match(selector);
-      expect(rule).not.toBeNull();
-      expect(rule![0]).toMatch(/max-height:\s*var\(--companion-box-h\);/);
-    }
+    expect(host).not.toBeNull();
+    expect(host![0]).toMatch(/display:\s*flex;/);
+    expect(host![0]).toMatch(/flex-direction:\s*column;/);
+    expect(host![0]).toMatch(
+      /min-height:\s*var\(--rail-avail,\s*100dvh\);/,
+    );
   });
 
-  it("bounds the below box rather than trusting its occupant", () => {
-    // `max-height` on a row container clamps the line's cross size, so an
-    // occupant that ignores `fillHeight` would otherwise run past the box.
-    const rule = globalsCss().match(/\.media-detail-below\s*\{[^}]*\}/);
-    expect(rule![0]).toMatch(/overflow:\s*hidden;/);
+  it("caps a framed player at half the visible height", () => {
+    const cap = globalsCss().match(
+      /\.media-detail-host\[data-workbench="on"\]\s+\.media-detail-player\[data-framed="true"\]\s*\{[^}]*\}/,
+    );
+    expect(cap).not.toBeNull();
+    expect(cap![0]).toMatch(
+      /max-width:\s*calc\(\s*var\(--rail-avail,\s*100dvh\)\s*\*\s*var\(--workbench-player-share,\s*0\.5\)\s*\*\s*16\s*\/\s*9\s*\);/,
+    );
   });
 
-  it("gives the index a floor equal to its base, and a ceiling", () => {
-    // Past about 350px a column of timestamps stops reading as an index.
-    const rule = globalsCss().match(/\.media-detail-below-index\s*\{[^}]*\}/);
-    expect(rule).not.toBeNull();
-    expect(rule![0]).toMatch(/flex:\s*1 1 12\.5rem;/);
-    expect(rule![0]).toMatch(/min-width:\s*12\.5rem;/);
-    expect(rule![0]).toMatch(/max-width:\s*22rem;/);
+  it("wraps the row rather than scrolling it sideways", () => {
+    const row = globalsCss().match(
+      /\.media-detail-workbench-row\s*\{[^}]*\}/,
+    );
+    expect(row).not.toBeNull();
+    expect(row![0]).toMatch(/flex-wrap:\s*wrap;/);
+
+    const toggles = globalsCss().match(
+      /\.media-detail-workbench-toggles\s*\{[^}]*\}/,
+    );
+    expect(toggles).not.toBeNull();
+    expect(toggles![0]).toMatch(/flex-wrap:\s*wrap;/);
   });
 
-  it("bases the body at its measure, not at zero", () => {
-    // Free space is shared from the bases, so a body based at 0 stays
-    // narrower than the short index beside it.
-    const rule = globalsCss().match(/\.media-detail-below-body\s*\{[^}]*\}/);
-    expect(rule).not.toBeNull();
-    expect(rule![0]).toMatch(/flex:\s*1 1 68ch;/);
-    expect(rule![0]).toMatch(/max-width:\s*68ch;/);
-    expect(rule![0]).toMatch(/min-width:\s*0;/);
-    expect(rule![0]).toMatch(/min-height:\s*0;/);
+  it("puts the player's actions at the row's trailing end", () => {
+    const actions = globalsCss().match(
+      /\.media-detail-workbench-actions\s*\{[^}]*\}/,
+    );
+    expect(actions).not.toBeNull();
+    expect(actions![0]).toMatch(/margin-left:\s*auto;/);
   });
 
-  it("hides the empty box rather than letting the layout drop it", () => {
-    // Not omitted from the layout: the occupants report whether they have
-    // anything, so removing the box would freeze the answer at its first guess.
+  it("grows a toggle to the touch floor on a coarse pointer", () => {
     const rule = globalsCss().match(
-      /\.media-detail-below\[data-occupied="false"\]\s*\{[^}]*\}/,
+      /@media \(pointer: coarse\) \{\s*\.workbench-toggle\s*\{[^}]*\}/,
+    );
+    expect(rule).not.toBeNull();
+    expect(rule![0]).toMatch(/min-height:\s*2\.75rem;/);
+  });
+
+  it("takes no height under the row when no panel is shown", () => {
+    const rule = globalsCss().match(
+      /\.media-detail-workbench-grid\[hidden\]\s*\{[^}]*\}/,
     );
     expect(rule).not.toBeNull();
     expect(rule![0]).toMatch(/display:\s*none;/);
   });
 
-  it("keeps the reading measure in one place", () => {
-    expect(globalsCss()).toMatch(/\.reading-measure\s*\{\s*max-width:\s*860px;\s*\}/);
+  it("sits two panels side by side at the wide width and stacks them below it", () => {
+    const wide = globalsCss().match(
+      /\.media-detail-workbench\[data-workbench-width="wide"\]\s*\.media-detail-workbench-grid\s*\{[^}]*\}/,
+    );
+    expect(wide).not.toBeNull();
+    expect(wide![0]).toMatch(/flex-direction:\s*row;/);
+
+    const narrow = globalsCss().match(
+      /\.media-detail-workbench\[data-workbench-width="narrow"\]\s*\.media-detail-workbench-grid\s*\{[^}]*\}/,
+    );
+    expect(narrow).not.toBeNull();
+    expect(narrow![0]).toMatch(/flex-direction:\s*column;/);
   });
 
-  it("passes the height on to whatever the slot puts in the body", () => {
+  it("scrolls each panel's body inside itself", () => {
     const rule = globalsCss().match(
-      /\.media-detail-below-body\s*>\s*\*\s*\{[^}]*\}/,
+      /\.media-detail-workbench-body\s*\{[^}]*\}/,
     );
     expect(rule).not.toBeNull();
-    expect(rule![0]).toMatch(/flex:\s*1 1 0%;/);
-    expect(rule![0]).toMatch(/min-height:\s*0;/);
+    expect(rule![0]).toMatch(/overflow:\s*auto;/);
+  });
+
+  it("gives the collection surface 60% of the visible height, with the panels' gap inside that box", () => {
+    const rule = globalsCss().match(
+      /\.media-detail-host\[data-collection-workbench="true"\]\s*\.media-detail-workbench-grid:not\(\[hidden\]\)\s*\{[^}]*\}/,
+    );
+    expect(rule).not.toBeNull();
+    expect(rule![0]).toMatch(
+      /height:\s*max\(18rem,\s*calc\(var\(--rail-avail,\s*100dvh\)\s*\*\s*0\.6\)\);/,
+    );
+    // The gap is the grid's own, and the fixed height means it is taken out
+    // of the panels rather than added below them.
+    expect(rule![0]).not.toMatch(/gap:/);
+    const grid = globalsCss().match(
+      /\.media-detail-workbench-grid\s*\{[^}]*\}/,
+    );
+    expect(grid).not.toBeNull();
+    expect(grid![0]).toMatch(/gap:\s*0\.75rem;/);
+  });
+});
+
+describe("the reading measure", () => {
+  it("lives in one place", () => {
+    expect(globalsCss()).toMatch(
+      /\.reading-measure\s*\{\s*max-width:\s*860px;\s*\}/,
+    );
   });
 });
 

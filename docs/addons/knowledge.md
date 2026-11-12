@@ -10,7 +10,7 @@ The `knowledge` addon adds Markdown notes to Litloft: an editor, version history
 - A capture basket that collects quotes and timestamps from anywhere in Litloft so you can add them to a note.
 - Web clipping, which saves a web page as a Markdown note.
 - **Create note**, which starts a note that cites the file you are looking at.
-- A file can show a note chosen as its summary note.
+- A file can show a note chosen as its summary note, in the **Note** panel under a player or in the file page's sections.
 - A connections graph of how notes and files refer to each other.
 - **New note** and **Clip web page** in the **Add** menu on Home and in Library folders.
 
@@ -183,7 +183,7 @@ To keep a clip URL from reaching inside your network, Litloft refuses:
 
 **Create note** in any file's `...` menu creates a note whose frontmatter already cites that file, and opens it.
 
-A file's **Summary note** section shows the note chosen as the summary of that file, with **Edit in Knowledge**. With the [intelligence addon](intelligence.md), **Save as file** on an AI detailed summary saves it as a note and makes it that file's summary note.
+A file's summary note is the **Note** panel under the player on a video, audio or `.loft` file, and a **Summary note** section on other files. Both show the note chosen as the summary of that file, with **Edit in Knowledge**. With the [intelligence addon](intelligence.md), **Save as file** on an AI detailed summary saves it as a note and makes it that file's summary note.
 
 ## Connections graph
 

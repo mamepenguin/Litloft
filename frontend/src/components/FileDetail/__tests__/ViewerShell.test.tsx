@@ -160,9 +160,6 @@ beforeEach(() => {
   publishedArchiveState.value = null;
   slotMocks.entries.clear();
   window.localStorage.clear();
-  // Clearing storage is not enough: `readMediaLayout` prefers the
-  // attribute the store writes onto <html>, which outlives a test.
-  document.documentElement.removeAttribute("data-media-layout");
   setViewport();
 });
 
@@ -262,23 +259,15 @@ describe.each(KINDS)("%s on the shell", (_name, kind) => {
     ).toBeNull();
   });
 
-  it("offers nothing that belongs to a player, on the stored preference that would show it", async () => {
-    // `stacked`, and not the default. On `beside` the companion is in
-    // the tab strip whatever the player gate says, so a missing
-    // `!hasPlayer` is invisible.
+  it("offers nothing that belongs to a player", async () => {
     claimSlot("player-side", [
       { id: "transcript", label: "Transcript", priority: 10, addonName: "some-addon" },
     ]);
-    window.localStorage.setItem("media-layout-preference", "stacked");
     const { container } = await renderKind(kind);
 
-    expect(container.querySelector(".media-detail-below")).toBeNull();
+    expect(container.querySelector(".media-detail-workbench")).toBeNull();
     expect(screen.queryByTestId("slot-entry-transcript")).toBeNull();
-    expect(
-      screen.queryByRole("button", {
-        name: /transcript (beside|below) the player/i,
-      }),
-    ).toBeNull();
+    expect(screen.queryByRole("group", { name: "Panels" })).toBeNull();
   });
 });
 

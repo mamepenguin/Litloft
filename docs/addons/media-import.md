@@ -80,9 +80,9 @@ If the owner has disabled embedding, the page says **Embedded playback is disabl
 
 In the [iOS app](../user-guide/ios-app.md), the YouTube player's settings have **Open in the iOS player**, which plays the video in iOS's own full-screen player. From there the video can continue in picture-in-picture when you leave the app. A browser does not show this button.
 
-## Below the player
+## Where the details are
 
-The addon adds a panel under the player with:
+The addon adds a panel at the top of the file's **Info** tab, under the title, with:
 
 - the channel name, publication date and the start of the description;
 - the caption status, for example **YouTube has no captions for this video**. When a download failed, click the status to try again.
