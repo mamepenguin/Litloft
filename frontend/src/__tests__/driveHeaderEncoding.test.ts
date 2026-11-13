@@ -15,6 +15,7 @@ const ADDONS_DIR = resolve(REPO_ROOT, "addons");
 
 const ROOTS = [
   resolve(REPO_ROOT, "frontend/src"),
+  resolve(REPO_ROOT, "mcp-server/src"),
   ...(existsSync(ADDONS_DIR)
     ? readdirSync(ADDONS_DIR, { withFileTypes: true })
         .filter((e) => e.isDirectory())

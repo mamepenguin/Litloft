@@ -57,7 +57,7 @@ const ask: LitloftTool = {
         "POST",
         "/api/addons/intelligence/ask",
         {
-          headers: { "X-Lit-Drive": drive },
+          headers: { "X-Lit-Drive": encodeURIComponent(drive) },
           json: body,
           timeoutMs: ASK_TIMEOUT_MS,
           maxEvents: ASK_MAX_SSE_EVENTS,
