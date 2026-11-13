@@ -97,7 +97,8 @@ change to the core's own apps.
    these parameters, with the listing's meaning, and that return shape. The function's
    other keyword parameters (`trust`, `origin`, `exclude_origin`) stay undocumented.
    The listing validates two inputs in FastAPI before calling it, so the caller owns them:
-   `search` at most 200 characters and every `type` a `FileKind`. Given those, it answers
+   `search` at most 200 characters and every `type` a `FileKind` or `"markdown"` (the
+   listing's `FileKindParam`). Given those, it answers
    as the listing does, including 400 for a `path` with `..` or a leading `/` and for a
    `folder`, `collection`, `size` or `duration` that does not normalise.
 
@@ -128,19 +129,25 @@ apps and their shelf pages, and an addon page):
 9. At 640px and wider: the icon tile, then the title with the scope line under it, then the
    Target and any `actions` at the right end of the title row, as today.
 10. Below 640px: the icon tile, then the title alone on its row, and under the title one
-    line holding the scope text at its start and the Target (after any `actions`) at its
-    end. The scope text is never cut; the Target's name is cut with an ellipsis when the
-    line is short. A breadcrumb stays above, as today.
-13. `actions` (the shelf pages' sort menu): below 640px they leave the header's lines and
-    sit on their own row under the header, at its right end, directly above the list
-    (design option 2, chosen by the user over a full-width select and an icon-only
-    button). At 640px and wider they stay at the title row's end, left of the Target. At
-    every width the shelf pages' sort menu uses the same quiet shape as the Target, showing
-    its current choice (`↕ 追加日（新しい順） ▾`).
-12. The header is still drawn by `PageHeader`, which keeps the only `<h1>`: `AppHeader`
-    passes a new `PageHeader` option that, below 640px, puts the Target at the scope
-    line's end and the other `actions` on their own row under the header. Every other `PageHeader` caller passes nothing new and draws as before.
-11. The tabs row stays under the header at every width, unchanged.
+    line holding the scope text at its start and the Target at its end (`actions` are not
+    on this line; step 12). The count part of the scope text (`· N本`) is never cut. When
+    the line is short, the drive name is cut with an ellipsis first (decided by the user;
+    the sidebar also names the drive), and the Target's name after it, down to a minimum
+    of the icon, three characters and the chevron. A breadcrumb stays above, as today.
+11. The tabs row stays under the header's lines at every width, unchanged.
+12. `actions` (the shelf pages' sort menu): below 640px they leave the header's lines and
+    sit on their own row, at its right end, as the header's last row: after the tabs row
+    when there is one (decided by the user), so it is directly above the content (design
+    option 2, chosen by the user over a full-width select and an icon-only button). At
+    640px and wider they stay at the title row's end, left of the Target. The shelf pages
+    pass their sort menu in the quiet shape at every width, showing its current choice
+    (`↕ 追加日（新しい順） ▾`). The same sort menus on the Library faces keep their
+    current shape (decided by the user): the shape is chosen by a prop the shelf pages
+    pass, not by changing the sort menu components' default.
+13. The header is still drawn by `PageHeader`, inside its `<header>`, which keeps the only
+    `<h1>`: `AppHeader` passes a new `PageHeader` option that, below 640px, puts the
+    Target at the scope line's end and the other `actions` on the last row of step 12.
+    Every other `PageHeader` caller passes nothing new and draws as before.
 
 ### 2. Failure cases
 
@@ -193,6 +200,9 @@ its own drive check before calling it, as every in-process addon route must
 - `TargetMenu`, `useShownTargets`, `readShownTargets`, `writeShownTargets` change the type
   of their `app` argument; built-in callers pass the same strings as before.
 - Built-in apps' saved choices: same keys, so nothing a viewer saved is lost.
+- Video and Reading, their shelf pages: the header layout and the Target's look change
+  (steps 7 to 11, 13); on the shelf pages the sort menu takes the quiet shape and, below
+  640px, its own row (step 12). The Library faces' sort menus do not change.
 
 ### 8. Error behavior
 
@@ -202,7 +212,7 @@ caller's to show.
 ### 9. User-visible behavior
 
 SPEC-ADDON-106 adds nothing visible. SPEC-CORE-099 changes the header of Video, Reading
-and their shelf pages as in steps 7 to 11; the menu that opens, its rows and Manage… are
+and their shelf pages as in steps 7 to 13, including the shelf pages' sort menu; the menu that opens, its rows and Manage… are
 unchanged.
 
 Agreed design: https://claude.ai/artifact/3DhNVLqgN9R2mCaj2aNxii, saved in
@@ -230,22 +240,27 @@ No new request. `resolveAppTarget` is synchronous and runs over one folder's que
 
 ## Touch points
 
-- `frontend/src/components/PageHeader.tsx` and its tests: the option of step 12
+- `frontend/src/components/PageHeader.tsx` and its tests: the option of step 13
   (CORE-099).
 - `frontend/src/components/videoapp/VideoShelfPage.tsx`, `readingapp/ReadingShelfPage.tsx`
-  and their sort menus (`SortChoiceMenu`, `ReadingSortMenu`): the quiet shape.
+  and their sort menus (`SortChoiceMenu`, `ReadingSortMenu`): a prop for the quiet shape,
+  passed only by the shelf pages; the Library faces keep the default.
 - `frontend/src/components/appshell/AppHeader.tsx`: passes that option.
 - `frontend/src/components/ToolbarMenu.tsx`: the `quiet` shape;
   `frontend/src/components/appshell/TargetMenu.tsx` uses it. `toolbarMenuHome.test.ts`,
   `popup-dismissal.test.ts`, `reading-video-faces.html` and
   `readingVideoLayoutFixtureParity.test.tsx` keep passing unedited.
 - `frontend/e2e-components/`: the real `AppHeader` rendered for Video, Reading and a shelf
-  page with its sort menu, measured at 375px (default and long folder name), 640px and
+  page with its sort menu, measured at 375px (default, long folder name, long drive name), 640px and
   1280px. The header test in `frontend/e2e-layout/video-app.spec.ts` measures a hand copy
   of the old header (`fixtures/video-app.html`); its header assertions move to the
   real-component test and the fixture's header is redrawn to the new shape.
-- `DESIGN.md` §6 "Page Header": app headers below 640px put the actions on the scope
-  line; the quiet Target recorded as a control shape.
+- `DESIGN.md` §6 "Page Header": for an app header below 640px, the Target at the scope
+  line's end and an actions row as a fourth row; the quiet control shape (no fill, no
+  border, muted 14px, `bg-bg-elevated` on hover and open, 44px on a coarse pointer).
+- `docs/user-guide/video.md`, `docs/user-guide/reading.md`: they name a **Target**
+  button; they now say the control shows the target's name with a target icon, at the
+  title row's end, or under the title on a phone.
 
 - `frontend/src/lib/appPrefs.ts`: the app key type (a built-in id or `{ addon: string }`),
   the key builder for target and shown set, `readAppTarget`, `writeAppTarget`;
@@ -306,8 +321,8 @@ I9. `filtered_drive_files` called with the documented parameters selects exactly
 raises 400. (`search` and `type` within the caller's bounds of step 6.)
 
 I10. On every page drawn by `AppHeader`, below 640px the title row holds only the icon tile
-and the title, the Target is on the scope line's row at its end, the title and the scope
-text are never cut by the Target, and nothing in the header overflows the viewport at
+and the title, the Target is on the scope line's row at its end, the title and the count
+(`· N`) are never cut, the drive name being cut first when the line is short, and nothing in the header overflows the viewport at
 375px, also with a long folder name as the target.
 
 I11. At 640px and wider the Target is at the title row's right end, and at every width the
@@ -316,11 +331,15 @@ tabs row is under the header.
 I12. The Target control draws no 対象 / Target text and no fill, and its accessible name is
 `<label>: <name>` (`対象: すべての本`, for example).
 
-I13. On a shelf page below 640px the sort menu is on its own row under the header at its
+I13. On a shelf page below 640px the sort menu is on the header's last row at its
 right end, above the list, and shows its current choice; at 640px and wider it is on the
 title row left of the Target.
 
-I14. Every `PageHeader` caller other than `AppHeader`, and every `ToolbarMenu` caller other
+I14. The title of an `AppHeader` page is one line at every width and is cut with an
+ellipsis when it does not fit; the quiet Target and the quiet sort menu are at least 44px
+tall on a coarse pointer and take `bg-bg-elevated` on hover and while open.
+
+I15. Every `PageHeader` caller other than `AppHeader`, and every `ToolbarMenu` caller other
 than `TargetMenu` and the shelf pages' sort menus, draws as before this change at 375px and at 1280px.
 
 ## Checked, no action
