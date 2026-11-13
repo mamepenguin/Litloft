@@ -63,3 +63,12 @@ All 31 dark tokens read from the page as declared (`--bg-primary #131312`, `--bg
 ### Teardown
 
 `docker compose -p litloft-r5-dark -f docker-compose.yml -f .r5/override.yml down` was run at the end; no other compose project was touched.
+
+## Design check
+
+Accepted by the owner on 2026-11-13. This change replaces token values only; which token paints which part is unchanged, and the artboard drew a simplified folder screen.
+
+- D-1 accepted: file tiles keep painting no card fill; `--bg-card` paints folder cards and the inspector pane, as today.
+- D-2 accepted: the in-folder filter field stays `--bg-card` and the search overlay input keeps its current fill per width.
+- D-3 accepted: the folder view has no chip row; the active filter stays marked with `--bg-elevated` on the Filter button.
+- D-4 accepted: a file card has no selected state in the grid to show; the selection ring is unchanged code.
