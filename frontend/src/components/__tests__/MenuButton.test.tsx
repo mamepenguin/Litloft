@@ -95,6 +95,6 @@ describe("the sidebar's menu button", () => {
     }
     // jsdom reorders the calc, so the two terms are checked, not the string.
     expect(row.style.top).toContain("safe-area-inset-top");
-    expect(row.style.top).toContain("12px");
+    expect(row.style.top).toMatch(/(^|[^\d.])8px/);
   });
 });

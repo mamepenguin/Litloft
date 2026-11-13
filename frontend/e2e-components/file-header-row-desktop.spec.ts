@@ -183,7 +183,7 @@ test("SPEC-CORE-094 I1 / failure case (wide, loading): the skeleton's drive crum
 const fixedButtons = (page: Page) => box(page.getByTestId("chrome-buttons"));
 
 for (const width of [1280, 900]) {
-  test(`SPEC-CORE-094 D2 / I2 (canonical route, ${width}px): with the tree open the trail starts at the right pane's left edge, with it closed 12px past the fixed buttons`, async ({
+  test(`SPEC-CORE-094 D2 / I2 (canonical route, ${width}px): with the tree open the trail starts 16px inside the right pane, with it closed 12px past the fixed buttons, and never within 16px of the header's left end`, async ({
     page,
   }) => {
     await page.addInitScript(() => localStorage.setItem("tree:enabled:fixture", "true"));
@@ -200,14 +200,18 @@ for (const width of [1280, 900]) {
     const firstCrumb = header.getByRole("navigation").locator("a, button").first();
     // The pane to the right of the tree starts where the tree ends.
     const paneLeft = (await box(tree)).right;
-    const open_ = Math.max((await fixedButtons(page)).right + 12, paneLeft);
+    const open_ = Math.max((await fixedButtons(page)).right + 12, paneLeft + 16, (await box(header)).left + 16);
     await expect
       .poll(async () => Math.abs((await box(firstCrumb)).left - open_))
       .toBeLessThanOrEqual(1);
 
     await page.getByRole("button", { name: "Hide tree" }).click();
     await expect(tree).toHaveCSS("width", "0px");
-    const closed = Math.max((await fixedButtons(page)).right + 12, (await box(tree)).right);
+    const closed = Math.max(
+      (await fixedButtons(page)).right + 12,
+      (await box(tree)).right + 16,
+      (await box(header)).left + 16,
+    );
     await expect
       .poll(async () => Math.abs((await box(firstCrumb)).left - closed))
       .toBeLessThanOrEqual(1);
@@ -234,4 +238,35 @@ test("SPEC-CORE-094 D2 / I2 (collection route): the back control starts at the c
   expect(column, "no max-w-5xl / max-w-6xl column around the player").not.toBeNull();
   const expected = Math.max((await fixedButtons(page)).right + 12, column!);
   expect(Math.abs((await box(back)).left - expected)).toBeLessThanOrEqual(1);
+});
+
+test("SPEC-CORE-094 D2 (canonical route, inline sidebar): the trail keeps 16px from the sidebar's edge, and the fixed buttons share the row's centre line with it", async ({
+  page,
+}) => {
+  await open(page, "header-row-two-pane", 1440);
+  const header = page.locator("header");
+  const firstCrumb = header.getByRole("navigation").locator("a, button").first();
+  const centre = (b: Box) => b.top + b.height / 2;
+
+  for (const sidebar of ["open", "closed"] as const) {
+    if (sidebar === "closed") {
+      await page.getByTestId("chrome-buttons").getByRole("button").first().click();
+      await expect
+        .poll(async () => (await box(header)).left)
+        .toBe(0);
+    }
+    const frame = await box(header);
+    const crumb = await box(firstCrumb);
+    const buttons = await fixedButtons(page);
+    expect(crumb.left - frame.left, `${sidebar}: trail inset`).toBeGreaterThanOrEqual(16);
+    expect(crumb.left, `${sidebar}: trail past the buttons`).toBeGreaterThanOrEqual(buttons.right + 12 - 1);
+    expect(Math.abs(centre(buttons) - centre(frame)), `${sidebar}: buttons on the header's centre`).toBeLessThanOrEqual(0.5);
+    expect(Math.abs(centre(crumb) - centre(buttons)), `${sidebar}: trail on the buttons' centre`).toBeLessThanOrEqual(0.5);
+    if (sidebar === "open") {
+      // The sidebar keeps an empty row where the buttons sit over it.
+      const spacer = await box(page.getByTestId("sidebar-button-row"));
+      expect(Math.abs(spacer.top - buttons.top), "spacer top").toBeLessThanOrEqual(0.5);
+      expect(Math.abs(spacer.bottom - buttons.bottom), "spacer bottom").toBeLessThanOrEqual(0.5);
+    }
+  }
 });
