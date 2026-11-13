@@ -337,6 +337,12 @@ describe("the component fixture's page", () => {
       "header-row-text",
       "header-row-two-pane",
       "header-row-collection",
+      "header-row-collection-note",
+      "header-row-collection-swap",
+      "header-row-late",
+      "header-row-missing",
+      "header-row-swap",
+      "header-row-two-pane-long",
       "header-row-inbox-note",
       "header-row-inbox-long",
     ]);
