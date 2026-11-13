@@ -40,6 +40,7 @@ import {
   SHEET_STATE_HALF,
   SHEET_STATE_PEEK,
   isSheetExpanded,
+  type SheetPeek,
   type SheetState,
 } from "./MobileInspectorSheet";
 
@@ -67,7 +68,7 @@ interface FileDetailShellProps {
    * Inspector cannot provide.
    */
   mobileSheet?: ReactNode;
-  sheetPeek?: ReactNode;
+  sheetPeek?: SheetPeek;
   /** What `half` is worth in vaul's units on this page. */
   halfSnap?: number;
   children: ReactNode;
@@ -502,7 +503,7 @@ export function FileDetailShell({
           state={sheetOverride ?? sheetState}
           onStateChange={handleSheetStateChange}
           halfSnap={halfSnap}
-          peek={sheetPeek}
+          peek={sheetPeek?.(handleInspectorButton)}
         >
           {mobileSheet ?? inspector}
         </MobileInspectorSheet>

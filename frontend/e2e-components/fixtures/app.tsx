@@ -76,6 +76,20 @@ import { useAnchoredDirection } from "@/hooks/useAnchoredDirection";
 import { folderTransitionKind } from "@/lib/folderTransition";
 import { showOpenGhost } from "@/lib/openGhost";
 import { JustifiedHoldArrangement } from "./justifiedHold";
+import {
+  HeaderRowCollectionArrangement,
+  HeaderRowInboxLongArrangement,
+  HeaderRowInboxNoteArrangement,
+  HeaderRowLeaveArrangement,
+  HeaderRowLongArrangement,
+  HeaderRowNoteArrangement,
+  HeaderRowPendingArrangement,
+  HeaderRowRootArrangement,
+  HeaderRowTextArrangement,
+  HeaderRowTwoPaneArrangement,
+  HeaderRowOrdinaryArrangement,
+  HeaderRowVideoArrangement,
+} from "./fileHeaderRow";
 import { PlayedRangesArrangement } from "./playedRanges";
 import { TextResumeArrangement } from "./textResume";
 import { HomeAppEntriesArrangement } from "./homeAppEntries";
@@ -2499,6 +2513,18 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "inspector-pdf": InspectorPdfArrangement,
   "inspector-video-two-pane": InspectorVideoTwoPaneArrangement,
   "inspector-video-collection": InspectorVideoCollectionArrangement,
+  "header-row-ordinary": HeaderRowOrdinaryArrangement,
+  "header-row-video": HeaderRowVideoArrangement,
+  "header-row-note": HeaderRowNoteArrangement,
+  "header-row-long": HeaderRowLongArrangement,
+  "header-row-root": HeaderRowRootArrangement,
+  "header-row-pending": HeaderRowPendingArrangement,
+  "header-row-leave": HeaderRowLeaveArrangement,
+  "header-row-text": HeaderRowTextArrangement,
+  "header-row-two-pane": HeaderRowTwoPaneArrangement,
+  "header-row-collection": HeaderRowCollectionArrangement,
+  "header-row-inbox-note": HeaderRowInboxNoteArrangement,
+  "header-row-inbox-long": HeaderRowInboxLongArrangement,
 };
 
 function App(): ReactElement {

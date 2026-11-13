@@ -119,22 +119,18 @@ export function segmentedControlCases(): void {
     }
   }
 
-  test("the Markdown view toggle in the file header: wide enough to press, and the row keeps its height", async ({
+  test("SPEC-CORE-094 D6 / I10 (390px): the file header draws one view-mode button, sized for the pointer, and the row keeps the header's height", async ({
     page,
   }) => {
-    await openArrangement(page, "file-detail-chrome-note", 390);
+    await openArrangement(page, "header-row-note", 390);
     const isCoarse = await coarse(page);
-    const segments = page.locator('[data-testid^="view-mode-"]');
-    expect(await segments.count()).toBe(2);
-    for (const i of [0, 1]) {
-      const box = await segments.nth(i).boundingBox();
-      expect(box!.width).toBe(isCoarse ? 44 : 32);
-      expect(box!.height).toBe(32);
-      // The row centres the group on a half pixel, and the overhang's lower
-      // edge snaps to the pixel above.
-      expect(await hits(page, '[data-testid^="view-mode-"]', i, -2, 4)).toBe(isCoarse);
-    }
-    const row = await page.locator("[data-testid='file-detail-chrome']").boundingBox();
-    expect(row!.height).toBe(48);
+    await expect(page.locator('[data-testid^="view-mode-"]')).toHaveCount(0);
+    const toggle = page.locator("svg.lucide-pencil:visible").locator("..");
+    await expect(toggle).toHaveCount(1);
+    const box = (await toggle.boundingBox())!;
+    expect(box.width).toBe(isCoarse ? 44 : 32);
+    expect(box.height).toBe(isCoarse ? 44 : 32);
+    const header = await page.locator("header").boundingBox();
+    expect(header!.height).toBe(56);
   });
 }

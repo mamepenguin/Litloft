@@ -33,6 +33,7 @@ export const DESKTOP_ONLY = [
   "**/workbench-first-frame-desktop.spec.ts",
   "**/workbench-no-panel-desktop.spec.ts",
   "**/stacked-description-desktop.spec.ts",
+  "**/file-header-row-desktop.spec.ts",
 ];
 
 /** Literals rather than a device preset, which can change under it. */

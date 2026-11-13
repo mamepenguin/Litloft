@@ -5,6 +5,7 @@
  */
 
 import { test, expect, type Page } from "@playwright/test";
+import enMessages from "../src/messages-core/en.json";
 
 import {
   CANONICAL,
@@ -68,7 +69,10 @@ async function openSheetOnScenes(
 ): Promise<RowsReading> {
   await page.setViewportSize(viewport);
   await openFilePage(page, CANONICAL, { frames: 300 });
-  await page.getByTestId("inspector-toggle").click();
+  await page
+    .getByTestId("mobile-inspector-peek")
+    .getByRole("button", { name: enMessages.inspector.expandSheet })
+    .click();
   await sheetSettled(page, "half");
   await page.getByRole("tab", { name: "Scenes" }).click();
   await expect(

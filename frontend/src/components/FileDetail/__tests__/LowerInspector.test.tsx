@@ -13,6 +13,7 @@ import type { SlotEntry } from "@/lib/addons";
 import {
   claimSlot,
   makeFile,
+  raiseSheetFromStrip,
   relationMocks,
   setApiResponses,
   setViewport,
@@ -149,7 +150,7 @@ const sheetSnap = () =>
   screen.getByTestId("file-detail-shell").dataset.sheetSnap;
 
 async function openSheet() {
-  fireEvent.click(screen.getByTestId("inspector-toggle"));
+  raiseSheetFromStrip();
   return screen.findByTestId("mobile-inspector-sheet");
 }
 

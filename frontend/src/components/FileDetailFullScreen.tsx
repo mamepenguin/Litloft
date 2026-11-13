@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { FileDetailContent } from "@/components/FileDetailContent";
 import { FileDetailChrome } from "@/components/FileDetail/FileDetailChrome";
+import { FileRowAlignProvider } from "@/components/FileHeaderRowProvider";
 import { ImageGallery } from "@/components/ImageGallery";
 import {
   CollectionPanel,
@@ -53,6 +54,8 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
 
   const [file, setFile] = useState<FileItem | null>(() => peekFileSeed(fileId));
   const [galleryOpen, setGalleryOpen] = useState(false);
+  // The centred column is where the header's file row starts.
+  const [column, setColumn] = useState<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -177,57 +180,65 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
         }}
       >
         <div
+          ref={setColumn}
           className={`mx-auto w-full flex-1 px-4 py-6 ${hasCollection ? "max-w-6xl" : "max-w-5xl"}`}
         >
-          {/* The back control keeps this route's own handler: "back" from a
-              collection means the collection you were playing, not the
-              folder the current track happens to live in. */}
-          {!contentBringsItsOwnRow && (
-            <div className="mb-4 -mx-4 -mt-6">
-              {file ? (
-                <FileDetailChrome
-                  drive={file.drive}
-                  folderPath={file.folder_path}
-                  title={file.title || file.filename}
-                  fileId={fileId}
-                  onBack={handleBack}
-                />
-              ) : (
-                // Holds the row's place so the page does not step down when
-                // the fetch lands.
-                <div
-                  aria-hidden
-                  className="h-12 border-b border-bg-border bg-bg-card"
-                />
-              )}
-            </div>
-          )}
-
-          <div className={isAudioSide ? "flex flex-col gap-4 md:flex-row" : ""}>
-            <div className={isAudioSide ? "min-w-0 flex-1" : ""}>
-              <FileDetailContent
-                fileId={fileId}
+          <FileRowAlignProvider element={column}>
+            {/* The back control keeps this route's own handler: "back" from a
+                collection means the collection you were playing, not the
+                folder the current track happens to live in. */}
+            {!contentBringsItsOwnRow && (
+              <FileDetailChrome
                 drive={file?.drive ?? ""}
-                initialTime={initialTime}
-                initialPage={initialPage}
-                initialSection={initialSection}
-                highlight={highlight}
-                onEnded={hasCollection ? handleMediaEnded : undefined}
-                autoPlay={hasCollection}
-                onRequestImageGallery={() => setGalleryOpen(true)}
-                onAfterDelete={handleAfterDelete}
+                folderPath={file?.folder_path}
+                title={file ? file.title || file.filename : ""}
+                fileId={file ? fileId : undefined}
                 onBack={handleBack}
-                surface="collection"
+                // Until the file is known there is nothing to name.
+                trail={!!file}
               />
+            )}
 
-              {isVideoTheater && (
+            <div className={isAudioSide ? "flex flex-col gap-4 md:flex-row" : ""}>
+              <div className={isAudioSide ? "min-w-0 flex-1" : ""}>
+                <FileDetailContent
+                  fileId={fileId}
+                  drive={file?.drive ?? ""}
+                  initialTime={initialTime}
+                  initialPage={initialPage}
+                  initialSection={initialSection}
+                  highlight={highlight}
+                  onEnded={hasCollection ? handleMediaEnded : undefined}
+                  autoPlay={hasCollection}
+                  onRequestImageGallery={() => setGalleryOpen(true)}
+                  onAfterDelete={handleAfterDelete}
+                  onBack={handleBack}
+                  surface="collection"
+                />
+
+                {isVideoTheater && (
+                  <CollectionPanel
+                    collectionId={collectionId}
+                    folderPlay={folderPlay}
+                    currentFileId={fileId}
+                    currentFileType={file!.file_type}
+                    drive={file!.drive}
+                    folderPath={file!.folder_path}
+                    sort={sort}
+                    order={order}
+                    onNavigate={handleCollectionNavigate}
+                  />
+                )}
+              </div>
+
+              {isAudioSide && file && (
                 <CollectionPanel
                   collectionId={collectionId}
                   folderPlay={folderPlay}
                   currentFileId={fileId}
-                  currentFileType={file!.file_type}
-                  drive={file!.drive}
-                  folderPath={file!.folder_path}
+                  currentFileType={file.file_type}
+                  drive={file.drive}
+                  folderPath={file.folder_path}
                   sort={sort}
                   order={order}
                   onNavigate={handleCollectionNavigate}
@@ -235,35 +246,21 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
               )}
             </div>
 
-            {isAudioSide && file && (
-              <CollectionPanel
-                collectionId={collectionId}
-                folderPlay={folderPlay}
-                currentFileId={fileId}
-                currentFileType={file.file_type}
-                drive={file.drive}
-                folderPath={file.folder_path}
+            {file && (
+              <ImageGallery
+                open={galleryOpen}
+                file={file}
                 sort={sort}
                 order={order}
-                onNavigate={handleCollectionNavigate}
+                onClose={(currentFileId) => {
+                  setGalleryOpen(false);
+                  if (currentFileId && currentFileId !== fileId) {
+                    router.replace(buildNavUrl(currentFileId));
+                  }
+                }}
               />
             )}
-          </div>
-
-          {file && (
-            <ImageGallery
-              open={galleryOpen}
-              file={file}
-              sort={sort}
-              order={order}
-              onClose={(currentFileId) => {
-                setGalleryOpen(false);
-                if (currentFileId && currentFileId !== fileId) {
-                  router.replace(buildNavUrl(currentFileId));
-                }
-              }}
-            />
-          )}
+          </FileRowAlignProvider>
         </div>
       </InboxDetailHostProvider>
     </FileNavProvider>

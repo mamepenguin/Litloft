@@ -206,7 +206,7 @@ While zoomed, swipes and edge taps do not turn the page. In right-to-left mode t
 |---|---|
 | `Cmd/Ctrl+\` | Show / hide the inspector |
 
-Works on every file page, even while you are editing a note. On a phone, use the toggle in the page row instead.
+Works on every file page, even while you are editing a note. On a phone there is no toggle in the row; press the sheet's resting strip instead.
 
 ### Markdown editor (Knowledge addon)
 

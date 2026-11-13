@@ -40,6 +40,13 @@ interface BreadcrumbProps {
    * drive and the drive becomes a Link rather than the leaf.
    */
   driveIsAncestor?: boolean;
+  /**
+   * Below `md` the trail stacks: its leaf alone on the second line, under
+   * whatever the caller draws above the trail. A caller whose leaf is a
+   * stateful control renders it here so it keeps its state when the viewport
+   * crosses the breakpoint.
+   */
+  compact?: boolean;
 }
 
 interface TrailItem {
@@ -56,6 +63,7 @@ export function Breadcrumb({
   isDropTarget,
   trailingSegment,
   driveIsAncestor,
+  compact = false,
 }: BreadcrumbProps) {
   const t = useTranslations("toolbar");
   const folderLink = useFolderLink();
@@ -87,7 +95,9 @@ export function Breadcrumb({
     return (
       <span
         key={entry.path}
-        className={`flex items-center gap-1 ${isLeaf ? TRAIL_SEGMENT : TRAIL_ANCESTOR}`}
+        className={`flex items-center gap-1 ${isLeaf ? TRAIL_SEGMENT : TRAIL_ANCESTOR}${
+          compact ? " hidden md:flex" : ""
+        }`}
       >
         <ChevronRight size={14} className="flex-shrink-0" />
         {isLeaf ? (
@@ -114,16 +124,45 @@ export function Breadcrumb({
     );
   };
 
+  const leaf =
+    trailingSegment === undefined ? null : typeof trailingSegment === "string" ? (
+      // `title` because this is the one segment that is routinely
+      // too long for the row; without it a truncated filename cannot
+      // be read at all.
+      <span
+        className={`min-w-0 truncate text-text-primary ${
+          compact ? "font-semibold md:font-medium" : "font-medium"
+        }`}
+        title={trailingSegment}
+      >
+        {trailingSegment}
+      </span>
+    ) : (
+      trailingSegment
+    );
+
   return (
-    <nav className="flex min-w-0 flex-1 items-center gap-1 text-sm text-text-muted pointer-coarse:overflow-x-auto">
-      <Link href="/" className="flex-shrink-0 hover:text-text-primary" aria-label={t("home")}>
+    <nav
+      className={
+        compact
+          ? "flex min-w-0 flex-col md:flex-1 md:flex-row md:items-center md:gap-1 text-sm text-text-muted pointer-coarse:overflow-x-auto"
+          : "flex min-w-0 flex-1 items-center gap-1 text-sm text-text-muted pointer-coarse:overflow-x-auto"
+      }
+    >
+      <Link
+        href="/"
+        className={`flex-shrink-0 hover:text-text-primary${compact ? " hidden md:block" : ""}`}
+        aria-label={t("home")}
+      >
         <Home size={16} />
       </Link>
 
       {before.map(segment)}
 
       {behindMarker && (
-        <span className="flex flex-shrink-0 items-center gap-1">
+        <span
+          className={`flex flex-shrink-0 items-center gap-1${compact ? " hidden md:flex" : ""}`}
+        >
           <ChevronRight size={14} className="flex-shrink-0" />
           {/* No drop target: where a drop onto the marker would land is not
               something the row lets the reader predict. */}
@@ -141,21 +180,21 @@ export function Breadcrumb({
 
       {after.map((entry, i) => segment(entry, before.length + folded.length + i))}
 
-      {trailingSegment && (
+      {leaf && (
         <>
-          <ChevronRight size={14} className="flex-shrink-0" />
-          {typeof trailingSegment === "string" ? (
-            // `title` because this is the one segment that is routinely
-            // too long for the row; without it a truncated filename cannot
-            // be read at all.
-            <span
-              className="truncate font-medium text-text-primary"
-              title={trailingSegment}
-            >
-              {trailingSegment}
+          <ChevronRight
+            size={14}
+            className={`flex-shrink-0${compact ? " hidden md:block" : ""}`}
+          />
+          {compact ? (
+            // `contents` above `md`: there the leaf is one flex item among
+            // the segments and its own width has to weigh in the line, or
+            // the ancestors keep room the last segment needed.
+            <span className="flex min-w-0 flex-1 items-center gap-1.5 md:contents">
+              {leaf}
             </span>
           ) : (
-            trailingSegment
+            leaf
           )}
         </>
       )}

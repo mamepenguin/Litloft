@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { useReportPageBackground } from "@/hooks/useReportPageBackground";
 
 import { ChromeButtons } from "./ChromeButtons";
+import { FileHeaderRowProvider } from "./FileHeaderRowProvider";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
 import { useSidebar } from "./SidebarProvider";
@@ -21,18 +22,20 @@ export function AppShell({ children }: { children: ReactNode }) {
     <ShortcutsProvider>
       <QuickNoteProvider>
         <GlobalSearchProvider>
-          <div className="min-h-dvh">
-            <Sidebar />
-            <ChromeButtons />
-            <div
-              className={`flex min-h-dvh min-w-0 flex-col transition-[padding] duration-150 ease-out ${
-                inlineOpen ? "min-[1200px]:pl-60" : ""
-              }`}
-            >
-              <Header />
-              <main className="flex min-w-0 flex-1 flex-col">{children}</main>
+          <FileHeaderRowProvider>
+            <div className="min-h-dvh">
+              <Sidebar />
+              <ChromeButtons />
+              <div
+                className={`flex min-h-dvh min-w-0 flex-col transition-[padding] duration-150 ease-out ${
+                  inlineOpen ? "min-[1200px]:pl-60" : ""
+                }`}
+              >
+                <Header />
+                <main className="flex min-w-0 flex-1 flex-col">{children}</main>
+              </div>
             </div>
-          </div>
+          </FileHeaderRowProvider>
         </GlobalSearchProvider>
       </QuickNoteProvider>
     </ShortcutsProvider>

@@ -4,9 +4,9 @@ Opening a file shows its page. Every kind of file uses the same page: the path a
 
 ## The page row
 
-The row at the top shows the path from the drive down to the file. Every step above the file is a link, so this is how you go back up. On a phone the path shrinks to `‹ folder name`.
+The row at the top is the app's own top row, and it shows the path from the drive down to the file. Every step above the file is a link, so this is how you go back up. On a phone the folder's name, with `‹`, sits on the first line and the file's name under it.
 
-Controls for the kind of file sit to its right (a Markdown note puts its save indicator and **Edit / Split / Preview** switch there). The inspector toggle is last.
+Controls for the kind of file sit to its right (a Markdown note puts its save indicator and **Edit / Split / Preview** switch there; on a phone that switch is one button showing the mode it changes to). Search sits in the same place as on every other screen, and on a wide window the inspector toggle sits beside the file's controls. On a phone there is no inspector toggle; the sheet is raised from its resting strip ([On a phone](#on-a-phone)), and the row has no quick-note button and no avatar.
 
 During collection playback the row also keeps a way back to the collection you were playing.
 
@@ -30,7 +30,7 @@ A tab appears only when it has something in it, so a video that was never transc
 
 AI sections (intelligence addon) appear once they have been generated. To generate one, use the **AI** menu in the inspector.
 
-Open and close the inspector with the toggle at the end of the page row, or `Cmd/Ctrl+\`. A video, audio or `.loft` file starts with the inspector open unless you closed it before; every other kind starts the way it always has.
+On a wide window, open and close the inspector with the toggle at the end of the page row, or `Cmd/Ctrl+\`. A video, audio or `.loft` file starts with the inspector open unless you closed it before; every other kind starts the way it always has.
 
 When the window is too narrow for the inspector beside the page, it changes places instead of narrowing:
 
@@ -39,7 +39,7 @@ When the window is too narrow for the inspector beside the page, it changes plac
 
 ### On a phone
 
-The inspector is a bottom sheet. While it rests, a strip along the bottom shows the file's name with like, favourite and `⋮`. Raise the sheet with the toggle or by dragging its handle; the full set of buttons is at the top of the **Info** tab.
+The inspector is a bottom sheet. While it rests, a strip along the bottom shows the file's name with like, favourite and `⋮`. Press the name, or drag the sheet's handle, to raise it; the full set of buttons is at the top of the **Info** tab.
 
 - Dragging anywhere else in the sheet scrolls it. Once you are at the top of the sheet, pull down or press `Esc` to send it back to the strip.
 - The page above stays usable while the sheet is up: you can pause and seek the video.

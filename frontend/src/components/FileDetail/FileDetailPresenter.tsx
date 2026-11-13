@@ -15,6 +15,7 @@ import { ExifSection } from "../ExifSection";
 import { FileDetailCanvas } from "./FileDetailCanvas";
 import { RelatedStack } from "./related/RelatedStack";
 import { ShellLayout } from "./ShellLayout";
+import type { SheetPeek } from "../MobileInspectorSheet";
 import { MediaPlayerBlock } from "./MediaPlayerBlock";
 import { mediaHostStyle } from "./mediaHostStyle";
 import { Workbench } from "./workbench/Workbench";
@@ -67,7 +68,7 @@ export interface FileDetailPresenterProps {
   onRename: (newFilename: string) => Promise<void>;
   onBack?: () => void;
   meta: ReactNode;
-  sheetPeek?: ReactNode;
+  sheetPeek?: SheetPeek;
 }
 
 /**

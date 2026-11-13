@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 
 import { FileDetailContent } from "@/components/FileDetailContent";
 import { FileDetailChrome } from "@/components/FileDetail/FileDetailChrome";
+import { FileRowAlignProvider } from "@/components/FileHeaderRowProvider";
 import { ImageGallery } from "@/components/ImageGallery";
 import { useFileNav } from "@/hooks/useFileNav";
 import { FileNavProvider } from "@/lib/fileNavContext";
@@ -44,6 +45,8 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
 
   const [state, setState] = useState<PaneState>(() => initialState(fileId));
   const [galleryOpen, setGalleryOpen] = useState(false);
+  // The pane's own left edge is where the header's file row starts.
+  const [paneRoot, setPaneRoot] = useState<HTMLDivElement | null>(null);
   // Callback ref + state so FileDetailContent receives the actual DOM
   // element on first render (a useRef value would be null on the
   // initial pass).
@@ -97,17 +100,23 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
 
   if (state.status === "error") {
     return (
-      <PaneShell chrome={<FileDetailChrome drive={drive} title="" />}>
-        <div className="flex h-full items-center justify-center text-sm text-text-muted">
-          {t("notFound")}
-        </div>
-      </PaneShell>
+      <FileRowAlignProvider element={paneRoot}>
+        <PaneShell
+          rootRef={setPaneRoot}
+          chrome={<FileDetailChrome drive={drive} title="" />}
+        >
+          <div className="flex h-full items-center justify-center text-sm text-text-muted">
+            {t("notFound")}
+          </div>
+        </PaneShell>
+      </FileRowAlignProvider>
     );
   }
 
   return (
-    <>
+    <FileRowAlignProvider element={paneRoot}>
       <PaneShell
+        rootRef={setPaneRoot}
         // No chrome from this host, ever. `FileDetailShell` draws the
         // row, and handing PaneShell a second row would stack two
         // identical bars. The error state above still draws the row,
@@ -153,21 +162,23 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
           }}
         />
       )}
-    </>
+    </FileRowAlignProvider>
   );
 }
 
 function PaneShell({
   chrome,
   scrollRef,
+  rootRef,
   children,
 }: {
   chrome?: React.ReactNode;
   scrollRef?: (el: HTMLDivElement | null) => void;
+  rootRef?: (el: HTMLDivElement | null) => void;
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex h-full flex-col bg-bg-primary">
+    <div ref={rootRef} className="flex h-full flex-col bg-bg-primary">
       {chrome}
       <div
         ref={scrollRef}

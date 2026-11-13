@@ -327,6 +327,18 @@ describe("the component fixture's page", () => {
       "inspector-pdf",
       "inspector-video-two-pane",
       "inspector-video-collection",
+      "header-row-ordinary",
+      "header-row-video",
+      "header-row-note",
+      "header-row-long",
+      "header-row-root",
+      "header-row-pending",
+      "header-row-leave",
+      "header-row-text",
+      "header-row-two-pane",
+      "header-row-collection",
+      "header-row-inbox-note",
+      "header-row-inbox-long",
     ]);
   });
 });

@@ -9,6 +9,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { pathToFileURL } from "node:url";
 
 import { PAGE } from "./build-bundle";
+import enMessages from "../src/messages-core/en.json";
 
 const FIXTURE = pathToFileURL(PAGE).href;
 
@@ -122,6 +123,12 @@ async function fitRun(page: Page): Promise<(string | null)[]> {
 
 const inspectorToggle = (page: Page) => page.getByTestId("inspector-toggle");
 
+/** The phone's way up: the resting strip's name button. */
+const raiseSheet = (page: Page) =>
+  page
+    .getByTestId("mobile-inspector-peek")
+    .getByRole("button", { name: enMessages.inspector.expandSheet });
+
 /**
  * The sheet's snap is a transition, so its box is still moving when the
  * drawer becomes visible; measuring mid-travel compares two different frames.
@@ -230,7 +237,7 @@ for (const viewport of [
     await page.setViewportSize(viewport);
     await open(page, VIDEO);
 
-    await inspectorToggle(page).click();
+    await raiseSheet(page).click();
     await expect(page.getByTestId("mobile-inspector-sheet")).toBeVisible();
     await settleBox(page, '[data-testid="mobile-inspector-sheet"]');
 
@@ -319,7 +326,7 @@ test("the sheet's Info header ends in a rule above the first section", async ({
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await open(page, VIDEO);
-  await inspectorToggle(page).click();
+  await raiseSheet(page).click();
   await expect(page.getByTestId("mobile-inspector-sheet")).toBeVisible();
   await settleBox(page, '[data-testid="mobile-inspector-sheet"]');
 

@@ -423,13 +423,26 @@ describe("SPEC-CORE-020 the page row and the two-way switch (I5)", () => {
     expect(screen.queryAllByTestId("file-detail-chrome")).toHaveLength(expected);
   });
 
-  it.each([1400, 400])("offers Read and Edit only, at %ipx", async (width) => {
-    setViewport(width);
+  it("offers Read and Edit only, at 1400px", async () => {
+    setViewport(1400);
     mount();
     await isDocument();
     expect(screen.getByTestId("view-mode-edit")).toBeInTheDocument();
     expect(screen.getByTestId("view-mode-preview")).toBeInTheDocument();
     expect(screen.queryByTestId("view-mode-split")).toBeNull();
+  });
+
+  it("SPEC-CORE-094 D6 / I10 (narrow, 400px): one view-mode button instead of the segments", async () => {
+    setViewport(400);
+    mount();
+    await isDocument();
+    expect(screen.queryByTestId("view-mode-edit")).toBeNull();
+    expect(screen.queryByTestId("view-mode-preview")).toBeNull();
+    expect(screen.queryByTestId("view-mode-split")).toBeNull();
+    const pencil = document.querySelector("svg.lucide-pencil");
+    expect(pencil).not.toBeNull();
+    fireEvent.click(pencil!.closest("button")!);
+    expect(document.querySelector("svg.lucide-eye")).not.toBeNull();
   });
 
   it("opens in Read", async () => {

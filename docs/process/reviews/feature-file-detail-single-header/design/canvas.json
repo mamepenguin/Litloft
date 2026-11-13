@@ -1,0 +1,23 @@
+{
+  "v": 3,
+  "createdOnFiles": {"v": 1, "at": "2026-11-12T23:30:00Z"},
+  "title": "File detail single header",
+  "launch": {"view": "canvas"},
+  "pages": [],
+  "boards": {
+    "Current-PC.dc.html": {"x": 0, "y": 300, "w": 1440, "h": 900, "title": "現在 PC — 2段 104px"},
+    "Main.dc.html": {"x": 1520, "y": 300, "w": 1440, "h": 900, "title": "提案 PC — 1段 56px"},
+    "Current-Phone.dc.html": {"x": 0, "y": 1640, "w": 390, "h": 844, "title": "現在 スマホ縦"},
+    "Proposed-Phone.dc.html": {"x": 470, "y": 1640, "w": 390, "h": 844, "title": "提案 スマホ縦"},
+    "Md-Current-Phone.dc.html": {"x": 0, "y": 2904, "w": 390, "h": 844, "title": "現在 Markdown"},
+    "Md-Proposed-Phone.dc.html": {"x": 470, "y": 2904, "w": 390, "h": 844, "title": "提案 Markdown"},
+    "Md-Renaming-Phone.dc.html": {"x": 940, "y": 2904, "w": 390, "h": 844, "title": "提案 Markdown 名前変更中"}
+  },
+  "order": ["Current-PC.dc.html", "Main.dc.html", "Current-Phone.dc.html", "Proposed-Phone.dc.html", "Md-Current-Phone.dc.html", "Md-Proposed-Phone.dc.html", "Md-Renaming-Phone.dc.html"],
+  "notes": {
+    "pc": {"x": 0, "y": 0, "text": "PC / iPad", "kind": "title1", "maxW": 2960},
+    "phone": {"x": 0, "y": 1340, "text": "スマホ", "kind": "title1", "maxW": 860},
+    "md": {"x": 0, "y": 2604, "text": "スマホ — Markdown", "kind": "title1", "maxW": 1330}
+  },
+  "designSystems": []
+}
