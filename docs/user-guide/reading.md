@@ -4,8 +4,9 @@
 archive files. It sits in the sidebar right after **動画** / **Video** and before the rows
 that addons add. It is selected only on its own pages.
 
-The header shows the drive, how many books are under the current target, and a **Target**
-button. Two tabs under it switch the page between **発見** / **Discover** and
+The header shows the drive, how many books are under the current target, and a control
+showing the target's name with a target icon, at the title row's end or under the title on a
+phone. Two tabs under it switch the page between **発見** / **Discover** and
 **ライブラリ** / **Library**. Litloft remembers, per drive, which tab you used last, and it
 opens there.
 
@@ -57,13 +58,14 @@ Below the chips:
 
 **See all** on a tag shelf opens that shelf as a grid, 60 books at a time, under the same
 target, chips, tag and state, and with the sort you had chosen. The shelf page has its own
-sort menu and its own **Target** button; choosing another target keeps the shelf.
+sort menu and its own target control; choosing another target keeps the shelf.
 
 ## Target
 
-**Target** chooses which books the page works on. **すべての本** / **All books** is every
-PDF, EPUB and archive in the drive. A smart folder can replace it, and the choice is
-remembered for the drive. A smart folder's own sort is not used here.
+The target control shows the target's name with a target icon, at the title row's end or
+under the title on a phone. It chooses which books the page works on. **すべての本** /
+**All books** is every PDF, EPUB and archive in the drive. A smart folder can replace it, and
+the choice is remembered for the drive. A smart folder's own sort is not used here.
 
 - The menu lists **All books**, then the smart folders you chose to show, then
   **管理…** / **Manage…**. **Manage…** opens a searchable list of the drive's smart

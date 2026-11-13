@@ -564,13 +564,14 @@ frame. On the collection route, where nothing bleeds them, they stay cards.
 
 ### Page Header
 
-One header for every screen with a subject, in up to three rows:
+One header for every screen with a subject, in up to four rows:
 
 | Row | Holds |
 |---|---|
 | Trail | a small navigation control at the leading edge, and the breadcrumb |
 | Subject | icon, title (`<h1>` at the §3.2 size), scope line, actions |
 | Tabs | the screen's tabs, if any |
+| Actions | an app header's remaining controls on a phone, after the tabs |
 
 - **The subject is named once**: by the breadcrumb's last segment or by a title,
   never both.
@@ -614,6 +615,20 @@ One header for every screen with a subject, in up to three rows:
   first, then the operator chips, then 「＋ 条件」. Under the chips, one results bar
   holds the Files / Passages switch, Scene search, the count, View, Sort and `…`.
   Save as Smart Folder is not a primary action: it lives in `…`.
+- **An app header's Target ends the scope line below 640px.** The title row keeps only
+  the icon tile and the title, so a title that runs long is cut by the viewport rather
+  than by a control beside it; the Target sits at the end of the scope line, beside the
+  count it narrows. The page's other actions — a shelf page's sort menu — take a row of
+  their own, the header's last, after the tabs and right-aligned, so they sit directly
+  above the content they order. At 640px and wider both return to the title row's end,
+  actions and then the Target. A short line gives up the drive name first (the sidebar
+  already names the drive), then part of the Target's name.
+- **A quiet control states a value without competing for the eye.** No fill and no
+  border: a leading icon, the value in muted text at the scope line's size, and a
+  trailing chevron. It takes the elevated surface on hover where the device can hover,
+  and while its menu is open; on a coarse pointer it keeps a 44px touch target. The
+  control's own word is not drawn — the value says what it holds — while its accessible
+  name still states the word and the value.
 
 ### Image query chip
 
