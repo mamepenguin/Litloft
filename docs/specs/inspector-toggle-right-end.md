@@ -2,7 +2,7 @@
 
 SPEC-ID: SPEC-CORE-098
 
-Approval:
+Approval: sha256:6df3c6d711584082adac7bf0761550d2a8790cdcae4a474771ce8e35eeee855a Yuichi Senga 2026-11-13
 
 ## Summary
 
