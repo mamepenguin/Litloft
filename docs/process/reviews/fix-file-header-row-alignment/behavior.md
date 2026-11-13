@@ -15,8 +15,12 @@ Measured at 1280 and 1440 on the canonical route (`header-row-two-pane` fixture)
 ## Correct behaviour
 
 SPEC-CORE-094 D2, revised: a file page's trail starts at whichever is furthest right of
-the content's left edge, the fixed menu and tree buttons' right edge plus 12px, and the
-header's own left end plus 16px (the inset its controls keep at its right end, `pr-4`).
+16px inside the content's box (or the box's own left padding, where that is larger), the
+fixed menu and tree buttons' right edge plus 12px, and the header's own left end plus
+16px (the inset its controls keep at its right end, `pr-4`). The canonical route's right
+pane has no padding, so with the tree open its edge is the tree's border, and with an
+inline sidebar and no tree it is the sidebar's; the collection route's column has 16px
+of padding, so its trail does not move.
 
 The fixed menu and tree buttons are placed at the safe-area top plus 8px, so their
 centre is the 56px header's centre line, on every screen and at every width. The trail,
@@ -24,8 +28,8 @@ the narrow two-line heading and the header's controls share that line.
 
 ## Tests
 
-- `file-header-row-desktop.spec.ts`: the canonical-route edge cases include the 16px
-  term; a new case opens the inline sidebar at 1440 and checks the inset and the
+- `file-header-row-desktop.spec.ts`: the canonical-route edge cases expect the trail
+  16px inside the right pane with the tree open and closed; a new case opens the inline sidebar at 1440 and checks the inset and the
   shared centre line with the sidebar open and closed.
 - `file-header-row.spec.ts`: the menu button is on the header's centre line on a phone,
   and the two-line heading is centred on it.
