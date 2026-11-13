@@ -1,0 +1,23 @@
+# Decisions
+
+decision:
+ran_in_app: yes
+at: ccdb3159d2dc425409511fac32157999be62be06
+by: agent
+evidence: Stack rebuilt from this checkout (`docker compose up -d --build`, intelligence submodule at d104ebb) and used in Chrome at 1440px with NEXT_LOCALE=ja (html lang="ja", dark theme), then in headless Chromium with the Playwright "Pixel 5" profile (393px, lang="ja", light theme). Values are computed styles read in the page. Primary = rgb(245,230,232) dark / rgb(33,25,34) light; muted = rgb(196,160,164) dark / rgb(98,98,91) light. Every value below was the same at 1440px and 393px unless stated.
+  - Passages view (q=MacBook): excerpt 16px/26px primary; locator 12px semibold; file name 12px muted; screen-text kind line 11px muted. Keyword "MacBook" wrapped in `mark.bg-highlight-bg`, only the matched term. Scene-only rows (scene search on) show 映像一致 at 13px/21.1px muted. r5/05-passages-desktop.jpg, r5/p01-passages-phone.png
+  - File description (ccwTmVZpWasI): 16px/26px primary, line-clamp 3 (78px high); もっと見る expanded it to 130px and showed 折りたたむ. Edit field (ファイル操作 > 編集): 16px/24px. r5/p02-file-description-summary-phone.png
+  - Comments (67J5hS5_if8b): body 16px/26px primary; new-comment field 16px/24px; edit-comment field 16px/24px (edit checked at 1440px only, see pending). r5/02-comment-edit-desktop.jpg
+  - Collection "apple" in テスト画像: typed a description through the UI and reloaded; it persisted and renders 16px/26px primary; its edit field 16px/24px. r5/06-collection-description-desktop.jpg, r5/p06-collection-phone.png
+  - Quick Note body field: 16px/24px (1440px).
+  - AI summary, list form (ccwTmVZpWasI): short 16px/500/26px primary, long `ul` 16px/400/26px primary. 編集: short textarea 16px/500/26px primary, long textarea 16px/400/26px primary. Short block 78px high both read-only and editing. r5/01-summary-edit-desktop.jpg, r5/p03-summary-edit-phone.png
+  - AI summary, paragraph form (zLNXuC87r5aH): short 16px/500/26px, long `p` 16px/400/26px, both primary. 編集: textareas 16px/500/26px and 16px/400/26px primary, and each is exactly the height of the element it replaces (78px and 442px at 1440px, 78px and 416px at 393px). r5/p09-summary-paragraph-*.png, r5/p10-summary-paragraph-edit-*.png
+  - AI visual description (keU1V7BojEWU): 16px/26px primary.
+  - Picture text: no file had OCR text, so an image with text was copied into test_images/r5-reading-text/ and the drive rescanned; OCR ran on index. Lines 16px/26px primary; 修正 field 16px/24px at both widths. r5/03-picture-text-edit-desktop.jpg, r5/p05-picture-text-edit-phone.png
+  - Detailed-summary citation (KmNK_zUQ4SPt): inline panel passage 16px/26px primary; prefix and suffix 16px/26px muted; target is a `mark` 16px/500 with highlight background. r5/04-citation-panel-desktop.jpg, r5/p08-citation-panel-phone.png
+  - File Ask tab: question field 16px/24px (rows 3, 98px); asked a question (routed to the local ollama profile) and the echo rendered 16px/500/26px primary. r5/07-ask-tab-echo-desktop.jpg, r5/p07-ask-tab-phone.png
+  - Ask page (/drive/動画/addons/intelligence): question field 16px/24px at both widths.
+  - Unchanged surfaces: transcript row 14px/20px; Files view match snippet 11px; core find-in-file match rows 13px; intelligence Find page excerpts 12px/16px italic, two-line clamp.
+  - Difference from the spec, normal flow step 1: a search by an image could not be run on either drive. The image-query view shows このドライブでは画像で探せません. `askImageAvailability` in frontend/src/lib/imageQuery.ts sends the drive name as-is in `X-Lit-Drive`; for 動画 and テスト画像 the browser's fetch throws "String contains non ISO-8859-1 code point", which is caught and read as unavailable. The same request with the name percent-encoded returns 200 {"available":true}. This branch does not change imageQuery.ts. So the image-query document excerpt was not seen in the app.
+  - Side effects in test data: test_images/r5-reading-text/ocr-sample.png (file VPMaOSgzcvNc) was added for picture text; a second copy test_images/ocr-sample.png (file _4VqNGRiVDve) was uploaded by mistake through the drive upload input. Both are left in place. The "apple" collection description was set during the check and cleared again (NULL, as before).
+pending: The image-query document row excerpt (I1 second half), because of the difference above. The Ask page citation excerpts (I10, 12px): the local LLM had not answered after about fifteen minutes. The I3 case of a passage with no keyword match (no `mark`) was not produced by the queries tried. Comment edit at 393px was not reached because the fresh phone context has no viewer profile, so no comment is is_mine. No agent_cannot_verify part applies.
