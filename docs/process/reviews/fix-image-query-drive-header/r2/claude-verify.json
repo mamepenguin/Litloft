@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2-mcp-encoding-only-guarded-by-scan",
+      "status": "confirmed",
+      "note": "Reproduced by reading the code. mcp-server/src/__tests__/ask.test.ts:30 passes drive 'media' and line 39 expects the header {\"X-Lit-Drive\": \"media\"}. encodeURIComponent('media') is 'media', so this test passes with or without the encoding at mcp-server/src/tools/ask.ts:60. Grepping mcp-server/src for X-Lit-Drive finds no test for clip_url or clip_pasted (write.ts:418, :446). The only clip test, write.test.ts:336-349, checks the LITLOFT_VIEWER guard and makes no request. Sibling tools do have non-ASCII tests: read.test.ts:264-269 and 306-313, searchTools.test.ts:142-147 and 206-211, readDocument.test.ts:125-130. frontend/src/__tests__/driveHeaderEncoding.test.ts:18 adds mcp-server/src to ROOTS, and HEADER_VALUE at line 43 flags any value that does not start with encodeURIComponent(. ci.yml:10-14 sets no path filters on push or pull_request, so the frontend job runs on every change and would catch a plain revert. A behavioral regression that keeps the encodeURIComponent( prefix, for example encodeURIComponent applied to the wrong variable, would pass the scan and every mcp-server test."
+    }
+  ],
+  "specification_compliance": [
+    "SPEC-CORE-046: every X-Lit-Drive sender in mcp-server/src (ask.ts:60, write.ts:418, write.ts:446, read.ts:337, read.ts:372, search.ts:23, video.ts:53) uses encodeURIComponent(drive)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The ask, clip_url and clip_pasted encoding has no behavioral test. Only the regex source scan in the frontend suite guards it, so a mistake that keeps the encodeURIComponent( prefix would not be caught."
+  ],
+  "test_coverage": [
+    "ask.test.ts uses an ASCII drive ('media'), so it cannot tell an encoded header from a raw one.",
+    "No test asserts the request headers of clip_url or clip_pasted.",
+    "driveHeaderEncoding.test.ts statically scans mcp-server/src for X-Lit-Drive values that are not encoded."
+  ],
+  "not_verified": [
+    "I did not run any test suite (no execution tools).",
+    "I did not confirm that the CI frontend job's checkout includes mcp-server/src at runtime; I inferred it because there is no sparse-checkout configuration in the lines I read.",
+    "I did not check whether the addon proxy decodes the header correctly on the server side."
+  ],
+  "confidence": 92
+}

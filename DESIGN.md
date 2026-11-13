@@ -162,8 +162,8 @@ A **warm white canvas** with **coral red** as the single brand accent — flat,
 minimal, photography-forward: generous border-radius, depth without shadows.
 
 **Light**: white canvas, plum black text, coral red accent.
-**Dark**: warm plum dark (`#1a0e10`) with bright coral (`#e85d5e`) — a red-tinted
-plum rather than pure black, so the warm character stays consistent.
+**Dark**: neutral near-black (`#131312`) with bright coral (`#e85d5e`) — the
+same faint warmth as the light greys, coral the only hue.
 
 ---
 
@@ -212,23 +212,23 @@ for an error surface in markup use `bg-danger/15`.
 
 | Token | Value | Notes |
 |---|---|---|
-| `--bg-primary` | `#1a0e10` | Warm plum dark |
-| `--bg-card` | `#231216` | Slightly lighter plum |
-| `--bg-elevated` | `#2f191b` | Elevated surface |
-| `--bg-sidebar` | `#1a0e10` | Same as bg-primary |
+| `--bg-primary` | `#131312` | Neutral near-black |
+| `--bg-card` | `#1c1c1b` | Slightly lighter neutral |
+| `--bg-elevated` | `#272725` | Elevated surface |
+| `--bg-sidebar` | `#131312` | Same as bg-primary |
 | `--bg-border` | `rgba(255,255,255,0.08)` | White translucent border |
-| `--text-primary` | `#f5e6e8` | Warm light text |
-| `--text-muted` | `#c4a0a4` | Pinkish muted text |
+| `--text-primary` | `#eeeeea` | Warm off-white text |
+| `--text-muted` | `#a5a59f` | Muted warm grey text |
 | `--accent` | `#e85d5e` | Bright coral |
 | `--accent-hover` | `#f07070` | Lighter coral |
 | `--accent-teal` | `#4caf80` | Bright green |
 | `--accent-amber` | `#f4c674` | Warm honey |
 | `--player-indicator` | `#ffffff` | White rather than coral: the indicator is read against the picture |
-| `--sand` | `#3d2023` | Dark sand |
-| `--sand-hover` | `#4a2a2e` | Dark sand hover |
-| `--warm-light` | `#3d2023` | Same as sand |
-| `--warm-silver` | `#7a6668` | Muted pink-silver |
-| `--dark-surface` | `#0d0608` | Deepest surface |
+| `--sand` | `#2f2f2c` | Dark neutral |
+| `--sand-hover` | `#3a3a37` | Dark neutral hover |
+| `--warm-light` | `#2f2f2c` | Same as sand |
+| `--warm-silver` | `#8a8a84` | Muted warm grey-silver |
+| `--dark-surface` | `#0b0b0a` | Deepest surface |
 | `--focus-ring` | `#617bff` | Bright blue |
 | `--danger` | `#ff8a8a` | Bright coral error |
 | `--danger-bg` | `rgba(255,45,66,0.12)` | Error background |
@@ -1410,7 +1410,7 @@ number. A pane that scrolls itself sticks to its own top instead.
 - Separate line-height rules for headings, body, and forms (jp-ui-contracts)
 - Avoid `tracking-wider` on any element that may render Japanese text
 - Use the `break-anywhere` utility for long words and URLs — not `break-all`
-- Use plum black (`#211922` / `#f5e6e8`) for primary text
+- Use plum black (`#211922`) in light mode and warm off-white (`#eeeeea`) in dark mode for primary text
 - Apply 12px radius uniformly to long-form content blocks (`blockquote`, `pre`, `img`, fenced code)
 - Let tables carry structure via `border-bottom` + `font-weight` only — no zebra, no fills
 - Measure layout against the container a component actually has
@@ -1423,7 +1423,7 @@ number. A pane that scrolls itself sticks to its own top instead.
 - Do not handroll arbitrary `shadow-[0_*]` values, or stack `shadow-2xl` with `ring-*` — use the `shadow-card` (Level 1) or `shadow-lg` (Level 3) tokens. The one exception is not depth: a zero-blur shadow in the ground's own colour that extends a sticky strip's background a pixel upward (the inspector tab strip), because some engines round a stuck strip down and show a row of the content beneath
 - Do not use border-radius below 12px on outer surfaces
 - Do not use cool grays — always warm/olive-toned
-- Do not use pure black in dark mode — use warm plum dark (`#1a0e10`)
+- Do not use pure black in dark mode — use neutral near-black (`#131312`)
 - Do not re-introduce the UA default yellow on `<mark>`
 - Do not add zebra stripes or cell grid borders to reading-surface tables
 - Do not hard-code `max-width` on prose callers — the reading measure lives in one place

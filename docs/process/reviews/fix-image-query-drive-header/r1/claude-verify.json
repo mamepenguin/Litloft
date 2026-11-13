@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1-scan-scope-mcp",
+      "status": "confirmed",
+      "note": "Reproduced by reading the code. frontend/src/__tests__/driveHeaderEncoding.test.ts:16-24 builds ROOTS only from frontend/src and addons/<name>/frontend, but the describe title at :60 says 'every X-Lit-Drive sender'. mcp-server/src is not scanned. Three raw senders there would pass the scan: mcp-server/src/tools/ask.ts:60 (`headers: { \"X-Lit-Drive\": drive }` to requestSse), mcp-server/src/tools/write.ts:418 (POST /api/addons/knowledge/clips) and write.ts:446 (POST .../clips/pasted). mcp-server/src/client.ts:158-161 (request) and :249-253 (requestSse) spread options.headers into the fetch headers without changing them, so a non-Latin-1 drive name such as 動画 makes fetch throw before the request is sent. Even an encodable name that contains '%' is decoded wrongly by the receivers: addons/intelligence/app/drive_context.py:30 and addons/knowledge/app/routers/clips.py:103 both call unquote(). Sibling MCP senders already encode: search.ts:23, video.ts:53, read.ts:337 and :372. Their tests (readDocument.test.ts:125-130, searchTools.test.ts:142-147, read.test.ts:264-269) assert the encoding, so the three raw senders break the repository's own convention. The raw senders predate this commit. What this commit adds is the scan, which claims to cover every sender but leaves these three out."
+    }
+  ],
+  "specification_compliance": [
+    "SPEC-CORE-046 as worded in the test ('every X-Lit-Drive sender percent-encodes the drive name') is enforced only for frontend/src and addons/*/frontend. The MCP server senders at ask.ts:60 and write.ts:418,446 do not comply."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The scan regex /[\"']X-Lit-Drive[\"']\\s*:\\s*([^,}\\n]+)/ only matches object-literal syntax. Senders that use headers.set('X-Lit-Drive', ...) or new Headers([...]) would not be detected even inside the scanned roots."
+  ],
+  "regression_risks": [
+    "The MCP tools ask, clip_url and clip_pasted fail with a fetch TypeError when the drive name contains non-Latin-1 characters. The new guard test does not catch this."
+  ],
+  "test_coverage": [
+    "mcp-server/src/__tests__/ask.test.ts:39 asserts the raw header value 'media' and has no encoding case, so it would not catch a non-ASCII drive.",
+    "No MCP test covers encoding for clip_url or clip_pasted."
+  ],
+  "not_verified": [
+    "I did not run the test suite or execute fetch with a non-Latin-1 header. The throw comes from the WHATWG Headers ByteString rule and from the repository's own test comments, not from a run.",
+    "I did not check whether the core backend proxy changes X-Lit-Drive before forwarding it to the addons.",
+    "I did not audit other non-frontend TypeScript or Python senders outside mcp-server (scripts, browser extensions) for raw X-Lit-Drive values."
+  ],
+  "confidence": 88
+}

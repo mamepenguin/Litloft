@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "I1: frontend/src/app/globals.css:69-102 declares exactly the 31 listed custom properties with the listed values plus color-scheme: dark; nothing else is declared.",
+    "I2: the 11 changed values (#131312, #1c1c1b, #272725, #eeeeea, #a5a59f, #2f2f2c, #3a3a37, #8a8a84, #0b0b0a) all have R equal to G, and B is 1 to 6 below R. Checked by hand.",
+    "I3: globals.css:29-67 matches the spec's light block declaration for declaration (comments aside).",
+    "I4: the luminance order #0b0b0a < #131312 < #1c1c1b < #272725 < #2f2f2c < #3a3a37 is strictly increasing. These are greys of almost equal channels, so the WCAG luminance order follows the channel order.",
+    "I5: the weakest pairs, computed by hand: --text-muted on --sand is about 5.4:1, and --warm-silver on --bg-card is about 4.9:1. Both are at least 4.5:1, which agrees with the spec's figures.",
+    "I6: frontend/src/app/layout.tsx:48 gives the dark theme-color as #131312, and frontend/public/manifest.json:6-7 gives background_color and theme_color as #131312. Both equal the dark --bg-primary.",
+    "I7: a case-insensitive Grep for the 11 old values plus #1a0e08 and #2d1810 finds none in frontend/src outside __tests__, none in frontend/public and none in ios/Litloft. The remaining hits are in test fixtures, e2e-epub, ios/LitloftTests and docs, all outside I7's scope and listed in the spec's 'Checked, no action'.",
+    "I8: the DESIGN.md:211-237 dark table lists, for each token it names, the same value as the dark block. DESIGN.md:165-166 (§1), :1398 (§9 Do) and :1411 (§9 Don't) carry the new values.",
+    "frontend/src/__tests__/dark-theme-neutral.test.ts cites SPEC-CORE-097 and covers I1 to I7. I2, I4 and I5 are computed from values parsed out of globals.css, as the touch points require."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "design-check.md reports four visible differences from the agreed artboard: D-1, file tiles paint no card fill; D-2, the search field is not #2f2f2c at 1280; D-3, there is no coral active chip; D-4, the selected-card outline is not shown in R-5. These look like existing layout and component behaviour, not caused by the token change. Whether they are accepted is recorded in decisions.md, which I did not read in full."
+  ],
+  "regression_risks": [
+    "An addon frontend in a separate repository that hard-codes an old dark colour is not scanned by I7. The spec says this was searched by hand.",
+    "An old colour written in a form other than hex (rgb(), or Swift float components) in production code would escape I7. Grep found such forms only in test fixtures and tests."
+  ],
+  "test_coverage": [
+    "dark-theme-neutral.test.ts checks I1 to I7, reading globals.css, layout.tsx and manifest.json and walking frontend/src, frontend/public and ios/Litloft. It skips __tests__ directories and the frontend/src/addons links.",
+    "I8 and I9 have no automated test, by design: I8 is review-only and I9 is checked in R-5."
+  ],
+  "not_verified": [
+    "Did not run the test suite or the build: no shell access.",
+    "Did not inspect the R-5 screenshots, and did not confirm at run time that the EPUB book surface paints #131312 (I9).",
+    "Did not read decisions.md in full to confirm that the owner accepted design-check findings D-1 to D-4.",
+    "Did not check addon repositories outside this worktree."
+  ],
+  "confidence": 88
+}
