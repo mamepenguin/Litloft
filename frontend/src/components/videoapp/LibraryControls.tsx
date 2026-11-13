@@ -49,10 +49,12 @@ export function SortChoiceMenu<Id extends string>({
   choices = SORT_CHOICES,
   value,
   onChange,
+  quiet = false,
 }: {
   choices?: readonly { id: string; labelKey: string }[];
   value: Id;
   onChange: (value: Id) => void;
+  quiet?: boolean;
 }) {
   const t = useTranslations("videoApp");
   const options = choices.map((choice) => ({ value: choice.id as Id, label: t(choice.labelKey) }));
@@ -63,6 +65,7 @@ export function SortChoiceMenu<Id extends string>({
       value={t(current.labelKey)}
       icon={ArrowDownUp}
       truncateValue
+      quiet={quiet}
       className="min-w-0"
       align="end"
     >

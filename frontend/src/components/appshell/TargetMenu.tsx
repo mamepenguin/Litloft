@@ -155,7 +155,7 @@ export function TargetMenu({
 
   return (
     <>
-      <ToolbarMenu label={label} value={name ?? "…"} icon={Target} showLabel filled align="end">
+      <ToolbarMenu label={label} value={name ?? "…"} icon={Target} quiet align="end">
         {(close) => (
           <Rows
             drive={drive}

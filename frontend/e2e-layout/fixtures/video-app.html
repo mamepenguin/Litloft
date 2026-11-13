@@ -18,12 +18,20 @@
       {
         "frame": "flex w-full min-w-0 flex-1 flex-col pt-5 mx-auto max-w-wide",
         "header": "flex flex-col gap-1 px-4 py-2",
-        "subject": "flex min-w-0 items-start gap-3",
+        "subjectGrid": "grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 sm:grid-cols-[auto_minmax(0,1fr)_auto_auto]",
+        "tileCell": "col-start-1 row-start-1 row-span-2 flex items-start gap-2",
         "tile": "flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-bg-elevated text-text-primary",
-        "title": "text-2xl font-bold text-text-primary truncate",
-        "scope": "mt-1 text-sm text-text-muted",
-        "actions": "flex flex-shrink-0 flex-wrap items-center gap-2",
+        "title": "col-start-2 col-span-2 row-start-1 min-w-0 truncate text-2xl font-bold text-text-primary sm:col-span-1",
+        "scopeCell": "col-start-2 col-span-2 row-start-2 flex min-w-0 items-center gap-2 sm:contents",
+        "scope": "min-w-0 flex-1 text-sm text-text-muted sm:col-start-2 row-start-2",
+        "scopeInner": "flex min-w-0 items-center gap-1",
+        "scopeDrive": "min-w-0 truncate",
+        "scopeDetail": "flex-shrink-0 whitespace-nowrap",
+        "targetCell": "max-w-[40%] flex-shrink-0 sm:col-start-4 row-start-1 sm:max-w-none",
+        "tabCell": "col-span-3 row-start-3 min-w-0 sm:col-span-4",
         "menuButton": "flex max-w-full items-center gap-1.5 rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11",
+        "quietMenuButton": "flex max-w-full min-w-0 items-center gap-1 rounded-xl px-2 py-1 text-sm text-text-muted hover:bg-bg-elevated pointer-coarse:min-h-11",
+        "quietMenuValue": "min-w-0 truncate",
         "menuValue": "max-w-[12rem] truncate text-text-primary",
         "tabs": "flex flex-wrap gap-1 border-b border-bg-border pointer-coarse:flex-nowrap pointer-coarse:overflow-x-auto",
         "tab": "-mb-px inline-flex items-center gap-1.5 rounded-t-xl border-b-2 px-4 py-2 text-sm transition-colors pointer-coarse:min-h-11",
@@ -77,6 +85,24 @@
         return wrapper;
       };
 
+      const quietMenuButton = (label, value, name) => {
+        const button = el("button", SPEC.quietMenuButton, undefined, {
+          "data-menu": name,
+          type: "button",
+          "aria-label": `${label}: ${value}`,
+          "aria-haspopup": "menu",
+          "aria-expanded": "false",
+        });
+        button.append(
+          el("span", "flex-shrink-0", "\u25ce"),
+          el("span", SPEC.quietMenuValue, value),
+          el("span", "flex-shrink-0", "\u25be"),
+        );
+        const wrapper = el("div", SPEC.menuWrapper);
+        wrapper.append(button);
+        return wrapper;
+      };
+
       const card = (index) => {
         const slot = el("li", SPEC.slot, undefined, { "data-card": String(index) });
         const link = el("a", SPEC.card, undefined, { href: "#" });
@@ -117,23 +143,35 @@
         const frame = el("div", SPEC.frame, undefined, { "data-frame": "" });
 
         const header = el("header", SPEC.header, undefined, { "data-header": "" });
-        const subject = el("div", SPEC.subject);
-        subject.append(el("div", SPEC.tile, "V", { "data-tile": "" }));
-        const text = el("div", "min-w-0 flex-1");
-        text.append(
-          el("h1", SPEC.title, "Video"),
-          el("div", SPEC.scope, "A drive with a rather long name · 1,234 videos"),
+        const grid = el("div", SPEC.subjectGrid);
+
+        const tileCell = el("div", SPEC.tileCell);
+        tileCell.append(el("div", SPEC.tile, "V", { "data-tile": "" }));
+
+        const scopeCell = el("div", SPEC.scopeCell);
+        const scope = el("div", SPEC.scope);
+        const scopeInner = el("span", SPEC.scopeInner);
+        scopeInner.append(
+          el("span", SPEC.scopeDrive, "A drive with a rather long name"),
+          el("span", SPEC.scopeDetail, "· 1,234 videos"),
         );
-        const actions = el("div", SPEC.actions);
-        actions.append(menuButton("Target", "A smart folder with a very long name indeed", "target"));
-        subject.append(text, actions);
+        scope.append(scopeInner);
+        const targetCell = el("div", SPEC.targetCell);
+        targetCell.append(
+          quietMenuButton("Target", "A smart folder with a very long name indeed", "target"),
+        );
+        scopeCell.append(scope, targetCell);
 
         const tabs = el("nav", SPEC.tabs, undefined, { "data-tabs": "" });
         tabs.append(
           el("button", `${SPEC.tab} ${face === "discover" ? SPEC.tabSelected : SPEC.tabIdle}`, "Discover", { type: "button" }),
           el("button", `${SPEC.tab} ${face === "library" ? SPEC.tabSelected : SPEC.tabIdle}`, "Library", { type: "button" }),
         );
-        header.append(subject, tabs);
+        const tabCell = el("div", SPEC.tabCell);
+        tabCell.append(tabs);
+
+        grid.append(tileCell, el("h1", SPEC.title, "Video"), scopeCell, tabCell);
+        header.append(grid);
 
         const panel = el("div", SPEC.panel);
         if (face === "discover") {

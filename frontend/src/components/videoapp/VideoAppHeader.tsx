@@ -27,7 +27,7 @@ export function VideoAppHeader({
   state: VideoAppState;
   title?: string;
   breadcrumb?: ReactNode;
-  /** Beside the Target button. */
+  /** Below the tabs on a phone, beside the Target at `sm` and wider. */
   actions?: ReactNode;
   tabs?: ReactNode;
 }) {

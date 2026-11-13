@@ -203,6 +203,7 @@ export function ReadingShelfPage({
             <ReadingSortMenu
               choices={offered}
               value={sortId}
+              quiet
               onChange={(id) => setSelection({ scope, id })}
             />
           }

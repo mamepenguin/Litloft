@@ -23,6 +23,12 @@ export interface PageHeaderProps {
   titleField?: ReactNode;
   scope?: ReactNode;
   actions?: ReactNode;
+  /**
+   * A control that ends the scope line below `sm`, and joins the title row at
+   * `sm` and wider. With it, `actions` become a row of their own after the
+   * tabs below `sm`.
+   */
+  scopeEnd?: ReactNode;
   tabs?: ReactNode;
 }
 
@@ -38,6 +44,7 @@ export function PageHeader({
   titleField,
   scope,
   actions,
+  scopeEnd,
   tabs,
 }: PageHeaderProps) {
   const hasTitle = given(title);
@@ -55,11 +62,24 @@ export function PageHeader({
     actionsOnTrail ||
     (given(leading) && !hasTitle);
 
+  const withScopeEnd = hasTitle && !hasTitleField && given(scopeEnd);
+
+  const rows = {
+    title: "row-start-1",
+    scope: "row-start-2",
+    tabs: "row-start-3",
+    actions: "row-start-4 sm:row-start-1",
+  };
+
   const heading = hasTitle ? (
     <h1
-      className={`text-2xl font-bold text-text-primary ${
-        hasTitleField ? "sr-only" : "truncate"
-      }`}
+      className={
+        withScopeEnd
+          ? `col-start-2 col-span-2 ${rows.title} min-w-0 truncate text-2xl font-bold text-text-primary sm:col-span-1`
+          : `text-2xl font-bold text-text-primary ${
+              hasTitleField ? "sr-only" : "truncate"
+            }`
+      }
     >
       {title}
     </h1>
@@ -78,6 +98,48 @@ export function PageHeader({
           )}
           {actionsOnTrail && (
             <div className="ml-auto flex max-w-full flex-shrink-0 flex-wrap items-center gap-2 sm:max-w-none sm:flex-nowrap">
+              {actions}
+            </div>
+          )}
+        </div>
+      )}
+
+      {withScopeEnd && (
+        <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 sm:grid-cols-[auto_minmax(0,1fr)_auto_auto]">
+          <div className={`col-start-1 ${rows.title} row-span-2 flex items-start gap-2`}>
+            {!hasTrailRow && leading}
+            {TitleIcon && (
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-bg-elevated text-text-primary">
+                <TitleIcon size={20} aria-hidden="true" />
+              </div>
+            )}
+          </div>
+          {heading}
+          <div
+            className={`col-start-2 col-span-2 ${rows.scope} flex min-w-0 items-center gap-2 sm:contents`}
+          >
+            {given(scope) && (
+              <div className={`min-w-0 flex-1 text-sm text-text-muted sm:col-start-2 ${rows.scope}`}>
+                {scope}
+              </div>
+            )}
+            {given(scopeEnd) && (
+              // Two fifths below `sm`, so the scope's count keeps its width and
+              // the Target's own name is what shortens.
+              <div
+                className={`max-w-[40%] flex-shrink-0 sm:col-start-4 ${rows.title} sm:max-w-none`}
+              >
+                {scopeEnd}
+              </div>
+            )}
+          </div>
+          {given(tabs) && (
+            <div className={`col-span-3 ${rows.tabs} min-w-0 sm:col-span-4`}>{tabs}</div>
+          )}
+          {given(actions) && (
+            <div
+              className={`col-span-3 ${rows.actions} flex min-w-0 justify-end gap-2 sm:col-span-1 sm:col-start-3`}
+            >
               {actions}
             </div>
           )}
@@ -111,7 +173,7 @@ export function PageHeader({
         </div>
       )}
 
-      {hasTitle && !hasTitleField && (
+      {hasTitle && !hasTitleField && !withScopeEnd && (
         <div className="flex min-w-0 flex-wrap items-start gap-3 sm:flex-nowrap">
           {!hasTrailRow && leading}
           {TitleIcon && (
@@ -133,7 +195,7 @@ export function PageHeader({
         </div>
       )}
 
-      {tabs}
+      {!withScopeEnd && tabs}
     </header>
   );
 }

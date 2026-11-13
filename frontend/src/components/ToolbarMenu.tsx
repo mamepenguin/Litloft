@@ -138,6 +138,11 @@ interface ToolbarMenuProps {
   showLabel?: boolean;
   /** Filled label-value form: no leading icon, muted label, value, trailing chevron. */
   filled?: boolean;
+  /**
+   * Icon, value and chevron on the bare surface, for a control that sits
+   * beside the text it narrows rather than standing on its own.
+   */
+  quiet?: boolean;
   /** Lets a long value shorten with an ellipsis where the bar is tight. */
   truncateValue?: boolean;
   children: (close: () => void) => ReactNode;
@@ -157,6 +162,7 @@ export function ToolbarMenu({
   portalOnPhone = false,
   showLabel = false,
   filled = false,
+  quiet = false,
   truncateValue = false,
   children,
 }: ToolbarMenuProps) {
@@ -204,12 +210,20 @@ export function ToolbarMenu({
         // 12px between neighbours — and two of them would overlap, the later
         // one winning the hit test.
         className={
-          filled
-            ? "flex max-w-full items-center gap-1.5 rounded-2xl bg-sand px-4 py-2 text-sm text-text-muted transition-colors hover:bg-sand-hover pointer-coarse:min-h-11"
-            : `flex items-center gap-1.5 rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11${showLabel || truncateValue ? " max-w-full" : ""}`
+          quiet
+            ? `flex max-w-full min-w-0 items-center gap-1 rounded-xl px-2 py-1 text-sm text-text-muted hover:bg-bg-elevated pointer-coarse:min-h-11${open ? " bg-bg-elevated" : ""}`
+            : filled
+              ? "flex max-w-full items-center gap-1.5 rounded-2xl bg-sand px-4 py-2 text-sm text-text-muted transition-colors hover:bg-sand-hover pointer-coarse:min-h-11"
+              : `flex items-center gap-1.5 rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11${showLabel || truncateValue ? " max-w-full" : ""}`
         }
       >
-        {filled ? (
+        {quiet ? (
+          <>
+            <Icon size={14} />
+            <span className="min-w-0 truncate">{value}</span>
+            <ChevronDown size={14} className="flex-shrink-0" aria-hidden="true" />
+          </>
+        ) : filled ? (
           <>
             <span className="text-text-muted">{label}</span>
             <span className="min-w-0 truncate text-text-primary">{value}</span>
