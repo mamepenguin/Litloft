@@ -108,3 +108,14 @@ pending: Audio and video as heard and seen (sync, subtitle timing, picture quali
   this playback; playback over the real home LAN and on other household devices; the iOS
   app on a real device (`docs/process/PROJECT.md`, `agent_cannot_verify`). The 768px
   "find shown" variant of I8 was not reachable (Meta+F does nothing on a video page).
+
+## Design differences accepted by the human (design-check.md)
+
+Accepted by Yuichi Senga on 2026-11-13, each by its id. The artboards simplified the parts this change does not touch; the right-end unit (order, dividers, 16/12/12 spacing, icons) matches them.
+
+- D-1 accepted: a video has no file-kind controls in the header; the artboard drew two placeholders.
+- D-2 accepted: the inspector stacks below 968px; the artboard drew the stacked state at 1000px.
+- D-3 accepted: the inspector's contents are today's; the artboard drew a simplified pane.
+- D-4 accepted: both dividers use `bg-bg-border`, as the spec states and as the existing divider does.
+- D-5 accepted: the avatar keeps the header group's 4px gap.
+- D-6 accepted: the tree button lives in the app bar outside `<header>`, at the same place on screen.
