@@ -81,15 +81,18 @@ export function Header() {
     }
     const measure = () => {
       const frame = row.getBoundingClientRect();
+      // At least 16px inside the content's box, as the header's controls
+      // keep from its right end (`pr-4`): the canonical route's right pane
+      // has no padding, so its edge is the tree's or the sidebar's border.
       const content = align
         ? align.getBoundingClientRect().left +
-          (Number.parseFloat(getComputedStyle(align).paddingLeft) || 0)
+          Math.max(16, Number.parseFloat(getComputedStyle(align).paddingLeft) || 0)
         : 0;
       const wanted = Math.max(
         chromeButtons ? chromeButtons.getBoundingClientRect().right + 12 : 0,
         content,
       );
-      setRowInset(Math.max(0, wanted - frame.left));
+      setRowInset(Math.max(16, wanted - frame.left));
     };
     measure();
     window.addEventListener("resize", measure);

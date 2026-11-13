@@ -575,10 +575,16 @@ One header for every screen with a subject, in up to three rows:
   change nothing.
 - **The header is as wide as the content under it** (§3.8), and starts at the
   content's left edge.
-- **A file page's trail starts at whichever is further right**: the content's left
-  edge — the right pane's on the canonical route, the centred column's on the
-  collection route — or the fixed menu and tree buttons' right edge plus 12px. The
-  buttons overlap the header's left end, so a trail under them would be unreadable.
+- **A file page's trail starts at whichever is further right**: 16px inside the
+  content's box (or its own padding, where that is larger) — the right pane on the
+  canonical route, the centred column on the collection route — the fixed menu and
+  tree buttons' right edge plus 12px, or the header's own left end plus 16px. The
+  buttons overlap the header's left end, so a trail under them would be unreadable;
+  the right pane has no padding, so its edge is the tree's or an inline sidebar's
+  border, and the trail keeps the 16px from it that the header's controls keep from
+  its right end.
+- **The fixed menu and tree buttons sit on the header's centre line**, as do the
+  header's controls and a file page's trail, so the row reads as one line.
   While the tree pane animates its width the trail may arrive at the new edge when
   the animation ends.
 - **The icon and title are the sidebar row's.** The icon sits in a tile beside the

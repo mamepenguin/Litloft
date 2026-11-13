@@ -62,6 +62,21 @@ test("SPEC-CORE-094 D1 / I1 (narrow): the file page's row is the app header's ro
   await expect(page.locator('header a[href="/drive/fixture/Videos/Clips"]:visible')).toHaveCount(1);
 });
 
+test("SPEC-CORE-094 D1 / D5 (narrow): the menu button sits on the header's centre line, and the two-line heading around it", async ({
+  page,
+}) => {
+  await open(page, "header-row-video");
+  await expect(fileName(page, "holiday.webm")).toHaveCount(1);
+  const centre = (b: Box) => (b.top + b.bottom) / 2;
+  const header = await box(page.locator("header"));
+  const menu = await box(page.getByTestId("chrome-buttons").getByRole("button").first());
+  const name = await box(fileName(page, "holiday.webm"));
+  const parent = await box(page.locator('header a[href="/drive/fixture/Videos/Clips"]:visible'));
+  const heading = (Math.min(parent.top, name.top) + Math.max(parent.bottom, name.bottom)) / 2;
+  expect(Math.abs(centre(menu) - centre(header))).toBeLessThanOrEqual(0.5);
+  expect(Math.abs(heading - centre(menu))).toBeLessThanOrEqual(2);
+});
+
 test("SPEC-CORE-094 D4 / I3 (narrow): no quick note, no avatar, no tree button and no inspector toggle; search stays", async ({
   page,
 }) => {

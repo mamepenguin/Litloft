@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "R1-unlisted-sidebar-spacer",
+      "origin": "reviewer",
+      "claim": "Moving the fixed buttons from top 12px to top 8px reaches the sidebar's `sidebar-button-row` spacer, which reserves space for those buttons at their old position and is not in the spec's touch-point list.",
+      "impact": "Cosmetic only. When the sidebar is open (inline or as an overlay), the empty spacer that marks where the menu and tree buttons sit now covers y=12..52, but the buttons sit at y=8..48. Nothing overlaps: the first sidebar row still starts at y=60, below the buttons. The spacer simply no longer matches the buttons it reserves room for, and no test ties the two together.",
+      "evidence": "frontend/src/components/sidebar/SidebarLibrarySection.tsx:49-51: the comment says 'Where the fixed menu and tree buttons sit', and the spacer is `mb-2 h-10` inside the `<nav className=\"... p-3\">` at frontend/src/components/Sidebar.tsx:157, so it covers y=12..52, which was the old `top: 12px` with 40px buttons. frontend/src/components/ChromeButtons.tsx:58 now uses `+ 8px`. The touch-point list (docs/specs/file-detail-single-header.md:257-305) names neither Sidebar.tsx nor SidebarLibrarySection.tsx. Only SidebarLibrarySection.test.tsx:25-26 checks the spacer, and it checks only the class names `h-10` and `shrink-0`.",
+      "repro": "not_reproduced. Derived by reading the code: nav padding 12px + h-10 gives a spacer at 12..52; ChromeButtons top 8px + h-10 buttons gives 8..48.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is declared. This is a place the change reaches but did not plan for, and the result is a small visual mismatch rather than a wrong result.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Either give the spacer the buttons' geometry (for example, start it 4px higher), or list the sidebar spacer as a deliberately unchanged touch point."
+    },
+    {
+      "id": "R1-stale-spec-D2",
+      "origin": "reviewer",
+      "claim": "The spec's D2 still says the trail starts at the content box's left edge, and invariant I2 checks against 'the edge D2 defines', but the code now adds a minimum 16px inset and a header-left-plus-16 term.",
+      "impact": "Someone checking I2 against the spec as written would see Header.tsx:89/95 (`Math.max(16, …)`) as a violation and could revert the fix, which would put the home crumb flush against the sidebar's border again (the defect behavior.md reports). The spec's §7 line saying 'screens other than file pages see no change' is also no longer true: the buttons moved 4px on every AppShell screen.",
+      "evidence": "docs/specs/file-detail-single-header.md:47-53 (D2 unchanged: 'or the left edge of the box that holds the file's content'), :184-185 (§7), :314-316 (I2 refers to D2). Header.tsx:89 `Math.max(16, paddingLeft)` and :95 `Math.max(16, wanted - frame.left)`. The revision exists only in docs/process/reviews/fix-file-header-row-alignment/behavior.md:17-27 and DESIGN.md.",
+      "repro": "not_reproduced. Found by reading the spec next to Header.tsx.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is prose that disagrees with the code, and it could lead a reader to make a wrong code change. It breaks no declared invariant.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Delete the left-edge wording in D2 and the 'no change on other screens' sentence in §7, or point both at behavior.md's revised D2."
+    },
+    {
+      "id": "R1-weak-unit-assertion",
+      "origin": "reviewer",
+      "claim": "MenuButton.test.tsx only checks that the `top` string contains '8px', so values like 18px, 28px or 48px would also pass.",
+      "impact": "No user can hit this through that test, because the e2e centre-line checks (file-header-row.spec.ts:65-78, file-header-row-desktop.spec.ts:243-266, 0.5px tolerance) would catch a wrong offset. The unit test on its own gives little protection.",
+      "evidence": "frontend/src/components/__tests__/MenuButton.test.tsx:98 `expect(row.style.top).toContain(\"8px\")`.",
+      "repro": "Mutation: change ChromeButtons.tsx:58 from '+ 8px' to '+ 18px'. Expected: MenuButton.test.tsx still passes; the e2e centre-line tests fail. Not run.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a test-strength issue, not wrong behavior.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Match a word boundary, for example `/(^|[^\\d])8px/`."
+    }
+  ],
+  "specification_compliance": [
+    "No invariants file exists for this change. I used the spec's `## Touch points` (docs/specs/file-detail-single-header.md:257-305) as the touch-point list.",
+    "Every file in the diff is on that list: Header.tsx, ChromeButtons.tsx, the e2e-components specs, the e2e-layout fixture (pseudo-fullscreen.html), unit tests under components/__tests__, and DESIGN.md §Page Header.",
+    "The places the change reaches that are not on the list are the sidebar's `sidebar-button-row` spacer, which reserves room at the buttons' old 12px position, and every non-file AppShell screen, where the fixed buttons now sit 4px higher. behavior.md declares the move as applying to 'every screen'."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "On every AppShell screen (folder, home, settings, admin) the fixed menu and tree buttons now sit at top 8px instead of 12px. The spec's §7 says screens other than file pages see no change; behavior.md says the move applies to every screen.",
+    "The sidebar spacer (12..52) and the buttons (8..48) no longer line up while the sidebar is open."
+  ],
+  "regression_risks": [
+    "If env(safe-area-inset-top) is non-zero (iOS PWA), the buttons are at inset + 8 and the header has inset padding plus a 56px minimum height, so the centre line should hold. This was not measured on a device.",
+    "If the header ever grows taller than 56px, the buttons (fixed at top 8) would no longer be on its centre line."
+  ],
+  "test_coverage": [
+    "file-header-row-desktop.spec.ts computes the expected trail inset with the same three-term max as Header.tsx, so it shares any design mistake in that formula. It does catch an implementation that departs from the formula.",
+    "The new inline-sidebar test checks the trail inset with >= 16 rather than equality. A larger-than-intended inset would pass it, although the parametrised 1280/900 tests check equality.",
+    "No test checks the sidebar's button-row spacer against the buttons' position.",
+    "MenuButton.test.tsx's '8px' substring check is weak; the e2e centre-line tests cover the offset."
+  ],
+  "not_verified": [
+    "I did not run any test or the app. All geometry here comes from reading the code and from the numbers recorded in decisions.md.",
+    "A non-zero safe-area-inset-top (notched iOS PWA).",
+    "Whether other routes outside AppShell render ChromeButtons. I checked only AppShell.tsx and the fixtures.",
+    "Whether the pseudo-fullscreen spec's underMenuButton probe follows the button's rect or a fixed point."
+  ],
+  "confidence": 78
+}
