@@ -35,6 +35,7 @@ export const DESKTOP_ONLY = [
   "**/stacked-description-desktop.spec.ts",
   "**/file-header-row-desktop.spec.ts",
   "**/reading-text-size-desktop.spec.ts",
+  "**/app-header-desktop.spec.ts",
 ];
 
 /** Literals rather than a device preset, which can change under it. */

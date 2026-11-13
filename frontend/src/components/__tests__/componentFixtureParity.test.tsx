@@ -322,6 +322,7 @@ describe("the component fixture's page", () => {
       "discover-prefix",
       "video-card-byline",
       "video-card-spacing",
+      "app-header",
       "persistent-highlights",
       "inspector-video",
       "inspector-pdf",

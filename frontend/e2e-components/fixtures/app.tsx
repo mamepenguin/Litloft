@@ -96,6 +96,7 @@ import { HomeAppEntriesArrangement } from "./homeAppEntries";
 import { DiscoverPrefixArrangement } from "./discoverPrefix";
 import { VideoCardBylineArrangement } from "./videoCardByline";
 import { VideoCardSpacingArrangement } from "./videoCardSpacing";
+import { AppHeaderArrangement } from "./appHeader";
 import { PersistentHighlightsArrangement } from "./persistentHighlights";
 import { ScenesSectionArrangement } from "./scenesSection";
 import { ClipsPageArrangement } from "./clipsPage";
@@ -2495,6 +2496,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "discover-prefix": DiscoverPrefixArrangement,
   "video-card-byline": VideoCardBylineArrangement,
   "video-card-spacing": VideoCardSpacingArrangement,
+  "app-header": AppHeaderArrangement,
   "persistent-highlights": PersistentHighlightsArrangement,
   "scenes-351": () => <ScenesSectionArrangement hostWidth={351} />,
   "scenes-384": () => <ScenesSectionArrangement hostWidth={384} />,
