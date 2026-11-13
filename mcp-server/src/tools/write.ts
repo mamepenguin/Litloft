@@ -415,7 +415,7 @@ const clipUrl: LitloftTool = {
       const { drive, ...body } = args as { drive: string } & Record<string, unknown>;
       return textResult(
         await client.request("POST", "/api/addons/knowledge/clips", {
-          headers: { "X-Lit-Drive": drive },
+          headers: { "X-Lit-Drive": encodeURIComponent(drive) },
           json: body,
         })
       );
@@ -443,7 +443,7 @@ const clipPasted: LitloftTool = {
       const { drive, ...body } = args as { drive: string } & Record<string, unknown>;
       return textResult(
         await client.request("POST", "/api/addons/knowledge/clips/pasted", {
-          headers: { "X-Lit-Drive": drive },
+          headers: { "X-Lit-Drive": encodeURIComponent(drive) },
           json: body,
         })
       );
