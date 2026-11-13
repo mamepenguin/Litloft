@@ -60,7 +60,7 @@ export function FileDescription({
     >
       <p
         ref={textRef}
-        className={`text-sm whitespace-pre-wrap text-text-muted${
+        className={`text-base leading-relaxed whitespace-pre-wrap text-text-primary${
           expanded ? "" : " line-clamp-3"
         }`}
       >

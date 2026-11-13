@@ -86,7 +86,7 @@ function Excerpt({ passage }: { passage: SearchPassage }) {
     );
   }
   return (
-    <span className="block text-[13px] leading-relaxed text-text-primary [line-break:strict]">
+    <span className="block text-base leading-relaxed text-text-primary [line-break:strict]">
       {passage.keyword
         ? highlightSegments(passage.text, passage.highlight_terms).map(
             (segment, index) =>

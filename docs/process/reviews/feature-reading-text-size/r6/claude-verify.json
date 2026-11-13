@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "Reproduced. frontend/e2e-components/reading-text-size.spec.ts:1-3 imports readingTextSizeCases from ./reading-text-size.cases and calls it with 393. reading-text-size-desktop.spec.ts:1-3 does the same with 1280. All assertions live in reading-text-size.cases.ts, which imports READING from ./readingTextSize.data (line 17). fixtures/readingTextSize.tsx:34 imports the same data module. A grep of docs/specs/reading-text-size.md finds only the two spec file names (lines 164-165). invariants.md names neither the .cases.ts module nor the .data.ts module. Neither file is picked up as a test on its own: the components config uses testDir ./e2e-components and the default testMatch, and DESKTOP_ONLY lists only reading-text-size-desktop.spec.ts (projects.ts:37). Both spec files are registered in spec-viewport.spec.ts:78 and :111. The finding is accurate as a touch-point deviation. It affects test-file organisation only and does not change runtime behaviour."
+    }
+  ],
+  "specification_compliance": [
+    "The touch points name the two spec files, fixtures/app.tsx or a fixture module it imports, projects.ts and spec-viewport.spec.ts. The diff adds two more support modules that are not listed: reading-text-size.cases.ts and readingTextSize.data.ts.",
+    "Each test sets lang=ja before measuring (reading-text-size.cases.ts:32-34). Both widths are passed through readingTextSizeCases(width)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The shared cases module means both spec files always assert the same thing. A future edit that should apply to only one width has to branch on the width argument."
+  ],
+  "test_coverage": [
+    "Both projects run the same assertions through readingTextSizeCases(393) and readingTextSizeCases(1280). I checked only the first 40 lines of cases.ts in detail."
+  ],
+  "not_verified": [
+    "Did not read the full body of reading-text-size.cases.ts to check each invariant I1-I11 against its assertions.",
+    "Did not run Playwright. I could not confirm that the tests pass or that the computed sizes match.",
+    "Did not inspect the production component diffs or the intelligence submodule."
+  ],
+  "confidence": 90
+}

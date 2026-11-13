@@ -302,7 +302,7 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
                     }}
                     placeholder={t("descriptionPlaceholder")}
                     rows={3}
-                    className="w-full rounded-2xl bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-ring"
+                    className="w-full rounded-2xl bg-bg-card px-3 py-2 text-base text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-ring"
                   />
                 ) : (
                   <button
@@ -311,7 +311,7 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
                       setDescriptionDraft(detail.description ?? "");
                       setEditingDescription(true);
                     }}
-                    className="-ml-2 block w-full cursor-text rounded-2xl px-2 py-0.5 text-left hover:bg-bg-elevated"
+                    className="-ml-2 block w-full cursor-text rounded-2xl px-2 py-0.5 text-left text-base leading-relaxed text-text-primary hover:bg-bg-elevated"
                   >
                     {detail.description ?? (
                       <span className="text-text-muted/50">

@@ -353,6 +353,16 @@ Long-form prose has its own scale in §3.3, in `em`, which is why H3 here is sma
 than body text while `.markdown-body h3` is larger: one labels a box, the other is
 a heading inside a text.
 
+**Text read for its content is set at the body size.** A sentence or more that the
+viewer reads for what it says — a comment, a summary, a description, a quoted
+passage, a question they wrote, a one-sentence summary included — is `text-base`
+(16px), `leading-relaxed` (1.625), `text-text-primary`, at every width. Labels,
+metadata, controls, status, empty and error lines, and clamped excerpts that only
+mark where something matched stay at 14px or smaller. Lists used to jump to a place
+(transcript rows, Find-in-file matches) and monospace text (plain-text files,
+Markdown source) keep their density. A field the viewer types such text into is
+`text-base` too; its line height follows §3.5.
+
 ### 3.3 Long-form Prose (MarkdownPreview / "reading-A")
 
 Applies wherever `.markdown-body` renders. Keep these values identical across
@@ -418,6 +428,11 @@ p, li, dd {
   line-height: 1.5;
 }
 ```
+
+An **in-place edit field** — no border and no background of its own, drawn in the
+same box as the text it replaces — is the exception: it takes the text's line height
+with `!leading-relaxed`, so the block keeps its height when editing starts. The
+rule above is unlayered and beats a plain Tailwind utility.
 
 **Prohibited:**
 
