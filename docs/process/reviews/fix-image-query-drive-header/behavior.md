@@ -21,4 +21,9 @@ it as `SPEC-CORE-046`.
 ## Scope
 
 `frontend/src/lib/imageQuery.ts`: `askImageAvailability` and `requestImageAnswer`.
-Every other sender of `X-Lit-Drive` in core and in the addons already encodes.
+
+The MCP server sends the same header from Node, whose `fetch` rejects the same values:
+the `ask`, `clip_url` and `clip_pasted` tools (`mcp-server/src/tools/ask.ts`,
+`mcp-server/src/tools/write.ts`) send the drive name percent-encoded too, so each works
+on a drive named `動画`. Every other sender of `X-Lit-Drive` in core, the MCP server, the
+iOS app and the addons already encodes.
