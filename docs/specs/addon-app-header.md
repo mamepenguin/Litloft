@@ -61,7 +61,8 @@ change to the core's own apps.
    string): void`, both exported from `frontend/src/lib/appPrefs.ts`, where `AppKey` is
    `AppId | { addon: string }`. `id` is `"default"` or a smart folder id. For a
    built-in app these read and write the same key as `readAppPrefs` / `writeAppPrefs`
-   use for `target`. `readAppTarget` does not check the id against the drive's folders:
+   use for `target`, and like `readAppPrefs` it reads an empty stored value as
+   `"default"`. `readAppTarget` does not check the id against the drive's folders:
    the caller falls back to the default target for a folder that is gone or unusable and
    keeps the saved id, as Reading does, and the documentation says so.
 4. The addon resolves the chosen folder with `resolveAppTarget(folder: SmartFolder |
@@ -70,7 +71,9 @@ change to the core's own apps.
    (the shapes `ReadingTarget` and `ReadingTargetParams` have today). `baseKinds` is
    non-empty and holds only kinds that hold no other kind (every kind except `document`);
    the resolver throws for an empty list or for `document`, since either would silently
-   widen or empty the target.
+   widen or empty the target. The throw is a programming-error contract: nothing catches
+   it, so an addon that passes such a list fails on its first render in development; the
+   documentation says so.
    - `folder === null` (the default target) → usable, `params.type` = `baseKinds`.
    - The folder's query has a negated operator or any duration part. A negated operator
      is `-` or `!` at the start of the query or after whitespace, then one of `tag`,
@@ -114,16 +117,29 @@ apps and their shelf pages, and an addon page):
 
 7. The title is one line; when it does not fit it is cut with an ellipsis, never wrapped.
 8. The Target control has no fill and no border: the target icon, the target's name and a
-   chevron, in the muted text colour at 13px. The word 対象 / Target is not drawn; it is the
-   control's accessible name, `対象: <name>` / `Target: <name>`. Its hit area is at least
-   44px tall on a coarse pointer. Hovering it (on a device that can hover) and opening it
-   give it the same subtle background the toolbar's quiet controls use.
+   chevron, in the muted text colour (`text-text-muted`) at 14px (`text-sm`, the scope
+   line's size). The word 対象 / Target is not drawn. Its accessible name is
+   `<label>: <name>`, built by `ToolbarMenu` as it is today from `TargetMenuProps.label`
+   (`対象` / `Target` from each app's own messages), and `<label>: …` while the name is
+   being looked up; `label` also stays the menu's heading. Its hit area is at least 44px
+   tall on a coarse pointer. On hover (where the device can hover) and while the menu is
+   open it takes `bg-bg-elevated`. The control is a new `quiet` shape of `ToolbarMenu`;
+   its existing `filled` and default shapes draw exactly as before.
 9. At 640px and wider: the icon tile, then the title with the scope line under it, then the
    Target and any `actions` at the right end of the title row, as today.
 10. Below 640px: the icon tile, then the title alone on its row, and under the title one
     line holding the scope text at its start and the Target (after any `actions`) at its
     end. The scope text is never cut; the Target's name is cut with an ellipsis when the
     line is short. A breadcrumb stays above, as today.
+13. `actions` (the shelf pages' sort menu): below 640px they leave the header's lines and
+    sit on their own row under the header, at its right end, directly above the list
+    (design option 2, chosen by the user over a full-width select and an icon-only
+    button). At 640px and wider they stay at the title row's end, left of the Target. At
+    every width the shelf pages' sort menu uses the same quiet shape as the Target, showing
+    its current choice (`↕ 追加日（新しい順） ▾`).
+12. The header is still drawn by `PageHeader`, which keeps the only `<h1>`: `AppHeader`
+    passes a new `PageHeader` option that, below 640px, puts the Target at the scope
+    line's end and the other `actions` on their own row under the header. Every other `PageHeader` caller passes nothing new and draws as before.
 11. The tabs row stays under the header at every width, unchanged.
 
 ### 2. Failure cases
@@ -201,6 +217,8 @@ Reading take the same form with their own icon, title, count and tabs. Checkable
   at the end of the same line; tabs row under that;
 - 375px with a long smart folder name: the name ends in an ellipsis inside the Target; the
   title and the scope text are whole;
+- 375px shelf page (`Shelf-B.dc.html`): breadcrumb, title, scope line with the Target,
+  then the quiet sort menu on its own row at the right, above the list;
 - the Target shows no 対象 label and no fill.
 
 Declared differences: the artboards' sidebar is an empty column, and their calendar, map
@@ -212,15 +230,22 @@ No new request. `resolveAppTarget` is synchronous and runs over one folder's que
 
 ## Touch points
 
-- `frontend/src/components/appshell/AppHeader.tsx`: its own layout for the two widths
-  (CORE-099) instead of handing the Target to `PageHeader`'s `actions`.
-- `frontend/src/components/appshell/TargetMenu.tsx` and, if the quiet trigger needs it,
-  `frontend/src/components/ToolbarMenu.tsx`: the quiet trigger and its accessible name.
-- `frontend/src/messages-core/{ja,en}.json`: the accessible name `対象: {name}` /
-  `Target: {name}`.
-- `frontend/e2e-layout/`: measured at 375px and at a wide width for Video and Reading
-  (title on one line, Target on the scope line, nothing overflows).
-- `DESIGN.md`: the page-header rule, if it states where an app header's actions sit.
+- `frontend/src/components/PageHeader.tsx` and its tests: the option of step 12
+  (CORE-099).
+- `frontend/src/components/videoapp/VideoShelfPage.tsx`, `readingapp/ReadingShelfPage.tsx`
+  and their sort menus (`SortChoiceMenu`, `ReadingSortMenu`): the quiet shape.
+- `frontend/src/components/appshell/AppHeader.tsx`: passes that option.
+- `frontend/src/components/ToolbarMenu.tsx`: the `quiet` shape;
+  `frontend/src/components/appshell/TargetMenu.tsx` uses it. `toolbarMenuHome.test.ts`,
+  `popup-dismissal.test.ts`, `reading-video-faces.html` and
+  `readingVideoLayoutFixtureParity.test.tsx` keep passing unedited.
+- `frontend/e2e-components/`: the real `AppHeader` rendered for Video, Reading and a shelf
+  page with its sort menu, measured at 375px (default and long folder name), 640px and
+  1280px. The header test in `frontend/e2e-layout/video-app.spec.ts` measures a hand copy
+  of the old header (`fixtures/video-app.html`); its header assertions move to the
+  real-component test and the fixture's header is redrawn to the new shape.
+- `DESIGN.md` §6 "Page Header": app headers below 640px put the actions on the scope
+  line; the quiet Target recorded as a control shape.
 
 - `frontend/src/lib/appPrefs.ts`: the app key type (a built-in id or `{ addon: string }`),
   the key builder for target and shown set, `readAppTarget`, `writeAppTarget`;
@@ -289,7 +314,14 @@ I11. At 640px and wider the Target is at the title row's right end, and at every
 tabs row is under the header.
 
 I12. The Target control draws no 対象 / Target text and no fill, and its accessible name is
-`対象: <name>` / `Target: <name>`.
+`<label>: <name>` (`対象: すべての本`, for example).
+
+I13. On a shelf page below 640px the sort menu is on its own row under the header at its
+right end, above the list, and shows its current choice; at 640px and wider it is on the
+title row left of the Target.
+
+I14. Every `PageHeader` caller other than `AppHeader`, and every `ToolbarMenu` caller other
+than `TargetMenu` and the shelf pages' sort menus, draws as before this change at 375px and at 1280px.
 
 ## Checked, no action
 
@@ -309,6 +341,9 @@ I12. The Target control draws no 対象 / Target text and no fill, and its acces
 - **Fixing `PageHeader` for every page.** The cut title is visible only where a long title
   meets actions on a narrow screen; `AppHeader` is where the Target lives, so the layout
   change is there. Other `PageHeader` users keep today's layout.
+- **The sort menu as a full-width select (option 1) or an icon-only button (option 3).**
+  Drawn and declined by the user: the select outweighed the quiet Target; the icon hid
+  the current order.
 - **The Target in the tabs row (option B).** Drawn and declined by the user: the Target
   narrows what the count counts, so it sits beside the count.
 - **Parent kinds as base kinds.** Decided by the user: base kinds hold no other kind;
