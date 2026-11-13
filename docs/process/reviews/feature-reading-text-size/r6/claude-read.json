@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The diff adds two test-support modules, `frontend/e2e-components/reading-text-size.cases.ts` (where all assertions live) and `frontend/e2e-components/readingTextSize.data.ts` (shared fixture strings), that the touch-point list does not name. The list names only `fixtures/app.tsx`, a fixture module, the two spec files, `projects.ts` and `spec-viewport.spec.ts`.",
+      "impact": "No user-visible impact. Both files are test-only and sit under `frontend/e2e-components/`, which the Tests touch point covers in general. The touch point describes 'two spec files with the same assertions', but the real assertions are in a third shared module, and both spec files are 3-line wrappers. A reader who looks for the assertions in the spec files will not find them there.",
+      "evidence": "In the diff, `frontend/e2e-components/reading-text-size.cases.ts` is new (434 lines) and exports `readingTextSizeCases(width)`. `reading-text-size.spec.ts:3` calls `readingTextSizeCases(393)` and `reading-text-size-desktop.spec.ts:3` calls `readingTextSizeCases(1280)`. `frontend/e2e-components/readingTextSize.data.ts` is new and is imported by both `fixtures/readingTextSize.tsx` and `reading-text-size.cases.ts`. Neither path appears in the touch points.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is broken. The two files are a factoring of the declared test touch point, and only the list's wording leaves them out.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Name `reading-text-size.cases.ts` and `readingTextSize.data.ts` in the Tests touch point, or accept them as covered by `frontend/e2e-components/`."
+    }
+  ],
+  "specification_compliance": [
+    "Every production file in the diff appears in the touch-point list: DESIGN.md; PassageList.tsx; ImageQueryViewPresenter.tsx; passage-rows.html; CommentSection.tsx; FileDescription.tsx; MetadataEditor.tsx; CollectionDetail.tsx; QuickNotePresenter.tsx; and in the intelligence submodule SummarySection.tsx, VisualDescriptionSection.tsx, PictureTextSection.tsx, CitationInlinePanel.tsx, AskTab.tsx and Page.tsx.",
+    "The submodule pointer bump (`addons/intelligence` 3634ece → d104ebb) is declared in the touch points.",
+    "docs/specs/reading-text-size.md, docs/specs/INDEX.md and docs/process/reviews/feature-reading-text-size/** are implicit touch points and are not reported.",
+    "The test files fixtures/app.tsx, fixtures/readingTextSize.tsx (a new fixture module that app.tsx imports), projects.ts DESKTOP_ONLY, spec-viewport.spec.ts, reading-text-size.spec.ts and reading-text-size-desktop.spec.ts are all declared. The only unnamed paths are reading-text-size.cases.ts and readingTextSize.data.ts (TP-1).",
+    "SummarySection's in-place edit textareas use `!leading-relaxed`, as the touch point requires; globals.css is not in the diff."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "fixtures/readingTextSize.tsx replaces `window.fetch` when the module loads. app.tsx imports it, so every arrangement in the component bundle now goes through this wrapper, not only the reading-* ones. The routes match only rt* file ids and `/api/drives/fixture/collections/rtcollect001`, and app.tsx's own module-level wrapper chains on top of it, so I see no effect on other arrangements. Still, this reaches fixtures beyond the declared surfaces."
+  ],
+  "regression_risks": [
+    "The module-level fetch patch in fixtures/readingTextSize.tsx is shared by all component arrangements. A later arrangement that reuses an rt*-style id or the collection path rtcollect001 would silently get this fixture's answers.",
+    "Passage rows and image-query document rows grow taller with the 16px excerpt. passage-rows.html was updated by hand and has no parity test, so if the static copy drifts from the real class, passage-rows.spec.ts can pass while measuring something other than the real row."
+  ],
+  "test_coverage": [
+    "I10 is only partly tested. The cases cover the Find-in-file rows (13px) and the Files view match snippet (11px). No case covers transcript rows (14px), the Ask page's citation excerpts (12px) or the intelligence Find page's excerpts (12px).",
+    "I5: the collection and Quick Note field cases check font size only, which matches the invariant's wording.",
+    "I4: comment edit depends on `is_mine: true` in the stubbed comment, so the edit textarea is reachable at both widths in the fixture."
+  ],
+  "not_verified": [
+    "I did not run the Playwright cases or any build, so I don't know whether the new arrangements render or whether the tests pass.",
+    "I did not read the intelligence submodule at d104ebb directly. I relied on the submodule diff shown in the prompt.",
+    "I did not check how `../../src/addons/intelligence/*` resolves to the submodule; a glob of frontend/src/addons/ returned nothing (it may be a symlink or generated at build time).",
+    "I did not inspect what commit b5e0f22 alone contains beyond the review-record files listed under docs/process/reviews/feature-reading-text-size/."
+  ],
+  "confidence": 85
+}
