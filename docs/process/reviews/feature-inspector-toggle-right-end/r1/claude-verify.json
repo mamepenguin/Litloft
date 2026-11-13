@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "r1/classification.json:30,34 lists frontend/e2e-components/fixtures/app.tsx and fixtures/fileHeaderRow.tsx among the changed paths. fileHeaderRow.tsx:38,40 defines HEADER_ROW_LATE_ID and HEADER_ROW_MISSING_ID, :151 defines __releaseLate, :176-185 holds the missing and deferred branches, and :348-399 defines the six arrangements. app.tsx:2533-2538 registers the six keys. Neither file is named in the Touch points at docs/specs/inspector-toggle-right-end.md:157-177."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "r1/classification.json:54 lists componentFixtureParity.test.tsx as changed. Lines 340-345 of that file hold the six new header-row-* keys. The spec's Touch points at lines 157-177 do not name it."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "DESIGN.md:735-738 holds the 'outermost control on each side opens the pane on that side' bullet, which puts the inspector toggle past the profile button. DESIGN.md:739-741 holds the 'trailing end' bullet with 'where the page has an inspector, a vertical divider and the inspector toggle follow them'. Both describe the new placement, so they come from this change. The touch point at spec:172-173 names only the 'Wide, left to right' order (DESIGN.md:748-755) and the §Page Header sentence. I could not run git diff, so I matched the current file content against the touch-point wording and did not see the hunk itself."
+    }
+  ],
+  "specification_compliance": [
+    "The spec's Touch points (spec:157-177) leave out the two fixture files, the fixture parity guard test and two §Header bullets in DESIGN.md, and the change edits all of them."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The fixture fileHeaderRow.tsx adds a 404 branch and a deferred-response branch to installFetch. These are test-only and are not described in the spec."
+  ],
+  "regression_risks": [
+    "Other e2e-component specs that use fileHeaderRow's installFetch could be affected by the new 404 and deferred branches. They only match the new IDs hrmiss000001 and hrlate000001."
+  ],
+  "test_coverage": [
+    "Six new component arrangements cover the swap, collection note, collection swap, late load, missing file and long two-pane cases. They are registered in app.tsx and in the parity guard."
+  ],
+  "not_verified": [
+    "I could not run git diff against origin/develop, so I could not confirm line by line that the DESIGN.md bullets at 735-741 were added or rewritten in this diff rather than already present.",
+    "I did not run any tests or e2e specs.",
+    "I did not review the behavior of Header.tsx, FileHeaderRowProvider.tsx or FileDetailChrome.tsx against I1-I10."
+  ],
+  "confidence": 85
+}

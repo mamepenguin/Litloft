@@ -35,6 +35,8 @@ export interface FileRowNeeds {
 
 interface FileHeaderRowValue {
   container: HTMLElement | null;
+  /** The header's trailing slot, past its own controls, for the top drawer. */
+  trailingContainer: HTMLElement | null;
   top: string | null;
   /** The box the top drawer's content starts at, or null where the header is the whole frame. */
   align: HTMLElement | null;
@@ -45,6 +47,7 @@ interface FileHeaderRowValue {
   register: (id: string) => () => void;
   alignTo: (id: string, element: HTMLElement | null) => void;
   setContainer: (element: HTMLElement | null) => void;
+  setTrailingContainer: (element: HTMLElement | null) => void;
   setChromeButtons: (element: HTMLElement | null) => void;
   setRowNeeds: (id: string, needs: FileRowNeeds | null) => void;
 }
@@ -55,6 +58,8 @@ const FileRowAlignContext = createContext<HTMLElement | null>(null);
 
 export function FileHeaderRowProvider({ children }: { children: ReactNode }) {
   const [container, setContainer] = useState<HTMLElement | null>(null);
+  const [trailingContainer, setTrailingContainer] =
+    useState<HTMLElement | null>(null);
   const [drawers, setDrawers] = useState<string[]>([]);
   const [aligned, setAligned] = useState<{
     id: string;
@@ -100,6 +105,7 @@ export function FileHeaderRowProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       container,
+      trailingContainer,
       top,
       align: aligned && aligned.id === top ? aligned.element : null,
       chromeButtons,
@@ -107,10 +113,11 @@ export function FileHeaderRowProvider({ children }: { children: ReactNode }) {
       register,
       alignTo,
       setContainer,
+      setTrailingContainer,
       setChromeButtons,
       setRowNeeds,
     }),
-    [container, top, aligned, chromeButtons, rowNeeds, register, alignTo, setRowNeeds],
+    [container, trailingContainer, top, aligned, chromeButtons, rowNeeds, register, alignTo, setRowNeeds],
   );
 
   return (
@@ -146,13 +153,16 @@ export function FileRowAlignProvider({
 /**
  * Draws its children into the header's row while this is the newest mounted
  * page; `null` before the header exists, so a page outside the shell keeps
- * the row it draws itself.
+ * the row it draws itself. `trailing` goes into the header's own trailing
+ * slot under the same ownership, so a swap replaces both together.
  */
 export function FileHeaderRowPortal({
   children,
+  trailing,
   needs,
 }: {
   children: ReactNode;
+  trailing?: ReactNode;
   needs?: FileRowNeeds;
 }) {
   const host = useContext(FileHeaderRowContext);
@@ -180,5 +190,15 @@ export function FileHeaderRowPortal({
   }, [top, setRowNeeds, id, hideHeaderControls]);
 
   if (!host || !top || !host.container) return null;
-  return createPortal(children, host.container);
+  // Both slots mount in the same commit: a row that arrived before its
+  // trailing control would be the ordinary header by another name.
+  if (trailing && !host.trailingContainer) return null;
+  return (
+    <>
+      {createPortal(children, host.container)}
+      {trailing && host.trailingContainer
+        ? createPortal(trailing, host.trailingContainer)
+        : null}
+    </>
+  );
 }
