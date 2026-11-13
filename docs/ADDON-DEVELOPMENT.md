@@ -1313,6 +1313,121 @@ useGlobalSearch().open();                    // open it now, in that scope
 
 ---
 
+## Drawing the app header and Target on an addon page
+
+The built-in apps share one header: the app's icon and title, a scope line
+naming the drive and the item count, a **Target** menu that narrows the app to
+one of the drive's smart folders, and a tabs row. An addon page draws the same
+header, with its own app key.
+
+```tsx
+// addons/{name}/frontend/Page.tsx — the parts that touch the target
+import type { TargetMenuProps } from "@/components/appshell/TargetMenu";
+import { useLoad } from "@/components/appshell/useLoad";
+import { getSmartFolders } from "@/lib/api";
+import { readAppTarget, writeAppTarget, type AppKey } from "@/lib/appPrefs";
+import { resolveAppTarget } from "@/lib/appTarget";
+import type { FileKind } from "@/types";
+
+const APP: AppKey = { addon: "<name>" }; // the addon's own name
+const BASE_KINDS: readonly FileKind[] = ["image"]; // the kinds the page lists
+
+const folders = useLoad(() => getSmartFolders(drive));
+const savedId = readAppTarget(drive, APP); // "default" or a smart folder id
+const folder =
+  folders.status === "loaded"
+    ? folders.data.find((candidate) => candidate.id === savedId) ?? null
+    : null;
+const target = resolveAppTarget(folder, BASE_KINDS); // `target.params` for requests
+
+// `AppHeader` takes this as its `target`; keep the chosen id in state.
+const targetProps: TargetMenuProps = {
+  drive,
+  app: APP,
+  name: targetName, // the chosen folder's name, null while looked up
+  folders,
+  selectedId: savedId,
+  currentCount: count,
+  label: t("target"), // "Target"
+  defaultLabel: t("allPhotos"),
+  unavailableLabel: t("unavailableAsTarget"),
+  defaultTargetTypes: BASE_KINDS,
+  isUsable: (candidate) => resolveAppTarget(candidate, BASE_KINDS).usable,
+  onChoose: (id) => {
+    setSelectedId(id);
+    writeAppTarget(drive, APP, id);
+  },
+  onRetryFolders: folders.retry,
+};
+```
+
+| Name | Import from |
+|---|---|
+| `AppHeader`, `AppHeaderProps` | `@/components/appshell/AppHeader` |
+| `TargetMenuProps` | `@/components/appshell/TargetMenu` |
+| `AppKey`, `readAppTarget`, `writeAppTarget` | `@/lib/appPrefs` |
+| `resolveAppTarget`, `AppTarget`, `AppTargetParams` | `@/lib/appTarget` |
+| `useLoad`, `LoadState` | `@/components/appshell/useLoad` |
+| `getSmartFolders` | `@/lib/api` |
+| `PageTabs` | `@/components/PageTabs` |
+| `SmartFolder` | `@/types/smartFolder` |
+| `FileKind` | `@/types` |
+
+### The app key and its storage keys
+
+`TargetMenuProps.app` and the target helpers take an `AppKey`: a built-in app
+id (`"video"`, `"reading"`), or `{ addon: "<name>" }` where `<name>` is the
+addon's own name, `^[a-z][a-z0-9_-]*$` — the rule the loader already applied
+before a page can call this. The name is used as written: nothing checks or
+encodes it.
+
+`readAppTarget(drive, app)` reads `"default"` or the saved folder id, and
+`writeAppTarget(drive, app, id)` saves a choice. Both use the keys below, with
+`<d>` = `encodeURIComponent(drive)`:
+
+| App key | Target | Shown set |
+|---|---|---|
+| `"video"` | `litloft.videoApp.target.<d>` | `litloft.videoApp.targets.<d>` |
+| `"reading"` | `litloft.readingApp.target.<d>` | `litloft.readingApp.targets.<d>` |
+| `{ addon: "<name>" }` | `litloft.addon.<name>.target.<d>` | `litloft.addon.<name>.targets.<d>` |
+
+- An addon's keys sit under `litloft.addon.<name>.`, apart from every built-in
+  key: a name never reaches Video's or Reading's target or shown set.
+- An empty stored value, and a read that storage refuses, give `"default"`. A
+  write that storage refuses is dropped, and the open page keeps its choice.
+- The saved id is not checked against the drive's folders. Fall back to the
+  default target when the folder is gone or unusable and keep the saved id, as
+  the built-in apps do.
+
+### Resolving the chosen folder
+
+`resolveAppTarget(folder, baseKinds)` turns the saved folder (`null` for the
+default target) into the conditions to request:
+
+- `{ usable: true, params }` — `params` holds the listing's `type` (always
+  within `baseKinds`), plus `search`, `tag`, `folder`, `collection`,
+  `favorite`, `liked` and `size` as the folder's query names them.
+- `{ usable: true, empty: true, params: null }` — no file of `baseKinds` can
+  match, so nothing is requested.
+- `{ usable: false, reason: "unsupported_part" }` — the query holds a negated
+  operator, a duration part, or another part the listing has no parameter for.
+  List the folder's row disabled and do not request it.
+
+`baseKinds` is the kinds the page lists: non-empty, and every one a leaf kind
+(`document` is the one kind that holds others). Either would silently widen or
+empty every target, so the resolver throws instead of answering, and nothing
+catches it: a page that passes such a list fails on its first render.
+
+### Applying the target
+
+Pass `params` to your own requests, keeping the target's own filters. On the
+backend, `filtered_drive_files` (see [Core API surface for in-process
+addons](#core-api-surface-for-in-process-addons)) answers as
+`GET /api/drives/{drive}/files` does for the same parameters; narrow your own
+query to the ids it selects.
+
+---
+
 ## Core API surface for in-process addons
 
 In-process addons share the Python process and import core modules.
@@ -1330,10 +1445,57 @@ In-process addons share the Python process and import core modules.
 | `app.services.provider_registry` | `register_provider()` | `.loft` providers |
 | `app.services.ws` | `manager.broadcast()`, `broadcast_from_thread()` | Browser notifications |
 | `app.services.event_hooks` | `emit()`, `emit_from_thread()` | Lifecycle events |
+| `app.routers.drives` | `filtered_drive_files()` | The file listing's filters, to apply a target to your own query |
 | `app.nanoid` | `generate_nanoid()` | IDs |
 
 Always `import app.config as config`, never `from app.config import X`
 (`.claude/rules/backend-conventions.md`).
+
+### `filtered_drive_files`
+
+The predicate `GET /api/drives/{drive}/files` and the shelves endpoint share,
+so an addon applying a smart folder selects the same files the listing does.
+
+```python
+from app.models import File
+from app.routers.drives import filtered_drive_files
+
+query, normalized_search = filtered_drive_files(
+    db,
+    drive_name,
+    path="",
+    recursive=True,
+    search=None,
+    favorite=None,
+    liked=None,
+    tag=[],
+    type=[],
+    folder=[],
+    collection=[],
+    size=[],
+    duration=[],
+)
+ids = {row[0] for row in query.with_entities(File.id)}
+```
+
+`filtered_drive_files(db, drive_name, *, path, recursive, search, favorite,
+liked, tag, type, folder, collection, size, duration)` answers with a pair:
+`query` selects the drive's active files under those filters, with the
+listing's meaning for each, and `normalized_search` is the NFC-normalised
+search text, or `None` without a search. Narrow your own query to
+`query.with_entities(File.id)`.
+
+- The listing validates two inputs in FastAPI before calling it, so the caller
+  owns them: `search` is at most 200 characters, and every `type` is a
+  `FileKind` or `"markdown"`.
+- Given those, it answers as the listing does, including `HTTPException(400)`
+  for a `path` holding `..` or starting with `/`, and for a `folder`,
+  `collection`, `size` or `duration` that does not normalise. Pass it on from
+  your route.
+- Its `trust`, `origin` and `exclude_origin` parameters are not part of this
+  surface.
+- It filters by the drive it is given and does not check access itself: run
+  your own drive check first (see [Drive context header](#drive-context-header-x-lit-drive)).
 
 ### Rules
 
@@ -1472,6 +1634,9 @@ an existing addon stops working or silently behaves differently:
   given a different type or meaning;
 - a manifest or `ADDON_META` field removed or reinterpreted;
 - an Internal API endpoint removed, or its request or response shape changed;
+- a name, prop or storage key shape in [Drawing the app header and Target on an
+  addon page](#drawing-the-app-header-and-target-on-an-addon-page) removed,
+  renamed or given another meaning;
 - a name in [Core API surface for in-process addons](#core-api-surface-for-in-process-addons)
   removed or changed.
 

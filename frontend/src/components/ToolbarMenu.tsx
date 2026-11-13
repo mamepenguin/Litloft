@@ -187,7 +187,12 @@ export function ToolbarMenu({
     >
       <button
         ref={triggerRef}
-        onClick={() => setOpen((s) => !s)}
+        onClick={() => {
+          // Focusing the pressed button is what a browser does, and the box's
+          // Escape handler above relies on it.
+          triggerRef.current?.focus();
+          setOpen((s) => !s);
+        }}
         // `label: state`, except where the state *is* the label. A sort
         // order outside the offered table falls back to naming the control,
         // and "Sort: Sort" is a name that says one thing twice.
