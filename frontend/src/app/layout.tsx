@@ -45,7 +45,7 @@ export const viewport: Viewport = {
   // safe-area-aware components silently no-op.
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#1a0e10" },
+    { media: "(prefers-color-scheme: dark)", color: "#131312" },
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
   ],
 };
