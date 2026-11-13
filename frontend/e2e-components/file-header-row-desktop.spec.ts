@@ -183,7 +183,7 @@ test("SPEC-CORE-094 I1 / failure case (wide, loading): the skeleton's drive crum
 const fixedButtons = (page: Page) => box(page.getByTestId("chrome-buttons"));
 
 for (const width of [1280, 900]) {
-  test(`SPEC-CORE-094 D2 / I2 (canonical route, ${width}px): with the tree open the trail starts at the right pane's left edge, with it closed 12px past the fixed buttons, and never within 16px of the header's left end`, async ({
+  test(`SPEC-CORE-094 D2 / I2 (canonical route, ${width}px): with the tree open the trail starts 16px inside the right pane, with it closed 12px past the fixed buttons, and never within 16px of the header's left end`, async ({
     page,
   }) => {
     await page.addInitScript(() => localStorage.setItem("tree:enabled:fixture", "true"));
@@ -200,7 +200,7 @@ for (const width of [1280, 900]) {
     const firstCrumb = header.getByRole("navigation").locator("a, button").first();
     // The pane to the right of the tree starts where the tree ends.
     const paneLeft = (await box(tree)).right;
-    const open_ = Math.max((await fixedButtons(page)).right + 12, paneLeft, (await box(header)).left + 16);
+    const open_ = Math.max((await fixedButtons(page)).right + 12, paneLeft + 16, (await box(header)).left + 16);
     await expect
       .poll(async () => Math.abs((await box(firstCrumb)).left - open_))
       .toBeLessThanOrEqual(1);
@@ -209,7 +209,7 @@ for (const width of [1280, 900]) {
     await expect(tree).toHaveCSS("width", "0px");
     const closed = Math.max(
       (await fixedButtons(page)).right + 12,
-      (await box(tree)).right,
+      (await box(tree)).right + 16,
       (await box(header)).left + 16,
     );
     await expect
