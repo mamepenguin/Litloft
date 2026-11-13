@@ -44,6 +44,12 @@ async function dragGrabber(page: Page, down: number): Promise<void> {
   const x = Math.round(box.x + box.width / 2);
   const y0 = Math.round(box.y + box.height / 2);
   const steps = 15;
+  // The clicks before this leave the mouse over the sheet. vaul ends a knob
+  // drag on any `pointerout` reaching its content, and Chromium sends the
+  // mouse one when its hover update lands while the sheet moves under it:
+  // the drag then ends 33px in, short of full on a slow runner. The sheet
+  // never reaches the top row.
+  await page.mouse.move(0, 0);
   const cdp = await page.context().newCDPSession(page);
   await cdp.send("Input.dispatchTouchEvent", {
     type: "touchStart",
