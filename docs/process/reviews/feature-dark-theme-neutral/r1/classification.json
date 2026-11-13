@@ -1,0 +1,44 @@
+{
+  "risk": "HIGH",
+  "score": 7,
+  "base": 3,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "DESIGN.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/dark-theme-neutral.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/public/manifest.json",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/dark-theme-neutral.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/globals.css",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/layout.tsx",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}
