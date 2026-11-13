@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>フォトダイアリー 375px 長いフォルダ名</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+</style>
+</helmet>
+<div style="width:375px;height:812px;box-sizing:border-box;background:#ffffff;color:#211922;font-family:-apple-system,system-ui,'Segoe UI',Roboto,'Helvetica Neue','ヒラギノ角ゴ Pro W3',Meiryo,sans-serif;overflow:hidden;display:flex;flex-direction:column">
+
+<div style="height:48px;flex-shrink:0;display:flex;align-items:center;padding:0 8px;border-bottom:1px solid rgba(145,145,140,0.2)">
+<button type="button" aria-label="メニュー" style="width:44px;height:44px;border:0;background:transparent;color:#211922;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+</div>
+
+<header style="padding:8px 16px 0;display:flex;flex-direction:column;gap:4px;flex-shrink:0">
+<div style="display:flex;align-items:center;gap:12px"><div style="width:40px;height:40px;flex-shrink:0;border-radius:12px;background:#f6f6f3;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 22H4a2 2 0 0 1-2-2V6"/><path d="m22 13-1.296-1.296a2.41 2.41 0 0 0-3.408 0L11 18"/><circle cx="12" cy="8" r="2"/><rect width="16" height="16" x="6" y="2" rx="2"/></svg></div><div style="flex:1 1 auto;min-width:0"><h1 style="margin:0;font-size:24px;line-height:1.35;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">フォトダイアリー</h1><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:-6px;margin-bottom:-6px"><span style="flex-shrink:0;font-size:14px;color:#62625b;white-space:nowrap">photos · 214枚</span><button type="button" aria-label="対象: 2026年夏 北海道旅行（カメラで撮った写真だけ）" style="display:inline-flex;align-items:center;gap:4px;min-width:0;max-width:100%;min-height:44px;padding:4px 8px;margin-right:-8px;box-sizing:border-box;border:0;border-radius:12px;background:transparent;color:#62625b;font:inherit;font-size:13px;cursor:pointer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">2026年夏 北海道旅行（カメラで撮った写真だけ）</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0"><path d="m6 9 6 6 6-6"/></svg></button></div></div></div>
+<nav aria-label="表示" style="display:flex;gap:24px;margin-top:8px;border-bottom:1px solid rgba(145,145,140,0.2)">
+<a href="Phone.dc.html" style="padding:10px 4px;margin-bottom:-1px;border-bottom:2px solid transparent;font-size:14px;color:#62625b">カレンダー</a>
+<a href="Phone-Long.dc.html" aria-current="page" style="padding:10px 4px;margin-bottom:-1px;border-bottom:2px solid #d63031;font-size:14px;font-weight:600;color:#211922">地図</a>
+</nav>
+</header>
+
+<div style="flex:1 1 auto;position:relative;background:#f1eee6;overflow:hidden">
+<div style="position:absolute;left:0;right:0;top:40%;height:8px;background:#ffffff"></div>
+<div style="position:absolute;top:0;bottom:0;left:55%;width:6px;background:#ffffff"></div>
+<div style="position:absolute;left:0;right:0;bottom:0;height:90px;background:#d7e3ea"></div>
+<sc-for list="{{pins}}" as="p" hint-placeholder-count="3">
+<div style="position:absolute;left:{{p.x}};top:{{p.y}};width:44px;height:44px;border-radius:10px;border:2px solid #ffffff;background:{{p.bg}};box-shadow:0 1px 3px rgba(33,25,34,0.25)">
+<div style="position:absolute;right:-7px;top:-7px;min-width:18px;height:18px;padding:0 5px;box-sizing:border-box;border-radius:9px;border:1.5px solid #ffffff;background:#211922;color:#ffffff;font-size:11px;line-height:15px;text-align:center">{{p.n}}</div>
+</div>
+</sc-for>
+<div style="position:absolute;right:8px;bottom:6px;font-size:11px;color:#62625b">© OpenStreetMap contributors</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":375,"height":812}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      pins: [
+        { x: '18%', y: '22%', n: '96', bg: '#c9b8a6' },
+        { x: '62%', y: '30%', n: '41', bg: '#b8c4b0' },
+        { x: '36%', y: '58%', n: '77', bg: '#d4c1b4' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

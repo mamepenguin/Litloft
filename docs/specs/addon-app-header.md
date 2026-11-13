@@ -1,6 +1,7 @@
-# App header and Target for addon pages
+# App header and Target for addon pages, and a quieter Target
 
 SPEC-ID: SPEC-ADDON-106
+SPEC-ID: SPEC-CORE-099
 
 Approval:
 
@@ -27,7 +28,17 @@ This change opens three things to addons, without the core naming any addon:
   predicates and gets the same set.
 
 The first user is the Photo Diary addon (its own spec, `SPEC-PD-016` and `SPEC-PD-017`
-in that repository). This change alters nothing a viewer can see in the core.
+in that repository).
+
+**SPEC-CORE-099** changes how the app header looks, for Video and Reading as well as for an
+addon. At a phone width the Target button sat on the title row, so a longer title than
+"読む" / "動画" was cut short by it, and the filled button drew the eye before the title.
+Now the title row never holds the Target below 640px: the Target moves to the right end of
+the scope line. And the Target is drawn as a quiet control, muted text without a fill. The
+user chose this (design option A) over putting the Target in the tabs row.
+
+The domains: SPEC-ADDON-106 is the surface opened for addons; SPEC-CORE-099 is the visible
+change to the core's own apps.
 
 ## Required items
 
@@ -98,6 +109,23 @@ from then on "Extension-point changes" covers: `AppHeader` and `AppHeaderProps`,
 The "Extension-point changes" list of what counts as breaking gains a bullet: a name,
 prop or storage key shape in that section removed, renamed or given another meaning.
 
+**Header layout (CORE-099).** For every page drawn by `AppHeader` (the Video and Reading
+apps and their shelf pages, and an addon page):
+
+7. The title is one line; when it does not fit it is cut with an ellipsis, never wrapped.
+8. The Target control has no fill and no border: the target icon, the target's name and a
+   chevron, in the muted text colour at 13px. The word 対象 / Target is not drawn; it is the
+   control's accessible name, `対象: <name>` / `Target: <name>`. Its hit area is at least
+   44px tall on a coarse pointer. Hovering it (on a device that can hover) and opening it
+   give it the same subtle background the toolbar's quiet controls use.
+9. At 640px and wider: the icon tile, then the title with the scope line under it, then the
+   Target and any `actions` at the right end of the title row, as today.
+10. Below 640px: the icon tile, then the title alone on its row, and under the title one
+    line holding the scope text at its start and the Target (after any `actions`) at its
+    end. The scope text is never cut; the Target's name is cut with an ellipsis when the
+    line is short. A breadcrumb stays above, as today.
+11. The tabs row stays under the header at every width, unchanged.
+
 ### 2. Failure cases
 
 - Storage refuses a read or a write (private window, quota): the read gives `"default"` /
@@ -157,14 +185,42 @@ caller's to show.
 
 ### 9. User-visible behavior
 
-None in the core. Video and Reading look and behave as before. The Photo Diary spec
-describes what its viewers see.
+SPEC-ADDON-106 adds nothing visible. SPEC-CORE-099 changes the header of Video, Reading
+and their shelf pages as in steps 7 to 11; the menu that opens, its rows and Manage… are
+unchanged.
+
+Agreed design: https://claude.ai/artifact/3DhNVLqgN9R2mCaj2aNxii, saved in
+`docs/process/reviews/feature-addon-app-header/design/` (`canvas.json` and the
+`.dc.html` artboards; the menu artboards `Target-Menu.dc.html` and
+`Target-Manage.dc.html` are Reading's, unchanged). The artboards draw Photo Diary; Video and
+Reading take the same form with their own icon, title, count and tabs. Checkable lines:
+
+- wide: title row = icon tile, title over scope line, quiet Target at the right end; tabs
+  row under it;
+- 375px: title alone on its row; under it the scope text at the start and the quiet Target
+  at the end of the same line; tabs row under that;
+- 375px with a long smart folder name: the name ends in an ellipsis inside the Target; the
+  title and the scope text are whole;
+- the Target shows no 対象 label and no fill.
+
+Declared differences: the artboards' sidebar is an empty column, and their calendar, map
+and pins are illustrative (they belong to Photo Diary's spec).
 
 ### 10. Non-functional
 
 No new request. `resolveAppTarget` is synchronous and runs over one folder's query.
 
 ## Touch points
+
+- `frontend/src/components/appshell/AppHeader.tsx`: its own layout for the two widths
+  (CORE-099) instead of handing the Target to `PageHeader`'s `actions`.
+- `frontend/src/components/appshell/TargetMenu.tsx` and, if the quiet trigger needs it,
+  `frontend/src/components/ToolbarMenu.tsx`: the quiet trigger and its accessible name.
+- `frontend/src/messages-core/{ja,en}.json`: the accessible name `対象: {name}` /
+  `Target: {name}`.
+- `frontend/e2e-layout/`: measured at 375px and at a wide width for Video and Reading
+  (title on one line, Target on the scope line, nothing overflows).
+- `DESIGN.md`: the page-header rule, if it states where an app header's actions sit.
 
 - `frontend/src/lib/appPrefs.ts`: the app key type (a built-in id or `{ addon: string }`),
   the key builder for target and shown set, `readAppTarget`, `writeAppTarget`;
@@ -224,6 +280,17 @@ I9. `filtered_drive_files` called with the documented parameters selects exactly
 `GET /api/drives/{drive}/files` lists for the same parameters, and a malformed `size`
 raises 400. (`search` and `type` within the caller's bounds of step 6.)
 
+I10. On every page drawn by `AppHeader`, below 640px the title row holds only the icon tile
+and the title, the Target is on the scope line's row at its end, the title and the scope
+text are never cut by the Target, and nothing in the header overflows the viewport at
+375px, also with a long folder name as the target.
+
+I11. At 640px and wider the Target is at the title row's right end, and at every width the
+tabs row is under the header.
+
+I12. The Target control draws no 対象 / Target text and no fill, and its accessible name is
+`対象: <name>` / `Target: <name>`.
+
 ## Checked, no action
 
 - **Opening `AppTabs`.** Not needed: `AppHeader` already takes any `tabs` node, and an
@@ -239,3 +306,10 @@ raises 400. (`search` and `type` within the caller's bounds of step 6.)
 - **An Internal API endpoint for external-service addons.** `POST /files/matching`
   already serves them; this change is for in-process addons.
 - **iOS app.** It wraps the web UI; nothing to change.
+- **Fixing `PageHeader` for every page.** The cut title is visible only where a long title
+  meets actions on a narrow screen; `AppHeader` is where the Target lives, so the layout
+  change is there. Other `PageHeader` users keep today's layout.
+- **The Target in the tabs row (option B).** Drawn and declined by the user: the Target
+  narrows what the count counts, so it sits beside the count.
+- **Parent kinds as base kinds.** Decided by the user: base kinds hold no other kind;
+  `document` throws (step 4).
