@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship (the human, 2026-11-13, after r1 HUMAN_REVIEW_REQUIRED: "ship")
 
 ran_in_app: yes
 
