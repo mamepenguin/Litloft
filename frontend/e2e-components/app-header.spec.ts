@@ -89,6 +89,42 @@ for (const app of APP_PAGES) {
     expect(m.overflowRight).toBeLessThanOrEqual(PHONE);
   });
 
+  for (const scenario of [
+    { label: "a long folder name", drive: DRIVE, longTarget: true },
+    { label: "a long drive name and a long folder name", drive: LONG_DRIVE_NAME, longTarget: true },
+  ]) {
+    test(`SPEC-CORE-099 I10 ${app} at 375px with ${scenario.label}: the Target's icon and chevron keep their 14px width`, async ({
+      page,
+    }) => {
+      await openAppHeader(page, PHONE, { app, drive: scenario.drive, longTarget: scenario.longTarget });
+      const m = await snapshot(page, { drive: scenario.drive, targetName: LONG_FOLDER_NAME });
+
+      expect(m.targetName.whole).toBe(false);
+      expect(m.targetSvgs[0].width).toBeCloseTo(14, 1);
+      expect(m.targetSvgs[m.targetSvgs.length - 1].width).toBeCloseTo(14, 1);
+    });
+
+    test(`SPEC-CORE-099 I10 ${app} at 375px with ${scenario.label}: no blank is left between the count and the cut Target`, async ({
+      page,
+    }) => {
+      await openAppHeader(page, PHONE, { app, drive: scenario.drive, longTarget: scenario.longTarget });
+      const m = await snapshot(page, { drive: scenario.drive, targetName: LONG_FOLDER_NAME });
+
+      expect(m.targetName.whole).toBe(false);
+      expect(m.target.left - m.count.right).toBeLessThanOrEqual(16);
+    });
+  }
+
+  test(`SPEC-CORE-099 I10 ${app} at 375px with a long drive name: the Target's icon and chevron keep their 14px width`, async ({
+    page,
+  }) => {
+    await openAppHeader(page, PHONE, { app, drive: LONG_DRIVE_NAME });
+    const m = await snapshot(page, { drive: LONG_DRIVE_NAME, targetName: DEFAULT_TARGET_NAME[app] });
+
+    expect(m.targetSvgs[0].width).toBeCloseTo(14, 1);
+    expect(m.targetSvgs[m.targetSvgs.length - 1].width).toBeCloseTo(14, 1);
+  });
+
   test(`SPEC-CORE-099 I12 I14 ${app} at 375px: the Target is a quiet control named "<label>: <name>"`, async ({
     page,
   }) => {
@@ -172,6 +208,28 @@ for (const app of SHELF_PAGES) {
     expect(sameRow(m.sort!, m.h1)).toBe(false);
     expect(m.sort!.top).toBeGreaterThanOrEqual(m.target.bottom - 1);
     expect(m.scrollWidth).toBeLessThanOrEqual(PHONE);
+  });
+}
+
+for (const [app, name] of [
+  ["video", "すべての動画"],
+  ["reading", "すべての本"],
+] as const) {
+  test(`SPEC-CORE-099 I10 ${app} at 375px in Japanese with drive main: the default Target's name is whole`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: PHONE, height: 800 });
+    await page.goto(`${pathToFileURL(PAGE).href}?page=${app}&drive=main&locale=ja#app-header`);
+    const target = page.locator("header").getByRole("button", { name: `対象: ${name}` });
+    await expect(target).toBeVisible();
+
+    const whole = await target.evaluate((el) => {
+      const nameSpan = Array.from(el.querySelectorAll("span")).find(
+        (span) => (span.textContent ?? "").trim().length > 0,
+      )!;
+      return nameSpan.scrollWidth <= nameSpan.clientWidth;
+    });
+    expect(whole).toBe(true);
   });
 }
 
