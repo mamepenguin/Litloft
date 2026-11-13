@@ -34,9 +34,10 @@ function MenuButton() {
  * copy of its geometry.
  *
  * PWA safe-area: when iOS runs in standalone mode the viewport can extend
- * under the status bar, so the row is anchored to the safe-area top + 12px
- * instead of a raw 12px offset. In a regular browser `safe-area-inset-top`
- * resolves to 0.
+ * under the status bar, so the row is anchored to the safe-area top + 8px
+ * instead of a raw 8px offset. In a regular browser `safe-area-inset-top`
+ * resolves to 0. 8px puts the 40px buttons on the 56px header's centre line,
+ * which the header's controls and a file page's trail share.
  */
 export function ChromeButtons() {
   const rowHost = useFileHeaderRowHost();
@@ -54,7 +55,7 @@ export function ChromeButtons() {
     <div
       ref={attach}
       data-testid="chrome-buttons"
-      style={{ top: "calc(env(safe-area-inset-top, 0px) + 12px)" }}
+      style={{ top: "calc(env(safe-area-inset-top, 0px) + 8px)" }}
       className="fixed left-3 z-50 flex items-center gap-2"
     >
       <MenuButton />

@@ -89,7 +89,10 @@ export function Header() {
         chromeButtons ? chromeButtons.getBoundingClientRect().right + 12 : 0,
         content,
       );
-      setRowInset(Math.max(0, wanted - frame.left));
+      // Never closer to the header's left end than its controls are to its
+      // right end (`pr-4`): with an inline sidebar the content's edge is the
+      // sidebar's border.
+      setRowInset(Math.max(16, wanted - frame.left));
     };
     measure();
     window.addEventListener("resize", measure);
