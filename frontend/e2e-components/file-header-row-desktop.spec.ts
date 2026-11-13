@@ -262,5 +262,11 @@ test("SPEC-CORE-094 D2 (canonical route, inline sidebar): the trail keeps 16px f
     expect(crumb.left, `${sidebar}: trail past the buttons`).toBeGreaterThanOrEqual(buttons.right + 12 - 1);
     expect(Math.abs(centre(buttons) - centre(frame)), `${sidebar}: buttons on the header's centre`).toBeLessThanOrEqual(0.5);
     expect(Math.abs(centre(crumb) - centre(buttons)), `${sidebar}: trail on the buttons' centre`).toBeLessThanOrEqual(0.5);
+    if (sidebar === "open") {
+      // The sidebar keeps an empty row where the buttons sit over it.
+      const spacer = await box(page.getByTestId("sidebar-button-row"));
+      expect(Math.abs(spacer.top - buttons.top), "spacer top").toBeLessThanOrEqual(0.5);
+      expect(Math.abs(spacer.bottom - buttons.bottom), "spacer bottom").toBeLessThanOrEqual(0.5);
+    }
   }
 });

@@ -46,9 +46,10 @@ export function SidebarLibrarySection({ driveBase, currentDrive, drives = [], li
 
   return (
     <>
-      {/* Where the fixed menu and tree buttons sit. Empty, so without
+      {/* Where the fixed menu and tree buttons sit: 4px above the nav's
+          12px padding, as they sit 8px from the top. Empty, so without
           `shrink-0` the scrolling column squeezes it to nothing. */}
-      <div aria-hidden="true" data-testid="sidebar-button-row" className="mb-2 h-10 shrink-0" />
+      <div aria-hidden="true" data-testid="sidebar-button-row" className="-mt-1 mb-3 h-10 shrink-0" />
 
       <SidebarDriveSwitcher drives={drives} currentDrive={currentDrive} close={close} />
 
