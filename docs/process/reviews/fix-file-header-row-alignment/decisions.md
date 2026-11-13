@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: continue (r1, HUMAN_REVIEW_REQUIRED for unspecified_behavior; the user chose "全画面で上げる (Recommended)": the fixed buttons sit on the header's centre line on every screen, not only file pages. The sidebar spacer finding is fixed and the unit assertion tightened in the commit after r1; the spec's D2 and §7 are superseded by behavior.md for this fix.)
 ran_in_app: yes
 at: 29b4b23466650e4708539381ec17755b7c3d2f09
 by: agent
