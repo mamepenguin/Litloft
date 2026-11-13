@@ -116,18 +116,19 @@ export function PageHeader({
           </div>
           {heading}
           <div
-            className={`col-start-2 col-span-2 ${rows.scope} flex min-w-0 items-center gap-2 sm:contents`}
+            className={`col-start-2 col-span-2 ${rows.scope} flex min-w-0 items-center justify-between gap-2 sm:contents`}
           >
             {given(scope) && (
-              <div className={`min-w-0 flex-1 text-sm text-text-muted sm:col-start-2 ${rows.scope}`}>
+              <div className={`min-w-0 flex-initial text-sm text-text-muted sm:col-start-2 ${rows.scope}`}>
                 {scope}
               </div>
             )}
             {given(scopeEnd) && (
-              // Two fifths below `sm`, so the scope's count keeps its width and
-              // the Target's own name is what shortens.
+              // Two fifths is the Target's starting share, not a cap: it grows
+              // into the rest of the line, and `max-w-max` stops it at its whole
+              // name.
               <div
-                className={`max-w-[40%] flex-shrink-0 sm:col-start-4 ${rows.title} sm:max-w-none`}
+                className={`max-sm:min-w-0 max-sm:basis-[40%] max-sm:grow max-sm:shrink-0 max-sm:max-w-max sm:col-start-4 ${rows.title}`}
               >
                 {scopeEnd}
               </div>
