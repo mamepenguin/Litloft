@@ -6,90 +6,101 @@ Approval:
 
 ## Summary
 
-This change is for the household's one user, on the canonical page of a file with a framed
-player, on a wide window in a workbench form (SPEC-CORE-085).
+For the household's one user, on the canonical page of a file with a framed player, in a
+wide workbench form (SPEC-CORE-085). On a short window, roughly a visible height under
+840px (iPad mini in landscape, a PC browser window that is not maximised), the page
+scrolls, and the toggle row ends up below the fold, in two states:
 
-Today the page scrolls in two states, both on short windows (roughly a visible height
-under 840px, such as iPad mini in landscape, or a PC browser window that is not maximised):
+- **Panels shown.** SPEC-CORE-085 step 7 sets a floor of 18rem for the panel region
+  (`Workbench.tsx`, the grid's `minHeight`), so the page scrolls when the room is smaller.
+- **No panel shown.** The player is sized to the whole visible height less a 48px peek
+  (`--player-avail`), so the row, which is the only thing under the player, is below the
+  fold.
 
-- **Panels shown.** SPEC-CORE-085 step 7 sets a floor of 18rem for the panel region and
-  lets the page scroll when the room under the row is smaller. The toggle row ends up
-  below the fold.
-- **No panel shown.** The player is sized to the visible height less a 48px peek, so the
-  toggle row, which is the only thing under the player, sits below the fold.
+Fullscreen covers watching the video across the whole screen (iPad: a fixed frame inside
+the browser window; PC: `requestFullscreen`), so the in-page layout can give up that room.
+This change removes the scroll in both states.
 
-The owner chose to remove the scroll in the panels-shown state, because fullscreen covers
-the case of watching the video across the whole screen. This spec extends that to the
-no-panel state, so the page does not scroll on the canonical page in either state.
+What changes:
 
-What changes, one line each:
-
-- With panels shown, the 18rem floor is removed. The panel region takes the room the frame
-  and the row leave, and each panel body scrolls inside itself. The 50% cap on the frame
-  stays.
-- With no panel shown, the framed player is capped so that the frame, the row and the
-  spacing around them fit in the visible area. The row stays directly under the frame.
-- Pseudo full screen, system full screen, the mini player, the collection surface, the
-  stacked inspector and the phone are unchanged.
+- With panels shown: the 18rem floor is removed. The panel region takes the room the frame
+  and the row leave. The 50% cap on the frame stays.
+- With no panel shown: the framed player's budget is reduced by the measured height of the
+  row, so the frame, the row and the spacing around them fit in the visible area. The row
+  stays directly under the frame.
+- Unchanged: pseudo and system full screen, the mini player, the collection surface, the
+  stacked inspector, the phone, audio.
 
 ## Required items
 
 ### 1. Normal flow
 
 1. The reader is on the canonical page, in a workbench form (SPEC-CORE-085), with a framed
-   player and a visible height H (`railAvailable`, as today).
+   player and a visible height H (`railAvailable`).
 2. **Panels shown** (at least one panel is shown under the player):
-   - the frame is capped as in SPEC-CORE-085 step 8 (at most half of H), as today;
-   - the panel region starts under the row and ends at the bottom of H;
-   - the panel region has no minimum height. When the room is small, the panels get less
-     height and their bodies scroll inside themselves.
-3. **No panel shown** (the row is drawn with its toggles, and nothing is under it):
-   - the frame's height is capped at the room the row leaves: H, minus the frame's offset
-     from the top of the scroll container, minus the row block (see §3);
-   - the frame's width follows from that height at 16:9, as the existing `max-width` rule
-     does, and the frame is never wider than the canvas;
-   - the row sits directly under the frame, as in SPEC-CORE-085 step 3.
-4. Turning a panel on or off moves between 2 and 3. The frame changes size with it; no
-   element is remounted.
+   - the frame's cap is half of H, as SPEC-CORE-085 step 8 says (unchanged);
+   - the panel region starts under the row and ends at the bottom of H, with no minimum
+     height;
+   - each panel body scrolls inside itself (`.media-detail-workbench-body`, which already
+     has `overflow: auto`).
+3. **No panel shown, toggles drawn** (the row is drawn, nothing is under it):
+   - the frame's cap is `--player-avail`, with the row's block subtracted (§3);
+   - the frame's width is `--player-avail × 16/9`, so its height is `--player-avail` (the
+     existing `max-width` rule, unchanged);
+   - the row sits directly under the frame (SPEC-CORE-085 step 3).
+4. Turning a panel on or off changes the frame's size. No element is remounted.
 
 ### 2. Failure cases
 
-- **Very short window** (H below 320px): the frame and the row cannot both fit at a usable
-  size. The page may then scroll; this is accepted and not promised (see §Checked, no
-  action).
-- **Row wraps** (more toggles than fit on one line at the canvas width): the row's height
-  grows, and the row block grows with it, so the frame gets smaller. The row never scrolls
-  sideways (SPEC-CORE-085 step 3).
-- **Find open:** the find bar sits above the player in the scroll container and takes its
-  own height. The rule above is measured with Find closed.
-- **Full screen or mini player:** the frame leaves the flow. The cap does not apply, as
-  SPEC-CORE-085 step 8 already says.
+- **Very short window** (H below 320px): the frame and the row cannot both be usable. The
+  page may scroll; not promised (§Checked, no action).
+- **Row wraps** (more toggles than fit on one line): the row's measured height grows, so
+  the frame gets smaller. The row never scrolls sideways (SPEC-CORE-085 step 3). If the
+  wrapped row leaves no room for the frame, the frame is 0px high and the page may scroll
+  (Question 4).
+- **Find open:** the find bar sits above the player and takes its own height. The rule is
+  measured with Find closed; with Find open the page may scroll by the find bar's height,
+  as today.
+- **Full screen or mini player:** the frame leaves the flow and the cap does not apply
+  (SPEC-CORE-085 step 8, unchanged).
+- **No toggles and no actions:** the row is not drawn, its height is 0, and the cap is as
+  it is today (no row block).
 
 ### 3. States
 
-The cap in each state uses one budget, `playerBudget`:
+The no-panel budget is computed in `useCompanionMetrics.ts`, as `--player-avail`:
 
-    playerBudget = H - playerOffset - rowBlock
+    --player-avail = H - playerOffset - rowBlock - peek
 
-- `playerOffset`: the distance from the top of the scroll container's visible area to the
-  top of the framed player's wrapper, measured in the same way as today.
-- `rowBlock`: the row's measured height when it is drawn, plus the host's `1rem` top margin
-  above the row and its `1rem` bottom padding. Before the row is measured, `rowBlock` is
-  `2rem + 1rem + 1rem` (`2.75rem` with a coarse pointer), so the value is known on the
-  first frame.
+- `playerOffset`: the existing measurement, the distance from the top of the scroll
+  container's visible area to the top of the player wrapper.
+- `rowBlock`: the measured `offsetHeight` of the workbench row, plus `2rem` (the host's
+  `mt-4` above the workbench and its `p-4` bottom padding). It is 0 when the row is not
+  drawn.
+- `peek`: `PLAYER_PEEK_PX` (48px) as today, **only if Question 2 keeps it**. This spec
+  recommends removing it; the implementation follows the human's answer.
 
-States:
+Before the row is first measured, `rowBlock` is 0, so on the first frame the frame may be
+taller than the visible area. This is accepted, as SPEC-CORE-105 accepts it for its own
+first frame.
 
-- **No panel shown:** the frame's height cap is `playerBudget`. The 48px peek is not
-  subtracted. (See the question in §Checked, no action.)
-- **Panel shown:** the frame's height cap is the existing SPEC-CORE-085 step 8 cap, half of
-  H. `playerBudget` does not apply.
-- **Enlarge panels on (SPEC-CORE-104):** no change, since it needs a panel shown.
-- **Beside state (SPEC-CORE-105):** no change, since it needs a panel shown.
+`rowBlock` is measured by a `ResizeObserver` on the row element. The row element is passed
+from `Workbench` to the hook through a ref, so `useCompanionMetrics` observes it in the same
+way it observes the player wrapper today. Where `ResizeObserver` is missing, the existing
+fallback applies (the value is measured once on mount).
+
+Other states:
+
+- **Panel shown:** `--player-avail` does not apply; the cap is `--workbench-player-share`
+  (50%) on the framed player, unchanged.
+- **Enlarge panels on (SPEC-CORE-104):** unchanged, since the button needs a panel shown.
+  Its `min-width` floor is inside the `[data-workbench="on"]` rule (`globals.css`), so it
+  does not apply with no panel shown.
+- **Beside state (SPEC-CORE-105):** unchanged, since it needs a panel shown.
 
 ### 4. Data read and written
 
-None. Reads the stored panel list and the enlarge value as today; writes nothing.
+None. The stored panel list and the enlarge value are read as today; nothing is written.
 
 ### 5. External services
 
@@ -101,16 +112,17 @@ None. Layout only.
 
 ### 7. Effect on existing features
 
-- SPEC-CORE-085 step 7 and I5 (the 18rem floor and the scroll it allows): revised below.
-- SPEC-CORE-085 step 9 (no panel shown: the player is the size it is today): revised. The
-  player is now smaller than today when no panel is shown, and the peek is removed from
-  its budget.
-- SPEC-CORE-104 I3 (the 18rem room condition): revised below.
-- SPEC-CORE-105 (the beside state): unchanged. It applies only with a panel shown.
-- The collection surface (SPEC-CORE-090): unchanged. Its panels are 60% of H and its
-  player is not capped; this spec does not touch it.
-- Stacked inspector, phone, audio: unchanged.
-- No remount: only classes and styles change.
+- SPEC-CORE-085 step 7 (the 18rem floor) and step 9 (no panel shown: the player is the size
+  it is today): revised in `## Revises`.
+- SPEC-CORE-085 I5, its second bullet (the scroll allowed when the room is under 18rem):
+  revised.
+- SPEC-CORE-104 I3 (the 18rem room condition): revised.
+- SPEC-CORE-104 I6 ("with every panel closed the player is at its uncapped size"): revised.
+  The player is capped by `--player-avail` in that state.
+- SPEC-CORE-105: unchanged.
+- The collection surface (SPEC-CORE-090): unchanged. Its panels are 60% of H and it scrolls
+  by design.
+- No remount: only classes, styles and custom properties change.
 
 ### 8. Error behavior
 
@@ -118,65 +130,64 @@ None shown, nothing logged.
 
 ### 9. User-visible behavior
 
-- With panels shown, the panels get less height on a short window, and the page does not
-  scroll.
-- With no panel shown, the player is smaller than today on a short window, so that the
-  toggle row is visible under it without scrolling. On a tall window the frame is the same
-  as today, limited by the width or by the 16:9 height the budget allows.
-- On a wide window, nothing visible changes with a panel shown, except that the 18rem
-  floor no longer forces the page to scroll.
+- With panels shown on a short window, the panels get less height and the page does not
+  scroll. The 50% frame cap is unchanged.
+- With no panel shown on a short window, the player is smaller than today, so the toggle
+  row is visible under it without scrolling. On a tall window the frame is the same as
+  today (limited by the canvas width, or by the 16:9 height the budget allows).
+- The 48px title peek under the frame disappears in this state, unless Question 2 keeps it.
 
 ### 10. Non-functional
 
-- The layout is measured in a real browser. A jsdom test cannot check boxes
-  (`docs/process/PROJECT.md`, "Review in this project"), so the boxes are measured in
-  `frontend/e2e-layout/`.
-- The state is recomputed when H, the row's height, the canvas width or the panel state
-  changes. It needs no timer.
+- The layout is measured in a real browser (`docs/process/PROJECT.md`, "Review in this
+  project"). A jsdom test cannot check boxes.
+- The budget is recomputed when H, `playerOffset` or the row's height changes, through the
+  existing observers. No timer.
 
 ## Touch points
 
-- `frontend/src/lib/layoutSizes.ts`: `WORKBENCH_MIN_REM` is removed, or no longer used.
-- `frontend/src/components/FileDetail/workbench/Workbench.tsx`: the `minHeight` on the
-  panel grid.
-- `frontend/src/components/FileDetail/MediaCanvas.tsx` and `mediaHostStyle.ts`: the
-  `playerBudget` custom property for the no-panel state.
-- `frontend/src/components/FileDetail/hooks/useCompanionMetrics.ts`: `PLAYER_PEEK_PX` for
-  the no-panel budget, and the measurement of the row's height.
-- `frontend/src/app/globals.css`: the framed player's `max-width` rule for the no-panel
-  state, and the host's `min-height` rule (`.media-detail-host[data-workbench="on"]`).
-- `frontend/src/components/FileDetail/ShellLayout.tsx`: the `workbenchActive` flag, only if
-  the no-panel state needs a separate attribute.
-- Tests: `frontend/e2e-layout/` (new boxes and heights), and the existing unit test for
-  the workbench layout constants, where it names `WORKBENCH_MIN_REM`.
-- Documentation: none. No viewer-visible key, gesture or endpoint changes. The layout
-  change is not a user-guide item (`CLAUDE.md`, "Shipped behaviour is documented under
-  `docs/`").
+- `frontend/src/lib/layoutSizes.ts`: `WORKBENCH_MIN_REM` is deleted. Its only users are
+  `Workbench.tsx`'s import and `minHeight`.
+- `frontend/src/components/FileDetail/workbench/Workbench.tsx`: the grid's `minHeight` is
+  removed; the row element gets a ref, exposed to the parent.
+- `frontend/src/components/FileDetail/hooks/useCompanionMetrics.ts`: `rowBlock` is measured
+  and subtracted from `--player-avail`. `PLAYER_PEEK_PX` is removed or kept per Question 2.
+- `frontend/src/components/FileDetail/ShellLayout.tsx`: passes the row ref from the
+  workbench to the metrics hook.
+- `frontend/src/components/FileDetail/MediaCanvas.tsx` and `mediaHostStyle.ts`: no change
+  expected (`--player-avail` is already written there).
+- `frontend/src/app/globals.css`: no change expected. The `max-width` on `--player-avail`
+  (line 897) already caps the frame's height. If implementation shows a height rule is
+  needed, it is added here and listed in §Revises.
+- Tests: any test that asserts the 18rem floor (grep `WORKBENCH_MIN_REM` and `18rem`), and
+  `frontend/e2e-components/` and `frontend/e2e-layout/` for the new layout measurements.
+- Documentation: none. No viewer-visible key, gesture or endpoint changes. A layout change
+  of this kind is not a user-guide item (`CLAUDE.md`).
 
 ## Invariants
 
-"Wide canonical page" means SPEC-CORE-085's wide canonical form. "Visible height" is H.
+"Wide canonical page" means SPEC-CORE-085's wide canonical form with a framed player.
 
-I1. With at least one panel shown under a framed player, on a wide canonical page, the
-scroll container does not scroll at any visible height of 320px or more, and each shown
-panel's bottom edge is at or above the bottom of the visible area, within 1px.
+I1. With at least one panel shown, the scroll container does not scroll at any visible
+height of 320px or more, and every shown panel's bottom edge is at or above the bottom of
+the visible area, within 1px.
 
-I2. With no panel shown under a framed player, on a wide canonical page, the scroll
-container does not scroll at any visible height of 320px or more, and the toggle row's
-bottom edge is at or above the bottom of the visible area, within 1px.
+I2. With no panel shown and the row drawn, the scroll container does not scroll at any
+visible height of 320px or more, and the row's bottom edge is at or above the bottom of the
+visible area, within 1px.
 
-I3. With no panel shown, the frame's bottom edge is 1rem (within 1px) above the row's top
-edge, and the frame's height is at most `playerBudget`.
+I3. With no panel shown and the row drawn, the frame's bottom edge is 1rem (within 1px)
+above the row's top edge, and the frame's height is at most `--player-avail`.
 
-I4. With a panel shown, the frame's height is at most half of H, as SPEC-CORE-085 I5
-says, and no panel region has a minimum height.
+I4. With a panel shown, the frame's height is at most half of H, and the panel region has no
+minimum height.
 
-I5. A panel's body scrolls inside itself when its content is taller than the panel
-region, and the panel region never extends below the visible area.
+I5. A panel's body scrolls inside itself, and the panel region never extends below the
+visible area.
 
-I6. Toggling a panel on or off changes only classes, attributes and styles of the player
-and the workbench. It does not remount the `<video>` element, the `.loft` iframe or any
-panel, and does not change the playback position or play state.
+I6. Toggling a panel on or off changes only classes, attributes, styles and custom
+properties of the player and the workbench. It does not remount the `<video>` element, the
+`.loft` iframe or any panel, and does not change the playback position or play state.
 
 ## Revises
 
@@ -193,32 +204,42 @@ SPEC-CORE-104 I3. With the stored value on, the frame at the 30% cap, and the fr
 visible area, the scroll container does not scroll, and each panel body is taller than it
 is with the value off at the same window size.
 
+SPEC-CORE-104 I6. Only a press of the button writes `workbench-player-focus`. Closing every
+panel, a file change, a form change, opening Find and a reload leave it unchanged. With every
+panel closed the button is not drawn, and the framed player's height is capped at
+`--player-avail` (SPEC-CORE-106 I3); turning a panel on again applies the stored value.
+
+SPEC-CORE-085 step 7 and step 9 (in Normal flow): replaced by §1 of this spec. The panel
+region has no minimum height; with no panel shown, the player's cap is `--player-avail`
+with the row's block subtracted, not the size it had before.
+
 ## Checked, no action
 
-- **Enlarge panels' 270px floor (SPEC-CORE-104):** not changed. It is a height for the
-  frame, applied with a panel shown, and it does not depend on the room under the row.
-- **Pseudo and system full screen, mini player:** not capped by this spec (SPEC-CORE-085
-  step 8, unchanged).
+- **Enlarge panels' 270px floor (SPEC-CORE-104):** unchanged. It is a height for the frame
+  with a panel shown, and it does not depend on the room under the row.
+- **Pseudo and system full screen, mini player:** not capped by this spec.
 - **Collection surface:** its panels take 60% of H and it scrolls by design
-  (SPEC-CORE-085 I5, collection bullet). Not changed here.
-- **Stacked inspector and phone:** no row, no panel under the player. The inspector is a
-  tab, not a region under the player, so the scroll there is not this change.
-- **Peek (48px) in the no-panel state:** removed from the budget. Its purpose was to show
-  the title under the frame, and the row now occupies that place. Recommendation: remove.
-  The human decides; see the question below.
-- **Visible heights under 320px:** the page may scroll (I1, I2 apply from 320px). Below
-  that, both the frame and the panels are too small to be useful.
-- **Find open:** measured with Find closed, as §2 says. With Find open the page may scroll
-  by the find bar's height; this was already so (SPEC-CORE-104, known issues) and is not
-  changed.
+  (SPEC-CORE-085 I5, collection bullet).
+- **Stacked inspector and phone:** no row, no panel under the player. Not this change.
+- **Visible heights under 320px:** the page may scroll. I1 and I2 start at 320px.
+- **Find open:** measured with Find closed. With Find open the page may scroll by the find
+  bar's height, as today.
+- **Wrapped row taller than the room:** accepted as in §2, and raised as Question 4.
+- **Row measured on the first frame:** `rowBlock` is 0 until measured (§3), as SPEC-CORE-105
+  accepts for its own first frame.
 
 ## Questions for the human
 
-1. **Player size with no panel shown.** To keep the row on screen the player becomes
-   smaller than it is today on short windows. Recommended: accept that. The alternative,
-   keeping the player as it is and accepting the scroll in this state, is what the owner
-   asked to remove.
-2. **The 48px peek.** Recommended: remove it from the no-panel state (see above).
-3. **Design check.** The agreed design (`docs/process/reviews/feature-player-workbench/design/`)
-   draws the player at its full size with no panel shown (D5). Question 1 changes that, so
-   the difference is listed for the human to accept or reject.
+1. **Player size with no panel shown (recommended: accept).** To keep the row on screen the
+   player is smaller than today on short windows. Without this change the page scrolls in
+   this state.
+2. **The 48px peek (recommended: remove).** The peek shows the title under the frame. The
+   row now occupies that place. Keeping it would push the row 48px below the fold.
+3. **Design difference (recommended: accept Q1 and record it).** The agreed design
+   (`docs/process/reviews/feature-player-workbench/design/`, mock
+   https://claude.ai/artifact/SMLPhPJSRZzLYhe21a4sJS) draws the player at its full size with
+   no panel shown (D5). Q1 changes that. The design-check records it as a `D-` finding to
+   accept or reject.
+4. **Wrapped row with no room (recommended: accept the scroll).** When the toggle row wraps
+   to three or more lines on a short window, no frame height is left and the page may
+   scroll. The alternative is to hide the row's wrap, which removes toggles from view.
