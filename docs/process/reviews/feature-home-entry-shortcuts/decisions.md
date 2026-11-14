@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship (human, 2026-11-14, "ship", after r1 HUMAN_REVIEW_REQUIRED for unspecified_behavior: the MCP add_to_collection and get_collection outputs gaining on_home accepted as a read-only pass-through; B findings R1-claude-read-1, TP-1, TP-2, TP-3, TP-4 accepted)
 ran_in_app: yes
 at: d0119924c16ff58eb7575f59851158f1e7ec6797
 by: agent

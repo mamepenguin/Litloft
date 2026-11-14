@@ -1,0 +1,243 @@
+{
+  "risk": "CRITICAL",
+  "score": 12,
+  "base": 3,
+  "zone_max": "HIGH",
+  "modifiers": [
+    "schema"
+  ],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "DESIGN.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/database.py",
+      "level": "HIGH"
+    },
+    {
+      "path": "backend/app/main.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/models.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/routers/collections.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/routers/drives.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/routers/home_shortcuts.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/schemas.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/tests/test_api_pins.py",
+      "level": "LOW"
+    },
+    {
+      "path": "backend/tests/test_database_migration_home_added_at.py",
+      "level": "LOW"
+    },
+    {
+      "path": "backend/tests/test_home_shortcuts.py",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/reference/api.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/home-entry-shortcuts.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/file-browsing.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/homeAppEntries.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/home-app-entries.cases.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/DriveHome.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/accent-budget.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/driveHomeFailureState.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/driveHomeSectionOrder.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/driveHomeTreeClosable.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/homeShortcuts.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/uploadZoneHosts.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/CollectionDetail.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/DriveHome.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FolderBrowser.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/SmartFolderSaveButton.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/CollectionDetail.homeShortcut.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/CollectionDetail.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/DriveHome.driveChange.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/DriveHome.icons.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/FolderBrowser.continueView.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/FolderBrowser.folderAnchor.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/FolderBrowser.hasMore.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/FolderBrowser.header.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/FolderBrowser.homeShortcut.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/FolderBrowser.imageQuery.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/FolderBrowser.passages.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/FolderBrowser.paste.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/FolderBrowser.sceneUrl.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/FolderBrowser.snapshotScroll.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/SearchPage.filtered.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/SearchPage.queryHeader.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/SearchPage.resultsBar.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/SearchPage.semanticContinuation.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/SmartFolderSaveButton.homeShortcut.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/folder/FolderToolbar.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/folder/usePinnedFolders.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/home/HomeAppEntries.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/hooks/useSmartFolders.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/api.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/types/index.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/types/smartFolder.ts",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone HIGH (8 points)",
+    "modifiers: schema"
+  ]
+}
