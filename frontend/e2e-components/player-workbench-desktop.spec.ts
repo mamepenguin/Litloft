@@ -7,6 +7,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { pathToFileURL } from "node:url";
 
 import { PAGE } from "./build-bundle";
+import { COMPACT_MAX_WIDTH } from "../src/components/player/MediaControls/layout";
 import { CANVAS_PADDING_REM } from "../src/lib/layoutSizes";
 
 const FIXTURE = pathToFileURL(PAGE).href;
@@ -30,7 +31,7 @@ let navigation = 0;
 
 interface OpenOptions {
   stored?: unknown;
-  panels?: "one" | "two";
+  panels?: "one" | "two" | "four";
   description?: string;
   inspectorOpen?: boolean;
   /** The raw `workbench-player-focus` value; left alone when undefined. */
@@ -306,21 +307,38 @@ function regimeOf(visibleHeight: number): Regime | "ambiguous" {
   return "ambiguous";
 }
 
-/** Window sizes from the spec's table, with the inspector beside the canvas. */
+/**
+ * Windows with the inspector beside the canvas and under 17rem of room beside
+ * the value-on frame, so the row stays under it.
+ */
 const WINDOWS = [
-  { name: "iPad 11-inch landscape", width: 1210, height: 764 },
+  { name: "a 1100x764 window", width: 1100, height: 764 },
 ];
 
 /** One window per term of the value-on cap, each with the inspector beside the canvas. */
-const CAP_WINDOWS: { name: string; width: number; height: number; regime: Regime }[] = [
-  { name: "iPad 11-inch landscape", width: 1210, height: 764, regime: "floor" },
-  { name: "iPad 13-inch More Space landscape", width: 1590, height: 1122, regime: "share" },
-  { name: "a short 1440x560 window", width: 1440, height: 560, regime: "half" },
+const CAP_WINDOWS: {
+  name: string;
+  width: number;
+  height: number;
+  regime: Regime;
+  rowBeside?: true;
+}[] = [
+  { name: "a 1100x764 window", width: 1100, height: 764, regime: "floor" },
+  // No window holds the value-off frame at 50% and the share-term frame
+  // with under 17rem beside it, so this one is in the beside state.
+  {
+    name: "iPad 13-inch More Space landscape",
+    width: 1590,
+    height: 1122,
+    regime: "share",
+    rowBeside: true,
+  },
+  { name: "a short 1000x560 window", width: 1000, height: 560, regime: "half" },
 ];
 
 async function openBeside(
   page: Page,
-  size: { width: number; height: number },
+  size: { width: number; height: number; rowBeside?: true },
   options: OpenOptions = {},
 ) {
   await page.setViewportSize(size);
@@ -335,6 +353,7 @@ async function openBeside(
   );
   await expect(panelGroup(page)).toBeVisible();
   await transcriptLoaded(page);
+  if (!size.rowBeside) expect(await sideSpace(page)).toBeLessThan(BESIDE_FROM - 8);
 }
 
 async function expectShare(page: Page, share: number) {
@@ -374,11 +393,32 @@ async function videoTag(page: Page): Promise<string | undefined> {
     );
 }
 
-/** Width of the row under the player, which spans the canvas's content box. */
+/** Width of the workbench root, which spans the canvas's content box. */
 async function canvasWidth(page: Page): Promise<number> {
-  return panelGroup(page).evaluate(
-    (group) => group.parentElement!.getBoundingClientRect().width,
+  return page.locator(WORKBENCH).evaluate((root) => root.getBoundingClientRect().width);
+}
+
+const WORKBENCH = ".media-detail-workbench";
+/** The side space beside the value-on frame at which the row moves beside it. */
+const BESIDE_FROM = 17 * REM;
+const COMPACT_WIDTH = COMPACT_MAX_WIDTH;
+
+/** The value-on frame's width for a canvas content width and a visible height. */
+function besideFrameWidth(canvas: number, visibleHeight: number): number {
+  const at = (share: number) => (visibleHeight * share * 16) / 9;
+  return Math.max(
+    Math.min(canvas, at(FOCUSED_SHARE)),
+    Math.min(canvas, COMPACT_WIDTH, at(DEFAULT_SHARE)),
   );
+}
+
+/** C - W - 1rem, from the workbench root's width and the visible height. */
+async function sideSpace(page: Page): Promise<number> {
+  const canvas = await page
+    .locator(WORKBENCH)
+    .evaluate((root) => (root as HTMLElement).clientWidth);
+  const { visibleHeight } = await scrollContainer(page, "Transcript");
+  return canvas - besideFrameWidth(canvas, visibleHeight) - REM;
 }
 
 for (const size of CAP_WINDOWS) {
@@ -435,11 +475,12 @@ for (const size of CAP_WINDOWS.filter((window) => window.regime !== "half")) {
 test("SPEC-CORE-104 I2 I3 with the inspector closed the value moves the cap the same way", async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.setViewportSize({ width: 770, height: 900 });
   await open(page, CANONICAL, { stored: ["transcript"], inspectorOpen: false, focus: "true" });
   await expect(page.getByTestId("inspector-pane")).toHaveCount(0);
   await expect(panelGroup(page)).toBeVisible();
   await transcriptLoaded(page);
+  expect(await sideSpace(page)).toBeLessThan(BESIDE_FROM - 8);
 
   await expect(enlarge(page)).toHaveAttribute("aria-pressed", "true");
   await expectFocusedCap(page);
@@ -824,4 +865,671 @@ test("SPEC-CORE-088 I7 Show more appears when a resize makes the description nee
 
   await expect(page.getByRole("button", { name: "Show more" })).toBeVisible();
   expect(await descriptionLines(page, MEDIUM_DESCRIPTION)).toBeLessThanOrEqual(3.05);
+});
+
+/* ------------------------------------------------------------------ *
+ * Enlarge panels: the row beside the player
+ * ------------------------------------------------------------------ */
+
+const PANEL_GAP = 0.75 * REM;
+const ROW_GAP = REM;
+const HOST_BOTTOM_PADDING = REM;
+
+/** One window per term of W, each with the inspector beside and at least 17rem beside the frame. */
+const BESIDE_WINDOWS: { name: string; width: number; height: number; regime: Regime }[] = [
+  { name: "1376x878", width: 1376, height: 878, regime: "floor" },
+  { name: "iPad 13-inch More Space landscape", width: 1590, height: 1122, regime: "share" },
+  { name: "a short 1440x560 window", width: 1440, height: 560, regime: "half" },
+];
+
+const POINTERS = [
+  { name: "fine", hasTouch: false },
+  { name: "coarse", hasTouch: true },
+] as const;
+
+const workbench = (page: Page) => page.locator(WORKBENCH);
+const frameOf = (page: Page) => page.getByTestId("player-frame").first();
+
+/** Opens the canonical page with the inspector beside and checks the window gives the row room beside the frame. */
+async function openWide(
+  page: Page,
+  size: { width: number; height: number; regime?: Regime },
+  options: OpenOptions = {},
+) {
+  await page.setViewportSize(size);
+  await open(page, CANONICAL, {
+    stored: ["transcript"],
+    inspectorOpen: true,
+    focus: "true",
+    ...options,
+  });
+  await expect(page.getByTestId("inspector-fit-host")).toHaveAttribute(
+    "data-inspector-fit",
+    "beside",
+  );
+  await expect(panelGroup(page)).toBeVisible();
+  await transcriptLoaded(page);
+  if (size.regime) {
+    const { visibleHeight } = await scrollContainer(page, "Transcript");
+    expect(regimeOf(visibleHeight)).toBe(size.regime);
+  }
+  expect(await sideSpace(page)).toBeGreaterThanOrEqual(BESIDE_FROM);
+}
+
+async function expectPointer(page: Page, coarse: boolean) {
+  expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(coarse);
+}
+
+interface RowLayout {
+  root: Box;
+  frame: Box;
+  row: Box;
+  toggles: Box[];
+  trailing: Box[];
+  content: Box[];
+}
+
+/** The boxes the beside invariants speak of, read in one pass. */
+async function rowLayout(page: Page): Promise<RowLayout> {
+  return page.evaluate((selector) => {
+    const rect = (element: Element) => {
+      const r = element.getBoundingClientRect();
+      return {
+        top: r.top,
+        bottom: r.bottom,
+        left: r.left,
+        right: r.right,
+        width: r.width,
+        height: r.height,
+      };
+    };
+    const root = document.querySelector(selector)!;
+    const frame = document.querySelector("[data-testid='player-frame']")!;
+    const group = document.querySelector("[role='group'][aria-label='Panels']")!;
+    const row = group.parentElement!;
+    const toggles = Array.from(group.querySelectorAll("button")).map(rect);
+    const trailing = Array.from(row.querySelectorAll("button"))
+      .filter((button) => !group.contains(button))
+      .map(rect);
+    const content = Array.from(row.querySelectorAll("button")).map(rect);
+    return { root: rect(root), frame: rect(frame), row: rect(row), toggles, trailing, content };
+  }, WORKBENCH);
+}
+
+const near = (a: number, b: number, slack = 1) => Math.abs(a - b) <= slack;
+
+/** I1's checks with the toggles on one line; returns the ones that fail. */
+function besideMisses(layout: RowLayout): string[] {
+  const { root, frame, row, toggles, trailing } = layout;
+  const misses: string[] = [];
+  const bottom = (boxes: Box[]) => Math.max(...boxes.map((b) => b.bottom));
+  const check = (name: string, ok: boolean) => {
+    if (!ok) misses.push(name);
+  };
+  check("frame left = canvas left", near(frame.left, root.left));
+  check("row left = frame right + 1rem", near(row.left, frame.right + ROW_GAP));
+  check("row right = canvas right", near(row.right, root.right));
+  check("toggles' bottom = frame bottom", near(bottom(toggles), frame.bottom));
+  check("trailing group's bottom = frame bottom", near(bottom(trailing), frame.bottom));
+  check("first toggle left = row left", near(toggles[0].left, row.left));
+  check(
+    "trailing group's right = row right",
+    near(Math.max(...trailing.map((b) => b.right)), row.right),
+  );
+  return misses;
+}
+
+/** I5's checks: the frame centred in the canvas content and the row 1rem under it. */
+function underMisses(layout: RowLayout): string[] {
+  const { root, frame, row } = layout;
+  const misses: string[] = [];
+  if (!near(frame.left - root.left, root.right - frame.right)) misses.push("frame centred");
+  if (!near(row.top, frame.bottom + ROW_GAP)) misses.push("row top = frame bottom + 1rem");
+  return misses;
+}
+
+const rowBeside = (page: Page) =>
+  workbench(page).evaluate((root) => root.getAttribute("data-row-beside"));
+
+async function expectBeside(page: Page) {
+  await expect.poll(async () => besideMisses(await rowLayout(page))).toEqual([]);
+  await expect(workbench(page)).toHaveAttribute("data-row-beside", "on");
+}
+
+async function expectUnder(page: Page) {
+  await expect.poll(async () => underMisses(await rowLayout(page))).toEqual([]);
+  expect(await rowBeside(page)).toBeNull();
+}
+
+/** Resizes to the window whose workbench root is `canvas` px wide, keeping the height. */
+async function resizeCanvasTo(page: Page, canvas: number) {
+  const viewport = page.viewportSize()!;
+  const now = await workbench(page).evaluate((root) => (root as HTMLElement).clientWidth);
+  await page.setViewportSize({ width: viewport.width + canvas - now, height: viewport.height });
+  await expect
+    .poll(() => workbench(page).evaluate((root) => (root as HTMLElement).clientWidth))
+    .toBe(canvas);
+}
+
+/** Resizes to the window whose visible height is `height` px, keeping the width. */
+async function resizeVisibleHeightTo(page: Page, height: number) {
+  const viewport = page.viewportSize()!;
+  const { visibleHeight } = await scrollContainer(page, "Transcript");
+  await page.setViewportSize({
+    width: viewport.width,
+    height: viewport.height + height - visibleHeight,
+  });
+  await expect
+    .poll(async () => (await scrollContainer(page, "Transcript")).visibleHeight)
+    .toBe(height);
+}
+
+for (const pointer of POINTERS) {
+  test.describe(`${pointer.name} pointer`, () => {
+    test.use({ hasTouch: pointer.hasTouch });
+
+    for (const size of BESIDE_WINDOWS) {
+      test(`SPEC-CORE-105 I1 the frame is at the canvas's left edge and the row beside it ends on the frame's bottom (${size.name}, ${size.regime}, ${pointer.name} pointer)`, async ({
+        page,
+      }) => {
+        await openWide(page, size, { actions: true });
+        await expectPointer(page, pointer.hasTouch);
+        await expect(page.getByTestId("fixture-preview-action")).toBeVisible();
+
+        await expectBeside(page);
+        const layout = await rowLayout(page);
+        expect(new Set(layout.toggles.map((b) => Math.round(b.top))).size).toBe(1);
+        // SPEC-CORE-104 I8 in the beside state: the button ends 0.5rem left of the action.
+        const button = await enlarge(page).evaluate((e) => e.getBoundingClientRect().right);
+        const action = await page
+          .getByTestId("fixture-preview-action")
+          .evaluate((e) => e.getBoundingClientRect().left);
+        expect(Math.abs(action - button - 0.5 * REM)).toBeLessThanOrEqual(1);
+      });
+
+      test(`SPEC-CORE-105 I2 the first panel starts 0.75rem under the frame and spans the canvas content (${size.name}, ${size.regime}, ${pointer.name} pointer)`, async ({
+        page,
+      }) => {
+        await openWide(page, size);
+        await expectPointer(page, pointer.hasTouch);
+
+        await expect
+          .poll(async () => {
+            const frame = await box(page, "[data-testid='player-frame']");
+            return Math.abs((await cardBox(page, "Transcript")).top - (frame.bottom + PANEL_GAP));
+          })
+          .toBeLessThanOrEqual(1);
+        const panel = await cardBox(page, "Transcript");
+        const root = await box(page, WORKBENCH);
+        expect(Math.abs(panel.left - root.left)).toBeLessThanOrEqual(1);
+        expect(Math.abs(panel.right - root.right)).toBeLessThanOrEqual(1);
+        await expect(workbench(page)).toHaveAttribute("data-row-beside", "on");
+      });
+
+      test(`SPEC-CORE-105 I3 the frame keeps SPEC-CORE-104's cap in the beside state (${size.name}, ${size.regime}, ${pointer.name} pointer)`, async ({
+        page,
+      }) => {
+        await openWide(page, size);
+        await expect(workbench(page)).toHaveAttribute("data-row-beside", "on");
+
+        await expectFocusedCap(page);
+        const { visibleHeight } = await scrollContainer(page, "Transcript");
+        const canvas = await workbench(page).evaluate((root) => (root as HTMLElement).clientWidth);
+        const frame = await box(page, "[data-testid='player-frame']");
+        expect(Math.abs(frame.width - besideFrameWidth(canvas, visibleHeight))).toBeLessThanOrEqual(1);
+        expect(Math.abs(frame.height - focusedCap(visibleHeight))).toBeLessThanOrEqual(2);
+      });
+    }
+
+    for (const where of ["1376x878", "the threshold"] as const) {
+      test(`SPEC-CORE-105 I2 with four toggles and the quote action no row content meets the frame or passes the canvas's right edge (${where}, ${pointer.name} pointer)`, async ({
+        page,
+      }) => {
+        await openWide(page, BESIDE_WINDOWS[0], { panels: "four", actions: true });
+        await expectPointer(page, pointer.hasTouch);
+        if (where === "the threshold") {
+          const { visibleHeight } = await scrollContainer(page, "Transcript");
+          await resizeCanvasTo(
+            page,
+            Math.ceil(besideFrameWidth(10_000, visibleHeight) + REM + BESIDE_FROM),
+          );
+        }
+        await expect(panelGroup(page).getByRole("button")).toHaveCount(4);
+        await expect(page.getByTestId("fixture-preview-action")).toBeVisible();
+        await expect(workbench(page)).toHaveAttribute("data-row-beside", "on");
+
+        const { frame, root, content } = await rowLayout(page);
+        for (const item of content) {
+          const meets =
+            item.left < frame.right - 1 &&
+            item.right > frame.left + 1 &&
+            item.top < frame.bottom - 1 &&
+            item.bottom > frame.top + 1;
+          expect(meets).toBe(false);
+          expect(item.right).toBeLessThanOrEqual(root.right + 1);
+        }
+      });
+    }
+
+    test(`SPEC-CORE-105 I1 wrapped toggles keep the first ones in priority order on the bottom line, with the trailing group at its right end on the frame's bottom (${pointer.name} pointer)`, async ({
+      page,
+    }) => {
+      await openWide(page, BESIDE_WINDOWS[0], { panels: "four", actions: true });
+      const { visibleHeight } = await scrollContainer(page, "Transcript");
+      await resizeCanvasTo(
+        page,
+        Math.ceil(besideFrameWidth(10_000, visibleHeight) + REM + BESIDE_FROM),
+      );
+      await expect(panelGroup(page).getByRole("button")).toHaveCount(4);
+      await expect(workbench(page)).toHaveAttribute("data-row-beside", "on");
+
+      const { frame, row, toggles, trailing } = await rowLayout(page);
+      const onBottom = toggles.map((t) => near(t.bottom, frame.bottom));
+      expect(onBottom[0]).toBe(true);
+      const count = onBottom.filter(Boolean).length;
+      expect(onBottom).toEqual(toggles.map((_, i) => i < count));
+      expect(count).toBeLessThan(toggles.length);
+      const lineTop = Math.min(...toggles.slice(0, count).map((t) => t.top));
+      for (const later of toggles.slice(count)) {
+        expect(later.bottom).toBeLessThanOrEqual(lineTop + 1);
+      }
+      expect(Math.abs(toggles[0].left - row.left)).toBeLessThanOrEqual(1);
+      expect(Math.abs(Math.max(...trailing.map((b) => b.bottom)) - frame.bottom)).toBeLessThanOrEqual(1);
+      expect(Math.abs(Math.max(...trailing.map((b) => b.right)) - row.right)).toBeLessThanOrEqual(1);
+    });
+  });
+}
+
+for (const size of BESIDE_WINDOWS.filter((window) => window.regime !== "half")) {
+  test(`SPEC-CORE-105 I4 with Find closed and room for the panel's floor, the panel ends in the visible area and the page does not scroll (${size.name}, ${size.regime})`, async ({
+    page,
+  }) => {
+    await openWide(page, size);
+    await expect(workbench(page)).toHaveAttribute("data-row-beside", "on");
+    const container = await scrollContainer(page, "Transcript");
+    const frame = await box(page, "[data-testid='player-frame']");
+    expect(container.visibleBottom - frame.bottom).toBeGreaterThanOrEqual(
+      PANEL_GAP + PANEL_FLOOR + HOST_BOTTOM_PADDING,
+    );
+
+    const panel = await cardBox(page, "Transcript");
+    expect(panel.bottom).toBeLessThanOrEqual(container.visibleBottom + 1);
+    expect(container.scrolls).toBe(false);
+  });
+}
+
+const LEAVING = [
+  {
+    name: "a press",
+    leave: async (page: Page) => {
+      await enlarge(page).click();
+      await expect(enlarge(page)).toHaveAttribute("aria-pressed", "false");
+    },
+  },
+  {
+    name: "closing the last panel",
+    leave: async (page: Page) => {
+      await page.getByRole("button", { name: "Close Transcript" }).click();
+      await expect(card(page, "Transcript")).toHaveCount(0);
+    },
+  },
+  {
+    name: "a width-only resize under 17rem of side space",
+    leave: async (page: Page) => {
+      const { visibleHeight } = await scrollContainer(page, "Transcript");
+      await resizeCanvasTo(
+        page,
+        Math.floor(besideFrameWidth(10_000, visibleHeight) + REM + BESIDE_FROM) - 1,
+      );
+    },
+  },
+];
+
+for (const leaving of LEAVING) {
+  test(`SPEC-CORE-105 I5 leaving the beside state by ${leaving.name} centres the frame and puts the row 1rem under it`, async ({
+    page,
+  }) => {
+    await openWide(page, BESIDE_WINDOWS[0]);
+    await expectBeside(page);
+
+    await leaving.leave(page);
+
+    await expectUnder(page);
+  });
+}
+
+test("SPEC-CORE-105 I5 I9 the state is not beside with the value other than \"true\", and is with it", async ({
+  page,
+}) => {
+  // Init scripts accumulate across opens, so the "true" value comes last.
+  for (const [focus, pressed] of [
+    [undefined, "false"],
+    ["false", "false"],
+    ["TRUE", "false"],
+  ] as const) {
+    await page.setViewportSize(BESIDE_WINDOWS[0]);
+    await open(page, CANONICAL, { stored: ["transcript"], inspectorOpen: true, focus });
+    await expect(panelGroup(page)).toBeVisible();
+    await transcriptLoaded(page);
+    await expect(enlarge(page)).toHaveAttribute("aria-pressed", pressed);
+    await expectUnder(page);
+  }
+
+  await openWide(page, BESIDE_WINDOWS[0]);
+  await expectBeside(page);
+});
+
+test("SPEC-CORE-105 I9 a width-only resize in the floor case flips the state between a side space of 17rem and 17rem minus 1px", async ({
+  page,
+}) => {
+  await openWide(page, BESIDE_WINDOWS[0]);
+  const { visibleHeight } = await scrollContainer(page, "Transcript");
+  expect(besideFrameWidth(10_000, visibleHeight)).toBe(COMPACT_WIDTH);
+  const at = COMPACT_WIDTH + REM + BESIDE_FROM;
+
+  await resizeCanvasTo(page, at);
+  await expect(workbench(page)).toHaveAttribute("data-row-beside", "on");
+  expect((await scrollContainer(page, "Transcript")).scrolls).toBe(false);
+
+  await resizeCanvasTo(page, at - 1);
+  await expect(workbench(page)).not.toHaveAttribute("data-row-beside", /.*/);
+  expect((await scrollContainer(page, "Transcript")).scrolls).toBe(false);
+
+  await resizeCanvasTo(page, at);
+  await expect(workbench(page)).toHaveAttribute("data-row-beside", "on");
+});
+
+test("SPEC-CORE-105 I9 a height-only resize that moves the side space 8px or more across 17rem flips the state", async ({
+  page,
+}) => {
+  await openWide(page, BESIDE_WINDOWS[0]);
+  // W = 480 (floor), side space 17rem + 8px.
+  await resizeCanvasTo(page, COMPACT_WIDTH + REM + BESIDE_FROM + 8);
+  await expect(workbench(page)).toHaveAttribute("data-row-beside", "on");
+  const floorHeight = (await scrollContainer(page, "Transcript")).visibleHeight;
+
+  // W = 1000 x 0.3 x 16/9 = 533px: side space 17rem - 45px.
+  await resizeVisibleHeightTo(page, 1000);
+  expect(await sideSpace(page)).toBeLessThanOrEqual(BESIDE_FROM - 8);
+  await expect(workbench(page)).not.toHaveAttribute("data-row-beside", /.*/);
+
+  await resizeVisibleHeightTo(page, floorHeight);
+  await expect(workbench(page)).toHaveAttribute("data-row-beside", "on");
+});
+
+/* The player and the panels across entering and leaving the state. */
+
+async function tagPanel(page: Page) {
+  await card(page, "Transcript")
+    .first()
+    .evaluate((node) => {
+      (node as HTMLElement & { __fixtureTag?: string }).__fixtureTag = "kept";
+    });
+}
+
+async function panelTag(page: Page): Promise<string | undefined> {
+  return card(page, "Transcript")
+    .first()
+    .evaluate((node) => (node as HTMLElement & { __fixtureTag?: string }).__fixtureTag);
+}
+
+async function playback(page: Page) {
+  return page
+    .locator("video")
+    .first()
+    .evaluate((video: HTMLVideoElement) => ({ paused: video.paused, time: video.currentTime }));
+}
+
+test("SPEC-CORE-105 I6 a press, a width-only resize, a height-only resize and a storage event keep the paused player, its position and the panel", async ({
+  page,
+}) => {
+  await openWide(page, BESIDE_WINDOWS[0]);
+  await resizeCanvasTo(page, COMPACT_WIDTH + REM + BESIDE_FROM + 8);
+  const floorHeight = (await scrollContainer(page, "Transcript")).visibleHeight;
+  await expect(workbench(page)).toHaveAttribute("data-row-beside", "on");
+  await tagVideo(page);
+  await tagPanel(page);
+  await page.locator("video").first().evaluate(async (video: HTMLVideoElement) => {
+    video.pause();
+    video.currentTime = 1.25;
+    await new Promise((resolve) => video.addEventListener("seeked", resolve, { once: true }));
+  });
+
+  const other = await page.context().newPage();
+  const crossings: [string, () => Promise<void>, boolean][] = [
+    ["press off", () => enlarge(page).click(), false],
+    ["press on", () => enlarge(page).click(), true],
+    ["narrow", () => resizeCanvasTo(page, COMPACT_WIDTH + REM + BESIDE_FROM - 8), false],
+    ["widen", () => resizeCanvasTo(page, COMPACT_WIDTH + REM + BESIDE_FROM + 8), true],
+    ["taller", () => resizeVisibleHeightTo(page, 1000), false],
+    ["shorter", () => resizeVisibleHeightTo(page, floorHeight), true],
+    [
+      "storage off",
+      async () => {
+        await other.goto(page.url());
+        await other.evaluate((key) => localStorage.setItem(key, "false"), FOCUS_KEY);
+      },
+      false,
+    ],
+    [
+      "storage on",
+      () => other.evaluate((key) => localStorage.setItem(key, "true"), FOCUS_KEY),
+      true,
+    ],
+  ];
+  for (const [name, cross, on] of crossings) {
+    await cross();
+    if (on) await expect(workbench(page), name).toHaveAttribute("data-row-beside", "on");
+    else await expect(workbench(page), name).not.toHaveAttribute("data-row-beside", /.*/);
+    expect(await videoTag(page), name).toBe("kept");
+    expect(await panelTag(page), name).toBe("kept");
+    const now = await playback(page);
+    expect(now.paused, name).toBe(true);
+    expect(Math.abs(now.time - 1.25), name).toBeLessThan(0.01);
+  }
+});
+
+test("SPEC-CORE-105 I6 closing the last panel and turning it on again keeps the paused player and its position", async ({
+  page,
+}) => {
+  await openWide(page, BESIDE_WINDOWS[0]);
+  await expect(workbench(page)).toHaveAttribute("data-row-beside", "on");
+  await tagVideo(page);
+  await page.locator("video").first().evaluate(async (video: HTMLVideoElement) => {
+    video.pause();
+    video.currentTime = 1.25;
+    await new Promise((resolve) => video.addEventListener("seeked", resolve, { once: true }));
+  });
+
+  await page.getByRole("button", { name: "Close Transcript" }).click();
+  await expect(workbench(page)).not.toHaveAttribute("data-row-beside", /.*/);
+  await panelGroup(page).getByRole("button", { name: "Transcript" }).click();
+  await transcriptLoaded(page);
+  await expect(workbench(page)).toHaveAttribute("data-row-beside", "on");
+
+  expect(await videoTag(page)).toBe("kept");
+  const now = await playback(page);
+  expect(now.paused).toBe(true);
+  expect(Math.abs(now.time - 1.25)).toBeLessThan(0.01);
+});
+
+test("SPEC-CORE-105 I6 entering and leaving by a press does not stop a playing player", async ({
+  page,
+}) => {
+  await openWide(page, BESIDE_WINDOWS[0]);
+  await expect(workbench(page)).toHaveAttribute("data-row-beside", "on");
+  await tagVideo(page);
+  await page.locator("video").first().evaluate(async (video: HTMLVideoElement) => {
+    video.muted = true;
+    video.loop = true;
+    await video.play();
+  });
+
+  await enlarge(page).click();
+  await expect(workbench(page)).not.toHaveAttribute("data-row-beside", /.*/);
+  expect((await playback(page)).paused).toBe(false);
+  await enlarge(page).click();
+  await expect(workbench(page)).toHaveAttribute("data-row-beside", "on");
+
+  expect(await videoTag(page)).toBe("kept");
+  expect((await playback(page)).paused).toBe(false);
+});
+
+/* Full screen. */
+
+declare global {
+  interface Window {
+    __rowBesideChanges?: (string | null)[];
+  }
+}
+
+/** The fallback for a platform that refuses system full screen; Chromium only takes it with touch. */
+async function refuseSystemFullscreen(page: Page) {
+  await page.addInitScript(() => {
+    Element.prototype.requestFullscreen = () => Promise.reject(new Error("refused"));
+  });
+}
+
+/** Presses the frame's own button, as a keyboard shortcut reaches it past the shield. */
+async function pressFrameButton(page: Page, label: string) {
+  await frameOf(page).evaluate((element, label) => {
+    const button = Array.from(element.querySelectorAll("button")).find(
+      (b) => (b.getAttribute("aria-label") ?? b.textContent ?? "") === label,
+    );
+    button!.click();
+  }, label);
+}
+
+async function enterFullscreen(page: Page) {
+  await pressFrameButton(page, "Full screen");
+  const viewport = page.viewportSize()!;
+  await expect
+    .poll(async () => {
+      const pinned = await box(page, "[data-testid='player-frame']");
+      return near(pinned.width, viewport.width) && near(pinned.height, viewport.height);
+    })
+    .toBe(true);
+  await expect(frameOf(page)).not.toHaveAttribute("data-fullscreen-moving", /.*/);
+}
+
+async function exitFullscreen(page: Page) {
+  await pressFrameButton(page, "Exit full screen");
+  const viewport = page.viewportSize()!;
+  await expect
+    .poll(async () => (await box(page, "[data-testid='player-frame']")).width)
+    .toBeLessThan(viewport.width - 1);
+  await expect(frameOf(page)).not.toHaveAttribute("data-fullscreen-moving", /.*/);
+}
+
+/** Records every change to the workbench root's `data-row-beside` from now on. */
+async function watchRowBeside(page: Page) {
+  await workbench(page).evaluate((root) => {
+    window.__rowBesideChanges = [];
+    new MutationObserver((records) => {
+      for (const record of records) {
+        window.__rowBesideChanges!.push(
+          (record.target as Element).getAttribute("data-row-beside"),
+        );
+      }
+    }).observe(root, { attributes: true, attributeFilter: ["data-row-beside"] });
+  });
+}
+
+/** The edges of the frame, the row, the root and the panel that moved by more than 1px since `before`. */
+async function movedSince(page: Page, before: RowLayout, panelBefore: Box): Promise<string[]> {
+  const after = await rowLayout(page);
+  const panel = await cardBox(page, "Transcript");
+  const edges = ["left", "top", "width", "height"] as const;
+  return [
+    ...(["frame", "row", "root"] as const).flatMap((key) =>
+      edges
+        .filter((edge) => !near(after[key][edge], before[key][edge]))
+        .map((edge) => `${key}.${edge}`),
+    ),
+    ...edges.filter((edge) => !near(panel[edge], panelBefore[edge])).map((edge) => `panel.${edge}`),
+  ];
+}
+
+/** Pseudo full screen never changes the state; system full screen may while it is up. */
+const FULLSCREENS = [
+  { name: "pseudo full screen", hasTouch: true, refuse: true, stateHeld: true },
+  { name: "system full screen", hasTouch: false, refuse: false, stateHeld: false },
+] as const;
+
+for (const fullscreen of FULLSCREENS) {
+  test.describe(fullscreen.name, () => {
+    test.use({ hasTouch: fullscreen.hasTouch });
+
+    test(`SPEC-CORE-105 I7 ${fullscreen.name}${fullscreen.stateHeld ? ", its transitions included, does not change the state," : ""} and leaving it at the same window size restores the state and the geometry`, async ({
+      page,
+    }) => {
+      if (fullscreen.refuse) await refuseSystemFullscreen(page);
+      await openWide(page, BESIDE_WINDOWS[0]);
+      await expectBeside(page);
+      const before = await rowLayout(page);
+      const panelBefore = await cardBox(page, "Transcript");
+      await watchRowBeside(page);
+
+      await enterFullscreen(page);
+      expect(
+        await page.evaluate(() => document.fullscreenElement !== null),
+      ).toBe(!fullscreen.refuse);
+      await exitFullscreen(page);
+
+      await expect(workbench(page)).toHaveAttribute("data-row-beside", "on");
+      if (fullscreen.stateHeld) {
+        expect(await page.evaluate(() => window.__rowBesideChanges)).toEqual([]);
+      }
+      await expect.poll(() => movedSince(page, before, panelBefore)).toEqual([]);
+    });
+
+    test(`SPEC-CORE-105 I7 the ${fullscreen.name} frame is the same size in the beside state as with the row under the frame`, async ({
+      page,
+    }) => {
+      if (fullscreen.refuse) await refuseSystemFullscreen(page);
+      await openWide(page, BESIDE_WINDOWS[0], { focus: "false" });
+      await expect(enlarge(page)).toHaveAttribute("aria-pressed", "false");
+      expect(await rowBeside(page)).toBeNull();
+      await enterFullscreen(page);
+      const under = await box(page, "[data-testid='player-frame']");
+      await exitFullscreen(page);
+
+      await enlarge(page).click();
+      await expect(workbench(page)).toHaveAttribute("data-row-beside", "on");
+      await enterFullscreen(page);
+      const beside = await box(page, "[data-testid='player-frame']");
+      expect(Math.abs(beside.width - under.width)).toBeLessThanOrEqual(1);
+      expect(Math.abs(beside.height - under.height)).toBeLessThanOrEqual(1);
+    });
+  });
+}
+
+test("SPEC-CORE-105 I8 panels sit side by side in the beside state on a workbench at least 41rem wide", async ({
+  page,
+}) => {
+  await openWide(page, BESIDE_WINDOWS[0], { panels: "two", stored: ["transcript", "outline"] });
+  await expect(workbench(page)).toHaveAttribute("data-row-beside", "on");
+  expect(await canvasWidth(page)).toBeGreaterThanOrEqual(COLUMNS_FROM);
+
+  const first = await cardBox(page, "Transcript");
+  const second = await cardBox(page, "Outline");
+  expect(Math.abs(first.top - second.top)).toBeLessThanOrEqual(1);
+  expect(first.right).toBeLessThanOrEqual(second.left);
+});
+
+test("SPEC-CORE-105 I8 panels stack in the beside state on a workbench under 41rem", async ({
+  page,
+}) => {
+  // A short window makes W the half term, small enough for the side space on a canvas under 41rem.
+  await openWide(
+    page,
+    { width: 1016, height: 348, regime: "half" },
+    { panels: "two", stored: ["transcript", "outline"] },
+  );
+  await expect(workbench(page)).toHaveAttribute("data-row-beside", "on");
+  expect(await canvasWidth(page)).toBeLessThan(COLUMNS_FROM);
+
+  const first = await cardBox(page, "Transcript");
+  const second = await cardBox(page, "Outline");
+  expect(second.top).toBeGreaterThanOrEqual(first.bottom - 1);
 });

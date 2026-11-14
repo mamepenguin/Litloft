@@ -143,6 +143,20 @@ const ADDONS_STATUS = {
             },
           ]
         : []),
+      // `panels=four`: the toggles whose labels set the row's width, the
+      // widest of them "Detailed summary".
+      ...(FIXTURE_QUERY.get("panels") === "four"
+        ? [
+            { id: "fixture-scenes", label: "Scenes", priority: 20, addonName: "intelligence" },
+            {
+              id: "fixture-detailed-summary",
+              label: "Detailed summary",
+              priority: 30,
+              addonName: "intelligence",
+            },
+            { id: "fixture-note", label: "Note", priority: 40, addonName: "intelligence" },
+          ]
+        : []),
     ],
     // `actions=1` gives the player one preview action, so the row's
     // trailing end has something visible beside the panel controls.
