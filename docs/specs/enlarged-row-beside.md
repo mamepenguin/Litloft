@@ -2,7 +2,7 @@
 
 SPEC-ID: SPEC-CORE-105
 
-Approval:
+Approval: sha256:7cdd6d6206de7f696999bd0d3992569b59c1473badc84b6534bcf60015af47a3 Yuichi Senga 2026-11-14
 
 ## Summary
 
