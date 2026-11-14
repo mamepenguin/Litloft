@@ -228,4 +228,4 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-104 | implemented | docs/specs/workbench-panel-priority.md | sha256:e0fc4e382abacb89f2649e85b624040fa7fc020a18fde41b1189cd39df932fc8 |
 | SPEC-ADDON-107 | implemented | docs/specs/file-ask-enter-submit.md | sha256:faef5d4dd878ca31de9af3dff91eb892e010e0772d2a1e8a02969ee4a729fb69 |
 | SPEC-CORE-105 | implemented | docs/specs/enlarged-row-beside.md | sha256:7cdd6d6206de7f696999bd0d3992569b59c1473badc84b6534bcf60015af47a3 |
-| SPEC-CORE-106 | approved | docs/specs/workbench-no-page-scroll.md | sha256:4368ebbd10119bae47e7fe3a8f216d27fb45c471ce81b3b72d36153d0d17d5b5 |
+| SPEC-CORE-106 | approved | docs/specs/workbench-no-page-scroll.md | sha256:004999701fac8473c8309d735b3af74677be32295b3fd1cda8f3102b40ab40d0 |

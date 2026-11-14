@@ -62,13 +62,13 @@ describe("the workbench under the player", () => {
     );
   });
 
-  it("keeps the enlarged floor inside the same budget, since a minimum overrides the maximum", () => {
+  it("keeps the enlarged floor inside the enlarged share and the same budget, since a minimum overrides the maximum", () => {
     const floor = globalsCss().match(
       /\.media-detail-host\[data-workbench="on"\]\[data-player-focus="on"\]\s+\.media-detail-player\[data-framed="true"\]\s*\{[^}]*\}/,
     );
     expect(floor).not.toBeNull();
     expect(floor![0]).toMatch(
-      /min-width:\s*min\(\s*100%,\s*480px,\s*calc\(\s*var\(--rail-avail,\s*100dvh\)\s*\*\s*0\.5\s*\*\s*16\s*\/\s*9\s*\),\s*calc\(\s*var\(--player-avail,\s*100dvh\)\s*\*\s*16\s*\/\s*9\s*\)\s*\);/,
+      /min-width:\s*min\(\s*100%,\s*480px,\s*calc\(\s*var\(--rail-avail,\s*100dvh\)\s*\*\s*var\(--workbench-player-share,\s*0\.5\)\s*\*\s*16\s*\/\s*9\s*\),\s*calc\(\s*var\(--player-avail,\s*100dvh\)\s*\*\s*16\s*\/\s*9\s*\)\s*\);/,
     );
   });
 

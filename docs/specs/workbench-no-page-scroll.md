@@ -2,7 +2,7 @@
 
 SPEC-ID: SPEC-CORE-106
 
-Approval: sha256:4368ebbd10119bae47e7fe3a8f216d27fb45c471ce81b3b72d36153d0d17d5b5 Yuichi Senga 2026-11-15
+Approval: sha256:004999701fac8473c8309d735b3af74677be32295b3fd1cda8f3102b40ab40d0 Yuichi Senga 2026-11-15
 
 ## Summary
 
@@ -168,7 +168,7 @@ The frame's share of H while a panel is shown is the existing custom property
 | Panel shown | Enlarge value | Frame cap |
 |---|---|---|
 | yes | off | min(50% of H, `--player-avail`) (SPEC-CORE-085 step 8) |
-| yes | on | min(max(30% of H, 270px), `--player-avail`) (SPEC-CORE-104) |
+| yes | on | between min(270px, 30% of H, `--player-avail`) and min(30% of H, `--player-avail`) (SPEC-CORE-104) |
 | no | off or on | `--player-avail` (this spec) |
 
 Only the first two rows are read by the revised SPEC-CORE-104 I3 and by I4 below.
@@ -180,7 +180,8 @@ Only the first two rows are read by the revised SPEC-CORE-104 I3 and by I4 below
   panel-shown state (the attribute is only set then, by `workbenchActive`). Nothing else in
   the stylesheet changes except the framed player's cap in the panel-shown state (the host
   descendant rule), which gains `min(…, --player-avail × 16/9)`, and the enlarged floor
-  (`data-player-focus="on"`), which gains the same term. The collection rule
+  (`data-player-focus="on"`), whose share term becomes `--workbench-player-share` (30%
+  when enlarged) and which gains the `--player-avail` term. The collection rule
   (`data-collection-workbench`) is not touched.
 - `frontend/src/components/FileDetail/workbench/Workbench.tsx`: the grid's `minHeight`
   (`WORKBENCH_MIN_REM`) is removed. The row element is not passed anywhere; the metrics hook
@@ -241,9 +242,8 @@ I3. With no panel shown and the row drawn, the frame's bottom edge is 1rem (with
 above the row's top edge, and the frame's height is at most `--player-avail`.
 
 I4. With a panel shown and the stored value off, the frame's height is at most half of H.
-With the stored value on, it is at most 30% of H, and at least 270px unless the canvas width
-or `--player-avail` limits it first. In both states the frame's height is at most
-`--player-avail`.
+With the stored value on, the frame's height is at most the lesser of 30% of H and
+`--player-avail`, and at least the lesser of 270px, 30% of H and `--player-avail`.
 
 I5. With a panel shown, the host's height is H (within 1px), and the panel region has no
 minimum height, so that a region's height is 0 at a small H and grows with H.
