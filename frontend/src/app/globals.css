@@ -901,15 +901,16 @@ pre mark.ask-citation-highlight {
 /* ------------------------------------------------------------------
    The workbench under the player.
 
-   The host claims the scroll container's visible height only while a panel
-   is shown, so the panels reach the bottom of the viewport and the player is
-   capped at half of it. Without a panel the host keeps its content height
-   and the player is its full size.
+   The host takes the visible height only while a panel is shown, so the
+   panel region is bounded by it and each panel body scrolls inside itself,
+   and the player is capped at half of it. Without a panel the host takes its
+   content height, and the player's budget (`--player-avail`) leaves room for
+   the toggle row under it.
    ------------------------------------------------------------------ */
 .media-detail-host[data-workbench="on"] {
   display: flex;
   flex-direction: column;
-  min-height: var(--rail-avail, 100dvh);
+  height: var(--rail-avail, 100dvh);
 }
 
 .media-detail-host[data-workbench="on"] > .media-detail-player {

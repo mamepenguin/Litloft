@@ -195,7 +195,7 @@ test("SPEC-CORE-085 I5 a panel on the canonical page reaches the bottom of the v
   expect(frame).toBeLessThanOrEqual(container.visibleHeight / 2 + 1);
 });
 
-test("SPEC-CORE-085 I5 a panel keeps 18rem when the window has less room under the row, and the page scrolls", async ({
+test("SPEC-CORE-106 I1 with less room under the row the panel shrinks below 18rem and the page does not scroll", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 560 });
@@ -205,9 +205,8 @@ test("SPEC-CORE-085 I5 a panel keeps 18rem when the window has less room under t
 
   const panel = await cardBox(page, "Transcript");
   const container = await scrollContainer(page, "Transcript");
-  expect(panel.height).toBeGreaterThanOrEqual(PANEL_FLOOR - 1);
-  expect(panel.height).toBeLessThanOrEqual(PANEL_FLOOR + 1);
-  expect(container.scrolls).toBe(true);
+  expect(panel.height).toBeLessThan(PANEL_FLOOR);
+  expect(container.scrolls).toBe(false);
 });
 
 test("SPEC-CORE-085 I2 with no panel on, nothing is under the row and the player is larger than with one", async ({

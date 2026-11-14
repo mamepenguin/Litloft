@@ -48,9 +48,8 @@ describe("the workbench under the player", () => {
     expect(host).not.toBeNull();
     expect(host![0]).toMatch(/display:\s*flex;/);
     expect(host![0]).toMatch(/flex-direction:\s*column;/);
-    expect(host![0]).toMatch(
-      /min-height:\s*var\(--rail-avail,\s*100dvh\);/,
-    );
+    expect(host![0]).toMatch(/[^-]height:\s*var\(--rail-avail,\s*100dvh\);/);
+    expect(host![0]).not.toMatch(/min-height/);
   });
 
   it("caps a framed player at half the visible height", () => {

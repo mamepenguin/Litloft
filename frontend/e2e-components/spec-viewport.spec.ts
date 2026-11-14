@@ -107,6 +107,7 @@ const AT_THE_DESKTOP_WIDTH = [
   "collection-workbench-metrics-desktop.spec.ts",
   "workbench-first-frame-desktop.spec.ts",
   "workbench-no-panel-desktop.spec.ts",
+  "workbench-no-page-scroll-desktop.spec.ts",
   "stacked-description-desktop.spec.ts",
   "file-header-row-desktop.spec.ts",
   "reading-text-size-desktop.spec.ts",

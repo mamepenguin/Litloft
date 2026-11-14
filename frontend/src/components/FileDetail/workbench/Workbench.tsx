@@ -4,7 +4,7 @@ import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { PanelTopClose, X } from "lucide-react";
 
-import { WORKBENCH_COLUMNS_MIN_REM, WORKBENCH_MIN_REM } from "@/lib/layoutSizes";
+import { WORKBENCH_COLUMNS_MIN_REM } from "@/lib/layoutSizes";
 import { isRowBeside } from "@/lib/workbenchBeside";
 import type { WorkbenchPanelItem } from "./panels";
 
@@ -141,11 +141,6 @@ export function Workbench({
       <div
         className="media-detail-workbench-grid"
         hidden={shown.length === 0}
-        style={
-          shown.length > 0
-            ? { minHeight: `${WORKBENCH_MIN_REM}rem` }
-            : undefined
-        }
       >
         {items.map((item) => {
           const itemShown = item.available && stored.includes(item.id);

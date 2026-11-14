@@ -28,9 +28,6 @@ export const STACKED_PLAYER_SHARE = 0.5;
  */
 export const WORKBENCH_COLUMNS_MIN_REM = 41;
 
-/** The panel region's floor. Below it the page scrolls instead of shrinking. */
-export const WORKBENCH_MIN_REM = 18;
-
 /** A framed player's cap while a panel is shown under it. */
 export const WORKBENCH_PLAYER_SHARE = 0.5;
 
