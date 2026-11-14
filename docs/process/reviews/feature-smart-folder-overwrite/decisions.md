@@ -68,3 +68,14 @@ evidence: >
   None of these is on the changed path.
 pending: The ファイル/箇所 switch was not exercised (not rendered without the
   passages/search addon); no other `agent_cannot_verify` part applies.
+
+## Design differences accepted by the human (design-check.md)
+
+Accepted by Yuichi Senga on 2026-11-14, each by its id. The artboards simplified the parts this change does not touch; the overwrite button (place, size, sand style, icon, label, wrap at 375) and the `…` rows (order, disabled state) match them.
+
+- D-1 accepted: the Files / Passages switch needs the search addon, and Scene search is hidden for operator queries; both are existing behaviour.
+- D-2 accepted: the View and Sort buttons show the current choice, as today; the artboard used placeholder labels.
+- D-3 accepted: the length chip keeps its existing format; the artboard used placeholder text.
+- D-4 accepted: the `…` menu sizes to its rows, as today.
+- D-5 accepted: the count keeps its existing translation (「{count}件」).
+- D-6 accepted: the phone `…` sheet is the same component; R-5 checked its rows' order and disabled state at 375.
