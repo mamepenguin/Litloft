@@ -9,6 +9,7 @@ import { addonNavEntries } from "@/lib/addonNavigation";
 import { UploadZone } from "@/components/UploadZone";
 import { useUploadCompleted } from "@/hooks/useUpload";
 import { useInboxCount } from "@/hooks/useInboxCount";
+import { useEntryVisibility } from "@/hooks/useEntryVisibility";
 import { useTreeRefresh } from "@/components/TreeRefreshContext";
 import { useWebSocketRefresh } from "@/hooks/useWebSocketRefresh";
 import { AddButton } from "./AddButton";
@@ -64,6 +65,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   const refreshTree = useTreeRefresh();
   const { addons, catalogueDrive } = useAddonSlots();
   const inboxCount = useInboxCount(driveName);
+  const { hidden: hiddenEntries } = useEntryVisibility(driveName);
   const [continueWatching, setContinueWatching] = useState<WatchHistoryItem[]>([]);
   const [continueWatchingLoading, setContinueWatchingLoading] = useState(false);
   const [recentlyPlayed, setRecentlyPlayed] = useState<WatchHistoryItem[]>([]);
@@ -324,6 +326,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
         addonEntries={addonEntries}
         inboxCount={inboxCount}
         shortcuts={shortcuts.drive === driveName ? shortcuts.items : []}
+        hiddenKeys={hiddenEntries}
       />
 
       {hasProfile && (

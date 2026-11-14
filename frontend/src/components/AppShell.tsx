@@ -2,9 +2,11 @@
 
 import type { ReactNode } from "react";
 
+import { useEntryVisibility } from "@/hooks/useEntryVisibility";
 import { useReportPageBackground } from "@/hooks/useReportPageBackground";
 
 import { ChromeButtons } from "./ChromeButtons";
+import { useCurrentDrive } from "./CurrentDriveProvider";
 import { FileHeaderRowProvider } from "./FileHeaderRowProvider";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
@@ -16,6 +18,7 @@ import { GlobalSearchProvider } from "./search/GlobalSearchProvider";
 export function AppShell({ children }: { children: ReactNode }) {
   const { isOpen, isOverlay } = useSidebar();
   const inlineOpen = isOpen && !isOverlay;
+  const { hidden: hiddenEntries } = useEntryVisibility(useCurrentDrive());
   useReportPageBackground();
 
   return (
@@ -24,7 +27,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <GlobalSearchProvider>
           <FileHeaderRowProvider>
             <div className="min-h-dvh">
-              <Sidebar />
+              <Sidebar hiddenKeys={hiddenEntries} />
               <ChromeButtons />
               <div
                 className={`flex min-h-dvh min-w-0 flex-col transition-[padding] duration-150 ease-out ${

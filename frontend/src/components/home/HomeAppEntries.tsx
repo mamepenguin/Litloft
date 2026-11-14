@@ -15,6 +15,7 @@ import { useTranslations } from "next-intl";
 import type { AddonNavEntry } from "@/lib/addonNavigation";
 import { ADDON_NAV_ICONS } from "@/lib/addonNavIcons";
 import { builtinApps } from "@/lib/builtinApps";
+import { EMPTY_HIDDEN_KEYS, isEntryShown } from "@/lib/entryVisibility";
 import { collectionHref, driveHref, smartFolderHref } from "@/lib/driveViews";
 import { pinHrefFor } from "@/components/sidebar/libraryRowActive";
 import { slotEntryLabel } from "@/lib/slotLabel";
@@ -25,6 +26,8 @@ interface HomeAppEntriesProps {
   addonEntries: readonly AddonNavEntry[];
   inboxCount: number;
   shortcuts: readonly HomeShortcut[];
+  /** The drive's hidden entry keys; `null` while that list is loading. */
+  hiddenKeys?: ReadonlySet<string> | null;
 }
 
 interface Entry {
@@ -84,6 +87,7 @@ export function HomeAppEntries({
   addonEntries,
   inboxCount,
   shortcuts,
+  hiddenKeys = EMPTY_HIDDEN_KEYS,
 }: HomeAppEntriesProps) {
   const t = useTranslations("drive");
   const tSidebar = useTranslations("sidebar");
@@ -97,18 +101,22 @@ export function HomeAppEntries({
       label: tSidebar("library"),
       icon: FolderTree,
     },
-    ...builtinApps.map((app) => ({
-      key: app.id,
-      href: app.route(drive),
-      label: tRoot(app.labelKey),
-      icon: app.icon,
-    })),
-    ...addonEntries.map(({ key, navigation, href }) => ({
-      key,
-      href,
-      label: slotEntryLabel(navigation, tRoot),
-      icon: (navigation.icon && ADDON_NAV_ICONS[navigation.icon]) || Package,
-    })),
+    ...builtinApps
+      .filter((app) => isEntryShown(app.id, hiddenKeys))
+      .map((app) => ({
+        key: app.id,
+        href: app.route(drive),
+        label: tRoot(app.labelKey),
+        icon: app.icon,
+      })),
+    ...addonEntries
+      .filter(({ key }) => isEntryShown(key, hiddenKeys))
+      .map(({ key, navigation, href }) => ({
+        key,
+        href,
+        label: slotEntryLabel(navigation, tRoot),
+        icon: (navigation.icon && ADDON_NAV_ICONS[navigation.icon]) || Package,
+      })),
     ...shortcuts.map((shortcut) => ({
       key: `shortcut:${shortcut.kind}:${shortcut.id}`,
       href: shortcutHref(drive, shortcut),
