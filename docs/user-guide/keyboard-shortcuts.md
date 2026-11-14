@@ -239,6 +239,7 @@ In the question field on a file page's Ask tab and on the Ask page.
 | `Enter` | Send the question |
 | `Shift+Enter` or `Option+Enter` | Insert a newline |
 
+## Dialogs
 
 | Key | Action |
 |---|---|
