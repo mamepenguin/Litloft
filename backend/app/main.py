@@ -20,7 +20,7 @@ import app.setup_token as setup_token
 import app.config as config
 from app.models import File
 from app.routers import admin, admin_markdown_images, auth, collections, comments, drives, files, highlights, progress, shelves, uploads, ws
-from app.routers import addon_proxy, admin_config, drive_policies, files_processing, inbox, internal, smart_folders
+from app.routers import addon_proxy, admin_config, drive_policies, files_processing, home_shortcuts, inbox, internal, smart_folders
 from app.services import inbox as inbox_service
 from app.services.diskpath import resolve_on_disk
 from app.services.fileops import physical_delete
@@ -331,6 +331,7 @@ app.include_router(drive_policies.router)
 app.include_router(uploads.router)
 app.include_router(collections.router)
 app.include_router(smart_folders.router)
+app.include_router(home_shortcuts.router)
 app.include_router(progress.router)
 app.include_router(highlights.router)
 app.include_router(ws.router)

@@ -73,6 +73,7 @@ def _to_detail(collection: Collection) -> CollectionDetailResponse:
         ],
         created_at=collection.created_at,
         updated_at=collection.updated_at,
+        on_home=collection.on_home,
     )
 
 
