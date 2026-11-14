@@ -230,7 +230,15 @@ Notes save automatically. `Cmd/Ctrl+S` marks the current text as a version to ke
 |---|---|
 | `+` or `=` / `-` | Zoom in / out |
 
-## Dialogs
+## Ask
+
+In the question field on a file page's Ask tab and on the Ask page.
+
+| Key | Action |
+|---|---|
+| `Enter` | Send the question |
+| `Shift+Enter` or `Option+Enter` | Insert a newline |
+
 
 | Key | Action |
 |---|---|
