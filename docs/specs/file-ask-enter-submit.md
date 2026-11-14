@@ -22,12 +22,15 @@ not send a half-written question by accident. It is for any viewer who uses Ask.
 1. The viewer types a question in either Ask input: the file Ask tab or the Ask page.
 2. The viewer presses Enter, Cmd+Enter or Ctrl+Enter.
 3. The question is sent exactly as a click on that input's send button sends it at that
-   moment. On the file Ask tab that is **質問する**, with the same text, profile choice and
-   player position.
+   moment: the key runs the button's own submit path. On the file Ask tab that is
+   **質問する**, with the same text, profile choice and player position. On the Ask page
+   that includes clearing the "saved" link of a note saved from the previous answer, which
+   an Enter send today skips.
 4. The field and the answer area behave as they do after a button click today.
 
 Shift+Enter or Alt/Option+Enter at step 2 inserts a newline at the caret (replacing any
-selection) and sends nothing.
+selection), leaves the caret right after it, and sends nothing. When the field is at its
+maximum length (the file Ask tab's `maxLength`), both insert nothing.
 
 | Keys | Result |
 |---|---|
@@ -50,8 +53,8 @@ So the send condition is: Enter with neither Shift nor Alt/Option held.
   `preventDefault`, so the key is left to the IME and the browser.
 - The browser does not insert a newline for Alt/Option+Enter by itself: the field still
   gets the newline (I2); how is the implementation's choice.
-- On the Ask page, Ask is unavailable (its button is disabled for that reason): same as
-  too short.
+- On the Ask page, Ask availability is still being checked: same as too short. Ask is
+  unavailable: the field is disabled and receives no keys, as today.
 - A send that fails after it starts fails exactly as a button send does today; this
   change adds no failure path of its own.
 
@@ -68,6 +71,12 @@ the Ask page's "can send" condition is the one its send button already uses.
   enabled).
 - **streaming**: an answer is being received. On the file Ask tab the field stays
   editable and typed text is kept.
+
+On the Ask page there is also **checking** (Ask availability not yet known; the field is
+enabled) and **unavailable** (the field is disabled, as today). checking → too short or
+sendable when Ask answers available; checking → unavailable when it answers not
+available. In checking, a sending key is dropped and a newline key inserts a newline, as
+in too short.
 
 too short ↔ sendable by typing or deleting. sendable → streaming by a sending key or a
 button click; the send then changes the field as a button send does today. streaming →
@@ -89,7 +98,14 @@ change sendability.
 A sending key starts a send only when sendability is **sendable** and composition is
 **none**. In every other state the press is dropped: nothing is sent then, and nothing is
 queued to be sent when the state changes. A newline key (Shift+Enter, Alt/Option+Enter)
-inserts a newline in every sendability state when composition is **none**.
+inserts a newline in every sendability state where the field is enabled, when
+composition is **none**.
+
+In **composing** and **just composed**, every Enter, with any modifier, is the IME's: the
+handler does nothing and the browser and IME decide. So the first Enter, Shift+Enter or
+Alt/Option+Enter inside the grace window may differ from one another (a browser may add a
+newline for Shift+Enter and not for Alt/Option+Enter). This is accepted: the window is
+about 100 ms right after a conversion is confirmed.
 
 ### 4. Data read and written
 
@@ -109,7 +125,8 @@ grant nothing more. The checks stay in the core proxy and the addon routes.
 ### 7. Effect on existing features
 
 - The Ask page: Alt/Option+Enter (and Cmd/Ctrl+Alt+Enter) changes from send to newline or
-  browser default. Enter, Cmd/Ctrl+Enter and Shift+Enter keep their behavior.
+  browser default. An Enter send now also clears the previous answer's "saved" note
+  link, as the button already does. Shift+Enter keeps its behavior.
 - The comment section keeps Cmd/Ctrl+Enter to post and Enter for a newline.
 - The send buttons keep working as they do.
 - App-wide keyboard shortcuts: those registered with `editingOnly: false` fire from inside
@@ -150,7 +167,10 @@ beyond today's send. The IME guard's grace window is the shared one in
   the question `<textarea>` gains `onKeyDown` and `onCompositionEnd`; the submit logic is
   reused, not duplicated.
 - `addons/intelligence/frontend/Page.tsx` (same repository): `handleInputKeyDown`'s send
-  condition excludes Alt/Option, and Alt/Option+Enter inserts a newline.
+  condition excludes Alt/Option, it sends through the button's submit path, and
+  Alt/Option+Enter inserts a newline.
+- The key rule is written in each of the two components. No new addon module holds it, so
+  the files that mention `"Enter"` stay those two.
 - `frontend/src/lib/ime.ts` (`useImeKeyGuard`): read and used, not edited.
 - Tests for both inputs under `addons/intelligence/frontend/`. The IME test reproduces
   the measured event order (composition end, then Enter with `isComposing: false`), with
@@ -170,16 +190,18 @@ I1. In either Ask input, Enter, Cmd+Enter or Ctrl+Enter, while the field is send
 not composing, starts the same send a click on that input's send button starts at that
 moment (on the file Ask tab: the same text, profile and player position). One press
 starts at most one send.
-I2. Shift+Enter and Alt/Option+Enter in either Ask input never send; when not composing,
-each leaves exactly one newline at the caret, replacing any selection, in every
-sendability state.
+I2. Shift+Enter and Alt/Option+Enter in either Ask input never send. When not composing
+and the field is enabled and below its maximum length, each leaves exactly one newline at
+the caret, replacing any selection, with the caret right after it, in every sendability
+state. At the maximum length both insert nothing.
 I3. An Enter that confirms an IME composition, or any key the IME still owns, never sends,
 and the handler neither inserts text nor calls `preventDefault` for it.
 I4. A sending key while the input's send button is disabled (question too short, an
 answer streaming, or on the Ask page Ask unavailable) sends nothing, inserts no newline, leaves the text unchanged, and causes no send
 later when the state changes.
-I5. Any other Enter combination (Shift+Alt, or Cmd/Ctrl with Shift or Alt) never sends.
-Keys other than Enter in either Ask input behave as before this change.
+I5. Any other Enter combination (Shift+Alt, or Cmd/Ctrl with Shift or Alt) never sends,
+and the handler neither inserts text nor calls `preventDefault` for it. Keys other than
+Enter in either Ask input behave as before this change.
 I6. The comment section's key behavior is unchanged.
 
 ## Checked, no action
@@ -195,5 +217,7 @@ I6. The comment section's key behavior is unchanged.
   question rarely needs a newline. Detecting a touch keyboard to switch the binding was
   not taken; it would make the behavior differ by device.
 - **Escape in the field.** Not bound today and not in the request.
-- **A shared hook for "Enter sends" textareas.** Two callers in one addon; the rule may
-  be shared inside the addon, but no core abstraction is added.
+- **A shared hook for "Enter sends" textareas.** Two callers; each writes the rule inline
+  (Touch points). No addon or core module is added.
+- **Undo of an inserted Alt/Option+Enter newline.** Whether one Cmd/Ctrl+Z removes it
+  depends on how it is inserted; not required. A typed character is a cheap fix.
