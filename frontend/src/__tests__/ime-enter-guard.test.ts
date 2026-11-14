@@ -52,6 +52,7 @@ const NOT_A_TEXT_FIELD_ENTER = [
 
 /** Addon text fields whose Enter acts, each guarded and render-tested in its own repository. */
 const ADDON_TEXT_FIELD_ENTER = [
+  "intelligence/frontend/AskTab.tsx",
   "intelligence/frontend/Page.tsx",
   "intelligence/frontend/pages/search-compare.tsx",
   "intelligence/frontend/TranscriptSection.tsx",
@@ -106,7 +107,7 @@ describe("core files handling Enter", () => {
 
   it("are all declared in the addons as well", () => {
     const declared = [...ADDON_TEXT_FIELD_ENTER, ...ADDON_NOT_A_GUARDED_ENTER].sort();
-    expect(declared).toHaveLength(8);
+    expect(declared).toHaveLength(9);
     const found = readdirSync(ADDONS_DIR, { withFileTypes: true })
       .filter((e) => e.isDirectory())
       .map((e) => resolve(ADDONS_DIR, e.name, "frontend"))
