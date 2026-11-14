@@ -226,5 +226,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-102 | implemented | docs/specs/home-entry-shortcuts.md | sha256:2b6e797d17e1d31e62d7d16e00fea984a0317124168eee3f499a2f10e677812f |
 | SPEC-CORE-103 | implemented | docs/specs/smart-folder-overwrite.md | sha256:3e5ff632f42075c25c90cec47ca274cb2f259124dd20eda5d16d3aca37dac17e |
 | SPEC-CORE-104 | implemented | docs/specs/workbench-panel-priority.md | sha256:e0fc4e382abacb89f2649e85b624040fa7fc020a18fde41b1189cd39df932fc8 |
-| SPEC-ADDON-108 | draft | docs/specs/video-ask-frames.md | |
-| SPEC-ADDON-109 | draft | docs/specs/video-ask-frames.md | |
+| SPEC-ADDON-108 | approved | docs/specs/video-ask-frames.md | sha256:434bb5887b558d658e6f3428b9a04c4d5d06b0732a99866b9c215c5a75571645 |
+| SPEC-ADDON-109 | approved | docs/specs/video-ask-frames.md | sha256:434bb5887b558d658e6f3428b9a04c4d5d06b0732a99866b9c215c5a75571645 |

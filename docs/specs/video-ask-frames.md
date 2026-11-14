@@ -3,7 +3,7 @@
 SPEC-ID: SPEC-ADDON-108
 SPEC-ID: SPEC-ADDON-109
 
-Approval:
+Approval: sha256:434bb5887b558d658e6f3428b9a04c4d5d06b0732a99866b9c215c5a75571645 Yuichi Senga 2026-11-14
 
 <!--
 Leave the Approval line empty. After a human approves this spec, the approval step
