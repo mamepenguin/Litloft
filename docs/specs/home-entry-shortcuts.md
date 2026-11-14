@@ -48,18 +48,24 @@ where the sidebar's menus cannot be opened.
    "collection", "id": <smart folder id | pin path | collection id>, "on_home": bool }`.
 4. The backend sets the target row's `home_added_at` to the current UTC time when `on_home`
    is true and the column is NULL, keeps it when it is already set, and sets it to NULL when
-   `on_home` is false. It answers 204.
+   `on_home` is false. It answers 204. The write touches `home_added_at` only: the row's
+   `updated_at` keeps its value (the ORM's `onupdate` must not fire), so the collections
+   list, ordered by `updated_at`, does not reorder.
 5. On success the page's `on_home` for the target flips, so the next time the menu opens it
    offers the other row.
 
 **Drawing shortcuts on Home (101, 100)**
 
-1. `DriveHome` requests `GET /api/drives/{drive}/home-shortcuts` once per page load,
-   alongside its other requests, and passes the result to `HomeAppEntries` as a
-   `shortcuts` prop. `HomeAppEntries` stays a presenter.
+1. `DriveHome` requests `GET /api/drives/{drive}/home-shortcuts` inside `loadPage`, so it
+   is sent on mount, on a drive change, on a nickname change and from Try again on
+   `home-unavailable`, each under that call's `pageLoadRef` id. `refreshPage` (upload and
+   WebSocket refreshes) does not send it. The result is kept together with the drive it
+   was requested for, and passed to `HomeAppEntries` as a `shortcuts` prop only while that
+   drive is Home's drive. `HomeAppEntries` stays a presenter.
 2. The response lists every Smart Folder, pin and collection of the drive whose
    `home_added_at` is set, ordered by `home_added_at` ascending (the first placed first),
-   ties broken by `kind` then `id`. Each item is
+   ties broken by `kind` in string order (`collection`, `pin`, `smart_folder`) and then by
+   the API `id` (a pin's path) in string order. Each item is
    `{ "kind", "id", "name", "query", "file_type" }`:
    - `smart_folder`: its `id`, `name`, `query`, `file_type`;
    - `pin`: `id` is the path, `name` is the path's last segment, `query` and `file_type`
@@ -80,12 +86,17 @@ where the sidebar's menus cannot be opened.
 - Deleting a Smart Folder or a collection deletes its row, so its shortcut is gone.
 - Unpinning a folder deletes its `pinned_folders` row, so its shortcut is gone; pinning it
   again starts with `on_home` false.
+- Renaming or moving a pinned folder (or a folder above it) inside the app rewrites the pin's
+  path in place (`fileops._update_pinned_folders`), so the shortcut follows to the new path
+  and keeps its `home_added_at` and its position.
 
 ### 2. Failure cases
 
-- `PUT` fails (network, 5xx): `on_home` on the page stays as it was and a toast shows
-  `homeShortcutFailed` (ホームの入口を変更できませんでした / Couldn't change the Home
-  entry), in the page's existing error-toast style. Nothing is retried.
+- `PUT` fails (network, 5xx): `on_home` on the page stays as it was and an error toast
+  shows `drive.homeShortcutFailed` (ホームの入口を変更できませんでした / Couldn't change the
+  Home entry) through the app's `useToast()` on all three pages. On the folder page the
+  toggle lives in `usePinnedFolders`, which raises the toast; on the collection page,
+  `CollectionDetail`; on the search page, `SmartFolderController`. Nothing is retried.
 - `PUT` names a target that no longer exists in that drive (deleted from another tab):
   404; the page shows the same toast.
 - `PUT` with an unknown `kind`: 422. The UI never sends one.
@@ -93,8 +104,9 @@ where the sidebar's menus cannot be opened.
   entries when the catalogue failed. Other rows are unaffected, and the request does not
   count toward `home-unavailable` (that page appears only when every core row request
   failed, as today).
-- `GET` answers after Home has moved to another drive or a newer page load has started:
-  the response is discarded.
+- `GET` answers after Home has moved to another drive or a newer `loadPage` call has
+  started: the response is discarded.
+- `GET` fails: the shortcuts for that drive become empty; the next `loadPage` asks again.
 - A pinned folder renamed or moved on disk: the pin keeps its old path (existing
   behaviour), and the shortcut leads to the same place the sidebar's pin row does.
 
@@ -138,12 +150,19 @@ pin and collection endpoints. The tiles lead to pages that do their own checks.
 
 - Sidebar's Smart Folders, Pins and Collections sections: unchanged; they ignore `on_home`.
 - `FolderToolbar`: one more row in the `…` menu while the folder is pinned.
-  `usePinnedFolders` also keeps each pin's `on_home`.
+  `usePinnedFolders` keeps `pinnedPaths: Set<string>` as it is for its consumers
+  (`FolderContent`, `FolderTreePane`, `FolderContextMenu`) and adds a separate set of the
+  pinned paths that are on Home, with the toggle.
 - `CollectionDetail`: one more row in its `OverflowMenu`.
 - `SmartFolderMenuItems` (search page `…` menu): one more row while a saved Smart Folder
   is current. The `SmartFolderActionsContext` gains the toggle.
 - Smart Folder create, update, rename and delete; collection create, rename, delete and
-  item changes; pin and unpin: unchanged behaviour. A rename leaves `home_added_at` as it is.
+  item changes; pin and unpin: unchanged behaviour, and none of them changes
+  `home_added_at`. Their responses (Smart Folder list, create and update; pin list and
+  create; collection detail) carry the current `on_home`, so a client that replaces its
+  local copy with the response keeps the right menu label.
+- Collections list order, sidebar order and MCP `list_collections`: unchanged, because a
+  `PUT` leaves `updated_at` alone.
 - `HomeAppEntries`: gains the `shortcuts` prop. The order and content of the existing
   entries (SPEC-CORE-073) are unchanged; the Inbox stays last.
 - MCP server (`list_collections`, `get_collection`): the extra `on_home` field is ignored.
@@ -159,10 +178,14 @@ pin and collection endpoints. The tiles lead to pages that do their own checks.
 - New menu rows, in the same row style as the menus' other rows:
   - Put on Home: lucide `HousePlus`; ja ホームに置く, en Put on Home.
   - Remove from Home: lucide `House`; ja ホームから外す, en Remove from Home.
-- Shortcut tiles look like the other entry tiles (SPEC-CORE-073 item 9). A long name:
-  - container ≥ 36rem: the tile is at most 16rem wide and the label truncates with `…`;
+- Shortcut tiles look like the other entry tiles (SPEC-CORE-073 item 9). The label rule
+  below applies to every entry tile, built-in and addon ones included; today's labels are
+  short enough that those tiles look as before:
+  - container ≥ 36rem: a tile is at most 16rem wide and its label stays on one line,
+    truncated with `…`;
   - container < 36rem: the label wraps to at most two lines and is clamped with `…`.
-  The tile's accessible name is the full name either way.
+  The tile's accessible name is the full label either way. SPEC-CORE-073 I4's size floors
+  and no-sideways-overflow rule hold for every tile, shortcuts included.
 - No count limit. With many shortcuts the narrow grid adds rows and the wide row wraps; it
   never scrolls sideways.
 - A change made from a page shows on Home the next time Home loads; Home does not listen
@@ -192,13 +215,16 @@ pin and collection endpoints. The tiles lead to pages that do their own checks.
 - `backend/app/routers/home_shortcuts.py` (new) and its registration in `backend/app/main.py`.
 - `backend/app/routers/smart_folders.py`, `backend/app/routers/drives.py` (pins),
   `backend/app/routers/collections.py`: fill `on_home`.
+- `backend/app/services/fileops.py` `_update_pinned_folders`: read, not changed; its
+  in-place path rewrite is what carries a shortcut through a folder rename or move
+  (risk zone, HIGH).
 - `backend/tests/`: new tests for the endpoint, the migration and the responses.
 - `frontend/src/lib/api.ts`, `frontend/src/types/` (`SmartFolder`, `PinnedFolder`,
   collection detail, `HomeShortcut`).
-- `frontend/src/components/HomeAppEntries.tsx` (path as found) and `DriveHome`.
+- `frontend/src/components/home/HomeAppEntries.tsx` and `frontend/src/components/DriveHome.tsx`.
 - `frontend/src/components/folder/FolderToolbar.tsx`,
-  `frontend/src/components/folder/usePinnedFolders.ts`, and the caller that passes
-  `isPinned` / `onTogglePin`.
+  `frontend/src/components/folder/usePinnedFolders.ts`, and `FolderBrowser` /
+  `FolderContent`, which pass `isPinned` / `onTogglePin` to the toolbar.
 - `frontend/src/components/CollectionDetail.tsx`.
 - `frontend/src/components/SmartFolderSaveButton.tsx` (`SmartFolderActionsContext`,
   `SmartFolderMenuItems`), `frontend/src/hooks/useSmartFolders.ts`.
@@ -217,22 +243,44 @@ collections whose `drive` is `{drive}`; a row of another drive never appears, an
 naming another drive's id answers 404 and changes nothing.
 I2. A Smart Folder or collection that has been deleted, or a folder that has been unpinned,
 never appears in the `GET` response or on Home; pinning the folder again leaves it off Home.
-I3. `PUT` with `on_home: true` on a target already on Home leaves its `home_added_at`
-unchanged, so its position on Home does not move.
-I4. The `GET` response is ordered by `home_added_at` ascending, and Home draws the
-shortcuts in that order, after every addon entry and before the Inbox entry.
+I3. `PUT` with `on_home: true` sets `home_added_at` on a target that is off Home and leaves
+it unchanged on a target already on Home; `PUT` with `on_home: false` sets it to NULL; an
+unknown `kind` answers 422 and a missing target 404, and neither changes any row.
+I4. The `GET` response is ordered by `home_added_at` ascending, ties by `kind` then `id` in
+string order, and Home draws the shortcuts in that order, after every addon entry and
+before the Inbox entry.
 I5. Each shortcut tile links to the same destination the sidebar uses for that item
-(`smartFolderHref`, `pinHrefFor`, `/drive/{drive}/collections/{id}`).
+(`smartFolderHref`, `pinHrefFor`, `/drive/{drive}/collections/{id}`) and shows the item's
+current name.
 I6. Home never draws another drive's shortcuts: a response for a drive other than the one
-shown, or for an older page load, is discarded.
+shown, or for an older `loadPage` call, is discarded, and after a drive change the previous
+drive's shortcuts are gone before the new drive's response lands.
 I7. A failed `GET` on Home leaves every other entry and row as it would be without the
 feature, and alone never produces `home-unavailable`.
-I8. A failed `PUT` leaves the page's `on_home` for that target as it was and shows
-`homeShortcutFailed`.
+I8. A `PUT` leaves `updated_at` of the Smart Folder or collection unchanged; renaming,
+updating a Smart Folder's query or type, changing a collection's items, and renaming or
+moving a pinned folder (or one above it) inside the app all leave `home_added_at`
+unchanged, the last with the shortcut following the new path.
 I9. The migration only adds the nullable `home_added_at` columns; existing rows keep every
 value and start off Home.
-I10. Renaming a Smart Folder or collection, or changing a collection's items, leaves its
-`home_added_at` unchanged.
+I10. The Smart Folder list, create and update responses, the pin list and create responses
+and the collection detail response each carry `on_home` equal to whether that row's
+`home_added_at` is set.
+I11. The destination page's `…` menu shows Put on Home while the target's `on_home` is
+false and Remove from Home while it is true; on the folder page the row exists only while
+the folder is pinned and sits directly after Pin / Unpin; on the collection page it sits
+before Delete; on the search page it sits after Rename and before Delete. A successful
+`PUT` flips the row; a second choice while a `PUT` is in flight sends nothing.
+I12. A failed `PUT` leaves the page's `on_home` for that target as it was and shows
+`drive.homeShortcutFailed`, on each of the three pages.
+I13. Measured in a real browser in containers 358 and 960px wide, with a shortcut whose
+name is 80 characters: at 960px that tile is at most 16rem wide with a one-line label; at
+358px its label is at most two lines; its accessible name is the full name; and
+SPEC-CORE-073 I4 holds.
+
+## Revises
+
+SPEC-CORE-073 I2. The entry row lists Library, then every `builtinApps` entry in its order, then exactly `addonNavEntries(catalogue, drive, "primary")` in its order, then the drive's Home shortcuts in the order `GET /api/drives/{drive}/home-shortcuts` returns them, then the Inbox entry when I3 allows it; each link's href equals the sidebar row's href for the same entry.
 
 ## Checked, no action
 
@@ -255,9 +303,13 @@ I10. Renaming a Smart Folder or collection, or changing a collection's items, le
 - **Live update of Home when a shortcut changes elsewhere**: not added; Home picks it up on
   its next load.
 - **Pins left pointing at a renamed folder**: existing behaviour of pins, unchanged here.
-- **Design artifact**: the change adds tiles in the existing entry-tile style and menu rows
-  in the existing menu-row style, and no new screen; whether a design artifact is needed is
-  asked at approval.
+- **Design artifact**: not made, with the user. The change adds tiles in the existing
+  entry-tile style and menu rows in the existing menu-row style, and no new screen; R-5's
+  screenshots show the result.
+- **`updated_at` on a `PUT`**: left unchanged, with the user; placing a shortcut is not an
+  edit of the collection or Smart Folder.
+- **Shortcuts refreshed by `refreshPage`**: not done; uploads and file events do not change
+  shortcuts.
 - **A tile for a Smart Folder keeps its sort**: `smartFolderHref` carries `q`, `type` and
   `smart_folder_id`, as the sidebar's link does; the search page applies the saved sort
   from the Smart Folder as it does today.
