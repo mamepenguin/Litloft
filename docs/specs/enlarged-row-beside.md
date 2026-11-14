@@ -28,10 +28,12 @@ the frame.
    Enlarge panels on (SPEC-CORE-104).
 2. If the side space is at least 15rem (§3), the beside state applies:
    - the frame moves from the centre to the canvas content's left edge, at the same size;
-   - the workbench row is drawn to the right of the frame, starting 1rem right of it. Its
-     box is as tall as the frame and its top is the frame's top. The panel toggles sit at
-     the top-left of that box and wrap within its width; the trailing group (the Enlarge
-     panels button, then the `file-preview-actions` entries) sits at its bottom-right;
+   - the workbench row is drawn to the right of the frame, starting 1rem right of it, as
+     one line whose bottom is the frame's bottom: the panel toggles at its left, the
+     trailing group (the Enlarge panels button, then the `file-preview-actions` entries)
+     at its right. The toggles stay right above the panels they switch. When they do not
+     fit on one line they wrap upward (the line next to the panels stays where it is);
+     the space above the row, beside the frame, is left empty;
    - the panels start 0.75rem under that box and end at the bottom of the visible area
      as before (SPEC-CORE-085 step 7).
 3. Turning Enlarge panels off, closing every panel, or leaving the workbench forms
@@ -39,10 +41,11 @@ the frame.
 
 How it is built: no element changes parent and no grid is introduced. The host keeps its
 column layout; in the beside state the row gets a left margin of the frame's width plus
-1rem, a minimum height of the frame's height, and a negative top margin that lifts it
-beside the frame (cancelling both the frame's height and the host's 1rem gap before the
-workbench). Inside the row the toggles wrap at the top and the trailing group always
-takes its own line at the bottom, right-aligned and wrapping if it must. The frame's
+1rem, a minimum height of the frame's height with its content aligned to the bottom, and
+a negative top margin that lifts it beside the frame (cancelling both the frame's height
+and the host's 1rem gap before the workbench). Inside the row the toggles take the
+remaining width and wrap upward; the trailing group stays at the right end of the bottom
+line. The frame's
 width and height come from the same expression that sizes the frame (§3), copied into
 the beside rules, not from measuring the frame element, so a frame that leaves the flow
 (pseudo full screen, the move animation, the mini player) does not move the row or the
@@ -158,8 +161,9 @@ around a `<video>` or a cross-origin iframe renders the subtree rotated on iOS S
 - `frontend/src/app/globals.css`: rules under
   `.media-detail-host:has(> .media-detail-workbench[data-row-beside="on"])` only: the
   frame's `margin-inline` at the start; the row's left margin, `min-height`, negative top
-  margin, internal layout (toggles top-left wrapping, trailing group on its own bottom
-  line, right-aligned, wrapping), and stacking below pinned frames and the mini player.
+  margin, internal layout (content aligned to the bottom; toggles at the left, wrapping
+  upward; trailing group at the right end of the bottom line), and stacking below pinned
+  frames and the mini player.
   W's expression is copied into these rules; the existing cap, floor and
   pseudo-full-screen rules are not edited, and `mediaDetailTheaterCss.test.ts` is not
   changed. The copy is held to the frame by the e2e geometry (I1 at sizes where each term
@@ -172,6 +176,14 @@ around a `<video>` or a cross-origin iframe renders the subtree rotated on iOS S
   moved to a size below the threshold, unchanged in what they assert. Vitest for the pure
   function and for the attribute's condition. `.loft` placement is checked in R-5 (the
   fixture has no `.loft` player).
+- Agreed design: `docs/process/reviews/feature-enlarged-row-beside/design/` (artifact
+  https://claude.ai/artifact/8nJ43QKhmF5tE2YB7aLxP6), board `BottomRow.dc.html`
+  ("A2"). `Current.dc.html` is today's layout for comparison; `Main.dc.html` (toggles at
+  the top) and `CenterStack.dc.html` (frame centred, toggles stacked) are the rejected
+  variants. Checkable decisions: the frame at the canvas's left edge; one row beside it
+  whose bottom is the frame's bottom; toggles at its left, the Enlarge panels button at
+  its right; the space above the row empty; the panels 0.75rem under the frame, full
+  width.
 - `DESIGN.md` Workbench section: the beside placement while enlarged; the 15rem threshold
   in the thresholds table; the "Placement belongs to the space" principle extended to say
   the row follows the frame (the panels' placement is still not a preference).
@@ -187,8 +199,10 @@ I1. In the beside state, at a fine pointer with the row's content no taller than
 frame: the frame's left edge is the canvas content's left edge (within 1px); the row's
 left edge is the frame's right edge plus 1rem and its right edge the canvas content's
 right edge (within 1px); the row's top is the frame's top and its bottom the frame's
-bottom (within 1px); the first toggle's top-left is the row's top-left (within 1px); the
-trailing group's bottom-right is the row's bottom-right (within 1px).
+bottom (within 1px); with the toggles on one line, the toggles' bottom and the trailing
+group's bottom are the frame's bottom (within 1px), the first toggle's left edge is the
+row's left edge and the trailing group's right edge the row's right edge (within 1px),
+and nothing of the row is drawn above the toggles' top.
 
 I2. In the beside state, the first shown panel's top is 0.75rem (within 1px) under the
 lower of the frame's bottom and the row's bottom, and the panels span the canvas content
@@ -230,6 +244,12 @@ SPEC-CORE-085 I1. On a player file in a wide form, after the first measurement: 
 
 ## Checked, no action
 
+- **Toggles at the top of the space beside the frame (design A).** Rejected by the owner:
+  the toggles switch the panels and belong right above them.
+- **Frame centred with the toggles stacked vertically to its right (design B).** Rejected
+  by the owner after comparison: the frame's left edge would not line up with the panels,
+  five toggles at the coarse size do not fit in 270px, and "Detailed summary" does not
+  fit a 125px column.
 - **Hiding the row while enlarged and moving the button into the panel header.**
   Rejected by the owner: switching panels would need turning Enlarge panels off first.
 - **Using the freed height to grow the frame.** Rejected by the owner; the panels get it.
