@@ -10,10 +10,10 @@ A drive has two starting points in the sidebar:
 The sidebar is the same on every screen of a drive.
 
 - At the top: Home, Library, and six views of the whole drive: **Continue**, **Favorites**, **Liked**, **Recently Viewed**, **Recently Added** and **All Files** (every file in the drive, with no folders). Addons can add pages here, such as *Ask* or *Notes*.
-- In the middle, the sections you build yourself: **Collections**, **Pins**, **Smart Folders** and **Tags**. You can collapse these sections and drag them into the order you like.
+- In the middle, the sections you build yourself: **Collections** (collections and Smart Collections), **Pins** and **Tags**. You can collapse these sections and drag them into the order you like.
 - At the bottom: **Trash**, **Missing Files** (only when the drive has some), and **Dashboard** for an administrator.
 
-To keep a Smart Folder, a pinned folder or a collection at hand, open it and choose **Put on Home** in its `…` menu (on a folder, the row appears under **Unpin this folder**); its tile then sits after the addons' entries on Home. Choose **Remove from Home** the same way.
+To keep a Smart Collection, a pinned folder or a collection at hand, open it and choose **Put on Home** in its `…` menu (on a folder, the row appears under **Unpin this folder**); its tile then sits after the addons' entries on Home. Choose **Remove from Home** the same way.
 
 ## The breadcrumb trail
 
@@ -128,9 +128,9 @@ Above them sit the app destinations: **Library**, the built-in apps, any addon a
 
 Right-click a folder and choose **Pin**, or use `…` → **Pin this folder** inside it. Pins appear in the sidebar and are shared by everyone who uses the drive.
 
-## Smart folders (saved searches)
+## Smart Collections (saved searches)
 
-Run a search, open `…` in the results bar and choose **Save as Smart Folder** to keep it as a Smart Folder in the sidebar. Smart folders are shared by everyone who uses the drive.
+Run a search, open `…` in the results bar and choose **Save as Smart Collection** to keep it. It appears in the sidebar's **Collections** section, and Smart Collections are shared by everyone who uses the drive.
 
 ## Real-time updates
 

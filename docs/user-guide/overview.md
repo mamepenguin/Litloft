@@ -38,7 +38,7 @@ Two exceptions:
 
 - **`Cmd/Ctrl+K`** opens a quick switcher on any page: jump to a recent file, or type to search the drive. See [search](search.md).
 - Search matches file titles and folder paths. Searching inside documents needs the intelligence addon.
-- Save a search as a Smart Folder.
+- Save a search as a Smart Collection.
 - Home opens with a row of app destinations, then **Continue**, **Recently Viewed**, **Favorites**, any addon rows and **Recently Added**.
 
 ### Work with files

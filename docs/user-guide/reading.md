@@ -64,21 +64,22 @@ sort menu and its own target control; choosing another target keeps the shelf.
 
 The target control shows the target's name with a target icon, at the title row's end or
 under the title on a phone. It chooses which books the page works on. **すべての本** /
-**All books** is every PDF, EPUB and archive in the drive. A smart folder can replace it, and
-the choice is remembered for the drive. A smart folder's own sort is not used here.
+**All books** is every PDF, EPUB and archive in the drive. A Smart Collection can replace
+it, and the choice is remembered for the drive. A Smart Collection's own sort is not used
+here.
 
-- The menu lists **All books**, then the smart folders you chose to show, then
-  **管理…** / **Manage…**. **Manage…** opens a searchable list of the drive's smart
-  folders; tick the ones you want in this menu. The set is kept per app and per drive. A
-  new smart folder stays out of the menu until you tick it there.
-- A smart folder the Reading page cannot use is listed disabled. This includes one whose
+- The menu lists **All books**, then the Smart Collections you chose to show, then
+  **管理…** / **Manage…**. **Manage…** opens a searchable list of the drive's Smart
+  Collections; tick the ones you want in this menu. The set is kept per app and per drive. A
+  new Smart Collection stays out of the menu until you tick it there.
+- A Smart Collection the Reading page cannot use is listed disabled. This includes one whose
   kinds are not books (images, for example), one that filters by length, and one that uses
   a negated condition. It cannot be chosen.
-- A smart folder whose kinds miss every book shows **この対象は使えません** / **This target
-  cannot be used**, and the page asks the server for nothing.
-- A smart folder that has been deleted is replaced by **All books** without a message. If
-  the smart folders cannot be loaded, the menu offers **All books** and **Manage…**; the
-  Manage list shows a retry.
+- A Smart Collection whose kinds miss every book shows **この対象は使えません** / **This
+  target cannot be used**, and the page asks the server for nothing.
+- A Smart Collection that has been deleted is replaced by **All books** without a message.
+  If the Smart Collections cannot be loaded, the menu offers **All books** and **Manage…**;
+  the Manage list shows a retry.
 
 ## Empty states and failures
 

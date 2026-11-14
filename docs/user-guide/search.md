@@ -12,7 +12,7 @@ Before you type, the modal lists **Recent files** (the files you opened lately i
 
 Once you type, the modal shows the best matches and a **View all N results** row that opens the full search page. Use the arrow keys to pick a row and `Enter` to open it.
 
-Typing the name of a page, such as "all files" or "trash", or of a pin, collection or smart folder, also shows a **Go to** row above the files that takes you straight there. Folders whose name matches, at any depth, are listed under **Folders** just below, with the folder they are in. These are the first rows the down arrow reaches; `Enter` with no row picked still opens the full search page.
+Typing the name of a page, such as "all files" or "trash", or of a pin, collection or Smart Collection, also shows a **Go to** row above the files that takes you straight there. Folders whose name matches, at any depth, are listed under **Folders** just below, with the folder they are in. These are the first rows the down arrow reaches; `Enter` with no row picked still opens the full search page.
 
 To walk the folders instead, press `→` on a folder row, or type `/` in an empty field to start at the top of the drive. The `/` has to be typed directly: one typed through a Japanese or other input method is searched for as text, so switch to direct input first or use `→`. The modal then lists what is inside that folder, and typing narrows the list by name. `←` or `Backspace` in an empty field goes back up. On a touch screen, tap `›` at the end of a folder row to go in, and `‹` on the folder chip to go up.
 
@@ -39,8 +39,8 @@ After the chips, **＋ 条件** adds an operator without typing the syntax: **�
 Under the chips is the results bar. It holds, in order, the **ファイル / 箇所** switch (with the intelligence addon), **シーン検索**, the number of results, **View**, **Sort** and `…`. On a phone **View** and **Sort** are in `…`.
 
 - **Sort** offers **Relevance** (the default while searching) plus the usual folder orders.
-- `…` holds **Save as Smart Folder**, **選択モード**, and, with the intelligence addon, **Open Find page**.
-- A file type is chosen with **＋ 条件** → **種類**, which writes `type:<kind>` into the query. A type that arrives in the address — from the search window or a Smart Folder — shows as a **種類** chip in the row under the field; `×` on the chip removes it.
+- `…` holds **Save as Smart Collection**, **選択モード**, and, with the intelligence addon, **Open Find page**.
+- A file type is chosen with **＋ 条件** → **種類**, which writes `type:<kind>` into the query. A type that arrives in the address — from the search window or a Smart Collection — shows as a **種類** chip in the row under the field; `×` on the chip removes it.
 
 To filter by tag, kind or favourite, type an operator; see [Operators](#operators). The sidebar's tags also filter a folder; see [Tag filtering](#tag-filtering).
 
@@ -64,16 +64,16 @@ A size and a length need a comparison: `>`, `>=`, `<` or `<=`. Write a range as 
 
 With the intelligence addon, operators also filter the files found by meaning: `tag:会議 type:pdf 予算の見直し` searches for the meaning of 「予算の見直し」 among files tagged 会議 and of kind PDF. Operators alone, with no other words, list files only and run no meaning search. Scene search is off while an operator is in the query. A type in the address — shown as the **種類** chip — still applies, together with any `type:`.
 
-## Saving as a Smart Folder
+## Saving as a Smart Collection
 
-In the results bar, open `…` and choose **Save as Smart Folder**, then give it a name. It appears under **Smart Folders** in the sidebar, and the `…` menu then shows **Saved:** followed by the name, with **Overwrite**, **Rename** and **Delete**.
+In the results bar, open `…` and choose **Save as Smart Collection**, then give it a name. It appears in the sidebar's **Collections** section, and the `…` menu then shows **Saved:** followed by the name, with **Overwrite**, **Rename** and **Delete**.
 
-When the conditions of an open Smart Folder differ from what it saved — a new query, a condition added or removed, or a different type — **上書き保存 / Overwrite** appears at the right end of the row under the field, and the `…` row of the same name is enabled. Either saves the conditions on screen into that folder without asking; once they match the saved ones, the button goes and the row is disabled.
+When the conditions of an open Smart Collection differ from what it saved — a new query, a condition added or removed, or a different type — **上書き保存 / Overwrite** appears at the right end of the row under the field, and the `…` row of the same name is enabled. Either saves the conditions on screen into that Smart Collection without asking; once they match the saved ones, the button goes and the row is disabled.
 
-- A Smart Folder keeps the query and the file type. A tag is kept when it is written into the query as `tag:`.
+- A Smart Collection keeps the query and the file type. A tag is kept when it is written into the query as `tag:`.
 - It always shows the files that match now, not the ones that matched when you saved it.
 - Only the **Video**, **Image**, **Audio** and **Document** types can be saved. Use **Document** for Markdown and PDFs. Saving with another type shows an error.
-- Everyone who uses the drive sees the same Smart Folders.
+- Everyone who uses the drive sees the same Smart Collections.
 
 ## Tag filtering
 
@@ -113,7 +113,7 @@ At the end of the results, **Show more by similarity** adds more pictures from t
 
 To find a moment inside a video (*the part where the cat jumps off the table*), turn on **Scene search** in the results bar above the results. It is off by default because it adds noise to ordinary searches.
 
-With it on, **Scene candidates** appear above the results: a grid of moments from videos in the drive, each with a frame, the file name and a time range. Click one to open the video at that time. The first eight candidates are shown; **Show all** expands the remaining candidates, and **Collapse** returns to the first eight. They are the closest matches, not a promise that the scene exists, and the grid is not shown when the search uses a smart folder or a type other than video.
+With it on, **Scene candidates** appear above the results: a grid of moments from videos in the drive, each with a frame, the file name and a time range. Click one to open the video at that time. The first eight candidates are shown; **Show all** expands the remaining candidates, and **Collapse** returns to the first eight. They are the closest matches, not a promise that the scene exists, and the grid is not shown when the search uses a Smart Collection or a type other than video.
 
 A YouTube reference can be found this way too, by a moment of the video, and opens at that time; its card shows a small picture from that moment. A reference saved before the administrator installed this version has no moments to find, and no pictures, until its **Image analysis (CLIP)** is regenerated from **Index details**.
 
@@ -129,7 +129,7 @@ The results page shows up to three groups:
 
 The image is not saved. Reloading the page or opening the same link in another tab asks you to choose the image again. A picture can be up to 20 MB and 50 megapixels; a larger one is scaled down in the browser when the browser can read it.
 
-The documents group needs readable text in the image — about 20 characters — and **Text in pictures** turned on for the drive (see [text in pictures](../addons/intelligence.md#text-in-pictures)). A picture with no readable text still returns similar pictures and scenes. An image search does not combine with operators, a type filter or text, and it cannot be saved as a Smart Folder.
+The documents group needs readable text in the image — about 20 characters — and **Text in pictures** turned on for the drive (see [text in pictures](../addons/intelligence.md#text-in-pictures)). A picture with no readable text still returns similar pictures and scenes. An image search does not combine with operators, a type filter or text, and it cannot be saved as a Smart Collection.
 
 ## Ask and Find (intelligence addon)
 

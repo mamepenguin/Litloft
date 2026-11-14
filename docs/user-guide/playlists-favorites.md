@@ -11,7 +11,7 @@ Both belong to the drive, not to you: everyone who uses the drive sees the same 
 
 ## Collections
 
-A collection is an ordered list of files from one drive.
+A collection is an ordered list of files from one drive. Smart Collections share the same **Collections** section in the sidebar. A name is used only once in a drive across collections and Smart Collections, ignoring case.
 
 ![Collection editor with a row being reordered by drag and drop](../images/user-guide/playlist-reorder-drag.png)
 
@@ -37,9 +37,9 @@ Everyone who can open the drive sees the same collections. There is no public sh
 
 Right-click a folder and choose **Pin**, or use `…` → **Pin this folder** inside it. The folder appears under **Pins** in the sidebar. **Unpin** removes it. Pins are shared by everyone who uses the drive.
 
-## Smart folders
+## Smart Collections
 
-A Smart Folder is a saved search rather than a list you build. See [search](search.md#saving-as-a-smart-folder).
+A Smart Collection is a saved search, so it holds the files that match it now rather than a list you build. See [search](search.md#saving-as-a-smart-collection).
 
 ## Continue
 

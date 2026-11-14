@@ -101,7 +101,7 @@ docker compose up -d --build
 
 Media: Video streaming, audio playback, Range requests, resume playback, subtitle display, thumbnail previews, image viewer, spread view, Markdown viewer, Mermaid rendering, syntax highlighting, PDF viewer, ZIP/archive browsing.
 
-Library: Multi-drive setup, folder browser, grid/list views, pinned folders, favorites, collections, comments, tags, watch history, recently played, recently added, duplicate detection, smart folders, trash, missing file recovery, upload, folder upload, rename, move, copy, batch operations, in-browser text editing.
+Library: Multi-drive setup, folder browser, grid/list views, pinned folders, favorites, collections, Smart Collections, comments, tags, watch history, recently played, recently added, duplicate detection, trash, missing file recovery, upload, folder upload, rename, move, copy, batch operations, in-browser text editing.
 
 Intelligence: Transcript & subtitle indexing, semantic search, scene/frame search, hybrid BM25/vector retrieval, Ask with citations, summaries, detailed Markdown summaries, tag suggestions, retrieval keywords, transcript refinement, vision descriptions, local Whisper, cloud STT providers, Deepgram API, ElevenLabs API, OpenAI-compatible LLM endpoints, Ollama/local LLM support, per-drive privacy policies.
 

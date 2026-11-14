@@ -1317,7 +1317,7 @@ useGlobalSearch().open();                    // open it now, in that scope
 
 The built-in apps share one header: the app's icon and title, a scope line
 naming the drive and the item count, a **Target** menu that narrows the app to
-one of the drive's smart folders, and a tabs row. An addon page draws the same
+one of the drive's Smart Collections, and a tabs row. An addon page draws the same
 header, with its own app key.
 
 ```tsx
@@ -1333,7 +1333,7 @@ const APP: AppKey = { addon: "<name>" }; // the addon's own name
 const BASE_KINDS: readonly FileKind[] = ["image"]; // the kinds the page lists
 
 const folders = useLoad(() => getSmartFolders(drive));
-const savedId = readAppTarget(drive, APP); // "default" or a smart folder id
+const savedId = readAppTarget(drive, APP); // "default" or a Smart Collection id
 const folder =
   folders.status === "loaded"
     ? folders.data.find((candidate) => candidate.id === savedId) ?? null
@@ -1454,7 +1454,7 @@ Always `import app.config as config`, never `from app.config import X`
 ### `filtered_drive_files`
 
 The predicate `GET /api/drives/{drive}/files` and the shelves endpoint share,
-so an addon applying a smart folder selects the same files the listing does.
+so an addon applying a Smart Collection selects the same files the listing does.
 
 ```python
 from app.models import File
