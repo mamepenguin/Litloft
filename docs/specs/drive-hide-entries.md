@@ -2,7 +2,7 @@
 
 SPEC-ID: SPEC-CORE-106
 
-Approval: sha256:79a77ec19c45073577c890361c71ffcb7791b866b1709099505cb77c392f2711 Yuichi Senga 2026-11-14
+Approval:
 
 ## Summary
 
@@ -134,10 +134,29 @@ user data or the core's own navigation. Keys for them are ignored.
   configured per drive by the operator, so a viewer does not take it for a bug).
 - Protected paths: none. Checked against `docs/process/risk-and-human-review.md`.
 
+## UI seams
+
+The browser code is reached through these names, so the acceptance tests can drive the
+behaviour without reading the implementation.
+
+- `frontend/src/hooks/useEntryVisibility.ts` exports
+  `useEntryVisibility(drive: string | null)`, returning `{ hidden: ReadonlySet<string> | null }`.
+  `null` means the list is loading or failed to load for the drive on screen. A failed list
+  is returned as an empty set (I9). A result belongs to one drive only (I10).
+- `HomeAppEntries` takes `hiddenKeys: ReadonlySet<string> | null`. `null` renders no hideable
+  entry; a set removes the matching keys. When no entry remains in the row, the row container
+  and its heading are not rendered.
+- `SidebarLibrarySection` and `AddonNavRows` take the same `hiddenKeys` prop. `Sidebar.tsx`
+  passes it down and filters `primaryAddons` before the children receive it.
+- `pageJump.ts` and `useJumpDestinations.ts` take the same set and omit matching built-in apps
+  and addon entries.
+- A hidden entry is not rendered, so it cannot carry an active style (I11).
+
 ## Invariants
 
-I1. A drive with no `hidden_entries` key shows the same Home entry row, sidebar navigation
-    and jump palette as before this change.
+I1. A drive with no `hidden_entries` key shows, once its visibility list has loaded, the same
+    Home entry row, sidebar navigation and jump palette as before this change. While the list
+    is loading, the hideable entries are not shown (see UI seams).
 I2. A key listed in a drive's `hidden_entries` removes exactly that entry from that drive's
     Home entry row, sidebar navigation and jump palette, and from no other drive.
 I3. Hiding an entry does not change its route: the page at its URL still renders, and its
@@ -146,9 +165,9 @@ I4. `library` and `inbox` are never removed from a drive's Home or sidebar, what
     contains.
 I5. A key that matches no hideable entry is ignored, does not fail the config load, and stays
     in `drives.json`.
-I6. A `hidden_entries` value that is not a list of strings does not fail `load_drives()`; the
-    visibility endpoint answers 500 `Configuration error` and the browser shows every entry.
-    Every other route that reads drives keeps working.
+I6. A `hidden_entries` value that is not a list of strings, including JSON `null`, does not fail
+    `load_drives()`; the visibility endpoint answers 500 `Configuration error` and the browser
+    shows every entry. Every other route that reads drives keeps working.
 I7. The visibility endpoint answers 404 for a locked drive and never returns the list to a
     viewer who cannot open the drive.
 I8. A save of `drives.json` through `PUT /api/admin/config/drives`, from the admin settings
