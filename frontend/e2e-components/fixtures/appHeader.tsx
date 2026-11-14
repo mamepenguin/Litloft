@@ -1,8 +1,8 @@
 /**
  * The real Video and Reading apps and their shelf pages, each drawing its app header.
  * `page` picks the page; `drive` names the drive; `key` names a shelf page's shelf, which
- * is its title; `target=long` makes a smart folder with a long name the saved target;
- * `locale` picks the messages.
+ * is its title; `target=long`, `target=camera` or `target=trips` makes a smart folder of
+ * that name the saved target; `locale` picks the messages.
  */
 
 import { useEffect, type ReactElement } from "react";
@@ -17,21 +17,31 @@ import { ReadingShelfPage } from "@/components/readingapp/ReadingShelfPage";
 import { writeAppPrefs } from "@/lib/appPrefs";
 
 const APP_HEADER_COUNT = 1234;
-const LONG_FOLDER_NAME = "Every holiday film we recorded in the summer of 2019";
 
-const LONG_FOLDER_ID = "sf-long";
+const FOLDERS = {
+  long: {
+    id: "sf-long",
+    name: "Every holiday film we recorded in the summer of 2019",
+    query: "tag:holiday",
+  },
+  camera: { id: "sf-camera", name: "2025 summer trip, camera footage only", query: "path:Trips" },
+  trips: { id: "sf-trips", name: "Trips", query: "path:Trips" },
+} as const;
+
+type TargetKey = keyof typeof FOLDERS;
 
 const json = (body: unknown, status = 200) =>
   Promise.resolve(
     new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }),
   );
 
-function longFolder(drive: string) {
+function folder(drive: string, key: TargetKey) {
+  const { id, name, query } = FOLDERS[key];
   return {
-    id: LONG_FOLDER_ID,
+    id,
     drive,
-    name: LONG_FOLDER_NAME,
-    query: "tag:holiday",
+    name,
+    query,
     file_type: null,
     sort_by: null,
     sort_order: null,
@@ -42,17 +52,17 @@ function longFolder(drive: string) {
 
 let installed = false;
 
-function install(drive: string, page: string, longTarget: boolean): void {
+function install(drive: string, page: string, target: TargetKey | null): void {
   if (installed) return;
   installed = true;
-  if (longTarget) {
+  if (target) {
     const app = page.startsWith("reading") ? "reading" : "video";
-    writeAppPrefs(drive, { target: LONG_FOLDER_ID }, app);
+    writeAppPrefs(drive, { target: FOLDERS[target].id }, app);
   }
   window.fetch = (input: RequestInfo | URL) => {
     const raw = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     const url = new URL(raw, "http://fixture.invalid");
-    if (url.pathname.endsWith("/smart-folders")) return json(longTarget ? [longFolder(drive)] : []);
+    if (url.pathname.endsWith("/smart-folders")) return json(target ? [folder(drive, target)] : []);
     if (url.pathname.endsWith("/files")) {
       return json({ data: [], meta: { total: APP_HEADER_COUNT, page: 1, limit: 1 } });
     }
@@ -94,7 +104,8 @@ export function AppHeaderArrangement(): ReactElement {
   const page = q.get("page") ?? "video";
   const drive = q.get("drive") ?? "fixture";
   const locale = q.get("locale") === "ja" ? "ja" : "en";
-  install(drive, page, q.get("target") === "long");
+  const target = q.get("target");
+  install(drive, page, target === "long" || target === "camera" || target === "trips" ? target : null);
 
   useEffect(() => {
     document.body.dataset.harness = "ready";

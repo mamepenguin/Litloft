@@ -12,6 +12,8 @@ import { PAGE } from "./build-bundle";
 const FIXTURE = pathToFileURL(PAGE).href;
 
 export const LONG_FOLDER_NAME = "Every holiday film we recorded in the summer of 2019";
+export const CAMERA_FOLDER_NAME = "2025 summer trip, camera footage only";
+export const SHORT_FOLDER_NAME = "Trips";
 export const LONG_DRIVE_NAME = "Household archive on the second NAS in the study";
 export const LONG_SHELF_TITLE = "A shelf whose name runs on far past the width of any phone screen";
 
@@ -28,22 +30,31 @@ export const DEFAULT_TARGET_NAME: Record<AppPage, string> = {
 
 let navigation = 0;
 
+export type TargetKind = "long" | "camera" | "trips";
+
+const TARGET_NAMES: Record<TargetKind, string> = {
+  long: LONG_FOLDER_NAME,
+  camera: CAMERA_FOLDER_NAME,
+  trips: SHORT_FOLDER_NAME,
+};
+
 export async function openAppHeader(
   page: Page,
   width: number,
-  options: { app: AppPage; drive?: string; longTarget?: boolean; key?: string; locale?: "ja" },
+  options: { app: AppPage; drive?: string; longTarget?: boolean; target?: TargetKind; key?: string; locale?: "ja" },
 ): Promise<void> {
   await page.setViewportSize({ width, height: 800 });
+  const kind: TargetKind | null = options.target ?? (options.longTarget ? "long" : null);
   const q = new URLSearchParams({ run: String(++navigation), page: options.app });
   if (options.drive) q.set("drive", options.drive);
-  if (options.longTarget) q.set("target", "long");
+  if (kind) q.set("target", kind);
   if (options.key) q.set("key", options.key);
   if (options.locale) q.set("locale", options.locale);
   await page.goto(`${FIXTURE}?${q}#app-header`);
   await expect(page.locator("body")).toHaveAttribute("data-harness", "ready");
   await expect(page.locator("header h1")).toBeVisible();
   await expect(page.locator("header").getByText(/\d[\d,]* (videos|books)/)).toBeVisible();
-  const targetName = options.longTarget ? LONG_FOLDER_NAME : DEFAULT_TARGET_NAME[options.app];
+  const targetName = kind ? TARGET_NAMES[kind] : DEFAULT_TARGET_NAME[options.app];
   await expect(targetButton(page)).toHaveAttribute("aria-label", `Target: ${targetName}`);
 }
 
@@ -59,9 +70,12 @@ export type Box = { left: number; right: number; top: number; bottom: number; wi
 
 export type TextBox = Box & { whole: boolean };
 
+export type SpanMetrics = { scrollWidth: number; clientWidth: number; textOverflow: string };
+
 export type HeaderSnapshot = {
   viewport: number;
   scrollWidth: number;
+  headerWidth: number;
   contentLeft: number;
   contentRight: number;
   overflowRight: number;
@@ -70,6 +84,7 @@ export type HeaderSnapshot = {
   target: Box;
   targetText: string;
   targetSvgs: Box[];
+  targetNameSpan: SpanMetrics | null;
   sort: (Box & { text: string }) | null;
   tabs: Box | null;
   count: TextBox;
@@ -152,11 +167,13 @@ export async function snapshot(
     const driveBox = found("drive", textBox(header, drive));
     const name = found("target name", textBox(target, targetName));
     const nameFirstThree = found("target name", textBox(target, targetName.slice(0, 3)));
+    const nameNode = textNodes(target).find((n) => n.data.includes(targetName));
 
     const all = Array.from(header.querySelectorAll("*"));
     return {
       viewport: window.innerWidth,
       scrollWidth: document.documentElement.scrollWidth,
+      headerWidth: headerBox.width,
       contentLeft: headerBox.left + parseFloat(headerStyle.paddingLeft),
       contentRight: headerBox.right - parseFloat(headerStyle.paddingRight),
       overflowRight: Math.max(...all.map((el) => el.getBoundingClientRect().right)),
@@ -171,6 +188,13 @@ export async function snapshot(
       target: box(target),
       targetText: target.innerText,
       targetSvgs: Array.from(target.querySelectorAll("svg")).map(box),
+      targetNameSpan: nameNode?.parentElement
+        ? {
+            scrollWidth: nameNode.parentElement.scrollWidth,
+            clientWidth: nameNode.parentElement.clientWidth,
+            textOverflow: getComputedStyle(nameNode.parentElement).textOverflow,
+          }
+        : null,
       sort: sort ? { ...box(sort), text: sort.innerText } : null,
       tabs: tabs ? box(tabs) : null,
       count,
@@ -196,6 +220,26 @@ export async function colourOf(page: Page, probe: "elevated" | "muted"): Promise
 }
 
 export const TRANSPARENT = "rgba(0, 0, 0, 0)";
+
+/** A control's value text and the box that clips it. */
+export async function valueSpanOf(
+  control: ReturnType<Page["locator"]>,
+  text: string,
+): Promise<SpanMetrics | null> {
+  return control.evaluate((el, wanted) => {
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      if (!(n as Text).data.includes(wanted)) continue;
+      const span = n.parentElement!;
+      return {
+        scrollWidth: span.scrollWidth,
+        clientWidth: span.clientWidth,
+        textOverflow: getComputedStyle(span).textOverflow,
+      };
+    }
+    return null;
+  }, text);
+}
 
 /** The control's own fill, border, size and colour, and the colour its `text` is drawn in. */
 export async function lookOf(control: ReturnType<Page["locator"]>, text: string) {
