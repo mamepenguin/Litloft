@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship (Yuichi Senga, 2026-11-14, r1 HUMAN_REVIEW_REQUIRED: "1" = ship as is; the FolderBrowser same-URL replace skip is accepted, F1-F3 recorded as unlisted touch points)
 ran_in_app: yes
 at: c25c19b6c8c295086352537a5b2c694199b50325
 by: agent
