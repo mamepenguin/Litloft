@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ListPlus, Play, Trash2 } from "lucide-react";
+import { ArrowLeft, House, HousePlus, ListPlus, Play, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import {
@@ -10,6 +10,7 @@ import {
   getCollection,
   removeCollectionItem,
   reorderCollectionItems,
+  setHomeShortcut,
   updateCollection,
 } from "@/lib/api";
 import { Breadcrumb } from "@/components/Breadcrumb";
@@ -41,6 +42,7 @@ interface CollectionDetailProps {
 export function CollectionDetail({ drive, collectionId }: CollectionDetailProps) {
   const router = useRouter();
   const t = useTranslations("collection");
+  const tDrive = useTranslations("drive");
   const tCommon = useTranslations("common");
   const ime = useImeKeyGuard();
   const toast = useToast();
@@ -61,6 +63,7 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
   const [editingDescription, setEditingDescription] = useState(false);
   const [descriptionDraft, setDescriptionDraft] = useState("");
   const [deletingCollection, setDeletingCollection] = useState(false);
+  const homeInFlight = useRef(false);
 
   useEffect(() => {
     setOverrideDrive(drive);
@@ -122,6 +125,26 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
       setDeletingCollection(false);
     }
   }, [detail, drive, collectionId, router, toast, t]);
+
+  const handleToggleHome = useCallback(async () => {
+    if (!detail || homeInFlight.current) return;
+    homeInFlight.current = true;
+    const next = !detail.on_home;
+    try {
+      await setHomeShortcut(drive, {
+        kind: "collection",
+        id: collectionId,
+        on_home: next,
+      });
+      setDetail((previous) =>
+        previous ? { ...previous, on_home: next } : previous,
+      );
+    } catch {
+      toast.error(tDrive("homeShortcutFailed"));
+    } finally {
+      homeInFlight.current = false;
+    }
+  }, [detail, drive, collectionId, toast, tDrive]);
 
   const handlePlay = useCallback(() => {
     if (!detail) return;
@@ -347,15 +370,29 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
                     Play. */}
                 <OverflowMenu label={t("moreActions", { name: detail.name })}>
                   {(close) => (
-                    <ActionMenuItem
-                      icon={Trash2}
-                      danger
-                      label={t("deleteCollection")}
-                      onClick={() => {
-                        close();
-                        setDeletingCollection(true);
-                      }}
-                    />
+                    <>
+                      <ActionMenuItem
+                        icon={detail.on_home ? House : HousePlus}
+                        label={
+                          detail.on_home
+                            ? tDrive("removeFromHome")
+                            : tDrive("putOnHome")
+                        }
+                        onClick={() => {
+                          close();
+                          void handleToggleHome();
+                        }}
+                      />
+                      <ActionMenuItem
+                        icon={Trash2}
+                        danger
+                        label={t("deleteCollection")}
+                        onClick={() => {
+                          close();
+                          setDeletingCollection(true);
+                        }}
+                      />
+                    </>
                   )}
                 </OverflowMenu>
               </>

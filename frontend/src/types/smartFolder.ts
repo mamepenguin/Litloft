@@ -14,6 +14,7 @@ export interface SmartFolder {
   sort_order: SortOrder | null;
   created_at: string;
   updated_at: string | null;
+  on_home?: boolean;
 }
 
 export interface SmartFolderCreate {

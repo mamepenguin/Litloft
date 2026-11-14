@@ -97,7 +97,10 @@
     "fileCount": "{count, plural, one {# file} other {# files}}",
     "emptyDrive": "No files yet",
     "unlockAccess": "Enter password",
-    "couldNotRemoveFromContinue": "Could not remove from Continue"
+    "couldNotRemoveFromContinue": "Could not remove from Continue",
+    "putOnHome": "Put on Home",
+    "removeFromHome": "Remove from Home",
+    "homeShortcutFailed": "Couldn't change the Home entry"
   },
   "folder": {
     "items": "{count} items",

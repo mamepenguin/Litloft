@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CheckSquare,
+  House,
+  HousePlus,
   MoreHorizontal,
   Pin,
   PinOff,
@@ -120,6 +122,9 @@ interface FolderToolbarProps {
    */
   isPinned?: boolean;
   onTogglePin?: (folderPath: string) => void;
+  /** Both or neither, like the pin pair; drawn only while the folder is pinned. */
+  isOnHome?: boolean;
+  onToggleHome?: (folderPath: string) => void;
 }
 
 export function FolderToolbar({
@@ -130,7 +135,7 @@ export function FolderToolbar({
   onSortChange, onTypeFilterChange, onTrustFilterChange, onViewChange, onToggleSelectable,
   onScan, onPlayAll, onSetCreatingFolder, onSetNewFolderName,
   onSetFolderError, onCreateFolder, onReshuffle,
-  isPinned, onTogglePin,
+  isPinned, onTogglePin, isOnHome, onToggleHome,
 }: FolderToolbarProps) {
   const hideMutatingActions = !isWriteDestination;
   const hidePlayAll = isSpecialView || !!tagFilter || !!isSearch || !!isPassages;
@@ -142,6 +147,7 @@ export function FolderToolbar({
   const hideArrangingControls = total === 0 && folderCount === 0 && !isFiltered;
   const hideArranging = hideArrangingControls || !!search?.hideArranging;
   const t = useTranslations("toolbar");
+  const tDrive = useTranslations("drive");
   const tc = useTranslations("common");
   const ts = useTranslations("selection");
   const tf = useTranslations("folder");
@@ -519,6 +525,27 @@ export function FolderToolbar({
                         )}
                         <span className="flex-1">
                           {isPinned ? t("unpinFolder") : t("pinFolder")}
+                        </span>
+                      </button>
+                    )}
+                    {pinnablePath && isPinned && onToggleHome && (
+                      <button
+                        role="menuitem"
+                        onClick={() => {
+                          onToggleHome(pinnablePath);
+                          closeMore();
+                        }}
+                        className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-text-primary transition-colors hover:bg-bg-elevated"
+                      >
+                        {isOnHome ? (
+                          <House size={16} className="flex-shrink-0" />
+                        ) : (
+                          <HousePlus size={16} className="flex-shrink-0" />
+                        )}
+                        <span className="flex-1">
+                          {isOnHome
+                            ? tDrive("removeFromHome")
+                            : tDrive("putOnHome")}
                         </span>
                       </button>
                     )}

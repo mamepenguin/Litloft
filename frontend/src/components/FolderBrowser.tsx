@@ -332,7 +332,7 @@ export function FolderBrowser({
   });
   const showPassageCount =
     passagesView && !passagesLoading && !passagesFailed;
-  const { pinnedPaths, handleTogglePin } = usePinnedFolders(driveName);
+  const { pinnedPaths, homePaths, handleTogglePin, handleToggleHome } = usePinnedFolders(driveName);
   const selection = useSelection();
   // `SelectionBar` clears before it reports a completed bulk action, so the
   // ids of that action are kept here for the continuation's own pruning.
@@ -783,6 +783,8 @@ export function FolderBrowser({
         onReshuffle={handleReshuffle}
         isPinned={isFolderAnchored ? pinnedPaths.has(folderPath!) : undefined}
         onTogglePin={isFolderAnchored ? handleTogglePin : undefined}
+        isOnHome={isFolderAnchored ? homePaths.has(folderPath!) : undefined}
+        onToggleHome={isFolderAnchored ? handleToggleHome : undefined}
       />}
 
       {isSearch &&
