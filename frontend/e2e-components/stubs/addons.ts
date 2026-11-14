@@ -20,6 +20,9 @@ function module(): SlotModule {
     slotComponents: {
       transcript: TranscriptSlot,
       outline: TranscriptSlot,
+      "fixture-scenes": TranscriptSlot,
+      "fixture-detailed-summary": TranscriptSlot,
+      "fixture-note": TranscriptSlot,
       scenes: ScenesSection,
       "fixture-action": PreviewActionSlot,
     },

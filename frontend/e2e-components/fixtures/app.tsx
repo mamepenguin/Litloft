@@ -114,6 +114,7 @@ import { NAME_IN_USE_ARRANGEMENTS } from "./nameInUse";
 import {
   InspectorPdfArrangement,
   InspectorVideoArrangement,
+  InspectorVideoSidebarArrangement,
   InspectorVideoTwoPaneArrangement,
   InspectorVideoCollectionArrangement,
 } from "./inspectorResponsive";
@@ -2572,6 +2573,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
     <ScenesSectionArrangement hostWidth={390} long />
   ),
   "inspector-video": InspectorVideoArrangement,
+  "inspector-video-sidebar": InspectorVideoSidebarArrangement,
   "inspector-pdf": InspectorPdfArrangement,
   "inspector-video-two-pane": InspectorVideoTwoPaneArrangement,
   "inspector-video-collection": InspectorVideoCollectionArrangement,

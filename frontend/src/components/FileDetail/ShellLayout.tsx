@@ -235,7 +235,11 @@ export function ShellLayout({
       actions={hasPreviewActions ? previewActions : null}
       playerFocus={
         playerFramed
-          ? { pressed: playerFocus, onToggle: toggleWorkbenchPlayerFocus }
+          ? {
+              pressed: playerFocus,
+              onToggle: toggleWorkbenchPlayerFocus,
+              visibleHeight: metrics.railAvailable,
+            }
           : undefined
       }
     />
