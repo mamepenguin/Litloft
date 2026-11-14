@@ -227,6 +227,6 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-103 | implemented | docs/specs/smart-folder-overwrite.md | sha256:3e5ff632f42075c25c90cec47ca274cb2f259124dd20eda5d16d3aca37dac17e |
 | SPEC-CORE-104 | implemented | docs/specs/workbench-panel-priority.md | sha256:e0fc4e382abacb89f2649e85b624040fa7fc020a18fde41b1189cd39df932fc8 |
 | SPEC-ADDON-107 | implemented | docs/specs/file-ask-enter-submit.md | sha256:faef5d4dd878ca31de9af3dff91eb892e010e0772d2a1e8a02969ee4a729fb69 |
-| SPEC-CORE-106 | approved | docs/specs/smart-collection.md | sha256:9668bed455fb686115f86df9f4757f1f9b987b609a6bf4d7a25e377e4a7694da |
-| SPEC-CORE-107 | approved | docs/specs/smart-collection.md | sha256:9668bed455fb686115f86df9f4757f1f9b987b609a6bf4d7a25e377e4a7694da |
-| SPEC-CORE-108 | approved | docs/specs/smart-collection.md | sha256:9668bed455fb686115f86df9f4757f1f9b987b609a6bf4d7a25e377e4a7694da |
+| SPEC-CORE-106 | implemented | docs/specs/smart-collection.md | sha256:9668bed455fb686115f86df9f4757f1f9b987b609a6bf4d7a25e377e4a7694da |
+| SPEC-CORE-107 | implemented | docs/specs/smart-collection.md | sha256:9668bed455fb686115f86df9f4757f1f9b987b609a6bf4d7a25e377e4a7694da |
+| SPEC-CORE-108 | implemented | docs/specs/smart-collection.md | sha256:9668bed455fb686115f86df9f4757f1f9b987b609a6bf4d7a25e377e4a7694da |

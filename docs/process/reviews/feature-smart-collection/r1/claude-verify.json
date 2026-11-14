@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "frontend/src/components/ConfirmDialog.tsx:4 imports createPortal and :46-86 returns createPortal(..., document.body). The commit's classification (docs/process/reviews/feature-smart-collection/r1/classification.json:130) lists ConfirmDialog.tsx as changed, and it is absent from the spec touch-point list. The ConfirmDialog callers span about 25 components (CommentSection, SelectionBar, FileActions, TrashView, MissingView, Sidebar and others), so the change reaches all of them. frontend/src/components/__tests__/FileContextMenu.test.tsx:292-307 mocks the dialog with a createPortal-based stub. I did not see the diff itself, so whether the portal was added in this commit rests on the classification file, not on git."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "frontend/src/components/sidebar/useMergedCollectionOrder.ts exists (86 lines). It contains readSaved, collectionNameOrder, and useMergedCollectionOrder with setOrder and localStorage persistence under sidebar:order:collections-all:<drive>. It imports mergeOrder from ./orderMerge. The file is listed as changed in classification.json:234 and is not in the touch-point list, which names useSidebarItemOrder.ts and orderMerge.ts. useSidebarItemOrder.ts still exists and is referenced by sidebar tests."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "frontend/src/components/sidebar/useSmartCollectionActions.ts exists (86 lines). It holds the menu target, the renaming and deleting state, handleRename (which rethrows 409 via isNameInUse), and handleDelete. It is consumed by SidebarCollectionsSection.tsx:24 and :129. It is not in the touch-point list, although the list does name SidebarCollectionsSection.tsx and useCollectionManagement.ts."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-4",
+      "status": "confirmed",
+      "note": "frontend/src/hooks/useNameSubmission.ts exists (54 lines) and exports useNameSubmission. Non-test consumers are CollectionDetail.tsx:36 and :69, CollectionPicker.tsx:8 and :29, SmartFolderSaveDialog.tsx:8 and :36, and sidebar/useCollectionManagement.ts:14 and :45-46. The touch-point list has no hooks/ entry."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-5",
+      "status": "confirmed",
+      "note": "frontend/src/lib/nameInUse.ts exists. isNameInUse (:4-6) tests instanceof ApiStatusError and status 409. focusEnd is at :9-13. Importers are CollectionDetail.tsx:35, CollectionPicker.tsx:10, SmartFolderSaveButton.tsx:20, SmartFolderSaveDialog.tsx:10, sidebar/useSmartCollectionActions.ts:8, sidebar/useCollectionManagement.ts:16 and SidebarCollectionsSection.tsx:17. None of these paths is in the touch-point list, which names only the 409 handling in those component files."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-6",
+      "status": "confirmed",
+      "note": "frontend/src/lib/apiError.ts exists (17 lines) and defines class ApiStatusError. api.ts no longer defines it: the only references are the import at api.ts:3 and the re-export at api.ts:6. The reviewer's citation of api.ts:4-5 is off by a line, but the fact holds. lib/highlightStore.ts:11 and :171 also use ApiStatusError through api.ts, so the re-export keeps them working. The move itself is outside the touch-point list, which names api.ts only for the typed 409 on the four write calls."
+    }
+  ],
+  "specification_compliance": [
+    "All six findings are about touch-point scope, not behaviour. Each new or edited file they name exists at the commit and is referenced as the finding describes.",
+    "Five new modules sit outside the touch-point list: useMergedCollectionOrder.ts, useSmartCollectionActions.ts, useNameSubmission.ts, nameInUse.ts and apiError.ts. ConfirmDialog.tsx is also edited outside the list. The spec's touch-point list does not cover any of these, so it is out of date or incomplete. Whether that matters depends on the spec's own scope rule, which I did not check."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "ConfirmDialog now portals to document.body. Callers rendered inside transformed or stacking-context ancestors will now draw above their own containers, which is the intended effect of the Sidebar fix commit but was not in the spec. I did not check each caller for a visual change."
+  ],
+  "regression_risks": [
+    "The ConfirmDialog portal changes every caller, and the frontend unit tests mock the dialog in most of them, so a regression in the real dialog's layout or focus would not show in unit tests.",
+    "Moving ApiStatusError to apiError.ts keeps the api.ts re-export, so existing imports are unaffected. A test that mocks lib/api wholesale would not replace the class, which is the intent noted in apiError.ts:4-5."
+  ],
+  "test_coverage": [
+    "I did not run any tests (only Read, Glob and Grep were available). The FileContextMenu test was edited to use a portal-based stub, which I read at lines 292-307. The rest of the test coverage was not assessed."
+  ],
+  "not_verified": [
+    "I did not run git, so I could not check that the worktree matches commit 641156b8f or see the diff. The claim that ConfirmDialog.tsx was changed in this commit rests on classification.json, not on the diff.",
+    "I did not verify whether any caller of ConfirmDialog changes visually or in focus behaviour under the portal.",
+    "I did not check the spec's scope rule that decides whether files outside the touch-point list are a defect, and I did not check invariants I1 to I10 against the code.",
+    "I did not run unit or e2e tests."
+  ],
+  "confidence": 85
+}

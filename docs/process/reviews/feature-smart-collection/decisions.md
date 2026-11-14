@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship (Yuichi Senga, 2026-11-14: "ship" after r1 HUMAN_REVIEW_REQUIRED; accepts the ConfirmDialog portal for all callers and the createCollection body omitting an undefined description)
 ran_in_app: yes
 at: fe615e7220aa57f44e4e516c7f1d32101e97dde7
 by: agent
