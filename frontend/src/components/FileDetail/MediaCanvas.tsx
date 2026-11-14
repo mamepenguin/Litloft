@@ -19,6 +19,7 @@ interface MediaCanvasProps
   file: FileItem;
   metrics: CompanionMetrics;
   framed: boolean;
+  playerShare: number;
   workbench?: ReactNode;
   workbenchActive: boolean;
   showPreviewActions: boolean;
@@ -40,6 +41,7 @@ export function MediaCanvas({
   file,
   metrics,
   framed,
+  playerShare,
   workbench,
   workbenchActive,
   showPreviewActions,
@@ -52,7 +54,7 @@ export function MediaCanvas({
     <div
       className={MEDIA_HOST_CLASS}
       data-workbench={workbenchActive ? "on" : undefined}
-      style={mediaHostStyle(metrics)}
+      style={mediaHostStyle(metrics, playerShare)}
     >
       <MediaPlayerBlock
         {...playerProps}

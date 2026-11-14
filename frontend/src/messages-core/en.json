@@ -1519,6 +1519,7 @@
     "note": "Note",
     "close": "Close {label}",
     "showMore": "Show more",
-    "showLess": "Show less"
+    "showLess": "Show less",
+    "enlargePanels": "Enlarge panels"
   }
 }

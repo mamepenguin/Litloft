@@ -9,6 +9,7 @@ import type { CompanionMetrics } from "./hooks/useCompanionMetrics";
  */
 export function mediaHostStyle(
   metrics: Pick<CompanionMetrics, "railAvailable" | "playerAvailable">,
+  share: number = WORKBENCH_PLAYER_SHARE,
 ): CSSProperties {
   const { railAvailable, playerAvailable } = metrics;
   return {
@@ -16,6 +17,6 @@ export function mediaHostStyle(
     ...(playerAvailable != null
       ? { "--player-avail": `${playerAvailable}px` }
       : {}),
-    "--workbench-player-share": String(WORKBENCH_PLAYER_SHARE),
+    "--workbench-player-share": String(share),
   } as CSSProperties;
 }

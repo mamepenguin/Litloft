@@ -48,10 +48,18 @@ import {
 } from "./workbench/panels";
 import { Workbench, shownPanelIds } from "./workbench/Workbench";
 import {
+  WORKBENCH_PLAYER_FOCUS_SHARE,
+  WORKBENCH_PLAYER_SHARE,
+} from "@/lib/layoutSizes";
+import {
   closeWorkbenchPanel,
   toggleWorkbenchPanel,
   useWorkbenchPanels,
 } from "@/lib/workbenchPanels";
+import {
+  toggleWorkbenchPlayerFocus,
+  useWorkbenchPlayerFocus,
+} from "@/lib/workbenchPlayerFocus";
 import { TextScrollFileIdContext } from "@/lib/textScrollProgress";
 import { HighlightFileContext } from "@/lib/highlightStore";
 
@@ -185,6 +193,7 @@ export function ShellLayout({
   const playerSideEntries = hasPlayer ? getSlotEntries("player-side") : [];
 
   const storedPanels = useWorkbenchPanels();
+  const playerFocus = useWorkbenchPlayerFocus();
   const workbenchItems = buildWorkbenchPanels({
     surface: "canonical",
     hasPlayer,
@@ -205,6 +214,10 @@ export function ShellLayout({
   const shownPanels = shownPanelIds(workbenchItems, storedPanels);
   const hasPreviewActions = hasSlot("file-preview-actions");
   const actionsInRow = workbenchWide;
+  const playerShare =
+    playerFramed && playerFocus && shownPanels.length > 0
+      ? WORKBENCH_PLAYER_FOCUS_SHARE
+      : WORKBENCH_PLAYER_SHARE;
   const previewActions = (
     <AddonSlot
       id="file-preview-actions"
@@ -219,6 +232,11 @@ export function ShellLayout({
       onToggle={(id) => toggleWorkbenchPanel(id, availablePanelIds)}
       onClose={closeWorkbenchPanel}
       actions={hasPreviewActions ? previewActions : null}
+      playerFocus={
+        playerFramed
+          ? { pressed: playerFocus, onToggle: toggleWorkbenchPlayerFocus }
+          : undefined
+      }
     />
   ) : null;
 
@@ -429,6 +447,7 @@ export function ShellLayout({
           file={file}
           metrics={metrics}
           framed={playerFramed}
+          playerShare={playerShare}
           workbench={workbench ?? undefined}
           workbenchActive={workbenchWide && shownPanels.length > 0}
           showPreviewActions={!actionsInRow}

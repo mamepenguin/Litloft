@@ -954,6 +954,13 @@ pre mark.ask-citation-highlight {
   margin-left: auto;
 }
 
+.media-detail-workbench-trailing {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
 .workbench-toggle {
   display: inline-flex;
   align-items: center;
@@ -980,9 +987,23 @@ pre mark.ask-citation-highlight {
   font-weight: 600;
 }
 
+.workbench-toggle-icon {
+  flex: 0 0 auto;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border-radius: 9999px;
+}
+
 @media (pointer: coarse) {
   .workbench-toggle {
     min-height: 2.75rem;
+  }
+
+  .workbench-toggle-icon {
+    width: 2.75rem;
+    height: 2.75rem;
   }
 }
 

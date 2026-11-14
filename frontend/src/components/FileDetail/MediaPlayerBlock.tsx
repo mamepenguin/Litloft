@@ -121,7 +121,7 @@ export function MediaPlayerBlock({
           have one, so a button there would appear for some media and
           not others. */}
         <div
-          data-preview-actions="true"
+          data-preview-actions={showPreviewActions ? "true" : undefined}
           className="flex items-center justify-end gap-2 px-3 pt-2 empty:hidden"
         >
           {showPreviewActions && (

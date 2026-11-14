@@ -3,6 +3,7 @@ import { configure } from "@testing-library/react";
 import { afterEach, vi } from "vitest";
 import enMessages from "../messages/en.json";
 import { resetWorkbenchPanels } from "../lib/workbenchPanels";
+import { resetWorkbenchPlayerFocus } from "../lib/workbenchPlayerFocus";
 
 // Testing Library's 1000 ms default is a wall-clock budget that a starved
 // worker can exceed on a correct wait. `testTimeout` in vitest.config.ts must
@@ -144,4 +145,5 @@ afterEach(() => {
     document.dispatchEvent(new Event("pointercancel"));
   }
   resetWorkbenchPanels();
+  resetWorkbenchPlayerFocus();
 });

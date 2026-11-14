@@ -71,7 +71,7 @@ On video, audio and `.loft` files, the things you use for a while as you watch s
 - Up to two panels are shown at once. Turning a third on closes the one you turned on first, unless that one has nothing on this file.
 - Each panel has a close button. With every panel off, nothing is drawn under the row and the player is at its full size.
 - The choice is remembered on this device and applies to every file you play. Nothing is on until you turn it on.
-- On a wide window the panels sit side by side, and a video keeps at most half of the page's height so they reach the bottom. With less room they sit one above the other, and each panel scrolls inside itself.
+- On a wide window the panels sit side by side, and a video takes half of the page's height so they reach the bottom; **Enlarge panels** in that row makes the player smaller, about a third of the height, so the panels are taller. With less room they sit one above the other, and each panel scrolls inside itself.
 - In a narrow window the inspector moves under the player and the panels become tabs in it. On a phone they are tabs in the bottom sheet.
 
 Transcript and Scenes come from the [intelligence addon](../addons/intelligence.md), and the Note from the [knowledge addon](../addons/knowledge.md).
