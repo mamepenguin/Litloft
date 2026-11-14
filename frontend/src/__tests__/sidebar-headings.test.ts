@@ -57,19 +57,18 @@ describe("sidebar section headings", () => {
     expect(writers.map(rel)).toEqual([HEADING_COMPONENT]);
   });
 
-  it("draws every one of them from it", () => {
+  it("SPEC-CORE-107 I3 draws every one of them from it, one Collections heading for both kinds", () => {
     // The count is of *uses*, not of distinct labels: one file draws two
     // of them, so the set below is shorter than the number above and the
     // two are not redundant.
     const uses = files.flatMap((f) =>
       [...readFileSync(f, "utf-8").matchAll(/<SidebarSectionHeading\b/g)].map(() => rel(f)),
     );
-    expect(uses.length).toBe(7);
+    expect(uses.length).toBe(6);
     expect([...new Set(uses)].sort()).toEqual([
       "frontend/src/components/sidebar/SidebarCollectionsSection.tsx",
       "frontend/src/components/sidebar/SidebarLibrarySection.tsx",
       "frontend/src/components/sidebar/SidebarPinsSection.tsx",
-      "frontend/src/components/sidebar/SidebarSmartFoldersSection.tsx",
       "frontend/src/components/sidebar/SidebarSystemSection.tsx",
       "frontend/src/components/sidebar/SidebarTagsSection.tsx",
     ]);

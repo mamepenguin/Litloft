@@ -91,9 +91,9 @@ vi.mock("next/link", () => ({
 }));
 
 const STORAGE_KEY = "sidebar:order:sections";
-const DEFAULT_ORDER = ["collections", "pins", "smart-folders", "tags"] as const;
+const DEFAULT_ORDER = ["collections", "pins", "tags"] as const;
 
-describe("(a) useSidebarSectionOrder — order reflects saved state", () => {
+describe("(a) SPEC-CORE-107 I3 useSidebarSectionOrder — order reflects saved state", () => {
   beforeEach(() => {
     mockStorage.clear();
   });
@@ -106,10 +106,10 @@ describe("(a) useSidebarSectionOrder — order reflects saved state", () => {
   it("restores a saved order from localStorage", () => {
     mockStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify(["tags", "pins", "collections", "smart-folders"]),
+      JSON.stringify(["tags", "pins", "collections"]),
     );
     const { result } = renderHook(() => useSidebarSectionOrder(DEFAULT_ORDER));
-    expect(result.current.order).toEqual(["tags", "pins", "collections", "smart-folders"]);
+    expect(result.current.order).toEqual(["tags", "pins", "collections"]);
   });
 
   it("renders sections in the order returned by useSidebarSectionOrder (pins before tags)", () => {
@@ -209,13 +209,13 @@ describe("(b) grip presence — reorderable sections have grip, fixed zones do n
   });
 });
 
-describe("(c) drag-and-drop reorder + localStorage persistence", () => {
+describe("(c) SPEC-CORE-107 I3 drag-and-drop reorder + localStorage persistence", () => {
   beforeEach(() => {
     mockStorage.clear();
   });
 
   it("drop from 'collections' onto 'tags' (after) reorders and persists", () => {
-    const ids = ["collections", "pins", "smart-folders", "tags"];
+    const ids = ["collections", "pins", "tags"];
     const onReorder = vi.fn();
     const { result } = renderHook(() =>
       useReorderableDnD({ kind: "sidebar-section", ids, onReorder }),
@@ -234,7 +234,7 @@ describe("(c) drag-and-drop reorder + localStorage persistence", () => {
         .getRowProps("tags")
         .onDrop(dragEvent(dt, { clientY: 18, rectTop: 0, rectHeight: 20 }));
     });
-    expect(onReorder).toHaveBeenCalledWith(["pins", "smart-folders", "tags", "collections"]);
+    expect(onReorder).toHaveBeenCalledWith(["pins", "tags", "collections"]);
     expect(result.current.draggingId).toBeNull();
   });
 
@@ -243,15 +243,15 @@ describe("(c) drag-and-drop reorder + localStorage persistence", () => {
       useSidebarSectionOrder(DEFAULT_ORDER),
     );
     act(() => {
-      result.current.setOrder(["tags", "collections", "pins", "smart-folders"]);
+      result.current.setOrder(["tags", "collections", "pins"]);
     });
-    expect(result.current.order).toEqual(["tags", "collections", "pins", "smart-folders"]);
+    expect(result.current.order).toEqual(["tags", "collections", "pins"]);
     const stored = JSON.parse(mockStorage.getItem(STORAGE_KEY) as string);
-    expect(stored).toEqual(["tags", "collections", "pins", "smart-folders"]);
+    expect(stored).toEqual(["tags", "collections", "pins"]);
   });
 
   it("MIME guard: a drag with a different kind is rejected (does not reorder)", () => {
-    const ids = ["collections", "pins", "smart-folders", "tags"];
+    const ids = ["collections", "pins", "tags"];
     const onReorder = vi.fn();
     const { result } = renderHook(() =>
       useReorderableDnD({ kind: "sidebar-section", ids, onReorder }),
@@ -269,7 +269,7 @@ describe("(c) drag-and-drop reorder + localStorage persistence", () => {
   });
 
   it("drop onto itself does not call onReorder", () => {
-    const ids = ["collections", "pins", "smart-folders", "tags"];
+    const ids = ["collections", "pins", "tags"];
     const onReorder = vi.fn();
     const { result } = renderHook(() =>
       useReorderableDnD({ kind: "sidebar-section", ids, onReorder }),

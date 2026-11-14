@@ -589,20 +589,20 @@ describe("SPEC-CORE-103 I4 after a successful overwrite the URL is untouched and
     await act(async () => {
       server.releaseWrite(0);
     });
-    expect(await screen.findByText("Failed to update Smart Folder")).toBeInTheDocument();
+    expect(await screen.findByText("Failed to update Smart Collection")).toBeInTheDocument();
     expect(button()).toBeNull();
     expect(within(openMore()).getByRole("menuitem", { name: en.smartFolder.save })).toBeInTheDocument();
   });
 });
 
 describe("SPEC-CORE-103 I5 a failed overwrite shows the toast and leaves the button pressable", () => {
-  it("shows 「スマートフォルダの更新に失敗しました」 and keeps the button enabled for a retry", async () => {
+  it("SPEC-CORE-106 I1 shows 「スマートコレクションの更新に失敗しました」 and keeps the button enabled for a retry", async () => {
     server.state.failWrites = true;
     renderAt("q=dogs&type=video&smart_folder_id=sf1");
     fireEvent.click(await findButton());
 
-    expect(ja.smartFolder.updateFailed).toBe("スマートフォルダの更新に失敗しました");
-    expect(await screen.findByText("Failed to update Smart Folder")).toBeInTheDocument();
+    expect(ja.smartFolder.updateFailed).toBe("スマートコレクションの更新に失敗しました");
+    expect(await screen.findByText("Failed to update Smart Collection")).toBeInTheDocument();
     await waitFor(() => expect(button()).toBeEnabled());
     expect(await overwriteRow()).toBeEnabled();
     closeMore();
