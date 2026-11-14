@@ -2,7 +2,7 @@
 
 SPEC-ID: SPEC-CORE-106
 
-Approval: sha256:f8c66316579471ba475c19ca95c0b68c47345e0026eac024365414038d5a9042 Yuichi Senga 2026-11-15
+Approval:
 
 ## Summary
 
@@ -85,11 +85,12 @@ None. The browser's request goes to the backend only.
 
 - Hidden entries are absent from the Home entry row, the sidebar navigation rows and the
   jump palette. The remaining entries keep their order.
-- If no hideable entry remains in the Home entry row, the row's container is not rendered, so
-  no empty row or heading shows. The same applies to the sidebar group that holds them.
 - A hidden entry's page, reached by URL or by a link, shows no active row in the sidebar.
-- While the list is `loading`, the hideable entries are not shown; they appear together when
-  the list arrives. The Home row and the sidebar show the same set during that time.
+- While the list is `loading`, the hideable entries are not shown in the Home row, the sidebar
+  or the jump palette; they appear together when the list arrives. The three surfaces show the
+  same set during that time.
+- A failed or timed-out request is a failure in the browser's own sense: no timeout duration
+  is set by this spec, and the result is the same as a failed request (I9).
 - Default (no key): no visible change apart from the short wait before the hideable entries
   appear (see Required items 3 and the open question on the loading state).
 
@@ -141,14 +142,14 @@ behaviour without reading the implementation.
 
 - `frontend/src/hooks/useEntryVisibility.ts` exports
   `useEntryVisibility(drive: string | null)`, returning `{ hidden: ReadonlySet<string> | null }`.
-  `null` means the list is loading or failed to load for the drive on screen. A failed list
-  is returned as an empty set (I9). A result belongs to one drive only (I10).
+  `null` means only that the list is still loading for the drive on screen. A failed list is
+  returned as an empty set, so every entry shows (I9). A result belongs to one drive only (I10).
 - `HomeAppEntries` takes `hiddenKeys: ReadonlySet<string> | null`. `null` renders no hideable
-  entry; a set removes the matching keys. When no entry remains in the row, the row container
-  and its heading are not rendered.
+  entry; a set removes the matching keys.
 - `SidebarLibrarySection` and `AddonNavRows` take the same `hiddenKeys` prop. `Sidebar.tsx`
   passes it down and filters `primaryAddons` before the children receive it.
-- `pageJump.ts` and `useJumpDestinations.ts` take the same set and omit matching built-in apps
+- `pageJump.ts` and `useJumpDestinations.ts` take the same set, with the same meaning of `null`
+  (no hideable entry while loading), and omit matching built-in apps
   and addon entries.
 - A hidden entry is not rendered, so it cannot carry an active style (I11).
 
