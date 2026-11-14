@@ -13,9 +13,10 @@ the clone in their place; the symlinks are left alone.
     python3 scripts/dev/r5_stack.py destroy
     python3 scripts/dev/r5_stack.py url
 
-Without --with-drives the stack mounts every drive read-only, so anything
-that writes a drive (upload, move, rename, purge) fails. --with-drives clones
-the drives too, for a run that has to write them.
+The stack writes only under .r5-stack/: every other writable bind is mounted
+read-only, drives included, so anything that writes a drive (upload, move,
+rename, purge) fails. --with-drives clones the drives too, for a run that has
+to write them.
 
 Open the stack at the URL `up` prints (<worktree>.localhost:<port>), not at
 localhost: cookies are scoped by host and not by port, so two stacks opened
@@ -229,8 +230,8 @@ def drive_targets(paths: Paths) -> set[str]:
     return {posixpath.normpath(d["path"]) for d in drives if "path" in d}
 
 
-def drive_sources(paths: Paths, config: dict) -> set[Path]:
-    """Host sources of the backend binds that hold a drive, itself or as a parent."""
+def drive_sources(paths: Paths, config: dict) -> list[Path]:
+    """Host sources of the backend binds that hold a drive, outermost only."""
     targets = drive_targets(paths)
     backend = config["services"].get("backend", {})
     sources = set()
@@ -239,22 +240,23 @@ def drive_sources(paths: Paths, config: dict) -> set[Path]:
             continue
         target = posixpath.normpath(vol["target"])
         if any(t == target or t.startswith(target.rstrip("/") + "/") for t in targets):
-            sources.add(Path(vol["source"]).resolve())
-    return sources
+            src = Path(vol["source"]).resolve()
+            if not is_under(src, paths.main_data):
+                sources.add(src)
+    return sorted(s for s in sources if not any(o != s and is_under(s, o) for o in sources))
 
 
 def plan_overlay(paths: Paths, config: dict, with_drives: bool) -> dict:
     """Clone what the stack writes and return the overlay that mounts the clones.
 
-    Drives that are not cloned are mounted read-only: the clone's DB is a
-    snapshot, so its trash purge and any file operation would act on files the
-    main checkout may have restored or moved since.
+    Every other writable bind becomes read-only, drives included: the clone's DB
+    is a snapshot, so its trash purge and any file operation would act on files
+    the main checkout may have restored or moved since.
     """
     state = paths.state
-    drives = sorted(drive_sources(paths, config))
     drive_clones: dict[Path, Path] = {}
     if with_drives:
-        for i, src in enumerate(drives):
+        for i, src in enumerate(drive_sources(paths, config)):
             dst = state / "drives" / f"{i}-{src.name}"
             dst.parent.mkdir(parents=True, exist_ok=True)
             clone_tree(src, dst)
@@ -265,19 +267,21 @@ def plan_overlay(paths: Paths, config: dict, with_drives: bool) -> dict:
     for name, vol in binds(config):
         src = Path(vol["source"]).resolve()
         read_only = bool(vol.get("read_only"))
-        drive = next((d for d in drives if is_under(src, d)), None)
+        drive = next((d for d in drive_clones if is_under(src, d)), None)
         new = None
         if is_under(src, paths.main_data):
             new = state / "data" / src.relative_to(paths.main_data)
-        elif drive is not None and with_drives:
+        elif drive is not None:
             new = drive_clones[drive] / src.relative_to(drive)
-        elif drive is not None and not read_only:
-            new, read_only = src, True
-        elif src.is_file() and not read_only and is_under(src, paths.main):
+        elif read_only:
+            pass
+        elif src.is_file() and is_under(src, paths.main):
             files_dir.mkdir(parents=True, exist_ok=True)
             new = files_dir / src.name
             if not new.exists():
                 shutil.copy2(src, new)
+        else:
+            new, read_only = src, True
         if new is not None:
             entry = {"type": "bind", "source": str(new), "target": vol["target"]}
             if read_only:
@@ -287,20 +291,13 @@ def plan_overlay(paths: Paths, config: dict, with_drives: bool) -> dict:
 
 
 def shared_writes(paths: Paths, config: dict) -> list[str]:
-    """Bind mounts that would still write the main checkout's state or a shared drive."""
-    drives = [d for d in drive_sources(paths, config) if not is_under(d, paths.state)]
+    """Bind mounts through which the stack could write outside .r5-stack/."""
     problems = []
     for name, vol in binds(config):
         src = Path(vol["source"]).resolve()
         if is_under(src, paths.state):
             continue
-        rw = not vol.get("read_only")
-        shared = (
-            is_under(src, paths.main_data)
-            or (rw and src.is_file() and is_under(src, paths.main))
-            or (rw and any(is_under(src, d) for d in drives))
-        )
-        if shared:
+        if is_under(src, paths.main_data) or not vol.get("read_only"):
             problems.append(f"{name}: {src} -> {vol['target']}")
     return problems
 
@@ -334,7 +331,7 @@ def verified_env(paths: Paths, state: dict) -> dict[str, str]:
     files = [*state["base_files"], str(paths.overlay)]
     problems = shared_writes(paths, compose_config(paths, files))
     if problems:
-        raise Abort("the stack would still write the main checkout's state:\n  "
+        raise Abort("the stack could still write outside .r5-stack/:\n  "
                     + "\n  ".join(problems))
     return compose_env(files, state["port"])
 
@@ -364,16 +361,20 @@ def cmd_clone(paths: Paths, args) -> None:
     print(f"cloned into {paths.state}; start it with `up`, then open {stack_url(paths, port)}")
 
 
+NON_STARTING = {"down", "stop", "kill", "rm", "ps", "logs"}
+
+
 def compose(paths: Paths, *args: str) -> int:
-    env = verified_env(paths, load_state(paths))
+    if args and args[0] in NON_STARTING:
+        state = load_state(paths)
+        env = compose_env([*state["base_files"], str(paths.overlay)], state["port"])
+    else:
+        env = verified_env(paths, load_state(paths))
     return run_compose(paths, env, *args)
 
 
 def stop(paths: Paths) -> int:
-    """`docker compose down` without the mount check, which guards only what starts."""
-    state = load_state(paths)
-    env = compose_env([*state["base_files"], str(paths.overlay)], state["port"])
-    return run_compose(paths, env, "down")
+    return compose(paths, "down")
 
 
 def run_compose(paths: Paths, env: dict[str, str], *args: str) -> int:
