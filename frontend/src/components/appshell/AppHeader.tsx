@@ -33,10 +33,11 @@ export function AppHeader({
   const tc = useTranslations("common");
   // The drive keeps its own span so it can be the first thing cut on a phone;
   // the template's `{drive}` is left empty and only its separator and detail
-  // are drawn at the end.
+  // are drawn at the end. On a phone it is cut no shorter than `w-14`, which a
+  // short drive name fits whole, before the Target's name is cut.
   const scope = (
     <span className="flex min-w-0 items-center gap-1">
-      <span className="min-w-0 truncate">{drive}</span>{" "}
+      <span className="min-w-0 truncate max-sm:w-14 max-sm:max-w-max max-sm:grow">{drive}</span>{" "}
       {countDetail !== null && (
         <span className="flex-shrink-0 whitespace-nowrap">
           {tc("driveScope", { drive: "", detail: countDetail }).trimStart()}

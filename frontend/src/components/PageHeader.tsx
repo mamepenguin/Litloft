@@ -119,19 +119,19 @@ export function PageHeader({
             className={`col-start-2 col-span-2 ${rows.scope} flex min-w-0 items-center justify-between gap-2 sm:contents`}
           >
             {given(scope) && (
-              <div className={`min-w-0 flex-initial text-sm text-text-muted sm:col-start-2 ${rows.scope}`}>
+              <div
+                className={`min-w-0 flex-initial text-sm text-text-muted max-sm:min-w-min max-sm:grow max-sm:basis-0 sm:col-start-2 ${rows.scope}`}
+              >
                 {scope}
               </div>
             )}
             {given(scopeEnd) && (
-              // Below `sm` two fifths is the Target's starting share, not a
-              // cap: it grows into the rest of the line, and `max-w-max` stops
-              // it at its whole name. From `sm` the same share caps the column,
-              // and the title column's 120px is the narrowest a title stays
-              // readable.
-              <div
-                className={`max-sm:min-w-0 max-sm:basis-[40%] max-sm:grow max-sm:shrink-0 max-sm:max-w-max sm:col-start-4 sm:min-w-0 ${rows.title}`}
-              >
+              // Below `sm` the scope grows from nothing and stops at its
+              // min-content, so the Target keeps its whole width and only it
+              // shrinks once the scope is down to that floor. From `sm` the
+              // grid's `fit-content(40%)` caps the column, and the title
+              // column's 120px is the narrowest a title stays readable.
+              <div className={`min-w-0 sm:col-start-4 ${rows.title}`}>
                 {scopeEnd}
               </div>
             )}
