@@ -157,7 +157,7 @@ beyond today's send. The IME guard's grace window is the shared one in
 ## Invariants
 
 I1. In the file Ask field, an Enter press without Shift (with or without Cmd, Ctrl or
-Alt/Option) in the idle, sendable state starts the same send a click on **質問する** starts
+Alt/Option), while the field is sendable and not composing, starts the same send a click on **質問する** starts
 at that moment: the same text, profile and player position. One press starts at most one
 send.
 I2. An Enter press with Shift held, whatever other modifier, never sends and is left to
