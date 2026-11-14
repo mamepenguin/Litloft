@@ -287,7 +287,7 @@ describe("SPEC-CORE-109 I5 a stored queue plays as a collection does", () => {
     }
   });
 
-  it("wraps from the last entry to the first with loop on, and stops with loop off", async () => {
+  it("the loop toggle works as a collection's: off by default, wraps when on, stops when off", async () => {
     const id = freshId();
     storeQueue(id, "Evening mix", ["f1", "f2", "f3"]);
     mockSearchParams.set("smart_collection", id);
@@ -295,14 +295,18 @@ describe("SPEC-CORE-109 I5 a stored queue plays as a collection does", () => {
     render(<FileDetailFullScreen fileId="f3" />);
     await waitFor(() => expect(screen.getByText("3/3 tracks")).toBeInTheDocument());
 
-    expect(screen.getByLabelText("Loop ON")).toBeInTheDocument();
+    // The collection panel's label names the action: "Loop ON" turns loop on.
+    await endCurrentFile();
+    expect(navigations()).toEqual([]);
+
+    fireEvent.click(screen.getByLabelText("Loop ON"));
+    expect(screen.getByLabelText("Loop OFF")).toBeInTheDocument();
     await endCurrentFile();
     expect(lastNavigation().pathname).toBe("/files/f1");
 
     mockPush.mockReset();
     mockReplace.mockReset();
-    fireEvent.click(screen.getByLabelText("Loop ON"));
-    expect(screen.getByLabelText("Loop OFF")).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("Loop OFF"));
     await endCurrentFile();
     expect(navigations()).toEqual([]);
   });

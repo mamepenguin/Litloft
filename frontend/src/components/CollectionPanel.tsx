@@ -39,10 +39,6 @@ function getLoop(): boolean {
   return getStoredLoop() ?? false;
 }
 
-function getSmartLoop(): boolean {
-  return getStoredLoop() ?? true;
-}
-
 function setLoopStorage(v: boolean): void {
   try {
     localStorage.setItem(LOOP_KEY, v ? "1" : "0");
@@ -321,7 +317,7 @@ export function SmartQueuePanel({
   onNavigate,
 }: SmartQueuePanelProps) {
   const t = useTranslations("playback");
-  const [loop, setLoop] = useState(getSmartLoop);
+  const [loop, setLoop] = useState(getLoop);
   const activeRef = useRef<HTMLDivElement>(null);
 
   const tracks = useMemo<TrackEntry[]>(
@@ -389,7 +385,7 @@ export function SmartQueuePanel({
                       ? "bg-accent/20 text-accent"
                       : "text-text-muted hover:bg-bg-elevated hover:text-text-primary"
                   }`}
-                  aria-label={loop ? t("loopOn") : t("loopOff")}
+                  aria-label={loop ? t("loopOff") : t("loopOn")}
                 >
                   <Repeat size={18} />
                 </button>
