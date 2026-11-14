@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>サイドバーの統合</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 880px; height: 620px; box-sizing: border-box; padding: 48px 64px; background: #f6f6f3; font-family: -apple-system, 'Hiragino Sans', 'Noto Sans JP', system-ui, sans-serif; color: #211922; display: flex; gap: 64px; align-items: flex-start">
+
+  <div style="display: flex; flex-direction: column; gap: 12px">
+    <div style="font-size: 13px; color: #62625b">今</div>
+    <nav aria-label="今のサイドバー" style="width: 260px; background: #ffffff; border: 1px solid rgba(145,145,140,0.2); border-radius: 16px; padding: 4px 8px 16px; box-sizing: border-box">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin: 16px 0 4px; padding: 0 12px 0 12px">
+        <div style="display: flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: #62625b">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>コレクション</div>
+        <button type="button" aria-label="コレクションを作成" style="border: 0; background: none; padding: 0; color: #62625b; display: flex"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
+      </div>
+      <a href="#" style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; font-size: 14px; color: #62625b; text-decoration: none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg><span style="flex: 1">料理</span><span style="font-size: 12px; opacity: 0.6">12</span></a>
+      <a href="#" style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; font-size: 14px; color: #62625b; text-decoration: none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg><span style="flex: 1">2024 旅行</span><span style="font-size: 12px; opacity: 0.6">24</span></a>
+
+      <div style="display: flex; align-items: center; margin: 16px 0 4px; padding: 0 12px">
+        <div style="display: flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: #62625b">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>スマートフォルダ</div>
+      </div>
+      <a href="#" style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 16px; font-size: 14px; color: #62625b; text-decoration: none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><span style="flex: 1">未視聴の動画</span></a>
+      <a href="#" style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 16px; font-size: 14px; color: #62625b; text-decoration: none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><span style="flex: 1">あとで読む</span></a>
+    </nav>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 12px">
+    <div style="font-size: 13px; color: #62625b">統合後</div>
+    <nav aria-label="統合後のサイドバー" style="width: 260px; background: #ffffff; border: 1px solid rgba(145,145,140,0.2); border-radius: 16px; padding: 4px 8px 16px; box-sizing: border-box">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin: 16px 0 4px; padding: 0 12px">
+        <div style="display: flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: #62625b">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>コレクション</div>
+        <button type="button" aria-label="コレクションを作成" style="border: 0; background: none; padding: 0; color: #62625b; display: flex"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
+      </div>
+      <a href="#" style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; font-size: 14px; color: #62625b; text-decoration: none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg><span style="flex: 1">2024 旅行</span><span style="font-size: 12px; opacity: 0.6">24</span></a>
+      <a href="#" style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; font-size: 14px; color: #62625b; text-decoration: none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/></svg><span style="flex: 1">あとで読む</span></a>
+      <a href="#" style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; font-size: 14px; color: #62625b; text-decoration: none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/></svg><span style="flex: 1">未視聴の動画</span></a>
+      <a href="#" style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; font-size: 14px; color: #62625b; text-decoration: none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg><span style="flex: 1">料理</span><span style="font-size: 12px; opacity: 0.6">12</span></a>
+    </nav>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":880,"height":620}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>
