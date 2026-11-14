@@ -678,7 +678,8 @@ with a **border in the accent colour**, never a fill.
 ### Home entry row
 
 The row of app destinations at the top of a drive's Home: Library, the
-built-in and addon apps, and the Inbox while it holds arrivals.
+built-in and addon apps, the drive's Home shortcuts, and the Inbox while it
+holds arrivals.
 
 - **It measures its own width** (§8.5 Measure against the container), never
   the viewport: the same row sits beside an inline sidebar and inside a phone.
@@ -692,6 +693,14 @@ built-in and addon apps, and the Inbox while it holds arrivals.
 - **A count is plain text inside the link** — a `bg-warm-light` pill, after
   the label in the wrapping row and at the tile's top-right in the grid — so
   the link's own name carries the number.
+- **Home shortcuts come after the addon entries and before the Inbox**, in
+  the order the drive placed them, with no heading or separator. A shortcut
+  is a tile like the others and leads where the sidebar's row for that item
+  leads.
+- **Every tile's label follows one rule**: at or above `36rem` a tile is at
+  most `16rem` wide and its label is a single truncated line; below it the
+  label wraps to at most two clamped lines. Either way the tile's accessible
+  name is the full label.
 
 ### The first fact under a file's name
 

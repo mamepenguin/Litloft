@@ -13,6 +13,8 @@ The sidebar is the same on every screen of a drive.
 - In the middle, the sections you build yourself: **Collections**, **Pins**, **Smart Folders** and **Tags**. You can collapse these sections and drag them into the order you like.
 - At the bottom: **Trash**, **Missing Files** (only when the drive has some), and **Dashboard** for an administrator.
 
+To keep a Smart Folder, a pinned folder or a collection at hand, open it and choose **Put on Home** in its `…` menu (on a folder, the row appears under **Unpin this folder**); its tile then sits after the addons' entries on Home. Choose **Remove from Home** the same way.
+
 ## The breadcrumb trail
 
 The row above a listing shows where you are. Every part of it is a link back to that folder. On a deep path the middle folders fold into **…**; press it to go to the deepest hidden folder.
