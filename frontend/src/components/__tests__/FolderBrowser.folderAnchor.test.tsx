@@ -35,6 +35,7 @@ vi.mock("@/components/SelectionBar", () => ({ SelectionBar: () => null }));
 vi.mock("@/components/SmartFolderSaveButton", () => ({
   SmartFolderController: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
   SmartFolderMenuItems: () => null,
+  SmartFolderOverwriteButton: () => null,
 }));
 vi.mock("@/components/AddonSlot", () => ({ AddonSlot: () => null }));
 vi.mock("@/components/UploadZone", () => ({

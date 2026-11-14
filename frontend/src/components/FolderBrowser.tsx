@@ -86,6 +86,11 @@ export function FolderBrowser({
   onImageEdit,
 }: FolderBrowserProps) {
   const isSearch = !!(searchQuery && searchQuery.trim());
+  // The results bar's `…`, which the overwrite button hands focus to.
+  const moreTriggerRef = useRef<HTMLButtonElement>(null);
+  const focusMoreTrigger = useCallback(() => {
+    moreTriggerRef.current?.focus();
+  }, []);
   const [initialSnapshot] = useState(() => {
     const snap = loadListSnapshot(buildListSnapshotKey({ driveName, folderPath, view, tagFilter }));
     return snap?.filters.sort === "random" ? null : snap;
@@ -424,6 +429,11 @@ export function FolderBrowser({
     typeFilterRef.current = typeFilter;
   }, [typeFilter]);
 
+  // A ref, not a dependency: `useSearchParams` returns a new object every
+  // render, and the deps must stay the values that change what the URL says.
+  const urlParamsRef = useRef(urlParams);
+  urlParamsRef.current = urlParams;
+
   // URL sync for search mode: sort / order changes update the URL via replace
   // (no history pollution per filter tweak).
   useEffect(() => {
@@ -436,6 +446,9 @@ export function FolderBrowser({
     if (smartFolderId) params.set("smart_folder_id", smartFolderId);
     if (includeSceneClip) params.set("include_scene_clip", "true");
     if (show === "passages") params.set("show", "passages");
+    // A route change already wrote these, so replacing them again would be a
+    // second navigation for the same URL.
+    if (params.toString() === urlParamsRef.current.toString()) return;
     const next = `/drive/${encodeURIComponent(driveName)}/search?${params.toString()}`;
     folderRouter.replace(next);
   }, [isSearch, searchQuery, sort, order, smartFolderId, includeSceneClip, show, driveName, folderRouter]);
@@ -785,6 +798,7 @@ export function FolderBrowser({
         onTogglePin={isFolderAnchored ? handleTogglePin : undefined}
         isOnHome={isFolderAnchored ? homePaths.has(folderPath!) : undefined}
         onToggleHome={isFolderAnchored ? handleToggleHome : undefined}
+        moreTriggerRef={moreTriggerRef}
       />}
 
       {isSearch &&
@@ -951,6 +965,7 @@ export function FolderBrowser({
           smartFolderId={smartFolderId ?? null}
           show={show}
           includeSceneClip={!!includeSceneClip}
+          focusMoreTrigger={focusMoreTrigger}
         >
           {inner}
         </SmartFolderController>

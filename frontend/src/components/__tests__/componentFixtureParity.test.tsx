@@ -283,6 +283,7 @@ describe("the component fixture's page", () => {
       "search-results-bar-passages-scene",
       "search-results-bar-passages-operator",
       "search-results-bar-sticky",
+      "search-results-bar-smart-folder-changed",
       "quick-note-footer-ja",
       "quick-note-footer-en",
       "scoped-search-ja",

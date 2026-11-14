@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import {
   CheckSquare,
   House,
@@ -125,6 +125,11 @@ interface FolderToolbarProps {
   /** Both or neither, like the pin pair; drawn only while the folder is pinned. */
   isOnHome?: boolean;
   onToggleHome?: (folderPath: string) => void;
+  /**
+   * Held by the page when a Smart Folder's overwrite button has to hand focus
+   * here; the toolbar falls back to its own ref.
+   */
+  moreTriggerRef?: RefObject<HTMLButtonElement | null>;
 }
 
 export function FolderToolbar({
@@ -135,7 +140,7 @@ export function FolderToolbar({
   onSortChange, onTypeFilterChange, onTrustFilterChange, onViewChange, onToggleSelectable,
   onScan, onPlayAll, onSetCreatingFolder, onSetNewFolderName,
   onSetFolderError, onCreateFolder, onReshuffle,
-  isPinned, onTogglePin, isOnHome, onToggleHome,
+  isPinned, onTogglePin, isOnHome, onToggleHome, moreTriggerRef: sharedMoreTriggerRef,
 }: FolderToolbarProps) {
   const hideMutatingActions = !isWriteDestination;
   const hidePlayAll = isSpecialView || !!tagFilter || !!isSearch || !!isPassages;
@@ -156,7 +161,8 @@ export function FolderToolbar({
 
   const [moreOpen, setMoreOpen] = useState(false);
   const [moreDialogOpen, setMoreDialogOpen] = useState(false);
-  const moreTriggerRef = useRef<HTMLButtonElement>(null);
+  const ownMoreTriggerRef = useRef<HTMLButtonElement>(null);
+  const moreTriggerRef = sharedMoreTriggerRef ?? ownMoreTriggerRef;
   const moreSurface = useMenuSurface(moreOpen);
   const { hasSlot } = useAddonSlots();
   const showBulkRows = !hideMutatingActions && hasSlot(BULK_ACTIONS_MENU_SLOT);

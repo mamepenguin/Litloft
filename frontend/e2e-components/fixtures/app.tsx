@@ -56,6 +56,7 @@ import { ConditionMenu } from "@/components/search/ConditionMenu";
 import { FolderToolbar } from "@/components/folder/FolderToolbar";
 import { PassageList } from "@/components/search/PassageList";
 import { SearchQueryHeader } from "@/components/search/SearchQueryHeader";
+import { SmartFolderController } from "@/components/SmartFolderSaveButton";
 import type { PassageGroup } from "@/lib/searchPassages";
 import type { SearchPassage } from "@/lib/searchMerge";
 import {
@@ -132,6 +133,9 @@ window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
   const url =
     typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
   const method = (init?.method ?? "GET").toUpperCase();
+  if (url.includes("/api/drives/fixture/smart-folders")) {
+    return Promise.resolve(jsonResponse([FIXTURE_SMART_FOLDER]));
+  }
   if (url.includes("/api/addons/intelligence/search/by-image/available")) {
     return Promise.resolve(
       new Response("{}", {
@@ -1124,7 +1128,23 @@ interface ResultsBarState {
   typeFilter: FileKind | null;
   operator: boolean;
   scene: boolean;
+  smartFolder?: boolean;
 }
+
+const FIXTURE_SMART_FOLDER = {
+  id: "fixture-sf",
+  drive: "fixture",
+  name: "Fixture folder",
+  query: "cats",
+  file_type: null,
+  sort_by: null,
+  sort_order: null,
+  created_at: "2026-05-01T00:00:00Z",
+  updated_at: null,
+};
+
+const SMART_FOLDER_CHANGED_QUERY =
+  "cats tag:meeting tag:research tag:archive folder:Projects";
 
 /**
  * The results page's body without the app toolbar: the real header, results
@@ -1133,12 +1153,16 @@ interface ResultsBarState {
  */
 function SearchResultsBar({ state }: { state: ResultsBarState }): ReactElement {
   const noop = () => {};
-  const query = state.operator ? "cats tag:meeting" : "cats";
+  const query = state.smartFolder
+    ? SMART_FOLDER_CHANGED_QUERY
+    : state.operator
+      ? "cats tag:meeting"
+      : "cats";
+  const smartFolderId = state.smartFolder ? FIXTURE_SMART_FOLDER.id : null;
   const showScene = !state.operator;
   const showShelf = showScene && state.scene && state.view === "files";
 
-  return (
-    <NextIntlClientProvider locale="en" messages={enMessages}>
+  const body = (
       <div className="flex min-h-screen flex-col bg-bg-primary">
         <div className="min-w-0 pb-2 pt-5">
           <SearchQueryHeader
@@ -1147,7 +1171,7 @@ function SearchResultsBar({ state }: { state: ResultsBarState }): ReactElement {
             typeFilter={state.typeFilter}
             sort="relevance"
             order="desc"
-            smartFolderId={null}
+            smartFolderId={smartFolderId}
             includeSceneClip={state.scene}
             show={state.view}
             onRemoveType={noop}
@@ -1169,7 +1193,7 @@ function SearchResultsBar({ state }: { state: ResultsBarState }): ReactElement {
             passageCountLabel: "3 files · 7 passages",
             passageCountShort: "7 passages",
             query,
-            smartFolderId: null,
+            smartFolderId,
             showFind: showScene,
             onSelect: noop,
             hideArranging: false,
@@ -1231,6 +1255,24 @@ function SearchResultsBar({ state }: { state: ResultsBarState }): ReactElement {
           </ul>
         )}
       </div>
+  );
+
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      {state.smartFolder ? (
+        <SmartFolderController
+          drive="fixture"
+          query={query}
+          typeFilter={state.typeFilter}
+          smartFolderId={smartFolderId}
+          show={state.view}
+          includeSceneClip={state.scene}
+        >
+          {body}
+        </SmartFolderController>
+      ) : (
+        body
+      )}
     </NextIntlClientProvider>
   );
 }
@@ -1244,6 +1286,13 @@ const SEARCH_RESULTS_BAR: Record<string, ResultsBarState> = {
   "passages-scene": { view: "passages", typeFilter: null, operator: false, scene: true },
   "passages-operator": { view: "passages", typeFilter: null, operator: true, scene: false },
   sticky: { view: "files", typeFilter: null, operator: false, scene: true },
+  "smart-folder-changed": {
+    view: "files",
+    typeFilter: "video",
+    operator: false,
+    scene: false,
+    smartFolder: true,
+  },
 };
 
 function searchResultsBarArrangement(id: string): ReactElement {
@@ -1258,6 +1307,8 @@ const SearchResultsBarPassages = (): ReactElement => searchResultsBarArrangement
 const SearchResultsBarPassagesScene = (): ReactElement => searchResultsBarArrangement("passages-scene");
 const SearchResultsBarPassagesOperator = (): ReactElement => searchResultsBarArrangement("passages-operator");
 const SearchResultsBarSticky = (): ReactElement => searchResultsBarArrangement("sticky");
+const SearchResultsBarSmartFolderChanged = (): ReactElement =>
+  searchResultsBarArrangement("smart-folder-changed");
 
 function OpenScoped({ label }: { label: string }): null {
   const scope = useMemo(
@@ -2462,6 +2513,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "search-results-bar-passages-scene": SearchResultsBarPassagesScene,
   "search-results-bar-passages-operator": SearchResultsBarPassagesOperator,
   "search-results-bar-sticky": SearchResultsBarSticky,
+  "search-results-bar-smart-folder-changed": SearchResultsBarSmartFolderChanged,
   "quick-note-footer-ja": QuickNoteFooterJa,
   "quick-note-footer-en": QuickNoteFooterEn,
   "scoped-search-ja": ScopedSearchJa,

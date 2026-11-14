@@ -83,6 +83,7 @@ vi.mock("@/components/folder/useCreateFolder", () => ({
 vi.mock("@/components/SmartFolderSaveButton", () => ({
   SmartFolderController: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
   SmartFolderMenuItems: () => null,
+  SmartFolderOverwriteButton: () => null,
 }));
 
 const searchCache = vi.hoisted(() => ({ hit: null as unknown }));

@@ -11,13 +11,14 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import { House, HousePlus, Pencil, RefreshCw, Star, Trash2 } from "lucide-react";
+import { House, HousePlus, Pencil, Save, Star, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import type { FileKind } from "@/types";
 import type { SmartFolder } from "@/types/smartFolder";
 import { setHomeShortcut } from "@/lib/api";
 import { useSmartFolders } from "@/hooks/useSmartFolders";
+import { Button } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { SmartFolderSaveDialog } from "./SmartFolderSaveDialog";
 import { ActionMenuItem } from "./ActionMenuItem";
@@ -37,12 +38,17 @@ interface SmartFolderSaveProps {
   smartFolderId: string | null;
   show?: string | null;
   includeSceneClip?: boolean;
+  /** Moves focus to the results bar's `…` after an overwrite. */
+  focusMoreTrigger?: () => void;
 }
 
 interface SmartFolderActions {
   current: SmartFolder | null;
+  /** The URL's conditions differ from the folder's saved ones. */
+  changed: boolean;
+  saving: boolean;
   save: () => void;
-  update: () => void;
+  overwrite: (options?: { moveFocus?: boolean }) => Promise<void>;
   rename: () => void;
   remove: () => void;
   toggleHome: () => void;
@@ -62,6 +68,7 @@ export function SmartFolderController({
   smartFolderId,
   show,
   includeSceneClip,
+  focusMoreTrigger,
   children,
 }: SmartFolderSaveProps & { children?: ReactNode }) {
   const t = useTranslations("smartFolder");
@@ -80,17 +87,34 @@ export function SmartFolderController({
     [smartFolders, smartFolderId],
   );
 
+  const changed =
+    current !== null &&
+    (query.trim() !== current.query ||
+      (typeFilter ?? null) !== current.file_type);
+
   const [saveOpen, setSaveOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
-  const [updateConfirmOpen, setUpdateConfirmOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  // Guarded from the press, not from the render that disables the button: a
+  // second press in the same tick would otherwise send a second PATCH.
+  const savingRef = useRef(false);
+  const focusMoreAfterOverwrite = useRef(false);
 
   useEffect(() => {
     if (!error) return;
     const timer = setTimeout(() => setError(null), 3000);
     return () => clearTimeout(timer);
   }, [error]);
+
+  // After the render that drops the button, so focus does not fall to `<body>`
+  // when the focused button unmounts.
+  useEffect(() => {
+    if (saving || !focusMoreAfterOverwrite.current) return;
+    focusMoreAfterOverwrite.current = false;
+    focusMoreTrigger?.();
+  }, [saving, focusMoreTrigger]);
 
   const buildSearchUrl = useCallback(
     (id: string | null) => {
@@ -135,18 +159,26 @@ export function SmartFolderController({
     [current, update, t],
   );
 
-  const handleUpdateConfirm = useCallback(async () => {
-    if (!current) return;
-    try {
-      await update(current.id, {
-        query,
-        file_type: typeFilter ?? null,
-      });
-      setUpdateConfirmOpen(false);
-    } catch {
-      setError(t("updateFailed"));
-    }
-  }, [current, update, query, typeFilter, t]);
+  const overwrite = useCallback(
+    async (options?: { moveFocus?: boolean }) => {
+      if (!current || savingRef.current) return;
+      savingRef.current = true;
+      setSaving(true);
+      try {
+        await update(current.id, {
+          query: query.trim(),
+          file_type: typeFilter ?? null,
+        });
+        if (options?.moveFocus) focusMoreAfterOverwrite.current = true;
+      } catch {
+        setError(t("updateFailed"));
+      } finally {
+        savingRef.current = false;
+        setSaving(false);
+      }
+    },
+    [current, query, typeFilter, update, t],
+  );
 
   const handleDeleteConfirm = useCallback(async () => {
     if (!current) return;
@@ -180,13 +212,15 @@ export function SmartFolderController({
   const actions = useMemo<SmartFolderActions>(
     () => ({
       current,
+      changed,
+      saving,
+      overwrite,
       save: () => setSaveOpen(true),
-      update: () => setUpdateConfirmOpen(true),
       rename: () => setRenameOpen(true),
       remove: () => setDeleteConfirmOpen(true),
       toggleHome: () => void handleToggleHome(),
     }),
-    [current, handleToggleHome],
+    [current, changed, saving, overwrite, handleToggleHome],
   );
 
   return (
@@ -207,14 +241,6 @@ export function SmartFolderController({
         onCancel={() => setRenameOpen(false)}
       />
       <ConfirmDialog
-        open={updateConfirmOpen}
-        title={t("updateConfirmTitle")}
-        message={t("updateConfirmMessage", { name: current?.name ?? "" })}
-        confirmLabel={t("update")}
-        onConfirm={handleUpdateConfirm}
-        onCancel={() => setUpdateConfirmOpen(false)}
-      />
-      <ConfirmDialog
         open={deleteConfirmOpen}
         title={t("deleteConfirmTitle")}
         message={t("deleteConfirmMessage", { name: current?.name ?? "" })}
@@ -228,6 +254,38 @@ export function SmartFolderController({
         </div>
       )}
     </SmartFolderActionsContext.Provider>
+  );
+}
+
+/**
+ * The overwrite action of an open Smart Folder, for the row under the query
+ * field. Draws nothing without a controller above it, a resolved folder, or a
+ * difference to save.
+ */
+export function SmartFolderOverwriteButton() {
+  const t = useTranslations("smartFolder");
+  const actions = useContext(SmartFolderActionsContext);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  if (!actions || !actions.current || !actions.changed) return null;
+
+  return (
+    <Button
+      ref={buttonRef}
+      variant="secondary"
+      size="sm"
+      className="ml-auto"
+      disabled={actions.saving}
+      aria-label={t("overwriteLabel", { name: actions.current.name })}
+      onClick={() => {
+        void actions.overwrite({
+          moveFocus: document.activeElement === buttonRef.current,
+        });
+      }}
+    >
+      <Save size={16} />
+      {t("update")}
+    </Button>
   );
 }
 
@@ -264,9 +322,14 @@ export function SmartFolderMenuItems({
           </span>
         </div>
         <ActionMenuItem
-          icon={RefreshCw}
+          icon={Save}
           label={t("update")}
-          onClick={() => choose(actions.update)}
+          disabled={!actions.changed || actions.saving}
+          onClick={() =>
+            choose(() => {
+              void actions.overwrite();
+            })
+          }
         />
         <ActionMenuItem
           icon={Pencil}

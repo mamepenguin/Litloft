@@ -82,7 +82,7 @@ async function renderMenu(smartFolderId: string | null = SF_ID) {
       </div>
     </SmartFolderController>,
   );
-  if (smartFolderId) await screen.findByRole("menuitem", { name: "Update" });
+  if (smartFolderId) await screen.findByRole("menuitem", { name: "Overwrite" });
   await act(async () => {});
 }
 

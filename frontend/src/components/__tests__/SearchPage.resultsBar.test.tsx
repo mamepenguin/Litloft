@@ -747,7 +747,7 @@ describe("SPEC-CORE-066 I7 / SPEC-CORE-039 I22 the Smart Folder entries in …",
     expect(smart.create.mock.calls[0][0]).toMatchObject({ query: "dogs" });
   });
 
-  it("saved: shows the name as a non-item row, then Update, Rename, Delete", () => {
+  it("SPEC-CORE-103 I8 saved: shows the name as a non-item row, then Overwrite, Rename, Delete", () => {
     smart.folders = [SAMPLE];
     renderAt("q=cats&type=video&smart_folder_id=sf1");
 
@@ -756,7 +756,7 @@ describe("SPEC-CORE-066 I7 / SPEC-CORE-039 I22 the Smart Folder entries in …",
     const labelRow = label.closest("[role]");
     expect(labelRow?.getAttribute("role")).toBe("presentation");
     expect(within(opened).queryByRole("menuitem", { name: /Saved: My Folder/ })).toBeNull();
-    for (const name of [en.smartFolder.update, en.smartFolder.rename, en.smartFolder.delete]) {
+    for (const name of ["Overwrite", en.smartFolder.rename, en.smartFolder.delete]) {
       expect(within(opened).getByRole("menuitem", { name })).toBeInTheDocument();
     }
     expect(within(opened).queryByRole("menuitem", { name: en.smartFolder.save })).toBeNull();
@@ -793,19 +793,18 @@ describe("SPEC-CORE-066 I7 / SPEC-CORE-039 I22 the Smart Folder entries in …",
     expect(screen.getByTestId("save-dialog-rename")).toBeInTheDocument();
   });
 
-  it("Update closes …, confirms, and writes the URL's q", async () => {
+  it("SPEC-CORE-103 I3 Overwrite closes … and writes the URL's q, not the field's, with no confirmation", async () => {
     smart.folders = [SAMPLE];
-    smart.update.mockResolvedValueOnce({ ...SAMPLE });
-    renderAt("q=cats&type=video&smart_folder_id=sf1");
+    smart.update.mockResolvedValueOnce({ ...SAMPLE, query: "dogs" });
+    renderAt("q=dogs&type=video&smart_folder_id=sf1");
     fireEvent.change(field(), { target: { value: "unsubmitted" } });
 
-    fireEvent.click(within(openMore()).getByRole("menuitem", { name: en.smartFolder.update }));
+    fireEvent.click(within(openMore()).getByRole("menuitem", { name: "Overwrite" }));
     expect(menu()).toBeNull();
-    fireEvent.click(screen.getByTestId("confirm-ok"));
+    expect(screen.queryByTestId("confirm-dialog")).toBeNull();
 
     await waitFor(() => expect(smart.update).toHaveBeenCalledTimes(1));
-    expect(smart.update.mock.calls[0][0]).toBe("sf1");
-    expect(smart.update.mock.calls[0][1]).toMatchObject({ query: "cats", file_type: "video" });
+    expect(smart.update.mock.calls[0]).toEqual(["sf1", { query: "dogs", file_type: "video" }]);
   });
 
   it("Delete closes …, and the URL keeps show and include_scene_clip", async () => {
