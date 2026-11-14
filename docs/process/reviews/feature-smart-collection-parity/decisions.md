@@ -1,5 +1,6 @@
 # Decisions
 
+decision: ship (Yuichi Senga, 2026-11-15: "ship" after r3 HUMAN_REVIEW_REQUIRED with 0 findings; accepts the new aria-labels on the collection queue's move and remove buttons)
 ran_in_app: yes
 at: 047882e06b8c510bdd91c48b6864ff61ba248a7c
 by: agent

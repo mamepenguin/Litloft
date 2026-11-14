@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "SPEC-CORE-109 step 5 (the loop toggle works as for a collection): satisfied by commit 047882e. frontend/src/components/CollectionPanel.tsx:38-39 gives getLoop() a default of false, and SmartQueuePanel now initialises from getLoop (line 320). The Smart queue's aria-label at line 388 is loop ? loopOff : loopOn, matching the collection panel's label at line 248, so the same label means the same action in both panels. The r2 finding READ-1 is resolved in code.",
+    "The r2 READ-1 default divergence (getSmartLoop defaulting to true) is removed; no getSmartLoop reference remains in CollectionPanel.tsx (Grep of loopOn|loopOff|getLoop|getStoredLoop shows only getLoop uses).",
+    "The fix commit's test change (FileDetailFullScreen.smartCollection.test.tsx) asserts the new default: loop off by default, the first end does not navigate, Loop ON wraps, Loop OFF stops. This matches the new code path.",
+    "Touch-point gaps r1 TP-1 to TP-4 (smartQueue.ts, SmartFolderPlay.tsx, smartFolderActions.ts, toolbarMenuHome.test.ts absent from the spec touch list) are not changed by the commits reviewed here. They were carried over in r2 and remain documentation-only items; they are not re-reported."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "CollectionPanel.tsx adds aria-labels 'Move up', 'Move down' and 'Remove from collection' (messages-core en/ja, playback namespace) to the existing user-collection buttons. These are new screen-reader strings on the collection surface that SPEC-CORE-109 does not mention. The buttons render only for user collections, so the Smart Collection queue does not draw them."
+  ],
+  "regression_risks": [
+    "Changing the shared loop default from on to off for a Smart Collection queue changes first-use behaviour only for users with no stored 'collection-loop' value; a stored value (set by either panel) is unaffected, because both panels read the same localStorage key.",
+    "The Smart Collection queue's loop button and the collection panel's loop button now share one stored value, so toggling one changes the other. This is the intended shared key, but it is not written in the spec."
+  ],
+  "test_coverage": [
+    "FileDetailFullScreen.smartCollection.test.tsx covers the loop default and toggle for a Smart Collection queue after 047882e. No test pins the label parity between CollectionPanel and SmartQueuePanel directly.",
+    "No test covers the aria-labels added to the collection buttons (Move up, Move down, Remove from collection)."
+  ],
+  "not_verified": [
+    "No command was run and git could not be queried (only Read, Glob and Grep). I did not inspect the diff of commit ed681811 itself; it appears to be docs/process/reviews content (the r2 review and the R-5 re-run), and I did not confirm its file list.",
+    "The unit, Python and Playwright suites were not executed, so no pass or fail result is claimed.",
+    "I did not read the full SmartQueuePanel or the loop test body beyond the lines quoted; the label and default were checked by Grep and partial Read only.",
+    "The I11 layout and the real-time queue behaviour were not checked."
+  ],
+  "confidence": 72,
+  "trajectory": "Read in order: r1 to r2 added no new branch. be206789 removed a stale route note in fileDetailShell.ts and restored a submit click in an addon test. The r1 touch-point gaps stayed open. This round, 047882e removed a branch: the separate getSmartLoop default (true) and its inverted label were replaced by the collection's getLoop default (false) and label. The fix did not add a new state or prediction. ed681811 itself is documentation for the r2 review, which is consistent with the design no longer being patched in code."
+}
