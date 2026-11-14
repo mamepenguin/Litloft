@@ -3,6 +3,144 @@
 decision: ship (the human, 2026-11-14: "ship"; r1 HUMAN_REVIEW_REQUIRED, the ToolbarMenu trigger focus on click kept for every shape)
 
 ran_in_app: yes
+at: ba82c6b7c85714623e1642aa80f08bc8faafd0ec
+by: agent
+evidence: |
+  Sixth R-5 run, after the fix that puts the phone Target's and the shelf sort menu's 8 px right
+  padding into the page gutter and the space between the scope text and the Target back to 8 px.
+  Scratch stack only, compose project litloft-r5-apphdr (not the :3000 stack), LITLOFT_PORT=3994,
+  `docker compose -p litloft-r5-apphdr -f docker-compose.yml -f .r5/override.yml up -d --build
+  backend frontend`, down afterwards. .r5/override.yml mounts scratch `drives.json`, `passwords.json`
+  (`[]`), `.r5/data` and two scratch drives; `drives.json` held `{}` again after the run. Drives:
+  `main` and `family-archive-2019-2026-shared`, 13 files each (9 three-second mp4s and 4 three-page
+  PDFs; 8 videos + 4 PDFs in Trips, plus one root video on `main`). The scratch DB held the earlier
+  runs' smart folders in each drive, all `path:Trips`: "Trips", "2025 summer trip, camera footage
+  only" and "Holiday 25"; the smart-folders request answered 200 for both drives before the run and
+  every state that chose a target found it in the Target menu on the first try. Browser: headless
+  Chromium through Playwright 1.58.2 (the frontend's copy); phone 375x812 with hasTouch+isMobile,
+  desktop 640x800 and 1280x800, locale en-US (Japanese via the NEXT_LOCALE=ja cookie). Screenshots:
+  docs/process/reviews/feature-addon-app-header/shots/r6-*.png (40 phone states, 64 desktop states,
+  the four artboards and one probe shot). Unit tests and the diff were not read, per the task.
+
+  Item 1 (375; Video and Reading, app page and shelf page, both drives, default / "Trips" / "Holiday
+  25" / long folder = 32 English states, plus the 8 Japanese default states; 40 measured). The
+  content edge is x 359 in all 40 (header 375 wide, 16 px right padding). The Target's chevron ends
+  at 359 in all 40 and the shelf sort menu's chevron at 359 in all 20 shelf states: 0 px from the
+  content edge, where the fifth run had both at 351. Their boxes now end at 367, 8 px past the
+  content edge inside the 16 px gutter; no state overflows horizontally
+  (`document.documentElement.scrollWidth` = 375 in all 40). The scope row's gap is 8 px again, so the
+  count text ends 16 px before the Target's icon wherever the line is full (fifth run: 12); where the
+  line has room the row's `space-between` free space is 53.1-117.6 px (fifth run: 45.1-109.6),
+  8 px wider because the Target's box moved right by its padding. There is one Target per header
+  (40/40), on the scope row at the line's end (y 120..164 on the app pages, 144..188 on the shelf
+  pages, 44 px tall); the title is whole and one line in all 40 (291/291, x 68..359); the count is
+  whole in all 40 (`· 9 videos`, `· 8 videos`, `· 4 books`, `· 9 本の動画`, `· 4 冊`); the icon is
+  14x14 and the chevron 14x14 in all 40, in every cut state, and the Target's name span keeps its
+  35 px minimum. Each shelf page measured the same as its app page except y +24. `main` is 31/31 in
+  all 20 of its states.
+
+  | 375, `main` | drive vis/full | count | Target w | name vis/full | count→icon |
+  |---|---|---|---|---|---|
+  | video default | 31/31 | `· 9 videos` | 114.2 | 62/62 | 95.2 |
+  | video `Trips` | 31/31 | `· 8 videos` | 87 | 35/35 | 122.3 |
+  | video `Holiday 25` | 31/31 | `· 8 videos` | 120.9 | 69/69 | 88.4 |
+  | video long folder | 31/31 | `· 8 videos` | 193.3 | 141/255 | 16 |
+  | reading default | 31/31 | `· 4 books` | 110.9 | 59/59 | 101.7 |
+  | reading `Trips` | 31/31 | `· 4 books` | 87 | 35/35 | 125.6 |
+  | reading `Holiday 25` | 31/31 | `· 4 books` | 120.9 | 69/69 | 91.7 |
+  | reading long folder | 31/31 | `· 4 books` | 196.6 | 145/255 | 16 |
+
+  | 375, `family-archive-2019-2026-shared` | drive vis/full | count | Target w | name vis/full | count→icon |
+  |---|---|---|---|---|---|
+  | video default | 110/221 | `· 9 videos` | 114.2 | 62/62 | 16 |
+  | video `Trips` | 137/221 | `· 8 videos` | 87 | 35/35 | 16 |
+  | video `Holiday 25` | 103/221 | `· 8 videos` | 120.9 | 69/69 | 16 |
+  | video long folder | 56/221 | `· 8 videos` | 168.3 | 116/255 | 16 |
+  | reading default | 117/221 | `· 4 books` | 110.9 | 59/59 | 16 |
+  | reading `Trips` | 141/221 | `· 4 books` | 87 | 35/35 | 16 |
+  | reading `Holiday 25` | 107/221 | `· 4 books` | 120.9 | 69/69 | 16 |
+  | reading long folder | 56/221 | `· 4 books` | 171.5 | 120/255 | 16 |
+
+  | 375, Japanese default | drive vis/full | count | Target w | name vis/full | count→icon |
+  |---|---|---|---|---|---|
+  | video `main` | 31/31 | `· 9 本の動画` | 134.6 | 83/83 | 61.1 |
+  | reading `main` | 31/31 | `· 4 冊` | 120.6 | 69/69 | 117 |
+  | video long drive | 76/221 | `· 9 本の動画` | 134.6 | 83/83 | 16 |
+  | reading long drive | 132/221 | `· 4 冊` | 120.6 | 69/69 | 16 |
+
+  Compared with the fifth run: the chevron moved 351 to 359 in all 40 (Target and sort, the sort
+  including the Japanese `並び順: 追加日（新しい順）` on Reading, 189..367, whole), the full-line
+  count-to-icon gap 12 to 16, the drive name 4 px wider wherever it is cut (long drive 106→110,
+  133→137, 99→103 for Video; 113→117, 137→141, 103→107 for Reading; Japanese 72→76 and 128→132),
+  and on the full lines the Target 4 px wider with its name 4 px wider (`main` with the long folder
+  137→141 Video and 141→145 Reading; the long drive with the long folder 112→116 and 116→120). Every
+  state with room keeps the fifth run's Target width. Every title box is the fifth run's (291 px, x
+  68..359) and the tabs box is unchanged (x 16..359, y 168); the sort box kept its 183.5 px width and
+  moved 8 px right (175.5..359 → 183.5..367; Japanese 181..359 → 189..367).
+
+  Which is cut first: the drive name, as before. On the long drive with the default, `Trips` or
+  `Holiday 25` the drive is cut (110, 137, 103 of 221; Reading 117, 141, 107) while the Target's
+  name stays whole (62/62, 35/35, 69/69); Japanese 76/221 and 132/221 with 83/83 and 69/69. With
+  the long folder the line cannot hold either name, so both are cut: the drive holds 56 px and the
+  Target takes 168.3 / 171.5 px with its name at 116/255 and 120/255; the 56 px drive draws
+  `family-a…`. On `main` the drive is never cut (31/31) and only the long folder's Target name is
+  cut (141/255 Video, 145/255 Reading, ~16 characters plus the ellipsis, above step 10's
+  three-character minimum). Nothing is cut where the line has room.
+
+  Shelf pages: the sort menu is on the header's own last row at the right end, below the Target row
+  and above the list, whole in all 16 English states (box x 183.5..367, y 196..240, 44 px; header
+  bottom 248, first card top 264) and in Japanese (x 189..367, y 196.4). Its chevron ends at 359.
+  Screens: r6-375-{video,reading}-{main,longdrive}-{default,trips,holiday25,longfolder}.png, the
+  same with `-shelf-`, and r6-375-ja-* for the app and shelf pages of both drives.
+
+  Item 2 (640 and 1280, brief; the same 64 states). At 640 (header 640, content 624) the Target's
+  box ends at 624, 28 px tall, in the h1's band, with its chevron 8 px inside; at 1280 (header 1280
+  with the 240 px sidebar inside it, content 1264) at 1264. Widths 114.2 (video default) / 110.9
+  (reading default) / 87 (`Trips`) / 120.9 (`Holiday 25`) / 243.2 (long folder at 640, name
+  191/255) / 307.2 (long folder at 1280, name 255/255). Title boxes at 640: video 418 / 445 / 411 /
+  289, reading 421 / 445 / 411 / 289; at 1280: video 818 / 845 / 811 / 625, reading 821 / 845 / 811
+  / 625. The shelf sort is immediately left of the Target, 183.5 wide with a 12 px gap: 640 video
+  314.3..497.8, reading 317.6..501.1, long folder 200..383.5; 1280 video 954.3..1137.8, reading
+  957.6..1141.1, long folder 761.3..944.8. Shelf title boxes at 640 234 / 261 / 228 / 120 (video)
+  and 238 / 261 / 228 / 120 (reading); at 1280 634 / 661 / 628 / 441 and 638 / 661 / 628 / 441.
+  Tabs at y 144 on the app pages, none on the shelf pages. The drive name is whole on both drives'
+  app pages at both widths (`main` 31/31, long drive 221/221) and on the 1280 shelf pages; on the 640
+  shelf pages the long drive's name is cut (video 168, 195, 161, 53 of 221; reading 174, 198, 164,
+  57), as in the fourth run. No overflow at either width. Every number is the fourth run's to the
+  decimal (the fifth run recorded no 640/1280 measurement), so nothing moved at these widths.
+  Screens: r6-640-* and r6-1280-* (app pages) and r6-640|1280-shelf-*.
+
+  Agreed design: read docs/process/reviews/feature-addon-app-header/design/Phone.dc.html,
+  Phone-Long.dc.html, Shelf-B.dc.html and Main.dc.html, rendered each at its width
+  (r6-artboard-*.png) and measured their scope lines. The artboards put the Target's box at 367 with
+  its chevron at 359 (`margin-right:-8px`), the shelf sort's chevron at 359, and the count text 16 px
+  from the Target's icon on Phone-Long's full line; the app now measures the same three numbers in
+  all 40 phone states. The fifth run's differences (b) (4 px row gap, 12 px count to icon, against
+  the artboard's 16) and (c) (chevron at 351 against 359) are therefore gone, and D-12 and D-13 no
+  longer reproduce. Matches: at 375 the title alone on its row, the scope text at the start and the
+  quiet Target at the end of the same line with the count whole; the long name ending in an ellipsis
+  inside the Target with its icon and chevron whole; the shelf page's breadcrumb, title, scope line
+  with the Target, then the quiet sort menu on its own right-aligned row above the list; no
+  対象 / Target word, no fill, no border, muted 14 px, 44 px tall on the phone. Remaining visible
+  differences: (a) the artboards draw a 48 px top bar with only a menu button, the app draws its own
+  bar (search, quick note, profile), so the header sits lower (h1 y 84 against the artboards' 57);
+  (b) at 1280 the artboard Target is 36 px tall and the app's is 28 px; (c) the artboards' tabs are
+  the addon's own (カレンダー/地図), Video and Reading keep theirs, as the spec says; (d) the
+  artboards' sidebar, calendar, map and pins are declared differences; (e) no artboard draws a long
+  drive name or any 640px state: the app cuts the long drive's name (110/221, 76/221 in Japanese)
+  with the Target whole, and cuts both names with the long folder (drive 56/221, Target 116/255);
+  (f) content, not layout: Shelf-B's title is the selected folder's name ("2025 夏の旅行") and the
+  app's shelf page title is the shelf's own ("New"). D-1, D-2, D-3, D-7, D-8, D-9, D-10 and D-14 are
+  visible in these screens as the design check described them and are unchanged.
+pending: |
+  The Photo Diary addon page itself was not opened (out of scope for this run), so SPEC-ADDON-106's
+  addon page is not covered here; the addon's own R-5 covers it. Not observed in ordinary use: the
+  transient `<label>: …` accessible name while the saved folder is looked up. No item of PROJECT.md's
+  agent_cannot_verify is touched by this change.
+
+## History: fifth R-5 run (fix that narrowed the space between the scope text and the Target below 640px from 8 to 4 px)
+
+ran_in_app: yes
 at: d4c73ac5d2fce3b5da754748da3e9d7aca77ef69
 by: agent
 evidence: |
