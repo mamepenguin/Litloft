@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The diff adds frontend/src/lib/smartQueue.ts, a new queue store module, which the touch-point list does not name.",
+      "impact": "Scope drift: the store holds the Play queue and the player's failure memory. A reader working from the touch-point list would not know this module exists or that it owns the sessionStorage key format.",
+      "evidence": "frontend/src/lib/smartQueue.ts (new file, 68 lines) is imported by FileDetailFullScreen.tsx and SmartFolderSaveButton.tsx. The spec's touch list names only smartCollectionEval.ts as new under frontend/src/lib/.",
+      "repro": "Compare the diff's new-file list with the spec's Touch points section; smartQueue.ts is absent from the list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "No invariant is broken; the file is needed by I3 and I5, but the touch-point list is incomplete. Fix the list, not the code."
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add frontend/src/lib/smartQueue.ts to the spec touch-point list."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The diff adds frontend/src/components/SmartFolderPlay.tsx, a new component file, which the touch-point list does not name.",
+      "impact": "The Play button, its mobile menu row and the smart-collection-actions slot host are now in a file outside the list. The list only says SmartFolderSaveButton.tsx carries Play and the slot.",
+      "evidence": "frontend/src/components/SmartFolderPlay.tsx (new, 102 lines) exports SmartFolderPlayButton, SmartFolderPlayMenuItems and SmartCollectionActionsSlot; FolderToolbar.tsx imports them from there.",
+      "repro": "Grep the spec's touch-point section for SmartFolderPlay: no match.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "Scope gap in the list only. The file's content matches the spec's Play and slot behavior."
+      },
+      "severity": "INFO",
+      "proposed_fix": "Name SmartFolderPlay.tsx in the spec touch-point list next to SmartFolderSaveButton.tsx."
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "The diff adds frontend/src/components/smartFolderActions.ts, which moves the SmartFolderActions interface and its React context out of SmartFolderSaveButton.tsx, and the touch-point list does not name it.",
+      "impact": "A refactor of a shared context is outside the list. Any consumer that imported the context from SmartFolderSaveButton would need a new import path, and a reader cannot find the context from the spec.",
+      "evidence": "frontend/src/components/smartFolderActions.ts (new); SmartFolderSaveButton.tsx removes the local createContext and the interface and imports them from ./smartFolderActions.",
+      "repro": "Grep the spec for smartFolderActions: no match. The e2e and unit tests pass only if no other file imports the context from the old place; this was not checked.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "Refactor outside the listed scope; no invariant is changed."
+      },
+      "severity": "LOW",
+      "proposed_fix": "Name smartFolderActions.ts in the touch-point list, or move the context back if no other consumer needs it."
+    },
+    {
+      "id": "TP-4",
+      "origin": "reviewer",
+      "claim": "The diff edits frontend/src/components/__tests__/toolbarMenuHome.test.ts to add SmartFolderPlay.tsx to the list of files allowed to hold the shared toolbar menu, and that test file is not in the touch-point list.",
+      "impact": "A guard test that enforces one home for the shared toolbar menu is loosened to admit the new file. Future files that copy the menu pattern pass the guard.",
+      "evidence": "frontend/src/components/__tests__/toolbarMenuHome.test.ts diff, hunk at the allowlist around line 77: adds \"frontend/src/components/SmartFolderPlay.tsx\".",
+      "repro": "Not reproduced. Read the test's allowlist: the new entry is the only change in that file.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "A test allowlist is edited to match new code. No invariant is broken, but the change weakens a guard and is outside the list."
+      },
+      "severity": "LOW",
+      "proposed_fix": "Name the test file in the touch list, and confirm the new allowlist entry is intended rather than a way around the guard."
+    },
+    {
+      "id": "TP-5",
+      "origin": "reviewer",
+      "claim": "The spec's touch list names frontend/src/lib/fileDetailShell.ts, but the diff leaves it unchanged, and its doc comment now describes the collection route as reached only with ?collection= or ?folder_play=1.",
+      "impact": "A reader of fileDetailShell.ts is told the collection surface never covers ?smart_collection=, which is wrong after this change. The spec's step 7 asked for that file to change and it did not.",
+      "evidence": "frontend/src/lib/fileDetailShell.ts:27-28 (\"`collection` is `/files/{id}`, reached only with `?collection=` / `?folder_play=1`\"). The diff has no hunk for this file, and FileDetailFullScreen.tsx passes surface=\"collection\" for every queue mode.",
+      "repro": "Grep fileDetailShell.ts for smart_collection: no match.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "Stale prose only; the surface logic is correct as the player always passes collection. The comment would lead a reader to a wrong change."
+      },
+      "severity": "LOW",
+      "proposed_fix": "Update the comment at fileDetailShell.ts:27-28 to include ?smart_collection=, or delete the claim that the route is reached only with those parameters."
+    }
+  ],
+  "specification_compliance": [
+    "Touch-point list checked against the diff: addons/intelligence submodule pointer, docs (ADDON-DEVELOPMENT.md, addons/intelligence.md, user-guide/search.md), frontend e2e-components, FolderToolbar, FolderBrowser, SmartFolderSaveButton, files/[id]/page.tsx, FileDetailFullScreen, CollectionPanel, ConditionMenu, messages, addons manifest, addon frontend, schemas.py, rag.py, file_matching.py are all on the list. Items not on the list are reported as findings TP-1 to TP-4. TP-5 is a listed file the diff does not change.",
+    "Implicit touch points (docs/specs/INDEX.md, docs/specs/smart-collection-parity.md, docs/process/reviews) are not reported, per the instructions.",
+    "Test files added or edited under both frontend and addons are treated as covered by 'tests in both', except toolbarMenuHome.test.ts (TP-4)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Page.test.tsx (addon) rewrote an existing test to stop clicking the submit button and rely on the mount read for the seed. The assertion now only checks that the seed question is the first argument of the last call; it no longer covers the submit path that the test originally exercised.",
+    "CollectionPanel.tsx adds aria-labels to the move and remove buttons of the existing collection panel. These labels are new user-visible strings for collection mode, which the spec does not mention."
+  ],
+  "regression_risks": [
+    "Shared pieces moved: SmartFolderActions context now lives in smartFolderActions.ts (TP-3), and CollectionPanel's loop read was split into getStoredLoop, getLoop and getSmartLoop. A consumer that still imports the old path would fail at build time, not silently.",
+    "The addon Page.tsx now imports core modules (@/lib/api, @/lib/addons, @/lib/smartCollectionEval). This is the pattern the addon already uses for @/lib/searchQuery, so the design-decisions rule on core-to-addon dependencies was not checked against it."
+  ],
+  "test_coverage": [
+    "Unit tests cover evaluateSmartCollection parity, addon availability, the player queue, the search page Play and slot, and the Ask chip resolution and scope evaluation. The Python tests cover file_ids schema, the union rule and the 503 path.",
+    "Not covered by a test in this diff: the e2e layout cases only measure the bar, not the chain of toolbar items after a Play press. The playing-to-finish state is tested with a deferred promise, not a real browser run.",
+    "The SmartFolderPlay and smartQueue modules have no unit test of their own; they are exercised only through SearchPage and FileDetailFullScreen tests."
+  ],
+  "not_verified": [
+    "I did not run the test suites or the e2e browser cases; this review read the diff and a single grep of fileDetailShell.ts.",
+    "I did not check every existing caller of the context moved to smartFolderActions.ts, or whether any file besides the listed ones imports the removed SmartFolderSaveButton exports.",
+    "I did not check the design-decisions rule on addon-to-core imports beyond observing that the addon already imports core modules."
+  ],
+  "confidence": 78
+}
