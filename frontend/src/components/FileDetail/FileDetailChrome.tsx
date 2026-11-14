@@ -112,6 +112,42 @@ export function FileDetailChrome({
   const wideLeaf =
     titleNode ?? (title !== "" ? title : <span className="truncate" />);
 
+  // On a phone the sheet never closes: it collapses to its strip, so a
+  // toggle here would have no "closed" state to show.
+  const inspectorControl =
+    inspector && !isMobile ? (
+      <button
+        type="button"
+        onClick={inspector.onToggle}
+        aria-pressed={inspector.open}
+        aria-label={inspector.open ? ti("close") : ti("openShortcut")}
+        title={inspector.open ? ti("close") : ti("openShortcut")}
+        data-testid="inspector-toggle"
+        className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+      >
+        {inspector.open ? (
+          inspector.stacked ? (
+            <PanelBottomClose size={16} />
+          ) : (
+            <PanelRightClose size={16} />
+          )
+        ) : inspector.stacked ? (
+          <PanelBottom size={16} />
+        ) : (
+          <PanelRight size={16} />
+        )}
+      </button>
+    ) : null;
+
+  // The header's right-hand group spaces its items 4px apart, so 8px more
+  // here is the 12px the divider keeps from the profile button.
+  const trailing = inspectorControl ? (
+    <div className="ml-2 flex shrink-0 items-center gap-3">
+      <div className="h-5 w-px bg-bg-border" />
+      {inspectorControl}
+    </div>
+  ) : null;
+
   const row = (
     <div
       data-testid="file-detail-chrome"
@@ -163,33 +199,7 @@ export function FileDetailChrome({
         <InboxDetailActions fileId={fileId} drive={drive} />
       )}
 
-      {/* On a phone the sheet never closes: it collapses to its strip, so a
-          toggle here would have no "closed" state to show. */}
-      {inspector && !isMobile && (
-        <button
-          type="button"
-          onClick={inspector.onToggle}
-          aria-pressed={inspector.open}
-          aria-label={
-            inspector.open ? ti("close") : ti("openShortcut")
-          }
-          title={inspector.open ? ti("close") : ti("openShortcut")}
-          data-testid="inspector-toggle"
-          className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
-        >
-          {inspector.open ? (
-            inspector.stacked ? (
-              <PanelBottomClose size={16} />
-            ) : (
-              <PanelRightClose size={16} />
-            )
-          ) : inspector.stacked ? (
-            <PanelBottom size={16} />
-          ) : (
-            <PanelRight size={16} />
-          )}
-        </button>
-      )}
+      {!hosted && inspectorControl}
 
       {/* Separates the file's own row from the header's ordinary controls,
           so it exists only where those controls follow it. */}
@@ -203,7 +213,10 @@ export function FileDetailChrome({
     return row;
   }
   return (
-    <FileHeaderRowPortal needs={{ hideHeaderControls: hideDocumentControls }}>
+    <FileHeaderRowPortal
+      needs={{ hideHeaderControls: hideDocumentControls }}
+      trailing={trailing}
+    >
       {row}
     </FileHeaderRowPortal>
   );

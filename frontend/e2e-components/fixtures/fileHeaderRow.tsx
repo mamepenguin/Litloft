@@ -34,6 +34,10 @@ export const HEADER_ROW_ROOT_ID = "hrroot000001";
 export const HEADER_ROW_LONG_NOTE_ID = "hrlnote00001";
 /** Never seeded and never answered, so its page stays in the loading state. */
 export const HEADER_ROW_PENDING_ID = "hrpend000001";
+/** Answered only once the case calls `window.__releaseLate()`. */
+export const HEADER_ROW_LATE_ID = "hrlate000001";
+/** Answered with 404, so its page lands in the error state. */
+export const HEADER_ROW_MISSING_ID = "hrmiss000001";
 
 /** 200 characters, with no break opportunity a browser could wrap at. */
 const LONG_NAME = `${"a".repeat(196)}.mp4`;
@@ -98,6 +102,13 @@ FILES[HEADER_ROW_ROOT_ID] = fileJson({
   folder_path: "",
 });
 
+FILES[HEADER_ROW_LATE_ID] = fileJson({
+  id: HEADER_ROW_LATE_ID,
+  filename: "late.webm",
+  title: "late.webm",
+  folder_path: "Videos/Late",
+});
+
 FILES[HEADER_ROW_LONG_NOTE_ID] = fileJson({
   id: HEADER_ROW_LONG_NOTE_ID,
   filename: `${"n".repeat(197)}.md`,
@@ -115,6 +126,7 @@ FILES[HEADER_ROW_LONG_NOTE_ID] = fileJson({
  */
 const ROUTE_PARAMS: Record<string, string> = {
   "header-row-two-pane": `file=${HEADER_ROW_VIDEO_ID}`,
+  "header-row-two-pane-long": `file=${HEADER_ROW_LONG_ID}`,
   "header-row-inbox-note": `file=${HEADER_ROW_NOTE_ID}&nav=inbox`,
   "header-row-inbox-long": `file=${HEADER_ROW_LONG_NOTE_ID}&nav=inbox`,
 };
@@ -134,6 +146,11 @@ function json(value: unknown, status = 200): Response {
 }
 
 let fetchInstalled = false;
+
+const lateWaiters: (() => void)[] = [];
+(window as unknown as { __releaseLate: () => void }).__releaseLate = () => {
+  for (const release of lateWaiters.splice(0)) release();
+};
 
 function installFetch(): void {
   if (fetchInstalled) return;
@@ -155,6 +172,18 @@ function installFetch(): void {
     const fileMatch = path.match(/\/api\/files\/([^/]+)(\/.*)?$/);
     if (fileMatch && decodeURIComponent(fileMatch[1]) === HEADER_ROW_PENDING_ID) {
       return new Promise<Response>(() => {});
+    }
+    if (fileMatch && decodeURIComponent(fileMatch[1]) === HEADER_ROW_MISSING_ID) {
+      return Promise.resolve(json({ detail: "Not found" }, 404));
+    }
+    if (
+      fileMatch &&
+      decodeURIComponent(fileMatch[1]) === HEADER_ROW_LATE_ID &&
+      (fileMatch[2] ?? "") === ""
+    ) {
+      return new Promise<Response>((resolve) => {
+        lateWaiters.push(() => resolve(json(FILES[HEADER_ROW_LATE_ID])));
+      });
     }
     if (fileMatch) {
       const file = FILES[decodeURIComponent(fileMatch[1])];
@@ -316,6 +345,7 @@ function CanonicalRoute(): ReactElement {
 }
 
 export const HeaderRowTwoPaneArrangement = CanonicalRoute;
+export const HeaderRowTwoPaneLongArrangement = CanonicalRoute;
 export const HeaderRowInboxNoteArrangement = CanonicalRoute;
 export const HeaderRowInboxLongArrangement = CanonicalRoute;
 
@@ -325,6 +355,61 @@ export function HeaderRowCollectionArrangement(): ReactElement {
   return (
     <Shell>
       <FileDetailFullScreen fileId={HEADER_ROW_VIDEO_ID} />
+    </Shell>
+  );
+}
+
+export const HeaderRowLateArrangement = (): ReactElement => (
+  <FilePage fileId={HEADER_ROW_LATE_ID} />
+);
+export const HeaderRowMissingArrangement = (): ReactElement => (
+  <FilePage fileId={HEADER_ROW_MISSING_ID} />
+);
+
+/** One hosted file page whose file the case switches without leaving the shell. */
+export function HeaderRowSwapArrangement(): ReactElement {
+  installFetch();
+  const [fileId, setFileId] = useState(HEADER_ROW_VIDEO_ID);
+  return (
+    <Shell>
+      <div data-testid="page-content" className="h-below-header">
+        <button type="button" onClick={() => setFileId(HEADER_ROW_NOTE_ID)}>
+          to-note
+        </button>
+        <button type="button" onClick={() => setFileId(HEADER_ROW_MISSING_ID)}>
+          to-missing
+        </button>
+        <FileDetailContent fileId={fileId} drive={DRIVE} />
+      </div>
+    </Shell>
+  );
+}
+
+/** The collection route with a Markdown note, which rides the file-detail shell. */
+export function HeaderRowCollectionNoteArrangement(): ReactElement {
+  installFetch();
+  return (
+    <Shell>
+      <FileDetailFullScreen fileId={HEADER_ROW_NOTE_ID} />
+    </Shell>
+  );
+}
+
+/** The collection route, starting on the video, with the file switched by the case. */
+export function HeaderRowCollectionSwapArrangement(): ReactElement {
+  installFetch();
+  const [fileId, setFileId] = useState(HEADER_ROW_VIDEO_ID);
+  return (
+    <Shell>
+      <div className="fixed bottom-0 left-0 z-50 flex gap-2">
+        <button type="button" onClick={() => setFileId(HEADER_ROW_NOTE_ID)}>
+          to-note
+        </button>
+        <button type="button" onClick={() => setFileId(HEADER_ROW_LONG_NOTE_ID)}>
+          to-long-note
+        </button>
+      </div>
+      <FileDetailFullScreen fileId={fileId} />
     </Shell>
   );
 }

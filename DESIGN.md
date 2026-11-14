@@ -580,10 +580,11 @@ One header for every screen with a subject, in up to four rows:
 - The leading control stays in the same place across the screen's modes.
 - **The title does not move between screens a sidebar row opens.** The same space
   sits above every header, and such a screen's top level has no trail.
-- **A file page has no page header.** Its trail, its kind's controls and — at wide
-  — its inspector toggle are drawn in the app header's one row (§Header): the app
-  header is already that screen's toolbar, and a second bar under it costs a phone
-  about half of a 16:9 video's height.
+- **A file page has no page header.** Its trail and its kind's controls are drawn
+  in the app header's one row, and so is — at wide, where the page has an
+  inspector — its inspector toggle, at that row's right end past the profile
+  button (§Header): the app header is already that screen's toolbar, and a second
+  bar under it costs a phone about half of a 16:9 video's height.
 - **Controls that change the layout belong to the app toolbar, not the page
   header.** The tree toggle sits beside the menu button, the same size at the same
   height, so it stays put whichever page or file is open. A phone's file page does
@@ -746,8 +747,13 @@ this file from the one beside it?*
 
 - Height `h-14` (56px), `sticky top-0 z-20`.
 - No menu button of its own; see §Sidebar.
+- **The outermost control on each side opens the pane on that side.** The tree
+  button sits at the left end beside the menu button and opens the tree; the
+  inspector toggle sits at the right end past the profile button and opens the
+  inspector.
 - The trailing end is search, quick note, the `header-actions` slot and the avatar
-  on every screen but a phone's file page.
+  on every screen but a phone's file page; where the page has an inspector, a
+  vertical divider and the inspector toggle follow them.
 - **A file page draws its row into the header.** The content is portalled, not
   lifted, so it stays part of the page: find, the image arrows, the Inbox actions
   and a note's editor act on the page that drew them. The newest mounted file page
@@ -756,11 +762,12 @@ this file from the one beside it?*
   with no header to draw into, keeps the row it draws itself.
 - **Wide, left to right**: menu button, tree button, the trail (or, where the host
   supplies a back control, that control and the trail beside it), the file kind's
-  controls, the Inbox actions, the inspector toggle where the page has an
-  inspector, a vertical divider, then search, quick note, the `header-actions`
-  slot and the avatar. The trail begins at the edge §Page Header gives it. The
-  divider marks where the file's own controls end and the controls every screen
-  has begin.
+  controls, the Inbox actions, a vertical divider, search, quick note, the
+  `header-actions` slot and the avatar, then a vertical divider and the inspector
+  toggle where the page has an inspector. The trail begins at the edge §Page
+  Header gives it. The first divider marks where the file's own controls end and
+  the controls every screen has begin; the second marks where those controls end
+  and the inspector's toggle begins.
 - **Narrow, left to right**: menu button, a two-line heading, the file kind's
   controls, search. The heading's first line is `‹` and the parent folder's name
   (the drive's name at the root, or the host's back label where it supplied one),

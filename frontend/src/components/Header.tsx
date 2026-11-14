@@ -73,6 +73,14 @@ export function Header() {
     [setRowContainer],
   );
 
+  const setTrailingContainer = rowHost?.setTrailingContainer;
+  const attachTrailing = useCallback(
+    (node: HTMLDivElement | null) => {
+      setTrailingContainer?.(node);
+    },
+    [setTrailingContainer],
+  );
+
   useLayoutEffect(() => {
     const row = rowRef.current;
     if (!row || !filePageRow) {
@@ -162,6 +170,13 @@ export function Header() {
               <User size={20} />
             </button>
           ))}
+        {/* `contents` while empty: a page with no inspector must not gain a
+            flex gap or a box where its last control used to end. */}
+        <div
+          ref={attachTrailing}
+          data-testid="header-trailing"
+          className="contents"
+        />
       </div>
     </header>
   );

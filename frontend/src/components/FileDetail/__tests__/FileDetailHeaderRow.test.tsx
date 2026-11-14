@@ -541,3 +541,169 @@ describe("SPEC-CORE-095 the resting strip raises the sheet", () => {
     ).toBeNull();
   });
 });
+
+describe("SPEC-CORE-098 the inspector toggle at the header's right end", () => {
+  const FOCUSABLE = "button, a[href], input, select, textarea, [tabindex]:not([tabindex='-1'])";
+
+  const profile = () => within(appHeader()).getByRole("button", { name: "Profile Setup" });
+
+  /** Toggles in the header, each paired with whether it follows the profile button. */
+  const togglesAfterProfile = (): boolean[] => {
+    const header = appHeader();
+    const avatar = within(header).queryByRole("button", { name: "Profile Setup" });
+    return inspectorToggle(header).map(
+      (t) =>
+        avatar !== null &&
+        (avatar.compareDocumentPosition(t) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0,
+    );
+  };
+
+  const expectToggleLast = () => {
+    const toggles = inspectorToggle(appHeader());
+    expect(toggles).toHaveLength(1);
+    const toggle = toggles[0];
+    expect(
+      profile().compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING,
+      "toggle follows the profile button",
+    ).toBeTruthy();
+    const after = [...appHeader().querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
+      (el) =>
+        el !== toggle &&
+        !toggle.contains(el) &&
+        (toggle.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0,
+    );
+    expect(after, "focusable elements after the toggle").toEqual([]);
+    return toggle;
+  };
+
+  it("SPEC-CORE-098 I1 / I10 (wide): the toggle follows the profile button, and nothing focusable follows it in the header", async () => {
+    serve(video());
+    render(page());
+    await waitFor(() =>
+      expect(linksTo(appHeader(), "/drive/main/videos/clips")).not.toHaveLength(0),
+    );
+    expectToggleLast();
+  });
+
+  it("SPEC-CORE-098 I3 / I5 (crossing 768px): the toggle leaves the header below 768px and returns after the profile button", async () => {
+    serve(video());
+    render(page());
+    await waitFor(() =>
+      expect(linksTo(appHeader(), "/drive/main/videos/clips")).not.toHaveLength(0),
+    );
+    expectToggleLast();
+
+    setWidth(NARROW);
+    expect(inspectorToggle(appHeader())).toHaveLength(0);
+    expect(inspectorToggle(document.body)).toHaveLength(0);
+
+    setWidth(WIDE);
+    expectToggleLast();
+  });
+
+  it("SPEC-CORE-098 I4 (wide): the toggle after the profile button opens and closes the inspector, by click and by Ctrl+\\", async () => {
+    serve(video());
+    render(page());
+    await waitFor(() =>
+      expect(linksTo(appHeader(), "/drive/main/videos/clips")).not.toHaveLength(0),
+    );
+    const toggle = expectToggleLast();
+    const before = toggle.getAttribute("aria-pressed");
+    const label = toggle.getAttribute("aria-label");
+
+    fireEvent.click(toggle);
+    await waitFor(() => expect(expectToggleLast()).not.toHaveAttribute("aria-pressed", before ?? ""));
+    expect(expectToggleLast().getAttribute("aria-label")).not.toBe(label);
+
+    fireEvent.keyDown(document.body, { key: "\\", code: "Backslash", ctrlKey: true });
+    await waitFor(() => expect(expectToggleLast()).toHaveAttribute("aria-pressed", before ?? ""));
+  });
+
+  it("SPEC-CORE-098 I5 (loading → loaded): every header mutation shows at most one toggle, always after the profile button", async () => {
+    let answer: (f: FileItem) => void = () => {};
+    getFile.mockReturnValue(new Promise<FileItem>((resolve) => (answer = resolve)));
+    render(page());
+    const header = appHeader();
+    await waitFor(() => expect(linksTo(header, "/drive/main")).not.toHaveLength(0));
+
+    const seen: boolean[][] = [];
+    const observer = new MutationObserver(() => seen.push(togglesAfterProfile()));
+    observer.observe(header, { childList: true, subtree: true, attributes: true });
+    await act(async () => answer(video()));
+    await waitFor(() => expect(linksTo(header, "/drive/main/videos/clips")).not.toHaveLength(0));
+    observer.disconnect();
+
+    expect(seen.filter((s) => s.length > 1)).toEqual([]);
+    expect(seen.filter((s) => s.includes(false))).toEqual([]);
+    expectToggleLast();
+  });
+
+  it("SPEC-CORE-098 I5 (file → file): every header mutation shows exactly one toggle, after the profile button", async () => {
+    serve(video(), note({ id: "f2" }));
+    const { rerender } = render(page("f1"));
+    const header = appHeader();
+    await waitFor(() => expect(linksTo(header, "/drive/main/videos/clips")).not.toHaveLength(0));
+    expectToggleLast();
+
+    const seen: boolean[][] = [];
+    const observer = new MutationObserver(() => seen.push(togglesAfterProfile()));
+    observer.observe(header, { childList: true, subtree: true, attributes: true });
+    rerender(page("f2"));
+    await waitFor(() => expect(linksTo(header, "/drive/main/notes")).not.toHaveLength(0));
+    observer.disconnect();
+
+    expect(seen.filter((s) => s.length !== 1 || !s[0])).toEqual([]);
+    expectToggleLast();
+  });
+
+  it("SPEC-CORE-098 flow 5 / I5: leaving the file page takes the right-end toggle away, and the header ends at the profile button", async () => {
+    serve(video());
+    render(
+      <Leavable>
+        <FileDetailContent fileId="f1" drive="main" />
+      </Leavable>,
+    );
+    await waitFor(() =>
+      expect(linksTo(appHeader(), "/drive/main/videos/clips")).not.toHaveLength(0),
+    );
+    expectToggleLast();
+
+    fireEvent.click(screen.getByRole("button", { name: "leave-file-page" }));
+    await screen.findByText("folder listing");
+    expect(inspectorToggle(appHeader())).toHaveLength(0);
+    const after = [...appHeader().querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
+      (el) => (profile().compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0 && !profile().contains(el),
+    );
+    expect(after).toEqual([]);
+  });
+
+  it("SPEC-CORE-098 flow 4: with two file pages mounted, the header holds one toggle, after the profile button, and it survives the newer page unmounting", async () => {
+    serve(
+      video({ id: "f1", folder_path: "alpha", filename: "a.mp4", title: "a.mp4" }),
+      video({ id: "f2", folder_path: "beta", filename: "b.mp4", title: "b.mp4" }),
+    );
+    function Two() {
+      const [second, setSecond] = useState(false);
+      return (
+        <AppShell>
+          <button type="button" onClick={() => setSecond((s) => !s)}>
+            toggle-second
+          </button>
+          <FileDetailContent fileId="f1" drive="main" />
+          {second && <FileDetailContent fileId="f2" drive="main" />}
+        </AppShell>
+      );
+    }
+    render(<Two />);
+    await waitFor(() => expect(linksTo(appHeader(), "/drive/main/alpha")).not.toHaveLength(0));
+    expectToggleLast();
+
+    fireEvent.click(screen.getByRole("button", { name: "toggle-second" }));
+    await waitFor(() => expect(linksTo(appHeader(), "/drive/main/beta")).not.toHaveLength(0));
+    expectToggleLast();
+
+    fireEvent.click(screen.getByRole("button", { name: "toggle-second" }));
+    await waitFor(() => expect(linksTo(appHeader(), "/drive/main/alpha")).not.toHaveLength(0));
+    expectToggleLast();
+  });
+});
