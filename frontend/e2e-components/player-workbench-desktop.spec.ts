@@ -281,13 +281,41 @@ test("SPEC-CORE-085 I2 I5 two panels stack and share the height on a workbench u
 const FOCUS_KEY = "workbench-player-focus";
 const FOCUSED_SHARE = 0.3;
 const DEFAULT_SHARE = 0.5;
+/** The height of a 16:9 frame 480px wide, below which the player's controls go compact. */
+const FOCUSED_FLOOR = 270;
 
 const enlarge = (page: Page) => page.getByRole("button", { name: "Enlarge panels" });
+
+/** The frame height the value on asks for: 30% of the visible height, at least 270px, at most 50%. */
+function focusedCap(visibleHeight: number): number {
+  return Math.min(
+    Math.max(visibleHeight * FOCUSED_SHARE, FOCUSED_FLOOR),
+    visibleHeight * DEFAULT_SHARE,
+  );
+}
+
+type Regime = "floor" | "share" | "half";
+
+/** Which term of `focusedCap` decides the height, with 2px kept clear of each boundary. */
+function regimeOf(visibleHeight: number): Regime | "ambiguous" {
+  const share = visibleHeight * FOCUSED_SHARE;
+  const half = visibleHeight * DEFAULT_SHARE;
+  if (half <= FOCUSED_FLOOR - 2) return "half";
+  if (share >= FOCUSED_FLOOR + 2) return "share";
+  if (share <= FOCUSED_FLOOR - 2 && half >= FOCUSED_FLOOR + 2) return "floor";
+  return "ambiguous";
+}
 
 /** Window sizes from the spec's table, with the inspector beside the canvas. */
 const WINDOWS = [
   { name: "iPad 11-inch landscape", width: 1210, height: 764 },
-  { name: "1920x1080 browser", width: 1920, height: 950 },
+];
+
+/** One window per term of the value-on cap, each with the inspector beside the canvas. */
+const CAP_WINDOWS: { name: string; width: number; height: number; regime: Regime }[] = [
+  { name: "iPad 11-inch landscape", width: 1210, height: 764, regime: "floor" },
+  { name: "iPad 13-inch More Space landscape", width: 1590, height: 1122, regime: "share" },
+  { name: "a short 1440x560 window", width: 1440, height: 560, regime: "half" },
 ];
 
 async function openBeside(
@@ -318,6 +346,18 @@ async function expectShare(page: Page, share: number) {
     .toBeLessThanOrEqual(2);
 }
 
+/** The frame is at the value-on cap, within 2px. */
+async function expectFocusedCap(page: Page) {
+  await expect
+    .poll(async () => {
+      const container = await scrollContainer(page, "Transcript");
+      return Math.abs(
+        (await videoHeight(page)) - focusedCap(container.visibleHeight),
+      );
+    })
+    .toBeLessThanOrEqual(2);
+}
+
 /** Tags the `<video>` node so a remount shows up as a missing tag. */
 async function tagVideo(page: Page) {
   await page.locator("video").first().evaluate((video) => {
@@ -334,36 +374,57 @@ async function videoTag(page: Page): Promise<string | undefined> {
     );
 }
 
-for (const size of WINDOWS) {
-  test(`SPEC-CORE-104 I2 caps the frame at 30% of the visible height with the value on and 50% otherwise (${size.name})`, async ({
+/** Width of the row under the player, which spans the canvas's content box. */
+async function canvasWidth(page: Page): Promise<number> {
+  return panelGroup(page).evaluate(
+    (group) => group.parentElement!.getBoundingClientRect().width,
+  );
+}
+
+for (const size of CAP_WINDOWS) {
+  test(`SPEC-CORE-104 I2 with the value on the frame is the larger of 30% and 270px, never above 50%; otherwise 50% (${size.name}, ${size.regime})`, async ({
     page,
   }) => {
-    for (const [focus, share] of [
-      [undefined, DEFAULT_SHARE],
-      ["false", DEFAULT_SHARE],
-      ["TRUE", DEFAULT_SHARE],
-      ["true", FOCUSED_SHARE],
+    // Init scripts accumulate across opens, so the "true" value comes last.
+    for (const [focus, pressed] of [
+      [undefined, "false"],
+      ["false", "false"],
+      ["TRUE", "false"],
+      ["true", "true"],
     ] as const) {
       await openBeside(page, size, { focus });
-      await expect(enlarge(page)).toHaveAttribute(
-        "aria-pressed",
-        share === FOCUSED_SHARE ? "true" : "false",
-      );
-      await expectShare(page, share);
+      await expect(enlarge(page)).toHaveAttribute("aria-pressed", pressed);
+      if (pressed === "false") await expectShare(page, DEFAULT_SHARE);
     }
-  });
 
-  test(`SPEC-CORE-104 I3 with the value on the panel ends in the visible area, the page does not scroll, and the panel is taller than with it off (${size.name})`, async ({
+    const { visibleHeight } = await scrollContainer(page, "Transcript");
+    expect(regimeOf(visibleHeight)).toBe(size.regime);
+    const expected = focusedCap(visibleHeight);
+    expect((expected * 16) / 9).toBeLessThanOrEqual((await canvasWidth(page)) + 1);
+    await expectFocusedCap(page);
+  });
+}
+
+for (const size of CAP_WINDOWS.filter((window) => window.regime !== "half")) {
+  test(`SPEC-CORE-104 I3 with the value on and Find closed the panel ends in the visible area, the page does not scroll, and the panel is taller than with it off (${size.name}, ${size.regime})`, async ({
     page,
   }) => {
     await openBeside(page, size, { focus: "false" });
+    await expectShare(page, DEFAULT_SHARE);
     const off = await cardBox(page, "Transcript");
 
     await openBeside(page, size, { focus: "true" });
     await expect(enlarge(page)).toHaveAttribute("aria-pressed", "true");
-    await expectShare(page, FOCUSED_SHARE);
+    await expectFocusedCap(page);
     const on = await cardBox(page, "Transcript");
     const container = await scrollContainer(page, "Transcript");
+    const frame = await videoHeight(page);
+    const row = await panelGroup(page).evaluate(
+      (group) => group.parentElement!.getBoundingClientRect().bottom,
+    );
+
+    expect(frame).toBeLessThan(container.visibleHeight * DEFAULT_SHARE - 2);
+    expect(container.visibleBottom - row).toBeGreaterThanOrEqual(PANEL_FLOOR - 1);
 
     expect(on.bottom).toBeLessThanOrEqual(container.visibleBottom + 1);
     expect(container.scrolls).toBe(false);
@@ -381,8 +442,9 @@ test("SPEC-CORE-104 I2 I3 with the inspector closed the value moves the cap the 
   await transcriptLoaded(page);
 
   await expect(enlarge(page)).toHaveAttribute("aria-pressed", "true");
-  await expectShare(page, FOCUSED_SHARE);
+  await expectFocusedCap(page);
   const container = await scrollContainer(page, "Transcript");
+  expect(await videoHeight(page)).toBeLessThan(container.visibleHeight * DEFAULT_SHARE - 2);
   const panel = await cardBox(page, "Transcript");
   expect(panel.bottom).toBeLessThanOrEqual(container.visibleBottom + 1);
   expect(container.scrolls).toBe(false);
@@ -405,7 +467,7 @@ test("SPEC-CORE-104 I4 I5 a press switches the cap and the stored value without 
   await enlarge(page).click();
 
   await expect(enlarge(page)).toHaveAttribute("aria-pressed", "true");
-  await expectShare(page, FOCUSED_SHARE);
+  await expectFocusedCap(page);
   expect(await page.evaluate((key) => localStorage.getItem(key), FOCUS_KEY)).toBe("true");
   expect(await videoTag(page)).toBe("kept");
   const after = await page.locator("video").first().evaluate((video: HTMLVideoElement) => ({
@@ -440,7 +502,7 @@ test("SPEC-CORE-104 I4 a press does not stop a playing player", async ({ page })
 
   await expect(enlarge(page)).toBeVisible();
   await enlarge(page).click();
-  await expectShare(page, FOCUSED_SHARE);
+  await expectFocusedCap(page);
 
   expect(await videoTag(page)).toBe("kept");
   expect(
@@ -459,7 +521,7 @@ test("SPEC-CORE-104 the pressed value is kept across a reload", async ({ page })
   await transcriptLoaded(page);
 
   await expect(enlarge(page)).toHaveAttribute("aria-pressed", "true");
-  await expectShare(page, FOCUSED_SHARE);
+  await expectFocusedCap(page);
 });
 
 test("SPEC-CORE-104 I5 another window of the same browser applies a press, aria-pressed and the cap both", async ({
@@ -474,7 +536,7 @@ test("SPEC-CORE-104 I5 another window of the same browser applies a press, aria-
   await enlarge(page).click();
 
   await expect(enlarge(other)).toHaveAttribute("aria-pressed", "true");
-  await expectShare(other, FOCUSED_SHARE);
+  await expectFocusedCap(other);
 });
 
 test("SPEC-CORE-104 I6 closing the panel removes the button and the cap without writing the value; turning it on again applies it", async ({
@@ -482,7 +544,7 @@ test("SPEC-CORE-104 I6 closing the panel removes the button and the cap without 
 }) => {
   await openBeside(page, WINDOWS[0], { focus: "true" });
   await expect(enlarge(page)).toHaveAttribute("aria-pressed", "true");
-  await expectShare(page, FOCUSED_SHARE);
+  await expectFocusedCap(page);
   const capped = await videoHeight(page);
 
   await page.getByRole("button", { name: "Close Transcript" }).click();
@@ -496,7 +558,7 @@ test("SPEC-CORE-104 I6 closing the panel removes the button and the cap without 
   await transcriptLoaded(page);
 
   await expect(enlarge(page)).toHaveAttribute("aria-pressed", "true");
-  await expectShare(page, FOCUSED_SHARE);
+  await expectFocusedCap(page);
 });
 
 test("SPEC-CORE-104 I6 opening Find leaves the value alone", async ({ page }) => {
