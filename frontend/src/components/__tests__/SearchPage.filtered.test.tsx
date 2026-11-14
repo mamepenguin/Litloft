@@ -64,7 +64,7 @@ vi.mock("@/lib/listSnapshot", () => ({
   saveListSnapshot: vi.fn(),
 }));
 vi.mock("@/components/folder/usePinnedFolders", () => ({
-  usePinnedFolders: () => ({ pinnedPaths: new Set<string>(), handleTogglePin: vi.fn() }),
+  usePinnedFolders: () => ({ pinnedPaths: new Set<string>(), homePaths: new Set<string>(), handleTogglePin: vi.fn(), handleToggleHome: vi.fn() }),
 }));
 vi.mock("@/components/folder/useDriveScan", () => ({
   useDriveScan: () => ({ scanning: false, handleScan: vi.fn() }),

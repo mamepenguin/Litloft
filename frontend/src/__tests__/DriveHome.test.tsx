@@ -92,6 +92,7 @@ const mockInitUpload = vi.fn();
 vi.mock("@/lib/api", () => ({
   getDriveFiles: (...args: unknown[]) => mockGetDriveFiles(...args),
   getWatchHistory: (...args: unknown[]) => mockGetWatchHistory(...args),
+  getHomeShortcuts: vi.fn().mockResolvedValue([]),
   // The real `UploadZone` runs here, so an upload started on this page
   // goes all the way through `useUpload` and out the far side as
   // `onUploadComplete`.
