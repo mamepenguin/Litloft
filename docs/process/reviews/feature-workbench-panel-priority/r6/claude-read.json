@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R1-unlisted-MediaPlayerBlock",
+      "origin": "reviewer",
+      "claim": "The diff edits frontend/src/components/FileDetail/MediaPlayerBlock.tsx, which is not in the touch-point list: its in-player preview-actions div now carries data-preview-actions only when showPreviewActions is true, where before it always did.",
+      "impact": "No user-visible effect in the paths I traced. FileDetailShell.tsx:245 measures the first [data-preview-actions] only while stackedLayout (stacked with the inspector open) is true. In that form actionsInRow is false and showPreviewActions is true, so the attribute is still present. The collection surface (FileDetailPresenter.tsx:178, showPreviewActions={false}) publishes no form. The risk is that the touch points say this measurement 'is therefore unchanged' because nothing outside Workbench moves, yet the attribute FileDetailShell's selector depends on was edited in an unlisted file. A later change to when stackedLayout and actionsInRow overlap would let the selector pick up the row's actions element instead of the empty in-player one, and no test pins that selector.",
+      "evidence": "MediaPlayerBlock.tsx:124 `data-preview-actions={showPreviewActions ? \"true\" : undefined}` (before: always \"true\"). FileDetailShell.tsx:245 `canvas.querySelector(\"[data-preview-actions]\")` and :253 subtracts its offsetHeight. inspectorFormStore.ts:47 stacked = form==='stacked' && open. ShellLayout.tsx:455 showPreviewActions={!actionsInRow}. The edit appears to exist so that WorkbenchPlayerFocus.test.tsx:284's document.querySelector('[data-preview-actions]') finds the row element rather than the empty in-player div.",
+      "repro": "not_reproduced (read-only). Mutation in my head: revert line 124 to always \"true\". The I1 position test at WorkbenchPlayerFocus.test.tsx:284 would then select the in-player div, which comes before the button in the DOM, and the DOCUMENT_POSITION_FOLLOWING assertion would fail. The production change therefore serves a test selector.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The file is outside the declared touch points and its change touches the selector the touch points call unchanged. No declared invariant breaks in the forms I traced.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add MediaPlayerBlock.tsx to the touch points with the reason, or revert it and scope the vitest selector to the workbench row (e.g. row.querySelector('[data-preview-actions]'))."
+    },
+    {
+      "id": "R1-unlisted-e2e-stubs",
+      "origin": "reviewer",
+      "claim": "The diff adds frontend/e2e-components/stubs/previewActionSlot.tsx and edits frontend/e2e-components/stubs/addons.ts. The touch points name only fixtures/inspectorResponsive.tsx for the preview-action stub.",
+      "impact": "Test-only. The stub renders a `.workbench-toggle` button with the label 'Quote', so the I8 gap measurement depends on that stub's box rather than a real addon action. No user impact.",
+      "evidence": "stubs/addons.ts adds `\"fixture-action\": PreviewActionSlot`. stubs/previewActionSlot.tsx is a new file with data-testid=\"fixture-preview-action\".",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "These are unplanned test-support files and break no invariant.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "List e2e-components/stubs/{addons.ts,previewActionSlot.tsx} in the touch points."
+    },
+    {
+      "id": "R1-unlisted-floor-rule",
+      "origin": "reviewer",
+      "claim": "The r5 floor (revised I2) reaches places the touch-point list does not describe: a new globals.css rule `.media-detail-host[data-workbench=on][data-player-focus=on] .media-detail-player[data-framed=true] { min-width: min(100%, 480px, rail*0.5*16/9) }`, and a new MediaCanvas prop `playerFocused` that drives a new `data-player-focus` host attribute. The touch points describe globals.css only as the trailing element and icon variant, and MediaCanvas only as taking the share.",
+      "impact": "The floor hard-codes 480 (COMPACT_MAX_WIDTH in MediaControls/layout.ts:22) and 0.5 (WORKBENCH_PLAYER_SHARE in layoutSizes.ts) in CSS. Neither constant is tied to the rule, and no vitest checks the rule. If COMPACT_MAX_WIDTH or WORKBENCH_PLAYER_SHARE changes, the floor silently drifts from I2. Only the e2e regime tests (player-workbench-desktop.spec.ts CAP_WINDOWS) would notice, and they hard-code FOCUSED_FLOOR=270 and DEFAULT_SHARE=0.5 as well, so a change to the constants alone would not fail them.",
+      "evidence": "globals.css:926-936 (new rule). MediaCanvas.tsx:59 `data-player-focus={playerFocused ? \"on\" : undefined}`. ShellLayout.tsx passes playerFocused={playerFocusApplies}. COMPACT_MAX_WIDTH is referenced only in a CSS comment (grep).",
+      "repro": "not_reproduced. Mutation in my head: change COMPACT_MAX_WIDTH to 520. The controls go compact below 520px, but the CSS floor stays at 480px, so a frame between 480px and 520px wide shows compact controls under value on. No test fails.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The files are unplanned for the floor, and the duplicated constants can drift. I2 holds with today's values.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Revise the touch points for the r5 floor: name the globals.css floor rule and MediaCanvas's playerFocused/data-player-focus. Optionally set the floor through a custom property from mediaHostStyle using COMPACT_MAX_WIDTH and WORKBENCH_PLAYER_SHARE."
+    }
+  ],
+  "specification_compliance": [
+    "Every touch-point file appears in the diff: layoutSizes.ts, workbenchPlayerFocus.ts, mediaHostStyle.ts, ShellLayout.tsx, MediaCanvas.tsx, Workbench.tsx, globals.css, messages-core ja/en, test/setup.ts, the e2e spec and fixture, the vitest under components/FileDetail/__tests__/, DESIGN.md and the user guide.",
+    "Places reached that are not in the list: MediaPlayerBlock.tsx, e2e-components/stubs/addons.ts and stubs/previewActionSlot.tsx. Also beyond the listed scope: the floor rule in globals.css and the playerFocused/data-player-focus addition in MediaCanvas.",
+    "The coarse-pointer CSS check is in WorkbenchPlayerFocus.test.tsx, not a separate CSS test file. The touch points allow this ('like mediaDetailTheaterCss.test.ts')."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The in-player preview-actions div loses its data-preview-actions attribute whenever the actions are in the row (MediaPlayerBlock.tsx:124). Nothing in the spec mentions this.",
+    "The workbench row always renders a .media-detail-workbench-trailing div, even when it has neither a button nor actions. With margin-left:auto and nothing inside, it has no visible effect."
+  ],
+  "regression_risks": [
+    "FileDetailShell's --fit-player-h measurement now depends on MediaPlayerBlock's attribute being present only when showPreviewActions is true. That holds today because stackedLayout and actionsInRow are never true together.",
+    "The CSS floor duplicates COMPACT_MAX_WIDTH and WORKBENCH_PLAYER_SHARE as literals."
+  ],
+  "test_coverage": [
+    "No vitest checks the floor rule (min-width) in globals.css. It is covered only by the e2e CAP_WINDOWS regimes, which hard-code 270 and 0.5.",
+    "No test pins which element FileDetailShell's [data-preview-actions] selector picks."
+  ],
+  "not_verified": [
+    "The commit 21e3d453f itself is a docs-only review-record commit. I reviewed the branch diff given in the prompt, not that commit's file list.",
+    "I ran no tests or e2e.",
+    "I did not read docs/process/reviews/.../invariants.md or the design directory for any touch-point revision beyond the text quoted in the prompt."
+  ],
+  "confidence": 80
+}
