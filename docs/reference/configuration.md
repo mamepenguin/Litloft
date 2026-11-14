@@ -48,8 +48,9 @@ A JSON array of drive objects.
 | `path` | string | yes | — | Path inside the backend container; must match a volume mount. |
 | `access_group` | string | no | (none) | Marks the drive as protected; viewers must unlock the group. |
 | `addons` | object | no | `{}` | Per-addon policy (below). |
+| `hidden_entries` | string[] | no | `[]` | Entries to hide on this drive's Home row, sidebar and jump palette (below). |
 
-The backend refuses to load the file when it is not a JSON array, an entry lacks `name` or `path`, a name contains a path separator, or `addons` is not an object of `bool` or object values.
+The backend refuses to load the file when it is not a JSON array, an entry lacks `name` or `path`, a name contains a path separator, or `addons` is not an object of `bool` or object values. A malformed `hidden_entries` does not stop the file from loading; it makes `GET /api/drives/{name}/entry-visibility` answer `500` and leaves every other route working.
 
 Writes through `/setup` and `/admin/settings` (`PUT /api/admin/config/drives`) are also rejected (`422`) when a name is empty or duplicated, `path` is not absolute, or `path` is not an existing directory inside the container. Hand edits skip these checks.
 
@@ -67,6 +68,21 @@ Each entry under `addons` is either a `bool` for the whole addon or an object of
 - `"intelligence": {"llm_cloud": false, "_all": false}`: `_all: false` in an object turns the whole addon off, and the other keys are kept so `/admin/settings` can bring them back when the addon is turned on again.
 
 Unlisted addons and features are on. The core does not interpret addon or feature names. `GET /api/drives/{name}/addon-policies` returns the normalised `{default, features}` view to the frontend, and `GET /api/internal/drive-policy` returns the same to addons. The settings API rejects a policy that names an unknown drive or an addon that is not installed.
+
+### Hidden entries
+
+`hidden_entries` lists the apps one drive does not show. It takes the keys of the hideable entries:
+
+- `video` and `reading`: the built-in Video and Reading apps.
+- An addon's primary navigation key, as `addonNavEntries` builds it: the addon name, or `<addon>/<path>` for one subpage entrance.
+
+```json
+[{ "name": "Notes", "path": "/app/drives/notes", "hidden_entries": ["video"] }]
+```
+
+The entry is left out of that drive's Home row, sidebar and jump palette; nothing else changes, and its page still opens by its URL. Hiding is display only, not access control. A key that matches nothing (an uninstalled or disabled addon, a misspelt name, or `library` / `inbox`) is ignored and stays in the file. A value that is not a list of strings makes the visibility endpoint answer `500`; the browser then shows every entry.
+
+The setting is edited by hand here. Saving the drive through `/setup` or `/admin/settings` keeps the key unchanged.
 
 See [drives and access](../user-guide/drives-and-access.md) and [settings GUI](../admin-guide/settings-gui.md).
 
