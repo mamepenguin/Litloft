@@ -26,38 +26,62 @@ the frame.
 1. The reader is on the canonical page in a workbench form (`beside`, `overlay`, or
    `stacked` with the inspector closed) with at least one panel shown under a framed
    player, and turns Enlarge panels on (SPEC-CORE-104).
-2. If the space beside the frame is wide enough (§3), the frame moves to the canvas's
-   left edge and the row moves to its right: the panel toggles at the top of that space,
-   wrapping as needed, and the trailing group (the Enlarge panels button and the
-   `file-preview-actions` entries) at its bottom-right, its bottom aligned with the
-   frame's bottom.
-3. The panels start 0.75rem under the frame, span the canvas width, and end at the bottom
-   of the visible area as before (SPEC-CORE-085 step 7).
-4. Turning Enlarge panels off, closing every panel, or leaving the workbench forms puts
-   the row back under a centred frame, as today.
+2. If the side space is at least 15rem (§3), the beside state applies:
+   - the frame moves from the centre to the canvas content's left edge, at the same size;
+   - the workbench row is drawn to the right of the frame, starting 1rem right of it. Its
+     box is as tall as the frame and its top is the frame's top. The panel toggles sit at
+     the top-left of that box and wrap within its width; the trailing group (the Enlarge
+     panels button, then the `file-preview-actions` entries) sits at its bottom-right;
+   - the panels start 0.75rem under that box and end at the bottom of the visible area
+     as before (SPEC-CORE-085 step 7).
+3. Turning Enlarge panels off, closing every panel, or leaving the workbench forms
+   returns the layout of SPEC-CORE-104 (the row under a centred frame).
+
+How it is built: no element changes parent and no grid is introduced. The host keeps its
+column layout; in the beside state the row gets a left margin of the frame's width plus
+1rem, a height of the frame's height, and a negative top margin that lifts it beside the
+frame. The frame's width and height come from the same cap expression that already sizes
+it (`--rail-avail`, the share, the 270px floor and the canvas width), not from measuring
+the frame element, so a frame that leaves the flow (pseudo full screen, the mini player)
+does not move the row or the panels.
 
 ### 2. Failure cases
 
-- The space beside the frame is too narrow: the row stays under the frame, as in
-  SPEC-CORE-104. Nothing is shown to the reader.
-- The canvas width is not yet measured on the first paint: the row is under the frame
-  until the measurement arrives.
+- Side space under 15rem: no beside state; the row stays under a centred frame, as in
+  SPEC-CORE-104.
+- The row's content is taller than the frame (many toggles wrapping, 2.75rem toggles
+  under `pointer: coarse`, addon toggles arriving late): the row's box grows to its
+  content; the panels start 0.75rem under the row's bottom instead of the frame's. The
+  layout stays beside; nothing overlaps.
+- The first measurement: the decision is made in a layout effect before paint, so opening
+  a file or changing files with the value on does not draw the row under the frame
+  first. A resize may show one frame of the previous placement.
 
 ### 3. States
 
-| Condition | Row | Frame |
-|---|---|---|
-| SPEC-CORE-104's button applies, value on, side space at least 15rem | beside the frame | at the canvas's left edge |
-| Value on, side space under 15rem | under the frame (today) | centred (today) |
-| Value off, no panel shown, or any form or surface where SPEC-CORE-104's button is not drawn | today's layout | today's layout |
+The beside state holds exactly when all of these hold:
+- SPEC-CORE-104's button is drawn: canonical page, workbench form (`beside`, `overlay`,
+  or `stacked` with the inspector closed), framed player, at least one panel shown;
+- `workbench-player-focus` is `"true"`;
+- the side space is at least 15rem.
 
-Side space = the canvas's content width minus the frame's width minus a 1rem gap.
-Transitions follow the value, the shown panels, the form and the canvas width (a window
-resize or the inspector opening moves between the first two rows).
+Side space = the canvas content width minus the frame's computed width minus 1rem. The
+frame's computed width is SPEC-CORE-104's cap: the smaller of the canvas content width
+and the 50% cap width, and at least the larger of the 30% width and the 480px floor
+(each at 16:9 of a height that is a share of the visible height).
+
+The decision is recomputed when the canvas content width, the visible height (the scroll
+container's, so the find bar and browser chrome count) or the root font size changes,
+and when the value, the shown panels or the form change. There is no hysteresis: exactly
+15rem in both directions.
+
+While a frame is pinned (pseudo full screen, system full screen, the move animation, the
+mini player) the decision does not use the pinned element; it uses the inputs above, so
+pinning or unpinning a frame never changes the state.
 
 ### 4. Data read and written
 
-Reads `workbench-player-focus` and `workbench-panels` as today. Writes nothing new.
+Reads `workbench-player-focus` and `workbench-panels` as today. Writes nothing.
 
 ### 5. External services
 
@@ -69,18 +93,20 @@ None. Layout only.
 
 ### 7. Effect on existing features
 
-- SPEC-CORE-104: the cap (revised I2), the floor, the button's behaviour and the stored
-  value are unchanged. Only where the row sits while the value is on changes.
-- SPEC-CORE-085: the panels' height rule is unchanged; the row is beside the player
-  instead of under it in the state above (I1 and I2 are revised below).
-- Panel columns (41rem rule) keep measuring the width the panels get, which is the
-  canvas width in both placements.
-- Pseudo full screen, system full screen and the mini player: unaffected; the pinned
-  frame and the slot it leaves behind are the same as with the value off.
-- The collection surface, the stacked inspector with the inspector open and the phone:
-  unchanged; SPEC-CORE-104's button is not drawn there.
-- Remounts: the change is layout only. No element moves to a different parent; the
-  `<video>`, the `.loft` iframe and the panel entries are never remounted.
+- SPEC-CORE-104: the cap, the floor, the button and the stored value are unchanged. Its
+  I1 and I8 (the button in the row, after the toggles, before the preview actions, at
+  the row's right edge) still hold with the row beside the frame.
+- SPEC-CORE-085: the row is still above the panels and the panels still end at the
+  bottom of the visible area, so "the room under the row" (085 I5, 104 I3) keeps its
+  meaning. Only "the row under the player" (085 I1) changes (Revises).
+- The 41rem panel-column rule: unchanged. The workbench root keeps its full width in both
+  placements; only the row inside it is narrowed.
+- Pseudo full screen, system full screen and the mini player: the frame's slot and the
+  mini-player anchor are the same elements, in the same place, at the same size as with
+  the value on and the row under the frame; the beside state does not depend on them.
+- The collection surface, `stacked` with the inspector open, the phone, audio: no button,
+  so never the beside state.
+- No remount: no element changes parent; only classes, attributes and styles change.
 
 ### 8. Error behavior
 
@@ -88,84 +114,93 @@ None shown, nothing logged.
 
 ### 9. User-visible behavior
 
-- In the beside state, at 1376x878 with the inspector beside: the 480x270 frame at the
-  left, the toggles and the button in the 464px to its right, the panels starting 0.75rem
-  under the frame. The panel body is about 48px taller than with the row under the frame
-  (the 1rem margin, the 2rem row and the 0.75rem gap become one 0.75rem gap).
-- The toggles keep their look and order. The trailing group keeps the button before the
-  preview actions, 0.5rem apart.
-- Crossing the 15rem threshold switches at once, without animation.
+- At 1376x878 with the inspector beside and a fine pointer: the 480x270 frame at the left
+  of the 960px canvas, the toggles and the button in the 464px to its right, the panels
+  starting 0.75rem under the frame. The panel body is about 48px taller than with the row
+  under the frame (with a coarse pointer, about 60px).
+- The toggles and the trailing group keep their look and order.
 - No text, label or setting is added.
+- `docs/user-guide/viewers-and-players.md`: no edit. It says the toggles are in "a row
+  there" under the player and that Enlarge panels is in that row; the row is still the
+  same row, and where it sits is layout, which the docs rule leaves out of the guide.
 
 ### 10. Non-functional
 
-No remount, no new request, no new dependency. The placement is measured in script, not
-with a container query (a containment context around a `<video>` or a cross-origin
-iframe renders the subtree rotated on iOS Safari, as `Workbench.tsx` already notes).
+No remount, no new request, no new dependency. No container query (a containment context
+around a `<video>` or a cross-origin iframe renders the subtree rotated on iOS Safari, as
+`Workbench.tsx` notes).
 
 ## Touch points
 
-- `frontend/src/components/FileDetail/workbench/Workbench.tsx`: the beside placement.
-  The row and the panel grid stay in the same parents; the root's layout lets the row
-  share the first grid row with the player. The 41rem column measurement moves to an
-  element that has a box in both placements (the panel grid, or the root measured
-  without the row).
-- `frontend/src/components/FileDetail/MediaCanvas.tsx` and `ShellLayout.tsx`: a host
-  attribute for the beside state (for example `data-row-beside`), set from the value,
-  the shown panels and the measured side space.
-- `frontend/src/app/globals.css`: the beside rules (host as a two-column grid, the frame
-  at the start, the row cell, the 0.75rem gap). The existing cap, floor and
-  pseudo-full-screen rules are not edited.
+- New pure function in `frontend/src/lib/` (for example `workbenchBeside.ts`): the
+  frame's computed width and the beside decision from the canvas content width, the
+  visible height, the root font size and the SPEC-CORE-104 constants.
+- `frontend/src/components/FileDetail/ShellLayout.tsx`: the beside condition, built from
+  the existing `workbenchWide`, `playerFramed`, shown panels and stored value plus the
+  function above; passes it to `MediaCanvas` and `Workbench`. The canvas content width is
+  measured with a ResizeObserver in a layout effect; the visible height is the existing
+  `railAvailable`.
+- `frontend/src/components/FileDetail/MediaCanvas.tsx`: a host attribute
+  `data-row-beside="on"` in the beside state.
+- `frontend/src/app/globals.css`: under `[data-row-beside="on"]` only: the frame's
+  `margin-inline` at the start; the row's left margin, height (`min-height`, so it can
+  grow), negative top margin and internal layout (toggles top-left, trailing group
+  bottom-right). The cap expression is shared through custom properties so the frame and
+  the row use the same numbers. The existing cap, floor and pseudo-full-screen rules are
+  not edited, and `mediaDetailTheaterCss.test.ts` is not changed.
 - `frontend/src/lib/layoutSizes.ts`: the 15rem threshold.
 - Tests: `frontend/e2e-components/player-workbench-desktop.spec.ts` (real-browser
-  placement and heights), and vitest cases under
-  `frontend/src/components/FileDetail/__tests__/` for the attribute and no remount.
-- `DESIGN.md` Workbench section: the beside placement while enlarged.
+  geometry with a fine and a coarse pointer, the threshold by a width-only and a
+  height-only resize, pseudo full screen in and out); vitest for the pure function and
+  for the attribute's condition. `.loft` placement is checked in R-5 (the fixture has no
+  `.loft` player).
+- `DESIGN.md` Workbench section: the beside placement while enlarged; the 15rem threshold
+  in the thresholds table; the "Placement belongs to the space" principle extended to say
+  the row follows the frame (the panels' placement is still not a preference).
 - Rules passed through: `.claude/rules/frontend-conventions.md` (DESIGN.md, values in
-  code), and the existing "no container query around a player" note.
+  code).
 - No protected path. No backend, addon or Internal API change.
 
 ## Invariants
 
-"The beside state" is: SPEC-CORE-104's button is drawn, `workbench-player-focus` is
-`"true"`, and the side space (canvas content width minus frame width minus 1rem) is at
-least 15rem.
+"The beside state" is defined in §3.
 
-I1. In the beside state, the frame's left edge is the canvas content's left edge, the
-whole workbench row is to the right of the frame (its left edge at least 1rem right of
-the frame's right edge) and within the frame's top and bottom, and the trailing group's
-bottom is the frame's bottom (within 1px) and its right edge the canvas content's right
-edge (within 1px).
+I1. In the beside state, at a fine pointer with the row's content no taller than the
+frame: the frame's left edge is the canvas content's left edge (within 1px); the row's
+left edge is the frame's right edge plus 1rem and its right edge the canvas content's
+right edge (within 1px); the row's top is the frame's top and its bottom the frame's
+bottom (within 1px); the first toggle's top-left is the row's top-left (within 1px); the
+trailing group's bottom-right is the row's bottom-right (within 1px).
 
 I2. In the beside state, the first shown panel's top is 0.75rem (within 1px) under the
-frame's bottom, and the panels span the canvas content width.
+lower of the frame's bottom and the row's bottom, and the panels span the canvas content
+width.
 
-I3. In the beside state with the room under the frame at least 18rem, each shown panel
-ends within the visible area, the scroll container does not scroll, and each panel body
-is taller than in the same window with the side space forced under 15rem (row under the
-frame).
+I3. In the beside state the frame's width and height are those of SPEC-CORE-104's cap
+(revised I2) at the same window size: the frame is not resized by the beside state.
 
-I4. The frame's size is the same in the beside state as with the row under the frame at
-the same window size and value (SPEC-CORE-104 revised I2 holds in both).
+I4. In the beside state with the room under the row at least 18rem, each shown panel
+ends within the visible area and the scroll container does not scroll.
 
-I5. Outside the beside state, the layout is exactly as before this change: the row under
-a centred frame when the value is on with too little side space, and today's layout when
-the value is off, no panel is shown, or the button is not drawn.
+I5. Outside the beside state the layout is exactly as before this change: a value-on page
+with side space under 15rem, a value-off page, a page with no panel, and every form or
+surface without the button match SPEC-CORE-104 pixel for pixel.
 
-I6. Entering or leaving the beside state (pressing the button, closing the last panel,
-a resize across the threshold) does not remount the `<video>` element, the `.loft` iframe
-or any panel entry, and does not change the playback position or play state.
+I6. Entering or leaving the beside state (a press, closing the last panel, a width-only or
+height-only resize across the threshold, a `storage` event) does not remount the
+`<video>` element, the `.loft` iframe or any panel entry, and does not change the
+playback position or play state.
 
-I7. The panels are side by side exactly when the width they get is at least 41rem, in
+I7. Entering and leaving pseudo full screen from the beside state leaves the page in the
+beside state with the same geometry as before entering, and the full-screen frame and
+the mini-player window are the same size and position as with the row under the frame.
+
+I8. The panels are side by side exactly when the workbench width is at least 41rem, in
 both placements.
-
-I8. The pseudo and system full-screen frames and the mini-player window are the same
-size and position in the beside state as with the value off.
 
 ## Revises
 
 SPEC-CORE-085 I1. On a player file in a wide form, after the first measurement: the row under the player (beside it in the beside state of SPEC-CORE-105) holds exactly one toggle per panel-list item that has rendered and has not answered `false`, in `priority` order, and no other panel toggle; an addon entry whose component has not rendered yet (its module is still loading, or failed to load) has no toggle, no shown panel and no tab, and once rendered, silence means available; on the canonical page, while a panel is shown under a framed player, the row also holds the **Enlarge panels** button of SPEC-CORE-104 after the toggles; the `file-preview-actions` entries are at the row's trailing end, after that button, and in the narrow forms they stay in the player box; each toggle's `aria-pressed` is `true` exactly when its id is in `workbench-panels`; the row is not drawn when it has no toggle and no action; on the canonical page, chapters is never a toggle and is never drawn under the player; on the collection surface, chapters is a toggle whenever the file has chapters.
-SPEC-CORE-085 I2. In a wide form, the panels drawn under the player and the row are the available ids of `workbench-panels`, in `priority` order: side by side at a panel width of 41rem or more, one above the other below that. With none of them available, the area under the player and the row has zero height.
 
 ## Checked, no action
 
@@ -173,10 +208,19 @@ SPEC-CORE-085 I2. In a wide form, the panels drawn under the player and the row 
   Rejected by the owner: switching panels would need turning Enlarge panels off first.
 - **Using the freed height to grow the frame.** Rejected by the owner; the panels get it.
 - **Keeping the layout.** Rejected by the owner.
+- **A two-column CSS grid host.** Rejected: the frame's percentage widths become cyclic in
+  an intrinsically sized column (a `<video>` without metadata or an iframe sizes it at
+  300px), the pseudo-full-screen slot and the mini-player anchor resolve against that
+  column, and the 41rem measurement would lose its box.
+- **Measuring the frame element.** Rejected: a pinned frame is as wide as the viewport and
+  the mini window is 320px, so the placement would flip whenever a frame is pinned.
+- **Falling back to the row under the frame when the row's content is taller than the
+  frame.** Not done: the row grows and the panels follow it; this is rare (many toggles,
+  or 2.75rem toggles wrapping) and keeps the frame where it is.
+- **Hysteresis around 15rem.** Not added; the threshold depends on a window resize, which
+  the reader controls.
 - **Moving the row beside the player with the value off.** Out of scope: at 50% the frame
   is wide and the side space is usually small.
-- **A container query for the threshold.** Rejected for the iOS Safari rendering bug
-  already noted in `Workbench.tsx`.
-- **SPEC-CORE-104 I1/I8.** They name the button's place in the row and relative to the
-  preview actions; they still hold with the row beside the player, so they are not
-  revised.
+- **SPEC-CORE-085 I2 and I5, SPEC-CORE-104 I1, I3 and I8.** They speak of the row's
+  contents and the room under the row; the row is still above the panels, so they hold
+  as written.
