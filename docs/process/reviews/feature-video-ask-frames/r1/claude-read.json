@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F-1 frame_cache.py is modified outside the touch list",
+      "origin": "reviewer",
+      "claim": "The diff changes the shared module addons/intelligence/app/frame_cache.py (new keyword-only `cancelled` parameter on extract_frame_to_cache and an early return before ffmpeg), but the touch-point list names frame_cache.py only as a module to reuse, not to edit.",
+      "impact": "A reader of the touch-point list would not expect a change to the cache writer that get_video_frame and the scene tiles also use. With the default None the behaviour is unchanged, so no user-visible change is expected from this edit alone.",
+      "evidence": "addons/intelligence/app/frame_cache.py:139-160 (diff hunks @@ -138,6 +139,8 @@ and @@ -145,9 +148,15 @@): new `cancelled: Callable[[], bool] | None = None` parameter and `if cancelled is not None and cancelled(): return` before subprocess.run. Touch-point list: 'a frames chooser and loader that reuse frame_cache.py'.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "Scope note only: no declared invariant is broken by the edit as shown, and the default keeps the old behaviour. It is an unlisted touch point, not a defect."
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add frame_cache.py to the touch-point list as a small cancellation hook, or record that the change is reuse-only."
+    },
+    {
+      "id": "F-2 new test files are not in the touch-point list",
+      "origin": "reviewer",
+      "claim": "The diff adds four new test files that the touch-point list does not name: tests/test_spec_addon_108_video_frames.py, tests/test_spec_addon_109_frame_citations.py, tests/video_frames_doubles.py and frontend/AskTabFrames.test.tsx. The list names only existing test files whose cases change.",
+      "impact": "No runtime effect. A reader checking the list against the diff would find test coverage for the new behaviour that the list does not account for.",
+      "evidence": "addons/intelligence/tests/test_spec_addon_108_video_frames.py:1 (new file, 919 lines); addons/intelligence/tests/test_spec_addon_109_frame_citations.py:1 (new file, 110 lines); addons/intelligence/tests/video_frames_doubles.py:1 (new helper module); addons/intelligence/frontend/AskTabFrames.test.tsx:1 (new file, 376 lines). The touch-point list has no entry for any of them.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "Documentation and scope only. The tests are the evidence for the invariants, not a defect against them."
+      },
+      "severity": "INFO",
+      "proposed_fix": "List the new test files and the doubles module in the touch-point list, next to the spec test that owns them."
+    }
+  ],
+  "specification_compliance": [
+    "Diff places outside the touch-point list: addons/intelligence/app/frame_cache.py (edited; listed only as reused) and four new test files (test_spec_addon_108_video_frames.py, test_spec_addon_109_frame_citations.py, tests/video_frames_doubles.py, frontend/AskTabFrames.test.tsx).",
+    "Places in the diff that match the list: file_question.py, routers/rag.py, llm.py, prompt.py and its two jinja2 templates, the ask store, AskTab.tsx, messages ja/en, test_spec_addon_074, test_file_question.py, and the docs (search.md, api.md, intelligence.md). Submodule pointer bump is present.",
+    "Implicit touch points excluded from the findings as instructed: docs/specs/video-ask-frames.md, docs/specs/INDEX.md, docs/process/reviews/.",
+    "Listed but not changed by the diff: frontend/askStream.ts. Not a finding; the spec's claim that the tab's parser ignores comment lines is not checked here."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Editing frame_cache.py, which get_video_frame and the scene tiles share. The change is default-off, so the regression risk is low, but any later edit to that module should be read against those callers."
+  ],
+  "test_coverage": [
+    "The four new test files exist, and the diff's test coverage for the frame path is not judged here beyond the scope question."
+  ],
+  "not_verified": [
+    "I did not run git diff against origin/develop or read the full repository; the answer relies on the diff text supplied in the prompt.",
+    "I did not confirm the line numbers of frame_cache.py from the working tree; they come from the hunk headers.",
+    "I did not check whether askStream.ts (listed in the touch points, unchanged in the diff) still ignores SSE comment lines.",
+    "I did not check the .claude/rules documents for a rule that requires new test files to be listed."
+  ],
+  "confidence": 80
+}
