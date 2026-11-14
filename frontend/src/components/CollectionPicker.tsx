@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Library, Plus, X } from "lucide-react";
 
 import { useTranslations } from "next-intl";
 import { addCollectionItems, createCollection, getCollections } from "@/lib/api";
+import { useNameSubmission } from "@/hooks/useNameSubmission";
 import { useImeKeyGuard } from "@/lib/ime";
+import { focusEnd, isNameInUse } from "@/lib/nameInUse";
 import type { CollectionSummary } from "@/types";
 import { Button } from "@/components/Button";
 
@@ -24,14 +26,30 @@ export function CollectionPicker({ open, drive, fileIds, onClose }: CollectionPi
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
   const [adding, setAdding] = useState(false);
+  const createName = useNameSubmission();
+  const { inUse: nameInUse, busy: nameBusy } = createName;
+  const clearName = createName.clear;
+  const beginName = createName.begin;
+  const settleName = createName.settle;
+  const rejectName = createName.reject;
+  const resetName = createName.reset;
+  const isNameBusy = createName.isBusy;
+  const isNameRejected = createName.isRejected;
+  const createInputRef = useRef<HTMLInputElement>(null);
+  const lineId = useId();
 
   useEffect(() => {
     if (open) {
       getCollections(drive).then(setCollections).catch(() => setCollections([]));
       setCreating(false);
       setNewName("");
+      resetName();
     }
-  }, [open, drive]);
+  }, [open, drive, resetName]);
+
+  useEffect(() => {
+    if (nameInUse) focusEnd(createInputRef.current);
+  }, [nameInUse]);
 
   if (!open) return null;
 
@@ -48,27 +66,46 @@ export function CollectionPicker({ open, drive, fileIds, onClose }: CollectionPi
   }
 
   async function handleCreateAndAdd() {
-    if (!newName.trim() || adding) return;
-    setAdding(true);
+    if (adding) return;
+    const name = newName.trim();
+    if (!name) return;
+    if (isNameBusy() || isNameRejected(name)) return;
+    beginName();
     try {
-      const c = await createCollection(drive, newName.trim());
+      const c = await createCollection(drive, name);
       await addCollectionItems(drive, c.id, fileIds);
       onClose();
-    } catch {
+    } catch (e) {
+      if (isNameInUse(e)) {
+        rejectName(name);
+        return;
+      }
       // error
+    } finally {
+      settleName();
     }
-    setAdding(false);
+  }
+
+  function closeCreate() {
+    setCreating(false);
+    setNewName("");
+    resetName();
+  }
+
+  function requestClose() {
+    if (nameBusy) return;
+    onClose();
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-fade-in" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-fade-in" onClick={requestClose}>
       <div
         className="mx-4 w-full max-w-sm rounded-2xl border border-bg-border bg-bg-primary p-4 shadow-lg animate-fade-in-scale"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-text-primary">{t("addToCollection")}</h3>
-          <button onClick={onClose} className="text-text-muted hover:text-text-primary">
+          <button onClick={requestClose} className="text-text-muted hover:text-text-primary">
             <X size={16} />
           </button>
         </div>
@@ -94,29 +131,49 @@ export function CollectionPicker({ open, drive, fileIds, onClose }: CollectionPi
         </div>
 
         {creating ? (
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              autoFocus
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              onCompositionEnd={ime.onCompositionEnd}
-              onKeyDown={(e) => {
-                if (ime.isImeKeystroke(e)) return;
-                if (e.key === "Enter") handleCreateAndAdd();
-                if (e.key === "Escape") { setCreating(false); setNewName(""); }
-              }}
-              placeholder={t("newCollectionPlaceholder")}
-              className="min-w-0 flex-1 rounded-2xl bg-bg-card px-2 py-1.5 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-ring"
-            />
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={handleCreateAndAdd}
-              disabled={adding || !newName.trim()}
-            >
-              {tc("create")}
-            </Button>
+          <div>
+            <div className="flex items-center gap-2">
+              <input
+                ref={createInputRef}
+                type="text"
+                autoFocus
+                value={newName}
+                readOnly={nameBusy}
+                aria-invalid={nameInUse ? true : undefined}
+                aria-describedby={nameInUse ? lineId : undefined}
+                onChange={(e) => {
+                  setNewName(e.target.value);
+                  clearName();
+                }}
+                onCompositionEnd={ime.onCompositionEnd}
+                onBlur={() => {
+                  if (nameBusy) return;
+                  if (nameInUse) focusEnd(createInputRef.current);
+                }}
+                onKeyDown={(e) => {
+                  if (ime.isImeKeystroke(e)) return;
+                  if (e.key === "Enter") handleCreateAndAdd();
+                  if (e.key === "Escape" && !nameBusy) closeCreate();
+                }}
+                placeholder={t("newCollectionPlaceholder")}
+                className={`min-w-0 flex-1 rounded-2xl bg-bg-card px-2 py-1.5 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 ${
+                  nameInUse ? "ring-2 ring-danger focus:ring-danger" : "focus:ring-focus-ring"
+                }`}
+              />
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleCreateAndAdd}
+                disabled={adding || !newName.trim()}
+              >
+                {tc("create")}
+              </Button>
+            </div>
+            {nameInUse && (
+              <span id={lineId} className="mt-1 block text-xs text-danger">
+                {tc("nameInUse")}
+              </span>
+            )}
           </div>
         ) : (
           <button

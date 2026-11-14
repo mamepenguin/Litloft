@@ -1,6 +1,9 @@
 import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, CollectionDetail, CollectionSummary, Comment, CommentsResponse, DashboardResponse, Drive, DriveSummary, DuplicatesResponse, FileExif, FileItem, Folder, FolderCount, FolderTreeNode, Highlight, HighlightInput, HomeShortcut, HomeShortcutKind, Neighbors, PaginatedResponse, PinnedFolder, ListingSortField, SortField, SortOrder, Tag, TrustFilter, TrustTier, FileKind, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
 import type { SmartFolder, SmartFolderCreate, SmartFolderUpdate } from "@/types/smartFolder";
+import { ApiStatusError } from "@/lib/apiError";
 import { seedFiles } from "@/lib/fileSeed";
+
+export { ApiStatusError };
 
 const API_BASE = "/api";
 
@@ -8,6 +11,18 @@ export async function fetchJSON<T>(url: string, options?: RequestInit): Promise<
   const res = await fetch(url, { credentials: "include", ...options });
   if (!res.ok) {
     throw new Error(`API error: ${res.status} ${res.statusText}`);
+  }
+  return res.json();
+}
+
+/**
+ * `fetchJSON` for a call whose caller reads the status of a failure. The four
+ * name-taking writes use it so a `409` is distinguishable from the rest.
+ */
+async function fetchJSONStatus<T>(url: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(url, { credentials: "include", ...options });
+  if (!res.ok) {
+    throw new ApiStatusError(res.status, `API error: ${res.status} ${res.statusText}`);
   }
   return res.json();
 }
@@ -267,18 +282,6 @@ export interface ScanResult {
   recovered: number;
   updated: number;
   total: number;
-}
-
-export class ApiStatusError extends Error {
-  constructor(
-    readonly status: number,
-    message: string,
-    /** The `detail` code of an error body, when the server sent a string. */
-    readonly detail?: string,
-  ) {
-    super(message);
-    this.name = "ApiStatusError";
-  }
 }
 
 export async function scanDrive(drive: string): Promise<ScanResult> {
@@ -872,7 +875,7 @@ export async function createSmartFolder(
   drive: string,
   payload: SmartFolderCreate,
 ): Promise<SmartFolder> {
-  return fetchJSON<SmartFolder>(
+  return fetchJSONStatus<SmartFolder>(
     `${API_BASE}/drives/${encodeURIComponent(drive)}/smart-folders`,
     {
       method: "POST",
@@ -887,7 +890,7 @@ export async function updateSmartFolder(
   id: string,
   payload: SmartFolderUpdate,
 ): Promise<SmartFolder> {
-  return fetchJSON<SmartFolder>(
+  return fetchJSONStatus<SmartFolder>(
     `${API_BASE}/drives/${encodeURIComponent(drive)}/smart-folders/${encodeURIComponent(id)}`,
     {
       method: "PATCH",
@@ -916,12 +919,12 @@ export async function createCollection(
   name: string,
   description?: string | null,
 ): Promise<CollectionSummary> {
-  return fetchJSON<CollectionSummary>(
+  return fetchJSONStatus<CollectionSummary>(
     `${API_BASE}/drives/${encodeURIComponent(drive)}/collections`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, description: description ?? null }),
+      body: JSON.stringify(description === undefined ? { name } : { name, description }),
     }
   );
 }
@@ -944,7 +947,7 @@ export async function updateCollection(
   id: string,
   patch: CollectionUpdate,
 ): Promise<CollectionSummary> {
-  return fetchJSON<CollectionSummary>(
+  return fetchJSONStatus<CollectionSummary>(
     `${API_BASE}/drives/${encodeURIComponent(drive)}/collections/${id}`,
     {
       method: "PUT",

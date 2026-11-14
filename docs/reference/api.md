@@ -15,15 +15,15 @@ Conventions:
 
 | Code | Meaning |
 |---|---|
-| `200` / `201` | Success. `201` when a pin, collection, Smart Folder, text file, comment, highlight or (Internal API) file relation is created. |
+| `200` / `201` | Success. `201` when a pin, collection, Smart Collection, text file, comment, highlight or (Internal API) file relation is created. |
 | `202` | The Markdown image import job was queued. |
-| `204` | Success, no body: unpin, delete a comment or highlight, Smart Folder, collection or collection item, delete progress, dismiss a Continue item, the Internal API writes, played-ranges writes, and progress writes made without a viewer identity. |
+| `204` | Success, no body: unpin, delete a comment or highlight, Smart Collection, collection or collection item, delete progress, dismiss a Continue item, the Internal API writes, played-ranges writes, and progress writes made without a viewer identity. |
 | `206` | A satisfied `Range` request on `/stream`. |
 | `400` | Bad request: path traversal in a `path` / `folder` argument, a malformed `size` / `duration` comparison, a missing drive context on a `scope=drive` addon call, a cross-drive collection item or relation. |
 | `401` | A comment or highlight saved without a viewer identity. |
 | `403` | A non-admin caller on an admin route, editing or deleting someone else's comment, an addon call naming a drive the caller cannot access, a wrong setup token, a wrong `X-Internal-Secret`. |
 | `404` | Not found. Also returned for a locked protected drive, so its existence stays hidden, and for Missing or Trash files on GET and mutating endpoints. `/stream`, `/render`, `/preview-text` and `/thumbnail` still serve trashed files. |
-| `409` | Conflict: scan already running, duplicate collection name, folder already pinned, `conflict_mode=error` collision, a collection reorder whose item set does not match, setup already completed, a maintenance job already running, a relation that already exists, a new highlight past the 500-per-file ceiling, an Internal API trust-tier write on a file a viewer already ruled on. |
+| `409` | Conflict: scan already running, a collection or Smart Collection name already in use in the drive, folder already pinned, `conflict_mode=error` collision, a collection reorder whose item set does not match, setup already completed, a maintenance job already running, a relation that already exists, a new highlight past the 500-per-file ceiling, an Internal API trust-tier write on a file a viewer already ruled on. |
 | `410` | Gone: `/stream`, `/render` or `/preview-text` on a Missing file. |
 | `412` / `428` | `PUT /api/files/{id}/content`: `428` when `If-Match` is absent, `412` when it does not match the current ETag. |
 | `413` | Body or file too large: 1 MB content write / text-file create, 5 MB render, 5 MB subtitle, 50 MB archive entry, `CORE_INTERNAL_CONTENT_MAX_BYTES` on the Internal API content read. |
@@ -73,7 +73,7 @@ Pagination: `GET /api/drives/{drive}/files`, `/trash` and `/missing` take `page`
 | `GET` | `/api/drives/{drive}/pins` | Pinned folders: `[{ path, on_home }]`. |
 | `POST` | `/api/drives/{drive}/pins` | Body `{ path }`. `201`; `409` if already pinned. Answers `{ path, on_home }`. |
 | `DELETE` | `/api/drives/{drive}/pins?path=...` | Unpin (`204`; `404` if not pinned). |
-| `GET` | `/api/drives/{drive}/home-shortcuts` | The drive's Home shortcuts, in the order they were placed: `[{ kind, id, name, query, file_type }]`. `kind` is `smart_folder`, `pin` or `collection`; `id` is the Smart Folder id, the pin's path or the collection id. |
+| `GET` | `/api/drives/{drive}/home-shortcuts` | The drive's Home shortcuts, in the order they were placed: `[{ kind, id, name, query, file_type }]`. `kind` is `smart_folder`, `pin` or `collection`; `id` is the Smart Collection id, the pin's path or the collection id. |
 | `PUT` | `/api/drives/{drive}/home-shortcuts` | Body `{ kind, id, on_home }`. Places the target on Home or takes it off (`204`). An unknown `kind` is `422` and a target that is not in this drive is `404`; the target's `updated_at` is left unchanged. |
 | `POST` | `/api/drives/{drive}/scan` | Rescan the drive and return `{ added, missing, recovered, updated, total }`. Only one scan runs at a time across all drives; `409` while one is running. |
 
@@ -155,13 +155,13 @@ These emit the `folders.*` events, plus `files.moved` when a rename or move chan
 
 ## Search
 
-Keyword search is the `search` parameter of `GET /api/drives/{drive}/files`. Semantic search belongs to the intelligence addon. Saved searches are Smart Folders, shared by everyone who can open the drive:
+Keyword search is the `search` parameter of `GET /api/drives/{drive}/files`. Semantic search belongs to the intelligence addon. Saved searches are Smart Collections, shared by everyone who can open the drive:
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/api/drives/{drive}/smart-folders` | The drive's Smart Folders, newest first, each with `on_home`. |
-| `POST` | `/api/drives/{drive}/smart-folders` | Body `{ name, query, file_type?, sort_by?, sort_order? }`. `201`. |
-| `PATCH` | `/api/drives/{drive}/smart-folders/{id}` | Update any of those fields. |
+| `GET` | `/api/drives/{drive}/smart-folders` | The drive's Smart Collections, newest first, each with `on_home`. |
+| `POST` | `/api/drives/{drive}/smart-folders` | Body `{ name, query, file_type?, sort_by?, sort_order? }`. `201`; `409` `Name already in use` when the name is in use in the drive by a collection or Smart Collection, ignoring case. |
+| `PATCH` | `/api/drives/{drive}/smart-folders/{id}` | Update any of those fields. `409` `Name already in use` as on `POST` when the request gives a name that differs and is in use. |
 | `DELETE` | `/api/drives/{drive}/smart-folders/{id}` | `204`. |
 
 ## Trash and missing
@@ -178,9 +178,9 @@ Keyword search is the `search` parameter of `GET /api/drives/{drive}/files`. Sem
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/api/drives/{drive}/collections` | Most recently updated first. |
-| `POST` | `/api/drives/{drive}/collections` | Body `{ name, description? }`. `201`; `409` on a duplicate name in the drive. |
+| `POST` | `/api/drives/{drive}/collections` | Body `{ name, description? }`. `201`; `409` `Name already in use` when the name is in use in the drive by a collection or Smart Collection, ignoring case. |
 | `GET` | `/api/drives/{drive}/collections/{id}` | The collection with its items and `on_home`. |
-| `PUT` | `/api/drives/{drive}/collections/{id}` | Body `{ name?, description? }`. |
+| `PUT` | `/api/drives/{drive}/collections/{id}` | Body `{ name?, description? }`. `409` `Name already in use` as on `POST` when the request gives a name that differs and is in use. |
 | `DELETE` | `/api/drives/{drive}/collections/{id}` | `204`. |
 | `POST` | `/api/drives/{drive}/collections/{id}/items` | Body `{ "file_ids": [...] }`, 1 to 100. Ids already in the collection are skipped. A Missing or trashed file is `404`, a file from another drive `400`. Returns the collection with its items. |
 | `DELETE` | `/api/drives/{drive}/collections/{id}/items/{item_id}` | `204`. |

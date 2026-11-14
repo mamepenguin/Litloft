@@ -1,0 +1,272 @@
+{
+  "risk": "HIGH",
+  "score": 7,
+  "base": 3,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "DESIGN.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "README.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/routers/collections.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/routers/smart_folders.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/services/collection_names.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/tests/test_collection_name_uniqueness.py",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/ADDON-DEVELOPMENT.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/README_ja.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/addons/media-import.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/reference/api.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/smart-collection.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/file-browsing.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/overview.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/playlists-favorites.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/reading.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/search.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/video.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/nameInUse.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/name-in-use.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/helpers/nameInUse.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/helpers/sidebarHarness.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/homeShortcuts.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/sidebar-headings.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/smartCollectionHomeIcon.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/smartCollectionWording.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/CollectionDetail.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/CollectionPicker.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/ConfirmDialog.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/Sidebar.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/SmartFolderSaveButton.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/SmartFolderSaveDialog.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/CollectionDetail.nameInUse.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/CollectionPicker.nameInUse.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/FileContextMenu.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/SearchPage.smartFolderOverwrite.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/SmartFolderSaveButton.homeShortcut.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/SmartFolderSaveButton.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/SmartFolderSaveDialog.nameInUse.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/SmartFolderSidebar.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/imeEnterGuard.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/smartCollectionJumpIcon.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/appshell/__tests__/TargetMenu.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/home/HomeAppEntries.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/search/useJumpDestinations.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/SidebarCollectionsSection.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/SidebarSmartFoldersSection.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/SidebarCollectionsSection.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/SidebarItemReorder.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/SidebarReorder.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/SmartCollectionDialogPortal.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/collectionsSectionMerged.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/sidebarNameInUse.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/useCollectionManagement.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/useMergedCollectionOrder.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/useSmartCollectionActions.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/hooks/useNameSubmission.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/api.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/apiError.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/nameInUse.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}

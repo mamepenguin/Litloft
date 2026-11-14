@@ -74,6 +74,7 @@ const AT_THE_PHONE_WIDTH = [
   "video-card-spacing.spec.ts",
   "clips-primary-action.spec.ts",
   "clips-row.spec.ts",
+  "name-in-use.spec.ts",
   "notes-all-clips-toggle.spec.ts",
   "file-header-row.spec.ts",
   "reading-text-size.spec.ts",

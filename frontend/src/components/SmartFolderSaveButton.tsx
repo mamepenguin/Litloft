@@ -17,6 +17,7 @@ import { useTranslations } from "next-intl";
 import type { FileKind } from "@/types";
 import type { SmartFolder } from "@/types/smartFolder";
 import { setHomeShortcut } from "@/lib/api";
+import { isNameInUse } from "@/lib/nameInUse";
 import { useSmartFolders } from "@/hooks/useSmartFolders";
 import { Button } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -139,7 +140,8 @@ export function SmartFolderController({
         });
         setSaveOpen(false);
         router.replace(buildSearchUrl(created.id));
-      } catch {
+      } catch (e) {
+        if (isNameInUse(e)) throw e;
         setError(t("saveFailed"));
       }
     },
@@ -152,7 +154,8 @@ export function SmartFolderController({
       try {
         await update(current.id, { name });
         setRenameOpen(false);
-      } catch {
+      } catch (e) {
+        if (isNameInUse(e)) throw e;
         setError(t("renameFailed"));
       }
     },
