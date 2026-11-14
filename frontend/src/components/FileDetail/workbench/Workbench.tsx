@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { PanelTopClose, X } from "lucide-react";
 
 import { WORKBENCH_COLUMNS_MIN_REM, WORKBENCH_MIN_REM } from "@/lib/layoutSizes";
+import { isRowBeside } from "@/lib/workbenchBeside";
 import type { WorkbenchPanelItem } from "./panels";
 
 interface WorkbenchProps {
@@ -13,7 +14,11 @@ interface WorkbenchProps {
   onToggle: (id: string) => void;
   onClose: (id: string) => void;
   actions?: ReactNode;
-  playerFocus?: { pressed: boolean; onToggle: () => void };
+  playerFocus?: {
+    pressed: boolean;
+    onToggle: () => void;
+    visibleHeight: number | null;
+  };
 }
 
 export function shownPanelIds(
@@ -35,7 +40,10 @@ export function Workbench({
 }: WorkbenchProps) {
   const t = useTranslations("workbench");
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const [wide, setWide] = useState(false);
+  const [measured, setMeasured] = useState<{
+    width: number;
+    rootFontSize: number;
+  } | null>(null);
 
   // Measured, not a container query: the panels can hold a <video> and a
   // cross-origin iframe, and a containment context around either renders the
@@ -47,7 +55,14 @@ export function Workbench({
       const rootFontSize =
         Number.parseFloat(getComputedStyle(document.documentElement).fontSize) ||
         16;
-      setWide(node.clientWidth >= WORKBENCH_COLUMNS_MIN_REM * rootFontSize);
+      const width = node.clientWidth;
+      setMeasured((previous) =>
+        previous != null &&
+        previous.width === width &&
+        previous.rootFontSize === rootFontSize
+          ? previous
+          : { width, rootFontSize },
+      );
     };
     measure();
     if (typeof ResizeObserver === "undefined") return;
@@ -56,13 +71,24 @@ export function Workbench({
     return () => observer.disconnect();
   }, []);
 
+  const wide =
+    measured != null &&
+    measured.width >= WORKBENCH_COLUMNS_MIN_REM * measured.rootFontSize;
+
   const available = items.filter((item) => item.available);
   const shown = shownPanelIds(items, stored);
+
+  const beside =
+    playerFocus?.pressed === true &&
+    shown.length > 0 &&
+    measured != null &&
+    isRowBeside(measured.width, playerFocus.visibleHeight, measured.rootFontSize);
 
   return (
     <div
       ref={rootRef}
       data-workbench-width={wide ? "wide" : "narrow"}
+      data-row-beside={beside ? "on" : undefined}
       className="media-detail-workbench"
     >
       {(available.length > 0 || actions != null) && (

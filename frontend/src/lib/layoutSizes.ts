@@ -38,6 +38,12 @@ export const WORKBENCH_PLAYER_SHARE = 0.5;
 export const WORKBENCH_PLAYER_FOCUS_SHARE = 0.3;
 
 /**
+ * The side space the row needs beside the enlarged frame: one line holds the
+ * widest panel toggle, the Enlarge panels button and a short preview action.
+ */
+export const WORKBENCH_ROW_BESIDE_REM = 17;
+
+/**
  * The canvas's scrollbar is deliberately not a term here: whether there is
  * one depends on the canvas width this decides, and on overlay scrollbars
  * it is 0.
