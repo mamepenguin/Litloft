@@ -513,7 +513,12 @@
     "loopOn": "Loop ON",
     "loopOff": "Loop OFF",
     "expand": "Expand",
-    "collapse": "Collapse"
+    "collapse": "Collapse",
+    "queueLoading": "Loading the queue…",
+    "queueFailed": "Could not load the queue",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "removeFromCollection": "Remove from collection"
   },
   "player": {
     "videoNotSupported": "Your browser does not support video playback.",
