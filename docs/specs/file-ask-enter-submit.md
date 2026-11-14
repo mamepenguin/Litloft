@@ -44,37 +44,42 @@ This is the Ask page's rule (`e.key === "Enter" && !e.shiftKey`), unchanged.
 - An answer is still streaming (the button is disabled): a sending key does nothing; no
   newline is inserted, nothing is sent.
 - The Enter is the one that confirms an IME composition (Japanese input), or a key the
-  IME still owns: it is left to the IME; nothing is sent and the field gets no extra
-  newline.
+  IME still owns: the handler sends nothing and does not call `preventDefault`, so the
+  key is left to the IME and the browser exactly as on the Ask page.
 - A send that fails after it starts fails exactly as a button send does today; this
   change adds no failure path of its own.
 
 ### 3. States
 
-The field is in one of:
+The field's state has two independent parts.
 
-- **idle, sendable**: no answer streaming, at least the minimum number of non-space
-  characters (the button is enabled).
-- **idle, too short**: no answer streaming, fewer characters (the button is disabled).
+**Sendability**
+
+- **too short**: no answer streaming, fewer than the minimum non-space characters (the
+  button is disabled).
+- **sendable**: no answer streaming, at least the minimum (the button is enabled).
 - **streaming**: an answer is being received. The field stays editable; typed text is
   kept.
-- **composing**: an IME composition is open in the field.
+
+too short ↔ sendable by typing or deleting. sendable → streaming by a sending key or a
+button click; the send clears the field, as a button send does today. streaming → too
+short or sendable (by the text then in the field) when the answer settles (answered or
+failed) or the thread is dropped, as today.
+
+**Composition**
+
+- **none**: no IME composition.
+- **composing**: a composition is open in the field.
 - **just composed**: the grace window (`COMPOSITION_GRACE_MS` in `frontend/src/lib/ime.ts`)
-  right after a composition ends, until its first Enter or Escape is consumed or the
-  window passes.
+  right after a composition ends.
 
-Transitions:
+none → composing when the IME opens a composition; composing → just composed when it
+ends; just composed → none when its first Enter or Escape is consumed, or the window
+passes. Composition changes in any sendability state, streaming included, and does not
+change sendability.
 
-- idle, too short ↔ idle, sendable: by typing or deleting.
-- idle, sendable → streaming: a sending key or a button click. The send clears the field,
-  as a button send does today.
-- streaming → idle: the answer settles (answered or failed) or the thread is dropped, as
-  today.
-- any idle state → composing: the IME opens a composition. composing → just composed: the
-  composition ends. just composed → idle: its first Enter is consumed, or the window
-  passes.
-
-A sending key starts a send only in **idle, sendable**. In every other state the press is
+A sending key starts a send only when sendability is **sendable** and composition is
+**none**. In every other state the press is
 dropped: nothing is sent then, and nothing is queued to be sent when the state changes.
 
 ### 4. Data read and written
@@ -115,8 +120,11 @@ silent, as a click on the disabled button is.
   is held (the table in item 1).
 - Shift+Enter inserts a newline.
 - Confirming a Japanese conversion with Enter only confirms it; a second Enter sends.
-- On a phone's on-screen keyboard, the return key sends, as on the Ask page; a newline
-  cannot be typed there.
+- On a phone's on-screen keyboard, the return key behaves as on the Ask page: it usually
+  sends, and then a newline cannot be typed. A keyboard that still holds the current word
+  in an open composition when return is pressed reports an IME-owned key, so return there
+  types a newline or confirms the word instead of sending. Both are accepted; neither is
+  a defect of this change.
 - The placeholder, the button label and every other text stay as they are.
 - `docs/user-guide/keyboard-shortcuts.md` lists the keys of both Ask inputs as two rows,
   `Enter` (send) and `Shift+Enter` (newline). Cmd/Ctrl+Enter is not given its own row,
@@ -134,7 +142,13 @@ beyond today's send. The IME guard's grace window is the shared one in
   the question `<textarea>` gains `onKeyDown` and `onCompositionEnd`; the submit logic is
   reused, not duplicated.
 - `frontend/src/lib/ime.ts` (`useImeKeyGuard`): read and used, not edited.
-- Tests for the Ask tab under `addons/intelligence/frontend/`.
+- Tests for the Ask tab under `addons/intelligence/frontend/`. The IME test reproduces
+  the measured event order (composition end, then Enter with `isComposing: false`), with
+  the core helper `frontend/src/__tests__/helpers/imeEnter.ts`
+  (`confirmConversionThenEnter`) or an equivalent.
+- `frontend/src/__tests__/ime-enter-guard.test.ts` (core): add
+  `intelligence/frontend/AskTab.tsx` to `ADDON_TEXT_FIELD_ENTER` and raise the addon
+  count from 8 to 9, in the same core commit as the submodule pointer bump.
 - `docs/user-guide/keyboard-shortcuts.md`: a section for the Ask inputs.
 - `docs/specs/INDEX.md`, this spec, `docs/process/reviews/feature-file-ask-enter-submit/`.
 - The `addons/intelligence` submodule pointer in the core repository.
