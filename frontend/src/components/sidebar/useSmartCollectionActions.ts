@@ -5,6 +5,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import type { MenuItem } from "@/components/ContextMenu";
+import { isNameInUse } from "@/lib/nameInUse";
 import type { SmartFolder } from "@/types/smartFolder";
 
 export interface SmartCollectionMenuTarget {
@@ -51,7 +52,8 @@ export function useSmartCollectionActions({
       try {
         await update(renaming.id, { name: newName });
         setRenaming(null);
-      } catch {
+      } catch (e) {
+        if (isNameInUse(e)) throw e;
         setError(t("renameFailed"));
       }
     },

@@ -9,6 +9,7 @@
     "create": "作成",
     "apply": "適用",
     "change": "変更",
+    "nameInUse": "同じ名前のコレクションがあります",
     "refresh": "更新",
     "seeAll": "すべて見る",
     "seeAllCount": "すべて見る（{count}）",

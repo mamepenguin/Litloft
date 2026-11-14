@@ -9,6 +9,7 @@
     "create": "Create",
     "apply": "Apply",
     "change": "Change",
+    "nameInUse": "A collection with this name already exists",
     "refresh": "Refresh",
     "seeAll": "See all",
     "seeAllCount": "See all ({count})",

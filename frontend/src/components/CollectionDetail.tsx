@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, House, HousePlus, ListPlus, Play, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -32,6 +32,8 @@ import { useCollectionViewMode } from "@/hooks/useCollectionViewMode";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
 import { FileNavigationOverrideProvider } from "@/lib/fileNavigationOverride";
 import { useImeKeyGuard } from "@/lib/ime";
+import { focusEnd, isNameInUse } from "@/lib/nameInUse";
+import { useNameSubmission } from "@/hooks/useNameSubmission";
 import type { CollectionDetail as CollectionDetailType } from "@/types";
 
 interface CollectionDetailProps {
@@ -64,6 +66,21 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
   const [descriptionDraft, setDescriptionDraft] = useState("");
   const [deletingCollection, setDeletingCollection] = useState(false);
   const homeInFlight = useRef(false);
+  const nameSubmission = useNameSubmission();
+  const { inUse: nameInUse, busy: nameBusy } = nameSubmission;
+  const clearNameInUse = nameSubmission.clear;
+  const beginName = nameSubmission.begin;
+  const settleName = nameSubmission.settle;
+  const rejectName = nameSubmission.reject;
+  const resetName = nameSubmission.reset;
+  const isNameBusy = nameSubmission.isBusy;
+  const isNameRejected = nameSubmission.isRejected;
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const nameLineId = useId();
+
+  useEffect(() => {
+    if (nameInUse) focusEnd(nameInputRef.current);
+  }, [nameInUse]);
 
   useEffect(() => {
     setOverrideDrive(drive);
@@ -90,16 +107,35 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
   const handleSaveName = useCallback(async () => {
     if (!detail) return;
     const next = nameDraft.trim();
-    setEditingName(false);
-    if (!next || next === detail.name) return;
+    if (isNameBusy()) return;
+    if (!next || next === detail.name) {
+      setEditingName(false);
+      return;
+    }
+    if (isNameRejected(next)) return;
+    beginName();
     try {
       await updateCollection(drive, collectionId, { name: next });
       setDetail({ ...detail, name: next });
-    } catch {
+      setEditingName(false);
+    } catch (e) {
+      if (isNameInUse(e)) {
+        rejectName(next);
+        return;
+      }
+      setEditingName(false);
       toast.error(t("errorRename"));
       load();
+    } finally {
+      settleName();
     }
-  }, [detail, drive, collectionId, nameDraft, load, toast, t]);
+  }, [detail, drive, collectionId, nameDraft, load, toast, t, isNameBusy, isNameRejected, beginName, rejectName, settleName]);
+
+  const cancelNameEdit = useCallback(() => {
+    setNameDraft(detail?.name ?? "");
+    setEditingName(false);
+    resetName();
+  }, [detail, resetName]);
 
   const handleSaveDescription = useCallback(async () => {
     if (!detail) return;
@@ -272,24 +308,44 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
             breadcrumb={<Breadcrumb driveName={drive} driveIsAncestor />}
             title={
               editingName ? (
-                <input
-                  autoFocus
-                  value={nameDraft}
-                  onChange={(e) => setNameDraft(e.target.value)}
-                  onBlur={handleSaveName}
-                  onCompositionEnd={ime.onCompositionEnd}
-                  onKeyDown={(e) => {
-                    if (ime.isImeKeystroke(e)) return;
-                    if (e.key === "Enter") handleSaveName();
-                    if (e.key === "Escape") {
-                      setNameDraft(detail.name);
-                      setEditingName(false);
-                    }
-                  }}
-                  // Inside the <h1>, but an <input> does not inherit type, so
-                  // the heading size is repeated here and only here.
-                  className="w-full rounded-2xl bg-bg-card px-3 py-1 text-2xl font-bold text-text-primary outline-none focus:ring-2 focus:ring-focus-ring"
-                />
+                <span className="block w-full whitespace-normal">
+                  <input
+                    ref={nameInputRef}
+                    autoFocus
+                    value={nameDraft}
+                    readOnly={nameBusy}
+                    aria-invalid={nameInUse ? true : undefined}
+                    aria-describedby={nameInUse ? nameLineId : undefined}
+                    onChange={(e) => {
+                      setNameDraft(e.target.value);
+                      clearNameInUse();
+                    }}
+                    onBlur={() => {
+                      if (nameBusy) return;
+                      if (nameInUse) {
+                        focusEnd(nameInputRef.current);
+                        return;
+                      }
+                      handleSaveName();
+                    }}
+                    onCompositionEnd={ime.onCompositionEnd}
+                    onKeyDown={(e) => {
+                      if (ime.isImeKeystroke(e)) return;
+                      if (e.key === "Enter") handleSaveName();
+                      if (e.key === "Escape" && !nameBusy) cancelNameEdit();
+                    }}
+                    // Inside the <h1>, but an <input> does not inherit type, so
+                    // the heading size is repeated here and only here.
+                    className={`w-full rounded-2xl bg-bg-card px-3 py-1 text-2xl font-bold text-text-primary outline-none focus:ring-2 ${
+                      nameInUse ? "ring-2 ring-danger focus:ring-danger" : "focus:ring-focus-ring"
+                    }`}
+                  />
+                  {nameInUse && (
+                    <span id={nameLineId} className="mt-1 block text-xs text-danger">
+                      {tCommon("nameInUse")}
+                    </span>
+                  )}
+                </span>
               ) : (
                 // A <button>, not an <h1>: PageHeader supplies the heading, and
                 // nesting one inside it would be invalid.

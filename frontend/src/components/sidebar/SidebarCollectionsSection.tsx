@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { type RefObject, useCallback, useMemo, useRef, useState } from "react";
+import { type RefObject, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Library, ListFilter, Pencil, Plus, Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
@@ -14,6 +14,7 @@ import { SmartFolderSaveDialog } from "@/components/SmartFolderSaveDialog";
 import { useSmartFolders } from "@/hooks/useSmartFolders";
 import { addCollectionItems, getCollections } from "@/lib/api";
 import { useImeKeyGuard } from "@/lib/ime";
+import { focusEnd } from "@/lib/nameInUse";
 import { smartFolderHref } from "@/lib/driveViews";
 import { useSidebarSectionCollapsed } from "./useSidebarSectionCollapsed";
 import {
@@ -43,6 +44,13 @@ interface SidebarCollectionsSectionProps {
   setContextMenu: (v: { id: string; x: number; y: number } | null) => void;
   createInputRef: RefObject<HTMLInputElement | null>;
   renameInputRef: RefObject<HTMLInputElement | null>;
+  createInUse?: string | null;
+  createBusy?: boolean;
+  renameInUse?: string | null;
+  renameBusy?: boolean;
+  cancelCreate?: () => void;
+  cancelRename?: () => void;
+  startCollectionRename?: (id: string, name: string) => void;
   handleCreateCollection: () => void;
   handleRenameCollection: () => void;
   handleDeleteCollection: (id: string) => void;
@@ -67,6 +75,13 @@ export function SidebarCollectionsSection({
   setContextMenu,
   createInputRef,
   renameInputRef,
+  createInUse = null,
+  createBusy = false,
+  renameInUse = null,
+  renameBusy = false,
+  cancelCreate,
+  cancelRename,
+  startCollectionRename,
   handleCreateCollection,
   handleRenameCollection,
   handleDeleteCollection,
@@ -74,12 +89,42 @@ export function SidebarCollectionsSection({
   dragHandle,
 }: SidebarCollectionsSectionProps) {
   const t = useTranslations("sidebar");
+  const tCommon = useTranslations("common");
+  const cancelCreateEdit =
+    cancelCreate ??
+    (() => {
+      setCreatingCollection(false);
+      setNewCollectionName("");
+    });
+  const cancelRenameEdit =
+    cancelRename ??
+    (() => {
+      setRenamingId(null);
+      setRenameValue("");
+    });
+  const beginRename = useMemo(
+    () =>
+      startCollectionRename ??
+      ((id: string, name: string) => {
+        setRenamingId(id);
+        setRenameValue(name);
+      }),
+    [startCollectionRename, setRenamingId, setRenameValue],
+  );
   const ime = useImeKeyGuard();
+  const createInUseId = useId();
+  const renameInUseId = useId();
   const router = useRouter();
   const locale = useLocale();
   const { collapsed, toggle, expand } = useSidebarSectionCollapsed("collections");
   const { smartFolders, update, remove } = useSmartFolders(currentDrive);
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+  useEffect(() => {
+    if (createInUse) focusEnd(createInputRef.current);
+  }, [createInUse, createInputRef]);
+  useEffect(() => {
+    if (renameInUse) focusEnd(renameInputRef.current);
+  }, [renameInUse, renameInputRef]);
   const dragCounterRef = useRef<Map<string, number>>(new Map());
   const smart = useSmartCollectionActions({ smartFolders, update, remove });
 
@@ -125,10 +170,7 @@ export function SidebarCollectionsSection({
       {
         icon: Pencil,
         label: t("renameCollection"),
-        onClick: () => {
-          setRenamingId(target.id);
-          setRenameValue(target.name);
-        },
+        onClick: () => beginRename(target.id, target.name),
       },
       {
         icon: Trash2,
@@ -141,8 +183,7 @@ export function SidebarCollectionsSection({
     collectionList,
     contextMenu,
     handleDeleteCollection,
-    setRenameValue,
-    setRenamingId,
+    beginRename,
     t,
   ]);
 
@@ -224,19 +265,33 @@ export function SidebarCollectionsSection({
               ref={renameInputRef}
               type="text"
               value={renameValue}
+              readOnly={renameBusy}
+              aria-invalid={renameInUse ? true : undefined}
+              aria-describedby={renameInUse ? renameInUseId : undefined}
               onChange={(e) => setRenameValue(e.target.value)}
               onCompositionEnd={ime.onCompositionEnd}
               onKeyDown={(e) => {
                 if (ime.isImeKeystroke(e)) return;
                 if (e.key === "Enter") handleRenameCollection();
-                if (e.key === "Escape") {
-                  setRenamingId(null);
-                  setRenameValue("");
-                }
+                if (e.key === "Escape" && !renameBusy) cancelRenameEdit();
               }}
-              onBlur={handleRenameCollection}
-              className="w-full rounded-lg bg-bg-card px-2 py-1.5 text-sm text-text-primary outline-none focus:ring-2 focus:ring-focus-ring"
+              onBlur={() => {
+                if (renameBusy) return;
+                if (renameInUse) {
+                  focusEnd(renameInputRef.current);
+                  return;
+                }
+                handleRenameCollection();
+              }}
+              className={`w-full rounded-lg bg-bg-card px-2 py-1.5 text-sm text-text-primary outline-none focus:ring-2 ${
+                renameInUse ? "ring-2 ring-danger focus:ring-danger" : "focus:ring-focus-ring"
+              }`}
             />
+            {renameInUse && (
+              <span id={renameInUseId} className="mt-1 block text-xs text-danger">
+                {tCommon("nameInUse")}
+              </span>
+            )}
           </div>
         ) : (
           <button
@@ -301,6 +356,10 @@ export function SidebarCollectionsSection({
             onClick={() => {
               expand();
               setCreatingCollection(true);
+              if (createInUse) {
+                focusEnd(createInputRef.current);
+                return;
+              }
               setNewCollectionName("");
             }}
             className="text-text-muted hover:text-text-primary"
@@ -317,20 +376,34 @@ export function SidebarCollectionsSection({
             ref={createInputRef}
             type="text"
             value={newCollectionName}
+            readOnly={createBusy}
+            aria-invalid={createInUse ? true : undefined}
+            aria-describedby={createInUse ? createInUseId : undefined}
             onChange={(e) => setNewCollectionName(e.target.value)}
             onCompositionEnd={ime.onCompositionEnd}
             onKeyDown={(e) => {
               if (ime.isImeKeystroke(e)) return;
               if (e.key === "Enter") handleCreateCollection();
-              if (e.key === "Escape") {
-                setCreatingCollection(false);
-                setNewCollectionName("");
-              }
+              if (e.key === "Escape" && !createBusy) cancelCreateEdit();
             }}
-            onBlur={handleCreateCollection}
+            onBlur={() => {
+              if (createBusy) return;
+              if (createInUse) {
+                focusEnd(createInputRef.current);
+                return;
+              }
+              handleCreateCollection();
+            }}
             placeholder={t("collectionNamePlaceholder")}
-            className="w-full rounded-lg bg-bg-card px-2 py-1.5 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-ring"
+            className={`w-full rounded-lg bg-bg-card px-2 py-1.5 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 ${
+              createInUse ? "ring-2 ring-danger focus:ring-danger" : "focus:ring-focus-ring"
+            }`}
           />
+          {createInUse && (
+            <span id={createInUseId} className="mt-1 block text-xs text-danger">
+              {tCommon("nameInUse")}
+            </span>
+          )}
         </div>
       )}
 
