@@ -1,0 +1,1 @@
+{"verdict":"PASS","reasons":[],"findings":[{"reviewer":"claude-read","id":"F1-fixture-app-and-inspectorResponsive","state":"open"},{"reviewer":"claude-read","id":"F2-fixture-addon-stubs","state":"open"},{"reviewer":"claude-read","id":"F3-fixture-parity-test","state":"open"}],"needs_human":[]}

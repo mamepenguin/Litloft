@@ -973,6 +973,48 @@ pre mark.ask-citation-highlight {
   margin-left: auto;
 }
 
+/* ------------------------------------------------------------------
+   Enlarge panels: the row beside the frame.
+
+   No box changes parent and no grid is introduced, so the player, the
+   row and the panels keep their elements when the placement changes.
+   ------------------------------------------------------------------ */
+.media-detail-host:has(> .media-detail-workbench[data-row-beside="on"])
+  > .media-detail-player[data-framed="true"] {
+  margin-inline-start: 0;
+}
+
+.media-detail-host:has(> .media-detail-workbench[data-row-beside="on"])
+  > .media-detail-workbench {
+  position: relative;
+  margin-top: 0.75rem;
+}
+
+.media-detail-host:has(> .media-detail-workbench[data-row-beside="on"])
+  > .media-detail-workbench
+  > .media-detail-workbench-row {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 0.75rem);
+  left: calc(
+    max(
+        calc(var(--rail-avail, 100dvh) * 0.3 * 16 / 9),
+        min(480px, calc(var(--rail-avail, 100dvh) * 0.5 * 16 / 9))
+      )
+      + 1rem
+  );
+  flex-wrap: nowrap;
+  align-items: flex-end;
+}
+
+.media-detail-host:has(> .media-detail-workbench[data-row-beside="on"])
+  > .media-detail-workbench
+  > .media-detail-workbench-row
+  > .media-detail-workbench-toggles {
+  flex: 1 1 auto;
+  flex-wrap: wrap-reverse;
+}
+
 .workbench-toggle {
   display: inline-flex;
   align-items: center;
