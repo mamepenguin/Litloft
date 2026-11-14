@@ -105,3 +105,66 @@ Visible differences from the board, none in the layout decisions:
 ## 7. Environment notes
 
 The intelligence addon container was overloaded during this run (`QueuePool limit of size 5 overflow 10 reached`, `/status` answering 502 after 15s, ~180% CPU). While it was, the panel toggles and the inspector's AI controls did not appear, so the workbench row was not drawn; those page loads were retried until the row appeared, and only complete loads are reported above. The Scenes panel body was empty in the two-panel screenshots. Neither is attributed to this change.
+
+# R-5 part 1, second run: threshold 13rem
+
+- Ran against: `d3216f508af71544c4968552e83450c4d1f2838c`. Since `821ec3f13` the only product change is `WORKBENCH_ROW_BESIDE_REM` 17 → 13 in `frontend/src/lib/layoutSizes.ts`; the rest is `DESIGN.md` and tests. The stack at `http://video-share-row-beside.localhost:3101` was rebuilt at this commit by the coordinator; not started or stopped here.
+- Checked against the newest revisions of I2, I5 and I9 in `invariants.md` (13rem = 208px).
+- Same method, browser and file as the first run (video `wJnOX7w4b-Or`, toggles Transcript and Scenes). The sidebar was left at its default (no `sidebar-open` key; the sidebar is open, canvas 720px at 1376 wide) except in the regression rows marked "sidebar closed".
+- Screenshots: `r5/layout-13rem/`.
+
+## A. 1376×878, left sidebar open (the default)
+
+C = 720, H = 822, W = 480, side space 224px. Fine and coarse, one and two panels: all four had `data-row-beside="on"` and passed every check within 1px.
+
+- frame 256..736 × 72..342 (480×270, the value-on cap), left edge = canvas left 256;
+- row 752..976 (= frame right 736 + 16 .. canvas right 976), bottom 342 = frame bottom; fine 32px tall, coarse 44px;
+- Transcript at the row's left (752), Scenes beside it on the same line, Enlarge panels at the right end (944..976 fine, 932..976 coarse);
+- nothing in the row over the frame or past 976;
+- first panel top 354 = 342 + 12; panels 256..976 (two panels 256..610 and 622..976);
+- I4: panel bottom 862 in the 878 visible bottom, the scroll container does not scroll.
+
+Screenshots: `beside-sidebar-open-1376x878-{fine,coarse}-{1,2}panel.png`.
+
+## B. Threshold: width-only resize, sidebar open, two panels
+
+Window 1376 → 1360 → 1359 → 1360 → 1359 → 1376 at height 878, both pointers.
+
+| Window | C | Side space | `data-row-beside` | Layout |
+|---|---|---|---|---|
+| 1360 | 704 | 208 (13rem) | `on` | frame 256..736, row 752..960, bottom 342; panels at 354 |
+| 1359 | 703 | 207 | absent | frame 480×270 centred (gaps 111.5 / 111.5), row top 358 = 342 + 16 |
+| 1376 | 720 | 224 | `on` | as in A |
+
+It flipped between 1360 and 1359 in both directions, every time, at both pointers. The `<video>` element stayed the same node through all the resizes.
+
+At 208px the two available toggles do not fit on one line with the button, so they wrap upward. This is the wrapped case of I1, and it matched:
+
+- fine: Transcript 752..842.5 on the bottom line (310..342), Scenes 752..825.1 on the line above (270..302); Enlarge panels 928..960 on the bottom line at the row's right end; row 270..342;
+- coarse: Transcript bottom line 298..342, Scenes 246..290, Enlarge panels 916..960 at 298..342; row 246..342;
+- the bottom line's bottom is the frame's bottom (342) in both; the row's top (270 / 246) stays below the frame's top (72); nothing is over the frame (all row content starts at 752 ≥ 736 + 16) or past the canvas right edge (960).
+
+Four toggles (Detailed summary, Note): not reachable. No player file in the data offers a Detailed summary or Note toggle (the behaviour run found the same for Detailed summary), so the threshold was checked with the two toggles available.
+
+Screenshots: `threshold-C704-side208-{fine,coarse}.png`, `threshold-C703-side207-{fine,coarse}.png`.
+
+## C. Regression
+
+| Case | Result |
+|---|---|
+| floor 1376×878, sidebar closed, fine | `on`; frame 16..496 (480×270); row 512..976 bottom 342; panel top 354; all checks OK; I4 OK |
+| share 1590×1122, sidebar closed, fine | `on`; frame 568.53×319.8 at 16; row 600.53..1190 bottom 391.8; panel top 403.8; all checks OK; I4 OK |
+| half 1440×560, sidebar closed, fine | `on`; frame 448×252 at 16; row 480..1040 bottom 324; panel top 336; all checks OK; I4 not applicable (room 236px), panels at the 18rem floor |
+| value off, 1376×878, sidebar open | no attribute; frame 720×405 (the full canvas, gaps 0 / 0), row top 493 = 477 + 16, Enlarge panels `aria-pressed=false` |
+
+These match the first run at the same sizes.
+
+Screenshots: `regression-{floor-1376x878,share-1590x1122,half-1440x560}-fine.png`, `regression-value-off-1376x878-sidebar-open.png`.
+
+## Differences from the spec
+
+None found.
+
+## Not checked in this run
+
+Four toggles (no file has them), a preview action in the trailing group (none published), and a real touch device.
