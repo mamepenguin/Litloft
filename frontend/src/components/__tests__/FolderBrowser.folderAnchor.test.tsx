@@ -35,6 +35,7 @@ vi.mock("@/components/SelectionBar", () => ({ SelectionBar: () => null }));
 vi.mock("@/components/SmartFolderSaveButton", () => ({
   SmartFolderController: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
   SmartFolderMenuItems: () => null,
+  SmartFolderOverwriteButton: () => null,
 }));
 vi.mock("@/components/AddonSlot", () => ({ AddonSlot: () => null }));
 vi.mock("@/components/UploadZone", () => ({
@@ -83,7 +84,9 @@ const pinnedPaths = vi.hoisted(() => new Set<string>(["recipes"]));
 vi.mock("@/components/folder/usePinnedFolders", () => ({
   usePinnedFolders: () => ({
     pinnedPaths,
+    homePaths: new Set<string>(),
     handleTogglePin: mockTogglePin,
+    handleToggleHome: vi.fn(),
   }),
 }));
 vi.mock("@/components/folder/useDriveScan", () => ({

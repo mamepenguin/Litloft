@@ -1,4 +1,4 @@
-import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, CollectionDetail, CollectionSummary, Comment, CommentsResponse, DashboardResponse, Drive, DriveSummary, DuplicatesResponse, FileExif, FileItem, Folder, FolderCount, FolderTreeNode, Highlight, HighlightInput, Neighbors, PaginatedResponse, PinnedFolder, ListingSortField, SortField, SortOrder, Tag, TrustFilter, TrustTier, FileKind, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
+import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, CollectionDetail, CollectionSummary, Comment, CommentsResponse, DashboardResponse, Drive, DriveSummary, DuplicatesResponse, FileExif, FileItem, Folder, FolderCount, FolderTreeNode, Highlight, HighlightInput, HomeShortcut, HomeShortcutKind, Neighbors, PaginatedResponse, PinnedFolder, ListingSortField, SortField, SortOrder, Tag, TrustFilter, TrustTier, FileKind, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
 import type { SmartFolder, SmartFolderCreate, SmartFolderUpdate } from "@/types/smartFolder";
 import { seedFiles } from "@/lib/fileSeed";
 
@@ -822,6 +822,28 @@ export async function batchTag(
 
 export async function getPins(drive: string): Promise<PinnedFolder[]> {
   return fetchJSON<PinnedFolder[]>(`${API_BASE}/drives/${encodeURIComponent(drive)}/pins`);
+}
+
+export async function getHomeShortcuts(drive: string): Promise<HomeShortcut[]> {
+  return fetchJSON<HomeShortcut[]>(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/home-shortcuts`,
+  );
+}
+
+export async function setHomeShortcut(
+  drive: string,
+  shortcut: { kind: HomeShortcutKind; id: string; on_home: boolean },
+): Promise<void> {
+  const res = await fetch(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/home-shortcuts`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(shortcut),
+    },
+  );
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
 }
 
 export async function addPin(drive: string, path: string): Promise<PinnedFolder> {

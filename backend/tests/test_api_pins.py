@@ -15,7 +15,7 @@ class TestPinnedFolders:
             json={"path": "Movies/Action"},
         )
         assert res.status_code == 201
-        assert res.json() == {"path": "Movies/Action"}
+        assert res.json() == {"path": "Movies/Action", "on_home": False}
 
     def test_list_after_pin(self, client):
         c, db, drive_dir, _ = client

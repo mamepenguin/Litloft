@@ -179,6 +179,17 @@ export interface FolderCount {
 
 export interface PinnedFolder {
   path: string;
+  on_home?: boolean;
+}
+
+export type HomeShortcutKind = "smart_folder" | "pin" | "collection";
+
+export interface HomeShortcut {
+  kind: HomeShortcutKind;
+  id: string;
+  name: string;
+  query: string | null;
+  file_type: FileKind | null;
 }
 
 export interface Neighbors {
@@ -220,6 +231,7 @@ export interface CollectionDetail {
   items: CollectionItemEntry[];
   created_at: string;
   updated_at: string;
+  on_home?: boolean;
 }
 
 export interface ArchiveEntry {

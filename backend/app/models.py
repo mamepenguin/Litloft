@@ -189,6 +189,13 @@ class PinnedFolder(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(UTC)
     )
+    home_added_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True, default=None
+    )
+
+    @property
+    def on_home(self) -> bool:
+        return self.home_added_at is not None
 
     __table_args__ = (
         UniqueConstraint("drive", "path", name="uq_pinned_folders_drive_path"),
@@ -208,6 +215,13 @@ class Collection(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
     )
+    home_added_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True, default=None
+    )
+
+    @property
+    def on_home(self) -> bool:
+        return self.home_added_at is not None
 
     items: Mapped[list["CollectionItem"]] = relationship(
         "CollectionItem", back_populates="collection", cascade="all, delete-orphan",
@@ -365,6 +379,13 @@ class SmartFolder(Base):
     updated_at: Mapped[datetime | None] = mapped_column(
         DateTime, nullable=True, default=None, onupdate=lambda: datetime.now(UTC)
     )
+    home_added_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True, default=None
+    )
+
+    @property
+    def on_home(self) -> bool:
+        return self.home_added_at is not None
 
     __table_args__ = (
         Index("idx_smart_folders_drive", "drive"),

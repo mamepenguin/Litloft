@@ -588,6 +588,20 @@ def _migrate(engine_) -> None:
                 "ON files (drive, md_origin)"
             ))
 
+    inspector_home = inspect(engine_)
+    existing_tables = set(inspector_home.get_table_names())
+    for table in ("smart_folders", "pinned_folders", "collections"):
+        if table not in existing_tables:
+            continue
+        columns = {column["name"] for column in inspector_home.get_columns(table)}
+        if "home_added_at" in columns:
+            continue
+        logger.info("Migrating: adding 'home_added_at' column to %s", table)
+        with engine_.begin() as conn:
+            conn.execute(
+                text(f"ALTER TABLE {table} ADD COLUMN home_added_at DATETIME")
+            )
+
     cleanup_tables = set(inspect(engine_).get_table_names())
     if {"files", "collections", "collection_items"} <= cleanup_tables:
         try:

@@ -111,6 +111,7 @@ vi.mock("@/lib/api", () => {
     getFolders: vi.fn().mockResolvedValue([]),
     getPins: vi.fn().mockResolvedValue([]),
     getWatchHistory: (...args: unknown[]) => mockGetWatchHistory(...args),
+    getHomeShortcuts: vi.fn().mockResolvedValue([]),
     addPin: vi.fn(),
     removePin: vi.fn(),
     deleteFile: vi.fn(),
