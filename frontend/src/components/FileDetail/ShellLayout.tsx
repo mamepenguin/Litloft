@@ -214,10 +214,11 @@ export function ShellLayout({
   const shownPanels = shownPanelIds(workbenchItems, storedPanels);
   const hasPreviewActions = hasSlot("file-preview-actions");
   const actionsInRow = workbenchWide;
-  const playerShare =
-    playerFramed && playerFocus && shownPanels.length > 0
-      ? WORKBENCH_PLAYER_FOCUS_SHARE
-      : WORKBENCH_PLAYER_SHARE;
+  const playerFocusApplies =
+    playerFramed && playerFocus && shownPanels.length > 0;
+  const playerShare = playerFocusApplies
+    ? WORKBENCH_PLAYER_FOCUS_SHARE
+    : WORKBENCH_PLAYER_SHARE;
   const previewActions = (
     <AddonSlot
       id="file-preview-actions"
@@ -448,6 +449,7 @@ export function ShellLayout({
           metrics={metrics}
           framed={playerFramed}
           playerShare={playerShare}
+          playerFocused={playerFocusApplies}
           workbench={workbench ?? undefined}
           workbenchActive={workbenchWide && shownPanels.length > 0}
           showPreviewActions={!actionsInRow}
