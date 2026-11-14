@@ -230,20 +230,16 @@ No privacy change: the same data, same endpoint.
 
 ## Invariants
 
-I1. On a search page whose `smart_folder_id` names a loaded Smart Folder of the page's drive, the 上書き保存 button is shown exactly when the trimmed URL `q` differs from the folder's `query` or the URL `type` (absent = null) differs from its `file_type`; changing only sort, scene search or the Files / Passages switch, or typing in the field without submitting, does not show it.
-I2. With no `smart_folder_id`, with the list's first load unfinished or failed, with an id that matches no folder of the drive, or with no `SmartFolderController` above the header, neither the button nor the 上書き保存 menu row is shown, and nothing throws.
-I3. Pressing the button or the enabled menu row sends exactly one `PATCH /api/drives/{drive}/smart-folders/{id}` for the page's drive and that id, whose body is `{query: <trimmed URL q>, file_type: <URL type or null>}` as they were at the press and nothing else, without opening a dialog.
+I1. On a search page whose `smart_folder_id` names a loaded Smart Folder of the page's drive, the 上書き保存 button is shown and the 上書き保存 menu row is enabled exactly when the trimmed URL `q` differs from the folder's `query` or the URL `type` (absent = null) differs from its `file_type`; otherwise the button is absent and the row is disabled. Changing only sort, scene search or the Files / Passages switch, or typing in the field without submitting, does not count as a difference.
+I2. With no `smart_folder_id`, with the list's first load unfinished or failed, with an id that matches no folder of the drive (including after the open folder is deleted through another instance in the same tab), or with no `SmartFolderController` above the header, neither the button nor the 上書き保存 menu row is shown, 「スマートフォルダに保存」 is offered where the menu exists, the URL is unchanged, and nothing throws.
+I3. Pressing the button or the enabled menu row sends exactly one `PATCH /api/drives/{drive}/smart-folders/{id}` for the page's drive and that id, whose body is `{query: <trimmed URL q>, file_type: <URL type or null>}` as they were at the press and nothing else, without opening a dialog; while it is in flight the button and the row are disabled and a second press sends nothing.
 I4. After a successful overwrite the URL is the same as before the press; if the URL's `q` / `type` did not change during the request the button is gone and the menu row is disabled, and if they changed to something other than what was sent the button is still shown.
 I5. After a failed overwrite the toast 「スマートフォルダの更新に失敗しました」 is shown and the button is still shown and enabled.
-I6. While an overwrite is in flight the button and the menu row are disabled, so a second press sends no second request.
-I7. The 上書き保存 menu row is disabled when the conditions equal the saved ones and enabled when they differ.
-I8. After a successful create, overwrite, rename or delete made through one `useSmartFolders` instance, every other instance mounted in the same tab for the same drive fetches the list once and shows the server's list without a reload; the writing instance and an instance for another drive do not fetch, and a failed write notifies no one.
-I9. When a refetch triggered by another instance's write fails, that instance keeps the rows it had and its `loading` / `error` never change during that refetch; when its first load or an explicit `refetch()` fails, it shows an empty list as today.
-I12. Measured in a real browser in the Changed state, the button is the last item of the chips row with its right edge at the row's right edge at 1280px; at 375px it wraps below the chips when it does not fit, the page has no horizontal scroll, and the results bar keeps a single row.
-I14. After a successful overwrite started from the focused button, the focused element is the results bar's `…` button, not `<body>`.
-I13. When two fetches of one instance overlap, the list shown afterwards is the response of the later-started one.
-I10. The `…` menu of an open Smart Folder lists 「保存済み: {name}」, 「上書き保存」 (lucide `Save` icon), 「名前変更」, 「削除」 in that order, and the button's accessible name is 「「{name}」に上書き保存」 with the folder's current name.
-I11. When the open folder is deleted through another instance in the same tab, the page shows no button and no 上書き保存 row, offers 「スマートフォルダに保存」, and the URL is unchanged.
+I6. After a successful create, overwrite, rename or delete made through one `useSmartFolders` instance, every other instance mounted in the same tab for the same drive fetches the list once and shows the server's list without a reload, and when two fetches of one instance overlap the later-started one's response is what remains; the writing instance and an instance for another drive do not fetch, and a failed write notifies no one.
+I7. When a refetch triggered by another instance's write fails, that instance keeps the rows it had and its `loading` / `error` never change during that refetch; when its first load or an explicit `refetch()` fails, it shows an empty list as today.
+I8. The `…` menu of an open Smart Folder lists 「保存済み: {name}」, 「上書き保存」 (lucide `Save` icon), 「名前変更」, 「削除」 in that order, and the button's accessible name is 「「{name}」に上書き保存」 with the folder's current name.
+I9. Measured in a real browser in the Changed state, the button is the last item of the chips row with its right edge at the row's right edge at 1280px; at 375px it wraps below the chips when it does not fit, the page has no horizontal scroll, and the results bar keeps a single row.
+I10. After a successful overwrite started from the focused button, the focused element is the results bar's `…` button, not `<body>`.
 
 ## Checked, no action
 
@@ -263,3 +259,5 @@ I11. When the open folder is deleted through another instance in the same tab, t
   feedback.
 - **Backend change.** None needed: PATCH already updates `query` and `file_type` and is
   drive-scoped.
+- **Notifying other tabs or devices.** Same-tab only. Another tab learns of a change on
+  its next fetch; an overwrite there of a folder deleted here fails with the toast.
