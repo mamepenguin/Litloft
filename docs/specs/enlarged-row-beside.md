@@ -130,8 +130,9 @@ None. Layout only.
 - The 41rem panel-column rule: unchanged. The workbench root keeps its full width in both
   placements; only the row inside it is narrowed.
 - Pseudo full screen, system full screen and the mini player: the frame's slot and the
-  mini-player anchor are the same elements, in the same place, at the same size as with
-  the value on and the row under the frame; the beside state does not depend on them.
+  mini-player anchor are the same elements at the same size as with the row under the
+  frame, moved to the canvas's left edge with the frame; the beside state does not
+  depend on them.
 - The collection surface, `stacked` with the inspector open, the phone, audio: no button,
   so never the beside state.
 - No remount: no element changes parent; only classes, attributes and styles change.
