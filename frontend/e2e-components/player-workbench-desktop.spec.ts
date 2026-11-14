@@ -532,8 +532,10 @@ test("SPEC-CORE-104 I5 another window of the same browser applies a press, aria-
   await openBeside(other, WINDOWS[0]);
   await expect(enlarge(other)).toHaveAttribute("aria-pressed", "false");
 
+  await page.bringToFront();
   await expect(enlarge(page)).toBeVisible();
   await enlarge(page).click();
+  await expect(enlarge(page)).toHaveAttribute("aria-pressed", "true");
 
   await expect(enlarge(other)).toHaveAttribute("aria-pressed", "true");
   await expectFocusedCap(other);
