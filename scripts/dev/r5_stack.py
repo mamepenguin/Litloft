@@ -361,6 +361,17 @@ def cmd_clone(paths: Paths, args) -> None:
 
 def compose(paths: Paths, *args: str) -> int:
     env = verified_env(paths, load_state(paths))
+    return run_compose(paths, env, *args)
+
+
+def stop(paths: Paths) -> int:
+    """`docker compose down` without the mount check, which guards only what starts."""
+    state = load_state(paths)
+    env = compose_env([*state["base_files"], str(paths.overlay)], state["port"])
+    return run_compose(paths, env, "down")
+
+
+def run_compose(paths: Paths, env: dict[str, str], *args: str) -> int:
     return subprocess.run(["docker", "compose", *args], cwd=paths.worktree, env=env).returncode
 
 
@@ -375,7 +386,7 @@ def cmd_destroy(paths: Paths, _args) -> None:
     load_state(paths)
     if paths.state.is_symlink() or paths.state.parent != paths.worktree:
         raise Abort(f"refusing to delete {paths.state}")
-    rc = compose(paths, "down")
+    rc = stop(paths)
     if rc:
         raise Abort("docker compose down failed; the clone is kept")
     shutil.rmtree(paths.state)
@@ -405,7 +416,7 @@ def main(argv: list[str]) -> int:
         elif args.cmd == "compose":
             return compose(paths, *args.rest)
         elif args.cmd == "down":
-            return compose(paths, "down")
+            return stop(paths)
         elif args.cmd == "destroy":
             cmd_destroy(paths, args)
         elif args.cmd == "url":
