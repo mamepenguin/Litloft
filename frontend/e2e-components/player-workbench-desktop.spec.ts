@@ -1400,25 +1400,43 @@ async function pressFrameButton(page: Page, label: string) {
   }, label);
 }
 
+/**
+ * After a full rendering update, so a frame whose carry has not started yet
+ * is not read as settled one frame early (the same wait as `settlesAt` in
+ * `pseudo-fullscreen-transition.spec.ts`).
+ */
+async function frameSettled(page: Page) {
+  await page.evaluate(
+    () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))),
+  );
+  const moving = await frameOf(page).getAttribute("data-fullscreen-moving");
+  return { frame: await box(page, "[data-testid='player-frame']"), moving: moving !== null };
+}
+
 async function enterFullscreen(page: Page) {
   await pressFrameButton(page, "Full screen");
   const viewport = page.viewportSize()!;
   await expect
     .poll(async () => {
-      const pinned = await box(page, "[data-testid='player-frame']");
-      return near(pinned.width, viewport.width) && near(pinned.height, viewport.height);
+      const { frame, moving } = await frameSettled(page);
+      return (
+        !moving &&
+        near(frame.width, viewport.width) &&
+        near(frame.height, viewport.height)
+      );
     })
     .toBe(true);
-  await expect(frameOf(page)).not.toHaveAttribute("data-fullscreen-moving", /.*/);
 }
 
 async function exitFullscreen(page: Page) {
   await pressFrameButton(page, "Exit full screen");
   const viewport = page.viewportSize()!;
   await expect
-    .poll(async () => (await box(page, "[data-testid='player-frame']")).width)
-    .toBeLessThan(viewport.width - 1);
-  await expect(frameOf(page)).not.toHaveAttribute("data-fullscreen-moving", /.*/);
+    .poll(async () => {
+      const { frame, moving } = await frameSettled(page);
+      return !moving && frame.width < viewport.width - 1;
+    })
+    .toBe(true);
 }
 
 /** Records every change to the workbench root's `data-row-beside` from now on. */
