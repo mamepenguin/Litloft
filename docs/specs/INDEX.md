@@ -233,3 +233,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-106 | implemented | docs/specs/smart-collection.md | sha256:9668bed455fb686115f86df9f4757f1f9b987b609a6bf4d7a25e377e4a7694da |
 | SPEC-CORE-107 | implemented | docs/specs/smart-collection.md | sha256:9668bed455fb686115f86df9f4757f1f9b987b609a6bf4d7a25e377e4a7694da |
 | SPEC-CORE-108 | implemented | docs/specs/smart-collection.md | sha256:9668bed455fb686115f86df9f4757f1f9b987b609a6bf4d7a25e377e4a7694da |
+| SPEC-ADDON-111 | draft | docs/specs/representative-frames-v3.md | |
+| SPEC-ADDON-112 | draft | docs/specs/representative-frames-v3.md | |
+| SPEC-ADDON-113 | draft | docs/specs/representative-frames-v3.md | |
+| SPEC-CORE-110 | draft | docs/specs/representative-frames-v3.md | |
