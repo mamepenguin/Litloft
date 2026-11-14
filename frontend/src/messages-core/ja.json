@@ -97,7 +97,10 @@
     "fileCount": "{count, plural, other {#件のファイル}}",
     "emptyDrive": "まだファイルがありません",
     "unlockAccess": "パスワードを入力",
-    "couldNotRemoveFromContinue": "続きから外せませんでした"
+    "couldNotRemoveFromContinue": "続きから外せませんでした",
+    "putOnHome": "ホームに置く",
+    "removeFromHome": "ホームから外す",
+    "homeShortcutFailed": "ホームの入口を変更できませんでした"
   },
   "folder": {
     "items": "{count}件",
@@ -369,7 +372,8 @@
     "sectionTitle": "スマートフォルダ",
     "save": "スマートフォルダに保存",
     "saved": "保存済み: {name}",
-    "update": "更新",
+    "update": "上書き保存",
+    "overwriteLabel": "「{name}」に上書き保存",
     "delete": "削除",
     "rename": "名前変更",
     "menu": "メニュー",
@@ -381,8 +385,6 @@
     "saveAction": "保存",
     "saveSuccess": "スマートフォルダを保存しました",
     "saveFailed": "スマートフォルダの保存に失敗しました",
-    "updateConfirmTitle": "スマートフォルダを更新",
-    "updateConfirmMessage": "「{name}」を現在の検索条件で上書きしますか？",
     "updateSuccess": "スマートフォルダを更新しました",
     "updateFailed": "スマートフォルダの更新に失敗しました",
     "deleteConfirmTitle": "スマートフォルダを削除",

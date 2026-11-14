@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 vi.mock("@/lib/api", () => ({
   getDriveFiles: () => Promise.resolve({ files: [], meta: { total: 0 } }),
   getWatchHistory: () => Promise.resolve([]),
+  getHomeShortcuts: () => Promise.resolve([]),
 }));
 
 vi.mock("../PageHeader", () => ({ PageHeader: () => <div /> }));

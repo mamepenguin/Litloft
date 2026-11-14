@@ -12,6 +12,7 @@ const getWatchHistory = vi.fn<(drive: string, limit: number, scope?: string) => 
 vi.mock("@/lib/api", () => ({
   getDriveFiles: (drive: string, params: Record<string, unknown>) => getDriveFiles(drive, params),
   getWatchHistory: (drive: string, limit: number, scope?: string) => getWatchHistory(drive, limit, scope),
+  getHomeShortcuts: vi.fn().mockResolvedValue([]),
 }));
 
 // The header, stood in for as a unit. Nothing it would draw — the tree

@@ -221,3 +221,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-098 | implemented | docs/specs/inspector-toggle-right-end.md | sha256:6df3c6d711584082adac7bf0761550d2a8790cdcae4a474771ce8e35eeee855a |
 | SPEC-ADDON-106 | implemented | docs/specs/addon-app-header.md | sha256:debc2df3f6ed4943dacd0e9f602ff2f16f9cc6aa98068feae29919cda1282d86 |
 | SPEC-CORE-099 | implemented | docs/specs/addon-app-header.md | sha256:debc2df3f6ed4943dacd0e9f602ff2f16f9cc6aa98068feae29919cda1282d86 |
+| SPEC-CORE-100 | implemented | docs/specs/home-entry-shortcuts.md | sha256:2b6e797d17e1d31e62d7d16e00fea984a0317124168eee3f499a2f10e677812f |
+| SPEC-CORE-101 | implemented | docs/specs/home-entry-shortcuts.md | sha256:2b6e797d17e1d31e62d7d16e00fea984a0317124168eee3f499a2f10e677812f |
+| SPEC-CORE-102 | implemented | docs/specs/home-entry-shortcuts.md | sha256:2b6e797d17e1d31e62d7d16e00fea984a0317124168eee3f499a2f10e677812f |
+| SPEC-CORE-103 | implemented | docs/specs/smart-folder-overwrite.md | sha256:3e5ff632f42075c25c90cec47ca274cb2f259124dd20eda5d16d3aca37dac17e |

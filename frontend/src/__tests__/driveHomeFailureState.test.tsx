@@ -49,6 +49,7 @@ const mockGetWatchHistory = vi.fn();
 vi.mock("@/lib/api", () => ({
   getDriveFiles: (...args: unknown[]) => mockGetDriveFiles(...args),
   getWatchHistory: (...args: unknown[]) => mockGetWatchHistory(...args),
+  getHomeShortcuts: vi.fn().mockResolvedValue([]),
   initUpload: vi.fn(),
   completeUpload: vi.fn().mockResolvedValue(undefined),
   getThumbnailUrl: (id: string) => `/api/files/${id}/thumbnail`,

@@ -134,7 +134,7 @@ describe("the Smart Folder rows in the … menu", () => {
     expect(screen.queryAllByRole("menuitem")).toHaveLength(0);
   });
 
-  it("shows the saved name as a non-item row, then Update, Rename and Delete", () => {
+  it("SPEC-CORE-103 I8: shows the saved name as a non-item row, then Overwrite, Rename and Delete", () => {
     mockSmartFolders = [SAMPLE];
     menu({ smartFolderId: "sf1", typeFilter: "video" });
 
@@ -142,7 +142,7 @@ describe("the Smart Folder rows in the … menu", () => {
     expect(label.closest("[role]")?.getAttribute("role")).toBe("presentation");
     expect(label.classList).toContain("truncate");
     expect(screen.queryByRole("menuitem", { name: /Saved:/ })).toBeNull();
-    for (const name of ["Update", "Rename", "Delete"]) {
+    for (const name of ["Overwrite", "Rename", "Delete"]) {
       expect(screen.getByRole("menuitem", { name })).toBeInTheDocument();
     }
     expect(screen.queryByRole("menuitem", { name: "Save as Smart Folder" })).toBeNull();
@@ -207,21 +207,27 @@ describe("the Smart Folder rows in the … menu", () => {
     expect(params.get("include_scene_clip")).toBe("true");
   });
 
-  it("updates with the URL's query after closing the menu", async () => {
+  it("SPEC-CORE-103 I3: overwrites with the URL's query after closing the menu, without a confirmation", async () => {
     mockSmartFolders = [SAMPLE];
-    updateMock.mockResolvedValueOnce({ ...SAMPLE });
-    const { closeMenu } = menu({ query: "newquery", typeFilter: "video", smartFolderId: "sf1" });
+    updateMock.mockResolvedValueOnce({ ...SAMPLE, query: "newquery" });
+    const { closeMenu } = menu({ query: "  newquery ", typeFilter: "video", smartFolderId: "sf1" });
 
-    fireEvent.click(screen.getByRole("menuitem", { name: "Update" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Overwrite" }));
     expect(closeMenu).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByTestId("confirm-ok"));
+    expect(screen.queryByTestId("confirm-dialog")).toBeNull();
 
-    await waitFor(() => {
-      expect(updateMock).toHaveBeenCalledWith("sf1", {
-        query: "newquery",
-        file_type: "video",
-      });
-    });
+    await waitFor(() => expect(updateMock).toHaveBeenCalledTimes(1));
+    expect(updateMock.mock.calls[0]).toEqual(["sf1", { query: "newquery", file_type: "video" }]);
+  });
+
+  it("SPEC-CORE-103 I1: disables Overwrite while the URL's conditions equal the folder's", () => {
+    mockSmartFolders = [SAMPLE];
+    menu({ query: " foo ", typeFilter: "video", smartFolderId: "sf1" });
+
+    const row = screen.getByRole("menuitem", { name: "Overwrite" });
+    expect(row).toBeDisabled();
+    fireEvent.click(row);
+    expect(updateMock).not.toHaveBeenCalled();
   });
 
   it("deletes and keeps show and include_scene_clip", async () => {

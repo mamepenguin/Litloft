@@ -1595,7 +1595,7 @@ def list_pinned_folders(
         .order_by(PinnedFolder.id)
         .all()
     )
-    return [PinnedFolderResponse(path=pin.path) for pin in pins]
+    return [PinnedFolderResponse(path=pin.path, on_home=pin.on_home) for pin in pins]
 
 
 @router.post("/{drive_name}/pins", response_model=PinnedFolderResponse, status_code=201)
@@ -1620,7 +1620,7 @@ def pin_folder(
     db.add(pin)
     db.commit()
     db.refresh(pin)
-    return PinnedFolderResponse(path=pin.path)
+    return PinnedFolderResponse(path=pin.path, on_home=pin.on_home)
 
 
 @router.delete("/{drive_name}/pins", status_code=204)
