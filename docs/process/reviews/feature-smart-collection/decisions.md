@@ -72,3 +72,15 @@ evidence: |
   r2-sidebar-rename-over-drawer-{ja,en}-375.png, r2-sidebar-delete-dialog-*-375.png and the
   stacks recorded in .r5/manifest.jsonl.
 pending: none
+
+## Design differences accepted by the human (design-check.md)
+
+Accepted by Yuichi Senga on 2026-11-14, each by its id. The artboards drew existing parts from memory rather than from the app's measures; the merged section's structure, the Smart Collection row (icon, no count) and the name-in-use line and border match them.
+
+- D-1 accepted: the save dialog keeps its description line in save mode, as the spec's D4 states.
+- D-2 accepted: the save dialog keeps its existing width (448px).
+- D-3 accepted: the save dialog keeps its existing buttons (height, radius, gap).
+- D-4 accepted: the save dialog keeps its existing field and label styling.
+- D-5 accepted: in the 240px sidebar the name-in-use line wraps to two lines, with no horizontal scroll.
+- D-6 accepted: the heading keeps the existing grip that reorders sidebar sections.
+- D-7 accepted: the sidebar keeps its existing width (240px).
