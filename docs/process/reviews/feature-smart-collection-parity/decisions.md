@@ -149,3 +149,15 @@ KrV7PzdX2y9d, only meaning-search hits), 音楽 (`type:audio`, id yKFdrp_87eCA);
   Spirit with the Library icon and レシピ動画 / 該当なし with the ListFilter icon, in the
   artboard's order (`ask-760-ja-collections`), and the Ask page at 760 puts the header, chip row
   and field in one column as drawn.
+
+## Design differences accepted by the human (design-check.md)
+
+Accepted by Yuichi Senga on 2026-11-15, each by its id. The artboards drew existing parts without measuring them; the parts this change adds (再生 in the bar and the sheet, ここに質問 in the `…` menu, the queue title and count, the Ask chip and the two-kind collection list) match them.
+
+- D-1 accepted: a video queue is today's collection queue for video, a thumbnail grid under the player; an audio queue sits beside it.
+- D-2 accepted: the loop button keeps today's look.
+- D-3 accepted: the 375px `…` sheet keeps today's height and scrolls, so ここに質問 and 選択モード can be below the fold.
+- D-4 accepted: the Ask page keeps its header, tabs and chip row above the field.
+- D-5 accepted: the collection filter keeps today's placeholder.
+- D-6 accepted: the search page keeps its image search control.
+- D-7 accepted: the other bar buttons keep their existing height.
