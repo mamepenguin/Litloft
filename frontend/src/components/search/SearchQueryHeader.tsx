@@ -11,6 +11,7 @@ import type { FileKind, SortField, SortOrder } from "@/types";
 
 import { ConditionMenu } from "./ConditionMenu";
 import { SearchFilterChips } from "./SearchFilterChips";
+import { SmartFolderOverwriteButton } from "@/components/SmartFolderSaveButton";
 
 interface SearchQueryHeaderProps {
   drive: string;
@@ -281,6 +282,8 @@ export function SearchQueryHeader({
               submit(next);
             }}
           />
+
+          <SmartFolderOverwriteButton />
         </div>
       )}
 

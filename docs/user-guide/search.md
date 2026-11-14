@@ -66,9 +66,11 @@ With the intelligence addon, operators also filter the files found by meaning: `
 
 ## Saving as a Smart Folder
 
-In the results bar, open `…` and choose **Save as Smart Folder**, then give it a name. It appears under **Smart Folders** in the sidebar, and the `…` menu then shows **Saved:** followed by the name, with **Update**, **Rename** and **Delete**.
+In the results bar, open `…` and choose **Save as Smart Folder**, then give it a name. It appears under **Smart Folders** in the sidebar, and the `…` menu then shows **Saved:** followed by the name, with **Overwrite**, **Rename** and **Delete**.
 
-- A Smart Folder keeps the query, the file type and the sort. A tag is kept when it is written into the query as `tag:`.
+When the conditions of an open Smart Folder differ from what it saved — a new query, a condition added or removed, or a different type — **上書き保存 / Overwrite** appears at the right end of the row under the field, and the `…` row of the same name is enabled. Either saves the conditions on screen into that folder without asking; once they match the saved ones, the button goes and the row is disabled.
+
+- A Smart Folder keeps the query and the file type. A tag is kept when it is written into the query as `tag:`.
 - It always shows the files that match now, not the ones that matched when you saved it.
 - Only the **Video**, **Image**, **Audio** and **Document** types can be saved. Use **Document** for Markdown and PDFs. Saving with another type shows an error.
 - Everyone who uses the drive sees the same Smart Folders.
