@@ -110,6 +110,7 @@ import { ClipsPageArrangement } from "./clipsPage";
 import { ClipsRowArrangement } from "./clipsRow";
 import { NotesAllClipsToggleArrangement } from "./notesAllClipsToggle";
 import { READING_ARRANGEMENTS } from "./readingTextSize";
+import { NAME_IN_USE_ARRANGEMENTS } from "./nameInUse";
 import {
   InspectorPdfArrangement,
   InspectorVideoArrangement,
@@ -2593,6 +2594,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "header-row-inbox-note": HeaderRowInboxNoteArrangement,
   "header-row-inbox-long": HeaderRowInboxLongArrangement,
   ...READING_ARRANGEMENTS,
+  ...NAME_IN_USE_ARRANGEMENTS,
 };
 
 function App(): ReactElement {
