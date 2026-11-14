@@ -2,7 +2,7 @@
 
 SPEC-ID: SPEC-CORE-106
 
-Approval: sha256:ebb1f55f13d09d85921460e8cd828bebedeb05df26583234c51069129426607a Yuichi Senga 2026-11-15
+Approval: sha256:4368ebbd10119bae47e7fe3a8f216d27fb45c471ce81b3b72d36153d0d17d5b5 Yuichi Senga 2026-11-15
 
 ## Summary
 
@@ -39,7 +39,8 @@ What changes:
 2. **Panels shown** (at least one panel is shown under the player):
    - the host (`.media-detail-host[data-workbench="on"]`) has `height: H` instead of
      `min-height: H`. Its flex column then bounds its children;
-   - the frame's cap is half of H (SPEC-CORE-085 step 8, unchanged);
+   - the frame's height is at most half of H (SPEC-CORE-085 step 8, unchanged) and at most
+     `--player-avail` (§3), so the row never falls below the visible area;
    - the row sits under the frame with its `1rem` top margin;
    - the panel region sits under the row after the row's `0.75rem` gap
      (`.media-detail-workbench` `gap`), fills the rest of the host, and has no minimum
@@ -166,8 +167,8 @@ The frame's share of H while a panel is shown is the existing custom property
 
 | Panel shown | Enlarge value | Frame cap |
 |---|---|---|
-| yes | off | 50% of H (SPEC-CORE-085 step 8) |
-| yes | on | 30% of H, floor 270px (SPEC-CORE-104) |
+| yes | off | min(50% of H, `--player-avail`) (SPEC-CORE-085 step 8) |
+| yes | on | min(max(30% of H, 270px), `--player-avail`) (SPEC-CORE-104) |
 | no | off or on | `--player-avail` (this spec) |
 
 Only the first two rows are read by the revised SPEC-CORE-104 I3 and by I4 below.
@@ -177,7 +178,10 @@ Only the first two rows are read by the revised SPEC-CORE-104 I3 and by I4 below
 - `frontend/src/app/globals.css`: `.media-detail-host[data-workbench="on"]`: `min-height:
   var(--rail-avail)` becomes `height: var(--rail-avail)`, and the rule is restricted to the
   panel-shown state (the attribute is only set then, by `workbenchActive`). Nothing else in
-  the stylesheet changes. The collection rule (`data-collection-workbench`) is not touched.
+  the stylesheet changes except the framed player's cap in the panel-shown state (the host
+  descendant rule), which gains `min(…, --player-avail × 16/9)`, and the enlarged floor
+  (`data-player-focus="on"`), which gains the same term. The collection rule
+  (`data-collection-workbench`) is not touched.
 - `frontend/src/components/FileDetail/workbench/Workbench.tsx`: the grid's `minHeight`
   (`WORKBENCH_MIN_REM`) is removed. The row element is not passed anywhere; the metrics hook
   finds it by class (§3).
@@ -238,7 +242,8 @@ above the row's top edge, and the frame's height is at most `--player-avail`.
 
 I4. With a panel shown and the stored value off, the frame's height is at most half of H.
 With the stored value on, it is at most 30% of H, and at least 270px unless the canvas width
-limits it first.
+or `--player-avail` limits it first. In both states the frame's height is at most
+`--player-avail`.
 
 I5. With a panel shown, the host's height is H (within 1px), and the panel region has no
 minimum height, so that a region's height is 0 at a small H and grows with H.

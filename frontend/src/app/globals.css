@@ -919,8 +919,9 @@ pre mark.ask-citation-highlight {
 
 .media-detail-host[data-workbench="on"]
   .media-detail-player[data-framed="true"] {
-  max-width: calc(
-    var(--rail-avail, 100dvh) * var(--workbench-player-share, 0.5) * 16 / 9
+  max-width: min(
+    calc(var(--rail-avail, 100dvh) * var(--workbench-player-share, 0.5) * 16 / 9),
+    calc(var(--player-avail, 100dvh) * 16 / 9)
   );
 }
 
@@ -932,7 +933,8 @@ pre mark.ask-citation-highlight {
   min-width: min(
     100%,
     480px,
-    calc(var(--rail-avail, 100dvh) * 0.5 * 16 / 9)
+    calc(var(--rail-avail, 100dvh) * 0.5 * 16 / 9),
+    calc(var(--player-avail, 100dvh) * 16 / 9)
   );
 }
 
