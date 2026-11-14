@@ -1309,7 +1309,7 @@ so it has no workbench.
 | Token | Value | Meaning |
 |---|---|---|
 | column threshold | `41rem` | At or above it, the panels that are shown sit side by side as equal columns; below it they sit one above the other. |
-| row beside threshold | `17rem` | While a panel is shown under an enlarged frame, the row moves into the space to the player's right once that space is at least this wide; below it the row stays under a centred frame. |
+| row beside threshold | `13rem` | While a panel is shown under an enlarged frame, the row moves into the space to the player's right once that space is at least this wide; below it the row stays under a centred frame. |
 | panel floor | `18rem` | The panels are at least this tall. If the room is less, they keep it and the page scrolls. |
 | player cap | half, or `30%`, of the scroll container's visible height | While a panel is shown under a framed player on the canonical page. **Enlarge panels** in the row picks the smaller share, floored at a 480px-wide frame (270px tall) so the player keeps its full controls, and never above half. An unframed player (audio) is not capped, and neither are pseudo or system full screen and the mini player. |
 | collection height | `60%` of the scroll container, at least `18rem` | The panels together on the collection surface. Two stacked panels share it equally. The player there is not capped. |
@@ -1318,11 +1318,14 @@ so it has no workbench.
   **Enlarge panels** button while a panel is shown, and the player's
   `file-preview-actions` entries at its trailing end. With no toggle and no
   action the row is not drawn.
-- **The row follows the frame while Enlarge panels is on.** With `17rem` or more
+- **The row follows the frame while Enlarge panels is on.** With `13rem` or more
   beside the frame, the frame sits at the canvas's left edge at the same size
   and the row takes the space to its right, its bottom on the frame's bottom;
   the panels start `0.75rem` under the frame. With less room the frame is
   centred and the row is under it, one `1rem` above the panels.
+- **The threshold fits one line's widest content**: the widest panel toggle
+  and the Enlarge panels button at the coarse size. A `file-preview-actions`
+  entry is not part of the budget.
 - **At most two panels are shown**, in the panel list's order rather than the
   order they were turned on.
 - **A panel is mounted once per form**: turning it on or off, closing it and
