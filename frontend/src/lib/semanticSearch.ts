@@ -24,6 +24,8 @@ export async function isSemanticSearchAvailable(drive: string): Promise<boolean>
 export interface SemanticHitsResult {
   ok: boolean;
   results: SemanticHit[];
+  /** The HTTP status when the server answered; absent when no request was sent. */
+  status?: number;
 }
 
 export async function fetchSemanticHits(
@@ -57,13 +59,17 @@ export async function fetchSemanticHits(
         signal: options?.signal,
       },
     );
-    if (!res.ok) return { ok: false, results: [] };
+    if (!res.ok) return { ok: false, results: [], status: res.status };
     const data = (await res.json()) as {
       available?: boolean;
       results?: SemanticHit[];
     };
-    if (!data?.available) return { ok: false, results: [] };
-    return { ok: true, results: Array.isArray(data.results) ? data.results : [] };
+    if (!data?.available) return { ok: false, results: [], status: res.status };
+    return {
+      ok: true,
+      results: Array.isArray(data.results) ? data.results : [],
+      status: res.status,
+    };
   } catch {
     return { ok: false, results: [] };
   }

@@ -64,20 +64,29 @@ export interface AddonsStatus {
 const _cacheKey = (drive: string | null) => drive ?? "__global__";
 const _cached: Map<string, AddonsStatus> = new Map();
 const _fetchPromise: Map<string, Promise<AddonsStatus>> = new Map();
+// An empty `addons` is both "the drive has none" and "the status request
+// failed", so an entry alone cannot answer `getSemanticAvailability`.
+const _answered: Map<string, boolean> = new Map();
 
 async function fetchAddonsStatus(drive: string | null): Promise<AddonsStatus> {
+  const key = _cacheKey(drive);
   const url = drive
     ? `/api/addons/status?drive=${encodeURIComponent(drive)}`
     : "/api/addons/status";
   try {
     const res = await fetch(url, { credentials: "include" });
-    if (!res.ok) return { addons: {}, slots: {} };
+    if (!res.ok) {
+      _answered.set(key, false);
+      return { addons: {}, slots: {} };
+    }
     const data = await res.json();
+    _answered.set(key, true);
     return {
       addons: (data.addons as Record<string, AddonMeta>) ?? {},
       slots: (data.slots as Record<string, SlotEntry[]>) ?? {},
     };
   } catch {
+    _answered.set(key, false);
     return { addons: {}, slots: {} };
   }
 }
@@ -107,6 +116,27 @@ export async function getEnabledAddons(
   return status.addons;
 }
 
+export type SemanticAvailability = "available" | "off" | "unknown";
+
+/**
+ * Whether the meaning search can run for the drive. `unknown` means the
+ * status request failed, which a caller must not treat as "no hits"; a cached
+ * failure is asked again rather than reused, so an addon enabled since then is
+ * seen.
+ */
+export async function getSemanticAvailability(
+  drive: string,
+): Promise<SemanticAvailability> {
+  const key = _cacheKey(drive);
+  if (_answered.get(key) === true) {
+    return _cached.get(key)?.addons["intelligence"] ? "available" : "off";
+  }
+  if (!_fetchPromise.has(key)) _cached.delete(key);
+  const status = await getAddonsStatus(drive);
+  if (_answered.get(key) !== true) return "unknown";
+  return status.addons["intelligence"] ? "available" : "off";
+}
+
 export async function getSlots(
   drive: string | null = null,
 ): Promise<Record<string, SlotEntry[]>> {
@@ -125,6 +155,7 @@ export function hasSlotEntries(
 export function invalidateAddonsCache(): void {
   _cached.clear();
   _fetchPromise.clear();
+  _answered.clear();
 }
 
 export type ShelfProvider = (args: {
