@@ -6,7 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 
 import { MenuRadioGroup, MenuSeparator, ToolbarMenu } from "@/components/ToolbarMenu";
 import { getDriveFiles } from "@/lib/api";
-import type { AppId } from "@/lib/appPrefs";
+import type { AppKey } from "@/lib/appPrefs";
 import type { FileKind } from "@/types";
 import type { SmartFolder } from "@/types/smartFolder";
 import { ManageTargetsDialog } from "./ManageTargetsDialog";
@@ -15,7 +15,7 @@ import { useShownTargets } from "./useShownTargets";
 
 export interface TargetMenuProps {
   drive: string;
-  app: AppId;
+  app: AppKey;
   /** What the button reads; `null` while the saved folder is looked up. */
   name: string | null;
   folders: LoadState<SmartFolder[]>;
@@ -61,15 +61,19 @@ function Rows({
   const t = useTranslations("appShell");
   const locale = useLocale();
   const onDefault = selectedId === "default";
+  // Compared by value: an inline array would otherwise re-request the count on
+  // every render of the open menu.
+  const typesKey = JSON.stringify(defaultTargetTypes);
+  const types = useMemo<FileKind[]>(() => JSON.parse(typesKey), [typesKey]);
   const loadDefaultCount = useMemo(
     () =>
       onDefault
         ? null
         : () =>
-            getDriveFiles(drive, { type: [...defaultTargetTypes], limit: 1 }).then(
+            getDriveFiles(drive, { type: types, limit: 1 }).then(
               (page) => page.meta.total,
             ),
-    [drive, onDefault, defaultTargetTypes],
+    [drive, onDefault, types],
   );
   const { state } = useLoad(loadDefaultCount);
   const defaultCount = onDefault ? currentCount : state.status === "loaded" ? state.data : null;
@@ -151,7 +155,7 @@ export function TargetMenu({
 
   return (
     <>
-      <ToolbarMenu label={label} value={name ?? "…"} icon={Target} showLabel filled align="end">
+      <ToolbarMenu label={label} value={name ?? "…"} icon={Target} quiet align="end">
         {(close) => (
           <Rows
             drive={drive}

@@ -4,6 +4,9 @@ export type AppFace = (typeof APP_FACES)[number];
 export const APP_IDS = ["video", "reading"] as const;
 export type AppId = (typeof APP_IDS)[number];
 
+/** A built-in app, or an addon by the name the addon loader accepted for it. */
+export type AppKey = AppId | { addon: string };
+
 export const APP_CLASSIFICATIONS = ["folder", "tag", "month", "duration", "watch"] as const;
 export type AppClassification = (typeof APP_CLASSIFICATIONS)[number];
 
@@ -26,8 +29,25 @@ export const DEFAULT_APP_PREFS: AppPrefs = {
 };
 
 /** Encoded, so one drive's name can never be the prefix of another's key. */
-function keyFor(app: AppId, field: keyof AppPrefs, drive: string): string {
-  return `litloft.${app}App.${field}.${encodeURIComponent(drive)}`;
+function keyPrefix(app: AppKey): string {
+  return typeof app === "string" ? `litloft.${app}App` : `litloft.addon.${app.addon}`;
+}
+
+function keyFor(app: AppKey, field: keyof AppPrefs, drive: string): string {
+  return `${keyPrefix(app)}.${field}.${encodeURIComponent(drive)}`;
+}
+
+function shownKeyFor(app: AppKey, drive: string): string {
+  return `${keyPrefix(app)}.targets.${encodeURIComponent(drive)}`;
+}
+
+/** Distinct for `video` and `{ addon: "video" }`, which are different keys. */
+export function appKeyId(app: AppKey): string {
+  return typeof app === "string" ? app : `addon:${app.addon}`;
+}
+
+export function appKeyFromId(id: string): AppKey {
+  return id.startsWith("addon:") ? { addon: id.slice("addon:".length) } : (id as AppId);
 }
 
 function read(app: AppId, field: keyof AppPrefs, drive: string): string | null {
@@ -50,7 +70,7 @@ export function readAppPrefs(drive: string, app: AppId = "video"): AppPrefs {
       read(app, "classification", drive),
       DEFAULT_APP_PREFS.classification,
     ),
-    target: read(app, "target", drive) || DEFAULT_APP_PREFS.target,
+    target: readAppTarget(drive, app),
   };
 }
 
@@ -71,14 +91,35 @@ export function writeAppPrefs(
 }
 
 /**
+ * `"default"` or a smart folder id, unchecked against the drive's folders: a
+ * caller falls back to the default target for a folder that is gone or
+ * unusable and keeps the saved id, as the built-in apps do.
+ */
+export function readAppTarget(drive: string, app: AppKey): string {
+  try {
+    return localStorage.getItem(keyFor(app, "target", drive)) || DEFAULT_APP_PREFS.target;
+  } catch {
+    return DEFAULT_APP_PREFS.target;
+  }
+}
+
+export function writeAppTarget(drive: string, app: AppKey, id: string): void {
+  try {
+    localStorage.setItem(keyFor(app, "target", drive), id);
+  } catch {
+    // Losing a choice only returns the menu to the default target.
+  }
+}
+
+/**
  * The smart folders the viewer chose to show in the Target menu. `null` is
  * "never saved", which lists every usable folder; an empty array is a saved
  * set that lists none.
  */
-export function readShownTargets(drive: string, app: AppId = "video"): string[] | null {
+export function readShownTargets(drive: string, app: AppKey = "video"): string[] | null {
   let raw: string | null;
   try {
-    raw = localStorage.getItem(`litloft.${app}App.targets.${encodeURIComponent(drive)}`);
+    raw = localStorage.getItem(shownKeyFor(app, drive));
   } catch {
     return null;
   }
@@ -97,13 +138,10 @@ export function readShownTargets(drive: string, app: AppId = "video"): string[] 
 export function writeShownTargets(
   drive: string,
   ids: readonly string[],
-  app: AppId = "video",
+  app: AppKey = "video",
 ): void {
   try {
-    localStorage.setItem(
-      `litloft.${app}App.targets.${encodeURIComponent(drive)}`,
-      JSON.stringify(ids),
-    );
+    localStorage.setItem(shownKeyFor(app, drive), JSON.stringify(ids));
   } catch {
     // The open page keeps the toggle; a reload reads the previous set.
   }

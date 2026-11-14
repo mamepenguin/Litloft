@@ -240,6 +240,7 @@ export function VideoShelfPage({
               <SortChoiceMenu
                 choices={offered}
                 value={sortId}
+                quiet
                 onChange={(id) => setSelection({ scope, id })}
               />
             )

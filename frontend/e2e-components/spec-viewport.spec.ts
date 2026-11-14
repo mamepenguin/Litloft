@@ -40,6 +40,7 @@ const DEVICE_HEIGHT_PX = 727;
  */
 const AT_THE_PHONE_WIDTH = [
   "add-menu.spec.ts",
+  "app-header.spec.ts",
   "anchored-direction.spec.ts",
   "header-row-crowding.spec.ts",
   "immersive-viewer-layer.spec.ts",
@@ -109,6 +110,7 @@ const AT_THE_DESKTOP_WIDTH = [
   "stacked-description-desktop.spec.ts",
   "file-header-row-desktop.spec.ts",
   "reading-text-size-desktop.spec.ts",
+  "app-header-desktop.spec.ts",
 ] as const;
 
 test.describe("the component fixture lays out at the width it was given", () => {

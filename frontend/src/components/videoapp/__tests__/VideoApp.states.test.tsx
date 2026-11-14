@@ -371,7 +371,8 @@ describe("the count in the header", () => {
     writeAppPrefs(DRIVE, { target: "pics" });
     render(<VideoApp drive={DRIVE} />);
 
-    expect(await screen.findByText(/main · 0/)).toBeInTheDocument();
+    const drive = await screen.findByText(DRIVE);
+    expect(drive.parentElement?.textContent).toContain("main · 0");
     expect(getShelves).not.toHaveBeenCalled();
     expect(getDriveFiles).not.toHaveBeenCalled();
     expect(await screen.findByText("No files")).toBeInTheDocument();

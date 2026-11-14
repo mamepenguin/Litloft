@@ -1,0 +1,58 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-11-13T12:00:00Z"
+ },
+ "title": "Photo Diary header with Target",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Main.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 1280,
+   "h": 860,
+   "title": "広い画面・カレンダー"
+  },
+  "Map.dc.html": {
+   "x": 1360,
+   "y": 0,
+   "w": 1280,
+   "h": 860,
+   "title": "広い画面・地図"
+  },
+  "Phone.dc.html": {
+   "x": 0,
+   "y": 980,
+   "w": 375,
+   "h": 812,
+   "title": "375px・既定の対象"
+  },
+  "Phone-Long.dc.html": {
+   "x": 455,
+   "y": 980,
+   "w": 375,
+   "h": 812,
+   "title": "375px・長いフォルダ名"
+  },
+  "Shelf-B.dc.html": {
+   "x": 0,
+   "y": 1960,
+   "w": 375,
+   "h": 812,
+   "title": "棚のページ 375px"
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "Map.dc.html",
+  "Phone.dc.html",
+  "Phone-Long.dc.html",
+  "Shelf-B.dc.html"
+ ],
+ "notes": {},
+ "designSystems": []
+}

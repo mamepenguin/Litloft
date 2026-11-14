@@ -5,8 +5,9 @@ sidebar right after **ライブラリ** / **Library** and before the rows that a
 (Notes, Ask). It is selected only on its own pages, so Library is not lit while you are
 here.
 
-The header shows the drive, how many videos are under the current target, and a **Target**
-button. Two tabs under it switch the page between **発見** / **Discover** and
+The header shows the drive, how many videos are under the current target, and a control
+showing the target's name with a target icon: at the title row's end, or under the title on
+a phone. Two tabs under it switch the page between **発見** / **Discover** and
 **ライブラリ** / **Library**. Litloft remembers, per drive, which tab you used last, and it
 opens there.
 
@@ -63,10 +64,11 @@ target and sort. More shelves load as you scroll.
 
 ## Target
 
-**Target** chooses which videos the page works on. **All videos** is every video in the
-drive. A smart folder can replace it; the page then shows only the videos that smart folder
-matches, and the choice is remembered for the drive. A smart folder's own sort is not used
-here.
+The target control shows the target's name with a target icon, at the title row's end or
+under the title on a phone. It chooses which videos the page works on. **All videos** is
+every video in the drive. A smart folder can replace it; the page then shows only the videos
+that smart folder matches, and the choice is remembered for the drive. A smart folder's own
+sort is not used here.
 
 The menu lists **All videos**, then the smart folders you chose to show, then
 **管理…** / **Manage…**. **Manage…** opens a searchable list of the drive's smart folders;
