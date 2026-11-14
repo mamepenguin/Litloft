@@ -44,6 +44,7 @@ vi.mock("@/components/SmartFolderSaveButton", () => ({
     return <>{children}</>;
   },
   SmartFolderMenuItems: () => null,
+  SmartFolderOverwriteButton: () => null,
 }));
 
 vi.mock("@/components/AddonSlot", () => ({
