@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship (the human, 2026-11-14: "ship"; r1 HUMAN_REVIEW_REQUIRED, the ToolbarMenu trigger focus on click kept for every shape)
 ran_in_app: yes
 at: 5c5455c2a643cdc6ea9241f2f0d8a57c163c7555
 by: agent

@@ -218,5 +218,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-096 | implemented | docs/specs/reading-text-size.md | sha256:d1b28deeb6a5175080485786c2bd1f4aa641c404c7450da37f5711057df018c0 |
 | SPEC-ADDON-105 | implemented | docs/specs/reading-text-size.md | sha256:d1b28deeb6a5175080485786c2bd1f4aa641c404c7450da37f5711057df018c0 |
 | SPEC-CORE-097 | implemented | docs/specs/dark-theme-neutral.md | sha256:dd1dfa9e2e6f3de375468defec059d5a4a7d81579c7139467123e8c36909f2a5 |
-| SPEC-ADDON-106 | approved | docs/specs/addon-app-header.md | sha256:debc2df3f6ed4943dacd0e9f602ff2f16f9cc6aa98068feae29919cda1282d86 |
-| SPEC-CORE-099 | approved | docs/specs/addon-app-header.md | sha256:debc2df3f6ed4943dacd0e9f602ff2f16f9cc6aa98068feae29919cda1282d86 |
+| SPEC-ADDON-106 | implemented | docs/specs/addon-app-header.md | sha256:debc2df3f6ed4943dacd0e9f602ff2f16f9cc6aa98068feae29919cda1282d86 |
+| SPEC-CORE-099 | implemented | docs/specs/addon-app-header.md | sha256:debc2df3f6ed4943dacd0e9f602ff2f16f9cc6aa98068feae29919cda1282d86 |
