@@ -13,9 +13,9 @@ the clone in their place; the symlinks are left alone.
     python3 scripts/dev/r5_stack.py destroy
     python3 scripts/dev/r5_stack.py url
 
---with-drives also clones every drive, for a change that moves, trashes,
-purges or uploads files. Without it the drives stay shared with every other
-stack.
+Without --with-drives the stack mounts every drive read-only, so anything
+that writes a drive (upload, move, rename, purge) fails. --with-drives clones
+the drives too, for a run that has to write them.
 
 Open the stack at the URL `up` prints (<worktree>.localhost:<port>), not at
 localhost: cookies are scoped by host and not by port, so two stacks opened
@@ -228,47 +228,62 @@ def drive_targets(paths: Paths) -> set[str]:
     return {d["path"] for d in drives if "path" in d}
 
 
+def drive_sources(paths: Paths, config: dict) -> set[Path]:
+    targets = drive_targets(paths)
+    backend = config["services"].get("backend", {})
+    return {
+        Path(vol["source"]).resolve()
+        for vol in backend.get("volumes", []) or []
+        if vol.get("type") == "bind" and vol["target"] in targets
+    }
+
+
 def plan_overlay(paths: Paths, config: dict, with_drives: bool) -> dict:
-    """Clone what the stack writes and return the overlay that mounts the clones."""
+    """Clone what the stack writes and return the overlay that mounts the clones.
+
+    Drives that are not cloned are mounted read-only: the clone's DB is a
+    snapshot, so its trash purge and any file operation would act on files the
+    main checkout may have restored or moved since.
+    """
     state = paths.state
-    drive_sources: dict[Path, Path] = {}
+    drives = sorted(drive_sources(paths, config))
+    drive_clones: dict[Path, Path] = {}
     if with_drives:
-        targets = drive_targets(paths)
-        backend = config["services"].get("backend", {})
-        for vol in backend.get("volumes", []) or []:
-            if vol.get("type") == "bind" and vol["target"] in targets:
-                src = Path(vol["source"]).resolve()
-                drive_sources.setdefault(src, state / "drives" / f"{len(drive_sources)}-{src.name}")
-        for src, dst in drive_sources.items():
+        for i, src in enumerate(drives):
+            dst = state / "drives" / f"{i}-{src.name}"
             dst.parent.mkdir(parents=True, exist_ok=True)
             clone_tree(src, dst)
+            drive_clones[src] = dst
 
     files_dir = state / "files"
     overlay: dict[str, list] = {}
     for name, vol in binds(config):
         src = Path(vol["source"]).resolve()
+        read_only = bool(vol.get("read_only"))
+        drive = next((d for d in drives if is_under(src, d)), None)
         new = None
         if is_under(src, paths.main_data):
             new = state / "data" / src.relative_to(paths.main_data)
-        elif any(is_under(src, d) for d in drive_sources):
-            root = next(d for d in drive_sources if is_under(src, d))
-            new = drive_sources[root] / src.relative_to(root)
-        elif src.is_file() and not vol.get("read_only") and is_under(src, paths.main):
+        elif drive is not None and with_drives:
+            new = drive_clones[drive] / src.relative_to(drive)
+        elif drive is not None and not read_only:
+            new, read_only = src, True
+        elif src.is_file() and not read_only and is_under(src, paths.main):
             files_dir.mkdir(parents=True, exist_ok=True)
             new = files_dir / src.name
             if not new.exists():
                 shutil.copy2(src, new)
         if new is not None:
             entry = {"type": "bind", "source": str(new), "target": vol["target"]}
-            if vol.get("read_only"):
+            if read_only:
                 entry["read_only"] = True
             overlay.setdefault(name, []).append(entry)
     return {"services": {n: {"volumes": v} for n, v in overlay.items()}}
 
 
-def shared_writes(paths: Paths, config: dict, with_drives: bool) -> list[str]:
-    """Bind mounts that would still reach the main checkout's state."""
-    targets = drive_targets(paths) if with_drives else set()
+def shared_writes(paths: Paths, config: dict) -> list[str]:
+    """Bind mounts that would still write the main checkout's state or a shared drive."""
+    drives = [d for d in drive_sources(paths, config) if not is_under(d, paths.state)]
     problems = []
     for name, vol in binds(config):
         src = Path(vol["source"]).resolve()
@@ -278,7 +293,7 @@ def shared_writes(paths: Paths, config: dict, with_drives: bool) -> list[str]:
         shared = (
             is_under(src, paths.main_data)
             or (rw and src.is_file() and is_under(src, paths.main))
-            or (name == "backend" and vol["target"] in targets)
+            or (rw and any(is_under(src, d) for d in drives))
         )
         if shared:
             problems.append(f"{name}: {src} -> {vol['target']}")
@@ -312,7 +327,7 @@ def stack_url(paths: Paths, port: int) -> str:
 
 def verified_env(paths: Paths, state: dict) -> dict[str, str]:
     files = [*state["base_files"], str(paths.overlay)]
-    problems = shared_writes(paths, compose_config(paths, files), state["with_drives"])
+    problems = shared_writes(paths, compose_config(paths, files))
     if problems:
         raise Abort("the stack would still write the main checkout's state:\n  "
                     + "\n  ".join(problems))
