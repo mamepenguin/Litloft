@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Star, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useShortcuts } from "@/hooks/useShortcuts";
@@ -95,7 +96,7 @@ export function SmartFolderSaveDialog({
   const title = mode === "rename" ? t("renameTitle") : t("saveTitle");
   const submitLabel = mode === "rename" ? tc("change") : t("saveAction");
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
@@ -176,6 +177,7 @@ export function SmartFolderSaveDialog({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
