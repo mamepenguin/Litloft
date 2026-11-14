@@ -26,6 +26,7 @@ import {
 
 const PHONE = 375;
 const DRIVE = "fixture";
+const SUMMER_FOLDER_NAME = "Holiday 25";
 
 for (const app of APP_PAGES) {
   for (const width of [PHONE, 639]) {
@@ -85,6 +86,49 @@ for (const app of APP_PAGES) {
     expect(m.separator.whole).toBe(true);
     expect(m.targetName.whole).toBe(true);
     expect(sameRow(m.target, m.count)).toBe(true);
+    expect(m.scrollWidth).toBeLessThanOrEqual(PHONE);
+    expect(m.overflowRight).toBeLessThanOrEqual(PHONE);
+  });
+
+  test(`SPEC-CORE-099 I10 ${app} at 375px with a long drive name and a folder name that fits beside the count: the Target's name is whole, the drive is cut, the count stays whole`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: PHONE, height: 800 });
+    const q = new URLSearchParams({ page: app, drive: LONG_DRIVE_NAME, target: "summer" });
+    await page.goto(`${pathToFileURL(PAGE).href}?${q}#app-header`);
+    await expect(page.locator("body")).toHaveAttribute("data-harness", "ready");
+    await expect(page.locator("header h1")).toBeVisible();
+    const m = await snapshot(page, { drive: LONG_DRIVE_NAME, targetName: SUMMER_FOLDER_NAME });
+
+    const fit = await targetButton(page).evaluate((btn) => {
+      const style = getComputedStyle(btn);
+      const svgs = Array.from(btn.querySelectorAll("svg")).map((el) => el.getBoundingClientRect().width);
+      const name = Array.from(btn.querySelectorAll("span")).find(
+        (el) => (el.textContent ?? "").trim().length > 0,
+      );
+      const line = btn.parentElement?.parentElement?.parentElement;
+      if (!name || !line) throw new Error("the Target's name or the scope line is not in the header");
+      const gap = parseFloat(style.columnGap) || 0;
+      return {
+        maxContent:
+          parseFloat(style.paddingLeft) +
+          parseFloat(style.paddingRight) +
+          svgs[0] +
+          gap +
+          name.scrollWidth +
+          gap +
+          svgs[svgs.length - 1],
+        line: line.getBoundingClientRect().width,
+      };
+    });
+    expect(fit.maxContent / fit.line).toBeGreaterThan(0.4);
+    expect(fit.maxContent / fit.line).toBeLessThanOrEqual(0.65);
+
+    expect(m.targetName.whole).toBe(true);
+    expect(m.drive.whole).toBe(false);
+    expect(m.count.whole).toBe(true);
+    expect(m.targetSvgs[0].width).toBeCloseTo(14, 1);
+    expect(m.targetSvgs[m.targetSvgs.length - 1].width).toBeCloseTo(14, 1);
     expect(m.scrollWidth).toBeLessThanOrEqual(PHONE);
     expect(m.overflowRight).toBeLessThanOrEqual(PHONE);
   });

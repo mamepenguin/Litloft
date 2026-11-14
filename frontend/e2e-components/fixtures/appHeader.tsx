@@ -26,6 +26,7 @@ const FOLDERS = {
   },
   camera: { id: "sf-camera", name: "2025 summer trip, camera footage only", query: "path:Trips" },
   trips: { id: "sf-trips", name: "Trips", query: "path:Trips" },
+  summer: { id: "sf-summer", name: "Holiday 25", query: "tag:holiday" },
 } as const;
 
 type TargetKey = keyof typeof FOLDERS;
@@ -105,7 +106,11 @@ export function AppHeaderArrangement(): ReactElement {
   const drive = q.get("drive") ?? "fixture";
   const locale = q.get("locale") === "ja" ? "ja" : "en";
   const target = q.get("target");
-  install(drive, page, target === "long" || target === "camera" || target === "trips" ? target : null);
+  install(
+    drive,
+    page,
+    target === "long" || target === "camera" || target === "trips" || target === "summer" ? target : null,
+  );
 
   useEffect(() => {
     document.body.dataset.harness = "ready";
