@@ -65,3 +65,6 @@ test_images/
 # because a stored judgement about code that has moved is the exact artefact
 # this linter exists to find.
 /.jev-lint/
+
+# A worktree's own copy of data/ for a parallel stack (scripts/dev/r5_stack.py)
+/.r5-stack/
