@@ -1284,7 +1284,7 @@ so it has no workbench.
 |---|---|---|
 | column threshold | `41rem` | At or above it, the panels that are shown sit side by side as equal columns; below it they sit one above the other. |
 | panel floor | `18rem` | The panels are at least this tall. If the room is less, they keep it and the page scrolls. |
-| player cap | half, or `30%`, of the scroll container's visible height | While a panel is shown under a framed player on the canonical page. **Enlarge panels** in the row picks the smaller share. An unframed player (audio) is not capped, and neither are pseudo or system full screen and the mini player. |
+| player cap | half, or `30%`, of the scroll container's visible height | While a panel is shown under a framed player on the canonical page. **Enlarge panels** in the row picks the smaller share, floored at a 480px-wide frame (270px tall) so the player keeps its full controls, and never above half. An unframed player (audio) is not capped, and neither are pseudo or system full screen and the mini player. |
 | collection height | `60%` of the scroll container, at least `18rem` | The panels together on the collection surface. Two stacked panels share it equally. The player there is not capped. |
 
 - **The row is the panels' switch**: one toggle per available panel, the
