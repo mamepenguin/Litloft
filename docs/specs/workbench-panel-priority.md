@@ -62,8 +62,11 @@ player's job. This change keeps that property: at 30% the player is still on scr
 
 ### 3. States
 
-Stored value: **off** (default) or **on**. Transitions: off -> on and on -> off, only by
-pressing the button, or by a `storage` event from another window.
+Stored value: **off** (default) or **on**. Only the exact string `"true"` is on; a
+missing, empty or any other value is off. Transitions: off -> on and on -> off, only by
+pressing the button, or by a `storage` event from another window. Nothing else writes
+`workbench-player-focus`: not a file change, a form change, opening Find, closing panels,
+a reload, or an unreadable value.
 
 Applied cap, per page:
 
@@ -71,13 +74,15 @@ Applied cap, per page:
 |---|---|
 | Canonical page, workbench form, framed player, at least one panel shown, value off | 50% |
 | Same, value on | 30% |
-| Same, while pseudo or system full screen or the mini player is up | none, as today |
 | No panel shown, unframed player (audio), stacked with the inspector open, phone, collection surface | as today, unaffected by the value |
 
-The button is drawn in the first three rows. In the third it stays where it is in the row
-(under the full-screen frame or the mini player, like the rest of the row); pressing it
-there writes the value, and the cap applies when that state ends. The button does not
-read full-screen or mini-player state.
+The button is drawn in the first two rows. Pseudo full screen, system full screen and the
+mini player are not a separate state for this change: the button stays in the row under
+them, and the value applies to the page underneath at once, as any re-layout does today.
+The full-screen frame and the mini-player window themselves are not capped, as today.
+Whether the mini player appears still follows `useMiniPlayer` (the player wrapper leaving
+the scroll container's view); a press that changes the page's geometry may change that,
+and that is accepted.
 
 ### 4. Data read and written
 
@@ -105,8 +110,9 @@ None. A per-browser display preference; it exposes no data.
   the inspector closed the row and panels are under the player (SPEC-CORE-083 I4 as
   revised by SPEC-CORE-085), so the button and the value apply there like any workbench
   form.
-- The mini player: unchanged. It is not capped (SPEC-CORE-085 step 8) and the button does
-  not affect whether it appears.
+- The mini player: its window is not capped (SPEC-CORE-085 step 8). On the canonical page
+  it rarely appears, because the workbench keeps the player in view; at 30% the player is
+  still in view.
 - `--workbench-player-share` in `globals.css` already exists and is set from
   `mediaHostStyle`; it now carries 0.3 or 0.5.
 - The Scenes panel sizes its rows from its host's height (SPEC-ADDON-093 follow-up), so it
@@ -124,9 +130,15 @@ in-memory value, as above.
 - Accessible name and tooltip (`title`): ja **パネルを広げる**, en **Enlarge panels**. The
   name does not change with the state; `aria-pressed` carries the state.
 - Styled like the panel toggles (`.workbench-toggle`, border, `is-on` accent while
-  pressed). A square box as tall as the toggles: 2rem x 2rem, 2.75rem x 2.75rem under
-  `pointer: coarse`, no horizontal padding, the 16px icon centred. The gap to its
-  neighbours is the row's existing `0.5rem`.
+  pressed), keeping their full radius, so it is a circle: 2rem x 2rem, 2.75rem x 2.75rem
+  under `pointer: coarse`, no horizontal padding, the 16px icon centred.
+- It sits at the row's right end together with the preview actions: the button and the
+  `data-preview-actions` element share one trailing element that carries the auto margin.
+  With no visible preview action the button's right edge is the row's right edge;
+  otherwise it is directly left of the first preview action, `0.5rem` apart. When the
+  row wraps, the button and the actions wrap together.
+- Pressing it moves the row (and the button) up or down by the change in the player's
+  height, about 150-190px on the measured iPads. This is expected.
 - The design of record is the ASCII layout the human chose plus this section
   (`docs/process/reviews/feature-workbench-panel-priority/design/agreed-layout.md`).
 - While on: the frame is capped at 30% of the visible height; the panels are taller.
@@ -152,25 +164,37 @@ in-memory value, as above.
   parameter, defaulting to `WORKBENCH_PLAYER_SHARE` (0.5). It does not read the store.
   Its other callers, `FileDetailPresenter.tsx` (collection surface) and
   `FileDetailCanvas.tsx`, pass nothing and are not edited.
-- `frontend/src/components/FileDetail/ShellLayout.tsx` and `MediaCanvas.tsx`: read the
-  store, pass the share to `mediaHostStyle`, and pass the button's state to `Workbench`
-  only when the player is framed.
+- `frontend/src/components/FileDetail/ShellLayout.tsx`: the one subscription to the
+  store. It passes the share to `MediaCanvas` as a prop and the button's state to
+  `Workbench` only when the player is framed.
+- `frontend/src/components/FileDetail/MediaCanvas.tsx`: takes the share as a prop and
+  passes it to `mediaHostStyle`. The keys and structure around `MediaPlayerBlock` and the
+  panel sections do not change.
 - `frontend/src/components/FileDetail/workbench/Workbench.tsx`: a new optional prop
   (`playerFocus: { pressed: boolean; onToggle: () => void }`). When it is given and at
-  least one panel is shown, the button is drawn as its own element in the row, after the
-  `role="group"` "Panels" element and before the `data-preview-actions` element: inside
-  neither. The collection surface passes no `playerFocus`. `FileDetailShell.tsx`'s
+  least one panel is shown, the button is drawn in a new trailing element of the row,
+  after the `role="group"` "Panels" element. The `data-preview-actions` element moves
+  into that trailing element, after the button, and keeps its attribute and
+  `empty:hidden`. The button is inside neither the group nor `data-preview-actions`. The
+  row's drawing condition (a toggle or an action) does not change, so the button never
+  makes a row on its own. The collection surface passes no `playerFocus`. `FileDetailShell.tsx`'s
   measurement of `[data-preview-actions]` is therefore unchanged.
-- `frontend/src/app/globals.css`: the trailing group's rule when there are no preview
-  actions, and the square variant of `.workbench-toggle`, if needed.
+- `frontend/src/app/globals.css`: the trailing element's rule (auto margin, flex, the
+  row's gap), and the circular icon variant of `.workbench-toggle`.
 - `frontend/src/messages-core/{ja,en}.json`: `workbench.enlargePanels`.
 - `frontend/src/test/setup.ts`: reset the new store.
 - Tests: `frontend/src/app/__tests__/mediaDetailTheaterCss.test.ts` stays as it is (the
   CSS rule and its `0.5` fallback do not change);
-  `frontend/e2e-components/player-workbench-desktop.spec.ts` for the real-browser cap
-  and panel height. The key is set through `addInitScript`, as that spec already does
-  for `workbench-panels`, so `fixtures/inspectorResponsive.tsx` changes only if the
-  `.loft` arrangement is needed for I4.
+  `frontend/e2e-components/player-workbench-desktop.spec.ts` measures in a real browser
+  the cap, the panel height, the `<video>` node and playback across a press, and the
+  button's position and 2rem box with and without a preview action. The key is set
+  through `addInitScript`, as that spec already does for `workbench-panels`.
+  `fixtures/inspectorResponsive.tsx` gains a `file-preview-actions` stub entry
+  (controlled by a query parameter) for the position cases. The `.loft` iframe part of
+  I4 is checked in vitest (`components/FileDetail/__tests__/`, same iframe node across a
+  press), since the fixture has no `.loft` player. The 2.75rem box under
+  `pointer: coarse` is checked as a CSS rule in a vitest CSS test, like
+  `mediaDetailTheaterCss.test.ts`.
 - Docs: `docs/user-guide/viewers-and-players.md`; `DESIGN.md` Workbench section: the
   player cap row, "The row is the panels' switch" (the button joins the row), and
   "Placement belongs to the space, not to a preference" (reworded: the reader chooses
@@ -196,28 +220,38 @@ with no panel shown.
 I2. On the canonical page in a workbench form, while at least one panel is shown under a
 framed player and neither full screen nor the mini player is up, the 16:9 frame's height
 is 30% of the scroll container's visible height when the stored value is `"true"`, and
-50% otherwise, each within 2px, unless the canvas width limits the frame first.
+50% otherwise, each within 2px, unless the canvas width limits the frame first. Only the
+exact string `"true"` is on.
 
-I3. With the stored value on and the room under the row at least 18rem at the 30% cap,
-each shown panel ends within the visible area, the scroll container does not scroll, and
-each panel body is taller than it is with the value off at the same window size.
+I3. With the stored value on, the room under the row at least 18rem at the 30% cap, and the
+frame at the 50% cap limited by height rather than by the canvas width, each shown panel
+ends within the visible area, the scroll container does not scroll, and each panel body is taller than it is with the value off at the same window size.
 
 I4. Pressing the button does not remount the `<video>` element or the `.loft` iframe,
 does not change the playback position or play state, and does not change
 `workbench-panels`.
 
 I5. The button's `aria-pressed` is `true` exactly when `workbench-player-focus` is
-`"true"`. Its accessible name is the same in both states. Pressing it writes the opposite
+`"true"`. Its accessible name and its `title` are both `workbench.enlargePanels`
+(ja パネルを広げる, en Enlarge panels) in both states. Pressing it writes the opposite
 value, and every other window of the same browser applies it, `aria-pressed` and the cap
 both, through the `storage` event. When storage writes fail, pressing it still flips the
 value in memory.
 
-I6. With every panel closed, the button is not drawn, the player is at its uncapped size,
-and the stored value is unchanged; turning a panel on again applies the stored value.
+I6. Only a press of the button writes `workbench-player-focus`. Closing every panel, a file
+change, a form change, opening Find and a reload leave it unchanged. With every panel
+closed the button is not drawn and the player is at its uncapped size; turning a panel on
+again applies the stored value.
 
 I7. With the stored value `"true"`, the collection surface, `stacked` with the inspector
-open, the phone, an unframed player, pseudo or system full screen and the mini player are
-laid out exactly as they are with the value absent.
+open, the phone and an unframed player are laid out exactly as they are with the value
+absent, and the pseudo or system full-screen frame and the mini-player window are the same
+size as with the value absent.
+
+I8. The button is in the workbench row's trailing element, with the preview actions. With
+no visible preview action its right edge is the row's right edge (within 1px); otherwise
+it ends `0.5rem` left of the first preview action. Its box is 2rem x 2rem with a fine
+pointer.
 
 ## Revises
 
@@ -239,6 +273,9 @@ SPEC-CORE-085 I1. On a player file in a wide form, after the first measurement: 
 - **Remembering per file, or resetting on each open.** The human chose per browser.
 - **The collection surface.** Its player is not capped and its panels already take 60%;
   the problem measured here does not occur there.
+- **Holding the share until full screen or the mini player ends.** Not done: it needs
+  their state wired into the canvas, and the page underneath already re-lays out on any
+  resize today.
 - **A keyboard shortcut.** None added; the button is reachable with Tab.
 - **Removing the mini player from the canonical page.** Out of scope; it is a separate
   change. This spec only records that it effectively does not appear there.
