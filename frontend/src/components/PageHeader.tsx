@@ -116,7 +116,7 @@ export function PageHeader({
           </div>
           {heading}
           <div
-            className={`col-start-2 col-span-2 ${rows.scope} flex min-w-0 items-center justify-between gap-1 sm:contents`}
+            className={`col-start-2 col-span-2 ${rows.scope} flex min-w-0 items-center justify-between gap-2 sm:contents`}
           >
             {given(scope) && (
               <div
@@ -130,8 +130,10 @@ export function PageHeader({
               // min-content, so the Target keeps its whole width and only it
               // shrinks once the scope is down to that floor. From `sm` the
               // grid's `fit-content(40%)` caps the column, and the title
-              // column's 120px is the narrowest a title stays readable.
-              <div className={`min-w-0 sm:col-start-4 ${rows.title}`}>
+              // column's 120px is the narrowest a title stays readable. Below
+              // `sm` the quiet control's padding hangs into the gutter, so its
+              // chevron rather than its box meets the content edge.
+              <div className={`min-w-0 max-sm:-mr-2 sm:col-start-4 ${rows.title}`}>
                 {scopeEnd}
               </div>
             )}
@@ -141,7 +143,7 @@ export function PageHeader({
           )}
           {given(actions) && (
             <div
-              className={`col-span-3 ${rows.actions} flex min-w-0 justify-end gap-2 sm:col-span-1 sm:col-start-3`}
+              className={`col-span-3 ${rows.actions} flex min-w-0 justify-end gap-2 max-sm:-mr-2 sm:col-span-1 sm:col-start-3`}
             >
               {actions}
             </div>
