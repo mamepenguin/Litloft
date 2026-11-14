@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R4-file-copy-basename-collision",
+      "status": "confirmed",
+      "note": "Confirmed in the code. In scripts/dev/r5_stack.py:278-282, a read-write single-file bind under paths.main becomes files_dir / src.name, and the copy is skipped when that path already exists. A second bind with the same basename from another directory therefore mounts the first file's copy. shared_writes (:293-302) skips every source under paths.state (:298), so verified_env cannot catch the mix-up. Real-world reach is narrow. The only single-file bind in the committed docker-compose.yml is ./drives.json (:12), and it resolves under the worktree. Paths.main is the main checkout (:79), and the worktree here is a sibling of it, not inside it. So that bind falls to the else branch (:283-284) and is made read-only rather than copied. The copy branch is reached only by absolute binds into the main checkout, for example from a local docker-compose.override.yml (:90). A collision then needs two such binds with the same basename."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R4-non-starting-by-first-arg",
+      "status": "confirmed",
+      "note": "Confirmed. scripts/dev/r5_stack.py:368 checks only args[0] against NON_STARTING (:364). The `compose` subcommand passes argparse.REMAINDER through unchanged (:410, :423). So `compose --profile x down` has args[0]=='--profile', goes through verified_env (:372), and raises Abort when shared_writes reports problems (:333-335). The built-in paths are not affected: stop() calls compose(paths, \"down\") (:377), so `down` and `destroy` still skip the check. Only the manual passthrough with a global option placed before the subcommand is refused."
+    }
+  ],
+  "specification_compliance": [
+    "Both findings match the code at c216434 as described."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The copy branch for single-file binds (r5_stack.py:278) applies only to sources under the main checkout. A read-write file bind that resolves under the worktree, such as ./drives.json, is silently made read-only in the clone instead (:283-284). This may be intended, but no reader listed it."
+  ],
+  "regression_risks": [
+    "Adding absolute file binds into the main checkout in a local override would make the basename collision reachable."
+  ],
+  "test_coverage": [
+    "I found no test covering two file binds with the same basename, or a compose passthrough with a global option before the subcommand. I did not search the test tree exhaustively."
+  ],
+  "not_verified": [
+    "I did not run docker compose, so I could not check how real `compose config` output normalizes bind sources.",
+    "I did not check the contents of docker-compose.override.yml, if the user has one locally.",
+    "I did not search tests/ for coverage of r5_stack.py."
+  ],
+  "confidence": 88
+}

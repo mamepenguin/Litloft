@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship (human, 2026-11-14, after r4: "ship")
 ran_in_app: yes
 at: 564cf63171242267b7339f2a23d7af61cb1b9f8c
 by: agent
