@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R1",
+      "origin": "reviewer",
+      "claim": "The quiet control's value floor `min-w-[2.5em]` is narrower than three characters plus the ellipsis, so the Target's name can shrink below the minimum that the phone layout describes.",
+      "impact": "When the scope line is at its floor (a phone narrower than 375px, or a very long count), the Target shows about two Latin characters, or one to two Japanese characters, before the ellipsis. At 375px with the fixture counts the floor is never reached, so no declared invariant fails. The floor also applies to the shelf pages' quiet sort menu.",
+      "evidence": "frontend/src/components/ToolbarMenu.tsx:225 `<span className=\"min-w-[2.5em] truncate\">`. At text-sm, 2.5em is 35px. Truncation draws the ellipsis inside that 35px, so 'Eve…' (~38px) does not fit, and a CJK name gets about 1.5 glyphs. The only test of three characters (`targetNameFirstThree.whole` in app-header.spec.ts) runs where the Target has ~120px or more, far from its floor.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "I10 is stated at 375px, and at that width the floor is not reached with the fixtures, so no declared invariant breaks. The floor does read differently from what it is meant to hold.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Size the floor from three characters plus the ellipsis (e.g. `min-w-[4em]` for CJK), and add a test at a width that forces the Target to its floor."
+    },
+    {
+      "id": "R2",
+      "origin": "reviewer",
+      "claim": "No test pins the drive name's phone floor (`max-sm:w-14` in AppHeader), so if that floor is removed or changed, the drive-first cut order can change without any test failing.",
+      "impact": "With a long drive name and a long folder name, how far the drive is cut before the Target is cut depends only on `w-14`. A regression that lets the drive collapse to its longest word, or lets it keep its whole width, would still pass every drive/Target test, because those tests assert `drive.whole === false` (long drive) or `true` (short drive 'fixture') and never measure the drive's cut width.",
+      "evidence": "frontend/src/components/appshell/AppHeader.tsx: drive span `min-w-0 truncate max-sm:w-14 max-sm:max-w-max max-sm:grow`. In app-header.spec.ts, the 'long drive name and long folder name' scenarios assert only `targetName.whole` false, the svg widths and the count-to-Target gap. The 'fits beside the count' case asserts `drive.whole` false and the Target whole.",
+      "repro": "Mutation (in my head, not run): delete `max-sm:w-14`. The scope's min-content becomes the drive's longest word plus the count. Each assertion in the long-drive scenarios still holds.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a test gap around I10's cut order. The current code satisfies I10.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "In the long-drive and long-folder case at 375px, assert that the drive span's clientWidth is about 56px and that the Target's name is cut."
+    },
+    {
+      "id": "R3",
+      "origin": "reviewer",
+      "claim": "The new 'fits beside the count' test asserts a font-dependent ratio window (0.4 < maxContent/line ≤ 0.65) that describes the fixture, not the behaviour.",
+      "impact": "A change of font, locale string or padding can push 'Holiday 25' outside the window. The test would then fail with no layout defect, or have to be retuned, and that hides whether the drive-before-Target order still holds.",
+      "evidence": "frontend/e2e-components/app-header.spec.ts, test 'with a long drive name and a folder name that fits beside the count': `expect(fit.maxContent / fit.line).toBeGreaterThan(0.4); ...toBeLessThanOrEqual(0.65)`. The commit message of 56d3b8f5 says the Linux CI fonts already changed results once.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Test fragility only. No invariant breaks.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "dcb4fc8f, below sm: the scope grows from basis 0 with a min-content floor, and the Target wrapper has the default flex (0 1 auto) with min-w-0. When the drive name is long, the scope takes the leftover space and the drive is cut to its 56px floor, while the Target keeps its max-content. Once the line is shorter than the scope's floor plus the Target, only the Target shrinks (the scope's scaled shrink factor is 0 with basis 0). This matches I10's 'drive cut first'.",
+    "At sm and wider the scope cell is `contents` and the flex classes have no effect. The Target sits in col 4 `fit-content(40%)` on row 1, and actions in col 3 on row 1, left of the Target (I11, I13). Below sm, actions are col-span-3 on row 4 with justify-end, after the tabs on row 3 (I13).",
+    "The PageHeader path without scopeEnd is unchanged (I15 for other callers). `!withScopeEnd && tabs` keeps tabs where they were for every other caller.",
+    "The quiet ToolbarMenu shape keeps pointer-coarse:min-h-11, hover:bg-bg-elevated and bg-bg-elevated while open (I14). TargetMenu passes quiet and no showLabel, so no 'Target' text is drawn, and aria-label stays `${label}: ${value}` (I12).",
+    "r1's R1 (focus on click for every ToolbarMenu) is still present at ToolbarMenu.tsx:196-201. The record says a human decided to ship it, so it is not re-raised.",
+    "The merge 22178408 brings in develop's SPEC-CORE-098 (Header trailing slot). It does not touch PageHeader, AppHeader or ToolbarMenu, and I found no interaction with this change's touch points."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Below 375px (e.g. 320px phones), the scope's floor (56px drive + count) plus the Target's min-content (~87px, from padding, icon, the 2.5em value and the chevron) can exceed the line. The Target button is then capped by max-w-full while its contents overflow it. I10 does not cover widths under 375px."
+  ],
+  "regression_risks": [
+    "The phone scope line's sizing now rests on two hard-coded floors: the drive's `w-14` and the value's `min-w-[2.5em]`. Longer counts, other locales' count strings, or larger font settings move the point where the Target starts to truncate, and no test covers that point.",
+    "The `min-w-[2.5em]` floor in the shared quiet shape also applies to the shelf pages' quiet sort menu."
+  ],
+  "test_coverage": [
+    "None of the e2e tests reaches the Target's own floor, so the three-character minimum and the absence of overflow at that floor are unverified (R1).",
+    "The drive's 56px floor is not measured. Removing it would probably pass every test (R2).",
+    "The ratio window in the 'fits beside the count' test is tied to the fonts (R3).",
+    "The new tests cover the old defect, where a fitting folder name was cut beside a long drive name: they assert that the Target is whole and the drive is cut, with svg widths of 14px."
+  ],
+  "not_verified": [
+    "I did not run any unit or e2e test, and I did not render the layout. The flex outcomes come from reasoning about the CSS flex algorithm.",
+    "I did not check how Chrome computes the min-content contribution of the drive span when it has a definite width inside the inner flex span.",
+    "I did not check the r2 screenshots or design artboards against the current code.",
+    "I did not re-read the backend contract test or appTarget/appPrefs beyond the diff, because the fixes since r1 do not touch them."
+  ],
+  "confidence": 75,
+  "trajectory": "Yes, the design is being patched. The fix rounds since r1 keep re-tuning flex sizing on the same phone scope line, and each round adds a fixture case and a numeric prediction. The previous state had the Target start at a 40% basis that grows up to max-content (`basis-[40%] grow shrink-0 max-w-max`). 56d3b8f5 added a 'summer' folder fixture and a test that predicts a 0.4–0.65 width ratio. dcb4fc8f removed the 40% starting share, which is one predicate fewer, but it added a basis-0, grow, min-w-min rule on the scope and two new hard-coded floors: the drive's `w-14` (56px) and the quiet value's `min-w-[2.5em]`. The review shots (icon squashed, ja name cut, scope-row blank space) and the matching tests (14px svg widths, a gap of 16px or less, a whole Japanese name) show the same pattern in earlier rounds: each fixed one measured symptom with one more width constraint. The newest round replaced a heuristic and did not only stack on it, but the line's behaviour still depends on constants that no test pins."
+}
