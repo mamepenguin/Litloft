@@ -1,4 +1,4 @@
-"""Public per-drive addon policy endpoint.
+"""Public per-drive endpoints the browser reads: addon policy and hidden entries.
 
 Lives outside ``routers/internal.py`` because the consumer is the browser, not
 addons.
@@ -11,7 +11,11 @@ from fastapi import APIRouter, Depends, HTTPException
 
 import app.config as config
 from app.auth import check_drive_access, get_unlocked_groups
-from app.schemas import AddonPolicy, DriveAddonPoliciesResponse
+from app.schemas import (
+    AddonPolicy,
+    DriveAddonPoliciesResponse,
+    DriveEntryVisibilityResponse,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -77,3 +81,43 @@ def get_drive_addon_policies(
     check_drive_access(drive_name, unlocked_groups)
 
     return DriveAddonPoliciesResponse(addons=_build_policies(drive))
+
+
+@router.get(
+    "/{drive_name}/entry-visibility",
+    response_model=DriveEntryVisibilityResponse,
+)
+def get_drive_entry_visibility(
+    drive_name: str,
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+) -> DriveEntryVisibilityResponse:
+    """Return the entries ``drive_name`` hides, as configured.
+
+    The value is validated here rather than in ``load_drives``: one bad
+    optional key must not make every route that reads drives fail.
+    """
+    try:
+        drives = config.load_drives()
+    except ValueError as exc:
+        logger.exception("drives.json malformed", exc_info=exc)
+        raise HTTPException(
+            status_code=500, detail="Configuration error"
+        ) from exc
+    drive = next((d for d in drives if d["name"] == drive_name), None)
+    if drive is None:
+        raise HTTPException(status_code=404, detail=f"Drive not found: {drive_name}")
+
+    check_drive_access(drive_name, unlocked_groups)
+
+    hidden = drive.get("hidden_entries", [])
+    if not isinstance(hidden, list) or not all(
+        isinstance(key, str) for key in hidden
+    ):
+        logger.warning(
+            "drives.json drive %r hidden_entries must be a list of strings, got %r",
+            drive_name,
+            hidden,
+        )
+        raise HTTPException(status_code=500, detail="Configuration error")
+
+    return DriveEntryVisibilityResponse(hidden=hidden)
