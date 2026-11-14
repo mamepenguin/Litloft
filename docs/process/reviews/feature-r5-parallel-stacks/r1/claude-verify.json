@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1-touchpoints-undeclared",
+      "status": "confirmed",
+      "note": "Confirmed at HEAD 15e6f9007 (r1/head.txt). The glob docs/process/reviews/feature-r5-parallel-stacks/** finds decisions.md and r1/{head,expected,classification,fixes}.txt, but no invariants.md, so this branch declares no touch-point list. classification.json lists the zones .gitignore, docs/process/PROJECT.md and scripts/dev/r5_stack.py. Runtime reach: clone_tree runs `cp -c -R` on main data/ (scripts/dev/r5_stack.py:121-125, called from :212), and with --with-drives on every backend drive source (:235-244). snapshot_live_db runs `docker exec <container> python3 -c _BACKUP` and `docker cp` against any running container whose bind source is under or above main data/ (:181-207, filtered at :213-214), and it writes and then removes /tmp/r5-stack-snapshot.db inside that container. plan_overlay calls shutil.copy2 on rw single-file binds under the main checkout, which are drives.json and passwords.json (:256-260)."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1-autopurge-shared-drives",
+      "status": "confirmed",
+      "note": "Mechanism confirmed. main.py:288 starts purge_expired_trash at startup. main.py:138-159 loops with _PURGE_INTERVAL_SECONDS=86400 (main.py:40) and a cutoff of TRASH_RETENTION_DAYS=30 (main.py:39). _run_purge_batch calls physical_delete (main.py:96), and physical_delete unlinks the drive file (fileops.py:674-675). Soft delete leaves the file in place on disk (fileops.py:694-705, 'keep file on disk'). In r5_stack.py:235, drive binds are redirected only when with_drives is set, so without it the backend keeps the real drive bind; decisions.md step (4) records /Users/libre/Sources/video_share/videos mounted rw on the backend. The cloned DB is a point-in-time copy (clone_data at :210-220) and never sees later changes from the main checkout. A file restored in main after the clone, but still trashed in the clone's DB, is therefore unlinked from the shared drive once the clone's row passes 30 days. Rows already expired at clone time would also be purged by main's own stack, so the divergent case is where the data loss is new. decisions.md line 7 records that the cloned DB held 3 expired trash rows and that the auto-purge runs on every `up`. In that run those rows reached no configured drive."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1-port-not-reserved",
+      "status": "confirmed",
+      "note": "Confirmed. free_port (scripts/dev/r5_stack.py:297-305) binds 0.0.0.0:port inside a `with socket.socket()` block and releases it at once. cmd_clone (:332, :338-339) writes the port only to this worktree's .r5-stack/env.json. No code reads another worktree's env.json, and the only state read is load_state(paths) for the current worktree (:291-294). If two worktrees run `clone` before either runs `up`, both get 3101. The collision then shows up at the second `up` as a docker port-bind error, not silently."
+    }
+  ],
+  "specification_compliance": [
+    "PROJECT.md:168-172 documents that drives stay shared without --with-drives and tells the user to clone them for runs that move, trash, purge or upload files. It does not mention that the backend's startup and 24-hour trash auto-purge counts as a purge with no user action.",
+    "The module docstring (r5_stack.py:16-18) carries the same caveat and the same omission."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The background trash auto-purge in a cloned stack without --with-drives acts on shared drive files using a stale DB snapshot.",
+    "plan_overlay maps each rw single-file bind to files_dir/src.name. Two such binds with the same basename from different directories would share one clone file (r5_stack.py:258)."
+  ],
+  "regression_risks": [
+    "A cloned stack without --with-drives can unlink shared drive files that the main checkout restored from trash after the clone was taken."
+  ],
+  "test_coverage": [
+    "No automated tests for scripts/dev/r5_stack.py were found. The only evidence of behaviour is the manual run recorded in decisions.md, and that run did not exercise --with-drives or the live-DB snapshot path."
+  ],
+  "not_verified": [
+    "I did not run the script, docker or compose, so all checks are static reading only.",
+    "I did not inspect docker-compose.override.yml, which is not tracked or was not found by grep, to confirm the drive bind sources directly. I relied on decisions.md step (4).",
+    "I did not verify whether macOS `cp -c` fails or falls back to a full copy when a clone is impossible on the same volume.",
+    "I did not check whether other services such as intelligence or knowledge also run purges or deletes against the drives."
+  ],
+  "confidence": 85
+}
