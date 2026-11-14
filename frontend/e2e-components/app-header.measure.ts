@@ -85,7 +85,7 @@ export type HeaderSnapshot = {
   targetText: string;
   targetSvgs: Box[];
   targetNameSpan: SpanMetrics | null;
-  sort: (Box & { text: string }) | null;
+  sort: (Box & { text: string; svgs: Box[] }) | null;
   tabs: Box | null;
   count: TextBox;
   separator: TextBox;
@@ -195,7 +195,7 @@ export async function snapshot(
             textOverflow: getComputedStyle(nameNode.parentElement).textOverflow,
           }
         : null,
-      sort: sort ? { ...box(sort), text: sort.innerText } : null,
+      sort: sort ? { ...box(sort), text: sort.innerText, svgs: Array.from(sort.querySelectorAll("svg")).map(box) } : null,
       tabs: tabs ? box(tabs) : null,
       count,
       separator,

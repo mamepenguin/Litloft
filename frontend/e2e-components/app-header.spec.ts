@@ -43,7 +43,7 @@ for (const app of APP_PAGES) {
       expect(m.target.top).toBeGreaterThanOrEqual(m.h1.bottom - 1);
       expect(sameRow(m.target, m.count)).toBe(true);
       expect(m.target.left).toBeGreaterThan(m.count.right);
-      expect(Math.abs(m.target.right - m.contentRight)).toBeLessThanOrEqual(1);
+      expect(Math.abs(m.targetSvgs[m.targetSvgs.length - 1].right - m.contentRight)).toBeLessThanOrEqual(1);
       if (m.sort) expect(sameRow(m.sort, m.h1)).toBe(false);
       if (m.sort) expect(sameRow(m.sort, m.count)).toBe(false);
       if (m.tabs) {
@@ -73,7 +73,7 @@ for (const app of APP_PAGES) {
     expect(m.h1.scrollWidth).toBeLessThanOrEqual(m.h1.clientWidth);
     expect(sameRow(m.target, m.count)).toBe(true);
     expect(sameRow(m.target, m.h1)).toBe(false);
-    expect(m.target.right).toBeLessThanOrEqual(m.contentRight + 1);
+    expect(Math.abs(m.targetSvgs[m.targetSvgs.length - 1].right - m.contentRight)).toBeLessThanOrEqual(1);
     expect(m.scrollWidth).toBeLessThanOrEqual(PHONE);
     expect(m.overflowRight).toBeLessThanOrEqual(PHONE);
   });
@@ -139,6 +139,16 @@ for (const app of APP_PAGES) {
       expect(m.targetName.whole).toBe(false);
       expect(m.target.left - m.count.right).toBeLessThanOrEqual(16);
     });
+
+    test(`SPEC-CORE-099 I10 ${app} at 375px with ${scenario.label}: the cut Target's icon starts 16px after the count`, async ({
+      page,
+    }) => {
+      await openAppHeader(page, PHONE, { app, drive: scenario.drive, longTarget: scenario.longTarget });
+      const m = await snapshot(page, { drive: scenario.drive, targetName: LONG_FOLDER_NAME });
+
+      expect(m.targetName.whole).toBe(false);
+      expect(Math.abs(m.targetSvgs[0].left - m.count.right - 16)).toBeLessThanOrEqual(1);
+    });
   }
 
   test(`SPEC-CORE-099 I10 ${app} at 375px with a long drive name: the Target's icon and chevron keep their 14px width`, async ({
@@ -193,7 +203,7 @@ for (const app of SHELF_PAGES) {
     const sort = m.sort!;
     const above = [m.h1, m.count, m.target, ...(m.tabs ? [m.tabs] : [])];
     for (const b of above) expect(sort.top).toBeGreaterThanOrEqual(b.bottom - 1);
-    expect(Math.abs(sort.right - m.contentRight)).toBeLessThanOrEqual(1);
+    expect(Math.abs(sort.svgs[sort.svgs.length - 1].right - m.contentRight)).toBeLessThanOrEqual(1);
     expect(sort.text).toContain("Added (newest first)");
     expect(m.scrollWidth).toBeLessThanOrEqual(PHONE);
   });
