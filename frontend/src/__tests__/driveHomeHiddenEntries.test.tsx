@@ -149,7 +149,6 @@ function Home({ drive }: { drive: string }) {
   );
 }
 
-const appsNav = () => screen.getByRole("navigation", { name: "Apps" });
 const findAppsNav = () => screen.findByRole("navigation", { name: "Apps" });
 const hrefs = (nav: HTMLElement) =>
   within(nav).getAllByRole("link").map((a) => a.getAttribute("href"));
