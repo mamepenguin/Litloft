@@ -1,10 +1,63 @@
 # Decisions
 
 ran_in_app: yes
-at: 88893750a17d38c570dd4e3813d3799da71b29f9
+at: 047882e06b8c510bdd91c48b6864ff61ba248a7c
 by: agent
-pending: audio and video as heard and seen (autoplay audible, sync, quality) and playback on other household devices are `agent_cannot_verify` in PROJECT.md; the >10,000-member Ask case could not be produced (the drive has 850 files, so no Smart Collection can have more than 10,000 members).
+pending: audio and video as heard and seen (whether the tracks are audible, sync, quality) and playback on other household devices are `agent_cannot_verify` in PROJECT.md; this run drove playback silently and did not listen. The rest of the spec's steps are in this file's first-run evidence below.
 evidence:
+
+Second run, after the loop fix. Only the queue's loop behavior and the rest of the
+queue as the first run recorded it; 1440px, ja and en, one fresh browser context per
+Play (empty `localStorage` and `sessionStorage`). Driven with Playwright (Chromium) from
+`.r5/r2-loop.mjs` and `.r5/r2-hover.mjs`; screenshots in
+`docs/process/reviews/feature-smart-collection-parity/shots/` with the `r2-` prefix; one
+line per state with the panel's title, count, buttons, loop styles and the media element
+in `.r5/manifest.jsonl`.
+
+1. Default in a fresh context, both queue kinds, ja and en.
+- Smart Collection queue (Play on 自動再生用's search page, `path:アニメ type:video`):
+  panel title 自動再生用, `1/28トラック` / `1/28 tracks`, 28 tiles, and the loop button is
+  the panel's only button: `aria-label` ループON / Loop ON, class `rounded-lg p-2` with
+  `text-text-muted`, 34x34, an 18x18 `lucide-repeat`, no background
+  (`r2-smart-queue-1440-ja`, `r2-smart-queue-1440-en`). Hovering a tile adds no control
+  and no row is draggable (`r2-hover-smart-1440-ja`).
+- Collection queue (Play on Spirit's page, 50 tracks): the loop button is the same
+  element — identical class string, `aria-label` ループON / Loop ON, 34x34, 18x18
+  `lucide-repeat`, same colour and no background — in the same header (title, count,
+  loop at the right); title Spirit, `1/50トラック` / `1/50 tracks`
+  (`r2-collection-queue-1440-ja`, `r2-collection-queue-1440-en`).
+- Ending the last track with that default: the Smart Collection's 28th tile
+  (`Bg-XKNCfDbZ4`) played to its end (5672.8 s of 5672.8, ended, paused) and the page
+  stayed on it, `28/28トラック`; Spirit's 50th row (`gR6ISIwLTW_i`) ended at 85.5 s of
+  85.5 and the page stayed on it, `50/50トラック`. Neither wrapped
+  (`r2-smart-end-last-1440-ja`, `r2-smart-end-last-1440-en`,
+  `r2-collection-end-last-1440-ja`, `r2-collection-end-last-1440-en`).
+
+2. The Smart Collection queue's loop toggle, ja and en.
+- Pressing the button changed the label ループON → ループOFF / Loop ON → Loop OFF and the
+  button to `bg-accent/20 text-accent` (red icon on an accent wash), the state a
+  collection's button takes when it is turned on (`r2-smart-loop-on-1440-ja`,
+  `r2-smart-loop-on-1440-en`; the collection's, `r2-collection-loop-on-wrap-1440-ja`).
+- With loop on, ending the last track opened the first: `Bg-XKNCfDbZ4` → `Alx1ShvKJ5ny`,
+  panel `1/28トラック`, autoplay (`r2-smart-loop-on-wrap-1440-ja`,
+  `r2-smart-loop-on-wrap-1440-en`). The collection queue did the same on its own toggle:
+  `gR6ISIwLTW_i` → `XAA7eXM1X-h0`, `1/50トラック` (`r2-collection-loop-on-wrap-1440-ja`,
+  `...-en`).
+- Pressing it again restored ループON / Loop ON and the muted look; ending the last track
+  then stopped at `28/28トラック` with nothing following
+  (`r2-smart-loop-off-again-1440-ja`, `...-en`).
+
+3. The rest of the queue, as the first run recorded: the title is the Smart Collection's
+name; `1/28トラック`; ending track 1 opened `j-OBNw218KdB` as `2/28トラック` already
+playing (not paused); 28 tracks drawn; only the loop button in the panel, nothing
+draggable, no reorder or remove control at rest or on hover (`r2-smart-next-1440-ja`,
+`r2-smart-next-1440-en`). For comparison, a collection queue's rows show 上へ移動 /
+下へ移動 / コレクションから削除 when hovered, which the Smart Collection queue does not
+draw, as D4 says (`r2-hover-collection-1440-ja`).
+
+No difference from the spec or from the collection's behavior was seen.
+
+### First run
 
 Environment: the running stack at http://video-share-sc-parity.localhost:3101 (drive 動画,
 850 files; intelligence addon answering). Driven with Playwright (Chromium) from scripts under
