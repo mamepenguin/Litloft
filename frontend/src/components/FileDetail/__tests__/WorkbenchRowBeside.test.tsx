@@ -108,10 +108,10 @@ const NAME = "Enlarge panels";
 
 /**
  * The harness reports a 700px visible height, so W is the 480px floor and the
- * side space reaches 17rem at a canvas 768px wide.
+ * side space reaches 13rem at a canvas 704px wide.
  */
-const BESIDE_ROW = NARROW_ROW;
-const UNDER_ROW = 720;
+const BESIDE_ROW = 720;
+const UNDER_ROW = 680;
 
 const VIDEO = makeFile({ has_chapters: true });
 const LOFT = makeFile({ filename: "clip.loft", mime_type: "application/x-loft" });
@@ -380,7 +380,7 @@ describe("SPEC-CORE-105 I6 I9 entering and leaving the beside state", () => {
     expect(beside()).toBe(true);
   });
 
-  it("SPEC-CORE-105 §2 I9 a canvas narrowed under 17rem of side space leaves the beside state, and widening it enters again", async () => {
+  it("SPEC-CORE-105 §2 I9 a canvas narrowed under 13rem of side space leaves the beside state, and widening it enters again", async () => {
     await renderCanonical("stacked-closed");
     expect(beside()).toBe(true);
 

@@ -308,7 +308,7 @@ function regimeOf(visibleHeight: number): Regime | "ambiguous" {
 }
 
 /**
- * Windows with the inspector beside the canvas and under 17rem of room beside
+ * Windows with the inspector beside the canvas and under 13rem of room beside
  * the value-on frame, so the row stays under it.
  */
 const WINDOWS = [
@@ -325,7 +325,7 @@ const CAP_WINDOWS: {
 }[] = [
   { name: "a 1100x764 window", width: 1100, height: 764, regime: "floor" },
   // No window holds the value-off frame at 50% and the share-term frame
-  // with under 17rem beside it, so this one is in the beside state.
+  // with under 13rem beside it, so this one is in the beside state.
   {
     name: "iPad 13-inch More Space landscape",
     width: 1590,
@@ -400,7 +400,7 @@ async function canvasWidth(page: Page): Promise<number> {
 
 const WORKBENCH = ".media-detail-workbench";
 /** The side space beside the value-on frame at which the row moves beside it. */
-const BESIDE_FROM = 17 * REM;
+const BESIDE_FROM = 13 * REM;
 const COMPACT_WIDTH = COMPACT_MAX_WIDTH;
 
 /** The value-on frame's width for a canvas content width and a visible height. */
@@ -475,12 +475,13 @@ for (const size of CAP_WINDOWS.filter((window) => window.regime !== "half")) {
 test("SPEC-CORE-104 I2 I3 with the inspector closed the value moves the cap the same way", async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 770, height: 900 });
+  // An inspector-closed canvas is at least 738px wide, so no floor-case
+  // window has the row under the frame; this one is in the beside state.
+  await page.setViewportSize({ width: 1440, height: 900 });
   await open(page, CANONICAL, { stored: ["transcript"], inspectorOpen: false, focus: "true" });
   await expect(page.getByTestId("inspector-pane")).toHaveCount(0);
   await expect(panelGroup(page)).toBeVisible();
   await transcriptLoaded(page);
-  expect(await sideSpace(page)).toBeLessThan(BESIDE_FROM - 8);
 
   await expect(enlarge(page)).toHaveAttribute("aria-pressed", "true");
   await expectFocusedCap(page);
@@ -875,7 +876,7 @@ const PANEL_GAP = 0.75 * REM;
 const ROW_GAP = REM;
 const HOST_BOTTOM_PADDING = REM;
 
-/** One window per term of W, each with the inspector beside and at least 17rem beside the frame. */
+/** One window per term of W, each with the inspector beside and at least 13rem beside the frame. */
 const BESIDE_WINDOWS: { name: string; width: number; height: number; regime: Regime }[] = [
   { name: "1376x878", width: 1376, height: 878, regime: "floor" },
   { name: "iPad 13-inch More Space landscape", width: 1590, height: 1122, regime: "share" },
@@ -1001,6 +1002,16 @@ async function expectUnder(page: Page) {
   expect(await rowBeside(page)).toBeNull();
 }
 
+/**
+ * Two rendering updates, so a placement decided from the old size (one frame
+ * of it is allowed) is not read as the new one.
+ */
+async function settle(page: Page) {
+  await page.evaluate(
+    () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))),
+  );
+}
+
 /** Resizes to the window whose workbench root is `canvas` px wide, keeping the height. */
 async function resizeCanvasTo(page: Page, canvas: number) {
   const viewport = page.viewportSize()!;
@@ -1009,6 +1020,7 @@ async function resizeCanvasTo(page: Page, canvas: number) {
   await expect
     .poll(() => workbench(page).evaluate((root) => (root as HTMLElement).clientWidth))
     .toBe(canvas);
+  await settle(page);
 }
 
 /** Resizes to the window whose visible height is `height` px, keeping the width. */
@@ -1022,6 +1034,7 @@ async function resizeVisibleHeightTo(page: Page, height: number) {
   await expect
     .poll(async () => (await scrollContainer(page, "Transcript")).visibleHeight)
     .toBe(height);
+  await settle(page);
 }
 
 for (const pointer of POINTERS) {
@@ -1081,11 +1094,18 @@ for (const pointer of POINTERS) {
       });
     }
 
-    for (const where of ["1376x878", "the threshold"] as const) {
-      test(`SPEC-CORE-105 I2 with four toggles and the quote action no row content meets the frame or passes the canvas's right edge (${where}, ${pointer.name} pointer)`, async ({
+    // With a preview action the row may pass the right edge near the threshold.
+    const FOUR_TOGGLES = [
+      { where: "1376x878", actions: false, rightEdge: true },
+      { where: "the threshold", actions: false, rightEdge: true },
+      { where: "1376x878", actions: true, rightEdge: true },
+      { where: "the threshold", actions: true, rightEdge: false },
+    ] as const;
+    for (const { where, actions, rightEdge } of FOUR_TOGGLES) {
+      test(`SPEC-CORE-105 I2 with four toggles and ${actions ? "the quote action" : "no preview action"} no row content meets the frame${rightEdge ? " or passes the canvas's right edge" : ""} (${where}, ${pointer.name} pointer)`, async ({
         page,
       }) => {
-        await openWide(page, BESIDE_WINDOWS[0], { panels: "four", actions: true });
+        await openWide(page, BESIDE_WINDOWS[0], { panels: "four", actions });
         await expectPointer(page, pointer.hasTouch);
         if (where === "the threshold") {
           const { visibleHeight } = await scrollContainer(page, "Transcript");
@@ -1095,7 +1115,7 @@ for (const pointer of POINTERS) {
           );
         }
         await expect(panelGroup(page).getByRole("button")).toHaveCount(4);
-        await expect(page.getByTestId("fixture-preview-action")).toBeVisible();
+        await expect(page.getByTestId("fixture-preview-action")).toHaveCount(actions ? 1 : 0);
         await expect(workbench(page)).toHaveAttribute("data-row-beside", "on");
 
         const { frame, root, content } = await rowLayout(page);
@@ -1106,7 +1126,7 @@ for (const pointer of POINTERS) {
             item.top < frame.bottom - 1 &&
             item.bottom > frame.top + 1;
           expect(meets).toBe(false);
-          expect(item.right).toBeLessThanOrEqual(root.right + 1);
+          if (rightEdge) expect(item.right).toBeLessThanOrEqual(root.right + 1);
         }
       });
     }
@@ -1114,7 +1134,7 @@ for (const pointer of POINTERS) {
     test(`SPEC-CORE-105 I1 wrapped toggles keep the first ones in priority order on the bottom line, with the trailing group at its right end on the frame's bottom (${pointer.name} pointer)`, async ({
       page,
     }) => {
-      await openWide(page, BESIDE_WINDOWS[0], { panels: "four", actions: true });
+      await openWide(page, BESIDE_WINDOWS[0], { panels: "four" });
       const { visibleHeight } = await scrollContainer(page, "Transcript");
       await resizeCanvasTo(
         page,
@@ -1174,7 +1194,7 @@ const LEAVING = [
     },
   },
   {
-    name: "a width-only resize under 17rem of side space",
+    name: "a width-only resize under 13rem of side space",
     leave: async (page: Page) => {
       const { visibleHeight } = await scrollContainer(page, "Transcript");
       await resizeCanvasTo(
@@ -1219,7 +1239,7 @@ test("SPEC-CORE-105 I5 I9 the state is not beside with the value other than \"tr
   await expectBeside(page);
 });
 
-test("SPEC-CORE-105 I9 a width-only resize in the floor case flips the state between a side space of 17rem and 17rem minus 1px", async ({
+test("SPEC-CORE-105 I9 a width-only resize in the floor case flips the state between a side space of 13rem and 13rem minus 1px", async ({
   page,
 }) => {
   await openWide(page, BESIDE_WINDOWS[0]);
@@ -1239,22 +1259,47 @@ test("SPEC-CORE-105 I9 a width-only resize in the floor case flips the state bet
   await expect(workbench(page)).toHaveAttribute("data-row-beside", "on");
 });
 
-test("SPEC-CORE-105 I9 a height-only resize that moves the side space 8px or more across 17rem flips the state", async ({
+test("SPEC-CORE-105 I9 a height-only resize that moves the side space 8px or more across 13rem flips the state", async ({
   page,
 }) => {
   await openWide(page, BESIDE_WINDOWS[0]);
-  // W = 480 (floor), side space 17rem + 8px.
+  // W = 480 (floor), side space 13rem + 8px.
   await resizeCanvasTo(page, COMPACT_WIDTH + REM + BESIDE_FROM + 8);
   await expect(workbench(page)).toHaveAttribute("data-row-beside", "on");
   const floorHeight = (await scrollContainer(page, "Transcript")).visibleHeight;
 
-  // W = 1000 x 0.3 x 16/9 = 533px: side space 17rem - 45px.
+  // W = 1000 x 0.3 x 16/9 = 533px: side space 13rem - 45px.
   await resizeVisibleHeightTo(page, 1000);
   expect(await sideSpace(page)).toBeLessThanOrEqual(BESIDE_FROM - 8);
   await expect(workbench(page)).not.toHaveAttribute("data-row-beside", /.*/);
 
   await resizeVisibleHeightTo(page, floorHeight);
   await expect(workbench(page)).toHaveAttribute("data-row-beside", "on");
+});
+
+test("SPEC-CORE-105 I9 at 1376x878 with the left sidebar open, the row is beside the frame", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1376, height: 878 });
+  await open(page, "#inspector-video-sidebar", {
+    stored: ["transcript"],
+    inspectorOpen: true,
+    focus: "true",
+  });
+  await expect(page.getByTestId("fixture-sidebar")).toBeVisible();
+  await expect(page.getByTestId("inspector-fit-host")).toHaveAttribute(
+    "data-inspector-fit",
+    "beside",
+  );
+  await expect(panelGroup(page)).toBeVisible();
+  await transcriptLoaded(page);
+  const { visibleHeight } = await scrollContainer(page, "Transcript");
+  expect(regimeOf(visibleHeight)).toBe("floor");
+  const side = await sideSpace(page);
+  expect(side).toBeGreaterThanOrEqual(BESIDE_FROM);
+  expect(side).toBeLessThan(17 * REM);
+
+  await expectBeside(page);
 });
 
 /* The player and the panels across entering and leaving the state. */

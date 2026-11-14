@@ -498,6 +498,27 @@ export function InspectorVideoArrangement(): ReactElement {
   );
 }
 
+/**
+ * The file page with the app's inline left sidebar open: the shell pads the
+ * page by the sidebar's 15rem and draws the sidebar fixed over that padding.
+ */
+export function InspectorVideoSidebarArrangement(): ReactElement {
+  installFetch();
+  installMedia();
+  installScenePictures();
+  return (
+    <Providers>
+      <div className="pl-60">
+        <aside
+          data-testid="fixture-sidebar"
+          className="fixed top-0 left-0 z-40 h-dvh w-60 border-r border-bg-border bg-bg-sidebar"
+        />
+        <FilePage fileId={VIDEO_ID} />
+      </div>
+    </Providers>
+  );
+}
+
 export function InspectorPdfArrangement(): ReactElement {
   installFetch();
   installMedia();

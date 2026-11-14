@@ -29,25 +29,25 @@ describe("SPEC-CORE-105 §3 the frame width W", () => {
 });
 
 describe("SPEC-CORE-105 I9 the beside decision", () => {
-  it("SPEC-CORE-105 I9 is beside at a side space of exactly 17rem and not at 17rem minus 1px (floor, W = 480)", () => {
-    // Side space = C - 480 - 16; 17rem = 272.
-    expect(isRowBeside(768, 830, 16)).toBe(true);
-    expect(isRowBeside(767, 830, 16)).toBe(false);
-    expect(isRowBeside(768, 600, 16)).toBe(true);
-    expect(isRowBeside(767, 600, 16)).toBe(false);
+  it("SPEC-CORE-105 I9 is beside at a side space of exactly 13rem and not at 13rem minus 1px (floor, W = 480)", () => {
+    // Side space = C - 480 - 16; 13rem = 208.
+    expect(isRowBeside(704, 830, 16)).toBe(true);
+    expect(isRowBeside(703, 830, 16)).toBe(false);
+    expect(isRowBeside(704, 600, 16)).toBe(true);
+    expect(isRowBeside(703, 600, 16)).toBe(false);
   });
 
-  it("SPEC-CORE-105 I9 scales the 1rem gap and the 17rem threshold with the root font size", () => {
-    // At 20px: side space = C - 480 - 20 >= 340.
-    expect(isRowBeside(840, 830, 20)).toBe(true);
-    expect(isRowBeside(839, 830, 20)).toBe(false);
-    // 768 is beside at 16px but not at 20px.
-    expect(isRowBeside(768, 830, 20)).toBe(false);
+  it("SPEC-CORE-105 I9 scales the 1rem gap and the 13rem threshold with the root font size", () => {
+    // At 20px: side space = C - 480 - 20 >= 260.
+    expect(isRowBeside(760, 830, 20)).toBe(true);
+    expect(isRowBeside(759, 830, 20)).toBe(false);
+    // 704 is beside at 16px but not at 20px.
+    expect(isRowBeside(704, 830, 20)).toBe(false);
   });
 
   it("SPEC-CORE-105 I9 uses the share term of W once it passes 480", () => {
     const width = w(1074, 0.3);
-    const threshold = width + 16 + 272;
+    const threshold = width + 16 + 208;
     expect(isRowBeside(Math.ceil(threshold), 1074, 16)).toBe(true);
     expect(isRowBeside(Math.floor(threshold) - 1, 1074, 16)).toBe(false);
     // Beside under the floor's W, not under the share's.
@@ -57,16 +57,16 @@ describe("SPEC-CORE-105 I9 the beside decision", () => {
 
   it("SPEC-CORE-105 I9 uses the half term of W when it is under 480", () => {
     const width = w(512, 0.5);
-    const threshold = width + 16 + 272;
+    const threshold = width + 16 + 208;
     expect(isRowBeside(Math.ceil(threshold), 512, 16)).toBe(true);
     expect(isRowBeside(Math.floor(threshold) - 1, 512, 16)).toBe(false);
     // Beside under the half's W, not under the floor's.
-    expect(isRowBeside(750, 512, 16)).toBe(true);
-    expect(isRowBeside(750, 830, 16)).toBe(false);
+    expect(isRowBeside(690, 512, 16)).toBe(true);
+    expect(isRowBeside(690, 830, 16)).toBe(false);
   });
 
   it("SPEC-CORE-105 §2 is never beside before the visible height is measured", () => {
-    expect(isRowBeside(768, null, 16)).toBe(false);
+    expect(isRowBeside(704, null, 16)).toBe(false);
     expect(isRowBeside(5000, null, 16)).toBe(false);
     expect(isRowBeside(5000, 830, 16)).toBe(true);
   });
