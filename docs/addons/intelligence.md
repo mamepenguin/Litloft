@@ -156,7 +156,7 @@ Every hour (`indexing.reconciliation_interval`) the addon looks for files it has
   - Limits per book: the first 2,000 chapter files, 2,000,000 characters of text and 20 MB of unpacked data. A chapter file over 5 MB, or a package, navigation or table-of-contents file over 1 MB, is skipped and the rest of the book is still indexed.
   - A book whose zip is corrupt is not indexed at all.
 - Audio and video are transcribed, split into chunks and embedded. Keywords from the transcript are stored for **Similar files**.
-- For video, frames are picked at scene changes (`indexing.frame_extraction`) and embedded with CLIP.
+- For video, frames are picked at scene changes (`indexing.frame_extraction`) and embedded with CLIP. Separately, a **scene change scan** decodes each native video once at one frame per second and keeps a 256-bit difference hash of each second; a second whose picture differs from the previous change second by at least 16 bits, and at least 10 s after it, is stored as a **change frame** with its own CLIP vector. Change frames stay out of scene search, similar files and the Scenes tiles; the selection behind the Visual Index, the scenes route and a question about a video with no text reads them. A video that is already indexed is scanned in the background, and **Regenerate** of **Image analysis (CLIP)** scans it again.
 - Images are embedded with CLIP, and captioned with BLIP when `models.blip` is set.
 - Pictures are also read for the words in them with a local OCR engine when `features.image_ocr` is not off; see [text in pictures](#text-in-pictures).
 - Videos are read for the words shown on screen, and scanned PDF pages for their text, while `features.video_frame_ocr` / `features.scanned_pdf_ocr` are not off; see [text in videos and scanned pages](#text-in-videos-and-scanned-pages).
@@ -221,7 +221,7 @@ An agent can also list every place a string appears in a drive's document text, 
 
 An agent can read the text of a PDF, Word, Excel, PowerPoint or EPUB file a page, slide, sheet or EPUB section at a time (`read_document`, backed by `GET /files/{file_id}/document-text`). The text is extracted from the file on each call with the same extractors indexing uses, and nothing is stored. A response stops at `max_chars` and returns a `next` cursor to continue. A PDF read covers at most 10 pages. At most two reads extract at once, and PDF conversions (reads and indexing) run one at a time; a read that cannot start within 10 seconds gets 429. The file must already be indexed by the addon.
 
-An agent connected through the [MCP server](../../mcp-server/README.md) can look at the same frames: `list_video_scenes` returns representative scenes picked from them, with a small frame each, and `get_video_frame` returns a large frame at any time. Neither needs the Visual index or a vision model.
+An agent connected through the [MCP server](../../mcp-server/README.md) can look at the same frames: `list_video_scenes` returns up to 40 representative scenes with their section times and the time of each small frame, and `get_video_frame` returns a large frame at any time. Neither needs the Visual index or a vision model.
 
 ### Auto-tags
 
@@ -449,7 +449,7 @@ Automatic runs never redo an image that already has a result.
 
 ### Visual index
 
-For video, the vision model describes representative scenes. The **Scenes** panel marks every described scene on its frame timeline and on the tile of the frame it starts at, and the card under the grid describes the last described scene at or before the point you are looking at; click the card to play from there. **Create scenes** starts it, **Regenerate scenes** runs it again, and **Retry the N failed** redoes the scenes that failed. It waits until the video's frames have been indexed.
+For video, the vision model describes representative scenes. A video is cut into 8 to 40 sections, about one per 75 seconds and never more than 40, and adjacent sections that show the same thing are merged into one. The **Scenes** panel marks every described scene on its frame timeline at the start of its section, and on the frame tile that start falls in; the card under the grid describes the last described scene at or before the point you are looking at, shows that section start as its time, and playing it starts there. **Create scenes** starts it, **Regenerate scenes** runs it again, and **Retry the N failed** redoes the scenes that failed. A run starts only once the video's frames have been indexed and its scene change scan is done. A run from an earlier version shows as stale and stays until you regenerate it by hand.
 
 Modes (`features.video_visual_index`): `"false"` (default), `"manual"`, `"on_index"`. It needs `llm.vision_model`. Frame images and nearby transcript text are sent to the vision model.
 
@@ -763,6 +763,8 @@ indexing:
     overlap: 80
 ```
 
+`indexing.frame_extraction.max_frames` caps the frames picked at scene changes, and also the change frames the scene change scan keeps for one video: with more change seconds than that, it keeps that many, spread over the whole video.
+
 `indexing.whisper.*` is the old place for the `whisper_local` settings. It is still read, but `transcription.whisper_local.*` wins where both are set.
 
 ### Workers and memory
@@ -795,7 +797,7 @@ Whisper (or the `haas_local` recognizer, when that is the provider), BLIP, the O
 - **Pickup** on the drive home.
 - **Index details** in the file's `…` menu (see below).
 - **AI** in the folder's `…` menu: **Create AI tag candidates…**, **Create AI summaries…** and **Create image descriptions…**. Each asks first and says how many files. That count is the files the folder has loaded so far, which may not be the whole folder.
-- On the admin dashboard, the **Index Status** widget (queues, models, **Pause** / **Resume**) and, when something failed, a **N failed jobs** band whose **View** opens the **Failed jobs** list, with **Retry** and **Exclude** per row. It counts OCR tasks in the queue and shows **Text in image**, **Text in video** and **Text in scanned pages** progress bars.
+- On the admin dashboard, the **Index Status** widget (queues, models, **Pause** / **Resume**) and, when something failed, a **N failed jobs** band whose **View** opens the **Failed jobs** list, with **Retry** and **Exclude** per row. It counts OCR tasks in the queue and shows **Text in image**, **Text in video** and **Text in scanned pages** progress bars, and a **Scene change scan** bar for the videos whose scan is still pending; pending scans also appear as a **Scene change scan** row of the queue breakdown.
 
 A section disappears on drives where its feature is off.
 
