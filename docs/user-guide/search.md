@@ -77,7 +77,7 @@ When the conditions of an open Smart Collection differ from what it saved — a 
 
 On a saved Smart Collection's page, while it shows the saved query and type in **ファイル**, **再生 / Play** plays its video and audio. The files play as a queue in the order shown, and when a file ends the next one opens. The queue is fixed when you press Play: later changes to the Smart Collection do not alter it, and only the next Play replaces it. Play is absent when the results hold no video or audio; on a phone it is the first row of the `…` sheet.
 
-With the intelligence addon, `…` also holds **ここに質問 / Ask here**, which opens Ask scoped to this Smart Collection. See [Ask and Find](#ask-and-find-intelligence-addon).
+With the intelligence addon, `…` also holds **ここに質問 / Ask here**, which opens Ask scoped to this Smart Collection. See **Ask and Find** below.
 
 ## Tag filtering
 

@@ -152,34 +152,34 @@ KrV7PzdX2y9d, only meaning-search hits), 音楽 (`type:audio`, id yKFdrp_87eCA);
 - After editing the query, and with `type=video` added to the URL: no slot entry and no
   separator (`menu-edited-query-1440-ja`, `menu-url-type-1440-ja`).
 - ここに質問 opens `/drive/動画/addons/intelligence?scope=in:"<name>"` with the only chip
-  コレクション <name> — from Files (`ask-from-menu-1440-ja`) and from Passages
-  (`ask-from-passages-1440-ja`).
+  コレクション <name> — from Files (`askpage-from-menu-1440-ja`) and from Passages
+  (`askpage-from-passages-1440-ja`).
 
 4. Ask.
 - Scoped question for あんこ動画: the header/scope line read 動画 · 8件 before and after; the
   POST body was `{"query":…,"scope":{"folders":[],"collections":[],"tags":[],"kinds":[],
   "file_ids":[8 ids]}}` — no collection name in `collections`. The answer cited 5 files, all
-  among the 8 members (`ask-answer-scoped-1440-ja`).
+  among the 8 members (`askpage-answer-scoped-1440-ja`).
 - Citation → `/drive/動画/YouTube?file=BVtZs91FE2MA&t=40`; Back restored the same answer with no
-  new POST (ask count stayed 1, `ask-restored-after-back-1440-ja`); pressing 質問する asked again
-  (count 2, `ask-asked-again-1440-ja`).
+  new POST (ask count stayed 1, `askpage-restored-after-back-1440-ja`); pressing 質問する asked again
+  (count 2, `askpage-asked-again-1440-ja`).
 - ＋ 範囲 → コレクション listed Spirit (Library icon), レシピ動画 and 該当なし (both ListFilter),
   in that name order; あんこ動画 (already chosen) and 引用"テスト (quote) were left out
-  (`ask-1440-ja-collections`, `ask-760-ja-collections`, `ask-375-ja-collections`,
-  `ask-1440-en-collections`).
+  (`askpage-1440-ja-collections`, `askpage-760-ja-collections`, `askpage-375-ja-collections`,
+  `askpage-1440-en-collections`).
 - A collection chip alone (Spirit) still works as before: scope line 動画 · 50件, POST
   `collections:["Spirit"]` with no `file_ids`, sources are Spirit tracks
-  (`ask-collection-chip-answer-1440-ja`).
+  (`askpage-collection-chip-answer-1440-ja`).
 - Mixed scope (folder YouTube + コレクション あんこ動画): the scope line showed the drive alone
   (動画) before the answer and 動画 · 8件 after it; the POST carried `folders:["YouTube"]` plus
   the 8 member ids; the answer cited 5 files, all among those 8 (all 8 members are in YouTube),
-  so the scope set is those 8 (`ask-mixed-scope-1440-ja`, `ask-mixed-answer-1440-ja`).
+  so the scope set is those 8 (`askpage-mixed-scope-1440-ja`, `askpage-mixed-answer-1440-ja`).
 - More than 10,000 ids: not producible (850 files in the drive).
 - Zero members (該当なし): the menu still offers ここに質問; the Ask page showed the chip
   `コレクション 該当なし`, the scope line 動画 · 0件, and the POST sent `"file_ids":[]`
-  (`ask-empty-collection-1440-ja`).
+  (`askpage-empty-collection-1440-ja`).
 - At 760 and 375 the chip and the list render without horizontal scroll
-  (`ask-760-ja-chip`, `ask-375-ja-chip`, `ask-375-ja-collections`).
+  (`askpage-760-ja-chip`, `askpage-375-ja-chip`, `askpage-375-ja-collections`).
 
 5. The search page's ＋ 条件 → コレクション lists Spirit only; no Smart Collection appears
 (`search-condition-collections-1440-ja`).
@@ -201,7 +201,7 @@ KrV7PzdX2y9d, only meaning-search hits), 音楽 (`type:audio`, id yKFdrp_87eCA);
   only for audio (`queue-audio-1200-ja`). No reorder or remove control in either.
 - D5: the chip reads `コレクション あんこ動画` with the ×; the ＋ 範囲 → コレクション list shows
   Spirit with the Library icon and レシピ動画 / 該当なし with the ListFilter icon, in the
-  artboard's order (`ask-760-ja-collections`), and the Ask page at 760 puts the header, chip row
+  artboard's order (`askpage-760-ja-collections`), and the Ask page at 760 puts the header, chip row
   and field in one column as drawn.
 
 ## Design differences accepted by the human (design-check.md)
