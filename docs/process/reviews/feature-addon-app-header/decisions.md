@@ -601,3 +601,5 @@ pending: |
 Accepted by the human on 2026-11-14, by id, from design-check.md:
 D-1, D-2, D-3, D-4, D-5, D-6, D-7, D-8, D-9, D-10, D-11.
 D-11 lists the Photo Diary screens, which this branch does not draw; they are checked on the addon's own branch.
+Accepted by the human on 2026-11-14, by id, from the rewritten design-check.md: D-14.
+D-12 and D-13: the human chose to fix them, and on 2026-11-14 approved changing three acceptance assertions (the Target and the shelf sort menu end at the content edge) to measure the chevron's right edge instead of the button's ("1").
