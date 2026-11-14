@@ -144,6 +144,20 @@ const ADDONS_STATUS = {
           ]
         : []),
     ],
+    // `actions=1` gives the player one preview action, so the row's
+    // trailing end has something visible beside the panel controls.
+    ...(FIXTURE_QUERY.get("actions") === "1"
+      ? {
+          "file-preview-actions": [
+            {
+              id: "fixture-action",
+              label: "Quote",
+              priority: 10,
+              addonName: "intelligence",
+            },
+          ],
+        }
+      : {}),
   },
 };
 

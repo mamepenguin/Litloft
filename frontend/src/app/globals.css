@@ -923,6 +923,18 @@ pre mark.ask-citation-highlight {
   );
 }
 
+/* 480px is the player's `COMPACT_MAX_WIDTH` (`MediaControls/layout.ts`):
+   below that width its controls go compact. The 0.5 is the cap the floor
+   must not raise the frame above. */
+.media-detail-host[data-workbench="on"][data-player-focus="on"]
+  .media-detail-player[data-framed="true"] {
+  min-width: min(
+    100%,
+    480px,
+    calc(var(--rail-avail, 100dvh) * 0.5 * 16 / 9)
+  );
+}
+
 .media-detail-workbench {
   display: flex;
   flex: 1 1 auto;
@@ -954,6 +966,13 @@ pre mark.ask-citation-highlight {
   margin-left: auto;
 }
 
+.media-detail-workbench-trailing {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
 .workbench-toggle {
   display: inline-flex;
   align-items: center;
@@ -980,9 +999,23 @@ pre mark.ask-citation-highlight {
   font-weight: 600;
 }
 
+.workbench-toggle-icon {
+  flex: 0 0 auto;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border-radius: 9999px;
+}
+
 @media (pointer: coarse) {
   .workbench-toggle {
     min-height: 2.75rem;
+  }
+
+  .workbench-toggle-icon {
+    width: 2.75rem;
+    height: 2.75rem;
   }
 }
 

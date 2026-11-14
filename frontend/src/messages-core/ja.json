@@ -1521,6 +1521,7 @@
     "note": "ノート",
     "close": "{label}を閉じる",
     "showMore": "もっと見る",
-    "showLess": "折りたたむ"
+    "showLess": "折りたたむ",
+    "enlargePanels": "パネルを広げる"
   }
 }

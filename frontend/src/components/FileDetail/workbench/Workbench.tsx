@@ -2,7 +2,7 @@
 
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { X } from "lucide-react";
+import { PanelTopClose, X } from "lucide-react";
 
 import { WORKBENCH_COLUMNS_MIN_REM, WORKBENCH_MIN_REM } from "@/lib/layoutSizes";
 import type { WorkbenchPanelItem } from "./panels";
@@ -13,6 +13,7 @@ interface WorkbenchProps {
   onToggle: (id: string) => void;
   onClose: (id: string) => void;
   actions?: ReactNode;
+  playerFocus?: { pressed: boolean; onToggle: () => void };
 }
 
 export function shownPanelIds(
@@ -30,6 +31,7 @@ export function Workbench({
   onToggle,
   onClose,
   actions,
+  playerFocus,
 }: WorkbenchProps) {
   const t = useTranslations("workbench");
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -85,14 +87,28 @@ export function Workbench({
               );
             })}
           </div>
-          {actions != null && (
-            <div
-              data-preview-actions="true"
-              className="media-detail-workbench-actions empty:hidden"
-            >
-              {actions}
-            </div>
-          )}
+          <div className="media-detail-workbench-trailing">
+            {playerFocus != null && shown.length > 0 && (
+              <button
+                type="button"
+                aria-pressed={playerFocus.pressed}
+                aria-label={t("enlargePanels")}
+                title={t("enlargePanels")}
+                onClick={playerFocus.onToggle}
+                className={`workbench-toggle workbench-toggle-icon${playerFocus.pressed ? " is-on" : ""}`}
+              >
+                <PanelTopClose size={16} aria-hidden />
+              </button>
+            )}
+            {actions != null && (
+              <div
+                data-preview-actions="true"
+                className="media-detail-workbench-actions empty:hidden"
+              >
+                {actions}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

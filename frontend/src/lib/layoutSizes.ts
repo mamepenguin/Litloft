@@ -34,6 +34,9 @@ export const WORKBENCH_MIN_REM = 18;
 /** A framed player's cap while a panel is shown under it. */
 export const WORKBENCH_PLAYER_SHARE = 0.5;
 
+/** The same cap while the reader asks the panels to take the larger share. */
+export const WORKBENCH_PLAYER_FOCUS_SHARE = 0.3;
+
 /**
  * The canvas's scrollbar is deliberately not a term here: whether there is
  * one depends on the canvas width this decides, and on overlay scrollbars
