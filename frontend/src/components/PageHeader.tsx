@@ -116,7 +116,7 @@ export function PageHeader({
           </div>
           {heading}
           <div
-            className={`col-start-2 col-span-2 ${rows.scope} flex min-w-0 items-center justify-between gap-2 sm:contents`}
+            className={`col-start-2 col-span-2 ${rows.scope} flex min-w-0 items-center justify-between gap-1 sm:contents`}
           >
             {given(scope) && (
               <div
