@@ -45,7 +45,9 @@ Terms:
   `file_type = "video"`, no `transcript_chunks` row and no `fts_text_content` row (the same
   existence checks `available` makes today), that is not a `.loft` file (`LOFT_MIME`)
   unless that `.loft` can be read and names a YouTube source
-  (`read_loft(...).provider == YOUTUBE_PROVIDER`). A video that has chunk rows, even rows
+  (`read_loft(file_path, drive).provider == YOUTUBE_PROVIDER`, with the row's
+  `file_path` and the request drive, as `GET /files/{id}/scenes` calls it). `available`,
+  `load_material` and the frames path all read the `.loft` with those same arguments. A video that has chunk rows, even rows
   whose text is all empty, is not text-less and keeps its current behavior.
 - **The position**, for a text-less video, is `position_seconds` when it was sent and is
   greater than 0. A `position_seconds` of exactly 0 (the value a player reports before it
@@ -88,9 +90,12 @@ Terms:
    frame when there is a position, and the scene frames (Terms). It prepares each as the
    `large` cache entry (long edge ≤ 1280, WebP) at the frame's time, filled on a miss by
    the native or YouTube path that SPEC-ADDON-071 uses for the position frame, with its
-   duration check. The question starts at most 4 preparations at a time; each runs under
-   the existing per-frame bound (15 s from when that frame's work starts), and the route
-   stops waiting 45 s after preparation began. After that moment no preparation of the
+   duration check. The 45 s clock starts when the slot is taken, before the candidates
+   are read. Preparations are started in this order: the position frame first, then the
+   other chosen frames in time order. The question starts at most 4 at a time; a cache
+   hit is a preparation like any other and finishes at once. Each runs under the existing
+   per-frame bound (15 s from when that frame's work starts), and the route stops waiting
+   45 s after the slot was taken. After that moment no preparation of the
    question that has not started is started. A frame that fails, or is not ready when
    the route stops waiting, is dropped; the rest are kept.
    From the slot until the first `answer_chunk`, the route writes an SSE comment line
@@ -100,12 +105,14 @@ Terms:
    can exceed that. The tab's parser already ignores comment lines.
 5. The kept frames are sorted by time and numbered `[1]` to `[m]`. The route streams the
    answer from the profile's `vision_model`, with the frames as `m` images in one request,
-   in that order, and the user prompt listing each number with its time. No passages are
-   sent. The history block of SPEC-ADDON-081 is sent as today; the frames are chosen and
+   in that order, and the user prompt listing each number with its time. No passages
+   block is rendered: the prompt has no `Passages from the file:` section. The history block of SPEC-ADDON-081 is sent as today; the frames are chosen and
    prepared again for every turn.
 6. The stream events are as today: `answer_chunk`, `citations`, `meta`, `done`.
    `citations` lists each `[n]` the answer names, `1 ≤ n ≤ m`, once, in first-named order,
-   with `position: {"seconds": <that frame's time>}`. `meta.image` is `"attached"`.
+   with `position: {"seconds": <that frame's time>}`. `meta.image` is `"attached"` and
+   `meta.partial` is `false`, whether or not some chosen frames were dropped; no notice is
+   shown for dropped frames, and the prompt lists only the frames sent.
 7. The tab draws the answer as today. A cited `[n]` becomes the existing time pill, and
    clicking it seeks the open player to that time (053 I8). **Markdownで保存** keeps
    working: the saved note turns each cited frame into a link to its time, as it does for
@@ -134,6 +141,10 @@ position is still stated and no frame carries that time.
 | 5 | Failure after the first token | As today: the text received is kept, `done` carries `error` |
 | 5 | An empty answer | The generic generation failure, as today |
 | 4–5 | The client disconnects | The route stops waiting for frames, starts no further frame work and no model request, and releases the slot (053 I11). Frame work already running finishes within its own bound and may still write its cache entry |
+
+Only 400/404 count as a refusal, the same statuses the single-image call classifies. A
+multi-image or size limit reported any other way (413, 422, a 5xx, an error inside the
+stream) is the generic generation failure.
 
 The verdict is not written because a refusal of 8 large frames can come from a context or
 image-count limit of a model that reads one image well, and the verdict would also switch
@@ -213,6 +224,10 @@ or time list comes from the request other than the single `position_seconds`.
   `test_unavailable_for_everything_but_an_askable_file`, seeds a text-less `video/mp4`
   under a fixture with no `vision_model`. It would still pass, but would test "no profile
   can see" instead of "no chunk", so its file becomes `audio/mpeg`.
+- `tests/test_file_question.py`, the `no-chunk` case of
+  `TestTheRequestedFile.test_a_file_this_drive_cannot_ask_about_is_404`, seeds a text-less
+  `video/mp4` and asserts 404 on POST; under this change that request is a 409 or is
+  answered. Its file becomes `audio/mpeg`, so it keeps testing "no chunk is 404".
 - YouTube `.loft` Ask (SPEC-ADDON-077) keeps one frame and the text-only retry for a
   `.loft` with a text chunk; a text-less YouTube `.loft` takes the frames path (077 I6
   revised).
@@ -279,7 +294,9 @@ or time list comes from the request other than the single `position_seconds`.
 - `addons/intelligence/tests/test_file_question.py`:
   `test_unavailable_for_everything_but_an_askable_file[no-chunk]` seeds a text-less
   `video/mp4`; its file becomes `audio/mpeg`, so the case keeps testing "no chunk" rather
-  than "no profile can see" (section 7).
+  than "no profile can see"; the `no-chunk` case of
+  `TestTheRequestedFile.test_a_file_this_drive_cannot_ask_about_is_404` gets the same
+  change (section 7).
 - `addons/intelligence/frontend/AskTab.tsx`, `askStream.ts`, the ask store, and the
   addon's `messages/{ja,en}.json`: the three failure kinds and lines.
 - Rules passed through: `.claude/rules/design-decisions.md` (Access control, Drives, LLM
@@ -292,15 +309,14 @@ or time list comes from the request other than the single `position_seconds`.
 ## Invariants
 
 I1. A video with at least one `transcript_chunks` or `fts_text_content` row gets the same availability, passages, prompt, image and retry as before this change, for every request; availability answers `true` for a text-less video only when some profile can see, and `false` for audio with no text chunk and for a `.loft` that is unreadable or whose source is not YouTube.
-I2. Frames come only from the requested file, an active video of the `X-Lit-Drive` drive that the viewer can access and whose `rag` feature is on, and go only through the profile resolved by `resolve(drive, "rag")`, only to its `vision_model`, and only when `llm_cloud` allows that profile for the drive (a policy that cannot be read sends nothing); at most 8 are sent, each at most 1280 px on its long edge, and each is the frame at the time listed for it in the prompt and returned for it as `position.seconds`.
+I2. Each frame sent is the frame at the time listed for it in the prompt and returned for it as `position.seconds`, and goes only to the `vision_model` of the profile resolved by `resolve(drive, "rag")`.
 I3. The frames chosen are the position frame when there is a position greater than 0, plus the scene frames of Terms steps 1 to 4, in that order of rules (selection, removal within 1 s of the position, index thinning with a half rounding up, evenly spaced filling); a frame that failed is left out and never replaced by a frame of another time. For a text-less video a `position_seconds` of exactly 0 yields no position frame, a budget of 8, and no position in the prompt.
 I4. The kept frames are numbered from 1 in time order and the images are sent in that order; every `citations` entry for a text-less video names a frame number that was sent, `1 ≤ n ≤ m`, with that frame's time as `position.seconds`, and no other number appears.
-I5. A text-less video never receives a generated answer without at least one frame sent with it: it ends in 409 `video_needs_vision` before a slot is taken, in `done` with `error: "frames_unusable"` or `"frames_rejected"`, or in the generic generation failure.
+I5. The frames prompt has no passages section; when there is a position greater than 0 it states it whether or not the position frame was kept, and no frame other than the position frame is listed at the position's time.
 I6. A refusal of the multi-frame request never writes the vision-unsupported verdict, so `profile_can_see` and `any_profile_can_see` answer after it as they did before it.
-I7. A frames question holds exactly one semaphore slot from after the material is read until its stream ends, fails or is cancelled, and no frame work starts outside it; it never has more than 4 frame preparations of its own running at once; after a disconnect no further frame work and no model request starts, and the slot is released.
-I8. No later than 45 s after frame preparation began, the route has sent the model request or ended the stream, and from then on no frame preparation of that question is started; until the first `answer_chunk` no 10 s passes without a byte written to the stream.
-I9. The questions, the answers, the history and every frame byte are neither stored nor logged by the route or the tab, apart from the `large` frame cache entries that `get_video_frame` also writes and the note the viewer saves.
-I10. The tab shows the `video_needs_vision` line for a 409 with that detail, the `frames_unusable` line for a `done` with that error and the `frames_rejected` line for a `done` with that error, and none of them shows the generic failure line or the picture lines.
+I7. A frames question holds exactly one semaphore slot from after the material is read until its stream ends, fails or is cancelled, and no frame work starts outside it; it never has more than 4 frame preparations of its own running at once, started position frame first and then in time order; after a disconnect no further frame work and no model request starts, and the slot is released.
+I8. No later than 45 s after the slot was taken, the route has sent the model request or ended the stream, and from then on no frame preparation of that question is started; until the first `answer_chunk` no 10 s passes without a byte written to the stream.
+I9. The tab shows the `video_needs_vision` line for a 409 with that detail, the `frames_unusable` line for a `done` with that error and the `frames_rejected` line for a `done` with that error, and none of them shows the generic failure line or the picture lines.
 
 ## Revises
 
@@ -333,6 +349,15 @@ SPEC-ADDON-077 I6. Ask on a YouTube `.loft` that has a text chunk, with `positio
   wait for a request that is likely to be refused again; the `frames_rejected` line names
   the cause and suggests another model (decided by the human). Revisit if refusals are
   seen in use.
+- **Invariants already carried by the Revises lines.** The source file and drive, the
+  count and size of frames, `llm_cloud` (071 I1, 071 I2, 053 I1 as revised here), the
+  no-answer-without-a-frame rule (071 I6 revised) and storage and logging (071 I8 revised)
+  are not repeated as local invariants.
+- **A notice when some frames were dropped.** `partial` stays `false` and no line is
+  shown: the answer is from the frames listed, the citations show which, and a notice
+  would appear on most cold YouTube questions.
+- **Statuses other than 400/404 as `frames_rejected`.** They are also how a server says it
+  is down or overloaded, and mapping them to "try another model" would misname those.
 - **Keep-alive on the text paths.** Their silence before the first token is the model's
   alone, as today; only the frames path adds up to 45 s of preparation before it.
 - **Killing ffmpeg or yt-dlp on a disconnect or at 45 s.** The existing frame paths are
