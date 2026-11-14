@@ -63,17 +63,22 @@ export function useCompanionMetrics(
       setPlayerAvailable(value);
     };
 
-    let observedRow: HTMLElement | null = null;
     let observer: ResizeObserver | null = null;
     // The row mounts and unmounts with the panels and the toggles, which can
     // happen after this effect has run. Its element is looked up on every
-    // measure, and the observer follows whichever element is current.
+    // measure, and the observer follows whichever element is current. The
+    // observer does not exist during the first measure, so the element it
+    // watches is tracked apart from the element last seen.
+    let knownRow: HTMLElement | null = null;
+    let watchedRow: HTMLElement | null = null;
     const followRow = (): HTMLElement | null => {
       const row = scope.querySelector<HTMLElement>(WORKBENCH_ROW_SELECTOR);
-      if (row === observedRow) return row;
-      if (observedRow) observer?.unobserve(observedRow);
-      if (row) observer?.observe(row);
-      observedRow = row;
+      knownRow = row;
+      if (observer && row !== watchedRow) {
+        if (watchedRow) observer.unobserve(watchedRow);
+        if (row) observer.observe(row);
+        watchedRow = row;
+      }
       return row;
     };
 
@@ -129,7 +134,7 @@ export function useCompanionMetrics(
     if (typeof MutationObserver !== "undefined") {
       mutationObserver = new MutationObserver(() => {
         const current = scope.querySelector<HTMLElement>(WORKBENCH_ROW_SELECTOR);
-        if (current !== observedRow) measure();
+        if (current !== knownRow) measure();
       });
       mutationObserver.observe(scope, { childList: true, subtree: true });
     }

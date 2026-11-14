@@ -85,12 +85,13 @@ The budget is computed in `useCompanionMetrics.ts`, as `--player-avail`:
   `mt-4` above the workbench and its `p-4` bottom padding). It is 0 when no row is drawn.
 - The 48px peek (`PLAYER_PEEK_PX`) is not part of the budget. It is removed (Question 2).
 
-The row element is held in state by `ShellLayout`, not in a ref. `Workbench` takes a callback
-ref (`rowRef`) and calls it with the row element, or `null` when the row is unmounted.
-`ShellLayout` stores it and passes it to `useCompanionMetrics`, which takes it as a
-dependency next to `resolvedFileId` and `miniPlayerRoot`. So the effect re-runs and re-attaches
-its `ResizeObserver` whenever the row mounts, unmounts or changes identity. A change in the
-row's height is observed by the same observer.
+The row is found by its class (`.media-detail-workbench-row`) inside the metrics hook's scope
+(the mini-player pane, or the document), on every measure. The hook's `ResizeObserver` watches
+the row element that is current, whether or not it existed when the effect ran, and a
+`MutationObserver` over the scope (child list, subtree) measures again when the row element
+mounts, unmounts or changes identity. A change in the row's height is observed by the same
+observer. While the row sits beside the frame (`data-row-beside="on"`, SPEC-CORE-105), it is
+not in the flow under the frame, so `rowBlock` is 0.
 
 Before the row is first measured, `rowBlock` is 0, so on the first frame the frame may be
 taller than the visible area. This is accepted, as SPEC-CORE-105 accepts for its own first
@@ -178,24 +179,38 @@ Only the first two rows are read by the revised SPEC-CORE-104 I3 and by I4 below
   panel-shown state (the attribute is only set then, by `workbenchActive`). Nothing else in
   the stylesheet changes. The collection rule (`data-collection-workbench`) is not touched.
 - `frontend/src/components/FileDetail/workbench/Workbench.tsx`: the grid's `minHeight`
-  (`WORKBENCH_MIN_REM`) is removed. The row takes `rowRef` (callback ref).
+  (`WORKBENCH_MIN_REM`) is removed. The row element is not passed anywhere; the metrics hook
+  finds it by class (§3).
 - `frontend/src/lib/layoutSizes.ts`: `WORKBENCH_MIN_REM` is deleted, after its last use in
   `Workbench.tsx` is removed. Grep `WORKBENCH_MIN_REM` to confirm.
-- `frontend/src/components/FileDetail/ShellLayout.tsx`: holds the row element in state and
-  passes it to the metrics hook (and `workbenchActive` is already computed there).
-- `frontend/src/components/FileDetail/hooks/useCompanionMetrics.ts`: takes the row element,
-  subtracts `rowBlock` from `--player-avail`, and removes `PLAYER_PEEK_PX`
-  (Question 2).
-- `frontend/src/components/FileDetail/MediaCanvas.tsx`, `mediaHostStyle.ts`: no change
-  expected.
-- Tests whose expected values change:
+- `frontend/src/components/FileDetail/hooks/useCompanionMetrics.ts`: subtracts `rowBlock` from
+  `--player-avail`, removes `PLAYER_PEEK_PX` (Question 2), and observes the row element that
+  is current (§3).
+- `frontend/src/components/FileDetail/hooks/__tests__/useCompanionMetrics.test.tsx` (new): the
+  row that exists at mount is observed.
+- `frontend/src/components/FileDetail/MediaCanvas.tsx`, `mediaHostStyle.ts`,
+  `ShellLayout.tsx`: no change.
+- Tests whose expected values change or which are removed or rewritten:
   - `frontend/src/components/FileDetail/__tests__/FileDetailCanvas.test.tsx` (lines 213, 219,
     278, 288) assert exact `--player-avail` pixel values (508, 632, 402px) computed with the
-    48px peek and no row block. They are re-derived from the formula in §3 during
-    implementation, and the new expected values are written in the same change.
-  - Any test asserting `WORKBENCH_MIN_REM` or the 18rem grid floor for the canonical page.
-    Found by grepping `WORKBENCH_MIN_REM` only. The collection test
-    (`mediaDetailTheaterCss.test.ts`, the `max(18rem …)` rule) is kept.
+    48px peek and no row block. The new values are the old ones plus 48 exactly: no row is
+    drawn in those cases, so `rowBlock` is 0. The subtraction of a drawn row is measured in
+    the e2e suite (`e2e-components/`), not in jsdom, which has no layout.
+  - `frontend/src/app/__tests__/mediaDetailTheaterCss.test.ts`: the canonical host assertion becomes
+    `height: var(--rail-avail, 100dvh)` with no `min-height`. The regex matches that rule
+    in the extracted host block. The collection test (the `max(18rem …)` rule) is kept.
+  - `frontend/e2e-components/player-workbench-desktop.spec.ts`: the SPEC-CORE-085 I5 test
+    that asserted the 18rem floor and page scroll is rewritten as SPEC-CORE-106 I1 (the
+    region is below 18rem and the page does not scroll). Its name changes with it.
+  - `frontend/e2e-components/inspector-responsive-layout-desktop.spec.ts`: the test
+    "find with the inspector closed in a stacked row restores the canvas scroll" is deleted.
+    Reason: its premise was not true on the baseline either. With the inspector open in a
+    stacked layout the canvas holds only the player, so its scroll height equals its client
+    height before and after this change (measured at 900×700 and 900×520). The test
+    therefore checked nothing about the canvas scroll it named. No test replaces it, and
+    the stacked inspector stays unchanged (§7).
+  - `frontend/e2e-components/workbench-no-page-scroll-desktop.spec.ts` (new), registered in
+    `e2e-components/projects.ts` and `e2e-components/spec-viewport.spec.ts`.
 - Live measurement: the suite that renders the real canonical page (`frontend/e2e-components/`)
   measures the live `--player-avail`, the row's height and the host's scroll. The static
   fixtures in `frontend/e2e-layout/` cannot run the hook, so they check only the CSS rule.

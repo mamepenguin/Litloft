@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "row-never-observed-by-resize-observer",
+      "origin": "verifier",
+      "claim": "useCompanionMetrics never attaches the ResizeObserver to the workbench row when the row already exists at effect start, so a change of the row's own height does not recompute --player-avail.",
+      "impact": "rowBlock is computed from row.offsetHeight, but only the document element, the pane and the player wrapper are observed. When the row grows without any of those changing size (for example the enlarge button appearing on the first shown panel, or an addon action added, causing the toggle row to wrap), --player-avail stays at the old value. The frame can then be taller than the visible area after a settled frame, which violates I7 and the 'row height changes' transition in the spec's section 3, and can leave a shown panel's bottom edge below the visible area (I1).",
+      "evidence": "frontend/src/components/FileDetail/hooks/useCompanionMetrics.ts:117 calls measure() before the observer exists (line 67 leaves observer null). followRow() at line 72-77 therefore sets observedRow to the row without calling observe, because observer is null at that point. Lines 118-122 then create the ResizeObserver and observe only documentElement/pane and the player wrapper, and the second followRow() at line 122 returns early because row === observedRow, so the row is never observed. The MutationObserver callback at lines 130-133 calls measure() only when the row element changes identity, so a child change inside the same row (the enlarge button added by Workbench.tsx:117-128 when shown.length > 0) does not re-measure. The effect deps (line 143) do not include the row. The row element persists across panel toggles because Workbench.tsx:94-95 renders it whenever toggles exist.",
+      "repro": "not_reproduced. Static trace only: the commands could not be run here. Reproduction would be a canonical file with a player and at least one panel, a viewport narrow enough that the toggle row wraps once the enlarge button appears, then a check that --player-avail equals H - playerOffset - (row offsetHeight + 2rem) after the panel is opened. Expected to show a stale value (the old, shorter rowBlock). The existing jsdom tests cannot show it because ResizeObserver is mocked with a no-op observe().",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "invariant_ref": "I7",
+        "reason": "Violates a declared invariant (I7 and the row-height-change transition) and is fixable in the change under review. The spec's own design (the row element passed in as a dependency via a callback ref) would have avoided it."
+      },
+      "proposed_fix": "Observe the row whenever it is current, including the first time: in followRow(), observe the row when observer exists, and call followRow() again after the observer is created. Alternatively, pass the row element into the hook as the spec's touch point describes, so the effect re-runs and re-observes it.",
+      "severity": "MEDIUM"
+    }
+  ],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "unplanned-e2e-deletion-stacked-find",
+      "status": "confirmed",
+      "note": "Grep for 'restores the canvas scroll' under frontend/ returns no match, so the test is absent from the worktree. The remaining stacked-find coverage is at inspector-responsive-layout-desktop.spec.ts:459-477 ('keeps the controls on screen with find open'), which is a different assertion. The deleted test's body was not inspected, and the base commit was not checked (no git access), so the coverage loss is only partly measured. The spec's 'Checked, no action' section (spec lines 282-298) and Revises list do not cover the stacked inspector's canvas scroll."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "unplanned-e2e-rewrite-085-floor-test",
+      "status": "confirmed",
+      "note": "frontend/e2e-components/player-workbench-desktop.spec.ts:198-210 is titled 'SPEC-CORE-106 I1 ...' and asserts panel.height < PANEL_FLOOR and container.scrolls === false. This matches the spec's Revises entry for SPEC-CORE-085 I5 and the prose replacing step 7 (the 18rem floor). The file is not in the touch-point list, so the list is incomplete, but the edit is consistent with the spec."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "unplanned-mutation-observer-subtree",
+      "status": "confirmed",
+      "note": "useCompanionMetrics.ts:128-135 adds a MutationObserver with childList and subtree over scope (document when there is no mini player). useCompanionMetrics.ts:28-31 returns 0 when row.closest('[data-row-beside=\"on\"]'), which is an existing SPEC-CORE-105 state (Workbench.tsx:91). Spec section 3 (lines 84-85) defines rowBlock as offsetHeight + 2rem and says it is 0 only when no row is drawn, so both the MutationObserver and the beside exception are unplanned. The beside exception is physically sensible, because a row beside the frame takes no room under it, but it contradicts the spec's formula text and is not covered by any I-line. The MutationObserver's callback also measures only on row identity change, which is the cause of the separate verifier finding."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "spec-touch-point-not-implemented",
+      "status": "confirmed",
+      "note": "ShellLayout.tsx has no row state (no row useState; line 241 passes metrics.railAvailable only). useCompanionMetrics.ts:38-41 takes only (resolvedFileId, miniPlayerRoot), with no row parameter. Workbench.tsx has no rowRef: line 42 uses rootRef, and line 95 renders '<div className=\"media-detail-workbench-row\">' with no ref. The spec's touch-point list (spec lines 180-188) names both changes. This deviation is the root cause of the verifier finding 'row-never-observed-by-resize-observer'."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "test-coverage-row-block-not-exercised",
+      "status": "confirmed",
+      "note": "Grep for 'player-avail' in frontend/ shows only four exact assertions in FileDetailCanvas.test.tsx (lines 213, 219, 278, 288: 556, 680, 450, 450), each 48px above the old 508, 632, 402. The tests at lines 179 (publishes both height budgets) and 224 (self-scrolling pane) render makeFile() without a row, as line 157-163 shows ('draws no row when no panel is available'). No test renders a row and asserts a nonzero rowBlock, so the subtraction is untested in jsdom. The e2e live measurement is the only coverage, and it cannot run here."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "unplanned-theater-css-test-edit",
+      "status": "confirmed",
+      "note": "globals.css:910-914 now has 'height: var(--rail-avail, 100dvh);' with no min-height. mediaDetailTheaterCss.test.ts:51-52 asserts the new height form and that min-height is absent, within the extracted host block (line 45-47). The edit is a necessary consequence of the spec's CSS change (spec line 176-179), although the touch-point list does not name the canonical assertion as an expected change."
+    }
+  ],
+  "specification_compliance": [
+    "The host rule is changed to height: var(--rail-avail) and restricted to data-workbench=on (globals.css:910-914), as specified. The collection rule is not part of this check.",
+    "WORKBENCH_MIN_REM and PLAYER_PEEK_PX have no remaining references under frontend/ (grep), as specified.",
+    "The row-element plumbing from the spec's touch points is absent: ShellLayout.tsx holds no row state and Workbench.tsx has no rowRef. The hook uses querySelector on each measure instead.",
+    "rowBlock in useCompanionMetrics.ts:28-31 returns 0 for a beside row, which the spec's §3 formula does not include.",
+    "I7 (recompute on row height change) is not met in the case where the row exists at effect start and its own height changes; see the verifier finding."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The row's beside state (data-row-beside=on) yields rowBlock 0, which the spec's formula does not state.",
+    "The MutationObserver with subtree over the whole document runs a querySelector on every DOM mutation, outside the spec's description.",
+    "When the row's height changes without its element changing and without an observed element resizing, --player-avail stays stale until a window resize."
+  ],
+  "regression_risks": [
+    "Stale rowBlock after the toggle row wraps (enlarge button appears, addon action added): the frame can overflow the visible area at a settled frame, violating I1 and I7.",
+    "Deleted e2e test for stacked-inspector find/canvas scroll: a regression there would no longer be caught by the suite.",
+    "Relaxed SPEC-CORE-085 I5 floor test: the 18rem floor is no longer asserted on the canonical page at any height, so a future regression to a floor cannot be detected by this test."
+  ],
+  "test_coverage": [
+    "jsdom tests mock ResizeObserver with a no-op observe(), so the observation gap in useCompanionMetrics.ts is not caught.",
+    "No jsdom test asserts a nonzero rowBlock. The four updated --player-avail expectations are all rowBlock 0 (no row rendered).",
+    "The live e2e measurement in frontend/e2e-components/ covers the subtraction and the scroll invariants, but was not run here (no command access).",
+    "The stacked-inspector canvas scroll test was removed and nothing replaces it for the same assertion."
+  ],
+  "not_verified": [
+    "The commit diff itself: no git command was available, so the hunks were judged from the worktree and from the other reviewer's claims. The worktree is assumed to match 30316eeb9.",
+    "The deleted e2e test body in inspector-responsive-layout-desktop.spec.ts (only its absence was checked).",
+    "The live e2e suite (frontend/e2e-components/) was not run, so the row-observation finding is a static trace and not a measured reproduction.",
+    "Whether the row exists at the effect's first run in the real canonical page render order (inferred from the code, not traced through the React commit order).",
+    "Browser behaviour of documentElement and the player wrapper under a row-only height change (assumed not to resize)."
+  ],
+  "confidence": 80
+}
