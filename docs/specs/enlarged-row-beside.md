@@ -187,7 +187,7 @@ around a `<video>` or a cross-origin iframe renders the subtree rotated on iOS S
   wrapping, trailing group at the right end of the bottom line). No z-index is added: the row is not over the frame and pinned frames and the
   mini player are already above it. The existing cap, floor and pseudo-full-screen rules
   are not edited, and `mediaDetailTheaterCss.test.ts` is not changed. The copied W is
-  held to the frame by the e2e geometry (I1 at the floor case and the share case).
+  held to the frame by the e2e geometry (I1 in the floor, share and half cases).
 - `frontend/src/lib/layoutSizes.ts`: the 16rem threshold.
 - Tests: `frontend/e2e-components/player-workbench-desktop.spec.ts` (real-browser
   geometry with a fine and a coarse pointer, in the floor, share and half cases; the
