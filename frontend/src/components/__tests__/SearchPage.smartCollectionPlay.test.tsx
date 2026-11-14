@@ -337,7 +337,7 @@ function deferred<T>() {
 
 function chooseSort(label: string) {
   fireEvent.click(screen.getByRole("button", { name: /^Sort/ }));
-  fireEvent.click(screen.getByRole("menuitem", { name: label }));
+  fireEvent.click(screen.getByRole("menuitemradio", { name: label }));
 }
 
 const settle = () =>

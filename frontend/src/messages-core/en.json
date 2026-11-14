@@ -393,7 +393,11 @@
     "deleteSuccess": "Smart Collection deleted",
     "deleteFailed": "Failed to delete Smart Collection",
     "renameSuccess": "Smart Collection renamed",
-    "renameFailed": "Failed to rename Smart Collection"
+    "renameFailed": "Failed to rename Smart Collection",
+    "playing": "Preparing playback…",
+    "playIncomplete": "Could not load all results, so playback did not start. Try again.",
+    "playFailed": "Could not start playback",
+    "playNothing": "There is no video or audio to play."
   },
   "sort": {
     "label": "Sort",
