@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2-drive-detection-by-exact-target",
+      "status": "confirmed",
+      "note": "Traced the code by hand. scripts/dev/r5_stack.py:237 keeps a backend bind as a drive source only when `vol[\"target\"] in targets`, which is an exact string match against the drives.json `path` values (:226-228). Take a parent bind `/host/drives:/app/drives` with drives.json paths `/app/drives/<slug>`: its target is `/app/drives`, so drive_sources returns nothing for it. In plan_overlay, `drive` is None (:263). The bind is a directory, so the is_file branch at :271 does not apply either. No overlay entry is written and the mount stays read-write. In shared_writes, none of the clauses at :294-296 match, so verified_env does not flag it. Two caveats on how the reader framed this. First, every documented layout uses one bind per drive (docker-compose.override.yml.example:19-22, configure.py:449, the frontend hint in en.json:1278), so the parent-mount layout is supported but not the one the docs show. Second, drive_seed.py:52-71 enumerates subdirectories of DRIVES_MOUNT_ROOT, so it works with either layout. The defect stands. The same exact-match comparison also misses a drives.json path written with a trailing slash."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2-compose-passthrough-down-still-gated",
+      "status": "confirmed",
+      "note": "compose() at scripts/dev/r5_stack.py:362-364 always calls verified_env, which raises Abort when shared_writes returns problems (:328-334). main() at :416-417 sends every `compose` subcommand to compose() without looking at its arguments, so `compose down`, `compose stop` and `compose rm` are refused while the overlay fails the check. Only `down` (:418-419) and `destroy` (:389) use stop() (:367-371), which builds the env without the check."
+    }
+  ],
+  "specification_compliance": [
+    "The module docstring (:16-18) says that without --with-drives every drive is mounted read-only. That holds only for drives whose bind target exactly matches a drives.json path."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Drive detection compares strings exactly, so a drives.json path with a trailing slash or other unnormalised form does not match its bind target. That drive is then not made read-only and the check does not flag it.",
+    "The compose passthrough applies the mount check even to teardown subcommands (down, stop, rm)."
+  ],
+  "regression_risks": [
+    "A user with a parent drive bind who runs a cloned stack without --with-drives gets a read-write mount of the real drives. A trash purge or file operation driven by the snapshot DB could then change the shared drive without any warning."
+  ],
+  "test_coverage": [
+    "I found no tests for scripts/dev/r5_stack.py during this review. Nothing covers parent-bind drive layouts or compose passthrough teardown."
+  ],
+  "not_verified": [
+    "I did not run the script or docker compose, so the behaviour comes from reading the code only.",
+    "I did not confirm that the worktree files match commit 8fbe25c byte for byte. The git status at session start showed only untracked docs, so I assumed they do.",
+    "I did not check how `docker compose config --format json` normalises bind targets, for example trailing slashes."
+  ],
+  "confidence": 88
+}

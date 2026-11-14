@@ -165,6 +165,12 @@ The specs in `docs/superpowers/specs/` predate this and are a local, gitignored 
   stack or test started there writes the real SQLite DB and thumbnails.
 - Docker: containers, the `litloft-test` image tag, and ports 3000 and 8000. Two stacks
   sharing `data/` must not run at once.
+- A stack that runs alongside another one (a parallel R-5) runs on its own clone:
+  `python3 scripts/dev/r5_stack.py clone` in the worktree, then `up`, `down`, and
+  `destroy` when done. Without `--with-drives` the drives are shared and mounted
+  read-only, so uploads, moves, renames and purges fail; a run that writes files needs
+  `--with-drives`. Open it at the URL `up` prints, never at `localhost`: cookies are not
+  separated by port.
 - The addon submodules under `addons/`, which are separate repositories.
 
 ## known_issues_file

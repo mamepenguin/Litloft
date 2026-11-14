@@ -326,6 +326,7 @@ describe("the component fixture's page", () => {
       "app-header",
       "persistent-highlights",
       "inspector-video",
+      "inspector-video-sidebar",
       "inspector-pdf",
       "inspector-video-two-pane",
       "inspector-video-collection",

@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R3-drive-below-bind-target-missed",
+      "origin": "reviewer",
+      "claim": "drive_sources treats a backend bind as a drive only when the bind's target equals a drives.json path or is an ancestor of one. A bind whose target lies below a drive path, such as drive path /app/drives/media with host directories bound at /app/drives/media/a and /app/drives/media/b, is therefore still not recognised. It stays read-write and shared_writes does not flag it.",
+      "impact": "With that layout, a cloned stack without --with-drives keeps those parts of the shared drive writable. The snapshot DB's startup and daily trash purge, or any file operation, can then change shared files, and nothing reports it. The documented layouts (one bind per drive in docker-compose.override.yml.example:19-22 and in the configure fixtures) are not affected.",
+      "evidence": "scripts/dev/r5_stack.py drive_sources: `any(t == target or t.startswith(target.rstrip(\"/\") + \"/\") for t in targets)` matches only drive paths at or below the bind target. With target=/app/drives/media/a and t=/app/drives/media, neither clause is true. plan_overlay then finds no drive for the bind; it is a directory, so the is_file branch is skipped and no overlay entry is written. shared_writes checks only is_under(src, d) against the same sources, so nothing is flagged.",
+      "repro": "not_reproduced: drives.json [{\"path\": \"/app/drives/media\"}]; in the override, bind `/host/a:/app/drives/media/a` on the backend; run `r5_stack.py clone`. Expected: clone succeeds and the merged config has no read_only on /app/drives/media/a.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is declared, and the layouts that are documented and in use are handled. This is the mirror image of the gap closed in 09e716a.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Also count a bind as a drive when its target is under a drives.json path. Alternatively, without --with-drives, mount every backend directory bind outside data/ read-only."
+    },
+    {
+      "id": "R3-compose-passthrough-still-gated",
+      "origin": "reviewer",
+      "claim": "r2 finding R2-compose-passthrough-down-still-gated is unchanged. `r5_stack.py compose down`, `compose stop` and `compose rm` still go through verified_env and are refused while the overlay fails the check.",
+      "impact": "A user who stops the stack through the documented `compose ARGS...` passthrough gets the refusal and the stack keeps running. `down` works, and the failure is loud.",
+      "evidence": "scripts/dev/r5_stack.py compose() calls verified_env on every call, and main() sends every `compose` argument list there. Only `down` and `destroy` call stop(). Neither 09e716a nor 59d3c3f touches these paths.",
+      "repro": "not_reproduced: make the overlay fail the check, then run `r5_stack.py compose down`. Expected: exit 1 with 'the stack would still write the main checkout's state'.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An inconsistency that fails loudly, carried over from r2.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Skip verified_env in the passthrough for subcommands that do not start containers (down, stop, kill, rm, ps, logs)."
+    }
+  ],
+  "specification_compliance": [
+    "r2 finding R2-drive-detection-by-exact-target is resolved for parent binds by 09e716a. A backend bind whose normalised target is an ancestor of a normalised drives.json path is now a drive source. plan_overlay makes it read-only without --with-drives, and with --with-drives it clones it and maps nested binds into the parent clone, which is consistent because the sorted order picks the parent first. shared_writes flags it if it stays rw.",
+    "The r2 verifier's note about a trailing slash in a drives.json path is resolved: both sides go through posixpath.normpath.",
+    "59d3c3f only adds review documents and changes no code.",
+    "No invariants file exists, so compliance with a declared touch-point list cannot be assessed."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "A drive whose path lies under /app/data would make ./data a drive source. With --with-drives, the main data/ would then be cloned a second time, without a live-DB snapshot, into .r5-stack/drives/N-data. That clone goes unused because the data branch in plan_overlay takes precedence, so it only costs time and space.",
+    "With nested backend binds (a parent and a child that both hold drives), --with-drives clones the child separately as well. That clone is never mounted, because the child bind is redirected into the parent's clone."
+  ],
+  "regression_risks": [
+    "Drive classification is still inferred from the bind target and drives.json paths in one direction only. A layout with binds below a drive path is silently left writable (R3-drive-below-bind-target-missed).",
+    "A read-write directory bind under the main checkout that is neither data/ nor a drive is still not flagged by shared_writes. This was noted in r1 and r2 and is unchanged."
+  ],
+  "test_coverage": [
+    "There are still no tests for scripts/dev/r5_stack.py: a grep outside the review docs finds no reference to it. If the startswith clause or the normpath calls in drive_sources were removed, no test would fail. The parent-bind fix in 09e716a has no test, and neither does the passthrough gating."
+  ],
+  "not_verified": [
+    "I did not run the script, docker or compose. All checks come from reading the code.",
+    "I did not read the untracked docker-compose.override.yml, so I did not confirm the mount layout in use today.",
+    "I did not check how `docker compose config --format json` normalises bind targets, for example a double leading slash, which posixpath.normpath keeps."
+  ],
+  "confidence": 80,
+  "trajectory": "09e716a again changes the same prediction, which binds count as drives. 672b795 consolidated that prediction into drive_sources, and this commit widens it there: it adds the ancestor match and path normalisation. It adds no branch or state in the callers, so the fix stays inside the one helper and does not spread. Still, this is the third round that adjusts how drives are inferred from mount targets, and the inference still covers only one direction (it misses binds below a drive path). That is a sign the design is being patched one layout at a time instead of fixing a rule such as 'without --with-drives, every non-data backend directory bind is read-only'. 59d3c3f only adds documents and removes nothing. The per-entry-point bypass from 8fbe25c (stop()) was not extended to the compose passthrough, so the r2 inconsistency remains."
+}
