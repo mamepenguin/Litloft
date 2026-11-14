@@ -2,7 +2,7 @@
 
 SPEC-ID: SPEC-CORE-106
 
-Approval:
+Approval: sha256:eb4188d3eaf242ab2b28922a446633d0b269b264761310f54c651116bde5d4de Yuichi Senga 2026-11-14
 
 ## Summary
 
@@ -77,14 +77,13 @@ What changes:
 
 The budget is computed in `useCompanionMetrics.ts`, as `--player-avail`:
 
-    --player-avail = max(0, H - playerOffset - rowBlock - peek)
+    --player-avail = max(0, H - playerOffset - rowBlock)
 
 - `playerOffset`: the existing measurement, the distance from the top of the scroll
   container's visible area to the top of the player wrapper.
 - `rowBlock`: the measured `offsetHeight` of the workbench row plus `2rem` (the host's
   `mt-4` above the workbench and its `p-4` bottom padding). It is 0 when no row is drawn.
-- `peek`: `PLAYER_PEEK_PX` (48px) as today, **only if Question 2 keeps it**. This spec
-  recommends removing it; the implementation follows the human's answer.
+- The 48px peek (`PLAYER_PEEK_PX`) is not part of the budget. It is removed (Question 2).
 
 The row element is held in state by `ShellLayout`, not in a ref. `Workbench` takes a callback
 ref (`rowRef`) and calls it with the row element, or `null` when the row is unmounted.
@@ -150,7 +149,7 @@ None shown, nothing logged.
 - With no panel shown on a short window, the player is smaller than today, so the toggle row
   is visible under it without scrolling. On a tall window the frame is the same as today
   (limited by the canvas width, or by the 16:9 height the budget allows).
-- The 48px title peek under the frame disappears in this state, unless Question 2 keeps it.
+- The 48px title peek under the frame disappears in this state (Question 2).
 
 ### 10. Non-functional
 
@@ -185,8 +184,8 @@ Only the first two rows are read by the revised SPEC-CORE-104 I3 and by I4 below
 - `frontend/src/components/FileDetail/ShellLayout.tsx`: holds the row element in state and
   passes it to the metrics hook (and `workbenchActive` is already computed there).
 - `frontend/src/components/FileDetail/hooks/useCompanionMetrics.ts`: takes the row element,
-  subtracts `rowBlock` from `--player-avail`, and removes `PLAYER_PEEK_PX` or keeps it per
-  Question 2.
+  subtracts `rowBlock` from `--player-avail`, and removes `PLAYER_PEEK_PX`
+  (Question 2).
 - `frontend/src/components/FileDetail/MediaCanvas.tsx`, `mediaHostStyle.ts`: no change
   expected.
 - Tests whose expected values change:
@@ -298,7 +297,9 @@ checkable lines:
   is layout only. The reviewer may run one on the `rowBlock` subtraction and on the host
   height rule if the human wants it.
 
-## Questions for the human
+## Decisions
+
+Accepted by the human on 2026-11-14: each question below is decided as its recommendation.
 
 1. **Player size with no panel shown (recommended: accept).** To keep the row on screen the
    player is smaller than today on short windows. Without this change the page scrolls in
