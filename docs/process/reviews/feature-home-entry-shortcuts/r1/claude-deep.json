@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The diff edits DESIGN.md and adds two project-wide rules to the 'Home entry row' section, but the touch-point list names DESIGN.md only under 'Rules passed through', not as a file the change rewrites.",
+      "impact": "There is no user-visible defect. The new rule says every entry tile, built-in, addon and Inbox included, is at most 16rem wide with a one-line truncated label at or above 36rem. It changes the design rule for tiles outside this feature. I13 guards it only for the two long-label fixtures, so later work on the existing tiles is checked against a rule that no invariant names as changed.",
+      "evidence": "DESIGN.md:693-703 (diff hunk @@ -678,7 +678,8 and the added bullets 'Home shortcuts come after the addon entries…' and 'Every tile's label follows one rule…'). docs/process/spec-and-design.md:41-43 defines touch points as including 'the rules and conventions it passes through'. The spec's touch list says 'Rules passed through: … DESIGN.md'. HomeAppEntries.tsx TILE/TILE_LABEL applies the rule to all entries.",
+      "repro": "not_reproduced. This is a static comparison of the diff's file list against the touch-point list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a scope gap in the touch-point list (a rule edited, not just followed). No declared invariant is broken.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Record DESIGN.md as a place the change rewrites, or accept it explicitly in the review record."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "Eight existing vitest files that host DriveHome gain `getHomeShortcuts` in their `@/lib/api` mock factory, and three unedited ones now reach the real `getHomeShortcuts`. The touch-point list enumerates only the files that mock `usePinnedFolders`.",
+      "impact": "There is no user-visible effect. DriveHome.loadPage now calls `getHomeShortcuts(drive).then(...)` synchronously. Any DriveHome host test whose strict `@/lib/api` factory lacks that export fails on a missing mock export, so the change reaches every such host test. In the three `importOriginal` tests the real wrapper calls `fetch`; the rejection is caught and becomes `[]`, so they still pass. A future host test that stubs fetch strictly could see an unexpected request.",
+      "evidence": "Edited: frontend/src/__tests__/DriveHome.test.tsx:95, accent-budget.test.tsx:114, driveHomeFailureState.test.tsx:52, driveHomeSectionOrder.test.tsx:44, driveHomeTreeClosable.test.tsx:27, uploadZoneHosts.test.tsx:40, components/__tests__/DriveHome.driveChange.test.tsx:15, DriveHome.icons.test.tsx:8. Reached but not edited (importOriginal): homeAppEntries.test.tsx:74, homeResumeRows.test.tsx:68, homeContinueDesk.test.tsx:54; none stubs fetch (grep for `fetch` finds only `refetch` identifiers). DriveHome.tsx loadPage starts `getHomeShortcuts` before the first await.",
+      "repro": "not_reproduced. I could not run vitest. The reach follows from reading the mock factories and DriveHome.loadPage.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "These files arguably fall under the generic 'Frontend tests (vitest)' touch point, which is the reading taken here. They are listed because the spec enumerated the usePinnedFolders mocks explicitly but not the lib/api mocks. No invariant is broken.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add 'the vitest files that mock `@/lib/api` for a DriveHome host gain `getHomeShortcuts`' to the touch list, or accept the gap in the review record."
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "Existing assertions in CollectionDetail.test.tsx are rewritten: the overflow-menu count goes from 1 to 2, and the Escape test now selects the menuitem by its name instead of as the single menuitem. CollectionDetail.test.tsx is not a touch point; only CollectionDetail.tsx is.",
+      "impact": "There is no user-visible effect. A pre-existing guard ('the menu holds only Delete') is weakened to a count of two. Any future row added to the collection menu again requires rewriting the count, and the test no longer says which two rows are expected.",
+      "evidence": "frontend/src/components/__tests__/CollectionDetail.test.tsx:387-389 (getByRole('menuitem') → getByRole('menuitem', { name: 'Delete collection' })) and :407 (toHaveLength(1) → toHaveLength(2)).",
+      "repro": "not_reproduced. Read the diff hunk.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is an unlisted reach into an existing test whose assertion changes meaning. It falls under the generic 'Frontend tests (vitest)' item at most, and no invariant is broken.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Assert the two expected row names (Put on Home / Remove from Home, then Delete collection) instead of a bare count."
+    },
+    {
+      "id": "TP-4",
+      "origin": "reviewer",
+      "claim": "The MCP server's `get_collection` tool output gains `on_home` because the tool spreads every top-level field of the collection detail. No mcp-server file is in the touch-point list; the spec mentions this only in item 7 prose.",
+      "impact": "The output that MCP clients (an AI) receive from `get_collection` gains a field. No file is edited and nothing breaks, but this is a change to an external-facing interface that the touch list does not name.",
+      "evidence": "mcp-server/src/tools/collections.ts:67 (`const { items: allItems, ...rest } = detail;`) and :76 (`...rest,` in the returned object). backend/app/routers/collections.py:76 now sets `on_home=collection.on_home` in `_to_detail`.",
+      "repro": "not_reproduced. Static read of the spread in collections.ts.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a behavioural reach into a component outside the listed touch points. The spec prose accepts it, and no invariant is broken.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Name `mcp-server` `get_collection` output in the touch-point list as an accepted reach."
+    }
+  ],
+  "specification_compliance": [
+    "Every backend file in the diff appears in the touch-point list: models.py, database.py, schemas.py, the new home_shortcuts.py, main.py, collections.py, drives.py and backend/tests/.",
+    "smart_folders.py is listed but unchanged. Its list, create and update handlers return ORM rows (smart_folders.py:62, :92, :117), and `SmartFolderResponse` uses `from_attributes`, so the new `SmartFolder.on_home` property fills `on_home` (I10) with no edit.",
+    "fileops._update_pinned_folders (fileops.py:534-551) rewrites `pinned_folders.path` in place with an UPDATE and leaves other columns alone. It does not delete and re-insert, so `home_added_at` carries through a rename or move (I8). This matches 'read, not changed'.",
+    "The migration (database.py:591-603) adds only a nullable DATETIME column per table, which follows .claude/rules/backend-conventions.md:46-49. The legacy playlists→collections copy (database.py:300) runs before it and names its columns explicitly, so new rows start NULL (I9). The cleanup block after it touches only collection_items.",
+    "There is no other backend construction of PinnedFolderResponse, CollectionDetailResponse or SmartFolderResponse outside the edited places, so the now-required `on_home` field cannot produce a 500 elsewhere.",
+    "Submodules (.gitmodules: addons/intelligence, knowledge, cloud-sync, media_import): none consumes /pins, /smart-folders or the public collection detail. The intelligence addon uses only the internal /api/internal/collections/{id}/file-ids endpoint, which is unchanged.",
+    "FolderContent and FolderTreePane are listed but unchanged. FolderBrowser passes isOnHome/onToggleHome to the toolbar directly, and FolderTreePane keeps using only pinnedPaths and handleTogglePin.",
+    "Frontend source files in the diff (api.ts, types, HomeAppEntries, DriveHome, FolderToolbar, usePinnedFolders, FolderBrowser, CollectionDetail, SmartFolderSaveButton, useSmartFolders, messages) are all listed.",
+    "The PUT is a single UPDATE … SET home_added_at = coalesce(home_added_at, now) filtered by drive and id. Two concurrent PUTs therefore cannot both stamp a fresh time, and a cross-drive id matches no row (I1, I3)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "HomeAppEntries now wraps every tile label (built-in, addon and Inbox) in a span with line-clamp-2 / truncate and adds max-w-[16rem] at ≥36rem. Spec item 9 states this, but only I13's two long-label fixtures guard it. Existing short labels on built-in tiles are assumed to look unchanged and are not measured."
+  ],
+  "regression_risks": [
+    "Any current or future vitest file that renders DriveHome with a strict `vi.mock(\"@/lib/api\", () => ({…}))` factory lacking `getHomeShortcuts` now throws at loadPage. The eight known hosts were updated; I found no other strict host by grep, but I did not run the suite.",
+    "The MCP `get_collection` output shape gains `on_home`. Any MCP-side test asserting the exact output with toEqual against a backend payload that includes on_home would need updating. The current mcp tests use fixtures without it."
+  ],
+  "test_coverage": [
+    "usePinnedFolders.test.ts is named in the touch list but unchanged. The hook's new `homePaths`, `handleToggleHome`, in-flight guard and the clearing of homePaths on pin/unpin have no unit test there. They are exercised only through FolderBrowser.homeShortcut.test.tsx, which runs the hook against a fetch stub. The existing hook test still works because useToast returns a no-op outside its provider and next-intl is mocked in src/test/setup.ts.",
+    "Backend: test_home_shortcuts.py covers I1 (GET and PUT across drives, including pins with the same path), I2 (delete and unpin, repin starts off), I3 (set, keep, NULL, 422, 404), I4 (order and ties), I8 (updated_at untouched, edits keep the stamp, rename and move carry a pin) and I10. test_database_migration_home_added_at.py covers I9, including idempotence.",
+    "CollectionDetail.test.tsx's menu guard is now a bare count of two (see TP-3)."
+  ],
+  "not_verified": [
+    "I could not run the backend pytest suite, vitest or the Playwright e2e-components cases, so whether they pass was not checked.",
+    "I did not open commit 11bb85da6 on its own (git is unavailable to me); I reviewed the provided branch diff against origin/develop.",
+    "Submodule sources were only grepped for /pins, smart-folders, home-shortcuts and collections/ paths, not read in full.",
+    "I did not grep the whole frontend tree for every DriveHome host beyond the 17 files that import DriveHome or the drive layout/page."
+  ],
+  "confidence": 80
+}

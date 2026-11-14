@@ -384,7 +384,9 @@ describe("deleting a collection", () => {
     // press aimed at whatever is stacked above it.
     render(<CollectionDetail drive="main" collectionId="c1" />);
     await openMenu();
-    expect(screen.getByRole("menuitem")).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: "Delete collection" }),
+    ).toBeInTheDocument();
     fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
     expect(screen.queryByRole("menuitem")).toBeNull();
   });
@@ -402,7 +404,7 @@ describe("deleting a collection", () => {
     // items pane.
     render(<CollectionDetail drive="main" collectionId="c1" />);
     await openMenu();
-    expect(screen.getAllByRole("menuitem")).toHaveLength(1);
+    expect(screen.getAllByRole("menuitem")).toHaveLength(2);
   });
 
   it("still goes through the confirmation, and deletes on confirm", async () => {

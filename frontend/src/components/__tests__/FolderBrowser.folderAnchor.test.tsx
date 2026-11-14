@@ -84,7 +84,9 @@ const pinnedPaths = vi.hoisted(() => new Set<string>(["recipes"]));
 vi.mock("@/components/folder/usePinnedFolders", () => ({
   usePinnedFolders: () => ({
     pinnedPaths,
+    homePaths: new Set<string>(),
     handleTogglePin: mockTogglePin,
+    handleToggleHome: vi.fn(),
   }),
 }));
 vi.mock("@/components/folder/useDriveScan", () => ({

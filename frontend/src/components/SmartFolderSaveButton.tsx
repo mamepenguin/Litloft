@@ -11,17 +11,19 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Save, Star, Trash2 } from "lucide-react";
+import { House, HousePlus, Pencil, Save, Star, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import type { FileKind } from "@/types";
 import type { SmartFolder } from "@/types/smartFolder";
+import { setHomeShortcut } from "@/lib/api";
 import { useSmartFolders } from "@/hooks/useSmartFolders";
 import { Button } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { SmartFolderSaveDialog } from "./SmartFolderSaveDialog";
 import { ActionMenuItem } from "./ActionMenuItem";
 import { MenuSeparator } from "./ToolbarMenu";
+import { useToast } from "./ToastProvider";
 
 interface SmartFolderSaveProps {
   drive: string;
@@ -49,6 +51,7 @@ interface SmartFolderActions {
   overwrite: (options?: { moveFocus?: boolean }) => Promise<void>;
   rename: () => void;
   remove: () => void;
+  toggleHome: () => void;
 }
 
 const SmartFolderActionsContext = createContext<SmartFolderActions | null>(null);
@@ -69,9 +72,12 @@ export function SmartFolderController({
   children,
 }: SmartFolderSaveProps & { children?: ReactNode }) {
   const t = useTranslations("smartFolder");
+  const tDrive = useTranslations("drive");
   const router = useRouter();
+  const toast = useToast();
+  const homeInFlight = useRef(false);
 
-  const { smartFolders, create, update, remove } = useSmartFolders(drive);
+  const { smartFolders, create, update, remove, setOnHome } = useSmartFolders(drive);
 
   const current = useMemo(
     () =>
@@ -185,6 +191,24 @@ export function SmartFolderController({
     }
   }, [current, remove, router, buildSearchUrl, t]);
 
+  const handleToggleHome = useCallback(async () => {
+    if (!current || homeInFlight.current) return;
+    homeInFlight.current = true;
+    const next = !current.on_home;
+    try {
+      await setHomeShortcut(drive, {
+        kind: "smart_folder",
+        id: current.id,
+        on_home: next,
+      });
+      setOnHome(current.id, next);
+    } catch {
+      toast.error(tDrive("homeShortcutFailed"));
+    } finally {
+      homeInFlight.current = false;
+    }
+  }, [current, drive, setOnHome, toast, tDrive]);
+
   const actions = useMemo<SmartFolderActions>(
     () => ({
       current,
@@ -194,8 +218,9 @@ export function SmartFolderController({
       save: () => setSaveOpen(true),
       rename: () => setRenameOpen(true),
       remove: () => setDeleteConfirmOpen(true),
+      toggleHome: () => void handleToggleHome(),
     }),
-    [current, changed, saving, overwrite],
+    [current, changed, saving, overwrite, handleToggleHome],
   );
 
   return (
@@ -276,6 +301,7 @@ export function SmartFolderMenuItems({
   separated = false,
 }: SmartFolderMenuItemsProps) {
   const t = useTranslations("smartFolder");
+  const tDrive = useTranslations("drive");
   const actions = useContext(SmartFolderActionsContext);
 
   if (!actions) return null;
@@ -309,6 +335,15 @@ export function SmartFolderMenuItems({
           icon={Pencil}
           label={t("rename")}
           onClick={() => choose(actions.rename)}
+        />
+        <ActionMenuItem
+          icon={actions.current.on_home ? House : HousePlus}
+          label={
+            actions.current.on_home
+              ? tDrive("removeFromHome")
+              : tDrive("putOnHome")
+          }
+          onClick={() => choose(actions.toggleHome)}
         />
         <ActionMenuItem
           icon={Trash2}

@@ -70,9 +70,11 @@ Pagination: `GET /api/drives/{drive}/files`, `/trash` and `/missing` take `page`
 | `GET` | `/api/drives/{drive}/duplicates` | `{ groups: [{ hash, total_size, files }], total_groups, total_wasted_bytes }`. Files are grouped by content hash and size. Not paginated. |
 | `GET` | `/api/drives/{drive}/watch-history?limit=&filter=&type=&origin=&exclude_origin=` | This viewer's recently opened files in the drive, newest first, each with `watch_progress: { position, duration }`. `filter=unfinished` (default) keeps files played to less than 90 %, which leaves out files that were only opened; `filter=all` keeps everything; `filter=continue` keeps the Continue desk: files started (position at or above 3 % of `duration`), unfinished, last played within 14 days, and not set aside (`dismissed_at` null or earlier than `last_played_at`). `filter=not_continue` keeps what `filter=all` returns and `filter=continue` does not. `type` takes the listing's values and applies before `limit` (default 20, max 50). `origin` and `exclude_origin` take the listing's meaning and apply before `limit`. `{ "data": [] }` without a viewer identity. |
 | `GET` | `/api/drives/{drive}/addon-policies` | `{ "addons": { "<name>": { "default": bool, "features": { ... } } } }` for this drive. A malformed `drives.json` is `500`. |
-| `GET` | `/api/drives/{drive}/pins` | Pinned folders: `[{ path }]`. |
-| `POST` | `/api/drives/{drive}/pins` | Body `{ path }`. `201`; `409` if already pinned. |
+| `GET` | `/api/drives/{drive}/pins` | Pinned folders: `[{ path, on_home }]`. |
+| `POST` | `/api/drives/{drive}/pins` | Body `{ path }`. `201`; `409` if already pinned. Answers `{ path, on_home }`. |
 | `DELETE` | `/api/drives/{drive}/pins?path=...` | Unpin (`204`; `404` if not pinned). |
+| `GET` | `/api/drives/{drive}/home-shortcuts` | The drive's Home shortcuts, in the order they were placed: `[{ kind, id, name, query, file_type }]`. `kind` is `smart_folder`, `pin` or `collection`; `id` is the Smart Folder id, the pin's path or the collection id. |
+| `PUT` | `/api/drives/{drive}/home-shortcuts` | Body `{ kind, id, on_home }`. Places the target on Home or takes it off (`204`). An unknown `kind` is `422` and a target that is not in this drive is `404`; the target's `updated_at` is left unchanged. |
 | `POST` | `/api/drives/{drive}/scan` | Rescan the drive and return `{ added, missing, recovered, updated, total }`. Only one scan runs at a time across all drives; `409` while one is running. |
 
 ## Files
@@ -157,7 +159,7 @@ Keyword search is the `search` parameter of `GET /api/drives/{drive}/files`. Sem
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/api/drives/{drive}/smart-folders` | The drive's Smart Folders, newest first. |
+| `GET` | `/api/drives/{drive}/smart-folders` | The drive's Smart Folders, newest first, each with `on_home`. |
 | `POST` | `/api/drives/{drive}/smart-folders` | Body `{ name, query, file_type?, sort_by?, sort_order? }`. `201`. |
 | `PATCH` | `/api/drives/{drive}/smart-folders/{id}` | Update any of those fields. |
 | `DELETE` | `/api/drives/{drive}/smart-folders/{id}` | `204`. |
@@ -177,7 +179,7 @@ Keyword search is the `search` parameter of `GET /api/drives/{drive}/files`. Sem
 |---|---|---|
 | `GET` | `/api/drives/{drive}/collections` | Most recently updated first. |
 | `POST` | `/api/drives/{drive}/collections` | Body `{ name, description? }`. `201`; `409` on a duplicate name in the drive. |
-| `GET` | `/api/drives/{drive}/collections/{id}` | The collection with its items. |
+| `GET` | `/api/drives/{drive}/collections/{id}` | The collection with its items and `on_home`. |
 | `PUT` | `/api/drives/{drive}/collections/{id}` | Body `{ name?, description? }`. |
 | `DELETE` | `/api/drives/{drive}/collections/{id}` | `204`. |
 | `POST` | `/api/drives/{drive}/collections/{id}/items` | Body `{ "file_ids": [...] }`, 1 to 100. Ids already in the collection are skipped. A Missing or trashed file is `404`, a file from another drive `400`. Returns the collection with its items. |

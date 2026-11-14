@@ -22,6 +22,7 @@ export interface UseSmartFoldersResult {
   create: (payload: SmartFolderCreate) => Promise<SmartFolder>;
   update: (id: string, payload: SmartFolderUpdate) => Promise<SmartFolder>;
   remove: (id: string) => Promise<void>;
+  setOnHome: (id: string, onHome: boolean) => void;
 }
 
 type WriteListener = (drive: string) => void;
@@ -144,5 +145,11 @@ export function useSmartFolders(drive: string | null): UseSmartFoldersResult {
     [instanceId],
   );
 
-  return { smartFolders, loading, error, refetch, create, update, remove };
+  const setOnHome = useCallback((id: string, onHome: boolean) => {
+    setSmartFolders((prev) =>
+      prev.map((sf) => (sf.id === id ? { ...sf, on_home: onHome } : sf)),
+    );
+  }, []);
+
+  return { smartFolders, loading, error, refetch, create, update, remove, setOnHome };
 }

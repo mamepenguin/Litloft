@@ -270,6 +270,7 @@ class FolderCountResponse(BaseModel):
 
 class PinnedFolderResponse(BaseModel):
     path: str
+    on_home: bool
 
 
 class PinnedFolderCreateRequest(BaseModel):
@@ -845,6 +846,7 @@ class CollectionDetailResponse(_UtcDateTimeMixin, BaseModel):
     items: list[CollectionItemResponse]
     created_at: datetime
     updated_at: datetime
+    on_home: bool
 
 
 class DashboardDriveInfo(BaseModel):
@@ -1209,8 +1211,23 @@ class SmartFolderResponse(_UtcDateTimeMixin, BaseModel):
     sort_order: str | None
     created_at: datetime
     updated_at: datetime | None
+    on_home: bool
 
     model_config = {"from_attributes": True}
+
+
+class HomeShortcutResponse(BaseModel):
+    kind: Literal["smart_folder", "pin", "collection"]
+    id: str
+    name: str
+    query: str | None
+    file_type: str | None
+
+
+class HomeShortcutUpdate(BaseModel):
+    kind: Literal["smart_folder", "pin", "collection"]
+    id: str
+    on_home: bool
 
 
 class ExifResponse(BaseModel):
