@@ -27,6 +27,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import posixpath
 import re
 import shutil
 import socket
@@ -225,17 +226,21 @@ def clone_data(paths: Paths) -> None:
 
 def drive_targets(paths: Paths) -> set[str]:
     drives = json.loads((paths.worktree / "drives.json").read_text())
-    return {d["path"] for d in drives if "path" in d}
+    return {posixpath.normpath(d["path"]) for d in drives if "path" in d}
 
 
 def drive_sources(paths: Paths, config: dict) -> set[Path]:
+    """Host sources of the backend binds that hold a drive, itself or as a parent."""
     targets = drive_targets(paths)
     backend = config["services"].get("backend", {})
-    return {
-        Path(vol["source"]).resolve()
-        for vol in backend.get("volumes", []) or []
-        if vol.get("type") == "bind" and vol["target"] in targets
-    }
+    sources = set()
+    for vol in backend.get("volumes", []) or []:
+        if vol.get("type") != "bind":
+            continue
+        target = posixpath.normpath(vol["target"])
+        if any(t == target or t.startswith(target.rstrip("/") + "/") for t in targets):
+            sources.add(Path(vol["source"]).resolve())
+    return sources
 
 
 def plan_overlay(paths: Paths, config: dict, with_drives: bool) -> dict:
