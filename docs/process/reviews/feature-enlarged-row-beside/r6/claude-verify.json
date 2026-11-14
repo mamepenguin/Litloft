@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1-fixture-app-and-inspectorResponsive",
+      "status": "confirmed",
+      "note": "frontend/e2e-components/fixtures/app.tsx:116 imports InspectorVideoSidebarArrangement and app.tsx:2575 maps the key \"inspector-video-sidebar\" to it. frontend/e2e-components/fixtures/inspectorResponsive.tsx:505-520 defines the arrangement: a <div className=\"pl-60\"> wrapping a fixed <aside> (w-60, z-40) and <FilePage>. inspectorResponsive.tsx:146-150 carries the panels=four comment and the fixture-scenes / fixture-detailed-summary / fixture-note entries. The touch-point list in the spec names neither app.tsx nor inspectorResponsive.tsx, so the claim that these files are outside the declared touch points is correct. The spec file uses the new key at player-workbench-desktop.spec.ts:1284. The hunk line numbers were not checked because no git tool is available."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2-fixture-addon-stubs",
+      "status": "confirmed",
+      "note": "frontend/e2e-components/stubs/addons.ts:23-25 adds \"fixture-scenes\", \"fixture-detailed-summary\" and \"fixture-note\" to slotComponents, each mapped to TranscriptSlot. The file is not named in the declared touch points. The entries are used by inspectorResponsive.tsx:150-157."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3-fixture-parity-test",
+      "status": "confirmed",
+      "note": "frontend/src/components/__tests__/componentFixtureParity.test.tsx:329 lists \"inspector-video-sidebar\" in the expected arrangement list, next to \"inspector-video\" at line 328. The file is not named in the declared touch points."
+    }
+  ],
+  "specification_compliance": [
+    "The three findings are factually correct: the fixture and stub files, and the parity test, change outside the declared touch points, as the reviewer stated.",
+    "No requirement invariant I1-I9, I5, I2 or I9 was checked directly; this verification covered only the scope claims of F1-F3."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The spec's touch-point list does not cover the new e2e fixture arrangement, its stub addon entries or its parity-test entry. Whether these are acceptable test-only changes is not specified."
+  ],
+  "regression_risks": [
+    "Fixture and stub changes are test-only and shared by other e2e cases. The new fixture-scenes, fixture-detailed-summary and fixture-note slot names and the panels=four toggle set are not referenced by the other arrangements I checked, so no regression was found in this check."
+  ],
+  "test_coverage": [
+    "The three findings are about file scope, so no test was run and no test behaviour was assessed. The new arrangement is used by the e2e spec at player-workbench-desktop.spec.ts:1284 and is listed in the parity test."
+  ],
+  "not_verified": [
+    "I did not run git diff or git show at commit 591de6176, and no git tool is available, so the diff hunk line numbers cited by the reviewers were not checked.",
+    "I did not confirm that the worktree HEAD equals 591de6176; I read the working tree only.",
+    "I did not execute the Playwright or Vitest suites, so the fixture and parity behaviour was not run.",
+    "I did not assess whether the out-of-scope fixture changes are acceptable under the project's process; that is a judgement for the human reviewer."
+  ],
+  "confidence": 85
+}

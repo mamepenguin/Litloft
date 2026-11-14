@@ -227,4 +227,4 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-103 | implemented | docs/specs/smart-folder-overwrite.md | sha256:3e5ff632f42075c25c90cec47ca274cb2f259124dd20eda5d16d3aca37dac17e |
 | SPEC-CORE-104 | implemented | docs/specs/workbench-panel-priority.md | sha256:e0fc4e382abacb89f2649e85b624040fa7fc020a18fde41b1189cd39df932fc8 |
 | SPEC-ADDON-107 | implemented | docs/specs/file-ask-enter-submit.md | sha256:faef5d4dd878ca31de9af3dff91eb892e010e0772d2a1e8a02969ee4a729fb69 |
-| SPEC-CORE-105 | approved | docs/specs/enlarged-row-beside.md | sha256:7cdd6d6206de7f696999bd0d3992569b59c1473badc84b6534bcf60015af47a3 |
+| SPEC-CORE-105 | implemented | docs/specs/enlarged-row-beside.md | sha256:7cdd6d6206de7f696999bd0d3992569b59c1473badc84b6534bcf60015af47a3 |

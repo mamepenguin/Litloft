@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship (human, 2026-11-14, after r6 PASS). Design differences D-1, D-2, D-3, D-4 and D-5 of design-check.md accepted by the human ("受け入れで良い").
 ran_in_app: yes
 at: d3216f508af71544c4968552e83450c4d1f2838c
 by: agent
