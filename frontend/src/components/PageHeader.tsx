@@ -105,7 +105,7 @@ export function PageHeader({
       )}
 
       {withScopeEnd && (
-        <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 sm:grid-cols-[auto_minmax(0,1fr)_auto_auto]">
+        <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 sm:grid-cols-[auto_minmax(120px,1fr)_auto_fit-content(40%)]">
           <div className={`col-start-1 ${rows.title} row-span-2 flex items-start gap-2`}>
             {!hasTrailRow && leading}
             {TitleIcon && (
@@ -124,11 +124,13 @@ export function PageHeader({
               </div>
             )}
             {given(scopeEnd) && (
-              // Two fifths is the Target's starting share, not a cap: it grows
-              // into the rest of the line, and `max-w-max` stops it at its whole
-              // name.
+              // Below `sm` two fifths is the Target's starting share, not a
+              // cap: it grows into the rest of the line, and `max-w-max` stops
+              // it at its whole name. From `sm` the same share caps the column,
+              // and the title column's 120px is the narrowest a title stays
+              // readable.
               <div
-                className={`max-sm:min-w-0 max-sm:basis-[40%] max-sm:grow max-sm:shrink-0 max-sm:max-w-max sm:col-start-4 ${rows.title}`}
+                className={`max-sm:min-w-0 max-sm:basis-[40%] max-sm:grow max-sm:shrink-0 max-sm:max-w-max sm:col-start-4 sm:min-w-0 ${rows.title}`}
               >
                 {scopeEnd}
               </div>
