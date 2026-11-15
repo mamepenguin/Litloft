@@ -109,6 +109,7 @@ function shelvesAnswer(call: WireCall) {
 
 let members = MEMBERS;
 let evaluation: (call: WireCall) => Response | Promise<Response>;
+const addon = { on: false, statusFails: false, searchFails: false };
 let wire: { calls: WireCall[] };
 
 function install() {
@@ -121,7 +122,16 @@ function install() {
         smartFolder("sf-mixed", "Cat trips", "cats tag:Trip"),
       ]);
     }
-    if (path === "/api/addons/status") return json({ addons: {}, slots: {} });
+    if (path === "/api/addons/status") {
+      if (addon.statusFails) return json({ detail: "boom" }, 500);
+      return json({
+        addons: addon.on ? { intelligence: { label: "Intelligence", icon: "sparkles" } } : {},
+        slots: {},
+      });
+    }
+    if (path.startsWith("/api/addons/intelligence/search")) {
+      return addon.searchFails ? json({ detail: "boom" }, 500) : json({ available: true, results: [] });
+    }
     if (isEvaluation(call)) return evaluation(call);
     if (isListing(call)) return json({ data: [item("d1", "Default video")], meta: { total: 42, page: 1, limit: 12 } });
     if (isFilesQuery(call)) return json({ data: [item("p1", "Posted video")], meta: { total: 7, page: 1, limit: 12 } });
@@ -135,6 +145,9 @@ beforeEach(() => {
   invalidateAddonsCache();
   members = MEMBERS;
   evaluation = (call) => pagedListing(members, call);
+  addon.on = false;
+  addon.statusFails = false;
+  addon.searchFails = false;
   vi.stubGlobal(
     "IntersectionObserver",
     class {
@@ -258,6 +271,33 @@ describe("SPEC-CORE-117 step 9, I8: more than 10,000 members", () => {
     expect(screen.getByRole("button", { name: /Target/ })).toHaveTextContent("Cats");
     expect(screen.queryByRole("button", { name: /retry/i })).not.toBeInTheDocument();
     expect(wire.calls.filter((c) => isShelves(c) || isShelvesQuery(c) || isFilesQuery(c))).toEqual([]);
+  });
+});
+
+describe("SPEC-CORE-117 step 9, I8: an evaluation that could not read the whole set", () => {
+  it.each([
+    [
+      "the meaning search answers 500",
+      () => {
+        addon.on = true;
+        addon.searchFails = true;
+      },
+    ],
+    [
+      "the addon status lookup fails",
+      () => {
+        addon.statusFails = true;
+      },
+    ],
+  ])("%s: one retry control and nothing under the target", async (_label, arrange) => {
+    arrange();
+    writeAppPrefs(DRIVE, { target: "sf-cats" });
+    render(<VideoApp drive={DRIVE} />);
+
+    expect(await screen.findAllByRole("button", { name: /retry/i })).toHaveLength(1);
+    expect(screen.getByRole("button", { name: /Target/ })).toHaveTextContent("Cats");
+    expect(wire.calls.filter((c) => isShelves(c) || isShelvesQuery(c) || isFilesQuery(c))).toEqual([]);
+    expect(wire.calls.filter((c) => isListing(c) && !isEvaluation(c))).toEqual([]);
   });
 });
 
