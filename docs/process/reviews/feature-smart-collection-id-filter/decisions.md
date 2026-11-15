@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: continue (r7, 2026-11-15). The human said 「続ける」 to the recommendation to fix R7-1 and R1 and run /review again.
 ran_in_app: yes
 at: 0ec11b3c4e6dcb472b767bc965e2fb2c4f294b96
 by: agent
