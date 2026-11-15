@@ -2,7 +2,7 @@
 
 SPEC-ID: SPEC-CORE-106
 
-Approval: sha256:004999701fac8473c8309d735b3af74677be32295b3fd1cda8f3102b40ab40d0 Yuichi Senga 2026-11-15
+Approval: sha256:83566dfb397c2cb7e883e61cf7cd14d9b481c8b94534029a22b1c2bf2a40fcae Yuichi Senga 2026-11-15
 
 ## Summary
 
@@ -209,11 +209,13 @@ Only the first two rows are read by the revised SPEC-CORE-104 I3 and by I4 below
     region is below 18rem and the page does not scroll). Its name changes with it.
   - `frontend/e2e-components/inspector-responsive-layout-desktop.spec.ts`: the test
     "find with the inspector closed in a stacked row restores the canvas scroll" is deleted.
-    Reason: its premise was not true on the baseline either. With the inspector open in a
-    stacked layout the canvas holds only the player, so its scroll height equals its client
-    height before and after this change (measured at 900×700 and 900×520). The test
-    therefore checked nothing about the canvas scroll it named. No test replaces it, and
-    the stacked inspector stays unchanged (§7).
+    Reason: it sets a transcript panel, and at 900×700 it needs the canvas to have a scroll
+    range before find opens. On the baseline the page has one, because the panel's 18rem
+    floor makes it taller than the window. This change removes that floor (I1), so the canvas
+    has no range there, and the test's first assertion fails on this branch (measured:
+    range 0, with the panel shown and with no panel). The test's subject, that closing find
+    restores the canvas scroll position in the stacked layout, is therefore not covered after
+    this change. No test replaces it, and the stacked inspector stays unchanged (§7).
   - `frontend/e2e-components/workbench-no-page-scroll-desktop.spec.ts` (new), registered in
     `e2e-components/projects.ts` and `e2e-components/spec-viewport.spec.ts`.
 - Live measurement: the suite that renders the real canonical page (`frontend/e2e-components/`)
