@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: 出荷（ユーザーの発言）
 ran_in_app: yes
 at: 77d07ef6d836642ea9797b489d7115e3f59cda10
 by: agent
