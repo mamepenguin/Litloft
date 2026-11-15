@@ -293,4 +293,32 @@ describe("SPEC-CORE-116 step 3, I5: an in: query waits for its first listing pag
     expect(await screen.findByText(message, {}, { timeout: 10_000 })).toBeInTheDocument();
     expect(anyCount()).toBeNull();
   });
+
+  it("an earlier resolution's late first page does not put the page back into loading", async () => {
+    server.collections = () => json([{ id: "c1", name: "Album", drive: DRIVE }]);
+    const held = deferredPage();
+    const { result, rerender } = renderHook(
+      ({ searchQuery }: { searchQuery: string }) =>
+        useFolderFiles({
+          driveName: DRIVE,
+          searchQuery,
+          typeFilter: null,
+          sort: "created_at",
+          order: "desc",
+          refreshKey: 0,
+        }),
+      { initialProps: { searchQuery: 'in:"Weekly"' } },
+    );
+
+    await waitFor(() => expect(wire.calls.some(isFilesQuery)).toBe(true));
+    rerender({ searchQuery: 'in:"Album"' });
+    await waitFor(() => expect(result.current.files.map((f) => f.id)).toEqual(["g1"]));
+    expect(result.current.loading).toBe(false);
+
+    await held.answer([file("m1")]);
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.files.map((f) => f.id)).toEqual(["g1"]);
+    expect(result.current.total).toBe(1);
+  });
 });

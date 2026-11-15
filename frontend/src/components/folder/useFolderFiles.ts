@@ -400,7 +400,11 @@ export function useFolderFiles({
       try {
         return await fetchPage(page, limit);
       } finally {
-        if (resolution !== null && resolution.status === "resolved") {
+        if (
+          resolution !== null &&
+          resolution.status === "resolved" &&
+          resolution === resolutionInForce.current
+        ) {
           setListedResolution(resolution);
         }
       }
