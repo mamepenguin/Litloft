@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>Ask の範囲</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 760px; height: 520px; box-sizing: border-box; padding: 32px; background: #ffffff; font-family: -apple-system, 'Hiragino Sans', 'Noto Sans JP', system-ui, sans-serif; color: #211922; position: relative; display: flex; flex-direction: column; gap: 10px">
+  <label for="ask" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">質問</label>
+  <textarea id="ask" rows="2" style="box-sizing: border-box; width: 100%; border-radius: 16px; border: 1px solid rgba(145,145,140,0.35); padding: 12px; font-size: 16px; font-family: inherit; resize: none; color: #211922">この中でレシピが出てくる動画は？</textarea>
+  <div style="display: flex; gap: 8px; align-items: center">
+    <span style="display: inline-flex; align-items: center; gap: 4px; background: #e5e5e0; border-radius: 12px; padding: 3px 8px; font-size: 12px"><b>コレクション</b> あんこ動画 ×</span>
+    <button type="button" style="border: 1px dashed rgba(98,98,91,0.5); background: #ffffff; border-radius: 12px; padding: 3px 10px; font-size: 12px; color: #62625b; font-family: inherit">＋ 範囲</button>
+  </div>
+  <div role="menu" aria-label="コレクション" style="position: absolute; left: 128px; top: 152px; width: 240px; background: #ffffff; border: 1px solid rgba(145,145,140,0.2); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.10); padding: 6px 0; font-size: 14px">
+    <button type="button" style="display: block; width: 100%; text-align: left; border: 0; background: none; padding: 8px 12px; color: #62625b; font-size: 14px; font-family: inherit">← 戻る</button>
+    <div style="padding: 4px 8px 6px">
+      <label for="cf" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">コレクションを検索</label>
+      <input id="cf" type="text" placeholder="コレクションを検索" style="box-sizing: border-box; width: 100%; height: 32px; border-radius: 8px; border: 1px solid rgba(145,145,140,0.3); padding: 0 8px; font-size: 13px; font-family: inherit">
+    </div>
+    <button type="button" role="menuitem" style="display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: none; padding: 8px 12px; font-size: 14px; font-family: inherit; color: #211922"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#62625b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg>Spirit</button>
+    <button type="button" role="menuitem" style="display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: none; padding: 8px 12px; font-size: 14px; font-family: inherit; color: #211922"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#62625b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/></svg>未視聴の動画</button>
+    <button type="button" role="menuitem" style="display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: none; padding: 8px 12px; font-size: 14px; font-family: inherit; color: #211922"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#62625b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg>料理</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":760,"height":520}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

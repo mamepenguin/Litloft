@@ -31,6 +31,11 @@ import { DismissScrim } from "@/components/DismissScrim";
 import { ViewGroup, ViewMenu } from "@/components/ViewMenu";
 import { WidenTagScopeLink, type WidenTagScope } from "./WidenTagScopeLink";
 import { SmartFolderMenuItems } from "@/components/SmartFolderSaveButton";
+import {
+  SmartCollectionActionsSlot,
+  SmartFolderPlayButton,
+  SmartFolderPlayMenuItems,
+} from "@/components/SmartFolderPlay";
 import { SegmentedControl } from "@/components/SegmentedControl";
 
 /**
@@ -353,6 +358,8 @@ export function FolderToolbar({
         {/* Not accent-filled: the screen gets one fill and `Add` holds it.
             Below 768 Play is the control that leaves the bar, so Add, Filter
             and `…` share one row down to 320px. */}
+        {isSearch && <SmartFolderPlayButton />}
+
         {showPlayAll && (
           <div {...BAR_WIDE}>
             <Button variant="secondary" size="sm" onClick={onPlayAll}>
@@ -413,6 +420,8 @@ export function FolderToolbar({
                 {/* `md:hidden` and `BAR_WIDE` are the two halves of one
                     decision: a control that leaves the bar has to arrive
                     here. */}
+                {isSearch && <SmartFolderPlayMenuItems closeMenu={closeMore} />}
+
                 {showPlayAll && (
                   <div className="md:hidden" role="presentation">
                     <ActionMenuItem
@@ -461,6 +470,11 @@ export function FolderToolbar({
                     <SmartFolderMenuItems
                       closeMenu={closeMore}
                       separated={!isPassages}
+                    />
+                    <SmartCollectionActionsSlot
+                      drive={drive}
+                      closeMenu={closeMore}
+                      leadingSeparator={!!isPassages}
                     />
                     {!isPassages && (
                       <ActionMenuItem

@@ -393,7 +393,11 @@
     "deleteSuccess": "スマートコレクションを削除しました",
     "deleteFailed": "スマートコレクションの削除に失敗しました",
     "renameSuccess": "スマートコレクションの名前を変更しました",
-    "renameFailed": "スマートコレクションの名前変更に失敗しました"
+    "renameFailed": "スマートコレクションの名前変更に失敗しました",
+    "playing": "再生を準備しています…",
+    "playIncomplete": "結果をすべて読み込めなかったため、再生できません。もう一度お試しください。",
+    "playFailed": "再生を始められませんでした",
+    "playNothing": "再生できる動画や音声がありません"
   },
   "sort": {
     "label": "ソート",
@@ -509,7 +513,12 @@
     "loopOn": "ループON",
     "loopOff": "ループOFF",
     "expand": "展開",
-    "collapse": "折りたたみ"
+    "collapse": "折りたたみ",
+    "queueLoading": "キューを読み込み中…",
+    "queueFailed": "キューを読み込めませんでした",
+    "moveUp": "上へ移動",
+    "moveDown": "下へ移動",
+    "removeFromCollection": "コレクションから削除"
   },
   "player": {
     "videoNotSupported": "お使いのブラウザは動画再生に対応していません。",

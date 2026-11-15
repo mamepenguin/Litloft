@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "READ-1",
+      "origin": "reviewer",
+      "claim": "A Smart Collection queue starts with loop on, while a collection queue starts with loop off, although the spec asks that the loop toggle work as it does for a collection.",
+      "impact": "A user who has never touched the loop toggle gets a looping Smart Collection queue but a non-looping collection queue. The shared localStorage key means the first toggle in either surface changes both, so the default difference is visible and surprising.",
+      "evidence": "frontend/src/components/CollectionPanel.tsx: getLoop() returns stored ?? false, while the new getSmartLoop() returns stored ?? true; SmartQueuePanel uses getSmartLoop as its initial state. Both read LOOP_KEY 'collection-loop'.",
+      "repro": "Not reproduced; read of the defaults only. Clear localStorage, open a collection queue (loop OFF) and a Smart Collection queue (loop ON).",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "No declared invariant names the default. Step 5 says the loop toggle works as for a collection, and the default departs from that without being written down."
+      },
+      "severity": "LOW",
+      "proposed_fix": "Either use the collection default (false) for the Smart Collection queue, or add the loop-on default to SPEC-CORE-109 step 5 so the difference is intentional."
+    }
+  ],
+  "specification_compliance": [
+    "Spot-checked I1: evaluateSmartCollection reads every listing page at limit 500 (backend/app/routers/drives.py limit le=500, so the page size is accepted), breaks on a short page, and merges with mergeResults/sortMerged. Not verified against the page's full pipeline by execution.",
+    "Spot-checked I4 and I3: SmartFolderSaveButton.play() opens nothing on complete:false, a listing throw, or no media, and storeSmartQueue removes the stale sessionStorage entry when setItem throws.",
+    "Spot-checked I7/I8 server side: AskScope.file_ids is max 10000 and absent by default; empty list is a condition; scope_member_ids implements B ∪ (A ∩ file_ids); the scope event keeps the four keys via as_event_payload. files/matching with no conditions returns all active drive ids (backend/app/routers/internal.py), so the file_ids-only path has an A set.",
+    "Spot-checked I5: page.tsx skips the canonical redirect for smart_collection; buildNavUrl keeps only the winning parameter; useFileNav is disabled when hasCollection.",
+    "Carry-over from r1 (not re-checked as new findings): the spec Touch points list still does not name smartQueue.ts, SmartFolderPlay.tsx, smartFolderActions.ts, or toolbarMenuHome.test.ts. The spec file is unchanged by the fix commits, so TP-1..TP-4 remain open.",
+    "Carry-over from r1 TP-5: fileDetailShell.ts comment was corrected in be206789 and no longer claims the route is reached only with collection/folder_play parameters. Resolved.",
+    "Carry-over from r1 'Page.test.tsx' concern: be206789 restores the submit click in the addon test, so the submit path is exercised again. Resolved in substance; the mount-read seed is not separately asserted there."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Smart Collection queue loop default is ON (CollectionPanel.tsx getSmartLoop), not OFF as for collections; see READ-1.",
+    "CollectionPanel.tsx adds aria-labels 'Move up', 'Move down', 'Remove from collection' (en/ja messages) to the existing collection-mode buttons. These are new screen-reader strings for the collection surface that the spec does not mention. The buttons are only rendered for user collections, so they are not drawn in the Smart Collection queue."
+  ],
+  "regression_risks": [
+    "SmartFolderActions context and interface moved from SmartFolderSaveButton.tsx to smartFolderActions.ts; a consumer importing the old path would fail at build time, not silently.",
+    "CollectionPanel loop reading was split into getStoredLoop/getLoop/getSmartLoop; the collection default is unchanged.",
+    "getSemanticAvailability clears _cached before refetching when no fetch is in flight; a concurrent caller sharing the in-flight promise is unaffected.",
+    "fetchSemanticHits now returns a status field on ok:false responses. A 200 with available:false yields status 200 and therefore complete:false in the evaluator. The spec says any other ok:false is complete:false, so this matches the spec, but it can make Play refuse where the page shows listing-only results if the server ever answers available:false for an enabled drive."
+  ],
+  "test_coverage": [
+    "Unit tests exist for evaluateSmartCollection parity, the page-vs-evaluator listing params, availability answers, the player queue (FileDetailFullScreen.smartCollection.test.tsx), Play on the search page, the slot, ConditionMenu ordering, addon Ask entry, Ask scope resolution, file_ids schema and union (Python). They were not executed here.",
+    "The Python union tests cover file_ids only, the 503 path, and a 422 for 10001 ids. No test covers a 422 from the server for an unknown key inside scope alongside file_ids.",
+    "No test asserts the loop default for a Smart Collection queue, so READ-1 is untested.",
+    "The e2e layout cases measure the bar but not the sheet after a Play press; I11 at 375px is covered only by the first-row check.",
+    "The r1 fix (be206789) changed one addon test and one comment, and added no new test."
+  ],
+  "not_verified": [
+    "No command was run and git could not be queried (only Read, Glob and Grep). The contents of commit 043f7d81 were not inspected; the fix set was taken from the prompt text.",
+    "The unit, Python and Playwright suites were not executed, so no pass or fail result is claimed.",
+    "The browser layout (I11) and the real-time behaviour of the queue were not checked.",
+    "SmartFolderPlay.tsx, smartQueue.ts and smartFolderActions.ts were not read in full; only the parts that the diff text showed were used.",
+    "The design-decisions rule on addon-to-core imports (addons/intelligence/frontend importing @/lib/api and @/lib/smartCollectionEval) was not judged against the rule text."
+  ],
+  "confidence": 70,
+  "trajectory": "The round from r1 to r2 did not add a branch, state or prediction. be206789 removed one stale route note in fileDetailShell.ts and changed one addon test to click the submit button and assert the last call. The fix commits left the spec touch-point list untouched, so the r1 gaps TP-1 to TP-4 remain open. The design is not being patched further in this round; the remaining open items are documentation and a loop default that was never written down."
+}

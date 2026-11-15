@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "No findings were listed for verification, so no finding was confirmed or rejected. Read frontend/src/lib/smartCollectionEval.ts:57-139 against I1: the listing loop pages until a short page, the text query takes the semantic path only when availability is 'available', a non-404 failed search or an 'unknown' availability sets complete=false, an impossible query returns complete=true with no request, and the 404 case keeps the listing complete. These match I1 as written, but I did not check the caller or the availability cache in addons.ts."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "evaluateSmartCollection does not catch a throw from io.getDriveFiles or io.fetchSemanticHits. Whether a thrown listing error becomes complete:false depends on the caller, which I did not read."
+  ],
+  "regression_risks": [
+    "Shuffling under random happens after mergeResults and sortMerged (smartCollectionEval.ts:136-137). I did not confirm that this matches the search page's random ordering, so I3 and I1 for random sort are unverified."
+  ],
+  "test_coverage": [
+    "Test files exist at frontend/src/lib/__tests__/smartCollectionEval.test.ts, frontend/src/components/__tests__/SearchPage.smartCollectionPlay.test.tsx, SearchPage.smartCollectionSlot.test.tsx, FileDetailFullScreen.smartCollection.test.tsx, addons/intelligence/tests/test_ask_scope_file_ids.py and addons/intelligence/frontend/Page.smartCollectionScope.test.tsx. I did not read them and did not run them, so their coverage is unverified."
+  ],
+  "not_verified": [
+    "No findings were supplied, so no reproduction was attempted. I did not read the callers of evaluateSmartCollection or the availability cache in addons.ts.",
+    "I did not check the Python backend (schemas.py, rag.py, file_matching.py) against I8, I9 or the SPEC-ADDON-054 I3/I5 revisions.",
+    "I did not check the I2, I5, I6, I7 or I10 to I12 UI behaviour, the e2e cases, or any browser layout claim (I11).",
+    "I did not run any test or build, since only Read, Glob and Grep were available."
+  ],
+  "confidence": 70
+}
