@@ -233,6 +233,8 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-106 | implemented | docs/specs/smart-collection.md | sha256:9668bed455fb686115f86df9f4757f1f9b987b609a6bf4d7a25e377e4a7694da |
 | SPEC-CORE-107 | implemented | docs/specs/smart-collection.md | sha256:9668bed455fb686115f86df9f4757f1f9b987b609a6bf4d7a25e377e4a7694da |
 | SPEC-CORE-108 | implemented | docs/specs/smart-collection.md | sha256:9668bed455fb686115f86df9f4757f1f9b987b609a6bf4d7a25e377e4a7694da |
+| SPEC-CORE-109 | implemented | docs/specs/smart-collection-parity.md | sha256:f3789757ab846c452eeb935684b69af043377ebf08e73e5be809e58607ff7c57 |
+| SPEC-ADDON-110 | implemented | docs/specs/smart-collection-parity.md | sha256:f3789757ab846c452eeb935684b69af043377ebf08e73e5be809e58607ff7c57 |
 | SPEC-ADDON-111 | implemented | docs/specs/representative-frames-v3.md | sha256:5dcbd11738954b96ae7da5c78a6a99fb9ea57816331ad13d9db462820e6d8f63 |
 | SPEC-ADDON-112 | implemented | docs/specs/representative-frames-v3.md | sha256:5dcbd11738954b96ae7da5c78a6a99fb9ea57816331ad13d9db462820e6d8f63 |
 | SPEC-ADDON-113 | implemented | docs/specs/representative-frames-v3.md | sha256:5dcbd11738954b96ae7da5c78a6a99fb9ea57816331ad13d9db462820e6d8f63 |

@@ -75,6 +75,10 @@ When the conditions of an open Smart Collection differ from what it saved — a 
 - Only the **Video**, **Image**, **Audio** and **Document** types can be saved. Use **Document** for Markdown and PDFs. Saving with another type shows an error.
 - Everyone who uses the drive sees the same Smart Collections.
 
+On a saved Smart Collection's page, while it shows the saved query and type in **ファイル**, **再生 / Play** plays its video and audio. The files play as a queue in the order shown, and when a file ends the next one opens. The queue is fixed when you press Play: later changes to the Smart Collection do not alter it, and only the next Play replaces it. Play is absent when the results hold no video or audio; on a phone it is the first row of the `…` sheet.
+
+With the intelligence addon, `…` also holds **ここに質問 / Ask here**, which opens Ask scoped to this Smart Collection. See **Ask and Find** below.
+
 ## Tag filtering
 
 Click a tag in the **Tags** section of the sidebar. It filters the folder you are in and all its subfolders. See [tags and relations](tags-and-relations.md#tag-filtering-and-scope).
@@ -147,7 +151,7 @@ Keep asking in the same tab: each question takes the earlier ones into account. 
 
 Ask sends parts of your files to the language model. An administrator can use a local model, or turn Ask off for a drive. See the [intelligence addon](../addons/intelligence.md#ask-rag).
 
-**Ask within a folder, a collection, tags or kinds.** The folder `…` menu's **ここに質問** and the collection page's **ここに質問** open Ask already narrowed to that folder (and everything under it) or that collection. Under the Ask field the narrowing appears as chips; **＋ 範囲** adds another folder, collection, tag or kind, and a chip's `×` removes one. Ask answers only from those files, and says **この範囲にはファイルがありません** when the scope holds none. The chips travel with you to **Find** and back, though Find itself is not narrowed. The folder menu entry is absent at the drive root and for a name containing a double quote, which the query syntax cannot express.
+**Ask within a folder, a collection, a Smart Collection, tags or kinds.** The folder `…` menu's **ここに質問** and the collection page's **ここに質問** open Ask already narrowed to that folder (and everything under it) or that collection; a saved Smart Collection's `…` menu's **ここに質問** narrows it to the files its search page lists in **ファイル**. Under the Ask field the narrowing appears as chips; **＋ 範囲** adds another folder, collection, tag or kind, and a chip's `×` removes one. Ask answers only from those files, and says **この範囲にはファイルがありません** when the scope holds none. The chips travel with you to **Find** and back, though Find itself is not narrowed. The folder menu entry is absent at the drive root and for a name containing a double quote, which the query syntax cannot express.
 
 ## Duplicate files
 

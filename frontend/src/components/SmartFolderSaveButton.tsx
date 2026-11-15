@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  createContext,
   useCallback,
   useContext,
   useEffect,
@@ -14,10 +13,13 @@ import { useRouter } from "next/navigation";
 import { House, HousePlus, Pencil, Save, Star, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-import type { FileKind } from "@/types";
-import type { SmartFolder } from "@/types/smartFolder";
-import { setHomeShortcut } from "@/lib/api";
+import type { FileKind, SortField, SortOrder } from "@/types";
+import { getDriveFiles, setHomeShortcut } from "@/lib/api";
+import { getSemanticAvailability } from "@/lib/addons";
 import { isNameInUse } from "@/lib/nameInUse";
+import { fetchSemanticHits } from "@/lib/semanticSearch";
+import { evaluateSmartCollection } from "@/lib/smartCollectionEval";
+import { smartQueueEntry, storeSmartQueue } from "@/lib/smartQueue";
 import { useSmartFolders } from "@/hooks/useSmartFolders";
 import { Button } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -25,6 +27,10 @@ import { SmartFolderSaveDialog } from "./SmartFolderSaveDialog";
 import { ActionMenuItem } from "./ActionMenuItem";
 import { MenuSeparator } from "./ToolbarMenu";
 import { useToast } from "./ToastProvider";
+import {
+  SmartFolderActionsContext,
+  type SmartFolderActions,
+} from "./smartFolderActions";
 
 interface SmartFolderSaveProps {
   drive: string;
@@ -39,23 +45,49 @@ interface SmartFolderSaveProps {
   smartFolderId: string | null;
   show?: string | null;
   includeSceneClip?: boolean;
+  /** The page's current order of the result set, sent with the evaluation. */
+  sort?: SortField;
+  order?: SortOrder;
+  /** Whether the loaded results hold a video or audio file. */
+  hasPlayableFiles?: boolean;
+  /** The Files view is on screen; Play is hidden in Passages. */
+  passagesView?: boolean;
   /** Moves focus to the results bar's `…` after an overwrite. */
   focusMoreTrigger?: () => void;
 }
 
-interface SmartFolderActions {
-  current: SmartFolder | null;
-  /** The URL's conditions differ from the folder's saved ones. */
-  changed: boolean;
-  saving: boolean;
-  save: () => void;
-  overwrite: (options?: { moveFocus?: boolean }) => Promise<void>;
-  rename: () => void;
-  remove: () => void;
-  toggleHome: () => void;
+interface PlaySnapshot {
+  drive: string;
+  query: string;
+  type: FileKind | null;
+  smartFolderId: string | null;
+  sort: SortField;
+  order: SortOrder;
+  includeSceneClip: boolean;
+  passagesView: boolean;
+  saved: { name: string; query: string; type: FileKind | null } | null;
 }
 
-const SmartFolderActionsContext = createContext<SmartFolderActions | null>(null);
+function samePlaySnapshot(a: PlaySnapshot, b: PlaySnapshot): boolean {
+  if (
+    a.drive !== b.drive ||
+    a.query !== b.query ||
+    a.type !== b.type ||
+    a.smartFolderId !== b.smartFolderId ||
+    a.sort !== b.sort ||
+    a.order !== b.order ||
+    a.includeSceneClip !== b.includeSceneClip ||
+    a.passagesView !== b.passagesView
+  ) {
+    return false;
+  }
+  if (a.saved === null || b.saved === null) return a.saved === b.saved;
+  return (
+    a.saved.name === b.saved.name &&
+    a.saved.query === b.saved.query &&
+    a.saved.type === b.saved.type
+  );
+}
 
 /**
  * Owns the Smart Folder dialogs and the error toast. It lives for as long as
@@ -69,6 +101,10 @@ export function SmartFolderController({
   smartFolderId,
   show,
   includeSceneClip,
+  sort = "relevance",
+  order = "desc",
+  hasPlayableFiles = false,
+  passagesView = false,
   focusMoreTrigger,
   children,
 }: SmartFolderSaveProps & { children?: ReactNode }) {
@@ -102,6 +138,48 @@ export function SmartFolderController({
   // second press in the same tick would otherwise send a second PATCH.
   const savingRef = useRef(false);
   const focusMoreAfterOverwrite = useRef(false);
+
+  const [playing, setPlaying] = useState(false);
+  const [playNotice, setPlayNotice] = useState<{
+    message: string;
+    persistent: boolean;
+  } | null>(null);
+  const playingRef = useRef(false);
+  const mountedRef = useRef(true);
+
+  const canPlay = current !== null && !changed && !passagesView && hasPlayableFiles;
+  const playSnapshot: PlaySnapshot = {
+    drive,
+    query,
+    type: typeFilter ?? null,
+    smartFolderId,
+    sort,
+    order,
+    includeSceneClip: !!includeSceneClip,
+    passagesView,
+    saved: current
+      ? { name: current.name, query: current.query, type: current.file_type }
+      : null,
+  };
+  // Read at the press and compared at the end: a change in between discards
+  // the evaluation, and the button may have been pressed a render ago.
+  const latestSnapshot = useRef(playSnapshot);
+  latestSnapshot.current = playSnapshot;
+  const latestCanPlay = useRef(canPlay);
+  latestCanPlay.current = canPlay;
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!playNotice || playNotice.persistent) return;
+    const timer = setTimeout(() => setPlayNotice(null), 3000);
+    return () => clearTimeout(timer);
+  }, [playNotice]);
 
   useEffect(() => {
     if (!error) return;
@@ -183,6 +261,71 @@ export function SmartFolderController({
     [current, query, typeFilter, update, t],
   );
 
+  const play = useCallback(() => {
+    if (playingRef.current || !latestCanPlay.current) return;
+    const start = latestSnapshot.current;
+    const saved = start.saved;
+    const targetId = start.smartFolderId;
+    if (!saved || !targetId) return;
+
+    const finish = (message?: string) => {
+      playingRef.current = false;
+      if (!mountedRef.current) return;
+      setPlaying(false);
+      setPlayNotice(message ? { message, persistent: false } : null);
+    };
+    const discarded = () =>
+      !mountedRef.current ||
+      !samePlaySnapshot(start, latestSnapshot.current);
+
+    playingRef.current = true;
+    setPlaying(true);
+    setPlayNotice({ message: t("playing"), persistent: true });
+
+    void (async () => {
+      let result;
+      try {
+        result = await evaluateSmartCollection(
+          {
+            drive: start.drive,
+            query: start.query.trim(),
+            type: start.type,
+            sort: start.sort,
+            order: start.order,
+            includeSceneClip: start.includeSceneClip,
+          },
+          { getDriveFiles, getSemanticAvailability, fetchSemanticHits },
+        );
+      } catch {
+        finish(discarded() ? undefined : t("playFailed"));
+        return;
+      }
+      if (discarded()) {
+        finish();
+        return;
+      }
+      if (!result.complete) {
+        finish(t("playIncomplete"));
+        return;
+      }
+      const files = result.files.filter(
+        (f) => f.file_type === "video" || f.file_type === "audio",
+      );
+      if (files.length === 0) {
+        finish(t("playNothing"));
+        return;
+      }
+      storeSmartQueue(start.drive, targetId, {
+        name: saved.name,
+        files: files.map(smartQueueEntry),
+      });
+      finish();
+      router.push(
+        `/files/${files[0].id}?smart_collection=${encodeURIComponent(targetId)}`,
+      );
+    })();
+  }, [router, t]);
+
   const handleDeleteConfirm = useCallback(async () => {
     if (!current) return;
     try {
@@ -217,13 +360,25 @@ export function SmartFolderController({
       current,
       changed,
       saving,
+      canPlay,
+      playing,
+      play,
       overwrite,
       save: () => setSaveOpen(true),
       rename: () => setRenameOpen(true),
       remove: () => setDeleteConfirmOpen(true),
       toggleHome: () => void handleToggleHome(),
     }),
-    [current, changed, saving, overwrite, handleToggleHome],
+    [
+      current,
+      changed,
+      saving,
+      canPlay,
+      playing,
+      play,
+      overwrite,
+      handleToggleHome,
+    ],
   );
 
   return (
@@ -254,6 +409,14 @@ export function SmartFolderController({
       {error && (
         <div className="fixed bottom-4 right-4 z-50 rounded-2xl bg-danger px-4 py-2 text-sm text-white shadow-lg">
           {error}
+        </div>
+      )}
+      {playNotice && (
+        <div
+          role="status"
+          className="fixed bottom-4 right-4 z-50 rounded-2xl border border-bg-border bg-bg-card px-4 py-2 text-sm text-text-primary shadow-lg"
+        >
+          {playNotice.message}
         </div>
       )}
     </SmartFolderActionsContext.Provider>

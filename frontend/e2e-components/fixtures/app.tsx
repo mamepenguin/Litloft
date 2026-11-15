@@ -137,7 +137,7 @@ window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
     typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
   const method = (init?.method ?? "GET").toUpperCase();
   if (url.includes("/api/drives/fixture/smart-folders")) {
-    return Promise.resolve(jsonResponse([FIXTURE_SMART_FOLDER]));
+    return Promise.resolve(jsonResponse(FIXTURE_SMART_FOLDERS));
   }
   if (url.includes("/api/addons/intelligence/search/by-image/available")) {
     return Promise.resolve(
@@ -1132,6 +1132,8 @@ interface ResultsBarState {
   operator: boolean;
   scene: boolean;
   smartFolder?: boolean;
+  /** A Smart Collection whose saved query equals the page's, in the Files view. */
+  smartPlay?: "operator" | "text";
 }
 
 const FIXTURE_SMART_FOLDER = {
@@ -1145,6 +1147,25 @@ const FIXTURE_SMART_FOLDER = {
   created_at: "2026-05-01T00:00:00Z",
   updated_at: null,
 };
+
+const FIXTURE_SMART_FOLDER_OPERATOR = {
+  ...FIXTURE_SMART_FOLDER,
+  id: "fixture-sf-operator",
+  name: "Fixture operator folder",
+  query: "cats tag:meeting",
+};
+
+const FIXTURE_SMART_FOLDER_TEXT = {
+  ...FIXTURE_SMART_FOLDER,
+  id: "fixture-sf-text",
+  name: "Fixture text folder",
+};
+
+const FIXTURE_SMART_FOLDERS = [
+  FIXTURE_SMART_FOLDER,
+  FIXTURE_SMART_FOLDER_OPERATOR,
+  FIXTURE_SMART_FOLDER_TEXT,
+];
 
 const SMART_FOLDER_CHANGED_QUERY =
   "cats tag:meeting tag:research tag:archive folder:Projects";
@@ -1161,7 +1182,16 @@ function SearchResultsBar({ state }: { state: ResultsBarState }): ReactElement {
     : state.operator
       ? "cats tag:meeting"
       : "cats";
-  const smartFolderId = state.smartFolder ? FIXTURE_SMART_FOLDER.id : null;
+  const smartPlayFolder =
+    state.smartPlay === "operator"
+      ? FIXTURE_SMART_FOLDER_OPERATOR
+      : state.smartPlay === "text"
+        ? FIXTURE_SMART_FOLDER_TEXT
+        : null;
+  const smartFolderId = state.smartFolder
+    ? FIXTURE_SMART_FOLDER.id
+    : (smartPlayFolder?.id ?? null);
+  const inSmartCollection = state.smartFolder || smartPlayFolder !== null;
   const showScene = !state.operator;
   const showShelf = showScene && state.scene && state.view === "files";
 
@@ -1202,7 +1232,7 @@ function SearchResultsBar({ state }: { state: ResultsBarState }): ReactElement {
             hideArranging: false,
           }}
           isPassages={state.view === "passages"}
-          hasPlayableFiles={false}
+          hasPlayableFiles={!!state.smartPlay}
           sort="relevance"
           order="desc"
           typeFilter={state.typeFilter}
@@ -1262,7 +1292,7 @@ function SearchResultsBar({ state }: { state: ResultsBarState }): ReactElement {
 
   return (
     <NextIntlClientProvider locale="en" messages={enMessages}>
-      {state.smartFolder ? (
+      {inSmartCollection ? (
         <SmartFolderController
           drive="fixture"
           query={query}
@@ -1270,6 +1300,10 @@ function SearchResultsBar({ state }: { state: ResultsBarState }): ReactElement {
           smartFolderId={smartFolderId}
           show={state.view}
           includeSceneClip={state.scene}
+          sort="relevance"
+          order="desc"
+          hasPlayableFiles={!!state.smartPlay}
+          passagesView={state.view === "passages"}
         >
           {body}
         </SmartFolderController>
@@ -1296,6 +1330,20 @@ const SEARCH_RESULTS_BAR: Record<string, ResultsBarState> = {
     scene: false,
     smartFolder: true,
   },
+  "smart-play-operator": {
+    view: "files",
+    typeFilter: null,
+    operator: true,
+    scene: false,
+    smartPlay: "operator",
+  },
+  "smart-play-text": {
+    view: "files",
+    typeFilter: null,
+    operator: false,
+    scene: false,
+    smartPlay: "text",
+  },
 };
 
 function searchResultsBarArrangement(id: string): ReactElement {
@@ -1312,6 +1360,10 @@ const SearchResultsBarPassagesOperator = (): ReactElement => searchResultsBarArr
 const SearchResultsBarSticky = (): ReactElement => searchResultsBarArrangement("sticky");
 const SearchResultsBarSmartFolderChanged = (): ReactElement =>
   searchResultsBarArrangement("smart-folder-changed");
+const SearchResultsBarSmartPlayOperator = (): ReactElement =>
+  searchResultsBarArrangement("smart-play-operator");
+const SearchResultsBarSmartPlayText = (): ReactElement =>
+  searchResultsBarArrangement("smart-play-text");
 
 function OpenScoped({ label }: { label: string }): null {
   const scope = useMemo(
@@ -2517,6 +2569,8 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "search-results-bar-passages-operator": SearchResultsBarPassagesOperator,
   "search-results-bar-sticky": SearchResultsBarSticky,
   "search-results-bar-smart-folder-changed": SearchResultsBarSmartFolderChanged,
+  "search-results-bar-smart-play-operator": SearchResultsBarSmartPlayOperator,
+  "search-results-bar-smart-play-text": SearchResultsBarSmartPlayText,
   "quick-note-footer-ja": QuickNoteFooterJa,
   "quick-note-footer-en": QuickNoteFooterEn,
   "scoped-search-ja": ScopedSearchJa,
