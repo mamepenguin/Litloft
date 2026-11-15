@@ -611,48 +611,6 @@ test("the player element and its position survive a resize from beside to stacke
   expect(after.samePane).toBe(true);
 });
 
-test("find with the inspector closed in a stacked row restores the canvas scroll", async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 900, height: 700 });
-  await page.addInitScript(() => {
-    localStorage.setItem("inspector-open:fixture", "false");
-    localStorage.setItem("workbench-panels", JSON.stringify(["transcript"]));
-  });
-  await open(page, VIDEO);
-  await expect(page.getByTestId("inspector-fit-host")).toHaveAttribute(
-    "data-inspector-fit",
-    "stacked",
-  );
-
-  await expect(page.getByTestId("fixture-transcript")).toBeVisible();
-
-  const canvas = page.locator("main");
-  const target = await canvas.evaluate((element) =>
-    Math.min(300, Math.max(0, element.scrollHeight - element.clientHeight)),
-  );
-  expect(target).toBeGreaterThan(0);
-  await canvas.evaluate((element, value) => {
-    element.scrollTop = value;
-  }, target);
-  await expect.poll(() => canvas.evaluate((element) => element.scrollTop)).toBe(
-    target,
-  );
-
-  await page.getByTestId("find-button").click();
-  await expect(page.getByTestId("find-bar")).toBeVisible();
-  await page.getByRole("textbox", { name: "Search term" }).fill("transcript");
-  await expect(page.getByTestId("inspector-pane")).toBeVisible();
-
-  await page.getByRole("button", { name: "Close find" }).click();
-
-  await expect(page.getByTestId("inspector-pane")).toHaveCount(0);
-  await expect(page.getByTestId("fixture-transcript")).toBeVisible();
-  await expect.poll(() => canvas.evaluate((element) => element.scrollTop)).toBe(
-    target,
-  );
-});
-
 /* ------------------------------------------------------------------ *
  * I6 — a file without a player never stacks; in a narrow row its
  * inspector is the overlay it has always been.

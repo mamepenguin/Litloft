@@ -1,0 +1,133 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "unplanned-e2e-deletion-stacked-find",
+      "origin": "reviewer",
+      "claim": "The commit deletes the e2e test 'find with the inspector closed in a stacked row restores the canvas scroll' from inspector-responsive-layout-desktop.spec.ts, a file that is not in the touch-point list and covers the stacked inspector, which the spec declares unchanged.",
+      "impact": "The regression check that find-close restores canvas scroll in the stacked inspector form is gone. A later break of that behaviour passes the suite silently. The commit gives no reason for the removal in the spec or the review record.",
+      "evidence": "Diff hunk 'diff --git a/frontend/e2e-components/inspector-responsive-layout-desktop.spec.ts' '@@ -611,48 +611,6 @@' removes the whole test. Grep for 'restores the canvas scroll' in frontend/ now returns no match. The spec's '## Checked, no action' lists the stacked inspector as 'Not this change' and no invariant I-line covers it.",
+      "repro": "not_reproduced: static reading only; no test run was possible. The removal is visible in the diff.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "No declared invariant covers the stacked-inspector find scroll restore, so this breaks no I-line. It is an unplanned removal of coverage that reads wrong for a feature the spec says is unchanged."
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Restore the test, or record in the spec why it is removed and which test replaces its coverage."
+    },
+    {
+      "id": "unplanned-e2e-rewrite-085-floor-test",
+      "origin": "reviewer",
+      "claim": "player-workbench-desktop.spec.ts has an existing SPEC-CORE-085 I5 test rewritten from 'keeps 18rem and the page scrolls' to 'shrinks below 18rem and does not scroll'. The file is not in the touch-point list; the list only anticipates tests found by grepping WORKBENCH_MIN_REM.",
+      "impact": "The old floor assertion, which encoded the behaviour being removed, is replaced in place under a new SPEC-CORE-106 name. A reader of the 085 test history cannot tell that the 085 floor was dropped by an edit to that test.",
+      "evidence": "Diff hunk 'frontend/e2e-components/player-workbench-desktop.spec.ts' '@@ -195,7 +195,7 @@' changes the test title to 'SPEC-CORE-106 I1 ...' and replaces the PANEL_FLOOR and scrolls==true expectations with toBeLessThan(PANEL_FLOOR) and scrolls==false. Spec Revises section: SPEC-CORE-085 I5 is revised, so the edit matches the revision.",
+      "repro": "not_reproduced: static reading only.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "The edit follows the revised invariant text (SPEC-CORE-085 I5 revised; SPEC-CORE-106 I1). It is an untracked touch point, and it reads as a silent rename of a 085 test. No I-line is broken by the test edit itself."
+      },
+      "severity": "LOW",
+      "proposed_fix": "Record this file in the touch-point list, or keep the 085 test name and add the 106 test beside it."
+    },
+    {
+      "id": "unplanned-mutation-observer-subtree",
+      "origin": "reviewer",
+      "claim": "useCompanionMetrics adds a MutationObserver with childList and subtree over the whole document (scope = document when no mini player), and a beside-form exception in rowBlockPx, neither of which the spec's rowBlock formula or touch-point description includes.",
+      "impact": "Every DOM insertion or removal anywhere on the canonical page runs a querySelector on the workbench row, which costs time on busy pages. The beside exception returns rowBlock 0 when data-row-beside is on. That is not visible today, because the beside state needs a panel shown and the cap is then half of H, but it is a silent divergence from the spec's formula in §3.",
+      "evidence": "frontend/src/components/FileDetail/hooks/useCompanionMetrics.ts: rowBlockPx() returns 0 when row.closest('[data-row-beside=\"on\"]'); the new mutationObserver.observe(scope, { childList: true, subtree: true }) in the effect. Spec §3 defines rowBlock = offsetHeight + 2rem, with 0 only when no row is drawn. The MutationObserver is not mentioned in the spec's touch point for this file.",
+      "repro": "not_reproduced. The MutationObserver is not covered by any jsdom test. The beside case is not reached with a panel shown and the cap at half H.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "No I-line is broken: under the current cap rules the beside zero has no visible effect, and the observer cost is not a stated invariant. Both diverge from the spec's written formula and mechanism, so the behaviour is surprising to a reader."
+      },
+      "severity": "LOW",
+      "proposed_fix": "Either document the beside exception and the document-wide observer in the spec, or narrow the observer to the row's parent and use the same check for beside as the spec's formula."
+    },
+    {
+      "id": "spec-touch-point-not-implemented",
+      "origin": "reviewer",
+      "claim": "The spec's planned touch points ShellLayout.tsx (row element held in state) and Workbench.tsx (rowRef callback ref) are absent from the diff; the implementation finds the row with querySelector('.media-detail-workbench-row') on every measure.",
+      "impact": "Not a user-visible defect on its own, because the MutationObserver covers mount and unmount. But the declared touch-point list does not match the code, so a reviewer checking the diff against the spec's touch points finds a missing planned change and an unplanned mechanism.",
+      "evidence": "frontend/src/components/FileDetail/ShellLayout.tsx is unchanged in the diff (no useState for the row element, no rowRef prop passed to the hook). frontend/src/components/FileDetail/workbench/Workbench.tsx has no rowRef; the row is at line 95 as '<div className=\"media-detail-workbench-row\">' with no ref. The spec's 'Touch points' lists both files.",
+      "repro": "not_reproduced: static reading only.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "The code is authoritative and the spec's mechanism is not a checked contract. The mismatch is only a discrepancy with the declared touch-point list, and no I-line depends on how the row is found."
+      },
+      "severity": "INFO",
+      "proposed_fix": "Update the spec's touch-point list and §3 to describe the querySelector and MutationObserver approach, or switch to the rowRef design as written."
+    },
+    {
+      "id": "test-coverage-row-block-not-exercised",
+      "origin": "reviewer",
+      "claim": "The updated jsdom expectations in FileDetailCanvas.test.tsx change only by the removed 48px peek (508→556, 632→680, 402→450), so no jsdom test exercises the rowBlock subtraction.",
+      "impact": "A regression that drops or doubles rowBlock would pass the unit suite. Only the e2e file, which cannot run here, measures the row subtraction in a real browser.",
+      "evidence": "frontend/src/components/FileDetail/__tests__/FileDetailCanvas.test.tsx lines 213, 219, 278, 288: the new values equal the old values plus 48 exactly. The test stubs getBoundingClientRect and offsetHeight is 0 in jsdom, so a row present in this test would give rowBlock 32px and a different value. The +48 result shows no row was rendered.",
+      "repro": "not_reproduced: static reading. Mutation to try: set rowBlockPx to return 0 always; the jsdom suite should still pass.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "The test values are internally consistent, so no I-line is broken. The gap is in what the suite can catch, not in the code's behaviour."
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add a jsdom case that renders the workbench row with a stubbed offsetHeight and asserts the player budget is reduced by offsetHeight plus 2rem."
+    },
+    {
+      "id": "unplanned-theater-css-test-edit",
+      "origin": "reviewer",
+      "claim": "mediaDetailTheaterCss.test.ts is edited (the canonical host min-height assertion becomes a height assertion plus a not-min-height check). The touch-point list keeps this file only for the collection test and does not list the canonical assertion as an expected change.",
+      "impact": "The regex '[^-]height:' also matches any non-min height rule in the stylesheet, so the check is looser than its name. A future change to a different height rule could satisfy it without the host being fixed.",
+      "evidence": "Diff hunk 'frontend/src/app/__tests__/mediaDetailTheaterCss.test.ts' '@@ -48,9 +48,8 @@': the expectation becomes /[^-]height:\\s*var\\(--rail-avail,\\s*100dvh\\);/ with a separate not.toMatch(/min-height/). The host block is extracted from globals.css, so the match is on the extracted block only.",
+      "repro": "not_reproduced: static reading only.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "The edit is necessary for the spec's change and matches its intent. The only issue is the loose regex, which reads wrong but breaks no I-line."
+      },
+      "severity": "INFO",
+      "proposed_fix": "Anchor the regex to the host block's own selector, or assert the exact declaration and drop the loose match."
+    }
+  ],
+  "specification_compliance": [
+    "Unplanned places the diff reaches outside the touch-point list: (1) frontend/e2e-components/inspector-responsive-layout-desktop.spec.ts, a deleted stacked-inspector test; (2) frontend/e2e-components/player-workbench-desktop.spec.ts, an existing 085 I5 test rewritten; (3) frontend/src/app/__tests__/mediaDetailTheaterCss.test.ts, the canonical host assertion changed; (4) frontend/e2e-components/projects.ts and spec-viewport.spec.ts, the new spec's registration, which is implicit to the new e2e file and is not reported as unplanned; (5) inside the listed useCompanionMetrics.ts, the beside exception and the document-wide MutationObserver, which the spec's rowBlock formula does not describe.",
+    "Planned touch points not reached by the diff: ShellLayout.tsx and Workbench.tsx (rowRef). The row is found with querySelector instead.",
+    "globals.css change is limited to the host rule; data-workbench is set only from workbenchWide && shownPanels.length > 0 (ShellLayout.tsx:458), so the height rule applies only with a panel shown.",
+    "WORKBENCH_MIN_REM has no remaining references under frontend/ (grep shows none); layoutSizes.ts deletion is complete."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The beside exception in rowBlockPx returns 0 when data-row-beside is on. The spec's rowBlock formula has no such case. It is invisible today, because beside requires a panel shown and the cap is then half of H.",
+    "The MutationObserver watches childList only. A change to data-row-beside alone does not trigger measure(); it relies on the ResizeObserver on the row. If the row keeps the same height across a beside toggle, rowBlock can be stale. Not verified.",
+    "With no miniPlayerRoot the scope is document, so the observer runs on every DOM insertion or removal in the page."
+  ],
+  "regression_risks": [
+    "Removing the stacked find test leaves the find-close scroll restore in the stacked form without any check.",
+    "The subtree MutationObserver on document adds per-mutation querySelector cost on the canonical page.",
+    "FileDetailCanvas expectations were changed to values that assume no row; a later change that renders the row in those tests would fail them for a reason unrelated to the test intent."
+  ],
+  "test_coverage": [
+    "The jsdom suite does not exercise rowBlock (its expected values equal the old values plus 48px), so the subtraction and the beside exception are untested there.",
+    "The new e2e file workbench-no-page-scroll-desktop.spec.ts measures the live budget, the row and the scroll at several H values. It was not run here.",
+    "The stacked find-restore e2e test was removed, so that behaviour has no test in the diff."
+  ],
+  "not_verified": [
+    "No test was run and no browser measurement was made; I had only Read, Glob and Grep.",
+    "I did not read the full e2e-components fixtures or the e2e-layout static CSS fixtures, so I did not check whether they reference the removed min-height rule.",
+    "I did not check the complete diff for ShellLayout.tsx (unchanged in the diff) against any other consumer of the metrics hook beyond the grep for the row class.",
+    "I did not verify whether the stacked find test's removal hides a real regression, because the test could not be run."
+  ],
+  "confidence": 72
+}

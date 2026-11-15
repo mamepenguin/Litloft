@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "stacked-find-test-removal-reason-mismatch",
+      "status": "confirmed",
+      "note": "The spec's rationale does not match the test it names. docs/specs/workbench-no-page-scroll.md:211 names the deleted test 'find with the inspector closed in a stacked row restores the canvas scroll'. The reason at lines 212-214 measures the canvas 'with the inspector open in a stacked layout'. So the stated premise describes a different configuration from the one the deleted test name specifies. The removed test body is only in git history, which I cannot read, so I did not confirm its assertion 'target > 0' or that it sets inspector-open:fixture to false. The mismatch in the documented reason is confirmed from the spec text alone. Current spec-file neighbours: inspector-responsive-layout-desktop.spec.ts:459-477 ('keeps the controls on screen with find open') is a different assertion."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "beside-toggle-no-observed-size-change",
+      "status": "rejected_with_evidence",
+      "note": "A beside toggle does change an observed size. Workbench.tsx:91 sets data-row-beside on the workbench root. globals.css:996-1001 then makes the row position:absolute with right:0 and left = max(...)+1rem, which is always at least 1rem, so the row's border-box width changes on every toggle. useCompanionMetrics.ts:79 observes the row when the observer exists, and :127 calls followRow() right after the observer is created, so the ResizeObserver on the row fires on the width change. The callback runs measure() (:85-119), and rowBlockPx (:28-31) reads closest('[data-row-beside=\"on\"]') on the current DOM, so rowBlock is recomputed. The MutationObserver not watching attributes therefore does not leave rowBlock stale. Residual edge case: if the workbench width is already 0, the width does not change; that state is not a visible layout."
+    }
+  ],
+  "mutation": {
+    "status": "INVALID",
+    "baseline_green": false,
+    "mutants": []
+  },
+  "specification_compliance": [
+    "Invariant I7 relies on the row's observed size change being picked up; the beside path is covered by the row ResizeObserver (useCompanionMetrics.ts:79, :127), not by the MutationObserver.",
+    "The spec's stated reason for deleting the stacked find/canvas-scroll e2e test (spec:211-216) describes the inspector-open configuration while the deleted test name specifies inspector closed; the removal rationale does not match the test it removes."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The deleted stacked-find e2e test has no replacement; the spec states that no test replaces it (spec:215-216), so the canvas-scroll behaviour with find closed in the stacked inspector form is unguarded by any test."
+  ],
+  "regression_risks": [
+    "Removal of the stacked-inspector find/canvas-scroll e2e test means a regression of find-close scroll restore in the stacked form will not be caught by the suite.",
+    "A zero-width workbench is the only state in which the beside toggle does not change the row width; not expected in normal layout."
+  ],
+  "test_coverage": [
+    "The jsdom tests mock ResizeObserver, so the beside-toggle recompute path in useCompanionMetrics.ts is not exercised in jsdom; it depends on the live e2e measurement, which was not run here.",
+    "The deleted stacked-find test body could not be read from the worktree; its coverage loss is not measured."
+  ],
+  "not_verified": [
+    "The deleted e2e test body (git history at 835e86fd6 and its parent) was not readable: no git access and the worktree lacks the removed text. The claim that it sets inspector-open:fixture to false and asserts target > 0 is unverified.",
+    "No test was run; the e2e and jsdom suites were not executed, so the live rowBlock and ResizeObserver behaviour is verified by reading only.",
+    "Browser layout behaviour of the absolute-positioned row on toggle (width change under the given CSS) was inferred from the stylesheet, not measured."
+  ],
+  "confidence": 80
+}
