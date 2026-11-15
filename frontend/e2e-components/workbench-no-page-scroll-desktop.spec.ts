@@ -242,7 +242,7 @@ test("SPEC-CORE-113 I6 closing the last panel and opening one again keeps the vi
 
   await closeTranscript(page);
   let area = await visibleArea(page);
-  let row = await rowRect(page);
+  const row = await rowRect(page);
   expect(area.scrolls).toBe(false);
   expect(row.bottom).toBeLessThanOrEqual(area.visibleBottom + 1);
 
