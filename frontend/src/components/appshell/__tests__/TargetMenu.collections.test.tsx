@@ -115,7 +115,9 @@ function menu(
 }
 
 function openMenu() {
-  fireEvent.click(screen.getByRole("button", { name: /Target/ }));
+  const trigger = screen.getByRole("button", { name: /Target/ });
+  // Opening twice would close the menu the second time.
+  if (trigger.getAttribute("aria-expanded") !== "true") fireEvent.click(trigger);
 }
 
 function openManage() {

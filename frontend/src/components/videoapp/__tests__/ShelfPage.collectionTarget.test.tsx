@@ -216,7 +216,8 @@ describe("SPEC-CORE-118 I3 a See all page under a collection target", () => {
     await settle();
 
     for (const call of wire.calls.filter(underTarget)) expectCollectionTarget(call, READING_BASE_KINDS);
-    const shelf = wire.calls.find(isShelves)!;
+    // The header count is a shelves request of its own, before the page's.
+    const shelf = wire.calls.find((call) => isShelves(call) && paramsOf(call, "by")[0] === "tag")!;
     expect(paramsOf(shelf, "folder")).toEqual(["Books/Novels"]);
     expect(paramsOf(shelf, "tag")).toEqual(["read"]);
     expect(screen.getByRole("button", { name: /Target/ })).toHaveTextContent("Trip");

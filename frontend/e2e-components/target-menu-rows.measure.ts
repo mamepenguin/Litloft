@@ -57,6 +57,15 @@ export type RowsSnapshot = {
 
 /** `menu` reads the open Target menu's radio rows; `manage` reads Manage…'s checklist. */
 export async function measureRows(page: Page, where: "menu" | "manage"): Promise<RowsSnapshot> {
+  // The surface scales in as it opens, and a box measured mid-animation is
+  // smaller than the one it settles at.
+  await page
+    .locator(where === "menu" ? '[role="menu"]' : '[role="dialog"]')
+    .evaluate(async (surface) => {
+      await Promise.all(
+        surface.getAnimations({ subtree: true }).map((animation) => animation.finished),
+      );
+    });
   return page.evaluate((where) => {
     const box = (r: DOMRect) => ({
       left: r.left,
