@@ -8,6 +8,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { invalidateAddonsCache } from "@/lib/addons";
+import type { SemanticHit } from "@/lib/searchMerge";
 import type { FileItem, FileKind } from "@/types";
 import {
   fileIdsOf,
@@ -58,8 +59,9 @@ vi.mock("@/hooks/useSelectedFile", () => ({ useSelectedFile: () => ({ fileId: nu
 vi.mock("@/hooks/useTreeVisible", () => ({
   useTreeVisible: () => ({ visible: false, beside: false, toggle: vi.fn(), yielded: false }),
 }));
+const viewPrefs = vi.hoisted(() => ({ sort: "title" as string }));
 vi.mock("@/hooks/useFolderViewMode", () => ({
-  useFolderSort: () => ({ sort: "title", order: "asc", setSort: vi.fn() }),
+  useFolderSort: () => ({ sort: viewPrefs.sort, order: "asc", setSort: vi.fn() }),
   useFolderViewMode: () => ({ viewMode: "grid", setViewMode: vi.fn() }),
 }));
 vi.mock("@/hooks/useCreateFile", () => ({
@@ -225,6 +227,7 @@ function install() {
 }
 
 beforeEach(() => {
+  viewPrefs.sort = "title";
   server.addonOn = false;
   server.statusFails = false;
   server.collections = () => json([collection("c1", "Trip")]);
@@ -608,5 +611,84 @@ describe("SPEC-CORE-116 step 6, I10: ＋ 条件 → Collection on the search pag
     const target = String(router.push.mock.calls[0][0]);
     const q = new URL(target, "http://localhost").searchParams.get("q") ?? "";
     expect(q).toMatch(/^cats in:"?B2"?$/);
+  });
+});
+
+describe("SPEC-CORE-116 step 2, I4/I5 and SPEC-CORE-035 I11: an in: resolution owns its image continuation", () => {
+  const clip = (id: string): SemanticHit => ({
+    file_id: id,
+    drive: DRIVE,
+    filename: `${id}.jpg`,
+    file_type: "image",
+    score: 0.9,
+    match_types: ["clip_thumbnail"],
+    segments: [{ time_range: null, matches: [{ type: "clip_thumbnail", score: 0.9 }] }],
+    file: file(id),
+  });
+  const imageCalls = () => wire.calls.filter((c) => c.url.pathname.endsWith("/search/images"));
+  const offer = () => screen.queryByRole("button", { name: "Show more by similarity" });
+
+  /** The evaluation's own meaning search is a GET; the page's is the POST that carries the members. */
+  function meaning(rows: (call: WireCall) => SemanticHit[]) {
+    server.meaningSearch = (call) =>
+      call.url.pathname.endsWith("/search/images")
+        ? json({ available: true, results: rows(call) })
+        : json({ available: true, results: call.method === "GET" ? [] : [clip("hit")] });
+  }
+
+  it("sends A's members with the continuation, and B neither keeps A's rows nor reuses A's answer", async () => {
+    viewPrefs.sort = "relevance";
+    server.addonOn = true;
+    meaning((call) => ((fileIdsOf(call) ?? []).includes("m1") ? [clip("a-only")] : [clip("b-only")]));
+    const page = renderSearch({ searchQuery: 'cat in:"Weekly"' });
+
+    await waitFor(() => expect(offer()).not.toBeNull());
+    fireEvent.click(offer()!);
+    await waitFor(() => expect(drawnIds()).toContain("a-only"));
+    expect(imageCalls()).toHaveLength(1);
+    expect(idSet(imageCalls()[0])).toEqual(ids(server.members.dogs));
+
+    page.rerenderPage({ searchQuery: 'cat in:"Daily"' });
+    await waitFor(() => expect(wire.calls.filter(isFilesQuery).some((c) => idSet(c).has("b1"))).toBe(true));
+    await settle();
+
+    expect(drawnIds()).not.toContain("a-only");
+    await waitFor(() => expect(offer()).not.toBeNull());
+    fireEvent.click(offer()!);
+
+    await waitFor(() => expect(drawnIds()).toContain("b-only"));
+    expect(drawnIds()).not.toContain("a-only");
+    expect(imageCalls()).toHaveLength(2);
+    expect(idSet(imageCalls()[1])).toEqual(ids(server.members.birds));
+  });
+
+  it("removing one chip from a union does not keep the union's image rows", async () => {
+    viewPrefs.sort = "relevance";
+    server.addonOn = true;
+    meaning((call) => ((fileIdsOf(call) ?? []).includes("b1") ? [clip("union-only")] : [clip("weekly-only")]));
+    const page = renderSearch({ searchQuery: 'cat in:"Weekly" in:"Daily"' });
+
+    await waitFor(() => expect(offer()).not.toBeNull());
+    fireEvent.click(offer()!);
+    await waitFor(() => expect(drawnIds()).toContain("union-only"));
+    expect(new Set(fileIdsOf(imageCalls()[0]))).toEqual(
+      new Set([...ids(server.members.dogs), ...ids(server.members.birds)]),
+    );
+
+    page.rerenderPage({ searchQuery: 'cat in:"Weekly"' });
+    await waitFor(() =>
+      expect(
+        wire.calls.filter(isFilesQuery).some((c) => idSet(c).has("m1") && !idSet(c).has("b1")),
+      ).toBe(true),
+    );
+    await settle();
+
+    expect(drawnIds()).not.toContain("union-only");
+    await waitFor(() => expect(offer()).not.toBeNull());
+    fireEvent.click(offer()!);
+
+    await waitFor(() => expect(drawnIds()).toContain("weekly-only"));
+    expect(drawnIds()).not.toContain("union-only");
+    expect(idSet(imageCalls()[1])).toEqual(ids(server.members.dogs));
   });
 });

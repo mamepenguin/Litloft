@@ -180,7 +180,7 @@ export function FolderBrowser({
     snapshotKey, hydratedScrollY, continuationState, onShowMore, continuationSentinelRef,
     continuationDrawnIds, updateContinuationFile, removeContinuationFiles,
     passagesApplicable, passageGroups, passagesLoading, passagesFailed, retryPassages,
-    inNameBlocked, inNameState, retryInName,
+    inNameBlocked, inNamePending, inNameState, retryInName,
   } = useFolderFiles({ driveName, folderPath, view, tagFilter, typeFilter, trustFilter, sort, order, refreshKey, searchQuery, includeSceneClip, initialSnapshot });
 
   const isWatchHistory = isRecent || isContinue;
@@ -662,7 +662,7 @@ export function FolderBrowser({
   const dragInFlight = dragState.isDragging || isInternalDragging;
 
   const countLabel =
-    inNameBlocked || settledTotal === null
+    inNameBlocked || inNamePending || settledTotal === null
       ? null
       : tCommon("items", { count: settledTotal });
 

@@ -138,6 +138,8 @@ interface UseFolderFilesReturn {
   retryPassages: () => void;
   /** While an `in:` name is unresolved, failed or too large nothing is listed. */
   inNameBlocked: boolean;
+  /** An `in:` query has not produced the first listing page of its resolution yet. */
+  inNamePending: boolean;
   inNameState: "failed" | "tooLarge" | null;
   retryInName: () => void;
 }
@@ -385,6 +387,27 @@ export function useFolderFiles({
     [isSearch, parsed, searchKinds, rangeImpossible, inNameBlocked, resolvedCollections, resolvedFileIds, driveName, folderPath, sort, order, isFavorites, isSpecialView, isRecentAdded, isLiked, tagFilter, typeFilter, trustFilter],
   );
 
+  // The listing page 1 that answered for the resolution in force. An `in:`
+  // query is not listed until one has: the resolution landing does not itself
+  // produce rows, and a count of 0 read before then is a wrong count.
+  const resolutionInForce = useRef<InNameState | null>(activeResolution);
+  resolutionInForce.current = activeResolution;
+  const [listedResolution, setListedResolution] = useState<InNameState | null>(null);
+  const trackFirstPage = useCallback(
+    async (page: number, limit: number) => {
+      if (page !== 1 || inKey === "") return fetchPage(page, limit);
+      const resolution = resolutionInForce.current;
+      try {
+        return await fetchPage(page, limit);
+      } finally {
+        if (resolution !== null && resolution.status === "resolved") {
+          setListedResolution(resolution);
+        }
+      }
+    },
+    [fetchPage, inKey],
+  );
+
   const {
     items: paginatedFiles,
     total: paginatedTotal,
@@ -397,7 +420,7 @@ export function useFolderFiles({
     setItems: setPaginatedFiles,
     setTotal: setPaginatedTotal,
   } = useInfiniteScroll<FileItem>({
-    fetchPage,
+    fetchPage: trackFirstPage,
     limit: 30,
     disabled: isWatchHistory || inNameBlocked,
     initial: hydration.initial,
@@ -507,6 +530,9 @@ export function useFolderFiles({
   }, [meaningEligible, runMeaningSearch]);
 
   const [continuation, setContinuation] = useState<ContinuationAnswer | null>(null);
+  // The resolution's identity, not just the filter it produced: two Smart
+  // Collection names resolve to the same (empty) `collections` list, so only
+  // the key and the retry that resolved it tell their answers apart.
   const continuationKey = [
     parsed.text,
     driveName,
@@ -515,6 +541,8 @@ export function useFolderFiles({
     sort,
     order,
     filterSignature,
+    inKey,
+    String(inRetryToken),
   ].join("\u0000");
   const continuationKeyRef = useRef(continuationKey);
   continuationKeyRef.current = continuationKey;
@@ -707,6 +735,10 @@ export function useFolderFiles({
   }, [continuationState, revealMore, scrollContainer, revealedContinuation]);
 
   const inNameResolving = inNameBlocked && inNameState === null;
+  const inNamePending =
+    inKey !== "" &&
+    inNameState === null &&
+    (activeResolution?.status !== "resolved" || listedResolution !== activeResolution);
   const computedFiles: FileItemWithMatch[] = isWatchHistory
     ? (recentFiles as FileItemWithMatch[])
     : mergedSearch
@@ -723,7 +755,7 @@ export function useFolderFiles({
   // listing rows stay visible while the addon ranks within the filter.
   const loading = isWatchHistory
     ? recentLoading
-    : inNameResolving
+    : inNamePending
       ? true
       : isSearch
         ? paginatedLoading || (semanticLoading && !parsed.hasOperators)
@@ -817,6 +849,7 @@ export function useFolderFiles({
     passagesFailed,
     retryPassages,
     inNameBlocked,
+    inNamePending,
     inNameState,
     retryInName,
   };
