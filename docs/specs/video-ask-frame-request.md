@@ -43,13 +43,22 @@ pictures, audio, documents and every profile that cannot see are unchanged.
   `select_scenes` when the duration is unknown; at most 40 sections, each one line
   `<start>–<end> <excerpt>` with times as `m:ss` or `h:mm:ss`. The excerpt is the
   text of the file's `transcript_chunks` and `video_frame_texts` rows whose span
-  overlaps the section, in time order, whitespace collapsed to single spaces, cut
+  overlaps the section (a row's span `[start, end)`, or its start alone when it has
+  no end, overlaps `[a, b)` when it starts before `b` and ends after `a`), ordered
+  by start, a transcript row before a frame-text row at the same start, whitespace collapsed to single spaces, cut
   at 120 characters; a section with no such text has none. No line carries a
   bracketed number. A file whose selection is empty or fails has no contents.
 - **Frame request**: one tool call in a reply to a tool request.
-- **Readable time**: a number of seconds, a string of one (`"83"`, `"83.5"`), or a
-  string `m:ss` / `h:mm:ss` with optional fractional seconds; not negative.
-- **Requested frame**: a frame cut at a time of a frame request and sent.
+- **Readable time**: a JSON number (not a boolean), or a string that, after
+  surrounding whitespace is removed, is a number (`"83"`, `"83.5"`), `m:ss` (any
+  whole `m`, `ss` below 60) or `h:mm:ss` (`mm` and `ss` below 60), with optional
+  fractional seconds; not negative. Anything else is unreadable.
+- **Within 1 s**: an absolute difference below 1.0 s; exactly 1.0 s apart is not
+  within, as in the frame set.
+- **Requested frame**: a frame cut at a time of a frame request and sent. Its time,
+  for its label, its citation and every within-1 s test, is the requested time
+  rounded to the millisecond (`frame_time`), as an initial frame's is.
+- **Total deadline**: 300 s after the slot was taken.
 
 ## Required items
 
@@ -65,8 +74,9 @@ pictures, audio, documents and every profile that cannot see are unchanged.
    passages, the system prompt's tool instructions (I8), and `get_frames`. It goes
    to the profile's `vision_model`. An ollama profile's requests on this path are
    sent with `think` on and `num_predict` of twice `rag.max_tokens`.
-3. The reply to a tool request is read to its end before anything of it is
-   written to the stream. If it holds no tool call, its text is the answer: it is
+3. A tool request is streamed from the provider, as today's request is, and its
+   reply is read to its end before anything of it is written to the stream; its
+   thinking text is dropped. If it holds no tool call, its text is the answer: it is
    written as `answer_chunk` events, then `citations`, `meta`, `done`.
 4. If it holds tool calls, each is a frame request, handled in the order given:
    1. The first 3 frame requests of the question are served; each after them gets
@@ -75,14 +85,16 @@ pictures, audio, documents and every profile that cannot see are unchanged.
       `times` list, gets a tool result saying so, and counts as served.
    3. The times are taken in the order given. A time that is not readable or is
       past the known duration is not used. A time within 1 s of a frame already
-      sent for the question, or of an earlier used time of the same reply, is not
-      used. Of the rest, the first 4 are used, and the others are not.
+      sent for the question, of an earlier used time of the same reply, or of the
+      position stated in the prompt, is not used. Of the rest, the first 4 are
+      used, and the others are not.
    4. The used times are cut as the frame set is (the `large` frame from the cache,
-      ffmpeg or the YouTube frame route; at most 4 at once; 15 s each). A frame that
-      fails is not replaced.
+      ffmpeg or the YouTube frame route; at most 4 at once, started in time order;
+      15 s each). A frame that fails is not replaced.
    5. The tool result is a text that says how many frames follow, and lists each
       time that was not used or not cut with its reason (unreadable, past the end,
-      already sent as `[n]`, over the limit of 4, not available). It pairs no
+      already sent as `[n]`, at the position, over the limit of 4, not
+      available). It pairs no
       number with a time of a frame that follows.
 5. The next request carries the whole exchange: the reply (without its thinking
    text) and, for every tool call of the reply in order, its tool result; then the
@@ -92,7 +104,7 @@ pictures, audio, documents and every profile that cannot see are unchanged.
    parts after the last tool message; ollama: one user message per label and
    image). It is a tool request while fewer than 3 frame requests have been
    served and less than 120 s have passed since the slot was taken; otherwise it
-   is the final request.
+   is the final request. No request is started after the total deadline.
 6. The final request's reply is streamed as `answer_chunk` events as it arrives.
 7. `citations` maps each number to what it was sent with: a passage to its
    position, an initial or requested frame to `{"seconds": <its time>}`.
@@ -114,6 +126,12 @@ pictures, audio, documents and every profile that cannot see are unchanged.
   that leaves no answer (fallback above).
 - **A frame request gives no frame** (all times unusable or failed): the tool result
   says why; it counts as served.
+- **The total deadline passes**: a request or frame cut in flight is stopped and
+  no other is started. Before the first `answer_chunk`: `meta` with `image`
+  `"attached"`, then `done` with `"Answer generation failed"`. After it: the same.
+  Log `frame_tool_deadline (file <id>)`.
+- **An unexpected error while cutting** (not a frame's own failure, which is a
+  drop): treated as a failed tool request (fallback).
 - **The viewer closes the tab**: as today, the model stream and any frame cutting
   stop; no further request is sent and no further frame is cut.
 - **The contents are not built by the deadline, or the selection fails**: the
@@ -132,10 +150,13 @@ Per question:
   initial frame was prepared; → today's path otherwise.
 - `tool` → `answer` (its reply has no tool call); → `cutting` (it has frame
   requests); → `fallback` (refused, failed or empty).
-- `cutting` → `tool` (fewer than 3 served and under 120 s); → `final`.
+- `cutting` → `tool` (fewer than 3 served and under 120 s); → `final`;
+  → `fallback` (an unexpected error).
 - `final` → `answer`; → `fallback` (refused, failed or empty before the first
   `answer_chunk`); → `failed` (after it).
 - `answer` → done. `fallback` → today's path, done or failed as it decides.
+- From every state, the fallback's included: a disconnect → ended, nothing
+  further sent or cut; the total deadline → failed.
 - Not allowed: `final` → `tool`; `fallback` → `tool` or `final`; a second
   `fallback`; `cutting` after 3 served frame requests.
 
@@ -152,8 +173,11 @@ Per question:
 The routed profile's model. Per question at most 3 tool requests and 1 final
 request; on a fallback, today's request once more, after which SPEC-ADDON-114 may
 add its one text-only request: at most 6 requests in all. Each request has the
-client's own timeout. The 120 s limit decides only whether the next request
-offers the tool; it does not cut a request in flight. A YouTube frame goes through
+client's own timeout, which bounds each wait for bytes, not the request; a
+streamed tool request therefore does not time out while the model is producing.
+The 120 s limit decides only whether the next request offers the tool. The total
+deadline (300 s) stops everything, so the stream ends before the core proxy's
+600 s wall clock (`backend/app/routers/addon_proxy.py`). A YouTube frame goes through
 the existing frame route.
 
 ### 6. Authorization
@@ -169,7 +193,7 @@ requested file only.
   today. The answer is written when the model's reply is complete, not as it
   streams, except for the final request's.
 - The Ask slot (shared with `/ask` and `/find`, 3 at once) is held longer by a
-  question that requests frames: up to 120 s plus the final request.
+  question that requests frames: at most the total deadline, 300 s.
 - The normal Ask with its agentic loop (`app/rag/agentic.py`), the MCP `ask`,
   `list_video_scenes` and `get_video_frame`: unchanged.
 - Requests whose profile cannot see, pictures, audio, documents, a `.loft` that is
@@ -194,12 +218,14 @@ served a frame request, `frame requests: <calls> calls, <frames> frames (file
   requests nothing (gemma4:e4b, 3.5 s → 4.4 s to the reply).
 - Until the first `answer_chunk`, `: keepalive` is written so that no 10 s pass
   without a byte.
-- The docs say the model may look at up to 12 more frames of the video.
+- The docs say the model may look at up to 12 more frames of the video, and that
+  an ollama server needs a context length of at least 32768 for it.
 
 ### 10. Non-functional
 
 - At most 12 requested frames per question, 4 per frame request, 3 served frame
-  requests; at most 6 model requests (section 5).
+  requests; at most 6 model requests (section 5); nothing after 300 s from the
+  slot.
 - No tool request after 120 s from the slot.
 - Cost (measured, OpenRouter): $0.001–0.004 per question with DeepSeek V4.1 Flash.
 - Contents: at most 40 lines, excerpts of at most 120 characters, outside the
@@ -227,6 +253,12 @@ served a frame request, `frame requests: <calls> calls, <frames> frames (file
   `tests/test_spec_addon_114_*`, the 071 / 072 / 077 frames-path tests). Each is
   rewritten to this spec only where the tool changes what it asserts; assertions
   about profiles that cannot see, pictures, audio and documents are not touched.
+- The shared test helpers `tests/file_question_vision_doubles.py` (its OpenAI and
+  ollama handlers learn to return tool calls and ollama `thinking`) and
+  `tests/frame_label_layout.py` (frames after tool messages), extended in place so
+  that what they return and check today is unchanged; and the suites that run the
+  frames path with a profile that can see: `tests/test_spec_addon_109_frame_citations.py`,
+  `tests/test_spec_addon_113_ask_frames.py`, `tests/test_spec_addon_081_file_question_history.py`.
 - `tests/test_llm_caller_inventory.py` if the new client methods are new callers.
 - `docs/addons/intelligence.md`, `docs/user-guide/search.md`,
   `docs/reference/api.md` (the file Ask row).
@@ -239,7 +271,7 @@ served a frame request, `frame requests: <calls> calls, <frames> frames (file
 
 ## Invariants
 
-I1. For a video question with a profile that can see, every image sent is an initial frame or a requested frame of the requested file, each the frame at the time in its own label, sent only to the `vision_model` of the profile resolved by `resolve(drive, "rag")`; per question at most 12 requested frames are sent, at most 4 for one frame request, and none within 1 s of another frame sent for the question.
+I1. For a video question with a profile that can see, every image sent is an initial frame or a requested frame of the requested file, each the frame at the time in its own label, sent only to the `vision_model` of the profile resolved by `resolve(drive, "rag")`; per question at most 12 requested frames are sent, at most 4 for one frame request, none within 1 s of another frame sent for the question or of the stated position, none at an unreadable time, and none past a known duration (an unknown duration refuses no time).
 
 I2. At most 3 frame requests per question are served; a request is a final request once 3 have been served or 120 s have passed since the slot was taken, and no request after a final request offers the tool.
 
@@ -247,26 +279,29 @@ I3. Numbers run without a gap: passages `[1]`–`[P]`, initial frames `[P+1]`–
 
 I4. Any refusal or failure of a tool request, or of a final request before its first `answer_chunk`, is followed by exactly one request identical to today's request for the question, and by nothing else from this path; this path never writes the vision-unsupported verdict.
 
-I5. An ollama profile's tool and final requests are sent with thinking on; no thinking text appears in any `answer_chunk` or in any later request; an OpenAI-compatible profile's requests carry no option they did not carry before except the tool.
+I5. An ollama profile's tool and final requests are sent with thinking on and `num_predict` of twice `rag.max_tokens`; no thinking text appears in any `answer_chunk` or in any later request. An OpenAI-compatible profile's tool and final requests differ from today's request only by the messages of the exchange, `tools`, and `tool_choice` (`"auto"` on a tool request, `"none"` on a final request); `stream`, temperature and max tokens are as today's.
 
-I6. No text of a reply to a tool request is written to the stream before that reply is complete and known to hold no tool call.
+I6. No text of a reply to a tool request is written to the stream before that reply is complete and known to hold no tool call; the reply to a final request is written as it arrives.
 
 I7. The contents list at most 40 sections in time order with no bracketed number, each excerpt at most 120 characters, drawn only from the requested file's transcript and frame text in that section's span; a tool result names no frame number except as the frame an unused time duplicates.
 
 I8. The system prompt of a tool request says that the frames sent are a sample of the video, that `get_frames` returns the frames at given times, up to 4 per call and 3 calls, that it is to be called when the answer depends on what is shown at moments the frames do not show, that the user is never asked for times, and that requested frames are numbered and cited as the other frames are, under the SPEC-ADDON-114 I10 rules.
+
+I9. No model request is started and no frame is cut after the total deadline, 300 s from the slot.
 
 ## Revises
 
 SPEC-ADDON-114 I1. For a text video and a profile that can see, the images sent are the kept frames of the frame set and the requested frames of SPEC-ADDON-116, each the frame at the time in its own label, sent in the order of their numbers, only to the `vision_model` of the profile resolved by `resolve(drive, "rag")`; for a profile that cannot see, no image is sent.
 SPEC-ADDON-114 I3. The prompt numbers the passages `[1]` to `[P]`, then the kept frames `[P+1]` to `[P+F]` in time order, then the requested frames of SPEC-ADDON-116 in the order sent; every `citations` entry names a number that was sent, with the passage's position for a passage and the frame's time as `position.seconds` for a frame, and no other number appears.
 SPEC-ADDON-114 I4. With a profile that can see, a text video always receives a generated answer from its passages when frames cannot be used: no frame prepared, or a refusal of today's request with images (sent first, or as the fallback of SPEC-ADDON-116), each lead to one text-only request with `meta.image` `"unavailable"`, never to `frames_unusable`, `frames_rejected` or `image_unusable`; a refusal never writes the vision-unsupported verdict.
-SPEC-ADDON-114 I6. A text-video question with a profile that can see holds exactly one Ask slot from after the material is read until its stream ends, fails or is cancelled; it has at most 4 frame preparations running at once, starts none of the frame set after 45 s from the slot and none at all after a disconnect, sends no model request after a disconnect, has sent the first model request or ended the stream no later than 45 s after the slot was taken, and until the first `answer_chunk`, including during frame requests, a fallback and a text-only retry, no 10 s pass without a byte written to the stream.
+SPEC-ADDON-114 I6. A video question (a text video or a text-less one) with a profile that can see holds exactly one Ask slot from after the material is read until its stream ends, fails or is cancelled; it has at most 4 frame preparations running at once, starts none of the frame set after 45 s from the slot and none at all after a disconnect, sends no model request after a disconnect, has sent the first model request or ended the stream no later than 45 s after the slot was taken, and until the first `answer_chunk`, including during frame requests, a fallback and a text-only retry, no 10 s pass without a byte written to the stream.
 SPEC-ADDON-114 I7. Questions, answers, history, tool calls and frame bytes are neither stored nor logged; the only write is the `large` frame cache entry `get_video_frame` also writes.
 SPEC-ADDON-114 I8. Pictures, audio, documents, a `.loft` that is not a text video, every request whose profile cannot see, the availability route, the normal Ask with its agentic loop and the MCP tools answer as they did before this change; text-less videos differ only by the request layout of I11 and by SPEC-ADDON-116.
 SPEC-ADDON-114 I11. For every video question that sends frames (a text video or a text-less one), each image, initial or requested, is preceded, with nothing else between them, by a text whose whole content is that frame's label `[n] <time>`, the labels run in the order the images are sent, and no prompt text or tool result pairs a number with the time of a frame sent (the position sentence, the contents and a tool result's note that an unused time duplicates `[n]` are not such a pairing); with an OpenAI-compatible profile the labels and images are alternating parts of one user message after the prompt text or the last tool message, and with an ollama profile each label and its one image are a user message of their own.
 SPEC-ADDON-108 I2. Each frame sent is the frame at the time in its own label, and goes only to the `vision_model` of the profile resolved by `resolve(drive, "rag")`.
 SPEC-ADDON-108 I4. The kept frames are numbered from 1 in time order and the requested frames of SPEC-ADDON-116 on from there in the order sent, each image right after its own label as SPEC-ADDON-114 I11 states; every `citations` entry for a text-less video names a frame number that was sent with that frame's time as `position.seconds`, and no other number appears.
-SPEC-ADDON-108 I8. Once the first model request of a question is sent, no frame of the frame set is prepared; a requested frame of SPEC-ADDON-116 is cut only in answer to a served frame request, before the next request is sent.
+SPEC-ADDON-108 I8. Once the first model request of a question is sent, no frame of the frame set is prepared; a requested frame of SPEC-ADDON-116 is cut only in answer to a served frame request, before the next request is sent; the 45 s first-request bound and the keep-alive of a text-less video are those of SPEC-ADDON-114 I6 as revised by SPEC-ADDON-116.
+SPEC-ADDON-108 I7. The frame set's preparations start with the position frame and then in time order; the requested frames of one frame request start in time order; at most 4 run at once in either case.
 SPEC-ADDON-071 I1. A question's passages, picture and frames come only from the requested file, an active file of the `X-Lit-Drive` drive that the viewer can access and whose `rag` feature is on, and the only other text sent is the history the request carried and, for a video on the path of SPEC-ADDON-116, its duration, contents, the tool's definition and the tool results; a picture gets at most one image of at most 1024 px on its long edge, and a video gets at most 8 initial frames and 12 requested frames of at most 1280 px when its profile can see.
 SPEC-ADDON-053 I1. The LLM receives passages, and for a picture one image, for a video with a profile that can see up to 8 frames plus up to 12 frames it requests (a `.loft` with a text chunk that is not a text video gets no image: its attempt ends in `"unavailable"`), of the requested file only, and only when the file is an active file of the `X-Lit-Drive` drive that the viewer can access and whose `rag` feature is on.
 
@@ -284,6 +319,18 @@ SPEC-ADDON-053 I1. The LLM receives passages, and for a picture one image, for a
 - **Thinking on an OpenAI-compatible profile**: DeepSeek V4.1 Flash called the
   tool without it; a provider option risks the 400 that `_without_rejected_extras`
   exists for.
+- **Setting `num_ctx` on ollama requests**: not needed for production, whose
+  ollama loads gemma4:e4b with a 32768-token context (app setting, read from the
+  server log 2026-11-15). The largest question is about 23k tokens: 20 frames at
+  about 450 tokens each (8 frames measured 3,632), passages of 16k characters
+  (about 8k), contents (about 2k), thinking up to 4k. A server left at a smaller
+  default truncates silently; the docs name the context length to set.
+- **A provider that refuses `tools` or `think` on every question**: nothing is
+  remembered, so each question costs one refused request before its fallback.
+  Accepted; such a profile still answers as today.
+- **SPEC-ADDON-108 I5** (no frame but the position frame labelled at the
+  position's time): still holds; a requested time within 1 s of the position is
+  not used (normal flow 4.3).
 - **SPEC-ADDON-108 I9 (`frames_rejected`)**: still holds; a refusal on this path
   falls back to today's request, whose refusal is what yields `frames_rejected`.
 - **A frontend change**: none; frame pills already seek, and the stream events
