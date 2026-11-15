@@ -195,7 +195,7 @@ test("SPEC-CORE-085 I5 a panel on the canonical page reaches the bottom of the v
   expect(frame).toBeLessThanOrEqual(container.visibleHeight / 2 + 1);
 });
 
-test("SPEC-CORE-106 I1 with less room under the row the panel shrinks below 18rem and the page does not scroll", async ({
+test("SPEC-CORE-113 I1 with less room under the row the panel shrinks below 18rem and the page does not scroll", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 560 });

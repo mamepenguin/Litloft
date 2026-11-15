@@ -1,8 +1,8 @@
 # Workbench: no page scroll on the canonical page
 
-SPEC-ID: SPEC-CORE-106
+SPEC-ID: SPEC-CORE-113
 
-Approval: sha256:83566dfb397c2cb7e883e61cf7cd14d9b481c8b94534029a22b1c2bf2a40fcae Yuichi Senga 2026-11-15
+Approval: sha256:d31c00045ce5bbe8746fdcb7965b2a7d76008f399a2472061c72ce9527760fb8 Yuichi Senga 2026-11-15
 
 ## Summary
 
@@ -205,7 +205,7 @@ Only the first two rows are read by the revised SPEC-CORE-104 I3 and by I4 below
     `height: var(--rail-avail, 100dvh)` with no `min-height`. The regex matches that rule
     in the extracted host block. The collection test (the `max(18rem …)` rule) is kept.
   - `frontend/e2e-components/player-workbench-desktop.spec.ts`: the SPEC-CORE-085 I5 test
-    that asserted the 18rem floor and page scroll is rewritten as SPEC-CORE-106 I1 (the
+    that asserted the 18rem floor and page scroll is rewritten as SPEC-CORE-113 I1 (the
     region is below 18rem and the page does not scroll). Its name changes with it.
   - `frontend/e2e-components/inspector-responsive-layout-desktop.spec.ts`: the test
     "find with the inspector closed in a stacked row restores the canvas scroll" is deleted.
@@ -282,7 +282,7 @@ is with the value off at the same window size.
 SPEC-CORE-104 I6. Only a press of the button writes `workbench-player-focus`. Closing every
 panel, a file change, a form change, opening Find and a reload leave it unchanged. With every
 panel closed the button is not drawn, and the framed player's height is capped at
-`--player-avail` (SPEC-CORE-106 I3); turning a panel on again applies the stored value.
+`--player-avail` (SPEC-CORE-113 I3); turning a panel on again applies the stored value.
 
 Prose only (not an I-line; `review.sh` does not carry it): SPEC-CORE-085 step 7 (the 18rem
 floor) and step 9 (the player at its size today with no panel shown) are replaced by §1 of

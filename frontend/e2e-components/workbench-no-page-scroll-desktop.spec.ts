@@ -156,7 +156,7 @@ async function openTranscript(page: Page) {
  * ------------------------------------------------------------------ */
 
 for (const visible of [320, 400, 560, 700]) {
-  test(`SPEC-CORE-106 I1 with a panel shown at H=${visible}px the page does not scroll and the panel is within the visible area`, async ({
+  test(`SPEC-CORE-113 I1 with a panel shown at H=${visible}px the page does not scroll and the panel is within the visible area`, async ({
     page,
   }) => {
     await open(page, { visible });
@@ -168,7 +168,7 @@ for (const visible of [320, 400, 560, 700]) {
   });
 }
 
-test("SPEC-CORE-106 I1 with a panel shown on a short window the panel body scrolls inside itself and the page does not", async ({
+test("SPEC-CORE-113 I1 with a panel shown on a short window the panel body scrolls inside itself and the page does not", async ({
   page,
 }) => {
   await open(page, { visible: 560 });
@@ -177,7 +177,7 @@ test("SPEC-CORE-106 I1 with a panel shown on a short window the panel body scrol
   expect((await visibleArea(page)).scrolls).toBe(false);
 });
 
-test("SPEC-CORE-106 I5 with a panel shown the panel region ends within the host and has no minimum height", async ({
+test("SPEC-CORE-113 I5 with a panel shown the panel region ends within the host and has no minimum height", async ({
   page,
 }) => {
   await open(page, { visible: 320 });
@@ -188,7 +188,7 @@ test("SPEC-CORE-106 I5 with a panel shown the panel region ends within the host 
   expect(region.height).toBeLessThan(PANEL_FLOOR);
 });
 
-test("SPEC-CORE-106 I5 with a panel shown the panel region grows with the window", async ({
+test("SPEC-CORE-113 I5 with a panel shown the panel region grows with the window", async ({
   page,
 }) => {
   await open(page, { visible: 400 });
@@ -205,7 +205,7 @@ test("SPEC-CORE-106 I5 with a panel shown the panel region grows with the window
  * ------------------------------------------------------------------ */
 
 for (const visible of [320, 400, 560, 700, 840]) {
-  test(`SPEC-CORE-106 I2 with no panel shown at H=${visible}px the page does not scroll and the toggle row is within the visible area`, async ({
+  test(`SPEC-CORE-113 I2 with no panel shown at H=${visible}px the page does not scroll and the toggle row is within the visible area`, async ({
     page,
   }) => {
     await open(page, { visible });
@@ -217,7 +217,7 @@ for (const visible of [320, 400, 560, 700, 840]) {
     expect(row.bottom).toBeLessThanOrEqual(area.visibleBottom + 1);
   });
 
-  test(`SPEC-CORE-106 I3 with no panel shown at H=${visible}px the frame ends 1rem above the row and the budget excludes the row`, async ({
+  test(`SPEC-CORE-113 I3 with no panel shown at H=${visible}px the frame ends 1rem above the row and the budget excludes the row`, async ({
     page,
   }) => {
     await open(page, { visible });
@@ -234,7 +234,7 @@ for (const visible of [320, 400, 560, 700, 840]) {
  * Transitions and changes of the window
  * ------------------------------------------------------------------ */
 
-test("SPEC-CORE-106 I6 closing the last panel and opening one again keeps the video, and each state fits the page", async ({
+test("SPEC-CORE-113 I6 closing the last panel and opening one again keeps the video, and each state fits the page", async ({
   page,
 }) => {
   await open(page, { visible: 560 });
@@ -253,7 +253,7 @@ test("SPEC-CORE-106 I6 closing the last panel and opening one again keeps the vi
   expect(await videoTag(page)).toBe("kept");
 });
 
-test("SPEC-CORE-106 I7 when H shrinks with no panel shown, the frame shrinks and the row stays visible", async ({
+test("SPEC-CORE-113 I7 when H shrinks with no panel shown, the frame shrinks and the row stays visible", async ({
   page,
 }) => {
   await open(page, { visible: 900 });
@@ -273,7 +273,7 @@ test("SPEC-CORE-106 I7 when H shrinks with no panel shown, the frame shrinks and
   await expectBudgetFormula(page);
 });
 
-test("SPEC-CORE-106 I7 when H grows again with no panel shown, the frame grows back to the budget", async ({
+test("SPEC-CORE-113 I7 when H grows again with no panel shown, the frame grows back to the budget", async ({
   page,
 }) => {
   await open(page, { visible: 560 });
