@@ -43,6 +43,10 @@ Key concepts:
   shown in a video, search_video_scenes (videos with a Visual Index only).
 - A collection is also called a playlist and holds files of one drive. Use
   list_collections and get_collection to read the files a viewer gathered.
+  A Smart Collection is a saved search whose items are computed when read;
+  get_collection pages them with offset and limit, and complete: false means
+  meaning search could not be read. ask accepts Smart Collection names in
+  scope.collections.
 - ask can synthesize an answer through Litloft's intelligence addon. It
   streams internally and returns the final answer plus source events.
 - upload_file is for small notes/documents/images only (10MB cap on

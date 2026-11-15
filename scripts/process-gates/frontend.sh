@@ -26,6 +26,7 @@ else
   echo "frontend-gate: cannot resolve $base; running everything"
 fi
 
+./setup-addons.sh >/dev/null || exit 1
 cd frontend || exit 1
 node scripts/merge-addon-messages.mjs >/dev/null || exit 1
 # The gate's expect_regex reads vitest's summary line, which colour codes would split.

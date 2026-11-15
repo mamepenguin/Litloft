@@ -210,13 +210,13 @@ describe("FileDetailContent workbench (collection route)", () => {
     const host = container.querySelector<HTMLElement>(".media-detail-host");
     await waitFor(() => {
       expect(host?.style.getPropertyValue("--rail-avail")).toBe("612px");
-      expect(host?.style.getPropertyValue("--player-avail")).toBe("508px");
+      expect(host?.style.getPropertyValue("--player-avail")).toBe("556px");
     });
 
     vi.stubGlobal("innerHeight", 800);
     act(() => resize?.());
     await waitFor(() =>
-      expect(host?.style.getPropertyValue("--player-avail")).toBe("632px"),
+      expect(host?.style.getPropertyValue("--player-avail")).toBe("680px"),
     );
     expect(host?.style.getPropertyValue("--rail-avail")).toBe("736px");
   });
@@ -275,7 +275,7 @@ describe("FileDetailContent workbench (collection route)", () => {
     const host = container.querySelector<HTMLElement>(".media-detail-host");
     await waitFor(() => {
       expect(host?.style.getPropertyValue("--rail-avail")).toBe("500px");
-      expect(host?.style.getPropertyValue("--player-avail")).toBe("402px");
+      expect(host?.style.getPropertyValue("--player-avail")).toBe("450px");
     });
     expect(resize).toBeDefined();
 
@@ -285,7 +285,7 @@ describe("FileDetailContent workbench (collection route)", () => {
     playerTop = -400;
     act(() => resize?.());
     await waitFor(() =>
-      expect(host?.style.getPropertyValue("--player-avail")).toBe("402px"),
+      expect(host?.style.getPropertyValue("--player-avail")).toBe("450px"),
     );
   });
 

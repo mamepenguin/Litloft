@@ -8,12 +8,17 @@ import { getEnabledAddons } from "./addons";
 import type { FileKind } from "@/types";
 import type { SemanticHit } from "./searchMerge";
 import { filterQueryParam, type SearchFilter } from "./searchQuery";
+import {
+  readSemanticHits,
+  semanticHitsUrl,
+  semanticSearchHeaders,
+  type SemanticHitsOptions,
+  type SemanticHitsResult,
+} from "./semanticSearchRequest";
+
+export type { SemanticHitsOptions, SemanticHitsResult };
 
 const API_BASE = "/api";
-
-function driveHeaders(drive: string): HeadersInit {
-  return { "X-Lit-Drive": encodeURIComponent(drive) };
-}
 
 export async function isSemanticSearchAvailable(drive: string): Promise<boolean> {
   if (!drive) return false;
@@ -21,55 +26,19 @@ export async function isSemanticSearchAvailable(drive: string): Promise<boolean>
   return Boolean(addons["intelligence"]);
 }
 
-export interface SemanticHitsResult {
-  ok: boolean;
-  results: SemanticHit[];
-  /** The HTTP status when the server answered; absent when no request was sent. */
-  status?: number;
-}
-
 export async function fetchSemanticHits(
   query: string,
   drive: string,
-  options?: {
-    limit?: number;
-    type?: FileKind | null;
-    includeSceneClip?: boolean;
-    filter?: SearchFilter | null;
-    passages?: boolean;
-    signal?: AbortSignal;
-  },
+  options?: SemanticHitsOptions,
 ): Promise<SemanticHitsResult> {
   if (!query.trim() || !drive) return { ok: false, results: [] };
-  const params = new URLSearchParams({ q: query.trim() });
-  if (options?.limit) params.set("limit", String(options.limit));
-  if (options?.passages) params.set("passages", "true");
-  if (options?.filter) {
-    params.set("filter", filterQueryParam(options.filter));
-  } else {
-    if (options?.type) params.set("type", options.type);
-    if (options?.includeSceneClip) params.set("include_scene_clip", "true");
-  }
   try {
-    const res = await fetch(
-      `${API_BASE}/addons/intelligence/search?${params.toString()}`,
-      {
-        credentials: "include",
-        headers: driveHeaders(drive),
-        signal: options?.signal,
-      },
-    );
-    if (!res.ok) return { ok: false, results: [], status: res.status };
-    const data = (await res.json()) as {
-      available?: boolean;
-      results?: SemanticHit[];
-    };
-    if (!data?.available) return { ok: false, results: [], status: res.status };
-    return {
-      ok: true,
-      results: Array.isArray(data.results) ? data.results : [],
-      status: res.status,
-    };
+    const res = await fetch(semanticHitsUrl(query, options), {
+      credentials: "include",
+      headers: semanticSearchHeaders(drive),
+      signal: options?.signal,
+    });
+    return await readSemanticHits(res);
   } catch {
     return { ok: false, results: [] };
   }
@@ -98,7 +67,7 @@ export async function fetchSemanticImages(
       `${API_BASE}/addons/intelligence/search/images?${params.toString()}`,
       {
         credentials: "include",
-        headers: driveHeaders(drive),
+        headers: semanticSearchHeaders(drive),
         signal: options?.signal,
       },
     );

@@ -1,5 +1,6 @@
 import type { AddonNavigation } from "./addonNavigation";
 import type { ComponentType, LazyExoticComponent } from "react";
+import { addonsStatusUrl, readAddonsStatus } from "./addonStatusRequest";
 
 export type AddonScope = "drive" | "global" | "both";
 
@@ -70,21 +71,12 @@ const _answered: Map<string, boolean> = new Map();
 
 async function fetchAddonsStatus(drive: string | null): Promise<AddonsStatus> {
   const key = _cacheKey(drive);
-  const url = drive
-    ? `/api/addons/status?drive=${encodeURIComponent(drive)}`
-    : "/api/addons/status";
   try {
-    const res = await fetch(url, { credentials: "include" });
-    if (!res.ok) {
-      _answered.set(key, false);
-      return { addons: {}, slots: {} };
-    }
-    const data = await res.json();
-    _answered.set(key, true);
-    return {
-      addons: (data.addons as Record<string, AddonMeta>) ?? {},
-      slots: (data.slots as Record<string, SlotEntry[]>) ?? {},
-    };
+    const answer = await readAddonsStatus(
+      await fetch(addonsStatusUrl(drive), { credentials: "include" }),
+    );
+    _answered.set(key, answer.answered);
+    return answer.status;
   } catch {
     _answered.set(key, false);
     return { addons: {}, slots: {} };

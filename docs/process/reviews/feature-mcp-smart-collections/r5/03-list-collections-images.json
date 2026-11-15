@@ -1,0 +1,50 @@
+{
+  "tool": "list_collections",
+  "arguments": {
+    "drive": "テスト画像"
+  },
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "[{\"id\":\"_bc-7JD-mmsJ\",\"name\":\"apple\",\"description\":null,\"drive\":\"テスト画像\",\"item_count\":4,\"first_file_id\":\"cFDht0M6t9lH\",\"created_at\":\"2026-05-20T15:31:52.236386Z\",\"updated_at\":\"2026-11-13T03:06:40.750502Z\",\"kind\":\"collection\"},{\"id\":\"dCkACjf7ZeS_\",\"name\":\"画像\",\"description\":null,\"drive\":\"テスト画像\",\"item_count\":17,\"first_file_id\":\"MpbUA5alK8oL\",\"created_at\":\"2026-09-07T13:41:06.240249Z\",\"updated_at\":\"2026-09-07T13:41:06.240254Z\",\"kind\":\"collection\"},{\"id\":\"Stppy2QHzjBO\",\"name\":\"船の画像\",\"kind\":\"smart\",\"query\":\"船\",\"file_type\":null}]"
+      }
+    ]
+  },
+  "requests": [
+    {
+      "method": "GET",
+      "url": "/api/drives/%E3%83%86%E3%82%B9%E3%83%88%E7%94%BB%E5%83%8F/collections",
+      "headers": {
+        "host": "127.0.0.1:4599",
+        "connection": "keep-alive",
+        "authorization": "Bearer r5",
+        "accept": "*/*",
+        "accept-language": "*",
+        "sec-fetch-mode": "cors",
+        "user-agent": "node",
+        "accept-encoding": "gzip, deflate"
+      },
+      "body": "",
+      "status": 200,
+      "response_type": "application/json"
+    },
+    {
+      "method": "GET",
+      "url": "/api/drives/%E3%83%86%E3%82%B9%E3%83%88%E7%94%BB%E5%83%8F/smart-folders",
+      "headers": {
+        "host": "127.0.0.1:4599",
+        "connection": "keep-alive",
+        "authorization": "Bearer r5",
+        "accept": "*/*",
+        "accept-language": "*",
+        "sec-fetch-mode": "cors",
+        "user-agent": "node",
+        "accept-encoding": "gzip, deflate"
+      },
+      "body": "",
+      "status": 200,
+      "response_type": "application/json"
+    }
+  ]
+}

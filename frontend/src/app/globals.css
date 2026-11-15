@@ -901,15 +901,16 @@ pre mark.ask-citation-highlight {
 /* ------------------------------------------------------------------
    The workbench under the player.
 
-   The host claims the scroll container's visible height only while a panel
-   is shown, so the panels reach the bottom of the viewport and the player is
-   capped at half of it. Without a panel the host keeps its content height
-   and the player is its full size.
+   The host takes the visible height only while a panel is shown, so the
+   panel region is bounded by it and each panel body scrolls inside itself,
+   and the player is capped at half of it. Without a panel the host takes its
+   content height, and the player's budget (`--player-avail`) leaves room for
+   the toggle row under it.
    ------------------------------------------------------------------ */
 .media-detail-host[data-workbench="on"] {
   display: flex;
   flex-direction: column;
-  min-height: var(--rail-avail, 100dvh);
+  height: var(--rail-avail, 100dvh);
 }
 
 .media-detail-host[data-workbench="on"] > .media-detail-player {
@@ -918,20 +919,22 @@ pre mark.ask-citation-highlight {
 
 .media-detail-host[data-workbench="on"]
   .media-detail-player[data-framed="true"] {
-  max-width: calc(
-    var(--rail-avail, 100dvh) * var(--workbench-player-share, 0.5) * 16 / 9
+  max-width: min(
+    calc(var(--rail-avail, 100dvh) * var(--workbench-player-share, 0.5) * 16 / 9),
+    calc(var(--player-avail, 100dvh) * 16 / 9)
   );
 }
 
 /* 480px is the player's `COMPACT_MAX_WIDTH` (`MediaControls/layout.ts`):
    below that width its controls go compact. The 0.5 is the cap the floor
-   must not raise the frame above. */
+   must not raise the frame above, and the budget under the row caps it too. */
 .media-detail-host[data-workbench="on"][data-player-focus="on"]
   .media-detail-player[data-framed="true"] {
   min-width: min(
     100%,
     480px,
-    calc(var(--rail-avail, 100dvh) * 0.5 * 16 / 9)
+    calc(var(--rail-avail, 100dvh) * 0.5 * 16 / 9),
+    calc(var(--player-avail, 100dvh) * 16 / 9)
   );
 }
 

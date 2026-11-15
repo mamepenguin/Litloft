@@ -48,18 +48,27 @@ describe("the workbench under the player", () => {
     expect(host).not.toBeNull();
     expect(host![0]).toMatch(/display:\s*flex;/);
     expect(host![0]).toMatch(/flex-direction:\s*column;/);
-    expect(host![0]).toMatch(
-      /min-height:\s*var\(--rail-avail,\s*100dvh\);/,
-    );
+    expect(host![0]).toMatch(/[^-]height:\s*var\(--rail-avail,\s*100dvh\);/);
+    expect(host![0]).not.toMatch(/min-height/);
   });
 
-  it("caps a framed player at half the visible height", () => {
+  it("caps a framed player at half the visible height and at the budget left under the row", () => {
     const cap = globalsCss().match(
       /\.media-detail-host\[data-workbench="on"\]\s+\.media-detail-player\[data-framed="true"\]\s*\{[^}]*\}/,
     );
     expect(cap).not.toBeNull();
     expect(cap![0]).toMatch(
-      /max-width:\s*calc\(\s*var\(--rail-avail,\s*100dvh\)\s*\*\s*var\(--workbench-player-share,\s*0\.5\)\s*\*\s*16\s*\/\s*9\s*\);/,
+      /max-width:\s*min\(\s*calc\(\s*var\(--rail-avail,\s*100dvh\)\s*\*\s*var\(--workbench-player-share,\s*0\.5\)\s*\*\s*16\s*\/\s*9\s*\),\s*calc\(\s*var\(--player-avail,\s*100dvh\)\s*\*\s*16\s*\/\s*9\s*\)\s*\);/,
+    );
+  });
+
+  it("keeps the enlarged 270px floor at most half the visible height, and inside the budget under the row", () => {
+    const floor = globalsCss().match(
+      /\.media-detail-host\[data-workbench="on"\]\[data-player-focus="on"\]\s+\.media-detail-player\[data-framed="true"\]\s*\{[^}]*\}/,
+    );
+    expect(floor).not.toBeNull();
+    expect(floor![0]).toMatch(
+      /min-width:\s*min\(\s*100%,\s*480px,\s*calc\(\s*var\(--rail-avail,\s*100dvh\)\s*\*\s*0\.5\s*\*\s*16\s*\/\s*9\s*\),\s*calc\(\s*var\(--player-avail,\s*100dvh\)\s*\*\s*16\s*\/\s*9\s*\)\s*\);/,
     );
   });
 

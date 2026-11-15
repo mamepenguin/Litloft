@@ -1,6 +1,6 @@
 # HTTP API reference
 
-The browser uses these endpoints, and scripts can too. Every endpoint is served at `http://<host>:<port>/api/...` through the Next.js custom server.
+The browser uses these endpoints, and scripts can too. Every endpoint is served at `http://<host>:<port>/api/...` through the Next.js custom server, except [Smart collection members](#smart-collection-members), which the frontend serves itself.
 
 Conventions:
 
@@ -164,6 +164,14 @@ Keyword search is the `search` parameter of `GET /api/drives/{drive}/files`. Sem
 | `POST` | `/api/drives/{drive}/smart-folders` | Body `{ name, query, file_type?, sort_by?, sort_order? }`. `201`; `409` `Name already in use` when the name is in use in the drive by a collection or Smart Collection, ignoring case. |
 | `PATCH` | `/api/drives/{drive}/smart-folders/{id}` | Update any of those fields. `409` `Name already in use` as on `POST` when the request gives a name that differs and is in use. |
 | `DELETE` | `/api/drives/{drive}/smart-folders/{id}` | `204`. |
+
+## Smart collection members
+
+Served by the frontend, not the backend. This is the one endpoint outside `/api`, so the `/api/*` rewrite never takes it.
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/app-api/smart-collection-members?drive=&id=&offset=&limit=&ids=` | A Smart Collection's members, evaluated when read exactly as its search page lists them: the drive listing merged with the intelligence addon's meaning search, in relevance order. `200` with `{ id, name, query, file_type, complete, total, files }`; `total` is the whole member count, `offset` (default `0`) and `limit` (default every member) slice `files`, and `ids=1` answers `ids` in place of `files`. `complete: false` means meaning search or the addon status could not be read; the members are then the listing alone. Every request it sends carries the caller's `Cookie` and `Authorization` to the backend's public `/api`, so the backend's drive access decides; it never calls the Internal API. `400` when `drive` or `id` is missing or `offset` / `limit` is not a non-negative integer; a Smart Collection lookup that fails answers with the backend's own status and body; `404` for an id that is not in the drive or for a listing page answering `404`; `502` for another listing failure or an unreachable backend; `500` for any other failure. |
 
 ## Trash and missing
 
