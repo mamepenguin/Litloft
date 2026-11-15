@@ -521,6 +521,10 @@ describe("SPEC-CORE-039 I14 the ＋ 条件 menu", () => {
     ["お気に入り", "Favorites", null, "cats is:favorite"],
   ])("appends %s as one token and submits", async (_name, item, option, expected) => {
     renderSearch({ searchQuery: "cats" });
+    // SPEC-CORE-116 step 6: the search page's condition menu refines the
+    // current search, so its one navigation is a replace.
+    router.replace.mockClear();
+    router.push.mockClear();
     const menu = openFilterMenu();
     fireEvent.click(within(menu).getByRole("menuitem", { name: item }));
 
@@ -530,8 +534,10 @@ describe("SPEC-CORE-039 I14 the ＋ 条件 menu", () => {
       );
     }
 
-    expect(router.push).toHaveBeenCalledTimes(1);
-    expect(pushedParams().get("q")).toBe(expected);
+    expect(router.push).not.toHaveBeenCalled();
+    expect(router.replace).toHaveBeenCalledTimes(1);
+    const target = new URL(String(router.replace.mock.calls[0][0]), "http://localhost");
+    expect(target.searchParams.get("q")).toBe(expected);
   });
 
   it("offers no tag choice while the tag list is loading", () => {

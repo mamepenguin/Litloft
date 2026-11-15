@@ -36,6 +36,8 @@ interface SearchQueryHeaderProps {
   imagePreparing?: boolean;
   /** Takes the URL's `type` off; the page owns the parameters it keeps. */
   onRemoveType?: () => void;
+  /** Lists Smart Collections beside collections in the `in:` menu. */
+  collectionsWithSmart?: boolean;
 }
 
 export function SearchQueryHeader({
@@ -55,6 +57,7 @@ export function SearchQueryHeader({
   onEdit,
   imagePreparing,
   onRemoveType,
+  collectionsWithSmart = false,
 }: SearchQueryHeaderProps) {
   const t = useTranslations("search");
   const tFilter = useTranslations("filter");
@@ -98,6 +101,19 @@ export function SearchQueryHeader({
     }
     if (normalized === query.trim()) return;
     router.push(searchHref(normalized));
+  };
+
+  const chooseCondition = (next: string) => {
+    setText(next);
+    if (!collectionsWithSmart) {
+      submit(next);
+      return;
+    }
+    // The menu refines the search already on screen, so it rewrites the
+    // entry instead of adding one per condition; typed queries still push.
+    const normalized = next.trim();
+    if (!normalized || normalized === query.trim()) return;
+    router.replace(searchHref(normalized));
   };
 
   const removeChip = (next: string) => {
@@ -270,17 +286,14 @@ export function SearchQueryHeader({
               "tag",
               "kind",
               "folder",
-              "collection",
+              collectionsWithSmart ? "collectionWithSmart" : "collection",
               "size",
               "duration",
               "favorite",
             ]}
             label={t("addFilterWord")}
             ariaLabel={t("addFilter")}
-            onChoose={(next) => {
-              setText(next);
-              submit(next);
-            }}
+            onChoose={chooseCondition}
           />
 
           <SmartFolderOverwriteButton />

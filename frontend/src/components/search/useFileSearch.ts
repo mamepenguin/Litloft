@@ -2,7 +2,18 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { getDriveFiles } from "@/lib/api";
+import {
+  getCollections,
+  getDriveFiles,
+  getDriveFilesWithFileIds,
+  getSmartFolders,
+} from "@/lib/api";
+import { getSemanticAvailability } from "@/lib/addons";
+import {
+  inNamesKey,
+  resolveInNames,
+  type InNameIo,
+} from "@/lib/inNameResolution";
 import { fetchSemanticHits, isSemanticSearchAvailable } from "@/lib/semanticSearch";
 import { mergeResults, sortMerged, type SemanticHit } from "@/lib/searchMerge";
 import { readSearchCache, writeSearchCache, type SearchCacheKey } from "@/lib/searchCache";
@@ -20,7 +31,11 @@ import type { FileItemWithMatch, FileKind } from "@/types";
 const POPUP_LIMIT = 8;
 
 /** The listing call for a parsed query; a query without operators sends what it always did. */
-function listingParams(parsed: ParsedQuery, kinds: FileKind[]) {
+function listingParams(
+  parsed: ParsedQuery,
+  kinds: FileKind[],
+  collections: readonly string[] = parsed.collections,
+) {
   return {
     search: parsed.text,
     limit: POPUP_LIMIT,
@@ -29,7 +44,7 @@ function listingParams(parsed: ParsedQuery, kinds: FileKind[]) {
     ...(parsed.favorite ? { favorite: true } : {}),
     ...(parsed.liked ? { liked: true } : {}),
     ...(parsed.folders.length > 0 ? { folder: parsed.folders } : {}),
-    ...(parsed.collections.length > 0 ? { collection: parsed.collections } : {}),
+    ...(collections.length > 0 ? { collection: collections } : {}),
     ...(parsed.sizes.length > 0
       ? { size: parsed.sizes.map(comparisonWireForm) }
       : {}),
@@ -52,7 +67,15 @@ export interface FileSearch {
   total: number;
   loading: boolean;
   semanticPending: boolean;
+  /** An `in:` resolution that failed or was too large; nothing is listed. */
+  inNameError: "failed" | "tooLarge" | null;
   reset: () => void;
+}
+
+interface HeldResolution {
+  key: string;
+  collections: string[];
+  fileIds: string[] | null;
 }
 
 /** The modal's two-stage file search: names first, then meaning. */
@@ -61,13 +84,17 @@ export function useFileSearch({ open, drive, query, scopeType, browsing }: FileS
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [semanticPending, setSemanticPending] = useState(false);
+  const [inNameError, setInNameError] = useState<"failed" | "tooLarge" | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const previousSearchRef = useRef<{ key: string; filtered: boolean } | null>(null);
+  const resolutionRef = useRef<HeldResolution | null>(null);
 
   useEffect(() => {
     if (!open || !drive || browsing || !query.trim()) {
       setMerged([]);
       setTotal(0);
+      setInNameError(null);
+      resolutionRef.current = null;
       previousSearchRef.current = null;
       return;
     }
@@ -79,10 +106,15 @@ export function useFileSearch({ open, drive, query, scopeType, browsing }: FileS
       setMerged([]);
       setTotal(0);
       setLoading(false);
+      setInNameError(null);
       previousSearchRef.current = null;
       return;
     }
     const nameMatched = parsed.text !== "";
+    const hasInNames = parsed.collections.length > 0;
+    const listKey = hasInNames ? inNamesKey(drive, parsed) : "";
+    setInNameError(null);
+    if (!hasInNames) resolutionRef.current = null;
     const cacheKey: SearchCacheKey = {
       drive,
       query: trimmed,
@@ -90,7 +122,7 @@ export function useFileSearch({ open, drive, query, scopeType, browsing }: FileS
       includeSceneClip: false,
     };
 
-    const cached = readSearchCache(cacheKey);
+    const cached = hasInNames ? null : readSearchCache(cacheKey);
     if (cached) {
       const m = mergeResults({
         filenameMatches: cached.filenameMatches,
@@ -122,6 +154,7 @@ export function useFileSearch({ open, drive, query, scopeType, browsing }: FileS
       // `setMerged` however the two stages interleave.
       let filenameRes: Awaited<ReturnType<typeof getDriveFiles>> | null = null;
       let semanticHits: SemanticHit[] = [];
+      let resolved: HeldResolution | null = null;
 
       const paint = () => {
         // If semantic search is the faster of the two, its hits wait here
@@ -148,64 +181,117 @@ export function useFileSearch({ open, drive, query, scopeType, browsing }: FileS
         }
       };
 
-      const filenameP = getDriveFiles(
-        drive,
-        listingParams(parsed, kinds.kinds),
-        { signal: ctrl.signal },
-      )
-        .then((res) => {
-          filenameRes = res;
-          paint();
-        })
-        .catch(onStageFailure)
-        .finally(() => {
-          if (!ctrl.signal.aborted) setLoading(false);
-        });
-
-      // A scope's own page does not read operators, so a scoped search keeps
-      // its name-only behaviour here.
-      const filter: SearchFilter | null = parsed.hasOperators
-        ? filterFromParsed(parsed, scopeType)
-        : null;
-      const semanticEligible = !scopeType && parsed.text !== "";
-      let semanticOk = true;
-
-      const semanticP = (semanticEligible
-        ? isSemanticSearchAvailable(drive)
-        : Promise.resolve(false))
-        .then((available) => {
-          if (!available || ctrl.signal.aborted) {
-            return { ok: true, results: [] as SemanticHit[] };
+      const run = async () => {
+        if (hasInNames) {
+          const held = resolutionRef.current;
+          resolved = held && held.key === listKey ? held : null;
+          if (!resolved) {
+            const io: InNameIo = {
+              getCollections,
+              getSmartFolders,
+              getDriveFiles,
+              getSemanticAvailability,
+              fetchSemanticHits,
+            };
+            let outcome;
+            try {
+              outcome = await resolveInNames(drive, parsed, ctrl.signal, io);
+            } catch {
+              if (ctrl.signal.aborted) return;
+              outcome = { status: "failed" as const };
+            }
+            if (ctrl.signal.aborted) return;
+            if (outcome.status !== "resolved") {
+              setInNameError(outcome.status);
+              setMerged([]);
+              setTotal(0);
+              setLoading(false);
+              setSemanticPending(false);
+              return;
+            }
+            resolved = {
+              key: listKey,
+              collections: outcome.collections,
+              fileIds: outcome.fileIds,
+            };
+            resolutionRef.current = resolved;
           }
-          setSemanticPending(true);
-          return fetchSemanticHits(parsed.text, drive, {
-            limit: POPUP_LIMIT,
-            ...(filter ? { filter } : {}),
-            signal: ctrl.signal,
-          });
-        })
-        .then((answer) => {
-          if (ctrl.signal.aborted) return;
-          semanticHits = answer.results;
-          semanticOk = answer.ok;
-          paint();
-        })
-        .catch(() => {
-          semanticOk = false;
-          onStageFailure();
-        })
-        .finally(() => {
-          if (!ctrl.signal.aborted) setSemanticPending(false);
-        });
+        }
+        setInNameError(null);
 
-      void Promise.all([filenameP, semanticP]).then(() => {
-        if (ctrl.signal.aborted || !filenameRes || !semanticOk) return;
-        writeSearchCache(cacheKey, {
-          filenameMatches: filenameRes.data,
-          filenameTotal: filenameRes.meta.total,
-          semanticHits,
+        const collections = resolved?.collections ?? parsed.collections;
+        const fileIds = resolved?.fileIds ?? null;
+
+        const filenameP = (fileIds !== null
+          ? getDriveFilesWithFileIds(
+              drive,
+              listingParams(parsed, kinds.kinds, collections),
+              fileIds,
+              { signal: ctrl.signal },
+            )
+          : getDriveFiles(
+              drive,
+              listingParams(parsed, kinds.kinds, collections),
+              { signal: ctrl.signal },
+            ))
+          .then((res) => {
+            filenameRes = res;
+            paint();
+          })
+          .catch(onStageFailure)
+          .finally(() => {
+            if (!ctrl.signal.aborted) setLoading(false);
+          });
+
+        // A scope's own page does not read operators, so a scoped search keeps
+        // its name-only behaviour here.
+        const filter: SearchFilter | null = parsed.hasOperators
+          ? { ...filterFromParsed(parsed, scopeType), collections: [...collections] }
+          : null;
+        const semanticEligible = !scopeType && parsed.text !== "";
+        let semanticOk = true;
+
+        const semanticP = (semanticEligible
+          ? isSemanticSearchAvailable(drive)
+          : Promise.resolve(false))
+          .then((available) => {
+            if (!available || ctrl.signal.aborted) {
+              return { ok: true, results: [] as SemanticHit[] };
+            }
+            setSemanticPending(true);
+            return fetchSemanticHits(parsed.text, drive, {
+              limit: POPUP_LIMIT,
+              ...(filter ? { filter } : {}),
+              ...(fileIds !== null ? { fileIds } : {}),
+              signal: ctrl.signal,
+            });
+          })
+          .then((answer) => {
+            if (ctrl.signal.aborted) return;
+            semanticHits = answer.results;
+            semanticOk = answer.ok;
+            paint();
+          })
+          .catch(() => {
+            semanticOk = false;
+            onStageFailure();
+          })
+          .finally(() => {
+            if (!ctrl.signal.aborted) setSemanticPending(false);
+          });
+
+        void Promise.all([filenameP, semanticP]).then(() => {
+          if (ctrl.signal.aborted || !filenameRes || !semanticOk) return;
+          if (hasInNames) return;
+          writeSearchCache(cacheKey, {
+            filenameMatches: filenameRes.data,
+            filenameTotal: filenameRes.meta.total,
+            semanticHits,
+          });
         });
-      });
+      };
+
+      void run();
     }, 300);
 
     return () => {
@@ -220,5 +306,5 @@ export function useFileSearch({ open, drive, query, scopeType, browsing }: FileS
     setTotal(0);
   }, []);
 
-  return { merged, total, loading, semanticPending, reset };
+  return { merged, total, loading, semanticPending, inNameError, reset };
 }

@@ -16,6 +16,7 @@ import {
 } from "@/lib/searchPassages";
 import type { SearchPassage } from "@/lib/searchMerge";
 import type { FileType } from "@/types";
+import { InNameNotice, type InNameNoticeState } from "./InNameNotice";
 
 const MAX_ROWS_PER_FILE = 3;
 
@@ -35,6 +36,9 @@ interface PassageListProps {
   onRetry?: () => void;
   onShowFiles?: () => void;
   onClearFilter?: () => void;
+  /** The `in:` resolution failed or was too large; it outranks `state`. */
+  inNameState?: InNameNoticeState | null;
+  onRetryInName?: () => void;
 }
 
 function Locator({ passage }: { passage: SearchPassage }) {
@@ -203,8 +207,19 @@ export function PassageList({
   onRetry,
   onShowFiles,
   onClearFilter,
+  inNameState,
+  onRetryInName,
 }: PassageListProps) {
   const t = useTranslations("search");
+
+  if (inNameState) {
+    return (
+      <InNameNotice
+        state={inNameState}
+        onRetry={inNameState === "failed" ? onRetryInName : undefined}
+      />
+    );
+  }
 
   if (state === "loading") {
     return (
