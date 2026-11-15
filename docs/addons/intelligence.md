@@ -29,7 +29,7 @@ The addon can send your file content to outside services. Whether it does depend
 
 - Which [LLM profile](#llm-profiles-and-routing) a feature uses. A profile on your own machine (ollama, or another model on your network) keeps content at home. A profile marked **External server** sends it to that server, and only on drives that allow it (`llm_cloud` below).
 - Indexing a YouTube `.loft`, and reading a frame of one, contacts YouTube from the container for a video you already saved. Nothing is sent but the address of that video.
-- **Ask** (`features.rag`) sends transcripts and text of the files it retrieves on every question. A question about one file sends that file's picture, or up to 8 frames of a video along with its text, when the model can read images.
+- **Ask** (`features.rag`) sends transcripts and text of the files it retrieves on every question. A question about one file sends that file's picture, or up to 8 frames of a video along with its text and up to 12 more frames the model asks for, when the model can read images.
 - Vision describe and the visual index send image bytes (and, for the visual index, nearby transcript text) to the vision model.
 - **Text in pictures** reads each picture inside the container with a local engine; nothing leaves the machine for the reading itself. The recognised text is then handled like a document's text (see [text in pictures](#text-in-pictures)).
 - `transcription.provider`: `"whisper_local"` and `"haas_local"` keep audio local; every other provider sends audio to the cloud.
@@ -290,7 +290,11 @@ The tab keeps one conversation per file: each new question carries the earlier o
 
 A question about a picture, or about a video while it plays, sends one image with the passages when the profile can read images. For a YouTube reference the image is the frame the video is showing, read from YouTube as above, so the answer starts up to 15 seconds later than a text-only one. The image goes to the profile's `vision_model` instead of its `model`, only through the profile the question resolves to, and only where the drive's `llm_cloud` policy allows that profile. A profile without a `vision_model` cannot answer from a picture, and a video with no text needs one that can.
 
-A video with no text is answered from up to eight frames of at most 1280 px on the long edge, with no passages: the scenes picked for the file, filled with evenly spaced times when they are fewer, and the frame at the playing position among them when the player is past the start. Reading the frames can delay the first token by up to 45 seconds. The frames go to the `vision_model` of the profile the question resolves to, and only where the drive's `llm_cloud` policy allows that profile, as the text of any other question does.
+A video with no text is answered from up to eight frames of at most 1280 px on the long edge, with no passages: the scenes picked for the file, filled with evenly spaced times when they are fewer, and the frame at the playing position among them when the player is past the start. Reading the frames can delay the first token by up to 45 seconds.
+
+With those frames, a question about a video (with text or without) also gets the video's duration and a table of contents, one line per section of the scene list with the start of what is said and shown in it, and a `get_frames` tool. The model can call it up to 3 times for up to 4 frames each, at times it chooses; the frames are cut as the first ones are, numbered after them, and can be cited. After the third call, or 120 seconds after the question started, the model must answer, and a question ends after 300 seconds. If the provider refuses the tool or a later request fails, the question is sent once more exactly as without the tool. A reply that may call the tool is shown when it is complete, so these answers appear at once rather than token by token. An ollama profile is asked to reason (`think: true`) on these requests only, because small local models did not call the tool otherwise; the answer budget is doubled to leave room for the reasoning. Up to 20 frames, the passages and the reasoning need about 23,000 tokens, so set ollama's context length to at least 32,768 (in the Ollama app's settings, or `OLLAMA_CONTEXT_LENGTH`); a smaller context drops the start of the prompt without an error.
+
+The frames go to the `vision_model` of the profile the question resolves to, and only where the drive's `llm_cloud` policy allows that profile, as the text of any other question does.
 
 When the file's chunk text exceeds `rag.file_question_max_chars` (default 16,000, from 1,000 to 200,000), the chunks closest to the question are sent and the answer says it read part of the file. The earlier turns share this limit with the passages, at most half of it, so a follow-up can be answered from part of a file the first question read whole.
 ### Pickup
@@ -539,7 +543,7 @@ llm:
 
 Without `profiles`, this whole section is one profile named `default`, used by every feature, and treated as an **External server** unless it says `offhost: false`. That is how an install from before profiles keeps working unchanged; see [LLM profiles and routing](#llm-profiles-and-routing) to split it.
 
-- `"ollama"`: uses ollama's own API and always asks the model not to reason (`think: false`).
+- `"ollama"`: uses ollama's own API and asks the model not to reason (`think: false`), except on a video question that offers the model more frames (see above).
 - `"openai_compatible"`: OpenAI, DeepSeek, vLLM, LM Studio, or ollama's `/v1` endpoint, or Anthropic's OpenAI-compatible endpoint (`https://api.anthropic.com/v1`).
 - `"disabled"`: no LLM features. Indexing, search and local tag candidates still work.
 
