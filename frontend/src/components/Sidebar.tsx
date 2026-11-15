@@ -9,6 +9,7 @@ import { disarmLeaveConfirmation, useUpload } from "@/hooks/useUpload";
 
 import { addonNavEntries } from "@/lib/addonNavigation";
 import { lock as lockApi } from "@/lib/api";
+import { EMPTY_HIDDEN_KEYS, isEntryShown } from "@/lib/entryVisibility";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { useAddonSlots } from "./AddonSlotsProvider";
 import { useSidebar } from "./SidebarProvider";
@@ -38,7 +39,12 @@ import { useReorderableDnD } from "./sidebar/useReorderableDnD";
 const REORDERABLE_SECTIONS = ["collections", "pins", "tags"] as const;
 type ReorderableSectionId = (typeof REORDERABLE_SECTIONS)[number];
 
-function SidebarNav() {
+interface SidebarProps {
+  /** The drive's hidden entry keys; `null` while that list is loading. */
+  hiddenKeys?: ReadonlySet<string> | null;
+}
+
+function SidebarNav({ hiddenKeys }: { hiddenKeys: ReadonlySet<string> | null }) {
   const t = useTranslations("sidebar");
   const tUpload = useTranslations("upload");
   const pathname = usePathname();
@@ -77,7 +83,13 @@ function SidebarNav() {
     () => (catalogueDrive === currentDrive ? addons : {}),
     [addons, catalogueDrive, currentDrive],
   );
-  const primaryAddons = useMemo(() => addonNavEntries(navAddons, currentDrive, "primary"), [navAddons, currentDrive]);
+  const primaryAddons = useMemo(
+    () =>
+      addonNavEntries(navAddons, currentDrive, "primary").filter((entry) =>
+        isEntryShown(entry.key, hiddenKeys),
+      ),
+    [navAddons, currentDrive, hiddenKeys],
+  );
   const sourceAddons = useMemo(() => addonNavEntries(navAddons, currentDrive, "sources"), [navAddons, currentDrive]);
   const utilityAddons = useMemo(() => addonNavEntries(navAddons, currentDrive, "utility"), [navAddons, currentDrive]);
   const activeAddonKey = useMemo(
@@ -154,7 +166,7 @@ function SidebarNav() {
   return (
     <nav className="scrollbar-hover flex h-full flex-col gap-1 overflow-y-auto p-3">
       {/* Library section: fixed at top, never reordered */}
-      <SidebarLibrarySection driveBase={driveBase} currentDrive={currentDrive} drives={drives} linkClass={linkClass} close={closeIfOverlay} primaryAddons={primaryAddons} sourceAddons={sourceAddons} activeAddonKey={activeAddonKey} libraryActive={libraryActive} />
+      <SidebarLibrarySection driveBase={driveBase} currentDrive={currentDrive} drives={drives} linkClass={linkClass} close={closeIfOverlay} primaryAddons={primaryAddons} sourceAddons={sourceAddons} activeAddonKey={activeAddonKey} libraryActive={libraryActive} hiddenKeys={hiddenKeys} />
 
       {/* Reorderable sections */}
       {order.map((id) => {
@@ -225,7 +237,7 @@ function SidebarNav() {
 
       {/* Below the reader's own sections: these are about the drive
           rather than about what is in it, and are reached rarely. */}
-      <AddonNavRows entries={utilityAddons} linkClass={linkClass} close={closeIfOverlay} activeKey={activeAddonKey} />
+      <AddonNavRows entries={utilityAddons} linkClass={linkClass} close={closeIfOverlay} activeKey={activeAddonKey} hiddenKeys={hiddenKeys} />
 
       <SidebarSystemSection driveBase={driveBase} linkClass={linkClass} close={closeIfOverlay} driveSummary={driveSummary} isAdmin={authStatus?.is_admin === true} />
 
@@ -263,10 +275,10 @@ function SidebarNav() {
   );
 }
 
-function SidebarContent() {
+function SidebarContent({ hiddenKeys }: { hiddenKeys: ReadonlySet<string> | null }) {
   return (
     <Suspense fallback={<div className="p-6" />}>
-      <SidebarNav />
+      <SidebarNav hiddenKeys={hiddenKeys} />
     </Suspense>
   );
 }
@@ -285,7 +297,7 @@ function SidebarShortcuts() {
   return null;
 }
 
-export function Sidebar() {
+export function Sidebar({ hiddenKeys = EMPTY_HIDDEN_KEYS }: SidebarProps) {
   const { isOpen, isOverlay, close } = useSidebar();
 
   useEffect(() => {
@@ -317,7 +329,7 @@ export function Sidebar() {
         aria-modal={isOverlay && isOpen ? true : undefined}
         role={isOverlay ? "dialog" : undefined}
       >
-        <SidebarContent />
+        <SidebarContent hiddenKeys={hiddenKeys} />
       </aside>
     </>
   );

@@ -1,0 +1,115 @@
+{
+  "risk": "HIGH",
+  "score": 8,
+  "base": 3,
+  "zone_max": "MEDIUM",
+  "modifiers": [
+    "persistence"
+  ],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "backend/app/routers/drive_policies.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/schemas.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/tests/test_drive_hide_entries.py",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/reference/api.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/reference/configuration.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/drive-hide-entries.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/overview.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/src/__tests__/driveHomeHiddenEntries.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/AppShell.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/DriveHome.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/Sidebar.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/home/HomeAppEntries.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/home/__tests__/HomeAppEntriesHidden.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/jumpHiddenEntries.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/search/useJumpDestinations.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/search/useLauncherRows.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/AddonNavRows.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/SidebarLibrarySection.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/sidebarHiddenEntries.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/hooks/__tests__/useEntryVisibility.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/hooks/useEntryVisibility.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/entryVisibility.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/pageJump.ts",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)",
+    "modifiers: persistence"
+  ]
+}

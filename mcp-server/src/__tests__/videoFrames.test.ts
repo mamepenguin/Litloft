@@ -219,9 +219,9 @@ describe("get_video_frame (SPEC-CORE-008)", () => {
 describe("list_video_scenes (SPEC-CORE-009)", () => {
   const videoMeta = { id: FILE_ID, mime_type: "video/mp4", duration: 600 };
   const threeScenes = [
-    { start: 12.5, end: 40, transcript_excerpt: "first" },
-    { start: 40, end: 75.25, transcript_excerpt: null },
-    { start: 75.25, end: 600, transcript_excerpt: "third" },
+    { start: 12.5, end: 40, frame_time: 15.5, transcript_excerpt: "first" },
+    { start: 40, end: 75.25, frame_time: 45, transcript_excerpt: null },
+    { start: 75.25, end: 600, frame_time: 80, transcript_excerpt: "third" },
   ];
 
   function scenesBody(scenes: unknown[], extra: Record<string, unknown> = {}) {
@@ -320,20 +320,20 @@ describe("list_video_scenes (SPEC-CORE-009)", () => {
       candidate_count: 40,
       scene_count: 3,
       scenes: [
-        { index: 1, start: 12.5, end: 40, transcript_excerpt: "first", frame: "included" },
-        { index: 2, start: 40, end: 75.25, transcript_excerpt: null, frame: "included" },
-        { index: 3, start: 75.25, end: 600, transcript_excerpt: "third", frame: "included" },
+        { index: 1, start: 12.5, end: 40, frame_time: 15.5, transcript_excerpt: "first", frame: "included" },
+        { index: 2, start: 40, end: 75.25, frame_time: 45, transcript_excerpt: null, frame: "included" },
+        { index: 3, start: 75.25, end: 600, frame_time: 80, transcript_excerpt: "third", frame: "included" },
       ],
     });
 
     const rest = content.slice(1);
     expect(rest.map((b) => (b.type === "text" ? b.text : decoded(b.data!)))).toEqual([
-      "Scene 1 at 12.5s",
-      "frame@12.5/small",
-      "Scene 2 at 40s",
-      "frame@40/small",
-      "Scene 3 at 75.25s",
-      "frame@75.25/small",
+      "Scene 1 at 12.5s (frame at 15.5s)",
+      "frame@15.5/small",
+      "Scene 2 at 40s (frame at 45s)",
+      "frame@45/small",
+      "Scene 3 at 75.25s (frame at 80s)",
+      "frame@80/small",
     ]);
     for (const image of [rest[1], rest[3], rest[5]]) {
       expect(image.type).toBe("image");
@@ -352,7 +352,7 @@ describe("list_video_scenes (SPEC-CORE-009)", () => {
   it("SPEC-CORE-009: passes the effective window from the endpoint into the summary", async () => {
     const window = { start: 30, end: null };
     const client = clientFor(
-      scenesBody([{ start: 31, end: null, transcript_excerpt: null }], {
+      scenesBody([{ start: 31, end: 58, frame_time: 45, transcript_excerpt: null }], {
         window,
         duration: null,
         candidate_count: 1,
@@ -365,7 +365,7 @@ describe("list_video_scenes (SPEC-CORE-009)", () => {
     const summary = JSON.parse(blocks(result)[0].text!);
     expect(summary.window).toEqual(window);
     expect(summary.duration).toBeNull();
-    expect(summary.scenes[0].end).toBeNull();
+    expect(summary.scenes[0].end).toBe(58);
   });
 
   it.each([
@@ -374,7 +374,7 @@ describe("list_video_scenes (SPEC-CORE-009)", () => {
     ["1 code point is unchanged", 1, "𝒜"],
   ])("SPEC-CORE-009: excerpt length in the output: %s", async (_label, length, expected) => {
     const excerpt = "𝒜".repeat(length);
-    const client = clientFor(scenesBody([{ start: 5, end: 10, transcript_excerpt: excerpt }]));
+    const client = clientFor(scenesBody([{ start: 5, end: 10, frame_time: 6, transcript_excerpt: excerpt }]));
     const result = await findTool("list_video_scenes").handler(
       { drive: DRIVE, file_id: FILE_ID },
       client
@@ -390,7 +390,7 @@ describe("list_video_scenes (SPEC-CORE-009)", () => {
     [new Error("socket hang up"), "request failed: socket hang up"],
   ])("SPEC-CORE-009: one failed frame marks only that scene unavailable (%s)", async (error, reason) => {
     const client = clientFor(scenesBody(threeScenes), async (call) => {
-      if (requestedUrl(call).searchParams.get("t") === "40") throw error;
+      if (requestedUrl(call).searchParams.get("t") === "45") throw error;
       return frameBytesFor(call);
     });
     const result = await findTool("list_video_scenes").handler(
@@ -408,12 +408,12 @@ describe("list_video_scenes (SPEC-CORE-009)", () => {
     ]);
     expect(summary.scenes.map((s: { start: number }) => s.start)).toEqual([12.5, 40, 75.25]);
     expect(content.slice(1).map((b) => (b.type === "text" ? b.text : decoded(b.data!)))).toEqual([
-      "Scene 1 at 12.5s",
-      "frame@12.5/small",
-      "Scene 2 at 40s",
+      "Scene 1 at 12.5s (frame at 15.5s)",
+      "frame@15.5/small",
+      "Scene 2 at 40s (frame at 45s)",
       `frame unavailable: ${reason}`,
-      "Scene 3 at 75.25s",
-      "frame@75.25/small",
+      "Scene 3 at 75.25s (frame at 80s)",
+      "frame@80/small",
     ]);
   });
 
@@ -474,6 +474,7 @@ describe("list_video_scenes (SPEC-CORE-009)", () => {
     const scenes = Array.from({ length: 11 }, (_, i) => ({
       start: i * 10,
       end: (i + 1) * 10,
+      frame_time: i * 10 + 5,
       transcript_excerpt: null,
     }));
     let inFlight = 0;
@@ -528,13 +529,14 @@ describe("list_video_scenes (SPEC-CORE-009)", () => {
     const sixScenes = Array.from({ length: 6 }, (_, i) => ({
       start: i * 10 + 5,
       end: i * 10 + 15,
+      frame_time: i * 10 + 7,
       transcript_excerpt: `scene ${i + 1}`,
     }));
 
     it("SPEC-CORE-009: aborts in-flight frames, sends no more, and reports every missing frame as time budget exceeded", async () => {
       const client = clientFor(scenesBody(sixScenes), (call) => {
         const t = requestedUrl(call).searchParams.get("t");
-        return t === "5" ? Promise.resolve(frameBytesFor(call)) : hangUntilAborted(call);
+        return t === "7" ? Promise.resolve(frameBytesFor(call)) : hangUntilAborted(call);
       });
 
       let settled = false;
@@ -577,10 +579,10 @@ describe("list_video_scenes (SPEC-CORE-009)", () => {
       ]);
       const texts = content.slice(1).map((b) => (b.type === "text" ? b.text : decoded(b.data!)));
       expect(texts).toEqual([
-        "Scene 1 at 5s",
-        "frame@5/small",
+        "Scene 1 at 5s (frame at 7s)",
+        "frame@7/small",
         ...sixScenes.slice(1).flatMap((s, i) => [
-          `Scene ${i + 2} at ${s.start}s`,
+          `Scene ${i + 2} at ${s.start}s (frame at ${s.frame_time}s)`,
           "frame unavailable: time budget exceeded",
         ]),
       ]);

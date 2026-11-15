@@ -18,6 +18,7 @@ import {
   getSmartFolders,
 } from "@/lib/api";
 import { collectionHref, smartFolderHref } from "@/lib/driveViews";
+import { EMPTY_HIDDEN_KEYS, isEntryShown } from "@/lib/entryVisibility";
 import {
   folderJumpKey,
   indexFolders,
@@ -116,7 +117,11 @@ function aliases(text: string): string[] {
 }
 
 /** In match order: fixed pages, addons, pins, collections, smart folders. */
-export function useJumpDestinations(active: boolean, drive: string | null): JumpDestination[] {
+export function useJumpDestinations(
+  active: boolean,
+  drive: string | null,
+  hiddenKeys: ReadonlySet<string> | null = EMPTY_HIDDEN_KEYS,
+): JumpDestination[] {
   const t = useTranslations();
   const pins = useDriveOwned(getPins, active, drive, NO_PINS);
   const collections = useDriveOwned(getCollections, active, drive, NO_COLLECTIONS);
@@ -129,7 +134,7 @@ export function useJumpDestinations(active: boolean, drive: string | null): Jump
     if (!drive) return [];
     const driveBase = `/drive/${encodeURIComponent(drive)}`;
 
-    const fixed = visibleFixedJumps({ missingCount, isAdmin }).map<JumpDestination>((jump) => {
+    const fixed = visibleFixedJumps({ missingCount, isAdmin }, hiddenKeys).map<JumpDestination>((jump) => {
       const label = t(jump.labelKey);
       return {
         key: `fixed:${jump.key}`,
@@ -143,16 +148,18 @@ export function useJumpDestinations(active: boolean, drive: string | null): Jump
     const catalogue = catalogueDrive === drive ? addons : {};
     const addonRows = PLACEMENTS.flatMap((placement) =>
       addonNavEntries(catalogue, drive, placement),
-    ).map<JumpDestination>(({ key, navigation, href }) => {
-      const label = slotEntryLabel(navigation, t);
-      return {
-        key: `addon:${key}`,
-        label,
-        names: [label, navigation.label],
-        href,
-        icon: (navigation.icon && ADDON_NAV_ICONS[navigation.icon]) || Package,
-      };
-    });
+    )
+      .filter(({ key }) => isEntryShown(key, hiddenKeys))
+      .map<JumpDestination>(({ key, navigation, href }) => {
+        const label = slotEntryLabel(navigation, t);
+        return {
+          key: `addon:${key}`,
+          label,
+          names: [label, navigation.label],
+          href,
+          icon: (navigation.icon && ADDON_NAV_ICONS[navigation.icon]) || Package,
+        };
+      });
 
     const pinRows = pins.map<JumpDestination>((pin) => {
       const label = pin.path.split("/").pop() ?? pin.path;
@@ -184,7 +191,7 @@ export function useJumpDestinations(active: boolean, drive: string | null): Jump
     }));
 
     return [...fixed, ...addonRows, ...pinRows, ...collectionRows, ...smartRows];
-  }, [t, drive, missingCount, isAdmin, addons, catalogueDrive, pins, collections, smartFolders]);
+  }, [t, drive, hiddenKeys, missingCount, isAdmin, addons, catalogueDrive, pins, collections, smartFolders]);
 }
 
 /** Every folder of the drive, indexed for matching. */
