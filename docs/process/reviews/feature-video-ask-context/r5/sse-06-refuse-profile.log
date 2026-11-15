@@ -1,0 +1,10 @@
+body {"question": "本棚の前には誰がいますか？", "profile": "refuse", "position_seconds": 14.5} history_turns 0
+  3.00 status 200
+  3.00 FIRST answer_chunk
+  4.92 citations [{"n": 1, "position": {"seconds": 8.0}}, {"n": 10, "position": {"seconds": 90.0}}]
+  4.92 meta {"partial": false, "image": "unavailable"}
+  4.92 done {}
+  4.92 end; max silent gap before first chunk 3.00s
+ANSWER: **誰が本棚の前にはいますか？**
+
+- 本棚の前には誰もいないようです。[1]～[10]の記述には、誰かが本棚の前に関与しているという情報は見られません。

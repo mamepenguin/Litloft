@@ -1,0 +1,38 @@
+INFO:     192.168.107.2:37454 - "POST /files/nzM31CiFQFiK/ask HTTP/1.1" 200 OK
+2026-11-15 10:23:26,304 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file nzM31CiFQFiK)
+INFO:     192.168.107.2:58460 - "POST /files/nzM31CiFQFiK/ask HTTP/1.1" 200 OK
+2026-11-15 10:24:15,404 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file nzM31CiFQFiK)
+INFO:     192.168.107.2:52820 - "POST /files/nzM31CiFQFiK/ask HTTP/1.1" 200 OK
+2026-11-15 10:24:22,166 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file nzM31CiFQFiK)
+INFO:     192.168.107.2:47616 - "POST /files/nzM31CiFQFiK/ask HTTP/1.1" 200 OK
+2026-11-15 10:24:33,618 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file nzM31CiFQFiK)
+INFO:     192.168.107.2:54580 - "POST /files/nzM31CiFQFiK/ask HTTP/1.1" 200 OK
+2026-11-15 10:24:44,603 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file nzM31CiFQFiK)
+INFO:     192.168.107.2:52338 - "POST /files/puqsf46R2vWh/ask HTTP/1.1" 200 OK
+2026-11-15 10:25:03,058 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file puqsf46R2vWh)
+INFO:     192.168.107.2:53878 - "POST /files/puqsf46R2vWh/ask HTTP/1.1" 200 OK
+2026-11-15 10:25:13,886 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file puqsf46R2vWh)
+INFO:     192.168.107.2:60870 - "POST /files/puqsf46R2vWh/ask HTTP/1.1" 200 OK
+2026-11-15 10:25:39,006 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file puqsf46R2vWh)
+INFO:     192.168.107.2:37298 - "POST /files/puqsf46R2vWh/ask HTTP/1.1" 200 OK
+2026-11-15 10:25:55,338 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file puqsf46R2vWh)
+INFO:     192.168.107.2:52382 - "POST /files/yFpvytc5zGpM/ask HTTP/1.1" 200 OK
+2026-11-15 10:26:19,614 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file yFpvytc5zGpM)
+INFO:     192.168.107.2:34936 - "POST /files/yFpvytc5zGpM/ask HTTP/1.1" 200 OK
+2026-11-15 10:26:43,607 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file yFpvytc5zGpM)
+INFO:     192.168.107.2:47136 - "POST /files/2Kz2-Hq4X7sB/ask HTTP/1.1" 200 OK
+2026-11-15 10:27:23,984 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file 2Kz2-Hq4X7sB)
+INFO:     192.168.107.2:34574 - "POST /files/2Kz2-Hq4X7sB/ask HTTP/1.1" 200 OK
+2026-11-15 10:27:40,515 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file 2Kz2-Hq4X7sB)
+INFO:     192.168.107.2:39234 - "POST /files/2Kz2-Hq4X7sB/ask HTTP/1.1" 200 OK
+2026-11-15 10:27:58,903 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file 2Kz2-Hq4X7sB)
+INFO:     192.168.107.2:48036 - "POST /files/72R7GBxxbrw9/ask HTTP/1.1" 200 OK
+2026-11-15 10:28:33,204 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file 72R7GBxxbrw9)
+INFO:     192.168.107.2:60194 - "POST /files/72R7GBxxbrw9/ask HTTP/1.1" 200 OK
+2026-11-15 10:28:51,607 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file 72R7GBxxbrw9)
+INFO:     192.168.107.2:40704 - "POST /files/04TzLUC7rnlY/ask HTTP/1.1" 200 OK
+INFO:     192.168.107.2:41438 - "POST /files/7yaTstDyaD--/ask HTTP/1.1" 200 OK
+2026-11-15 10:29:30,149 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file 7yaTstDyaD--)
+INFO:     192.168.107.2:36234 - "POST /files/dUNQA5DXMBLO/ask HTTP/1.1" 200 OK
+INFO:     192.168.107.2:49488 - "POST /files/nzM31CiFQFiK/ask HTTP/1.1" 200 OK
+2026-11-15 10:30:55,304 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file nzM31CiFQFiK)

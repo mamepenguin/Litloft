@@ -1,0 +1,24 @@
+body {"question": "この動画には何が映っていますか？", "profile": null} history_turns 0
+  6.17 status 200
+  6.17 : keepalive
+ 11.17 : keepalive
+ 16.17 : keepalive
+ 21.17 : keepalive
+ 26.17 : keepalive
+ 31.17 : keepalive
+ 36.17 : keepalive
+ 41.17 : keepalive
+ 46.17 : keepalive
+ 51.18 : keepalive
+ 56.18 : keepalive
+ 61.18 : keepalive
+ 66.19 : keepalive
+ 71.19 : keepalive
+ 76.19 : keepalive
+ 81.19 : keepalive
+ 86.19 : keepalive
+ 91.20 : keepalive
+ 91.21 meta {"partial": false, "image": "attached"}
+ 91.21 done {"error": "Answer generation failed"}
+ 91.21 end; max silent gap before first chunk 6.17s
+ANSWER: 

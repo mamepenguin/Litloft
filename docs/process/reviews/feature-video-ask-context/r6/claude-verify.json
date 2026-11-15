@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1-touchpoint-109-frame-citations",
+      "status": "confirmed",
+      "note": "Working-tree file addons/intelligence/tests/test_spec_addon_109_frame_citations.py confirms the claim. Line 16 imports assert_labelled from tests.frame_label_layout and the file no longer imports listed_in_order or user_prompt. Line 91 is assert_labelled(wire, wire.image_bodies[0], first=1, times=[12.3456, 3725.9]). The test (lines 79-95) seeds a text-less video (seed_text_less_video, duration=None), so it is a text-less video test. docs/specs/video-ask-text-and-frames.md Touch points (lines 195-236) names test_vision_llm_client.py, test_spec_addon_108_video_frames.py and the SPEC-ADDON-114 acceptance tests for the I11 layout change (lines 228-230). It names no 109 file. Line 233-236 states that no assertion about text-less videos is changed, except the named 108 test and the 108 multi-image-layout tests. The 109 edit is therefore outside the listed scope. The edit is still required by I11 (applies to text-less videos per SPEC-ADDON-108 I4 and I8). The gap is an incomplete touch-point list, not a behaviour defect. Severity is not mine to set."
+    }
+  ],
+  "specification_compliance": [
+    "Touch-point list in docs/specs/video-ask-text-and-frames.md (lines 212-236) does not name test_spec_addon_109_frame_citations.py, yet the commit changes its assertions (imports at lines 13-16 and assertion at line 91). The exception at lines 233-236 covers only 108 tests, so the 109 change is outside the stated scope. The changed assertion is what I11 requires, so no invariant is broken by the code change itself."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "None found in the 109 test change. The test still asserts sent frame keys, citation numbers and times, and the new assert_labelled helper checks the label layout that I11 requires."
+  ],
+  "regression_risks": [
+    "Low. The 109 test now depends on tests/frame_label_layout.py assert_labelled. If that helper changes, this test changes with it."
+  ],
+  "test_coverage": [
+    "The 109 file keeps its citation coverage (parametrised citations, dropped frame renumbering, millisecond rounding, position frame numbering). I read the file but did not run it."
+  ],
+  "not_verified": [
+    "Did not run the test suite. The tools available are Read, Glob and Grep only.",
+    "Did not inspect the git diff or the commit 0febb32a0 directly. I read the working-tree state of the files, which I assume matches the commit, and did not confirm that by git.",
+    "Did not read tests/frame_label_layout.py to check that assert_labelled checks the I11 layout correctly.",
+    "Did not check whether the 109 test's sent-key and citation expectations are consistent with the implementation in addons/intelligence/app/rag/file_question.py.",
+    "The spec's bucket and severity definitions for this finding were not in the input, so I left the bucket decision to the lead."
+  ],
+  "confidence": 85
+}
