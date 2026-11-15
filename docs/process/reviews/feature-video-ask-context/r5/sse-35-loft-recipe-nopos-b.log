@@ -1,0 +1,35 @@
+# 2026-11-15 19:26:43 file yFpvytc5zGpM
+# ollama ps before: ['gemma4:e4b']
+# frames before: 1124500.large.webp 1297500.large.webp 259500.large.webp 432500.large.webp 605500.large.webp 778500.large.webp 86500.large.webp 951500.large.webp 
+body {"question": "紹介されている副菜は何ですか？どんな見た目に仕上がっていますか？", "profile": null} history_turns 0
+  2.08 status 200
+  2.08 FIRST answer_chunk
+  5.28 citations [{"n": 124, "position": {"seconds": 86.5}}, {"n": 125, "position": {"seconds": 259.5}}]
+  5.28 meta {"partial": false, "image": "attached"}
+  5.28 done {}
+  5.28 end; max silent gap before first chunk 2.08s
+ANSWER: 紹介されている副菜は**塩もみキャベツ**です [124]。
+
+見た目については、**千切り**にされたキャベツが、**塩もみ**をされ、**しんなり**として柔らかくなっている状態です [124], [125]。
+
+*   **材料の分量**：キャベツ 1/4玉 (400g)、塩 小さじ2/3 [124]。
+*   **調理後の様子**：画像では、キャベツが細かく千切りにされ、ボウルに盛り付けられている様子が確認できます [124], [125]。
+# frames after: 1124500.large.webp 1297500.large.webp 259500.large.webp 432500.large.webp 605500.large.webp 778500.large.webp 86500.large.webp 951500.large.webp 
+# ollama ps after: ['gemma4:e4b']
+# tap 2026-11-15 19:26:43 model=gemma4:e4b n_messages=10
+#   msg0 system: <1066 chars> ...'gs, lists, tables and **bold** when they make it clearer.\n- Do not use raw HTML. Do not use code fences unless the question is about code.\n- Answer in Japanese\n' images=[]
+#     lines pairing [n] with a time: 0 []
+#     'follow': ['You answer a question about a single file, using the numbered passages below and the numbered frames that follow the question.', "- The passages below are the file's text; the frames that follow the question are moments of the video, in time order after the passages."]
+#     'frame': ['You answer a question about a single file, using the numbered passages below and the numbered frames that follow the question.', "- The passages below are the file's text; the frames that follow the question are moments of the video, in time order after the passages.", '- Each passage and each frame is introduced by its number in square brackets, e.g. [1].', '- Cite the passages and the frames your answer uses inline as [n], right after the sentence they support.']
+#   msg1 user: <10694 chars> ...'発売したレシピボンでは冷凍できる副菜レシピをたくさん収録しています。気に\n[123]\nなる方は概要欄から是非チェックしてください。それではまた次の動画でお会いしましょう。\n\n\nThe frames follow the question, each introduced by its number and time.\n' images=[]
+#     lines pairing [n] with a time: 0 []
+#     'follow': ['The frames follow the question, each introduced by its number and time.']
+#     'frame': ['The frames follow the question, each introduced by its number and time.']
+#   msg2 user: [124] 1:26 images=['2f3cfa3c4c32daf5=86500.large.webp']
+#   msg3 user: [125] 4:19 images=['ed4c7cb91307cf5a=259500.large.webp']
+#   msg4 user: [126] 7:12 images=['446f8d6be7980c4d=432500.large.webp']
+#   msg5 user: [127] 10:05 images=['310c42a214ff9bce=605500.large.webp']
+#   msg6 user: [128] 12:58 images=['9047974f57ebea4c=778500.large.webp']
+#   msg7 user: [129] 15:51 images=['613aa5e6a5a43427=951500.large.webp']
+#   msg8 user: [130] 18:44 images=['6c1c001cc75709c9=1124500.large.webp']
+#   msg9 user: [131] 21:37 images=['261c6df87a8163b0=1297500.large.webp']

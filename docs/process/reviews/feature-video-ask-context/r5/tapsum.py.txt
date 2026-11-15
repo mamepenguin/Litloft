@@ -1,0 +1,25 @@
+"""Summarise tap.jsonl lines from index argv[2] on; match each image to a cached frame file by sha256."""
+import hashlib, json, os, sys
+lines = open(sys.argv[1]).read().splitlines()[int(sys.argv[2]):]
+fdir = sys.argv[3]
+hashes = {}
+if os.path.isdir(fdir):
+    for n in os.listdir(fdir):
+        b = open(os.path.join(fdir, n), "rb").read()
+        hashes[hashlib.sha256(b).hexdigest()[:16]] = n
+for l in lines:
+    d = json.loads(l)
+    if "messages" not in d: print("tap", d); continue
+    print(f"# tap {d['t']} model={d['model']} n_messages={d['n_messages']}")
+    for i, m in enumerate(d["messages"]):
+        c = m["content"] or ""
+        imgs = [f"{h.split(':')[0]}={hashes.get(h.split(':')[0], '?')}" for h in m["images"]]
+        shown = c if len(c) < 60 else f"<{len(c)} chars> ...{c[-160:]!r}"
+        print(f"#   msg{i} {m['role']}: {shown!s} images={imgs}")
+        if len(c) >= 60:
+            import re
+            pair = [ln for ln in c.splitlines() if re.search(r"\[\d+\][^\n]{0,5}\d+:\d\d", ln)]
+            print(f"#     lines pairing [n] with a time: {len(pair)} {pair[:3]}")
+            for kw in ("follow", "attached", "frame"):
+                hits = [ln.strip()[:200] for ln in c.splitlines() if kw in ln]
+                if hits: print(f"#     '{kw}': {hits[:4]}")

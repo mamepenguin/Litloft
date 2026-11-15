@@ -1,0 +1,34 @@
+# 2026-11-15 19:25:02 file puqsf46R2vWh
+# ollama ps before: ['gemma4:e4b']
+# frames before: 
+body {"question": "子ザメはお店で何を注文して、どんな様子でしたか？", "profile": null} history_turns 0
+  5.56 status 200
+  5.56 : keepalive
+  9.97 FIRST answer_chunk
+ 11.04 citations [{"n": 14, "position": {"seconds": 10.219}}]
+ 11.04 meta {"partial": false, "image": "attached"}
+ 11.04 done {}
+ 11.04 end; max silent gap before first chunk 5.56s
+ANSWER: 子ザメは、お店で**ブラックコーヒー**を注文し、**飲んでいる様子**でした [14]。
+
+*   **注文した飲み物**: ブラックコーヒー [14]
+*   **様子**: カップを持って飲み込んでいる様子 [14]
+# frames after: 10219.large.webp 27444.large.webp 27653.large.webp 39498.large.webp 48382.large.webp 58308.large.webp 66566.large.webp 71071.large.webp 
+# ollama ps after: ['gemma4:e4b']
+# tap 2026-11-15 19:25:03 model=gemma4:e4b n_messages=10
+#   msg0 system: <1066 chars> ...'gs, lists, tables and **bold** when they make it clearer.\n- Do not use raw HTML. Do not use code fences unless the question is about code.\n- Answer in Japanese\n' images=[]
+#     lines pairing [n] with a time: 0 []
+#     'follow': ['You answer a question about a single file, using the numbered passages below and the numbered frames that follow the question.', "- The passages below are the file's text; the frames that follow the question are moments of the video, in time order after the passages."]
+#     'frame': ['You answer a question about a single file, using the numbered passages below and the numbered frames that follow the question.', "- The passages below are the file's text; the frames that follow the question are moments of the video, in time order after the passages.", '- Each passage and each frame is introduced by its number in square brackets, e.g. [1].', '- Cite the passages and the frames your answer uses inline as [n], right after the sentence they support.']
+#   msg1 user: <767 chars> ...'\nさんぽみち\nいつもの散歩道も\n[13]\n61\nうたおう！\n製作\nKADOKAWA\nすてき\nせかい\nそう素敵な世界！\n©ペンギンボックス・KADOKAWA/おでかけ子ザメ\n\n\nThe frames follow the question, each introduced by its number and time.\n' images=[]
+#     lines pairing [n] with a time: 0 []
+#     'follow': ['The frames follow the question, each introduced by its number and time.']
+#     'frame': ['The frames follow the question, each introduced by its number and time.']
+#   msg2 user: [14] 0:10 images=['42c4e7cedd6b6f03=10219.large.webp']
+#   msg3 user: [15] 0:27 images=['9c2c47507ff66a5f=27444.large.webp']
+#   msg4 user: [16] 0:27 images=['4644a63abcd27ece=27653.large.webp']
+#   msg5 user: [17] 0:39 images=['77af6f1797a4d166=39498.large.webp']
+#   msg6 user: [18] 0:48 images=['a9dcfe32e3924d6d=48382.large.webp']
+#   msg7 user: [19] 0:58 images=['cc8db8ede678110e=58308.large.webp']
+#   msg8 user: [20] 1:06 images=['7aa3131eafcd09dd=66566.large.webp']
+#   msg9 user: [21] 1:11 images=['dd0e1ec18412a734=71071.large.webp']
