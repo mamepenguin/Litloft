@@ -32,14 +32,16 @@ No screen changes; no design artifact.
 
 1. A Next.js route handler at `frontend/src/app/app-api/smart-collection-members/route.ts`
    answers `GET /app-api/smart-collection-members?drive=<drive>&id=<smart folder id>`
-   with optional `offset` (default 0) and `limit` (default all). The path is static and
+   with optional `offset` (default 0), `limit` (default all) and `ids=1` (answer member
+   ids instead of files). The path is static and
    outside `/api`, so the `/api/:path*` rewrite to the backend never takes it (Next
    applies array rewrites before dynamic routes), and `server.js` passes it to Next like
    any non-`/api` path.
 2. Every request it makes carries the incoming `Cookie` and `Authorization` headers
    unchanged, goes to the backend's public `/api` at `BACKEND_URL` (default
-   `http://backend:8000`, the same host the `/api` rewrite targets), and never to
-   `/api/internal/*`. The request's abort signal aborts them when the caller disconnects.
+   `http://backend:8000`), and never to `/api/internal/*`. The `/api` rewrite in
+   `next.config.ts` stays hard-coded and does not follow `BACKEND_URL`; the two agree only
+   while `BACKEND_URL` is unset, which is the default. The request's abort signal aborts them when the caller disconnects.
 3. It looks the Smart Collection up with `GET /api/drives/{drive}/smart-folders` and finds
    the id.
 4. It evaluates it with `evaluateSmartCollection`: the saved query and `file_type`, sort
@@ -51,9 +53,15 @@ No screen changes; no design artifact.
    `fetchSemanticHits`, `getSemanticAvailability`) call the same builders and readers.
    The server `io` does not use the browser's module-level caches (`addons.ts`) or
    `seedFiles`: every endpoint request reads the addon status afresh.
+   The shared listing reader throws the existing `ApiStatusError` (`lib/apiError.ts`)
+   carrying the HTTP status for a non-2xx answer, with the same message the browser's
+   error carries today; a network failure stays the `TypeError` `fetch` throws. The
+   browser's `seedFiles` call and the status cache's rules stay where they are. Nothing
+   browser-only (`window`, `localStorage`, `fileSeed`) enters the route handler's imports.
 5. It answers 200 with `{ id, name, query, file_type, complete, total, files }`: `total` is
    the evaluated member count, `files` the `FileItem`s from `offset` for `limit`, in
-   order. `complete` is the evaluation's.
+   order. With `ids=1` it answers `ids` (the member ids, from `offset` for `limit`) in
+   place of `files`. `complete` is the evaluation's.
 
 **SPEC-CORE-112 (MCP).**
 
@@ -63,7 +71,8 @@ No screen changes; no design artifact.
    `Intl.Collator("ja", { numeric: true })` name order, ties by kind (collection first)
    then id in code-unit order. Either source failing returns `isError` with that error; no
    partial list.
-2. `get_collection(drive, collection_id, fields?, offset?, limit?)` asks the collection
+2. `get_collection(drive, collection_id, fields?, offset?, limit?)` (`offset` an integer
+   ≥ 0, `limit` an integer 1–200; other values are rejected by the schema) asks the collection
    endpoint first. On its 404 it asks `GET /api/drives/{drive}/smart-folders` for the id;
    any other error from either is returned as today. For a Smart Collection it calls the
    endpoint with `offset` (default 0) and `limit` (default 50, at most 200) and returns
@@ -71,23 +80,39 @@ No screen changes; no design artifact.
    [{ position, file }] }`, `position` the member's index from 0 in the whole list, `file`
    the `search_files` summary by default and the whole object with `fields: "full"`.
    Neither found: `isError` with `Litloft API error (404)`. A collection id answers exactly
-   as today plus `kind: "collection"`; `offset` and `limit` do not apply to it.
+   as today plus `kind: "collection"`; `offset` and `limit` are ignored for it.
 3. `ask`'s `scope.collections`:
    - Absent or empty: the request is sent exactly as today, with no extra request.
    - Otherwise the tool reads the drive's collections and Smart Collections. Each name is
      matched after `toLowerCase()` against the collections first, then the Smart
-     Collections. A Smart Collection name is evaluated through the endpoint (all members)
-     and replaced by its members' ids; other names stay in `collections` (an empty list
-     when none stay). The ids are appended to any `scope.file_ids` the caller passed, then
-     de-duplicated keeping the first occurrence.
-   - Either list failing, an evaluation that fails or is not `complete`, or more than
-     10,000 ids in the final `file_ids`: `isError`, and no Ask request is sent.
-   - The result gains `smart_collections: [{ name, member_count }]` for each name that was
-     replaced, in the order given; it is absent when none was.
-4. Timeouts: the endpoint calls made by `get_collection` use the client's default timeout
-   (30 s); those made by `ask` use Ask's own timeout (120 s). A timeout is reported as the
-   client reports one today.
-5. Tool descriptions and the server instructions say a Smart Collection is a saved search
+     Collections. Smart Collection names are evaluated one after another, in the order
+     given, a name repeated in another case once, through the endpoint with `ids=1`, and
+     replaced by the members' ids; other names stay in `collections` (an empty list when
+     none stay). The ids are appended to any `scope.file_ids` the caller passed, then
+     de-duplicated keeping the first occurrence. When at least one name was replaced,
+     `file_ids` is always sent, `[]` included.
+   - `scope.file_ids` is declared in the tool's schema: an optional list of strings. The
+     description says Smart Collection names may appear in `collections` and that a
+     Smart Collection's members are combined with the named collections as one
+     collection condition.
+   - Failures, each `isError` with no Ask request sent:
+     - either list cannot be read: the client's error, as today;
+     - an evaluation answers non-2xx: the client's error;
+     - an evaluation is not `complete`:
+       `Smart Collection "<name>" could not be read completely (meaning search unavailable); nothing was asked.`;
+     - more than 10,000 ids in the final `file_ids`:
+       `The scope holds <n> files; at most 10,000 can be asked about. Nothing was asked.`
+   - The result gains `smart_collections: [{ name, member_count }]` for each Smart
+     Collection that was replaced, once each, in the order first given; it is absent when
+     none was.
+4. Timeouts: each endpoint call made by `get_collection` uses the client's default timeout
+   (30 s); each made by `ask` uses 120 s (Ask's own timeout), per call. `client.request`
+   gains an optional per-call timeout for this. A timeout is reported as the client
+   reports one today.
+5. An older Litloft without the endpoint answers its path with a non-JSON 404. The MCP
+   tools report that as `isError` with
+   `This Litloft server has no Smart Collection endpoint; update Litloft.`
+6. Tool descriptions and the server instructions say a Smart Collection is a saved search
    whose items are computed when read, that `complete: false` means meaning search could
    not be read, that a Smart Collection's items are paged with `offset` and `limit`, and
    that `ask` accepts Smart Collection names in `scope.collections`.
@@ -103,7 +128,8 @@ The endpoint:
 | the smart-folders lookup answers non-2xx (404 for a locked or unknown drive, 401 for an expired token, 5xx) | the same status | the backend's body |
 | the id is not among the drive's Smart Collections | 404 | `{"detail": "Smart collection not found"}` |
 | a listing page answers non-2xx (a drive locked between pages included) | 404 when it answered 404, else 502 | `{"detail": "Smart collection listing failed"}` |
-| the backend unreachable | 502 | `{"detail": "Backend unreachable"}` |
+| the backend unreachable (a `TypeError` from `fetch`) | 502 | `{"detail": "Backend unreachable"}` |
+| any other error during the evaluation (a non-JSON 200 included) | 500 | `{"detail": "Smart collection evaluation failed"}` |
 | meaning search or the addon status cannot be read | 200 | `complete: false` |
 
 The MCP tools report any non-2xx as the client does today: `isError` with
@@ -152,13 +178,13 @@ Covered in 2. The endpoint logs nothing new.
 For MCP clients only: the tool outputs and descriptions in 1. Docs: `mcp-server/README.md`
 (the tools), `docs/reference/api.md` (the endpoint, marked as served by the frontend),
 `docs/reference/env-variables.md` (`BACKEND_URL` is also the upstream of the frontend's
-`/app-api` endpoint).
+`/app-api` endpoint, while the `/api/*` rewrite stays hard-coded to `http://backend:8000`).
 
 ### 10. Non-functional
 
 An evaluation reads every listing page (500 per page) and one meaning-search request, as
-in the browser. `get_collection` pages its output (at most 200 items a call); `ask` caps
-`file_ids` at 10,000.
+in the browser. `get_collection` pages its output (at most 200 items a call); `ask` reads
+members as ids only (`ids=1`), about 15 bytes each, and caps `file_ids` at 10,000.
 
 ## Touch points
 
@@ -170,8 +196,8 @@ in the browser. `get_collection` pages its output (at most 200 items a call); `a
 - `frontend/server.js`, `frontend/server-routes.js`, `frontend/src/proxy.ts` (read only:
   the path reaches Next)
 - `mcp-server/src/tools/collections.ts`, `mcp-server/src/tools/ask.ts`,
-  `mcp-server/src/server.ts`, `mcp-server/src/client.ts` (if a helper is needed),
-  mcp-server tests
+  `mcp-server/src/server.ts`, `mcp-server/src/client.ts` (a per-call timeout) and
+  `client.test.ts`, mcp-server tests
 - `mcp-server/README.md`, `docs/reference/api.md`, `docs/reference/env-variables.md`
 - Rules passed through: `.claude/rules/design-decisions.md` (drive boundary, no
   core-to-addon dependency, the Internal API not reachable from outside),
@@ -187,8 +213,9 @@ answering 404 (complete, listing only), 5xx or `available: false` (incomplete) a
 addon status failing (incomplete); `offset` and `limit` slice that list.
 
 I2. Every request the endpoint sends carries the caller's `Cookie` and `Authorization`
-unchanged and goes to the backend's public `/api`; none goes to `/api/internal/*`; the
-statuses and bodies are those of the Failure cases table.
+unchanged and goes to `BACKEND_URL` + the public `/api`; none goes to `/api/internal/*`;
+aborting the incoming request aborts the request in flight; the statuses and bodies are
+those of the Failure cases table.
 
 I3. The endpoint and the browser build the listing, meaning-search and addon-status
 requests with the same functions and read their answers with the same functions; two
@@ -206,13 +233,23 @@ at most 200) `items` whose `position` is the index in the whole list, summarised
 `Litloft API error (404)`.
 
 I6. MCP `ask` with an absent or empty `scope.collections` sends the request unchanged
-with no other request; otherwise a Smart Collection name is never sent in `collections`,
-its members' ids are appended to `file_ids` and de-duplicated, and the result lists it in
-`smart_collections` with its member count; a list failure, an incomplete or failed
-evaluation, or more than 10,000 ids sends no Ask request and returns `isError`.
+with no other request; otherwise a name matching a collection (case-insensitively) stays
+in `collections`, a name matching only a Smart Collection is never sent there, its
+members' ids are appended to `file_ids` and de-duplicated keeping the first occurrence,
+`file_ids` is sent (even `[]`) whenever a name was replaced, and the result lists each
+replaced Smart Collection once in `smart_collections` with its member count; a list
+failure, an incomplete or failed evaluation, or more than 10,000 ids sends no Ask request
+and returns `isError` with the stated text.
 
 I7. Every browser caller of the moved builders and readers sends the same requests and
-reads the same answers as before, and the browser's addon-status cache keeps its rules.
+reads the same answers as before (a failed listing still throws with the same message),
+`getDriveFiles` still seeds the file cache, and the browser's addon-status cache keeps its
+rules.
+
+I8. `get_collection`'s endpoint calls use a 30 s timeout and `ask`'s use 120 s each; an
+endpoint missing on the server (a non-JSON 404) is reported with the update message; the
+tool descriptions and server instructions mention Smart Collections, `complete`, paging
+and Smart Collection names in `ask`.
 
 ## Revises
 
@@ -236,3 +273,6 @@ SPEC-CORE-038 I12. `list_collections` returns the drive's collections, each row 
   has the evaluation.
 - MCP `search_files` reading Smart Collections: not asked.
 - `X-Lit-Viewer`: Smart Collections and listings are not per viewer; it is not forwarded.
+- Evaluating several Smart Collection names concurrently in `ask`: one after another
+  keeps the load on the backend predictable; the worst case is one 120 s budget per name.
+- A response-size limit on the endpoint: `get_collection` pages and `ask` reads ids only.
