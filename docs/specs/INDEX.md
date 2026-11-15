@@ -242,7 +242,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-110 | implemented | docs/specs/representative-frames-v3.md | sha256:5dcbd11738954b96ae7da5c78a6a99fb9ea57816331ad13d9db462820e6d8f63 |
 | SPEC-CORE-111 | implemented | docs/specs/mcp-smart-collections.md | sha256:ce32cd00d65a361a49b7aa7334f02b50b826b678f6dff4ac06bc126717fb07e5 |
 | SPEC-CORE-112 | implemented | docs/specs/mcp-smart-collections.md | sha256:ce32cd00d65a361a49b7aa7334f02b50b826b678f6dff4ac06bc126717fb07e5 |
-| SPEC-CORE-115 | draft | docs/specs/smart-collection-id-filter.md | |
-| SPEC-CORE-116 | draft | docs/specs/smart-collection-id-filter.md | |
-| SPEC-CORE-117 | draft | docs/specs/smart-collection-id-filter.md | |
-| SPEC-ADDON-115 | draft | docs/specs/smart-collection-id-filter.md | |
+| SPEC-CORE-115 | approved | docs/specs/smart-collection-id-filter.md | sha256:5fa9e32be3a63f3a7effc768e7462e3eed31bb49aa9bd915e21d5d7d45a9ba42 |
+| SPEC-CORE-116 | approved | docs/specs/smart-collection-id-filter.md | sha256:5fa9e32be3a63f3a7effc768e7462e3eed31bb49aa9bd915e21d5d7d45a9ba42 |
+| SPEC-CORE-117 | approved | docs/specs/smart-collection-id-filter.md | sha256:5fa9e32be3a63f3a7effc768e7462e3eed31bb49aa9bd915e21d5d7d45a9ba42 |
+| SPEC-ADDON-115 | approved | docs/specs/smart-collection-id-filter.md | sha256:5fa9e32be3a63f3a7effc768e7462e3eed31bb49aa9bd915e21d5d7d45a9ba42 |
