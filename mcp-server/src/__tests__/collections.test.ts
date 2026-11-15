@@ -60,7 +60,7 @@ function detail(items: unknown[]): Record<string, unknown> {
 }
 
 describe("list_collections", () => {
-  it("SPEC-CORE-038 I12: calls GET /api/drives/{drive}/collections and returns the core list unchanged", async () => {
+  it("SPEC-CORE-038 I12: calls GET /api/drives/{drive}/collections and returns each core row plus kind", async () => {
     const coreList = [
       {
         id: CID,
@@ -73,25 +73,32 @@ describe("list_collections", () => {
         updated_at: "2026-01-02T00:00:00Z",
       },
     ];
-    const client = fakeClient(async () => coreList);
+    const client = fakeClient(async ({ path }) =>
+      path.endsWith("/smart-folders") ? [] : coreList
+    );
 
     const result = await findTool("list_collections").handler(
       { drive: DRIVE },
       client
     );
 
-    expect(client.calls).toHaveLength(1);
-    expect(client.calls[0].method).toBe("GET");
-    expect(client.calls[0].path).toBe("/api/drives/media/collections");
-    expect(client.calls[0].options?.query).toBeUndefined();
+    const collectionsCall = client.calls.find(
+      (c) => c.path === "/api/drives/media/collections"
+    );
+    expect(collectionsCall?.method).toBe("GET");
+    expect(collectionsCall?.options?.query).toBeUndefined();
     expect(result.isError).toBeUndefined();
-    expect(JSON.parse((result.content[0] as { text: string }).text)).toEqual(coreList);
+    expect(JSON.parse((result.content[0] as { text: string }).text)).toEqual(
+      coreList.map((row) => ({ ...row, kind: "collection" }))
+    );
   });
 
   it("SPEC-CORE-038 I12: percent-encodes the drive name in the path", async () => {
     const client = fakeClient(async () => []);
     await findTool("list_collections").handler({ drive: "my drive" }, client);
-    expect(client.calls[0].path).toBe("/api/drives/my%20drive/collections");
+    expect(client.calls.map((c) => c.path)).toContain(
+      "/api/drives/my%20drive/collections"
+    );
   });
 });
 
