@@ -39,22 +39,34 @@ not changed. It is for the viewer asking about one video.
    without `position_seconds`.
 2. The route reads the material and resolves the `rag` profile as today
    (`resolve(drive, "rag")`, with the `llm_cloud` policy).
-3. When the profile can see (`profile_can_see`), the route takes one Ask slot, and
-   under it selects the passages exactly as without frames and prepares the frame
-   set. A `position_seconds` of exactly 0 counts as no position, as for a
-   text-less video.
-4. Until the first `answer_chunk`, the stream writes the `: keepalive` SSE comment
-   so that no 10 s pass without a byte.
+3. The passages are selected before the slot is taken, exactly as today
+   (`load_material`). When the profile can see (`profile_can_see`), the route takes
+   one Ask slot and under it prepares the frame set. A `position_seconds` of
+   exactly 0 counts as no position, as for a text-less video. No later than 45 s
+   after the slot was taken the route sends the model request or ends the stream.
+4. Until the first `answer_chunk`, including during a text-only retry, the stream
+   writes the `: keepalive` SSE comment so that no 10 s pass without a byte.
 5. The prompt lists the passages numbered `[1]` to `[P]`, then the kept frames
    numbered `[P+1]` to `[P+F]` in time order, each with its time in the video
    (`m:ss` or `h:mm:ss`), and states the position when there is one greater than 0.
    The images are sent in the order of their numbers, to the profile's
-   `vision_model`.
+   `vision_model`. The system prompt says that the answer comes from the numbered
+   passages and the numbered frames attached; that both are cited inline as `[n]`
+   and only numbers that were given may be cited; that where a passage and a frame
+   differ, exact characters are taken from the passage; that a frame's characters
+   are taken from the frame when no passage has them; and that when neither the
+   passages nor the frames contain the answer, the model says so instead of
+   guessing. With history, the earlier turns are context and only the numbered
+   passages and frames of this message may be cited.
 6. The answer streams. The `citations` event maps `[n]` with `n ≤ P` to that
    passage's position, and `P < n ≤ P+F` to `{"seconds": <frame time>}`; any other
-   number is dropped. `meta.image` is `"attached"`.
-7. When the profile cannot see, steps 3 to 6 are today's text path with no image:
-   passages only, `meta.image` `"none"`.
+   number is dropped. The `meta` event carries `partial` as the passages give it
+   (`material.partial`) and `image: "attached"`.
+7. When the profile cannot see, the request is today's text path, unchanged in
+   every respect (no image, no keep-alive, the position stated as today, `meta` as
+   today). A `.loft` that is not YouTube or is unreadable is not a text video and
+   keeps today's text path too, including its position image attempt
+   (`load_image`) and its `"unavailable"`.
 
 ### 2. Failure cases
 
@@ -64,13 +76,15 @@ not changed. It is for the viewer asking about one video.
 - **No frame can be prepared.** The question is answered from the passages alone,
   and `meta.image` is `"unavailable"`, so the tab shows its existing line (the
   image could not be used and the answer is from the text only).
-- **The provider refuses the request with images** (`ImageRejected`, a 400 or 404 on
-  the multi-image call). The route closes that stream and asks again with the same
+- **The request with images raises `ImageRejected`** for any reason (a 400 or 404
+  from the provider, or the client refusing before any HTTP call). The route closes that stream and asks again with the same
   passages and no image; `meta.image` is `"unavailable"`. The vision-unsupported
   verdict is not written (SPEC-ADDON-108 I6).
 - **The selection inputs cannot be read.** The scene frames come from evenly
   spaced filling, as SPEC-ADDON-108 does.
 - **Generation fails, or the answer is empty.** The generic failure line, as today.
+  `meta.image` is `"attached"` when it failed while answering with frames, and
+  `"unavailable"` when it failed during the text-only request.
 - **The tab disconnects.** No further frame preparation or model request starts;
   the slot is released (SPEC-ADDON-108 I7).
 
@@ -139,10 +153,13 @@ resolved profile, and an off-host profile only when `llm_cloud` allows it.
   the model reads up to 8 images. While waiting, the tab shows its existing
   waiting state; the connection is kept alive.
 - No new control, setting or text.
-- `docs/user-guide/search.md` (the Ask paragraph) and `docs/addons/intelligence.md`
-  (the privacy line of Ask and the frames description) say that a question about a
-  video sends a handful of its frames along with its text when the model can read
-  images.
+- `docs/user-guide/search.md` (the Ask paragraph), `docs/addons/intelligence.md`
+  (the privacy line of Ask) and `docs/reference/api.md` (the `POST .../ask` row:
+  for a video with indexed text and a model that can read images, up to 8 frames
+  are sent with the passages, `position_seconds` greater than 0 adds the frame at
+  that position, frame numbers follow the passage numbers in `citations`, and
+  `: keepalive` comments are written) say that a question about a video sends a
+  handful of its frames along with its text when the model can read images.
 
 ### 10. Non-functional
 
@@ -161,35 +178,61 @@ resolved profile, and an off-host profile only when `llm_cloud` allows it.
   `_text_question_stream` (frame set for a text video with a seeing profile,
   keep-alive, text-only retry, citations across passages and frames).
 - `addons/intelligence/app/rag/file_question.py`: `choose_frame_times`,
-  `prepare_frames`, `citations`, `load_image` (no longer used for a video's
-  position image).
+  `prepare_frames`, `citations`. `load_image` stays for pictures and for a `.loft`
+  that is not a text video.
 - `addons/intelligence/app/rag/prompt.py`,
   `addons/intelligence/app/prompts/rag/file_question_system.jinja2`,
   `addons/intelligence/app/prompts/rag/file_question_user.jinja2`: passages and
   frames in one prompt, one numbering.
-- `addons/intelligence/frontend/AskTab.tsx`: unchanged behavior; the
-  `imageUnavailable` line is reached by the new path.
-- Tests under `addons/intelligence/tests/` and `addons/intelligence/frontend/`.
-- `docs/user-guide/search.md`, `docs/addons/intelligence.md`.
-- `docs/specs/INDEX.md`.
-- No protected path, no migration, no Internal API, no core code.
+- New tests under `addons/intelligence/tests/` citing SPEC-ADDON-114.
+- Existing tests whose expectation this change replaces. Each one that asserts the
+  single position image of a native or YouTube video with a text chunk under a
+  profile that can see is rewritten to the SPEC-ADDON-114 expectation (the frame
+  set, a failed position frame left out with the scene frames still sent,
+  `"attached"` while any frame was sent): in
+  `test_spec_addon_071_picture_frame.py` the tests from
+  `test_the_large_frame_at_the_millisecond_key_is_sent` to
+  `test_without_a_stored_duration_the_extraction_decides`; in
+  `test_spec_addon_077_youtube_ask.py` the tests from
+  `test_the_large_frame_of_the_stream_is_attached_once` to
+  `test_a_lookup_slower_than_15_seconds_ends_as_unavailable`; and in
+  `test_spec_addon_071_image_stream.py` and `test_spec_addon_072_position.py`
+  any test that uses a seeing profile on a video with a text chunk. A test whose
+  property still holds is kept as it is, or moved to a non-seeing profile when
+  the property it guards is the text path's (422, position wording, the text-only
+  retry's passages). No assertion about pictures, audio, documents or text-less
+  videos is changed.
+- `docs/user-guide/search.md`, `docs/addons/intelligence.md`,
+  `docs/reference/api.md`.
+- `docs/specs/INDEX.md`, and the core repository's `addons/intelligence` submodule
+  pointer, bumped to the merged addon commit.
+- Rules passed through: `.claude/rules/design-decisions.md` (LLM features: every
+  call through `resolve(drive, feature)`, `offhost` only when `llm_cloud` allows;
+  Access control; LLM output is not a source), and
+  `.claude/rules/backend-conventions.md` (no language-dependent rule).
+- No protected path, no migration, no Internal API, no core code, no frontend
+  change.
 
 ## Invariants
 
 I1. For a text video and a profile that can see, the images sent are exactly the kept frames of the frame set, each the frame at the time the prompt lists for it, sent in the order of their numbers, only to the `vision_model` of the profile resolved by `resolve(drive, "rag")`; for a profile that cannot see, no image is sent and the request is the text path of SPEC-ADDON-053 with `meta.image` `"none"`.
 I2. The passages sent for a text video are the same, by budget and ranking, whether frames are attached, none could be prepared, or the request is retried after a refusal.
 I3. The prompt numbers the passages `[1]` to `[P]` and then the kept frames `[P+1]` to `[P+F]` in time order with their times; every `citations` entry names a number that was sent, with the passage's position for `n ≤ P` and the frame's time as `position.seconds` for `P < n ≤ P+F`, and no other number appears.
-I4. A text video always receives a generated answer from its passages when frames cannot be used: no frame prepared, or a refusal of the request with images, each lead to one text-only request with `meta.image` `"unavailable"`, never to `frames_unusable`, `frames_rejected` or `image_unusable`; a refusal never writes the vision-unsupported verdict.
+I4. With a profile that can see, a text video always receives a generated answer from its passages when frames cannot be used: no frame prepared, or a refusal of the request with images, each lead to one text-only request with `meta.image` `"unavailable"`, never to `frames_unusable`, `frames_rejected` or `image_unusable`; a refusal never writes the vision-unsupported verdict.
 I5. With a position greater than 0 the frame set has the position frame plus at most 7 scene frames, none within 1 s of the position, and the prompt states the position; with no position or a position of exactly 0 it has at most 8 scene frames and the prompt states no position; a frame that failed is never replaced by a frame of another time.
-I6. A text-video question holds exactly one Ask slot from after the material is read until its stream ends, fails or is cancelled; it has at most 4 frame preparations running at once, starts none after 45 s from the slot or after a disconnect, and until the first `answer_chunk` no 10 s pass without a byte written to the stream.
+I6. A text-video question with a profile that can see holds exactly one Ask slot from after the material is read until its stream ends, fails or is cancelled; it has at most 4 frame preparations running at once, starts none after 45 s from the slot or after a disconnect, has sent the model request or ended the stream no later than 45 s after the slot was taken, and until the first `answer_chunk`, including during a text-only retry, no 10 s pass without a byte written to the stream.
 I7. Questions, answers, history and frame bytes are neither stored nor logged; the only write is the `large` frame cache entry `get_video_frame` also writes.
-I8. Text-less videos, pictures, audio, documents, the availability route and the normal Ask answer every request as they did before this change.
+I8. Text-less videos, pictures, audio, documents, a `.loft` that is not a text video, every request whose profile cannot see, the availability route and the normal Ask answer as they did before this change.
+I9. The `meta` event of a text-video answer with a profile that can see carries `partial` equal to whether the passages were cut by the budget, and `image` as `"attached"` when frames were sent and `"unavailable"` after no frame or an `ImageRejected`.
 
 ## Revises
 
+SPEC-ADDON-053 I1. The LLM receives passages, and for a picture one image, for a video with a text chunk and a profile that can see up to 8 frames, for a playing `.loft` with a text chunk that is not a text video one image, or for a video with no text chunk up to 8 frames, of the requested file only, and only when the file is an active file of the `X-Lit-Drive` drive that the viewer can access and whose `rag` feature is on.
+SPEC-ADDON-053 I3. Every entry of the `citations` event names a number that was sent: a chunk number with that chunk's position, or a frame number (after the chunk numbers for a video with a text chunk, from 1 for a video with none) with that frame's time; a number that was not sent never appears.
+
 SPEC-ADDON-071 I1. A question's passages, picture and frames come only from the requested file, an active file of the `X-Lit-Drive` drive that the viewer can access and whose `rag` feature is on, and the only other text sent is the history the request carried; a picture gets at most one image of at most 1024 px on its long edge, and a video, with or without a text chunk, gets at most 8 frames of at most 1280 px when its profile can see.
 SPEC-ADDON-071 I3. `meta.image` is `"attached"` when an image or at least one frame was sent, `"unavailable"` only when the route tried to send one and could not or the provider refused it, and `"none"` otherwise, including when the profile cannot see; the notice line is shown for `"unavailable"` and never for the other two.
-SPEC-ADDON-071 I5. The prompt mentions an image, and tells the model to take exact characters from the passages when they and the image or frames differ, only when an image or frames are attached; it states a position for a video only when `position_seconds` greater than 0 was sent, and for an audio file when `position_seconds` was sent.
+SPEC-ADDON-071 I5. The prompt mentions an image or frames, and tells the model to take exact characters from the passages when they and the image or frames differ, only when an image or frames are attached; it states a position only when `position_seconds` was sent for a video or audio file.
 SPEC-ADDON-071 I7. `position_seconds` that is negative, non-finite or above 1,000,000 is rejected with 422 for any kind of file before any model is called; a position past the end of the video, one at which ffmpeg returns no frame, or a frame extraction that times out leaves the position frame out, and no other frame is sent in its place.
 SPEC-ADDON-077 I6. Ask on a YouTube `.loft` that has a text chunk, with a profile that can see, sends the frame set of SPEC-ADDON-114 read through the `large` frame route, under every invariant of SPEC-ADDON-071 (profile, `llm_cloud`, one slot, nothing stored or logged but the `large` cache entries); any frame failure leaves that frame out, and when none is sent the answer is from the text with `"unavailable"`; a YouTube `.loft` with no text chunk is answered from frames by SPEC-ADDON-108; Ask on a `.loft` of another provider is unchanged.
 SPEC-ADDON-108 I1. A video with at least one `transcript_chunks` or `fts_text_content` row gets the availability and passages it had before SPEC-ADDON-108, and its frames by SPEC-ADDON-114; availability answers `true` for a text-less video only when some profile can see, and `false` for audio with no text chunk and for a `.loft` that is unreadable or whose source is not YouTube.
@@ -215,8 +258,17 @@ SPEC-ADDON-108 I1. A video with at least one `transcript_chunks` or `fts_text_co
 - **Audio.** No frames exist.
 - **A `.loft` of another provider.** No frame source.
 - **A frontend change.** None needed: the tab already shows time pills for
-  `position.seconds`, reads `meta.image`, and shows the `imageUnavailable` line.
+  `position.seconds`, reads `meta.image`, and shows the `imageUnavailable` line
+  under an answered turn. No frontend test is added; the wire values it reads are
+  pinned by I3, I4 and I9.
 - **The keep-alive on the text path for a profile that cannot see.** Not added:
   that path prepares no frame and starts the model request at once, as today.
+- **Frame numbers above 999.** The citation marker reads one to three digits, so a
+  frame numbered above 999 cannot be cited. That takes more than 990 passages,
+  which the default budget (16,000 characters) never reaches; with a budget raised
+  that far, frames are simply not citable. Accepted.
+- **A position of exactly 0 on the text path of a profile that cannot see.** Kept
+  as today (stated as 0:00); the "0 is no position" rule belongs to the frames
+  paths, where a position frame would be taken.
 - **Retrying with fewer frames after a refusal.** Not done, as in SPEC-ADDON-108;
   the text-only retry already answers.
