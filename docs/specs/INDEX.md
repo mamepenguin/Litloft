@@ -248,3 +248,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-116 | implemented | docs/specs/smart-collection-id-filter.md | sha256:5fa9e32be3a63f3a7effc768e7462e3eed31bb49aa9bd915e21d5d7d45a9ba42 |
 | SPEC-CORE-117 | implemented | docs/specs/smart-collection-id-filter.md | sha256:5fa9e32be3a63f3a7effc768e7462e3eed31bb49aa9bd915e21d5d7d45a9ba42 |
 | SPEC-ADDON-115 | implemented | docs/specs/smart-collection-id-filter.md | sha256:5fa9e32be3a63f3a7effc768e7462e3eed31bb49aa9bd915e21d5d7d45a9ba42 |
+| SPEC-CORE-118 | draft | docs/specs/app-target-collections.md | |
+| SPEC-CORE-119 | draft | docs/specs/app-target-collections.md | |
