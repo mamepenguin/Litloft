@@ -1,0 +1,26 @@
+# 2026-11-15 17:50:29 file yFpvytc5zGpM
+# ollama ps before: ['gemma4:e4b', 'qwen3.5:35b-a3b']
+# frames before: 
+body {"question": "紹介されている副菜は何ですか？どんな見た目に仕上がっていますか？", "profile": null} history_turns 0
+  5.17 status 200
+  5.17 : keepalive
+ 10.17 : keepalive
+ 15.46 : keepalive
+ 20.46 : keepalive
+ 25.46 : keepalive
+ 30.46 : keepalive
+ 35.30 FIRST answer_chunk
+ 39.86 citations [{"n": 2, "position": {"seconds": 10.549}}, {"n": 8, "position": {"seconds": 76.59}}, {"n": 9, "position": {"seconds": 87.91}}, {"n": 125, "position": {"seconds": 259.5}}, {"n": 19, "position": {"seconds": 204.39}}, {"n": 42, "position": {"seconds": 457.35}}]
+ 39.86 meta {"partial": false, "image": "attached"}
+ 39.86 done {}
+ 39.86 end; max silent gap before first chunk 5.29s
+ANSWER: 紹介されている副菜は**塩もみキャベツ**です [2], [8], [9]。
+
+見た目については、以下の通りです。
+
+*   **キャベツの様子**: 千切りにしたキャベツが、透明なガラスの容器にたっぷりと入っている様子が確認できます [125]。
+*   **調理後の状態**: 塩もみをして水気を絞った後のキャベツは、しんなりとして柔らかく、容器に盛り付けられています [125]。
+
+この副菜は、キャベツを千切りにし、塩もみをして水気を絞ることで作られ、そのまま食べたり、ドレッシングをかけてサラダにしたり、コールスロー風にアレンジしたりと、様々な使い方ができるのが特徴です [19], [42]。
+# frames after: 1124500.large.webp 1297500.large.webp 259500.large.webp 432500.large.webp 605500.large.webp 778500.large.webp 86500.large.webp 951500.large.webp 
+# ollama ps after: ['gemma4:e4b', 'qwen3.5:35b-a3b']

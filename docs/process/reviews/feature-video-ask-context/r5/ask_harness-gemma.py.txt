@@ -1,0 +1,71 @@
+"""POST a file question through the frontend proxy and timestamp every SSE frame."""
+import json
+import sys
+import time
+import urllib.parse
+import urllib.request
+
+BASE = "http://video-share-video-ask.localhost:3101/api/addons/intelligence/files/%s/ask"
+
+
+def main() -> None:
+    file_id, drive, question = sys.argv[1], sys.argv[2], sys.argv[3]
+    extra = (json.loads(sys.argv[4]) if len(sys.argv) > 4 else None) or {}
+    body = {"question": question, "profile": None, "history": [], **extra}
+    req = urllib.request.Request(
+        BASE % file_id,
+        data=json.dumps(body).encode(),
+        method="POST",
+        headers={
+            "Content-Type": "application/json",
+            "Accept": "text/event-stream",
+            "X-Lit-Drive": urllib.parse.quote(drive),
+        },
+    )
+    t0 = time.monotonic()
+    print("body", json.dumps({k: v for k, v in body.items() if k != "history"}, ensure_ascii=False), "history_turns", len(body["history"]))
+    try:
+        resp = urllib.request.urlopen(req, timeout=600)
+    except urllib.error.HTTPError as exc:
+        print("HTTP", exc.code, exc.read().decode()[:300])
+        return
+    print(f"{time.monotonic()-t0:6.2f} status {resp.status}")
+    buf = b""
+    answer = []
+    first_chunk = None
+    last = t0
+    max_gap_before_first = 0.0
+    while True:
+        b = resp.read1(65536)
+        if not b:
+            break
+        now = time.monotonic()
+        if first_chunk is None:
+            max_gap_before_first = max(max_gap_before_first, now - last)
+        last = now
+        buf += b
+        while b"\n\n" in buf:
+            frame, buf = buf.split(b"\n\n", 1)
+            text = frame.decode()
+            t = now - t0
+            if text.startswith(":"):
+                print(f"{t:6.2f} {text}")
+                continue
+            ev = data = None
+            for line in text.splitlines():
+                if line.startswith("event:"):
+                    ev = line[6:].strip()
+                elif line.startswith("data:"):
+                    data = line[5:].strip()
+            if ev == "answer_chunk":
+                if first_chunk is None:
+                    first_chunk = t
+                    print(f"{t:6.2f} FIRST answer_chunk")
+                answer.append(json.loads(data).get("delta", ""))
+            else:
+                print(f"{t:6.2f} {ev} {data}")
+    print(f"{time.monotonic()-t0:6.2f} end; max silent gap before first chunk {max_gap_before_first:.2f}s")
+    print("ANSWER:", "".join(answer))
+
+
+main()

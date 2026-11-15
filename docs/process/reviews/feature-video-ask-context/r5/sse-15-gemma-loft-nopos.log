@@ -1,0 +1,24 @@
+# 2026-11-15 17:49:17 file dUNQA5DXMBLO
+# ollama ps before: ['gemma4:e4b', 'qwen3.5:35b-a3b']
+# frames before: 
+body {"question": "このセッションで紹介されている新しいAPIや機能を3つ挙げてください。", "profile": null} history_turns 0
+  5.25 status 200
+  5.25 : keepalive
+  6.93 FIRST answer_chunk
+ 15.09 citations [{"n": 5, "position": {"seconds": 50.804}}, {"n": 6, "position": {"seconds": 61.67}}, {"n": 14, "position": {"seconds": 156.004}}, {"n": 15, "position": {"seconds": 167.69}}, {"n": 16, "position": {"seconds": 180.294}}, {"n": 51, "position": {"seconds": 589.391}}, {"n": 52, "position": {"seconds": 601.594}}, {"n": 53, "position": {"seconds": 614.403}}, {"n": 55, "position": {"seconds": 637.221}}, {"n": 56, "position": {"seconds": 648.297}}, {"n": 61, "position": {"seconds": 706.84}}, {"n": 62, "position": {"seconds": 716.902}}]
+ 15.09 meta {"partial": false, "image": "none"}
+ 15.09 done {}
+ 15.09 end; max silent gap before first chunk 5.25s
+ANSWER: このセッションで紹介されている新しいAPIや機能は、主に以下の3点です。
+
+*   **サブスクリプションの価格設定オプションの拡張**:
+    *   iOS 26.5により、12ヶ月のコミットメントを伴う月額サブスクリプションを提供できるようになりました [5], [6]。
+    *   これに伴い、`PricingTerms`という新しいプロパティが`SubscriptionInfo`で利用可能になり、利用可能なすべての請求プランをリスト表示します [14], [15], [16]。
+*   **オファーコードの引き換えAPIの更新**:
+    *   `OfferCodeRedemption API`を使用して、アプリ内でオファーコードを引き換えできるようになりました [51]。
+    *   このAPIは、引き換えが成功した場合に`transaction object`を、失敗した場合はエラーを返します [52], [53]。
+*   **In-App Purchasesの強化されたApp Store Connect提出体験**:
+    *   In-App Purchasesをレビューアイテムとして単一のApp Review提出にグループ化できる機能が追加されました [55], [56]。
+    *   この強化された体験は、App Store Connect APIにも適用され、`reviewSubmissions`がIn-App Purchase、サブスクリプション、サブスクリプショングループのリソースをサポートするようになっています [61], [62]。
+# frames after: 
+# ollama ps after: ['gemma4:e4b', 'qwen3.5:35b-a3b']

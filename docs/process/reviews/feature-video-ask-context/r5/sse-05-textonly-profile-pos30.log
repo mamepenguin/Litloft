@@ -1,0 +1,11 @@
+body {"question": "子ザメは星を見に行きたいと言っていますか？", "profile": "textonly", "position_seconds": 30} history_turns 0
+  7.33 status 200
+  7.33 FIRST answer_chunk
+  9.90 citations [{"n": 1, "position": {"seconds": 8.0}}]
+  9.90 meta {"partial": false, "image": "none"}
+  9.90 done {}
+  9.90 end; max silent gap before first chunk 7.33s
+ANSWER: **子ザメは星を見に行きたいと言っていますか？**
+
+- はい、子ザメは星を見に行きたいと言っています。  
+  [1] には「見たい見たいマメうざいれんしゃ」と書かれており、星を見たい気持ちが表されています。

@@ -1,0 +1,20 @@
+# 2026-11-15 17:46:07 file puqsf46R2vWh
+# ollama ps before: ['qwen3.5:35b-a3b', 'gemma4:e4b']
+# frames before: 
+body {"question": "子ザメはお店で何を注文して、どんな様子でしたか？", "profile": null} history_turns 0
+  6.85 status 200
+  6.85 : keepalive
+ 11.85 : keepalive
+ 16.85 : keepalive
+ 21.86 : keepalive
+ 22.47 FIRST answer_chunk
+ 25.35 citations [{"n": 14, "position": {"seconds": 10.219}}, {"n": 15, "position": {"seconds": 27.444}}, {"n": 1, "position": {"seconds": 13.884999}}]
+ 25.35 meta {"partial": false, "image": "attached"}
+ 25.35 done {}
+ 25.35 end; max silent gap before first chunk 6.85s
+ANSWER: 子ザメは、お店で**ブラックコーヒー**を注文し、それを飲みながら本を読んでいた様子がうかがえます [14] [15]。
+
+*   **注文した飲み物**: ブラックコーヒー [1] [14]
+*   **行動**: コーヒーを飲みながら、本（または冊子）を手に持っている [14]
+# frames after: 10219.large.webp 27444.large.webp 27653.large.webp 39498.large.webp 48382.large.webp 58308.large.webp 66566.large.webp 71071.large.webp 
+# ollama ps after: ['gemma4:e4b', 'qwen3.5:35b-a3b']
