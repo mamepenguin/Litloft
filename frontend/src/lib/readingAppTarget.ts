@@ -1,5 +1,11 @@
-import { resolveAppTarget, type AppTarget, type AppTargetParams } from "@/lib/appTarget";
+import {
+  resolveAppTarget,
+  resolveCollectionTarget,
+  type AppTarget,
+  type AppTargetParams,
+} from "@/lib/appTarget";
 import { resolveMemberTarget, type MemberTarget } from "@/lib/memberTarget";
+import type { CollectionSummary } from "@/types";
 import type { SmartFolder } from "@/types/smartFolder";
 
 export const READING_BASE_KINDS = ["pdf", "epub", "archive"] as const;
@@ -11,6 +17,11 @@ export type ReadingTarget = AppTarget;
 /** The books of a smart folder, or of the whole drive for `null`. */
 export function resolveReadingTarget(folder: SmartFolder | null): ReadingTarget {
   return resolveAppTarget(folder, READING_BASE_KINDS);
+}
+
+/** A collection's books. */
+export function resolveReadingCollectionTarget(collection: CollectionSummary): ReadingTarget {
+  return resolveCollectionTarget(collection, READING_BASE_KINDS);
 }
 
 /** The Smart Collection a target sends members for; `null` when it resolves to listing parameters. */

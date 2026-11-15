@@ -54,9 +54,10 @@ export function VideoAppHeader({
       target={{
         drive,
         app: "video",
-        name: state.targetKnown ? (state.folder?.name ?? t("allVideos")) : null,
+        name: state.targetKnown ? (state.targetName ?? t("allVideos")) : null,
         folders: state.smartFolders,
-        selectedId: state.folder?.id ?? "default",
+        collections: { list: state.collections, retry: state.retryCollections },
+        selectedId: state.targetId,
         currentCount: state.count,
         label: t("target"),
         defaultLabel: t("allVideos"),

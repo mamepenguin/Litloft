@@ -268,6 +268,8 @@ export interface MenuRadioOption<T> {
   detail?: string;
   disabled?: boolean;
   title?: string;
+  /** Drawn between the check column and the name. */
+  icon?: ComponentType<{ size?: number }>;
 }
 
 interface MenuRadioGroupProps<T> {
@@ -325,6 +327,13 @@ export function MenuRadioGroup<T>({
             <span className="w-4 flex-shrink-0">
               {selected && <Check size={14} />}
             </span>
+            {opt.icon !== undefined && (
+              // On the name's first line, so a name that wraps leaves the
+              // icon at the top rather than the row's centre.
+              <span className="mt-0.5 flex-shrink-0 self-start text-text-muted">
+                <opt.icon size={14} />
+              </span>
+            )}
             {opt.detail === undefined && (
               // Smart-folder names reach this row from the user, so a long
               // unbroken one has to wrap rather than widen the menu.
