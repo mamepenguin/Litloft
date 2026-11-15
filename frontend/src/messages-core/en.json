@@ -1445,6 +1445,7 @@
     "target": "Target",
     "allVideos": "All videos",
     "targetUnavailable": "Not available as a target",
+    "targetUnusable": "This target cannot be used",
     "classification": "Classification",
     "classifications": {
       "folder": "Folder",

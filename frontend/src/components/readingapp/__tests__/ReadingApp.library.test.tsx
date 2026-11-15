@@ -9,6 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { readReadingGroup, writeAppPrefs } from "@/lib/appPrefs";
 import type { ReadingGroup } from "@/lib/appPrefs";
+import { appRequests } from "@/lib/memberTarget";
 import { LibraryFace } from "../LibraryFace";
 import type { SortChoice } from "../labels";
 import { ReadingApp } from "../ReadingApp";
@@ -373,6 +374,7 @@ function LibraryHarness({
     <LibraryFace
       drive={DRIVE}
       params={params}
+      requests={appRequests(null, null)}
       empty={false}
       hasProfile={hasProfile}
       group={group}
@@ -469,6 +471,7 @@ describe("the Library's empty states", () => {
       <LibraryFace
         drive={DRIVE}
         params={null}
+        requests={appRequests(null, null)}
         empty
         hasProfile
         group="none"

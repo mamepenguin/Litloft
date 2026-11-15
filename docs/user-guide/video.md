@@ -78,6 +78,12 @@ you tick it there.
 
 - A Smart Collection that matches no videos (for example one limited to images) can still be
   chosen. Every tab then shows the empty state.
+- A Smart Collection whose query has search text (a word, or a condition written with `-`
+  or `!`) lists the videos among the files that Smart Collection's search page lists. One
+  whose search page matches more than 10,000 files cannot be used as a target: the page
+  shows **この対象は使えません** / **This target cannot be used** and asks the server for
+  nothing.
+- If a Smart Collection's files cannot be worked out, the page shows **Retry**.
 - A Smart Collection the page cannot use is listed disabled.
 - A Smart Collection that has been deleted is replaced by **All videos** without a message.
 - If the Smart Collections cannot be loaded, the menu offers **All videos** and **Manage…**;

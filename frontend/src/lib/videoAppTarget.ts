@@ -1,4 +1,5 @@
 import type { ShelvesParams } from "@/lib/api";
+import { resolveMemberTarget, type MemberTarget } from "@/lib/memberTarget";
 import { comparisonWireForm, parseSearchQuery, resolveKinds } from "@/lib/searchQuery";
 import type { SmartFolder } from "@/types/smartFolder";
 
@@ -41,4 +42,14 @@ export function resolveVideoTarget(folder: SmartFolder | null): VideoTarget {
   if (parsed.sizes.length > 0) params.size = parsed.sizes.map(comparisonWireForm);
   if (parsed.durations.length > 0) params.duration = parsed.durations.map(comparisonWireForm);
   return { usable: true, params };
+}
+
+/** The Smart Collection a target sends members for; `null` when it resolves to listing parameters. */
+export function resolveVideoMemberTarget(folder: SmartFolder | null): MemberTarget | null {
+  return resolveMemberTarget(folder, VIDEO_ONLY);
+}
+
+/** The kinds a member target's requests carry; `null` when its kinds meet no video. */
+export function videoMemberParams(target: MemberTarget): VideoTargetParams | null {
+  return target.kinds.length === 0 ? null : { type: VIDEO_ONLY };
 }

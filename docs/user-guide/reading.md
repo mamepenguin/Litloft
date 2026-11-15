@@ -72,9 +72,15 @@ here.
   **管理…** / **Manage…**. **Manage…** opens a searchable list of the drive's Smart
   Collections; tick the ones you want in this menu. The set is kept per app and per drive. A
   new Smart Collection stays out of the menu until you tick it there.
-- A Smart Collection the Reading page cannot use is listed disabled. This includes one whose
-  kinds are not books (images, for example), one that filters by length, and one that uses
-  a negated condition. It cannot be chosen.
+- A Smart Collection whose query has search text (a word, or a condition written with `-`
+  or `!`) is a **member target**: the page lists the books among the files that Smart
+  Collection's search page lists. One whose search page matches more than 10,000 files
+  cannot be used as a target: the page shows **この対象は使えません** / **This target
+  cannot be used** and asks the server for nothing.
+- A Smart Collection without search text that the Reading page cannot use is listed
+  disabled. This includes one whose kinds are not books (images, for example), one that
+  filters by length, and one that uses a negated condition. It cannot be chosen.
+- If a member target's files cannot be worked out, the page shows **Retry**.
 - A Smart Collection whose kinds miss every book shows **この対象は使えません** / **This
   target cannot be used**, and the page asks the server for nothing.
 - A Smart Collection that has been deleted is replaced by **All books** without a message.

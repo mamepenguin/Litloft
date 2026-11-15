@@ -1445,6 +1445,7 @@
     "target": "対象",
     "allVideos": "すべての動画",
     "targetUnavailable": "対象にできません",
+    "targetUnusable": "この対象は使えません",
     "classification": "分類",
     "classifications": {
       "folder": "フォルダ",

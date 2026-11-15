@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Film } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { EmptyState } from "@/components/EmptyState";
@@ -13,7 +13,7 @@ import { VideoGrid } from "@/components/appshell/VideoGrid";
 import { PageFrame } from "@/components/PageFrame";
 import { builtinApps } from "@/lib/builtinApps";
 import { MIN_CARD_COLUMNS } from "@/lib/cardGrid";
-import { getShelves, type ShelfGrouping, type ShelfItem } from "@/lib/api";
+import { type ShelfGrouping, type ShelfItem } from "@/lib/api";
 import { slotEntryLabel } from "@/lib/slotLabel";
 import { SortChoiceMenu } from "./LibraryControls";
 import {
@@ -97,31 +97,33 @@ export function VideoShelfPage({
 
   // Watch state reads the viewer's rows; without a profile there is no shelf to open.
   const watchBlocked = !entryMode && by === "watch" && !state.hasProfile;
-  const { params, rejectViewer } = state;
+  const { params, requests, rejectViewer } = state;
   const fetchPage = useMemo(
     () =>
       entryMode || by === null || params === null || watchBlocked
         ? null
         : (page: number) =>
-            getShelves(drive, {
-              ...params,
-              by,
-              key: shelfKey,
-              sort: sort.sort,
-              order: sort.order,
-              per_shelf: SHELF_PAGE_SIZE,
-              page,
-            }).then(
-              (response) => {
-                const shelf = response.shelves[0];
-                return { items: shelf?.items ?? [], total: shelf?.count ?? 0 };
-              },
-              (error: unknown) => {
-                if (isViewerRequired(error)) rejectViewer();
-                throw error;
-              },
-            ),
-    [entryMode, drive, by, shelfKey, params, watchBlocked, sort.sort, sort.order, rejectViewer],
+            requests
+              .shelves(drive, {
+                ...params,
+                by,
+                key: shelfKey,
+                sort: sort.sort,
+                order: sort.order,
+                per_shelf: SHELF_PAGE_SIZE,
+                page,
+              })
+              .then(
+                (response) => {
+                  const shelf = response.shelves[0];
+                  return { items: shelf?.items ?? [], total: shelf?.count ?? 0 };
+                },
+                (error: unknown) => {
+                  if (isViewerRequired(error)) rejectViewer();
+                  throw error;
+                },
+              ),
+    [entryMode, drive, by, shelfKey, params, requests, watchBlocked, sort.sort, sort.order, rejectViewer],
   );
   const paged = usePaged<ShelfItem>(fetchPage);
   const provider = useProviderShelfPage({
@@ -132,6 +134,7 @@ export function VideoShelfPage({
     hasProfile: state.hasProfile,
     drive,
     params,
+    requests,
     ready: state.ready,
     empty: state.empty,
     onViewerRejected: rejectViewer,
@@ -152,7 +155,11 @@ export function VideoShelfPage({
       : shelfTitle({ by, shelf: { key: shelfKey, label: shelfKey }, drive, locale, from, t: (key) => t(key) });
   const app = builtinApps.find((candidate) => candidate.id === "video")!;
 
-  const body = entryMode ? (
+  const body = state.targetFailed ? (
+    <RetryButton onRetry={state.retryTarget} />
+  ) : state.targetUnusable ? (
+    <EmptyState icon={Film} title={t("targetUnusable")} />
+  ) : entryMode ? (
     provider.phase === "no-target" || provider.phase === "absent" ? (
       <EmptyState variant="no-files" />
     ) : provider.phase === "failed" ? (

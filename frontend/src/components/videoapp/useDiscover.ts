@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
-import { getDriveFiles, getShelves, type ShelfItem } from "@/lib/api";
+import type { ShelfItem } from "@/lib/api";
 import {
   loadSlotPageProvider,
   loadSlotProvider,
@@ -12,6 +12,7 @@ import {
   type ShelfProvider,
   type SlotEntry,
 } from "@/lib/addons";
+import type { AppRequests } from "@/lib/memberTarget";
 import { slotEntryLabel } from "@/lib/slotLabel";
 import type { VideoTargetParams } from "@/lib/videoAppTarget";
 import type { ShelfView } from "@/components/appshell/ShelfBlock";
@@ -169,6 +170,7 @@ function addonCacheKey(visit: Visit, entry: SlotEntry, locale: string): string {
 export function useDiscover({
   drive,
   params,
+  requests,
   hasProfile,
   nickname,
   wanted,
@@ -176,6 +178,7 @@ export function useDiscover({
 }: {
   drive: string;
   params: VideoTargetParams | null;
+  requests: AppRequests;
   hasProfile: boolean;
   nickname: string | null;
   /** Discover is the face on screen. Once true, it stays asked for. */
@@ -193,8 +196,8 @@ export function useDiscover({
   const catalogueReady = !catalogueLoading && catalogueDrive === drive;
 
   const visitKey = useMemo(
-    () => stableJson([drive, params ?? null, hasProfile, nickname ?? null]),
-    [drive, params, hasProfile, nickname],
+    () => stableJson([drive, requests.key, params ?? null, hasProfile, nickname ?? null]),
+    [drive, requests.key, params, hasProfile, nickname],
   );
 
   const [visit, setVisit] = useState<Visit | null>(null);
@@ -240,33 +243,37 @@ export function useDiscover({
     const visitParams = current.params;
     const visitDrive = current.drive;
     return () =>
-      getShelves(visitDrive, {
-        ...visitParams,
-        by: "watch",
-        key: "continue",
-        sort: "last_played",
-        per_shelf: DISCOVER_SHELF_SIZE,
-      }).then(
-        (response) => response.shelves[0]?.items ?? [],
-        (error: unknown) => {
-          if (isViewerRequired(error)) onRejected.current();
-          throw error;
-        },
-      );
-  }, [active, hasProfile, current]);
+      requests
+        .shelves(visitDrive, {
+          ...visitParams,
+          by: "watch",
+          key: "continue",
+          sort: "last_played",
+          per_shelf: DISCOVER_SHELF_SIZE,
+        })
+        .then(
+          (response) => response.shelves[0]?.items ?? [],
+          (error: unknown) => {
+            if (isViewerRequired(error)) onRejected.current();
+            throw error;
+          },
+        );
+  }, [active, hasProfile, current, requests]);
 
   const loadNew = useMemo(() => {
     if (!active || current === null) return null;
     const visitParams = current.params;
     const visitDrive = current.drive;
     return () =>
-      getDriveFiles(visitDrive, {
-        ...visitParams,
-        sort: "created_at",
-        order: "desc",
-        limit: DISCOVER_SHELF_SIZE,
-      }).then((page) => page.data as ShelfItem[]);
-  }, [active, current]);
+      requests
+        .files(visitDrive, {
+          ...visitParams,
+          sort: "created_at",
+          order: "desc",
+          limit: DISCOVER_SHELF_SIZE,
+        })
+        .then((page) => page.data as ShelfItem[]);
+  }, [active, current, requests]);
 
   const { state: continueState, retry: retryContinue } = useLoad(loadContinue);
   const { state: newState, retry: retryNew } = useLoad(loadNew);
@@ -337,6 +344,7 @@ export function useDiscover({
       const settled = () => runtime.status !== "loading";
       const accepted = new Map<string, ShelfItem>();
       const restrict = createRestrict({
+        requests,
         drive: visit.drive,
         target: visit.params,
         watch: options.watch,
@@ -393,7 +401,8 @@ export function useDiscover({
           })();
         }
 
-        const stored = readCachedItems(cacheKey);
+        const stored =
+          requests.fileIds === null ? readCachedItems(cacheKey) : undefined;
         if (stored !== undefined && stored.length > 0) {
           void (async () => {
             try {
@@ -445,7 +454,7 @@ export function useDiscover({
             const byline = drawn.bylines.get(item.id);
             return byline === undefined ? { id: item.id } : { id: item.id, byline };
           });
-          writeCachedItems(cacheKey, cached);
+          if (requests.fileIds === null) writeCachedItems(cacheKey, cached);
           commit(() => {
             if (settled()) return;
             runtime.status = "loaded";
@@ -476,7 +485,7 @@ export function useDiscover({
     }
 
     rerender();
-  }, [current, catalogueReady, slots, locale]);
+  }, [current, catalogueReady, slots, locale, requests]);
 
   const positions: Position[] = [];
   if (current !== null) {
