@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "frontend/src/components/appshell/useMemberTarget.ts exists in the worktree and is imported by production files (e.g. videoapp/useVideoApp.ts, readingapp/useReadingApp.ts). The touch-point list's appshell bullet names only TargetMenu.tsx and ManageTargetsDialog.tsx, so the new hook is absent from the declared scope."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "frontend/src/components/search/InNameNotice.tsx exists and is imported by frontend/src/components/folder/FolderContent.tsx, frontend/src/components/search/PassageList.tsx and frontend/src/components/search/SearchResultsList.tsx. The touch-point list does not name the file."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "frontend/src/components/smartFolderActions.ts:15 declares 'checking: boolean' next to 'saving: boolean' (line 13). The file is not in the touch-point list, which names only SmartFolderSaveButton.tsx."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-4",
+      "status": "confirmed",
+      "note": "Both frontend/src/lib/memberTarget.ts and frontend/src/lib/inNameResolution.ts exist. The touch-point list names a single 'the new resolution module' under frontend/src/lib/, so memberTarget.ts is not in the declared scope."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-5",
+      "status": "confirmed",
+      "note": "frontend/e2e-components/fixtures/videoCardSpacing.tsx:161 and :192 pass requests={appRequests(null, null)}, importing from @/lib/memberTarget (line 18). The fixture is not in the touch-point list."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-6",
+      "status": "confirmed",
+      "note": "The new helper frontend/src/__tests__/helpers/wireFetch.ts exists, and the new tests exist under frontend/src/components/__tests__/ (GlobalSearch.inSmartCollection, SearchPage.inSmartCollection, SmartFolderSaveButton.smartCollectionRefusal), readingapp/__tests__/ReadingApp.memberTarget.test.tsx, and videoapp/__tests__/ (VideoApp.memberTarget, ShelfPage.memberTarget). None of these paths is named in the touch-point list. I did not confirm the edits to the pre-existing scope and library tests (useFolderFiles.scope.test.tsx, useFileSearch.scope.test.tsx) beyond ReadingApp.library.test.tsx, which exists."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-7",
+      "status": "confirmed",
+      "note": "frontend/src/__tests__/core-search-vocabulary.test.ts:27 adds the CALLERS entry \"components/search/InNameNotice.tsx\": 3, and :99 asserts expect(used.length).toBe(117). The file is not in the touch-point list. The previous value 115 could not be checked without git history."
+    }
+  ],
+  "specification_compliance": [
+    "The touch-point list in the review scope does not name several production, e2e fixture and test files that the commit adds or edits (useMemberTarget.ts, InNameNotice.tsx, smartFolderActions.ts, memberTarget.ts, videoCardSpacing.tsx, the new tests and wireFetch.ts, core-search-vocabulary.test.ts). This is a scope-documentation mismatch, not a behavioral defect in the code paths checked."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Whether the unlisted files change any invariant (I1 to I10) was not checked, because this review verified only the presence and location of the files, not their behavior."
+  ],
+  "regression_risks": [
+    "None identified from the file-presence checks. The unlisted files are imported by production code, so a reviewer relying on the touch-point list would miss their effect on behavior."
+  ],
+  "test_coverage": [
+    "Confirmed that the new test files exist at the listed paths. Their contents and pass status were not checked, since commands cannot be run."
+  ],
+  "not_verified": [
+    "The git diff at f112fd527 was not available, since only Read, Glob and Grep are allowed, so the 'added' and 'modified' claims were checked only against the working tree.",
+    "The previous count of 115 in core-search-vocabulary.test.ts was not verified.",
+    "The pre-existing scope and library test edits (useFolderFiles.scope.test.tsx, useFileSearch.scope.test.tsx) were not located and checked.",
+    "No test was run, and no behavioral correctness of any changed file was assessed against invariants I1 to I10."
+  ],
+  "confidence": 85
+}
