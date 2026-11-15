@@ -122,13 +122,13 @@ export function ManageTargetsDialog({
               const Icon = row.kind === "collection" ? Library : ListFilter;
               return (
                 <li key={row.targetId}>
-                  <label className="flex items-center gap-2 rounded-xl px-2 py-2 text-sm text-text-primary hover:bg-bg-elevated">
+                  <label className="flex items-start gap-2 rounded-xl px-2 py-2 text-sm text-text-primary hover:bg-bg-elevated">
                     <input
                       type="checkbox"
                       checked={row.usable && checked.has(row.targetId)}
                       disabled={pending || !row.usable}
                       onChange={() => toggle(row)}
-                      className="h-4 w-4 accent-accent disabled:cursor-not-allowed"
+                      className="mt-0.5 h-4 w-4 flex-shrink-0 accent-accent disabled:cursor-not-allowed"
                     />
                     <Icon
                       size={14}

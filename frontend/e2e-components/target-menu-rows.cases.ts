@@ -27,5 +27,13 @@ export function targetMenuRowCases(width: number): void {
 
     const m = await measureRows(page, "manage");
     expectIconRows(m, (row) => row.checkboxCentre!);
+    // A name that wraps must not squeeze its checkbox or pull it off the first line.
+    for (const row of m.rows) {
+      const box = row.checkbox!;
+      expect(box.width, row.name).toBeCloseTo(m.rows[0].checkbox!.width, 0);
+      const centre = box.top + box.height / 2;
+      expect(centre, row.name).toBeGreaterThanOrEqual(row.firstLine.top);
+      expect(centre, row.name).toBeLessThanOrEqual(row.firstLine.bottom);
+    }
   });
 }

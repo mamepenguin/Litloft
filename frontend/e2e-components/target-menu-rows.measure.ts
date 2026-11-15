@@ -46,6 +46,8 @@ export type RowMetrics = {
   firstLine: Box;
   /** The centre of the row's checkbox, for a Manage… row. */
   checkboxCentre: number | null;
+  /** The row's checkbox, for a Manage… row. */
+  checkbox: Box | null;
 };
 
 export type RowsSnapshot = {
@@ -105,6 +107,7 @@ export async function measureRows(page: Page, where: "menu" | "manage"): Promise
         iconColour: icon ? getComputedStyle(icon).color : null,
         firstLine: box(line),
         checkboxCentre: cb ? cb.left + cb.width / 2 : null,
+        checkbox: cb ? box(cb) : null,
       };
     });
     return {
