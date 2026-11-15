@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The diff adds a new module addons/intelligence/app/video_frames.py that the touch-point list does not name; the list only says the helpers move into shared helpers without naming a destination.",
+      "impact": "A reader of the touch-point list cannot tell that this module holds the shared dhash, probe, reachability and extract_frame code used by clip.py, frame_ocr.py and the scan. Review scope is under-specified; no runtime defect follows from this alone.",
+      "evidence": "addons/intelligence/app/video_frames.py:1-135 (new file, 135 lines); clip.py hunk imports extract_frame from app.video_frames; frame_ocr.py hunk imports GAP_SECONDS, HASH_BITS_THRESHOLD, Unreadable, dhash, probe, probe_geometry, reachable from app.video_frames; touch-point text lists only app/workers/clip.py and app/workers/frame_ocr.py for the move.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "Unlisted new file; no declared invariant is broken by its existence. Its contents are covered by I6 and I7 through the scan."
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The diff changes three MCP test files under mcp-server/src/__tests__/ (loftYoutube.test.ts, videoFrames.test.ts, and the new videoScenesSections.test.ts) that the touch-point list does not name; only mcp-server/src/tools/video.ts and mcp-server/README.md are listed.",
+      "impact": "No user-facing effect. The rewritten expectations pin the new frame_time behaviour of list_video_scenes (SPEC-CORE-110) and the SPEC-CORE-009 I7 labels.",
+      "evidence": "mcp-server/src/__tests__/loftYoutube.test.ts hunk at lines 56-61 and 189-192; mcp-server/src/__tests__/videoFrames.test.ts hunks at lines 219-225 and 320-331; mcp-server/src/__tests__/videoScenesSections.test.ts (new, 132 lines).",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "Test-only paths outside the named touch points; the process document does not require test files to be listed."
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "The diff adds or rewrites addon test files and test helpers that the touch-point list does not name: tests/scene_sections_db.py, tests/video_frames_doubles.py, test_spec_addon_111_frame_scan_{index,model,regenerate,task}.py, test_spec_addon_112_scene_sections.py, test_spec_addon_113_ask_frames.py, and rewrites of test_spec_addon_068_protection_redo.py, test_video_visual_router.py, test_video_visual_scene_label_migration.py and test_video_visual_worker.py.",
+      "impact": "No runtime effect. A reviewer working from the touch-point list would not expect these files to change, so the scope of the test rewrites is harder to audit.",
+      "evidence": "Diff hunks in addons/intelligence/tests/ for the files named above; the touch-point list names only test_video_visual_selection.py, test_video_scenes_endpoint.py, test_spec_addon_078_youtube_scenes.py and the SPEC-ADDON-108 test doubles.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "Test files outside the named list; the process document does not require test files to be listed."
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "TP-4",
+      "origin": "reviewer",
+      "claim": "The diff adds a new public function clip.load_image_model in a file whose touch-point scope is only the interval-frame helper move with behaviour unchanged.",
+      "impact": "The new function is the scan's model-load gate (frame_scan.py calls it before any embedding). Its behaviour is new, not a move, so the 'behaviour unchanged' scope does not cover it.",
+      "evidence": "addons/intelligence/app/workers/clip.py hunk at lines 363-377 adds load_image_model, which calls _ensure_siglip_full_loaded or _ensure_loaded; frame_scan.py imports it at the module top.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "New code in a listed file outside the stated scope; no invariant is broken. I7 'CLIP model cannot be loaded' is the behaviour it serves."
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "TP-5",
+      "origin": "reviewer",
+      "claim": "Several existing stickiness tests in test_video_visual_worker.py changed from accepted True to reason run_exists, which changes an automatic-request rule that no Revises line names.",
+      "impact": "An on_index request after a model change is now refused whenever the file has any run, including a failed one (refused as run_exists, not unsupported_sticky). A user who changed the vision model no longer gets an automatic retry on the new model; they must regenerate by hand. The new behaviour matches I9's ban on retrying a failed run, but the spec does not say that a model change no longer re-admits an automatic request.",
+      "evidence": "addons/intelligence/tests/test_video_visual_worker.py: test_unsupported_sticky_clears_on_model_change (around line 774) and the test near the 'Revises' comments at the hunk asserting result == {'accepted': False, 'reason': 'run_exists'}; app/workers/video_visual.py enqueue hunk: _automatic_request_reason returns 'run_exists' when runs.first() is not None and the run is not an active run of the current pipeline version.",
+      "repro": "Set the vision model to a different value after a failed on_index run for a video with a candidate pool, then call enqueue(file_id, requested_by='on_index'). Expected by the old test: accepted True. Current code: {'accepted': False, 'reason': 'run_exists'}. Not run.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "Code satisfies I9 as declared, so no invariant is broken. The approved behaviour that a model change clears the sticky verdict is silently changed by rewriting the test, with no Revises line recording it."
+      },
+      "severity": "MEDIUM"
+    }
+  ],
+  "specification_compliance": [
+    "The unlisted-path check is done by comparing the diff's paths with the touch-point list in the spec. Five groups are unlisted: the new app/video_frames.py module, the three mcp-server test files, the addon test files and helpers, the new clip.load_image_model function, and the rewritten stickiness tests in test_video_visual_worker.py.",
+    "No vanished-name references remain in addon app or mcp-server code: a grep for _load_candidates, select_candidates, compute_target_count, MAX_TARGET, MIN_TARGET, UNKNOWN_DURATION_TARGET and NEAR_DUPLICATE_COSINE hits only .flash/spec.md, which is a document.",
+    "app/workers/frame_ocr.py still imports _probe_geometry, _reachable, _dhash and _Unreadable under the same local names, so existing tests that monkeypatch frame_ocr._reachable and call frame_ocr._probe keep working.",
+    "The process document (docs/process/workflow.md) says the spec carries touch points and invariants, but it does not require test files to be listed as touch points."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "After a model change, an on_index request is now refused as run_exists whenever the file has any run, including a failed one. Earlier tests expected it to be accepted. Nothing in the approved spec states this."
+  ],
+  "regression_risks": [
+    "Rewriting existing tests (stickiness, the 068 enqueue list, the scene-label migration) can hide future regressions in the same behaviour, because the new expectations are pinned without a Revises line.",
+    "frame_ocr.py now calls shared helpers from app.video_frames. A future monkeypatch of frame_ocr._probe_geometry would no longer affect its internal call path, since the alias is captured at import."
+  ],
+  "test_coverage": [
+    "The unlisted test files cover the new scan, selection, queue, status and visual-index readiness. This review did not check whether they pass.",
+    "No test was run; this is a static reading of the diff, with grep checks against the worktree."
+  ],
+  "not_verified": [
+    "Test suites were not run (pytest, vitest, mcp-server tests). No claim here is about a passing or failing test.",
+    "The submodule SHA 1539ec1343ad5c648e8d8434960254ece2ae5f84 and the commit 3fd0bfcc2 were not checked against the worktree; only the presence of app/video_frames.py and the absence of removed names in app code were checked.",
+    "Whether metadata._store_embedding accepts vec_clip_change and whether the vec partition DDL matches were not checked.",
+    "The original approved text of the stickiness rule (which spec id pins test_unsupported_sticky_clears_on_model_change) was not read; the bucket reason for TP-5 rests on the test name and the diff."
+  ],
+  "confidence": 80
+}
