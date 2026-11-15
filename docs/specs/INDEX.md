@@ -239,4 +239,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-111 | implemented | docs/specs/representative-frames-v3.md | sha256:5dcbd11738954b96ae7da5c78a6a99fb9ea57816331ad13d9db462820e6d8f63 |
 | SPEC-ADDON-112 | implemented | docs/specs/representative-frames-v3.md | sha256:5dcbd11738954b96ae7da5c78a6a99fb9ea57816331ad13d9db462820e6d8f63 |
 | SPEC-ADDON-113 | implemented | docs/specs/representative-frames-v3.md | sha256:5dcbd11738954b96ae7da5c78a6a99fb9ea57816331ad13d9db462820e6d8f63 |
+| SPEC-ADDON-114 | draft | docs/specs/video-ask-text-and-frames.md | |
 | SPEC-CORE-110 | implemented | docs/specs/representative-frames-v3.md | sha256:5dcbd11738954b96ae7da5c78a6a99fb9ea57816331ad13d9db462820e6d8f63 |
