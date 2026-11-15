@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F-1",
+      "status": "confirmed",
+      "note": "Checked the working tree at the review worktree. addons/intelligence/app/frame_cache.py:143 declares the keyword-only parameter `cancelled: Callable[[], bool] | None = None` and lines 158-159 return early (`if cancelled is not None and cancelled(): return`) before subprocess.run at line 161. The claim that the file is changed is accurate. The touch-point list names frame_cache.py only as a module that the chooser and loader reuse, not as a file to edit, so this is a scope deviation. No defect was found in the change itself: the only caller that passes `cancelled` is addons/intelligence/app/rag/file_question.py:528-531, and after it returns, file_question.py:489-490 checks that the cache file exists and raises ImageUnavailable otherwise, so the early return ends in the failure path. The default None keeps existing callers (ensure_frame_cached at frame_cache.py:198, files.py:1687, and the tests) unchanged. Note that the early return happens after mkdir at line 156 and leaves an empty cache directory behind, which is harmless."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F-2",
+      "status": "confirmed",
+      "note": "Glob confirms that all four files exist: addons/intelligence/tests/test_spec_addon_108_video_frames.py, addons/intelligence/tests/test_spec_addon_109_frame_citations.py, addons/intelligence/tests/video_frames_doubles.py and addons/intelligence/frontend/AskTabFrames.test.tsx. The touch-point list names only test_spec_addon_074_picture_availability.py and test_file_question.py, so none of the four new files is listed. The line counts in the claim were not checked."
+    }
+  ],
+  "specification_compliance": [
+    "F-1: the frame_cache.py change adds an optional keyword-only parameter with a default of None, so the existing behaviour of extract_frame_to_cache is unchanged for callers that do not pass it. The change is not named in the touch-point list, which is a process deviation and not a spec invariant violation.",
+    "F-2: the four new test files are not named in the touch-point list. This is a documentation gap in the touch list and does not show a spec violation.",
+    "Invariant I7 (no frame work outside the slot, cancellation before ffmpeg) is supported by the early return at frame_cache.py:158-159 together with file_question.py:476-490, as far as these lines show. The slot logic was not traced."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "When extract_frame_to_cache returns early because `cancelled()` is true, it creates the cache directory (frame_cache.py:156) and writes no file. Callers rely on the file-existence check at file_question.py:489 to detect this, and that check is the only protection. The touch list does not state this contract for the shared module."
+  ],
+  "regression_risks": [
+    "Any future caller of extract_frame_to_cache that assumes a file is always written after a successful return could mistake a cancelled early return for success. The only current caller checks for the file, so no regression exists today.",
+    "Editing the shared module frame_cache.py also affects the HTTP frame endpoint and the video-visual worker, which use the same function. The default None keeps their behaviour unchanged, but this was not checked by running the tests."
+  ],
+  "test_coverage": [
+    "Only the file names and the presence of the new test files were checked. Their test cases were not read, so it is not known whether the cancelled early return in frame_cache.py is covered by a test."
+  ],
+  "not_verified": [
+    "The commit diff at 92613cc was not read. Git is not available with the read-only tools, so the working tree was taken to match that commit, and the diff hunk line numbers in F-1 were not compared.",
+    "The contents of the four new test files and of test_spec_addon_074 / test_file_question.py were not read, so whether the new tests cover the cancelled path is unknown.",
+    "The slot, semaphore, cancellation and 45 s deadline logic in routers/rag.py and file_question.py (invariants I7 and I8) was not traced beyond the early return.",
+    "No tests were run; the tools available are read-only.",
+    "The claim in F-2 about line counts (919, 110, 376) was not checked."
+  ],
+  "confidence": 85
+}

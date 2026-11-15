@@ -107,7 +107,7 @@ You watch subscription videos in the drive's [Video](../user-guide/video.md) app
 - **よく見るソース** / **Regular sources**: subscriptions set to **Regular source**, at most the two newest videos from each.
 - **購読の新着** / **New from subscriptions**: subscriptions set to **購読の新着に表示** / **Show in New from subscriptions**, newest first.
 
-Each card shows the channel and the publish date under the title. A shelf shows up to 12 videos, and its **See all** opens the whole lane in the Video app, under the same type and smart folder as Discover, with more videos loading as you scroll. A video that two subscriptions share appears once.
+Each card shows the channel and the publish date under the title. A shelf shows up to 12 videos, and its **See all** opens the whole lane in the Video app, under the same type and Smart Collection as Discover, with more videos loading as you scroll. A video that two subscriptions share appears once.
 
 Each subscription has a **Show in the video app** setting, chosen when you add it and changeable in its details:
 

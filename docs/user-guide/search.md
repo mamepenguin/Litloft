@@ -12,7 +12,7 @@ Before you type, the modal lists **Recent files** (the files you opened lately i
 
 Once you type, the modal shows the best matches and a **View all N results** row that opens the full search page. Use the arrow keys to pick a row and `Enter` to open it.
 
-Typing the name of a page, such as "all files" or "trash", or of a pin, collection or smart folder, also shows a **Go to** row above the files that takes you straight there. Folders whose name matches, at any depth, are listed under **Folders** just below, with the folder they are in. These are the first rows the down arrow reaches; `Enter` with no row picked still opens the full search page.
+Typing the name of a page, such as "all files" or "trash", or of a pin, collection or Smart Collection, also shows a **Go to** row above the files that takes you straight there. Folders whose name matches, at any depth, are listed under **Folders** just below, with the folder they are in. These are the first rows the down arrow reaches; `Enter` with no row picked still opens the full search page.
 
 To walk the folders instead, press `→` on a folder row, or type `/` in an empty field to start at the top of the drive. The `/` has to be typed directly: one typed through a Japanese or other input method is searched for as text, so switch to direct input first or use `→`. The modal then lists what is inside that folder, and typing narrows the list by name. `←` or `Backspace` in an empty field goes back up. On a touch screen, tap `›` at the end of a folder row to go in, and `‹` on the folder chip to go up.
 
@@ -39,8 +39,8 @@ After the chips, **＋ 条件** adds an operator without typing the syntax: **�
 Under the chips is the results bar. It holds, in order, the **ファイル / 箇所** switch (with the intelligence addon), **シーン検索**, the number of results, **View**, **Sort** and `…`. On a phone **View** and **Sort** are in `…`.
 
 - **Sort** offers **Relevance** (the default while searching) plus the usual folder orders.
-- `…` holds **Save as Smart Folder**, **選択モード**, and, with the intelligence addon, **Open Find page**.
-- A file type is chosen with **＋ 条件** → **種類**, which writes `type:<kind>` into the query. A type that arrives in the address — from the search window or a Smart Folder — shows as a **種類** chip in the row under the field; `×` on the chip removes it.
+- `…` holds **Save as Smart Collection**, **選択モード**, and, with the intelligence addon, **Open Find page**.
+- A file type is chosen with **＋ 条件** → **種類**, which writes `type:<kind>` into the query. A type that arrives in the address — from the search window or a Smart Collection — shows as a **種類** chip in the row under the field; `×` on the chip removes it.
 
 To filter by tag, kind or favourite, type an operator; see [Operators](#operators). The sidebar's tags also filter a folder; see [Tag filtering](#tag-filtering).
 
@@ -64,16 +64,20 @@ A size and a length need a comparison: `>`, `>=`, `<` or `<=`. Write a range as 
 
 With the intelligence addon, operators also filter the files found by meaning: `tag:会議 type:pdf 予算の見直し` searches for the meaning of 「予算の見直し」 among files tagged 会議 and of kind PDF. Operators alone, with no other words, list files only and run no meaning search. Scene search is off while an operator is in the query. A type in the address — shown as the **種類** chip — still applies, together with any `type:`.
 
-## Saving as a Smart Folder
+## Saving as a Smart Collection
 
-In the results bar, open `…` and choose **Save as Smart Folder**, then give it a name. It appears under **Smart Folders** in the sidebar, and the `…` menu then shows **Saved:** followed by the name, with **Overwrite**, **Rename** and **Delete**.
+In the results bar, open `…` and choose **Save as Smart Collection**, then give it a name. It appears in the sidebar's **Collections** section, and the `…` menu then shows **Saved:** followed by the name, with **Overwrite**, **Rename** and **Delete**.
 
-When the conditions of an open Smart Folder differ from what it saved — a new query, a condition added or removed, or a different type — **上書き保存 / Overwrite** appears at the right end of the row under the field, and the `…` row of the same name is enabled. Either saves the conditions on screen into that folder without asking; once they match the saved ones, the button goes and the row is disabled.
+When the conditions of an open Smart Collection differ from what it saved — a new query, a condition added or removed, or a different type — **上書き保存 / Overwrite** appears at the right end of the row under the field, and the `…` row of the same name is enabled. Either saves the conditions on screen into that Smart Collection without asking; once they match the saved ones, the button goes and the row is disabled.
 
-- A Smart Folder keeps the query and the file type. A tag is kept when it is written into the query as `tag:`.
+- A Smart Collection keeps the query and the file type. A tag is kept when it is written into the query as `tag:`.
 - It always shows the files that match now, not the ones that matched when you saved it.
 - Only the **Video**, **Image**, **Audio** and **Document** types can be saved. Use **Document** for Markdown and PDFs. Saving with another type shows an error.
-- Everyone who uses the drive sees the same Smart Folders.
+- Everyone who uses the drive sees the same Smart Collections.
+
+On a saved Smart Collection's page, while it shows the saved query and type in **ファイル**, **再生 / Play** plays its video and audio. The files play as a queue in the order shown, and when a file ends the next one opens. The queue is fixed when you press Play: later changes to the Smart Collection do not alter it, and only the next Play replaces it. Play is absent when the results hold no video or audio; on a phone it is the first row of the `…` sheet.
+
+With the intelligence addon, `…` also holds **ここに質問 / Ask here**, which opens Ask scoped to this Smart Collection. See **Ask and Find** below.
 
 ## Tag filtering
 
@@ -113,7 +117,7 @@ At the end of the results, **Show more by similarity** adds more pictures from t
 
 To find a moment inside a video (*the part where the cat jumps off the table*), turn on **Scene search** in the results bar above the results. It is off by default because it adds noise to ordinary searches.
 
-With it on, **Scene candidates** appear above the results: a grid of moments from videos in the drive, each with a frame, the file name and a time range. Click one to open the video at that time. The first eight candidates are shown; **Show all** expands the remaining candidates, and **Collapse** returns to the first eight. They are the closest matches, not a promise that the scene exists, and the grid is not shown when the search uses a smart folder or a type other than video.
+With it on, **Scene candidates** appear above the results: a grid of moments from videos in the drive, each with a frame, the file name and a time range. Click one to open the video at that time. The first eight candidates are shown; **Show all** expands the remaining candidates, and **Collapse** returns to the first eight. They are the closest matches, not a promise that the scene exists, and the grid is not shown when the search uses a Smart Collection or a type other than video.
 
 A YouTube reference can be found this way too, by a moment of the video, and opens at that time; its card shows a small picture from that moment. A reference saved before the administrator installed this version has no moments to find, and no pictures, until its **Image analysis (CLIP)** is regenerated from **Index details**.
 
@@ -129,7 +133,7 @@ The results page shows up to three groups:
 
 The image is not saved. Reloading the page or opening the same link in another tab asks you to choose the image again. A picture can be up to 20 MB and 50 megapixels; a larger one is scaled down in the browser when the browser can read it.
 
-The documents group needs readable text in the image — about 20 characters — and **Text in pictures** turned on for the drive (see [text in pictures](../addons/intelligence.md#text-in-pictures)). A picture with no readable text still returns similar pictures and scenes. An image search does not combine with operators, a type filter or text, and it cannot be saved as a Smart Folder.
+The documents group needs readable text in the image — about 20 characters — and **Text in pictures** turned on for the drive (see [text in pictures](../addons/intelligence.md#text-in-pictures)). A picture with no readable text still returns similar pictures and scenes. An image search does not combine with operators, a type filter or text, and it cannot be saved as a Smart Collection.
 
 ## Ask and Find (intelligence addon)
 
@@ -141,13 +145,13 @@ The documents group needs readable text in the image — about 20 characters —
 
 When more than one model is available, a select beside the **Ask** button picks the model for your questions; **Auto** uses the one the administrator assigned. It goes back to **Auto** when you reopen the page or switch drives. AI summaries have the same choice under the **▾** beside **Create again**.
 
-To ask about one file, open it and use the **Ask** tab beside its details; the answer cites times, pages or sections you can click to jump there. The tab appears once the file has been indexed, a little after upload. A picture that has no text can be asked about when a model that can read images is set up. While a video or audio file is playing, a question can be about that moment — for a video, what is on screen, and for a YouTube reference too (the answer can take up to 15 seconds longer to start). When the answer was meant to use an image and could not, a line under the answer says the image could not be used and the answer is from the text only.
+To ask about one file, open it and use the **Ask** tab beside its details; the answer cites times, pages or sections you can click to jump there. The tab appears once the file has been indexed, a little after upload. A picture that has no text can be asked about when a model that can read images is set up. A video with no speech and no text on screen can be asked about the same way; its answer comes from a handful of frames of the video, so it can miss what happens between them, and a time in the answer jumps to that frame. While a video or audio file is playing, a question can be about that moment — for a video, what is on screen, and for a YouTube reference too (the answer can take up to 15 seconds longer to start). When the answer was meant to use an image and could not, a line under the answer says the image could not be used and the answer is from the text only.
 
 Keep asking in the same tab: each question takes the earlier ones into account. **新しい会話** (New conversation) clears the conversation and starts over. The conversation lasts only while the page is open, and **Markdownで保存** (Save as Markdown) keeps it as a note in the drive. A note saved this way is unverified, so Ask does not use it as evidence until you press **Trust as a source** on it (see [Trusted sources](file-browsing.md#trusted-sources-and-the-review-queue)). A follow-up can say it read only part of the file even when the first question did not, because the earlier conversation shares the room available for reading the file.
 
 Ask sends parts of your files to the language model. An administrator can use a local model, or turn Ask off for a drive. See the [intelligence addon](../addons/intelligence.md#ask-rag).
 
-**Ask within a folder, a collection, tags or kinds.** The folder `…` menu's **ここに質問** and the collection page's **ここに質問** open Ask already narrowed to that folder (and everything under it) or that collection. Under the Ask field the narrowing appears as chips; **＋ 範囲** adds another folder, collection, tag or kind, and a chip's `×` removes one. Ask answers only from those files, and says **この範囲にはファイルがありません** when the scope holds none. The chips travel with you to **Find** and back, though Find itself is not narrowed. The folder menu entry is absent at the drive root and for a name containing a double quote, which the query syntax cannot express.
+**Ask within a folder, a collection, a Smart Collection, tags or kinds.** The folder `…` menu's **ここに質問** and the collection page's **ここに質問** open Ask already narrowed to that folder (and everything under it) or that collection; a saved Smart Collection's `…` menu's **ここに質問** narrows it to the files its search page lists in **ファイル**. Under the Ask field the narrowing appears as chips; **＋ 範囲** adds another folder, collection, tag or kind, and a chip's `×` removes one. Ask answers only from those files, and says **この範囲にはファイルがありません** when the scope holds none. The chips travel with you to **Find** and back, though Find itself is not narrowed. The folder menu entry is absent at the drive root and for a name containing a double quote, which the query syntax cannot express.
 
 ## Duplicate files
 

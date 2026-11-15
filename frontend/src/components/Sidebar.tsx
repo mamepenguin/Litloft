@@ -24,20 +24,19 @@ import { isLibraryRowActive, pinHrefFor } from "./sidebar/libraryRowActive";
 import { normaliseDriveView } from "@/lib/driveViews";
 import { SidebarCollectionsSection } from "./sidebar/SidebarCollectionsSection";
 import { SidebarPinsSection } from "./sidebar/SidebarPinsSection";
-import { SidebarSmartFoldersSection } from "./sidebar/SidebarSmartFoldersSection";
 import { SidebarTagsSection } from "./sidebar/SidebarTagsSection";
 import { SectionDragHandle } from "./sidebar/SectionDragHandle";
 import { useSidebarSectionOrder } from "./sidebar/useSidebarSectionOrder";
 import { useReorderableDnD } from "./sidebar/useReorderableDnD";
 
 /**
- * Stable IDs for the four reorderable sections (canonical order = default display order).
+ * Stable IDs for the three reorderable sections (canonical order = default display order).
  * These IDs match the keys used by useSidebarSectionCollapsed to keep namespaces consistent.
  */
 // Read only by `typeof` on the next line, which the rule does not count as
 // a use. The declaration cannot go: the type is derived from the value.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const REORDERABLE_SECTIONS = ["collections", "pins", "smart-folders", "tags"] as const;
+const REORDERABLE_SECTIONS = ["collections", "pins", "tags"] as const;
 type ReorderableSectionId = (typeof REORDERABLE_SECTIONS)[number];
 
 interface SidebarProps {
@@ -122,13 +121,12 @@ function SidebarNav({ hiddenKeys }: { hiddenKeys: ReadonlySet<string> | null }) 
     const ids: ReorderableSectionId[] = [];
     if (driveBase) ids.push("collections");
     if (driveBase) ids.push("pins");
-    if (currentDrive) ids.push("smart-folders");
     if (driveBase) ids.push("tags");
     return ids;
-  // driveBase / currentDrive change only when the drive changes, so this
-  // memo is very stable in practice.
+  // driveBase changes only when the drive changes, so this memo is very
+  // stable in practice.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [!!driveBase, !!currentDrive]);
+  }, [!!driveBase]);
 
   const { order, setOrder } = useSidebarSectionOrder(availableSections);
   const dnd = useReorderableDnD({
@@ -192,6 +190,7 @@ function SidebarNav({ hiddenKeys }: { hiddenKeys: ReadonlySet<string> | null }) 
                 currentDrive={currentDrive}
                 setCollectionList={setCollectionList}
                 dragHandle={handle}
+                close={closeIfOverlay}
                 {...collection}
               />
             </div>
@@ -207,19 +206,6 @@ function SidebarNav({ hiddenKeys }: { hiddenKeys: ReadonlySet<string> | null }) 
                 drive={currentDrive}
                 pins={pins}
                 linkClass={linkClass}
-                close={closeIfOverlay}
-                dragHandle={handle}
-              />
-            </div>
-          );
-        }
-
-        if (id === "smart-folders" && currentDrive) {
-          return (
-            <div key={id} className="relative" {...dnd.getRowProps(id)}>
-              {dropIndicator}
-              <SidebarSmartFoldersSection
-                drive={currentDrive}
                 close={closeIfOverlay}
                 dragHandle={handle}
               />

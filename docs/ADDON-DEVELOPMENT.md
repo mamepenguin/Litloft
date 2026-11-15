@@ -817,6 +817,7 @@ plus what its row lists.
 | Slot ID | Location | Props / contract |
 |---------|----------|------------------|
 | `search-modes` | Search results page (`/drive/{drive}/search`), inside the results bar's `…` menu. Not the header search modal, and not drawn for a query with operators | `{ query, drive, filter, onSelect, closeMenu }`. Draw each entry as an `ActionMenuItem` row and call `closeMenu` before `onSelect`, so the menu closes before the page changes. The slot mounts on every open of the menu |
+| `smart-collection-actions` | Search results page (`/drive/{drive}/search`), inside the results bar's `…` menu, after the saved block, while the page is a saved Smart Collection's and its query and type equal the saved ones; in both Files and Passages | `{ drive, smartCollectionId, smartCollectionName, closeMenu }`. Draw each entry as an `ActionMenuItem` row and call `closeMenu` before navigating, so the menu closes before the page changes. With no entry nothing is drawn |
 | `search-results-top` | Search results page (`/drive/{drive}/search`), under the results bar and above the results. Not drawn for a query with operators, nor in Passages with a non-blank query | `{ query, drive, includeSceneClip, typeFilter, smartFolderId }`. `typeFilter` and `smartFolderId` are `null` when unset. Draw nothing when you have nothing to show: the host adds no wrapper |
 | `search-result-actions` | Next to a match excerpt in search results | `{ capture }` |
 | `file-detail-sections` | File detail inspector, **Info** tab | File props. On a file without a player, the entries `detailed-summary` and `knowledge-edit` are placed outside the tab by the core (the canvas, the sheet, or the end of Info in the stacked inspector). On a player file, an entry whose id is also a `player-side` entry is drawn only as that panel; on a file without a player it is drawn here. Not for derived relations (`file-relations`) |
@@ -1317,7 +1318,7 @@ useGlobalSearch().open();                    // open it now, in that scope
 
 The built-in apps share one header: the app's icon and title, a scope line
 naming the drive and the item count, a **Target** menu that narrows the app to
-one of the drive's smart folders, and a tabs row. An addon page draws the same
+one of the drive's Smart Collections, and a tabs row. An addon page draws the same
 header, with its own app key.
 
 ```tsx
@@ -1333,7 +1334,7 @@ const APP: AppKey = { addon: "<name>" }; // the addon's own name
 const BASE_KINDS: readonly FileKind[] = ["image"]; // the kinds the page lists
 
 const folders = useLoad(() => getSmartFolders(drive));
-const savedId = readAppTarget(drive, APP); // "default" or a smart folder id
+const savedId = readAppTarget(drive, APP); // "default" or a Smart Collection id
 const folder =
   folders.status === "loaded"
     ? folders.data.find((candidate) => candidate.id === savedId) ?? null
@@ -1454,7 +1455,7 @@ Always `import app.config as config`, never `from app.config import X`
 ### `filtered_drive_files`
 
 The predicate `GET /api/drives/{drive}/files` and the shelves endpoint share,
-so an addon applying a smart folder selects the same files the listing does.
+so an addon applying a Smart Collection selects the same files the listing does.
 
 ```python
 from app.models import File
@@ -1668,6 +1669,7 @@ Slot entries each addon declares, for reference when designing your own.
 | Addon | Slot | Entry IDs |
 |-------|------|-----------|
 | `intelligence` | `search-modes` | `find-mode` |
+| `intelligence` | `smart-collection-actions` | `smart-collection-ask` |
 | `intelligence` | `search-results-top` | `scene-segments` |
 | `intelligence` | `file-detail-sections` | `unverified-source`, `suggested-tags`, `suggested-chapters`, `summary`, `detailed-summary`, `visual-description` |
 | `intelligence` | `file-relations` | `similar-files` |

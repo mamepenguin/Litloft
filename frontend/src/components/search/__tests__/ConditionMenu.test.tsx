@@ -10,17 +10,20 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 
 import type { CollectionSummary, FileKind, FolderTreeNode } from "@/types";
+import type { SmartFolder } from "@/types/smartFolder";
 
 const api = vi.hoisted(() => ({
   getDriveTags: vi.fn(),
   getFolderTree: vi.fn(),
   getCollections: vi.fn(),
+  getSmartFolders: vi.fn(),
 }));
 
 vi.mock("@/lib/api", () => ({
   getDriveTags: (...args: unknown[]) => api.getDriveTags(...args),
   getFolderTree: (...args: unknown[]) => api.getFolderTree(...args),
   getCollections: (...args: unknown[]) => api.getCollections(...args),
+  getSmartFolders: (...args: unknown[]) => api.getSmartFolders(...args),
 }));
 
 const folder = (path: string): FolderTreeNode => ({
@@ -42,11 +45,24 @@ const collection = (name: string): CollectionSummary => ({
   updated_at: "2026-01-01T00:00:00Z",
 });
 
+const smartFolder = (name: string): SmartFolder => ({
+  id: `smart-${name}`,
+  drive: "main",
+  name,
+  query: "cats",
+  file_type: null,
+  sort_by: null,
+  sort_order: null,
+  created_at: "2026-01-01T00:00:00Z",
+  updated_at: null,
+});
+
 type ConditionEntry =
   | "tag"
   | "kind"
   | "folder"
   | "collection"
+  | "collectionWithSmart"
   | "size"
   | "duration"
   | "favorite";
@@ -56,6 +72,7 @@ const ROOT_LABEL: Record<ConditionEntry, string> = {
   kind: "Type",
   folder: "Folder",
   collection: "Collection",
+  collectionWithSmart: "Collection",
   size: "Size",
   duration: "Length",
   favorite: "Favorites",
@@ -98,6 +115,7 @@ beforeEach(() => {
   api.getDriveTags.mockResolvedValue([]);
   api.getFolderTree.mockResolvedValue([]);
   api.getCollections.mockResolvedValue([]);
+  api.getSmartFolders.mockResolvedValue([]);
 });
 
 describe("SPEC-CORE-044 ConditionMenu", () => {
@@ -218,6 +236,41 @@ describe("SPEC-CORE-044 ConditionMenu", () => {
     fireEvent.click(await screen.findByRole("menuitem", { name: /Photos/ }));
 
     expect(onChoose).toHaveBeenCalledWith("cats path:Photos");
+  });
+});
+
+describe("SPEC-ADDON-110 step 7 / I10 the collection list an Ask page asks for", () => {
+  const rows = () =>
+    screen.queryAllByRole("menuitem").map((row) => row.textContent?.trim() ?? "");
+  const iconOf = (name: string) =>
+    screen.getByRole("menuitem", { name }).querySelector("svg")?.getAttribute("class") ?? "";
+
+  it("lists collections and Smart Collections as one collator-ordered list, each with its icon", async () => {
+    api.getCollections.mockResolvedValue([collection("b10"), collection("Alpha")]);
+    api.getSmartFolders.mockResolvedValue([smartFolder("B2"), smartFolder("alpha 2")]);
+    const { onChoose } = await renderMenu({ entries: ["collectionWithSmart"] });
+    openRoot();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Collection" }));
+
+    await waitFor(() =>
+      expect(rows()).toEqual(["Alpha", "alpha 2", "B2", "b10"]),
+    );
+    expect(iconOf("Alpha")).toContain("lucide-library");
+    expect(iconOf("B2")).toContain("lucide-list-filter");
+
+    fireEvent.click(screen.getByRole("menuitem", { name: "B2" }));
+    expect(onChoose).toHaveBeenCalledWith("cats in:B2");
+  });
+
+  it("reads only collections for the entries the search page passes", async () => {
+    api.getCollections.mockResolvedValue([collection("Alpha")]);
+    api.getSmartFolders.mockResolvedValue([smartFolder("B2")]);
+    await renderMenu({ entries: ["collection"] });
+    openRoot();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Collection" }));
+
+    await waitFor(() => expect(rows()).toEqual(["Alpha"]));
+    expect(api.getSmartFolders).not.toHaveBeenCalled();
   });
 });
 

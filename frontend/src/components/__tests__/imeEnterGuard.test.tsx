@@ -24,6 +24,22 @@ vi.mock("@/components/AddonSlotsProvider", () => ({
   useAddonSlots: () => ({ hasSlot: () => false }),
 }));
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+}));
+
+vi.mock("@/hooks/useSmartFolders", () => ({
+  useSmartFolders: () => ({
+    smartFolders: [],
+    loading: false,
+    error: null,
+    refetch: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    remove: vi.fn(),
+  }),
+}));
+
 import { CollectionPicker } from "../CollectionPicker";
 import { SmartFolderSaveDialog } from "../SmartFolderSaveDialog";
 import { FolderToolbar } from "../folder/FolderToolbar";
@@ -48,6 +64,7 @@ function mountSidebar(props: Record<string, unknown>) {
     <SidebarCollectionsSection
       currentDrive="main"
       driveBase="/drive/main"
+      close={vi.fn()}
       collectionList={[
         {
           id: "c1",

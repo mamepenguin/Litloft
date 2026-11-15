@@ -965,6 +965,10 @@ export function FolderBrowser({
           smartFolderId={smartFolderId ?? null}
           show={show}
           includeSceneClip={!!includeSceneClip}
+          sort={sort}
+          order={order}
+          hasPlayableFiles={hasPlayableFiles}
+          passagesView={passagesView}
           focusMoreTrigger={focusMoreTrigger}
         >
           {inner}

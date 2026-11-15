@@ -7,7 +7,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { useState } from "react";
-import { Folder, Library, Search } from "lucide-react";
+import { Folder, Library, ListFilter } from "lucide-react";
 
 import { WebSocketContext } from "@/components/WebSocketProvider";
 import { builtinApps } from "@/lib/builtinApps";
@@ -223,7 +223,7 @@ const normal = (href: string, drive = DRIVE) => {
 };
 const iconOf = (el: Element) =>
   (el.querySelector("svg")?.getAttribute("class") ?? "").split(/\s+/).filter((c) => c.startsWith("lucide-") && c !== "lucide-icon");
-function iconClass(Icon: typeof Search): string[] {
+function iconClass(Icon: typeof ListFilter): string[] {
   const { container, unmount } = render(<Icon />);
   const classes = iconOf(container);
   unmount();
@@ -315,14 +315,14 @@ describe("SPEC-CORE-101 I4 I5 the shortcuts in the entry row", () => {
     expect(normal(tiles[3].getAttribute("href")!)).toBe(`${enc(DRIVE)}/collections/${COL.id}`);
   });
 
-  it("SPEC-CORE-101 I5 draws each kind with the sidebar's icon", async () => {
+  it("SPEC-CORE-106 I1 / SPEC-CORE-101 I5 draws each kind with the sidebar's icon, ListFilter for a Smart Collection", async () => {
     answerFor = () => [SF, PIN, COL];
     render(<Live drive={DRIVE} />);
     await findAppsNav();
     await waitFor(() => expect(labels()).toHaveLength(6));
     const tiles = entryLinks(appsNav()).slice(3);
 
-    const expected = [iconClass(Search), iconClass(Folder), iconClass(Library)];
+    const expected = [iconClass(ListFilter), iconClass(Folder), iconClass(Library)];
     expect(expected.every((c) => c.length === 1)).toBe(true);
     expect(tiles.map(iconOf)).toEqual(expected);
   });

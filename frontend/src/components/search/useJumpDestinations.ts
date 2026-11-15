@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Folder, Library, Package, Search, type LucideIcon } from "lucide-react";
+import { Folder, Library, ListFilter, Package, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { useAddonSlots } from "@/components/AddonSlotsProvider";
@@ -187,7 +187,7 @@ export function useJumpDestinations(
       label: folder.name,
       names: [folder.name],
       href: smartFolderHref(folder),
-      icon: Search,
+      icon: ListFilter,
     }));
 
     return [...fixed, ...addonRows, ...pinRows, ...collectionRows, ...smartRows];

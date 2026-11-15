@@ -157,11 +157,11 @@ describe("Manage… and the shown set", () => {
     await waitFor(() => expect(readShownTargets(DRIVE)).toEqual(["sf-a"]));
   });
 
-  it("filters the checklist by name", async () => {
+  it("SPEC-CORE-106 I1 filters the checklist by name", async () => {
     render(menu());
     await openManage();
 
-    fireEvent.change(screen.getByRole("searchbox", { name: "Search smart folders" }), {
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search smart collections" }), {
       target: { value: "alp" },
     });
 

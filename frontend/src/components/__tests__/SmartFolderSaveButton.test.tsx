@@ -115,7 +115,7 @@ const replaced = () => {
   return { pathname: url.pathname, params: url.searchParams };
 };
 
-describe("the Smart Folder rows in the … menu", () => {
+describe("SPEC-CORE-106 I1 the Smart Collection rows in the … menu", () => {
   beforeEach(() => {
     routerReplace.mockReset();
     createMock.mockReset();
@@ -126,7 +126,7 @@ describe("the Smart Folder rows in the … menu", () => {
 
   it("offers Save when no smart folder is resolved", () => {
     menu();
-    expect(screen.getByRole("menuitem", { name: "Save as Smart Folder" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Save as Smart Collection" })).toBeInTheDocument();
   });
 
   it("offers nothing for a blank query", () => {
@@ -145,20 +145,20 @@ describe("the Smart Folder rows in the … menu", () => {
     for (const name of ["Overwrite", "Rename", "Delete"]) {
       expect(screen.getByRole("menuitem", { name })).toBeInTheDocument();
     }
-    expect(screen.queryByRole("menuitem", { name: "Save as Smart Folder" })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: "Save as Smart Collection" })).toBeNull();
   });
 
   it("falls back to Save for an unresolved smart_folder_id", () => {
     mockSmartFolders = [SAMPLE];
     menu({ smartFolderId: "missing-id" });
 
-    expect(screen.getByRole("menuitem", { name: "Save as Smart Folder" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Save as Smart Collection" })).toBeInTheDocument();
     expect(screen.queryByText(/Saved:/)).toBeNull();
   });
 
   it("closes the menu before opening Save", () => {
     const { closeMenu } = menu();
-    fireEvent.click(screen.getByRole("menuitem", { name: "Save as Smart Folder" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Save as Smart Collection" }));
 
     expect(closeMenu).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId("save-dialog-save")).toBeInTheDocument();
@@ -173,7 +173,7 @@ describe("the Smart Folder rows in the … menu", () => {
         </div>
       </SmartFolderController>,
     );
-    fireEvent.click(screen.getByRole("menuitem", { name: "Save as Smart Folder" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Save as Smart Collection" }));
 
     rerender(
       <SmartFolderController {...props}>
@@ -188,7 +188,7 @@ describe("the Smart Folder rows in the … menu", () => {
     createMock.mockResolvedValueOnce({ ...SAMPLE, id: "new-id" });
     menu({ query: "foo", typeFilter: "video", show: "passages", includeSceneClip: true });
 
-    fireEvent.click(screen.getByRole("menuitem", { name: "Save as Smart Folder" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Save as Smart Collection" }));
     fireEvent.click(screen.getByTestId("dialog-submit"));
 
     await waitFor(() => expect(createMock).toHaveBeenCalledTimes(1));
@@ -268,11 +268,11 @@ describe("the Smart Folder rows in the … menu", () => {
     createMock.mockRejectedValueOnce(new Error("offline"));
     menu();
 
-    fireEvent.click(screen.getByRole("menuitem", { name: "Save as Smart Folder" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Save as Smart Collection" }));
     await act(async () => {
       fireEvent.click(screen.getByTestId("dialog-submit"));
     });
 
-    expect(await screen.findByText("Failed to save Smart Folder")).toBeInTheDocument();
+    expect(await screen.findByText("Failed to save Smart Collection")).toBeInTheDocument();
   });
 });

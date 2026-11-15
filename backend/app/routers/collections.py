@@ -17,6 +17,7 @@ from app.schemas import (
     CollectionUpdateRequest,
     file_to_response,
 )
+from app.services.collection_names import name_in_use
 
 router = APIRouter(prefix="/api/drives", tags=["collections"])
 
@@ -109,13 +110,8 @@ def create_collection(
 ):
     _validate_drive(drive_name, unlocked_groups)
 
-    existing = (
-        db.query(Collection)
-        .filter(Collection.drive == drive_name, Collection.name == body.name)
-        .first()
-    )
-    if existing:
-        raise HTTPException(status_code=409, detail="Collection name already exists")
+    if name_in_use(db, drive_name, body.name):
+        raise HTTPException(status_code=409, detail="Name already in use")
 
     collection = Collection(
         drive=drive_name, name=body.name, description=body.description
@@ -156,19 +152,10 @@ def update_collection(
     collection = _get_collection_or_404(db, collection_id, drive_name)
 
     if body.name is not None and body.name != collection.name:
-        existing = (
-            db.query(Collection)
-            .filter(
-                Collection.drive == drive_name,
-                Collection.name == body.name,
-                Collection.id != collection_id,
-            )
-            .first()
-        )
-        if existing:
-            raise HTTPException(
-                status_code=409, detail="Collection name already exists"
-            )
+        if name_in_use(
+            db, drive_name, body.name, exclude_collection_id=collection_id
+        ):
+            raise HTTPException(status_code=409, detail="Name already in use")
         collection.name = body.name
 
     if "description" in body.model_fields_set:

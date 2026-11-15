@@ -21,6 +21,7 @@ from app.schemas import (
     SmartFolderResponse,
     SmartFolderUpdate,
 )
+from app.services.collection_names import name_in_use
 
 router = APIRouter(prefix="/api/drives", tags=["smart-folders"])
 
@@ -77,6 +78,9 @@ def create_smart_folder(
     unlocked = get_unlocked_groups(request)
     _validate_drive(drive_name, unlocked)
 
+    if name_in_use(db, drive_name, payload.name):
+        raise HTTPException(status_code=409, detail="Name already in use")
+
     sf = SmartFolder(
         drive=drive_name,
         viewer_id=viewer_id,
@@ -109,6 +113,11 @@ def update_smart_folder(
     sf = _get_or_404(db, sf_id, drive_name)
 
     updates = payload.model_dump(exclude_unset=True)
+    new_name = updates.get("name")
+    if new_name is not None and new_name != sf.name:
+        if name_in_use(db, drive_name, new_name, exclude_smart_folder_id=sf_id):
+            raise HTTPException(status_code=409, detail="Name already in use")
+
     for key, value in updates.items():
         setattr(sf, key, value)
 
