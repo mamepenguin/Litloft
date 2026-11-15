@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1-touchpoint-109-frame-citations",
+      "origin": "reviewer",
+      "claim": "The diff rewrites assertions in addons/intelligence/tests/test_spec_addon_109_frame_citations.py, a file the spec's touch-point list does not name.",
+      "impact": "The spec's scope list is incomplete, so a reader using it to judge which expectations changed would miss this rewrite. Runtime behaviour is not changed by this file alone.",
+      "evidence": "Diff hunks tests/test_spec_addon_109_frame_citations.py @@ -13,15 +13,14 @@ (listed_in_order and user_prompt imports removed, assert_labelled import added) and @@ -80,7 +79,7 @@ (listed_in_order(user_prompt(wire), ['0:12', '1:02:05']) replaced by assert_labelled(wire, wire.image_bodies[0], first=1, times=[12.3456, 3725.9])). The spec's Touch points list (docs/specs/video-ask-text-and-frames.md) names the 071 picture_frame, 077 youtube, 071 image_stream, 072 position and 108 video_frames files, and for the I11 layout only test_vision_llm_client.py, test_spec_addon_108_video_frames.py and the SPEC-ADDON-114 acceptance tests. 109 is not among them.",
+      "repro": "not_reproduced: a comparison of the diff's file list with the spec's touch-point list. Every other changed file in the diff is covered by a listed item or is an implicit touch point (new spec, INDEX.md, review records, new SPEC-ADDON-114 test files and frame_label_layout.py helper, submodule pointer).",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "No declared invariant is broken. I8 keeps text-less videos unchanged apart from the I11 request layout, and this rewrite is that I11 layout change, so the code is consistent with the spec. The defect is only that the touch-point list is incomplete, which reads wrong to a reviewer but leads to no wrong code change."
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add test_spec_addon_109_frame_citations.py to the spec's touch-point list under the I11 layout rewrite."
+    }
+  ],
+  "specification_compliance": [
+    "Every changed production file (routers/rag.py, file_question.py, llm.py, prompt.py, the two jinja2 templates) is in the touch-point list.",
+    "The docs changed (search.md, intelligence.md, api.md, INDEX.md) and the submodule pointer are in the touch-point list. The new spec file and the review record are implicit touch points.",
+    "The one unlisted touch point is test_spec_addon_109_frame_citations.py (see F1).",
+    "No frontend, migration, Internal API or core file changed. The diff has no protected path."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The spec lists test_vision_llm_client.py as a test to update to the I11 layout, but the diff does not touch it. A grep finds no generate_stream_with_images call in that file, so the spec's list appears over-inclusive rather than the code under-updated."
+  ],
+  "regression_risks": [
+    "The 109 test now asserts the I11 label layout. If the label format changes, that test fails for the same reason as the 108 and 114 tests, so no extra coverage is lost."
+  ],
+  "test_coverage": [
+    "Checked by grep: the helpers the new tests import (timed_post, disconnect_during_preparation, ask_slots, FFmpeg, Wire.has_image/text_of/system_of, ffmpeg_fails, openai_config) exist in the tests tree, though most are not in the diff. Checked test_spec_addon_071_image_stream.py lines 374-397 and 584-603 (text video, position 5.0, duration None): only the position frame is prepared there, so their unchanged assertions still hold by reading."
+  ],
+  "not_verified": [
+    "I did not run the tests or read test_spec_addon_109_frame_citations.py in full. The finding rests on the diff hunks and the spec's list.",
+    "I did not check whether .flash/spec.md, which matched a grep for the spec text, is tracked or generated.",
+    "I did not read every test in test_spec_addon_071_picture_frame.py, test_spec_addon_077_youtube_ask.py or test_spec_addon_108_video_frames.py against the listed ranges."
+  ],
+  "confidence": 80
+}
