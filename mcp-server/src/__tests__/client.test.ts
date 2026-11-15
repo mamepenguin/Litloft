@@ -419,3 +419,32 @@ describe("requestBytes (SPEC-CORE-008)", () => {
     expect(Date.now() - started).toBeLessThan(1_500);
   });
 });
+
+describe("request per-call timeout (SPEC-CORE-112)", () => {
+  const PATH = "/app-api/smart-collection-members";
+
+  function slowAnswer(ms: number) {
+    server.use(
+      http.get(`${BASE_URL}${PATH}`, async () => {
+        await new Promise((resolve) => setTimeout(resolve, ms));
+        return HttpResponse.json({ ok: true });
+      })
+    );
+  }
+
+  it("SPEC-CORE-112 I8: a short per-call timeout aborts before the client default", async () => {
+    slowAnswer(2_000);
+    const client = createLitloftClient({ baseUrl: BASE_URL, token: TOKEN, timeoutMs: 10_000 });
+    const started = Date.now();
+    await expect(client.request("GET", PATH, { timeoutMs: 30 })).rejects.toMatchObject({
+      name: "TimeoutError",
+    });
+    expect(Date.now() - started).toBeLessThan(1_500);
+  });
+
+  it("SPEC-CORE-112 I8: a long per-call timeout outlasts a shorter client default", async () => {
+    slowAnswer(200);
+    const client = createLitloftClient({ baseUrl: BASE_URL, token: TOKEN, timeoutMs: 30 });
+    await expect(client.request("GET", PATH, { timeoutMs: 5_000 })).resolves.toEqual({ ok: true });
+  });
+});

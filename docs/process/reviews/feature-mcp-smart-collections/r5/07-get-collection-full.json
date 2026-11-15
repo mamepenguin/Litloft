@@ -1,0 +1,71 @@
+{
+  "tool": "get_collection",
+  "arguments": {
+    "drive": "動画",
+    "collection_id": "Hig9iGBSlFea",
+    "fields": "full",
+    "offset": 0,
+    "limit": 2
+  },
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"id\":\"Hig9iGBSlFea\",\"name\":\"Case Check\",\"kind\":\"smart\",\"query\":\"tag:あんこ\",\"file_type\":null,\"complete\":true,\"total\":8,\"offset\":0,\"items\":[{\"position\":0,\"file\":{\"id\":\"BVtZs91FE2MA\",\"filename\":\"【フリーザー12連戦】三鳥最終日!!!ダイマックスの伝説ってこんなに難しかったっけ？？？【ポケモンGO】.loft\",\"title\":\"【フリーザー12連戦】三鳥最終日!!!ダイマックスの伝説ってこんなに難しかったっけ？？？【ポケモンGO】\",\"description\":\"\",\"drive\":\"動画\",\"folder_path\":\"YouTube\",\"file_type\":\"video\",\"mime_type\":\"application/vnd.litloft.loft+json\",\"thumbnail_url\":\"/api/files/BVtZs91FE2MA/thumbnail\",\"has_thumbnail\":true,\"file_size\":83,\"duration\":null,\"image_width\":null,\"image_height\":null,\"liked_at\":null,\"is_favorite\":false,\"tags\":[\"あんこ\"],\"subtitles\":[],\"created_at\":\"2026-09-27T13:41:06.841177Z\",\"updated_at\":\"2026-09-27T13:41:06.961824Z\",\"deleted_at\":null,\"missing_since\":null,\"trust_tier\":\"verified\",\"trust_reviewed_at\":null,\"match_source\":null}},{\"position\":1,\"file\":{\"id\":\"tSS4ETXxZ_wh\",\"filename\":\"【絶望】マスタリーシリーズ!!!最後に重大なミスに気付く……【ポケモンGO】.loft\",\"title\":\"【絶望】マスタリーシリーズ!!!最後に重大なミスに気付く……【ポケモンGO】\",\"description\":\"\",\"drive\":\"動画\",\"folder_path\":\"YouTube\",\"file_type\":\"video\",\"mime_type\":\"application/vnd.litloft.loft+json\",\"thumbnail_url\":\"/api/files/tSS4ETXxZ_wh/thumbnail\",\"has_thumbnail\":true,\"file_size\":83,\"duration\":null,\"image_width\":null,\"image_height\":null,\"liked_at\":null,\"is_favorite\":false,\"tags\":[\"あんこ\"],\"subtitles\":[],\"created_at\":\"2026-09-26T14:29:56.266374Z\",\"updated_at\":\"2026-09-26T14:29:56.386564Z\",\"deleted_at\":null,\"missing_since\":null,\"trust_tier\":\"verified\",\"trust_reviewed_at\":null,\"match_source\":null}}]}"
+      }
+    ]
+  },
+  "requests": [
+    {
+      "method": "GET",
+      "url": "/api/drives/%E5%8B%95%E7%94%BB/collections/Hig9iGBSlFea",
+      "headers": {
+        "host": "127.0.0.1:4599",
+        "connection": "keep-alive",
+        "authorization": "Bearer r5",
+        "accept": "*/*",
+        "accept-language": "*",
+        "sec-fetch-mode": "cors",
+        "user-agent": "node",
+        "accept-encoding": "gzip, deflate"
+      },
+      "body": "",
+      "status": 404,
+      "response_type": "application/json"
+    },
+    {
+      "method": "GET",
+      "url": "/api/drives/%E5%8B%95%E7%94%BB/smart-folders",
+      "headers": {
+        "host": "127.0.0.1:4599",
+        "connection": "keep-alive",
+        "authorization": "Bearer r5",
+        "accept": "*/*",
+        "accept-language": "*",
+        "sec-fetch-mode": "cors",
+        "user-agent": "node",
+        "accept-encoding": "gzip, deflate"
+      },
+      "body": "",
+      "status": 200,
+      "response_type": "application/json"
+    },
+    {
+      "method": "GET",
+      "url": "/app-api/smart-collection-members?drive=%E5%8B%95%E7%94%BB&id=Hig9iGBSlFea&offset=0&limit=2",
+      "headers": {
+        "host": "127.0.0.1:4599",
+        "connection": "keep-alive",
+        "authorization": "Bearer r5",
+        "accept": "*/*",
+        "accept-language": "*",
+        "sec-fetch-mode": "cors",
+        "user-agent": "node",
+        "accept-encoding": "gzip, deflate"
+      },
+      "body": "",
+      "status": 200,
+      "response_type": "application/json"
+    }
+  ]
+}

@@ -15,6 +15,8 @@ export interface LitloftRequestOptions {
   // proxy's X-Lit-Drive (drive-scoped addon routes like intelligence's
   // semantic search).
   headers?: Record<string, string>;
+  /** This call's timeout in milliseconds; defaults to the client's. */
+  timeoutMs?: number;
 }
 
 export interface LitloftSseRequestOptions extends LitloftRequestOptions {
@@ -169,7 +171,7 @@ export function createLitloftClient(config: LitloftClientConfig): LitloftClient 
         method,
         headers,
         body,
-        signal: AbortSignal.timeout(timeoutMs),
+        signal: AbortSignal.timeout(options.timeoutMs ?? timeoutMs),
       });
 
       return finishJsonOrText<T>(res);

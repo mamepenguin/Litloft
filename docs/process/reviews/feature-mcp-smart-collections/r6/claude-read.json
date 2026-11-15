@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R1-TP-1",
+      "origin": "reviewer",
+      "claim": "The diff adds three browser-shared request modules under frontend/src/lib (listingRequest.ts, semanticSearchRequest.ts, addonStatusRequest.ts) that the touch-point list does not name; the list names only a single new server io module.",
+      "impact": "A reviewer or maintainer who scopes the change by the touch-point list could miss that getDriveFiles, fetchSemanticHits and getSemanticAvailability callers in the browser now run through these new files.",
+      "evidence": "Diff: the three paths are new files (frontend/src/lib/listingRequest.ts, frontend/src/lib/semanticSearchRequest.ts, frontend/src/lib/addonStatusRequest.ts). Spec Touch points lists 'a new server io module under frontend/src/lib/' and only the parenthetical '(builders and readers moved out)' on api.ts, semanticSearch.ts and addons.ts. Glob confirms the three files exist in the worktree.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "No declared invariant is broken; the touch-point list is incomplete, so the change reads as narrower than it is."
+      },
+      "severity": "INFO",
+      "proposed_fix": "Name the three shared request modules explicitly in the spec's Touch points list."
+    }
+  ],
+  "specification_compliance": [
+    "Every changed path outside docs/specs, docs/process/reviews and the spec ledger is inside the touch-point list, except the three shared request modules in frontend/src/lib that the list covers only by a parenthetical.",
+    "No protected path is edited in the diff."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [],
+  "test_coverage": [
+    "The new frontend and mcp-server tests sit inside the listed test locations (frontend/src/app/app-api/__tests__, frontend/src/lib/__tests__, mcp-server/src/__tests__)."
+  ],
+  "not_verified": [
+    "I did not check whether the move_file and move_files descriptions were changed as SPEC-CORE-038 I12 requires; the diff shows no change there. This is a missing implementation and is outside this scope question.",
+    "I did not read the process rules in .claude/rules/process.md for a rule on naming new modules in touch points.",
+    "I did not check the frontend route tests or the mcp-server tests for correctness; only the file scope was compared."
+  ],
+  "confidence": 80
+}

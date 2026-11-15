@@ -198,10 +198,10 @@ When adding a new tool, put agent-facing behavior notes in its
 | `get_video_frame` | The frame of a video at a given time as an image; `large` (default, long edge up to 1280 px, enough to read on-screen text) or `small` (320 px wide); native videos and YouTube `.loft` references; for a `.loft` of another provider, the error gives its URL |
 | `get_watch_history` | Continue-watching / watch history for a drive |
 | `list_comments` | List comments on a file |
-| `list_collections` | List a drive's collections (also called playlists) |
-| `get_collection` | Read a collection's active files in order, each as `{ item_id, position, file }`, with the trashed and missing ones counted in `inactive_count` |
+| `list_collections` | List a drive's collections (also called playlists) and Smart Collections in one name-ordered list; every row carries `kind` (`collection` or `smart`) |
+| `get_collection` | Read a collection's active files in order, each as `{ item_id, position, file }`, with the trashed and missing ones counted in `inactive_count`; a Smart Collection (a saved search computed when read) returns `{ total, offset, complete, items: [{ position, file }] }`, paged with `offset` and `limit` (default 50, at most 200), where `complete: false` means meaning search could not be read |
 | `list_inbox` | List a drive's open inbox (files that arrived by upload or web clip and are not yet done, filed, tagged or trashed), newest first, with a cursor for the next page |
-| `ask` | Ask Litloft Intelligence a question within one drive. Pass `scope` (`folders`, `collections` by name, `tags`, `kinds`; AND between them) to answer only from those files; an empty scope answers with no answer and `matched_file_count: 0` |
+| `ask` | Ask Litloft Intelligence a question within one drive. Pass `scope` (`folders`, `collections` by name, `tags`, `kinds`; AND between them) to answer only from those files; a Smart Collection name in `collections` is replaced by its members' ids, combined with the named collections as one collection condition; an empty scope answers with no answer and `matched_file_count: 0` |
 
 ### Write
 

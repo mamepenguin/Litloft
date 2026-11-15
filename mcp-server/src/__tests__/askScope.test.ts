@@ -9,6 +9,14 @@ function askTool() {
   return tool;
 }
 
+async function collectionLists({ path }: { path: string }): Promise<unknown> {
+  if (path === "/api/drives/media/collections") {
+    return [{ id: "col000000001", name: "読書メモ", drive: "media" }];
+  }
+  if (path === "/api/drives/media/smart-folders") return [];
+  throw new Error(`unexpected request ${path}`);
+}
+
 const SCOPE = {
   folders: ["Work/2024"],
   collections: ["読書メモ"],
@@ -36,11 +44,9 @@ describe("SPEC-CORE-045 the MCP ask tool's scope", () => {
     ).toThrow();
   });
 
-  it("forwards scope unchanged and returns the stream's scope event", async () => {
+  it("SPEC-CORE-112 I6: reads both lists, forwards a scope naming only a collection unchanged and returns the stream's scope event", async () => {
     const client = fakeClient(
-      async () => {
-        throw new Error("request() should not be called by ask");
-      },
+      collectionLists,
       undefined,
       undefined,
       async () => [
@@ -59,6 +65,10 @@ describe("SPEC-CORE-045 the MCP ask tool's scope", () => {
       client
     );
 
+    expect(client.calls.map((c) => c.path).sort()).toEqual([
+      "/api/drives/media/collections",
+      "/api/drives/media/smart-folders",
+    ]);
     expect(client.sseCalls[0].options?.json).toMatchObject({ scope: SCOPE });
     expect(JSON.parse(result.content[0].text)).toMatchObject({
       answer: "hello",
@@ -69,9 +79,7 @@ describe("SPEC-CORE-045 the MCP ask tool's scope", () => {
 
   it("errors instead of answering unscoped when the server has no scope event", async () => {
     const client = fakeClient(
-      async () => {
-        throw new Error("request() should not be called by ask");
-      },
+      collectionLists,
       undefined,
       undefined,
       async () => [
@@ -94,9 +102,7 @@ describe("SPEC-CORE-045 the MCP ask tool's scope", () => {
 
   it("returns an empty answer and a zero count for a scope_empty done", async () => {
     const client = fakeClient(
-      async () => {
-        throw new Error("request() should not be called by ask");
-      },
+      collectionLists,
       undefined,
       undefined,
       async () => [

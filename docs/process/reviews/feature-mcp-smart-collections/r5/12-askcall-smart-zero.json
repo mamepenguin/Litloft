@@ -1,0 +1,93 @@
+{
+  "tool": "ask",
+  "arguments": {
+    "drive": "動画",
+    "query": "この範囲のファイルは何についての内容ですか。日本語で3行以内。",
+    "scope": {
+      "collections": [
+        "empty smart"
+      ]
+    }
+  },
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"answer\":\"\",\"citations\":{\"citations\":[]},\"done\":{\"retrieved_count\":0,\"scope_empty\":true,\"took_ms\":0},\"scope\":{\"scope\":{\"folders\":[],\"collections\":[],\"tags\":[],\"kinds\":[]},\"matched_file_count\":0},\"smart_collections\":[{\"name\":\"Empty Smart\",\"member_count\":0}]}"
+      }
+    ]
+  },
+  "requests": [
+    {
+      "method": "GET",
+      "url": "/api/drives/%E5%8B%95%E7%94%BB/collections",
+      "headers": {
+        "host": "127.0.0.1:4599",
+        "connection": "keep-alive",
+        "authorization": "Bearer r5",
+        "accept": "*/*",
+        "accept-language": "*",
+        "sec-fetch-mode": "cors",
+        "user-agent": "node",
+        "accept-encoding": "gzip, deflate"
+      },
+      "body": "",
+      "status": 200,
+      "response_type": "application/json"
+    },
+    {
+      "method": "GET",
+      "url": "/api/drives/%E5%8B%95%E7%94%BB/smart-folders",
+      "headers": {
+        "host": "127.0.0.1:4599",
+        "connection": "keep-alive",
+        "authorization": "Bearer r5",
+        "accept": "*/*",
+        "accept-language": "*",
+        "sec-fetch-mode": "cors",
+        "user-agent": "node",
+        "accept-encoding": "gzip, deflate"
+      },
+      "body": "",
+      "status": 200,
+      "response_type": "application/json"
+    },
+    {
+      "method": "GET",
+      "url": "/app-api/smart-collection-members?drive=%E5%8B%95%E7%94%BB&id=hnCsecxeZOVi&ids=1",
+      "headers": {
+        "host": "127.0.0.1:4599",
+        "connection": "keep-alive",
+        "authorization": "Bearer r5",
+        "accept": "*/*",
+        "accept-language": "*",
+        "sec-fetch-mode": "cors",
+        "user-agent": "node",
+        "accept-encoding": "gzip, deflate"
+      },
+      "body": "",
+      "status": 200,
+      "response_type": "application/json"
+    },
+    {
+      "method": "POST",
+      "url": "/api/addons/intelligence/ask",
+      "headers": {
+        "host": "127.0.0.1:4599",
+        "connection": "keep-alive",
+        "authorization": "Bearer r5",
+        "accept": "text/event-stream",
+        "x-lit-drive": "%E5%8B%95%E7%94%BB",
+        "content-type": "application/json",
+        "accept-language": "*",
+        "sec-fetch-mode": "cors",
+        "user-agent": "node",
+        "accept-encoding": "gzip, deflate",
+        "content-length": "144"
+      },
+      "body": "{\"query\":\"この範囲のファイルは何についての内容ですか。日本語で3行以内。\",\"scope\":{\"collections\":[],\"file_ids\":[]}}",
+      "status": 200,
+      "response_type": "text/event-stream; charset=utf-8"
+    }
+  ]
+}

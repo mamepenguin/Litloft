@@ -91,7 +91,8 @@ A normal deployment needs none of these. The `/api/*` rewrite always targets `ht
 
 ### `BACKEND_URL`
 - **Default**: `http://backend:8000`
-- Upstream for the `/api/ws` WebSocket, which `frontend/server.js` proxies directly. It does not change the `/api/*` rewrite.
+- Upstream for the `/api/ws` WebSocket, which `frontend/server.js` proxies directly, and for the frontend's own `GET /app-api/smart-collection-members`, which calls the backend's public `/api` at this address.
+- It does not change the `/api/*` rewrite, which stays hard-coded to `http://backend:8000`; point both at the same backend when you set it.
 
 ### `PORT`
 - **Default**: `3000`

@@ -1,0 +1,51 @@
+{
+  "tool": "list_collections",
+  "arguments": {
+    "drive": "nosuchdrive"
+  },
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "Litloft API error (404): Drive not found: nosuchdrive"
+      }
+    ],
+    "isError": true
+  },
+  "requests": [
+    {
+      "method": "GET",
+      "url": "/api/drives/nosuchdrive/collections",
+      "headers": {
+        "host": "127.0.0.1:4599",
+        "connection": "keep-alive",
+        "authorization": "Bearer r5",
+        "accept": "*/*",
+        "accept-language": "*",
+        "sec-fetch-mode": "cors",
+        "user-agent": "node",
+        "accept-encoding": "gzip, deflate"
+      },
+      "body": "",
+      "status": 404,
+      "response_type": "application/json"
+    },
+    {
+      "method": "GET",
+      "url": "/api/drives/nosuchdrive/smart-folders",
+      "headers": {
+        "host": "127.0.0.1:4599",
+        "connection": "keep-alive",
+        "authorization": "Bearer r5",
+        "accept": "*/*",
+        "accept-language": "*",
+        "sec-fetch-mode": "cors",
+        "user-agent": "node",
+        "accept-encoding": "gzip, deflate"
+      },
+      "body": "",
+      "status": 404,
+      "response_type": "application/json"
+    }
+  ]
+}
