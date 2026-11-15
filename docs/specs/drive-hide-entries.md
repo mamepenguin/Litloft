@@ -1,8 +1,8 @@
 # Hide home and sidebar entries per drive
 
-SPEC-ID: SPEC-CORE-110
+SPEC-ID: SPEC-CORE-114
 
-Approval: sha256:5de9fce5b12e2999660f74d2386c800c7c320857cc75e9a0c1e576bafcd0109c Yuichi Senga 2026-11-15
+Approval: sha256:9124c44775924d243c3618f4ef5e383db4769e8c75294fe24ff3dbe548d0d013 Yuichi Senga 2026-11-15
 
 ## Summary
 
