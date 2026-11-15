@@ -1,5 +1,5 @@
 /**
- * SPEC-CORE-110: `HomeAppEntries` with `hiddenKeys`. Section 3 (null is loading), I1, I2, I4, I5.
+ * SPEC-CORE-114: `HomeAppEntries` with `hiddenKeys`. Section 3 (null is loading), I1, I2, I4, I5.
  */
 
 import { describe, it, expect, vi } from "vitest";
@@ -43,8 +43,8 @@ function renderRow(hiddenKeys: ReadonlySet<string> | null, inboxCount = 0) {
 const hrefs = (nav: HTMLElement) =>
   within(nav).getAllByRole("link").map((a) => a.getAttribute("href"));
 
-describe("SPEC-CORE-110 HomeAppEntries hiddenKeys", () => {
-  it("SPEC-CORE-110 Section 3 I1: null (loading) renders Library and no hideable entry", () => {
+describe("SPEC-CORE-114 HomeAppEntries hiddenKeys", () => {
+  it("SPEC-CORE-114 Section 3 I1: null (loading) renders Library and no hideable entry", () => {
     const nav = renderRow(null);
     expect(within(nav).getByText("Library")).toBeInTheDocument();
     expect(within(nav).queryByText("Video")).toBeNull();
@@ -53,7 +53,7 @@ describe("SPEC-CORE-110 HomeAppEntries hiddenKeys", () => {
     expect(within(nav).queryByText("Photo Diary")).toBeNull();
   });
 
-  it("SPEC-CORE-110 I2: a set removes exactly the matching keys and keeps the rest in order", () => {
+  it("SPEC-CORE-114 I2: a set removes exactly the matching keys and keeps the rest in order", () => {
     const full = hrefs(renderRow(new Set()));
     cleanup();
 
@@ -63,7 +63,7 @@ describe("SPEC-CORE-110 HomeAppEntries hiddenKeys", () => {
     );
   });
 
-  it("SPEC-CORE-110 I4: library and inbox stay when listed, and the unknown key changes nothing", () => {
+  it("SPEC-CORE-114 I4: library and inbox stay when listed, and the unknown key changes nothing", () => {
     const nav = renderRow(new Set(["library", "inbox", "nope", "reading"]), 2);
     expect(within(nav).getByText("Library")).toBeInTheDocument();
     expect(within(nav).getByText("Inbox")).toBeInTheDocument();
