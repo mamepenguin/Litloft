@@ -1,0 +1,26 @@
+Byte arrival before the first answer_chunk (pre-answer gaps), DeepSeek, file ht8Pv6R9TBmg, question
+"ワイルドエリアコレクションチャレンジの画面には、どのポケモンが並んでいますか？全部挙げてください。"
+
+A. Browser (Chrome, fetch wrapped to timestamp each chunk from the POST), 14:08:33Z run, 3 frame requests + final:
+   10.8 keepalive (first byte, headers), 15.8, 27.8 (gap 12.0 s), 32.8, 41.5, 42.7 first answer_chunk, 45.0 done
+
+B. sse_timer.py through the frontend (http://127.0.0.1:3101/api/addons/intelligence), 14:12:24Z run:
+    5.26 status 200 + keepalive
+   15.59 keepalive   (+10.33 s)
+   20.59 keepalive   (+5.00)
+   31.04 keepalive   (+10.44 s)
+   36.04, 41.04 keepalive; answer chunks from 41.5; 46.55 citations/meta/done
+   tap: tool req 23:12:24 (6.46 s), tool req 23:12:34 (12.56 s), tool req 23:12:50 (15.98 s, finish_reason=length),
+   frame_tool_fallback 14:13:06, today's request 23:13:06 (4.49 s)
+
+C. sse_timer.py inside the intelligence container, straight to :8100 (no proxies), 14:13:44Z run:
+    0.04 status 200
+    9.07 keepalive   (+9.02 s, first byte of the body)
+   14.07 keepalive   (+5.00)
+   answer chunks, 21.65 citations/meta/done
+   tap: tool req 23:13:44 (3.84 s), tool req 23:13:48 (12.01 s, finish_reason=length), fallback today's request 23:14:00 (5.52 s)
+
+D. Browser, DeepSeek, file vb74YwPHV6jx ("3:00から3:20の間に…"), 1 frame request then answer: no byte at all for 7.8 s,
+   then the whole answer at 7.8 s (tool req 2.46 s + cut + tool req 4.82 s).
+
+gemma4:e4b (no frame requests in any run): keepalives exactly every 5.0 s from the first byte (5.2 s) to the answer.

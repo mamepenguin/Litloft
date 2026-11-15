@@ -1,0 +1,241 @@
+Re-run answers as streamed (sse_timer.py through the frontend). g = local (gemma4:e4b), d = deepseek, f = injected refusal of tool requests.
+
+== g1-promo
+end 42.33s, max gap before first answer_chunk 5.01s
+ANSWER: 画面に表示されるプロモーションコードは、**COMMUNITYMAX10**です。
+
+### 💡 プロモーションコード情報
+
+| 項目 | 内容 |
+| :--- | :--- |
+| **プロモーションコード** | **COMMUNITYMAX10** |
+| **引き換え方法** | 公式ウェブサイトのコード引き換えから入力 [18] |
+| **獲得アイテム** | 大キノコが10個 [18] |
+| **用途** | マックスバトルで攻撃力が2倍になる激アアイテムとして、巨大MAXジュラルドン戦などで使用可能 [18] |
+
+### 📺 根拠
+
+*   **音声情報:** パッセージ[18]にて、「公式ウェブサイトのコードの引き換えからアルファベットで**コミュニティマックス10**と入力して引き換えるとゲーム内で大キノコが10個受け取れます」と説明されています。
+*   **画面情報:** フレーム[161]のスクリーンショットにも、コードとして「**COMMUNITYMAX10**」が確認できます。
+data: [{"n": 18, "position": {"seconds": 191.789}}, {"n": 161, "position": {"seconds": 300.0}}]
+data: {"partial": false, "image": "attached"}
+data: {}
+
+== g2-promo
+end 7.51s, max gap before first answer_chunk 5.00s
+ANSWER: 画面に表示されるプロモーションコードは、**COMMUNITYMAX10** です [161]。
+
+このコードは、公式ウェブサイトのコード引き換え欄にアルファベットで入力することで、ゲーム内で大キノコが10個もらえると説明されています [25]。
+data: [{"n": 161, "position": {"seconds": 300.0}}, {"n": 25, "position": {"seconds": 270.23}}]
+data: {"partial": false, "image": "attached"}
+data: {}
+
+== g3-luc1140
+end 38.71s, max gap before first answer_chunk 5.02s
+ANSWER: 提供された資料（[12:00–14:00]の書き起こしや、[162] 11:00のフレーム）の中には、11:40頃に画面に映っているルカリオの具体的なCP（戦闘力）を示す情報はありません。
+
+したがって、**ルカリオのCPを特定することはできません**。
+data: [{"n": 162, "position": {"seconds": 660.0}}]
+data: {"partial": false, "image": "attached"}
+data: {}
+
+== g4-luc1140
+end 14.12s, max gap before first answer_chunk 5.00s
+ANSWER: 11:40頃の画面（最も近いのは[162] 11:00）に映っているルカリオのCPは、**1274**です[162]。
+
+### ルカリオのCP情報
+
+*   **CP:** 1274
+*   **出典:** フレーム [162] 11:00
+data: [{"n": 162, "position": {"seconds": 660.0}}]
+data: {"partial": false, "image": "attached"}
+data: {}
+
+== g5-luc
+end 45.37s, max gap before first answer_chunk 5.00s
+ANSWER: 提供された資料内には、ルカリオの具体的なCP（戦闘力）の数値は記載されていません。
+
+ただし、動画内ではルカリオが出現した際、**高個体確定**であることや、**強いポケモン**として扱われていることが強調されています [63], [64], [65], [68]。
+
+*   **ルカリオの出現に関する情報:**
+    *   ルカリオは、特定のタスクをクリアすることで出現するポケモンとして紹介されています [63]。
+    *   この際、ルカリオは「高個体確定」であると述べられています [63]。
+    *   また、ルカリオは「強いポケモン」の一種として言及されています [65], [68]。
+data: [{"n": 63, "position": {"seconds": 692.91}}, {"n": 64, "position": {"seconds": 704.91}}, {"n": 65, "position": {"seconds": 715.43}}, {"n": 68, "position": {"seconds": 748.35}}]
+data: {"partial": false, "image": "attached"}
+data: {}
+
+== g6-luc
+end 29.15s, max gap before first answer_chunk 5.00s
+ANSWER: ルカリオのCPは、**1274**でした[162]。
+
+**詳細**
+
+*   **CP値:** 1274
+*   **ポケモン名:** カイリキー（ルカリオ）
+*   **出典:** フレーム[162]（11:00）のバトル画面に表示されています。
+data: [{"n": 162, "position": {"seconds": 660.0}}]
+data: {"partial": false, "image": "attached"}
+data: {}
+
+== g7-coll
+end 83.30s, max gap before first answer_chunk 5.01s
+ANSWER: 「ワイルドエリアコレクションチャレンジ」の画面に並んでいるポケモンは、時間帯によって出現するタイプが分かれています。
+
+**ワイルドエリアコレクションチャレンジのポケモン一覧**
+
+| 出現時間帯 | ポケモンタイプ | 具体的なポケモン（例） | 根拠となる記述 |
+| :--- | :--- | :--- | :--- |
+| **鋼アワー** (上の段) | 鋼タイプ | コイル、アローラディグダなど、鋼タイプのポケモン全般 | [51], [53], [61] |
+| **ドラゴンアワー** (下の段) | ドラゴンタイプ | ドラゴンタイプのポケモン全般 | [52] |
+
+**詳細な説明**
+
+*   **鋼アワーの時間帯**：コレクションチャレンジの上の段には、**コイル**や**アローラディグダ**といった、鋼アワーの時間にしか出現しない鋼タイプのポケモンたちが並んでいます [51], [53]。
+*   **ドラゴンアワーの時間帯**：一方、下の段には、ドラゴンアワーの時間にしか野生で出現しない**ドラゴンタイプのポケモン**たちが配置されています [52]。
+
+このチャレンジでは、鋼タイプとドラゴンタイプのポケモンが、それぞれ特定の時間帯に分けて出現することが特徴です [51], [52]。
+data: [{"n": 51, "position": {"seconds": 557.23}}, {"n": 53, "position": {"seconds": 578.55}}, {"n": 61, "position": {"seconds": 668.47}}, {"n": 52, "position": {"seconds": 568.19}}]
+data: {"partial": false, "image": "attached"}
+data: {}
+
+== g8-chick
+end 76.30s, max gap before first answer_chunk 5.00s
+ANSWER: 3:00から3:20の間に、鶏肉の横に**特定の食材は置かれていません**。
+
+この時間帯の映像では、鶏肉がまな板の上で切られている様子が中心です。
+
+*   **主な物体:** 鶏肉（生の鶏もも肉）がまな板の上に置かれています [108] [109]。
+*   **背景の物体:** 鶏肉の塊が入った白い容器が、まな板の奥（右奥）に置かれているのが確認できます [108] [109]。
+
+したがって、鶏肉のすぐ隣に置かれているのは、調理に使用されている**まな板**と**包丁**のみです。
+data: [{"n": 108, "position": {"seconds": 180.0}}, {"n": 109, "position": {"seconds": 200.0}}]
+data: {"partial": false, "image": "attached"}
+data: {}
+
+== g9-chick
+end 33.57s, max gap before first answer_chunk 5.01s
+ANSWER: 3:00から3:20の間に、鶏肉の横には**ブロッコリー**が置かれています。
+
+**詳細**
+
+*   **配置の順序:** おかずを盛り付ける際、先にブロッコリーを端に置き、その後に鶏肉を並べるという手順が説明されています [35]。
+*   **視覚的な確認:** 完成したお弁当の画像からも、鶏肉の隣にブロッコリーが配置されていることが確認できます [106]。
+
+**引用元**
+*   **[35]**: 「先にブロッコリーを端に乗せてそして鶏肉を並べていきます。」
+*   **[106]**: 盛り付けられたお弁当の様子。
+data: [{"n": 35, "position": {"seconds": 492.47}}, {"n": 106, "position": {"seconds": 500.0}}]
+data: {"partial": false, "image": "attached"}
+data: {}
+
+== g10-thaw
+end 30.17s, max gap before first answer_chunk 5.01s
+ANSWER: 解凍時間は、冷凍状態か半解凍状態かによって異なります。
+
+**解凍時間**
+*   **冷凍状態から:** 5〜6分（500W）[94]
+*   **前日から冷蔵庫で半解凍していた場合:** 2〜3分[94]
+
+※これはあくまで目安であり、各家庭の環境によって異なるため、詳細はQ&A動画で確認することをおすすめします[94]。
+data: [{"n": 94, "position": {"seconds": 530.0}}]
+data: {"partial": false, "image": "attached"}
+data: {}
+
+== d1-coll
+end 82.29s, max gap before first answer_chunk 5.01s
+ANSWER: **ワイルドエリアコレクションチャレンジ：土曜日** [168][44] の画面には、2段×4匹の計8匹が並んでいます。
+
+| 段 | 並んでいるポケモン |
+|---|---|
+| 上段（鋼アワー） | コイル、アローラディグダ、ドーミラー、ナットレイ |
+| 下段（ドラゴンアワー） | タツベイ、キバゴ、モノズ、ミニリュウ |
+
+- 上段は鋼アワー、下段はドラゴンアワーにしか野生出現しないため、時間帯を逃すとクリアできなくなる [51][52]。
+- 報酬は「ポケモン発見」[168]。
+
+※上段3・4匹目はアイコンが小さいため、画面から読み取れる姿（緑系の鋼タイプ）をもとにドーミラー・ナットレイと判断しました。
+data: [{"n": 168, "position": {"seconds": 490.0}}, {"n": 44, "position": {"seconds": 480.11}}, {"n": 51, "position": {"seconds": 557.23}}, {"n": 52, "position": {"seconds": 568.19}}]
+data: {"partial": false, "image": "attached"}
+data: {}
+
+== d2-coll
+end 300.14s, max gap before first answer_chunk 5.02s
+ANSWER: 
+data: {"partial": false, "image": "attached"}
+data: {"error": "Answer generation failed"}
+
+== d3-coll
+end 300.17s, max gap before first answer_chunk 5.01s
+ANSWER: 
+data: {"partial": false, "image": "attached"}
+data: {"error": "Answer generation failed"}
+
+== d4-chick
+end 8.41s, max gap before first answer_chunk 4.39s
+ANSWER: ## 結論
+3:00〜3:20の間、鶏肉（鶏もも肉）の**右上の位置に、別の鶏もも肉が入った白いトレー**が置かれています [108][109][110][111]。
+
+## 補足
+- 手前では手袋をした手で鶏もも肉を一口大に切り分けており、まな板の上には包丁と鶏肉があります [108][109][110][111]。
+- 画面右上のトレーは、この時点で既に切られていない鶏もも肉が並んだ状態で置かれています [108][111]。
+- この場面は「今回は皮を外して一口大に切り分けていきます」という鶏肉の下ごしらえの説明中で、字幕も「最近の自分の食事的に」「でも、アイスは『飽和脂肪酸』が多め」と栄養バランスの話が続いています [108][110]。
+data: [{"n": 108, "position": {"seconds": 180.0}}, {"n": 109, "position": {"seconds": 185.0}}, {"n": 110, "position": {"seconds": 190.0}}, {"n": 111, "position": {"seconds": 200.0}}]
+data: {"partial": false, "image": "attached"}
+data: {}
+
+== d6-pos
+end 4.10s, max gap before first answer_chunk 2.26s
+ANSWER: **ルカリオのCPは1126です。**
+
+11:40頃の画面右上に「ルカリオ / CP1126」と表示されています[163]。このルカリオは「鋼タイプのポケモンを4種類捕まえる」フィールドリサーチの報酬で出てきた個体です[63][65]。
+data: [{"n": 163, "position": {"seconds": 700.0}}, {"n": 63, "position": {"seconds": 692.91}}, {"n": 65, "position": {"seconds": 715.43}}]
+data: {"partial": false, "image": "attached"}
+data: {}
+
+== d7-nopos
+end 11.73s, max gap before first answer_chunk 4.70s
+ANSWER: **11:40頃のルカリオのCPは 1126 です。**
+
+- 11:40の画面に「ルカリオ CP1126」と表示されています[169]。
+- これは「はがねタイプのポケモンを4種類捕まえる」フィールドリサーチの報酬で出てきたルカリオで、タスク報酬なので高個体確定だと説明されています[63][65]。
+data: [{"n": 169, "position": {"seconds": 700.0}}, {"n": 63, "position": {"seconds": 692.91}}, {"n": 65, "position": {"seconds": 715.43}}]
+data: {"partial": false, "image": "attached"}
+data: {}
+
+== d8-pan
+end 18.77s, max gap before first answer_chunk 4.83s
+ANSWER: ## 結論：5:00の時点ではフライパンはまだ映っていません
+
+- 5:00のカットは「下味」の場面で、保存袋に入れた鶏肉に片栗粉をまぶして袋の上から揉んでいる最中です。フライパンも鶏肉の切れ数も画面には出てきません [116]。
+- フライパンが登場するのは5:20で、この時点では油（大さじ1）を引いているだけで、まだ鶏肉は入っていません [117]。
+- その後の焼き始めは少しずつ並べていく流れで、**5:25に2切れ** [111]、**5:30に3切れ** [112]、**5:35に4切れ** [118]、**5:40には多数（フライパン一面）** [113] と増えていきます。
+
+つまり「5:00頃」にフライパンに入っている鶏肉の切れ数は、**まだ0切れ（フライパン自体が未登場）**です。焼く工程は [22] のとおり「油を引いて予熱したら下味をつけた鶏肉を並べて焼く」流れで、実際に並べ始まるのは5:20以降になります。
+data: [{"n": 116, "position": {"seconds": 300.0}}, {"n": 117, "position": {"seconds": 320.0}}, {"n": 111, "position": {"seconds": 325.0}}, {"n": 112, "position": {"seconds": 330.0}}, {"n": 118, "position": {"seconds": 335.0}}, {"n": 113, "position": {"seconds": 340.0}}, {"n": 22, "position": {"seconds": 310.97}}]
+data: {"partial": false, "image": "attached"}
+data: {}
+
+== f1-ollama
+end 14.19s, max gap before first answer_chunk 5.00s
+ANSWER: 解凍時間は以下の通りです。
+
+*   **冷凍状態から:** 5〜6分（500W）[94]
+*   **前日から冷蔵庫で半解凍していた場合:** 2〜3分[94]
+
+詳しくはQ&A動画で解説されています[94]。
+data: [{"n": 94, "position": {"seconds": 530.0}}]
+data: {"partial": false, "image": "attached"}
+data: {}
+
+== f2-deepseek
+end 2.81s, max gap before first answer_chunk 2.24s
+ANSWER: **解凍時間：冷凍状態から5〜6分（500W）** [94]
+
+- 前日から冷蔵庫で半解凍していた場合は **2〜3分** [94]
+- 保存期間の目安は **だいたい2週間**（各家庭の環境により異なる）[94]
+- しっかり保冷して持ち運び、**常温での解凍はNG** [94]
+- 詳しくは概要欄のQ&A動画で解説 [94]
+data: [{"n": 94, "position": {"seconds": 530.0}}]
+data: {"partial": false, "image": "attached"}
+data: {}
