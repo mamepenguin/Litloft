@@ -78,8 +78,8 @@ here.
   cannot be used as a target: the page shows **この対象は使えません** / **This target
   cannot be used** and asks the server for nothing.
 - A Smart Collection without search text that the Reading page cannot use is listed
-  disabled. This includes one whose kinds are not books (images, for example), one that
-  filters by length, and one that uses a negated condition. It cannot be chosen.
+  disabled. This includes one whose kinds are not books (images, for example) and one that
+  filters by length. It cannot be chosen.
 - If a member target's files cannot be worked out, the page shows **Retry**.
 - A Smart Collection whose kinds miss every book shows **この対象は使えません** / **This
   target cannot be used**, and the page asks the server for nothing.
