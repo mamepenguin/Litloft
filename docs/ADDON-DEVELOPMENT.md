@@ -1318,35 +1318,60 @@ useGlobalSearch().open();                    // open it now, in that scope
 
 The built-in apps share one header: the app's icon and title, a scope line
 naming the drive and the item count, a **Target** menu that narrows the app to
-one of the drive's Smart Collections, and a tabs row. An addon page draws the same
-header, with its own app key.
+one of the drive's collections or Smart Collections, and a tabs row. An addon
+page draws the same header, with its own app key.
 
 ```tsx
 // addons/{name}/frontend/Page.tsx — the parts that touch the target
 import type { TargetMenuProps } from "@/components/appshell/TargetMenu";
 import { useLoad } from "@/components/appshell/useLoad";
-import { getSmartFolders } from "@/lib/api";
+import { useMemberTarget } from "@/components/appshell/useMemberTarget";
+import { getCollections, getSmartFolders } from "@/lib/api";
+import {
+  parseAppTargetId,
+  resolveAppTarget,
+  resolveCollectionTarget,
+} from "@/lib/appTarget";
 import { readAppTarget, writeAppTarget, type AppKey } from "@/lib/appPrefs";
-import { resolveAppTarget } from "@/lib/appTarget";
+import { resolveMemberTarget } from "@/lib/memberTarget";
 import type { FileKind } from "@/types";
 
 const APP: AppKey = { addon: "<name>" }; // the addon's own name
 const BASE_KINDS: readonly FileKind[] = ["image"]; // the kinds the page lists
 
 const folders = useLoad(() => getSmartFolders(drive));
-const savedId = readAppTarget(drive, APP); // "default" or a Smart Collection id
+const collections = useLoad(() => getCollections(drive));
+// "default", a Smart Collection id, or "collection:<id>".
+const savedId = readAppTarget(drive, APP);
+const saved = parseAppTargetId(savedId);
+
 const folder =
-  folders.status === "loaded"
-    ? folders.data.find((candidate) => candidate.id === savedId) ?? null
+  saved.kind === "smart" && folders.status === "loaded"
+    ? (folders.data.find((candidate) => candidate.id === saved.id) ?? null)
     : null;
-const target = resolveAppTarget(folder, BASE_KINDS); // `target.params` for requests
+const collection =
+  saved.kind === "collection" && collections.status === "loaded"
+    ? (collections.data.find((candidate) => candidate.id === saved.id) ?? null)
+    : null;
+
+// The conditions a listing target adds: a collection's, or a Smart Collection's.
+const target =
+  collection !== null
+    ? resolveCollectionTarget(collection, BASE_KINDS)
+    : resolveAppTarget(folder, BASE_KINDS);
+
+// A Smart Collection whose query has free text is a member target instead:
+// send `evaluation.fileIds` rather than `target.params`.
+const member = resolveMemberTarget(folder, BASE_KINDS);
+const { evaluation } = useMemberTarget(drive, folder, member);
 
 // `AppHeader` takes this as its `target`; keep the chosen id in state.
 const targetProps: TargetMenuProps = {
   drive,
   app: APP,
-  name: targetName, // the chosen folder's name, null while looked up
+  name: targetName, // the chosen target's name, null while looked up
   folders,
+  collections: { list: collections, retry: collections.retry },
   selectedId: savedId,
   currentCount: count,
   label: t("target"), // "Target"
@@ -1367,9 +1392,9 @@ const targetProps: TargetMenuProps = {
 | `AppHeader`, `AppHeaderProps` | `@/components/appshell/AppHeader` |
 | `TargetMenuProps` | `@/components/appshell/TargetMenu` |
 | `AppKey`, `readAppTarget`, `writeAppTarget` | `@/lib/appPrefs` |
-| `resolveAppTarget`, `AppTarget`, `AppTargetParams` | `@/lib/appTarget` |
+| `resolveAppTarget`, `resolveCollectionTarget`, `parseAppTargetId`, `collectionTargetId`, `AppTarget`, `AppTargetParams` | `@/lib/appTarget` |
 | `useLoad`, `LoadState` | `@/components/appshell/useLoad` |
-| `getSmartFolders` | `@/lib/api` |
+| `getSmartFolders`, `getCollections` | `@/lib/api` |
 | `PageTabs` | `@/components/PageTabs` |
 | `SmartFolder` | `@/types/smartFolder` |
 | `FileKind` | `@/types` |
@@ -1382,9 +1407,10 @@ addon's own name, `^[a-z][a-z0-9_-]*$` — the rule the loader already applied
 before a page can call this. The name is used as written: nothing checks or
 encodes it.
 
-`readAppTarget(drive, app)` reads `"default"` or the saved folder id, and
-`writeAppTarget(drive, app, id)` saves a choice. Both use the keys below, with
-`<d>` = `encodeURIComponent(drive)`:
+`readAppTarget(drive, app)` reads `"default"`, a Smart Collection id, or —
+once the page passes `collections` to the menu — `collection:<id>`. A bare id
+always means a Smart Collection. `writeAppTarget(drive, app, id)` saves a
+choice. Both use the keys below, with `<d>` = `encodeURIComponent(drive)`:
 
 | App key | Target | Shown set |
 |---|---|---|
@@ -1419,6 +1445,23 @@ default target) into the conditions to request:
 empty every target, so the resolver throws instead of answering, and nothing
 catches it: a page that passes such a list fails on its first render.
 
+### Reading a saved target id
+
+`parseAppTargetId(id)` says which kind of target a saved id names:
+`{ kind: "default" }` for `"default"`, `{ kind: "collection", id }` for
+`collection:<id>`, and `{ kind: "smart", id }` for anything else.
+`collectionTargetId(collectionId)` builds the `collection:<id>` form, so the
+two round-trip. Collection and Smart Collection ids are 12-character nanoids
+with no `:`, so an id saved before a collection could be a target keeps its
+meaning.
+
+`resolveCollectionTarget(collection, baseKinds)` answers what a collection
+target adds: `{ usable: true, params: { type: [...baseKinds], collection:
+[collection.name] } }`, and nothing else — no `search`, `tag`, `folder`,
+`size`, `duration`, `favorite` or `liked`. It takes the same `baseKinds` check
+as `resolveAppTarget` and throws for the same lists. A collection is always
+usable.
+
 ### Applying the target
 
 Pass `params` to your own requests, keeping the target's own filters. On the
@@ -1426,6 +1469,27 @@ backend, `filtered_drive_files` (see [Core API surface for in-process
 addons](#core-api-surface-for-in-process-addons)) answers as
 `GET /api/drives/{drive}/files` does for the same parameters; narrow your own
 query to the ids it selects.
+
+### Members, the collection list and their states
+
+A Smart Collection whose query has free text is a member target: evaluate it
+and send the resulting ids instead of its query's conditions.
+
+| Name | Import from | Meaning |
+|---|---|---|
+| `resolveMemberTarget(folder, baseKinds)` | `@/lib/memberTarget` | The `MemberTarget` (`{ id, kinds }`) of a Smart Collection with free text, or `null` for one that resolves to listing parameters. `kinds` stays within `baseKinds`, and is empty when none of them meet it. |
+| `evaluateMemberTarget(drive, folder)` | `@/lib/memberTarget` | Evaluates the collection: `{ status: "ready", fileIds }`, `{ status: "failed" }`, or `{ status: "tooLarge" }`. |
+| `MemberTarget`, `MemberEvaluation` | `@/lib/memberTarget` | The two types above. |
+| `useMemberTarget(drive, folder, target)` | `@/components/appshell/useMemberTarget` | One evaluation for the life of the page, re-run on a target change and on `retry`; answers `{ evaluation, retry }`. |
+| `MEMBER_ID_LIMIT` | `@/lib/inNameResolution` | The most ids one evaluation may send (10,000); more answers `tooLarge`. |
+| `getCollections(drive)` | `@/lib/api` | The drive's collections, which the menu lists beside the Smart Collections. |
+| `CollectionSummary` | `@/types` | A collection's id, name and counts, as `getCollections` returns them. |
+| `RetryButton` | `@/components/appshell/RetryButton` | The retry control shown in place of a list or a body that failed. |
+| `EmptyState` | `@/components/EmptyState` | The empty body; `variant="no-files"` is the plain one. |
+
+A page that sends members to its own routes builds those requests itself: the
+core's `appRequests` and `…WithFileIds` request functions are not part of this
+surface.
 
 ---
 
@@ -1475,17 +1539,24 @@ query, normalized_search = filtered_drive_files(
     collection=[],
     size=[],
     duration=[],
+    file_ids=None,
 )
 ids = {row[0] for row in query.with_entities(File.id)}
 ```
 
 `filtered_drive_files(db, drive_name, *, path, recursive, search, favorite,
-liked, tag, type, folder, collection, size, duration)` answers with a pair:
-`query` selects the drive's active files under those filters, with the
+liked, tag, type, folder, collection, size, duration, file_ids)` answers with a
+pair: `query` selects the drive's active files under those filters, with the
 listing's meaning for each, and `normalized_search` is the NFC-normalised
 search text, or `None` without a search. Narrow your own query to
 `query.with_entities(File.id)`.
 
+- `file_ids` is the `in:` condition the listing takes in a POST body: a file
+  passes when it is in one of the named `collection`s or its id is in
+  `file_ids`; with no collection, only when its id is listed; `file_ids=[]`
+  passes nothing through `in:`; every other condition still applies. `None`
+  (the default) is the query without `in:`. The caller owns the cap: the core's
+  routes pass at most 10,000 ids.
 - The listing validates two inputs in FastAPI before calling it, so the caller
   owns them: `search` is at most 200 characters, and every `type` is a
   `FileKind` or `"markdown"`.
@@ -1493,8 +1564,8 @@ search text, or `None` without a search. Narrow your own query to
   for a `path` holding `..` or starting with `/`, and for a `folder`,
   `collection`, `size` or `duration` that does not normalise. Pass it on from
   your route.
-- Its `trust`, `origin`, `exclude_origin` and `file_ids` parameters are not
-  part of this surface.
+- Its `trust`, `origin` and `exclude_origin` parameters are not part of this
+  surface.
 - It filters by the drive it is given and does not check access itself: run
   your own drive check first (see [Drive context header](#drive-context-header-x-lit-drive)).
 
