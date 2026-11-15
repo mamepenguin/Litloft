@@ -20,11 +20,20 @@ export function useMemberTarget(
   target: MemberTarget | null,
 ): { evaluation: MemberEvaluation | null; retry: () => void } {
   const [attempt, setAttempt] = useState(0);
-  const key =
+  const targetKey =
     target === null || target.kinds.length === 0
       ? null
-      : `${drive}\u0000${target.id}\u0000${attempt}`;
+      : `${drive}\u0000${target.id}`;
   const [held, setHeld] = useState<{ key: string; evaluation: MemberEvaluation } | null>(null);
+  const [lastTarget, setLastTarget] = useState(targetKey);
+  if (lastTarget !== targetKey) {
+    // A target change opens a new visit, even when the target is one this page
+    // came back to: the result held for its earlier visit would otherwise
+    // stand in for the new evaluation.
+    setLastTarget(targetKey);
+    setHeld(null);
+  }
+  const key = targetKey === null ? null : `${targetKey}\u0000${attempt}`;
 
   useEffect(() => {
     if (key === null || folder === null) return;

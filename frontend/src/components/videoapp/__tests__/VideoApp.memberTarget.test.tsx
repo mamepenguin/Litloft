@@ -321,3 +321,49 @@ describe("SPEC-CORE-117 step 6, I8: no Discover cache under a member target", ()
     for (const text of drawn) expect(screen.queryByText(text!)).not.toBeInTheDocument();
   });
 });
+
+describe("SPEC-CORE-117 step 3, I8: a return to a member target evaluates again", () => {
+  it("sends nothing under the target until the new evaluation answers", async () => {
+    writeAppPrefs(DRIVE, { target: "sf-cats" });
+    render(<VideoApp drive={DRIVE} />);
+    await waitFor(() => expect(targetRequests(wire.calls).length).toBeGreaterThan(0));
+
+    fireEvent.click(await screen.findByRole("button", { name: /Target/ }));
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: /All videos/ }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Target/ })).toHaveTextContent("All videos"),
+    );
+
+    let release: ((r: Response) => void) | null = null;
+    let held: WireCall | null = null;
+    evaluation = (call) => {
+      held = call;
+      return new Promise<Response>((resolve) => {
+        release = resolve;
+      });
+    };
+    const evaluationsBefore = wire.calls.filter(isEvaluation).length;
+    const requestsBefore = targetRequests(wire.calls).length;
+
+    fireEvent.click(screen.getByRole("button", { name: /Target/ }));
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "Cats" }));
+
+    await waitFor(() =>
+      expect(wire.calls.filter(isEvaluation).length).toBe(evaluationsBefore + 1),
+    );
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+
+    expect(targetRequests(wire.calls).slice(requestsBefore)).toEqual([]);
+
+    await act(async () => {
+      release!(pagedListing([item("m9", "New member")], held!));
+      await new Promise((r) => setTimeout(r, 50));
+    });
+
+    const sent = targetRequests(wire.calls).slice(requestsBefore);
+    expect(sent.length).toBeGreaterThan(0);
+    for (const call of sent) expect(fileIdsOf(call)).toEqual(["m9"]);
+  });
+});
