@@ -4,7 +4,7 @@
  * parameters are byte-equal (the default "all videos" target).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 
 import { writeAppPrefs } from "@/lib/appPrefs";
 import { invalidateAddonsCache } from "@/lib/addons";
@@ -20,11 +20,20 @@ vi.mock("@/lib/cardGrid", async (importOriginal) => ({
   useCardColumns: () => ({ ref: () => {}, columns: 24 }),
 }));
 
-const cacheAccess = vi.hoisted(() => ({ reads: [] as string[], writes: [] as string[] }));
+const cacheAccess = vi.hoisted(() => ({
+  keys: [] as string[],
+  reads: [] as string[],
+  writes: [] as string[],
+}));
 vi.mock("../discoverCache", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../discoverCache")>();
   return {
     ...actual,
+    discoverCacheKey: (key: Parameters<typeof actual.discoverCacheKey>[0]) => {
+      const built = actual.discoverCacheKey(key);
+      cacheAccess.keys.push(built);
+      return built;
+    },
     readCachedItems: (key: string) => {
       cacheAccess.reads.push(key);
       return actual.readCachedItems(key);
@@ -118,9 +127,20 @@ let provider: ReturnType<typeof vi.fn<Provider>>;
 const isListing = (c: WireCall) => c.url.pathname === `/api/drives/${DRIVE}/files`;
 const isEvaluation = (c: WireCall) => isListing(c) && c.url.searchParams.get("search") === "cats";
 
+async function settle() {
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 0));
+  });
+}
+
+function hangingProvider() {
+  return vi.fn<Provider>(() => new Promise<string[]>(() => {}));
+}
+
 beforeEach(() => {
   localStorage.clear();
   invalidateAddonsCache();
+  cacheAccess.keys = [];
   cacheAccess.reads = [];
   cacheAccess.writes = [];
   catalogue.slots = { "video-discover-recommended": [PICKUP] };
@@ -213,12 +233,47 @@ describe("SPEC-CORE-117 step 6, I8: the Discover cache under a member target", (
     expect(await screen.findByText("Vid m1")).toBeInTheDocument();
     first.unmount();
 
-    provider = vi.fn<Provider>(() => new Promise<string[]>(() => {}));
+    let failProvider!: (error: unknown) => void;
+    provider = vi.fn<Provider>(
+      () =>
+        new Promise<string[]>((_, reject) => {
+          failProvider = reject;
+        }),
+    );
     addonProviders.pickup = provider;
     writeAppPrefs(DRIVE, { target: "default" });
     render(<VideoApp drive={DRIVE} />);
 
     await waitFor(() => expect(provider).toHaveBeenCalled());
-    await waitFor(() => expect(screen.queryByText("Vid m1")).not.toBeInTheDocument());
+    await waitFor(() => expect(cacheAccess.reads).toHaveLength(1));
+    await settle();
+    await settle();
+    await act(async () => failProvider(new Error("provider failed")));
+    // New is drawn only once Recommended has settled, so its presence bounds
+    // when the cached draw could have happened.
+    expect(await screen.findByText("Newest one")).toBeInTheDocument();
+    await settle();
+    expect(screen.queryByText("Vid m1")).not.toBeInTheDocument();
+  });
+
+  it("computes a member target's Discover cache keys apart from the default target's", async () => {
+    writeAppPrefs(DRIVE, { target: "sf-cats" });
+    const first = render(<VideoApp drive={DRIVE} />);
+    expect(await screen.findByText("Vid m1")).toBeInTheDocument();
+    const memberKeys = [...cacheAccess.keys];
+    first.unmount();
+
+    cacheAccess.keys = [];
+    provider = hangingProvider();
+    addonProviders.pickup = provider;
+    writeAppPrefs(DRIVE, { target: "default" });
+    render(<VideoApp drive={DRIVE} />);
+
+    await waitFor(() => expect(cacheAccess.reads).toHaveLength(1));
+    const defaultKeys = [...cacheAccess.keys];
+
+    expect(memberKeys.length).toBeGreaterThan(0);
+    expect(defaultKeys.length).toBeGreaterThan(0);
+    expect(memberKeys.filter((key) => defaultKeys.includes(key))).toEqual([]);
   });
 });
