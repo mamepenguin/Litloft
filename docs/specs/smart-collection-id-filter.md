@@ -47,9 +47,10 @@ No new artboard (agreed). The visible pieces reuse what exists:
 - A resolution that fails shows the block the Passages view shows when its load fails
   (`PassageList` state `failed`: one muted line and 再試行, `role="alert"`), in the Files
   view and the Passages view alike.
-- In the apps, a failed member evaluation shows the existing `RetryButton` where the content
-  goes, as a failed shelves load does today; a target too large shows today's
-  `targetUnusable` text.
+- In the apps, a failed member evaluation replaces the whole body of the face or page with
+  one existing `RetryButton`, as a failed Library shelves load does today; a target too
+  large replaces it with the この対象は使えません line Reading shows today
+  (`readingApp.targetUnusable`, and a new `videoApp.targetUnusable` with the same text).
 - The save refusal uses the existing error toast of the Smart Collection actions.
 
 ## Definitions
@@ -65,8 +66,11 @@ No new artboard (agreed). The visible pieces reuse what exists:
   to collections only, whatever the entry point (`in:`, Play, the player, Ask, MCP, the
   apps), so nothing is expanded more than one level and a cycle cannot form.
 - **The member set** of a query on the search page or in the search window is the union of
-  the members of every Smart Collection its `in:` names resolve to, in the order first
-  seen. It holds at most 10,000 ids; more is the "too large" outcome.
+  the members of every Smart Collection its `in:` names resolve to. It holds at most 10,000
+  ids; more is the "too large" outcome. In the apps it is one Smart Collection's members,
+  counted before any narrowing to the app's kinds.
+- **The `in:` key** of a query is its drive and its `in:` names lower-cased, as a set. Two
+  queries with the same key have the same resolution.
 - **`file_ids` semantics** (the same as `AskScope.file_ids`, SPEC-ADDON-110 step 6): a file
   passes the `in:` condition when it is in one of the named collections or its id is in
   `file_ids`. With no collection named, it passes when its id is in `file_ids`. Every other
@@ -92,6 +96,9 @@ No new artboard (agreed). The visible pieces reuse what exists:
    `filtered_drive_files` / `apply_file_filters` are unchanged: the new argument is optional
    and absent means today's query. Photo Diary calls `filtered_drive_files` and keeps
    working without change.
+5. `file_ids` on `filtered_drive_files` is not part of the addon surface:
+   `docs/ADDON-DEVELOPMENT.md` lists it with `trust`, `origin` and `exclude_origin` as
+   parameters that are not part of it.
 
 **SPEC-ADDON-115 (meaning search id filter).**
 
@@ -100,7 +107,8 @@ No new artboard (agreed). The visible pieces reuse what exists:
    most 10,000, no empty string). `manifest.json` lists `POST` for both routes with the same
    `pre_check` (`addon_feature: search`), `response_filter` and timeout as the `GET`.
 2. A `POST` requires `filter` (an `in:` name is an operator, so the frontend always has
-   one); without it the answer is 422. The scope is S = `B ∪ (A ∩ file_ids)` when the
+   one); without it the answer is 422. The `GET`'s other 422 combinations hold for the
+   `POST` too (`filter` with `type`, with `include_scene_clip`, with `mode=recall`). The scope is S = `B ∪ (A ∩ file_ids)` when the
    filter names collections and `A ∩ file_ids` when it does not, where A is
    `files/matching` for the filter without collections and B is the same call with them.
    `scope_member_ids` in `app/file_matching.py` computes it, as Ask does.
@@ -127,9 +135,12 @@ No new artboard (agreed). The visible pieces reuse what exists:
    `collection` / the filter's `collections` set to `collections` and the body `file_ids`
    set to `fileIds`. Every listing page of one resolution sends the same set. A failure of
    these requests behaves as the same failure of today's request does.
-3. *Search page* (`/drive/{d}/search`). The resolution runs when the drive, `q` or `type`
-   changes, on 再試行, and on load; a sort, order, view or scene-search change reuses the
-   result it has.
+3. *Search page* (`/drive/{d}/search`). The resolution runs on load, when the `in:` key
+   changes, and on 再試行. Everything else reuses the result it has: a change of `q` that
+   keeps the `in:` key (free text, other operators), `type`, sort, order, view, scene
+   search, `trust`, and a listing reset from `refreshKey` or a WebSocket structure event.
+   A member set therefore stays as it was resolved until the key changes, 再試行, or a
+   reload.
    - Resolving: no listing or meaning-search request goes out; the page shows the loading
      state it shows before its first listing page, and the results bar shows no count.
    - `failed`: no request goes out; the Files view and the Passages view show the failed
@@ -140,13 +151,17 @@ No new artboard (agreed). The visible pieces reuse what exists:
    - In `failed` and `tooLarge` the results bar shows no count; sort, view, the
      Files/Passages switch and `…` stay as they are; 再生 is not shown (no results are
      loaded).
-   - A change of drive, `q` or `type` while resolving discards that resolution.
-4. *Search window* (the search modal's results). It resolves the same way before its
-   requests, and a change of its query discards a running resolution. Resolving shows its
-   loading state; `failed` and `tooLarge` show the same text where it shows "no results"
-   today, with no retry control.
+   - A change of the `in:` key while resolving discards that resolution.
+   - The addon off for the drive, or its search answering 404, is not `failed`: the member
+     set is the listing-only members, as the evaluation gives.
+4. *Search window* (the search modal's results). It resolves inside its existing 300 ms
+   debounce, before its requests, reusing the result while the `in:` key is unchanged; a
+   change of the key discards a running resolution. Resolving shows its loading state;
+   `failed` and `tooLarge` show the same text where it shows "no results" today
+   (`SearchResultsList`), with no retry control.
 5. *Search cache.* A query with an `in:` name is neither written to nor read from the
-   search cache (by the window or the page); queries without one use it as today.
+   search cache, by the window or by the page's hydration; queries without one use it as
+   today.
 6. *「＋ 条件」.* On the search page, 「＋ 条件」 → コレクション sets the `ConditionMenu`
    option SPEC-ADDON-110 added: both kinds in one list with their icons, today's rules
    applied to the whole list (D5). Choosing a Smart Collection adds `in:"<name>"`, exactly
@@ -161,6 +176,10 @@ No new artboard (agreed). The visible pieces reuse what exists:
    cannot be saved. If a needed list fails to load, nothing is written and today's
    `saveFailed` / `updateFailed` toast shows. A query with no `in:` name saves exactly as
    today. Renaming is unaffected.
+8. *再生 on a page whose saved query names a Smart Collection* (saved before this change,
+   or produced by a rename): unchanged. Its condition and its evaluation are SPEC-CORE-109's,
+   so it plays the saved query's members with the name unexpanded, which can differ from
+   the expanded list the page shows (accepted; such a query cannot be saved any more).
 
 **SPEC-CORE-117 (apps).**
 
@@ -169,7 +188,7 @@ No new artboard (agreed). The visible pieces reuse what exists:
    `-tag:x` is free text to `parseSearchQuery`, so such a Smart Collection is a member
    target, as its search page treats it. Any other Smart Collection target is resolved to
    listing parameters exactly as today (`resolveVideoTarget` / `resolveReadingTarget`,
-   including their rules for unsupported parts).
+   including Reading's rules for unsupported parts; Video has none).
 2. For a member target, the kinds are `resolveKinds(saved type, parsed.types)` met with the
    app's base kinds, computed apart from the unsupported-part rules: kinds that do not meet
    the base kinds give today's empty target with no request and no evaluation.
@@ -181,13 +200,24 @@ No new artboard (agreed). The visible pieces reuse what exists:
 5. Then every request the app makes under the target (the header count, Discover, Library,
    the shelf pages, the provider shelf page and the restriction of suggested videos) goes
    through the `POST` routes with `type` = the kinds of step 2 and `file_ids` = the member
-   ids, and with no other target condition (`search`, `tag`, `folder`, `collection`,
-   `size`, `duration`, `favorite`, `liked` are not sent).
-6. The Discover cache is neither read nor written under a member target.
+   ids. The target contributes no other condition: none of its query's `search`, `tag`,
+   `folder`, `collection`, `size`, `duration`, `favorite` or `liked` is sent. The
+   conditions a face or page adds itself still apply as today: Library's folder chips
+   (derived from the drive root, since the target has no `folder`), its tag filter and
+   watch state, a shelf page's URL folder and tag, a shelf `key`, `ids`, sort and paging.
+6. The Discover cache is neither read nor written under a member target. Where a hook keys
+   a load on the target, a member target is identified by its Smart Collection id and its
+   evaluation, never by serialising the id list.
 7. A member target is usable whatever else its query holds: the Target menu and Manage…
    never list it disabled. This is decided from the saved query alone, without a request.
-8. The Target control keeps the Smart Collection's name in every state below; the app never
-   falls back to its default target because an evaluation failed.
+8. Once the Smart Collection list has loaded, the Target control shows the Smart
+   Collection's name while evaluating, after a failure and when too large, as when ready;
+   the app never falls back to its default target because an evaluation failed or was too
+   large. `TargetMenu`'s props do not change; only the `isUsable` the apps pass to it does.
+9. A failure or a set over 10,000 replaces the whole body of every face and page under the
+   target (Discover, Library, `VideoShelfPage`, `ReadingShelfPage`, the provider shelf
+   page) with one control: the `RetryButton` for a failure (再試行 evaluates again), the
+   この対象は使えません line for too large. The header count is hidden in both.
 
 ### 2. Failure cases
 
@@ -200,18 +230,17 @@ No new artboard (agreed). The visible pieces reuse what exists:
   `tooLarge`. Neither ever shows fewer files without saying so.
 - The addon off for the drive, or its search answering 404, is not a failure: members are
   the listing alone, as SPEC-CORE-109 defines.
-- Apps: an evaluation that throws or is incomplete leaves the app not ready with the
-  `RetryButton` where its content goes; 再試行 evaluates again. More than 10,000 members
-  shows `targetUnusable` (この対象は使えません) and sends nothing. The header count is not
-  shown in either case.
+- Apps: an evaluation that throws or is incomplete leaves the app not ready, and more than
+  10,000 members (counted before narrowing to the app's kinds) sends nothing; both as
+  SPEC-CORE-117 step 9.
 - Save: covered in SPEC-CORE-116 step 7.
 
 ### 3. States
 
 **Search page / window, query with an `in:` name**: lists loading → evaluating (only when a
 name resolves to a Smart Collection) → resolved (requests go out) | failed | too large.
-failed → resolving again on 再試行 (page only). A change of drive, `q` or `type` restarts
-from the start and discards the running resolution. Not allowed: a listing or
+failed → resolving again on 再試行 (page only). A change of the `in:` key restarts from
+the start and discards the running resolution; any other change reuses the state. Not allowed: a listing or
 meaning-search request before resolved; a request carrying a Smart Collection's name in
 `collection` / `collections`; a search-cache read or write.
 
@@ -260,8 +289,13 @@ request's drive.
   search page expands it; this is the one place the page and the members differ.
 - Video / Reading with the default target or a target without free text: unchanged
   requests and usability.
-- Reading and Video Smart Collections with free text that are refused today (a negated
-  operator, a duration in Reading) become usable member targets.
+- Reading Smart Collections with free text that are refused today (a negated operator or
+  a duration part) become usable member targets. Video refuses none today; for it, such a
+  token stops being sent as `search` text and the target lists the members instead.
+- A 再生 press on a search page whose saved query names a Smart Collection plays the
+  unexpanded members (SPEC-CORE-116 step 8).
+- `docs/ADDON-DEVELOPMENT.md`'s `filtered_drive_files` entry lists `file_ids` as not part
+  of the addon surface; the documented call is unchanged.
 - The image-query page's header: unchanged.
 - Photo Diary: unchanged (`resolveAppTarget`, `filtered_drive_files`).
 - The Internal API: no endpoint added or changed (`internal-api-policy.md` R1–R5 not
@@ -277,7 +311,8 @@ does; no log line this change adds contains a query, a scope value or a file id.
 - `in:"<smart name>"` on the search page and in the search window lists that Smart
   Collection's members under the other conditions.
 - 「＋ 条件」 → コレクション on the search page lists Smart Collections with collections (D5).
-- The messages in 1 (ja / en).
+- The messages in 1 (ja / en), and the new key `videoApp.targetUnusable`
+  (この対象は使えません / This target cannot be used, the text Reading already has).
 - Video and Reading show, for a Smart Collection with free text, the members its search page
   shows; such a Smart Collection is never disabled in the Target menu.
 - Docs: `docs/user-guide/search.md` (`in:` names a Smart Collection; saving refused),
@@ -295,7 +330,8 @@ does; no log line this change adds contains a query, a scope value or a file id.
   most 10 evaluations. No limit on time, as SPEC-CORE-109 step 3.
 - Apps evaluate once per page mount and target change, not per request.
 - 10,000 ids in one SQL `IN (...)` alongside `ids` and the collection subquery stays under
-  SQLite's bound-parameter limit; tested at 10,000 against the Docker test image's SQLite.
+  SQLite's bound-parameter limit; tested at 10,000 against the Docker test image's SQLite
+  for the listing and for every shelves grouping, keyed and unkeyed, with `ids`.
 - The Next rewrite and the addon proxy must pass a 150 KB request body; measured, not
   assumed, in the R-5 run.
 
@@ -325,7 +361,14 @@ does; no log line this change adds contains a query, a scope value or a file id.
   `ManageTargetsDialog.tsx`
 - `frontend/src/messages-core/ja.json`, `en.json`
 - `docs/user-guide/search.md`, `docs/user-guide/reading.md`, `docs/user-guide/video.md`,
-  `docs/reference/api.md`, `docs/addons/intelligence.md`
+  `docs/reference/api.md`, `docs/addons/intelligence.md`, `docs/ADDON-DEVELOPMENT.md`
+  (`filtered_drive_files`: `file_ids` not part of the surface)
+- Also: `frontend/src/components/search/SearchResultsList.tsx` (the window's message),
+  `frontend/src/components/folder/FolderContent.tsx` (the Files view's failed block),
+  `videoapp/DiscoverFace.tsx`, `readingapp/DiscoverFace.tsx`, `VideoApp.tsx`,
+  `ReadingApp.tsx`, `videoapp/LibraryControls.tsx`, `readingapp/LibraryControls.tsx`;
+  `TargetMenu.tsx` and `ManageTargetsDialog.tsx` only through the `isUsable` they are given
+  (no prop change, so no extension-point change)
 - Rules passed through: `.claude/rules/design-decisions.md` (drive boundary, no
   core-to-addon dependency), `.claude/rules/internal-api-policy.md` (no Internal API
   change), `.claude/rules/backend-conventions.md`, `.claude/rules/frontend-conventions.md`
@@ -357,14 +400,19 @@ I4. On the search page and in the search window, an `in:` name that equals a col
 (case-insensitively) is sent in `collection` / `collections` and never evaluated; one that
 equals only a Smart Collection is never sent as a name and contributes that Smart
 Collection's members (evaluated with its own `in:` names as collections only) to
-`file_ids`; every listing page and meaning-search request of one resolution carries the
-same `file_ids`, and a sort, order, view or scene-search change does not resolve again.
+`file_ids`; a name equal to neither kind is sent in `collection` / `collections` without
+evaluation; the Smart Collection list is requested only when some name equals no
+collection; every listing page and meaning-search request of one resolution carries the
+same `file_ids`, and only a change of the `in:` key, 再試行 or a reload resolves again (a
+`q`, `type`, sort, order, view, scene-search or `trust` change and a listing reset do not).
 
 I5. On the search page and in the search window, while an `in:` resolution runs, has failed
 or is too large, no listing or meaning-search request goes out; failed and too large show
-their message (the page with 再試行 only for failed), never a result list, an empty result
-or a count; a change of drive, `q` or `type` discards a running resolution; a query with an
-`in:` name is never read from or written to the search cache.
+their message (再試行 only on the page and only for failed; the window shows none), never a
+result list, an empty result or a count; the addon off for the drive or its search
+answering 404 is not failed; a change of the `in:` key discards a running resolution; a
+query with an `in:` name is never read from or written to the search cache, the page's
+hydration included.
 
 I6. A query with no `in:` name loads no list, waits for nothing and sends exactly today's
 requests on the search page and in the search window, and `evaluateSmartCollection`
@@ -377,9 +425,12 @@ sends nothing; a query without an `in:` name saves exactly as today.
 
 I8. In Video and Reading, a member target sends no request under the target before its
 evaluation succeeds; every request after it carries `file_ids` = the evaluated members and
-`type` within the app's base kinds and no other target condition, and no Discover cache
-entry is read or written; a failed evaluation shows the retry control and a set over
-10,000 shows `targetUnusable`, and neither falls back to the default target; a Smart
+`type` within the app's base kinds, and none of the target query's own conditions, while
+the face's and page's own conditions (folder chips, tag filter, watch state, URL folder and
+tag, `key`, `ids`) apply as today; no Discover cache entry is read or written; a failed
+evaluation replaces each face's or page's body with one retry control and a set over
+10,000 with the この対象は使えません line, the header count is hidden, the Target control
+shows the Smart Collection's name, and neither falls back to the default target; a Smart
 Collection without free text produces exactly today's requests and usability.
 
 I9. In the Target menu and Manage… of Video and Reading, a Smart Collection with free text
@@ -396,7 +447,7 @@ SPEC-CORE-109 I10. The search page's 「＋ 条件」 → コレクション and
 SPEC-CORE-109 I12. The search page's own loading is unchanged for every query with no `in:` name: the same requests, page size, merge, search cache and continuation offer as before; a query with an `in:` name waits for its resolution, skips the search cache, and sends `file_ids` through the POST routes when a name resolves to a Smart Collection.
 SPEC-CORE-103 I3. Pressing the button or the enabled menu row, for a query with no `in:` name, sends exactly one `PATCH /api/drives/{drive}/smart-folders/{id}` for the page's drive and that id, whose body is `{query: <trimmed URL q>, file_type: <URL type or null>}` as they were at the press and nothing else, without opening a dialog; for a query with an `in:` name it first loads the needed lists and sends that one `PATCH` only when no name resolves to a Smart Collection; while the lists load or the request is in flight the button and the row are disabled and a second press sends nothing.
 SPEC-CORE-044 I10. `SearchQueryHeader` offers the same entries in the same order, with the same exclusions and submit, as before `ConditionMenu` was extracted, except that on the search page its 「コレクション」 lists collections and Smart Collections together (SPEC-CORE-116 step 6); the Ask page's menu offers 「フォルダ」, 「コレクション」, 「タグ」, 「種類」 and never 「お気に入り」, and a choice there sends no request to `/ask`; the collection page with no `collection-actions` entry renders the same DOM as before.
-SPEC-CORE-054 I6. The `type` sent by the video app is always a subset of {video}; a target whose kinds do not intersect video produces no request and an empty state, so a smart folder can never make the app list a file that is not a video; a target with free text is a member target (SPEC-CORE-117) and is always usable, and any other target with a query part the app does not support cannot be chosen.
+SPEC-CORE-054 I6. The `type` sent by the video app is always a subset of {video}; a target whose kinds do not intersect video produces no request and an empty state, so a smart folder can never make the app list a file that is not a video; a target with free text is a member target (SPEC-CORE-117) that sends its evaluated members as `file_ids` instead of its query's conditions, and every target can be chosen.
 SPEC-CORE-099 I6. `resolveReadingTarget` returns the same result as before for every folder without free text, so the Reading app requests and lists the same books for those; a folder with free text is a member target that lists its evaluated members of the base kinds and is always usable.
 
 ## Checked, no action
