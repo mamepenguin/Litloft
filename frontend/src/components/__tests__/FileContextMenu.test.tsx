@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { act } from "react";
+import { createPortal } from "react-dom";
 import { FileContextMenu } from "../FileContextMenu";
 import { ShortcutsProvider } from "../ShortcutsProvider";
 import type { FileItem } from "@/types";
@@ -294,13 +295,14 @@ describe("FileContextMenu", () => {
       .spyOn(ConfirmDialogModule, "ConfirmDialog")
       .mockImplementation((props: { open: boolean; onConfirm: () => Promise<void> | void }) => {
         if (!props.open) return null;
-        return (
+        return createPortal(
           <button
             data-testid="trigger-confirm"
             onClick={() => {
               void props.onConfirm();
             }}
-          />
+          />,
+          document.body,
         );
       });
 

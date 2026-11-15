@@ -6,8 +6,8 @@ import {
   FolderTree,
   Inbox,
   Library,
+  ListFilter,
   Package,
-  Search,
   type LucideIcon,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -74,7 +74,7 @@ function shortcutHref(drive: string, shortcut: HomeShortcut): string {
 }
 
 const SHORTCUT_ICONS: Record<HomeShortcut["kind"], LucideIcon> = {
-  smart_folder: Search,
+  smart_folder: ListFilter,
   pin: Folder,
   collection: Library,
 };

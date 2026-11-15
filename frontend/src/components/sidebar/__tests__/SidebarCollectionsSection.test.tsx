@@ -37,6 +37,22 @@ afterAll(() => {
   }
 });
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+}));
+
+vi.mock("@/hooks/useSmartFolders", () => ({
+  useSmartFolders: () => ({
+    smartFolders: [],
+    loading: false,
+    error: null,
+    refetch: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    remove: vi.fn(),
+  }),
+}));
+
 const makeCol = (id: string, name: string, count = 3): CollectionSummary => ({
   id,
   name,
@@ -51,6 +67,7 @@ const makeCol = (id: string, name: string, count = 3): CollectionSummary => ({
 const defaultProps = {
   currentDrive: "main",
   driveBase: "/drive/main",
+  close: vi.fn(),
   collectionList: [makeCol("c1", "Rock"), makeCol("c2", "Jazz", 0)],
   setCollectionList: vi.fn(),
   creatingCollection: false,

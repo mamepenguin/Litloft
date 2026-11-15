@@ -24,8 +24,8 @@ export function usesDocumentShell(
 
 /**
  * `"canonical"` is `/drive/{drive}/{path}?file={id}`, the file's address.
- * `"collection"` is `/files/{id}`, reached only with `?collection=` /
- * `?folder_play=1`. The collection route is not where the inspector goes.
+ * `"collection"` is `/files/{id}` with a queue. The collection route is not
+ * where the inspector goes.
  */
 export type FileDetailSurface = "canonical" | "collection";
 

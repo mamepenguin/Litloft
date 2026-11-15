@@ -20,6 +20,7 @@ export const DESKTOP_ONLY = [
   "**/persistent-highlights-desktop.spec.ts",
   "**/ask-thread-desktop.spec.ts",
   "**/search-results-bar-desktop.spec.ts",
+  "**/search-results-bar-smart-play-desktop.spec.ts",
   "**/home-app-entries-desktop.spec.ts",
   "**/discover-prefix-desktop.spec.ts",
   "**/scenes-section-desktop.spec.ts",

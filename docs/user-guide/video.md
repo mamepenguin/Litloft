@@ -39,7 +39,7 @@ same tab that day.
 **See all** appears on each shelf that has one: **Continue** opens the Continue desk,
 **New** opens all videos newest first, and an addon shelf opens its addon page when the
 addon offers one. An addon shelf whose addon supplies a page provider opens a page in the
-video app instead, under the same target (type and smart folder) as Discover, and more
+video app instead, under the same target (type and Smart Collection) as Discover, and more
 videos load as you scroll. **Recommended**'s **See all** opens a page in the video app
 under the same target, listing your unwatched recommended videos. The shelf page shows 60
 videos at a time, except Recommended's, which shows all of them at once. **Continue**'s
@@ -66,22 +66,22 @@ target and sort. More shelves load as you scroll.
 
 The target control shows the target's name with a target icon, at the title row's end or
 under the title on a phone. It chooses which videos the page works on. **All videos** is
-every video in the drive. A smart folder can replace it; the page then shows only the videos
-that smart folder matches, and the choice is remembered for the drive. A smart folder's own
-sort is not used here.
+every video in the drive. A Smart Collection can replace it; the page then shows only the
+videos that Smart Collection matches, and the choice is remembered for the drive. A Smart
+Collection's own sort is not used here.
 
-The menu lists **All videos**, then the smart folders you chose to show, then
-**管理…** / **Manage…**. **Manage…** opens a searchable list of the drive's smart folders;
-tick the ones you want in this menu. The set is kept per app and per drive, so Video and
-Reading keep separate lists. A new smart folder stays out of the menu until you tick it
-there.
+The menu lists **All videos**, then the Smart Collections you chose to show, then
+**管理…** / **Manage…**. **Manage…** opens a searchable list of the drive's Smart
+Collections; tick the ones you want in this menu. The set is kept per app and per drive, so
+Video and Reading keep separate lists. A new Smart Collection stays out of the menu until
+you tick it there.
 
-- A smart folder that matches no videos (for example one limited to images) can still be
+- A Smart Collection that matches no videos (for example one limited to images) can still be
   chosen. Every tab then shows the empty state.
-- A smart folder the page cannot use is listed disabled.
-- A smart folder that has been deleted is replaced by **All videos** without a message.
-- If the smart folders cannot be loaded, the menu offers **All videos** and **Manage…**; the
-  Manage list shows a retry.
+- A Smart Collection the page cannot use is listed disabled.
+- A Smart Collection that has been deleted is replaced by **All videos** without a message.
+- If the Smart Collections cannot be loaded, the menu offers **All videos** and **Manage…**;
+  the Manage list shows a retry.
 
 ## Without a profile
 

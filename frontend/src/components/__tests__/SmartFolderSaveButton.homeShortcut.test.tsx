@@ -144,7 +144,7 @@ describe("SPEC-CORE-102 I11 the Home row on a saved Smart Folder", () => {
       </SmartFolderController>
     );
     const view = render(tree(null));
-    expect(await screen.findByRole("menuitem", { name: "Save as Smart Folder" })).toBeInTheDocument();
+    expect(await screen.findByRole("menuitem", { name: "Save as Smart Collection" })).toBeInTheDocument();
     await act(async () => {});
     expect(row(PUT_ON)).toBeNull();
     expect(row(REMOVE)).toBeNull();

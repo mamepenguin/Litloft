@@ -1,7 +1,8 @@
 import { describe, expect, it, vi, beforeEach, afterAll } from "vitest";
+import { createRef } from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import type { SmartFolder } from "@/types/smartFolder";
-import { SidebarSmartFoldersSection } from "../sidebar/SidebarSmartFoldersSection";
+import { SidebarCollectionsSection } from "../sidebar/SidebarCollectionsSection";
 
 // Provide a localStorage mock so collapse-state tests don't crash on jsdom.
 function makeLocalStorageMock(): Storage {
@@ -118,7 +119,31 @@ const SF2: SmartFolder = {
   file_type: "image",
 };
 
-describe("SidebarSmartFoldersSection", () => {
+const props = (close: () => void = vi.fn()) => ({
+  currentDrive: "main",
+  driveBase: "/drive/main",
+  close,
+  collectionList: [],
+  setCollectionList: vi.fn(),
+  creatingCollection: false,
+  setCreatingCollection: vi.fn(),
+  newCollectionName: "",
+  setNewCollectionName: vi.fn(),
+  renamingId: null as string | null,
+  setRenamingId: vi.fn(),
+  renameValue: "",
+  setRenameValue: vi.fn(),
+  contextMenu: null as { id: string; x: number; y: number } | null,
+  setContextMenu: vi.fn(),
+  createInputRef: createRef<HTMLInputElement>(),
+  renameInputRef: createRef<HTMLInputElement>(),
+  handleCreateCollection: vi.fn(),
+  handleRenameCollection: vi.fn(),
+  handleDeleteCollection: vi.fn(),
+  handleCollectionClick: vi.fn(),
+});
+
+describe("SPEC-CORE-107 I3 the Smart Collection rows of the Collections section", () => {
   beforeEach(() => {
     routerPush.mockReset();
     updateMock.mockReset();
@@ -127,25 +152,24 @@ describe("SidebarSmartFoldersSection", () => {
     mockSmartFolders = [];
   });
 
-  it("renders nothing when there are no smart folders", () => {
-    const { container } = render(
-      <SidebarSmartFoldersSection drive="main" close={vi.fn()} />,
-    );
-    expect(container.firstChild).toBeNull();
+  it("SPEC-CORE-107 I3 shows the Collections heading and no rows when the drive has nothing", () => {
+    render(<SidebarCollectionsSection {...props()} />);
+    expect(screen.getByText("Collections")).toBeInTheDocument();
+    expect(screen.queryByText("Recent videos")).not.toBeInTheDocument();
   });
 
-  it("renders entries with names when smart folders exist", () => {
+  it("SPEC-CORE-107 I3 renders the drive's Smart Collections under Collections", () => {
     mockSmartFolders = [SF1, SF2];
-    render(<SidebarSmartFoldersSection drive="main" close={vi.fn()} />);
+    render(<SidebarCollectionsSection {...props()} />);
     expect(screen.getByText("Recent videos")).toBeInTheDocument();
     expect(screen.getByText("Photos")).toBeInTheDocument();
-    expect(screen.getByText("Smart Folders")).toBeInTheDocument();
+    expect(screen.getByText("Collections")).toBeInTheDocument();
   });
 
   it("navigates to /drive/{drive}/search?... on click", () => {
     mockSmartFolders = [SF1];
     const close = vi.fn();
-    render(<SidebarSmartFoldersSection drive="main" close={close} />);
+    render(<SidebarCollectionsSection {...props(close)} />);
     fireEvent.click(screen.getByText("Recent videos"));
     expect(routerPush).toHaveBeenCalledWith(
       "/drive/main/search?q=video&type=video&smart_folder_id=sf1",
@@ -153,27 +177,27 @@ describe("SidebarSmartFoldersSection", () => {
     expect(close).toHaveBeenCalled();
   });
 
-  it("omits type param when smart folder has no file_type", () => {
+  it("omits type param when the Smart Collection has no file_type", () => {
     mockSmartFolders = [{ ...SF1, file_type: null }];
-    render(<SidebarSmartFoldersSection drive="main" close={vi.fn()} />);
+    render(<SidebarCollectionsSection {...props()} />);
     fireEvent.click(screen.getByText("Recent videos"));
     expect(routerPush).toHaveBeenCalledWith(
       "/drive/main/search?q=video&smart_folder_id=sf1",
     );
   });
 
-  it("opens context menu on right-click", () => {
+  it("opens the Smart Collection's context menu on right-click", () => {
     mockSmartFolders = [SF1];
-    render(<SidebarSmartFoldersSection drive="main" close={vi.fn()} />);
+    render(<SidebarCollectionsSection {...props()} />);
     fireEvent.contextMenu(screen.getByText("Recent videos"));
     expect(screen.getByText("Rename")).toBeInTheDocument();
     expect(screen.getByText("Delete")).toBeInTheDocument();
   });
 
-  it("renames smart folder via the rename dialog", async () => {
+  it("renames a Smart Collection via the rename dialog", async () => {
     mockSmartFolders = [SF1];
     updateMock.mockResolvedValueOnce({ ...SF1, name: "Renamed" });
-    render(<SidebarSmartFoldersSection drive="main" close={vi.fn()} />);
+    render(<SidebarCollectionsSection {...props()} />);
     fireEvent.contextMenu(screen.getByText("Recent videos"));
     fireEvent.click(screen.getByText("Rename"));
     // ContextMenu wraps onClick in requestAnimationFrame, so wait for the
@@ -186,10 +210,10 @@ describe("SidebarSmartFoldersSection", () => {
     });
   });
 
-  it("deletes smart folder via the confirm dialog", async () => {
+  it("deletes a Smart Collection via the confirm dialog", async () => {
     mockSmartFolders = [SF1];
     removeMock.mockResolvedValueOnce(undefined);
-    render(<SidebarSmartFoldersSection drive="main" close={vi.fn()} />);
+    render(<SidebarCollectionsSection {...props()} />);
     fireEvent.contextMenu(screen.getByText("Recent videos"));
     fireEvent.click(screen.getByText("Delete"));
     const ok = await screen.findByTestId("confirm-ok");
@@ -199,9 +223,9 @@ describe("SidebarSmartFoldersSection", () => {
     });
   });
 
-  it("collapses entries when section toggle is clicked", () => {
+  it("collapses both kinds from the Collections heading", () => {
     mockSmartFolders = [SF1, SF2];
-    render(<SidebarSmartFoldersSection drive="main" close={vi.fn()} />);
+    render(<SidebarCollectionsSection {...props()} />);
     const toggle = screen.getByRole("button", { name: "Collapse" });
     fireEvent.click(toggle);
     expect(screen.queryByText("Recent videos")).not.toBeInTheDocument();

@@ -229,3 +229,10 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-107 | implemented | docs/specs/file-ask-enter-submit.md | sha256:faef5d4dd878ca31de9af3dff91eb892e010e0772d2a1e8a02969ee4a729fb69 |
 | SPEC-CORE-105 | implemented | docs/specs/enlarged-row-beside.md | sha256:7cdd6d6206de7f696999bd0d3992569b59c1473badc84b6534bcf60015af47a3 |
 | SPEC-CORE-113 | implemented | docs/specs/workbench-no-page-scroll.md | sha256:d31c00045ce5bbe8746fdcb7965b2a7d76008f399a2472061c72ce9527760fb8 |
+| SPEC-ADDON-108 | implemented | docs/specs/video-ask-frames.md | sha256:434bb5887b558d658e6f3428b9a04c4d5d06b0732a99866b9c215c5a75571645 |
+| SPEC-ADDON-109 | implemented | docs/specs/video-ask-frames.md | sha256:434bb5887b558d658e6f3428b9a04c4d5d06b0732a99866b9c215c5a75571645 |
+| SPEC-CORE-106 | implemented | docs/specs/smart-collection.md | sha256:9668bed455fb686115f86df9f4757f1f9b987b609a6bf4d7a25e377e4a7694da |
+| SPEC-CORE-107 | implemented | docs/specs/smart-collection.md | sha256:9668bed455fb686115f86df9f4757f1f9b987b609a6bf4d7a25e377e4a7694da |
+| SPEC-CORE-108 | implemented | docs/specs/smart-collection.md | sha256:9668bed455fb686115f86df9f4757f1f9b987b609a6bf4d7a25e377e4a7694da |
+| SPEC-CORE-109 | implemented | docs/specs/smart-collection-parity.md | sha256:f3789757ab846c452eeb935684b69af043377ebf08e73e5be809e58607ff7c57 |
+| SPEC-ADDON-110 | implemented | docs/specs/smart-collection-parity.md | sha256:f3789757ab846c452eeb935684b69af043377ebf08e73e5be809e58607ff7c57 |

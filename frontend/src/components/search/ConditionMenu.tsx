@@ -10,11 +10,17 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { Library, ListFilter } from "lucide-react";
 
 import { DismissScrim } from "@/components/DismissScrim";
 import { useMenuSurface } from "@/components/ToolbarMenu";
-import { getCollections, getDriveTags, getFolderTree } from "@/lib/api";
+import {
+  getCollections,
+  getDriveTags,
+  getFolderTree,
+  getSmartFolders,
+} from "@/lib/api";
 import {
   FILE_KINDS,
   closeOpenQuote,
@@ -32,12 +38,14 @@ import type {
   FileKind,
   FolderTreeNode,
 } from "@/types";
+import type { SmartFolder } from "@/types/smartFolder";
 
 export type ConditionEntry =
   | "tag"
   | "kind"
   | "folder"
   | "collection"
+  | "collectionWithSmart"
   | "size"
   | "duration"
   | "favorite";
@@ -152,6 +160,7 @@ export function ConditionMenu({
 }: ConditionMenuProps) {
   const t = useTranslations("search");
   const tFilter = useTranslations("filter");
+  const locale = useLocale();
   const [level, setLevel] = useState<Level>("closed");
   const [tagFilterText, setTagFilterText] = useState("");
   const [tags, setTags] = useState<TagState>({ status: "loading", items: [] });
@@ -162,6 +171,10 @@ export function ConditionMenu({
   });
   const [collectionFilterText, setCollectionFilterText] = useState("");
   const [collections, setCollections] = useState<ListState<CollectionSummary>>({
+    status: "loading",
+    items: [],
+  });
+  const [smartFolders, setSmartFolders] = useState<ListState<SmartFolder>>({
     status: "loading",
     items: [],
   });
@@ -223,6 +236,19 @@ export function ConditionMenu({
     getCollections(drive)
       .then((items) => setCollections({ status: "ready", items }))
       .catch(() => setCollections({ status: "failed", items: [] }));
+  };
+
+  const openCollectionsWithSmart = () => {
+    setLevel("collectionWithSmart");
+    setCollectionFilterText("");
+    setCollections({ status: "loading", items: [] });
+    setSmartFolders({ status: "loading", items: [] });
+    getCollections(drive)
+      .then((items) => setCollections({ status: "ready", items }))
+      .catch(() => setCollections({ status: "failed", items: [] }));
+    getSmartFolders(drive)
+      .then((items) => setSmartFolders({ status: "ready", items }))
+      .catch(() => setSmartFolders({ status: "failed", items: [] }));
   };
 
   const choose = (operator: string, value: string) => {
@@ -305,6 +331,52 @@ export function ConditionMenu({
       .slice(0, OPTION_LIMIT)
       .map(({ collection }) => collection);
   }, [collections, collectionFilterText, parsed.collections]);
+
+  const collectionsWithSmartOptions = useMemo(() => {
+    const rows: Array<{
+      key: string;
+      name: string;
+      smart: boolean;
+    }> = [
+      ...(collections.status === "ready"
+        ? collections.items.map((collection) => ({
+            key: `collection-${collection.id}`,
+            name: collection.name,
+            smart: false,
+          }))
+        : []),
+      ...(smartFolders.status === "ready"
+        ? smartFolders.items.map((folder) => ({
+            key: `smart-${folder.id}`,
+            name: folder.name,
+            smart: true,
+          }))
+        : []),
+    ];
+    const used = new Set(parsed.collections.map((name) => name.toLowerCase()));
+    const needle = fold(collectionFilterText);
+    const collator = new Intl.Collator(locale, { numeric: true });
+    return rows
+      .filter(
+        (row) => !used.has(row.name.toLowerCase()) && !hasQuote(row.name),
+      )
+      .map((row) => {
+        const name = fold(row.name);
+        return {
+          ...row,
+          group: name.startsWith(needle) ? 0 : name.includes(needle) ? 1 : -1,
+        };
+      })
+      .filter((row) => row.group >= 0)
+      .sort((a, b) => a.group - b.group || collator.compare(a.name, b.name))
+      .slice(0, OPTION_LIMIT);
+  }, [
+    collections,
+    smartFolders,
+    collectionFilterText,
+    parsed.collections,
+    locale,
+  ]);
 
   const sizePresets = useMemo(
     () =>
@@ -510,6 +582,20 @@ export function ConditionMenu({
                         </button>
                       );
                     }
+                    if (entry === "collectionWithSmart") {
+                      return (
+                        <button
+                          key={entry}
+                          type="button"
+                          role="menuitem"
+                          className={rootItemClass}
+                          disabled={parsed.collections.length >= 10}
+                          onClick={openCollectionsWithSmart}
+                        >
+                          {t("filterCollection")}
+                        </button>
+                      );
+                    }
                     if (entry === "size") {
                       return (
                         <button
@@ -703,6 +789,71 @@ export function ConditionMenu({
                         <span className="truncate">{collection.name}</span>
                       </button>
                     ))}
+                </>
+              )}
+
+              {level === "collectionWithSmart" && (
+                <>
+                  <button
+                    type="button"
+                    onClick={openRoot}
+                    className={backItemClass}
+                  >
+                    ← {t("filterBack")}
+                  </button>
+                  <input
+                    type="text"
+                    value={collectionFilterText}
+                    aria-label={t("filterCollectionSearch")}
+                    onChange={(e) => setCollectionFilterText(e.target.value)}
+                    placeholder={t("filterCollectionSearch")}
+                    className={filterInputClass}
+                  />
+                  {(collections.status === "loading" ||
+                    smartFolders.status === "loading") && (
+                    <div className={stateRowClass}>
+                      <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+                      {t("filterCollectionsLoading")}
+                    </div>
+                  )}
+                  {collections.status !== "loading" &&
+                    smartFolders.status !== "loading" && (
+                      <>
+                        {collectionsWithSmartOptions.map((option) => {
+                          const Icon = option.smart ? ListFilter : Library;
+                          return (
+                            <button
+                              key={option.key}
+                              type="button"
+                              role="menuitem"
+                              className={`${rootItemClass} min-w-0 gap-2`}
+                              onClick={() => choose("in", option.name)}
+                            >
+                              <Icon
+                                size={14}
+                                className="flex-shrink-0 text-text-muted"
+                              />
+                              <span className="truncate">{option.name}</span>
+                            </button>
+                          );
+                        })}
+                        {collections.status === "failed" ||
+                        smartFolders.status === "failed" ? (
+                          <div className={stateRowClass}>
+                            {t("filterCollectionsFailed")}
+                          </div>
+                        ) : (
+                          collectionsWithSmartOptions.length === 0 && (
+                            <div className={stateRowClass}>
+                              {collections.items.length === 0 &&
+                              smartFolders.items.length === 0
+                                ? t("filterCollectionsNone")
+                                : t("filterCollectionsNoMatch")}
+                            </div>
+                          )
+                        )}
+                      </>
+                    )}
                 </>
               )}
 

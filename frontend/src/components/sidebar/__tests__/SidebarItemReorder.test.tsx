@@ -3,11 +3,11 @@ import { act, render, renderHook, screen, fireEvent, waitFor } from "@testing-li
 import { createRef } from "react";
 
 import { useSidebarItemOrder } from "../useSidebarItemOrder";
+import { useMergedCollectionOrder, type CollectionSectionRow } from "../useMergedCollectionOrder";
 import { useReorderableDnD } from "../useReorderableDnD";
 import { ItemDragHandle } from "../ItemDragHandle";
 import { SidebarPinsSection } from "../SidebarPinsSection";
 import { SidebarCollectionsSection } from "../SidebarCollectionsSection";
-import { SidebarSmartFoldersSection } from "../SidebarSmartFoldersSection";
 import type { CollectionSummary } from "@/types";
 import type { SmartFolder } from "@/types/smartFolder";
 
@@ -153,6 +153,7 @@ const makeSf = (id: string, name: string): SmartFolder => ({
 const collectionsProps = (collectionList: CollectionSummary[]) => ({
   currentDrive: "main",
   driveBase: "/drive/main",
+  close: vi.fn(),
   collectionList,
   setCollectionList: vi.fn(),
   creatingCollection: false,
@@ -173,9 +174,10 @@ const collectionsProps = (collectionList: CollectionSummary[]) => ({
   handleCollectionClick: vi.fn(),
 });
 
-describe("(a) sections render items in useSidebarItemOrder order", () => {
+describe("(a) SPEC-CORE-107 I5 sections render items in their saved order", () => {
   beforeEach(() => {
     mockStorage.clear();
+    mockSmartFolders = [];
     vi.clearAllMocks();
   });
 
@@ -198,10 +200,10 @@ describe("(a) sections render items in useSidebarItemOrder order", () => {
     expect(links[1]).toHaveTextContent("one");
   });
 
-  it("Collections renders collections in the saved per-drive order", () => {
+  it("SPEC-CORE-107 I5 Collections renders collections in the merged saved per-drive order", () => {
     mockStorage.setItem(
-      "sidebar:order:collections:main",
-      JSON.stringify(["c2", "c1"]),
+      "sidebar:order:collections-all:main",
+      JSON.stringify(["collection:c2", "collection:c1"]),
     );
     render(
       <SidebarCollectionsSection
@@ -216,13 +218,13 @@ describe("(a) sections render items in useSidebarItemOrder order", () => {
     expect(labels[1]).toContain("Rock");
   });
 
-  it("Smart Folders renders entries in the saved per-drive order", () => {
+  it("SPEC-CORE-107 I5 Smart Collections render in the merged saved per-drive order", () => {
     mockSmartFolders = [makeSf("s1", "Recent"), makeSf("s2", "Videos")];
     mockStorage.setItem(
-      "sidebar:order:smart-folders:main",
-      JSON.stringify(["s2", "s1"]),
+      "sidebar:order:collections-all:main",
+      JSON.stringify(["smart:s2", "smart:s1"]),
     );
-    render(<SidebarSmartFoldersSection drive="main" close={vi.fn()} />);
+    render(<SidebarCollectionsSection {...collectionsProps([])} />);
     expect(screen.getByText("Videos")).toBeInTheDocument();
     expect(screen.getByText("Recent")).toBeInTheDocument();
     const allText = document.body.textContent ?? "";
@@ -233,6 +235,7 @@ describe("(a) sections render items in useSidebarItemOrder order", () => {
 describe("(b) each item has a drag grip", () => {
   beforeEach(() => {
     mockStorage.clear();
+    mockSmartFolders = [];
     vi.clearAllMocks();
   });
 
@@ -284,9 +287,9 @@ describe("(b) each item has a drag grip", () => {
     ).toHaveLength(1);
   });
 
-  it("Smart Folders items each get a grip", () => {
+  it("SPEC-CORE-107 I3 Smart Collection rows each get a grip", () => {
     mockSmartFolders = [makeSf("s1", "Recent"), makeSf("s2", "Videos")];
-    render(<SidebarSmartFoldersSection drive="main" close={vi.fn()} />);
+    render(<SidebarCollectionsSection {...collectionsProps([])} />);
     expect(
       screen.getAllByRole("button", { name: "Drag to reorder" }),
     ).toHaveLength(2);
@@ -296,6 +299,7 @@ describe("(b) each item has a drag grip", () => {
 describe("(c) drop reorders and persists to a drive-scoped key", () => {
   beforeEach(() => {
     mockStorage.clear();
+    mockSmartFolders = [];
     vi.clearAllMocks();
   });
 
@@ -330,22 +334,27 @@ describe("(c) drop reorders and persists to a drive-scoped key", () => {
     expect(onReorder).toHaveBeenCalledWith(["b", "c", "a"]);
   });
 
-  it("collections drop persists under sidebar:order:collections:{drive}", () => {
+  it("SPEC-CORE-107 I5 a collections drag persists under sidebar:order:collections-all:{drive}", () => {
+    const rows: CollectionSectionRow[] = [
+      { key: "collection:c1", kind: "collection", id: "c1", name: "Rock" },
+      { key: "collection:c2", kind: "collection", id: "c2", name: "Jazz" },
+    ];
     const { result } = renderHook(() =>
-      useSidebarItemOrder("collections", "photos", ["c1", "c2"]),
+      useMergedCollectionOrder("photos", rows, "en"),
     );
     act(() => {
-      result.current.setOrder(["c2", "c1"]);
+      result.current.setOrder(["collection:c2", "collection:c1"]);
     });
     expect(
-      JSON.parse(mockStorage.getItem("sidebar:order:collections:photos") as string),
-    ).toEqual(["c2", "c1"]);
+      JSON.parse(mockStorage.getItem("sidebar:order:collections-all:photos") as string),
+    ).toEqual(["collection:c2", "collection:c1"]);
   });
 });
 
 describe("(d) per-drive isolation — orders never mix across drives", () => {
   beforeEach(() => {
     mockStorage.clear();
+    mockSmartFolders = [];
   });
 
   it("a saved order for drive A does not affect drive B", () => {
@@ -425,6 +434,7 @@ describe("(e) cross-section drops are rejected by per-kind MIME", () => {
 describe("(f) Collections file-ids drop still calls addCollectionItems", () => {
   beforeEach(() => {
     mockStorage.clear();
+    mockSmartFolders = [];
     vi.clearAllMocks();
     addCollectionItemsMock.mockResolvedValue(undefined);
     getCollectionsMock.mockResolvedValue([]);
