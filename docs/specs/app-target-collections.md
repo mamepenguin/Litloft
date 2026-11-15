@@ -64,9 +64,10 @@ No new artboard (agreed). The rows reuse what exists:
 
 **SPEC-CORE-118 (Target menu and the core apps).**
 
-1. `TargetMenuProps` gains two optional props: `collections?: LoadState<CollectionSummary[]>`
-   and `onRetryCollections?: () => void`. Without `collections` the menu lists no collection
-   and otherwise behaves as today, except for the order of step 2. No existing prop changes.
+1. `TargetMenuProps` gains one optional prop, `collections?: { list:
+   LoadState<CollectionSummary[]>; retry: () => void }`, so a caller that gives the list
+   always gives its retry. Without it the menu lists no collection and otherwise behaves as
+   today, except for the order and icons of step 2. No existing prop changes.
 2. The menu lists the default row (with its count, as today), then the target list's
    entries that are shown (step 4), in the target list's order, each with its icon. A
    Smart Collection row is disabled with the unavailable title when `isUsable` says so, as
@@ -75,14 +76,20 @@ No new artboard (agreed). The rows reuse what exists:
 3. Choosing a collection row calls `onChoose("collection:<id>")`; a Smart Collection row
    calls `onChoose(<id>)` as today; the checked row is the one whose target id equals
    `selectedId`.
-4. Shown set (unchanged rule, now over both kinds): never saved means every usable Smart
-   Collection and every collection is listed; a saved set lists exactly the entries whose
+4. Shown set (unchanged rule, now over both kinds): never saved means every Smart
+   Collection (an unusable one disabled, as today) and every collection is listed; a saved set lists exactly the entries whose
    target id it holds (an empty set lists none), so a collection created after the set was
    saved is not listed until the viewer checks it in Manage… (agreed). Saved ids not in the
    loaded lists are ignored.
 5. Manage… lists the target list (both kinds, the same order and icons), filtered by the
    search field over names as today. Toggling a collection adds or removes
-   `collection:<id>` in the app's shown set, the first toggle saving the set as today.
+   `collection:<id>` in the app's shown set, the first toggle saving the set as today (from
+   never saved: every usable Smart Collection and every collection, then the toggle).
+   While any list given to the menu is still loading, Manage… lists the rows of the lists
+   already loaded with their checkboxes disabled, so no toggle is written from a partial
+   list; the menu itself lists the rows of the lists already loaded and may be chosen from,
+   as today while the Smart Collection list loads. A toggle writes the checked entries of
+   both loaded lists; saved ids in neither list are dropped, as today.
 6. Video and Reading load the collection list on mount alongside the Smart Collection list
    and pass both to the menu.
 7. A saved `collection:<id>` is looked up in the collection list only; while that list is
@@ -130,7 +137,7 @@ No new artboard (agreed). The rows reuse what exists:
 
 - The collection list fails to load: the menu lists the default row, the Smart Collections
   and Manage…; Manage… shows today's `RetryButton` in place of the list, which calls the
-  retry of every given list that failed. A saved `collection:<id>` gives the default target at once,
+  retry of every given list that failed (and only those). A saved `collection:<id>` gives the default target at once,
   the saved id kept; a retry that loads the list applies it as a target change, as a saved
   Smart Collection does today.
 - The Smart Collection list fails and the collection list loads: the menu lists the default
@@ -138,9 +145,10 @@ No new artboard (agreed). The rows reuse what exists:
   any given list failed, as it does today for the one list.
 - The saved collection is gone: the default target, the saved id kept (as a gone Smart
   Collection).
-- The collection is renamed while the app is open: requests keep the old name and list
-  nothing under it until the app's lists are loaded again (a page mount or a retry).
-  Accepted below.
+- The collection is renamed or deleted while the app is open: requests keep the old name,
+  so the app lists nothing under it (or, if a collection of that name is created meanwhile,
+  that collection's files) while the Target control shows the old name, until the app's
+  lists are loaded again (a page mount or a retry). Accepted below.
 - A locked or unknown drive: 404 as today.
 
 ### 3. States
@@ -214,6 +222,11 @@ One more list request per app mount. A collection target adds one subquery, as `
 - Read, not changed: `backend/app/routers/drives.py` (`filtered_drive_files`'s `file_ids`,
   already there), `frontend/src/lib/memberTarget.ts`, `useMemberTarget.ts`,
   `frontend/src/lib/appPrefs.ts` (keys unchanged)
+- Tests whose harnesses mock only `/smart-folders` (`VideoApp.*.test.tsx`,
+  `ReadingApp.*.test.tsx`, shelf-page tests, `TargetMenu.test.tsx`,
+  `ManageTargetsDialog` tests) gain a `/collections` answer; assertions of the old
+  newest-first order or the appended current target change to the name order. No
+  assertion is otherwise loosened.
 - Rules passed through: `.claude/rules/design-decisions.md` (drive boundary, no
   core-to-addon dependency), `.claude/rules/frontend-conventions.md`
 - No protected path is edited. No submodule pointer moves.
@@ -242,26 +255,36 @@ I4. While a saved target's list is loading, no request carrying a target goes ou
 list only, and `"default"` for neither.
 
 I5. The shown set holds target ids of both kinds under the app's existing key: never saved
-lists every usable Smart Collection and every collection; a saved set lists exactly its
+lists every Smart Collection (unusable ones disabled) and every collection; a saved set lists exactly its
 members plus the current target; a toggle in Manage… changes only that app's and that
 drive's set and never the current target; ids not in the loaded lists are ignored.
 
-I6. Under the default target and under any Smart Collection target, Video and Reading send
-exactly the requests they sent before this change; a `TargetMenu` caller that passes no
-`collections` lists no collection row and requests no collection list.
+I6. Under the default target and under any Smart Collection target, every request Video and
+Reading send carrying the target is exactly what it was before this change (the one new
+request is the collection list on mount); a `TargetMenu` given no `collections` lists no
+collection row.
 
 I7. When any list given to Manage… failed to load, the dialog shows the retry in place of
-the list, and the retry asks again for every failed list and no other.
+the list, and the retry asks again for every failed list and no other; while any given list
+is loading no toggle can be made, so a written shown set never lacks the entries of a list
+that had not loaded.
 
 I8. `parseAppTargetId` reads `"default"` as default, every `collection:<id>` as that
 collection, and every other value as a Smart Collection id; `collectionTargetId` and
 `parseAppTargetId` round-trip; `resolveCollectionTarget` throws for an empty base list or
 one holding `document`, as `resolveAppTarget` does.
 
+I9. `filtered_drive_files` called with `file_ids` selects exactly the files `POST
+/api/drives/{drive}/files/query` lists for the same parameters and ids (SPEC-CORE-115 I1:
+union with `collection`, only listed ids without it, `[]` passing nothing through `in:`),
+and with `file_ids=None` exactly what it selected before; `docs/ADDON-DEVELOPMENT.md`
+states this meaning.
+
 ## Revises
 
-SPEC-CORE-059 I14. The shown set is saved per app and per drive under its own key and holds Smart Collection ids and `collection:<id>` values; never saved means every usable Smart Collection and every collection is listed, a saved set lists exactly its members (an empty set lists none), and the current target is listed whether or not it is a member.
+SPEC-CORE-059 I14. The shown set is saved per app and per drive under its own key and holds Smart Collection ids and `collection:<id>` values; never saved means every Smart Collection (an unusable one disabled) and every collection is listed, a saved set lists exactly its members (an empty set lists none), and the current target is listed whether or not it is a member.
 SPEC-CORE-059 I15. Manage… never changes the current target and writes no Smart Collection or collection; a stored shown set that is not a JSON array of strings is read as never saved, and ids not in the drive's lists are ignored.
+SPEC-CORE-117 I8. In Video and Reading, a member target sends no request under the target before its evaluation succeeds; every request after it carries `file_ids` = the evaluated members and `type` within the app's base kinds, and none of the target query's own conditions, while the face's and page's own conditions (folder chips, tag filter, watch state, URL folder and tag, `key`, `ids`) apply as today; no Discover cache entry is read or written; a failed evaluation replaces each face's or page's body with one retry control and a set over 10,000 with the この対象は使えません line, the header count is hidden, the Target control shows the Smart Collection's name, and neither falls back to the default target; a Smart Collection without free text produces exactly today's requests carrying the target and today's usability (the apps also request the collection list on mount, SPEC-CORE-118).
 SPEC-CORE-054 I10. The face, classification and target are remembered per drive under separate keys; a stored value that is unknown, stale, not offered in the current state, or a Smart Collection or collection id that is not in this drive's list falls back to its default without an error screen and is never sent to the backend; a saved Watch state survives the profile's absence.
 
 ## Checked, no action
