@@ -106,6 +106,8 @@ interface VisitEntries {
 interface Visit {
   key: string;
   drive: string;
+  /** The target's identity, part of every cache key so no target borrows another's entry. */
+  requestKey: string;
   params: VideoTargetParams;
   hasProfile: boolean;
   nickname: string | null;
@@ -142,6 +144,7 @@ function viewOf(state: LoadState<ShelfItem[]>): ShelfView<ShelfItem> {
 function recommendedCacheKey(visit: Visit, entries: readonly SlotEntry[]): string {
   return discoverCacheKey({
     drive: visit.drive,
+    requestKey: visit.requestKey,
     params: visit.params,
     slot: RECOMMENDED_SLOT,
     date: visit.date,
@@ -153,6 +156,7 @@ function recommendedCacheKey(visit: Visit, entries: readonly SlotEntry[]): strin
 function addonCacheKey(visit: Visit, entry: SlotEntry, locale: string): string {
   return discoverCacheKey({
     drive: visit.drive,
+    requestKey: visit.requestKey,
     params: visit.params,
     slot: SHELVES_SLOT,
     date: visit.date,
@@ -206,6 +210,7 @@ export function useDiscover({
     current = {
       key: visitKey,
       drive,
+      requestKey: requests.key,
       params: params!,
       hasProfile,
       nickname,
