@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "stacked-find-test-removal-reason-mismatch",
+      "origin": "reviewer",
+      "claim": "The stated reason for deleting the stacked find/canvas-scroll e2e test describes the inspector-open configuration, but the deleted test sets the inspector closed and asserts a positive canvas scroll range.",
+      "impact": "The stacked-inspector find-close scroll restore, which the spec declares unchanged, has no test. The recorded justification does not match the test it removes, so a reader cannot rely on it to conclude that the coverage was redundant.",
+      "evidence": "Deleted test in frontend/e2e-components/inspector-responsive-layout-desktop.spec.ts (hunk @@ -611,48 +611,6 @@): it sets localStorage inspector-open:fixture to false, then asserts target > 0 (the canvas scrolls) before find is opened and that scrollTop is restored after close. The spec's Touch points paragraph says the premise was that with the inspector open in a stacked layout the canvas holds only the player (scrollHeight equals clientHeight at 900x700 and 900x520). That measures a different configuration (inspector open) and contradicts the deleted test's own target > 0 assertion for the closed configuration.",
+      "repro": "not_reproduced: static reading only; no test was run and no browser measurement was made. The mismatch is visible by comparing the deleted body with the spec text.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "No declared invariant covers the stacked inspector canvas scroll (spec §7 lists it as unchanged, with no I-line). The removal reads wrong because its justification addresses another configuration."
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Restore the test, or measure the closed-inspector stacked case the test names and record that measurement as the reason for removal."
+    },
+    {
+      "id": "beside-toggle-no-observed-size-change",
+      "origin": "reviewer",
+      "claim": "A change of data-row-beside on the row's ancestor is not observed by the MutationObserver (attributes are not watched), so rowBlock can stay stale if the frame and row sizes do not change in an observed element.",
+      "impact": "If the row moves beside the frame and back without any observed element changing size, --player-avail keeps a rowBlock that is 0 or the full block, so a shown panel or a frame could sit past the visible area until the next resize. Not seen in any reviewed state, because the beside state needs a panel shown and the cap is then half of H.",
+      "evidence": "frontend/src/components/FileDetail/hooks/useCompanionMetrics.ts:28-31 returns 0 when row.closest('[data-row-beside=\"on\"]'); lines 135-139 observe the scope with childList and subtree only, with no attributes option; the ResizeObserver observes the row, the pane or documentElement, and the player wrapper (lines 124-127). Whether the wrapper size changes on a beside toggle is not checked.",
+      "repro": "not_reproduced: static reading. Mutation to try in a browser: toggle data-row-beside between on and off at a fixed width and compare --player-avail with H - offset - rowBlock after each toggle.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "The beside case is outside the I-lines (I7 names only row height change, mount and unmount, and H change). It diverges from the spec's wording that the budget is recomputed on the row's changes."
+      },
+      "severity": "LOW",
+      "proposed_fix": "Observe the attribute change (attributes: true with attributeFilter data-row-beside) or measure from the beside state change, and record the beside case in the spec's transitions."
+    }
+  ],
+  "specification_compliance": [
+    "The previous verifier finding (row never observed when it exists at mount) is fixed in ce08ff9c7: observation is tracked by watchedRow and followRow() runs again after the observer exists (useCompanionMetrics.ts:72-83, 122-128). The new jsdom test covers only the mount case.",
+    "The host rule is height: var(--rail-avail, 100dvh) restricted to data-workbench=on (globals.css:910-914), as §1 requires. Data-workbench is set only with a panel shown.",
+    "The framed-player cap now includes min(..., --player-avail x 16/9) in the panel-shown state (globals.css:919-926), and the enlarged floor includes the share and avail terms (globals.css:933-939). By construction the floor is not above the cap, so the 'minimum overrides maximum' concern from 68a765c41 does not arise.",
+    "The spec's I4 enlarged text now matches the CSS: the lesser of 30% of H and avail, and at least the lesser of 270px, 30% of H and avail.",
+    "No-panel frame cap: the generic rule at globals.css:897 caps the frame at --player-avail x 16/9, so I3's height bound holds without a row beside.",
+    "rowBlock returns 0 when the row sits beside the frame. The spec was edited to describe this (§3), so it now matches the code.",
+    "Spec and code were reconciled in the direction of the code: the rowRef plumbing from the approved touch points was replaced by a class lookup and the spec text was rewritten. The spec approval hash has changed in three commits (eb41, ebb1, 4368, then 0049), so the approval was regenerated after each edit."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The beside toggle is not observed as an attribute change (see finding beside-toggle-no-observed-size-change).",
+    "The MutationObserver runs a querySelector on every childList mutation under the document when there is no mini player; this cost is outside the spec, as the r1 review noted."
+  ],
+  "regression_risks": [
+    "Removing the stacked find-close scroll test leaves the stacked inspector's canvas scroll restore with no test.",
+    "Later edits that add a clamp term to the framed-player cap rule have to keep the floor at or below the cap; the test regexes pin the exact text, so an equivalent rewrite fails the tests without a behaviour change.",
+    "The jsdom suite still does not exercise a nonzero rowBlock, so a change that drops or doubles the row block passes the unit tests."
+  ],
+  "test_coverage": [
+    "The new useCompanionMetrics test checks that a row present at mount is observed. It does not check a row that mounts later, a row whose height changes, or the beside exception.",
+    "FileDetailCanvas expectations (556, 680, 450) are the old values plus 48 and have rowBlock 0. No jsdom case covers a nonzero rowBlock.",
+    "The new e2e spec workbench-no-page-scroll-desktop.spec.ts measures the budget formula, the row and the scroll at several H values. It was not run here, so its results are unknown.",
+    "The deleted stacked find test has no replacement."
+  ],
+  "not_verified": [
+    "No tests were run and no browser measurement was made; only Read, Glob and Grep were available.",
+    "I did not check the stacked inspector's behaviour on the base commit, so the claim that the deleted test's premise was not true on the baseline is unverified.",
+    "I did not check whether the player wrapper's size changes on a beside toggle, which decides whether the beside case is observed indirectly.",
+    "I did not read the e2e-layout static fixtures or the full Workbench row render conditions (when the row is drawn).",
+    "I did not check the full ShellLayout.tsx render order, so whether the row exists at the first effect run is inferred from the code."
+  ],
+  "confidence": 72,
+  "trajectory": "The design is being patched. Round 1 added a rowBlock subtraction, a document-wide MutationObserver, and a beside exception. Round 2 added a second tracking variable (knownRow and watchedRow) to fix the observation of a row that exists at mount, a third min() term on the framed cap, a fourth term on the enlarged floor, a switch of the floor's share to --workbench-player-share, and several spec edits. Those edits describe the code's mechanism instead of the approved rowRef design. Each round adds a branch or a clamp term that the previous round did not predict, and the spec's approval hash changed in four commits. Round 2 removed one thing: the single observedRow variable, which was replaced by two variables. It did not remove a design element. The approved rowRef design was already gone in round 1."
+}

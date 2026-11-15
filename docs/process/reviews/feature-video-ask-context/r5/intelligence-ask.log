@@ -1,0 +1,62 @@
+INFO:     192.168.107.2:46966 - "POST /files/puqsf46R2vWh/ask HTTP/1.1" 200 OK
+2026-11-15 06:41:39,663 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file puqsf46R2vWh)
+2026-11-15 06:43:09,694 [WARNING] app.routers.rag: file question failed: RuntimeError (file puqsf46R2vWh)
+INFO:     192.168.107.2:56866 - "POST /files/puqsf46R2vWh/ask HTTP/1.1" 200 OK
+2026-11-15 06:43:42,295 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file puqsf46R2vWh)
+2026-11-15 06:43:44,420 [INFO] httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+INFO:     192.168.107.2:55428 - "POST /files/puqsf46R2vWh/ask HTTP/1.1" 200 OK
+2026-11-15 06:44:43,701 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file puqsf46R2vWh)
+2026-11-15 06:46:13,710 [WARNING] app.routers.rag: file question failed: RuntimeError (file puqsf46R2vWh)
+INFO:     192.168.107.2:59000 - "POST /files/2Kz2-Hq4X7sB/ask HTTP/1.1" 200 OK
+2026-11-15 06:47:13,243 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file 2Kz2-Hq4X7sB)
+2026-11-15 06:48:43,290 [WARNING] app.routers.rag: file question failed: RuntimeError (file 2Kz2-Hq4X7sB)
+INFO:     192.168.107.2:57744 - "POST /files/nzM31CiFQFiK/ask HTTP/1.1" 200 OK
+2026-11-15 06:53:36,006 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file nzM31CiFQFiK)
+2026-11-15 06:55:06,024 [WARNING] app.routers.rag: file question failed: RuntimeError (file nzM31CiFQFiK)
+INFO:     192.168.107.2:53102 - "POST /files/nzM31CiFQFiK/ask HTTP/1.1" 200 OK
+2026-11-15 06:55:14,731 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file nzM31CiFQFiK)
+2026-11-15 06:57:09,277 [INFO] httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+INFO:     192.168.107.2:57526 - "POST /files/nzM31CiFQFiK/ask HTTP/1.1" 200 OK
+2026-11-15 06:58:16,662 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file nzM31CiFQFiK)
+2026-11-15 07:00:22,289 [INFO] httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+INFO:     192.168.107.2:50362 - "POST /files/nzM31CiFQFiK/ask HTTP/1.1" 200 OK
+2026-11-15 07:01:30,544 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file nzM31CiFQFiK)
+2026-11-15 07:03:24,826 [INFO] httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+INFO:     192.168.107.2:60566 - "POST /files/nzM31CiFQFiK/ask HTTP/1.1" 200 OK
+2026-11-15 07:04:23,896 [INFO] httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+INFO:     192.168.107.2:34476 - "POST /files/nzM31CiFQFiK/ask HTTP/1.1" 200 OK
+2026-11-15 07:04:33,717 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file nzM31CiFQFiK)
+2026-11-15 07:04:34,707 [INFO] httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 400 Bad Request"
+2026-11-15 07:04:34,708 [WARNING] app.routers.rag: file question frames failed: frames_rejected (file nzM31CiFQFiK)
+2026-11-15 07:04:36,236 [INFO] httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+INFO:     192.168.107.2:47534 - "POST /files/nzM31CiFQFiK/ask HTTP/1.1" 200 OK
+2026-11-15 07:04:50,566 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file nzM31CiFQFiK)
+2026-11-15 07:04:51,585 [INFO] httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 400 Bad Request"
+2026-11-15 07:04:51,585 [WARNING] app.routers.rag: file question frames failed: frames_rejected (file nzM31CiFQFiK)
+2026-11-15 07:04:53,407 [INFO] httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+INFO:     192.168.107.2:41648 - "POST /files/EfM1CterzoIa/ask HTTP/1.1" 200 OK
+2026-11-15 07:05:18,510 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file EfM1CterzoIa)
+INFO:     192.168.107.2:36438 - "POST /files/_p2jkii4itW-/ask HTTP/1.1" 200 OK
+2026-11-15 07:07:44,060 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file _p2jkii4itW-)
+INFO:     192.168.107.2:53904 - "POST /files/uwMD5g7u1wEV/ask HTTP/1.1" 200 OK
+INFO:     192.168.107.2:53906 - "POST /files/bZIOZrkiMcBe/ask HTTP/1.1" 200 OK
+INFO:     192.168.107.2:53924 - "POST /files/RDxqoxFart5T/ask HTTP/1.1" 200 OK
+2026-11-15 07:10:47,692 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file uwMD5g7u1wEV)
+2026-11-15 07:10:47,695 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file bZIOZrkiMcBe)
+2026-11-15 07:10:47,743 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file RDxqoxFart5T)
+INFO:     192.168.107.2:45590 - "POST /files/hh_45I_sgMVC/ask HTTP/1.1" 200 OK
+2026-11-15 07:12:43,120 [WARNING] app.routers.rag: file question failed: EmptyAnswer (file hh_45I_sgMVC)
+INFO:     192.168.107.2:58608 - "POST /files/dUNQA5DXMBLO/ask HTTP/1.1" 200 OK
+2026-11-15 07:19:14,945 [INFO] httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+INFO:     192.168.107.2:46522 - "POST /files/gjNMe4L5ONhG/ask HTTP/1.1" 200 OK
+2026-11-15 07:21:06,423 [WARNING] app.rag.file_question: scene_candidates_failed (file gjNMe4L5ONhG)
+2026-11-15 07:21:07,269 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file gjNMe4L5ONhG)
+2026-11-15 07:25:39,533 [INFO] httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+INFO:     192.168.107.2:42864 - "POST /files/2Kz2-Hq4X7sB/ask HTTP/1.1" 200 OK
+2026-11-15 07:26:16,870 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file 2Kz2-Hq4X7sB)
+2026-11-15 07:28:15,849 [INFO] httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+INFO:     192.168.107.2:56770 - "POST /files/04TzLUC7rnlY/ask HTTP/1.1" 200 OK
+2026-11-15 07:31:55,087 [INFO] httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+INFO:     192.168.107.2:44648 - "POST /files/dUNQA5DXMBLO/ask HTTP/1.1" 200 OK
+2026-11-15 07:34:48,722 [INFO] app.rag.file_question: frames_dropped: chosen=1 dropped=0 (file dUNQA5DXMBLO)
+2026-11-15 07:35:31,343 [INFO] httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"

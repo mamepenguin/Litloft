@@ -29,7 +29,7 @@ The addon can send your file content to outside services. Whether it does depend
 
 - Which [LLM profile](#llm-profiles-and-routing) a feature uses. A profile on your own machine (ollama, or another model on your network) keeps content at home. A profile marked **External server** sends it to that server, and only on drives that allow it (`llm_cloud` below).
 - Indexing a YouTube `.loft`, and reading a frame of one, contacts YouTube from the container for a video you already saved. Nothing is sent but the address of that video.
-- **Ask** (`features.rag`) sends transcripts and text of the files it retrieves on every question. A question about one file sends that file's picture, or the frame of a playing video, when the model can read images.
+- **Ask** (`features.rag`) sends transcripts and text of the files it retrieves on every question. A question about one file sends that file's picture, or up to 8 frames of a video along with its text, when the model can read images.
 - Vision describe and the visual index send image bytes (and, for the visual index, nearby transcript text) to the vision model.
 - **Text in pictures** reads each picture inside the container with a local engine; nothing leaves the machine for the reading itself. The recognised text is then handled like a document's text (see [text in pictures](#text-in-pictures)).
 - `transcription.provider`: `"whisper_local"` and `"haas_local"` keep audio local; every other provider sends audio to the cloud.

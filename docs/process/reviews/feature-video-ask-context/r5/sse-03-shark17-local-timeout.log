@@ -1,0 +1,23 @@
+body {"question": "星を見に行ったのは誰と誰ですか？どんな景色でしたか？", "profile": null} history_turns 0
+  6.14 status 200
+  6.14 : keepalive
+ 11.14 : keepalive
+ 16.14 : keepalive
+ 21.15 : keepalive
+ 26.15 : keepalive
+ 31.15 : keepalive
+ 36.15 : keepalive
+ 41.15 : keepalive
+ 46.15 : keepalive
+ 51.15 : keepalive
+ 56.16 : keepalive
+ 61.16 : keepalive
+ 66.16 : keepalive
+ 71.16 : keepalive
+ 76.75 : keepalive
+ 81.75 : keepalive
+ 86.76 : keepalive
+ 91.15 meta {"partial": false, "image": "attached"}
+ 91.15 done {"error": "Answer generation failed"}
+ 91.15 end; max silent gap before first chunk 6.14s
+ANSWER: 
