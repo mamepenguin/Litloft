@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship (human, 2026-11-15, r1 HUMAN_REVIEW_REQUIRED on the unspecified on_index rule: the human answered "ship"; an automatic request no longer re-creates a run for a file that already has one, failed runs included, also after a vision-model change)
 ran_in_app: yes
 at: 7b6f9f17a0d502ba7d4f3c7a3e560058137540de
 by: agent
