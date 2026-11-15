@@ -41,7 +41,12 @@ No new artboard (agreed). The rows reuse what exists:
   menu the icon sits between the radio row's check column and the name; in Manage… between
   the checkbox and the name. The default row has no icon.
 - Everything else in the menu and the dialog (sizes, spacing, the default row's count,
-  disabled rows, Manage…, the dialog's search field, retry and 完了) is unchanged.
+  disabled rows, Manage…, the dialog's search field, retry and 完了) is unchanged, except
+  the search field's placeholder and accessible name (`appShell.searchTargets`), which
+  becomes 対象を検索 / Search targets, since it now filters both kinds.
+- R-5 screenshots the Target menu and Manage… of Video at 375px and 1280px with both kinds
+  listed, one with a long name; the `design-checker` compares the icon rows against D5's
+  rows in `Ask.dc.html` (icon, size, colour, place before the name).
 
 ## Definitions
 
@@ -72,7 +77,8 @@ No new artboard (agreed). The rows reuse what exists:
    entries that are shown (step 4), in the target list's order, each with its icon. A
    Smart Collection row is disabled with the unavailable title when `isUsable` says so, as
    today; a collection row is never disabled. The current target, when not in the shown
-   set, is listed too, at its place in the order (today it is appended at the end).
+   set and usable (a collection always is), is listed too, at its place in the order
+   (today it is appended at the end; the usability condition is today's).
 3. Choosing a collection row calls `onChoose("collection:<id>")`; a Smart Collection row
    calls `onChoose(<id>)` as today; the checked row is the one whose target id equals
    `selectedId`.
@@ -123,12 +129,16 @@ No new artboard (agreed). The rows reuse what exists:
    - `resolveCollectionTarget(collection, baseKinds)` → `{ usable: true, params: { type:
      [...baseKinds], collection: [collection.name] } }`, with the same `baseKinds` check
      (throws) as `resolveAppTarget`.
-   Video and Reading use them; they do not keep a second copy.
+   Video and Reading use them; they do not keep a second copy of the rule. Video may wrap
+   the result to its own params type (`type: ["video"]`), taking `collection` from it.
 3. Documented as they are today (no behavior change): `resolveMemberTarget`,
    `evaluateMemberTarget`, `MemberTarget`, `MemberEvaluation` from `@/lib/memberTarget`;
    `useMemberTarget` from `@/components/appshell/useMemberTarget`; `MEMBER_ID_LIMIT` from
    `@/lib/inNameResolution`; `getCollections` from `@/lib/api`; `CollectionSummary` from
-   `@/types`; `RetryButton` from `@/components/appshell/RetryButton`.
+   `@/types`; `RetryButton` from `@/components/appshell/RetryButton`; `EmptyState` from
+   `@/components/EmptyState`. This is the list Photo Diary's spec (SPEC-PD-021/022) uses;
+   it sends members to its own routes, so `appRequests` and the core's `…WithFileIds`
+   request functions are not part of it.
 4. The "Drawing the app header and Target" section states that `readAppTarget` may return
    `collection:<id>` once the page passes `collections` to the menu, and shows the
    collection and member paths in its example.
@@ -200,9 +210,12 @@ As in 2. Nothing is logged.
   by name, with the `Library` / `ListFilter` icons.
 - Choosing a collection narrows the app to that collection's files of the app's kinds; the
   Target control shows its name.
-- No new string.
+- One changed string: `appShell.searchTargets` スマートコレクションを検索 / Search smart
+  collections → 対象を検索 / Search targets.
 - Docs: `docs/user-guide/video.md` and `docs/user-guide/reading.md` (a collection can be a
-  target), `docs/ADDON-DEVELOPMENT.md` (SPEC-CORE-119).
+  target; where a shown set was saved in Manage…, collections start unchecked there),
+  `docs/ADDON-DEVELOPMENT.md` (SPEC-CORE-119; the section's opening sentence says the
+  Target narrows the app to one of the drive's collections or Smart Collections).
 
 ### 10. Non-functional
 
@@ -222,6 +235,14 @@ One more list request per app mount. A collection target adds one subquery, as `
 - Read, not changed: `backend/app/routers/drives.py` (`filtered_drive_files`'s `file_ids`,
   already there), `frontend/src/lib/memberTarget.ts`, `useMemberTarget.ts`,
   `frontend/src/lib/appPrefs.ts` (keys unchanged)
+- `frontend/src/messages-core/ja.json`, `en.json` (`appShell.searchTargets`)
+- Real-browser cases in `frontend/e2e-components/` for the Target menu and Manage… with
+  icon rows (375px and 1280px, a long name: the icon on the first line, the name wrapping
+  or truncating as today); the fixtures that mount the apps or the header
+  (`fixtures/appHeader.tsx`, `fixtures/videoCardSpacing.tsx`, `fixtures/app.tsx`) answer
+  `/collections` with an empty list unless a case needs collections, and
+  `readingVideoLayoutFixtureParity.test.tsx` mocks `getCollections` the same way, so no
+  existing measurement runs in the failed-list state.
 - Tests whose harnesses mock only `/smart-folders` (`VideoApp.*.test.tsx`,
   `ReadingApp.*.test.tsx`, shelf-page tests, `TargetMenu.test.tsx`,
   `ManageTargetsDialog` tests) gain a `/collections` answer; assertions of the old
@@ -233,11 +254,11 @@ One more list request per app mount. A collection target adds one subquery, as `
 
 ## Invariants
 
-I1. The Target menu and Manage… list the drive's collections and Smart Collections in one
+I1. The default row has no icon, and the Target menu and Manage… list the drive's collections and Smart Collections in one
 list ordered by `Intl.Collator(locale, { numeric: true })` on the name, a collection before
 a Smart Collection of equal name and then by id, after the default row, each with its
 `Library` or `ListFilter` icon; a collection row is never disabled; the current target is
-listed even when not in the shown set, at its place in that order.
+listed even when not in the shown set if it is usable, at its place in that order.
 
 I2. Choosing a collection saves and selects `collection:<id>`; a bare saved id keeps
 meaning a Smart Collection; a saved `collection:<id>` whose collection is not in the
@@ -274,11 +295,9 @@ collection, and every other value as a Smart Collection id; `collectionTargetId`
 `parseAppTargetId` round-trip; `resolveCollectionTarget` throws for an empty base list or
 one holding `document`, as `resolveAppTarget` does.
 
-I9. `filtered_drive_files` called with `file_ids` selects exactly the files `POST
-/api/drives/{drive}/files/query` lists for the same parameters and ids (SPEC-CORE-115 I1:
-union with `collection`, only listed ids without it, `[]` passing nothing through `in:`),
-and with `file_ids=None` exactly what it selected before; `docs/ADDON-DEVELOPMENT.md`
-states this meaning.
+I9. A `MenuRadioOption` without `icon` renders the same row as before (check column, the
+name wrapping or truncating, the detail), so every other `MenuRadioGroup` menu is
+unchanged.
 
 ## Revises
 
@@ -290,9 +309,18 @@ SPEC-CORE-054 I10. The face, classification and target are remembered per drive 
 ## Checked, no action
 
 - A collection target by its id instead of its name: the listing's `collection` takes names,
-  matched case-insensitively within the drive, and names are unique within a drive across
-  both kinds (SPEC-CORE-108). Sending ids would need a new listing parameter. The cost is
-  the rename case in 2.
+  matched case-insensitively within the drive, and new names are unique within a drive
+  across both kinds (SPEC-CORE-108). Sending ids would need a new listing parameter. The
+  costs: the rename and delete case in 2, and two collections whose duplicate names
+  predate SPEC-CORE-108 listing their union under either target, the residual 108
+  accepted (the user's data has none).
+- An invariant for `filtered_drive_files`'s `file_ids`: the function does not change, and
+  SPEC-CORE-115 I1 and I2 already pin its meaning; this spec only documents it.
+- Collections in a shown set saved before this change: they start unchecked, by the one
+  rule for both kinds (agreed); the user guides say where to check them.
+- Photo Diary's tests and the new order: they do not assert row order (checked against
+  `Target.test.tsx` and `e2e/target.spec.ts`), so the core merging first does not turn
+  them red.
 - Evaluating a collection to `file_ids`, as a member target: not needed; `collection`
   selects exactly its items, without the 10,000 cap.
 - Showing newly created collections in an app whose shown set was saved (agreed not to):
