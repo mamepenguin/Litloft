@@ -5,6 +5,7 @@ import unicodedata
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import Field
 from sqlalchemy import Integer, and_, case, cast, false, func, select, true
 from sqlalchemy.orm import Session
 
@@ -12,13 +13,14 @@ from app.auth import get_unlocked_groups
 from app.database import get_db
 from app.models import File, Tag, WatchHistory, continue_desk_filter, file_tags
 from app.routers.drives import (
-    FileKindParam,
+    FileFiltersQuery,
     _folder_subtree,
     _validate_drive,
     filtered_drive_files,
 )
 from app.routers.progress import get_viewer_id
 from app.schemas import (
+    FileIdsQuery,
     ShelfItemResponse,
     ShelfResponse,
     ShelvesResponse,
@@ -370,137 +372,163 @@ def _unkeyed_shelves(
     return shelves, len(ordered), ""
 
 
+class ShelfQuery(FileFiltersQuery):
+    by: ShelfBy
+    key: str | None = None
+    page: int | None = Field(None, ge=1)
+    per_shelf: int = Field(5, ge=1, le=60)
+    shelf_limit: int = Field(12, ge=1, le=24)
+    offset: int = Field(0, ge=0)
+    ids: list[str] | None = None
+    watch: WatchState | None = None
+    opened: bool | None = None
+    sort: str = Field(
+        "created_at",
+        pattern="^(created_at|title|file_size|liked_at|updated_at|random|last_played)$",
+    )
+    order: str = Field("desc", pattern="^(asc|desc)$")
+
+
 @router.get("/{drive_name}/shelves", response_model=ShelvesResponse)
 def list_drive_shelves(
     drive_name: str,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
     viewer_id: Annotated[str | None, Depends(get_viewer_id)],
-    by: ShelfBy,
-    key: str | None = Query(None),
-    page: int | None = Query(None, ge=1),
-    per_shelf: int = Query(5, ge=1, le=60),
-    shelf_limit: int = Query(12, ge=1, le=24),
-    offset: int = Query(0, ge=0),
-    search: str | None = Query(None, max_length=200),
-    favorite: bool | None = None,
-    liked: bool | None = None,
-    tag: list[str] | None = Query(None),
-    type: list[FileKindParam] | None = Query(None),
-    folder: list[str] | None = Query(None),
-    collection: list[str] | None = Query(None),
-    ids: list[str] | None = Query(None),
-    size: list[str] | None = Query(None),
-    duration: list[str] | None = Query(None),
-    watch: WatchState | None = Query(None),
-    trust: str | None = Query(None, pattern="^(verified|unverified|unreviewed)$"),
-    origin: Annotated[str | None, Query(min_length=1, max_length=32)] = None,
-    exclude_origin: Annotated[str | None, Query(min_length=1, max_length=32)] = None,
-    opened: bool | None = Query(None),
-    sort: str = Query(
-        "created_at",
-        pattern="^(created_at|title|file_size|liked_at|updated_at|random|last_played)$",
-    ),
-    order: str = Query("desc", pattern="^(asc|desc)$"),
+    params: Annotated[ShelfQuery, Query()],
 ):
     """Group a drive's active files into shelves under the listing's filters."""
+    return _shelves(drive_name, db, unlocked_groups, viewer_id, params)
+
+
+@router.post("/{drive_name}/shelves/query", response_model=ShelvesResponse)
+def query_drive_shelves(
+    drive_name: str,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    viewer_id: Annotated[str | None, Depends(get_viewer_id)],
+    params: Annotated[ShelfQuery, Query()],
+    body: FileIdsQuery,
+):
+    """The shelves, with the body's ids joining `collection` in the `in:` condition."""
+    return _shelves(
+        drive_name, db, unlocked_groups, viewer_id, params, file_ids=body.file_ids
+    )
+
+
+def _shelves(
+    drive_name: str,
+    db: Session,
+    unlocked_groups: list[str],
+    viewer_id: str | None,
+    params: ShelfQuery,
+    *,
+    file_ids: list[str] | None = None,
+) -> ShelvesResponse:
     _validate_drive(drive_name, unlocked_groups)
-    if page is not None and key is None:
+    if params.page is not None and params.key is None:
         raise HTTPException(status_code=422, detail="page requires key")
-    if key == "" and by != "folder":
+    if params.key == "" and params.by != "folder":
         raise HTTPException(status_code=422, detail="empty key requires by=folder")
-    if sort == "last_played" and by != "watch":
+    if params.sort == "last_played" and params.by != "watch":
         raise HTTPException(status_code=422, detail="last_played requires by=watch")
-    if sort == "random" and key is not None and page is not None:
+    if (
+        params.sort == "random"
+        and params.key is not None
+        and params.page is not None
+    ):
         raise HTTPException(status_code=422, detail="random cannot be paged")
-    if ids is not None:
-        if len(ids) > 60:
+    if params.ids is not None:
+        if len(params.ids) > 60:
             raise HTTPException(status_code=422, detail="ids accepts at most 60 elements")
-        if any(not file_id for file_id in ids):
+        if any(not file_id for file_id in params.ids):
             raise HTTPException(status_code=422, detail="ids cannot contain an empty element")
-    if opened is not None and (
-        by == "watch" or watch is not None or sort == "last_played"
+    if params.opened is not None and (
+        params.by == "watch"
+        or params.watch is not None
+        or params.sort == "last_played"
     ):
         raise HTTPException(
             status_code=422,
             detail="opened cannot be combined with watch conditions",
         )
     if (
-        by == "watch"
-        or watch is not None
-        or sort == "last_played"
-        or opened is not None
+        params.by == "watch"
+        or params.watch is not None
+        or params.sort == "last_played"
+        or params.opened is not None
     ) and viewer_id is None:
         raise HTTPException(status_code=400, detail="viewer_required")
 
     base, _ = filtered_drive_files(
         db,
         drive_name,
-        search=search,
-        favorite=favorite,
-        liked=liked,
-        tag=tag,
-        type=type,
-        folder=folder,
-        collection=collection,
-        size=size,
-        duration=duration,
-        trust=trust,
-        origin=origin,
-        exclude_origin=exclude_origin,
+        search=params.search,
+        favorite=params.favorite,
+        liked=params.liked,
+        tag=params.tag,
+        type=params.type,
+        folder=params.folder,
+        collection=params.collection,
+        size=params.size,
+        duration=params.duration,
+        trust=params.trust,
+        origin=params.origin,
+        exclude_origin=params.exclude_origin,
+        file_ids=file_ids,
     )
-    if ids is not None:
-        base = base.filter(File.id.in_(ids))
-    if opened is not None:
+    if params.ids is not None:
+        base = base.filter(File.id.in_(params.ids))
+    if params.opened is not None:
         # A row exists whatever its position, so the join is the whole answer.
         base = _join_watch(base, viewer_id)
         base = base.filter(
             WatchHistory.file_id.isnot(None)
-            if opened
+            if params.opened
             else WatchHistory.file_id.is_(None)
         )
-    if by == "watch" or watch is not None:
+    if params.by == "watch" or params.watch is not None:
         base = _join_watch(base, viewer_id)
-    if watch is not None:
-        base = base.filter(_watch_bucket() == watch)
+    if params.watch is not None:
+        base = base.filter(_watch_bucket() == params.watch)
     try:
-        if by == "all":
+        if params.by == "all":
             shelf = _keyed_shelf(
                 base,
-                by=by,
-                key="all" if key is None else key,
+                by=params.by,
+                key="all" if params.key is None else params.key,
                 drive=drive_name,
-                sort=sort,
-                order=order,
-                page=page or 1,
-                per_shelf=per_shelf,
+                sort=params.sort,
+                order=params.order,
+                page=params.page or 1,
+                per_shelf=params.per_shelf,
             )
-            return ShelvesResponse(by=by, shelves=[shelf], total_shelves=1)
-        if key is not None:
+            return ShelvesResponse(by=params.by, shelves=[shelf], total_shelves=1)
+        if params.key is not None:
             shelf = _keyed_shelf(
                 base,
-                by=by,
-                key=key,
+                by=params.by,
+                key=params.key,
                 drive=drive_name,
-                sort=sort,
-                order=order,
-                page=page or 1,
-                per_shelf=per_shelf,
+                sort=params.sort,
+                order=params.order,
+                page=params.page or 1,
+                per_shelf=params.per_shelf,
             )
-            return ShelvesResponse(by=by, shelves=[shelf], total_shelves=1)
+            return ShelvesResponse(by=params.by, shelves=[shelf], total_shelves=1)
         shelves, total, response_base = _unkeyed_shelves(
             base,
-            by=by,
+            by=params.by,
             drive=drive_name,
-            sort=sort,
-            order=order,
-            per_shelf=per_shelf,
-            shelf_limit=shelf_limit,
-            offset=offset,
+            sort=params.sort,
+            order=params.order,
+            per_shelf=params.per_shelf,
+            shelf_limit=params.shelf_limit,
+            offset=params.offset,
         )
     except Exception:
-        logger.exception("Shelves failed: drive=%s by=%s", drive_name, by)
+        logger.exception("Shelves failed: drive=%s by=%s", drive_name, params.by)
         raise
     return ShelvesResponse(
-        by=by, shelves=shelves, total_shelves=total, base=response_base
+        by=params.by, shelves=shelves, total_shelves=total, base=response_base
     )

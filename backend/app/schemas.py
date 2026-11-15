@@ -171,6 +171,26 @@ class PaginatedResponse(BaseModel):
     meta: PaginationMeta
 
 
+FILE_IDS_QUERY_MAX = 10_000
+
+
+class FileIdsQuery(BaseModel):
+    """The body of the listing's and the shelves' ``/query`` POST routes.
+
+    An empty list is a real value: it passes nothing through the ``in:``
+    condition, so it must not be read as "no filter".
+    """
+
+    file_ids: list[str] = Field(..., max_length=FILE_IDS_QUERY_MAX)
+
+    @field_validator("file_ids")
+    @classmethod
+    def validate_file_ids(cls, v: list[str]) -> list[str]:
+        if any(not file_id for file_id in v):
+            raise ValueError("file_ids cannot contain an empty element")
+        return v
+
+
 class NeighborsResponse(BaseModel):
     prev_id: str | None
     next_id: str | None

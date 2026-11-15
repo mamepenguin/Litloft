@@ -1493,8 +1493,8 @@ search text, or `None` without a search. Narrow your own query to
   for a `path` holding `..` or starting with `/`, and for a `folder`,
   `collection`, `size` or `duration` that does not normalise. Pass it on from
   your route.
-- Its `trust`, `origin` and `exclude_origin` parameters are not part of this
-  surface.
+- Its `trust`, `origin`, `exclude_origin` and `file_ids` parameters are not
+  part of this surface.
 - It filters by the drive it is given and does not check access itself: run
   your own drive check first (see [Drive context header](#drive-context-header-x-lit-drive)).
 
