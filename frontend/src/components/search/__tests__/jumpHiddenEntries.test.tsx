@@ -1,5 +1,5 @@
 /**
- * SPEC-CORE-110: the jump palette omits hidden entries. `useJumpDestinations(active, drive, hiddenKeys)`
+ * SPEC-CORE-114: the jump palette omits hidden entries. `useJumpDestinations(active, drive, hiddenKeys)`
  * takes the set as its third argument. Section 9, I2, I4, I5. Only the hook is driven here;
  * the palette's null (loading) behaviour is not stated by the spec and is not tested.
  */
@@ -42,26 +42,26 @@ function hrefsWith(hidden: ReadonlySet<string>) {
   return result.current.map((d) => d.href);
 }
 
-describe("SPEC-CORE-110 jump palette hidden entries", () => {
-  it("SPEC-CORE-110 I2 Section 9: a listed built-in is omitted and the others remain", () => {
+describe("SPEC-CORE-114 jump palette hidden entries", () => {
+  it("SPEC-CORE-114 I2 Section 9: a listed built-in is omitted and the others remain", () => {
     const hrefs = hrefsWith(new Set(["video"]));
     expect(hrefs).not.toContain(VIDEO);
     expect(hrefs).toContain(READING);
   });
 
-  it("SPEC-CORE-110 I2 Section 9: a listed addon entry is omitted and the others remain", () => {
+  it("SPEC-CORE-114 I2 Section 9: a listed addon entry is omitted and the others remain", () => {
     const hrefs = hrefsWith(new Set(["diary"]));
     expect(hrefs).not.toContain(DIARY);
     expect(hrefs).toContain(NOTES);
   });
 
-  it("SPEC-CORE-110 Section 9: removing one entry keeps every other destination in its order", () => {
+  it("SPEC-CORE-114 Section 9: removing one entry keeps every other destination in its order", () => {
     const all = hrefsWith(new Set());
     const hidden = hrefsWith(new Set(["video", "notes"]));
     expect(hidden).toEqual(all.filter((href) => href !== VIDEO && href !== NOTES));
   });
 
-  it("SPEC-CORE-110 I4 I5: library, inbox and an unknown key are ignored while a listed built-in is still omitted", () => {
+  it("SPEC-CORE-114 I4 I5: library, inbox and an unknown key are ignored while a listed built-in is still omitted", () => {
     const all = hrefsWith(new Set());
     expect(hrefsWith(new Set(["library", "inbox", "nope", "video"]))).toEqual(all.filter((href) => href !== VIDEO));
   });
