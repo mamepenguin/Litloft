@@ -600,10 +600,12 @@ describe("SPEC-CORE-116 step 6, I10: ＋ 条件 → Collection on the search pag
     expect(iconOf("Alpha")).toContain("lucide-library");
     expect(iconOf("B2")).toContain("lucide-list-filter");
 
+    router.push.mockClear();
+    router.replace.mockClear();
     fireEvent.click(screen.getByRole("menuitem", { name: "B2" }));
 
-    await waitFor(() => expect(router.push.mock.calls.length + router.replace.mock.calls.length).toBeGreaterThan(0));
-    const target = String([...router.push.mock.calls, ...router.replace.mock.calls].at(-1)![0]);
+    await waitFor(() => expect(router.push).toHaveBeenCalledTimes(1));
+    const target = String(router.push.mock.calls[0][0]);
     const q = new URL(target, "http://localhost").searchParams.get("q") ?? "";
     expect(q).toMatch(/^cats in:"?B2"?$/);
   });

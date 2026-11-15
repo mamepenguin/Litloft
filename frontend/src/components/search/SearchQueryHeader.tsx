@@ -103,19 +103,6 @@ export function SearchQueryHeader({
     router.push(searchHref(normalized));
   };
 
-  const chooseCondition = (next: string) => {
-    setText(next);
-    if (!collectionsWithSmart) {
-      submit(next);
-      return;
-    }
-    // The menu refines the search already on screen, so it rewrites the
-    // entry instead of adding one per condition; typed queries still push.
-    const normalized = next.trim();
-    if (!normalized || normalized === query.trim()) return;
-    router.replace(searchHref(normalized));
-  };
-
   const removeChip = (next: string) => {
     setText(next);
     const normalized = next.trim();
@@ -293,7 +280,10 @@ export function SearchQueryHeader({
             ]}
             label={t("addFilterWord")}
             ariaLabel={t("addFilter")}
-            onChoose={chooseCondition}
+            onChoose={(next) => {
+              setText(next);
+              submit(next);
+            }}
           />
 
           <SmartFolderOverwriteButton />
