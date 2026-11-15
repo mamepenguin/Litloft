@@ -1,9 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { Film } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { EmptyState } from "@/components/EmptyState";
 import { AppTabs } from "@/components/appshell/AppTabs";
+import { RetryButton } from "@/components/appshell/RetryButton";
 import { ShelfBlock } from "@/components/appshell/ShelfBlock";
 import { PageFrame } from "@/components/PageFrame";
 import { DiscoverFace } from "./DiscoverFace";
@@ -24,6 +27,7 @@ export function VideoApp({ drive }: { drive: string }) {
   const discover = useDiscover({
     drive,
     params: state.params,
+    requests: state.requests,
     hasProfile: state.hasProfile,
     nickname: state.nickname,
     wanted: state.ready && face === "discover",
@@ -50,7 +54,11 @@ export function VideoApp({ drive }: { drive: string }) {
         aria-labelledby={`video-app-tab-${face ?? "discover"}`}
         className="px-4 pb-6 pt-4 sm:pb-8"
       >
-        {!state.ready ? (
+        {state.targetFailed ? (
+          <RetryButton onRetry={state.retryTarget} />
+        ) : state.targetUnusable ? (
+          <EmptyState icon={Film} title={t("targetUnusable")} />
+        ) : !state.ready ? (
           <ShelfBlock
             title=""
             view={{ status: "loading" }}
@@ -61,6 +69,7 @@ export function VideoApp({ drive }: { drive: string }) {
           <LibraryFace
             drive={drive}
             params={state.params}
+            requests={state.requests}
             empty={state.empty}
             savedClassification={state.prefs!.classification}
             hasProfile={state.hasProfile}

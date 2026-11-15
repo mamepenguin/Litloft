@@ -1,0 +1,72 @@
+{
+ "あんこ動画->海の動画": {
+  "reqs": [
+   "GET /api/drives/動画/files?type=video&limit=1 ids=null 200",
+   "GET /api/drives/動画/files?search=海&sort=created_at&order=desc&page=1&limit=500 ids=null 200",
+   "POST /api/drives/動画/files/query?type=video&limit=1 ids=20 200",
+   "POST /api/drives/動画/files/query?type=video&sort=created_at&order=desc&limit=12 ids=20 200",
+   "POST /api/drives/動画/shelves/query?by=all&key=all&type=video&ids=…&per_shelf=60 ids=20 200",
+   "POST /api/drives/動画/shelves/query?by=all&key=all&type=video&ids=…&per_shelf=60 ids=20 200",
+   "POST /api/drives/動画/shelves/query?by=all&key=all&type=video&ids=…&per_shelf=60 ids=20 200"
+  ],
+  "headers": [
+   "動画 動画 · 8 本の動画 あんこ動画",
+   "動画 動画 海の動画 発見",
+   "動画 動画 · 19 本の動画 海の動画"
+  ]
+ },
+ "あんこ動画->Cats": {
+  "reqs": [
+   "GET /api/drives/動画/files?type=video&limit=1 ids=null 200",
+   "GET /api/drives/動画/files?search=猫&sort=created_at&order=desc&page=1&limit=500 ids=null 200",
+   "POST /api/drives/動画/files/query?type=video&limit=1 ids=8 200",
+   "POST /api/drives/動画/files/query?type=video&sort=created_at&order=desc&limit=12 ids=8 200",
+   "POST /api/drives/動画/shelves/query?by=all&key=all&type=video&ids=…&per_shelf=60 ids=8 200",
+   "POST /api/drives/動画/shelves/query?by=all&key=all&type=video&ids=…&per_shelf=60 ids=8 200",
+   "POST /api/drives/動画/shelves/query?by=all&key=all&type=video&ids=…&per_shelf=60 ids=8 200"
+  ],
+  "headers": [
+   "動画 動画 · 8 本の動画 あんこ動画",
+   "動画 動画 Cats 発見",
+   "動画 動画 · 6 本の動画 Cats"
+  ]
+ },
+ "すべての動画->Cats": {
+  "reqs": [
+   "GET /api/drives/動画/files?search=猫&sort=created_at&order=desc&page=1&limit=500 ids=null 200",
+   "POST /api/drives/動画/files/query?type=video&limit=1 ids=8 200",
+   "POST /api/drives/動画/files/query?type=video&sort=created_at&order=desc&limit=12 ids=8 200",
+   "POST /api/drives/動画/shelves/query?by=all&key=all&type=video&ids=…&per_shelf=60 ids=8 200",
+   "POST /api/drives/動画/shelves/query?by=all&key=all&type=video&ids=…&per_shelf=60 ids=8 200",
+   "POST /api/drives/動画/shelves/query?by=all&key=all&type=video&ids=…&per_shelf=60 ids=8 200",
+   "POST /api/drives/動画/files/query?type=video&limit=1 ids=8 200",
+   "POST /api/drives/動画/files/query?type=video&sort=created_at&order=desc&limit=12 ids=8 200"
+  ],
+  "headers": [
+   "動画 動画 · 518 本の動画 すべての動画",
+   "動画 動画 · 6 本の動画 Cats"
+  ]
+ },
+ "海の動画->あんこ動画": {
+  "reqs": [
+   "GET /api/drives/動画/files?type=video&limit=1 ids=null 200",
+   "GET /api/drives/動画/files?tag=あんこ&type=video&limit=1 ids=null 200",
+   "GET /api/drives/動画/files?tag=あんこ&type=video&sort=created_at&order=desc&limit=12 ids=null 200",
+   "GET /api/drives/動画/shelves?by=all&key=all&tag=あんこ&type=video&ids=…&per_shelf=60 ids=null 200",
+   "GET /api/drives/動画/shelves?by=all&key=all&tag=あんこ&type=video&ids=…&per_shelf=60 ids=null 200",
+   "GET /api/drives/動画/shelves?by=all&key=all&tag=あんこ&type=video&ids=…&per_shelf=60 ids=null 200"
+  ],
+  "headers": [
+   "動画 動画 · 19 本の動画 海の動画",
+   "動画 動画 · 8 本の動画 あんこ動画"
+  ]
+ },
+ "reload": [
+  "GET /api/drives/動画/files?search=海&sort=created_at&order=desc&page=1&limit=500 ids=null 200",
+  "POST /api/drives/動画/files/query?type=video&limit=1 ids=20 200",
+  "POST /api/drives/動画/files/query?type=video&sort=created_at&order=desc&limit=12 ids=20 200",
+  "POST /api/drives/動画/shelves/query?by=all&key=all&type=video&ids=…&per_shelf=60 ids=20 200",
+  "POST /api/drives/動画/shelves/query?by=all&key=all&type=video&ids=…&per_shelf=60 ids=20 200",
+  "POST /api/drives/動画/shelves/query?by=all&key=all&type=video&ids=…&per_shelf=60 ids=20 200"
+ ]
+}

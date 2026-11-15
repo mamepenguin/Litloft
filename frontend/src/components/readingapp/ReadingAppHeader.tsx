@@ -5,12 +5,12 @@ import { BookOpen } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { AppHeader } from "@/components/appshell/AppHeader";
-import { READING_BASE_KINDS, resolveReadingTarget } from "@/lib/readingAppTarget";
+import { isReadingTargetUsable, READING_BASE_KINDS } from "@/lib/readingAppTarget";
 import type { SmartFolder } from "@/types/smartFolder";
 import type { ReadingAppState } from "./useReadingApp";
 
 function isUsableTarget(folder: SmartFolder): boolean {
-  return resolveReadingTarget(folder).usable;
+  return isReadingTargetUsable(folder);
 }
 
 export function ReadingAppHeader({
@@ -52,7 +52,7 @@ export function ReadingAppHeader({
       target={{
         drive,
         app: "reading",
-        name: state.ready ? (state.folder?.name ?? t("allBooks")) : null,
+        name: state.targetKnown ? (state.folder?.name ?? t("allBooks")) : null,
         folders: state.smartFolders,
         selectedId: state.folder?.id ?? "default",
         currentCount: state.count,

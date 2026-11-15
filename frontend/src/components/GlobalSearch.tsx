@@ -130,7 +130,14 @@ export function GlobalSearch() {
   const availability = useImageAvailability(drive);
   const imageEnabled =
     availability === "available" && !scope && !browsing && !!drive;
-  const { merged, total, loading, semanticPending, reset: resetResults } = useFileSearch({
+  const {
+    merged,
+    total,
+    loading,
+    semanticPending,
+    inNameError,
+    reset: resetResults,
+  } = useFileSearch({
     open,
     drive,
     query,
@@ -625,6 +632,7 @@ export function GlobalSearch() {
       total={total}
       loading={loading}
       semanticPending={semanticPending}
+      inNameError={inNameError}
       selectedIndex={selectedIndex}
       onOpenJump={openJump}
       onEnterFolder={enterFolder}

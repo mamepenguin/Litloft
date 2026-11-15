@@ -1,0 +1,61 @@
+{
+ "searchVideoCount": "19",
+ "manage": [
+  [
+   "BUTTON:閉じる:dis=false/null",
+   "INPUT:スマートコレクションを検索:dis=false/null",
+   "LI:SpiritSave:dis=/null",
+   "INPUT::dis=false/null",
+   "LI:boats:dis=/null",
+   "INPUT::dis=false/null",
+   "LI:PDFs:dis=/null",
+   "INPUT::dis=false/null",
+   "LI:Zero:dis=/null",
+   "INPUT::dis=false/null",
+   "LI:Cats:dis=/null",
+   "INPUT::dis=false/null",
+   "LI:海の動画:dis=/null",
+   "INPUT::dis=false/null",
+   "LI:あんこ動画:dis=/null",
+   "INPUT::dis=false/null",
+   "BUTTON:完了:dis=false/null"
+  ]
+ ],
+ "ankoReqs": [
+  "GET /api/drives/動画/files?tag=あんこ&type=video&limit=1 ids=null 200",
+  "GET /api/drives/動画/files?tag=あんこ&type=video&sort=created_at&order=desc&limit=12 ids=null 200",
+  "GET /api/drives/動画/shelves?by=all&key=all&tag=あんこ&type=video&ids=…&per_shelf=60 ids=null 200",
+  "GET /api/drives/動画/shelves?by=all&key=all&tag=あんこ&type=video&ids=…&per_shelf=60 ids=null 200",
+  "GET /api/drives/動画/shelves?by=all&key=all&tag=あんこ&type=video&ids=…&per_shelf=60 ids=null 200"
+ ],
+ "ankoLabel": "あんこ動画",
+ "fail": {
+  "reqs": [
+   "GET /api/drives/動画/files?type=video&limit=1 ids=null 200",
+   "GET /api/drives/動画/files?search=海&sort=created_at&order=desc&page=1&limit=500 ids=null 200",
+   "GET /api/addons/intelligence/search?q=海&limit=1000&passages=true ids=null 500"
+  ],
+  "text": "動画 | 動画 | 海の動画 | 発見 | ライブラリ | 再試行",
+  "label": "海の動画"
+ },
+ "retry": {
+  "reqs": [
+   "GET /api/drives/動画/files?search=海&sort=created_at&order=desc&page=1&limit=500 ids=null 200",
+   "GET /api/addons/intelligence/search?q=海&limit=1000&passages=true ids=null 200",
+   "POST /api/drives/動画/files/query?type=video&limit=1 ids=20 200",
+   "POST /api/drives/動画/files/query?type=video&sort=created_at&order=desc&limit=12 ids=20 200",
+   "POST /api/drives/動画/shelves/query?by=all&key=all&type=video&ids=…&per_shelf=60 ids=20 200",
+   "POST /api/drives/動画/shelves/query?by=all&key=all&type=video&ids=…&per_shelf=60 ids=20 200",
+   "POST /api/drives/動画/shelves/query?by=all&key=all&type=video&ids=…&per_shelf=60 ids=20 200"
+  ],
+  "text": "動画 | 動画 | · 19 本の動画 | 海の動画 | 発見 | ライブラリ | 新着 | すべて見る | 18:45 | 132-「母、写真の腕前っ」「みかん、アハ～ン柔道」 | 【北海道上陸】夜の繁華街でポケ活!!!ANA背景にポケモンセンターチャンスはいっぱいあったはず…なのに…【ポケモンGO】 | Dive Into the Mesmerizing Underwater Realm 🐳"
+ },
+ "big": {
+  "reqs": [
+   "GET /api/addons/intelligence/search?q=海&limit=1000&passages=true ids=null 404"
+  ],
+  "text": "動画 | 動画 | 海の動画 | 発見 | ライブラリ | この対象は使えません",
+  "label": "海の動画"
+ },
+ "bigLibrary": "動画 | 動画 | 海の動画 | 発見 | ライブラリ | この対象は使えません"
+}

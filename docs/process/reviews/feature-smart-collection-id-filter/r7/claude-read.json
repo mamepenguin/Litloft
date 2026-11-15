@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R7-1",
+      "origin": "reviewer",
+      "claim": "useMemberTarget keeps the last evaluation in `held` and never clears it on a target change, so after switching a member target away and back, the same key matches the old result and the app is ready with stale members before the re-evaluation finishes.",
+      "impact": "After switching Video or Reading from a Smart Collection with free text to another target and back, in one page visit, requests go out immediately with the earlier member set, not the set the collection holds now. Members added or removed in between are not reflected until the re-evaluation completes, and the requests then fire a second time when the new evaluation replaces the old one.",
+      "evidence": "frontend/src/components/appshell/useMemberTarget.ts:27 (held state), :33 (setHeld only on resolution), :41 (evaluation = held when held.key === key, and key is null for a target with no kinds or no target, so the old entry is not cleared). Sequence: A evaluates (held.key = A-key); target switches to default (key = null, evaluation = null); target switches back to A (key = A-key again, so evaluation = the old result, evaluating = false, ready = true). The effect at :29-38 then re-evaluates A, and a new held object with the same key changes requests identity. The hook's docstring says a result that outlives its target is dropped; the code does not do that. Introduced by the feature branch, not touched by any fix commit since r6 (96a1fd8, d216d54, 424ee41, 0af8d49, 0299394, 6c312bd).",
+      "repro": "Not reproduced: traced in code only. Steps: in Video, pick a member target, let its evaluation settle, pick the default target, pick the member target again, and observe that the first shelf requests carry the earlier file_ids before the second evaluation request returns. No test covers a return to an earlier target.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "The ids sent are members of an earlier successful evaluation of the same target, so I8's clauses about evaluated members and no requests before success are not literally broken. The States section's 'a target change restarts at evaluating' is prose, not an invariant id, so this is a wrong-behaviour finding without a declared invariant.",
+        "reason_extra": ""
+      },
+      "severity": "LOW",
+      "proposed_fix": "Clear `held` when the key becomes null, or key the stored result by the attempt and target and drop it on a target change, so a return to a target always starts at evaluating."
+    }
+  ],
+  "specification_compliance": [
+    "I1 (core POST listing and shelves): the POST routes pass file_ids to apply_file_filters with the file_ids semantics, and the tests in backend/tests/test_api_file_ids_query.py cover the listed cases. Not verified by running.",
+    "I2 (GET unchanged): GET routes now go through FileListingQuery / ShelfQuery models with the same field constraints; no change to GET answers found by reading.",
+    "I3 (intelligence POST): _filter_scope with scope_member_ids gives B ∪ (A ∩ file_ids), or A ∩ file_ids with no collections, matching addons/intelligence/app/file_matching.py:277-301. Manifest gives POST the GET's pre_check and response_filter. A missing filter is 422, and a files/matching failure is 503. No log line added in the diff carries the query, scope or ids.",
+    "I4 / I5 (search page and window): the in: resolution gates listing and meaning requests; the continuation key now includes inKey and the retry token; listedResolution is set in finally, so a failed first page ends the pending state.",
+    "I6 (no in: query unchanged): the diff gates each new branch on inKey or inNamePending, and the no-in: path reaches the same fetch functions.",
+    "I7 (save): checkInNamesForSave runs before update and create, with the checking guard against a second press; the refusal and failed toasts are wired.",
+    "I8 (member targets): the request shape goes through appRequests with file_ids and no target conditions; Discover cache reads and writes are gated on requests.fileIds === null; the stale-held sequence in R7-1 is the one gap found.",
+    "I9 (never disabled): isReadingTargetUsable accepts member targets; Video's isUsable is always true per SPEC-CORE-054 I6.",
+    "I10 (＋条件 list): collectionWithSmart switches the menu option; the test asserts collator order and both icons."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Switching a member target away and back in one page visit reuses the earlier evaluation without re-evaluating (R7-1).",
+    "A Smart Collection named twice in `in:` (for example `in:\"Weekly\" in:weekly`) is evaluated twice in resolveInNames, because classifyNames does not deduplicate smart folders. This is harmless to the result but breaks the one-evaluation-per-name bound in SPEC-CORE-116 §10."
+  ],
+  "regression_risks": [
+    "useMemberTarget's shared `held` state is the single source of a member target's readiness. Any new caller that switches targets inside one mount inherits R7-1 until it is fixed.",
+    "The in: lifecycle now has four dimensions (inKey, inRetryToken, resolutionGeneration, listedResolution) plus the continuation key. A future change to one of them without the others can recreate the stale-image-rows and count-of-zero defects that 96a1fd8 fixed."
+  ],
+  "test_coverage": [
+    "Not run: no commands were available, so the mutations below are reasoned from the code and were not executed.",
+    "96a1fd8: dropping inKey from continuationKey should fail 'B neither keeps A's rows nor reuses A's answer' in SearchPage.inSmartCollection.test.tsx, but that test sets the sort to relevance and relies on the rows changing; it is a plausible kill, not verified. Dropping `|| listedResolution !== activeResolution` from inNamePending should fail the renderHook loading test in SearchPage.inSmartCollection.loading.test.tsx, which checks that no landed render reports loading false before the first page. listedResolution is set in the finally block, so a failed first page ends the pending state; the tests do not cover a failed first page with pending checked afterwards.",
+    "d216d54 / 6c312bd: the write guard requests.fileIds === null means the 'does not hand the member visit's shelf to the default target' test passes whether or not requestKey is in discoverCacheKey. The 'computes a member target's Discover cache keys apart' test is the one that kills dropping requestKey, provided the default target's params equal videoMemberParams under the same cache key; the test asserts no overlap between the two key sets, which catches the collision. Not verified that 'Newest one' settles only after Recommended in useDiscover.",
+    "0299394: the conditions test asserts call A equals the filter with collections emptied and call B equals the full filter, which matches scope_member_ids as read. Mutation of any non-collection condition from A would be caught by the field-by-field equality.",
+    "Trajectory assessment in the trajectory field: no round removed a state."
+  ],
+  "not_verified": [
+    "No tests were run and no typecheck was done. The mutation results above are reasoned, not executed.",
+    "useInfiniteScroll's refetch-on-fetchPage-identity behaviour was not traced, so the inNamePending end condition relies on the refetch happening.",
+    "The 150 KB request-body limit through the Next rewrite and the addon proxy was not measured.",
+    "addons/intelligence/app/routers/search.py and the new tests were read only in the diff; the worktree copy was not read in full.",
+    "The scope of `introduced` for useMemberTarget.ts: the hook is part of this feature branch, so it is marked 'introduced' rather than 'pre-existing' even though no fix commit since r6 touched it."
+  ],
+  "confidence": 75,
+  "trajectory": "Yes, the design is being patched by accretion. 96a1fd8 adds listedResolution, resolutionInForce and the trackFirstPage wrapper on top of the inResolution, inRetryToken and resolutionGeneration state added in the earlier round, and adds inKey and the retry token to continuationKey; it moves the loading branch from inNameResolving to inNamePending, but inNameResolving remains for passagesLoading, so nothing is removed. d216d54 adds a requestKey dimension to the Discover cache keys for a property the two fileIds === null guards already enforce, so it is a third mechanism for the same concern. 424ee41 and 0af8d49 add tests only. 6c312bd only strengthens a test. No round removed a state or a branch."
+}

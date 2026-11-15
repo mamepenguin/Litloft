@@ -4,6 +4,7 @@ import { ApiStatusError } from "@/lib/apiError";
 import { seedFiles } from "@/lib/fileSeed";
 import {
   appendListingFilters,
+  listingQueryUrl,
   listingUrl,
   readListingPage,
   type ListingFilters,
@@ -94,6 +95,25 @@ export async function getDriveFiles(
   return page;
 }
 
+export async function getDriveFilesWithFileIds(
+  drive: string,
+  params: ListingRequestParams,
+  fileIds: readonly string[],
+  options?: RequestOptions,
+): Promise<PaginatedResponse> {
+  const page = await readListingPage(
+    await fetch(listingQueryUrl(drive, params), {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ file_ids: fileIds }),
+      ...(options?.signal ? { signal: options.signal } : {}),
+    }),
+  );
+  seedFiles(page.data);
+  return page;
+}
+
 export type ShelfGrouping = "all" | "folder" | "tag" | "month" | "duration" | "watch";
 export type ShelfWatchState = "in_progress" | "unwatched" | "finished";
 
@@ -133,11 +153,7 @@ export interface ShelvesResponse {
   base: string;
 }
 
-export async function getShelves(
-  drive: string,
-  params: ShelvesParams,
-  options?: RequestOptions,
-): Promise<ShelvesResponse> {
+function shelvesSearchParams(params: ShelvesParams): string {
   const searchParams = new URLSearchParams();
   searchParams.set("by", params.by);
   if (params.key !== undefined) searchParams.set("key", params.key);
@@ -151,11 +167,10 @@ export async function getShelves(
     const value = params[name];
     if (value !== undefined) searchParams.set(name, String(value));
   }
+  return searchParams.toString();
+}
 
-  const res = await fetch(
-    `${API_BASE}/drives/${encodeURIComponent(drive)}/shelves?${searchParams.toString()}`,
-    { credentials: "include", signal: options?.signal },
-  );
+async function readShelves(res: Response): Promise<ShelvesResponse> {
   if (!res.ok) {
     const body: unknown = await res.json().catch(() => null);
     const detail =
@@ -171,6 +186,37 @@ export async function getShelves(
   const shelves = (await res.json()) as ShelvesResponse;
   for (const shelf of shelves.shelves) seedFiles(shelf.items);
   return shelves;
+}
+
+export async function getShelves(
+  drive: string,
+  params: ShelvesParams,
+  options?: RequestOptions,
+): Promise<ShelvesResponse> {
+  const res = await fetch(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/shelves?${shelvesSearchParams(params)}`,
+    { credentials: "include", signal: options?.signal },
+  );
+  return readShelves(res);
+}
+
+export async function getShelvesWithFileIds(
+  drive: string,
+  params: ShelvesParams,
+  fileIds: readonly string[],
+  options?: RequestOptions,
+): Promise<ShelvesResponse> {
+  const res = await fetch(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/shelves/query?${shelvesSearchParams(params)}`,
+    {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ file_ids: fileIds }),
+      signal: options?.signal,
+    },
+  );
+  return readShelves(res);
 }
 
 export async function getDriveTags(

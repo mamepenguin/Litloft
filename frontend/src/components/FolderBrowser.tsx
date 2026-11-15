@@ -180,6 +180,7 @@ export function FolderBrowser({
     snapshotKey, hydratedScrollY, continuationState, onShowMore, continuationSentinelRef,
     continuationDrawnIds, updateContinuationFile, removeContinuationFiles,
     passagesApplicable, passageGroups, passagesLoading, passagesFailed, retryPassages,
+    inNameBlocked, inNamePending, inNameState, retryInName,
   } = useFolderFiles({ driveName, folderPath, view, tagFilter, typeFilter, trustFilter, sort, order, refreshKey, searchQuery, includeSceneClip, initialSnapshot });
 
   const isWatchHistory = isRecent || isContinue;
@@ -336,7 +337,7 @@ export function FolderBrowser({
     passages: passageTotals.passages,
   });
   const showPassageCount =
-    passagesView && !passagesLoading && !passagesFailed;
+    passagesView && !passagesLoading && !passagesFailed && !inNameBlocked;
   const { pinnedPaths, homePaths, handleTogglePin, handleToggleHome } = usePinnedFolders(driveName);
   const selection = useSelection();
   // `SelectionBar` clears before it reports a completed bulk action, so the
@@ -661,7 +662,9 @@ export function FolderBrowser({
   const dragInFlight = dragState.isDragging || isInternalDragging;
 
   const countLabel =
-    settledTotal === null ? null : tCommon("items", { count: settledTotal });
+    inNameBlocked || inNamePending || settledTotal === null
+      ? null
+      : tCommon("items", { count: settledTotal });
 
   const inner = (
     <PageFrame
@@ -707,6 +710,7 @@ export function FolderBrowser({
                 onEdit={onImageEdit}
                 imagePreparing={imagePreparing}
                 onRemoveType={clearTypeFilter}
+                collectionsWithSmart
               />
             ) : undefined
           }
@@ -845,7 +849,7 @@ export function FolderBrowser({
         </div>
       )}
 
-      {!passagesView && isSearch && !loading && files.length === 0 && (
+      {!passagesView && isSearch && !loading && !inNameState && files.length === 0 && (
         <EmptyState
           variant="no-results"
           // No primary: the way out of a search that found nothing is a
@@ -904,6 +908,7 @@ export function FolderBrowser({
         {...(isSearch
           ? { continuationState, onShowMore, continuationSentinelRef }
           : {})}
+        {...(inNameState ? { inNameState, onRetryInName: retryInName } : {})}
       />
       )}
 
@@ -925,6 +930,8 @@ export function FolderBrowser({
           onClearFilter={
             typeFilter || trustFilter ? clearTypeFilter : undefined
           }
+          inNameState={inNameState}
+          onRetryInName={retryInName}
         />
       )}
 

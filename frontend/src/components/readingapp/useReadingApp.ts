@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useProfile } from "@/components/ProfileProvider";
 import { useLoad, type LoadState } from "@/components/appshell/useLoad";
-import { ApiStatusError, getShelves, getSmartFolders } from "@/lib/api";
+import { useMemberTarget } from "@/components/appshell/useMemberTarget";
+import { ApiStatusError, getSmartFolders } from "@/lib/api";
 import {
   readAppPrefs,
   readReadingGroup,
@@ -13,7 +14,10 @@ import {
   type AppPrefs,
   type ReadingGroup,
 } from "@/lib/appPrefs";
+import { appRequests, type AppRequests, type MemberTarget } from "@/lib/memberTarget";
 import {
+  readingMemberParams,
+  resolveReadingMemberTarget,
   resolveReadingTarget,
   type ReadingTarget,
   type ReadingTargetParams,
@@ -40,15 +44,31 @@ export interface ReadingAppState {
   retrySmartFolders: () => void;
   /** The folder in force; `null` is the default target. */
   folder: SmartFolder | null;
-  /** Null while the saved folder is still being looked up, or when the target is empty. */
+  /** The saved target is known, so the control can show its name. */
+  targetKnown: boolean;
+  /** Null while the saved folder is still being looked up, its members are evaluated, or the target is empty. */
   params: ReadingTargetParams | null;
   /** Requests may go out. */
   ready: boolean;
   /** The target matches no book, so nothing is requested. */
   empty: boolean;
+  /** The member evaluation failed; the body offers a retry. */
+  targetFailed: boolean;
+  /** More members than the app can send; the body says the target cannot be used. */
+  targetUnusable: boolean;
+  /** Evaluate the member target again. */
+  retryTarget: () => void;
+  /** The app's requests under the target. */
+  requests: AppRequests;
   /** Books under the target; `null` until known or when it failed. */
   count: number | null;
   chooseTarget: (id: string) => void;
+}
+
+interface Resolution {
+  folder: SmartFolder | null;
+  target: ReadingTarget | null;
+  member: MemberTarget | null;
 }
 
 export function useReadingApp(drive: string): ReadingAppState {
@@ -87,33 +107,60 @@ export function useReadingApp(drive: string): ReadingAppState {
     smartFolders.status === "loaded"
       ? (smartFolders.data.find((candidate) => candidate.id === savedId) ?? null)
       : null;
-  const resolved = useMemo<{ folder: SmartFolder | null; target: ReadingTarget }>(() => {
+  const resolved = useMemo<Resolution>(() => {
+    const member = resolveReadingMemberTarget(listed);
+    if (member !== null) {
+      return { folder: listed, target: null, member };
+    }
     const target = resolveReadingTarget(listed);
     return target.usable
-      ? { folder: listed, target }
-      : { folder: null, target: resolveReadingTarget(null) };
+      ? { folder: listed, target, member: null }
+      : { folder: null, target: resolveReadingTarget(null), member: null };
   }, [listed]);
+
+  const { evaluation, retry: retryTarget } = useMemberTarget(drive, listed, resolved.member);
+  const memberReady = evaluation?.status === "ready" ? evaluation : null;
+  const targetFailed = evaluation?.status === "failed";
+  const targetUnusable = evaluation?.status === "tooLarge";
+  const evaluating =
+    resolved.member !== null && resolved.member.kinds.length > 0 && evaluation === null;
 
   // A folder that is gone or unusable is ignored, but its saved id stays:
   // the viewer's choice returns if the folder does.
   const lookingUp =
     wantsFolder && (smartFolders.status === "loading" || smartFolders.status === "idle");
-  const ready = prefs !== null && !lookingUp;
-  const empty = ready && resolved.target.usable && "empty" in resolved.target;
-  const params =
-    ready && resolved.target.usable && !("empty" in resolved.target)
+  const targetKnown = prefs !== null && !lookingUp;
+  const ready = targetKnown && !evaluating && !targetFailed && !targetUnusable;
+  const empty =
+    ready &&
+    (resolved.member !== null
+      ? resolved.member.kinds.length === 0
+      : resolved.target !== null && resolved.target.usable && "empty" in resolved.target);
+  const params = useMemo<ReadingTargetParams | null>(() => {
+    if (!ready) return null;
+    if (resolved.member !== null) return readingMemberParams(resolved.member);
+    return resolved.target !== null && resolved.target.usable && !("empty" in resolved.target)
       ? resolved.target.params
       : null;
+  }, [ready, resolved]);
+
+  const requests = useMemo(
+    () => appRequests(resolved.member, memberReady?.fileIds ?? null),
+    [resolved.member, memberReady],
+  );
 
   const loadCount = useMemo(
     () =>
       params === null
         ? null
-        : () =>
-            getShelves(drive, { ...params, by: "all", per_shelf: 1 }).then(
-              (response) => response.shelves[0]?.count ?? 0,
-            ),
-    [drive, params],
+        : resolved.member !== null
+          ? // No shelf request under a member target carries a grouping of its own.
+            () => requests.files(drive, { ...params, limit: 1 }).then((page) => page.meta.total)
+          : () =>
+              requests.shelves(drive, { ...params, by: "all", per_shelf: 1 }).then(
+                (response) => response.shelves[0]?.count ?? 0,
+              ),
+    [drive, params, requests, resolved.member],
   );
   const { state: counted } = useLoad(loadCount);
   const count = empty ? 0 : counted.status === "loaded" ? counted.data : null;
@@ -132,9 +179,14 @@ export function useReadingApp(drive: string): ReadingAppState {
     smartFolders,
     retrySmartFolders,
     folder: resolved.folder,
+    targetKnown,
     params,
     ready,
     empty,
+    targetFailed,
+    targetUnusable,
+    retryTarget,
+    requests,
     count,
     chooseTarget,
   };

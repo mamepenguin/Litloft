@@ -24,6 +24,7 @@ const CALLERS: Record<string, number> = {
   "components/MatchOverlay.tsx": 2,
   "components/search/ImageQueryDropTarget.tsx": 1,
   "components/search/ImageQueryViewPresenter.tsx": 24,
+  "components/search/InNameNotice.tsx": 3,
   "components/search/MergedResultItem.tsx": 2,
   "components/search/PassageList.tsx": 13,
   "components/search/ScopedSearchParts.tsx": 6,
@@ -95,7 +96,7 @@ describe("the search vocabulary core draws", () => {
     ].sort();
     // The check below is true of no keys at all, so the population is
     // asserted first.
-    expect(used.length).toBe(115);
+    expect(used.length).toBe(117);
     const missing = used.filter((key) => !(key in namespaces[locale]));
     // Named, not counted: a failure should say which word is missing.
     expect(missing).toEqual([]);

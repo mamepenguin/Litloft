@@ -1,0 +1,102 @@
+{
+ "sc": {
+  "count": "14",
+  "ids": [
+   "OtGSBkXtHzHV",
+   "ObolYU4bD3gm",
+   "asbPtHb6GySa",
+   "MgGxuuZK8rpj",
+   "8fQiG4VaYoL-",
+   "djezjMMnrDJ6",
+   "kWUlBID9dbgY",
+   "p_4RNRjNY4Hn",
+   "AJ_hNotGVz_K",
+   "EZDCvidR6g0A",
+   "j8qT8n-k89H2",
+   "a0VIKAf-zIT_",
+   "yoTxVuWgqhxW",
+   "lsZ4Wf-sbo8O"
+  ],
+  "reqs": [
+   "GET /api/drives/テスト画像/files?search=船&sort=created_at&order=desc&page=1&limit=30 ids=null",
+   "GET /api/addons/intelligence/search?q=船&limit=1000&passages=true ids=null",
+   "GET /api/drives/テスト画像/files?search=船&sort=created_at&order=desc&page=1&limit=30 ids=null"
+  ]
+ },
+ "in": {
+  "count": "14",
+  "ids": [
+   "OtGSBkXtHzHV",
+   "AJ_hNotGVz_K",
+   "yoTxVuWgqhxW",
+   "kWUlBID9dbgY",
+   "djezjMMnrDJ6",
+   "lsZ4Wf-sbo8O",
+   "8fQiG4VaYoL-",
+   "a0VIKAf-zIT_",
+   "ObolYU4bD3gm",
+   "j8qT8n-k89H2",
+   "p_4RNRjNY4Hn",
+   "EZDCvidR6g0A",
+   "asbPtHb6GySa",
+   "MgGxuuZK8rpj"
+  ],
+  "reqs": [
+   "GET /api/drives/テスト画像/files?search=船&sort=created_at&order=desc&page=1&limit=500 ids=null",
+   "GET /api/addons/intelligence/search?q=船&limit=1000&passages=true ids=null",
+   "POST /api/drives/テスト画像/files/query?sort=created_at&order=desc&page=1&limit=30 ids=14"
+  ]
+ },
+ "in-type-image": {
+  "count": "13",
+  "ids": [
+   "AJ_hNotGVz_K",
+   "yoTxVuWgqhxW",
+   "kWUlBID9dbgY",
+   "djezjMMnrDJ6",
+   "lsZ4Wf-sbo8O",
+   "8fQiG4VaYoL-",
+   "a0VIKAf-zIT_",
+   "ObolYU4bD3gm",
+   "j8qT8n-k89H2",
+   "p_4RNRjNY4Hn",
+   "EZDCvidR6g0A",
+   "asbPtHb6GySa",
+   "MgGxuuZK8rpj"
+  ],
+  "reqs": [
+   "GET /api/drives/テスト画像/files?search=船&sort=created_at&order=desc&page=1&limit=500 ids=null",
+   "GET /api/addons/intelligence/search?q=船&limit=1000&passages=true ids=null",
+   "POST /api/drives/テスト画像/files/query?type=image&sort=created_at&order=desc&page=1&limit=30 ids=14"
+  ]
+ },
+ "in-apple-and-sc": {
+  "count": "18",
+  "ids": [
+   "OtGSBkXtHzHV",
+   "cFDht0M6t9lH",
+   "fUWnT3QDWo3R",
+   "c8dH-RIlO87s",
+   "HK9CKC3s2MkS",
+   "AJ_hNotGVz_K",
+   "yoTxVuWgqhxW",
+   "kWUlBID9dbgY",
+   "djezjMMnrDJ6",
+   "lsZ4Wf-sbo8O",
+   "8fQiG4VaYoL-",
+   "a0VIKAf-zIT_",
+   "ObolYU4bD3gm",
+   "j8qT8n-k89H2",
+   "p_4RNRjNY4Hn",
+   "EZDCvidR6g0A",
+   "asbPtHb6GySa",
+   "MgGxuuZK8rpj"
+  ],
+  "reqs": [
+   "GET /api/drives/テスト画像/files?search=船&sort=created_at&order=desc&page=1&limit=500 ids=null",
+   "GET /api/addons/intelligence/search?q=船&limit=1000&passages=true ids=null",
+   "POST /api/drives/テスト画像/files/query?collection=apple&sort=created_at&order=desc&page=1&limit=30 ids=14"
+  ]
+ },
+ "sameSet": true
+}

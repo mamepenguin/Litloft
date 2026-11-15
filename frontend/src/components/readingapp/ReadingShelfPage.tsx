@@ -11,7 +11,7 @@ import { ShelfBlock } from "@/components/appshell/ShelfBlock";
 import { useNearEnd } from "@/components/appshell/useNearEnd";
 import { usePaged } from "@/components/appshell/usePaged";
 import { PageFrame } from "@/components/PageFrame";
-import { getShelves, type ShelfGrouping, type ShelfItem, type ShelfWatchState } from "@/lib/api";
+import { type ShelfGrouping, type ShelfItem, type ShelfWatchState } from "@/lib/api";
 import { ReadingGrid } from "./ReadingGrid";
 import {
   CONTINUE_SORT_CHOICES,
@@ -94,7 +94,7 @@ export function ReadingShelfPage({
 
   // Watch state reads the viewer's rows; without a profile there is no shelf to open.
   const watchBlocked = by === "watch" && !state.hasProfile;
-  const { params, rejectViewer } = state;
+  const { params, requests, rejectViewer } = state;
 
   const query = useMemo<ReadingTargetParams | null>(() => {
     if (params === null) return null;
@@ -112,26 +112,40 @@ export function ReadingShelfPage({
       by === null || query === null || watchBlocked || !keyValid
         ? null
         : (page: number) =>
-            getShelves(drive, {
-              ...query,
-              ...(watch ? { watch } : {}),
-              by,
-              key: shelfKey,
-              sort: sort.sort,
-              order: sort.order,
-              per_shelf: SHELF_PAGE_SIZE,
-              page,
-            }).then(
-              (response) => {
-                const shelf = response.shelves[0];
-                return { items: shelf?.items ?? [], total: shelf?.count ?? 0 };
-              },
-              (error: unknown) => {
-                if (isViewerRequired(error)) rejectViewer();
-                throw error;
-              },
-            ),
-    [drive, by, shelfKey, query, watch, watchBlocked, keyValid, sort.sort, sort.order, rejectViewer],
+            requests
+              .shelves(drive, {
+                ...query,
+                ...(watch ? { watch } : {}),
+                by,
+                key: shelfKey,
+                sort: sort.sort,
+                order: sort.order,
+                per_shelf: SHELF_PAGE_SIZE,
+                page,
+              })
+              .then(
+                (response) => {
+                  const shelf = response.shelves[0];
+                  return { items: shelf?.items ?? [], total: shelf?.count ?? 0 };
+                },
+                (error: unknown) => {
+                  if (isViewerRequired(error)) rejectViewer();
+                  throw error;
+                },
+              ),
+    [
+      drive,
+      by,
+      shelfKey,
+      query,
+      requests,
+      watch,
+      watchBlocked,
+      keyValid,
+      sort.sort,
+      sort.order,
+      rejectViewer,
+    ],
   );
   const paged = usePaged<ShelfItem>(fetchPage);
   const sentinel = useNearEnd(paged.hasMore && paged.more === "idle", paged.loadMore);
@@ -142,7 +156,11 @@ export function ReadingShelfPage({
       : shelfTitle({ by, key: shelfKey, drive, from, t: (key) => t(key) });
 
   let body: ReactNode;
-  if (state.empty) {
+  if (state.targetFailed) {
+    body = <RetryButton onRetry={state.retryTarget} />;
+  } else if (state.targetUnusable) {
+    body = <EmptyState icon={BookOpen} title={t("targetUnusable")} />;
+  } else if (state.empty) {
     body = <EmptyState icon={BookOpen} title={t("targetUnusable")} />;
   } else if (by === null || watchBlocked || !keyValid) {
     body = <EmptyState icon={BookOpen} title={t("noBooks")} />;

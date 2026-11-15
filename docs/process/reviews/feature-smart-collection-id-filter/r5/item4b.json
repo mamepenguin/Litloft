@@ -1,0 +1,32 @@
+{
+ "createReqs": [
+  "GET /api/drives/動画/collections 200",
+  "POST /api/drives/動画/smart-folders 201",
+  "GET /api/drives/動画/smart-folders 200"
+ ],
+ "urlAfterCreate": "http://video-share-sc-idfilter.localhost:3105/drive/動画/search?q=in:\"Spirit\"+子ザメ&smart_folder_id=CgtOoUbZUGVh",
+ "afterCreate": [
+  "CgtOoUbZUGVh|SpiritSave|in:\"Spirit\" 子ザメ|null",
+  "2BCm4Dt8shqX|boats|船|null",
+  "7uJxc24sQjC2|PDFs|type:pdf|null",
+  "kTAxUdy_43ax|Zero|tag:zz_none 猫|null",
+  "opUEar7SN9nC|Cats|猫|null",
+  "1o3_aPQmTaIZ|海の動画|海|null",
+  "iJoo9-NqbcRO|あんこ動画|tag:あんこ type:video|null"
+ ],
+ "overwriteReqs": [
+  "GET /api/drives/動画/collections 200",
+  "PATCH /api/drives/動画/smart-folders/1o3_aPQmTaIZ 200",
+  "GET /api/drives/動画/smart-folders 200"
+ ],
+ "afterOverwrite": [
+  "CgtOoUbZUGVh|SpiritSave|in:\"Spirit\" 子ザメ|null",
+  "2BCm4Dt8shqX|boats|船|null",
+  "7uJxc24sQjC2|PDFs|type:pdf|null",
+  "kTAxUdy_43ax|Zero|tag:zz_none 猫|null",
+  "opUEar7SN9nC|Cats|猫|null",
+  "1o3_aPQmTaIZ|海の動画|海 in:\"Spirit\"|2026-11-15T10:50:48.160126Z",
+  "iJoo9-NqbcRO|あんこ動画|tag:あんこ type:video|null"
+ ],
+ "restore": 200
+}

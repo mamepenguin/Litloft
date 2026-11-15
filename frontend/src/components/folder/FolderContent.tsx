@@ -16,6 +16,10 @@ import { FolderCard } from "@/components/FolderCard";
 import { FolderListRow } from "@/components/FolderListRow";
 import { FolderContextMenu } from "@/components/FolderContextMenu";
 import { Button } from "@/components/Button";
+import {
+  InNameNotice,
+  type InNameNoticeState,
+} from "@/components/search/InNameNotice";
 
 import { cardGridTemplate, useCardColumns } from "@/lib/cardGrid";
 
@@ -94,6 +98,9 @@ interface FolderContentProps {
   continuationState?: ContinuationUiState;
   onShowMore?: () => void;
   continuationSentinelRef?: RefObject<HTMLDivElement | null>;
+  /** The `in:` resolution failed or was too large; nothing is listed. */
+  inNameState?: InNameNoticeState | null;
+  onRetryInName?: () => void;
 }
 
 export function FolderContent({
@@ -103,6 +110,7 @@ export function FolderContent({
   selectedIds, onSelect, onMetaSelect, onShiftSelect, onTogglePin, onFavoriteToggle, onRefresh,
   onDragStart, onDragEnd, selectedCount, isDropDisabled, onFolderDragStart,
   widenTagScope, onAddFiles, continuationState, onShowMore, continuationSentinelRef,
+  inNameState, onRetryInName,
 }: FolderContentProps) {
   const isInternalDragging = useIsInternalDragging();
   const tFilter = useTranslations("filter");
@@ -129,6 +137,15 @@ export function FolderContent({
     : sortQuery;
 
   const rename = useFolderCardRename(driveName, onRefresh);
+
+  if (inNameState) {
+    return (
+      <InNameNotice
+        state={inNameState}
+        onRetry={inNameState === "failed" ? onRetryInName : undefined}
+      />
+    );
+  }
 
   return (
     <>

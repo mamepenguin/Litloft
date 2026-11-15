@@ -1,0 +1,16 @@
+POST smart-folders {"name":"海の動画","query":"海"}
+{"id":"1o3_aPQmTaIZ","drive":"動画","name":"海の動画","query":"海","file_type":null,"sort_by":null,"sort_order":null,"created_at":"2026-11-15T10:42:14.472982Z","updated_at":null,"on_home":false} 201
+POST smart-folders {"name":"Cats","query":"猫"}
+{"id":"opUEar7SN9nC","drive":"動画","name":"Cats","query":"猫","file_type":null,"sort_by":null,"sort_order":null,"created_at":"2026-11-15T10:42:14.488526Z","updated_at":null,"on_home":false} 201
+POST smart-folders {"name":"Zero","query":"tag:zz_none 猫"}
+{"id":"kTAxUdy_43ax","drive":"動画","name":"Zero","query":"tag:zz_none 猫","file_type":null,"sort_by":null,"sort_order":null,"created_at":"2026-11-15T10:42:14.506820Z","updated_at":null,"on_home":false} 201
+POST smart-folders {"name":"PDFs","query":"type:pdf"}
+{"id":"7uJxc24sQjC2","drive":"動画","name":"PDFs","query":"type:pdf","file_type":null,"sort_by":null,"sort_order":null,"created_at":"2026-11-15T10:42:14.521143Z","updated_at":null,"on_home":false} 201
+POST collection Boats
+{"detail":"Not Found"} 404
+POST smart-folders boats
+{"id":"2BCm4Dt8shqX","drive":"動画","name":"boats","query":"船","file_type":null,"sort_by":null,"sort_order":null,"created_at":"2026-11-15T10:42:18.453811Z","updated_at":null,"on_home":false} 201
+POST collections Boats (after SC boats)
+{"detail":"Name already in use"} 409
+{"id":"ROr5h_23gztZ","drive":"動画","name":"NoAnko","query":"-tag:あんこ","file_type":null,"sort_by":null,"sort_order":null,"created_at":"2026-11-15T10:57:40.983740Z","updated_at":null,"on_home":false} 201
+{"id":"U8tLEPIxNkYJ","drive":"動画","name":"LongPDF","query":"type:pdf duration:>10m","file_type":null,"sort_by":null,"sort_order":null,"created_at":"2026-11-15T10:57:41.000935Z","updated_at":null,"on_home":false} 201

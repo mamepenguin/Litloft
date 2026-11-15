@@ -9,8 +9,9 @@ import { RetryButton } from "@/components/appshell/RetryButton";
 import { ShelfBlock } from "@/components/appshell/ShelfBlock";
 import { useNearEnd } from "@/components/appshell/useNearEnd";
 import { usePaged } from "@/components/appshell/usePaged";
-import { getShelves, type Shelf, type ShelfItem, type ShelfWatchState } from "@/lib/api";
+import { type Shelf, type ShelfItem, type ShelfWatchState } from "@/lib/api";
 import type { ReadingGroup } from "@/lib/appPrefs";
+import type { AppRequests } from "@/lib/memberTarget";
 import type { ReadingTargetParams } from "@/lib/readingAppTarget";
 import { folderLabel, shelfTitle, sortChoiceOf, type SortChoice } from "./labels";
 import { GroupMenu, ReadingSortMenu, StateMenu, TagMenu, type ReadingState } from "./LibraryControls";
@@ -40,20 +41,24 @@ function mergeTags(base: readonly string[], added: readonly string[]): string[] 
 }
 
 /** The chips of the target alone, never the face's own conditions. */
-export function useLibraryChips(drive: string, params: ReadingTargetParams | null) {
+export function useLibraryChips(
+  drive: string,
+  params: ReadingTargetParams | null,
+  requests: AppRequests,
+) {
   const loadPage = useMemo(
     () =>
       params === null
         ? null
         : (offset: number) =>
-            getShelves(drive, {
+            requests.shelves(drive, {
               ...params,
               by: "folder",
               per_shelf: 1,
               shelf_limit: 24,
               ...(offset > 0 ? { offset } : {}),
             }),
-    [drive, params],
+    [drive, params, requests],
   );
   return useFolderChips(loadPage);
 }
@@ -61,6 +66,7 @@ export function useLibraryChips(drive: string, params: ReadingTargetParams | nul
 export function LibraryFace({
   drive,
   params,
+  requests,
   empty,
   hasProfile,
   group,
@@ -71,6 +77,7 @@ export function LibraryFace({
 }: {
   drive: string;
   params: ReadingTargetParams | null;
+  requests: AppRequests;
   /** The target intersects no book kind. */
   empty: boolean;
   hasProfile: boolean;
@@ -98,7 +105,7 @@ export function LibraryFace({
     if (!hasProfile) setState("all");
   }, [hasProfile]);
 
-  const chips = useLibraryChips(drive, params);
+  const chips = useLibraryChips(drive, params, requests);
 
   const folders = useMemo(() => {
     if (params === null) return undefined;
@@ -125,25 +132,27 @@ export function LibraryFace({
       query === null || blocked
         ? null
         : (page: number) =>
-            getShelves(drive, {
-              ...query,
-              by: "all",
-              key: "all",
-              sort: sort.sort,
-              order: sort.order,
-              per_shelf: LIBRARY_PAGE_SIZE,
-              page,
-            }).then(
-              (response) => {
-                const shelf = response.shelves[0];
-                return { items: shelf?.items ?? [], total: shelf?.count ?? 0 };
-              },
-              (error: unknown) => {
-                if (isViewerRequired(error)) onViewerRejected();
-                throw error;
-              },
-            ),
-    [drive, query, blocked, sort.sort, sort.order, onViewerRejected],
+            requests
+              .shelves(drive, {
+                ...query,
+                by: "all",
+                key: "all",
+                sort: sort.sort,
+                order: sort.order,
+                per_shelf: LIBRARY_PAGE_SIZE,
+                page,
+              })
+              .then(
+                (response) => {
+                  const shelf = response.shelves[0];
+                  return { items: shelf?.items ?? [], total: shelf?.count ?? 0 };
+                },
+                (error: unknown) => {
+                  if (isViewerRequired(error)) onViewerRejected();
+                  throw error;
+                },
+              ),
+    [drive, query, requests, blocked, sort.sort, sort.order, onViewerRejected],
   );
 
   const fetchGrouped = useMemo(
@@ -151,22 +160,24 @@ export function LibraryFace({
       query === null || blocked
         ? null
         : (page: number) =>
-            getShelves(drive, {
-              ...query,
-              by: "tag",
-              sort: sort.sort,
-              order: sort.order,
-              per_shelf: LIBRARY_TAG_ITEMS,
-              shelf_limit: LIBRARY_TAG_SHELVES_PER_PAGE,
-              ...(page > 1 ? { offset: (page - 1) * LIBRARY_TAG_SHELVES_PER_PAGE } : {}),
-            }).then(
-              (response) => ({ items: response.shelves, total: response.total_shelves }),
-              (error: unknown) => {
-                if (isViewerRequired(error)) onViewerRejected();
-                throw error;
-              },
-            ),
-    [drive, query, blocked, sort.sort, sort.order, onViewerRejected],
+            requests
+              .shelves(drive, {
+                ...query,
+                by: "tag",
+                sort: sort.sort,
+                order: sort.order,
+                per_shelf: LIBRARY_TAG_ITEMS,
+                shelf_limit: LIBRARY_TAG_SHELVES_PER_PAGE,
+                ...(page > 1 ? { offset: (page - 1) * LIBRARY_TAG_SHELVES_PER_PAGE } : {}),
+              })
+              .then(
+                (response) => ({ items: response.shelves, total: response.total_shelves }),
+                (error: unknown) => {
+                  if (isViewerRequired(error)) onViewerRejected();
+                  throw error;
+                },
+              ),
+    [drive, query, requests, blocked, sort.sort, sort.order, onViewerRejected],
   );
 
   const flat = usePaged<ShelfItem>(group === "none" ? fetchFlat : null);

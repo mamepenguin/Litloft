@@ -1,0 +1,24 @@
+{
+ "links": [],
+ "discoverLinks": [
+  "/drive/%E5%8B%95%E7%94%BB/apps/reading/shelf?by=all&key=all&from=discover"
+ ],
+ "shelf": {
+  "url": "http://video-share-sc-idfilter.localhost:3105/drive/動画/apps/reading/shelf?by=all&key=all&from=discover",
+  "reqs": [
+   "GET /api/drives/動画/files?search=猫&sort=created_at&order=desc&page=1&limit=500 ids=null 200",
+   "GET /api/addons/intelligence/search?q=猫&limit=1000&passages=true ids=null 200",
+   "POST /api/drives/動画/files/query?type=pdf&type=epub&type=archive&limit=1 ids=8 200",
+   "POST /api/drives/動画/shelves/query?by=all&key=all&type=pdf&type=epub&type=archive&sort=created_at&order=desc&per_shelf=60&page=1 ids=8 200"
+  ],
+  "text": "読む | 新着 | 動画 | · 1 冊 | Cats | 追加日（新しい順） | PDF | ドット絵教室 | 動画 · 1か月前",
+  "label": "Cats"
+ },
+ "bigShelf": {
+  "reqs": [
+   "GET /api/addons/intelligence/search?q=猫&limit=1000&passages=true ids=null 404"
+  ],
+  "text": "読む | 新着 | 動画 | Cats | 追加日（新しい順） | この対象は使えません"
+ },
+ "bigDiscover": "読む | 動画 | Cats | 発見 | ライブラリ | この対象は使えません"
+}

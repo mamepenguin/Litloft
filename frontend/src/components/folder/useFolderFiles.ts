@@ -2,7 +2,20 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
-import { getDriveFiles, getFolders, getWatchHistory } from "@/lib/api";
+import {
+  getCollections,
+  getDriveFiles,
+  getDriveFilesWithFileIds,
+  getFolders,
+  getSmartFolders,
+  getWatchHistory,
+} from "@/lib/api";
+import { getSemanticAvailability } from "@/lib/addons";
+import {
+  inNamesKey,
+  resolveInNames,
+  type InNameIo,
+} from "@/lib/inNameResolution";
 import { useProfile } from "@/components/ProfileProvider";
 import {
   buildListSnapshotKey,
@@ -68,6 +81,15 @@ interface ContinuationAnswer {
 
 const NO_HITS: SemanticHit[] = [];
 
+type InNameState =
+  | { key: string; status: "resolving" | "failed" | "tooLarge" }
+  | {
+      key: string;
+      status: "resolved";
+      collections: string[];
+      fileIds: string[] | null;
+    };
+
 interface UseFolderFilesParams {
   driveName: string;
   folderPath?: string;
@@ -114,6 +136,12 @@ interface UseFolderFilesReturn {
   passagesLoading: boolean;
   passagesFailed: boolean;
   retryPassages: () => void;
+  /** While an `in:` name is unresolved, failed or too large nothing is listed. */
+  inNameBlocked: boolean;
+  /** An `in:` query has not produced the first listing page of its resolution yet. */
+  inNamePending: boolean;
+  inNameState: "failed" | "tooLarge" | null;
+  retryInName: () => void;
 }
 
 export function matchesTrustFilter(
@@ -168,13 +196,22 @@ export function useFolderFiles({
     [driveName, folderPath, view, tagFilter],
   );
 
+  const inKey = useMemo(() => inNamesKey(driveName, parsed), [driveName, parsed]);
+  const [inResolution, setInResolution] = useState<InNameState | null>(() =>
+    inKey ? { key: inKey, status: "resolving" } : null,
+  );
+  const [inRetryToken, setInRetryToken] = useState(0);
+  const parsedRef = useRef(parsed);
+  parsedRef.current = parsed;
+  const resolutionGeneration = useRef(0);
+
   const [hydration] = useState<{
     initial: { items: FileItem[]; total: number; page: number } | null;
     folders: Folder[] | null;
     scrollY: number | null;
     searchCache: SearchCacheEntry | null;
   }>(() => {
-    if (isSearch && searchQuery) {
+    if (isSearch && searchQuery && parsed.collections.length === 0) {
       const cached = readSearchCache({
         drive: driveName,
         query: searchQuery.trim(),
@@ -225,6 +262,66 @@ export function useFolderFiles({
   const shouldRevalidateHydratedSnapshot =
     hydration.initial != null && !isSearch && !isWatchHistory;
 
+  useEffect(() => {
+    if (!inKey) {
+      resolutionGeneration.current += 1;
+      setInResolution(null);
+      return;
+    }
+    const generation = ++resolutionGeneration.current;
+    const ctrl = new AbortController();
+    setInResolution({ key: inKey, status: "resolving" });
+    const io: InNameIo = {
+      getCollections,
+      getSmartFolders,
+      getDriveFiles,
+      getSemanticAvailability,
+      fetchSemanticHits,
+    };
+    void (async () => {
+      try {
+        const outcome = await resolveInNames(
+          driveName,
+          parsedRef.current,
+          ctrl.signal,
+          io,
+        );
+        if (generation !== resolutionGeneration.current || ctrl.signal.aborted) return;
+        setInResolution(
+          outcome.status === "resolved"
+            ? {
+                key: inKey,
+                status: "resolved",
+                collections: outcome.collections,
+                fileIds: outcome.fileIds,
+              }
+            : { key: inKey, status: outcome.status },
+        );
+      } catch {
+        if (generation !== resolutionGeneration.current || ctrl.signal.aborted) return;
+        setInResolution({ key: inKey, status: "failed" });
+      }
+    })();
+    return () => ctrl.abort();
+  }, [inKey, inRetryToken, driveName]);
+
+  const activeResolution =
+    inResolution && inResolution.key === inKey ? inResolution : null;
+  const inNameBlocked =
+    inKey !== "" && activeResolution?.status !== "resolved";
+  const inNameState =
+    activeResolution?.status === "failed" ||
+    activeResolution?.status === "tooLarge"
+      ? activeResolution.status
+      : null;
+  const resolvedFileIds =
+    activeResolution?.status === "resolved" ? activeResolution.fileIds : null;
+  const resolvedCollections =
+    activeResolution?.status === "resolved"
+      ? activeResolution.collections
+      : parsed.collections;
+  const retryInName = useCallback(() => setInRetryToken((token) => token + 1), []);
+
   const fetchPage = useCallback(
     async (page: number, limit: number) => {
       if (isSearch) {
@@ -232,16 +329,19 @@ export function useFolderFiles({
         // `sortMerged` reorders by hybrid score on the client.
         const backendSort: SortField = sort === "relevance" ? "created_at" : sort;
         const backendOrder: SortOrder = sort === "relevance" ? "desc" : order;
-        if (searchKinds.impossible || rangeImpossible) return { data: [], total: 0 };
+        if (searchKinds.impossible || rangeImpossible || inNameBlocked) {
+          return { data: [], total: 0 };
+        }
         const kinds = searchKinds.kinds;
-        const res = await getDriveFiles(driveName, {
+        const params = {
           search: parsed.text,
           type: kinds.length === 0 ? undefined : kinds.length === 1 ? kinds[0] : kinds,
           tag: parsed.tags.length > 0 ? parsed.tags : undefined,
           favorite: parsed.favorite ? true : undefined,
           liked: parsed.liked ? true : undefined,
           folder: parsed.folders.length > 0 ? parsed.folders : undefined,
-          collection: parsed.collections.length > 0 ? parsed.collections : undefined,
+          collection:
+            resolvedCollections.length > 0 ? resolvedCollections : undefined,
           ...(parsed.sizes.length > 0
             ? { size: parsed.sizes.map(comparisonWireForm) }
             : {}),
@@ -253,7 +353,15 @@ export function useFolderFiles({
           order: backendOrder,
           page,
           limit,
-        });
+        };
+        const res =
+          resolvedFileIds !== null
+            ? await getDriveFilesWithFileIds(
+                driveName,
+                params,
+                resolvedFileIds,
+              )
+            : await getDriveFiles(driveName, params);
         return { data: res.data, total: res.meta.total };
       }
       const res = await getDriveFiles(driveName, {
@@ -276,7 +384,32 @@ export function useFolderFiles({
       });
       return { data: res.data, total: res.meta.total };
     },
-    [isSearch, parsed, searchKinds, rangeImpossible, driveName, folderPath, sort, order, isFavorites, isSpecialView, isRecentAdded, isLiked, tagFilter, typeFilter, trustFilter],
+    [isSearch, parsed, searchKinds, rangeImpossible, inNameBlocked, resolvedCollections, resolvedFileIds, driveName, folderPath, sort, order, isFavorites, isSpecialView, isRecentAdded, isLiked, tagFilter, typeFilter, trustFilter],
+  );
+
+  // The listing page 1 that answered for the resolution in force. An `in:`
+  // query is not listed until one has: the resolution landing does not itself
+  // produce rows, and a count of 0 read before then is a wrong count.
+  const resolutionInForce = useRef<InNameState | null>(activeResolution);
+  resolutionInForce.current = activeResolution;
+  const [listedResolution, setListedResolution] = useState<InNameState | null>(null);
+  const trackFirstPage = useCallback(
+    async (page: number, limit: number) => {
+      if (page !== 1 || inKey === "") return fetchPage(page, limit);
+      const resolution = resolutionInForce.current;
+      try {
+        return await fetchPage(page, limit);
+      } finally {
+        if (
+          resolution !== null &&
+          resolution.status === "resolved" &&
+          resolution === resolutionInForce.current
+        ) {
+          setListedResolution(resolution);
+        }
+      }
+    },
+    [fetchPage, inKey],
   );
 
   const {
@@ -291,9 +424,9 @@ export function useFolderFiles({
     setItems: setPaginatedFiles,
     setTotal: setPaginatedTotal,
   } = useInfiniteScroll<FileItem>({
-    fetchPage,
+    fetchPage: trackFirstPage,
     limit: 30,
-    disabled: isWatchHistory,
+    disabled: isWatchHistory || inNameBlocked,
     initial: hydration.initial,
     revalidateInitial: shouldRevalidateHydratedSnapshot,
   });
@@ -307,13 +440,17 @@ export function useFolderFiles({
   const [semanticArrived, setSemanticArrived] = useState(false);
   const [semanticFailed, setSemanticFailed] = useState(false);
 
-  const filter = useMemo(
-    () => filterFromParsed(parsed, typeFilter ?? null),
-    [parsed, typeFilter],
-  );
+  const filter = useMemo(() => {
+    const built = filterFromParsed(parsed, typeFilter ?? null);
+    return { ...built, collections: [...resolvedCollections] };
+  }, [parsed, typeFilter, resolvedCollections]);
   const filterSignature = parsed.hasOperators ? filterQueryParam(filter) : "";
   const meaningEligible =
-    isSearch && parsed.text !== "" && !searchKinds.impossible && !rangeImpossible;
+    isSearch &&
+    parsed.text !== "" &&
+    !searchKinds.impossible &&
+    !rangeImpossible &&
+    !inNameBlocked;
   const previousSemanticRef = useRef<{ key: string } | null>(null);
   const semanticRequestId = useRef(0);
 
@@ -342,6 +479,7 @@ export function useFolderFiles({
           ...(filtered
             ? { filter }
             : { type: typeFilter, includeSceneClip }),
+          ...(resolvedFileIds !== null ? { fileIds: resolvedFileIds } : {}),
           signal,
         });
         if (signal?.aborted || requestId !== semanticRequestId.current) return;
@@ -351,7 +489,7 @@ export function useFolderFiles({
         setSemanticArrived(true);
       })();
     },
-    [parsed, driveName, typeFilter, includeSceneClip, filter],
+    [parsed, driveName, typeFilter, includeSceneClip, filter, resolvedFileIds],
   );
 
   useEffect(() => {
@@ -396,6 +534,9 @@ export function useFolderFiles({
   }, [meaningEligible, runMeaningSearch]);
 
   const [continuation, setContinuation] = useState<ContinuationAnswer | null>(null);
+  // The resolution's identity, not just the filter it produced: two Smart
+  // Collection names resolve to the same (empty) `collections` list, so only
+  // the key and the retry that resolved it tell their answers apart.
   const continuationKey = [
     parsed.text,
     driveName,
@@ -404,6 +545,8 @@ export function useFolderFiles({
     sort,
     order,
     filterSignature,
+    inKey,
+    String(inRetryToken),
   ].join("\u0000");
   const continuationKeyRef = useRef(continuationKey);
   continuationKeyRef.current = continuationKey;
@@ -481,6 +624,7 @@ export function useFolderFiles({
     (async () => {
       const answer = await fetchSemanticImages(query, driveName, {
         ...(parsed.hasOperators ? { filter } : { type: typeFilter }),
+        ...(resolvedFileIds !== null ? { fileIds: resolvedFileIds } : {}),
       });
       if (continuationKeyRef.current !== key) return;
       if (!answer.ok) {
@@ -501,6 +645,7 @@ export function useFolderFiles({
     parsed.text,
     parsed.hasOperators,
     filter,
+    resolvedFileIds,
     driveName,
     typeFilter,
   ]);
@@ -593,23 +738,32 @@ export function useFolderFiles({
     return () => observer.disconnect();
   }, [continuationState, revealMore, scrollContainer, revealedContinuation]);
 
-  const files: FileItemWithMatch[] = isWatchHistory
+  const inNameResolving = inNameBlocked && inNameState === null;
+  const inNamePending =
+    inKey !== "" &&
+    inNameState === null &&
+    (activeResolution?.status !== "resolved" || listedResolution !== activeResolution);
+  const computedFiles: FileItemWithMatch[] = isWatchHistory
     ? (recentFiles as FileItemWithMatch[])
     : mergedSearch
       ? [...mergedSearch.files, ...drawnContinuation]
       : (paginatedFiles as FileItemWithMatch[]);
-  const total = isWatchHistory
+  const computedTotal = isWatchHistory
     ? recentFiles.length
     : mergedSearch
       ? mergedSearch.total
       : paginatedTotal;
+  const files = inNameBlocked ? [] : computedFiles;
+  const total = inNameBlocked ? 0 : computedTotal;
   // A filtered query's meaning stage is an enhancement over the listing: the
   // listing rows stay visible while the addon ranks within the filter.
   const loading = isWatchHistory
     ? recentLoading
-    : isSearch
-      ? paginatedLoading || (semanticLoading && !parsed.hasOperators)
-      : paginatedLoading;
+    : inNamePending
+      ? true
+      : isSearch
+        ? paginatedLoading || (semanticLoading && !parsed.hasOperators)
+        : paginatedLoading;
   const setFiles = isWatchHistory ? setRecentFiles : setPaginatedFiles;
 
   const hydratedFoldersRef = useRef(hydration.folders != null);
@@ -666,11 +820,16 @@ export function useFolderFiles({
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally triggered only by combinedRefreshKey
   }, [combinedRefreshKey]);
 
+  const passagesEligible =
+    isSearch &&
+    parsed.text !== "" &&
+    !searchKinds.impossible &&
+    !rangeImpossible;
   const passagesApplicable =
-    meaningEligible && (!availabilityKnown || semanticAvailable);
-  const passagesLoading =
-    meaningEligible &&
-    (semanticLoading || !semanticArrived || !availabilityKnown);
+    passagesEligible && (!availabilityKnown || semanticAvailable);
+  const passagesLoading = meaningEligible
+    ? semanticLoading || !semanticArrived || !availabilityKnown
+    : inNameResolving;
   const passagesFailed = meaningEligible && semanticFailed;
   const passageGroups = useMemo(
     () => (passagesLoading ? [] : groupPassages(semanticHits)),
@@ -693,5 +852,9 @@ export function useFolderFiles({
     passagesLoading,
     passagesFailed,
     retryPassages,
+    inNameBlocked,
+    inNamePending,
+    inNameState,
+    retryInName,
   };
 }
