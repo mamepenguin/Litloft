@@ -1,5 +1,5 @@
 /**
- * SPEC-CORE-110: the browser's visibility list for the drive on screen.
+ * SPEC-CORE-114: the browser's visibility list for the drive on screen.
  * Section 3 (loading / loaded), I2 (per drive), I10 (no list across a drive switch).
  * Driven through `fetch`, so the test does not depend on how the hook calls it.
  */
@@ -41,13 +41,13 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("SPEC-CORE-110 useEntryVisibility", () => {
-  it("SPEC-CORE-110 Section 3 I1: reports loading (null) until the drive's list arrives", () => {
+describe("SPEC-CORE-114 useEntryVisibility", () => {
+  it("SPEC-CORE-114 Section 3 I1: reports loading (null) until the drive's list arrives", () => {
     const { result } = renderHook(() => useEntryVisibility(A));
     expect(result.current.hidden).toBeNull();
   });
 
-  it("SPEC-CORE-110 Section 1 I2: returns the keys the drive lists", async () => {
+  it("SPEC-CORE-114 Section 1 I2: returns the keys the drive lists", async () => {
     answer = async () => json({ hidden: ["video"] });
     const { result } = renderHook(() => useEntryVisibility(A));
     await waitFor(() => expect(result.current.hidden).not.toBeNull());
@@ -56,14 +56,14 @@ describe("SPEC-CORE-110 useEntryVisibility", () => {
     expect(result.current.hidden!.size).toBe(1);
   });
 
-  it("SPEC-CORE-110 Section 2 I1: a loaded empty list is a set that hides nothing", async () => {
+  it("SPEC-CORE-114 Section 2 I1: a loaded empty list is a set that hides nothing", async () => {
     answer = async () => json({ hidden: [] });
     const { result } = renderHook(() => useEntryVisibility(A));
     await waitFor(() => expect(result.current.hidden).not.toBeNull());
     expect(result.current.hidden!.size).toBe(0);
   });
 
-  it("SPEC-CORE-110 Section 2 I9: a failed request is a loaded set that hides nothing, not null", async () => {
+  it("SPEC-CORE-114 Section 2 I9: a failed request is a loaded set that hides nothing, not null", async () => {
     answer = async () => {
       throw new TypeError("network down");
     };
@@ -72,14 +72,14 @@ describe("SPEC-CORE-110 useEntryVisibility", () => {
     expect(result.current.hidden!.size).toBe(0);
   });
 
-  it("SPEC-CORE-110 Section 2 I9: a 500 answer is a loaded set that hides nothing, not null", async () => {
+  it("SPEC-CORE-114 Section 2 I9: a 500 answer is a loaded set that hides nothing, not null", async () => {
     answer = async () => json({ detail: "Configuration error" }, 500);
     const { result } = renderHook(() => useEntryVisibility(A));
     await waitFor(() => expect(result.current.hidden).not.toBeNull());
     expect(result.current.hidden!.size).toBe(0);
   });
 
-  it("SPEC-CORE-110 I2: a list for one drive does not reach another drive", async () => {
+  it("SPEC-CORE-114 I2: a list for one drive does not reach another drive", async () => {
     answer = async (drive) => json({ hidden: drive === A ? ["video"] : [] });
     const { result, rerender } = renderHook(({ drive }) => useEntryVisibility(drive), {
       initialProps: { drive: A },
@@ -91,7 +91,7 @@ describe("SPEC-CORE-110 useEntryVisibility", () => {
     expect(result.current.hidden!.has("video")).toBe(false);
   });
 
-  it("SPEC-CORE-110 I10: after a drive switch, the previous drive's list is not returned while the new one is pending", async () => {
+  it("SPEC-CORE-114 I10: after a drive switch, the previous drive's list is not returned while the new one is pending", async () => {
     answer = async (drive) => (drive === A ? json({ hidden: ["video"] }) : never());
     const { result, rerender } = renderHook(({ drive }) => useEntryVisibility(drive), {
       initialProps: { drive: A },
