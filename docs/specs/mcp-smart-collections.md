@@ -3,7 +3,7 @@
 SPEC-ID: SPEC-CORE-111
 SPEC-ID: SPEC-CORE-112
 
-Approval:
+Approval: sha256:ce32cd00d65a361a49b7aa7334f02b50b826b678f6dff4ac06bc126717fb07e5 Yuichi Senga 2026-11-15
 
 ## Summary
 
