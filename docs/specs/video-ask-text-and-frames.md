@@ -281,5 +281,12 @@ SPEC-ADDON-108 I1. A video with at least one `transcript_chunks` or `fts_text_co
 - **A position of exactly 0 on the text path of a profile that cannot see.** Kept
   as today (stated as 0:00); the "0 is no position" rule belongs to the frames
   paths, where a position frame would be taken.
+- **Recording the vision-unsupported verdict after a refusal on a text video.** Not
+  recorded (human decision, 2026-11-15), although the single position image of
+  SPEC-ADDON-071 did record it: a provider may refuse several images and accept
+  one, and the verdict would also stop picture questions and image descriptions.
+  Accepted cost: with a profile whose model refuses images, every question about
+  a text video pays the frame preparation, the refused request and the text-only
+  retry, and shows the existing notice line.
 - **Retrying with fewer frames after a refusal.** Not done, as in SPEC-ADDON-108;
   the text-only retry already answers.
