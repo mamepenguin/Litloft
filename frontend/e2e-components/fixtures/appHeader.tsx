@@ -86,6 +86,7 @@ function install(drive: string, page: string, target: TargetKey | null, bothKind
       return json([collection(drive, "c-long", LONG_COLLECTION_NAME), collection(drive, "c-bed", "Bedside")]);
     }
     if (url.pathname.endsWith("/smart-folders")) return json(target ? [folder(drive, target)] : []);
+    if (url.pathname.endsWith("/collections")) return json([]);
     if (url.pathname.endsWith("/files")) {
       return json({ data: [], meta: { total: APP_HEADER_COUNT, page: 1, limit: 1 } });
     }

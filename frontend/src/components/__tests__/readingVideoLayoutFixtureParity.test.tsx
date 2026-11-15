@@ -59,6 +59,7 @@ vi.mock("@/lib/api", async (importOriginal) => ({
     meta: { total: 0, page: 1, limit: 1 },
   })),
   getSmartFolders: vi.fn(async () => []),
+  getCollections: vi.fn(async () => []),
   getDriveTags: vi.fn(async () => []),
   getThumbnailUrl: (id: string) => `/api/files/${id}/thumbnail`,
 }));
