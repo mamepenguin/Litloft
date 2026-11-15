@@ -1,5 +1,5 @@
 /**
- * SPEC-CORE-106: hidden Home entries, driven through `DriveHome`.
+ * SPEC-CORE-110: hidden Home entries, driven through `DriveHome`.
  * Section 3 and I1 (loading), I2 (one drive's list), I4 and I5 (library, inbox, unknown keys),
  * I9 (failed request), I10 (drive switch). The visibility request is controlled by the test.
  */
@@ -182,8 +182,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("SPEC-CORE-106 loading state", () => {
-  it("SPEC-CORE-106 Section 3 I1: while the list is pending, Video, Reading and addon entries are not shown and Library is", async () => {
+describe("SPEC-CORE-110 loading state", () => {
+  it("SPEC-CORE-110 Section 3 I1: while the list is pending, Video, Reading and addon entries are not shown and Library is", async () => {
     answer = () => new Promise(() => {});
     render(<Home drive={DRIVE} />);
     const nav = await findAppsNav();
@@ -196,11 +196,11 @@ describe("SPEC-CORE-106 loading state", () => {
   });
 });
 
-describe("SPEC-CORE-106 failed request", () => {
+describe("SPEC-CORE-110 failed request", () => {
   it.each([
     ["the request rejects", (h: ReturnType<typeof hold>) => h.settle(new TypeError("network down"))],
     ["the backend answers 500", (h: ReturnType<typeof hold>) => h.settle(json({ detail: "Configuration error" }, 500))],
-  ])("SPEC-CORE-106 I9: when %s, every entry appears and no error is shown", async (_label, fail) => {
+  ])("SPEC-CORE-110 I9: when %s, every entry appears and no error is shown", async (_label, fail) => {
     const h = hold();
     answer = () => h.promise;
     render(<Home drive={DRIVE} />);
@@ -216,8 +216,8 @@ describe("SPEC-CORE-106 failed request", () => {
   });
 });
 
-describe("SPEC-CORE-106 hidden entries on the Home row", () => {
-  it("SPEC-CORE-106 I2 Section 1: a listed built-in removes only that entry and keeps the others in order", async () => {
+describe("SPEC-CORE-110 hidden entries on the Home row", () => {
+  it("SPEC-CORE-110 I2 Section 1: a listed built-in removes only that entry and keeps the others in order", async () => {
     answer = async () => json({ hidden: [] });
     render(<Home drive={DRIVE} />);
     const before = hrefs(await waitForLoadedRow());
@@ -231,7 +231,7 @@ describe("SPEC-CORE-106 hidden entries on the Home row", () => {
     expect(after).not.toContain(`${enc(DRIVE)}/apps/video`);
   });
 
-  it("SPEC-CORE-106 I2: a listed addon key removes only that addon's entry", async () => {
+  it("SPEC-CORE-110 I2: a listed addon key removes only that addon's entry", async () => {
     answer = async () => json({ hidden: [] });
     render(<Home drive={DRIVE} />);
     const nav = await waitForLoadedRow();
@@ -246,7 +246,7 @@ describe("SPEC-CORE-106 hidden entries on the Home row", () => {
     expect(within(navAfter).getByText("Video")).toBeInTheDocument();
   });
 
-  it("SPEC-CORE-106 I4 I5: library and inbox are never removed, and unknown keys change nothing", async () => {
+  it("SPEC-CORE-110 I4 I5: library and inbox are never removed, and unknown keys change nothing", async () => {
     mockGetInboxCount.mockResolvedValue(3);
     answer = async () => json({ hidden: [] });
     render(<Home drive={DRIVE} />);
@@ -264,8 +264,8 @@ describe("SPEC-CORE-106 hidden entries on the Home row", () => {
   });
 });
 
-describe("SPEC-CORE-106 drive switch", () => {
-  it("SPEC-CORE-106 I10: when the drive changes, the previous drive's hideable entries are not shown while the new list is pending", async () => {
+describe("SPEC-CORE-110 drive switch", () => {
+  it("SPEC-CORE-110 I10: when the drive changes, the previous drive's hideable entries are not shown while the new list is pending", async () => {
     answer = async (drive) => (drive === DRIVE ? json({ hidden: ["video"] }) : new Promise(() => {}));
     const { rerender } = render(<Home drive={DRIVE} />);
     const nav = await waitForLoadedRow();

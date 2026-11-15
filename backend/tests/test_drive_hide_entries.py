@@ -1,4 +1,4 @@
-"""Acceptance tests for SPEC-CORE-106: hidden home and sidebar entries per drive.
+"""Acceptance tests for SPEC-CORE-110: hidden home and sidebar entries per drive.
 
 Backend side only: the visibility endpoint, the drives.json key as read by the
 shared loader, and the admin save path. The browser side (hook and rendering)
@@ -87,8 +87,8 @@ def _unlock_setup(tmp_path, monkeypatch, drives: list[dict]):
 
 
 class TestEntryVisibilityEndpoint:
-    def test_spec_core_106_i1_missing_key_hides_nothing(self, tmp_path, monkeypatch):
-        """SPEC-CORE-106 (Required 2, I1): no hidden_entries key gives an empty list."""
+    def test_spec_core_110_i1_missing_key_hides_nothing(self, tmp_path, monkeypatch):
+        """SPEC-CORE-110 (Required 2, I1): no hidden_entries key gives an empty list."""
         _write_drives(monkeypatch, tmp_path, [_drive(tmp_path, "plain")])
         from app.main import app
 
@@ -97,8 +97,8 @@ class TestEntryVisibilityEndpoint:
         assert res.status_code == 200
         assert res.json() == {"hidden": []}
 
-    def test_spec_core_106_i1_empty_list_hides_nothing(self, tmp_path, monkeypatch):
-        """SPEC-CORE-106 (I1): an empty hidden_entries list is a valid list and hides nothing."""
+    def test_spec_core_110_i1_empty_list_hides_nothing(self, tmp_path, monkeypatch):
+        """SPEC-CORE-110 (I1): an empty hidden_entries list is a valid list and hides nothing."""
         _write_drives(
             monkeypatch,
             tmp_path,
@@ -111,8 +111,8 @@ class TestEntryVisibilityEndpoint:
         assert res.status_code == 200
         assert res.json() == {"hidden": []}
 
-    def test_spec_core_106_normal_flow_listed_key_is_returned(self, tmp_path, monkeypatch):
-        """SPEC-CORE-106 (Required 1 step 2, I2): the configured list is returned."""
+    def test_spec_core_110_normal_flow_listed_key_is_returned(self, tmp_path, monkeypatch):
+        """SPEC-CORE-110 (Required 1 step 2, I2): the configured list is returned."""
         _write_drives(
             monkeypatch,
             tmp_path,
@@ -125,8 +125,8 @@ class TestEntryVisibilityEndpoint:
         assert res.status_code == 200
         assert res.json() == {"hidden": ["video"]}
 
-    def test_spec_core_106_i2_list_is_per_drive(self, tmp_path, monkeypatch):
-        """SPEC-CORE-106 (I2): a key hidden on one drive is not hidden on another drive."""
+    def test_spec_core_110_i2_list_is_per_drive(self, tmp_path, monkeypatch):
+        """SPEC-CORE-110 (I2): a key hidden on one drive is not hidden on another drive."""
         _write_drives(
             monkeypatch,
             tmp_path,
@@ -143,10 +143,10 @@ class TestEntryVisibilityEndpoint:
         assert hides == {"hidden": ["reading"]}
         assert shows == {"hidden": []}
 
-    def test_spec_core_106_i5_unknown_keys_are_ignored_and_stay_in_file(
+    def test_spec_core_110_i5_unknown_keys_are_ignored_and_stay_in_file(
         self, tmp_path, monkeypatch
     ):
-        """SPEC-CORE-106 (Failure 2, I5): unknown and non-hideable keys do not fail the
+        """SPEC-CORE-110 (Failure 2, I5): unknown and non-hideable keys do not fail the
         load and stay in drives.json. The endpoint returns the configured strings as they
         are; the browser keeps only the keys it knows."""
         path = _write_drives(
@@ -170,10 +170,10 @@ class TestEntryVisibilityEndpoint:
         ["video", ["video", 1], {"video": True}, None],
         ids=["string", "list-with-non-string", "object", "null"],
     )
-    def test_spec_core_106_i6_non_list_of_strings_answers_500(
+    def test_spec_core_110_i6_non_list_of_strings_answers_500(
         self, tmp_path, monkeypatch, bad_value
     ):
-        """SPEC-CORE-106 (Failure 3, I6): a value that is not a list of strings answers
+        """SPEC-CORE-110 (Failure 3, I6): a value that is not a list of strings answers
         500 Configuration error from the endpoint."""
         _write_drives(
             monkeypatch,
@@ -187,10 +187,10 @@ class TestEntryVisibilityEndpoint:
         assert res.status_code == 500
         assert "Configuration error" in res.text
 
-    def test_spec_core_106_i6_malformed_value_is_logged_server_side(
+    def test_spec_core_110_i6_malformed_value_is_logged_server_side(
         self, tmp_path, monkeypatch, caplog
     ):
-        """SPEC-CORE-106 (Failure 3, Section 8): the malformed value is logged server-side."""
+        """SPEC-CORE-110 (Failure 3, Section 8): the malformed value is logged server-side."""
         _write_drives(
             monkeypatch,
             tmp_path,
@@ -204,10 +204,10 @@ class TestEntryVisibilityEndpoint:
         assert res.status_code == 500
         assert any(r.levelno >= logging.WARNING for r in caplog.records)
 
-    def test_spec_core_106_i6_malformed_value_does_not_break_other_routes(
+    def test_spec_core_110_i6_malformed_value_does_not_break_other_routes(
         self, tmp_path, monkeypatch
     ):
-        """SPEC-CORE-106 (I6): with a malformed hidden_entries, other drive routes still work."""
+        """SPEC-CORE-110 (I6): with a malformed hidden_entries, other drive routes still work."""
         _write_drives(
             monkeypatch,
             tmp_path,
@@ -225,10 +225,10 @@ class TestEntryVisibilityEndpoint:
         assert policies.status_code == 200
         assert policies.json() == {"addons": {}}
 
-    def test_spec_core_106_i6_loader_does_not_raise_for_malformed_value(
+    def test_spec_core_110_i6_loader_does_not_raise_for_malformed_value(
         self, tmp_path, monkeypatch
     ):
-        """SPEC-CORE-106 (I6): config.load_drives() does not raise for a non-list value."""
+        """SPEC-CORE-110 (I6): config.load_drives() does not raise for a non-list value."""
         import app.config as config
 
         _write_drives(
@@ -238,10 +238,10 @@ class TestEntryVisibilityEndpoint:
         )
         config.load_drives()
 
-    def test_spec_core_106_i3_hidden_entries_change_no_other_response(
+    def test_spec_core_110_i3_hidden_entries_change_no_other_response(
         self, tmp_path, monkeypatch
     ):
-        """SPEC-CORE-106 (I3, Section 6): the key changes the visibility endpoint only.
+        """SPEC-CORE-110 (I3, Section 6): the key changes the visibility endpoint only.
         Other drive-scoped responses are identical with and without it."""
         from app.main import app
 
@@ -264,10 +264,10 @@ class TestEntryVisibilityEndpoint:
 
 
 class TestEntryVisibilityAccessControl:
-    def test_spec_core_106_i7_locked_drive_404_then_list_once_unlocked(
+    def test_spec_core_110_i7_locked_drive_404_then_list_once_unlocked(
         self, tmp_path, monkeypatch
     ):
-        """SPEC-CORE-106 (I7, Section 6): a locked drive answers 404 and does not reveal
+        """SPEC-CORE-110 (I7, Section 6): a locked drive answers 404 and does not reveal
         the list; once the viewer holds the access group, the list is returned."""
         _unlock_setup(
             tmp_path,
@@ -289,10 +289,10 @@ class TestEntryVisibilityAccessControl:
 
 
 class TestAdminSavePreservesKey:
-    def test_spec_core_106_i8_put_drives_keeps_hidden_entries(
+    def test_spec_core_110_i8_put_drives_keeps_hidden_entries(
         self, admin_client, monkeypatch
     ):
-        """SPEC-CORE-106 (I8, Section 4): saving each drive back as a whole object through
+        """SPEC-CORE-110 (I8, Section 4): saving each drive back as a whole object through
         PUT /api/admin/config/drives keeps its hidden_entries value unchanged on disk."""
         import app.config as config
 

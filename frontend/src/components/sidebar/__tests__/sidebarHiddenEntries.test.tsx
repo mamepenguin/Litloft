@@ -1,5 +1,5 @@
 /**
- * SPEC-CORE-106: hidden entries in the sidebar. `SidebarLibrarySection` and `AddonNavRows`
+ * SPEC-CORE-110: hidden entries in the sidebar. `SidebarLibrarySection` and `AddonNavRows`
  * take `hiddenKeys`. Section 3, I1, I2, I4, I5, I11 and Section 9 (order of remaining rows).
  */
 
@@ -56,8 +56,8 @@ function renderSection(props: { hiddenKeys: ReadonlySet<string> | null; activeAd
   return container;
 }
 
-describe("SPEC-CORE-106 sidebar hiddenKeys", () => {
-  it("SPEC-CORE-106 Section 3 I1: null (loading) draws Library and no hideable row", () => {
+describe("SPEC-CORE-110 sidebar hiddenKeys", () => {
+  it("SPEC-CORE-110 Section 3 I1: null (loading) draws Library and no hideable row", () => {
     const root = renderSection({ hiddenKeys: null });
     expect(screen.getByText("Library")).toBeInTheDocument();
     expect(screen.queryByText("Video")).toBeNull();
@@ -67,14 +67,14 @@ describe("SPEC-CORE-106 sidebar hiddenKeys", () => {
     expect(root.querySelectorAll("a").length).toBeGreaterThan(0);
   });
 
-  it("SPEC-CORE-106 I2: a listed built-in removes only that row", () => {
+  it("SPEC-CORE-110 I2: a listed built-in removes only that row", () => {
     const root = renderSection({ hiddenKeys: new Set(["video"]) });
     expect(screen.queryByText("Video")).toBeNull();
     expect(screen.getByText("Reading")).toBeInTheDocument();
     expect(hrefs(root)).not.toContain("/drive/main/apps/video");
   });
 
-  it("SPEC-CORE-106 I2 Section 9: a listed addon key removes only that row and the rest keep their order", () => {
+  it("SPEC-CORE-110 I2 Section 9: a listed addon key removes only that row and the rest keep their order", () => {
     renderSection({ hiddenKeys: new Set(["photo_diary"]) });
     const labels = screen.getAllByRole("link").map((a) => a.textContent?.trim());
     const notes = labels.indexOf("Notes");
@@ -84,7 +84,7 @@ describe("SPEC-CORE-106 sidebar hiddenKeys", () => {
     expect(clips).toBe(notes + 1);
   });
 
-  it("SPEC-CORE-106 I4: library and inbox stay when listed, and an unknown key is ignored", () => {
+  it("SPEC-CORE-110 I4: library and inbox stay when listed, and an unknown key is ignored", () => {
     renderSection({ hiddenKeys: new Set(["library", "inbox", "nope", "video"]) });
     expect(screen.getByText("Library")).toBeInTheDocument();
     expect(screen.queryByText("Video")).toBeNull();
@@ -92,7 +92,7 @@ describe("SPEC-CORE-106 sidebar hiddenKeys", () => {
     expect(screen.getByText("Notes")).toBeInTheDocument();
   });
 
-  it("SPEC-CORE-106 I11: a hidden entry whose page is open shows no active row", () => {
+  it("SPEC-CORE-110 I11: a hidden entry whose page is open shows no active row", () => {
     const root = renderSection({ hiddenKeys: new Set(["video", "knowledge"]), activeAddonKey: "knowledge" });
     expect(screen.queryByText("Video")).toBeNull();
     expect(screen.queryByText("Notes")).toBeNull();
@@ -101,8 +101,8 @@ describe("SPEC-CORE-106 sidebar hiddenKeys", () => {
 
 });
 
-describe("SPEC-CORE-106 AddonNavRows hiddenKeys", () => {
-  it("SPEC-CORE-106 I2 Section 9: removes the listed entry and keeps the others in order", () => {
+describe("SPEC-CORE-110 AddonNavRows hiddenKeys", () => {
+  it("SPEC-CORE-110 I2 Section 9: removes the listed entry and keeps the others in order", () => {
     render(
       <AddonNavRows
         entries={PRIMARY}
@@ -115,7 +115,7 @@ describe("SPEC-CORE-106 AddonNavRows hiddenKeys", () => {
     expect(labels).toEqual(["Notes", "Clips"]);
   });
 
-  it("SPEC-CORE-106 I11: a hidden active key draws no active row", () => {
+  it("SPEC-CORE-110 I11: a hidden active key draws no active row", () => {
     const { container } = render(
       <AddonNavRows
         entries={PRIMARY}
