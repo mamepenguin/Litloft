@@ -216,6 +216,16 @@ class DriveAddonPoliciesResponse(BaseModel):
     addons: dict[str, AddonPolicy]
 
 
+class DriveEntryVisibilityResponse(BaseModel):
+    """``GET /api/drives/{drive}/entry-visibility`` response envelope.
+
+    The keys are returned as configured; the browser keeps the ones it knows.
+    An empty list when the drive has no ``hidden_entries`` configured.
+    """
+
+    hidden: list[str]
+
+
 FolderKind = Literal[
     "text", "video", "image", "pdf", "audio", "document", "archive", "other"
 ]

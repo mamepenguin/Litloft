@@ -7,6 +7,7 @@ import type { AddonNavEntry } from "@/lib/addonNavigation";
 import type { Drive } from "@/types";
 import { builtinApps } from "@/lib/builtinApps";
 import { driveHref } from "@/lib/driveViews";
+import { EMPTY_HIDDEN_KEYS, isEntryShown } from "@/lib/entryVisibility";
 import { AddonNavRows } from "./AddonNavRows";
 import { isAddonNavRowActive } from "./isSidebarLinkActive";
 import { SidebarDriveSwitcher } from "./SidebarDriveSwitcher";
@@ -31,9 +32,11 @@ interface SidebarLibrarySectionProps {
    * `libraryRowActive.ts`.
    */
   libraryActive: boolean;
+  /** The drive's hidden entry keys; `null` while that list is loading. */
+  hiddenKeys?: ReadonlySet<string> | null;
 }
 
-export function SidebarLibrarySection({ driveBase, currentDrive, drives = [], linkClass, close, primaryAddons = [], sourceAddons = [], activeAddonKey = null, libraryActive }: SidebarLibrarySectionProps) {
+export function SidebarLibrarySection({ driveBase, currentDrive, drives = [], linkClass, close, primaryAddons = [], sourceAddons = [], activeAddonKey = null, libraryActive, hiddenKeys = EMPTY_HIDDEN_KEYS }: SidebarLibrarySectionProps) {
   const t = useTranslations("sidebar");
   const tRoot = useTranslations();
   const pathname = usePathname() ?? "";
@@ -75,22 +78,24 @@ export function SidebarLibrarySection({ driveBase, currentDrive, drives = [], li
         </Link>
       )}
       {currentDrive &&
-        builtinApps.map((app) => {
-          const href = app.route(currentDrive);
-          const Icon = app.icon;
-          return (
-            <Link
-              key={app.id}
-              href={href}
-              onClick={close}
-              className={linkClass(href, isAddonNavRowActive(pathname, href))}
-            >
-              <Icon size={16} />
-              {tRoot(app.labelKey)}
-            </Link>
-          );
-        })}
-      <AddonNavRows entries={primaryAddons} linkClass={linkClass} close={close} activeKey={activeAddonKey} />
+        builtinApps
+          .filter((app) => isEntryShown(app.id, hiddenKeys))
+          .map((app) => {
+            const href = app.route(currentDrive);
+            const Icon = app.icon;
+            return (
+              <Link
+                key={app.id}
+                href={href}
+                onClick={close}
+                className={linkClass(href, isAddonNavRowActive(pathname, href))}
+              >
+                <Icon size={16} />
+                {tRoot(app.labelKey)}
+              </Link>
+            );
+          })}
+      <AddonNavRows entries={primaryAddons} linkClass={linkClass} close={close} activeKey={activeAddonKey} hiddenKeys={hiddenKeys} />
       {driveBase && (
         <>
           {/* What the heading names: each row under it is the whole
@@ -129,7 +134,7 @@ export function SidebarLibrarySection({ driveBase, currentDrive, drives = [], li
       {sourceAddons.length > 0 && (
         <>
           <SidebarSectionHeading label={t("sources")} />
-          <AddonNavRows entries={sourceAddons} linkClass={linkClass} close={close} activeKey={activeAddonKey} />
+          <AddonNavRows entries={sourceAddons} linkClass={linkClass} close={close} activeKey={activeAddonKey} hiddenKeys={hiddenKeys} />
         </>
       )}
 
