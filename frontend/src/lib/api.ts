@@ -1,9 +1,18 @@
-import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, CollectionDetail, CollectionSummary, Comment, CommentsResponse, DashboardResponse, Drive, DriveSummary, DuplicatesResponse, FileExif, FileItem, Folder, FolderCount, FolderTreeNode, Highlight, HighlightInput, HomeShortcut, HomeShortcutKind, Neighbors, PaginatedResponse, PinnedFolder, ListingSortField, SortField, SortOrder, Tag, TrustFilter, TrustTier, FileKind, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
+import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, CollectionDetail, CollectionSummary, Comment, CommentsResponse, DashboardResponse, Drive, DriveSummary, DuplicatesResponse, FileExif, FileItem, Folder, FolderCount, FolderTreeNode, Highlight, HighlightInput, HomeShortcut, HomeShortcutKind, Neighbors, PaginatedResponse, PinnedFolder, ListingSortField, SortField, SortOrder, Tag, TrustTier, FileKind, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
 import type { SmartFolder, SmartFolderCreate, SmartFolderUpdate } from "@/types/smartFolder";
 import { ApiStatusError } from "@/lib/apiError";
 import { seedFiles } from "@/lib/fileSeed";
+import {
+  appendListingFilters,
+  listingUrl,
+  readListingPage,
+  type ListingFilters,
+  type ListingRequestParams,
+  type OriginFilters,
+} from "@/lib/listingRequest";
 
 export { ApiStatusError };
+export type { ListingFilters, OriginFilters };
 
 const API_BASE = "/api";
 
@@ -70,100 +79,16 @@ export async function getFolderTree(
   );
 }
 
-type ListingFilters = Pick<
-  Parameters<typeof getDriveFiles>[1],
-  | "search"
-  | "favorite"
-  | "liked"
-  | "tag"
-  | "type"
-  | "folder"
-  | "collection"
-  | "size"
-  | "duration"
-  | "trust"
-  | "origin"
-  | "exclude_origin"
->;
-
-export interface OriginFilters {
-  /** Keep only files whose frontmatter origin equals this. */
-  origin?: string;
-  /** Drop files whose frontmatter origin equals this. */
-  exclude_origin?: string;
-}
-
-function appendListingFilters(searchParams: URLSearchParams, params: ListingFilters): void {
-  if (params.search) searchParams.set("search", params.search);
-  if (params.favorite !== undefined) searchParams.set("favorite", String(params.favorite));
-  if (params.liked !== undefined) searchParams.set("liked", String(params.liked));
-  for (const tag of [params.tag ?? []].flat()) if (tag) searchParams.append("tag", tag);
-  for (const kind of [params.type ?? []].flat()) searchParams.append("type", kind);
-  for (const folder of [params.folder ?? []].flat()) {
-    if (folder) searchParams.append("folder", folder);
-  }
-  for (const collection of [params.collection ?? []].flat()) {
-    if (collection) searchParams.append("collection", collection);
-  }
-  for (const size of [params.size ?? []].flat()) {
-    if (size) searchParams.append("size", size);
-  }
-  for (const duration of [params.duration ?? []].flat()) {
-    if (duration) searchParams.append("duration", duration);
-  }
-  if (params.trust) searchParams.set("trust", params.trust);
-  if (params.origin) searchParams.set("origin", params.origin);
-  if (params.exclude_origin) searchParams.set("exclude_origin", params.exclude_origin);
-}
-
 export async function getDriveFiles(
   drive: string,
-  params: {
-    path?: string;
-    recursive?: boolean;
-    search?: string;
-    favorite?: boolean;
-    liked?: boolean;
-    /** Several tags: every one must be on the file. */
-    tag?: string | readonly string[];
-    /** Several kinds: the file may be any of them. */
-    type?: FileKind | readonly FileKind[];
-    /** Each folder keeps its whole subtree. */
-    folder?: string | readonly string[];
-    /** Each collection name keeps its items. */
-    collection?: string | readonly string[];
-    /** Size comparisons in the wire form (`gt:1073741824`). */
-    size?: string | readonly string[];
-    /** Duration comparisons in the wire form (`gte:1800`). */
-    duration?: string | readonly string[];
-    /**
-     * `verified` / `unverified` select a tier; `unreviewed` is not a tier but
-     * the review queue — files nobody has ruled on, which spans both.
-     */
-    trust?: TrustFilter;
-    /** Keep only files whose frontmatter origin equals this. */
-    origin?: string;
-    /** Drop files whose frontmatter origin equals this. */
-    exclude_origin?: string;
-    sort?: ListingSortField;
-    order?: SortOrder;
-    page?: number;
-    limit?: number;
-  },
+  params: ListingRequestParams,
   options?: RequestOptions,
 ): Promise<PaginatedResponse> {
-  const searchParams = new URLSearchParams();
-  if (params.path !== undefined) searchParams.set("path", params.path);
-  if (params.recursive) searchParams.set("recursive", "true");
-  appendListingFilters(searchParams, params);
-  if (params.sort) searchParams.set("sort", params.sort);
-  if (params.order) searchParams.set("order", params.order);
-  if (params.page) searchParams.set("page", String(params.page));
-  if (params.limit) searchParams.set("limit", String(params.limit));
-
-  const page = await fetchJSON<PaginatedResponse>(
-    `${API_BASE}/drives/${encodeURIComponent(drive)}/files?${searchParams.toString()}`,
-    options?.signal ? { signal: options.signal } : undefined,
+  const page = await readListingPage(
+    await fetch(listingUrl(drive, params), {
+      credentials: "include",
+      ...(options?.signal ? { signal: options.signal } : {}),
+    }),
   );
   seedFiles(page.data);
   return page;
