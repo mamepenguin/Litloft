@@ -1,0 +1,63 @@
+{
+ "in:\"NoAnko\" type:pdf": "0",
+ "in:\"NoAnko\" type:archive": "0",
+ "in:\"NoAnko\" type:document": "0",
+ "searchIds": [
+  "6ZGQI6Ub5WvW",
+  "ooqfT1k8vEVM",
+  "JAU4sK_I9pLa",
+  "hh_45I_sgMVC",
+  "-k6FiYsMOAwo",
+  "RDxqoxFart5T",
+  "Zn_OtNtfddfu",
+  "jFMwtFEXbIl5",
+  "HAvNXEJC8DUY",
+  "7bOYEl8q0aCC",
+  "fOXgmvTBeHyF",
+  "75MuJjh73SKL",
+  "ml-Se19eN2m7",
+  "S2m6DyxyyeTt",
+  "iKORc6htJbeY",
+  "IdVw02UP90CT",
+  "4QTmJSilwKLE",
+  "6cKy1s_ALtqh",
+  "LJf_ZkPc1NKP"
+ ],
+ "appIds": [
+  "6ZGQI6Ub5WvW",
+  "ooqfT1k8vEVM",
+  "JAU4sK_I9pLa",
+  "hh_45I_sgMVC",
+  "-k6FiYsMOAwo",
+  "RDxqoxFart5T",
+  "Zn_OtNtfddfu",
+  "jFMwtFEXbIl5",
+  "HAvNXEJC8DUY",
+  "7bOYEl8q0aCC",
+  "fOXgmvTBeHyF",
+  "75MuJjh73SKL",
+  "ml-Se19eN2m7",
+  "S2m6DyxyyeTt",
+  "iKORc6htJbeY",
+  "IdVw02UP90CT",
+  "4QTmJSilwKLE",
+  "6cKy1s_ALtqh",
+  "LJf_ZkPc1NKP"
+ ],
+ "sameSet": true,
+ "videoBig": {
+  "text": "動画 | 動画 | 海の動画 | 発見 | ライブラリ | この対象は使えません",
+  "reqs": [
+   "GET /api/addons/intelligence/search?q=海&limit=1000&passages=true 200"
+  ]
+ },
+ "imgHasAdd": 1,
+ "imgOptions": [
+  "Spirit|"
+ ],
+ "imgReqs": [
+  "GET /api/drives/動画/smart-folders",
+  "GET /api/drives/動画/collections",
+  "GET /api/drives/動画/collections"
+ ]
+}

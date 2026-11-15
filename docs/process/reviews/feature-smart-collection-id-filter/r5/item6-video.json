@@ -1,0 +1,49 @@
+{
+ "menu": [
+  "すべての動画\n518|disabled=false",
+  "SpiritSave|disabled=false",
+  "boats|disabled=false",
+  "PDFs|disabled=false",
+  "Zero|disabled=false",
+  "Cats|disabled=false",
+  "海の動画|disabled=false",
+  "あんこ動画|disabled=false",
+  "管理…|disabled=false"
+ ],
+ "url": "http://video-share-sc-idfilter.localhost:3105/drive/動画/apps/video",
+ "targetLabel": "海の動画",
+ "discoverReqs": [
+  "GET /api/drives/動画/files?search=海&sort=created_at&order=desc&page=1&limit=500 ids=null 200",
+  "GET /api/addons/intelligence/search?q=海&limit=1000&passages=true ids=null 200",
+  "POST /api/drives/動画/files/query?type=video&limit=1 ids=20 200",
+  "POST /api/drives/動画/files/query?type=video&sort=created_at&order=desc&limit=12 ids=20 200",
+  "POST /api/drives/動画/shelves/query?by=all&key=all&type=video&ids=…&per_shelf=60 ids=20 200",
+  "POST /api/drives/動画/shelves/query?by=all&key=all&type=video&ids=…&per_shelf=60 ids=20 200",
+  "POST /api/drives/動画/shelves/query?by=all&key=all&type=video&ids=…&per_shelf=60 ids=20 200"
+ ],
+ "discoverText": "動画 | 動画 | · 19 本の動画 | 海の動画 | 発見 | ライブラリ | 新着 | すべて見る | 18:45 | 132-「母、写真の腕前っ」「みかん、アハ～ン柔道」 | 【北海道上陸】夜の繁華街でポケ活!!!ANA背景にポケモンセンターチャンスはいっぱいあったはず…なのに…【ポケモンGO】 | Dive Into the Mesmerizing Underwater Realm 🐳 Marvel at Sea Animal in The Best 4K ULTRA HD Aquarium 2026-04-23 15 59",
+ "libraryReqs": [
+  "POST /api/drives/動画/shelves/query?by=folder&type=video&sort=created_at&order=desc&per_shelf=5&shelf_limit=12 ids=20 200"
+ ],
+ "libraryText": "動画 | 動画 | · 19 本の動画 | 海の動画 | 発見 | ライブラリ | 分類 | フォルダ | 追加日（新しい順） | YouTube | 17 | すべて見る | 【北海道上陸】夜の繁華街でポケ活!!!ANA背景にポケモンセンターチャンスはいっぱいあったはず…なのに…【ポケモンGO】 | Dive Into the Mesmerizing Underwater Realm 🐳 Marvel at Sea Animal in The Best 4K ULTRA HD Aquarium 2026-04-23 15 59 | 1:57 | アニメ『おでかけ子ザメ』第59話「笑顔でいれば」-後編- | 動画 | 1 | すべて見る | 0:10 | Test video | アニメ | 1 | すべて見る | 18:45 | 132-「母、写真の腕前っ」「みかん、アハ～ン柔道」",
+ "libIds": [
+  "ooqfT1k8vEVM",
+  "JAU4sK_I9pLa",
+  "hh_45I_sgMVC",
+  "LJf_ZkPc1NKP",
+  "6ZGQI6Ub5WvW"
+ ],
+ "shelfLinks": [
+  "/drive/%E5%8B%95%E7%94%BB/apps/video/shelf?by=folder&key=YouTube&from=library",
+  "/drive/%E5%8B%95%E7%94%BB/apps/video/shelf?by=folder&key=&from=library",
+  "/drive/%E5%8B%95%E7%94%BB/apps/video/shelf?by=folder&key=%E3%82%A2%E3%83%8B%E3%83%A1&from=library"
+ ],
+ "shelfUrl": "http://video-share-sc-idfilter.localhost:3105/drive/動画/apps/video/shelf?by=folder&key=YouTube&from=library",
+ "shelfReqs": [
+  "GET /api/drives/動画/files?search=海&sort=created_at&order=desc&page=1&limit=500 ids=null 200",
+  "GET /api/addons/intelligence/search?q=海&limit=1000&passages=true ids=null 200",
+  "POST /api/drives/動画/files/query?type=video&limit=1 ids=20 200",
+  "POST /api/drives/動画/shelves/query?by=folder&key=YouTube&type=video&sort=created_at&order=desc&per_shelf=60&page=1 ids=20 200"
+ ],
+ "shelfTarget": "海の動画"
+}
