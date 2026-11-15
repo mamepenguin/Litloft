@@ -1,0 +1,92 @@
+{
+  "tool": "ask",
+  "arguments": {
+    "drive": "動画",
+    "query": "この範囲のファイルは何についての内容ですか。日本語で3行以内。",
+    "scope": {
+      "collections": [
+        "case check"
+      ],
+      "file_ids": [
+        "BVtZs91FE2MA"
+      ]
+    }
+  },
+  "result": {
+    "threw": "McpError: MCP error -32001: Request timed out",
+    "stack": "McpError: MCP error -32001: Request timed out\n    at McpError.fromError (file:///Users/libre/Sources/video_share-mcp-smart/mcp-server/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/types.js:2048:16)\n    at Timeout.timeoutHandler (file:///Users/libre/Sources/video_share-mcp-smart/mcp-server/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js:713:58)\n    at listOnTimeout (node:internal/timers:605:17)\n    at process.processTimers (node:internal/timers:541:7)"
+  },
+  "requests": [
+    {
+      "method": "GET",
+      "url": "/api/drives/%E5%8B%95%E7%94%BB/collections",
+      "headers": {
+        "host": "127.0.0.1:4599",
+        "connection": "keep-alive",
+        "authorization": "Bearer r5",
+        "accept": "*/*",
+        "accept-language": "*",
+        "sec-fetch-mode": "cors",
+        "user-agent": "node",
+        "accept-encoding": "gzip, deflate"
+      },
+      "body": "",
+      "status": 200,
+      "response_type": "application/json"
+    },
+    {
+      "method": "GET",
+      "url": "/api/drives/%E5%8B%95%E7%94%BB/smart-folders",
+      "headers": {
+        "host": "127.0.0.1:4599",
+        "connection": "keep-alive",
+        "authorization": "Bearer r5",
+        "accept": "*/*",
+        "accept-language": "*",
+        "sec-fetch-mode": "cors",
+        "user-agent": "node",
+        "accept-encoding": "gzip, deflate"
+      },
+      "body": "",
+      "status": 200,
+      "response_type": "application/json"
+    },
+    {
+      "method": "GET",
+      "url": "/app-api/smart-collection-members?drive=%E5%8B%95%E7%94%BB&id=Hig9iGBSlFea&ids=1",
+      "headers": {
+        "host": "127.0.0.1:4599",
+        "connection": "keep-alive",
+        "authorization": "Bearer r5",
+        "accept": "*/*",
+        "accept-language": "*",
+        "sec-fetch-mode": "cors",
+        "user-agent": "node",
+        "accept-encoding": "gzip, deflate"
+      },
+      "body": "",
+      "status": 200,
+      "response_type": "application/json"
+    },
+    {
+      "method": "POST",
+      "url": "/api/addons/intelligence/ask",
+      "headers": {
+        "host": "127.0.0.1:4599",
+        "connection": "keep-alive",
+        "authorization": "Bearer r5",
+        "accept": "text/event-stream",
+        "x-lit-drive": "%E5%8B%95%E7%94%BB",
+        "content-type": "application/json",
+        "accept-language": "*",
+        "sec-fetch-mode": "cors",
+        "user-agent": "node",
+        "accept-encoding": "gzip, deflate",
+        "content-length": "263"
+      },
+      "body": "{\"query\":\"この範囲のファイルは何についての内容ですか。日本語で3行以内。\",\"scope\":{\"collections\":[],\"file_ids\":[\"BVtZs91FE2MA\",\"tSS4ETXxZ_wh\",\"e9uRhYYj2J25\",\"k3XIn8mHqLcw\",\"TNyTHMPpR09J\",\"e0RSMoRXeePU\",\"3edLwzf0sYZI\",\"FuHJi4Mbg-vp\"]}}",
+      "status": 200,
+      "response_type": "text/event-stream; charset=utf-8"
+    }
+  ]
+}

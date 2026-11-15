@@ -1,0 +1,93 @@
+{
+  "tool": "ask",
+  "arguments": {
+    "drive": "動画",
+    "query": "この範囲のファイルは何についての内容ですか。日本語で3行以内。",
+    "scope": {
+      "collections": [
+        "CASE CHECK"
+      ]
+    }
+  },
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"answer\":\"これらのファイルは、**ポケモンGO**のプレイ記録やイベント参加、そして**マレーシア・クアラルンプール**での旅行体験を記録した動画の内容です。具体的には、**おつきみダンス**や**チームメガ**などのゲーム内イベント、**ピッピ**や**カラミンゴ**などのポケモン捕獲、**バトゥー洞窟**や**ペトロナスツインタワー**での観光、**猿**や**犬**との遭遇などが語られています。\",\"sources\":{\"sources\":[{\"file_id\":\"FuHJi4Mbg-vp\",\"drive\":\"動画\",\"filename\":\"【オラチフ】猿と犬に悩まされる1日が地獄だった…【ポケモンGO】.loft\",\"file_type\":\"video\",\"score\":0.01639344262295082,\"match_types\":[\"whisper\"]},{\"file_id\":\"TNyTHMPpR09J\",\"drive\":\"動画\",\"filename\":\"【勝負は5分】おつきみダンスで不具合…？激カワ背景が確定で手に入る!!!!!【ポケモンGO】.loft\",\"file_type\":\"video\",\"score\":0.016129032258064516,\"match_types\":[\"whisper\"]},{\"file_id\":\"e9uRhYYj2J25\",\"drive\":\"動画\",\"filename\":\"【adidas×ポケモンGO】超簡単タイムチャレンジの受け取り方★ピッピ爆湧きで大興奮wwww【ポケモンGO】.loft\",\"file_type\":\"video\",\"score\":0.015873015873015872,\"match_types\":[\"whisper\"]},{\"file_id\":\"e0RSMoRXeePU\",\"drive\":\"動画\",\"filename\":\"【チームメガ】超絶可愛いカラミンゴの色違いが欲しいんだよぉぉぉぉおお!!!!!!【ポケモンGO】.loft\",\"file_type\":\"video\",\"score\":0.015625,\"match_types\":[\"whisper\"]},{\"file_id\":\"3edLwzf0sYZI\",\"drive\":\"動画\",\"filename\":\"【マレーシア】人生初のクアラルンプール!!!ひと足先に来ちゃいました★【ポケモンGO】.loft\",\"file_type\":\"video\",\"score\":0.015384615384615385,\"match_types\":[\"whisper\"]}]},\"citations\":{\"citations\":[{\"file_id\":\"FuHJi4Mbg-vp\",\"drive\":\"動画\",\"filename\":\"【オラチフ】猿と犬に悩まされる1日が地獄だった…【ポケモンGO】.loft\",\"file_type\":\"video\",\"quote\":\"アラームで起きたんですけれども[音楽]すごい寝ぼけながらでもしっかりね、登録することができました。[笑い]はい。そんなわけであと何分だ?あと6分ほどで着くそうなのでちょっと道路側で スタン張っておこうと思います。はい。グラブに乗りまして大体5分ぐらいでここねペトロナスツインタワーとかがある場所。KLCCっていうのかな?なん やろ。ま、このお店屋さんがね、たくさんあるところに来ました。はい。でね、さ…\",\"relevance\":0,\"segment_location\":\"2:34\",\"section_title\":null},{\"file_id\":\"FuHJi4Mbg-vp\",\"drive\":\"動画\",\"filename\":\"【オラチフ】猿と犬に悩まされる1日が地獄だった…【ポケモンGO】.loft\",\"file_type\":\"video\",\"quote\":\"アラームで起きたんですけれども[音楽]すごい寝ぼけながらでもしっかりね、登録することができました。[笑い]はい。そんなわけであと何分だ?あと6分ほどで着くそうなのでちょっと道路側で スタン張っておこうと思います。はい。グラブに乗りまして大体5分ぐらいでここねペトロナスツインタワーとかがある場所。KLCCっていうのかな?なん やろ。ま、このお店屋さんがね、たくさんあるところに来ました。はい。でね、さ…\",\"relevance\":0,\"segment_location\":\"2:34\",\"section_title\":null},{\"file_id\":\"FuHJi4Mbg-vp\",\"drive\":\"動画\",\"filename\":\"【オラチフ】猿と犬に悩まされる1日が地獄だった…【ポケモンGO】.loft\",\"file_type\":\"video\",\"quote\":\"アラームで起きたんですけれども[音楽]すごい寝ぼけながらでもしっかりね、登録することができました。[笑い]はい。そんなわけであと何分だ?あと6分ほどで着くそうなのでちょっと道路側で スタン張っておこうと思います。はい。グラブに乗りまして大体5分ぐらいでここねペトロナスツインタワーとかがある場所。KLCCっていうのかな?なん やろ。ま、このお店屋さんがね、たくさんあるところに来ました。はい。でね、さ…\",\"relevance\":0,\"segment_location\":\"2:34\",\"section_title\":null},{\"file_id\":\"TNyTHMPpR09J\",\"drive\":\"動画\",\"filename\":\"【勝負は5分】おつきみダンスで不具合…？激カワ背景が確定で手に入る!!!!!【ポケモンGO】.loft\",\"file_type\":\"video\",\"quote\":\"あ、来た、来た、来ました。ピッピーちょっと少なめだけれども、ピッピー以外のプリンとかムンナも湧いておりますね。さ、背景つくかな?ほい。あ、来た。1発 目。ああかいい。こんにちは。あんこです。え、本日はです ね、9月の23日となっております。え、兄ニポケコラボイベントも終わり。一般的には今週はね、イベントが何もない週となってるんですけれども、え、アジアかな ?アジア県限定でお月みのピッピーイベントが…\",\"relevance\":0,\"segment_location\":\"0:00\",\"section_title\":null},{\"file_id\":\"e9uRhYYj2J25\",\"drive\":\"動画\",\"filename\":\"【adidas×ポケモンGO】超簡単タイムチャレンジの受け取り方★ピッピ爆湧きで大興奮wwww【ポケモンGO】.loft\",\"file_type\":\"video\",\"quote\":\"?あ、お、一方入ってくださいました。あ、3人いけるな、これ。ほんならこのままフリーザー入っちゃいますか? はい、4人揃いました。ありがとうございます。さあ、日谷の仕事終わりのトレーナーさんかな?わかんないけど。共闘よろしくお願いいたします。あ、待っ て。フリーザー吹雪。吹雪結構強いんだよね。で、このタンク役の面々見てるとわりかしガチのトレーナーさんたちかな。わかんないけど。さ、えっと、ドサイドン…\",\"relevance\":0,\"segment_location\":\"8:14\",\"section_title\":null},{\"file_id\":\"e0RSMoRXeePU\",\"drive\":\"動画\",\"filename\":\"【チームメガ】超絶可愛いカラミンゴの色違いが欲しいんだよぉぉぉぉおお!!!!!!【ポケモンGO】.loft\",\"file_type\":\"video\",\"quote\":\"ましたね。ほい。通常か。CP2340。[笑い]高くないか?野生ですよ。野生。はい。で 、えっとね、フィールドリサーチも進めていきたいので、ちょっとフィーリさ拾っていきますか。イベントの何か落ちるかな?えっと、いや、イベントじゃないな。で、 卵からも5玉かな?5玉からも生まれるんですけれども。はい。私ね、アイボックスの方がほい。これ全然関係ないやつ。マジでイベント前 に割っとけって話ですよね。大体こ…\",\"relevance\":0,\"segment_location\":\"3:01\",\"section_title\":null},{\"file_id\":\"3edLwzf0sYZI\",\"drive\":\"動画\",\"filename\":\"【マレーシア】人生初のクアラルンプール!!!ひと足先に来ちゃいました★【ポケモンGO】.loft\",\"file_type\":\"video\",\"quote\":\"お はい、クアラルンプール国際空港に着きました。なんやこれ。[笑い]とにかく派手可愛いですね。テーマパーク みたい。[音楽]はい。これ非常に分かりやすいですね。 日本こっから飛び立ちまして、今ですね、この緑のマレーシアにいるわけでございます。はい。こう見るとね、世界はめちゃくちゃ広いですね。まだまだ行った ことがないところばかりでございます。はい。ということで、え、あれからですね、え、無事入国審査…\",\"relevance\":0,\"segment_location\":\"4:37\",\"section_title\":null},{\"file_id\":\"3edLwzf0sYZI\",\"drive\":\"動画\",\"filename\":\"【マレーシア】人生初のクアラルンプール!!!ひと足先に来ちゃいました★【ポケモンGO】.loft\",\"file_type\":\"video\",\"quote\":\"お はい、クアラルンプール国際空港に着きました。なんやこれ。[笑い]とにかく派手可愛いですね。テーマパーク みたい。[音楽]はい。これ非常に分かりやすいですね。 日本こっから飛び立ちまして、今ですね、この緑のマレーシアにいるわけでございます。はい。こう見るとね、世界はめちゃくちゃ広いですね。まだまだ行った ことがないところばかりでございます。はい。ということで、え、あれからですね、え、無事入国審査…\",\"relevance\":0,\"segment_location\":\"4:37\",\"section_title\":null}]},\"done\":{\"retrieved_count\":5,\"took_ms\":32369},\"scope\":{\"scope\":{\"folders\":[],\"collections\":[],\"tags\":[],\"kinds\":[]},\"matched_file_count\":8},\"smart_collections\":[{\"name\":\"Case Check\",\"member_count\":8}]}"
+      }
+    ]
+  },
+  "requests": [
+    {
+      "method": "GET",
+      "url": "/api/drives/%E5%8B%95%E7%94%BB/collections",
+      "headers": {
+        "host": "127.0.0.1:4599",
+        "connection": "keep-alive",
+        "authorization": "Bearer r5",
+        "accept": "*/*",
+        "accept-language": "*",
+        "sec-fetch-mode": "cors",
+        "user-agent": "node",
+        "accept-encoding": "gzip, deflate"
+      },
+      "body": "",
+      "status": 200,
+      "response_type": "application/json"
+    },
+    {
+      "method": "GET",
+      "url": "/api/drives/%E5%8B%95%E7%94%BB/smart-folders",
+      "headers": {
+        "host": "127.0.0.1:4599",
+        "connection": "keep-alive",
+        "authorization": "Bearer r5",
+        "accept": "*/*",
+        "accept-language": "*",
+        "sec-fetch-mode": "cors",
+        "user-agent": "node",
+        "accept-encoding": "gzip, deflate"
+      },
+      "body": "",
+      "status": 200,
+      "response_type": "application/json"
+    },
+    {
+      "method": "GET",
+      "url": "/app-api/smart-collection-members?drive=%E5%8B%95%E7%94%BB&id=Hig9iGBSlFea&ids=1",
+      "headers": {
+        "host": "127.0.0.1:4599",
+        "connection": "keep-alive",
+        "authorization": "Bearer r5",
+        "accept": "*/*",
+        "accept-language": "*",
+        "sec-fetch-mode": "cors",
+        "user-agent": "node",
+        "accept-encoding": "gzip, deflate"
+      },
+      "body": "",
+      "status": 200,
+      "response_type": "application/json"
+    },
+    {
+      "method": "POST",
+      "url": "/api/addons/intelligence/ask",
+      "headers": {
+        "host": "127.0.0.1:4599",
+        "connection": "keep-alive",
+        "authorization": "Bearer r5",
+        "accept": "text/event-stream",
+        "x-lit-drive": "%E5%8B%95%E7%94%BB",
+        "content-type": "application/json",
+        "accept-language": "*",
+        "sec-fetch-mode": "cors",
+        "user-agent": "node",
+        "accept-encoding": "gzip, deflate",
+        "content-length": "263"
+      },
+      "body": "{\"query\":\"この範囲のファイルは何についての内容ですか。日本語で3行以内。\",\"scope\":{\"collections\":[],\"file_ids\":[\"BVtZs91FE2MA\",\"tSS4ETXxZ_wh\",\"e9uRhYYj2J25\",\"k3XIn8mHqLcw\",\"TNyTHMPpR09J\",\"e0RSMoRXeePU\",\"3edLwzf0sYZI\",\"FuHJi4Mbg-vp\"]}}",
+      "status": 200,
+      "response_type": "text/event-stream; charset=utf-8"
+    }
+  ]
+}

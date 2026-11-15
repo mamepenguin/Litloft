@@ -1,0 +1,1622 @@
+{
+  "tools": [
+    {
+      "name": "list_drives",
+      "description": "List drives visible to the current credentials. Locked/inaccessible drives are omitted entirely (never listed as locked).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "list_folders",
+      "description": "List subfolders under a path within a drive. By default one level deep (call again with a returned subfolder's path to go deeper). Pass depth (2-5) to recurse multiple levels in one call — each folder in the result then carries a `subfolders` array nested the same way, up to that depth. To list the files inside a folder instead, use search_files with the same path and no search term.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "drive": {
+            "type": "string",
+            "description": "Drive name"
+          },
+          "path": {
+            "type": "string",
+            "description": "Parent folder path; omit for the drive root"
+          },
+          "depth": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5,
+            "description": "How many levels deep to recurse (default 1, max 5). Depth >1 nests each folder's children under a `subfolders` field."
+          }
+        },
+        "required": [
+          "drive"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "search_files",
+      "description": "List and/or search files within a single drive. Set path (and leave search empty) to list files directly inside a specific folder; set search to filter by filename/folder-path substring. Each item is a summary (id, filename, title, folder_path, file_type, mime_type, file_size, duration, tags, created_at, updated_at, match_source); pass fields: 'full' for every field (thumbnail, favorite, likes, trust, subtitles…). Drives are a hard security boundary in Litloft; there is no cross-drive search.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "drive": {
+            "type": "string",
+            "description": "Drive name"
+          },
+          "search": {
+            "type": "string",
+            "description": "Substring match against title/folder path"
+          },
+          "favorite": {
+            "type": "boolean"
+          },
+          "tag": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "video",
+              "image",
+              "audio",
+              "document",
+              "archive",
+              "other",
+              "text",
+              "pdf"
+            ],
+            "description": "Narrow to one kind. `text` (Markdown and .txt) and `pdf` are refinements of `document`, so `document` returns those too. An unlisted value is rejected by the server rather than returning nothing."
+          },
+          "sort": {
+            "type": "string",
+            "enum": [
+              "created_at",
+              "title",
+              "file_size",
+              "likes",
+              "random"
+            ]
+          },
+          "order": {
+            "type": "string",
+            "enum": [
+              "asc",
+              "desc"
+            ]
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500
+          },
+          "path": {
+            "type": "string",
+            "description": "Folder path filter"
+          },
+          "fields": {
+            "type": "string",
+            "enum": [
+              "summary",
+              "full"
+            ],
+            "description": "'summary' (default) keeps the main fields of each file; 'full' returns every field"
+          }
+        },
+        "required": [
+          "drive"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "get_file",
+      "description": "Get metadata for a single file by id.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "type": "string",
+            "description": "12-character file id"
+          }
+        },
+        "required": [
+          "file_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "get_file_by_path",
+      "description": "Get a file's metadata (including its file_id) from its drive-relative path, e.g. 'notes/2026/trip.md'. Looks only in the given drive.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "drive": {
+            "type": "string",
+            "description": "Drive name"
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Drive-relative path including the filename"
+          }
+        },
+        "required": [
+          "drive",
+          "path"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "get_file_content",
+      "description": "Read a text file (Markdown, plain text, CSV, HTML, code, JSON, any text/* type). Without offset/limit it returns the whole text and, for Markdown/plain text, the ETag update_file_content needs; files over 1 MB must be read in ranges and files over 10 MB are refused. With offset (1-based first line) and/or limit (number of lines) it returns those lines with their terminators, start_line, end_line, total_lines, truncated (stopped at 1 MB of output) and a null ETag: to change part of a file use edit_file_content, never update_file_content with a partial read.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "type": "string"
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "1-based first line to return"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Number of lines to return"
+          }
+        },
+        "required": [
+          "file_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "semantic_search",
+      "description": "Rank files within a drive by relevance to a natural-language query. This is a hybrid search: it combines transcript/caption/embedding relevance with filename/title/folder-path/tag matching (so it's a superset of search_files, not just a semantic-only complement to it). Results include per-segment excerpts (with time ranges for video/audio, page numbers for PDFs, and for an EPUB book a null page with a 1-based `section` and its `section_title`, the chapter title or null) showing exactly what matched. Requires the intelligence addon's 'search' feature to be enabled for the drive.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "drive": {
+            "type": "string",
+            "description": "Drive name"
+          },
+          "q": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Natural-language search query"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "video",
+              "image",
+              "audio",
+              "document",
+              "archive",
+              "other"
+            ],
+            "description": "Narrow to one kind. The semantic index stores the flat kinds only — use `document` to include Markdown and PDFs."
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "precision",
+              "recall"
+            ],
+            "description": "'precision' (default) for normal use; 'recall' is a wider net for comparison purposes"
+          },
+          "include_scene_clip": {
+            "type": "boolean",
+            "description": "Include scene-level (not just representative-frame) image embeddings in the match"
+          }
+        },
+        "required": [
+          "drive",
+          "q"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "get_transcript",
+      "description": "Get the Whisper transcript for a video/audio file as time-stamped chunks. Pass start_time/end_time (in seconds, e.g. from a semantic_search segment's time_range) to narrow to a relevant window instead of pulling the whole transcript. Fails with a 404-style error if the file hasn't been transcribed.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "drive": {
+            "type": "string"
+          },
+          "file_id": {
+            "type": "string"
+          },
+          "start_time": {
+            "type": "number",
+            "description": "Only return chunks ending after this time (seconds)"
+          },
+          "end_time": {
+            "type": "number",
+            "description": "Only return chunks starting before this time (seconds)"
+          }
+        },
+        "required": [
+          "drive",
+          "file_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "get_watch_history",
+      "description": "Get continue-watching / watch history for a drive.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "drive": {
+            "type": "string"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          },
+          "filter": {
+            "type": "string",
+            "enum": [
+              "unfinished",
+              "all"
+            ]
+          }
+        },
+        "required": [
+          "drive"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "list_comments",
+      "description": "List comments on a file.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "file_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "list_inbox",
+      "description": "List a drive's open inbox: files that arrived on purpose (an upload or a web clip) and have not been marked done, filed, tagged or thrown away, newest first. Each item has file_id, filename, folder_path, source and arrived_at; pass the returned `next` cursor as `before` to read the next page. Read-only: no tool marks an inbox row done or undoes it.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "drive": {
+            "type": "string",
+            "description": "Drive name"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "description": "Items per page (default 100)"
+          },
+          "before": {
+            "type": "string",
+            "description": "Cursor from a previous call's `next`"
+          }
+        },
+        "required": [
+          "drive"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "list_collections",
+      "description": "List a drive's collections (also called playlists) and its Smart Collections, in one list ordered by name. A collection holds files of one drive; a Smart Collection is a saved search whose items are computed when read. Every row carries kind ('collection' or 'smart'); read one with get_collection, whose item ids can be passed to the other file tools.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "drive": {
+            "type": "string",
+            "description": "Drive name"
+          }
+        },
+        "required": [
+          "drive"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "get_collection",
+      "description": "Read a collection (also called a playlist) or a Smart Collection, which holds files of one drive. A collection item is { item_id, position, file }; trashed and missing items are left out and counted in inactive_count. A Smart Collection is a saved search whose items are computed when read: it returns { total, offset, complete, items: [{ position, file }] } and is paged with offset and limit (default 50, at most 200); complete: false means meaning search could not be read, so items may be missing. The file ids can be passed to the other file tools. fields: 'summary' (default) keeps the main fields of each file; 'full' returns every field.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "drive": {
+            "type": "string",
+            "description": "Drive name"
+          },
+          "collection_id": {
+            "type": "string",
+            "description": "Collection or Smart Collection id"
+          },
+          "fields": {
+            "type": "string",
+            "enum": [
+              "summary",
+              "full"
+            ],
+            "description": "'summary' (default) keeps the main fields of each file; 'full' returns every field"
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Smart Collection only: index of the first item (default 0)"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "description": "Smart Collection only: items to return (default 50, max 200)"
+          }
+        },
+        "required": [
+          "drive",
+          "collection_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "search_exact",
+      "description": "List every place a string appears in one drive, like grep: document text (Markdown, plain text, HTML, PDF, Office, EPUB), video/audio transcripts, text read from video frames (each hit carries its time), and Visual Index scenes (scene label, on-screen text). It does not search filenames (use search_files), file descriptions, tags or image descriptions. Matching is a plain substring, case-insensitive for ASCII letters only, with no wildcards. Each segment gives its position (PDF page, EPUB `section`, transcript, frame-text or scene times), match_count and a snippet. Results are ordered and paged: `total` is the full count, page with offset. Document chunks overlap, so one occurrence can be listed in two consecutive text segments.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "drive": {
+            "type": "string",
+            "description": "Drive name"
+          },
+          "q": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "Exact text to find"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "text",
+                "transcript",
+                "scene"
+              ]
+            },
+            "minItems": 1,
+            "description": "Which kinds of text to search (default all three)"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "description": "Segments per page (default 50)"
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Segments to skip (default 0)"
+          }
+        },
+        "required": [
+          "drive",
+          "q"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "search_video_scenes",
+      "description": "Find video scenes in one drive by what is shown, ranked by meaning against each scene's label and on-screen text. Only videos whose Visual Index was generated have scenes. Every result carries a score and no threshold is applied, so judge weak matches by score. Open a hit with get_video_frame at its start_time.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "drive": {
+            "type": "string",
+            "description": "Drive name"
+          },
+          "q": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000,
+            "description": "What the scene shows"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50,
+            "description": "Number of scenes (default 20)"
+          }
+        },
+        "required": [
+          "drive",
+          "q"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "read_document",
+      "description": "Read the text of a PDF, Word (.docx), Excel (.xlsx), PowerPoint (.pptx) or EPUB file, extracted from the file now, one unit at a time: a PDF page, a slide, a sheet (title = sheet name), an EPUB spine section (title = its table-of-contents title; numbered as search results' `section`), or the whole .docx. Pass start (unit number) and count (units; per format at most 10 pages, 200 slides, 50 sheets, 100 sections). A response stops at max_chars; when `next` is not null, call again with its start and offset to continue. A scanned page without a text layer has no text (a PDF page may read as just a `-----` rule). Errors: 404 also covers a file the intelligence addon has not indexed yet (just uploaded or moved; retry later); 429 means the reader is busy, retry as is; 502 usually means a PDF read was too slow, retry with a smaller count. For text/* and JSON files use get_file_content.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "drive": {
+            "type": "string",
+            "description": "Drive name"
+          },
+          "file_id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "File id"
+          },
+          "start": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "First unit to read, 1-based (default 1)"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "description": "Units to read (default 5 pages, 50 slides, 5 sheets, 10 sections)"
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Characters to skip in the first unit, from `next` (default 0)"
+          },
+          "max_chars": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200000,
+            "description": "Most characters of text to return (default 50000)"
+          }
+        },
+        "required": [
+          "drive",
+          "file_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "get_video_frame",
+      "description": "Return the frame of a video at time t (seconds) as an image, so you can see what is on screen: on-screen text, slides, what is being shown. size 'large' (default) has a long edge of up to 1280 px, enough to read on-screen text; 'small' is 320 px wide. Take t from list_video_scenes, get_transcript or a semantic_search time range. Native videos and YouTube .loft references indexed by the intelligence addon; for a .loft of another provider the error gives its URL.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "drive": {
+            "type": "string"
+          },
+          "file_id": {
+            "type": "string"
+          },
+          "t": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Time in seconds"
+          },
+          "size": {
+            "type": "string",
+            "enum": [
+              "large",
+              "small"
+            ],
+            "description": "'large' (default, long edge up to 1280 px) or 'small' (320 px wide)"
+          }
+        },
+        "required": [
+          "drive",
+          "file_id",
+          "t"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "list_video_scenes",
+      "description": "Overview of a video: up to 24 representative scenes chosen from the scene changes found at indexing, each with its start/end time, the nearby transcript excerpt and a small frame image. Pass start_time/end_time (seconds) to look closer at one part of a long video. Use get_video_frame for a large frame of a scene you want to read. Native videos and YouTube .loft references indexed by the intelligence addon; for a .loft of another provider the error gives its URL.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "drive": {
+            "type": "string"
+          },
+          "file_id": {
+            "type": "string"
+          },
+          "start_time": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Window start in seconds"
+          },
+          "end_time": {
+            "$ref": "#/properties/start_time",
+            "description": "Window end in seconds"
+          }
+        },
+        "required": [
+          "drive",
+          "file_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "rename_file",
+      "description": "Rename a file (change its filename, not its folder).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "type": "string"
+          },
+          "new_filename": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "file_id",
+          "new_filename"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "move_file",
+      "description": "Move a file to a different folder path, optionally to a different drive. A move within the drive closes the file's inbox row; a move to another drive removes it, and removes the file from the collections of the drive it leaves.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "type": "string"
+          },
+          "target_folder_path": {
+            "type": "string"
+          },
+          "target_drive": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "file_id",
+          "target_folder_path"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "trash_file",
+      "description": "Move a file to trash (soft delete). Recoverable for 30 days via restore_file; this does not permanently delete anything. It also closes the file's inbox row.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "file_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "restore_file",
+      "description": "Restore a file out of trash.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "file_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "update_tags",
+      "description": "Replace the full tag list on a file (max 10 tags). This overwrites existing tags rather than appending to them. Changing the tag set also closes the file's inbox row.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10
+          }
+        },
+        "required": [
+          "file_id",
+          "tags"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "update_file_content",
+      "description": "Replace a text/markdown file's whole content. `content` is plain text, not base64 (unlike upload_file's content_base64). Requires the ETag of a full get_file_content read (a ranged read returns none) as an optimistic-lock guard; a 412 conflict means the file changed since you last read it, so read it again before retrying. To change part of a file, use edit_file_content instead. Changing a Markdown file's frontmatter tags also closes its inbox row.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "etag": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "file_id",
+          "content",
+          "etag"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "edit_file_content",
+      "description": "Change part of a Markdown or plain-text file (at most 1 MB) by exact string replacement, without sending the whole file. old_string must occur exactly once in the current file (include surrounding text to make it unique), or pass replace_all to replace every occurrence. Both strings are literal. The tool reads the file itself, so no ETag is needed; it applies to the file as it is now. Changing a Markdown file's frontmatter tags also closes its inbox row.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "type": "string"
+          },
+          "old_string": {
+            "type": "string",
+            "description": "Exact text to replace"
+          },
+          "new_string": {
+            "type": "string",
+            "description": "Text to put in its place"
+          },
+          "replace_all": {
+            "type": "boolean",
+            "description": "Replace every occurrence (default false)"
+          }
+        },
+        "required": [
+          "file_id",
+          "old_string",
+          "new_string"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "create_playlist",
+      "description": "Create a new playlist (collection) within a drive.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "drive": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "drive",
+          "name"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "add_to_playlist",
+      "description": "Add one or more files to an existing playlist (collection). Files must belong to the same drive as the playlist.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "drive": {
+            "type": "string"
+          },
+          "collection_id": {
+            "type": "string"
+          },
+          "file_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "drive",
+          "collection_id",
+          "file_ids"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "upload_file",
+      "description": "Upload a new small file (note, document, image) to a drive, capped at 10MB decoded — not for large video files. Pass exactly one of: `content` (plain UTF-8 text — for notes/markdown/text files) or `content_base64` (base64-encoded bytes — required for binary files such as images; plain text is NOT accepted here, only in `content`).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "drive": {
+            "type": "string"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string",
+            "description": "Plain UTF-8 text content, for text/markdown files. Mutually exclusive with content_base64; pass exactly one."
+          },
+          "content_base64": {
+            "type": "string",
+            "description": "Base64-encoded file content, required for binary files (e.g. images). Mutually exclusive with content; pass exactly one."
+          },
+          "folder_path": {
+            "type": "string",
+            "description": "Destination folder path within the drive; omit for the drive root"
+          }
+        },
+        "required": [
+          "drive",
+          "filename"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "add_comment",
+      "description": "Post a comment on a file. Requires LITLOFT_VIEWER so the comment has a profile nickname.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "file_id",
+          "body"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "clip_url",
+      "description": "Create a Knowledge web clip from a URL in a drive. Requires LITLOFT_VIEWER.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "drive": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "subfolder": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "drive",
+          "url"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "clip_pasted",
+      "description": "Create a Knowledge clip from pasted HTML. Requires LITLOFT_VIEWER.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "drive": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "html": {
+            "type": "string",
+            "minLength": 1
+          },
+          "subfolder": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "drive",
+          "url",
+          "html"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "create_folder",
+      "description": "Create a folder named `name` inside the parent folder `path` (omit or '' for the drive root). A missing parent is created too.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "drive": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "description": "Name of the new folder, not a path"
+          },
+          "path": {
+            "type": "string",
+            "description": "Parent folder path; omit for the drive root"
+          }
+        },
+        "required": [
+          "drive",
+          "name"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "rename_folder",
+      "description": "Rename the folder at `path` to `new_name` (a name, not a path); it stays in the same parent folder.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "drive": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string",
+            "description": "Folder path"
+          },
+          "new_name": {
+            "type": "string",
+            "description": "New folder name, not a path"
+          }
+        },
+        "required": [
+          "drive",
+          "path",
+          "new_name"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "move_folder",
+      "description": "Move the folder at `path` into the parent folder `target_path` ('' for the drive root); it keeps its name, so pass the destination parent, not the new full path. A missing parent is created.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "drive": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string",
+            "description": "Folder path to move"
+          },
+          "target_path": {
+            "type": "string",
+            "description": "Parent folder to move it into"
+          }
+        },
+        "required": [
+          "drive",
+          "path",
+          "target_path"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "trash_folder",
+      "description": "Move every file under the folder at `path` to trash (restorable for 30 days with restore_file / restore_files); nothing is deleted permanently. It also closes the inbox row of every file it trashes. The folder stops being listed, but its directory stays on disk: creating a folder with the same name fails until it is gone, and it can reappear as an empty folder after the next scan.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "drive": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string",
+            "description": "Folder path"
+          }
+        },
+        "required": [
+          "drive",
+          "path"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "move_files",
+      "description": "Move up to 100 files into one folder, optionally on another drive. Files keep their names; a name already taken there is reported per file in `errors`. A move within the drive closes each file's inbox row; a move to another drive removes it, and removes the file from the collections of the drive it leaves.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "file_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{12}$"
+            },
+            "minItems": 1,
+            "maxItems": 100,
+            "description": "1 to 100 file ids"
+          },
+          "target_folder_path": {
+            "type": "string",
+            "description": "Destination folder path ('' for the drive root)"
+          },
+          "target_drive": {
+            "type": "string",
+            "description": "Destination drive; omit for the same drive"
+          }
+        },
+        "required": [
+          "file_ids",
+          "target_folder_path"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "copy_files",
+      "description": "Copy up to 100 files into one folder, optionally on another drive. A copy whose name is taken becomes <stem>_copy<ext>, then <stem>_copy_2<ext> and so on. Only a count is returned: list the target folder with search_files to find the copies.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "file_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{12}$"
+            },
+            "minItems": 1,
+            "maxItems": 100,
+            "description": "1 to 100 file ids"
+          },
+          "target_folder_path": {
+            "type": "string",
+            "description": "Destination folder path ('' for the drive root)"
+          },
+          "target_drive": {
+            "type": "string",
+            "description": "Destination drive; omit for the same drive"
+          }
+        },
+        "required": [
+          "file_ids",
+          "target_folder_path"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "trash_files",
+      "description": "Move up to 100 files to trash (restorable for 30 days with restore_files). Nothing is deleted permanently. It also closes each file's inbox row.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "file_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{12}$"
+            },
+            "minItems": 1,
+            "maxItems": 100,
+            "description": "1 to 100 file ids"
+          }
+        },
+        "required": [
+          "file_ids"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "restore_files",
+      "description": "Restore up to 100 files out of trash.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "file_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{12}$"
+            },
+            "minItems": 1,
+            "maxItems": 100,
+            "description": "1 to 100 file ids"
+          }
+        },
+        "required": [
+          "file_ids"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "add_tags",
+      "description": "Add tags to up to 100 files, keeping their existing tags (update_tags replaces one file's tags instead). For Markdown files the tags are written to the frontmatter. Adding a tag also closes each file's inbox row.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "file_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{12}$"
+            },
+            "minItems": 1,
+            "maxItems": 100,
+            "description": "1 to 100 file ids"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "maxItems": 10,
+            "description": "1 to 10 tags to add"
+          }
+        },
+        "required": [
+          "file_ids",
+          "tags"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "ask",
+      "description": "Ask Litloft Intelligence a question within one drive and return the synthesized answer with source events. Retrieved file excerpts may be sent to the LLM provider configured in Litloft Intelligence. Pass scope to answer only from files in those folders (and below), collections (by name), tags and kinds of the drive; conditions combine with AND. An empty scope answers with no answer and matched_file_count 0. A Smart Collection name may also be given in the collections scope: its members are combined with the named collections as one collection condition, and file_ids is sent when a name was replaced.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "drive": {
+            "type": "string"
+          },
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "top_k": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20
+          },
+          "file_type": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "object",
+            "properties": {
+              "folders": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "collections": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "tags": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "file_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "kinds": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "video",
+                    "image",
+                    "audio",
+                    "document",
+                    "archive",
+                    "other",
+                    "text",
+                    "pdf"
+                  ]
+                }
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "drive",
+          "query"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    }
+  ]
+}

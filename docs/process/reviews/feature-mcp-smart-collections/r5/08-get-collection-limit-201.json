@@ -1,0 +1,18 @@
+{
+  "tool": "get_collection",
+  "arguments": {
+    "drive": "動画",
+    "collection_id": "fIQkLAB3Focg",
+    "limit": 201
+  },
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "MCP error -32602: Input validation error: Invalid arguments for tool get_collection: [\n  {\n    \"code\": \"too_big\",\n    \"maximum\": 200,\n    \"type\": \"number\",\n    \"inclusive\": true,\n    \"exact\": false,\n    \"message\": \"Number must be less than or equal to 200\",\n    \"path\": [\n      \"limit\"\n    ]\n  }\n]"
+      }
+    ],
+    "isError": true
+  },
+  "requests": []
+}

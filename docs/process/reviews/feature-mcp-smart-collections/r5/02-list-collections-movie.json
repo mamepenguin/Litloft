@@ -1,0 +1,50 @@
+{
+  "tool": "list_collections",
+  "arguments": {
+    "drive": "動画"
+  },
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "[{\"id\":\"fIQkLAB3Focg\",\"name\":\"All Videos\",\"kind\":\"smart\",\"query\":\"type:video\",\"file_type\":null},{\"id\":\"Hig9iGBSlFea\",\"name\":\"Case Check\",\"kind\":\"smart\",\"query\":\"tag:あんこ\",\"file_type\":null},{\"id\":\"hnCsecxeZOVi\",\"name\":\"Empty Smart\",\"kind\":\"smart\",\"query\":\"tag:zzz-nonexistent-r5\",\"file_type\":null},{\"id\":\"Q4lMIohs3UCH\",\"name\":\"Semantic Dogs\",\"kind\":\"smart\",\"query\":\"犬\",\"file_type\":null},{\"id\":\"bG77f6xG21ju\",\"name\":\"Spirit\",\"description\":null,\"drive\":\"動画\",\"item_count\":50,\"first_file_id\":\"XAA7eXM1X-h0\",\"created_at\":\"2026-03-25T14:04:14.562242Z\",\"updated_at\":\"2026-03-25T14:04:14.562250Z\",\"kind\":\"collection\"},{\"id\":\"iJoo9-NqbcRO\",\"name\":\"あんこ動画\",\"kind\":\"smart\",\"query\":\"tag:あんこ type:video\",\"file_type\":null}]"
+      }
+    ]
+  },
+  "requests": [
+    {
+      "method": "GET",
+      "url": "/api/drives/%E5%8B%95%E7%94%BB/collections",
+      "headers": {
+        "host": "127.0.0.1:4599",
+        "connection": "keep-alive",
+        "authorization": "Bearer r5",
+        "accept": "*/*",
+        "accept-language": "*",
+        "sec-fetch-mode": "cors",
+        "user-agent": "node",
+        "accept-encoding": "gzip, deflate"
+      },
+      "body": "",
+      "status": 200,
+      "response_type": "application/json"
+    },
+    {
+      "method": "GET",
+      "url": "/api/drives/%E5%8B%95%E7%94%BB/smart-folders",
+      "headers": {
+        "host": "127.0.0.1:4599",
+        "connection": "keep-alive",
+        "authorization": "Bearer r5",
+        "accept": "*/*",
+        "accept-language": "*",
+        "sec-fetch-mode": "cors",
+        "user-agent": "node",
+        "accept-encoding": "gzip, deflate"
+      },
+      "body": "",
+      "status": 200,
+      "response_type": "application/json"
+    }
+  ]
+}

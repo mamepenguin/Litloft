@@ -1,0 +1,37 @@
+{
+  "tool": "ask",
+  "arguments": {
+    "drive": "動画",
+    "query": "このドライブには何がありますか。日本語で2行以内。"
+  },
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"answer\":\"このドライブには、Intel Optane P5800X や SanDisk SN8100 などの SSD、12 台の HDD、RAID カード、およびバックプレーンなどのストレージ機器が含まれています。\",\"sources\":{\"sources\":[{\"file_id\":\"l1DymJWkW8hl\",\"drive\":\"動画\",\"filename\":\"【伝説の業務用SSD】「Intel Optane P5800X」を入手！5年前発売、既に”消滅”、なのに未だ最強の性能を試す。【500万円PC建造計画 #12】.loft\",\"file_type\":\"video\",\"score\":0.04153181383382261,\"match_types\":[\"clip_thumbnail\",\"transcript_keyword\",\"whisper\"]},{\"file_id\":\"wPrxCLDuz544\",\"drive\":\"動画\",\"filename\":\"【SSD4枚とHDD12台で】「容量100TB超え」「壊れてもデータが消えない」最強ストレージを構築する。【500万円PC建造計画 #13】.loft\",\"file_type\":\"video\",\"score\":0.03770706190061029,\"match_types\":[\"transcript_keyword\",\"whisper\"]},{\"file_id\":\"PqQkj1fgjaov\",\"drive\":\"動画\",\"filename\":\"drives-and-access.md\",\"file_type\":\"document\",\"score\":0.015873015873015872,\"match_types\":[\"metadata\",\"text_content\"]},{\"file_id\":\"9pgx3l58Inml\",\"drive\":\"動画\",\"filename\":\"file-browsing.md\",\"file_type\":\"document\",\"score\":0.014705882352941176,\"match_types\":[\"text_content\"]}]},\"citations\":{\"citations\":[{\"file_id\":\"l1DymJWkW8hl\",\"drive\":\"動画\",\"filename\":\"【伝説の業務用SSD】「Intel Optane P5800X」を入手！5年前発売、既に”消滅”、なのに未だ最強の性能を試す。【500万円PC建造計画 #12】.loft\",\"file_type\":\"video\",\"quote\":\"最後の章では現在仮で挿してるCドライブを置き換えていこうと思います盛りだくさんだね早速開封行ってみましょうというわけで届いたものがこちらまた海外から来た感じ？\",\"relevance\":0,\"segment_location\":\"1:36\",\"section_title\":null},{\"file_id\":\"l1DymJWkW8hl\",\"drive\":\"動画\",\"filename\":\"【伝説の業務用SSD】「Intel Optane P5800X」を入手！5年前発売、既に”消滅”、なのに未だ最強の性能を試す。【500万円PC建造計画 #12】.loft\",\"file_type\":\"video\",\"quote\":\"最後の章では現在仮で挿してるCドライブを置き換えていこうと思います盛りだくさんだね早速開封行ってみましょうというわけで届いたものがこちらまた海外から来た感じ？\",\"relevance\":0,\"segment_location\":\"1:36\",\"section_title\":null},{\"file_id\":\"wPrxCLDuz544\",\"drive\":\"動画\",\"filename\":\"【SSD4枚とHDD12台で】「容量100TB超え」「壊れてもデータが消えない」最強ストレージを構築する。【500万円PC建造計画 #13】.loft\",\"file_type\":\"video\",\"quote\":\"これまでの回で既に登場してる計32TB分のSSDおよびRAIDカードとこの後開封する192TB分のHDDを使って容量や速度はもちろん\",\"relevance\":0,\"segment_location\":\"0:34\",\"section_title\":null},{\"file_id\":\"wPrxCLDuz544\",\"drive\":\"動画\",\"filename\":\"【SSD4枚とHDD12台で】「容量100TB超え」「壊れてもデータが消えない」最強ストレージを構築する。【500万円PC建造計画 #13】.loft\",\"file_type\":\"video\",\"quote\":\"これまでの回で既に登場してる計32TB分のSSDおよびRAIDカードとこの後開封する192TB分のHDDを使って容量や速度はもちろん\",\"relevance\":0,\"segment_location\":\"0:34\",\"section_title\":null},{\"file_id\":\"wPrxCLDuz544\",\"drive\":\"動画\",\"filename\":\"【SSD4枚とHDD12台で】「容量100TB超え」「壊れてもデータが消えない」最強ストレージを構築する。【500万円PC建造計画 #13】.loft\",\"file_type\":\"video\",\"quote\":\"これまでの回で既に登場してる計32TB分のSSDおよびRAIDカードとこの後開封する192TB分のHDDを使って容量や速度はもちろん\",\"relevance\":0,\"segment_location\":\"0:34\",\"section_title\":null}]},\"done\":{\"retrieved_count\":4,\"took_ms\":44836}}"
+      }
+    ]
+  },
+  "requests": [
+    {
+      "method": "POST",
+      "url": "/api/addons/intelligence/ask",
+      "headers": {
+        "host": "127.0.0.1:4599",
+        "connection": "keep-alive",
+        "authorization": "Bearer r5",
+        "accept": "text/event-stream",
+        "x-lit-drive": "%E5%8B%95%E7%94%BB",
+        "content-type": "application/json",
+        "accept-language": "*",
+        "sec-fetch-mode": "cors",
+        "user-agent": "node",
+        "accept-encoding": "gzip, deflate",
+        "content-length": "85"
+      },
+      "body": "{\"query\":\"このドライブには何がありますか。日本語で2行以内。\"}",
+      "status": 200,
+      "response_type": "text/event-stream; charset=utf-8"
+    }
+  ]
+}

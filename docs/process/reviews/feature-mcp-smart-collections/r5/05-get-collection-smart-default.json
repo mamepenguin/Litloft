@@ -1,0 +1,68 @@
+{
+  "tool": "get_collection",
+  "arguments": {
+    "drive": "動画",
+    "collection_id": "iJoo9-NqbcRO"
+  },
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"id\":\"iJoo9-NqbcRO\",\"name\":\"あんこ動画\",\"kind\":\"smart\",\"query\":\"tag:あんこ type:video\",\"file_type\":null,\"complete\":true,\"total\":8,\"offset\":0,\"items\":[{\"position\":0,\"file\":{\"id\":\"BVtZs91FE2MA\",\"filename\":\"【フリーザー12連戦】三鳥最終日!!!ダイマックスの伝説ってこんなに難しかったっけ？？？【ポケモンGO】.loft\",\"title\":\"【フリーザー12連戦】三鳥最終日!!!ダイマックスの伝説ってこんなに難しかったっけ？？？【ポケモンGO】\",\"folder_path\":\"YouTube\",\"file_type\":\"video\",\"mime_type\":\"application/vnd.litloft.loft+json\",\"file_size\":83,\"duration\":null,\"tags\":[\"あんこ\"],\"created_at\":\"2026-09-27T13:41:06.841177Z\",\"updated_at\":\"2026-09-27T13:41:06.961824Z\",\"match_source\":null}},{\"position\":1,\"file\":{\"id\":\"tSS4ETXxZ_wh\",\"filename\":\"【絶望】マスタリーシリーズ!!!最後に重大なミスに気付く……【ポケモンGO】.loft\",\"title\":\"【絶望】マスタリーシリーズ!!!最後に重大なミスに気付く……【ポケモンGO】\",\"folder_path\":\"YouTube\",\"file_type\":\"video\",\"mime_type\":\"application/vnd.litloft.loft+json\",\"file_size\":83,\"duration\":null,\"tags\":[\"あんこ\"],\"created_at\":\"2026-09-26T14:29:56.266374Z\",\"updated_at\":\"2026-09-26T14:29:56.386564Z\",\"match_source\":null}},{\"position\":2,\"file\":{\"id\":\"e9uRhYYj2J25\",\"filename\":\"【adidas×ポケモンGO】超簡単タイムチャレンジの受け取り方★ピッピ爆湧きで大興奮wwww【ポケモンGO】.loft\",\"title\":\"【adidas×ポケモンGO】超簡単タイムチャレンジの受け取り方★ピッピ爆湧きで大興奮wwww【ポケモンGO】\",\"folder_path\":\"YouTube\",\"file_type\":\"video\",\"mime_type\":\"application/vnd.litloft.loft+json\",\"file_size\":83,\"duration\":null,\"tags\":[\"あんこ\"],\"created_at\":\"2026-09-25T13:26:48.004086Z\",\"updated_at\":\"2026-09-25T13:26:48.246584Z\",\"match_source\":null}},{\"position\":3,\"file\":{\"id\":\"k3XIn8mHqLcw\",\"filename\":\"【GOツアーアローラ】今、私は非常に迷ってます……チマチョゴリピカチュウまさかのwwwwww【ポケモンGO】.loft\",\"title\":\"【GOツアーアローラ】今、私は非常に迷ってます……チマチョゴリピカチュウまさかのwwwwww【ポケモンGO】\",\"folder_path\":\"YouTube\",\"file_type\":\"video\",\"mime_type\":\"application/vnd.litloft.loft+json\",\"file_size\":83,\"duration\":869,\"tags\":[\"あんこ\"],\"created_at\":\"2026-09-24T10:59:43.497226Z\",\"updated_at\":\"2026-09-29T11:37:07.408453Z\",\"match_source\":null}},{\"position\":4,\"file\":{\"id\":\"TNyTHMPpR09J\",\"filename\":\"【勝負は5分】おつきみダンスで不具合…？激カワ背景が確定で手に入る!!!!!【ポケモンGO】.loft\",\"title\":\"【勝負は5分】おつきみダンスで不具合…？激カワ背景が確定で手に入る!!!!!【ポケモンGO】\",\"folder_path\":\"YouTube\",\"file_type\":\"video\",\"mime_type\":\"application/vnd.litloft.loft+json\",\"file_size\":83,\"duration\":null,\"tags\":[\"あんこ\"],\"created_at\":\"2026-09-23T12:58:11.999672Z\",\"updated_at\":\"2026-09-23T12:58:12.112865Z\",\"match_source\":null}},{\"position\":5,\"file\":{\"id\":\"e0RSMoRXeePU\",\"filename\":\"【チームメガ】超絶可愛いカラミンゴの色違いが欲しいんだよぉぉぉぉおお!!!!!!【ポケモンGO】.loft\",\"title\":\"【チームメガ】超絶可愛いカラミンゴの色違いが欲しいんだよぉぉぉぉおお!!!!!!【ポケモンGO】\",\"folder_path\":\"YouTube\",\"file_type\":\"video\",\"mime_type\":\"application/vnd.litloft.loft+json\",\"file_size\":83,\"duration\":null,\"tags\":[\"あんこ\"],\"created_at\":\"2026-09-14T09:59:24.139453Z\",\"updated_at\":\"2026-09-14T09:59:24.311907Z\",\"match_source\":null}},{\"position\":6,\"file\":{\"id\":\"3edLwzf0sYZI\",\"filename\":\"【マレーシア】人生初のクアラルンプール!!!ひと足先に来ちゃいました★【ポケモンGO】.loft\",\"title\":\"【マレーシア】人生初のクアラルンプール!!!ひと足先に来ちゃいました★【ポケモンGO】\",\"folder_path\":\"YouTube\",\"file_type\":\"video\",\"mime_type\":\"application/vnd.litloft.loft+json\",\"file_size\":83,\"duration\":null,\"tags\":[\"あんこ\"],\"created_at\":\"2026-09-14T09:59:18.129591Z\",\"updated_at\":\"2026-09-15T12:56:20.030892Z\",\"match_source\":null}},{\"position\":7,\"file\":{\"id\":\"FuHJi4Mbg-vp\",\"filename\":\"【オラチフ】猿と犬に悩まされる1日が地獄だった…【ポケモンGO】.loft\",\"title\":\"【オラチフ】猿と犬に悩まされる1日が地獄だった…【ポケモンGO】\",\"folder_path\":\"YouTube\",\"file_type\":\"video\",\"mime_type\":\"application/vnd.litloft.loft+json\",\"file_size\":83,\"duration\":null,\"tags\":[\"あんこ\"],\"created_at\":\"2026-09-14T09:59:12.074137Z\",\"updated_at\":\"2026-09-14T09:59:12.181612Z\",\"match_source\":null}}]}"
+      }
+    ]
+  },
+  "requests": [
+    {
+      "method": "GET",
+      "url": "/api/drives/%E5%8B%95%E7%94%BB/collections/iJoo9-NqbcRO",
+      "headers": {
+        "host": "127.0.0.1:4599",
+        "connection": "keep-alive",
+        "authorization": "Bearer r5",
+        "accept": "*/*",
+        "accept-language": "*",
+        "sec-fetch-mode": "cors",
+        "user-agent": "node",
+        "accept-encoding": "gzip, deflate"
+      },
+      "body": "",
+      "status": 404,
+      "response_type": "application/json"
+    },
+    {
+      "method": "GET",
+      "url": "/api/drives/%E5%8B%95%E7%94%BB/smart-folders",
+      "headers": {
+        "host": "127.0.0.1:4599",
+        "connection": "keep-alive",
+        "authorization": "Bearer r5",
+        "accept": "*/*",
+        "accept-language": "*",
+        "sec-fetch-mode": "cors",
+        "user-agent": "node",
+        "accept-encoding": "gzip, deflate"
+      },
+      "body": "",
+      "status": 200,
+      "response_type": "application/json"
+    },
+    {
+      "method": "GET",
+      "url": "/app-api/smart-collection-members?drive=%E5%8B%95%E7%94%BB&id=iJoo9-NqbcRO&offset=0&limit=50",
+      "headers": {
+        "host": "127.0.0.1:4599",
+        "connection": "keep-alive",
+        "authorization": "Bearer r5",
+        "accept": "*/*",
+        "accept-language": "*",
+        "sec-fetch-mode": "cors",
+        "user-agent": "node",
+        "accept-encoding": "gzip, deflate"
+      },
+      "body": "",
+      "status": 200,
+      "response_type": "application/json"
+    }
+  ]
+}
