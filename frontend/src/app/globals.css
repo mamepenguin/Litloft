@@ -926,14 +926,14 @@ pre mark.ask-citation-highlight {
 }
 
 /* 480px is the player's `COMPACT_MAX_WIDTH` (`MediaControls/layout.ts`):
-   below that width its controls go compact. The enlarged share is the cap the
-   floor must not raise the frame above. */
+   below that width its controls go compact. The 0.5 is the cap the floor
+   must not raise the frame above, and the budget under the row caps it too. */
 .media-detail-host[data-workbench="on"][data-player-focus="on"]
   .media-detail-player[data-framed="true"] {
   min-width: min(
     100%,
     480px,
-    calc(var(--rail-avail, 100dvh) * var(--workbench-player-share, 0.5) * 16 / 9),
+    calc(var(--rail-avail, 100dvh) * 0.5 * 16 / 9),
     calc(var(--player-avail, 100dvh) * 16 / 9)
   );
 }

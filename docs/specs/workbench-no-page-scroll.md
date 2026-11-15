@@ -2,7 +2,7 @@
 
 SPEC-ID: SPEC-CORE-113
 
-Approval: sha256:d31c00045ce5bbe8746fdcb7965b2a7d76008f399a2472061c72ce9527760fb8 Yuichi Senga 2026-11-15
+Approval: sha256:b64f0340475d04ab3bda861248c625f1691741bd5d51a513c82baaefcfe6ada4 Yuichi Senga 2026-11-15
 
 ## Summary
 
@@ -129,7 +129,7 @@ None. Layout only.
   it is today): revised in `## Revises`, as prose. Steps are not carried by `review.sh`, so the
   revised invariants are in the I-lines below; the step text is replaced by §1 of this spec.
 - SPEC-CORE-085 I5, the second bullet: revised.
-- SPEC-CORE-104 I3 and I6: revised.
+- SPEC-CORE-104 I2, I3 and I6: revised.
 - SPEC-CORE-105 I4 states that the room under the frame must be at least `0.75rem + 18rem +
   1rem`. That premise was the floor, which no longer exists. The claim it makes (no scroll,
   panels within H) still holds by this spec's I1. 105 I4 is **not** revised; its 18rem term
@@ -168,7 +168,7 @@ The frame's share of H while a panel is shown is the existing custom property
 | Panel shown | Enlarge value | Frame cap |
 |---|---|---|
 | yes | off | min(50% of H, `--player-avail`) (SPEC-CORE-085 step 8) |
-| yes | on | between min(270px, 30% of H, `--player-avail`) and min(30% of H, `--player-avail`) (SPEC-CORE-104) |
+| yes | on | larger of min(270px, 50% of H, `--player-avail`) and min(30% of H, `--player-avail`) (SPEC-CORE-104) |
 | no | off or on | `--player-avail` (this spec) |
 
 Only the first two rows are read by the revised SPEC-CORE-104 I3 and by I4 below.
@@ -180,8 +180,8 @@ Only the first two rows are read by the revised SPEC-CORE-104 I3 and by I4 below
   panel-shown state (the attribute is only set then, by `workbenchActive`). Nothing else in
   the stylesheet changes except the framed player's cap in the panel-shown state (the host
   descendant rule), which gains `min(…, --player-avail × 16/9)`, and the enlarged floor
-  (`data-player-focus="on"`), whose share term becomes `--workbench-player-share` (30%
-  when enlarged) and which gains the `--player-avail` term. The collection rule
+  (`data-player-focus="on"`), which gains the `--player-avail` term; its 50% term is
+  unchanged. The collection rule
   (`data-collection-workbench`) is not touched.
 - `frontend/src/components/FileDetail/workbench/Workbench.tsx`: the grid's `minHeight`
   (`WORKBENCH_MIN_REM`) is removed. The row element is not passed anywhere; the metrics hook
@@ -244,8 +244,8 @@ I3. With no panel shown and the row drawn, the frame's bottom edge is 1rem (with
 above the row's top edge, and the frame's height is at most `--player-avail`.
 
 I4. With a panel shown and the stored value off, the frame's height is at most half of H.
-With the stored value on, the frame's height is at most the lesser of 30% of H and
-`--player-avail`, and at least the lesser of 270px, 30% of H and `--player-avail`.
+With the stored value on, the frame's height is the larger of min(270px, 50% of H,
+`--player-avail`) and min(30% of H, `--player-avail`).
 
 I5. With a panel shown, the host's height is H (within 1px), and the panel region has no
 minimum height, so that a region's height is 0 at a small H and grows with H.
