@@ -129,12 +129,14 @@ vi.mock("@/components/ProfileProvider", () => ({
 const getShelves = vi.fn();
 const getDriveFiles = vi.fn();
 const getSmartFolders = vi.fn();
+const getCollections = vi.fn();
 
 vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),
   getShelves: (...args: unknown[]) => getShelves(...args),
   getDriveFiles: (...args: unknown[]) => getDriveFiles(...args),
   getSmartFolders: (...args: unknown[]) => getSmartFolders(...args),
+  getCollections: (...args: unknown[]) => getCollections(...args),
 }));
 
 function item(id: string, title: string) {
@@ -296,6 +298,7 @@ beforeEach(() => {
   getShelves.mockReset().mockImplementation(async (d, p) => defaultShelves(d, p));
   getDriveFiles.mockReset().mockImplementation(async (_d, p) => defaultFiles(p));
   getSmartFolders.mockReset().mockResolvedValue([]);
+  getCollections.mockReset().mockResolvedValue([]);
 });
 
 describe("SPEC-CORE-068 Recommended from the video-discover-recommended provider", () => {

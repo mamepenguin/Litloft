@@ -64,14 +64,16 @@ sort menu and its own target control; choosing another target keeps the shelf.
 
 The target control shows the target's name with a target icon, at the title row's end or
 under the title on a phone. It chooses which books the page works on. **すべての本** /
-**All books** is every PDF, EPUB and archive in the drive. A Smart Collection can replace
-it, and the choice is remembered for the drive. A Smart Collection's own sort is not used
-here.
+**All books** is every PDF, EPUB and archive in the drive. A collection or a Smart
+Collection can replace it, and the choice is remembered for the drive. A Smart Collection's
+own sort is not used here.
 
-- The menu lists **All books**, then the Smart Collections you chose to show, then
-  **管理…** / **Manage…**. **Manage…** opens a searchable list of the drive's Smart
-  Collections; tick the ones you want in this menu. The set is kept per app and per drive. A
-  new Smart Collection stays out of the menu until you tick it there.
+- The menu lists **All books**, then the collections and Smart Collections you chose to
+  show, by name, then **管理…** / **Manage…**. **Manage…** opens a searchable list of both
+  kinds; tick the ones you want in this menu. The set is kept per app and per drive. A new
+  collection or Smart Collection stays out of the menu until you tick it there; a shown set
+  you saved before collections could be targets starts with every collection unchecked.
+- A collection is always usable as a target: the page shows the books it holds.
 - A Smart Collection whose query has search text (a word, or a condition written with `-`
   or `!`) is a **member target**: the page lists the books among the files that Smart
   Collection's search page lists. One whose search page matches more than 10,000 files
@@ -84,8 +86,10 @@ here.
 - A Smart Collection whose kinds miss every book shows **この対象は使えません** / **This
   target cannot be used**, and the page asks the server for nothing.
 - A Smart Collection that has been deleted is replaced by **All books** without a message.
-  If the Smart Collections cannot be loaded, the menu offers **All books** and **Manage…**;
-  the Manage list shows a retry.
+  The same holds for a collection.
+- If one of the two lists cannot be loaded, the menu offers **All books**, the other
+  list's entries and **Manage…**; the Manage list shows a retry that asks again for the
+  list that failed.
 
 ## Empty states and failures
 

@@ -1,24 +1,36 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Settings2, Target } from "lucide-react";
+import { Library, ListFilter, Settings2, Target } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { MenuRadioGroup, MenuSeparator, ToolbarMenu } from "@/components/ToolbarMenu";
 import { getDriveFiles } from "@/lib/api";
+import { collectionTargetId } from "@/lib/appTarget";
 import type { AppKey } from "@/lib/appPrefs";
-import type { FileKind } from "@/types";
+import type { CollectionSummary, FileKind } from "@/types";
 import type { SmartFolder } from "@/types/smartFolder";
 import { ManageTargetsDialog } from "./ManageTargetsDialog";
 import { useLoad, type LoadState } from "./useLoad";
 import { useShownTargets } from "./useShownTargets";
 
+export interface TargetRow {
+  /** What choosing the row saves: `collection:<id>` or a Smart Collection id. */
+  targetId: string;
+  name: string;
+  kind: "collection" | "smart";
+  /** A collection is always usable; a Smart Collection's query may not be. */
+  usable: boolean;
+}
+
 export interface TargetMenuProps {
   drive: string;
   app: AppKey;
-  /** What the button reads; `null` while the saved folder is looked up. */
+  /** What the button reads; `null` while the saved target is looked up. */
   name: string | null;
   folders: LoadState<SmartFolder[]>;
+  /** Without it the menu lists no collection. */
+  collections?: { list: LoadState<CollectionSummary[]>; retry: () => void };
   selectedId: string;
   currentCount: number | null;
   /** The control's name, "Target". */
@@ -32,29 +44,62 @@ export interface TargetMenuProps {
   onRetryFolders: () => void;
 }
 
+const NO_FOLDERS: readonly SmartFolder[] = [];
+const NO_COLLECTIONS: readonly CollectionSummary[] = [];
+
+function targetRows(
+  folders: readonly SmartFolder[],
+  collections: readonly CollectionSummary[],
+  isUsable: (folder: SmartFolder) => boolean,
+  locale: string,
+): TargetRow[] {
+  const collator = new Intl.Collator(locale, { numeric: true });
+  return [
+    ...collections.map((collection) => ({
+      targetId: collectionTargetId(collection.id),
+      name: collection.name,
+      kind: "collection" as const,
+      usable: true,
+    })),
+    ...folders.map((folder) => ({
+      targetId: folder.id,
+      name: folder.name,
+      kind: "smart" as const,
+      usable: isUsable(folder),
+    })),
+  ].sort((a, b) => {
+    const byName = collator.compare(a.name, b.name);
+    if (byName !== 0) return byName;
+    if (a.kind !== b.kind) return a.kind === "collection" ? -1 : 1;
+    return a.targetId < b.targetId ? -1 : a.targetId > b.targetId ? 1 : 0;
+  });
+}
+
+function isPending(state: LoadState<unknown>): boolean {
+  return state.status === "idle" || state.status === "loading";
+}
+
 /** Mounted only while the menu is open, so the default target's count is asked for then. */
 function Rows({
   drive,
-  folders,
+  rows,
   selectedId,
   currentCount,
   label,
   defaultLabel,
   unavailableLabel,
   defaultTargetTypes,
-  isUsable,
   onChoose,
   onManage,
 }: {
   drive: string;
-  folders: readonly SmartFolder[];
+  rows: readonly TargetRow[];
   selectedId: string;
   currentCount: number | null;
   label: string;
   defaultLabel: string;
   unavailableLabel: string;
   defaultTargetTypes: readonly FileKind[];
-  isUsable: (folder: SmartFolder) => boolean;
   onChoose: (id: string) => void;
   onManage: () => void;
 }) {
@@ -84,15 +129,12 @@ function Rows({
       label: defaultLabel,
       detail: defaultCount === null ? undefined : new Intl.NumberFormat(locale).format(defaultCount),
     },
-    ...folders.map((folder) => {
-      const usable = isUsable(folder);
-      return {
-        value: folder.id,
-        label: folder.name,
-        disabled: !usable,
-        title: usable ? undefined : unavailableLabel,
-      };
-    }),
+    ...rows.map((row) => ({
+      value: row.targetId,
+      label: row.name,
+      icon: row.kind === "collection" ? Library : ListFilter,
+      ...(row.usable ? {} : { disabled: true, title: unavailableLabel }),
+    })),
   ];
 
   return (
@@ -124,6 +166,7 @@ export function TargetMenu({
   app,
   name,
   folders,
+  collections,
   selectedId,
   currentCount,
   label,
@@ -136,22 +179,29 @@ export function TargetMenu({
 }: TargetMenuProps) {
   const { saved, setShown } = useShownTargets(app, drive);
   const [manageOpen, setManageOpen] = useState(false);
+  const locale = useLocale();
 
-  const all = folders.status === "loaded" ? folders.data : [];
-  const usable = useMemo(() => all.filter(isUsable), [all, isUsable]);
-  const shownIds = useMemo(() => {
-    if (saved === null) return new Set(usable.map((folder) => folder.id));
-    const known = new Set(all.map((folder) => folder.id));
-    return new Set(saved.filter((id) => known.has(id)));
-  }, [saved, all, usable]);
-  const listed = useMemo(() => {
-    const members = saved === null ? all : all.filter((folder) => shownIds.has(folder.id));
-    const current = all.find((folder) => folder.id === selectedId);
-    if (current && isUsable(current) && !members.some((folder) => folder.id === current.id)) {
-      return [...members, current];
-    }
-    return members;
-  }, [saved, all, shownIds, selectedId, isUsable]);
+  const folderData = folders.status === "loaded" ? folders.data : NO_FOLDERS;
+  const collectionData =
+    collections?.list.status === "loaded" ? collections.list.data : NO_COLLECTIONS;
+  const all = useMemo(
+    () => targetRows(folderData, collectionData, isUsable, locale),
+    [folderData, collectionData, isUsable, locale],
+  );
+  // A saved set lists exactly its members, plus the current target so the
+  // checked row is always visible.
+  const listed = useMemo(
+    () =>
+      saved === null
+        ? all
+        : all.filter(
+            (row) => saved.includes(row.targetId) || (row.targetId === selectedId && row.usable),
+          ),
+    [all, saved, selectedId],
+  );
+  const pending = isPending(folders) || (collections !== undefined && isPending(collections.list));
+  const collectionsFailed = collections?.list.status === "failed";
+  const failed = folders.status === "failed" || collectionsFailed;
 
   return (
     <>
@@ -159,14 +209,13 @@ export function TargetMenu({
         {(close) => (
           <Rows
             drive={drive}
-            folders={listed}
+            rows={listed}
             selectedId={selectedId}
             currentCount={currentCount}
             label={label}
             defaultLabel={defaultLabel}
             unavailableLabel={unavailableLabel}
             defaultTargetTypes={defaultTargetTypes}
-            isUsable={isUsable}
             onChoose={(id) => {
               onChoose(id);
               close();
@@ -180,11 +229,15 @@ export function TargetMenu({
       </ToolbarMenu>
       <ManageTargetsDialog
         open={manageOpen}
-        folders={folders}
+        rows={all}
         saved={saved}
-        isUsable={isUsable}
+        pending={pending}
+        failed={failed}
         onShownChange={setShown}
-        onRetryFolders={onRetryFolders}
+        onRetry={() => {
+          if (folders.status === "failed") onRetryFolders();
+          if (collectionsFailed) collections?.retry();
+        }}
         onClose={() => setManageOpen(false)}
       />
     </>

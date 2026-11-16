@@ -30,6 +30,7 @@ vi.mock("@/components/ProfileProvider", () => ({
 const getShelves = vi.fn();
 const getDriveFiles = vi.fn();
 const getSmartFolders = vi.fn();
+const getCollections = vi.fn();
 const getDriveTags = vi.fn();
 
 vi.mock("@/lib/api", async (importOriginal) => ({
@@ -37,6 +38,7 @@ vi.mock("@/lib/api", async (importOriginal) => ({
   getShelves: (...args: unknown[]) => getShelves(...args),
   getDriveFiles: (...args: unknown[]) => getDriveFiles(...args),
   getSmartFolders: (...args: unknown[]) => getSmartFolders(...args),
+  getCollections: (...args: unknown[]) => getCollections(...args),
   getDriveTags: (...args: unknown[]) => getDriveTags(...args),
 }));
 
@@ -160,6 +162,7 @@ beforeEach(() => {
   getShelves.mockReset().mockImplementation(async (d, p) => defaultShelves(d, p));
   getDriveFiles.mockReset().mockImplementation(async (d, p) => defaultFiles(d, p));
   getSmartFolders.mockReset().mockResolvedValue([]);
+  getCollections.mockReset().mockResolvedValue([]);
   getDriveTags.mockReset().mockResolvedValue([
     { name: "read", count: 4 },
     { name: "later", count: 1 },

@@ -52,9 +52,10 @@ export function ReadingAppHeader({
       target={{
         drive,
         app: "reading",
-        name: state.targetKnown ? (state.folder?.name ?? t("allBooks")) : null,
+        name: state.targetKnown ? (state.targetName ?? t("allBooks")) : null,
         folders: state.smartFolders,
-        selectedId: state.folder?.id ?? "default",
+        collections: { list: state.collections, retry: state.retryCollections },
+        selectedId: state.targetId,
         currentCount: state.count,
         label: t("target"),
         defaultLabel: t("allBooks"),

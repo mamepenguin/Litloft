@@ -95,6 +95,7 @@ function installFetch(face: string, first: string, later: string): void {
     const q = url.searchParams;
 
     if (url.pathname.endsWith("/smart-folders")) return json([]);
+    if (url.pathname.endsWith("/collections")) return json([]);
     if (url.pathname.endsWith("/files")) {
       return json({ data: [], meta: { total: SEE_ALL_TOTAL, page: 1, limit: 1 } });
     }

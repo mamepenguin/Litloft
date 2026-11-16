@@ -17,11 +17,13 @@ vi.mock("@/components/ProfileProvider", () => ({
 
 const getShelves = vi.fn();
 const getSmartFolders = vi.fn();
+const getCollections = vi.fn();
 
 vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),
   getShelves: (...args: unknown[]) => getShelves(...args),
   getSmartFolders: (...args: unknown[]) => getSmartFolders(...args),
+  getCollections: (...args: unknown[]) => getCollections(...args),
 }));
 
 type Params = Record<string, unknown>;
@@ -122,6 +124,7 @@ beforeEach(() => {
   vi.stubGlobal("IntersectionObserver", FakeObserver);
   getShelves.mockReset().mockImplementation(async (d, p) => shelves(d, p));
   getSmartFolders.mockReset().mockResolvedValue([]);
+  getCollections.mockReset().mockResolvedValue([]);
 });
 
 afterEach(() => {
