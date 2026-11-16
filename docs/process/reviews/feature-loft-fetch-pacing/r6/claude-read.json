@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The commit changes addons/intelligence/app/youtube_source.py (download_rendition now returns a DownloadOutcome dataclass with path and no_space, and DownloadOutcome is added to __all__), but that file is not in the spec's Touch points list.",
+      "impact": "No user-visible effect by itself. The spec's touch-point list is the reviewed scope; a change outside it was not covered by the review or the approval of SPEC-ADDON-119, so a later reader cannot rely on the list to see every code path the pacing change reaches.",
+      "evidence": "addons/intelligence/app/youtube_source.py:303-327 (DownloadOutcome and the new return type of download_rendition), :411-412 (the two returns), :579 and :588 (__all__). The Touch points section of docs/specs/loft-fetch-pacing.md lists only loft_media.py, indexer.py, tests under addons/intelligence/tests/, docs/addons/intelligence.md, the submodule pointer and INDEX.md. Grep for download_rendition and DownloadOutcome in addons/intelligence finds one caller, addons/intelligence/app/workers/loft_media.py:433, so the return-type change does not reach other callers in this tree.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "The unlisted file is a scope/documentation mismatch in the spec. No declared invariant is broken by the file's presence, and the code is consistent with its only caller.",
+        "severity": "LOW"
+      },
+      "proposed_fix": "Add addons/intelligence/app/youtube_source.py to the Touch points list of docs/specs/loft-fetch-pacing.md (a spec note, not a code change).",
+      "severity": "LOW"
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The commit edits test_spec_addon_117_loft_media_fetch.py (adds SPEC-ADDON-119 I2 docstrings and a _succeed_once precondition to several 117 tests, and changes one assertion from failures == 1 to 0), but the Touch points entry names only tests 'for SPEC-ADDON-119'.",
+      "impact": "Minor. The edits are required to keep the 117 tests consistent with the new counting rule, so behavior is covered, but the spec's list does not say that 117's test file is in scope.",
+      "evidence": "addons/intelligence/tests/test_spec_addon_117_loft_media_fetch.py: the hunks around the counted-failure tests (for example the change from 'assert world.failures(\"ytloft000001\") == 1' to '== 0' in the free-space test, and the added _succeed_once(world, gradient) calls). The spec Touch points line reads 'Tests under addons/intelligence/tests/ for SPEC-ADDON-119.'",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "The wording of the touch point is looser than the change. No invariant is affected, and the 117 tests were changed to match the 119 rule.",
+        "severity": "INFO"
+      },
+      "proposed_fix": "Name the SPEC-ADDON-117 test file in the Touch points list, or note that 117's tests were updated to the SPEC-ADDON-119 I2 rule.",
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "Answer to the question: beyond the implicit touch points (spec, INDEX.md, review records), the diff reaches one file not in the Touch points list, addons/intelligence/app/youtube_source.py (F1). The SPEC-ADDON-117 test file is edited under a looser touch-point wording (F2). No other path outside the list was found in the diff: the indexer.py, loft_media.py, docs/addons/intelligence.md, the submodule pointer, INDEX.md and the SPEC-ADDON-119 test files are listed.",
+    "The invariants I1-I4 were not judged against the code in this review; the question was the touch-point scope only."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "None found beyond the scope note in F1."
+  ],
+  "regression_risks": [
+    "The download_rendition return type changed from Path | None to DownloadOutcome. The only caller in the tree is loft_media.py:433, which was updated. Any out-of-tree caller would break, but the tree shows none."
+  ],
+  "test_coverage": [
+    "Not assessed in depth; the question was touch-point scope. The new tests cover I1-I4 at the worker level, and the 117 tests were adjusted to the new rule."
+  ],
+  "not_verified": [
+    "I did not run the test suite or any command; only Read, Glob and Grep were available.",
+    "I did not inspect the full commit file list with git; the file set was taken from the diff given in the prompt.",
+    "I did not check whether the 117 test file's other hunks, or the test helpers, change behavior beyond the docstrings and the new precondition.",
+    "I did not verify the invariants against the code paths."
+  ],
+  "confidence": 80
+}
