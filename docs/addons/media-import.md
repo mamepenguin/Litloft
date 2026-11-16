@@ -133,7 +133,7 @@ Every item shows its title and a link to the video, including items that were no
 
 ## Limits
 
-- The addon never saves the video file. Only the speech-to-text audio is downloaded, temporarily, for transcription.
+- The addon never saves the video file. Only the speech-to-text audio is downloaded, temporarily, for transcription. With the [intelligence addon](intelligence.md), the video itself is also downloaded once, without sound, to read the text shown on screen, and deleted right after.
 - yt-dlp reads public web pages, and the provider may throttle many imports made in a short time. Throttled caption downloads are retried later.
 - Encrypted (DRM) streams are not supported.
 - Some videos cannot be embedded outside the provider's site.
