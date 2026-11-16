@@ -39,11 +39,16 @@ viewer who keeps YouTube references in the library. Transcription is unchanged.
 - **Rendition**: the format `pick_format` returns from the lookup (video only,
   `https`, height at most 720, the tallest, then `avc1`, then mp4).
 - **Fetch directory**: `<intelligence data dir>/loft_media/`.
+- **Capped**: a `.loft` whose failure count is 3 or more.
 - **Failure count**: a new column `indexed_files.loft_fetch_failures`, integer,
   default 0.
-- **Counted failure**: a lookup failure, no rendition, a download failure (ffmpeg
-  error, 120 s without growth, free space below 1 GiB, or the time limit), or a
-  stage that returned without setting its flag (still pending).
+- **Counted failure**: a lookup failure after some lookup has succeeded since the
+  `loft_media` worker started in this process (a failure before any success, and a
+  missing yt-dlp, are not counted: they are not specific to one video); no
+  rendition; a download failure (ffmpeg error, 120 s without growth, free space below
+  1 GiB, the time limit, or a file whose probed duration is below 95% of a known
+  lookup duration); or a scan that returned without setting `frame_scan_indexed`, or
+  an OCR read that returned without setting `frame_ocr_read`.
 - **Time limit** of a download: 1.5 × the lookup's duration, at least 600 s; 7200 s
   when the duration is unknown.
 - **OCR requested**: an in-memory set of file ids for which a `frame_ocr` reindex or
@@ -73,9 +78,11 @@ SPEC-ADDON-117, the fetch:
    task. A YouTube `.loft` with `frame_ocr_read` true and `frame_ocr_indexed` false
    gets the existing rebuild-only `frame_ocr` task, which reads no video, under every
    mode, as a native video does.
-3. **Order.** The `loft_media` worker starts a fetch only when the `frame_scan` and
-   `frame_ocr` queues are empty and neither worker is processing, and when the
-   indexing queue is not paused. One fetch at a time. Each fetch, in order:
+3. **Order.** One fetch at a time, never while the indexing queue is paused. A fetch
+   at priority -10 (the backlog) starts only when the `frame_scan` and `frame_ocr`
+   queues are empty and neither worker is processing; a fetch at 0 or 100 does not
+   wait for them. Native frame tasks queued while a fetch runs run as today, beside
+   it (the OCR engine already serializes its calls). Each fetch, in order:
    1. Reads the `.loft` (`read_loft`) outside any database transaction. Raises
       `LoftNotAccessible` or `LoftUnreadable`: ends, nothing written, not counted.
       `None` or another provider: writes loft source `other`, closes the three
@@ -94,9 +101,12 @@ SPEC-ADDON-117, the fetch:
       4 GiB. Otherwise ends, not counted.
    6. Downloads: `ffmpeg` reads the rendition's `url` with its `http_headers`
       (`-headers`, as the frame route does) and copies the stream (`-c copy`, `-an`)
-      to `loft_media/<file_id>.part`, renamed to `<file_id>.mp4` when ffmpeg exits 0.
-      It is stopped, as a counted failure, after 120 s without growth, when free
-      space falls below 1 GiB, or at the time limit.
+      into a Matroska container (`-f matroska`, which takes the H.264, VP9 or AV1 a
+      rendition may carry) at `loft_media/<file_id>.part`, renamed to
+      `<file_id>.mkv` when ffmpeg exits 0. It is stopped, as a counted failure, after
+      120 s without growth, when free space falls below 1 GiB, or at the time limit;
+      a completed file whose probed duration is below 95% of a known lookup duration
+      is a counted failure.
    7. Runs the frame scan (`index_frame_scan`) when wanted, then the frame OCR read
       (`index_frame_ocr`) when wanted, each given the downloaded file as its source,
       with the queue's pause hook. Each writes and sets flags as for a native video.
@@ -106,19 +116,25 @@ SPEC-ADDON-117, the fetch:
       cannot be written is skipped. After a scan that sets its flag, the Visual Index
       hook runs as for a native video.
    8. Deletes the downloaded file (also on every earlier exit and on an error). When
-      every stage it ran set its flag, sets the failure count to 0; when one returned
-      without setting it, that is a counted failure. Removes the file from OCR
-      requested when the OCR read ran. When the file is in requested during a run, it
-      removes it, opens the requested flags again and queues a new fetch at 100.
+      every stage it ran set its flag (`frame_scan_indexed`; `frame_ocr_read`), sets
+      the failure count to 0; otherwise that is one counted failure. An OCR read whose
+      rows were not built (`frame_ocr_indexed` false) is finished by the rebuild-only
+      task, not by another download. Then, in this order: removes the file from OCR
+      requested when the OCR read ran; and when the file is in requested during a
+      run, removes it from that set, applies each recorded request as section 3 says
+      for a request to a file with no running fetch (flags opened, count 0, a
+      `frame_ocr` request added to OCR requested) and queues a new fetch at 100.
 4. **The cap.** A counted failure adds 1 to the failure count. At 3, the wanted
    stages are closed as for a native video with no decodable picture: the scan sets
    `frame_scan_indexed` with no scan row; the OCR sets `frame_ocr_read` and
    `frame_ocr_indexed` with no text. A reindex or CLIP regenerate of the file sets the
-   count to 0 and opens its flag again.
+   count to 0 and opens its flag again; a `vec_clip_change` dimension reset opens the
+   scan flag of a capped `.loft` without fetching it (it stays capped).
 5. **Using the result.** The `.loft`'s on-screen text is indexed (`text_content`,
    FTS), found by find, shown as 「画面内の文字」 passages, sent to the one-file Ask,
-   and sent to the drive-wide Ask as frame-text snippets after its transcript
-   snippets, exactly as a native video's. Its change frames join the representative
+   and sent to the drive-wide Ask as frame-text snippets under the rule a native
+   video follows in `rag/context.py` (added on a `text_content` match; placed first
+   when the file has a text match and no transcript match). Its change frames join the representative
    frame selection (the Visual Index sections, the Ask frame set, the `/scenes` route
    and `list_video_scenes`).
 6. **Pictures.** `GET /files/{id}/scene-tile?t=` for a `.loft` serves the storyboard
@@ -126,8 +142,10 @@ SPEC-ADDON-117, the fetch:
    that time when it exists; otherwise 404. It never contacts the network, runs
    ffmpeg or writes a file. A native video still answers as today.
 7. **Status.** `/status` counts pipeline videos in `frame_scan`, `frame_ocr` and their
-   pending counts, and counts an unclassified `.loft` with an open flag as pending;
-   a `.loft` of source `other` is never counted. The queue breakdown has a
+   pending counts, and counts an unclassified `.loft` with an open flag as a native
+   video with those flags would be counted (`pending.frame_scan` always,
+   `pending.frame_ocr` under `on_index` only, both in `pending.total`); a `.loft` of
+   source `other` is never counted. The queue breakdown has a
    `loft_media` row, placed in the index widget's `TASK_ORDER` right after
    `frame_scan`, labelled 「YouTube の取得」 / "YouTube fetch", with the lucide
    `Download` icon.
@@ -141,20 +159,25 @@ SPEC-ADDON-118, the Visual Index:
 1. A YouTube `.loft` is eligible for the Visual Index on the same terms as a native
    video (the `video_visual_index` feature, the drive policy, `llm_cloud` through
    `resolve(drive, "video_visual_index")`, scene candidates and a finished scan),
-   except that a `.loft` whose scan was closed by the cap (flag true, no
-   `video_frame_scans` row) is not eligible. `enqueue_unprocessed` sweeps eligible
-   pipeline videos.
+   except that a capped `.loft` is not eligible. Whether a `.loft` is a YouTube
+   `.loft` is read from `loft_source`. `enqueue_unprocessed` sweeps eligible pipeline
+   videos; a YouTube `.loft` whose scan has not finished is `waiting_clip`, as a
+   native video is, and is enqueued by the hook after its scan.
 2. A run's scene frame of a YouTube `.loft` is the `small` frame cache entry at the
    scene's time when it exists, otherwise the `small` frame read through
    `ensure_youtube_frame` (which writes that entry); never ffmpeg on the `.loft`'s path.
 3. `GET /files/{id}/visual-index` answers for a YouTube `.loft` as for a native video,
-   and `eligible: false` for any other `.loft`. `POST .../visual-index/generate`
-   accepts a YouTube `.loft` and answers 404 for any other `.loft`.
-4. The Scenes section of a `.loft` requests `visual-index` once on mount and on every
-   `fileId` change, applies WebSocket Visual Index events for the current file at any
-   time (a `.loft`'s section has no collapsed state), and draws the Visual Index part
-   (marks, tile dots, scene card, actions including generate) under the drawing rules
-   of a native video. Its pictures still come only from the scene-tile route.
+   and `eligible: false` for any other `.loft` and for a capped one.
+   `POST .../visual-index/generate` accepts a YouTube `.loft` that is not capped and
+   answers 404 for any other `.loft` and for a capped one.
+4. The Scenes section of a `.loft` requests `visual-index` with its rows (on mount
+   and on every `fileId` change), after a Visual Index action (generate, retry), and
+   on a WebSocket Visual Index event for the current file, each only when the drive's
+   Visual Index policy has loaded and is on; it draws the Visual Index part (marks,
+   tile dots, scene card, actions including generate) under the drawing rules of a
+   native video. Its pictures still come only from the scene-tile route. A `.loft`
+   with no storyboard rows but a Visual Index shows the section with the Visual
+   Index part.
 
 ### 2. Failure cases
 
@@ -202,14 +225,23 @@ count, membership in OCR requested and in requested during a run.
   the wrong type. The answer is `already_queued` when a `loft_media` task for the file
   is queued (its priority is raised to 100 and the flags and sets are still updated),
   otherwise `accepted`, with `tasks_reset` naming `frame_ocr`.
-- **CLIP regenerate** of a YouTube or unclassified `.loft`: sets `frame_scan_indexed`
-  false, count 0, and queues a fetch at 100; of a `.loft` of source `other`, no scan.
-- A reindex or regenerate whose file's fetch is running adds it to requested during
-  a run and changes no flag; the running fetch, at its end, opens the flags and
-  queues a new fetch (step 8). `is_queued` / `is_processing` for `frame_scan` and
-  `frame_ocr` of a `.loft` answer from the `loft_media` queue.
-- Not allowed: two fetches at once; a fetch while a native `frame_scan` or
-  `frame_ocr` task is queued or processing; a fetch for a `.loft` of source `other`;
+- **CLIP regenerate** of any `.loft`: sets `loft_source` to NULL (the next fetch reads
+  the `.loft` again), `frame_scan_indexed` false and the count to 0, and queues a
+  fetch at 100.
+- **Prioritize** of a YouTube `.loft` with the read stored and the rows not built
+  queues the rebuild-only `frame_ocr` task; otherwise a fetch at 100.
+- A reindex or regenerate whose file's fetch is running is recorded in requested
+  during a run (with which flag it opens) and changes no flag; it answers `accepted`
+  with `tasks_reset` naming its task; the running fetch applies it at its end (step
+  8). `is_queued` / `is_processing` for `frame_scan` and `frame_ocr` of a `.loft`
+  answer from the `loft_media` queue and, for `frame_ocr`, also from a rebuild-only
+  task in the `frame_ocr` queue.
+- The frame-OCR worker given a `.loft` whose read is not stored, and the scan worker
+  given a `.loft`, with no downloaded source, write nothing, change no flag and drop
+  the task.
+- Not allowed: two fetches at once; a backlog fetch starting while a native
+  `frame_scan` or `frame_ocr` task is queued or processing; a fetch for a `.loft` of
+  source `other`;
   a reading `frame_ocr` or a `frame_scan` task for any `.loft`; either worker reading
   a `.loft`'s own path; a download when no stage is wanted, the `index` feature is
   off, the model or engine is unavailable, or the queue is paused.
@@ -224,7 +256,8 @@ count, membership in OCR requested and in requested during a run.
   0).
 - The `vec_clip_change` dimension reset and the text-model rebuild apply to native
   videos and YouTube `.loft`s; the rebuild sets `frame_ocr_indexed` false for a
-  `.loft` only when its loft source is `youtube`.
+  `.loft` only when its loft source is `youtube`. The column migration runs before
+  both; an unclassified `.loft` is left to the start-time reopen.
 - Written on disk: the `small` frame cache entries of change frames and Visual Index
   scenes; the fetch directory (temporary).
 - Nothing in core, nothing next to the `.loft` (the drives are mounted read-only).
@@ -323,25 +356,31 @@ counts and the 「YouTube の取得」 row in the index widget.
 
 ## Invariants
 
-I1. Only pipeline videos are ever scanned or frame-read, neither worker ever reads a `.loft`'s own path, a `.loft` of source `other` is never looked up or downloaded and keeps its flags closed, and an unclassified `.loft` is read and classified before any network call.
+I1. A `.loft` of source `other` is never looked up or downloaded and keeps its flags closed; an unclassified `.loft` is read and classified before any network call; `read_loft` returning `None` or another provider gives `other`, and raising gives no change.
 
 I2. A fetch downloads at most one rendition, video only, of height at most 720, with ffmpeg reading the lookup's rendition URL and no cookie, credential or account option, to the fetch directory only; the downloaded file is deleted when the fetch ends, whatever happened; at start the fetch directory is emptied before any fetch is queued; nothing is written next to the `.loft`; log lines and stored errors name only the file id.
 
-I3. No download starts while another fetch runs, while a native `frame_scan` or `frame_ocr` task is queued or processing, while the queue is paused, while the drive's `index` feature is off, when no stage is wanted, when the model or engine a wanted stage needs is unavailable, or when the disk guard fails; a fetch that ends before its stages ran leaves every flag and stored row as it was, except the duration (written from NULL after a lookup), the loft source and the failure count.
+I3. No download starts while another fetch runs, while the queue is paused, at priority -10 while a native `frame_scan` or `frame_ocr` task is queued or processing, while the drive's `index` feature is off, when no stage is wanted, when the model or engine a wanted stage needs is unavailable, or when the disk guard fails; a fetch that ends before its stages ran changes nothing but the duration (from NULL after a lookup), the loft source, the failure count, the flags closed for source `other`, and the wanted stages closed at the cap.
 
 I4. For the same pictures, the scan and the frame OCR of a YouTube `.loft` write the same rows and flags as for a native video of that file id, and its on-screen text reaches search, find, the one-file Ask and the drive-wide Ask through the same paths.
 
 I5. `IndexedFile.duration` of a `.loft` is written only when NULL and only with a lookup's positive duration.
 
-I6. The failure count changes only by a counted failure (+1), a fetch whose stages all set their flags (to 0), or a reindex or CLIP regenerate (to 0); at 3 the wanted stages are closed with no scan row and no text; a not-accessible `.loft`, an unavailable model or engine and the disk guard are never counted.
+I6. The failure count changes only by a counted failure (+1), a fetch whose stages all set their flags (to 0), or a reindex or CLIP regenerate (to 0); at 3 the wanted stages are closed with no scan row and no text; a not-accessible `.loft`, an unavailable model or engine, the disk guard, a missing yt-dlp and a lookup failure before any lookup has succeeded in the process are never counted; a download whose probed duration is below 95% of a known lookup duration is counted.
 
-I7. Under `features.video_frame_ocr` `manual`, a fetch runs the OCR read only for a file in OCR requested; under `false` never, and a `frame_ocr` reindex answers 422 for every file; a `frame_ocr` reindex of a `.loft` of source `other` answers 422; a YouTube `.loft` with the read stored and the rows not built gets the rebuild-only task and no download.
+I7. Under `features.video_frame_ocr` `manual`, a fetch runs the OCR read only for a file in OCR requested, and a file stays in OCR requested until an OCR read of it has run (a request recorded during a run survives that run's end); under `false` a fetch never runs it; a `frame_ocr` reindex of a `.loft` of source `other` answers 422; a YouTube `.loft` with the read stored and the rows not built gets the rebuild-only task and no download; neither worker reads a `.loft`'s own path, and given a `.loft` without a downloaded source each writes nothing and changes no flag.
 
-I8. A Visual Index scene of a YouTube `.loft` uses the `small` cache entry at its time when one exists and otherwise `ensure_youtube_frame` at `small`, and never runs ffmpeg on the `.loft`'s path; eligibility, policy and `llm_cloud` decide its runs exactly as a native video's, except that a `.loft` whose scan was closed by the cap is not eligible; any other `.loft` is never eligible.
+I8. A Visual Index scene of a YouTube `.loft` uses the `small` cache entry at its time when one exists and otherwise `ensure_youtube_frame` at `small`, and never runs ffmpeg on the `.loft`'s path; eligibility, policy and `llm_cloud` decide its runs exactly as a native video's, except that a capped `.loft` is not eligible; any other `.loft` is never eligible, its `visual-index` answers `eligible: false` and its generate answers 404.
 
 I9. `scene-tile` for a `.loft` serves the storyboard tile when one exists at that time, otherwise the `small` cache entry at that time, otherwise 404; for a native video it answers as before; it never contacts the network, runs ffmpeg or writes a file.
 
-I10. On every start, every unclassified `.loft` with no scan row and no frame-text row has its three flags opened before the first sweep, and no native video's or YouTube `.loft`'s flags are changed by that step; `/status` counts pipeline videos in `frame_scan`, `frame_ocr` and their pending counts (`pending.frame_ocr` under `on_index` only) as a native video, counts an unclassified `.loft` with an open flag as pending, and never counts a `.loft` of source `other`.
+I10. On every start, the fetch directory is emptied and every unclassified `.loft` with no scan row and no frame-text row has its three flags opened, both before any `loft_media` task is queued, and no native video's or classified `.loft`'s flags are changed by that step; `/status` counts pipeline videos and unclassified `.loft`s as native videos with the same flags (`pending.frame_ocr` under `on_index` only), and never counts a `.loft` of source `other`.
+
+I11. The scan of a `.loft` writes, after its row commit, a `small` frame cache entry for each change frame it stored, keeping an entry already there and skipping one it cannot write; a native video's scan writes none.
+
+I12. `index-details` carries `loft_source` (`"youtube"`, `"other"` or `null`), and the Index details dialog offers the `frame_ocr` row for a `.loft` exactly when it is `"youtube"`, under the mode rule of a native video.
+
+I13. A reindex or CLIP regenerate of a `.loft` whose fetch is running changes no flag until that fetch ends, then opens the requested flags, resets the count and queues one fetch at 100; one whose fetch is queued answers `already_queued`, raises it to 100 and updates the flags and sets; a CLIP regenerate sets `loft_source` to NULL.
 
 ## Revises
 
@@ -381,5 +420,18 @@ SPEC-ADDON-090 I9. When the policy is off, when the first `visual-index` request
 - **scene-timeline.md numbering**: its invariants are shared by SPEC-ADDON-089 (the
   timeline, I7) and SPEC-ADDON-090 (the Visual Index on it, I9); each is revised
   under its own id. SPEC-ADDON-089 I6 (native expand rules) is unchanged.
-- **A reopen marker**: none; the start-time reopen is idempotent and also recovers
-  from a rollback that closed `.loft` flags again.
+- **A reopen marker**: none; the start-time reopen is idempotent and recovers the
+  unclassified `.loft`s an older build closes. A YouTube `.loft` that an older build
+  closed while its scan or read was pending is not reopened (it cannot be told from
+  one closed by its own fetch for want of a picture); a CLIP regenerate or a
+  `frame_ocr` reindex reopens it.
+- **Overlaps with Revises**: the `false`-mode 422 and the rule that neither worker
+  reads a `.loft`'s path are cited from revised SPEC-ADDON-066 I7 and I4; this spec's
+  invariants restate only the `.loft`-specific parts.
+- **How this is verified without YouTube**: acceptance tests replace the `yt-dlp`
+  lookup (`run_lookup`) and the ffmpeg download and probe with doubles that write a
+  local video file, as the existing YouTube frame tests do; no test calls YouTube.
+  R-5 runs a real fetch on a cloned stack (the human's local data is test data),
+  including the silent cooking video whose missed ingredient motivated this work;
+  the production check by the human is a real fetch, the deleted download and the
+  scene cards pictured from the kept small pictures.
