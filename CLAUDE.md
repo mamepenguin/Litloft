@@ -197,3 +197,7 @@ and the detail is in `docs/process/`. Read them before changing code.
   `docs/process/PROJECT.md`.
 - Never loosen a check: do not delete or skip a test, weaken an assertion or bypass a hook.
 <!-- process-kit:end -->
+
+<!-- process-kit:codex-begin -->
+Follow docs/process/codex.md and the process rules it references for development work.
+<!-- process-kit:codex-end -->
