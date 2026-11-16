@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The pre-push hook exits 0 without running precheck, classification or traceability when every pushed ref is a deletion, including a deletion of a protected branch such as develop or main.",
+      "impact": "Deleting a protected branch on the remote is no longer gated. Before this commit the same push ran precheck and traceability on HEAD, so a deletion that the old hook blocked now goes through.",
+      "evidence": ".githooks/pre-push:26-30 sends deletion lines to continue before PROTECTED_PUSH is set. Lines 36-39 exit 0 before PRECHECK (line 42), CLASSIFY (line 44) and TRACE (lines 46-48). The removed loop set PROTECTED_PUSH for every ref matching a protected branch, deletions included.",
+      "repro": "not_reproduced. By reading: a deletion push of develop while HEAD fails check-traceability was blocked before this commit and is accepted after it. Not run, because this session has no shell.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "The commit message states the intent (a deletion sends no commits), so this reads as a deliberate behavior change. No declared invariant exists, so bucket A is not available."
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Run precheck for deletions of protected branches, or record the bypass in docs/process/EXCEPTIONS.md if the change is intended."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "Nothing in the repository tests the pre-push hook, so the new deletion-only exit path and the REFS/UPDATES counting have no test.",
+      "impact": "A later edit to the ref-line parsing can break the deletion skip or the protected-branch detection while every test still passes.",
+      "evidence": "Glob over scripts/process/** finds no test or bats file, and .github/workflows/process.yml has no reference to pre-push or githooks (Grep: no matches).",
+      "repro": "not_reproduced. Checked by Glob and Grep only.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "It reads as a coverage gap for the hook. It does not break a declared invariant."
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add a hook test that feeds deletion-only, mixed and protected-branch ref lines on stdin and checks the exit code and which step runs."
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "The diff reaches four paths that are not in any touch-point list, because no invariants file exists for this change: .githooks/pre-push, .process-kit.lock, CLAUDE.md and docs/process/codex.md.",
+      "impact": "None on its own. It answers the first-review question: every path is unlisted.",
+      "evidence": "The diff header lists these four paths. The lock entry for docs/process/codex.md is added to .process-kit.lock, which makes the file protected under scripts/process/classify-risk.sh:333.",
+      "repro": "not_reproduced. Answered from the diff and the absence of an invariants file.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "Informational only. A person decides whether the list must be created."
+      },
+      "severity": "INFO",
+      "proposed_fix": "No code change is needed. Create an invariants file if a touch-point list is wanted."
+    }
+  ],
+  "specification_compliance": [
+    "The docs/process/codex.md text points at files that exist: workflow.md, .claude/commands/spec.md, .claude/agents/acceptance-test-writer.md, .claude/agents/r5-runner.md, .claude/commands/review.md, scripts/process/review.sh and .claude/rules/process.md (checked by Glob).",
+    "The pre-push code matches its header comment: a push that only deletes refs runs no step.",
+    "No gitlink or submodule path is in the diff; .gitmodules lists four addons, and none of them is touched."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "A push that deletes a protected branch and also updates a non-protected branch still runs the checks, because UPDATES is counted per ref, not per protected branch. The result depends on ref order and is not specified."
+  ],
+  "regression_risks": [
+    "Deleting develop or main is no longer gated by precheck or traceability (F1).",
+    "The lock hashes added for .githooks/pre-push and docs/process/codex.md were not recomputed here. If they are wrong, classify-risk will treat the file contents as drift."
+  ],
+  "test_coverage": [
+    "No automated test covers the hook. The deletion skip, the mixed deletion-and-update case and the protected-branch detection are verified by reading only (F2).",
+    "The scripts under scripts/process/ are not executed in this review."
+  ],
+  "not_verified": [
+    "The SHA-256 values in .process-kit.lock were not computed, because this session has no shell.",
+    "The hook was not run against any ref input.",
+    "classify-risk.sh and check-traceability.sh were read only where they touch the lock, not run.",
+    "docs/specs/ and docs/process/reviews/codex-process-kit-codex-support/ were not checked against commit d23e9656f. The git status shows the review directory as untracked."
+  ],
+  "confidence": 72
+}
