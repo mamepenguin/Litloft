@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R4855-1",
+      "status": "confirmed",
+      "note": "addons/intelligence/tests/test_spec_addon_117_loft_media_fetch.py:70-81: _after_download_starts waits only until youtube.download_commands() is non-empty, then sleeps a fixed 0.3 s before running the action. The stall test (:547-564) and the free-space test (:567-585) assert youtube.partials() != [] and the time-limit test (:588-602) does too, but partial notes are written by the fake yt-dlp only after its urlopen body read and its first write (tests/youtube_frame_doubles.py:128-160). If the partial is not written before the action, partials() is empty and the assertion fails. In the stall test, a partial that lands after clock.advance(121) resets last_growth (app/youtube_source.py:357-359), so the stall rule does not fire and the 30 s hold runs into the assertion at :559 (elapsed < 25). The outcome therefore depends on wall-clock timing. Not reproduced: no command execution was available."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R4855-2",
+      "status": "confirmed",
+      "note": "addons/intelligence/tests/test_spec_addon_117_loft_media_fetch.py:588-602 asserts only partials() != [], failures == 1, flags closed, no scan row, empty fetch dir and downloads_stopped(). None of these identifies which stop rule ended the download. app/youtube_source.py:362-366 (stall, deadline, free-space checks) breaks without recording which one fired, so the test name's claim of a time-limit stop is not verified."
+    }
+  ],
+  "specification_compliance": [
+    "I2 (revised): the stop rules at app/youtube_source.py:362-366 (stall after 120 s without growth, time limit, free space below 1 GiB) are present in the code at this commit, and the tests exercise them through clock and free-space doubles.",
+    "I2 (revised): the yt-dlp argv at app/youtube_source.py:329-337 uses the format, chunk size, --no-playlist and --ignore-config options, and no cookie option. This is consistent with the test at :657-689."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The download stop reason is not logged, so an operator cannot tell a stall from a time-limit or free-space stop from the log."
+  ],
+  "regression_risks": [
+    "Changing the fixed 0.3 s wait in _after_download_starts, or the fake's write timing, can flip the stall, free-space and time-limit tests between pass and fail."
+  ],
+  "test_coverage": [
+    "The stall, free-space and time-limit stop rules are covered only by tests whose outcome depends on wall-clock timing (R4855-1), and the time-limit test does not check which rule fired (R4855-2).",
+    "The disk guard, the download argv, the 95% duration rule, the empty and truncated download checks and the I1/I3 early ends are covered by deterministic assertions that I read and did not find defective."
+  ],
+  "not_verified": [
+    "I did not run the test suite, so the flakiness of R4855-1 is inferred from the code and not observed.",
+    "I did not confirm where the fake yt-dlp writes its download.log start entry, so I did not measure how long a partial takes to appear after that entry.",
+    "I did not read the value of MIN_TIME_LIMIT in app/workers/loft_media.py, so the 600 s floor the time-limit test relies on is assumed.",
+    "I did not check the other tests in the commit beyond the one file and its doubles, or the other touch points listed in the review."
+  ],
+  "confidence": 80
+}
