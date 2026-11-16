@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "Commit 9b19e7cf5 changes only docs/ADDON-DEVELOPMENT.md (the addon Target example) and the comments in frontend/src/lib/appPrefs.ts. No code path, invariant (I1-I9, SPEC-CORE-059 I14/I15, SPEC-CORE-117 I8, SPEC-CORE-054 I10) or touch point changes, so no invariant is affected by this commit.",
+    "The example now destructures useLoad as { state, retry }. useLoad (frontend/src/components/appshell/useLoad.ts:24-27) returns { state, retry }, so the example matches the code.",
+    "The example's useMemberTarget(drive, folder, member) call returning { evaluation } matches frontend/src/components/appshell/useMemberTarget.ts:17-21, and resolveMemberTarget(folder, baseKinds) matches frontend/src/lib/memberTarget.ts:66-69.",
+    "The example passes LoadState values to TargetMenuProps.folders and collections.list, and retry functions to onRetryFolders and collections.retry, which is the shape TargetMenuProps declares (frontend/src/components/appshell/TargetMenu.tsx).",
+    "appPrefs.ts comments on readAppTarget and readShownTargets now describe default, Smart Collection ids, collection:<id> and target ids, which is what the code in the same file and in appTarget.ts does."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The example's isUsable is an inline arrow, so it changes identity on every render; TargetMenu's useMemo over isUsable is recomputed each render. This costs time but causes no request or loop, since no effect depends on it. Not a defect."
+  ],
+  "regression_risks": [
+    "None from this commit's code: it changes no source file used at runtime. Only the documented example and two comments change, so a reader copying the example now gets the stable-loader pattern that the code uses."
+  ],
+  "test_coverage": [
+    "No test covers docs/ADDON-DEVELOPMENT.md code samples, so the example is checked only by reading against the source. The commit adds no test, and none is needed for a docs-only change."
+  ],
+  "not_verified": [
+    "No typecheck or test was run on the example; it is not compiled, so the check is by reading the referenced signatures only.",
+    "The example's resolveAppTarget call for a member-target folder was not traced: the example uses target.params only when no member exists, and what resolveAppTarget returns for free-text queries was not read.",
+    "The contents of appTarget.ts and TargetMenu.tsx were not re-read in this pass beyond what the diff in the prompt shows.",
+    "Earlier rounds' review records were read only from the prompt, not from the repository files."
+  ],
+  "trajectory": "Round 9b19e7cf5 adds no branch, state or prediction to the code. It removes the earlier example's broken pattern: the whole useLoad result passed as a LoadState and unstable loaders. It also adds a member-target clause to the example's isUsable, which matches the code's member-target behaviour. The round only corrects documentation and comments, so the design is not being patched in code here.",
+  "confidence": 85
+}

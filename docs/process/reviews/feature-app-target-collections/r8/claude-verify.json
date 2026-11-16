@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "No findings were listed for verification, so no finding was confirmed or rejected.",
+    "Spot check: frontend/src/lib/appTarget.ts defines parseAppTargetId (line 36), collectionTargetId (line 44) and resolveCollectionTarget (line 121); frontend/src/components/appshell/TargetMenu.tsx documents the saved value as collection:<id> or a Smart Collection id (line 18). The helpers the invariants name are present in this worktree."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Not assessed. This review covered only the existence of the helper functions named in the invariants, not their behaviour against I1 to I9."
+  ],
+  "test_coverage": [
+    "No tests were read or run. Only Read, Glob and Grep were available, and no test command can be run here."
+  ],
+  "not_verified": [
+    "Behaviour of the invariants I1 to I9 in the code and tests at commit 9b19e7cf5. The check was limited to whether the named helpers exist.",
+    "The Manage… dialog, the ManageTargetsDialog retry path (I7), and the video and reading request conditions (I3, I6). None were read.",
+    "The e2e cases in frontend/e2e-components/, and the spec and invariant files, were not read.",
+    "Whether the worktree HEAD is exactly commit 9b19e7cf5. Git state was not checked."
+  ],
+  "confidence": 70
+}
