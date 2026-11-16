@@ -1,6 +1,9 @@
 /**
  * SPEC-CORE-043 I6: a query with `path:` or `in:` sends the same folders and
  * collections to the listing and to the meaning stage.
+ *
+ * SPEC-CORE-116 I4: an `in:` name is matched against the drive's collections
+ * before either stage runs, so these cases load that list first.
  */
 
 import { renderHook, waitFor } from "@testing-library/react";
@@ -41,12 +44,16 @@ const api = vi.hoisted(() => ({
   getDriveFiles: vi.fn(),
   getFolders: vi.fn(),
   getWatchHistory: vi.fn(),
+  getCollections: vi.fn(),
+  getSmartFolders: vi.fn(),
 }));
 
 vi.mock("@/lib/api", () => ({
   getDriveFiles: (...args: unknown[]) => api.getDriveFiles(...args),
   getFolders: (...args: unknown[]) => api.getFolders(...args),
   getWatchHistory: (...args: unknown[]) => api.getWatchHistory(...args),
+  getCollections: (...args: unknown[]) => api.getCollections(...args),
+  getSmartFolders: (...args: unknown[]) => api.getSmartFolders(...args),
 }));
 
 vi.mock("@/lib/recentlyPlayed", () => ({
@@ -105,6 +112,12 @@ beforeEach(() => {
   api.getDriveFiles.mockResolvedValue(page);
   api.getFolders.mockResolvedValue([]);
   api.getWatchHistory.mockResolvedValue([]);
+  api.getCollections.mockResolvedValue([
+    { name: "旅行" },
+    { name: "資料" },
+    { name: "Trip" },
+  ]);
+  api.getSmartFolders.mockResolvedValue([]);
   semantic.isAvailable.mockResolvedValue(false);
   semantic.fetchHits.mockResolvedValue({ ok: true, results: [] });
   semantic.fetchImages.mockResolvedValue({ ok: true, results: [] });

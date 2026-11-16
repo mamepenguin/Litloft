@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R7-1",
+      "status": "confirmed",
+      "note": "Checked at the commit. frontend/src/components/appshell/useMemberTarget.ts:23-26: key is null when target is null or has no kinds, otherwise drive, target id and attempt. Line 27: held is only set at :33 on resolution and is never cleared. Line 41: evaluation = held.evaluation only when held.key === key. Switching A -> default (key null, evaluation null) -> A restores key A-key (attempt is unchanged, since only retry increments it), so evaluation returns the old result with evaluating false and ready true (useVideoApp.ts:104-115 and useReadingApp.ts:121-133 derive evaluating and ready from evaluation === null). The effect at :29-38 then re-runs the evaluation, but the stale result is used in the meantime, so requests carry the old fileIds before this visit's evaluation has succeeded (I8). The docstring at :12-16 says a result that outlives its target is dropped, and the code does not do that. The claim is accurate as stated. The same mechanism also applies to a failed or tooLarge prior result, which would be shown again before re-evaluation."
+    }
+  ],
+  "specification_compliance": [
+    "I8 is violated in the window after switching a member target back: requests carry members from a previous evaluation before this visit's evaluation succeeds (useMemberTarget.ts:41 with :23-27).",
+    "The hook's own docstring (useMemberTarget.ts:12-16) states that a result outliving its target is dropped; the code keeps it."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "If the Smart Collection's query was edited between visits while the target id and attempt stayed the same, the stale members could also be shown after the switch back; not checked."
+  ],
+  "regression_risks": [
+    "Fixing held-state clearing (for example, keying held by the full key and clearing on key change) must still keep the no-retry-on-same-target behaviour and the retry control's re-evaluation."
+  ],
+  "test_coverage": [
+    "Not checked: whether any test in frontend/src/components/__tests__ or videoapp/readingapp test directories covers switching a member target away and back. The read was limited to the source files."
+  ],
+  "not_verified": [
+    "No test was run; the claim was verified by reading the code only.",
+    "Did not check how useVideoApp / useReadingApp build their listing load keys, so I did not confirm whether a stale fileIds value actually reaches a request or a visible list in the UI.",
+    "Did not check whether the page can remount on a target change, which would reset held state (I read the hook as persisting across target changes).",
+    "Did not check whether the window of stale results can be observed in practice, or how long a re-evaluation normally takes."
+  ],
+  "confidence": 88
+}

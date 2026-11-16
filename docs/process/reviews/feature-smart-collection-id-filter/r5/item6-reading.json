@@ -1,0 +1,92 @@
+{
+ "defaultText": "読む | 動画 | · 15 冊 | すべての本 | 発見 | ライブラリ | まだ読んでいない本 | PDF | 20181217 わかる身につく 交通教本 | 動画 · 6か月前 | PDF | Kanri-gl | 動画 · 6か月前 | Lib | 書庫 | Lib | Inbox · 1か月前 | PDF | ドット絵教室 | 動画 · 1か月前 | 君に届け 01 | 書庫 | 君に届け 01 | Inbox · 1か月前 | PDF | 色彩検定2級試験合格テキスト | 動画 · 6か月前 | Lvx-hybridkey-app 2 | 書庫 | Lvx-hybridkey-app 2 | 動画 · 7か月前 | 新着 | すべて見る | PDF | ちいかわ　なんか小さくてかわいいやつ（３） | 動画 · 1か月前 | PDF | ドット絵教室 | 動画 · 1か月前 | 君に届け 01 | 書庫 | 君に届け 01 | Inbox · 1か月前 | Lib | 書庫 | Lib | Inbox · 1か月前 | 21 Emon vol 1 | 書庫 | 21 Emon vol 1 | Inbox · 2か月前 | PDF | 色彩検定2級試験合格テキスト | Inbox · 2か月前 | Cloud watch sample | 書庫 | Cloud watch sample | Inbox · 2か月前",
+ "menu": [
+  "すべての本 15|disabled=false",
+  "LongPDF|disabled=true",
+  "NoAnko|disabled=false",
+  "SpiritSave|disabled=false",
+  "boats|disabled=false",
+  "PDFs|disabled=false",
+  "Zero|disabled=false",
+  "Cats|disabled=false",
+  "海の動画|disabled=false",
+  "あんこ動画|disabled=false",
+  "管理…|disabled=false"
+ ],
+ "manage": [
+  "LongPDF|li-aria-disabled=null|input-disabled=true|cls-dim=false",
+  "NoAnko|li-aria-disabled=null|input-disabled=false|cls-dim=false",
+  "SpiritSave|li-aria-disabled=null|input-disabled=false|cls-dim=false",
+  "boats|li-aria-disabled=null|input-disabled=false|cls-dim=false",
+  "PDFs|li-aria-disabled=null|input-disabled=false|cls-dim=false",
+  "Zero|li-aria-disabled=null|input-disabled=false|cls-dim=false",
+  "Cats|li-aria-disabled=null|input-disabled=false|cls-dim=false",
+  "海の動画|li-aria-disabled=null|input-disabled=false|cls-dim=false",
+  "あんこ動画|li-aria-disabled=null|input-disabled=false|cls-dim=false"
+ ],
+ "Cats": {
+  "reqs": [
+   "GET /api/drives/動画/files?search=猫&sort=created_at&order=desc&page=1&limit=500 ids=null 200",
+   "GET /api/addons/intelligence/search?q=猫&limit=1000&passages=true ids=null 200",
+   "POST /api/drives/動画/files/query?type=pdf&type=epub&type=archive&limit=1 ids=8 200",
+   "POST /api/drives/動画/files/query?type=pdf&type=epub&type=archive&sort=random&limit=12 ids=8 200",
+   "POST /api/drives/動画/files/query?type=pdf&type=epub&type=archive&sort=created_at&order=desc&limit=12 ids=8 200"
+  ],
+  "text": "読む | 動画 | · 1 冊 | Cats | 発見 | ライブラリ | まだ読んでいない本 | PDF | ドット絵教室 | 動画 · 1か月前 | 新着 | すべて見る | PDF | ドット絵教室 | 動画 · 1か月前",
+  "label": "Cats",
+  "library": {
+   "reqs": [
+    "POST /api/drives/動画/shelves/query?by=folder&type=pdf&type=epub&type=archive&per_shelf=1&shelf_limit=24 ids=8 200",
+    "POST /api/drives/動画/shelves/query?by=all&key=all&type=pdf&type=epub&type=archive&sort=created_at&order=desc&per_shelf=60&page=1 ids=8 200"
+   ],
+   "text": "読む | 動画 | · 1 冊 | Cats | 発見 | ライブラリ | すべて | タグ | 指定なし | まとめ方 | なし | 並び順 | 追加日（新しい順） | PDF | ドット絵教室 | 動画 · 1か月前"
+  }
+ },
+ "NoAnko": {
+  "reqs": [
+   "GET /api/drives/動画/files?type=pdf&type=epub&type=archive&limit=1 ids=null 200",
+   "GET /api/drives/動画/files?search=-tag:あんこ&sort=created_at&order=desc&page=1&limit=500 ids=null 200",
+   "GET /api/addons/intelligence/search?q=-tag:あんこ&limit=1000&passages=true ids=null 200",
+   "POST /api/drives/動画/files/query?type=pdf&type=epub&type=archive&limit=1 ids=100 200",
+   "POST /api/drives/動画/files/query?type=pdf&type=epub&type=archive&sort=random&limit=12 ids=100 200",
+   "POST /api/drives/動画/files/query?type=pdf&type=epub&type=archive&sort=created_at&order=desc&limit=12 ids=100 200"
+  ],
+  "text": "読む | 動画 | · 0 冊 | NoAnko | 発見 | ライブラリ | 本がありません",
+  "label": "NoAnko",
+  "library": {
+   "reqs": [
+    "POST /api/drives/動画/shelves/query?by=folder&type=pdf&type=epub&type=archive&per_shelf=1&shelf_limit=24 ids=100 200",
+    "POST /api/drives/動画/shelves/query?by=all&key=all&type=pdf&type=epub&type=archive&sort=created_at&order=desc&per_shelf=60&page=1 ids=100 200"
+   ],
+   "text": "読む | 動画 | · 0 冊 | NoAnko | 発見 | ライブラリ | すべて | タグ | 指定なし | まとめ方 | なし | 並び順 | 追加日（新しい順） | 本がありません"
+  }
+ },
+ "PDFs": {
+  "reqs": [
+   "GET /api/drives/動画/files?type=pdf&type=epub&type=archive&limit=1 ids=null 200",
+   "GET /api/drives/動画/shelves?by=all&type=pdf&per_shelf=1 ids=null 200",
+   "GET /api/drives/動画/files?type=pdf&sort=random&limit=12 ids=null 200",
+   "GET /api/drives/動画/files?type=pdf&sort=created_at&order=desc&limit=12 ids=null 200"
+  ],
+  "text": "読む | 動画 | · 8 冊 | PDFs | 発見 | ライブラリ | まだ読んでいない本 | PDF | ちいかわ　なんか小さくてかわいいやつ（３） | 動画 · 1か月前 | PDF | コミュニケーション編テキスト | 動画 · 7か月前 | PDF | 色彩検定2級試験合格テキスト | Inbox · 2か月前 | PDF | Kanri-gl | 動画 · 6か月前 | PDF | ドット絵教室 | 動画 · 1か月前 | PDF | 色彩検定2級試験合格テキスト | 動画 · 6か月前 | PDF | 20181217 わかる身につく 交通教本 | 動画 · 6か月前 | 新着 | すべて見る | PDF | ちいかわ　なんか小さくてかわいいやつ（３） | 動画 · 1か月前 | PDF | ドット絵教室 | 動画 · 1か月前 | PDF | 色彩検定2級試験合格テキスト | Inbox · 2か月前 | PDF | Kanri-gl | 動画 · 6か月前 | PDF | AINX】Smart+DishWasher食器洗い乾燥機+AX-S3お取り扱い説明書 | 動画 · 6か月前 | PDF | 20181217 わかる身につく 交通教本 | 動画 · 6か月前 | PDF | 色彩検定2級試験合格テキスト | 動画 · 6か月前",
+  "label": "PDFs",
+  "library": {
+   "reqs": [
+    "GET /api/drives/動画/shelves?by=folder&type=pdf&per_shelf=1&shelf_limit=24 ids=null 200",
+    "GET /api/drives/動画/shelves?by=all&key=all&type=pdf&sort=created_at&order=desc&per_shelf=60&page=1 ids=null 200"
+   ],
+   "text": "読む | 動画 | · 8 冊 | PDFs | 発見 | ライブラリ | すべて | Inbox | タグ | 指定なし | まとめ方 | なし | 並び順 | 追加日（新しい順） | PDF | ちいかわ　なんか小さくてかわいいやつ（３） | 動画 · 1か月前 | PDF | ドット絵教室 | 動画 · 1か月前 | PDF | 色彩検定2級試験合格テキスト | Inbox · 2か月前 | PDF | Kanri-gl | 動画 · 6か月前 | PDF | AINX】Smart+DishWasher食器洗い乾燥機+AX-S3お取り扱い説明書 | 動画 · 6か月前 | PDF | 20181217 わかる身につく 交通教本 | 動画 · 6か月前 | PDF | 色彩検定2級試験合格テキスト | 動画 · 6か月前 | PDF | コミュニケーション編テキスト | 動画 · 7か月前"
+  }
+ },
+ "LongPDF": {
+  "error": "TimeoutError: locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[role=menu]').getByText('LongPDF', { exact: true })\u001b[22m\n\u001b[2m    - locator resolved to <span class=\"min-w-"
+ },
+ "fail": {
+  "reqs": [
+   "GET /api/drives/動画/files?type=pdf&type=epub&type=archive&limit=1 ids=null 200",
+   "GET /api/drives/動画/files?search=猫&sort=created_at&order=desc&page=1&limit=500 ids=null 200",
+   "GET /api/addons/intelligence/search?q=猫&limit=1000&passages=true ids=null 500"
+  ],
+  "text": "読む | 動画 | Cats | 発見 | ライブラリ | 再試行"
+ }
+}

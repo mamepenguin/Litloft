@@ -34,7 +34,7 @@ Each result has a small badge saying where it matched, such as **Filename** or *
 
 The top of the page is also the query field. It holds what you searched for, and you can edit it and press `Enter` to search again; `Esc` puts the current query back. Each operator in the field gets a chip underneath it, and `×` on a chip removes that operator from the query and searches again. Typing an operator shows its chip at once, before you submit.
 
-After the chips, **＋ 条件** adds an operator without typing the syntax: **タグ** (tag), **種類** (type), **フォルダ** (folder), **コレクション** (collection), **サイズ** (size), **長さ** (length) or **お気に入り** (favourites). Tag, folder and collection open a list of values; each list has a filter box, and a value already in the query is not offered. Size and length open fixed presets such as **1 GB 以上** and **30 分以上**; a preset already in the query, or one that would contradict it, is not offered. Picking a value adds it to the query and searches.
+After the chips, **＋ 条件** adds an operator without typing the syntax: **タグ** (tag), **種類** (type), **フォルダ** (folder), **コレクション** (collection), **サイズ** (size), **長さ** (length) or **お気に入り** (favourites). Tag, folder and collection open a list of values; the collection list holds collections and Smart Collections together, each with its own icon. Each list has a filter box, and a value already in the query is not offered. Size and length open fixed presets such as **1 GB 以上** and **30 分以上**; a preset already in the query, or one that would contradict it, is not offered. Picking a value adds it to the query and searches.
 
 Under the chips is the results bar. It holds, in order, the **ファイル / 箇所** switch (with the intelligence addon), **シーン検索**, the number of results, **View**, **Sort** and `…`. On a phone **View** and **Sort** are in `…`.
 
@@ -53,7 +53,7 @@ Words of the form `name:value`, typed in the search window or on the search page
 | `tag:trip` | files with the tag `trip` | every tag must be on the file |
 | `type:video` | files of that kind: `video`, `image`, `audio`, `document`, `text`, `pdf`, `archive`, `other` | any of the kinds |
 | `path:Work/2024` | files in that folder and its subfolders, comparing the folder name case-sensitively | any of the folders |
-| `in:trip` | files in the collection named `trip`, ignoring case | any of the collections |
+| `in:trip` | files in the collection named `trip`, or in the Smart Collection named `trip` (its Files view), ignoring case | any of the collections |
 | `size:>1GB` | files larger than 1 GB, in binary units: `B`, `KB`, `MB`, `GB`, `TB`, where `1KB` is 1024 bytes | every comparison must hold |
 | `duration:>=30m` | video and audio at least 30 minutes long: `s`, `m`, `h`, `1h30m`, `1:30` or `1:05:00` | every comparison must hold |
 | `is:favorite`, `is:liked` | favourites, liked files | both |
@@ -73,6 +73,7 @@ When the conditions of an open Smart Collection differ from what it saved — a 
 - A Smart Collection keeps the query and the file type. A tag is kept when it is written into the query as `tag:`.
 - It always shows the files that match now, not the ones that matched when you saved it.
 - Only the **Video**, **Image**, **Audio** and **Document** types can be saved. Use **Document** for Markdown and PDFs. Saving with another type shows an error.
+- A search whose `in:` names a Smart Collection cannot be saved, because expanding it again would nest one Smart Collection inside another. The save is refused and nothing is written; rename or edit the query first.
 - Everyone who uses the drive sees the same Smart Collections.
 
 On a saved Smart Collection's page, while it shows the saved query and type in **ファイル**, **再生 / Play** plays its video and audio. The files play as a queue in the order shown, and when a file ends the next one opens. The queue is fixed when you press Play: later changes to the Smart Collection do not alter it, and only the next Play replaces it. Play is absent when the results hold no video or audio; on a phone it is the first row of the `…` sheet.

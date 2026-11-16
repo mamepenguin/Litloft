@@ -79,7 +79,7 @@ export function appendListingFilters(
   if (params.exclude_origin) searchParams.set("exclude_origin", params.exclude_origin);
 }
 
-export function listingUrl(drive: string, params: ListingRequestParams): string {
+function listingSearchParams(params: ListingRequestParams): string {
   const searchParams = new URLSearchParams();
   if (params.path !== undefined) searchParams.set("path", params.path);
   if (params.recursive) searchParams.set("recursive", "true");
@@ -88,7 +88,15 @@ export function listingUrl(drive: string, params: ListingRequestParams): string 
   if (params.order) searchParams.set("order", params.order);
   if (params.page) searchParams.set("page", String(params.page));
   if (params.limit) searchParams.set("limit", String(params.limit));
-  return `${API_BASE}/drives/${encodeURIComponent(drive)}/files?${searchParams.toString()}`;
+  return searchParams.toString();
+}
+
+export function listingUrl(drive: string, params: ListingRequestParams): string {
+  return `${API_BASE}/drives/${encodeURIComponent(drive)}/files?${listingSearchParams(params)}`;
+}
+
+export function listingQueryUrl(drive: string, params: ListingRequestParams): string {
+  return `${API_BASE}/drives/${encodeURIComponent(drive)}/files/query?${listingSearchParams(params)}`;
 }
 
 export async function readListingPage(res: Response): Promise<PaginatedResponse> {

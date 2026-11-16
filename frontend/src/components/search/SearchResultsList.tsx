@@ -10,6 +10,7 @@ import type { SearchScope } from "./GlobalSearchProvider";
 import { JumpRows } from "./JumpRows";
 import { MergedResultItem } from "./MergedResultItem";
 import { ScopedResultItem } from "./ScopedSearchParts";
+import { InNameNotice, type InNameNoticeState } from "./InNameNotice";
 import type { JumpDestination } from "./useJumpDestinations";
 
 interface SearchResultsListProps {
@@ -23,6 +24,8 @@ interface SearchResultsListProps {
   total: number;
   loading: boolean;
   semanticPending: boolean;
+  /** An `in:` resolution that failed or was too large; nothing is listed. */
+  inNameError?: InNameNoticeState | null;
   selectedIndex: number;
   onOpenJump: (jump: JumpDestination) => void;
   onEnterFolder: (path: string) => void;
@@ -42,6 +45,7 @@ export function SearchResultsList({
   total,
   loading,
   semanticPending,
+  inNameError,
   selectedIndex,
   onOpenJump,
   onEnterFolder,
@@ -53,6 +57,8 @@ export function SearchResultsList({
   const parsed = parseSearchQuery(query);
   const highlight = parsed.hasOperators ? parsed.text : query;
   const launcherCount = suggestions.length + pageJumps.length + folderJumps.length;
+
+  if (inNameError) return <InNameNotice state={inNameError} />;
 
   return (
     <div className={mobile ? "" : "max-h-[50vh] overflow-y-auto"}>

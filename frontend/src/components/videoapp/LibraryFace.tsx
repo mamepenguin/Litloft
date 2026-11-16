@@ -8,8 +8,9 @@ import { ShelfBlock } from "@/components/appshell/ShelfBlock";
 import { useNearEnd } from "@/components/appshell/useNearEnd";
 import { usePaged } from "@/components/appshell/usePaged";
 import { EmptyState } from "@/components/EmptyState";
-import { getShelves, type Shelf, type ShelfGrouping } from "@/lib/api";
+import { type Shelf, type ShelfGrouping } from "@/lib/api";
 import type { AppClassification } from "@/lib/appPrefs";
+import type { AppRequests } from "@/lib/memberTarget";
 import type { VideoTargetParams } from "@/lib/videoAppTarget";
 import { ClassificationMenu, SortChoiceMenu } from "./LibraryControls";
 import { SORT_CHOICES, shelfTitle, type SortChoice } from "./labels";
@@ -40,6 +41,7 @@ export function seeAllHref(
 export function LibraryFace({
   drive,
   params,
+  requests,
   empty,
   savedClassification,
   hasProfile,
@@ -50,6 +52,7 @@ export function LibraryFace({
 }: {
   drive: string;
   params: VideoTargetParams | null;
+  requests: AppRequests;
   empty: boolean;
   /** The viewer's saved choice, which may not be offered right now. */
   savedClassification: AppClassification;
@@ -69,22 +72,24 @@ export function LibraryFace({
       params === null
         ? null
         : (page: number) =>
-            getShelves(drive, {
-              ...params,
-              by,
-              sort: sort.sort,
-              order: sort.order,
-              per_shelf: LIBRARY_SHELF_ITEMS,
-              shelf_limit: LIBRARY_SHELVES_PER_PAGE,
-              ...(page > 1 ? { offset: (page - 1) * LIBRARY_SHELVES_PER_PAGE } : {}),
-            }).then(
-              (response) => ({ items: response.shelves, total: response.total_shelves }),
-              (error: unknown) => {
-                if (isViewerRequired(error)) onViewerRejected();
-                throw error;
-              },
-            ),
-    [drive, params, by, sort.sort, sort.order, onViewerRejected],
+            requests
+              .shelves(drive, {
+                ...params,
+                by,
+                sort: sort.sort,
+                order: sort.order,
+                per_shelf: LIBRARY_SHELF_ITEMS,
+                shelf_limit: LIBRARY_SHELVES_PER_PAGE,
+                ...(page > 1 ? { offset: (page - 1) * LIBRARY_SHELVES_PER_PAGE } : {}),
+              })
+              .then(
+                (response) => ({ items: response.shelves, total: response.total_shelves }),
+                (error: unknown) => {
+                  if (isViewerRequired(error)) onViewerRejected();
+                  throw error;
+                },
+              ),
+    [drive, params, requests, by, sort.sort, sort.order, onViewerRejected],
   );
   const shelves = usePaged<Shelf>(fetchPage);
   const sentinel = useNearEnd(shelves.hasMore && shelves.more === "idle", shelves.loadMore);

@@ -14,9 +14,16 @@ import { House, HousePlus, Pencil, Save, Star, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import type { FileKind, SortField, SortOrder } from "@/types";
-import { getDriveFiles, setHomeShortcut } from "@/lib/api";
+import {
+  getCollections,
+  getDriveFiles,
+  getSmartFolders,
+  setHomeShortcut,
+} from "@/lib/api";
 import { getSemanticAvailability } from "@/lib/addons";
+import { checkInNamesForSave } from "@/lib/inNameResolution";
 import { isNameInUse } from "@/lib/nameInUse";
+import { parseSearchQuery } from "@/lib/searchQuery";
 import { fetchSemanticHits } from "@/lib/semanticSearch";
 import { evaluateSmartCollection } from "@/lib/smartCollectionEval";
 import { smartQueueEntry, storeSmartQueue } from "@/lib/smartQueue";
@@ -134,9 +141,11 @@ export function SmartFolderController({
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [checking, setChecking] = useState(false);
   // Guarded from the press, not from the render that disables the button: a
   // second press in the same tick would otherwise send a second PATCH.
   const savingRef = useRef(false);
+  const checkingRef = useRef(false);
   const focusMoreAfterOverwrite = useRef(false);
 
   const [playing, setPlaying] = useState(false);
@@ -240,12 +249,52 @@ export function SmartFolderController({
     [current, update, t],
   );
 
+  const save = useCallback(() => {
+    if (checkingRef.current) return;
+    const parsed = parseSearchQuery(query.trim());
+    if (parsed.collections.length === 0) {
+      setSaveOpen(true);
+      return;
+    }
+    checkingRef.current = true;
+    setChecking(true);
+    void (async () => {
+      try {
+        const verdict = await checkInNamesForSave(drive, parsed, {
+          getCollections,
+          getSmartFolders,
+        });
+        if (verdict === "failed") setError(t("saveFailed"));
+        else if (verdict === "refused") setError(t("inSmartCollection"));
+        else setSaveOpen(true);
+      } finally {
+        checkingRef.current = false;
+        setChecking(false);
+      }
+    })();
+  }, [drive, query, t]);
+
   const overwrite = useCallback(
     async (options?: { moveFocus?: boolean }) => {
       if (!current || savingRef.current) return;
       savingRef.current = true;
       setSaving(true);
       try {
+        const parsed = parseSearchQuery(query.trim());
+        if (parsed.collections.length > 0) {
+          const verdict = await checkInNamesForSave(drive, parsed, {
+            getCollections,
+            getSmartFolders,
+          });
+          if (verdict === "failed") {
+            setError(t("updateFailed"));
+            return;
+          }
+          if (verdict === "refused") {
+            setError(t("inSmartCollection"));
+            return;
+          }
+        }
         await update(current.id, {
           query: query.trim(),
           file_type: typeFilter ?? null,
@@ -258,7 +307,7 @@ export function SmartFolderController({
         setSaving(false);
       }
     },
-    [current, query, typeFilter, update, t],
+    [current, query, typeFilter, update, t, drive],
   );
 
   const play = useCallback(() => {
@@ -360,11 +409,12 @@ export function SmartFolderController({
       current,
       changed,
       saving,
+      checking,
       canPlay,
       playing,
       play,
       overwrite,
-      save: () => setSaveOpen(true),
+      save,
       rename: () => setRenameOpen(true),
       remove: () => setDeleteConfirmOpen(true),
       toggleHome: () => void handleToggleHome(),
@@ -373,10 +423,12 @@ export function SmartFolderController({
       current,
       changed,
       saving,
+      checking,
       canPlay,
       playing,
       play,
       overwrite,
+      save,
       handleToggleHome,
     ],
   );
@@ -441,7 +493,7 @@ export function SmartFolderOverwriteButton() {
       variant="secondary"
       size="sm"
       className="ml-auto"
-      disabled={actions.saving}
+      disabled={actions.saving || actions.checking}
       aria-label={t("overwriteLabel", { name: actions.current.name })}
       onClick={() => {
         void actions.overwrite({
@@ -490,7 +542,7 @@ export function SmartFolderMenuItems({
         <ActionMenuItem
           icon={Save}
           label={t("update")}
-          disabled={!actions.changed || actions.saving}
+          disabled={!actions.changed || actions.saving || actions.checking}
           onClick={() =>
             choose(() => {
               void actions.overwrite();
@@ -527,6 +579,7 @@ export function SmartFolderMenuItems({
       <ActionMenuItem
         icon={Star}
         label={t("save")}
+        disabled={actions.checking}
         onClick={() => choose(actions.save)}
       />
       {separated && <MenuSeparator />}

@@ -3,15 +3,19 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useProfile } from "@/components/ProfileProvider";
-import { ApiStatusError, getDriveFiles, getSmartFolders } from "@/lib/api";
+import { ApiStatusError, getSmartFolders } from "@/lib/api";
 import { readAppPrefs, writeAppPrefs, type AppPrefs } from "@/lib/appPrefs";
+import { appRequests, type AppRequests, type MemberTarget } from "@/lib/memberTarget";
 import {
+  resolveVideoMemberTarget,
   resolveVideoTarget,
+  videoMemberParams,
   type VideoTarget,
   type VideoTargetParams,
 } from "@/lib/videoAppTarget";
 import type { SmartFolder } from "@/types/smartFolder";
 import { useLoad, type LoadState } from "@/components/appshell/useLoad";
+import { useMemberTarget } from "@/components/appshell/useMemberTarget";
 
 export const VIEWER_REQUIRED = "viewer_required";
 
@@ -33,15 +37,31 @@ export interface VideoAppState {
   retrySmartFolders: () => void;
   /** The folder in force; `null` is the default target. */
   folder: SmartFolder | null;
-  /** Null while the saved folder is still being looked up, or when the target is empty. */
+  /** The saved target is known, so the control can show its name. */
+  targetKnown: boolean;
+  /** Null while the saved folder is still being looked up, its members are evaluated, or the target is empty. */
   params: VideoTargetParams | null;
   /** Requests may go out. */
   ready: boolean;
   /** The target matches no video, so nothing is requested. */
   empty: boolean;
+  /** The member evaluation failed; the body offers a retry. */
+  targetFailed: boolean;
+  /** More members than the app can send; the body says the target cannot be used. */
+  targetUnusable: boolean;
+  /** Evaluate the member target again. */
+  retryTarget: () => void;
+  /** The app's requests under the target. */
+  requests: AppRequests;
   /** Videos under the target; `null` until known or when it failed. */
   count: number | null;
   chooseTarget: (id: string) => void;
+}
+
+interface Resolution {
+  folder: SmartFolder | null;
+  target: VideoTarget | null;
+  member: MemberTarget | null;
 }
 
 export function useVideoApp(drive: string): VideoAppState {
@@ -70,25 +90,53 @@ export function useVideoApp(drive: string): VideoAppState {
     smartFolders.status === "loaded"
       ? (smartFolders.data.find((candidate) => candidate.id === savedId) ?? null)
       : null;
-  const resolved = useMemo<{ folder: SmartFolder | null; target: VideoTarget }>(() => {
+  const resolved = useMemo<Resolution>(() => {
+    const member = resolveVideoMemberTarget(listed);
+    if (member !== null) {
+      return { folder: listed, target: null, member };
+    }
     const target = resolveVideoTarget(listed);
-    return target.usable ? { folder: listed, target } : { folder: null, target: resolveVideoTarget(null) };
+    return target.usable
+      ? { folder: listed, target, member: null }
+      : { folder: null, target: resolveVideoTarget(null), member: null };
   }, [listed]);
+
+  const { evaluation, retry: retryTarget } = useMemberTarget(drive, listed, resolved.member);
+  const memberReady = evaluation?.status === "ready" ? evaluation : null;
+  const targetFailed = evaluation?.status === "failed";
+  const targetUnusable = evaluation?.status === "tooLarge";
+  const evaluating =
+    resolved.member !== null && resolved.member.kinds.length > 0 && evaluation === null;
 
   // A folder that is gone or unusable is ignored, but its saved id stays:
   // the viewer's choice returns if the folder does.
   const lookingUp = wantsFolder && (smartFolders.status === "loading" || smartFolders.status === "idle");
-  const ready = prefs !== null && !lookingUp;
-  const empty = ready && resolved.target.usable && "empty" in resolved.target;
-  const params =
-    ready && resolved.target.usable && !("empty" in resolved.target) ? resolved.target.params : null;
+  const targetKnown = prefs !== null && !lookingUp;
+  const ready = targetKnown && !evaluating && !targetFailed && !targetUnusable;
+  const empty =
+    ready &&
+    (resolved.member !== null
+      ? resolved.member.kinds.length === 0
+      : resolved.target !== null && resolved.target.usable && "empty" in resolved.target);
+  const params = useMemo<VideoTargetParams | null>(() => {
+    if (!ready) return null;
+    if (resolved.member !== null) return videoMemberParams(resolved.member);
+    return resolved.target !== null && resolved.target.usable && !("empty" in resolved.target)
+      ? resolved.target.params
+      : null;
+  }, [ready, resolved]);
+
+  const requests = useMemo(
+    () => appRequests(resolved.member, memberReady?.fileIds ?? null),
+    [resolved.member, memberReady],
+  );
 
   const loadCount = useMemo(
     () =>
       params === null
         ? null
-        : () => getDriveFiles(drive, { ...params, limit: 1 }).then((page) => page.meta.total),
-    [drive, params],
+        : () => requests.files(drive, { ...params, limit: 1 }).then((page) => page.meta.total),
+    [drive, params, requests],
   );
   const { state: counted } = useLoad(loadCount);
   const count = empty ? 0 : counted.status === "loaded" ? counted.data : null;
@@ -106,9 +154,14 @@ export function useVideoApp(drive: string): VideoAppState {
     smartFolders,
     retrySmartFolders,
     folder: resolved.folder,
+    targetKnown,
     params,
     ready,
     empty,
+    targetFailed,
+    targetUnusable,
+    retryTarget,
+    requests,
     count,
     chooseTarget,
   };

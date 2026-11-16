@@ -7,6 +7,7 @@ from decimal import Decimal
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 from sqlalchemy import Integer, case, cast, func, not_, or_
 from sqlalchemy.orm import Session
 
@@ -34,6 +35,7 @@ from app.schemas import (
     DriveSummaryResponse,
     DuplicateGroup,
     DuplicatesResponse,
+    FileIdsQuery,
     FileResponse,
     FolderCreateRequest,
     FolderMoveRequest,
@@ -433,6 +435,7 @@ def apply_file_filters(
     sizes: list[str] | None = None,
     durations: list[str] | None = None,
     drive: str | None = None,
+    file_ids: list[str] | None = None,
 ):
     """Shared by the listing and the Internal API's filter resolution.
 
@@ -465,6 +468,7 @@ def apply_file_filters(
             or_(*(_folder_subtree(folder) for folder in chosen_folders))
         )
     chosen_collections = normalize_collections(collections or [])
+    collection_condition = None
     if chosen_collections:
         if drive is None:
             raise ValueError("drive is required to resolve collections")
@@ -477,12 +481,22 @@ def apply_file_filters(
             )
             if name.lower() in wanted
         ]
-        query = query.filter(
-            File.id.in_(
-                db.query(CollectionItem.file_id).filter(
-                    CollectionItem.collection_id.in_(collection_ids)
-                )
+        collection_condition = File.id.in_(
+            db.query(CollectionItem.file_id).filter(
+                CollectionItem.collection_id.in_(collection_ids)
             )
+        )
+    if file_ids is None:
+        if collection_condition is not None:
+            query = query.filter(collection_condition)
+    else:
+        # ``file_ids`` widens ``in:`` rather than intersecting with it: a
+        # named collection keeps its own members, and `file_ids: []` still
+        # leaves those members passing.
+        listed = File.id.in_(file_ids)
+        query = query.filter(
+            listed if collection_condition is None
+            else or_(collection_condition, listed)
         )
     query = _apply_range_filters(query, sizes, durations)
     return _apply_kinds_filter(
@@ -935,6 +949,7 @@ def filtered_drive_files(
     trust: str | None = None,
     origin: str | None = None,
     exclude_origin: str | None = None,
+    file_ids: list[str] | None = None,
 ):
     """The active files of one drive under the listing's filters.
 
@@ -990,6 +1005,7 @@ def filtered_drive_files(
         sizes=size,
         durations=duration,
         drive=drive_name,
+        file_ids=file_ids,
     )
     if trust == "unreviewed":
         # Not a tier: the review queue is "nobody has ruled on this", which
@@ -1007,78 +1023,113 @@ def filtered_drive_files(
     return query, normalized_search
 
 
+class FileFiltersQuery(BaseModel):
+    """The parameters that filter a drive's files, shared by every route listing them."""
+
+    search: str | None = Field(None, max_length=200)
+    favorite: bool | None = None
+    liked: bool | None = None
+    tag: list[str] | None = None
+    type: list[FileKindParam] | None = None
+    folder: list[str] | None = None
+    collection: list[str] | None = None
+    size: list[str] | None = None
+    duration: list[str] | None = None
+    trust: str | None = Field(None, pattern="^(verified|unverified|unreviewed)$")
+    origin: str | None = Field(None, min_length=1, max_length=32)
+    exclude_origin: str | None = Field(None, min_length=1, max_length=32)
+
+
+class FileListingQuery(FileFiltersQuery):
+    path: str | None = None
+    recursive: bool = False
+    sort: str = Field(
+        "created_at", pattern="^(created_at|title|file_size|liked_at|updated_at|random)$"
+    )
+    order: str = Field("desc", pattern="^(asc|desc)$")
+    page: int = Field(1, ge=1)
+    limit: int = Field(30, ge=1, le=500)
+
+
 @router.get("/{drive_name}/files", response_model=PaginatedResponse)
 def list_drive_files(
     drive_name: str,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
-    path: str | None = None,
-    recursive: bool = False,
-    search: str | None = Query(None, max_length=200),
-    favorite: bool | None = None,
-    liked: bool | None = None,
-    tag: list[str] | None = Query(None),
-    type: list[FileKindParam] | None = Query(None),
-    folder: list[str] | None = Query(None),
-    collection: list[str] | None = Query(None),
-    size: list[str] | None = Query(None),
-    duration: list[str] | None = Query(None),
-    trust: str | None = Query(None, pattern="^(verified|unverified|unreviewed)$"),
-    origin: Annotated[str | None, Query(min_length=1, max_length=32)] = None,
-    exclude_origin: Annotated[str | None, Query(min_length=1, max_length=32)] = None,
-    sort: str = Query(
-        "created_at", pattern="^(created_at|title|file_size|liked_at|updated_at|random)$"
-    ),
-    order: str = Query("desc", pattern="^(asc|desc)$"),
-    page: int = Query(1, ge=1),
-    limit: int = Query(30, ge=1, le=500),
+    params: Annotated[FileListingQuery, Query()],
 ):
     """List a drive's active files.
 
     `path` is an exact `folder_path` match by default — direct children only.
     `recursive=True` widens it to the folder's whole subtree.
     """
+    return _list_drive_files(db, drive_name, unlocked_groups, params)
+
+
+@router.post("/{drive_name}/files/query", response_model=PaginatedResponse)
+def query_drive_files(
+    drive_name: str,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    params: Annotated[FileListingQuery, Query()],
+    body: FileIdsQuery,
+):
+    """The listing, with the body's ids joining `collection` in the `in:` condition."""
+    return _list_drive_files(
+        db, drive_name, unlocked_groups, params, file_ids=body.file_ids
+    )
+
+
+def _list_drive_files(
+    db: Session,
+    drive_name: str,
+    unlocked_groups: list[str],
+    params: FileListingQuery,
+    *,
+    file_ids: list[str] | None = None,
+) -> PaginatedResponse:
     _validate_drive(drive_name, unlocked_groups)
     query, normalized_search = filtered_drive_files(
         db,
         drive_name,
-        path=path,
-        recursive=recursive,
-        search=search,
-        favorite=favorite,
-        liked=liked,
-        tag=tag,
-        type=type,
-        folder=folder,
-        collection=collection,
-        size=size,
-        duration=duration,
-        trust=trust,
-        origin=origin,
-        exclude_origin=exclude_origin,
+        path=params.path,
+        recursive=params.recursive,
+        search=params.search,
+        favorite=params.favorite,
+        liked=params.liked,
+        tag=params.tag,
+        type=params.type,
+        folder=params.folder,
+        collection=params.collection,
+        size=params.size,
+        duration=params.duration,
+        trust=params.trust,
+        origin=params.origin,
+        exclude_origin=params.exclude_origin,
+        file_ids=file_ids,
     )
 
     total = query.count()
 
-    if sort == "random":
+    if params.sort == "random":
         query = query.order_by(func.random())
     else:
-        sort_column = getattr(File, sort)
+        sort_column = getattr(File, params.sort)
         id_column = File.id
-        if order == "desc":
+        if params.order == "desc":
             sort_column = sort_column.desc()
             id_column = id_column.desc()
         query = query.order_by(sort_column, id_column)
 
-    offset = (page - 1) * limit
-    files = query.offset(offset).limit(limit).all()
+    offset = (params.page - 1) * params.limit
+    files = query.offset(offset).limit(params.limit).all()
 
     return PaginatedResponse(
         data=[
             _to_response(f, match_source=_classify_match_source(f, normalized_search))
             for f in files
         ],
-        meta=PaginationMeta(total=total, page=page, limit=limit),
+        meta=PaginationMeta(total=total, page=params.page, limit=params.limit),
     )
 
 

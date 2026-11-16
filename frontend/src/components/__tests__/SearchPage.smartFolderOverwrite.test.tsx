@@ -671,6 +671,6 @@ describe("SPEC-CORE-103 I10 a successful overwrite from the focused button moves
     fireEvent.click(shown);
     await waitFor(() => expect(button()).toBeNull());
 
-    expect(document.activeElement).toBe(moreButton());
+    await waitFor(() => expect(document.activeElement).toBe(moreButton()));
   });
 });

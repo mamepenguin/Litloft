@@ -27,6 +27,8 @@ export function stableJson(value: unknown): string {
 
 export interface DiscoverCacheKey {
   drive: string;
+  /** The target's identity: `""` outside a member target, so it cannot share an entry with one. */
+  requestKey: string;
   params: VideoTargetParams;
   slot: string;
   date: string;
@@ -40,6 +42,7 @@ export interface DiscoverCacheKey {
 export function discoverCacheKey(key: DiscoverCacheKey): string {
   return stableJson([
     key.drive,
+    key.requestKey,
     key.params,
     key.slot,
     key.date,

@@ -11,6 +11,7 @@ import {
   type SlotEntry,
 } from "@/lib/addons";
 import type { ShelfItem } from "@/lib/api";
+import type { AppRequests } from "@/lib/memberTarget";
 import type { VideoTargetParams } from "@/lib/videoAppTarget";
 import { stableJson } from "./discoverCache";
 import { createRestrict } from "./restrict";
@@ -101,6 +102,7 @@ export function useProviderShelfPage({
   hasProfile,
   drive,
   params,
+  requests,
   ready,
   empty,
   onViewerRejected,
@@ -112,6 +114,7 @@ export function useProviderShelfPage({
   hasProfile: boolean;
   drive: string;
   params: VideoTargetParams | null;
+  requests: AppRequests;
   ready: boolean;
   empty: boolean;
   onViewerRejected: () => void;
@@ -149,6 +152,7 @@ export function useProviderShelfPage({
       recommended
         ? stableJson([
             drive,
+            requests.key,
             params ?? null,
             entryId,
             locale,
@@ -157,8 +161,8 @@ export function useProviderShelfPage({
             RECOMMENDED_SLOT,
             entriesKey,
           ])
-        : stableJson([drive, params ?? null, entryId, locale, entriesKey]),
-    [recommended, drive, params, entryId, locale, nickname, hasProfile, entriesKey],
+        : stableJson([drive, requests.key, params ?? null, entryId, locale, entriesKey]),
+    [recommended, drive, requests.key, params, entryId, locale, nickname, hasProfile, entriesKey],
   );
 
   const catalogueReady = !catalogueLoading && catalogueDrive === drive;
@@ -224,6 +228,7 @@ export function useProviderShelfPage({
 
       const accepted = new Map<string, ShelfItem>();
       const restrict = createRestrict({
+        requests,
         drive,
         target,
         ...(recommended ? { watch: "unwatched" } : {}),
@@ -288,6 +293,7 @@ export function useProviderShelfPage({
     recommended,
     hasProfile,
     attempt,
+    requests,
   ]);
 
   const retryFirst = useCallback(() => setAttempt((n) => n + 1), []);

@@ -3,7 +3,8 @@
 import { useCallback, useMemo, useState } from "react";
 
 import { useLoad } from "@/components/appshell/useLoad";
-import { getDriveFiles, getShelves, type ShelfItem } from "@/lib/api";
+import type { ShelfItem } from "@/lib/api";
+import type { AppRequests } from "@/lib/memberTarget";
 import type { ReadingTargetParams } from "@/lib/readingAppTarget";
 import { isViewerRequired } from "./useReadingApp";
 
@@ -17,12 +18,14 @@ export const DISCOVER_SHELF_SIZE = 12;
 export function useDiscover({
   drive,
   params,
+  requests,
   hasProfile,
   wanted,
   onViewerRejected,
 }: {
   drive: string;
   params: ReadingTargetParams | null;
+  requests: AppRequests;
   hasProfile: boolean;
   /** Discover is the face on screen. Once true, it stays asked for. */
   wanted: boolean;
@@ -35,21 +38,23 @@ export function useDiscover({
   const watchShelf = useCallback(
     (key: "continue" | "unwatched", sort: "last_played" | "random") => {
       if (params === null) return Promise.resolve<ShelfItem[]>([]);
-      return getShelves(drive, {
-        ...params,
-        by: "watch",
-        key,
-        sort,
-        per_shelf: DISCOVER_SHELF_SIZE,
-      }).then(
-        (response) => response.shelves[0]?.items ?? [],
-        (error: unknown) => {
-          if (isViewerRequired(error)) onViewerRejected();
-          throw error;
-        },
-      );
+      return requests
+        .shelves(drive, {
+          ...params,
+          by: "watch",
+          key,
+          sort,
+          per_shelf: DISCOVER_SHELF_SIZE,
+        })
+        .then(
+          (response) => response.shelves[0]?.items ?? [],
+          (error: unknown) => {
+            if (isViewerRequired(error)) onViewerRejected();
+            throw error;
+          },
+        );
     },
-    [drive, params, onViewerRejected],
+    [drive, params, requests, onViewerRejected],
   );
 
   const loadContinue = useMemo(
@@ -61,24 +66,28 @@ export function useDiscover({
     return hasProfile
       ? () => watchShelf("unwatched", "random")
       : () =>
-          getDriveFiles(drive, {
-            ...params,
-            sort: "random",
-            limit: DISCOVER_SHELF_SIZE,
-          }).then((page) => page.data);
-  }, [active, hasProfile, params, drive, watchShelf]);
+          requests
+            .files(drive, {
+              ...params,
+              sort: "random",
+              limit: DISCOVER_SHELF_SIZE,
+            })
+            .then((page) => page.data);
+  }, [active, hasProfile, params, drive, requests, watchShelf]);
   const loadNew = useMemo(
     () =>
       active && params !== null
         ? () =>
-            getDriveFiles(drive, {
-              ...params,
-              sort: "created_at",
-              order: "desc",
-              limit: DISCOVER_SHELF_SIZE,
-            }).then((page) => page.data)
+            requests
+              .files(drive, {
+                ...params,
+                sort: "created_at",
+                order: "desc",
+                limit: DISCOVER_SHELF_SIZE,
+              })
+              .then((page) => page.data)
         : null,
-    [active, params, drive],
+    [active, params, drive, requests],
   );
 
   return {

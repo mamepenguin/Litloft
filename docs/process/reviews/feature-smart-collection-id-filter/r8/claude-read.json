@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R8-1",
+      "origin": "reviewer",
+      "claim": "The new test for the return to a member target does not exercise a switch while an evaluation is still in flight, so the guard `if (current)` in useMemberTarget.ts can be removed without any test failing.",
+      "impact": "Today the guard keeps a result from an evaluation that started before a target switch from being stored. If the guard regresses, a member target switched away and back during a slow evaluation would show that earlier evaluation's members as ready before the new evaluation answers, which is the stale-members case this commit fixes for the settled-result case. No test would catch it.",
+      "evidence": "frontend/src/components/appshell/useMemberTarget.ts:41-46 (evaluation resolves into setHeld only when `current`, and the effect cleanup sets current=false). frontend/src/components/videoapp/__tests__/VideoApp.memberTarget.test.tsx, the new describe 'SPEC-CORE-117 step 3, I8: a return to a member target evaluates again': the first evaluation has settled before the switch away, so no evaluation is in flight when the target changes.",
+      "repro": "Mutation, reasoned and not executed: delete `current` from the guard at useMemberTarget.ts:42. The new test still passes, because its evaluation for the first visit has already settled before the switch. The mutant survives.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "The shipped code is correct on reading: the cleanup drops the late result. The defect is a test gap that lets a regression of the stale-result path pass, and no declared invariant is broken by the current code.",
+        "reason_extra": ""
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add a test that starts evaluation A, switches to the default target before A answers, switches back to A, then releases the first evaluation late and asserts that no request under the target goes out until the second evaluation answers."
+    }
+  ],
+  "specification_compliance": [
+    "I8 (member target sends no request under the target before its evaluation succeeds): holds for the sequence A -> default -> A in one visit. Each target change clears `held` at render time (useMemberTarget.ts:29-35), so the key match cannot return an earlier result. Verified by reading, not by running tests.",
+    "I8 (no fall back to the default target from failed or too large): unchanged by this commit.",
+    "I8 (a result that outlives its target is dropped, as the hook docstring says): holds for the in-flight case through the effect cleanup (useMemberTarget.ts:44-46), which the new test does not cover (see R8-1).",
+    "I9, I10 and the other invariants: not touched by this commit."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The effect at useMemberTarget.ts:38-47 depends on `folder`, the SmartFolder object. If the smart folder list reloads and returns a new object for the same target, the effect reruns with an unchanged key, and `held` still matches that key, so the old result stays ready while the re-evaluation runs. This commit does not change it, and I did not confirm whether useLoad reloads the list while a page is open."
+  ],
+  "regression_risks": [
+    "The hook now keeps three pieces of state for one lifecycle: `attempt`, `held` and `lastTarget`. The invalidation of `held` is split between a render-time reset (lines 28-35) and the key match (line 50). A later change to either place alone can recreate the stale-result path.",
+    "The render-phase setState pattern (lines 29-35) depends on React re-rendering before commit. A future change that reads `held` before this check would see the old value."
+  ],
+  "test_coverage": [
+    "The new test (VideoApp.memberTarget.test.tsx, 'a return to a member target evaluates again') fails when the reset at useMemberTarget.ts:33-34 is removed, because the second visit would then match the old held key. That is a valid kill, reasoned and not run.",
+    "The test does not cover a switch during an in-flight evaluation, so removing the `current` guard survives (see R8-1).",
+    "The test covers Video only. Reading uses the same hook, and no Reading test covers the return path."
+  ],
+  "not_verified": [
+    "No tests were run, and no typecheck was done. Every result above is from reading the code, not from execution.",
+    "I did not confirm whether useLoad reloads smartFolders while a page is open, so the potential issue with the `folder` dependency is not confirmed.",
+    "I did not read the Reading app's use of the hook beyond its call site, so the Reading return path is not checked.",
+    "Commit 1a8f8f988 (listedResolution, search page) is not part of this commit and was not reviewed here."
+  ],
+  "confidence": 80,
+  "trajectory": "Yes, the design is being patched. This commit adds a new state (`lastTarget`) and a render-time reset beside `held` and `attempt`, to fix the stale-held result that R7-1 reported. The R7-1 proposal offered clearing `held` when the key becomes null, which would have handled the same case with no new state. Nothing from the earlier rounds was removed, and the hook now has three state dimensions for one lifecycle."
+}

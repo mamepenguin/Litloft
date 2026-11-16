@@ -1,0 +1,18 @@
+{
+ "text": "検索: \"in:\"Cats\" 子ザメ\" | コレクション Cats | × | ＋ | 条件 | ファイル | 箇所 | グリッド表示 | 関連度順 | 範囲が大きすぎます（1万件まで）。条件を絞ってください。",
+ "alert": [
+  "範囲が大きすぎます（1万件まで）。条件を絞ってください。",
+  ""
+ ],
+ "retry": 0,
+ "reqs": [
+  "GET /api/addons/intelligence/search/by-image/available ids=null 200",
+  "GET /api/addons/intelligence/search?q=猫&limit=1000&passages=true ids=null 200"
+ ],
+ "evalPages": 21,
+ "window": {
+  "reqs": [
+   "GET /api/addons/intelligence/search?q=猫&limit=1000&passages=true ids=null"
+  ]
+ }
+}
