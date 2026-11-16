@@ -1,0 +1,19 @@
+R-5 re-run 2026-11-16, file 0IRePg1aFJhi (YouTube jtAY-uo_NR0, cooking), File Ask, profile gpt-6-luna (openai/gpt-6-luna, external).
+POST /ask 06:27:00.5Z; OpenRouter calls 06:27:04 / 06:27:07 / 06:27:14; log "frame requests: 3 calls, 8 frames (file 0IRePg1aFJhi)" 06:27:21 (~21 s).
+Question: このレシピを、材料（分量つき）と手順をすべて挙げてまとめてください。
+
+Answer (as shown, citation chips inline):
+材料
+豆腐 150g 0:00
+めんつゆ（3倍濃縮）小さじ2 0:20
+水 5ml 0:20
+天かす、かつお節、小ネギ、白いりごま：お好みの量 0:50 0:57 0:54 0:46
+手順
+豆腐を器に入れ、味が染み込むように切り込みを入れる。0:10 0:01 0:12
+めんつゆと水を加え、ラップをして電子レンジで加熱する。目安は600Wで1分30秒、または500Wで1分50秒。0:20 0:37
+加熱後、天かす、かつお節、小ネギ、白いりごまをお好みでトッピングする。0:40 0:50 0:57 0:54 0:46
+天かすや薬味をのせることで、揚げ出し豆腐のような味わいになる。1:00
+
+Compared with the ground truth read from the frames in the first run (豆腐150g, めんつゆ(3倍濃縮)小さじ2, ごま油小さじ1, ラップ/600W 1分30秒(500W 1分50秒), 天かす, かつお節, 小ネギ, 白いりごま):
+- ごま油 小さじ1 is missing (known deferred limit: no stored frame OCR text for 30-40 s).
+- "水 5ml" appears as an ingredient; the frame at 0:20 reads "5ml / めんつゆ(3倍濃縮)小さじ2" (5ml is the measuring spoon). The first run's answers did not list water.

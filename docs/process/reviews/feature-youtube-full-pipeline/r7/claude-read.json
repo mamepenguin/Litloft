@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "trajectory": "Commit 4855de8 adds no production code: the submodule pointer moves 0eacc23 to e4f2f89 and the diff is test-only. It adds branches to the test suite for the download stop rules (stall, free space, time limit, the 600 s floor, the unknown-duration 7200 s cap), a leftover-output check, a temp-file check, a zero-byte and non-zero-exit check, and a FreeSpace helper, plus a yt-dlp double that writes partial outputs. Each of these predicts a product behaviour that the production download_rendition already implements, so the round tests rather than patches the product. Nothing from the previous round (r6) is removed; the r6 findings TP-1 to TP-3 are about the base diff and are not touched by this commit.",
+  "findings": [
+    {
+      "id": "R4855-1",
+      "origin": "reviewer",
+      "claim": "The new download stop-rule tests start their action (clock advance or free-space drop) after a fixed 0.3 s sleep that follows only the appearance of download.log, and several then assert that a partial was written, so their outcome depends on wall-clock timing.",
+      "impact": "Under a loaded machine the action can land before the fake yt-dlp writes its partial, so the partials() assertion fails intermittently. The suite then reports a red test for a correct product, or hides a regression behind a race. No user-visible product path is affected.",
+      "evidence": "addons/intelligence/tests/test_spec_addon_117_loft_media_fetch.py: _after_download_starts (waits for youtube.download_commands(), then time.sleep(0.3), then action()); the stall test (set_download(hold=30, stall_bytes=8192)), the free-space test (set_download(hold=5, stall_bytes=4096)) and the time-limit test each assert youtube.partials() != [].",
+      "repro": "not_reproduced. Reasoning from the code: the fake yt-dlp opens the output and writes stall_bytes only after urlopen returns, so there is no synchronisation with the action thread.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant is broken; the test is flaky under timing, which reads wrong but changes no product behaviour.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Make the action wait for a partial note (poll youtube.partials() until non-empty, with a bounded wait) instead of sleeping 0.3 s after the command appears."
+    },
+    {
+      "id": "R4855-2",
+      "origin": "reviewer",
+      "claim": "The time-limit test's name and docstring say the download is stopped by the time limit, but the assertions check only that a partial exists, the failure is counted, and the process stopped; they do not check which stop rule fired.",
+      "impact": "A regression that changes the time limit (for example the 1.5x factor or the 600 s floor) is caught only by the separate floor and unknown-duration tests. A regression that removes the deadline check would not be caught by this test unless the stream stops growing, so the test name overstates what it proves.",
+      "evidence": "addons/intelligence/tests/test_spec_addon_117_loft_media_fetch.py: test_spec_addon_117_i2_a_download_is_stopped_at_the_time_limit (set_download(grow=[64, 3.0]), clock.advance(601)); addons/intelligence/app/youtube_source.py download_rendition loop checks deadline, stall and free space and does not report which one fired.",
+      "repro": "not_reproduced. The mutation 'delete the deadline check in download_rendition' would make the grow download finish in about 3 s and exit 0, which is then scanned, so the test would fail; so the test does catch that mutation. The residual gap is only the naming and the isolation of the cause.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The test's assertions are adequate for the deadline mutation; only its name and docstring claim more than the check verifies.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Keep the test; if the name is meant to isolate the time limit, state in the docstring that the stall and free-space rules are kept clear by the growing stream."
+    }
+  ],
+  "specification_compliance": [
+    "I2 (stop rules: 120 s without growth, free space below 1 GiB, time limit, the 600 s floor and 7200 s for unknown duration): the tests in this commit exercise each stop rule against the product's download_rendition.",
+    "I2 (no cookie, credential or account option; log lines name only the file id): test_spec_addon_117_i2_the_download_takes_one_video_only_rendition_from_the_stored_url and test_spec_addon_117_i2_no_log_line_names_a_url_a_video_id_or_a_header assert the argv and the logs.",
+    "I2 (the download is deleted at the end): the tests assert fetch_dir_files() == [] after failure, stop and success.",
+    "I6 (a non-zero exit, a zero-byte file and a temporary .part left by yt-dlp are counted failures): added tests assert failures +1 and no scan row.",
+    "I5 and I6 (95% duration tolerance and the duration fill): the parametrised test covers 40/100, 40/43 and 40/41 at the boundary.",
+    "No production code changes in this commit; invariants I1, I3, I4, I7 to I13 are not re-examined here beyond the tests in this diff."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The stop-rule tests depend on wall-clock sleeps and on the clock fixture patching time.monotonic and time.time globally; a future change to the download loop's timing could make them flaky rather than failing for the right reason.",
+    "The disk_usage monkeypatch (disk_usage_with, FreeSpace) replaces shutil.disk_usage for the whole test, not only for the fetch directory; a test that reads disk usage elsewhere in the same test would see the fake value."
+  ],
+  "test_coverage": [
+    "Each download stop rule has a test: stall at 120 s, free space below 1 GiB, the time limit, the 600 s floor, the unknown-duration 600 s non-stop and 7200 s stop.",
+    "Failure classes covered: HTTP 403 mid-download, a non-zero exit after a whole file, a zero-byte output, a temporary .part left behind, a leftover of the same file id before the download, the 95% duration boundary, and the disk guard boundary for known and unknown sizes.",
+    "The new tests run against the real download_rendition and the yt-dlp double; they do not exercise a real YouTube endpoint. Their pass or fail status was not observed here, since this review had only read tools."
+  ],
+  "not_verified": [
+    "Did not run the test suite, so the pass/fail status and the flakiness of the timing-based tests were not observed.",
+    "Did not check the test double's ffmpeg and frame paths or the frontend tests in this commit.",
+    "Did not open the product code in addons/intelligence/app/youtube_source.py beyond what the diff shows, so the claims about download_rendition's loop are read from the diff text, not from the file at the commit.",
+    "Did not re-verify the r6 findings TP-1 to TP-3 against the commit; they concern the base diff and the touch-point list, which this commit does not change."
+  ],
+  "confidence": 72,
+  "findings_placeholder": "null"
+}
