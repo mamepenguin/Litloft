@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: D-1, D-2, D-3, D-4 and D-5 of design-check.md accepted by the human (2026-11-16): the rows follow the shipped ＋ 範囲 rows (14px icon, gap-2, after the check column) as the approved spec states; the search field and the menu frame are unchanged existing parts.
 ran_in_app: yes
 at: 4648ddfc43ed0ea66113c39249d3a32043b0d142
 by: agent
