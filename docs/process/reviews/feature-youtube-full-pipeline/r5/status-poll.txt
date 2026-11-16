@@ -1,0 +1,58 @@
+13:13:51 {"paused": true, "pending_scan": 504, "pending_focr": 504, "pending_total": 1008, "idx_scan": 156, "idx_focr": 156, "loft_media": [503, ["kLe852pwBh6B"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+13:16:28 {"paused": false, "pending_scan": 504, "pending_focr": 504, "pending_total": 1008, "idx_scan": 156, "idx_focr": 156, "loft_media": [503, ["kLe852pwBh6B"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+13:16:36 {"paused": false, "pending_scan": 503, "pending_focr": 504, "pending_total": 1007, "idx_scan": 157, "idx_focr": 156, "loft_media": [503, ["kLe852pwBh6B"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+13:16:48 {"paused": false, "pending_scan": 503, "pending_focr": 503, "pending_total": 1006, "idx_scan": 157, "idx_focr": 157, "loft_media": [502, ["EKCONLkv6vZZ"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+13:17:38 {"paused": false, "pending_scan": 504, "pending_focr": 504, "pending_total": 1009, "idx_scan": 157, "idx_focr": 157, "loft_media": [503, ["EKCONLkv6vZZ"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+13:17:56 {"paused": false, "pending_scan": 504, "pending_focr": 504, "pending_total": 1008, "idx_scan": 157, "idx_focr": 157, "loft_media": [503, ["EKCONLkv6vZZ"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+13:18:41 error HTTPError
+13:18:51 {"paused": false, "pending_scan": 504, "pending_focr": 504, "pending_total": 1008, "idx_scan": 157, "idx_focr": 157, "loft_media": [0, []], "frame_scan": [0, []], "frame_ocr": [0, []]}
+13:18:53 {"paused": true, "pending_scan": 504, "pending_focr": 504, "pending_total": 1008, "idx_scan": 157, "idx_focr": 157, "loft_media": [504, []], "frame_scan": [0, []], "frame_ocr": [0, []]}
+13:20:44 {"paused": true, "pending_scan": 504, "pending_focr": 504, "pending_total": 1009, "idx_scan": 157, "idx_focr": 157, "loft_media": [505, []], "frame_scan": [0, []], "frame_ocr": [0, []]}
+13:21:18 {"paused": false, "pending_scan": 504, "pending_focr": 504, "pending_total": 1009, "idx_scan": 157, "idx_focr": 157, "loft_media": [504, ["_3_ovFrTI-yg"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+13:21:31 {"paused": false, "pending_scan": 503, "pending_focr": 504, "pending_total": 1008, "idx_scan": 158, "idx_focr": 157, "loft_media": [504, ["_3_ovFrTI-yg"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+13:21:37 {"paused": false, "pending_scan": 503, "pending_focr": 503, "pending_total": 1007, "idx_scan": 158, "idx_focr": 158, "loft_media": [503, ["EKCONLkv6vZZ"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+13:21:39 {"paused": false, "pending_scan": 503, "pending_focr": 503, "pending_total": 1006, "idx_scan": 158, "idx_focr": 158, "loft_media": [503, ["EKCONLkv6vZZ"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+13:38:17 {"paused": false, "pending_scan": 503, "pending_focr": 503, "pending_total": 1006, "idx_scan": 158, "idx_focr": 158, "loft_media": [504, ["EKCONLkv6vZZ"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+13:43:04 {"paused": true, "pending_scan": 503, "pending_focr": 503, "pending_total": 1006, "idx_scan": 158, "idx_focr": 158, "loft_media": [504, ["EKCONLkv6vZZ"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+13:43:37 {"paused": true, "pending_scan": 503, "pending_focr": 504, "pending_total": 1007, "idx_scan": 158, "idx_focr": 157, "loft_media": [504, ["EKCONLkv6vZZ"]], "frame_scan": [0, []], "frame_ocr": [1, []]}
+13:43:43 error HTTPError
+13:43:55 {"paused": false, "pending_scan": 503, "pending_focr": 504, "pending_total": 1007, "idx_scan": 158, "idx_focr": 157, "loft_media": [503, []], "frame_scan": [0, []], "frame_ocr": [1, []]}
+13:43:57 {"paused": false, "pending_scan": 503, "pending_focr": 504, "pending_total": 1007, "idx_scan": 158, "idx_focr": 157, "loft_media": [503, []], "frame_scan": [0, []], "frame_ocr": [0, ["vb74YwPHV6jx"]]}
+13:44:45 {"paused": false, "pending_scan": 503, "pending_focr": 503, "pending_total": 1006, "idx_scan": 158, "idx_focr": 158, "loft_media": [502, ["20xoRMf9CM4i"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+13:46:10 {"paused": false, "pending_scan": 504, "pending_focr": 504, "pending_total": 1010, "idx_scan": 158, "idx_focr": 158, "loft_media": [503, ["20xoRMf9CM4i"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+13:46:13 {"paused": false, "pending_scan": 504, "pending_focr": 504, "pending_total": 1009, "idx_scan": 158, "idx_focr": 158, "loft_media": [503, ["20xoRMf9CM4i"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+13:46:19 {"paused": false, "pending_scan": 504, "pending_focr": 504, "pending_total": 1008, "idx_scan": 158, "idx_focr": 158, "loft_media": [503, ["20xoRMf9CM4i"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+13:47:24 {"paused": false, "pending_scan": 504, "pending_focr": 504, "pending_total": 1009, "idx_scan": 158, "idx_focr": 158, "loft_media": [504, ["20xoRMf9CM4i"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+13:47:40 {"paused": false, "pending_scan": 504, "pending_focr": 504, "pending_total": 1008, "idx_scan": 158, "idx_focr": 158, "loft_media": [504, ["20xoRMf9CM4i"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+13:48:19 {"paused": false, "pending_scan": 504, "pending_focr": 504, "pending_total": 1009, "idx_scan": 158, "idx_focr": 158, "loft_media": [505, ["20xoRMf9CM4i"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+13:48:39 {"paused": false, "pending_scan": 504, "pending_focr": 504, "pending_total": 1008, "idx_scan": 158, "idx_focr": 158, "loft_media": [505, ["20xoRMf9CM4i"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+13:53:05 {"paused": false, "pending_scan": 503, "pending_focr": 504, "pending_total": 1007, "idx_scan": 159, "idx_focr": 158, "loft_media": [505, ["20xoRMf9CM4i"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+13:54:23 {"paused": false, "pending_scan": 503, "pending_focr": 503, "pending_total": 1006, "idx_scan": 159, "idx_focr": 159, "loft_media": [504, ["KvqnWhr0kXaH"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+13:55:47 {"paused": false, "pending_scan": 502, "pending_focr": 503, "pending_total": 1005, "idx_scan": 160, "idx_focr": 159, "loft_media": [504, ["KvqnWhr0kXaH"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+13:55:55 {"paused": false, "pending_scan": 502, "pending_focr": 502, "pending_total": 1004, "idx_scan": 160, "idx_focr": 160, "loft_media": [503, ["x3Z5F-1zGklE"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+13:56:09 {"paused": false, "pending_scan": 501, "pending_focr": 502, "pending_total": 1003, "idx_scan": 161, "idx_focr": 160, "loft_media": [503, ["x3Z5F-1zGklE"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+13:56:31 {"paused": false, "pending_scan": 500, "pending_focr": 500, "pending_total": 1000, "idx_scan": 161, "idx_focr": 161, "loft_media": [501, ["wGwxVltt-fCS"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+13:56:41 {"paused": false, "pending_scan": 501, "pending_focr": 501, "pending_total": 1004, "idx_scan": 161, "idx_focr": 161, "loft_media": [502, ["wGwxVltt-fCS"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+13:56:43 {"paused": false, "pending_scan": 501, "pending_focr": 501, "pending_total": 1003, "idx_scan": 161, "idx_focr": 161, "loft_media": [502, ["wGwxVltt-fCS"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+13:57:18 {"paused": false, "pending_scan": 501, "pending_focr": 501, "pending_total": 1003, "idx_scan": 161, "idx_focr": 161, "loft_media": [503, ["wGwxVltt-fCS"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+13:58:17 {"paused": false, "pending_scan": 501, "pending_focr": 502, "pending_total": 1004, "idx_scan": 161, "idx_focr": 160, "loft_media": [504, ["wGwxVltt-fCS"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+13:59:15 {"paused": false, "pending_scan": 502, "pending_focr": 502, "pending_total": 1006, "idx_scan": 160, "idx_focr": 160, "loft_media": [504, ["wGwxVltt-fCS"]], "frame_scan": [0, ["2Kz2-Hq4X7sB"]], "frame_ocr": [0, []]}
+13:59:17 {"paused": false, "pending_scan": 501, "pending_focr": 502, "pending_total": 1004, "idx_scan": 161, "idx_focr": 160, "loft_media": [504, ["wGwxVltt-fCS"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+13:59:43 error HTTPError
+13:59:53 {"paused": true, "pending_scan": 501, "pending_focr": 502, "pending_total": 1004, "idx_scan": 161, "idx_focr": 160, "loft_media": [502, []], "frame_scan": [0, []], "frame_ocr": [0, []]}
+14:00:40 {"paused": false, "pending_scan": 501, "pending_focr": 502, "pending_total": 1004, "idx_scan": 161, "idx_focr": 160, "loft_media": [501, ["_3_ovFrTI-yg"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+14:00:51 {"paused": false, "pending_scan": 501, "pending_focr": 501, "pending_total": 1003, "idx_scan": 161, "idx_focr": 161, "loft_media": [500, ["EKCONLkv6vZZ"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+14:01:11 {"paused": false, "pending_scan": 501, "pending_focr": 501, "pending_total": 1003, "idx_scan": 161, "idx_focr": 161, "loft_media": [501, ["EKCONLkv6vZZ"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+14:01:25 error HTTPError
+14:01:38 {"paused": false, "pending_scan": 501, "pending_focr": 501, "pending_total": 1003, "idx_scan": 161, "idx_focr": 161, "loft_media": [500, ["ceyaHesF7dwz"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+14:01:45 {"paused": false, "pending_scan": 501, "pending_focr": 501, "pending_total": 1003, "idx_scan": 161, "idx_focr": 161, "loft_media": [499, ["EKCONLkv6vZZ"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+14:02:01 error HTTPError
+14:02:11 {"paused": true, "pending_scan": 501, "pending_focr": 501, "pending_total": 1003, "idx_scan": 161, "idx_focr": 161, "loft_media": [501, []], "frame_scan": [0, []], "frame_ocr": [0, []]}
+14:02:25 {"paused": true, "pending_scan": 502, "pending_focr": 501, "pending_total": 1005, "idx_scan": 160, "idx_focr": 161, "loft_media": [502, []], "frame_scan": [0, []], "frame_ocr": [0, []]}
+14:02:27 {"paused": false, "pending_scan": 502, "pending_focr": 501, "pending_total": 1005, "idx_scan": 160, "idx_focr": 161, "loft_media": [501, ["_3_ovFrTI-yg"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+14:02:40 {"paused": false, "pending_scan": 501, "pending_focr": 501, "pending_total": 1004, "idx_scan": 161, "idx_focr": 161, "loft_media": [499, ["EKCONLkv6vZZ"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+14:02:46 {"paused": false, "pending_scan": 501, "pending_focr": 501, "pending_total": 1003, "idx_scan": 161, "idx_focr": 161, "loft_media": [499, ["EKCONLkv6vZZ"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
+14:03:04 {"paused": false, "pending_scan": 502, "pending_focr": 501, "pending_total": 1005, "idx_scan": 160, "idx_focr": 161, "loft_media": [499, ["EKCONLkv6vZZ"]], "frame_scan": [1, []], "frame_ocr": [0, []]}
+14:03:06 {"paused": false, "pending_scan": 502, "pending_focr": 501, "pending_total": 1005, "idx_scan": 160, "idx_focr": 161, "loft_media": [499, ["EKCONLkv6vZZ"]], "frame_scan": [0, ["vb74YwPHV6jx"]], "frame_ocr": [0, []]}
+14:03:35 {"paused": false, "pending_scan": 502, "pending_focr": 501, "pending_total": 1004, "idx_scan": 160, "idx_focr": 161, "loft_media": [499, ["EKCONLkv6vZZ"]], "frame_scan": [0, ["vb74YwPHV6jx"]], "frame_ocr": [0, []]}
+14:03:41 {"paused": false, "pending_scan": 501, "pending_focr": 501, "pending_total": 1003, "idx_scan": 161, "idx_focr": 161, "loft_media": [499, ["EKCONLkv6vZZ"]], "frame_scan": [0, []], "frame_ocr": [0, []]}
