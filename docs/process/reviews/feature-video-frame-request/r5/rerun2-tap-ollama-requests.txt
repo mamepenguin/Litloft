@@ -1,0 +1,4 @@
+Re-run 2 ollama requests (reply.py.txt), lines #13-#15; #13 g1 promo, #14 injected 400, #15 fallback.
+#13 00:46:00 n_msgs=10 tools=['get_frames'] tc=None think=True opts={'temperature': 0.1, 'num_predict': 8192} mt=None keys=['model', 'options', 'stream', 'think', 'tools'] first=28.24 total=46.01 think_chars=2338 reasoning=0 content=340 calls=[] inj=None
+#14 00:46:53 n_msgs=10 tools=['get_frames'] tc=None think=True opts={'temperature': 0.1, 'num_predict': 8192} mt=None keys=['injected', 'model', 'options', 'stream', 'think', 'tools'] first=None total=None think_chars=None reasoning=None content=None calls=[] inj=400 for a request carrying tools
+#15 00:46:53 n_msgs=10 tools=[] tc=None think=False opts={'temperature': 0.1, 'num_predict': 2048} mt=None keys=['model', 'options', 'stream', 'think', 'tools'] first=15.69 total=16.95 think_chars=0 reasoning=0 content=121 calls=[] inj=None

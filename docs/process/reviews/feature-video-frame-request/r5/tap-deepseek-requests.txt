@@ -1,0 +1,113 @@
+#0 23:07:16 status=200 first=2.79 total=3.59 n_msgs=2 {'model': 'deepseek/deepseek-v4.1-flash', 'tool_choice': 'auto', 'temperature': 0.1, 'max_tokens': 2048, 'stream': True, 'tools': ['get_frames']}
+#1 23:07:24 status=200 first=2.08 total=3.4 n_msgs=5 {'model': 'deepseek/deepseek-v4.1-flash', 'tool_choice': 'auto', 'temperature': 0.1, 'max_tokens': 2048, 'stream': True, 'tools': ['get_frames']}
+   [2] assistant: "I'll look at the frames around 11:40 to find Lucario's CP." tool_calls=[{"id": "call_0f375765340242da84250c8c", "type": "function", "function": {"name": "get_frames", "arguments": "{\"times\":[\"11:30\",\"11:40\",\"11:50\",\"12:00\"]}"}}]
+   [3] tool: '4 frames follow.' tool_call_id=call_0f375765340242da84250c8c
+   [4] user: ['[168] 11:30', 'IMG 8614251830ec3c6e:97236', '[169] 11:40', 'IMG 13690bc932534526:97814', '[170] 11:50', 'IMG 671258f1efd89961:84212', '[171] 12:00', 'IMG 05cf0b21d1100d7b:104184']
+#2 23:08:33 status=200 first=2.05 total=2.88 n_msgs=2 {'model': 'deepseek/deepseek-v4.1-flash', 'tool_choice': 'auto', 'temperature': 0.1, 'max_tokens': 2048, 'stream': True, 'tools': ['get_frames']}
+#3 23:08:39 status=200 first=2.59 total=14.09 n_msgs=5 {'model': 'deepseek/deepseek-v4.1-flash', 'tool_choice': 'auto', 'temperature': 0.1, 'max_tokens': 2048, 'stream': True, 'tools': ['get_frames']}
+   [2] assistant: '' tool_calls=[{"id": "chatcmpl-tool-06a73dca65704405ad97abf551c23c4e", "type": "function", "function": {"name": "get_frames", "arguments": "{\"times\": [\"8:10\", \"8:40\", \"9:20\", \"10:00\"]}"}}]
+   [3] tool: '4 frames follow.' tool_call_id=chatcmpl-tool-06a73dca65704405ad97abf551c23c4e
+   [4] user: ['[168] 8:10', 'IMG 067b25ba417a9428:84102', '[169] 8:40', 'IMG 8e117041dcdf1085:75184', '[170] 9:20', 'IMG 3bdb65cf1cdac3ee:78490', '[171] 10:00', 'IMG af6e05d6de745138:81392']
+#4 23:08:56 status=200 first=2.71 total=10.59 n_msgs=8 {'model': 'deepseek/deepseek-v4.1-flash', 'tool_choice': 'auto', 'temperature': 0.1, 'max_tokens': 2048, 'stream': True, 'tools': ['get_frames']}
+   [2] assistant: '' tool_calls=[{"id": "chatcmpl-tool-06a73dca65704405ad97abf551c23c4e", "type": "function", "function": {"name": "get_frames", "arguments": "{\"times\": [\"8:10\", \"8:40\", \"9:20\", \"10:00\"]}"}}]
+   [3] tool: '4 frames follow.' tool_call_id=chatcmpl-tool-06a73dca65704405ad97abf551c23c4e
+   [4] user: ['[168] 8:10', 'IMG 067b25ba417a9428:84102', '[169] 8:40', 'IMG 8e117041dcdf1085:75184', '[170] 9:20', 'IMG 3bdb65cf1cdac3ee:78490', '[171] 10:00', 'IMG af6e05d6de745138:81392']
+   [5] assistant: '' tool_calls=[{"id": "call-75a546d9-7380-4897-a1d4-d47ac29b55e1", "type": "function", "function": {"name": "get_frames", "arguments": "{\"times\": [\"8:02\", \"10:15\", \"10:30\", \"10:45\"]}"}}]
+   [6] tool: '4 frames follow.' tool_call_id=call-75a546d9-7380-4897-a1d4-d47ac29b55e1
+   [7] user: ['[172] 8:02', 'IMG cfa28d396366fea7:110284', '[173] 10:15', 'IMG cf6068f90e580d26:80670', '[174] 10:30', 'IMG 0bb8a80950cb0758:99540', '[175] 10:45', 'IMG 4b088b7633c0794f:92530']
+#5 23:09:10 status=200 first=3.0 total=8.41 n_msgs=11 {'model': 'deepseek/deepseek-v4.1-flash', 'tool_choice': 'none', 'temperature': 0.1, 'max_tokens': 2048, 'stream': True, 'tools': ['get_frames']}
+   [2] assistant: '' tool_calls=[{"id": "chatcmpl-tool-06a73dca65704405ad97abf551c23c4e", "type": "function", "function": {"name": "get_frames", "arguments": "{\"times\": [\"8:10\", \"8:40\", \"9:20\", \"10:00\"]}"}}]
+   [3] tool: '4 frames follow.' tool_call_id=chatcmpl-tool-06a73dca65704405ad97abf551c23c4e
+   [4] user: ['[168] 8:10', 'IMG 067b25ba417a9428:84102', '[169] 8:40', 'IMG 8e117041dcdf1085:75184', '[170] 9:20', 'IMG 3bdb65cf1cdac3ee:78490', '[171] 10:00', 'IMG af6e05d6de745138:81392']
+   [5] assistant: '' tool_calls=[{"id": "call-75a546d9-7380-4897-a1d4-d47ac29b55e1", "type": "function", "function": {"name": "get_frames", "arguments": "{\"times\": [\"8:02\", \"10:15\", \"10:30\", \"10:45\"]}"}}]
+   [6] tool: '4 frames follow.' tool_call_id=call-75a546d9-7380-4897-a1d4-d47ac29b55e1
+   [7] user: ['[172] 8:02', 'IMG cfa28d396366fea7:110284', '[173] 10:15', 'IMG cf6068f90e580d26:80670', '[174] 10:30', 'IMG 0bb8a80950cb0758:99540', '[175] 10:45', 'IMG 4b088b7633c0794f:92530']
+   [8] assistant: '' tool_calls=[{"id": "call-87beab11-eb00-456a-b9f0-67ebe5ba8b4f", "type": "function", "function": {"name": "get_frames", "arguments": "{\"times\": [\"8:20\", \"9:45\"]}"}}]
+   [9] tool: '2 frames follow.' tool_call_id=call-87beab11-eb00-456a-b9f0-67ebe5ba8b4f
+   [10] user: ['[176] 8:20', 'IMG 0be40631b31bccf6:89284', '[177] 9:45', 'IMG acd99f88456e8db7:79762']
+#6 23:12:24 status=200 first=4.56 total=6.46 n_msgs=2 {'model': 'deepseek/deepseek-v4.1-flash', 'tool_choice': 'auto', 'temperature': 0.1, 'max_tokens': 2048, 'stream': True, 'tools': ['get_frames']}
+#7 23:12:34 status=200 first=1.76 total=12.56 n_msgs=5 {'model': 'deepseek/deepseek-v4.1-flash', 'tool_choice': 'auto', 'temperature': 0.1, 'max_tokens': 2048, 'stream': True, 'tools': ['get_frames']}
+   [2] assistant: '' tool_calls=[{"id": "call_b9936ff945f947129774ee32982ef2af", "type": "function", "function": {"name": "get_frames", "arguments": "{\"times\": [\"8:10\", \"8:30\", \"9:00\", \"9:30\"]}"}}]
+   [3] tool: '4 frames follow.' tool_call_id=call_b9936ff945f947129774ee32982ef2af
+   [4] user: ['[168] 8:10', 'IMG 067b25ba417a9428:84102', '[169] 8:30', 'IMG ea0e2b7fa1f891bd:84712', '[170] 9:00', 'IMG 4d10cc51db3d208a:84298', '[171] 9:30', 'IMG a7b440965d5babe1:78606']
+#8 23:12:50 status=200 first=2.53 total=15.98 n_msgs=8 {'model': 'deepseek/deepseek-v4.1-flash', 'tool_choice': 'auto', 'temperature': 0.1, 'max_tokens': 2048, 'stream': True, 'tools': ['get_frames']}
+   [2] assistant: '' tool_calls=[{"id": "call_b9936ff945f947129774ee32982ef2af", "type": "function", "function": {"name": "get_frames", "arguments": "{\"times\": [\"8:10\", \"8:30\", \"9:00\", \"9:30\"]}"}}]
+   [3] tool: '4 frames follow.' tool_call_id=call_b9936ff945f947129774ee32982ef2af
+   [4] user: ['[168] 8:10', 'IMG 067b25ba417a9428:84102', '[169] 8:30', 'IMG ea0e2b7fa1f891bd:84712', '[170] 9:00', 'IMG 4d10cc51db3d208a:84298', '[171] 9:30', 'IMG a7b440965d5babe1:78606']
+   [5] assistant: '' tool_calls=[{"id": "call-40f58dce-28f0-4b21-bcad-f3f445d1cad8", "type": "function", "function": {"name": "get_frames", "arguments": "{\"times\": [\"9:50\", \"10:05\", \"10:20\", \"10:45\"]}"}}]
+   [6] tool: '4 frames follow.' tool_call_id=call-40f58dce-28f0-4b21-bcad-f3f445d1cad8
+   [7] user: ['[172] 9:50', 'IMG 9d8f5a81fb24d916:76948', '[173] 10:05', 'IMG 7e290d75dca20eb0:83878', '[174] 10:20', 'IMG 8184228de62d55c1:86518', '[175] 10:45', 'IMG 4b088b7633c0794f:92530']
+#9 23:13:06 status=200 first=1.74 total=4.49 n_msgs=2 {'model': 'deepseek/deepseek-v4.1-flash', 'temperature': 0.1, 'max_tokens': 2048, 'stream': True, 'tools': []}
+#10 23:13:44 status=200 first=3.31 total=3.84 n_msgs=2 {'model': 'deepseek/deepseek-v4.1-flash', 'tool_choice': 'auto', 'temperature': 0.1, 'max_tokens': 2048, 'stream': True, 'tools': ['get_frames']}
+#11 23:13:48 status=200 first=4.41 total=12.01 n_msgs=5 {'model': 'deepseek/deepseek-v4.1-flash', 'tool_choice': 'auto', 'temperature': 0.1, 'max_tokens': 2048, 'stream': True, 'tools': ['get_frames']}
+   [2] assistant: '' tool_calls=[{"id": "call_515b6d3d65fe4a31921569b91c2b055d", "type": "function", "function": {"name": "get_frames", "arguments": "{\"times\": [\"8:30\", \"9:00\", \"9:30\", \"10:00\"]}"}}]
+   [3] tool: '4 frames follow.' tool_call_id=call_515b6d3d65fe4a31921569b91c2b055d
+   [4] user: ['[168] 8:30', 'IMG ea0e2b7fa1f891bd:84712', '[169] 9:00', 'IMG 4d10cc51db3d208a:84298', '[170] 9:30', 'IMG a7b440965d5babe1:78606', '[171] 10:00', 'IMG af6e05d6de745138:81392']
+#12 23:14:00 status=200 first=2.97 total=5.52 n_msgs=2 {'model': 'deepseek/deepseek-v4.1-flash', 'temperature': 0.1, 'max_tokens': 2048, 'stream': True, 'tools': []}
+#13 23:16:59 status=200 first=1.84 total=2.46 n_msgs=2 {'model': 'deepseek/deepseek-v4.1-flash', 'tool_choice': 'auto', 'temperature': 0.1, 'max_tokens': 2048, 'stream': True, 'tools': ['get_frames']}
+#14 23:17:01 status=200 first=2.65 total=4.82 n_msgs=5 {'model': 'deepseek/deepseek-v4.1-flash', 'tool_choice': 'auto', 'temperature': 0.1, 'max_tokens': 2048, 'stream': True, 'tools': ['get_frames']}
+   [2] assistant: '' tool_calls=[{"id": "chatcmpl-tool-98228648e5a8319d", "type": "function", "function": {"name": "get_frames", "arguments": "{\"times\": [\"3:02\", \"3:08\", \"3:14\", \"3:20\"]}"}}]
+   [3] tool: '4 frames follow.' tool_call_id=chatcmpl-tool-98228648e5a8319d
+   [4] user: ['[108] 3:02', 'IMG ea4eaf8e6d2e24a2:38898', '[109] 3:08', 'IMG 04d947e69867f6ec:34752', '[110] 3:14', 'IMG 3b982cba6bc80874:38878', '[111] 3:20', 'IMG d06e17cb00f76789:33284']
+#15 23:20:12 status=200 first=1.98 total=2.88 n_msgs=2 {'model': 'deepseek/deepseek-v4.1-flash', 'tool_choice': 'auto', 'temperature': 0.1, 'max_tokens': 2048, 'stream': True, 'tools': ['get_frames']}
+#16 23:20:19 status=200 first=2.79 total=4.67 n_msgs=5 {'model': 'deepseek/deepseek-v4.1-flash', 'tool_choice': 'auto', 'temperature': 0.1, 'max_tokens': 2048, 'stream': True, 'tools': ['get_frames']}
+   [2] assistant: '' tool_calls=[{"id": "chatcmpl-tool-a24cbb20de38a75e", "type": "function", "function": {"name": "get_frames", "arguments": "{\"times\": [\"16:20\", \"16:30\", \"16:50\", \"17:00\"]}"}}]
+   [3] tool: '4 frames follow.' tool_call_id=chatcmpl-tool-a24cbb20de38a75e
+   [4] user: ['[168] 16:20', 'IMG 04f8fe8aa32997e1:130332', '[169] 16:30', 'IMG 31b3a4e404579718:117676', '[170] 16:50', 'IMG 00b899718e1644cd:121842', '[171] 17:00', 'IMG 15de1ec9e7ba63cb:125270']
+#17 23:22:01 status=200 first=1.6 total=3.41 n_msgs=2 {'model': 'deepseek/deepseek-v4.1-flash', 'tool_choice': 'auto', 'temperature': 0.1, 'max_tokens': 2048, 'stream': True, 'tools': ['get_frames']}
+#18 23:22:05 status=200 first=3.22 total=5.39 n_msgs=5 {'model': 'deepseek/deepseek-v4.1-flash', 'tool_choice': 'auto', 'temperature': 0.1, 'max_tokens': 2048, 'stream': True, 'tools': ['get_frames']}
+   [2] assistant: '' tool_calls=[{"id": "call_0_bcc744c3c5273c5", "type": "function", "function": {"name": "get_frames", "arguments": "{\"times\":[\"4:55\",\"5:00\",\"5:10\",\"5:20\"]}"}}]
+   [3] tool: '4 frames follow.' tool_call_id=call_0_bcc744c3c5273c5
+   [4] user: ['[108] 4:55', 'IMG 1b11f68bc2c71fa1:25326', '[109] 5:00', 'IMG dd2ac2b7fa4892f0:18132', '[110] 5:10', 'IMG ccff0deecf4ce283:33298', '[111] 5:20', 'IMG 0e4a71e2e96f2c46:53694']
+#19 23:22:11 status=200 first=3.27 total=7.31 n_msgs=8 {'model': 'deepseek/deepseek-v4.1-flash', 'tool_choice': 'auto', 'temperature': 0.1, 'max_tokens': 2048, 'stream': True, 'tools': ['get_frames']}
+   [2] assistant: '' tool_calls=[{"id": "call_0_bcc744c3c5273c5", "type": "function", "function": {"name": "get_frames", "arguments": "{\"times\":[\"4:55\",\"5:00\",\"5:10\",\"5:20\"]}"}}]
+   [3] tool: '4 frames follow.' tool_call_id=call_0_bcc744c3c5273c5
+   [4] user: ['[108] 4:55', 'IMG 1b11f68bc2c71fa1:25326', '[109] 5:00', 'IMG dd2ac2b7fa4892f0:18132', '[110] 5:10', 'IMG ccff0deecf4ce283:33298', '[111] 5:20', 'IMG 0e4a71e2e96f2c46:53694']
+   [5] assistant: '' tool_calls=[{"id": "call_00_87bifz9k7j9sih5f46n229nx", "type": "function", "function": {"name": "get_frames", "arguments": "{\"times\": [\"5:30\", \"5:45\", \"5:50\", \"6:00\"]}"}}]
+   [6] tool: '4 frames follow.' tool_call_id=call_00_87bifz9k7j9sih5f46n229nx
+   [7] user: ['[112] 5:30', 'IMG 4542e51901f4edf4:69586', '[113] 5:45', 'IMG f35fdf5d955379e4:69732', '[114] 5:50', 'IMG 9bee0c4a2f95cbbc:79502', '[115] 6:00', 'IMG e93ba07bfc5899e9:31194']
+#20 23:22:18 status=200 first=4.19 total=7.97 n_msgs=11 {'model': 'deepseek/deepseek-v4.1-flash', 'tool_choice': 'none', 'temperature': 0.1, 'max_tokens': 2048, 'stream': True, 'tools': ['get_frames']}
+   [2] assistant: '' tool_calls=[{"id": "call_0_bcc744c3c5273c5", "type": "function", "function": {"name": "get_frames", "arguments": "{\"times\":[\"4:55\",\"5:00\",\"5:10\",\"5:20\"]}"}}]
+   [3] tool: '4 frames follow.' tool_call_id=call_0_bcc744c3c5273c5
+   [4] user: ['[108] 4:55', 'IMG 1b11f68bc2c71fa1:25326', '[109] 5:00', 'IMG dd2ac2b7fa4892f0:18132', '[110] 5:10', 'IMG ccff0deecf4ce283:33298', '[111] 5:20', 'IMG 0e4a71e2e96f2c46:53694']
+   [5] assistant: '' tool_calls=[{"id": "call_00_87bifz9k7j9sih5f46n229nx", "type": "function", "function": {"name": "get_frames", "arguments": "{\"times\": [\"5:30\", \"5:45\", \"5:50\", \"6:00\"]}"}}]
+   [6] tool: '4 frames follow.' tool_call_id=call_00_87bifz9k7j9sih5f46n229nx
+   [7] user: ['[112] 5:30', 'IMG 4542e51901f4edf4:69586', '[113] 5:45', 'IMG f35fdf5d955379e4:69732', '[114] 5:50', 'IMG 9bee0c4a2f95cbbc:79502', '[115] 6:00', 'IMG e93ba07bfc5899e9:31194']
+   [8] assistant: '' tool_calls=[{"id": "call_00_lj25fpbord6863e6gis5npik", "type": "function", "function": {"name": "get_frames", "arguments": "{\"times\": [\"5:33\", \"5:35\", \"5:40\", \"5:42\"]}"}}]
+   [9] tool: '4 frames follow.' tool_call_id=call_00_lj25fpbord6863e6gis5npik
+   [10] user: ['[116] 5:33', 'IMG dd50cb1f3a4020bb:74224', '[117] 5:35', 'IMG b0f1663e1b32ca74:74334', '[118] 5:40', 'IMG 0004204a11461f60:76308', '[119] 5:42', 'IMG 475c2c5d3fe0ba9f:71494']
+#21 23:22:44 status=200 first=2.76 total=3.19 n_msgs=2 {'model': 'deepseek/deepseek-v4.1-flash', 'tool_choice': 'auto', 'temperature': 0.1, 'max_tokens': 2048, 'stream': True, 'tools': ['get_frames']}
+#22 23:22:48 status=200 first=2.1 total=8.2 n_msgs=5 {'model': 'deepseek/deepseek-v4.1-flash', 'tool_choice': 'auto', 'temperature': 0.1, 'max_tokens': 2048, 'stream': True, 'tools': ['get_frames']}
+   [2] assistant: '' tool_calls=[{"id": "call_a373c01660314eae9c3fc8573d5bb3fb", "type": "function", "function": {"name": "get_frames", "arguments": "{\"times\": [\"5:40\", \"5:45\", \"5:50\", \"5:55\"]}"}}]
+   [3] tool: '4 frames follow.' tool_call_id=call_a373c01660314eae9c3fc8573d5bb3fb
+   [4] user: ['[108] 5:40', 'IMG 0004204a11461f60:76308', '[109] 5:45', 'IMG f35fdf5d955379e4:69732', '[110] 5:50', 'IMG 9bee0c4a2f95cbbc:79502', '[111] 5:55', 'IMG 99dd3160f0173d27:30920']
+#23 23:23:34 status=200 first=1.7 total=2.36 n_msgs=2 {'model': 'deepseek/deepseek-v4.1-flash', 'tool_choice': 'auto', 'temperature': 0.1, 'max_tokens': 2048, 'stream': True, 'tools': ['get_frames']}
+#24 23:23:37 status=200 first=1.13 total=3.88 n_msgs=5 {'model': 'deepseek/deepseek-v4.1-flash', 'tool_choice': 'auto', 'temperature': 0.1, 'max_tokens': 2048, 'stream': True, 'tools': ['get_frames']}
+   [2] assistant: '' tool_calls=[{"id": "chatcmpl-tool-947253beacaf9b0b", "type": "function", "function": {"name": "get_frames", "arguments": "{\"times\": [\"5:46\", \"6:30\", \"10:30\"]}"}}]
+   [3] tool: '2 frames follow.\n- 10:30: past the end of the video' tool_call_id=chatcmpl-tool-947253beacaf9b0b
+   [4] user: ['[108] 5:46', 'IMG c751269c2c2eecc5:63274', '[109] 6:30', 'IMG 608c8c7c6af1fb4e:58022']
+#0 23:07:16 first=2.79 total=3.59 tool_choice=auto reasoning_chars=245 finish=['tool_calls']
+#1 23:07:24 first=2.08 total=3.4 tool_choice=auto reasoning_chars=44 finish=['stop']
+#2 23:08:33 first=2.05 total=2.88 tool_choice=auto reasoning_chars=674 finish=['tool_calls']
+#3 23:08:39 first=2.59 total=14.09 tool_choice=auto reasoning_chars=5866 finish=['tool_calls']
+#4 23:08:56 first=2.71 total=10.59 tool_choice=auto reasoning_chars=3913 finish=['tool_calls']
+#5 23:09:10 first=3.0 total=8.41 tool_choice=none reasoning_chars=1449 finish=['stop']
+#6 23:12:24 first=4.56 total=6.46 tool_choice=auto reasoning_chars=413 finish=['tool_calls']
+#7 23:12:34 first=1.76 total=12.56 tool_choice=auto reasoning_chars=4732 finish=['tool_calls']
+#8 23:12:50 first=2.53 total=15.98 tool_choice=auto reasoning_chars=7054 finish=['length']
+#9 23:13:06 first=1.74 total=4.49 tool_choice=None reasoning_chars=969 finish=['stop']
+#10 23:13:44 first=3.31 total=3.84 tool_choice=auto reasoning_chars=420 finish=['tool_calls']
+#11 23:13:48 first=4.41 total=12.01 tool_choice=auto reasoning_chars=6230 finish=['length']
+#12 23:14:00 first=2.97 total=5.52 tool_choice=None reasoning_chars=1480 finish=['stop']
+#13 23:16:59 first=1.84 total=2.46 tool_choice=auto reasoning_chars=435 finish=['tool_calls']
+#14 23:17:01 first=2.65 total=4.82 tool_choice=auto reasoning_chars=244 finish=['stop']
+#15 23:20:12 first=1.98 total=2.88 tool_choice=auto reasoning_chars=511 finish=['tool_calls']
+#16 23:20:19 first=2.79 total=4.67 tool_choice=auto reasoning_chars=1283 finish=['tool_calls']
+#17 23:22:01 first=1.6 total=3.41 tool_choice=auto reasoning_chars=307 finish=['tool_calls']
+#18 23:22:05 first=3.22 total=5.39 tool_choice=auto reasoning_chars=940 finish=['tool_calls']
+#19 23:22:11 first=3.27 total=7.31 tool_choice=auto reasoning_chars=1680 finish=['tool_calls']
+#20 23:22:18 first=4.19 total=7.97 tool_choice=none reasoning_chars=515 finish=['stop']
+#21 23:22:44 first=2.76 total=3.19 tool_choice=auto reasoning_chars=411 finish=['tool_calls']
+#22 23:22:48 first=2.1 total=8.2 tool_choice=auto reasoning_chars=2081 finish=['stop']
+#23 23:23:34 first=1.7 total=2.36 tool_choice=auto reasoning_chars=460 finish=['tool_calls']
+#24 23:23:37 first=1.13 total=3.88 tool_choice=auto reasoning_chars=428 finish=['stop']

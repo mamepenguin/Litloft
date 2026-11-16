@@ -1,0 +1,60 @@
+Re-run 2026-11-15/16, core 192b1e91 + intelligence 17a04353. One line per model request (reply.py: keys = non-message request keys; mt = max_tokens; reasoning = reasoning chars in the reply; times host JST).
+Questions: #0-2 d1 collection, #3-5 d2 collection, #6-8 d3 collection, #9-10 d4 vb74 3:00-3:20, #11 browser Lucario CP (player at 8:45), #12-13 d5-gz vb74 3:00-3:20, #14 d6-pos Lucario (position 613), #15-16 d7-nopos Lucario, #17-18 f2 injected refusal + fallback, #19-22 d8 pan.
+#0 00:02:44 n_msgs=2 tools=['get_frames'] tc=auto think=None opts=None mt=None keys=['model', 'stream', 'temperature', 'tool_choice', 'tools'] first=3.63 total=4.24 think_chars=0 reasoning=462 content=0 calls=[{"index": 0, "id": "call_ff3036270ae541c4bc3448ca11783371", "type": "function", "function": {"name": "get_frames", "arguments": ""}}, {"index": 0, "function": {"arguments": ""}}, {"index": 0, "function": {"arguments": "{\"times\": "}}, {"index": 0, "function": {"arguments": "[\"8:10\", \"8:40\", \" inj=None
+#1 00:02:53 n_msgs=5 tools=['get_frames'] tc=auto think=None opts=None mt=None keys=['model', 'stream', 'temperature', 'tool_choice', 'tools'] first=3.35 total=17.81 think_chars=0 reasoning=7945 content=0 calls=[{"index": 0, "id": "chatcmpl-tool-8c32529bae57ee38", "type": "function", "function": {"name": "get_frames", "arguments": ""}}, {"index": 0, "function": {"arguments": "{\"times\": "}}, {"index": 0, "function": {"arguments": "[\"8:05\", \"8:25\", \"9:45\", \"10:15\"]}"}}, {"finish_reason": "tool_call inj=None
+#2 00:03:14 n_msgs=8 tools=['get_frames'] tc=auto think=None opts=None mt=None keys=['model', 'stream', 'temperature', 'tool_choice', 'tools'] first=2.42 total=52.77 think_chars=0 reasoning=34584 content=311 calls=[{"finish_reason": "stop"}, {"finish_reason": "stop"}] inj=None
+#3 00:04:07 n_msgs=2 tools=['get_frames'] tc=auto think=None opts=None mt=None keys=['model', 'stream', 'temperature', 'tool_choice', 'tools'] first=3.05 total=3.78 think_chars=0 reasoning=470 content=0 calls=[{"index": 0, "id": "chatcmpl-tool-839c61b371b08c2b", "type": "function", "function": {"name": "get_frames", "arguments": ""}}, {"index": 0, "function": {"arguments": "{\"times\": "}}, {"index": 0, "function": {"arguments": "[\"8:10\", \"8:30\", \"8:50\", \"9:10\"]}"}}, {"finish_reason": "tool_calls inj=None
+#4 00:04:13 n_msgs=5 tools=['get_frames'] tc=auto think=None opts=None mt=None keys=['model', 'stream', 'temperature', 'tool_choice', 'tools'] first=2.06 total=15.73 think_chars=0 reasoning=8930 content=0 calls=[{"index": 0, "id": "chatcmpl-tool-b61186c9f51da1ab", "type": "function", "function": {"name": "get_frames", "arguments": ""}}, {"index": 0, "function": {"arguments": "{\"times\": [\"9:30\", \"9:50\", \"10:10\", \"10:30\"]}"}}, {"finish_reason": "tool_calls"}, {"finish_reason": "tool_calls"}] inj=None
+#5 00:04:32 n_msgs=8 tools=['get_frames'] tc=auto think=None opts=None mt=None keys=['model', 'stream', 'temperature', 'tool_choice', 'tools'] first=2.41 total=274.82 think_chars=0 reasoning=297507 content=0 calls=[] inj=None
+#6 00:09:07 n_msgs=2 tools=['get_frames'] tc=auto think=None opts=None mt=None keys=['model', 'stream', 'temperature', 'tool_choice', 'tools'] first=1.88 total=2.47 think_chars=0 reasoning=460 content=0 calls=[{"index": 0, "id": "chatcmpl-tool-9b66e54f2976c7a8", "type": "function", "function": {"name": "get_frames", "arguments": ""}}, {"index": 0, "function": {"arguments": "{\"times\": [\"8:10\", \"8:30\", \"9:00\", \"9:30\"]}"}}, {"finish_reason": "tool_calls"}, {"finish_reason": "tool_calls"}] inj=None
+#7 00:09:13 n_msgs=5 tools=['get_frames'] tc=auto think=None opts=None mt=None keys=['model', 'stream', 'temperature', 'tool_choice', 'tools'] first=1.66 total=26.79 think_chars=0 reasoning=17286 content=0 calls=[{"index": 0, "id": "chatcmpl-tool-91540670b65fa18d", "type": "function", "function": {"name": "get_frames", "arguments": ""}}, {"index": 0, "function": {"arguments": "{\"times\": [\"8:00\", \"8:05\", \"9:35\", \"9:40\"]}"}}, {"finish_reason": "tool_calls"}, {"finish_reason": "tool_calls"}] inj=None
+#8 00:09:42 n_msgs=8 tools=['get_frames'] tc=auto think=None opts=None mt=None keys=['model', 'stream', 'temperature', 'tool_choice', 'tools'] first=1.94 total=265.17 think_chars=0 reasoning=289522 content=0 calls=[] inj=None
+#9 00:14:07 n_msgs=2 tools=['get_frames'] tc=auto think=None opts=None mt=None keys=['model', 'stream', 'temperature', 'tool_choice', 'tools'] first=1.73 total=3.45 think_chars=0 reasoning=632 content=0 calls=[{"index": 0, "id": "call_0_6c7dbeccfd004b7f", "type": "function", "function": {"name": "get_frames", "arguments": ""}}, {"index": 0, "function": {"arguments": "{\"times\":[\"3:00\",\"3:05\",\"3:10\",\"3:20\"]}"}}, {"finish_reason": "tool_calls"}, {"finish_reason": "tool_calls"}] inj=None
+#10 00:14:11 n_msgs=5 tools=['get_frames'] tc=auto think=None opts=None mt=None keys=['model', 'stream', 'temperature', 'tool_choice', 'tools'] first=2.03 total=4.37 think_chars=0 reasoning=200 content=327 calls=[{"finish_reason": "stop"}, {"finish_reason": "stop"}] inj=None
+#11 00:15:10 n_msgs=2 tools=['get_frames'] tc=auto think=None opts=None mt=None keys=['model', 'stream', 'temperature', 'tool_choice', 'tools'] first=3.0 total=3.99 think_chars=0 reasoning=224 content=133 calls=[{"finish_reason": "stop"}, {"finish_reason": "stop"}] inj=None
+#12 00:18:38 n_msgs=2 tools=['get_frames'] tc=auto think=None opts=None mt=None keys=['model', 'stream', 'temperature', 'tool_choice', 'tools'] first=2.68 total=4.34 think_chars=0 reasoning=1127 content=0 calls=[{"index": 0, "id": "chatcmpl-tool-85da693770a3d487", "type": "function", "function": {"name": "get_frames", "arguments": ""}}, {"index": 0, "function": {"arguments": "{\"times\": "}}, {"index": 0, "function": {"arguments": "[\"3:00\", \"3:08\", \"3:15\", \"3:20\"]}"}}, {"finish_reason": "tool_calls inj=None
+#13 00:18:42 n_msgs=5 tools=['get_frames'] tc=auto think=None opts=None mt=None keys=['model', 'stream', 'temperature', 'tool_choice', 'tools'] first=1.98 total=3.6 think_chars=0 reasoning=340 content=264 calls=[{"finish_reason": "stop"}, {"finish_reason": "stop"}] inj=None
+#14 00:19:02 n_msgs=2 tools=['get_frames'] tc=auto think=None opts=None mt=None keys=['model', 'stream', 'temperature', 'tool_choice', 'tools'] first=1.87 total=2.25 think_chars=0 reasoning=51 content=119 calls=[{"finish_reason": "stop"}, {"finish_reason": "stop"}] inj=None
+#15 00:19:05 n_msgs=2 tools=['get_frames'] tc=auto think=None opts=None mt=None keys=['model', 'stream', 'temperature', 'tool_choice', 'tools'] first=3.74 total=4.21 think_chars=0 reasoning=294 content=0 calls=[{"index": 0, "id": "call_b6233653a1ae47e881c057fed4c0cb67", "type": "function", "function": {"name": "get_frames", "arguments": ""}}, {"index": 0, "function": {"arguments": ""}}, {"index": 0, "function": {"arguments": "{\"times\": "}}, {"index": 0, "function": {"arguments": "[\"11:30\", \"11:40\",  inj=None
+#16 00:19:11 n_msgs=5 tools=['get_frames'] tc=auto think=None opts=None mt=None keys=['model', 'stream', 'temperature', 'tool_choice', 'tools'] first=4.23 total=4.68 think_chars=0 reasoning=37 content=151 calls=[{"finish_reason": "stop"}, {"finish_reason": "stop"}] inj=None
+#17 00:19:44 n_msgs=2 tools=['get_frames'] tc=auto think=None opts=None mt=None keys=['injected', 'model', 'stream', 'temperature', 'tool_choice', 'tools'] first=None total=None think_chars=None reasoning=None content=None calls=[] inj=400 for a request carrying tools
+#18 00:19:44 n_msgs=2 tools=[] tc=None think=None opts=None mt=2048 keys=['max_tokens', 'model', 'stream', 'temperature', 'tools'] first=1.78 total=2.62 think_chars=0 reasoning=106 content=165 calls=[{"finish_reason": "stop"}, {"finish_reason": "stop"}] inj=None
+#19 00:20:02 n_msgs=2 tools=['get_frames'] tc=auto think=None opts=None mt=None keys=['model', 'stream', 'temperature', 'tool_choice', 'tools'] first=2.51 total=3.22 think_chars=0 reasoning=442 content=0 calls=[{"index": 0, "id": "chatcmpl-tool-a8d7b2961ea4d213", "type": "function", "function": {"name": "get_frames", "arguments": ""}}, {"index": 0, "function": {"arguments": "{\"times\": "}}, {"index": 0, "function": {"arguments": "[\"4:55\", \"5:05\", \"5:15\", \"5:25\"]}"}}, {"finish_reason": "tool_calls inj=None
+#20 00:20:05 n_msgs=5 tools=['get_frames'] tc=auto think=None opts=None mt=None keys=['model', 'stream', 'temperature', 'tool_choice', 'tools'] first=1.92 total=3.14 think_chars=0 reasoning=705 content=0 calls=[{"index": 0, "id": "chatcmpl-tool-a4e6a971f3777a25", "type": "function", "function": {"name": "get_frames", "arguments": ""}}, {"index": 0, "function": {"arguments": "{\"times\": "}}, {"index": 0, "function": {"arguments": "[\"5:30\", \"5:40\", \"5:45\", \"5:50\"]}"}}, {"finish_reason": "tool_calls inj=None
+#21 00:20:09 n_msgs=8 tools=['get_frames'] tc=auto think=None opts=None mt=None keys=['model', 'stream', 'temperature', 'tool_choice', 'tools'] first=3.15 total=4.82 think_chars=0 reasoning=1031 content=0 calls=[{"index": 0, "id": "chatcmpl-tool-94375af3dd7d2e82", "type": "function", "function": {"name": "get_frames", "arguments": ""}}, {"index": 0, "function": {"arguments": "{\"times\": "}}, {"index": 0, "function": {"arguments": "[\"5:00\", \"5:20\", \"5:35\", \"5:55\"]}"}}, {"finish_reason": "tool_calls inj=None
+#22 00:20:14 n_msgs=11 tools=['get_frames'] tc=none think=None opts=None mt=None keys=['model', 'stream', 'temperature', 'tool_choice', 'tools'] first=3.42 total=6.47 think_chars=0 reasoning=811 content=421 calls=[{"finish_reason": "stop"}, {"finish_reason": "stop"}] inj=None
+
+--- exchange of request #2
+  [2] assistant tool_calls [['8:10', '8:40', '9:20', '10:00']]
+  [3] tool: '4 frames follow.'
+  [4] user: ['[168] 8:10', '[169] 8:40', '[170] 9:20', '[171] 10:00']
+  [5] assistant tool_calls [['8:05', '8:25', '9:45', '10:15']]
+  [6] tool: '4 frames follow.'
+  [7] user: ['[172] 8:05', '[173] 8:25', '[174] 9:45', '[175] 10:15']
+
+--- exchange of request #5
+  [2] assistant tool_calls [['8:10', '8:30', '8:50', '9:10']]
+  [3] tool: '4 frames follow.'
+  [4] user: ['[168] 8:10', '[169] 8:30', '[170] 8:50', '[171] 9:10']
+  [5] assistant tool_calls [['9:30', '9:50', '10:10', '10:30']]
+  [6] tool: '4 frames follow.'
+  [7] user: ['[172] 9:30', '[173] 9:50', '[174] 10:10', '[175] 10:30']
+
+--- exchange of request #8
+  [2] assistant tool_calls [['8:10', '8:30', '9:00', '9:30']]
+  [3] tool: '4 frames follow.'
+  [4] user: ['[168] 8:10', '[169] 8:30', '[170] 9:00', '[171] 9:30']
+  [5] assistant tool_calls [['8:00', '8:05', '9:35', '9:40']]
+  [6] tool: '4 frames follow.'
+  [7] user: ['[172] 8:00', '[173] 8:05', '[174] 9:35', '[175] 9:40']
+
+--- exchange of request #22
+  [2] assistant tool_calls [['4:55', '5:05', '5:15', '5:25']]
+  [3] tool: '4 frames follow.'
+  [4] user: ['[108] 4:55', '[109] 5:05', '[110] 5:15', '[111] 5:25']
+  [5] assistant tool_calls [['5:30', '5:40', '5:45', '5:50']]
+  [6] tool: '4 frames follow.'
+  [7] user: ['[112] 5:30', '[113] 5:40', '[114] 5:45', '[115] 5:50']
+  [8] assistant tool_calls [['5:00', '5:20', '5:35', '5:55']]
+  [9] tool: '4 frames follow.'
+  [10] user: ['[116] 5:00', '[117] 5:20', '[118] 5:35', '[119] 5:55']
