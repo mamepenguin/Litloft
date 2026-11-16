@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: continue — the human, 2026-11-16, on r6 HUMAN_REVIEW_REQUIRED: 「続ける」, to add an independent review limited to the fetch (loft_media.py, youtube_source.py download, indexer.py queueing) before shipping
 ran_in_app: yes
 at: 0888520fcc2f25e3a201de3b99187f2b1659cb61
 by: agent
