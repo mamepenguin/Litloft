@@ -1,0 +1,24 @@
+Re-run: first byte and largest gap before the first answer_chunk, through the frontend (sse_timer.py -> http://127.0.0.1:3101/api/addons/intelligence) unless noted.
+d1-coll: first byte 0.25s; end 82.29s, max gap before first answer_chunk 5.01s
+d2-coll: first byte 0.35s; end 300.14s, max gap before first answer_chunk 5.02s
+d3-coll: first byte 0.35s; end 300.17s, max gap before first answer_chunk 5.01s
+d4-chick: first byte 0.19s; end 8.41s, max gap before first answer_chunk 4.39s
+d5-gz: first byte 0.32s; end 8.56s, max gap before first answer_chunk 4.36s
+d6-pos: first byte 1.84s; end 4.10s, max gap before first answer_chunk 2.26s
+d7-nopos: first byte 0.21s; end 11.73s, max gap before first answer_chunk 4.70s
+d8-pan: first byte 0.25s; end 18.77s, max gap before first answer_chunk 4.83s
+f1-ollama: first byte 0.18s; end 14.19s, max gap before first answer_chunk 5.00s
+f2-deepseek: first byte 0.17s; end 2.81s, max gap before first answer_chunk 2.24s
+g1-promo: first byte 0.29s; end 42.33s, max gap before first answer_chunk 5.01s
+g10-thaw: first byte 0.20s; end 30.17s, max gap before first answer_chunk 5.01s
+g2-promo: first byte 0.33s; end 7.51s, max gap before first answer_chunk 5.00s
+g3-luc1140: first byte 0.23s; end 38.71s, max gap before first answer_chunk 5.02s
+g4-luc1140: first byte 0.35s; end 14.12s, max gap before first answer_chunk 5.00s
+g5-luc: first byte 0.22s; end 45.37s, max gap before first answer_chunk 5.00s
+g6-luc: first byte 0.28s; end 29.15s, max gap before first answer_chunk 5.00s
+g7-coll: first byte 0.23s; end 83.30s, max gap before first answer_chunk 5.01s
+g8-chick: first byte 1.20s; end 76.30s, max gap before first answer_chunk 5.00s
+g9-chick: first byte 0.30s; end 33.57s, max gap before first answer_chunk 5.01s
+
+Browser (Chrome, fetch wrapped; player at 8:45 so position_seconds was sent), deepseek, ht8 Lucario CP: headers + first keepalive 5.03 s (Resource Timing: requestStart 1 ms, responseStart 5028 ms), keepalive 7.49 s, answer_chunk 11.49 s, end 11.51 s.
+Same question by sse_timer with position 613: first byte 1.84 s; without position: 0.21 s. With Accept-Encoding gzip (d5-gz): 0.32 s.

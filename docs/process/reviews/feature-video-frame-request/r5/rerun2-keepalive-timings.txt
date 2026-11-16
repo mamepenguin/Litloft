@@ -1,0 +1,8 @@
+Re-run 2: first byte and largest gap before the first answer_chunk (sse_timer.py through the frontend).
+d1-coll: first byte 0.28s; end 108.90s, max gap before first answer_chunk 5.01s
+d2-coll: first byte 0.25s; end 114.03s, max gap before first answer_chunk 5.01s
+d3-coll: first byte 0.37s; end 15.83s, max gap before first answer_chunk 5.01s
+d4-promo: first byte 0.28s; end 4.10s, max gap before first answer_chunk 3.82s
+g1-promo: first byte 0.27s; end 46.30s, max gap before first answer_chunk 5.01s
+f1-ollama: first byte 0.30s; end 17.28s, max gap before first answer_chunk 5.01s
+browser (Chrome, deepseek, player at 8:45): Ask clicked 00:47:53 JST, tool req 00:48:05, log 'frame requests: 1 calls, 4 frames' 00:48:40.

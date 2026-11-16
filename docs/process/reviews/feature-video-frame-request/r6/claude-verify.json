@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "Fact confirmed: addons/intelligence/tests/frame_request_doubles.py exists and is imported by tests/test_spec_addon_116_contents.py:24, tests/test_spec_addon_116_frame_request_fallback.py:30 and tests/test_spec_addon_116_frame_requests.py:37. The touch-point list names neither this module nor any new test module for SPEC-ADDON-116. This is a traceability/scope gap in the spec's touch list, not a runtime defect: the module is test-only and not a production path."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "Fact confirmed: the four files addons/intelligence/tests/golden_prompts/frame_request_today_{openai_compatible,ollama}_{text-video,text-less-video}.json exist. test_spec_addon_116_frame_request_fallback.py:132, :155, :182, :220 and :303 assert wire.requests[...] == todays_request(...), so they are the oracle for today's request. The touch-point list does not name them. Traceability gap only, no runtime defect."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "Fact confirmed: test_spec_addon_116_contents.py, test_spec_addon_116_frame_request_fallback.py and test_spec_addon_116_frame_requests.py exist as new files under addons/intelligence/tests/. The touch-point list names only the changed existing suites and does not name any new SPEC-ADDON-116 test module. Scope/documentation gap, not a behavioral defect."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-4",
+      "status": "confirmed",
+      "note": "The dependency is real: app/rag/file_question.py:715-720 calls select_scenes(...) and reads selection.navigation and item.section_start / item.section_end, which exist in app/workers/video_visual_selection.py:127-142 (SelectedFrame / Selection). cut_frames (file_question.py:856-880) runs _frame_image (file_question.py:494-523), which writes the large cache entry via frame_cache_path (app/frame_cache.py:90) and the extraction helpers. Not verified: whether the commit's diff touched video_visual_selection.py or frame_cache.py; I had no git access. The claim that the touch list omits them is factually correct. This is a traceability gap, not a runtime defect."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-5",
+      "status": "confirmed",
+      "note": "Fact confirmed: file_question.py:636-677 _excerpt_rows runs SELECT text, timestamp_start, timestamp_end FROM transcript_chunks and SELECT text, start_time, end_time FROM video_frame_texts. The touch list does not name these tables. However, invariant I7 requires the contents to be drawn from exactly the requested file's transcript and frame text in each section's span, so reading these tables is what the spec requires. Traceability gap only; the read itself is in scope."
+    }
+  ],
+  "specification_compliance": [
+    "Touch-point list completeness: confirmed that the commit adds test modules, golden fixtures and a helper module that the touch-point list does not name (TP-1, TP-2, TP-3); and that file_question.py depends on video_visual_selection.py and the frame cache write path and reads transcript_chunks and video_frame_texts, none of which the list names (TP-4, TP-5). These are scope/traceability gaps, not invariant violations. Invariant I7 requires the contents to read the requested file's transcript and frame text, and the code does so at file_question.py:636-677. I did not verify the runtime invariants I1-I9 here."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Whether the touch-point list is meant to enumerate new test modules and fixtures is not stated by the spec. The listed findings depend on that reading."
+  ],
+  "regression_risks": [
+    "None established by this verification. The findings concern documentation and scope, not runtime behavior. If the touch list is used to decide which files get extra review, the untouched-list files (video_visual_selection.py, frame_cache.py, the golden fixtures) may get less scrutiny."
+  ],
+  "test_coverage": [
+    "The new test files exist and import the helpers named in the findings. I did not run them (no execution tools). The golden-fixture oracle used by the fallback tests is present at the four paths named."
+  ],
+  "not_verified": [
+    "I had no git access, so I could not inspect the commit 012a4f479 diff. Whether video_visual_selection.py, frame_cache.py or the golden fixtures were modified by this commit is unverified (TP-4 relies on the reviewer's diff claim).",
+    "I did not run the test suites or any code; the findings are checked by reading the source only.",
+    "I did not verify runtime invariants I1-I9 or the revised SPEC-ADDON-114/116/108 rules beyond the specific touch-point claims.",
+    "The docs (docs/addons/intelligence.md, docs/user-guide/search.md, docs/reference/api.md), docs/specs/INDEX.md and the submodule pointer were not checked.",
+    "The statements of the touch-point list were compared with the file names only, not with the spec's full wording."
+  ],
+  "confidence": 85
+}

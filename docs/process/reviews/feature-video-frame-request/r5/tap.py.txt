@@ -1,0 +1,153 @@
+"""Pass-through tap that records the shape of each chat request (no headers, images hashed).
+
+usage: tap.py LOG LISTEN_PORT ollama|openrouter
+"""
+import base64, hashlib, http.client, json, sys, time
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+LOG, PORT, KIND = sys.argv[1], int(sys.argv[2]), sys.argv[3]
+
+
+def h(b64):
+    raw = base64.b64decode(b64.split(",", 1)[-1])
+    return hashlib.sha256(raw).hexdigest()[:16] + f":{len(raw)}"
+
+
+def shape_ollama(d):
+    msgs = []
+    for m in d.get("messages", []):
+        msgs.append({
+            "role": m.get("role"),
+            "content": m.get("content"),
+            "images": [h(i) for i in (m.get("images") or [])],
+            "tool_calls": m.get("tool_calls"),
+            "thinking": bool(m.get("thinking")),
+            "tool_name": m.get("tool_name"),
+        })
+    return {"model": d.get("model"), "think": d.get("think"), "stream": d.get("stream"),
+            "options": d.get("options"), "tools": [t["function"]["name"] for t in d.get("tools") or []],
+            "messages": msgs}
+
+
+def shape_openai(d):
+    msgs = []
+    for m in d.get("messages", []):
+        c = m.get("content")
+        if isinstance(c, list):
+            parts = []
+            for p in c:
+                if p.get("type") == "text":
+                    parts.append({"text": p["text"]})
+                else:
+                    parts.append({"image": h(p["image_url"]["url"])})
+            c = parts
+        msgs.append({"role": m.get("role"), "content": c, "tool_calls": m.get("tool_calls"),
+                     "tool_call_id": m.get("tool_call_id"),
+                     "extra_keys": sorted(k for k in m if k not in ("role", "content", "tool_calls", "tool_call_id"))})
+    rest = {k: v for k, v in d.items() if k not in ("messages", "tools")}
+    return {**rest, "tools": [t["function"]["name"] for t in d.get("tools") or []], "messages": msgs}
+
+
+def summarise(text):
+    content, thinking, calls, reasoning = [], 0, [], 0
+    for line in text.splitlines():
+        line = line.strip()
+        if line.startswith("data:"):
+            line = line[5:].strip()
+        if not line or line == "[DONE]":
+            continue
+        try:
+            d = json.loads(line)
+        except Exception:
+            continue
+        if "message" in d:
+            m = d["message"]
+            content.append(m.get("content") or "")
+            thinking += len(m.get("thinking") or "")
+            if m.get("tool_calls"):
+                calls.extend(m["tool_calls"])
+        for ch in d.get("choices") or []:
+            dl = ch.get("delta") or ch.get("message") or {}
+            content.append(dl.get("content") or "")
+            reasoning += len(dl.get("reasoning") or "") + len(dl.get("reasoning_content") or "")
+            for tc in dl.get("tool_calls") or []:
+                calls.append(tc)
+            if ch.get("finish_reason"):
+                calls.append({"finish_reason": ch["finish_reason"]})
+    c = "".join(content)
+    return {"content_len": len(c), "content_head": c[:300], "thinking_chars": thinking,
+            "reasoning_chars": reasoning, "tool_calls": calls}
+
+
+class H(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.0"
+
+    def _fwd(self, method):
+        n = int(self.headers.get("Content-Length") or 0)
+        body = self.rfile.read(n) if n else None
+        t0 = time.time()
+        rec = {"t": time.strftime("%T"), "path": self.path}
+        if body and ("/api/chat" in self.path or "/chat/completions" in self.path):
+            try:
+                d = json.loads(body)
+                rec.update(shape_ollama(d) if KIND == "ollama" else shape_openai(d))
+            except Exception as e:
+                rec["error"] = str(e)
+        import os
+        if os.path.exists(LOG + ".refuse-tools") and body and b'"tools"' in body:
+            rec["injected"] = "400 for a request carrying tools"
+            with open(LOG, "a") as f:
+                f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+            msg = json.dumps({"error": "registry.ollama.ai/library/gemma4:e4b does not support tools"}).encode()
+            self.send_response(400)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(msg)))
+            self.end_headers()
+            self.wfile.write(msg)
+            return
+        if KIND == "ollama":
+            c = http.client.HTTPConnection("127.0.0.1", 11434, timeout=900)
+            path = self.path
+        else:
+            c = http.client.HTTPSConnection("openrouter.ai", 443, timeout=900)
+            path = self.path
+        hdr = {k: v for k, v in self.headers.items() if k.lower() not in ("host", "connection", "accept-encoding")}
+        if KIND != "ollama":
+            hdr["Host"] = "openrouter.ai"
+        c.request(method, path, body=body, headers=hdr)
+        r = c.getresponse()
+        rec["status"] = r.status
+        self.send_response(r.status)
+        for k, v in r.getheaders():
+            if k.lower() not in ("transfer-encoding", "connection", "content-length"):
+                self.send_header(k, v)
+        self.send_header("Connection", "close")
+        self.end_headers()
+        first = None
+        size = 0
+        chunks = []
+        try:
+            while True:
+                b = r.read1(65536)
+                if not b:
+                    break
+                if first is None:
+                    first = round(time.time() - t0, 2)
+                size += len(b)
+                chunks.append(b)
+                self.wfile.write(b); self.wfile.flush()
+        finally:
+            rec["first_byte_s"] = first
+            rec["total_s"] = round(time.time() - t0, 2)
+            rec["resp_bytes"] = size
+            rec["reply"] = summarise(b"".join(chunks).decode("utf-8", "replace"))
+            if "messages" in rec or "error" in rec:
+                with open(LOG, "a") as f:
+                    f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+
+    def do_POST(self): self._fwd("POST")
+    def do_GET(self): self._fwd("GET")
+    def log_message(self, *a): pass
+
+
+ThreadingHTTPServer(("0.0.0.0", PORT), H).serve_forever()

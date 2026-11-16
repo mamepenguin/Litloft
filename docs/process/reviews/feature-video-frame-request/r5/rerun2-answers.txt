@@ -1,0 +1,94 @@
+Re-run 2 (addon 76cc410) answers as streamed (sse_timer.py through the frontend, no position_seconds). d = deepseek, g = local (gemma4:e4b), f = injected refusal of tool requests.
+
+== d1-coll
+   0.28 status 200
+end 108.90s, max gap before first answer_chunk 5.01s
+ANSWER: ## 結論：画面に並ぶポケモンの全リストは、この動画の情報からは分かりません
+
+ワイルドエリアコレクションチャレンジの**画面そのもの**は、提示されたフレームのどこにも映っていません（[165]はスペシャルリサーチ、[166]はマップ、[167]はレイドの画面です）。そのため「並んでいるポケモン全部」を挙げることはできません。
+
+## 分かっている手がかり（音声のみ）
+
+- チャレンジは「ワイルドエリアコレクションチャレンジ土曜日」として登場 [44][45]
+- **上の段**：鋼アワーの時間にしか出現しないポケモンで、例として**コイル**や**アローラディグダ**が挙げられている [51][52]
+- **下の段**：ドラゴンタイプのポケモンたちで、ドラゴンアワーの時間にしか野生で出てこない [52][53]
+
+つまり、上段＝鋼タイプ系（コイル、アローラディグダなど）、下段＝ドラゴンタイプ系という構成までは分かりますが、**それ以外の具体的なポケモン名は本文にも映像にも出てきません**。正確な全リストは、ゲーム内のチャレンジ画面を確認する必要があります。
+data: [{"n": 165, "position": {"seconds": 1240.0}}, {"n": 166, "position": {"seconds": 1470.0}}, {"n": 167, "position": {"seconds": 1740.0}}, {"n": 44, "position": {"seconds": 480.11}}, {"n": 45, "position": {"seconds": 490.629}}, {"n": 51, "position": {"seconds": 557.23}}, {"n": 52, "position": {"seconds": 568.19}}, {"n": 53, "position": {"seconds": 578.55}}]
+data: {"partial": false, "image": "attached"}
+data: {}
+
+== d2-coll
+   0.25 status 200
+end 114.03s, max gap before first answer_chunk 5.01s
+ANSWER: **結論：全部は特定できません。**  
+ワイルドエリアコレクションチャレンジの画面そのものが、提示されたフレーム[160]〜[167]には含まれていません。
+
+本文から確認できるのは以下だけです。
+
+- **上の段**：コイル、アローラディグダ（「とか」の例示）[51][52]
+- **下の段**：ドラゴンタイプのポケモンたち（個別名は明言なし）[52][53]
+
+したがって、**並んでいるポケモンを「全部」列挙することはできません**。フレーム[162]のカイリキーは捕獲画面で、コレクションチャレンジの一覧画面ではありません。
+data: [{"n": 160, "position": {"seconds": 10.0}}, {"n": 167, "position": {"seconds": 1740.0}}, {"n": 51, "position": {"seconds": 557.23}}, {"n": 52, "position": {"seconds": 568.19}}, {"n": 53, "position": {"seconds": 578.55}}, {"n": 162, "position": {"seconds": 660.0}}]
+data: {"partial": false, "image": "attached"}
+data: {}
+
+== d3-coll
+   0.37 status 200
+end 15.83s, max gap before first answer_chunk 5.01s
+ANSWER: ## ワイルドエリアコレクションチャレンジの画面
+
+**画面には8匹（上段4匹・下段4匹）のポケモンが並んでいます**[168][169][170][171]。
+
+| 段 | 出現時間帯 | ポケモン |
+|---|---|---|
+| 上段 | 鋼アワー | **コイル**、**アローラディグダ** など鋼タイプ系 [51][52] |
+| 下段 | ドラゴンアワー | ドラゴンタイプのポケモンたち [52][53] |
+
+### 補足
+- 上段のポケモンたちは「**鋼アワー**の時間にしか出現してません」、下段のドラゴンタイプは「**ドラゴンアワー**の時間にしか野生で出てこない」と説明されています [51][52][53]。
+- チャレンジ名は「**ワイルドエリアコレクションチャレンジ：土曜日**」で、報酬は「ポケモン発見」です [168][169]。
+- ただし、フレームに映っているのは**シルエット**のみで、コイルとアローラディグダ以外の個々の名前は画面からは読み取れません [168][169][170][171]。
+data: [{"n": 168, "position": {"seconds": 510.0}}, {"n": 169, "position": {"seconds": 540.0}}, {"n": 170, "position": {"seconds": 570.0}}, {"n": 171, "position": {"seconds": 600.0}}, {"n": 51, "position": {"seconds": 557.23}}, {"n": 52, "position": {"seconds": 568.19}}, {"n": 53, "position": {"seconds": 578.55}}]
+data: {"partial": false, "image": "attached"}
+data: {}
+
+== d4-promo
+   0.28 status 200
+end 4.10s, max gap before first answer_chunk 3.82s
+ANSWER: **プロモーションコード: `COMMUNITYMAX10`**
+
+- 画面のX（Twitter）投稿画像に「COMMUNITYMAX10」と表示されています[161]。
+- 動画内でも「公式ウェブサイトのコードの引き換えからアルファベットでコミュニティマックス10と入力」と説明されています[25]。
+- 特典は有料アイテム「大キノコ」10個で、マックスバトルでの攻撃力2倍アイテムです[24][26]。
+data: [{"n": 161, "position": {"seconds": 300.0}}, {"n": 25, "position": {"seconds": 270.23}}, {"n": 24, "position": {"seconds": 258.15}}, {"n": 26, "position": {"seconds": 280.23}}]
+data: {"partial": false, "image": "attached"}
+data: {}
+
+== g1-promo
+   0.27 status 200
+end 46.30s, max gap before first answer_chunk 5.01s
+ANSWER: 画面に表示されるプロモーションコードは、**コミュニティマックス10**です。
+
+### 💡 プロモーションコードの詳細
+
+*   **コード:** **コミュニティマックス10** (または **COMMUNITYMAX10**) [25], [161]
+*   **入手方法:** 公式ウェブサイトのコード引き換えから入力します [25]。
+*   **特典:** ゲーム内で「大キノコ」が10個受け取れます [24], [25]。
+*   **利用価値:** この大キノコは、マックスバトルで攻撃力が2倍になる激アアイテムとして、巨大マックスジュラルドン戦などで使用できます [26]。
+
+この情報は、動画の[24]および[25]の箇所で「緊急情報」として発表されています。
+data: [{"n": 25, "position": {"seconds": 270.23}}, {"n": 161, "position": {"seconds": 300.0}}, {"n": 24, "position": {"seconds": 258.15}}, {"n": 26, "position": {"seconds": 280.23}}]
+data: {"partial": false, "image": "attached"}
+data: {}
+
+== f1-ollama
+   0.30 status 200
+end 17.28s, max gap before first answer_chunk 5.01s
+ANSWER: 画面に表示されるプロモーションコードは、**COMMUNITYMAX10**です [161]。
+
+このコードは、公式ウェブサイトのコード引き換えから入力することで、ゲーム内で大キノコが10個受け取れると説明されています [25] [161]。
+data: [{"n": 161, "position": {"seconds": 300.0}}, {"n": 25, "position": {"seconds": 270.23}}]
+data: {"partial": false, "image": "attached"}
+data: {}

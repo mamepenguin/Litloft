@@ -1,0 +1,5 @@
+import json,sys
+for i,l in enumerate(open(sys.argv[1])):
+    d=json.loads(l); r=d.get('reply',{})
+    calls=[c for c in r.get('tool_calls',[]) ]
+    print(f"#{i} {d['t']} n_msgs={len(d.get('messages',[]))} tools={d.get('tools')} tc={d.get('tool_choice')} think={d.get('think')} opts={d.get('options')} mt={d.get('max_tokens')} keys={sorted(k for k in d if k not in ('messages','reply','t','path','status','first_byte_s','total_s','resp_bytes'))} first={d.get('first_byte_s')} total={d.get('total_s')} think_chars={r.get('thinking_chars')} reasoning={r.get('reasoning_chars')} content={r.get('content_len')} calls={json.dumps(calls,ensure_ascii=False)[:300]} inj={d.get('injected')}")
