@@ -1,0 +1,4 @@
+2026-11-16T10:57:05.346307583Z 2026-11-16 10:57:05,346 [WARNING] app.workers.loft_media: loft_media lookup failed (file yk2uJxD6ocrn)
+2026-11-16T10:57:35.588239145Z 2026-11-16 10:57:35,588 [WARNING] app.workers.loft_media: loft_media lookup failed (file Wq-vf_K4WSfj)
+2026-11-16T10:58:05.827240723Z 2026-11-16 10:58:05,827 [WARNING] app.workers.loft_media: loft_media lookup failed (file yFpvytc5zGpM)
+2026-11-16T10:58:05.827265223Z 2026-11-16 10:58:05,827 [INFO] app.workers.loft_media: loft_media backing off 30 min after 3 failures in a row
