@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "No listed findings were supplied (the 'Findings to verify' section is '(none)'), so there was no claim to reproduce or reject. No specification invariant (I1-I9, SPEC-CORE-059 I14/I15, SPEC-CORE-117 I8, SPEC-CORE-054 I10) was checked against the code by this reviewer."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "None identified. This reviewer did not read the source files touched by commit 9bae0b3f0, so no unspecified behavior was assessed."
+  ],
+  "regression_risks": [
+    "Not assessed. The touch points (TargetMenu.tsx, ManageTargetsDialog.tsx, appTarget.ts, useVideoApp.ts, useReadingApp.ts and related files) were not read by this reviewer."
+  ],
+  "test_coverage": [
+    "Not assessed. Only the directory listing of docs/process/reviews/feature-app-target-collections/r6/ was checked (head.txt, expected.txt, classification.json, fixes.txt). The e2e and unit tests named in the touch points were not read or run."
+  ],
+  "not_verified": [
+    "The source code and tests at commit 9bae0b3f0 were not read, so no invariant was checked against the implementation.",
+    "The commit diff itself was not inspected; the worktree state was not confirmed to match the commit.",
+    "No defect was searched for beyond the empty findings list, so no verifier-origin finding is reported.",
+    "The review record files in r6/ were listed but not read."
+  ],
+  "confidence": 70
+}

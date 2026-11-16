@@ -139,6 +139,9 @@ window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
   if (url.includes("/api/drives/fixture/smart-folders")) {
     return Promise.resolve(jsonResponse(FIXTURE_SMART_FOLDERS));
   }
+  if (/\/api\/drives\/fixture\/collections$/.test(url)) {
+    return Promise.resolve(jsonResponse([]));
+  }
   if (url.includes("/api/addons/intelligence/search/by-image/available")) {
     return Promise.resolve(
       new Response("{}", {

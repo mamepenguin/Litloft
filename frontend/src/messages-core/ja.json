@@ -34,7 +34,7 @@
     "manage": "管理…",
     "manageTitle": "表示する対象",
     "done": "完了",
-    "searchTargets": "スマートコレクションを検索",
+    "searchTargets": "対象を検索",
     "seeAllIn": "すべて見る: {name}"
   },
   "metadata": {

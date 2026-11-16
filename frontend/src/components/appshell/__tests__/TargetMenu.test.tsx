@@ -161,7 +161,7 @@ describe("Manage… and the shown set", () => {
     render(menu());
     await openManage();
 
-    fireEvent.change(screen.getByRole("searchbox", { name: "Search smart collections" }), {
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search targets" }), {
       target: { value: "alp" },
     });
 

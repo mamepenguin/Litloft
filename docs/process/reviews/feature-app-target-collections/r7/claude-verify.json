@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "Confirmed as stated. frontend/e2e-components/projects.ts:41 lists \"**/target-menu-rows-desktop.spec.ts\" in DESKTOP_ONLY. frontend/e2e-components/spec-viewport.spec.ts:82 lists \"target-menu-rows.spec.ts\" under AT_THE_PHONE_WIDTH and :119 lists \"target-menu-rows-desktop.spec.ts\" under AT_THE_DESKTOP_WIDTH. Both registry files are edited and are not among the named touch points. Scope note: the touch-point list does name the directory frontend/e2e-components/ (for real-browser cases), so these files sit under a named directory, but they are shared registry files rather than cases. The finding's literal claim holds; its impact is a scope-documentation gap, not a defect."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "Confirmed by path. Six collection-specific test files exist and match the reviewer's directories: frontend/src/components/appshell/__tests__/TargetMenu.collections.test.tsx, frontend/src/components/videoapp/__tests__/VideoApp.collectionTarget.test.tsx, frontend/src/components/videoapp/__tests__/VideoApp.collectionTargetDiscoverCache.test.tsx, frontend/src/components/videoapp/__tests__/ShelfPage.collectionTarget.test.tsx, frontend/src/components/readingapp/__tests__/ReadingApp.collectionTarget.test.tsx, and frontend/src/lib/__tests__/appTarget.collection.test.ts. None of these exact paths is named in the touch-point list. The list names only globs (VideoApp.*.test.tsx, ReadingApp.*.test.tsx, shelf-page tests, TargetMenu.test.tsx, ManageTargetsDialog tests) and no lib/__tests__ file, so the new files are covered only loosely by those globs. Whether each is new at this commit is inferred from the names and the reviewer's diff header, not confirmed from git metadata, because I cannot run git."
+    }
+  ],
+  "specification_compliance": [
+    "Both findings were checked against the code at commit 9bae0b3f0. Neither finding alleges a spec invariant violation (I1–I9, SPEC-CORE-059/117/054 revisions were not checked in this pass).",
+    "F1 and F2 are documentation and scope-listing observations about the touch-point list, not invariant violations."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Whether the registry-file edits in frontend/e2e-components/projects.ts and spec-viewport.spec.ts count as in scope under the 'Real-browser cases in frontend/e2e-components/' touch point is a reading question, not a verified defect."
+  ],
+  "regression_risks": [
+    "None identified from the two findings. The registry entries reference target-menu-rows*.spec.ts, and those files exist in frontend/e2e-components/ (target-menu-rows.spec.ts and target-menu-rows-desktop.spec.ts both import ./target-menu-rows.cases)."
+  ],
+  "test_coverage": [
+    "Existence and references of the e2e registry entries and the six collection test files were checked by Grep and Glob. The test contents and their pass/fail status were not checked; tests were not run."
+  ],
+  "not_verified": [
+    "Could not run git, so 'new file mode' status for the six test files was inferred from their names and the reviewer's claim, not from the diff.",
+    "Did not read the contents of the e2e spec files, the test files, or the fixtures named in the touch-point list.",
+    "Did not check the invariants I1–I9 or the revised SPEC-CORE items against the implementation.",
+    "Did not run the e2e or unit test suites."
+  ],
+  "confidence": 80
+}

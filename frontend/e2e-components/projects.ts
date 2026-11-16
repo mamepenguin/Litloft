@@ -38,6 +38,7 @@ export const DESKTOP_ONLY = [
   "**/file-header-row-desktop.spec.ts",
   "**/reading-text-size-desktop.spec.ts",
   "**/app-header-desktop.spec.ts",
+  "**/target-menu-rows-desktop.spec.ts",
 ];
 
 /** Literals rather than a device preset, which can change under it. */
