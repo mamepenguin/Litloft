@@ -91,9 +91,10 @@ export function writeAppPrefs(
 }
 
 /**
- * `"default"` or a smart folder id, unchecked against the drive's folders: a
- * caller falls back to the default target for a folder that is gone or
- * unusable and keeps the saved id, as the built-in apps do.
+ * `"default"`, a Smart Collection id or `collection:<id>` (read it with
+ * `parseAppTargetId`), unchecked against the drive's lists: a caller falls
+ * back to the default target for one that is gone or unusable and keeps the
+ * saved id, as the built-in apps do.
  */
 export function readAppTarget(drive: string, app: AppKey): string {
   try {
@@ -112,8 +113,8 @@ export function writeAppTarget(drive: string, app: AppKey, id: string): void {
 }
 
 /**
- * The smart folders the viewer chose to show in the Target menu. `null` is
- * "never saved", which lists every usable folder; an empty array is a saved
+ * The targets the viewer chose to show in the Target menu, as target ids.
+ * `null` is "never saved", which lists every target; an empty array is a saved
  * set that lists none.
  */
 export function readShownTargets(drive: string, app: AppKey = "video"): string[] | null {

@@ -1323,6 +1323,7 @@ page draws the same header, with its own app key.
 
 ```tsx
 // addons/{name}/frontend/Page.tsx — the parts that touch the target
+import { useCallback } from "react";
 import type { TargetMenuProps } from "@/components/appshell/TargetMenu";
 import { useLoad } from "@/components/appshell/useLoad";
 import { useMemberTarget } from "@/components/appshell/useMemberTarget";
@@ -1339,8 +1340,11 @@ import type { FileKind } from "@/types";
 const APP: AppKey = { addon: "<name>" }; // the addon's own name
 const BASE_KINDS: readonly FileKind[] = ["image"]; // the kinds the page lists
 
-const folders = useLoad(() => getSmartFolders(drive));
-const collections = useLoad(() => getCollections(drive));
+// `useLoad` requests again whenever its loader changes, so keep each one stable.
+const loadFolders = useCallback(() => getSmartFolders(drive), [drive]);
+const { state: folders, retry: retryFolders } = useLoad(loadFolders);
+const loadCollections = useCallback(() => getCollections(drive), [drive]);
+const { state: collections, retry: retryCollections } = useLoad(loadCollections);
 // "default", a Smart Collection id, or "collection:<id>".
 const savedId = readAppTarget(drive, APP);
 const saved = parseAppTargetId(savedId);
@@ -1371,19 +1375,22 @@ const targetProps: TargetMenuProps = {
   app: APP,
   name: targetName, // the chosen target's name, null while looked up
   folders,
-  collections: { list: collections, retry: collections.retry },
+  collections: { list: collections, retry: retryCollections },
   selectedId: savedId,
   currentCount: count,
   label: t("target"), // "Target"
   defaultLabel: t("allPhotos"),
   unavailableLabel: t("unavailableAsTarget"),
   defaultTargetTypes: BASE_KINDS,
-  isUsable: (candidate) => resolveAppTarget(candidate, BASE_KINDS).usable,
+  // A member target can be chosen whatever else its query holds.
+  isUsable: (candidate) =>
+    resolveAppTarget(candidate, BASE_KINDS).usable ||
+    resolveMemberTarget(candidate, BASE_KINDS) !== null,
   onChoose: (id) => {
     setSelectedId(id);
     writeAppTarget(drive, APP, id);
   },
-  onRetryFolders: folders.retry,
+  onRetryFolders: retryFolders,
 };
 ```
 
