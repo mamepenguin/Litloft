@@ -264,8 +264,9 @@ for (const size of SIZES) {
         target.getByRole("button", { name: "引用", exact: true }),
       ).toHaveCount(1);
 
-      await page.evaluate(() =>
-        window.__transcriptTouch!.seekTo(LAST_START),
+      await page.evaluate(
+        (start) => window.__transcriptTouch!.seekTo(start),
+        LAST_START,
       );
       const active = page.locator('[aria-current="true"]');
       await expect(active).toContainText(LAST_TEXT, { timeout: 5000 });
@@ -303,6 +304,9 @@ for (const size of SIZES) {
       const dialog = page.getByRole("dialog");
       await expect(dialog).toHaveCount(1);
       await expect(dialog).toBeVisible();
+      await dialog.evaluate((el) =>
+        Promise.all(el.getAnimations({ subtree: true }).map((a) => a.finished)),
+      );
 
       const box = (await dialog.boundingBox())!;
       expect(Math.abs(box.y - 56), "dialog top").toBeLessThanOrEqual(1);
@@ -338,6 +342,9 @@ for (const size of SIZES) {
 
       const dialog = page.getByRole("dialog");
       await expect(dialog).toHaveCount(1);
+      await dialog.evaluate((el) =>
+        Promise.all(el.getAnimations({ subtree: true }).map((a) => a.finished)),
+      );
       const field = dialog.getByRole("textbox");
       await expect(field).toHaveValue(
         "長い発話の続きです。".repeat(200),
