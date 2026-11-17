@@ -255,3 +255,4 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-121 | implemented | docs/specs/loft-fetch-storyboard.md | sha256:daca611c89261c93f3e10bd9e5f7b945d16a79c00b59e0f6f612811b72438c7d |
 | SPEC-CORE-118 | implemented | docs/specs/app-target-collections.md | sha256:5d19d0bc7e3b4c67b7c46ebe24ec10439f15fb3ea5e6eb5d31444d7169f038c2 |
 | SPEC-CORE-119 | implemented | docs/specs/app-target-collections.md | sha256:5d19d0bc7e3b4c67b7c46ebe24ec10439f15fb3ea5e6eb5d31444d7169f038c2 |
+| SPEC-CORE-125 | draft | docs/specs/drive-unavailable.md | |
