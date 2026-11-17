@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: accepted as recorded by the human (Yuichi Senga, 2026-11-17); the pending items below stay open
 ran_in_app: yes
 at: e2e4aee3b8228e9bcae2d47a949e7c726978d622
 by: agent
