@@ -39,12 +39,15 @@ vi.mock("@/components/folder/FolderContent", () => ({
 vi.mock("@/components/SelectionBar", () => ({
   SelectionBar: ({
     selectedIds,
+    totalCount,
     onSelectAll,
   }: {
     selectedIds: ReadonlySet<string>;
+    totalCount: number;
     onSelectAll: () => void;
   }) => (
     <div>
+      <output aria-label="selectable">{totalCount}</output>
       <output aria-label="selected">{[...selectedIds].sort().join(",")}</output>
       <button onClick={onSelectAll}>Select all</button>
     </div>
@@ -151,6 +154,7 @@ describe("FolderBrowser — selection under the name filter", () => {
     render(<FolderBrowser driveName="d" folderPath="" />);
     await narrowTo(".mp4");
     fireEvent.click(screen.getByRole("button", { name: "meta a" }));
+    expect(screen.getByLabelText("selectable").textContent).toBe("2");
     fireEvent.click(screen.getByRole("button", { name: "Select all" }));
     expect(selected()).toBe("a,c");
   });

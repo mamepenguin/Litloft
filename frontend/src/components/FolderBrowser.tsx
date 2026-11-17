@@ -953,7 +953,7 @@ export function FolderBrowser({
         <SelectionBar
           count={selection.count}
           selectedIds={selection.selectedIds}
-          totalCount={files.length}
+          totalCount={visibleFileIds.length}
           drive={driveName}
           currentPath={folderPath}
           onSelectAll={() => selection.selectAll(visibleFileIds)}
