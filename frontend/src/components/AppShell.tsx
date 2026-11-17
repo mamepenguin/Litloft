@@ -243,7 +243,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       observer = new MutationObserver(evaluate);
       observer.observe(header, {
         attributes: true,
-        attributeFilter: ["aria-expanded"],
+        attributeFilter: ["aria-expanded", "data-needs-attention"],
+        childList: true,
         subtree: true,
       });
     }
