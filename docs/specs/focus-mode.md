@@ -453,8 +453,9 @@ what the design decides.
 
 I1. In the focus layout with the header hidden, at any wide viewport: no pixel of the app
 header, `ChromeButtons`, the sidebar or the folder tree is painted, the header and
-`ChromeButtons` are `inert` and still mounted, and focus mode itself draws nothing over the
-page except, where `(any-pointer: coarse)` matches, the handle; on a folder, view or
+`ChromeButtons` are `inert` and still mounted, and focus mode itself draws nothing visible
+over the page except, where `(any-pointer: coarse)` matches, the handle (the strip of 129
+step 1 is transparent); on a folder, view or
 search file page the `h-below-header` box runs from the safe area's top to the viewport's
 bottom, and on `/files/{id}` the content column's top is its normal gap below the safe
 area's top and the player's frame is no taller than `--player-avail` measured from there
