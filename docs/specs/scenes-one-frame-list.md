@@ -49,8 +49,22 @@ handled as SPEC-ADDON-089 states. Nothing new can fail.
 
 The section loses its frame-list mode: there is no 「標準」 / 「カット」 state, so no
 reset rule on a file change, a re-fetch, collapse/expand or host hide/show. Every other
-state is as before, except the ruler length of a section drawn with no candidate frames
-(§7).
+state is as before, except the ruler length of a section whose answer arrived with no
+candidate frames (§7):
+
+| State | `L` |
+|---|---|
+| Request in flight, or the request failed (no answer) | 0, as before: no time labels, `aria-valuemax` 0 |
+| Answer arrived, `timestamps` empty, player duration finite and positive (`D`) | `D` |
+| Answer arrived, `timestamps` empty, no such duration | 0 |
+| Answer arrived with candidates | the candidate rule of SPEC-ADDON-089 I1, unchanged |
+
+Transitions, all redrawn in place without a new request: the duration becoming known
+moves `L` from 0 to `D`; a later duration change moves it to the new `D`; a duration
+that stops being finite and positive returns `L` to 0; a re-fetch that brings candidates
+moves to the candidate rule, and one that brings none moves back. Only the Visual Index
+draws a section in the empty-answer states (a `.loft`); a native video with no candidate
+frames is still not drawn.
 
 ### 4. Data read and written
 
@@ -74,7 +88,7 @@ indexed on that drive), enforced where it is today.
   the question about a video with no text (SPEC-ADDON-114) keep reading the change
   frames; this change does not reach them.
 - The Scenes section's ruler length goes back to the candidate list (or the player's
-  duration), with one addition: a section drawn with no candidate frames (a `.loft` whose
+  duration), with one addition: a section whose answer arrived with no candidate frames (a `.loft` whose
   Visual Index has something to show, such as a downloaded YouTube reference without
   storyboard tiles) takes `L` from the player's duration when that is a finite positive
   number, so its scene marks, playhead, click-to-seek and `aria-valuemax` work. Before
@@ -94,6 +108,11 @@ Unchanged; no new message, no new log line.
   gap it has without the switch.
 - The header's bare number (when the section draws its own header) is the candidate
   list's length.
+- A section whose answer has no candidate frames and whose player has a duration `D`
+  draws the ruler as it does for any video of length `D`: the 0:00, end and interior time
+  labels, the playhead at `min(position, D) / D`, the scene marks, hover and click. It has
+  no ticks and no tiles, so the arrow keys and `Home`/`End` move nothing; `Enter` seeks
+  the browse point, which hover and click set.
 - The three message keys `scenesFramesShown`, `scenesFramesAll`, `scenesFramesCuts` are
   removed from the addon's `ja.json` and `en.json`.
 - The header button's accessible name keeps its spacing ("Scenes 15"): it is not part
@@ -116,15 +135,20 @@ One fewer database query per `clip-timestamps` request; no other limit is reache
   no mode)
 - addons/intelligence/frontend/ScenesSection/ScenesSectionPresenter.tsx (no switch row)
 - addons/intelligence/frontend/ScenesSection/scenesModel.ts (`ScenesMode`,
-  `frameListFor` and `trackLength` removed; `rulerLength` over the candidates, taking the
-  player's duration when there are none)
+  `frameListFor` and `trackLength` removed; `rulerLength` over the candidates, unchanged;
+  the container takes the player's duration as the length when the answer arrived with
+  no candidates, and 0 while there is no answer)
 - addons/intelligence/frontend/messages/en.json, ja.json (three keys removed)
 - addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionChangePoints.test.tsx
   and addons/intelligence/tests/test_spec_addon_124_clip_change_list.py (deleted: they
-  test the removed behavior). Cases in them that pin behavior this change keeps (a `.loft`
-  with no candidates and no Visual Index stays hidden; the 090 I9 tile-dot range; the
-  104 I3 region order) move to the new test files below unless an existing test already
-  covers them
+  test the removed behavior). Each case in them that pins behavior this change keeps moves to
+  the new test files below, or the commit that deletes it names the existing test that
+  already pins it: a `.loft` with no candidates and no Visual Index is not drawn; a
+  native video with no candidates is not drawn whatever change frames it has; a `.loft`
+  tile whose picture fails keeps its time and seek and shows the empty block; a `.loft`
+  draws its tiles from the scene-tile route; `L` is the candidates' last start plus the
+  median gap when the duration is unknown; the 090 I9 tile-dot range; the 104 I3 region
+  order
 - New tests: addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionOneList.test.tsx
   (I1, I2, I4, I5 and the kept cases) and addons/intelligence/tests/test_spec_addon_129_clip_timestamps.py
   (I3, with the 400 without `X-Lit-Drive` and the 404 on a wrong drive). The existing
@@ -154,10 +178,12 @@ I3. The addon's `clip-timestamps` handler answers with exactly the keys `file_id
 `drive` and `timestamps`, and `timestamps` is exactly the file's `clip` rows ascending, the same with
 or without `clip_change` rows for the file.
 
-I4. With no candidate frames and a finite positive player duration `D`, the section that
-is drawn (through its Visual Index) has `aria-valuemax` `D`, draws each scene mark at
-`min(seek time, D) / D` of the ruler's width, and a click on the ruler seeks to that
-fraction of `D`; with no candidates and no such duration, `L` is 0 as before
+I4. When the `clip-timestamps` answer has arrived with no candidate frames and the
+player's duration `D` is finite and positive, the section drawn through its Visual Index
+has `aria-valuemax` `round(D)`, draws each scene mark at `min(seek time, D) / D` of the
+ruler's width and the playhead at `min(position, D) / D`, and a click at a fraction of
+the ruler's width seeks to that fraction of `D`; while no answer has arrived, or with no
+such duration, the ruler has `aria-valuemax` 0 and no time labels, as before
 SPEC-ADDON-124.
 
 I5. The three removed message keys exist in neither locale file of the addon, and no key
@@ -167,21 +193,23 @@ renders as its path in the Scenes section.
 
 SPEC-ADDON-089 I1. The ruler draws exactly one tick per `clip-timestamps` row, at
 `min(start, L) / L` of its width, with `L` as §2 of docs/specs/scene-timeline.md defines
-it, except that with no rows `L` is the player's duration when that is a finite positive
-number (otherwise 0). The grid shows the frames from `s = clamp(c × floor(i / c) − c, 0, max(0, n − R·c))`
+it, except that when the answer has arrived with no rows `L` is the player's duration
+when that is a finite positive number (otherwise 0), and while no answer has arrived `L`
+is 0. The grid shows the frames from `s = clamp(c × floor(i / c) − c, 0, max(0, n − R·c))`
 to `s + R·c − 1`, or every frame when there are fewer than `R·c`. `c` is the column count
 of docs/specs/scene-timeline-width.md I1, `R` the row count of
 docs/specs/scene-rows-fill-height.md I1, and `i` is the last frame whose start is at or
 before the point being looked at, or frame 0 before the first.
 
 SPEC-ADDON-090 I9. When the policy is off, when the first `visual-index` request fails,
-answers 404, or answers `eligible: false` or `available: false`, and for every `.loft`
-that has no change frames, the section draws no Visual Index part: no dot count, no
-progress, no marks, no tile dots, no scene card and no actions. The timeline is
-otherwise unchanged. Otherwise every active-run scene is marked at its seek time
-(`section_start`, or `start_time` when that is null), styled by its status as §9 says. A
-tile carries the dot exactly when a `succeeded` scene with `section_start` has its seek
-time in the tile's range, from its frame's `start` up to the next frame's `start`, the
+answers 404, or answers `eligible: false` or `available: false`, the section draws no
+Visual Index part: no dot count, no progress, no marks, no tile dots, no scene card and
+no actions. Whether a `.loft` is eligible is the `visual-index` answer's to say. The
+timeline is otherwise unchanged. Otherwise every active-run scene is marked at its seek
+time (`section_start`, or `start_time` when that is null), styled by its status as §9
+says. A tile carries the dot exactly when a `succeeded` scene with `section_start` has
+its seek time in the tile's range, from its frame's `start` up to the next frame's
+`start`, the
 first tile also taking a seek time before it, or a `succeeded` scene without
 `section_start` has its `start_time` within 0.05 s of its frame's `start`. The scene card
 shows the last succeeded, labelled scene whose seek time is at or before the point being
