@@ -18,7 +18,7 @@ change, as `clip_change` embeddings. The Scenes section never shows them: its gr
 the CLIP candidate frames (ffmpeg scene detection plus the 30 s interval fill), so a cut
 is mixed in with filler frames and cannot be picked out.
 
-This adds a two-option switch above the grid, 「すべて」 / 「変化点」, which swaps the
+This adds a two-option switch above the grid, 「すべて」 / 「カット」, which swaps the
 grid between the candidate frames and the stored change frames. It needs no model and no
 Visual Index run, so it works as soon as the video has been scanned — before any scene
 is labelled.
@@ -32,13 +32,12 @@ is labelled.
    native video's availability, and again on every expand and every host show. The
    answer now carries both lists: `timestamps` (candidate frames) and `changes` (change
    frames).
-3. When `changes` holds at least one item, the section draws a full-width
-   `SegmentedControl` between the ruler and the grid, with 「すべて {n}」 and
-   「変化点 {m}」, 「すべて」 selected.
+3. When `changes` holds at least one item, the section draws a row of two chips between
+   the ruler and the grid, 「すべて {n}」 and 「カット {m}」, with 「すべて」 selected.
 4. The grid, the ruler's tick marks and the picture window show the selected list. The
    scene marks, the scene card, the track length, the playhead and seeking are
    unchanged.
-5. Pressing the other segment swaps the list in place. The browse point and the playback
+5. Pressing the other chip swaps the list in place. The browse point and the playback
    position are kept, so the window re-anchors to the row of the new list at or before
    that point. No `clip-timestamps` or `visual-index` request is sent; the tiles of the
    new window ask for their pictures as any tile does.
@@ -49,7 +48,7 @@ is labelled.
 ### 2. Failure cases
 
 - `changes` is empty or absent: no switch is drawn, the grid shows the candidate frames,
-  and a retained 「変化点」 selection falls back to 「すべて」.
+  and a retained 「カット」 selection falls back to 「すべて」.
 - The `clip-timestamps` request fails, or `timestamps` is empty: unchanged from today —
   the section reports nothing, is not drawn, and its host button is unavailable. The
   switch never makes the section available on its own, so a file with change frames and
@@ -67,16 +66,16 @@ is labelled.
 | State | What is drawn |
 |---|---|
 | No change frames | No switch; grid, ruler ticks and window = candidate frames |
-| Switch, 「すべて」 selected | Grid, ruler ticks and window = candidate frames; 「変化点」 unselected |
-| Switch, 「変化点」 selected | Grid, ruler ticks and window = change frames; 「すべて」 unselected |
+| Switch, 「すべて」 selected | Grid, ruler ticks and window = candidate frames; 「カット」 unselected |
+| Switch, 「カット」 selected | Grid, ruler ticks and window = change frames; 「すべて」 unselected |
 | Section collapsed, then expanded | The mode is kept when the new answer still has changes; otherwise 「すべて」 |
 | Host hides and shows the panel | Same as expand: kept while the new answer still has changes, otherwise 「すべて」 |
 | File changed | The mode returns to 「すべて」 |
 | Request in flight | No switch (no answer yet); the loading skeleton as today |
-| Response without changes while 「変化点」 is selected | No switch; grid = candidate frames; the selection is reset to 「すべて」 |
-| Available through the Visual Index with `m > 0` and no candidate frames | The switch is drawn; 「すべて」 shows no tiles and 「変化点」 shows the cuts |
+| Response without changes while 「カット」 is selected | No switch; grid = candidate frames; the selection is reset to 「すべて」 |
+| Available through the Visual Index with `m > 0` and no candidate frames | The switch is drawn; 「すべて」 shows no tiles and 「カット」 shows the cuts |
 
-Allowed transitions: a segment press, collapse/expand, host hide/show, a file change, and
+Allowed transitions: a chip press, collapse/expand, host hide/show, a file change, and
 a response arriving. Not allowed: a mode without a response, and a switch on a section
 that is not drawn at all (no candidates and no Visual Index).
 
@@ -86,7 +85,7 @@ that is not drawn at all (no candidates and no Visual Index).
   `vector_table = 'vec_clip_change'` for the file, ascending by `timestamp_start`,
   through the existing `clip-timestamps` route. No new route and no new request.
 - Read: `indexed_files`, as the route already does for the drive check.
-- Read/write: the frame cache. Selecting 「変化点」 draws tiles whose times were never
+- Read/write: the frame cache. Selecting 「カット」 draws tiles whose times were never
   requested as candidate tiles, so the new window's tiles ask
   `GET /files/{file_id}/frame?t=<start>` (a `.loft`: `/scene-tile`), and a native video's
   miss extracts with ffmpeg and writes `intelligence_data_dir/frames/{file_id}/{ms}.webp`.
@@ -129,11 +128,16 @@ mismatch). The added field needs no check of its own.
 
 ### 9. User-visible behavior
 
-- The switch is the core `SegmentedControl` from `@/components/SegmentedControl`, full
-  width, placed directly below the ruler and above the grid. Its selected segment has an
-  accent border and no fill; the other is muted; labels truncate rather than wrap.
-- Segment labels: 「すべて {n}」 / 「変化点 {m}」 (ja), "All {n}" / "Scene changes {m}"
-  (en). English pluralises through ICU `plural` ("1 scene change").
+- The switch is a left-aligned row of two chips, placed directly below the ruler and
+  above the grid, inside a `role="group"`. Each chip is a `button` with `aria-pressed`,
+  drawn as DESIGN.md's kind chips (§Find in file): `rounded-full border px-2.5 py-1
+  text-xs`, the selected one `border-accent font-semibold text-text-primary`, the other
+  `border-transparent text-text-muted`. Each chip is as wide as its label, 4 px apart,
+  with no outline around the pair, and keeps this size on a coarse pointer as the Find
+  tab's chips do.
+- Chip labels: 「すべて {n}」 / 「カット {m}」 (ja), "All {n}" / "Cuts {m}" (en). The
+  number follows the noun as a count, as on the Find tab's chips, so no plural form is
+  needed.
 - `n` and `m` are the lengths of `timestamps` and `changes` in the response.
 - The switch is drawn only when `m > 0`.
 - Tiles are the selected list, ascending by `start`, in the same grid geometry as today;
@@ -158,7 +162,7 @@ mismatch). The added field needs no check of its own.
 
 - The change list is at most the stored change frames, which the scan already caps at
   `indexing.frame_extraction.max_frames` (500) and spreads over the video.
-- Switching to 「変化点」 requests the pictures of the window's tiles, up to `R × c` per
+- Switching to 「カット」 requests the pictures of the window's tiles, up to `R × c` per
   window, each once per file and again after the frame cache is purged; the browser's
   connection limit bounds concurrency. No prefetch beyond the window.
 - The list size is bounded by the same cap as the candidate list, so the window, ruler
@@ -184,7 +188,7 @@ mismatch). The added field needs no check of its own.
 - `addons/intelligence/frontend/ScenesSection/scenesModel.ts` — the helper that picks
   the list for a mode.
 - `addons/intelligence/frontend/messages/ja.json`, `messages/en.json` — three
-  `file`-namespace keys: the two segment labels and the group's accessible name.
+  `file`-namespace keys: the two chip labels and the group's accessible name.
 - `addons/intelligence/frontend/ScenesSection/__tests__/` — the switch and its states.
 - `addons/intelligence/tests/` — the route returns both lists, the change list holds
   exactly the `clip_change` rows, and `timestamps` is unchanged.
@@ -196,9 +200,9 @@ mismatch). The added field needs no check of its own.
 - `frontend/e2e-components/fixtures/app.tsx` — two arrangements,
   `scenes-changes-384` and `scenes-changes-390`, registered beside the existing `scenes-*`
   ones.
-- `frontend/e2e-components/scenes-section.cases.ts` — the new case, and its `card()`
-  helper narrowed so it does not match a `SegmentedControl` segment (both are
-  `rounded-xl` buttons).
+- `frontend/e2e-components/scenes-section.cases.ts` — the new case. Its `card()`
+  helper reads the first `button.rounded-xl`; the chips are `rounded-full`, so it still
+  finds the scene card.
 - `frontend/e2e-components/scenes-section-desktop.spec.ts` (mouse, 384 px) and
   `scenes-section.spec.ts` (touch, 390 px) — they call the case functions, so both must
   run the new one.
@@ -226,18 +230,19 @@ sheet. Its checkable decisions:
 
 - D1. At 384 px, top to bottom: title row, ruler track with its time labels, switch row,
   grid, scene card.
-- D2. The switch row spans the section's content width (352 px in the board, which pads
-  the 384 px box by 16 px) and the grid's first row follows it directly.
-- D3. Two segments of equal width, 「すべて 276」 then 「変化点 113」, in an outlined
-  group; the selected segment carries an accent border and no fill.
+- D2. The switch row is left-aligned and only as wide as its two chips; the grid's first
+  row follows it directly.
+- D3. Two pill chips, 「すべて 276」 then 「カット 113」, each as wide as its label, with no
+  outline around the pair; the selected chip carries an accent border and no fill, the
+  other no border and muted text.
 - D4. The grid is three columns of 16:9 tiles: 112 px in the padded board, and whatever
   the section's own width gives in the e2e arrangement (`ScenesSectionArrangement` draws
   the section at 384/390 with no padding, so its tiles are wider). The column count, not
   the pixel width, is what the case checks.
-- D5. With 「変化点」 selected the ruler's ticks thin out and the grid shows cut frames;
+- D5. With 「カット」 selected the ruler's ticks thin out and the grid shows cut frames;
   the card, the ruler's scene marks and the playhead stay where they were.
-- D6. The 390 px board shows the same order with both segments on one line at the
-  coarse-pointer height; it draws the section's own title row, which the phone sheet's
+- D6. The 390 px board shows the same order with both chips on one line at the same chip
+  height as at 384 px; it draws the section's own title row, which the phone sheet's
   host supplies in the app.
 - D7. With no change frames, no switch row is drawn.
 
@@ -246,11 +251,11 @@ sheet. Its checkable decisions:
 I1. The switch is drawn only when the response carries at least one change timestamp;
 otherwise the section draws no switch and the grid is the candidate list.
 
-I2. With 「変化点」 selected, every drawn tile's time is a change `start` and the drawn
+I2. With 「カット」 selected, every drawn tile's time is a change `start` and the drawn
 tiles are a consecutive window of that list in time order; the 「すべて」 window is
 SPEC-ADDON-089 I1's, unchanged.
 
-I3. A segment press sends no `clip-timestamps` and no `visual-index` request and writes
+I3. A chip press sends no `clip-timestamps` and no `visual-index` request and writes
 no search-database row; the only requests it causes are the picture requests of the
 newly drawn tiles.
 
@@ -260,7 +265,7 @@ the track length is the same in both; and the ruler keys keep their mapping (one
 press, the list's ends at `Home`/`End`, `Enter` seeks the browse point) over the shown
 list.
 
-I5. The two segment counts equal the two lists' lengths in the response, and the header's
+I5. The two chip counts equal the two lists' lengths in the response, and the header's
 bare number (when the section draws it) equals the drawn list's length.
 
 I6. `clip-timestamps` returns `changes` as exactly the file's `clip_change` rows with
@@ -273,14 +278,14 @@ while the re-fetched answer still has changes.
 
 I8. Every new message key exists in both locale files, and no key renders as its path.
 
-I9. With the switch drawn, its row spans the section's content width, the grid keeps the
-column count it has without the switch, no element overflows the section, and a press
+I9. With the switch drawn, both chips sit on one line inside the section's content width,
+the grid keeps the column count it has without the switch, no element overflows the section, and a press
 changes neither the section's height nor the ruler's `aria-valuemax`.
 
 ## Revises
 
 SPEC-ADDON-089 I1. The ruler draws exactly one tick per row of the list the section is
-showing (the candidate rows, or the change rows when 「変化点」 is selected), at
+showing (the candidate rows, or the change rows when 「カット」 is selected), at
 `min(start, L) / L` of its width, where `L` is the player's duration when that is a
 finite positive number at least as large as the candidate list's last start, and
 otherwise that last start plus the median gap between candidate frames (one candidate:
@@ -307,7 +312,7 @@ and never its `transcript_excerpt`. Activating the card seeks to that scene's se
 SPEC-ADDON-111 I1. Scene search, tag kNN, scene segments, similar files, concept tagging
 and the Scenes grid **in its default 「すべて」 mode** return the same results for a file
 before and after its frame scan; the change frames are additionally listed by the
-Scenes section's 「変化点」 selection and remain in the Visual Index's pool, and no
+Scenes section's 「カット」 selection and remain in the Visual Index's pool, and no
 change-frame vector is ever in `vec_clip`.
 
 SPEC-ADDON-104 I3. From top to bottom the section draws its header (when drawn), the
@@ -333,7 +338,7 @@ with the gaps they have today. Nothing is placed between the grid and the card.
 - Pre-caching the change frames' pictures at scan time so the first switch is instant:
   a write-amplifying change to the worker, and the on-demand extraction matches how
   every other tile gets its picture.
-- Adding a keyboard shortcut for the switch: Tab reaches both segments, and the ruler's
+- Adding a keyboard shortcut for the switch: Tab reaches both chips, and the ruler's
   key map is the section's documented one.
 - Remembering the choice across files or across mounts: a per-file view, starting at
   「すべて」 each time the section mounts.
@@ -342,3 +347,13 @@ with the gaps they have today. Nothing is placed between the grid and the card.
   both modes, so it is not a wrong tile.
 - Changing the existing e2e datasets to carry `changes`: the current cases stay the
   no-switch case, and a separate dataset draws the switch.
+- The full-width `SegmentedControl`: it gives a filter of the grid the weight of the
+  ruler and the grid, and its accent border sits beside the red playhead. The chips are
+  the same selected-state rule at the size of the Find tab's filters.
+- Extracting the Find tab's chip into a shared core component: the addon draws the same
+  classes itself, so the change stays inside the addon. A third caller is the point to
+  extract it.
+- Labels other than 「カット」 / "Cuts": 「変化点」 and "Changes" do not say what changed;
+  「シーン」 / "Scenes" collides with the Visual Index's scenes; 「ショット」 is less
+  familiar; 「場面転換」 is long for a chip. The list also holds large camera moves and
+  fades, not only hard cuts, which 「カット」 accepts as the reader's notion of a cut.
