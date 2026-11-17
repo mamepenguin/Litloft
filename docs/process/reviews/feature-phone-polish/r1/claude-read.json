@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The touch-point list said the FolderCard test \"names the two largest kinds and stops\" would be removed. The diff instead rewrites it as a new case, \"a folder of many kinds still shows the count alone\", and also adds a case for the editing branch that the list does not name.",
+      "impact": "There is no impact on users. Both cases only add assertions for I1 (several kinds, and the editing branch), so the test file differs from its plan by adding tests, not by weakening any.",
+      "evidence": "frontend/src/components/__tests__/FolderCard.test.tsx: the removed-by-plan case becomes 'SPEC-CORE-122: a folder of many kinds still shows the count alone' (asserts '20 items' and no Video|Document|Image|Audio|·). A new case, 'SPEC-CORE-122: the count alone is shown while the name is being edited', renders with isEditing and asserts '138 items'.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This deviates from the declared case-by-case plan inside a listed file and breaks no invariant. The added editing-branch case strengthens coverage of I1.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Record in the touch-point list that the case was rewritten rather than removed, and that an editing-branch case was added."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The diff adds an `action-menu-item-long-label` arrangement to the component fixture and registers it in the parity test. It also adds an I5 e2e test and an I2 ja-order e2e test to add-menu.spec.ts. The touch-point list names only the ja and right-edge AddMenu variants and an I4 case.",
+      "impact": "There is no impact on users. These are test-only additions that cover I5 and I2 in a real browser.",
+      "evidence": "frontend/e2e-components/fixtures/app.tsx: ActionMenuItemLongLabel (a w-40 role=menu holding one long-label ActionMenuItem) and the ARRANGEMENTS entry 'action-menu-item-long-label'. frontend/src/components/__tests__/componentFixtureParity.test.tsx adds 'action-menu-item-long-label'. frontend/e2e-components/add-menu.spec.ts adds the tests 'SPEC-CORE-123 I5: an item without the no-wrap option still wraps a long label' and 'SPEC-CORE-123 I2: the ja menu names the three actions in order'.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is an unplanned addition inside files that are listed, and it breaks no invariant.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add the long-label arrangement and the I2/I5 e2e cases to the touch-point list."
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "The diff adds a new test, 'SPEC-CORE-123 I3: the first row opens the file picker and the second the folder picker', to AddButton.test.tsx. The touch-point list declares this file only as having its expected labels updated to the new text.",
+      "impact": "There is no impact on users. The test only adds a check for I3.",
+      "evidence": "frontend/src/components/__tests__/AddButton.test.tsx: the new it(...) spies on HTMLInputElement.prototype.click and asserts [{directory:false}] and then [{directory:false},{directory:true}].",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is unplanned scope inside a listed file and breaks no invariant.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Note the added I3 unit test in the touch-point list."
+    }
+  ],
+  "specification_compliance": [
+    "Every file path in the diff is either named in the touch-point list or is an implicit spec, ledger or review-record path: docs/specs/phone-polish.md, docs/specs/INDEX.md, and docs/process/reviews/feature-phone-polish/decisions.md, which the reviewed commit f98725ac1 'docs: record R-5' records. The diff reaches no unlisted file.",
+    "The only departures are inside listed test files: TP-1, TP-2 and TP-3, which are additions or rewrites of cases rather than new paths.",
+    "ja.json leaves folder.newFolder unchanged, as the list says (en only).",
+    "ActionMenuItem's default className is unchanged when noWrap is absent. whitespace-nowrap is added only when noWrap is true (I5)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The R-5 evidence in decisions.md says Home showed three core rows. The spec says Home (DriveHome) passes no onCreateFolder, so it should show only two, and the DriveHome unit test asserts two. The record probably means a drive root rendered by FolderBrowser. This is prose only, and the code matches the spec."
+  ],
+  "regression_risks": [
+    "Other tests that use the old labels were checked. FolderBrowser.folderAnchor.test.tsx:51/179 uses 'New Folder', but it is self-contained: the test mocks AddButton itself, so it is unaffected. FolderBrowser.passages 'Files' and SearchQueryHeader/ConditionMenu 'Folder' are different controls with different message keys."
+  ],
+  "test_coverage": [
+    "I1 is covered in the link and the editing branch, for several kinds, a single kind and an empty folder (FolderCard.test.tsx).",
+    "I2 is covered in en through unit tests and in ja through e2e. The e2e uses toHaveText on an array, which is an exact list.",
+    "I3 is covered by the new AddButton unit test (pickers) and the existing create-folder test, whose cases now match 'New folder' exactly.",
+    "I4 is covered in e2e at 393px and 320px, for en and ja, at the left and right edge, with exactly 3 rows (no addon rows in the fixture).",
+    "I5 is covered in e2e by the long-label fixture. If noWrap were made the default, the line count would drop to 1 and the test would fail."
+  ],
+  "not_verified": [
+    "I did not run any test, unit or e2e, because I have no command execution.",
+    "I could not list the exact file set of commit f98725ac1 without git. I judged the diff as given (branch against origin/develop).",
+    "I did not check whether addon-rendered rows in the Add menu use ActionMenuItem (the addon-row part of I5).",
+    "I did not check the e2e phone project configuration (hasTouch for touchscreen.tap)."
+  ],
+  "confidence": 82
+}
