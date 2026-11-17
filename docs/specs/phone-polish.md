@@ -3,7 +3,7 @@
 SPEC-ID: SPEC-CORE-122
 SPEC-ID: SPEC-CORE-123
 
-Approval:
+Approval: sha256:60535145f7a1c4c8df045a41a2326ed11996ad70ddf190a5d4e967f1ec441943 Yuichi Senga 2026-11-17
 
 <!--
 Leave the Approval line empty. After a human approves this spec, the approval step

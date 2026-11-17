@@ -255,5 +255,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-121 | implemented | docs/specs/loft-fetch-storyboard.md | sha256:daca611c89261c93f3e10bd9e5f7b945d16a79c00b59e0f6f612811b72438c7d |
 | SPEC-CORE-118 | implemented | docs/specs/app-target-collections.md | sha256:5d19d0bc7e3b4c67b7c46ebe24ec10439f15fb3ea5e6eb5d31444d7169f038c2 |
 | SPEC-CORE-119 | implemented | docs/specs/app-target-collections.md | sha256:5d19d0bc7e3b4c67b7c46ebe24ec10439f15fb3ea5e6eb5d31444d7169f038c2 |
-| SPEC-CORE-122 | draft | docs/specs/phone-polish.md | |
-| SPEC-CORE-123 | draft | docs/specs/phone-polish.md | |
+| SPEC-CORE-122 | approved | docs/specs/phone-polish.md | sha256:60535145f7a1c4c8df045a41a2326ed11996ad70ddf190a5d4e967f1ec441943 |
+| SPEC-CORE-123 | approved | docs/specs/phone-polish.md | sha256:60535145f7a1c4c8df045a41a2326ed11996ad70ddf190a5d4e967f1ec441943 |
