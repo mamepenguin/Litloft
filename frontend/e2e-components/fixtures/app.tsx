@@ -13,6 +13,7 @@ import { FolderTree, Trash2 } from "lucide-react";
 
 import { NextIntlClientProvider } from "next-intl";
 
+import { ActionMenuItem } from "@/components/ActionMenuItem";
 import { AddButton } from "@/components/AddButton";
 import { Button } from "@/components/Button";
 import { ChromeButtons } from "@/components/ChromeButtons";
@@ -995,19 +996,60 @@ function SheetUnderSidebar(): ReactElement {
  * The Add menu with the shortcut stack it answers Escape through. The page
  * control fills the lower half, so a press outside the menu lands on it.
  */
-function AddMenu(): ReactElement {
+function AddMenuArrangement({
+  locale,
+  edge,
+}: {
+  locale: "en" | "ja";
+  edge: "left" | "right";
+}): ReactElement {
   const [created, setCreated] = useState(0);
   return (
-    <NextIntlClientProvider locale="en" messages={enMessages}>
+    <NextIntlClientProvider locale={locale} messages={locale === "ja" ? jaMessages : enMessages}>
       <ShortcutsProvider>
         <PageControl id="underneath" className="fixed inset-x-0 bottom-0 z-0 h-1/2 bg-bg-elevated">
           page
         </PageControl>
-        <div className="p-4" data-created={created} id="add-host">
-          <AddButton onCreateFolder={() => setCreated((n) => n + 1)} />
+        <div
+          className={`flex p-4 ${edge === "right" ? "justify-end" : ""}`}
+          data-created={created}
+          id="add-host"
+        >
+          <AddButton
+            align={edge === "right" ? "right" : "left"}
+            onCreateFolder={() => setCreated((n) => n + 1)}
+          />
         </div>
       </ShortcutsProvider>
     </NextIntlClientProvider>
+  );
+}
+
+function AddMenu(): ReactElement {
+  return <AddMenuArrangement locale="en" edge="left" />;
+}
+
+function AddMenuJa(): ReactElement {
+  return <AddMenuArrangement locale="ja" edge="left" />;
+}
+
+function AddMenuRight(): ReactElement {
+  return <AddMenuArrangement locale="en" edge="right" />;
+}
+
+function AddMenuJaRight(): ReactElement {
+  return <AddMenuArrangement locale="ja" edge="right" />;
+}
+
+function ActionMenuItemLongLabel(): ReactElement {
+  return (
+    <div className="w-40" role="menu">
+      <ActionMenuItem
+        icon={FolderTree}
+        label="Create descriptions for every image in this drive"
+        onClick={() => {}}
+      />
+    </div>
   );
 }
 
@@ -2562,6 +2604,10 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "measured-tree-pane": TreePaneColumn,
   "measured-picker-in-dialog": PickerInDialog,
   "add-menu": AddMenu,
+  "add-menu-ja": AddMenuJa,
+  "add-menu-right": AddMenuRight,
+  "add-menu-ja-right": AddMenuJaRight,
+  "action-menu-item-long-label": ActionMenuItemLongLabel,
   "condition-menu": ConditionMenuArrangement,
   "search-results-bar-files": SearchResultsBarFiles,
   "search-results-bar-files-type": SearchResultsBarFilesType,

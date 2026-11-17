@@ -119,12 +119,12 @@ describe("FolderToolbar", () => {
 
   it("puts upload and new folder behind one add menu", () => {
     render(<FolderToolbar {...defaultProps} />);
-    expect(screen.queryByText("Files")).not.toBeInTheDocument();
-    expect(screen.queryByText("New Folder")).not.toBeInTheDocument();
+    expect(screen.queryByText("Upload files")).not.toBeInTheDocument();
+    expect(screen.queryByText("New folder")).not.toBeInTheDocument();
     openAddMenu();
-    expect(screen.getByText("Files")).toBeInTheDocument();
-    expect(screen.getByText("Folder")).toBeInTheDocument();
-    expect(screen.getByText("New Folder")).toBeInTheDocument();
+    expect(screen.getByText("Upload files")).toBeInTheDocument();
+    expect(screen.getByText("Upload folder")).toBeInTheDocument();
+    expect(screen.getByText("New folder")).toBeInTheDocument();
   });
 
   it("offers no note row of its own in the add menu", () => {
@@ -132,7 +132,7 @@ describe("FolderToolbar", () => {
     openAddMenu();
     const menu = screen.getAllByRole("menu")[0];
     const rows = Array.from(menu.querySelectorAll('[role="menuitem"]')).map((r) => r.textContent?.trim());
-    expect(rows).toEqual(["Files", "Folder", "New Folder"]);
+    expect(rows).toEqual(["Upload files", "Upload folder", "New folder"]);
   });
 
   it("hides the add menu entirely in special view", () => {
@@ -157,8 +157,8 @@ describe("FolderToolbar", () => {
     );
     expect(screen.getAllByRole("button", { name: "Add" }).length).toBeGreaterThan(0);
     openAddMenu();
-    expect(screen.getByText("Files")).toBeInTheDocument();
-    expect(screen.getByText("New Folder")).toBeInTheDocument();
+    expect(screen.getByText("Upload files")).toBeInTheDocument();
+    expect(screen.getByText("New folder")).toBeInTheDocument();
   });
 
   it("hides the add menu for a tag filter with no folder anchor", () => {
@@ -196,7 +196,7 @@ describe("FolderToolbar", () => {
   it("clicking new folder triggers onSetCreatingFolder", () => {
     render(<FolderToolbar {...defaultProps} />);
     openAddMenu();
-    fireEvent.click(screen.getByText("New Folder"));
+    fireEvent.click(screen.getByText("New folder"));
     expect(defaultProps.onSetCreatingFolder).toHaveBeenCalledWith(true);
   });
 
@@ -360,8 +360,8 @@ describe("FolderToolbar", () => {
     it("keeps the ways of putting something in it", () => {
       render(<FolderToolbar {...empty} />);
       openAddMenu();
-      expect(screen.getByText("Files")).toBeInTheDocument();
-      expect(screen.getByText("New Folder")).toBeInTheDocument();
+      expect(screen.getByText("Upload files")).toBeInTheDocument();
+      expect(screen.getByText("New folder")).toBeInTheDocument();
     });
 
     it("still hands the add menu's addon rows the folder", () => {
