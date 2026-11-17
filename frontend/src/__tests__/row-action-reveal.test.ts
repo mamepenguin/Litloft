@@ -188,6 +188,15 @@ describe("a row action revealed by hover is revealed by focus too", () => {
     expect(offenders).toEqual([]);
   });
 
+  it("exempts only the one reveal the strip replaces", () => {
+    for (const rel of COARSE_DRAWS_STRIP_INSTEAD) {
+      expect(
+        reveals.filter((r) => r.where === rel),
+        rel,
+      ).toHaveLength(1);
+    }
+  });
+
   /**
    * A bare `group` lets two nested groups answer the same hover, so a card
    * inside a row reveals the row's actions.
