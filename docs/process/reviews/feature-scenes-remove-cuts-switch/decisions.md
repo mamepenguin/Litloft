@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship — the owner answered "ship" (2026-11-18) to review r6 (HUMAN_REVIEW_REQUIRED: Enter on the ruler of a .loft with no candidate frames seeks the browse point, as spec §9 says but the touch points do not name; finding claude-read:CR-1 bucket B).
 ran_in_app: yes
 at: 275c1098bb59dc023c4987a3a1c6428dfd867600
 by: agent
