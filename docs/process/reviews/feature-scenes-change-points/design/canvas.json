@@ -1,0 +1,42 @@
+{
+  "v": 3,
+  "createdOnFiles": {
+    "v": 1,
+    "at": "2026-11-17T00:00:00Z"
+  },
+  "title": "Scenes — すべて / 変化点",
+  "launch": {
+    "view": "canvas"
+  },
+  "pages": [],
+  "boards": {
+    "Section400All.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 384,
+      "h": 640,
+      "title": "384 px（インスペクタ 24rem）— 「すべて」"
+    },
+    "Section400Changes.dc.html": {
+      "x": 424,
+      "y": 0,
+      "w": 384,
+      "h": 640,
+      "title": "384 px — 「変化点」"
+    },
+    "Section400NoChanges.dc.html": {
+      "x": 848,
+      "y": 0,
+      "w": 384,
+      "h": 440,
+      "title": "変化点なし — スイッチを描かない"
+    },
+    "Phone390Changes.dc.html": {
+      "x": 1272,
+      "y": 0,
+      "w": 390,
+      "h": 580,
+      "title": "390 px（電話シート）— 「変化点」"
+    }
+  }
+}
