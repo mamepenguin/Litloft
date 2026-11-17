@@ -96,6 +96,7 @@ With the intelligence addon enabled for the drive, results found by meaning are 
 - Text shown in a video — a slide, terminal output, a caption burned into the picture — is found by its words too. A video found this way shows 内容一致; its time and 「画面内の文字」 appear under 箇所. The text on a scanned PDF page is found as that page's text.
 - A match in speech or in a scene shows up to three timestamps. Click one to play from that moment. `+N` says how many more there were.
 - A match in a PDF lists the pages, as `p.N`. Click one to open the PDF at that page.
+- PDF text can include vertical writing. A phrase split across lines may not match as one continuous phrase, and some isolated vertical characters on mixed-layout pages can be missed.
 - A match in an EPUB book lists the chapters by title. Click one to open the book at the start of that chapter.
 - A match in text shows one quote from the file. With the [Knowledge addon](../addons/knowledge.md), a button beside it adds the quote to the capture basket for a note.
 

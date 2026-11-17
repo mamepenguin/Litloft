@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [],
+  "specification_compliance": [
+    "Question answered: no code path in the diff reaches outside the declared touch-point list. Every changed code file is listed: addons/intelligence/app/extractors/pdf.py, app/document_text.py and app/workers/metadata.py (listed), and requirements.txt and requirements-test.txt (listed). The new test file addons/intelligence/tests/test_pdf_vertical_acceptance.py falls under 'PDF extractor, document reader, indexing and reindex regression tests'. app/database.py and the indexing queue are named in the list but untouched by this diff, which is allowed.",
+    "Documentation changes are covered by the touch-point list or are implicit: docs/addons/intelligence.md and docs/user-guide/search.md are user-facing documentation for document search and the addon; docs/specs/pdf-vertical-text.md and docs/specs/INDEX.md are implicit ledger and spec touch points. No docs/process path and no .claude/rules file is edited by the diff.",
+    "The diff also changes the parent repository's gitlink for addons/intelligence (submodule pointer 895d3349 -> 5779baa2). This is the mechanical consequence of editing files inside the addon and is not a separate unplanned surface, so it is not reported as a finding.",
+    "Observation outside the touch-point question, not raised as a finding: docs/specs/INDEX.md adds a blank line before the SPEC-ADDON-115 row, which may end the markdown table in that ledger. This is a ledger-formatting matter and does not lead to a code change."
+  ],
+  "potential_unspecified_behavior": [
+    "None raised for the touch-point question."
+  ],
+  "regression_risks": [
+    "Not assessed in depth; this review answers only the touch-point question."
+  ],
+  "test_coverage": [
+    "The new acceptance test file exists in the working tree at addons/intelligence/tests/test_pdf_vertical_acceptance.py, and the spec file exists at docs/specs/pdf-vertical-text.md; I did not read the test bodies in depth for this question."
+  ],
+  "not_verified": [
+    "I did not run tests or git commands; the diff was taken as given in the prompt.",
+    "I did not confirm that tests/document_text_api.py, tests/test_scanned_pdf_text.py and the .claude rule files exist or are unchanged.",
+    "I did not check whether the submodule bump is considered in scope by the process documents."
+  ],
+  "confidence": 80,
+  "unspecified_behavior_found": false
+}

@@ -1,0 +1,1 @@
+{"verdict":"FAIL","reasons":["artifact of claude-verify has confidence 68, below 70"],"findings":[{"reviewer":"claude-verify","id":"V1","state":"open"},{"reviewer":"claude-verify","id":"V2","state":"open"}],"needs_human":[]}
