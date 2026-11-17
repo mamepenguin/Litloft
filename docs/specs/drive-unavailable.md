@@ -37,18 +37,20 @@ For the owner; the app is a personal tool with no other users.
 ### 1. Normal flow
 
 1. The viewer opens any route under `/drive/<name>` (the drive root, a folder, a `?view=`,
-   search, a collection, an app, an addon page, a file page).
+   search, a collection, an app, an addon page, or any of these with `?file=`).
 2. The drive layout requests `GET /api/drives/<name>/summary` when it mounts and when the
    drive name in the URL changes; navigation inside the same drive does not request it again.
 3. While it waits, the route renders as today.
-4. On a 404, the layout requests `GET /api/auth/status` once, and renders the unavailable
-   state in place of everything it draws on every branch: the folder-tree pane, the content,
+4. On a 404, the layout renders the unavailable state and then requests `GET
+   /api/auth/status` once for that drive name; it renders the state in place of everything it draws on every branch: the folder-tree pane, the content,
    and its own file pane for `?file=`. The app header and the sidebar, drawn outside the
    layout, stay as they are.
-5. On a 2xx, the route keeps rendering as today.
+5. On a 2xx, the route keeps rendering as today: what was mounted while checking stays mounted
+   (the switch only replaces the tree when the answer is 404).
 6. When the auth status answers `has_protected_drives: true` and `is_admin: false` (the root
    picker's condition), the 「ロックを解除」 link is added to the link row. Its `href` is
-   `/unlock?redirect=` + `encodeURIComponent(pathname + search)`. `/unlock` returns to a
+   `/unlock?redirect=` + `encodeURIComponent(path)`, where `path` is the pathname, followed by
+   `?` and `useSearchParams().toString()` only when that string is not empty; a hash is dropped. `/unlock` returns to a
    `redirect` that starts with `/` and not `//`; arriving back mounts the drive layout again,
    so it asks again.
 
@@ -94,7 +96,7 @@ it, and lists no drive names other than the one in the URL.
 - `frontend/src/app/drive/[name]/layout.tsx` wraps every route under the drive, so the state
   covers all of them, including addon pages and the file page.
 - `getDriveSummary` throws `ApiStatusError` (an `Error` carrying the status, with the same
-  message as today). Its other callers, the sidebar (`useSidebarData`: trash and missing
+  message as today, `API error: <status> <statusText>`). Its other callers, the sidebar (`useSidebarData`: trash and missing
   counts) and the page-jump list (`useJumpDestinations`: missing count), catch any error and
   behave as before. The layout's request duplicates the sidebar's; that is accepted.
 - The root drive picker (`/`) and `/unlock` are not changed.
@@ -110,17 +112,18 @@ As in 2. Nothing new is logged.
 
 On a 404, the area below the app header and beside the sidebar (the box the layout's
 `h-below-header` branches fill; the same box on the branches that return bare children) shows
-one group, centred horizontally and placed in a flex column with `justify-content: center`
-and a 120px bottom padding, so it sits a little above the centre:
+one group, centred horizontally and placed in a flex column with `justify-content: center`,
+24px side padding and a 120px bottom padding, so it sits a little above the centre. On the
+branches that return bare children the state itself takes the `h-below-header` height:
 
 - a 48px `rounded-2xl` tile on `bg-elevated` with lucide's `HardDrive` icon (24px,
   `text-muted`);
 - 16px below, the heading 「ドライブ「<name>」を開けません」 (ja) / "Can't open the drive
   “<name>”" (en) as the page's only `<h1>`, 18px bold, centred, wrapping anywhere for a long
   name;
-- 16px below, the link row (gap 8px, wraps): 「ドライブ一覧へ」 / "All drives" as a Secondary
-  (Sand) button-look link, and, when shown, 「ロックを解除」 / "Unlock" as a Ghost button-look
-  link (DESIGN.md §Buttons). Each has a 44px touch target on a coarse pointer and the general
+- 16px below, the link row (gap 8px, wraps, 14px labels): 「ドライブ一覧へ」 / "All drives" as
+  a Secondary (Sand) button-look link, and, when shown, 「ロックを解除」 / "Unlock" as a Ghost
+  button-look link in `text-muted` (DESIGN.md §Buttons), as drawn. Each has a 44px touch target on a coarse pointer and the general
   size on a fine one.
 
 No `+ Add` button, no upload drop zone, no file listing, no folder tree, no file pane.
@@ -128,8 +131,9 @@ Colours are tokens, so the dark theme follows them.
 
 ### 10. Non-functional
 
-One summary GET per layout mount and per drive name; one auth GET only after a 404. No new
-endpoint.
+From the layout: one summary GET per layout mount and per drive name, and one auth GET per
+drive name that answered 404. The sidebar's own summary request is unchanged and not counted.
+No new endpoint.
 
 ## Design decisions to check
 
@@ -147,14 +151,20 @@ Against `DriveMissingA.dc.html` (390 × 844). The app header drawn there is a si
   front of all three branches.
 - `frontend/src/app/drive/[name]/__tests__/layout.test.tsx` — mocks the summary as resolved so
   its existing cases keep testing the branches on the `available` path.
-- A new component for the state under `frontend/src/components/` (drive-specific).
+- `frontend/src/components/DriveUnavailable.tsx`, exporting `DriveUnavailable` (props: the
+  drive name and whether to draw the Unlock link, with its `href`).
+- `frontend/src/__tests__/driveHomeTreeClosable.test.tsx` — renders the real `DriveLayout`;
+  its `@/lib/api` mock gains `getDriveSummary` resolving, so both cases stay on the
+  `available` path.
 - `frontend/src/lib/api.ts` — `getDriveSummary` via `fetchJSONStatus` (`ApiStatusError`);
   `getAuthStatus` read.
 - `frontend/src/components/sidebar/useSidebarData.ts`,
   `frontend/src/components/search/useJumpDestinations.ts` — callers, unchanged.
-- `frontend/src/messages-core/en.json`, `ja.json` — the heading and the two link labels.
-- e2e-components: an arrangement in `frontend/e2e-components/fixtures/app.tsx` that draws the
-  state in a below-header-sized box (short and 80-character names, Unlock shown and hidden);
+- `frontend/src/messages-core/en.json`, `ja.json` — `driveUnavailable.title` (with `{name}`),
+  `driveUnavailable.allDrives`, `driveUnavailable.unlock`.
+- e2e-components: arrangements `drive-unavailable` (short name, Unlock shown) and
+  `drive-unavailable-long` (80-character name, Unlock hidden) in
+  `frontend/e2e-components/fixtures/app.tsx`, drawing the state in a below-header-sized box;
   `frontend/e2e-components/drive-unavailable.spec.ts` (phone project, Pixel 5, 393px, coarse)
   and `drive-unavailable-desktop.spec.ts` (1280 × 800); registered in
   `frontend/src/components/__tests__/componentFixtureParity.test.tsx`,
@@ -173,26 +183,32 @@ I1. Once the summary has answered 404, the page shows the heading naming the URL
 link to `/`, and no `+ Add` button, no upload drop zone (`UploadZone`), no file listing, no
 folder tree and no file pane, on every route under `/drive/<name>` (root, folder, `?view=`,
 `?file=` on a folder and on a cross-folder view, search, collection, app, addon).
-I2. For an available drive, the route's content is drawn before the summary answers, and is
-the same after a 2xx as before this change.
-I3. When the summary fails with a status other than 404, or without a response, the route
-renders as before this change.
+I2. For an available drive, the route's content is drawn before the summary answers, and after
+a 2xx the children, the tree pane and the file pane mounted while checking are the same
+instances: none is remounted and the listing is not requested again.
+I3. When the summary fails with a status other than 404, or without a response, the route's
+own content is drawn and no unavailable heading appears.
 I4. The state shows no drive name other than the URL's, no group name and no count.
 I5. The Unlock link is drawn exactly when the auth status reports `has_protected_drives` true
 and `is_admin` false; its `href` is `/unlock?redirect=` + `encodeURIComponent(pathname +
 search)`, and after a successful unlock the browser is on that path and query.
 I6. An answer (summary or auth) for a drive name that is no longer the URL's changes nothing on
 the page.
-I7. The summary is requested once per layout mount and once per change of drive name, not on
-navigation inside the same drive.
-I8. When `getDriveSummary` rejects, the sidebar's trash and missing counts and the page-jump
-list's missing entry are what they were before this change for the same rejection.
+I7. The layout calls `getDriveSummary` once per mount and once per change of drive name, not
+on navigation inside the same drive, and calls `getAuthStatus` only after a 404, once per
+drive name.
+I8. When `getDriveSummary` rejects, the sidebar's summary is `null` after a mount and keeps
+its previous value after a refresh, and the page-jump list has no missing-files entry, as
+before this change.
+I10. While the state is shown, the app header and the sidebar are drawn as on any drive page.
 I9. On a coarse pointer each link drawn has a touch target of at least 44px; an 80-character
 drive name with no spaces stays inside the content box at 393px wide and the page does not
 scroll sideways.
 
 ## Checked, no action
 
+- **`/files/<id>`.** Out of scope: it is outside the drive layout. Only `?file=` under
+  `/drive/<name>` is covered.
 - **Next.js `notFound()`.** Not used: the drive pages are client components and the answer
   comes from a client request; the app header and sidebar should stay so the viewer can go
   elsewhere.
