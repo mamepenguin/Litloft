@@ -33,33 +33,44 @@ leaving lays the chrome out fresh for the current file; a dismissing tap does no
 the page; on a device with both a fine and a coarse pointer both reveal paths work and
 the way the header was revealed decides how it hides; keyboard focus inside the header
 keeps it revealed; while something covers the page, neither the reveal nor `T` acts; the
-touch and safe-area paths are checked by emulation and then by the human on an iPad.
+touch and safe-area paths are checked by emulation and then by the human on an iPad; the
+top-edge strip is a transparent element so it works over iframes; a collection's item
+list hides like the tree; the reading position stays put on entering and leaving; and a
+note's failed or conflicted save reveals the header.
 
 ## Terms
 
 - **File page URL**: `/files/{id}` (any query), or a `/drive/{drive}/…` URL whose query
   has a non-empty `file`. This covers every way a file opens inside the app shell:
-  `?file=` on a folder (`TwoPaneLayout`), `?file=` on a view or a search
+  `?file=` on a folder (`TwoPaneLayout`), `?file=` on a collection
+  (`/drive/{drive}/collections/{id}`, `CollectionDetail`'s `TwoPaneLayout`, whose left
+  pane is the collection's item list), `?file=` on a view or a search
   (`app/drive/[name]/layout.tsx`'s cross-folder `RightPaneFile`), and every form of
   `/files/{id}` (`FileDetailFullScreen`: `?collection=`, `?folder_play=1`,
   `?smart_collection=`, `?nav=inbox`, and none), in the loading, loaded and failed states,
   whether or not the file kind uses `FileDetailShell`. It is read from the router's
   current URL, so it is known on the first render and has no gap during a handover
-  between hosts.
+  between hosts. A URL whose drive layout draws `DriveUnavailable` instead of a file is
+  not a file page URL.
 - **Wide**: a viewport 768px or wider (`MOBILE_BREAKPOINT`).
 - **Focus state**: an in-memory boolean for the tab. **Focus layout**: the focus state is
   on, the URL is a file page URL, and the viewport is wide. Only the focus layout changes
   anything on screen.
 - **Chrome**: the app sidebar (inline column and overlay), the app header (`<header>` in
-  `Header.tsx`), the fixed `ChromeButtons` (menu and tree buttons) and the folder tree's
-  `<aside>` in `TwoPaneLayout`.
+  `Header.tsx`), the fixed `ChromeButtons` (menu and tree buttons) and the **left pane**:
+  `TwoPaneLayout`'s `<aside>`, which holds the folder tree, or on a collection route the
+  collection's item list. "The tree" below means the left pane, whichever it holds.
 - **The header** (in 129): the `<header>` and `ChromeButtons` together. **Hidden /
   revealed**: its two forms in the focus layout.
-- **Covered**: something is in front of the page, by the test `canTakeFindShortcut()` in
-  `frontend/src/lib/findShortcut.ts` answering false (a system full screen, the player's
-  pseudo full screen, or any `[aria-modal="true"]`: dialogs, the search window, the quick
-  note panel, the PDF / EPUB / image full-screen viewers), or an overlay shortcut context
-  with `blocksLower` being open.
+- **Covered**: something is in front of the page: a system full screen
+  (`document.fullscreenElement`), the player's pseudo full screen
+  (`data-player-fullscreen` on `<html>`), any `[aria-modal="true"]` element other than
+  the app sidebar, or an overlay shortcut context with `blocksLower`. This is
+  `canTakeFindShortcut()` in `frontend/src/lib/findShortcut.ts` with the app sidebar left
+  out. The modal surfaces are the confirm dialog, the rename dialog, the search window,
+  the quick note panel and the PDF / EPUB / image full-screen viewers; `ConfirmDialog`,
+  `RenameDialog` and `GlobalSearch`'s window gain `aria-modal="true"` so the test sees
+  them. The open overlay sidebar does not cover the page.
 - **Header menu**: a menu or popover whose trigger is inside the header, observed as a
   control inside the header carrying `aria-expanded="true"`.
 
@@ -75,20 +86,24 @@ SPEC-CORE-128:
    collection video), the Focus mode button is the header's last control. The button is
    drawn in the loading, loaded and failed states alike, so focus mode can always be left
    from the header.
-2. The viewer presses it, or presses `T` with no editing element focused and the page not
-   covered. The focus state turns on.
+2. The viewer presses it, or presses `T` with no editing element focused, no header menu
+   open and the page not covered. The focus state turns on.
 3. In the focus layout:
    - the header is hidden: it takes no height, paints nothing, is `inert` (out of the tab
      order and the accessibility tree), and stays mounted (search, quick note, the
      `header-actions` slot and the file row keep their state, and `Cmd/Ctrl+K`,
-     `Cmd/Ctrl+Shift+F`, `N` and `Cmd/Ctrl+\` keep working). On entry, an open header
-     menu is closed, and keyboard focus inside the header moves to `<body>`;
+     `Cmd/Ctrl+Shift+F`, `N` and `Cmd/Ctrl+\` keep working). On entry, keyboard focus
+     inside the header moves to `<body>`. No header menu is open on entry: a press on
+     the button closes it as any outside press does, and `T` does nothing while one is
+     open;
    - the sidebar takes no inline width, and an open overlay sidebar is closed. The inline
      column is gone in the same commit that turns the state on, not after the provider's
      effects, and its `transform` transition does not run. The stored `sidebar-open`
-     preference is not written. The menu button, once revealed, opens the sidebar as an
-     overlay;
-   - the folder tree's pane has zero width and is `inert`, without writing
+     preference is not written, and no press in the focus layout writes it: the menu
+     button (once revealed) opens the sidebar as an overlay and shows pressed only while
+     that overlay is open, and closing the overlay (the menu button, the backdrop, `Esc`)
+     writes nothing;
+   - the left pane has zero width and is `inert`, without writing
      `tree:enabled:{drive}`, without touching `treeYieldStore` and without a yield being
      recorded (`useInspectorFit` sees no pane to yield while the focus layout hides it);
    - the page's content starts at the top of the safe area (`env(safe-area-inset-top)`).
@@ -104,7 +119,10 @@ SPEC-CORE-128:
      eligibility (SPEC-CORE-126) is computed from the new width, and `--player-avail` is
      measured from the new geometry.
    The change happens in one frame: the sidebar's `padding` and `transform` transitions
-   and the tree's `width` transition do not run for entering or leaving.
+   and the tree's `width` transition do not run for entering or leaving. The reading
+   position stays put: the content that was at the top of the visible content area
+   before the press is at the top of the new visible content area after it, in whichever
+   element scrolls (the document on `/files/{id}`, the pane elsewhere).
 4. The viewer moves to another file (next or previous file, a collection item, folder
    play's next file, an Inbox step, a link from Related, a search result). The URL stays a
    file page URL, the focus state stays on, and every frame of the next file page is in
@@ -114,18 +132,22 @@ SPEC-CORE-128:
    would be for the current file page had focus mode never been on: the sidebar from its
    stored preference and width, the tree from `tree:enabled:{drive}`, `treeYieldStore`
    and the yield rule (SPEC-CORE-084) evaluated for the current file, the header in its
-   file row form, all in the first frame. With no other input since entering, that is
-   exactly the layout before entering.
+   file row form, all in the first frame, with the reading position kept as in step 3.
+   With no other input since entering, that is exactly the layout before entering.
 6. The router's URL stops being a file page URL (a folder listing, Home, a search results
-   list, settings), or the tab reloads. The focus state turns off in that same commit and
-   is never restored from storage.
+   list, settings, a drive that became unavailable), or the tab reloads. The focus state
+   turns off in that same commit, an overlay sidebar opened in focus mode closes, and the
+   next screen is in its ordinary layout from its first frame (inline sidebar where the
+   stored preference and width call for it). The state is never restored from storage.
 
 SPEC-CORE-129:
 
 1. In the focus layout, where `(any-pointer: fine)` matches and the page is not covered,
-   the pointer reaching the top 8px below the safe area's top reveals the header **by
-   pointer**. This is a position check on `pointermove`; focus mode adds no element over
-   those 8px.
+   a transparent strip covers the top 8px below the safe area's top, full width, above
+   the page (including iframes). A pointer entering it with no button pressed reveals the
+   header **by pointer**. A press that starts in the strip lands on the strip, not the
+   page. A drag or selection in progress (a button held) reaching the strip does not
+   reveal.
 2. Revealed: the `<header>` is drawn at the top of the safe area over the page, full
    width, at its ordinary height, with `ChromeButtons` in their usual place on its left
    and `shadow-lg` under it. Nothing under it moves and `--app-header-h` keeps its focus
@@ -135,14 +157,19 @@ SPEC-CORE-129:
    over the header, keyboard focus is inside the header (a rename input, a focused
    button), a header menu is open, or the overlay sidebar is open. It hides as soon as
    none holds; keyboard focus inside it then moves to `<body>`.
+   A note's save in the `error` or `conflict` state (`SaveDot`) reveals the header **by
+   status** whatever the pointer, and holds it while the state lasts; it then hides by
+   the rule of whatever else holds it, or at once if nothing does. The file row marks
+   this with `data-needs-attention` on an element inside the header, so the rule reads
+   the header, not the note.
 4. Where `(any-pointer: coarse)` matches and the page is not covered, a handle is drawn at
    the top centre, at the safe area's top: a visible 56×22px pill with a down chevron
    inside an 88×44px hit area. A tap reveals the header **by tap**, and the handle is not
-   drawn while the header is revealed. A header revealed by tap hides on a `pointerdown`
-   outside the header and outside any header menu or overlay sidebar it opened; that
-   `pointerdown` and the gesture it starts (a tap, a scroll) are not delivered to the
-   page, and what the header opened is closed. Keyboard focus inside it then moves to
-   `<body>`.
+   drawn while the header is revealed. While a header menu or the overlay sidebar is
+   open, a `pointerdown` outside it is theirs: it closes them as it does today and the
+   header stays revealed. With neither open, a `pointerdown` outside the header hides
+   it; that `pointerdown` and the gesture it starts (a tap, a scroll) are not delivered
+   to the page. Keyboard focus inside the header then moves to `<body>`.
 5. On a device where both queries match, both the strip and the handle work; each reveal
    hides by its own rule in step 3 or step 4.
 6. Pressing the menu button while revealed opens the sidebar in its overlay form; focus
@@ -152,8 +179,11 @@ SPEC-CORE-129:
    visible, the press continues as the tree button's ordinary press (SPEC-CORE-084 §3:
    yielded → reopened with nothing written; hidden by setting → `true` written); if it is
    visible, nothing more happens.
-8. Entering the focus layout, by a press or by widening past 768px, starts hidden. The
-   page becoming covered hides a revealed header and removes the handle. A file-to-file
+8. Entering the focus layout, by a press or by widening past 768px, starts hidden (unless
+   a save needs attention, step 3). The page becoming covered hides a revealed header and
+   removes the handle and the strip; this includes opening the search window or quick
+   note from the revealed header. When the cover closes, the header stays hidden and
+   keyboard focus, whose trigger is now `inert`, is on `<body>`. A file-to-file
    navigation leaves the reveal as it is.
 
 ### 2. Failure cases
@@ -168,8 +198,8 @@ SPEC-CORE-129:
 - `T` while keyboard focus is inside an iframe (a `.loft` YouTube embed, an HTML file, the
   EPUB reader): the key never reaches the document, so nothing happens. The reveal and the
   button still work.
-- The pointer leaves the window through its top edge without a `pointermove` inside the
-  top 8px: no reveal; the viewer moves back to the edge.
+- The pointer leaves the window through its top edge without entering the strip: no
+  reveal; the viewer moves back to the edge.
 - The viewport becomes narrower than 768px while the focus state is on (a window resize,
   an iPad rotated to portrait): the focus layout ends and the page is laid out as an
   ordinary phone file page, while the focus state stays on. Widening again to 768px or
@@ -177,6 +207,11 @@ SPEC-CORE-129:
 - `localStorage` throws or is empty: focus mode does not read or write it.
 - The file fails to load or is not found while in focus mode: the error state is drawn in
   the focus layout; the header can be revealed, and its Focus mode button and trail work.
+- The drive becomes unavailable while moving file to file in focus mode: its screen is
+  not a file page, so the focus state turns off and `DriveUnavailable` is drawn with the
+  header and sidebar (SPEC-CORE-125 I10 holds).
+- A note's save fails or conflicts while the header is hidden: the header is revealed by
+  status (129 step 3), so the save dot is visible.
 
 ### 3. States
 
@@ -184,7 +219,7 @@ Focus state: `off` (initial, after reload) and `on`.
 
 | From | Input | To |
 |---|---|---|
-| off | button press, or `T` on a file page URL at any width, no editing element focused, not covered | on |
+| off | button press, or `T` on a file page URL at any width, no editing element focused, no header menu open, not covered | on |
 | on | button press, or `T` under the same conditions | off |
 | on | the tree button pressed while revealed | off, then 129 step 7 |
 | on | the URL stops being a file page URL; reload | off |
@@ -201,16 +236,18 @@ Header in the focus layout (SPEC-CORE-129): `hidden`, `revealed by pointer`,
 
 | From | Input | To |
 |---|---|---|
-| hidden | pointer reaches the top 8px, not covered | revealed by pointer |
+| hidden | pointer enters the strip with no button held, not covered | revealed by pointer |
 | hidden | tap on the handle, not covered | revealed by tap |
+| hidden | a save enters `error` or `conflict` | revealed by status |
 | revealed by pointer | none of 129 step 3's holds remains | hidden |
-| revealed by tap | `pointerdown` outside the header, its menus and the overlay sidebar | hidden |
+| revealed by tap | `pointerdown` outside the header with no header menu or overlay sidebar open | hidden |
+| revealed by status | the save leaves `error` / `conflict` | hidden, unless another hold applies (then revealed by pointer) |
 | either revealed | the page becomes covered | hidden |
 | any | the focus layout ends | the ordinary header |
 | (none) | the focus layout begins | hidden |
 
 Not transitions: keyboard shortcuts, a file-to-file navigation, a resize that keeps the
-focus layout, a `pointermove` while covered, `Esc`.
+focus layout, pointer movement while covered or with a button held, `Esc`.
 
 ### 4. Data read and written
 
@@ -246,7 +283,10 @@ applies to has already passed the drive's access check.
   (the error chrome and the cross-folder file page), `FileDetailFullScreen`,
   `useInspectorFit` (no yield while hidden), `useCompanionMetrics` (reads
   `--app-header-h`), `HighlightControls` (gains `aria-expanded` on its trigger so it
-  counts as a header menu).
+  counts as a header menu), `CollectionDetail` (its item-list pane hides like the tree),
+  `ConfirmDialog`, `RenameDialog` and `GlobalSearch` (gain `aria-modal="true"`, which also
+  makes the find shortcut yield under them, as it already does under other modals),
+  `MarkdownDocumentLayout` / `SaveDot` (`data-needs-attention`).
 - The sidebar overlay counter is shared with `TwoPaneLayout`'s tree borrow and
   `FileDetailFullScreen`'s borrow. Focus mode must not let it pass through zero between
   two borrows, or the provider reapplies the stored preference mid-exit.
@@ -264,9 +304,14 @@ applies to has already passed the drive's access check.
   revised lines say: `frontend/e2e-components/file-header-row-desktop.spec.ts`,
   `frontend/e2e-components/header-row-crowding.spec.ts`,
   `frontend/e2e-components/fixtures/fileHeaderRow.tsx`, `FileDetailChrome.test.tsx`,
-  `FileDetailHeaderRow.test.tsx`, and the source inventory in
+  `FileDetailHeaderRow.test.tsx`, the source inventory in
   `frontend/src/__tests__/anchoredDropdowns.test.ts` that pins `TwoPaneLayout`'s
-  `h-below-header … overflow-clip` line.
+  `h-below-header … overflow-clip` line, and the source-parity tests
+  `frontend/src/components/__tests__/pseudoFullscreenFixtureParity.test.tsx` (the
+  `className` of `Header.tsx` and `ChromeButtons.tsx`) and
+  `frontend/src/components/__tests__/componentFixtureParity.test.tsx` (`TwoPaneLayout`'s
+  `<section>` and `<aside>`), with their fixtures updated to the new declarations so
+  parity still holds.
 - The iOS app's `shellImmersive` serves the player's full screen in the native shell and
   is not involved.
 
@@ -336,8 +381,11 @@ what the design decides.
   canvas; the page keeps its width cap.
 - D9. `/files/{id}` in the focus layout: the content column keeps its width and its gap
   above it, measured from the viewport's top.
-- D10. With only a fine pointer and the header hidden, focus mode draws nothing over the
-  page.
+- D10. With only a fine pointer and the header hidden, focus mode draws nothing visible
+  over the page (the strip is transparent).
+- D11. The handle: a 56×22px pill inside an 88×44px hit area, centred, its top at the
+  safe area's top. The revealed header and the handle are above the inspector's overlay
+  form and the sticky find bar and below the overlay sidebar's backdrop.
 
 ## Touch points
 
@@ -366,11 +414,18 @@ what the design decides.
   `--app-header-h`.
 - `frontend/src/components/FileDetail/FileDetailChrome.tsx`: the Focus mode button in the
   trailing unit.
+- `frontend/src/components/CollectionDetail.tsx`: the collection route's left pane.
+- `frontend/src/components/ConfirmDialog.tsx`, `frontend/src/components/RenameDialog.tsx`,
+  `frontend/src/components/GlobalSearch.tsx`: `aria-modal="true"`.
+- `frontend/src/components/markdown/MarkdownDocumentLayout.tsx`,
+  `frontend/src/components/markdown/SaveDot.tsx`: `data-needs-attention`.
 - `frontend/src/components/HighlightControls.tsx`: `aria-expanded` on its trigger.
 - `frontend/src/components/folder/RightPaneFile.tsx`: the error chrome and the
   cross-folder file page.
 - `frontend/src/components/FileDetailFullScreen.tsx`: `/files/{id}`.
-- `frontend/src/lib/findShortcut.ts`: read (`canTakeFindShortcut`, the covered test).
+- `frontend/src/lib/findShortcut.ts`: the covered test (`canTakeFindShortcut` with the
+  app sidebar left out; the find shortcut's own behaviour is unchanged except under the
+  three dialogs above).
 - `frontend/src/components/ShortcutsProvider.tsx`, `frontend/src/lib/shortcuts.ts`,
   `frontend/src/components/ShortcutCheatSheet.tsx`: read; the `focus-mode` context uses
   the existing editing and overlay rules.
@@ -404,7 +459,8 @@ search file page the `h-below-header` box runs from the safe area's top to the v
 bottom, and on `/files/{id}` the content column's top is its normal gap below the safe
 area's top and the player's frame is no taller than `--player-avail` measured from there
 (within 1px); at 1440×900 and 1280×800 with the inspector open the canvas is the
-viewport's width less 384px (within 1px).
+viewport's width less 384px, and with no workbench panel shown a video's frame is
+1024×576 and 864×486 (within 1px).
 
 I2. Entering and leaving, revealing and hiding write none of `sidebar-open`,
 `tree:enabled:{drive}`, `inspector-open:{drive}`, `workbench-panels`,
@@ -413,7 +469,9 @@ and no yield is recorded while in the focus layout. Entering then leaving at the
 viewport with no other input puts every box of the page (header, sidebar, tree pane,
 canvas, inspector, player frame) where it was (within 1px), with the tree shown by
 setting, hidden, yielded and reopened, and the sidebar stored open and closed, at 1440 and
-at 1024 wide.
+at 1024 wide; and when the content is scrolled, the element at the top of the visible
+content area keeps its distance from that area's top across entering and across leaving
+(within 1px).
 
 I3. Entering or leaving focus mode, a reveal or a hide never remounts the `<video>`
 element, a `.loft` or HTML iframe, the PDF or EPUB viewer, any workbench panel, the
@@ -424,15 +482,18 @@ I4. The first painted frame after a press that enters or leaves, and every frame
 file-to-file navigation in the focus layout, is already in the target layout: no frame
 shows the header taking height, the sidebar or tree taking width, or a width, padding or
 transform mid-transition. The focus state is off in the first commit whose URL is not a
-file page URL, and after a reload.
+file page URL, and after a reload; that screen's first frame is in its ordinary layout,
+and an overlay sidebar opened in focus mode is closed on leaving by either path.
 
 I5. Below 768px the page is laid out exactly as a phone file page whatever the focus
 state, and widening back to 768px or more with the state on gives the focus layout,
 hidden.
 
-I6. `T` toggles the focus state on a file page URL only when no editing element has focus
-and the page is not covered; otherwise it changes nothing and, in an editing element,
-types the character. `T` and the button both work while the mini player is shown.
+I6. `T` toggles the focus state on a file page URL only when no editing element has focus,
+no header menu is open and the page is not covered (each of the confirm dialog, the
+rename dialog, the search window, the quick note panel, the full-screen viewers and the
+player's pseudo and system full screen covers it; the open overlay sidebar does not);
+otherwise it changes nothing and, in an editing element, types the character. `T` and the button both work while the mini player is shown.
 
 I7. Revealing and hiding move nothing on the page: the canvas, the inspector, the player
 frame and the `/files/{id}` column keep their boxes (within 1px), and `--app-header-h`
@@ -448,15 +509,17 @@ states whenever the header is shown (outside the focus layout, or revealed in it
 name and `title` follow the focus state with §9's keys in both locales; and the cheat
 sheet lists `T` under `focusMode.title` on every file page URL.
 
-I10. With a fine pointer the header is revealed exactly when the pointer reaches the top
-8px below the safe area or one of 129 step 3's holds applies, and while hidden
-`document.elementFromPoint` anywhere in those 8px returns a page element; with a coarse
-pointer a tap on the handle reveals it, and a `pointerdown` outside hides it, closes what
-the header opened and reaches no page element; while the page is covered neither path
-reveals and no handle is drawn; a file-to-file navigation keeps the reveal; the menu
-button opens the overlay sidebar with focus mode still on; and the tree button pressed
-while revealed ends focus mode and leaves the tree visible, writing
-`tree:enabled:{drive}` only when the tree was hidden by setting.
+I10. With a fine pointer the header is revealed exactly when the pointer, with no button
+held, enters the top 8px below the safe area (over an iframe too) or one of 129 step 3's
+holds applies; a save in `error` or `conflict` reveals it whatever the pointer; with a
+coarse pointer a tap on the handle reveals it, and with no header menu or overlay
+sidebar open a `pointerdown` outside hides it and reaches no page element; whenever the
+header hides, keyboard focus inside it is on `<body>`; while the page is covered neither
+path reveals and neither the strip nor the handle is present; a file-to-file navigation
+keeps the reveal; the menu button opens the overlay sidebar with focus mode still on and
+no press in the focus layout writes `sidebar-open`; and the tree button pressed while
+revealed ends focus mode and leaves the left pane visible, writing
+`tree:enabled:{drive}` only when it was hidden by setting.
 
 ## Revises
 
@@ -476,7 +539,7 @@ SPEC-CORE-098 I3. On a page that is not a file page, or below 768px, the header 
 
 SPEC-CORE-098 I5. Across a file-to-file swap, a loading-to-loaded swap, a beside-to-stacked resize, a resize across 768px, or a move to a hosted file page without an inspector, every frame at 768px or wider in which the header is shown (outside the focus layout, or revealed in it) shows exactly one trailing divider and one Focus mode button, and either no inspector toggle or exactly one as the last control. The header never holds a toggle inside the row, never holds two, and never holds one left by a file page that is no longer on top. Where the outgoing and the incoming hosted file page both have an inspector at 768px or wider, every such frame shows the toggle.
 
-SPEC-CORE-098 I8. At 768px wide, on the canonical route with a video file (find and the file kind's controls shown), the tree closed, not walking the Inbox, no `header-actions` entries, a 200-character file name and the set-up button in place of the avatar, outside the focus layout, the header does not wrap, none of its controls overlap, the trail's leaf is truncated, and the Focus mode button and the toggle lie inside the header's box.
+SPEC-CORE-098 I8. At 768px wide, on the canonical route with a video file (find and the file kind's controls shown), the tree closed, not walking the Inbox, no `header-actions` entries, a 200-character file name and the set-up button in place of the avatar, outside the focus layout or with the header revealed in it, the header does not wrap, none of its controls overlap, the trail's leaf is truncated, and the Focus mode button and the toggle lie inside the header's box.
 
 SPEC-CORE-098 I10. On a hosted file page at 768px or wider, outside the focus layout or with the header revealed in it, the Focus mode button follows the profile button in the header's focus order, the inspector toggle follows it where the page has one, and nothing focusable follows the last of them inside the header.
 
@@ -503,6 +566,9 @@ SPEC-CORE-098 I10. On a hosted file page at 768px or wider, outside the focus la
 - **Deciding "file page" from the registered header row** (`FileHeaderRowProvider`'s
   `top`). It has a gap when `/files/{id}` hands its row to `FileDetailShell` and when a
   link moves from `?file=` to `/files/{id}`; the URL has none.
+- **A close API for header menus.** Not needed: `T` does nothing while one is open, a
+  press on the button closes it as any outside press does, and on touch an outside
+  `pointerdown` goes to the open menu first.
 - **A contract for `header-actions` addon popovers.** An addon that sets `aria-expanded`
   on its trigger already holds the reveal; adding a slot prop would be an extension-point
   change for one hold.
