@@ -55,3 +55,15 @@ pending: none (no agent_cannot_verify part is touched; the item 10 timing gate o
   - 4,410 of 6,246 detected boxes recognised, so 29 % were reused.
 - I2 on real RapidOCR held on all 7 clips: 388 frames, 0 differ. The first harness run stopped on frames with no box, because it called recognition with an empty list. The reader never does that, since it skips recognition when nothing is left to recognise. The harness was fixed and the four affected clips were rerun.
 - Human decision (2026-11-17): ship with the code clip at 15.79 min/h. It is the densest kind of video, and the overrun is 5 %. `docs/addons/intelligence.md` quotes the measured numbers.
+
+## Review r1 (HUMAN_REVIEW_REQUIRED)
+
+- Run: `r1/` (review.sh at core `eb2884d44`, addon `1473405`). Findings R1 to R5, all bucket B; Needs a human: unspecified_behavior x2.
+- decision: continue (human, 2026-11-18: "continue")
+- Fixes agreed for this round:
+  - R2: a failed re-read lookup no longer drops the frame task; a test covers a running re-read, before and after its store step, against the `.loft` gate.
+  - R5: a reindex raises a queued re-read to 100 whatever else it requests.
+  - R3: the unused `frame_gap` is deleted.
+  - `scripts/dev/frame_ocr_bench/run.sh` no longer hides lines containing "warn" or discards the I2 check's exit status.
+  - Segments follow SPEC-ADDON-066 I2: a read with text equal to the open segment's continues it. Before, every such read restarted the segment at its own time, so a persistent title kept only its last read span. Found in production on a YouTube video (H1VP7QmJAIkw): a chapter title on screen 260-482 s was stored as 472-482 s. A local run on the same 720p rendition, with the one-line fix, gave 262-482 s (old rule) and 260-482 s (new rule).
+- Not changed: R1 and R4 note files outside the touch-point list (shared test fixtures; extra keys from `_get_indexed_file_or_404`). Neither changes behaviour.
