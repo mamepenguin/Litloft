@@ -67,3 +67,14 @@ pending: none (no agent_cannot_verify part is touched)
   - `scripts/dev/frame_ocr_bench/run.sh` no longer hides lines containing "warn" or discards the I2 check's exit status.
   - Segments follow SPEC-ADDON-066 I2: a read with text equal to the open segment's continues it. Before, every such read restarted the segment at its own time, so a persistent title kept only its last read span. Found in production on a YouTube video (H1VP7QmJAIkw): a chapter title on screen 260-482 s was stored as 472-482 s. A local run on the same 720p rendition, with the one-line fix, gave 262-482 s (old rule) and 260-482 s (new rule).
 - Not changed: R1 and R4 note files outside the touch-point list (shared test fixtures; extra keys from `_get_indexed_file_or_404`). Neither changes behaviour.
+
+## Review r2 (HUMAN_REVIEW_REQUIRED)
+
+- Run: `r2/` (review.sh at core `43b7f4bf2`, addon `c7ef2fa`). Findings R1 and R2, bucket B. Needs a human: unspecified_behavior (a backlog `.loft` task dropped when the outdated-read lookup fails).
+- Mutation review at `c7ef2fa`: `mutation-review.md`. 34 mutants, 28 killed, 6 survived. A surviving mutant that sets `READ_HASH_BITS` to 16 was not among them: that mutant was killed, so r2's R2 holds only for thresholds between 9 and 15 (F2).
+- decision: continue (human, 2026-11-18: "continue")
+- Fixes agreed for this round:
+  - r2 R1: a failed lookup in the `.loft` fetch gate counts as busy, so the task goes back to the queue.
+  - F1: the I8 acceptance parametrisation gains a re-read that decodes no frame (ffmpeg exits 0). Expected values are unchanged.
+  - r2 R2 / F2: a test reads a frame whose hash moved by 8 to 15 bits.
+- Not changed (impact 3 or less): F3 (a reused box the engine dropped can become an empty string), F4 (no test that a native frame scan holds back the `.loft` backlog), F5 and F6 (not observable in normal use).
