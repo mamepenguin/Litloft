@@ -27,6 +27,31 @@ export function useIsFilePageUrl(): boolean {
   return isFilePageUrl(pathname, searchParams.get("file"));
 }
 
+/**
+ * Both reveal paths are offered on a device that has both kinds of pointer,
+ * so each is asked for on its own: `usePointerMode` answers the primary one
+ * and would hide one of them.
+ */
+export function useAnyPointer(): { fine: boolean; coarse: boolean } {
+  const [pointers, setPointers] = useState({ fine: false, coarse: false });
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return;
+    }
+    const fine = window.matchMedia("(any-pointer: fine)");
+    const coarse = window.matchMedia("(any-pointer: coarse)");
+    const sync = () => setPointers({ fine: fine.matches, coarse: coarse.matches });
+    sync();
+    fine.addEventListener?.("change", sync);
+    coarse.addEventListener?.("change", sync);
+    return () => {
+      fine.removeEventListener?.("change", sync);
+      coarse.removeEventListener?.("change", sync);
+    };
+  }, []);
+  return pointers;
+}
+
 /** At `MOBILE_BREAKPOINT` and wider the focus layout has room to apply. */
 export function useIsWideViewport(): boolean {
   const [wide, setWide] = useState(

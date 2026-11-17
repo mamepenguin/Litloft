@@ -4,6 +4,7 @@ import { useCallback, useEffect, useSyncExternalStore } from "react";
 
 import { useTreeBeside } from "@/hooks/useTreeBeside";
 import { useTreeEnabled } from "@/hooks/useTreeEnabled";
+import { useFocusLayout, toggleFocusMode } from "@/hooks/useFocusMode";
 import { treeNarrowOpenStore } from "@/lib/treeNarrowOpenStore";
 import { treeYieldStore } from "@/lib/treeYieldStore";
 
@@ -48,8 +49,19 @@ export function useTreeVisible(drive: string): UseTreeVisibleResult {
   }, [beside, drive]);
 
   const visible = !yielded && (beside ? enabled : narrowOpen);
+  // The focus layout gives the pane's width to the page, so the button
+  // reports what is on screen and a press has to end that layout first.
+  const focusLayout = useFocusLayout();
+  const visibleOutsideFocus = visible;
 
   const toggle = useCallback(() => {
+    if (focusLayout) {
+      toggleFocusMode();
+      // The layout leaving produces shows the pane: the press has already
+      // done what it was for, and running the ordinary press would hide the
+      // pane it just brought back.
+      if (visibleOutsideFocus) return;
+    }
     // Outside a file page the button edits the setting, as it always has.
     // On one the pane has a third state — collapsed for the inspector, with
     // nothing stored — and pressing the button reports it rather than
@@ -77,7 +89,12 @@ export function useTreeVisible(drive: string): UseTreeVisibleResult {
     // Narrow: the request is about this screen, so it does not disturb the
     // stored setting the wider layout will read.
     treeNarrowOpenStore.set(drive, !narrowOpen);
-  }, [beside, enabled, narrowOpen, setEnabled, drive, yieldState]);
+  }, [beside, enabled, narrowOpen, setEnabled, drive, yieldState, focusLayout, visibleOutsideFocus]);
 
-  return { visible, beside: visible && beside, yielded, toggle };
+  return {
+    visible: focusLayout ? false : visible,
+    beside: visible && beside,
+    yielded,
+    toggle,
+  };
 }

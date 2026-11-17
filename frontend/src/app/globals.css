@@ -705,6 +705,9 @@ header[data-focus-header="revealed"] {
   position: fixed;
   inset-inline: 0;
   top: env(safe-area-inset-top, 0px);
+  /* Above the inspector's overlay form and the sticky find bar, both z-20,
+     and below the overlay sidebar's backdrop at z-30. */
+  z-index: 25;
   box-shadow: var(--shadow-lg);
 }
 
