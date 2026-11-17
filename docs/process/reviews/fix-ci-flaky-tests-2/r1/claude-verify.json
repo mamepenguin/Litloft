@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-1",
+      "status": "confirmed",
+      "note": "Reproduced. A case-insensitive grep for 'flaky' under docs/specs returns no files. A glob of docs/process/reviews/fix-ci-flaky-tests-2/** lists only decisions.md and r1/{head,expected,fixes,product-files,test-files}.txt and classification.json. There is no invariants.md and no spec. decisions.md records the eight test files and notes that no product file changed, but it gives no SPEC or UNSPEC statement of the correct behavior. docs/process/workflow.md:69 says a bug fix skips the spec design review and the approval, but 'the correct behavior is stated as a SPEC or UNSPEC'. FileDetailFullScreen.smartCollection.test.tsx:96 imports getCollectionOnEnded from ../CollectionPanel, and line 164 waits on it. CollectionPanel.tsx:428-429 returns window.__collectionOnEnded. That value is set and deleted by the CollectionEndedHandler effect at CollectionPanel.tsx:292-298, and the commit leaves that file unchanged. This is a process-documentation gap with no runtime effect."
+    }
+  ],
+  "specification_compliance": [
+    "No spec or invariants.md exists for fix-ci-flaky-tests-2. workflow.md:69 requires a SPEC or UNSPEC statement even for a bug fix, and decisions.md does not provide one."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The smartCollection test now depends on the window.__collectionOnEnded test hook in CollectionPanel.tsx:292-298 and 428-429. Renaming or removing that hook would break the test, but it would fail loudly rather than pass silently."
+  ],
+  "test_coverage": [
+    "Only test files were changed. I did not run the tests, so I did not check whether the flakiness is actually removed."
+  ],
+  "not_verified": [
+    "I did not run the Vitest or Playwright suites, so I did not confirm that the flakiness is fixed.",
+    "I did not check every diff line range cited in the finding (for example sidebarNameInUse.test.tsx:356-362) against the commit.",
+    "I did not read the feature-design-conformance-check r1 CR-1 precedent."
+  ],
+  "confidence": 88
+}

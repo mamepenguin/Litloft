@@ -1,0 +1,48 @@
+{
+  "risk": "MEDIUM",
+  "score": 5,
+  "base": 1,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "frontend/e2e-components/justified-hold-desktop.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-epub/typography.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/inboxActions.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/FileActions.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/FileDetailFullScreen.inboxNav.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/FileDetailFullScreen.smartCollection.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/GlobalSearch.inSmartCollection.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/sidebarNameInUse.test.tsx",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}
