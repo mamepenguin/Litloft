@@ -1547,7 +1547,8 @@
     "close": "{label}を閉じる",
     "showMore": "もっと見る",
     "showLess": "折りたたむ",
-    "enlargePanels": "パネルを広げる"
+    "enlargePanels": "パネルを広げる",
+    "splitPanels": "パネルを横に並べる"
   },
   "driveUnavailable": {
     "title": "ドライブ「{name}」を開けません",

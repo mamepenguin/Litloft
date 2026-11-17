@@ -1,0 +1,6 @@
+frontend/src/__tests__/inboxActions.test.tsx
+frontend/src/components/__tests__/FileActions.test.tsx
+frontend/src/components/__tests__/FileDetailFullScreen.inboxNav.test.tsx
+frontend/src/components/__tests__/FileDetailFullScreen.smartCollection.test.tsx
+frontend/src/components/__tests__/GlobalSearch.inSmartCollection.test.tsx
+frontend/src/components/sidebar/__tests__/sidebarNameInUse.test.tsx

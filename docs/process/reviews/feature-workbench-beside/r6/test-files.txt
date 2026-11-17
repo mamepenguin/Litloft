@@ -1,0 +1,3 @@
+frontend/src/lib/__tests__/workbenchBeside.test.ts
+frontend/src/lib/__tests__/workbenchSplit.test.ts
+frontend/src/lib/__tests__/workbenchSplitMessages.test.ts

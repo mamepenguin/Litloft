@@ -253,6 +253,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-118 | implemented | docs/specs/youtube-full-pipeline.md | sha256:cbc57219095a53ddb046d2ae3d63e6dba8858593c9b7fd12e0067e249902fed1 |
 | SPEC-ADDON-119 | implemented | docs/specs/loft-fetch-pacing.md | sha256:bb074bafe164478e54676dcc11ff209e3066003f74a4b8794c1b0b35b0057a80 |
 | SPEC-ADDON-121 | implemented | docs/specs/loft-fetch-storyboard.md | sha256:daca611c89261c93f3e10bd9e5f7b945d16a79c00b59e0f6f612811b72438c7d |
+| SPEC-ADDON-124 | implemented | docs/specs/scenes-change-points.md | sha256:753270a39ea2650b77adf4c53c6e4c915a5119b1b9b4884b35f275ad5017fdff |
 | SPEC-CORE-118 | implemented | docs/specs/app-target-collections.md | sha256:5d19d0bc7e3b4c67b7c46ebe24ec10439f15fb3ea5e6eb5d31444d7169f038c2 |
 | SPEC-CORE-119 | implemented | docs/specs/app-target-collections.md | sha256:5d19d0bc7e3b4c67b7c46ebe24ec10439f15fb3ea5e6eb5d31444d7169f038c2 |
 | SPEC-CORE-120 | implemented | docs/specs/trash-batch-progress.md | sha256:c6a0f2104eea5db01c66136097da750a0cb327c45532678c27d32cc13c316d73 |
@@ -260,6 +261,10 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-122 | implemented | docs/specs/phone-polish.md | sha256:60535145f7a1c4c8df045a41a2326ed11996ad70ddf190a5d4e967f1ec441943 |
 | SPEC-CORE-123 | implemented | docs/specs/phone-polish.md | sha256:60535145f7a1c4c8df045a41a2326ed11996ad70ddf190a5d4e967f1ec441943 |
 | SPEC-CORE-125 | implemented | docs/specs/drive-unavailable.md | sha256:e9f9b0a9e569095f6578e0e75e0cc306a6729290d76598bdda6f7c61b163cc12 |
+| SPEC-CORE-126 | implemented | docs/specs/workbench-split.md | sha256:5e4a96c6cf2598ae8a2d8ed22d6364a51d219e3326173c9fece6adae2590bdc1 |
+| SPEC-CORE-127 | implemented | docs/specs/workbench-split.md | sha256:5e4a96c6cf2598ae8a2d8ed22d6364a51d219e3326173c9fece6adae2590bdc1 |
 | SPEC-ADDON-122 | implemented | docs/specs/pdf-vertical-text.md | sha256:f7de193bc675151d40788b14f9ed89279334dfb437ccfd3aa6abc45971d1279c |
 | SPEC-ADDON-125 | implemented | docs/specs/transcript-touch-actions.md | sha256:a5e89c57569e23df19e2e0a550c010f29423b78a1a32cd2c4d492a8d92705130 |
 | SPEC-ADDON-126 | implemented | docs/specs/transcript-touch-actions.md | sha256:a5e89c57569e23df19e2e0a550c010f29423b78a1a32cd2c4d492a8d92705130 |
+| SPEC-ADDON-127 | implemented | docs/specs/refine-alignment-failure.md | sha256:748d0edd82eaaf091f7a36d56307b6d6b6479ad68b68aece75366f24a24df455 |
+| SPEC-ADDON-128 | implemented | docs/specs/refine-alignment-failure.md | sha256:748d0edd82eaaf091f7a36d56307b6d6b6479ad68b68aece75366f24a24df455 |

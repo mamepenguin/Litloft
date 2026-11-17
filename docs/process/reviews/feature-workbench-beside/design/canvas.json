@@ -1,0 +1,21 @@
+{
+  "v": 3,
+  "createdOnFiles": {"v": 1, "at": "2026-11-17T12:00:00Z"},
+  "title": "Workbench Beside",
+  "launch": {"view": "canvas"},
+  "pages": [],
+  "boards": {
+    "Main.dc.html": {"x": 0, "y": 0, "w": 1440, "h": 900, "title": "横並び・パネル2つ・インスペクタあり（操作できます）", "is_interactive": true},
+    "One.dc.html": {"x": 1520, "y": 0, "w": 1440, "h": 900, "title": "横並び・パネル1つ"},
+    "Closed.dc.html": {"x": 0, "y": 1240, "w": 1440, "h": 900, "title": "横並び・インスペクタを閉じた"},
+    "Below.dc.html": {"x": 1520, "y": 1240, "w": 1440, "h": 900, "title": "下に並べる（今まで）＋横並びボタン"},
+    "Narrow.dc.html": {"x": 0, "y": 2480, "w": 1280, "h": 900, "title": "幅が足りない（1280・インスペクタあり）"}
+  },
+  "order": ["Main.dc.html", "One.dc.html", "Closed.dc.html", "Below.dc.html", "Narrow.dc.html"],
+  "notes": {
+    "rowBeside": {"x": 0, "y": -260, "text": "動画を左、パネルを右に", "kind": "title1", "maxW": 2960},
+    "rowOther": {"x": 0, "y": 980, "text": "インスペクタを閉じたとき・今までの配置", "kind": "title1", "maxW": 2960},
+    "rowNarrow": {"x": 0, "y": 2220, "text": "幅が足りないとき", "kind": "title1", "maxW": 1280}
+  },
+  "designSystems": []
+}

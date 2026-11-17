@@ -1,0 +1,42 @@
+{
+  "v": 3,
+  "createdOnFiles": {
+    "v": 1,
+    "at": "2026-11-17T00:00:00Z"
+  },
+  "title": "Scenes — 標準 / カット",
+  "launch": {
+    "view": "canvas"
+  },
+  "pages": [],
+  "boards": {
+    "Section400All.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 384,
+      "h": 640,
+      "title": "384 px（インスペクタ 24rem）— 「標準」"
+    },
+    "Section400Changes.dc.html": {
+      "x": 424,
+      "y": 0,
+      "w": 384,
+      "h": 640,
+      "title": "384 px — 「カット」"
+    },
+    "Section400NoChanges.dc.html": {
+      "x": 848,
+      "y": 0,
+      "w": 384,
+      "h": 440,
+      "title": "カットなし — スイッチを描かない"
+    },
+    "Phone390Changes.dc.html": {
+      "x": 1272,
+      "y": 0,
+      "w": 390,
+      "h": 580,
+      "title": "390 px（電話シート）— 「カット」"
+    }
+  }
+}

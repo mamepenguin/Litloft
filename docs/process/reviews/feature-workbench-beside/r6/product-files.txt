@@ -1,0 +1,15 @@
+frontend/e2e-components/projects.ts
+frontend/e2e-components/spec-viewport.spec.ts
+frontend/e2e-components/workbench-split-desktop.spec.ts
+frontend/src/app/globals.css
+frontend/src/components/FileDetail/MediaCanvas.tsx
+frontend/src/components/FileDetail/ShellLayout.tsx
+frontend/src/components/FileDetail/hooks/useCompanionMetrics.ts
+frontend/src/components/FileDetail/mediaHostStyle.ts
+frontend/src/components/FileDetail/workbench/Workbench.tsx
+frontend/src/lib/layoutSizes.ts
+frontend/src/lib/workbenchBeside.ts
+frontend/src/lib/workbenchSplit.ts
+frontend/src/messages-core/en.json
+frontend/src/messages-core/ja.json
+frontend/src/test/setup.ts

@@ -1,0 +1,146 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The submodule bump changes the intelligence addon's process-wide logging configuration in addons/intelligence/app/main.py. It raises the `pdfminer` logger to ERROR, which is unrelated to Refine or alignment and is not in the touch-point list.",
+      "impact": "Every WARNING from pdfminer is now dropped for every PDF the addon extracts, not only the per-glyph FontBBox noise the comment names. If pdfminer reports a PDF problem only at WARNING level (degraded or partial text on a page that does not raise), it no longer appears in the addon log. This touches PDF extraction (the area of SPEC-ADDON-122), which this spec does not cover, and no invariant or test of this change looks at it.",
+      "evidence": "addons/intelligence/app/main.py:61-63 adds `logging.getLogger(\"pdfminer\").setLevel(logging.ERROR)` straight after `logging.basicConfig`. The spec's Touch points list only aligner.py, refine.py, tests/, docs/addons/intelligence.md and the submodule pointer. No test in the change covers this line.",
+      "repro": "not_reproduced (reading only). Check: run PDF extraction on a PDF whose font lacks a FontBBox, or that makes pdfminer warn; before the bump the addon log shows pdfminer WARNING lines, after it shows none.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "It breaks no declared invariant (I1-I7 are about alignment and refine). It is an unplanned reach into logging and PDF extraction that the approved touch points do not cover.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Move the pdfminer log-level change into its own change with its own spec or touch point, or add main.py (logging) to this spec's touch points with a note on the scope."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The change edits the shared helper `extraction.store_original_if_absent` in addons/intelligence/app/extraction.py, adding a keyword-only `snapshot` parameter. This file and function are not in the touch-point list.",
+      "impact": "There is no behaviour change for the existing callers in routers/files.py:381 and :654, because they omit the argument and `snapshot or snapshot_transcript(...)` falls back as before. The kept-original API is shared by correction, redo and refine, though, and this reach into it is not recorded where the spec says the change goes. A non-empty `(str, str)` tuple is always truthy, so the `or` fallback cannot misfire for the refine caller.",
+      "evidence": "addons/intelligence/app/extraction.py:192-219 adds `snapshot: tuple[str, str] | None = None` and uses `row.chunks_json, row.words_json = snapshot or snapshot_transcript(session, file_id)`. The callers are refine.py:927 (new kwarg) and routers/files.py:381 and :654 (unchanged).",
+      "repro": "not_reproduced (reading only).",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is broken. I5 is served by this edit. The file is simply missing from the declared touch points.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add `addons/intelligence/app/extraction.py: store_original_if_absent (optional pre-read snapshot)` to the touch points."
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "The change redefines the counts in the `intelligence.refine.completed` WebSocket event payload. `refined_count` now counts applied chunks, and `skipped_count` now includes chunks whose alignment failed. The touch-point list does not name this event, although the process asks touch points to list the events a change alters.",
+      "impact": "Anything that reads `refined_count` or `skipped_count` now sees different numbers for the same run. I found no consumer outside the addon's own tests (grep for refine.completed outside docs only hits refine.py and tests), so nothing a user can see changes. Spec §8 does describe the new meaning.",
+      "evidence": "addons/intelligence/app/workers/refine.py:872 no longer adds result.refined_count. Lines 948-949 add `len(applied_ids)` and `len(refined_window) - len(applied_ids)`. The payload is emitted at 1002-1014. docs/process/spec-and-design.md:41-43 says touch points include the 'endpoints and events it adds or changes'.",
+      "repro": "not_reproduced. tests/test_spec_addon_128_refine_alignment_failure.py asserts the new counts, for example refined_count 0 and skipped_count 3 in the failure cases.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is planned behaviour (spec §8), but the event is not listed as a touch point, and no invariant is broken.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add `intelligence.refine.completed` (meaning of refined_count/skipped_count) to the touch points."
+    },
+    {
+      "id": "TP-4",
+      "origin": "reviewer",
+      "claim": "refine.py edits the module docstring and the `refine_chunks` docstring. These are prose in functions outside the listed refine.py touch points (`_run_refine_job`, `realign_words_for_chunk`, `rechunk_from_words`).",
+      "impact": "None for users. The new text matches the code: a window is applied only when the LLM answers for every chunk, and refine_chunks only mutates the in-memory snapshots. It would not lead a reader to a wrong code change.",
+      "evidence": "addons/intelligence/app/workers/refine.py module docstring (lines ~3-7) and the refine_chunks docstring (~145-151), per the diff hunks.",
+      "repro": "not_reproduced (prose only).",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a prose-only reach outside the listed functions, and no invariant is affected.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "Listed touch points that the diff reaches as planned: aligner._normalise_lang (ISO 639-2/3 table, `-`/`_` region split, lower-casing); refine._run_refine_job (per-chunk apply gated on realignment, kept original deferred to the first applied chunk with a snapshot taken before any write, generation bump and keyword reindex only when something was applied, one warning per run); realign_words_for_chunk (docstring only); rechunk_from_words (refined marks only on overlap with chunks refined before the rebuild); tests/; docs/addons/intelligence.md; the submodule pointer.",
+    "Places the diff reaches outside the declared touch points: addons/intelligence/app/main.py (pdfminer logging, TP-1); addons/intelligence/app/extraction.py store_original_if_absent (TP-2); the meaning of the intelligence.refine.completed event payload counts (TP-3); refine.py module and refine_chunks docstrings (TP-4).",
+    "Implicit touch points (docs/specs/refine-alignment-failure.md, docs/specs/INDEX.md, docs/process/reviews/...) are not reported."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The pdfminer logger is raised to ERROR process-wide (main.py:63). Nothing in the spec covers it.",
+    "_normalise_lang now also splits on `_`. Spec item 5 covers this, but every caller of the aligner is affected, including followup._realign_utterance through align_span (also stated in the spec)."
+  ],
+  "regression_risks": [
+    "PDF extraction warnings from pdfminer no longer reach the log, which can hide degraded PDF text reads (TP-1).",
+    "rechunk_from_words no longer marks rebuilt chunks as refined unless they overlap a chunk refined before the rebuild. Its only caller is _run_refine_job (refine.py:984), so this cannot reach other flows.",
+    "_load_words_in_range now runs twice per chunk with words (once in _run_refine_job, once inside realign_words_for_chunk). That costs performance only."
+  ],
+  "test_coverage": [
+    "No test covers the main.py pdfminer log-level change.",
+    "extraction.store_original_if_absent with `snapshot` is exercised indirectly by the I5 tests (the kept original is the pre-run transcript even when the first chunk failed, and is written in the same transaction as the first applied chunk). The existing callers' default path is not re-tested by this change.",
+    "The new test suites for SPEC-ADDON-127 and 128 cover I1-I7 with a fake whisperx and run the real refine job against a temporary SQLite DB.",
+    "test_spec_addon_068 now stubs realign to 1 instead of 0, which keeps its chunks applied under the new rule. test_refine_speaker_id_clearing now expects refined_model None on rebuilt chunks."
+  ],
+  "not_verified": [
+    "Whether the submodule range 3096c40..f462493 contains commits other than this fix (I cannot run git log). The pdfminer change may come from an unrelated addon commit swept in by the pointer bump.",
+    "Whether any frontend or core consumer reads refined_count or skipped_count under a name my grep did not match.",
+    "The body of refine_chunks beyond its docstring hunk.",
+    "I did not run the tests."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/app/extraction.py",
+      "read": "full",
+      "reason": "I read the changed hunk with its enclosing function store_original_if_absent and snapshot_transcript (lines 150-239), and grepped its callers."
+    },
+    {
+      "path": "addons/intelligence/app/main.py",
+      "read": "full",
+      "reason": "I read the changed hunk and its surrounding logging setup (lines 45-69)."
+    },
+    {
+      "path": "addons/intelligence/app/workers/aligner.py",
+      "read": "full",
+      "reason": "I read the changed table and _normalise_lang, plus its callers _load_align_model_detailed and align_segment (lines 96-295), and the table in the diff."
+    },
+    {
+      "path": "addons/intelligence/app/workers/refine.py",
+      "read": "partial",
+      "reason": "I read lines 225-500 (realign_words_for_chunk, rechunk_from_words) and lines 780-1039 (_run_refine_job). The module docstring and refine_chunks docstring hunks I read only in the diff, not the enclosing refine_chunks body."
+    },
+    {
+      "path": "addons/intelligence/tests/refine_align_rig.py",
+      "read": "full",
+      "reason": "New file; the whole content is in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_refine_speaker_id_clearing.py",
+      "read": "partial",
+      "reason": "Only the changed hunk around line 193, in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_068_protection_redo.py",
+      "read": "partial",
+      "reason": "Only the changed hunk around line 132, in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_127_language_codes.py",
+      "read": "full",
+      "reason": "New file; the whole content is in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_128_refine_alignment_failure.py",
+      "read": "full",
+      "reason": "New file; the whole content is in the diff."
+    }
+  ],
+  "confidence": 80
+}

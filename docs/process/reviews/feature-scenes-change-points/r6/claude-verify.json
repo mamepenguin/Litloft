@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "Reproduced by reading the code. At HEAD, addons/intelligence/frontend/ScenesSection/ScenesSectionPresenter.tsx:228 reads `<span>{t(\"scenesTitle\")}</span>{\" \"}` and line 231 reads `)}{\" \"}` after the bare rows.length count span. The develop checkout at /Users/libre/Sources/video_share (HEAD ref: refs/heads/develop) has ScenesSectionPresenter.tsx:208-211 with no `{\" \"}` nodes, so this change adds them. In the spec, docs/specs/scenes-change-points.md:192-193 names the Presenter only for \"the switch row, and the track length taken from the candidate list\". The header spacing is not in that touch point. The new test addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionChangePoints.test.tsx:237 and 242-243 matches /\\b15\\b/ and /\\b13\\b/ against header().textContent. Without the space after the title, textContent would be \"Scenes15\", which has no word boundary between \"s\" and \"1\", so the test needs this edit. The reader's path omitted the __tests__/ directory, but the line numbers match. Side effect: the header button's textContent and accessible name gain spaces (\"Scenes 15 ...\" instead of \"Scenes15...\"). In the flex container (gap-2), whitespace-only text is not rendered, so nothing changes visually."
+    }
+  ],
+  "specification_compliance": [
+    "The Presenter touch point in docs/specs/scenes-change-points.md:192-193 does not cover the header whitespace edit at ScenesSectionPresenter.tsx:228/231."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The header button's accessible name and textContent now have spaces between the title, the bare count and the visual count. No spec requires this. Only the new test relies on it."
+  ],
+  "regression_risks": [
+    "Tests or tooling elsewhere that match the header's accessible name or textContent exactly (for example /^Scenes\\d/ or \"Scenes15\") would no longer match. The ScenesSectionChangePoints test at line 700 uses /^Scenes/ and is unaffected."
+  ],
+  "test_coverage": [
+    "ScenesSectionChangePoints.test.tsx:237-243 tests the header count switch, but it depends on the added whitespace."
+  ],
+  "not_verified": [
+    "I compared against the local develop checkout, not origin/develop, because I could not run git. The two may differ.",
+    "I did not run the test suite to confirm that the test fails without the whitespace.",
+    "I did not search the other test files for exact matches on the header's accessible name."
+  ],
+  "confidence": 85
+}
