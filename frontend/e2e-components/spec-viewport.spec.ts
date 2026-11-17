@@ -80,6 +80,7 @@ const AT_THE_PHONE_WIDTH = [
   "file-header-row.spec.ts",
   "reading-text-size.spec.ts",
   "target-menu-rows.spec.ts",
+  "batch-progress.spec.ts",
 ] as const;
 
 const AT_THE_DESKTOP_WIDTH = [
