@@ -58,8 +58,9 @@ describe("PageHeader", () => {
       const rows = container.querySelectorAll("header > div");
       expect(rows).toHaveLength(1);
       // `firstElementChild`, not `querySelector("button")`: the latter finds a
-      // button anywhere in the row.
-      expect(rows[0].firstElementChild?.textContent).toBe("Tree");
+      // button anywhere in the row. The control opens the group that holds
+      // the title, which is the row's first child.
+      expect(rows[0].firstElementChild?.firstElementChild?.textContent).toBe("Tree");
     });
 
     // A duplicated control is not cosmetic here: `TreeToggle` is stateful,

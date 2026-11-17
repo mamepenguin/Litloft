@@ -17,6 +17,21 @@
     "not_verified",
     "confidence"
   ],
+  "if": {
+    "properties": {
+      "role": {
+        "const": "read"
+      }
+    },
+    "required": [
+      "role"
+    ]
+  },
+  "then": {
+    "required": [
+      "coverage"
+    ]
+  },
   "properties": {
     "schema_version": {
       "const": 1
@@ -77,6 +92,12 @@
           "minItems": 1
         }
       ]
+    },
+    "coverage": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/coverage_entry"
+      }
     },
     "confidence": {
       "type": "integer",
@@ -195,6 +216,29 @@
         },
         "proposed_fix": {
           "type": "string"
+        }
+      }
+    },
+    "coverage_entry": {
+      "type": "object",
+      "required": [
+        "path",
+        "read",
+        "reason"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/definitions/text"
+        },
+        "read": {
+          "enum": [
+            "full",
+            "partial",
+            "not_read"
+          ]
+        },
+        "reason": {
+          "$ref": "#/definitions/text"
         }
       }
     },

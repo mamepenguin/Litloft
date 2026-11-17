@@ -40,6 +40,7 @@ const DEVICE_HEIGHT_PX = 727;
  */
 const AT_THE_PHONE_WIDTH = [
   "add-menu.spec.ts",
+  "admin-settings-touch.spec.ts",
   "app-header.spec.ts",
   "anchored-direction.spec.ts",
   "header-row-crowding.spec.ts",
@@ -80,6 +81,7 @@ const AT_THE_PHONE_WIDTH = [
   "file-header-row.spec.ts",
   "reading-text-size.spec.ts",
   "target-menu-rows.spec.ts",
+  "batch-progress.spec.ts",
 ] as const;
 
 const AT_THE_DESKTOP_WIDTH = [

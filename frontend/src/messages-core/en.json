@@ -24,6 +24,8 @@
     "loadContent": "Load",
     "fileSizeLarge": "File is large ({size})",
     "loadFailed": "Failed to load: {error}",
+    "working": "Working",
+    "wholeListFailed": "Could not complete. Please try again.",
     "discardUnsaved": {
       "title": "Unsaved changes",
       "message": "This file has unsaved edits. Navigating away may discard them.",
@@ -422,7 +424,13 @@
     "tag": "Tag",
     "tagging": "Tagging",
     "collection": "Collection",
-    "rename": "Rename"
+    "rename": "Rename",
+    "progress": "Processing {done} of {total}",
+    "partial": "{done} processed; {failed} could not be processed.",
+    "stopped": "Stopped after {done} processed. {remaining} files remain selected.",
+    "retryNote": "Some files may have been processed by an earlier attempt.",
+    "processRemaining": "Process remaining",
+    "retryMessage": "Process {remaining} files?"
   },
   "favorite": {
     "add": "Add to favorites",
@@ -1419,8 +1427,11 @@
       "home": "start",
       "inbox": "arrivals,new",
       "library": "folders",
+      "app-video": "videos,movies,player",
+      "app-reading": "books,reader,read",
       "favorites": "favourites,star,starred",
       "liked": "like,thumbs up",
+      "continue": "resume,continue watching,keep watching",
       "recent": "history,recently viewed,viewed",
       "recentAdded": "new,recently added,added",
       "allFiles": "all,everything",

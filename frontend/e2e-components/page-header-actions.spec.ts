@@ -81,3 +81,35 @@ for (const { id, sharesTitleRow } of ARRANGEMENTS) {
     }
   });
 }
+
+for (const width of NARROW) {
+  test(`page-header-title-medium-actions at ${width}px: actions that do not fit beside the title leave it whole`, async ({
+    page,
+  }) => {
+    await open(page, "page-header-title-medium-actions", width);
+
+    const h1 = await page.evaluate(() => {
+      const el = document.querySelector("header h1")!;
+      return { scrollWidth: el.scrollWidth, clientWidth: el.clientWidth };
+    });
+
+    expect(h1.clientWidth).toBeGreaterThan(0);
+    expect(h1.scrollWidth).toBeLessThanOrEqual(h1.clientWidth);
+  });
+
+  test(`page-header-title-short-action at ${width}px: an action that fits stays on the title's row`, async ({
+    page,
+  }) => {
+    await open(page, "page-header-title-short-action", width);
+
+    const rows = await page.evaluate(() => {
+      const header = document.querySelector("header")!;
+      const h1 = header.querySelector("h1")!.getBoundingClientRect();
+      const button = header.querySelector("button")!.getBoundingClientRect();
+      return { h1: { top: h1.top, bottom: h1.bottom }, button: { top: button.top, bottom: button.bottom } };
+    });
+
+    expect(rows.button.top).toBeLessThan(rows.h1.bottom);
+    expect(rows.button.bottom).toBeGreaterThan(rows.h1.top);
+  });
+}

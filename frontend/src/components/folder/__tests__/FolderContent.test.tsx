@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { FolderContent } from "../FolderContent";
+import { FolderContent } from "./folderContentHarness";
 import type { FileItem, Folder } from "@/types";
 import { createRef } from "react";
 

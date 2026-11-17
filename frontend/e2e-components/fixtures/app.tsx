@@ -112,6 +112,7 @@ import { ClipsRowArrangement } from "./clipsRow";
 import { NotesAllClipsToggleArrangement } from "./notesAllClipsToggle";
 import { READING_ARRANGEMENTS } from "./readingTextSize";
 import { NAME_IN_USE_ARRANGEMENTS } from "./nameInUse";
+import { BATCH_PROGRESS_ARRANGEMENTS } from "./batchProgress";
 import {
   InspectorPdfArrangement,
   InspectorVideoArrangement,
@@ -127,6 +128,8 @@ import {
   notifyNavigationCommit,
 } from "@/lib/viewTransitions";
 
+import { DrivesSection } from "@/app/admin/settings/DrivesSection";
+import { PasswordsSection } from "@/app/admin/settings/PasswordsSection";
 import "../../e2e-layout/fixtures/globals.built.css";
 
 // The fixture has no server: only the image-search availability gate is
@@ -137,6 +140,14 @@ window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
   const url =
     typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
   const method = (init?.method ?? "GET").toUpperCase();
+  if (url.endsWith("/api/admin/config/drives")) {
+    return Promise.resolve(
+      jsonResponse([{ name: "Household Archive", path: "/mnt/archive", access_group: "family" }]),
+    );
+  }
+  if (url.endsWith("/api/admin/config/passwords")) {
+    return Promise.resolve(jsonResponse([{ password: "secret", groups: ["family"] }]));
+  }
   if (url.includes("/api/drives/fixture/smart-folders")) {
     return Promise.resolve(jsonResponse(FIXTURE_SMART_FOLDERS));
   }
@@ -2552,10 +2563,67 @@ function PageHeaderTitleActions(): ReactElement {
   );
 }
 
+function AdminSettingsRows(): ReactElement {
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <div className="flex flex-col gap-6 p-4">
+        <DrivesSection />
+        <PasswordsSection />
+      </div>
+    </NextIntlClientProvider>
+  );
+}
+
+function PageHeaderTitleMediumActions(): ReactElement {
+  return (
+    <PageHeaderActionsArrangement
+      header={
+        <PageHeader
+          title="Dashboard"
+          actions={
+            <>
+              <button type="button" className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm">
+                <FolderTree size={16} />
+                Markdown images
+              </button>
+              <button type="button" className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm">
+                <FolderTree size={16} />
+                Settings
+              </button>
+            </>
+          }
+        />
+      }
+    />
+  );
+}
+
+function PageHeaderTitleShortAction(): ReactElement {
+  return (
+    <PageHeaderActionsArrangement
+      header={
+        <PageHeader
+          titleIcon={FolderTree}
+          title="Reading"
+          scope="12 items"
+          actions={
+            <button type="button" className="rounded-lg px-3 py-1.5 text-sm">
+              Add
+            </button>
+          }
+        />
+      }
+    />
+  );
+}
+
 const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "page-header-trail-actions": PageHeaderTrailActions,
   "page-header-title-field-actions": PageHeaderTitleFieldActions,
   "page-header-title-actions": PageHeaderTitleActions,
+  "page-header-title-medium-actions": PageHeaderTitleMediumActions,
+  "page-header-title-short-action": PageHeaderTitleShortAction,
+  "admin-settings-rows": AdminSettingsRows,
   "chrome-buttons": ChromeButtonsArrangement,
   "folder-listing-header-deep": FolderListingHeaderArrangement,
   "folder-listing-header-shallow": FolderListingHeaderShallowArrangement,
@@ -2700,6 +2768,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "header-row-inbox-long": HeaderRowInboxLongArrangement,
   ...READING_ARRANGEMENTS,
   ...NAME_IN_USE_ARRANGEMENTS,
+  ...BATCH_PROGRESS_ARRANGEMENTS,
 };
 
 function App(): ReactElement {

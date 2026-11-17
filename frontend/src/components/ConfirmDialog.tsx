@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useShortcuts } from "@/hooks/useShortcuts";
+import { Button } from "./Button";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -12,6 +13,10 @@ interface ConfirmDialogProps {
   message: string;
   confirmLabel?: string;
   note?: string;
+  /** While busy, every way out is closed: confirm, cancel, the X, the backdrop and Escape. */
+  busy?: boolean;
+  progress?: string;
+  error?: string;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -22,6 +27,9 @@ export function ConfirmDialog({
   message,
   confirmLabel = "OK",
   note,
+  busy = false,
+  progress,
+  error,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -37,7 +45,16 @@ export function ConfirmDialog({
   useShortcuts(
     "confirm-dialog",
     "Dialog",
-    [{ key: "escape", label: "Cancel", handler: onCancel, hidden: true }],
+    [
+      {
+        key: "escape",
+        label: "Cancel",
+        handler: () => {
+          if (!busy) onCancel();
+        },
+        hidden: true,
+      },
+    ],
     open,
   );
 
@@ -47,38 +64,49 @@ export function ConfirmDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
-        onClick={onCancel}
+        onClick={() => {
+          if (!busy) onCancel();
+        }}
       />
       <div className="relative mx-4 w-full max-w-md rounded-2xl bg-bg-card p-6 shadow-lg animate-fade-in-scale">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-text-primary">{title}</h2>
           <button
-            onClick={onCancel}
-            className="rounded-xl p-1 text-text-muted hover:text-text-primary"
+            onClick={() => {
+              if (!busy) onCancel();
+            }}
+            disabled={busy}
+            className="rounded-xl p-1 text-text-muted enabled:hover:text-text-primary disabled:cursor-not-allowed disabled:text-warm-silver"
             aria-label={tc("close")}
           >
             <X size={18} />
           </button>
         </div>
         <p className="mb-2 text-sm text-text-muted">{message}</p>
+        {progress && (
+          <p
+            className="mb-2 flex items-center gap-2 break-words text-sm text-text-muted"
+            role="status"
+          >
+            <span
+              className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-accent border-t-transparent"
+              aria-hidden
+            />
+            {progress}
+          </p>
+        )}
+        {error && <p className="mb-2 break-words text-sm text-danger">{error}</p>}
         {note && (
           <p className="mb-4 text-xs text-text-muted/70">{note}</p>
         )}
         {!note && <div className="mb-4" />}
         <div className="flex justify-end gap-3">
-          <button
-            onClick={onCancel}
-            className="rounded-2xl bg-sand px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-sand-hover"
-          >
+          <Button variant="secondary" onClick={onCancel} disabled={busy}>
             {tc("cancel")}
-          </button>
-          <button
-            ref={confirmRef}
-            onClick={onConfirm}
-            className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
-          >
+          </Button>
+          <Button ref={confirmRef} variant="primary" onClick={onConfirm} disabled={busy}>
             {confirmLabel}
-          </button>
+          </Button>
         </div>
       </div>
     </div>,

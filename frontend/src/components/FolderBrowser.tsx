@@ -19,6 +19,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { useFilePicker } from "@/components/useFilePicker";
 import { useClipboard } from "@/components/ClipboardProvider";
 import { useSelection } from "@/hooks/useSelection";
+import { useFolderFilter } from "@/hooks/useFolderFilter";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { useFolderSort, useFolderViewMode } from "@/hooks/useFolderViewMode";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
@@ -183,6 +184,12 @@ export function FolderBrowser({
     inNameBlocked, inNamePending, inNameState, retryInName,
   } = useFolderFiles({ driveName, folderPath, view, tagFilter, typeFilter, trustFilter, sort, order, refreshKey, searchQuery, includeSceneClip, initialSnapshot });
 
+  const nameFilter = useFolderFilter(files, folders);
+  const visibleFileIds = useMemo(
+    () => nameFilter.files.map((f) => f.id),
+    [nameFilter.files],
+  );
+
   const isWatchHistory = isRecent || isContinue;
 
   const passagesView = isSearch && passagesApplicable && show === "passages";
@@ -317,6 +324,12 @@ export function FolderBrowser({
   // pending — dropping it would lose the scroll position the user is
   // about to come back to.
   useEffect(() => () => { flushSnapshotRef.current?.(); }, []);
+
+  const handleProcessed = useCallback((processed: string[]) => {
+    const dropped = new Set(processed);
+    setFiles((prev) => prev.filter((f) => !dropped.has(f.id)));
+    removeContinuationFiles(processed);
+  }, [setFiles, removeContinuationFiles]);
 
   const handleReshuffle = useCallback(() => {
     reset();
@@ -600,7 +613,16 @@ export function FolderBrowser({
   // Depend on the individual callbacks, not on `selection` itself:
   // `useSelection` returns a fresh object literal every render, so
   // `[selection]` would defeat `FileCard`'s memo.
-  const { toggle: toggleSelection, selectRange } = selection;
+  const { toggle: toggleSelection, selectRange, keepOnly } = selection;
+
+  // Keyed on the filter text, not on the rows: a reload empties `files`
+  // for a moment, and pruning against that would clear the selection.
+  const prunedForTextRef = useRef("");
+  useEffect(() => {
+    if (loading || nameFilter.appliedText === prunedForTextRef.current) return;
+    prunedForTextRef.current = nameFilter.appliedText;
+    if (nameFilter.appliedText) keepOnly(visibleFileIds);
+  }, [loading, nameFilter.appliedText, visibleFileIds, keepOnly]);
 
   const handleMetaSelect = useCallback((id: string) => {
     setSelectable(true);
@@ -608,8 +630,8 @@ export function FolderBrowser({
   }, [toggleSelection]);
 
   const handleShiftSelect = useCallback((id: string) => {
-    selectRange(files.map((f) => f.id), id);
-  }, [selectRange, files]);
+    selectRange(visibleFileIds, id);
+  }, [selectRange, visibleFileIds]);
 
   const handlePlayAll = useCallback(() => {
     const firstPlayable = files.find(
@@ -872,6 +894,7 @@ export function FolderBrowser({
       <FolderContent
         files={files}
         folders={folders}
+        filter={nameFilter}
         driveName={driveName}
         widenTagScope={widenTagScope}
         onAddFiles={isWriteDestination ? filePicker.open : undefined}
@@ -939,10 +962,10 @@ export function FolderBrowser({
         <SelectionBar
           count={selection.count}
           selectedIds={selection.selectedIds}
-          totalCount={files.length}
+          totalCount={visibleFileIds.length}
           drive={driveName}
           currentPath={folderPath}
-          onSelectAll={() => selection.selectAll(files.map((f) => f.id))}
+          onSelectAll={() => selection.selectAll(visibleFileIds)}
           onClear={() => {
             clearedSelectionRef.current = [...selection.selectedIds];
             selection.clear();
@@ -956,6 +979,8 @@ export function FolderBrowser({
             if (removed) removeContinuationFiles(cleared);
             if (!onlyContinuation) refresh();
           }}
+          onSelectOnly={selection.replace}
+          onProcessed={handleProcessed}
         />
       )}
       </div>

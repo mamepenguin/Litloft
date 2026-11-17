@@ -15,7 +15,7 @@ Open **Trash** at the bottom of the sidebar. For each file:
 
 **Empty Trash** permanently deletes everything in it, after asking you to confirm.
 
-To act on several files, `Cmd/Ctrl+click` a card to start selecting and `Shift+click` to select a range. The bar at the bottom restores or permanently deletes the selection.
+To act on several files, `Cmd/Ctrl+click` a card to start selecting and `Shift+click` to select a range. The bar at the bottom restores or permanently deletes the selection. A selection larger than 100 files is processed in groups of 100, and the files that could not be processed stay selected so you can try again.
 
 A file in the trash still shows in any collection it was already in, dimmed and not playable. You cannot add it to a collection.
 
