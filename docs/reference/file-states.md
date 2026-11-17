@@ -74,7 +74,7 @@ Runs at backend startup and then every 24 hours. The 30-day period is fixed; the
 - Removes empty folders left behind, up to the drive root.
 - Emits one `files.purged` with every id purged in that run.
 
-Manual purge (`DELETE /api/files/{id}/purge`, `POST /api/files/batch/purge`, `POST /api/drives/{drive}/trash/empty`) emits `files.purged` for the purged files. Purging cannot be undone.
+Manual purge (`DELETE /api/files/{id}/purge`, `POST /api/files/batch/purge`, `POST /api/drives/{drive}/trash/empty`) emits `files.purged` for the purged files, once per request. The selection bar sends a batch of more than 100 files as several requests, so it emits one event per request. Purging cannot be undone.
 
 ## Inbox rows
 

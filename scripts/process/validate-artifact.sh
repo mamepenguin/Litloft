@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# validate-artifact.sh <artifact.json> [--invariants <file>] [--second-run] [--spec-present]
+# validate-artifact.sh <artifact.json> [--invariants <file>] [--second-run] [--spec-present] [--allow-missing-coverage]
 # Exit 0 and no output when the artifact is valid; exit 1 with one reason per line on
 # stderr when it is not; exit 2 on a usage error or when jq is missing.
+# --allow-missing-coverage accepts a read artifact from a kit that predates coverage; a
+# coverage field that is present is still checked for its shape.
 # review-result.schema.json states the shape; this script enforces it.
 
 set -u
@@ -14,6 +16,7 @@ file=""
 inv_file=""
 second=false
 spec=false
+allow=false
 while [ $# -gt 0 ]; do
   case "$1" in
     --invariants)
@@ -21,13 +24,14 @@ while [ $# -gt 0 ]; do
       inv_file="$2"; shift 2 ;;
     --second-run) second=true; shift ;;
     --spec-present) spec=true; shift ;;
+    --allow-missing-coverage) allow=true; shift ;;
     -*) die_usage "unknown option: $1" ;;
     *)
       [ -z "$file" ] || die_usage "more than one artifact given"
       file="$1"; shift ;;
   esac
 done
-[ -n "$file" ] || die_usage "usage: validate-artifact.sh <artifact.json> [--invariants <file>] [--second-run] [--spec-present]"
+[ -n "$file" ] || die_usage "usage: validate-artifact.sh <artifact.json> [--invariants <file>] [--second-run] [--spec-present] [--allow-missing-coverage]"
 [ -f "$file" ] || die_usage "no such file: $file"
 
 inv='null'
@@ -105,7 +109,21 @@ def mcheck($i):
     (if (.result | oneof(["killed", "survived"])) then empty else "\($label): result must be killed or survived" end)
   end;
 
-def acheck($inv; $second; $spec):
+def ccheck($i):
+  "coverage[\($i)]" as $label |
+  if type != "object" then "\($label): not an object" else
+    (if (.path | ne) then empty else "\($label): path is missing or empty" end),
+    (if (.read | oneof(["full", "partial", "not_read"])) then empty
+     else "\($label): read must be full, partial or not_read" end),
+    (if (.reason | ne) then empty else "\($label): reason is missing or empty" end)
+  end;
+
+def covercheck:
+  (.coverage | to_entries[] | .key as $i | .value | ccheck($i)),
+  ([.coverage[] | select(type == "object") | .path | select(type == "string")]
+    | group_by(.) | .[] | select(length > 1) | "duplicate coverage path: \(.[0])");
+
+def acheck($inv; $second; $spec; $allow):
   . as $a |
   (
     (if .schema_version == 1 then empty else "schema_version must be 1" end),
@@ -130,6 +148,16 @@ def acheck($inv; $second; $spec):
         (if (.verification // []) | (type == "array" and length == 0) then empty
          else "verification must be empty or absent for role \($r)" end)
       else empty end),
+
+    (if .role == "read" then
+       if (.coverage | type) == "array" then covercheck
+       elif has("coverage") and $allow then "coverage must be an array when present"
+       elif $allow then empty
+       else "coverage is required for role read (an array)" end
+     elif has("coverage") then
+       if (.coverage | type) == "array" then covercheck
+       else "coverage must be an array when present" end
+     else empty end),
 
     (if .role == "mutate" then
        if (.mutation | type) != "object" then "mutation is required for role mutate" else
@@ -173,10 +201,10 @@ def acheck($inv; $second; $spec):
   );
 
 if type != "object" then "artifact is not a JSON object"
-else acheck($inv; $second; $spec) end
+else acheck($inv; $second; $spec; $allow) end
 '
 
-reasons="$(jq -r --argjson inv "$inv" --argjson second "$second" --argjson spec "$spec" "$PROGRAM" "$file")" || die_usage "internal error evaluating $file"
+reasons="$(jq -r --argjson inv "$inv" --argjson second "$second" --argjson spec "$spec" --argjson allow "$allow" "$PROGRAM" "$file")" || die_usage "internal error evaluating $file"
 if [ -n "$reasons" ]; then
   printf '%s\n' "$reasons" >&2
   exit 1

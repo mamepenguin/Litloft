@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "frontend/src/components/inbox/InboxView.tsx:181-184 passes onSelectOnly={selection.replace} and onProcessed={(ids) => { data.settle(ids, ids.length); }} to InboxPresenter (JSX opens at InboxView.tsx:152). InboxView.tsx is not named in the spec's Touch points; only InboxPresenter.tsx (:164) is. The file owns the useSelection() call (InboxView.tsx:37), so the wiring lives outside the listed file. The claim is accurate. Spec line reference :164 does not match the current SelectionBar use at InboxPresenter.tsx:168, which is a stale line number, not a separate defect."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "frontend/src/hooks/useSelection.ts:54 defines replace (useCallback), and :75 returns it. No Touch points entry names frontend/src/hooks/useSelection.ts; the spec only says 'the replace operation of its selection hook' (FolderBrowser, InboxPresenter) and 'added to that hook if it has none' (TrashView). The hook already has replace, so the 'if it has none' clause does not apply. The claim is accurate."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "Files present in the worktree and absent from the spec's Touch points by name: frontend/src/components/__tests__/SelectionBar.batchRun.test.tsx, TrashView.batchParents.test.tsx, TrashView.batchRun.test.tsx, InboxView.batchParents.test.tsx (also FolderBrowser.batchParents.test.tsx, which the spec covers only generically), and wholeListTimeout.test.tsx (the name appears nowhere in the spec). MissingView.purgeAll.test.tsx exists (describe at line 83, I10/I11/I22 tests), while frontend/src/components/__tests__/MissingView.test.tsx, which the spec names as new, does not exist. Whether SelectionBar.test.tsx and SelectionBar.removedFlag.test.tsx are unchanged in the diff could not be checked without git; both files exist. The claim is accurate as stated, though the spec's named test files do not match the worktree exactly."
+    }
+  ],
+  "specification_compliance": [
+    "Touch-point list does not name frontend/src/components/inbox/InboxView.tsx, which wires onSelectOnly and onProcessed (TP-1). Spec doc-vs-code mismatch, not a runtime defect.",
+    "Touch-point list does not name frontend/src/hooks/useSelection.ts, which owns the replace operation (TP-2). Spec doc-vs-code mismatch.",
+    "Touch-point list names MissingView.test.tsx as new, but the worktree has MissingView.purgeAll.test.tsx instead; several other new test files are unnamed (TP-3). Spec doc-vs-code mismatch.",
+    "Spec line references are stale (FolderBrowser SelectionBar use at :939 versus FolderBrowser.tsx:965; InboxPresenter SelectionBar at :164 versus :168). Not a defect in the code."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "None of the three confirmed findings changes runtime behaviour. The spec's touch-point list is incomplete relative to the code, so a reviewer relying only on the list would miss the InboxView wiring, the useSelection hook and some test files."
+  ],
+  "regression_risks": [
+    "Low. This verification covered only file wiring and naming, not runtime behaviour. The spec touch-point list is out of date and may mislead future reviews of the protected-path and scope checks."
+  ],
+  "test_coverage": [
+    "Confirmed by reading that the test files exist: SelectionBar.batchRun, FolderBrowser.batchParents, InboxView.batchParents, TrashView.batchParents, TrashView.batchRun, wholeListTimeout and MissingView.purgeAll. I did not run any test."
+  ],
+  "not_verified": [
+    "The diff against origin/develop was not inspected: I have no git access, so I could not confirm which files changed at commit 3948c8ae1. SelectionBar.test.tsx and SelectionBar.removedFlag.test.tsx were checked only for existence, not for being unchanged in the diff.",
+    "No tests were run and no commands were executed, per the reviewer constraints.",
+    "The e2e-components measurement, the backend pytest and the docs changes (touch points for 10 and the docs list) were not checked."
+  ],
+  "confidence": 90
+}

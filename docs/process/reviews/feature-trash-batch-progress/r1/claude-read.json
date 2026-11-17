@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The diff wires onSelectOnly and onProcessed in frontend/src/components/inbox/InboxView.tsx, a file the touch-point list does not name; the list names only InboxPresenter.tsx for the inbox.",
+      "impact": "A reader checking the PR against the touch-point list will not find InboxView.tsx among the planned files, so the inbox's onProcessed path (which calls data.settle with a count) is reviewed without the scope the spec approved.",
+      "evidence": "frontend/src/components/inbox/InboxView.tsx:181-184 passes onSelectOnly={selection.replace} and onProcessed={(ids) => data.settle(ids, ids.length)}; the spec's Touch points list only frontend/src/components/inbox/InboxPresenter.tsx (\"InboxPresenter.tsx (:164): onSelectOnly, onProcessed, and the replace operation\"). InboxPresenter.tsx:40-41, 69-70, 179-180 is in the list.",
+      "repro": "not_reproduced: read the diff file list against the touch-point list; InboxView.tsx appears in the diff and not in the list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "Scope is wider than the touch-point list; no declared invariant is broken by the file itself, so it is a reading and review-scope issue.",
+        "reason_text": "n/a"
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add frontend/src/components/inbox/InboxView.tsx to the touch-point list in docs/specs/trash-batch-progress.md, or state that the inbox parent wiring is part of InboxPresenter's item."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "frontend/src/hooks/useSelection.ts gains a replace operation, but the touch-point list names no file for the selection hook; it is covered only by the phrase 'added to that hook if it has none' under TrashView and by the generic 'the replace operation of its selection hook' for FolderBrowser and InboxPresenter.",
+      "impact": "The shared hook is changed for all callers; a reviewer scanning the touch points for shared-hook edits will not find it named.",
+      "evidence": "frontend/src/hooks/useSelection.ts:52-57 adds replace, and :75 exports it. Spec Touch points: TrashView.tsx 'added to that hook if it has none'; FolderBrowser.tsx and InboxPresenter.tsx 'the replace operation of its selection hook'. No touch-point names frontend/src/hooks/useSelection.ts.",
+      "repro": "not_reproduced: the hook file is in the diff; the touch-point text does not name it.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "The change is covered by wording, so no invariant is broken; the gap is a naming omission.",
+        "reason_text": "n/a"
+      },
+      "severity": "INFO",
+      "proposed_fix": "Name frontend/src/hooks/useSelection.ts in the touch-point list."
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "Several test files in the diff are not named in the touch-point list: SelectionBar.batchRun.test.tsx, TrashView.batchParents.test.tsx, TrashView.batchRun.test.tsx, wholeListTimeout.test.tsx, and InboxView.batchParents.test.tsx; MissingView.purgeAll.test.tsx is listed only as 'MissingView.test.tsx (new)'.",
+      "impact": "The test coverage of I10, I11, I17 to I20 and I21 is spread across files whose names the approved list does not record, so a reviewer checking coverage against the list will not find the files that carry it.",
+      "evidence": "Added files in the diff: frontend/src/components/__tests__/SelectionBar.batchRun.test.tsx, TrashView.batchParents.test.tsx, TrashView.batchRun.test.tsx, wholeListTimeout.test.tsx, MissingView.purgeAll.test.tsx, InboxView.batchParents.test.tsx. The touch list names SelectionBar.test.tsx and SelectionBar.removedFlag.test.tsx as 'existing ... extended' (neither is in the diff) and MissingView.test.tsx (new). The InboxView test is listed only under 'tests for the onSelectOnly and onProcessed behaviour of FolderBrowser and InboxPresenter'.",
+      "repro": "not_reproduced: compare the diff's new test file names with the touch-point list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "The tests exist and cite invariants; only their file names differ from the list, so no invariant is broken.",
+        "reason_text": "n/a"
+      },
+      "severity": "INFO",
+      "proposed_fix": "Update the touch-point test names to the files that exist, and say that SelectionBar.test.tsx and SelectionBar.removedFlag.test.tsx are not extended."
+    }
+  ],
+  "specification_compliance": [
+    "Answer to the question: the diff reaches three places outside the touch-point list by name: frontend/src/components/inbox/InboxView.tsx, frontend/src/hooks/useSelection.ts (covered only by wording), and the test files listed in TP-3. All other changed files appear in the list or are the implicit ledger and spec files (docs/specs/INDEX.md, docs/specs/trash-batch-progress.md), which the review rules exempt.",
+    "The existing SelectionBar.test.tsx and SelectionBar.removedFlag.test.tsx are named as 'extended' in the touch points but are not changed in this diff; the existing onComplete contract is covered by a new file instead."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "None found from the file-scope question alone: the unlisted files are wiring and tests, and the code in them was not judged here."
+  ],
+  "test_coverage": [
+    "Scope check only: the new test files exist with invariant citations, but their names do not match the touch-point list."
+  ],
+  "not_verified": [
+    "I did not read the bodies of the new test files to check whether they assert what they name; this review covers file scope only.",
+    "I did not confirm that every file listed in the touch points is complete; I checked only the files in the diff against the list.",
+    "I did not check the docs/process/reviews/ records or the ADDON-DEVELOPMENT.md and configuration.md text."
+  ],
+  "confidence": 85
+}

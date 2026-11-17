@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "frontend/src/components/__tests__/FolderCard.test.tsx:55-68 holds 'SPEC-CORE-122: a folder of many kinds still shows the count alone' (file_count 20, four kinds, asserts '20 items' and no Video|Document|Image|Audio|·). The touch-point list says to remove 'names the two largest kinds and stops' but does not mention this replacement. Lines 81-93 add 'SPEC-CORE-122: the count alone is shown while the name is being edited' (isEditing, asserts '138 items'), which the list does not name. Both tests strengthen I1 and fall within its scope, so this is a deviation from the plan, not a defect."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "frontend/e2e-components/fixtures/app.tsx:1044-1054 defines ActionMenuItemLongLabel (a w-40 role=menu holding one long-label ActionMenuItem), and :2610 registers it as 'action-menu-item-long-label'. componentFixtureParity.test.tsx:280 lists the same name. add-menu.spec.ts:96-103 adds the I2 ja-order test, and :105-126 adds the I5 wrap test, which counts distinct line tops and expects more than 1. The touch-point list names none of these. They test declared invariants (I2, I5), so they are additions outside the plan, not defects."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "frontend/src/components/__tests__/AddButton.test.tsx:135-153 adds 'SPEC-CORE-123 I3: the first row opens the file picker and the second the folder picker'. It spies on HTMLInputElement.prototype.click and asserts [{directory:false}], then [{directory:false},{directory:true}], using the webkitdirectory attribute. The touch-point list says only that this file's expected labels are updated. The test covers I3."
+    }
+  ],
+  "specification_compliance": [
+    "I1: FolderCard tests assert the count alone for several-kind, single-kind, many-kind and editing-branch folders (FolderCard.test.tsx:36-93).",
+    "I2: the ja order is asserted in an e2e test (add-menu.spec.ts:96-103); the en order is asserted in AddButton.test.tsx:127-132.",
+    "I3: the file and folder pickers are asserted in AddButton.test.tsx:135-153; New folder calls the handler once and closes the menu (AddButton.test.tsx:155-162).",
+    "I5: a default ActionMenuItem still wraps a long label (add-menu.spec.ts:105-126)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The touch-point list differs from the diff because the diff adds test cases and a fixture arrangement the list does not name; all of them cover declared invariants."
+  ],
+  "regression_risks": [
+    "The I3 test replaces HTMLInputElement.prototype.click with a spy. It is restored in a finally block, so it should not leak into later tests."
+  ],
+  "test_coverage": [
+    "The I5 e2e test only checks that the label spans more than one line. It does not check that the label is free of ellipsis or no-wrap styling."
+  ],
+  "not_verified": [
+    "I could not run git, so I did not diff against origin/develop to confirm that each test or fixture was introduced by this commit and did not already exist.",
+    "I ran no tests, unit or e2e.",
+    "I did not read the production code in FolderCard.tsx, AddButton.tsx or ActionMenuItem.tsx."
+  ],
+  "confidence": 85
+}

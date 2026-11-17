@@ -33,26 +33,27 @@ describe("FolderCard", () => {
     expect(container.querySelector("svg")).toBeTruthy();
   });
 
-  it("says what the count is made of", () => {
-    render(<FolderCard folder={mixedFolder} {...baseFolderProps} />);
-    expect(
-      screen.getByText("138 items · Video 135 · Document 3"),
-    ).toBeInTheDocument();
+  it("SPEC-CORE-122: the second line is the count alone, whatever the folder holds", () => {
+    const { container } = render(
+      <FolderCard folder={mixedFolder} {...baseFolderProps} />,
+    );
+    expect(screen.getByText("138 items")).toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/Video|Document|·/);
   });
 
-  it("names a single kind without repeating its count", () => {
-    render(
+  it("SPEC-CORE-122: a single-kind folder shows the count alone", () => {
+    const { container } = render(
       <FolderCard
         folder={{ ...mixedFolder, file_count: 12, kind_counts: { document: 12 } }}
         {...baseFolderProps}
       />,
     );
-    expect(screen.getByText("12 items · Document")).toBeInTheDocument();
-    expect(screen.queryByText(/Document 12/)).toBeNull();
+    expect(screen.getByText("12 items")).toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/Document|·/);
   });
 
-  it("names the two largest kinds and stops", () => {
-    render(
+  it("SPEC-CORE-122: a folder of many kinds still shows the count alone", () => {
+    const { container } = render(
       <FolderCard
         folder={{
           ...mixedFolder,
@@ -62,20 +63,33 @@ describe("FolderCard", () => {
         {...baseFolderProps}
       />,
     );
-    expect(screen.getByText("20 items · Video 10 · Document 6")).toBeInTheDocument();
-    expect(screen.queryByText(/Image/)).toBeNull();
-    expect(screen.queryByText(/Audio/)).toBeNull();
+    expect(screen.getByText("20 items")).toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/Video|Document|Image|Audio|·/);
   });
 
-  it("gives the breakdown the card's full width, not the strip beside the glyph", () => {
+  it("SPEC-CORE-122: the count line spans the card under the glyph row", () => {
     const { container } = render(
       <FolderCard folder={mixedFolder} {...baseFolderProps} />,
     );
-    const meta = screen.getByText("138 items · Video 135 · Document 3");
+    const meta = screen.getByText("138 items");
     const glyph = container.querySelector("svg")!;
     expect(meta.parentElement!.contains(glyph)).toBe(true);
     const glyphRow = glyph.parentElement!.parentElement!;
     expect(glyphRow.contains(meta)).toBe(false);
+  });
+
+  it("SPEC-CORE-122: the count alone is shown while the name is being edited", () => {
+    const { container } = render(
+      <FolderCard
+        folder={mixedFolder}
+        {...baseFolderProps}
+        isEditing
+        onRenameCommit={vi.fn().mockResolvedValue(undefined)}
+        onRenameCancel={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("138 items")).toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/Video|Document|·/);
   });
 
   it("says only the count for a folder with nothing in it", () => {

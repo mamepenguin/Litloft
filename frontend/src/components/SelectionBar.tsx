@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ComponentType } from "react";
+import { useEffect, useRef, useState, type ComponentType } from "react";
 import { flushSync } from "react-dom";
 import {
   Check,
@@ -17,7 +17,16 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-import { batchDelete, batchGetFiles, batchMove, batchPurge, batchRestore, batchTag } from "@/lib/api";
+import {
+  batchDelete,
+  batchGetFiles,
+  batchMove,
+  batchPurge,
+  batchRestore,
+  batchTag,
+  type RequestOptions,
+} from "@/lib/api";
+import { runChunked, type BatchAnswer } from "@/lib/batchChunks";
 import { useImeKeyGuard } from "@/lib/ime";
 import { ActionMenuItem } from "./ActionMenuItem";
 import { BatchRenameDialog } from "./BatchRenameDialog";
@@ -58,6 +67,10 @@ interface SelectionBarProps {
   onClear: () => void;
   /** `removed` is true when the files left the drive's listing (trash or purge). */
   onComplete: (removed?: boolean) => void;
+  /** Held when a batch run ends partial or stopped: the failed and unconfirmed ids. */
+  onSelectOnly?: (ids: string[]) => void;
+  /** The ids a batch run processed; the parent drops their rows. */
+  onProcessed?: (ids: string[]) => void;
 }
 
 /** The server accepts at most 100 ids per batch. */
@@ -94,6 +107,8 @@ export function SelectionBar({
   onSelectAll,
   onClear,
   onComplete,
+  onSelectOnly,
+  onProcessed,
 }: SelectionBarProps) {
   const t = useTranslations("selection");
   const tf = useTranslations("file");
@@ -114,6 +129,17 @@ export function SelectionBar({
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLButtonElement>(null);
 
+  const [running, setRunning] = useState(false);
+  const [progressDone, setProgressDone] = useState(0);
+  const [progressTotal, setProgressTotal] = useState(0);
+  const [outcome, setOutcome] = useState<{ text: string; retryLine: string | null } | null>(null);
+  const [retryArmed, setRetryArmed] = useState(false);
+  const [runIsRetry, setRunIsRetry] = useState(false);
+  const runningRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => () => abortRef.current?.abort(), []);
+
   if (count === 0) return null;
 
   const ids = Array.from(selectedIds);
@@ -130,25 +156,78 @@ export function SelectionBar({
   }
 
   async function handleBatchPurge() {
-    try {
-      await batchPurge(ids);
-      setPurgeOpen(false);
-      onClear();
-      onComplete(true);
-    } catch {
-      // keep dialog open
-    }
+    await runBatch(
+      (chunk, options) => batchPurge(chunk, options),
+      () => setPurgeOpen(false),
+    );
   }
 
   async function handleBatchDelete() {
-    try {
-      await batchDelete(ids);
-      setDeleteOpen(false);
-      onClear();
+    await runBatch(
+      (chunk, options) => batchDelete(chunk, options),
+      () => setDeleteOpen(false),
+    );
+  }
+
+  type BatchRequest = (chunk: string[], options: RequestOptions) => Promise<BatchAnswer>;
+
+  async function runBatch(send: BatchRequest, close: () => void) {
+    // A second confirm while one run is in flight must not send its chunks.
+    if (runningRef.current) return;
+    runningRef.current = true;
+    const runIds = ids;
+    const retryRun = retryArmed;
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setRunning(true);
+    setRunIsRetry(retryRun);
+    setOutcome(null);
+    setProgressDone(0);
+    setProgressTotal(runIds.length);
+
+    const result = await runChunked(
+      runIds,
+      (chunk, signal) => send(chunk, { signal }),
+      { onProgress: setProgressDone, signal: controller.signal },
+    );
+
+    runningRef.current = false;
+    abortRef.current = null;
+    // Unmounted: the selection store and the parent's list are what is left,
+    // and they are not ours to write after this component is gone.
+    if (controller.signal.aborted) return;
+    setRunning(false);
+
+    const processedSet = new Set(result.processed);
+    const kept = runIds.filter((id) => !processedSet.has(id));
+    if (result.stopped || result.failed.length > 0) {
+      onSelectOnly?.(kept);
+      onProcessed?.(result.processed);
+      setRetryArmed(true);
+      setOutcome({
+        text: result.stopped
+          ? t("stopped", { done: result.processed.length, remaining: kept.length })
+          : t("partial", { done: result.processed.length, failed: result.failed.length }),
+        retryLine: retryRun ? t("retryNote") : null,
+      });
       onComplete(true);
-    } catch {
-      // keep dialog open
+      return;
     }
+
+    setOutcome(null);
+    setRetryArmed(false);
+    setRunIsRetry(false);
+    close();
+    onClear();
+    onComplete(true);
+  }
+
+  function dismiss(close: () => void) {
+    if (runningRef.current) return;
+    close();
+    setOutcome(null);
+    setRetryArmed(false);
+    setRunIsRetry(false);
   }
 
   async function handleBatchMove(path: string) {
@@ -356,6 +435,29 @@ export function SelectionBar({
       </DismissScrim>
     ) : null;
 
+  function runLabels(normalMessage: string, normalLabel: string) {
+    const retrying = retryArmed || (running && runIsRetry);
+    return {
+      busy: running,
+      progress: running
+        ? t("progress", { done: progressDone, total: progressTotal })
+        : undefined,
+      error: outcome?.retryLine ?? undefined,
+      message: outcome
+        ? outcome.text
+        : retrying
+          ? t("retryMessage", { remaining: count })
+          : normalMessage,
+      confirmLabel: retrying ? t("processRemaining") : normalLabel,
+    };
+  }
+
+  const deleteRun = runLabels(
+    tt("batchConfirmMoveToTrash", { count }),
+    tt("moveToTrash"),
+  );
+  const purgeRun = runLabels(tt("batchPurgeMessage", { count }), tt("purge"));
+
   return (
     <>
       <div
@@ -381,7 +483,8 @@ export function SelectionBar({
               {!allSelected && (
                 <button
                   onClick={onSelectAll}
-                  className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-accent transition-colors hover:bg-accent/10"
+                  disabled={running}
+                  className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-accent transition-colors enabled:hover:bg-accent/10 disabled:cursor-not-allowed disabled:text-warm-silver"
                 >
                   <Check size={12} />
                   {t("selectAll")}
@@ -390,7 +493,8 @@ export function SelectionBar({
 
               <button
                 onClick={() => flushSync(onClear)}
-                className="ml-auto rounded-2xl p-1.5 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+                disabled={running}
+                className="ml-auto rounded-2xl p-1.5 text-text-muted transition-colors enabled:hover:bg-bg-elevated enabled:hover:text-text-primary disabled:cursor-not-allowed disabled:text-warm-silver"
                 aria-label={t("deselect")}
               >
                 <X size={16} />
@@ -410,6 +514,7 @@ export function SelectionBar({
                         type="text"
                         autoFocus
                         value={tagInput}
+                        disabled={running}
                         onChange={(e) => setTagInput(e.target.value)}
                         onCompositionEnd={ime.onCompositionEnd}
                         onKeyDown={(e) => {
@@ -418,11 +523,16 @@ export function SelectionBar({
                           if (e.key === "Escape") setTagging(false);
                         }}
                         placeholder="tag1, tag2..."
-                        className="w-24 bg-transparent text-sm text-text-primary placeholder:text-text-muted/60 outline-none sm:w-36"
+                        className="w-24 bg-transparent text-sm text-text-primary placeholder:text-text-muted/60 outline-none disabled:cursor-not-allowed disabled:text-warm-silver sm:w-36"
                       />
                       {/* Not an accent fill. This bar floats over a folder,
                           whose Add button already holds the screen's one. */}
-                      <Button variant="secondary" size="sm" onClick={handleBatchTag}>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={handleBatchTag}
+                        disabled={running}
+                      >
                         {tc("apply")}
                       </Button>
                       <Button
@@ -430,6 +540,7 @@ export function SelectionBar({
                         variant="ghost"
                         aria-label={tc("cancel")}
                         onClick={() => setTagging(false)}
+                        disabled={running}
                       >
                         <X size={14} />
                       </Button>
@@ -441,6 +552,7 @@ export function SelectionBar({
                     key={action.id}
                     action={action}
                     keepDividerNarrow={groupSurvivesNarrow(actions, index)}
+                    disabled={running}
                   />
                 );
               })}
@@ -465,20 +577,26 @@ export function SelectionBar({
       <ConfirmDialog
         open={deleteOpen}
         title={tt("moveToTrash")}
-        message={tt("batchConfirmMoveToTrash", { count })}
-        confirmLabel={tt("moveToTrash")}
+        message={deleteRun.message}
+        confirmLabel={deleteRun.confirmLabel}
         note={tt("autoDelete")}
+        busy={deleteRun.busy}
+        progress={deleteRun.progress}
+        error={deleteRun.error}
         onConfirm={handleBatchDelete}
-        onCancel={() => setDeleteOpen(false)}
+        onCancel={() => dismiss(() => setDeleteOpen(false))}
       />
 
       <ConfirmDialog
         open={purgeOpen}
         title={tt("batchPurgeTitle")}
-        message={tt("batchPurgeMessage", { count })}
-        confirmLabel={tt("purge")}
+        message={purgeRun.message}
+        confirmLabel={purgeRun.confirmLabel}
+        busy={purgeRun.busy}
+        progress={purgeRun.progress}
+        error={purgeRun.error}
         onConfirm={handleBatchPurge}
-        onCancel={() => setPurgeOpen(false)}
+        onCancel={() => dismiss(() => setPurgeOpen(false))}
       />
 
       <MoveDialog
@@ -515,15 +633,22 @@ function visibility(action: BulkAction) {
 function ActionButton({
   action,
   keepDividerNarrow,
+  disabled,
 }: {
   action: BulkAction;
   keepDividerNarrow: boolean;
+  disabled: boolean;
 }) {
   const Icon = action.icon;
   const { className, "data-bar": bar } = visibility(action);
   const colorClass = action.danger
     ? "text-danger hover:bg-accent/10 active:bg-accent/15"
     : "text-text-muted hover:bg-bg-elevated hover:text-text-primary active:bg-bg-elevated";
+  // Only while running: a disabled control drops its enabled colour rather
+  // than fading, and the idle recipe must stay exactly as it is.
+  const disabledClass = disabled
+    ? "disabled:cursor-not-allowed disabled:text-warm-silver"
+    : "";
 
   return (
     <>
@@ -533,9 +658,10 @@ function ActionButton({
       <button
         data-bar={bar}
         onClick={action.onClick}
+        disabled={disabled}
         // `min-h-11` rather than a hit-area overhang: these sit shoulder to
         // shoulder, and adjacent pseudo-elements overlap, the later one winning.
-        className={`flex shrink-0 items-center gap-1.5 rounded-2xl px-3 py-2 text-sm transition-colors pointer-coarse:min-h-11 ${colorClass} ${className}`}
+        className={`flex shrink-0 items-center gap-1.5 rounded-2xl px-3 py-2 text-sm transition-colors pointer-coarse:min-h-11 ${colorClass} ${disabledClass} ${className}`}
         aria-label={action.label}
       >
         <Icon size={15} />

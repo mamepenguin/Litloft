@@ -1,0 +1,48 @@
+{
+  "risk": "HIGH",
+  "score": 6,
+  "base": 2,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "frontend/src/components/FolderBrowser.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/FolderBrowser.selectionFilter.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/folder/FolderContent.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/FolderContent.inlineRename.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/FolderContent.moreMayFollow.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/FolderContent.searchFilter.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/FolderContent.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/folderContentHarness.tsx",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}

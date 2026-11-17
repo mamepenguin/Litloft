@@ -13,6 +13,7 @@ import { FolderTree, Trash2 } from "lucide-react";
 
 import { NextIntlClientProvider } from "next-intl";
 
+import { ActionMenuItem } from "@/components/ActionMenuItem";
 import { AddButton } from "@/components/AddButton";
 import { Button } from "@/components/Button";
 import { ChromeButtons } from "@/components/ChromeButtons";
@@ -112,6 +113,7 @@ import { ClipsRowArrangement } from "./clipsRow";
 import { NotesAllClipsToggleArrangement } from "./notesAllClipsToggle";
 import { READING_ARRANGEMENTS } from "./readingTextSize";
 import { NAME_IN_USE_ARRANGEMENTS } from "./nameInUse";
+import { BATCH_PROGRESS_ARRANGEMENTS } from "./batchProgress";
 import {
   InspectorPdfArrangement,
   InspectorVideoArrangement,
@@ -127,6 +129,8 @@ import {
   notifyNavigationCommit,
 } from "@/lib/viewTransitions";
 
+import { DrivesSection } from "@/app/admin/settings/DrivesSection";
+import { PasswordsSection } from "@/app/admin/settings/PasswordsSection";
 import "../../e2e-layout/fixtures/globals.built.css";
 
 // The fixture has no server: only the image-search availability gate is
@@ -137,6 +141,14 @@ window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
   const url =
     typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
   const method = (init?.method ?? "GET").toUpperCase();
+  if (url.endsWith("/api/admin/config/drives")) {
+    return Promise.resolve(
+      jsonResponse([{ name: "Household Archive", path: "/mnt/archive", access_group: "family" }]),
+    );
+  }
+  if (url.endsWith("/api/admin/config/passwords")) {
+    return Promise.resolve(jsonResponse([{ password: "secret", groups: ["family"] }]));
+  }
   if (url.includes("/api/drives/fixture/smart-folders")) {
     return Promise.resolve(jsonResponse(FIXTURE_SMART_FOLDERS));
   }
@@ -996,19 +1008,60 @@ function SheetUnderSidebar(): ReactElement {
  * The Add menu with the shortcut stack it answers Escape through. The page
  * control fills the lower half, so a press outside the menu lands on it.
  */
-function AddMenu(): ReactElement {
+function AddMenuArrangement({
+  locale,
+  edge,
+}: {
+  locale: "en" | "ja";
+  edge: "left" | "right";
+}): ReactElement {
   const [created, setCreated] = useState(0);
   return (
-    <NextIntlClientProvider locale="en" messages={enMessages}>
+    <NextIntlClientProvider locale={locale} messages={locale === "ja" ? jaMessages : enMessages}>
       <ShortcutsProvider>
         <PageControl id="underneath" className="fixed inset-x-0 bottom-0 z-0 h-1/2 bg-bg-elevated">
           page
         </PageControl>
-        <div className="p-4" data-created={created} id="add-host">
-          <AddButton onCreateFolder={() => setCreated((n) => n + 1)} />
+        <div
+          className={`flex p-4 ${edge === "right" ? "justify-end" : ""}`}
+          data-created={created}
+          id="add-host"
+        >
+          <AddButton
+            align={edge === "right" ? "right" : "left"}
+            onCreateFolder={() => setCreated((n) => n + 1)}
+          />
         </div>
       </ShortcutsProvider>
     </NextIntlClientProvider>
+  );
+}
+
+function AddMenu(): ReactElement {
+  return <AddMenuArrangement locale="en" edge="left" />;
+}
+
+function AddMenuJa(): ReactElement {
+  return <AddMenuArrangement locale="ja" edge="left" />;
+}
+
+function AddMenuRight(): ReactElement {
+  return <AddMenuArrangement locale="en" edge="right" />;
+}
+
+function AddMenuJaRight(): ReactElement {
+  return <AddMenuArrangement locale="ja" edge="right" />;
+}
+
+function ActionMenuItemLongLabel(): ReactElement {
+  return (
+    <div className="w-40" role="menu">
+      <ActionMenuItem
+        icon={FolderTree}
+        label="Create descriptions for every image in this drive"
+        onClick={() => {}}
+      />
+    </div>
   );
 }
 
@@ -2511,6 +2564,17 @@ function PageHeaderTitleActions(): ReactElement {
   );
 }
 
+function AdminSettingsRows(): ReactElement {
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <div className="flex flex-col gap-6 p-4">
+        <DrivesSection />
+        <PasswordsSection />
+      </div>
+    </NextIntlClientProvider>
+  );
+}
+
 /** A drive name with no spaces anywhere, 80 characters long. */
 const LONG_DRIVE_NAME =
   "HouseholdArchiveFromTheOldLaptopBeforeItWasHandedDownToMySisterAndWasResetIn2019";
@@ -2526,6 +2590,49 @@ function DriveUnavailableArrangement(): ReactElement {
   );
 }
 
+function PageHeaderTitleMediumActions(): ReactElement {
+  return (
+    <PageHeaderActionsArrangement
+      header={
+        <PageHeader
+          title="Dashboard"
+          actions={
+            <>
+              <button type="button" className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm">
+                <FolderTree size={16} />
+                Markdown images
+              </button>
+              <button type="button" className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm">
+                <FolderTree size={16} />
+                Settings
+              </button>
+            </>
+          }
+        />
+      }
+    />
+  );
+}
+
+function PageHeaderTitleShortAction(): ReactElement {
+  return (
+    <PageHeaderActionsArrangement
+      header={
+        <PageHeader
+          titleIcon={FolderTree}
+          title="Reading"
+          scope="12 items"
+          actions={
+            <button type="button" className="rounded-lg px-3 py-1.5 text-sm">
+              Add
+            </button>
+          }
+        />
+      }
+    />
+  );
+}
+
 function DriveUnavailableLongArrangement(): ReactElement {
   return (
     <NextIntlClientProvider locale="en" messages={enMessages}>
@@ -2538,6 +2645,9 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "page-header-trail-actions": PageHeaderTrailActions,
   "page-header-title-field-actions": PageHeaderTitleFieldActions,
   "page-header-title-actions": PageHeaderTitleActions,
+  "page-header-title-medium-actions": PageHeaderTitleMediumActions,
+  "page-header-title-short-action": PageHeaderTitleShortAction,
+  "admin-settings-rows": AdminSettingsRows,
   "chrome-buttons": ChromeButtonsArrangement,
   "folder-listing-header-deep": FolderListingHeaderArrangement,
   "folder-listing-header-shallow": FolderListingHeaderShallowArrangement,
@@ -2586,6 +2696,10 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "measured-tree-pane": TreePaneColumn,
   "measured-picker-in-dialog": PickerInDialog,
   "add-menu": AddMenu,
+  "add-menu-ja": AddMenuJa,
+  "add-menu-right": AddMenuRight,
+  "add-menu-ja-right": AddMenuJaRight,
+  "action-menu-item-long-label": ActionMenuItemLongLabel,
   "condition-menu": ConditionMenuArrangement,
   "search-results-bar-files": SearchResultsBarFiles,
   "search-results-bar-files-type": SearchResultsBarFilesType,
@@ -2680,6 +2794,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "drive-unavailable-long": DriveUnavailableLongArrangement,
   ...READING_ARRANGEMENTS,
   ...NAME_IN_USE_ARRANGEMENTS,
+  ...BATCH_PROGRESS_ARRANGEMENTS,
 };
 
 function App(): ReactElement {

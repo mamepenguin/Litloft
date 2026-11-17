@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "keeponly-wipes-selection-on-list-reload",
+      "status": "confirmed",
+      "note": "I traced this through the code; I could not run it. FolderBrowser.tsx:618-620 runs keepOnly(visibleFileIds) whenever visibleFileIds changes and nameFilter.isActive is true. visibleFileIds (FolderBrowser.tsx:188-191) is built from nameFilter.files, and nameFilter.files is a memo over files and debouncedText (useFolderFilter.ts:47-53). isActive depends only on debouncedText (useFolderFilter.ts:64), so it stays true through a reload. Every refresh() bumps refreshKey (FolderBrowser.tsx:125). This includes the refreshes after an upload (l.129), after loft-move-complete (l.146), after a paste (l.377) and from SelectionBar onComplete (l.975). A websocket STRUCTURE event has the same effect. Each of these reaches useFolderFiles.ts:809-819, which calls reset() for any non-watch-history view. reset() calls setItems([]) synchronously (useInfiniteScroll.ts:120-131), while the replacement page arrives later from an async fetch (useInfiniteScroll.ts:85). So React commits a render where files=[]: for a plain folder, files is paginatedFiles (useFolderFiles.ts:750/756). In that render visibleFileIds=[], and keepOnly([]) empties the selection and nulls the anchor (useSelection.ts:59-68). The partial/stopped batch path does what the finding says. SelectionBar.tsx:203-213 calls onSelectOnly(kept) and then onComplete(true). clearedSelectionRef is empty on that path, so onlyContinuation is false and refresh() runs (FolderBrowser.tsx:969-975). The reload then wipes the kept failed ids that the retry depends on, and SelectionBar returns null because count===0 (SelectionBar.tsx:143). Without an active name filter nothing prunes the selection on reload, so the commit's new effect introduced this. Even ignoring the empty transient frame, the reload brings back only page 1 (limit 30, useInfiniteScroll.ts:47,154), so a selected id from a later page that matches the filter is still dropped. The test FolderBrowser.selectionFilter.test.tsx mocks reset as vi.fn() (l.125) and has no reload case."
+    }
+  ],
+  "specification_compliance": [
+    "The commit's stated aim is to drop selected files that the name filter comes to hide. The effect does that, but it also fires on list reloads that hide nothing, so it removes selections the filter never hid."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "While the name filter is active, any refresh clears the whole selection and the Shift anchor. That covers an upload completing, a move completing in another pane, a paste, a websocket structure event, and a sort, type or folder key change.",
+    "After a partial or stopped batch delete or purge with the filter active, the remaining ids meant for retry are wiped and the SelectionBar unmounts along with its outcome message and retry state."
+  ],
+  "regression_risks": [
+    "Before this commit a reload left the selection alone; now it does not when a name filter is active, and nothing tells the user it happened."
+  ],
+  "test_coverage": [
+    "FolderBrowser.selectionFilter.test.tsx covers Select all, Shift ranges, filter-driven pruning and a hidden anchor. It mocks reset as vi.fn() and has no case where files are reloaded or briefly emptied while the filter is active."
+  ],
+  "not_verified": [
+    "I did not run the tests or reproduce the behaviour in a browser; this is a static trace of how React commits renders.",
+    "I did not inspect search-mode or watch-history paths in detail (fetchRecentFiles does not call reset).",
+    "I did not run git diff, so 'introduced' rests on the commit message and on finding no other pruning path."
+  ],
+  "confidence": 88
+}

@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "No findings were given to verify, so there was nothing to check against the code."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [],
+  "test_coverage": [
+    "Not examined. No findings were listed, so I did not inspect the tests."
+  ],
+  "not_verified": [
+    "I did not read the diff or any source at commit 0297787f4 because there were no findings to verify.",
+    "I did not look for defects that no reader had listed."
+  ],
+  "confidence": 75
+}

@@ -689,6 +689,8 @@ with a **border in the accent colour**, never a fill.
   byline is 14/20 muted, one truncated line, 4px under the title.**
 - **A text file's stand-in thumbnail** — its title over a shrunken cast of the
   body — is sized by the media box, not by the name rule.
+- **A folder card's second line is the item count alone** (「13件」, "13 items"),
+  with no kind names.
 - `line-clamp-*` needs `display: -webkit-box`; any other `display` utility on the
   same element silently cancels the clamp.
 
