@@ -999,6 +999,29 @@ test("SPEC-CORE-129 §3 / I10: the pointer leaving a revealed header hides it at
   await expectFocusLayout(page);
 });
 
+test("SPEC-CORE-129 §3 / I10: the pointer leaving a revealed header for a document frame (EPUB, HTML) hides it", async ({
+  page,
+}) => {
+  await open(page);
+  await ready(page);
+  await enterByButton(page);
+  await revealByPointer(page);
+  await header(page).getByRole("button", { name: "Quick note" }).hover();
+  // A viewer frame under the header, as an EPUB or HTML file draws from the
+  // canvas top; pointer events inside it never reach the app's document.
+  await page.evaluate(() => {
+    const frame = document.createElement("iframe");
+    frame.srcdoc = "<body style='margin:0;height:100vh'></body>";
+    frame.style.cssText = "position:fixed;inset:0;width:100%;height:100%;border:0;z-index:24";
+    document.body.appendChild(frame);
+  });
+  expect(
+    await page.evaluate(() => document.elementFromPoint(window.innerWidth / 2, 400)?.tagName),
+  ).toBe("IFRAME");
+  await moveAway(page);
+  await expectFocusLayout(page);
+});
+
 test("SPEC-CORE-129 §3 / I10: an open header menu holds the revealed header", async ({ page }) => {
   await open(page);
   await ready(page);

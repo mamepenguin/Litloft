@@ -233,8 +233,14 @@ export function AppShell({ children }: { children: ReactNode }) {
       pointerAt.current = null;
       scheduleHide();
     };
+    // A pointer that moves into a document frame stops reporting to this
+    // document, so its last position here would hold the header forever.
+    const handleOut = (event: PointerEvent) => {
+      if (event.relatedTarget instanceof HTMLIFrameElement) handleLeave();
+    };
     document.addEventListener("pointermove", evaluate, { passive: true });
     document.addEventListener("pointerleave", handleLeave);
+    document.addEventListener("pointerout", handleOut);
     document.addEventListener("focusin", evaluate);
     document.addEventListener("focusout", evaluate);
     const header = headerElement();
@@ -252,6 +258,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     return () => {
       document.removeEventListener("pointermove", evaluate);
       document.removeEventListener("pointerleave", handleLeave);
+      document.removeEventListener("pointerout", handleOut);
       document.removeEventListener("focusin", evaluate);
       document.removeEventListener("focusout", evaluate);
       observer?.disconnect();
